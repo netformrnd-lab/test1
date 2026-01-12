@@ -1,0 +1,2153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>넷폼알앤디 전사 KPI 대시보드 | 2026</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --bg-input: #f8fafc;
+            --border: #e2e8f0;
+            --border-light: #cbd5e1;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-blue-light: #60a5fa;
+            --accent-cyan: #06b6d4;
+            --accent-green: #22c55e;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-orange: #f97316;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        body.dark-mode {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --bg-input: #0f172a;
+            --border: #334155;
+            --border-light: #475569;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-inner {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 12px;
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .logo-text h1 {
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-text span {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .year-badge {
+            background: linear-gradient(135deg, #3b82f6, #06b6d4);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .header-btn {
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .header-btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .header-btn.primary {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        /* Main Layout */
+        .main-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 24px 32px;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 24px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(6,182,212,0.08));
+        }
+
+        .sidebar-header h2 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dept-list {
+            padding: 12px;
+        }
+
+        .dept-item {
+            border-radius: 10px;
+            margin-bottom: 4px;
+            overflow: hidden;
+        }
+
+        .dept-header {
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 10px;
+        }
+
+        .dept-header:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .dept-header.active {
+            background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(6,182,212,0.08));
+        }
+
+        .dept-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dept-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+        }
+
+        .dept-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .dept-progress {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--bg-input);
+            margin-right: 6px;
+        }
+
+        .dept-arrow {
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: transform 0.3s;
+        }
+
+        .dept-header.expanded .dept-arrow {
+            transform: rotate(180deg);
+        }
+
+        .sub-dept-list {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .sub-dept-list.expanded {
+            max-height: 500px;
+        }
+
+        .sub-dept-item {
+            padding: 10px 14px 10px 56px;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+
+        .sub-dept-item:hover {
+            background: var(--bg-card-hover);
+            color: var(--accent-blue);
+        }
+
+        .sub-dept-item.active {
+            background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(6,182,212,0.04));
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .sub-dept-progress {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: var(--bg-input);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Company Vision Banner */
+        .vision-banner {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #06b6d4 100%);
+            border-radius: 20px;
+            padding: 32px 40px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .vision-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+
+        .vision-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .vision-year {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .vision-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .vision-subtitle {
+            font-size: 18px;
+            font-weight: 600;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .vision-highlight {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        /* KPI Goals Section */
+        .kpi-goals-section {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 17px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .kpi-goals-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .kpi-goal-card {
+            background: var(--bg-input);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid;
+            transition: all 0.2s;
+        }
+
+        .kpi-goal-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .kpi-goal-card.sales { border-left-color: #3b82f6; }
+        .kpi-goal-card.design { border-left-color: #8b5cf6; }
+        .kpi-goal-card.mgmt { border-left-color: #f59e0b; }
+        .kpi-goal-card.brand { border-left-color: #ec4899; }
+        .kpi-goal-card.commerce { border-left-color: #06b6d4; }
+        .kpi-goal-card.rnd { border-left-color: #22c55e; }
+
+        .kpi-goal-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .kpi-goal-icon {
+            font-size: 20px;
+        }
+
+        .kpi-goal-dept {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .kpi-goal-text {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            min-height: 45px;
+        }
+
+        .kpi-goal-progress {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .kpi-goal-progress-value {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .kpi-goal-progress-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin-left: 12px;
+            overflow: hidden;
+        }
+
+        .kpi-goal-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 24px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--bg-input);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Chart Section */
+        .chart-section {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 24px;
+        }
+
+        .chart-container {
+            height: 280px;
+        }
+
+        /* Department Detail View */
+        .page-view {
+            display: none;
+        }
+
+        .page-view.active {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            animation: fadeInUp 0.4s ease;
+        }
+
+        /* Department KPI Goal Banner */
+        .dept-goal-banner {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dept-goal-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 6px;
+            height: 100%;
+        }
+
+        .dept-goal-banner.sales::before { background: linear-gradient(180deg, #3b82f6, #1d4ed8); }
+        .dept-goal-banner.design::before { background: linear-gradient(180deg, #8b5cf6, #6d28d9); }
+        .dept-goal-banner.mgmt::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
+        .dept-goal-banner.brand::before { background: linear-gradient(180deg, #ec4899, #db2777); }
+        .dept-goal-banner.commerce::before { background: linear-gradient(180deg, #06b6d4, #0891b2); }
+        .dept-goal-banner.rnd::before { background: linear-gradient(180deg, #22c55e, #16a34a); }
+
+        .dept-goal-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dept-goal-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .dept-goal-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .dept-goal-icon.sales { background: rgba(59,130,246,0.15); }
+        .dept-goal-icon.design { background: rgba(139,92,246,0.15); }
+        .dept-goal-icon.mgmt { background: rgba(245,158,11,0.15); }
+        .dept-goal-icon.brand { background: rgba(236,72,153,0.15); }
+        .dept-goal-icon.commerce { background: rgba(6,182,212,0.15); }
+        .dept-goal-icon.rnd { background: rgba(34,197,94,0.15); }
+
+        .dept-goal-info h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .dept-goal-info .leader {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .dept-goal-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            background: rgba(59,130,246,0.1);
+            padding: 8px 16px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .dept-goal-stats {
+            display: flex;
+            gap: 32px;
+        }
+
+        .dept-goal-stat {
+            text-align: center;
+        }
+
+        .dept-goal-stat-value {
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .dept-goal-stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Sub Department Tabs */
+        .sub-dept-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .sub-dept-tab {
+            padding: 10px 20px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sub-dept-tab:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .sub-dept-tab.active {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        /* Member Section */
+        .member-section {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 24px;
+        }
+
+        .member-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .member-card {
+            background: var(--bg-input);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .member-card:hover {
+            transform: translateX(4px);
+            box-shadow: var(--shadow-sm);
+            border-color: var(--accent-blue);
+        }
+
+        .member-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .member-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .member-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .member-role {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .member-progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .member-progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .member-stats {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .member-progress-value {
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .member-task-count {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .member-arrow {
+            font-size: 16px;
+            color: var(--text-muted);
+            margin-left: 8px;
+        }
+
+        /* Task Section */
+        .task-section {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 24px;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .add-task-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .add-task-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .task-input-area {
+            background: var(--bg-input);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 2px dashed var(--border);
+            display: none;
+        }
+
+        .task-input-area.show {
+            display: block;
+            animation: fadeInUp 0.3s ease;
+        }
+
+        .task-input-row {
+            display: grid;
+            grid-template-columns: 1fr 150px 120px auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .task-input {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .task-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .assignee-select, .progress-select {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            font-size: 13px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .task-input-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .task-save-btn {
+            padding: 12px 20px;
+            background: var(--accent-green);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .task-cancel-btn {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-item {
+            background: var(--bg-input);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: grid;
+            grid-template-columns: 1fr 150px 120px 80px;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.2s;
+        }
+
+        .task-item:hover {
+            box-shadow: var(--shadow-sm);
+        }
+
+        .task-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .task-delete {
+            padding: 8px 12px;
+            background: rgba(239,68,68,0.1);
+            color: var(--accent-red);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .task-delete:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        /* Member Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            animation: slideIn 0.3s ease;
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .modal-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .modal-info h3 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .modal-info span {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .modal-close {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--accent-red);
+            color: white;
+            border-color: var(--accent-red);
+        }
+
+        .modal-stats {
+            display: flex;
+            gap: 24px;
+            padding: 20px 24px;
+            background: var(--bg-input);
+        }
+
+        .modal-stat {
+            text-align: center;
+            flex: 1;
+        }
+
+        .modal-stat-value {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .modal-stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .modal-body {
+            padding: 24px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .modal-task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-task-item {
+            background: var(--bg-input);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-task-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .modal-task-dept {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .modal-task-progress {
+            font-size: 16px;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+        }
+
+        /* Progress Colors */
+        .progress-0 { color: var(--text-muted); }
+        .progress-10, .progress-20 { color: var(--accent-red); }
+        .progress-30, .progress-40 { color: var(--accent-orange); }
+        .progress-50, .progress-60 { color: var(--accent-yellow); }
+        .progress-70, .progress-80 { color: var(--accent-blue); }
+        .progress-90, .progress-100 { color: var(--accent-green); }
+
+        .bg-progress-0 { background: var(--text-muted); }
+        .bg-progress-10, .bg-progress-20 { background: var(--accent-red); }
+        .bg-progress-30, .bg-progress-40 { background: var(--accent-orange); }
+        .bg-progress-50, .bg-progress-60 { background: var(--accent-yellow); }
+        .bg-progress-70, .bg-progress-80 { background: var(--accent-blue); }
+        .bg-progress-90, .bg-progress-100 { background: var(--accent-green); }
+
+        /* Avatar/Icon Colors */
+        .avatar-blue, .icon-sales { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .avatar-purple, .icon-design { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        .avatar-orange, .icon-mgmt { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .avatar-pink, .icon-brand { background: linear-gradient(135deg, #ec4899, #db2777); }
+        .avatar-cyan, .icon-commerce { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+        .avatar-green, .icon-rnd { background: linear-gradient(135deg, #22c55e, #16a34a); }
+
+        .bg-icon-sales { background: rgba(59,130,246,0.15); }
+        .bg-icon-design { background: rgba(139,92,246,0.15); }
+        .bg-icon-mgmt { background: rgba(245,158,11,0.15); }
+        .bg-icon-brand { background: rgba(236,72,153,0.15); }
+        .bg-icon-commerce { background: rgba(6,182,212,0.15); }
+        .bg-icon-rnd { background: rgba(34,197,94,0.15); }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, var(--accent-green), #16a34a);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            box-shadow: var(--shadow-lg);
+            display: none;
+            z-index: 1001;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                position: relative;
+                top: 0;
+            }
+            .kpi-goals-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-inner {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .kpi-goals-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .task-item, .task-input-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .member-grid {
+                grid-template-columns: 1fr;
+            }
+            .dept-goal-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+            .dept-goal-stats {
+                width: 100%;
+                justify-content: space-around;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo-section" onclick="showMainView()">
+                <div class="logo-icon">POUR</div>
+                <div class="logo-text">
+                    <h1>넷폼알앤디 전사 KPI 대시보드</h1>
+                    <span>NETFORM R&D Company-wide KPI Management</span>
+                </div>
+            </div>
+            <div class="header-meta">
+                <div class="year-badge">2026</div>
+                <div class="live-indicator">
+                    <span class="live-dot"></span>
+                    실시간 동기화
+                </div>
+                <span class="current-date" id="currentDate"></span>
+            </div>
+            <div class="header-actions">
+                <button class="header-btn" onclick="toggleDarkMode()">🌙 다크모드</button>
+                <button class="header-btn" onclick="exportData()">📤 내보내기</button>
+                <button class="header-btn primary" onclick="saveAllData()">💾 저장</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>🏢 부서별 현황</h2>
+            </div>
+            <div class="dept-list" id="deptList">
+                <!-- 동적 생성 -->
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Main View -->
+            <div class="page-view active" id="mainView">
+                <!-- Company Vision Banner -->
+                <section class="vision-banner">
+                    <div class="vision-content">
+                        <span class="vision-year">🎯 2026 NETFORM R&D</span>
+                        <h1 class="vision-title">본질을 측정 & 관리하며 2배 성장</h1>
+                        <div class="vision-subtitle">
+                            <span class="vision-highlight">🤖 자동화</span>
+                            <span class="vision-highlight">🧠 AI 활용</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Department KPI Goals -->
+                <section class="kpi-goals-section">
+                    <div class="section-header">
+                        <h2 class="section-title">🎯 부서별 KPI 목표</h2>
+                    </div>
+                    <div class="kpi-goals-grid" id="kpiGoalsGrid">
+                        <!-- 동적 생성 -->
+                    </div>
+                </section>
+
+                <!-- Stats Overview -->
+                <section class="stats-section">
+                    <div class="section-header">
+                        <h2 class="section-title">📊 전사 KPI 현황</h2>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="totalProgress" style="color: var(--accent-blue);">0%</div>
+                            <div class="stat-label">전사 평균 진척률</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="totalTasks" style="color: var(--accent-purple);">0</div>
+                            <div class="stat-label">총 업무 수</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="completedTasks" style="color: var(--accent-green);">0</div>
+                            <div class="stat-label">완료된 업무</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="totalMembers" style="color: var(--accent-cyan);">0</div>
+                            <div class="stat-label">참여 인원</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Chart -->
+                <section class="chart-section">
+                    <div class="section-header">
+                        <h2 class="section-title">📈 부서별 진척률 비교</h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="deptChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Department Detail View -->
+            <div class="page-view" id="deptDetailView">
+                <!-- Department Goal Banner -->
+                <section class="dept-goal-banner" id="deptGoalBanner">
+                    <div class="dept-goal-content">
+                        <div class="dept-goal-left">
+                            <div class="dept-goal-icon" id="deptGoalIcon">💼</div>
+                            <div class="dept-goal-info">
+                                <h2 id="deptGoalName">부서명</h2>
+                                <p class="leader" id="deptGoalLeader">팀장명</p>
+                                <div class="dept-goal-text" id="deptGoalText">🔥 아자아자 화이팅!</div>
+                            </div>
+                        </div>
+                        <div class="dept-goal-stats">
+                            <div class="dept-goal-stat">
+                                <div class="dept-goal-stat-value" id="deptDetailProgress">0%</div>
+                                <div class="dept-goal-stat-label">팀 진척률</div>
+                            </div>
+                            <div class="dept-goal-stat">
+                                <div class="dept-goal-stat-value" id="deptDetailTasks">0</div>
+                                <div class="dept-goal-stat-label">업무 수</div>
+                            </div>
+                            <div class="dept-goal-stat">
+                                <div class="dept-goal-stat-value" id="deptDetailMembers">0</div>
+                                <div class="dept-goal-stat-label">팀원 수</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sub Department Tabs -->
+                <div class="sub-dept-tabs" id="subDeptTabs">
+                    <!-- 동적 생성 -->
+                </div>
+
+                <!-- Member Progress -->
+                <section class="member-section">
+                    <div class="section-header">
+                        <h2 class="section-title">👥 팀원별 진척률</h2>
+                        <span style="font-size: 13px; color: var(--text-muted);">클릭하면 담당 업무를 확인할 수 있습니다</span>
+                    </div>
+                    <div class="member-grid" id="memberGrid">
+                        <!-- 동적 생성 -->
+                    </div>
+                </section>
+
+                <!-- Task Section -->
+                <section class="task-section">
+                    <div class="task-header">
+                        <h2 class="section-title">📋 업무 목록</h2>
+                        <button class="add-task-btn" onclick="showTaskInput()">➕ 업무 추가</button>
+                    </div>
+
+                    <div class="task-input-area" id="taskInputArea">
+                        <div class="task-input-row">
+                            <input type="text" class="task-input" id="newTaskName" placeholder="업무명을 입력하세요 (예: 신제품 내재화)">
+                            <select class="assignee-select" id="newTaskAssignee">
+                                <option value="">담당자 선택</option>
+                            </select>
+                            <select class="progress-select" id="newTaskProgress">
+                                <option value="0">0%</option>
+                                <option value="10">10%</option>
+                                <option value="20">20%</option>
+                                <option value="30">30%</option>
+                                <option value="40">40%</option>
+                                <option value="50">50%</option>
+                                <option value="60">60%</option>
+                                <option value="70">70%</option>
+                                <option value="80">80%</option>
+                                <option value="90">90%</option>
+                                <option value="100">100%</option>
+                            </select>
+                            <div class="task-input-btns">
+                                <button class="task-save-btn" onclick="addTask()">등록</button>
+                                <button class="task-cancel-btn" onclick="hideTaskInput()">취소</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="task-list" id="taskList">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <h3>등록된 업무가 없습니다</h3>
+                            <p>위의 '업무 추가' 버튼을 클릭하여 새 업무를 등록하세요</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Member Modal -->
+    <div class="modal-overlay" id="memberModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <div class="modal-avatar" id="modalAvatar">신명</div>
+                    <div class="modal-info">
+                        <h3 id="modalName">담당자명</h3>
+                        <span id="modalDept">소속 부서</span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeMemberModal()">✕</button>
+            </div>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-value" id="modalProgress">0%</div>
+                    <div class="modal-stat-label">평균 진척률</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value" id="modalTaskCount">0</div>
+                    <div class="modal-stat-label">담당 업무</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value" id="modalCompleted">0</div>
+                    <div class="modal-stat-label">완료</div>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="modal-task-list" id="modalTaskList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">✅ 저장되었습니다!</div>
+
+    <script>
+        // 조직 데이터
+        const organizationData = {
+            departments: [
+                {
+                    id: 'sales',
+                    name: '영업본부',
+                    icon: '💼',
+                    colorClass: 'sales',
+                    avatarClass: 'avatar-blue',
+                    leader: '황윤선 상무이사',
+                    kpiGoal: '🔥 아자아자 화이팅!',
+                    subDepts: [
+                        { id: 'sales_1', name: '서비스운영 1팀', members: ['한준엽 리드매니저', '조재연 매니저', '정영훈 매니저', '김성만 매니저', '현지혜 매니저'] },
+                        { id: 'sales_2', name: '서비스운영 2팀', members: ['권정아 리드매니저', '김수진 매니저'] },
+                        { id: 'sales_3', name: '서비스운영 3팀', members: ['추형진 리드매니저', '송보람 매니저'] },
+                        { id: 'sales_4', name: '영업팀', members: ['이필선 매니저'] }
+                    ]
+                },
+                {
+                    id: 'design',
+                    name: '설계/적산팀',
+                    icon: '📐',
+                    colorClass: 'design',
+                    avatarClass: 'avatar-purple',
+                    leader: '조현석 이사',
+                    kpiGoal: '🔥 아자아자 화이팅!',
+                    subDepts: [
+                        { id: 'design_main', name: '설계/적산팀', members: ['한언규 리드매니저', '김영별 리드매니저', '신수진 매니저'] }
+                    ]
+                },
+                {
+                    id: 'mgmt',
+                    name: '경영관리본부',
+                    icon: '📊',
+                    colorClass: 'mgmt',
+                    avatarClass: 'avatar-orange',
+                    leader: '백정배 이사',
+                    kpiGoal: '🔥 아자아자 화이팅!',
+                    subDepts: [
+                        { id: 'mgmt_1', name: '경영관리팀', members: ['손나엘 리드매니저', '주유진 매니저', '최진옥 매니저', '김유림 매니저'] },
+                        { id: 'mgmt_2', name: '그로스팀', members: ['이재훈 리드매니저'] }
+                    ]
+                },
+                {
+                    id: 'brand',
+                    name: '브랜드마케팅팀',
+                    icon: '🎨',
+                    colorClass: 'brand',
+                    avatarClass: 'avatar-pink',
+                    leader: '권혜영 리드매니저',
+                    kpiGoal: '🔥 아자아자 화이팅!',
+                    subDepts: [
+                        { id: 'brand_1', name: '브랜드마케팅팀', members: ['권혜영 리드매니저', '한지민 매니저', '김병석 매니저', '김소라 매니저'] }
+                    ]
+                },
+                {
+                    id: 'commerce',
+                    name: '커머스사업본부',
+                    icon: '🛒',
+                    colorClass: 'commerce',
+                    avatarClass: 'avatar-cyan',
+                    leader: '허지윤 리드매니저',
+                    kpiGoal: '🔥 아자아자 화이팅!',
+                    subDepts: [
+                        { id: 'commerce_1', name: '브랜드커머스팀', members: ['이란 매니저'] },
+                        { id: 'commerce_2', name: '미디어커머스팀', members: ['방형수 리드매니저', '김채희 매니저', '김소연 매니저', '남윤정 매니저'] },
+                        { id: 'commerce_3', name: '해외사업팀', members: ['김솔희 리드매니저', '편다라 매니저', '이혜은 매니저'] },
+                        { id: 'commerce_4', name: '모여라딜팀', members: ['김솔희 리드매니저'] }
+                    ]
+                },
+                {
+                    id: 'rnd',
+                    name: '기술연구소',
+                    icon: '🔬',
+                    colorClass: 'rnd',
+                    avatarClass: 'avatar-green',
+                    leader: '장영재 기술연구소장',
+                    kpiGoal: '🔥 아자아자 화이팅!',
+                    subDepts: [
+                        { id: 'rnd_main', name: '기술연구소', members: ['신명희 선임연구원', '심혜진 연구원', '김소정 연구원'] }
+                    ]
+                }
+            ]
+        };
+
+        // 상태 관리
+        let taskData = {};
+        let currentDept = null;
+        let currentSubDept = null;
+        let deptChart = null;
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            renderSidebar();
+            renderKpiGoals();
+            initChart();
+            calculateAllProgress();
+            updateCurrentDate();
+            setInterval(updateCurrentDate, 60000);
+        });
+
+        // 사이드바 렌더링
+        function renderSidebar() {
+            const deptList = document.getElementById('deptList');
+            deptList.innerHTML = organizationData.departments.map(dept => `
+                <div class="dept-item">
+                    <div class="dept-header" onclick="toggleDepartment('${dept.id}')">
+                        <div class="dept-header-left">
+                            <div class="dept-icon bg-icon-${dept.colorClass}">${dept.icon}</div>
+                            <span class="dept-name">${dept.name}</span>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span class="dept-progress" id="sidebar_progress_${dept.id}">0%</span>
+                            <span class="dept-arrow">▼</span>
+                        </div>
+                    </div>
+                    <div class="sub-dept-list" id="subDepts_${dept.id}">
+                        ${dept.subDepts.map(sub => `
+                            <div class="sub-dept-item" onclick="selectSubDept('${dept.id}', '${sub.id}', event)">
+                                <span>${sub.name}</span>
+                                <span class="sub-dept-progress" id="sidebar_progress_${sub.id}">0%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // KPI 목표 카드 렌더링
+        function renderKpiGoals() {
+            const grid = document.getElementById('kpiGoalsGrid');
+            grid.innerHTML = organizationData.departments.map(dept => {
+                const stats = calculateDeptStats(dept.id);
+                const progressClass = getProgressClass(stats.avgProgress);
+                const bgProgressClass = getBgProgressClass(stats.avgProgress);
+
+                return `
+                    <div class="kpi-goal-card ${dept.colorClass}" onclick="showDeptDetailView('${dept.id}')">
+                        <div class="kpi-goal-header">
+                            <span class="kpi-goal-icon">${dept.icon}</span>
+                            <span class="kpi-goal-dept">${dept.name}</span>
+                        </div>
+                        <div class="kpi-goal-text">${dept.kpiGoal}</div>
+                        <div class="kpi-goal-progress">
+                            <span class="kpi-goal-progress-value ${progressClass}" id="kpi_progress_${dept.id}">${stats.avgProgress}%</span>
+                            <div class="kpi-goal-progress-bar">
+                                <div class="kpi-goal-progress-fill ${bgProgressClass}" style="width: ${stats.avgProgress}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 부서 토글
+        function toggleDepartment(deptId) {
+            const header = document.querySelector(`#subDepts_${deptId}`).previousElementSibling;
+            const subList = document.getElementById(`subDepts_${deptId}`);
+            
+            header.classList.toggle('expanded');
+            subList.classList.toggle('expanded');
+        }
+
+        // 하위 부서 선택
+        function selectSubDept(deptId, subDeptId, event) {
+            event.stopPropagation();
+            showDeptDetailView(deptId, subDeptId);
+        }
+
+        // 메인 뷰 표시
+        function showMainView() {
+            document.getElementById('mainView').classList.add('active');
+            document.getElementById('deptDetailView').classList.remove('active');
+            
+            // 사이드바 선택 해제
+            document.querySelectorAll('.sub-dept-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.dept-header').forEach(item => item.classList.remove('active'));
+            
+            currentDept = null;
+            currentSubDept = null;
+            calculateAllProgress();
+        }
+
+        // 부서 상세 뷰 표시
+        function showDeptDetailView(deptId, subDeptId = null) {
+            const dept = organizationData.departments.find(d => d.id === deptId);
+            if (!dept) return;
+
+            currentDept = deptId;
+            currentSubDept = subDeptId || dept.subDepts[0]?.id;
+
+            document.getElementById('mainView').classList.remove('active');
+            document.getElementById('deptDetailView').classList.add('active');
+
+            // 사이드바 활성화
+            document.querySelectorAll('.sub-dept-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.dept-header').forEach(item => item.classList.remove('active'));
+            
+            // 해당 부서 펼치기
+            const subList = document.getElementById(`subDepts_${deptId}`);
+            const header = subList.previousElementSibling;
+            subList.classList.add('expanded');
+            header.classList.add('expanded');
+            header.classList.add('active');
+
+            // 부서 목표 배너 업데이트
+            document.getElementById('deptGoalBanner').className = `dept-goal-banner ${dept.colorClass}`;
+            document.getElementById('deptGoalIcon').className = `dept-goal-icon ${dept.colorClass}`;
+            document.getElementById('deptGoalIcon').textContent = dept.icon;
+            document.getElementById('deptGoalName').textContent = dept.name;
+            document.getElementById('deptGoalLeader').textContent = dept.leader;
+            document.getElementById('deptGoalText').textContent = dept.kpiGoal;
+
+            // 하위 부서 탭 생성
+            renderSubDeptTabs(dept);
+
+            // 팀원 및 업무 렌더링
+            renderDeptMembers(deptId);
+            renderTaskList();
+            updateDeptDetailStats(deptId);
+        }
+
+        // 하위 부서 탭 렌더링
+        function renderSubDeptTabs(dept) {
+            const tabs = document.getElementById('subDeptTabs');
+            tabs.innerHTML = dept.subDepts.map((sub, index) => `
+                <button class="sub-dept-tab ${sub.id === currentSubDept ? 'active' : ''}" 
+                        onclick="switchSubDept('${sub.id}', this)">
+                    ${sub.name}
+                </button>
+            `).join('');
+        }
+
+        // 하위 부서 전환
+        function switchSubDept(subDeptId, element) {
+            currentSubDept = subDeptId;
+            
+            document.querySelectorAll('.sub-dept-tab').forEach(tab => tab.classList.remove('active'));
+            element.classList.add('active');
+
+            // 사이드바 활성화
+            document.querySelectorAll('.sub-dept-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.onclick.toString().includes(subDeptId)) {
+                    item.classList.add('active');
+                }
+            });
+
+            updateAssigneeOptions();
+            renderTaskList();
+        }
+
+        // 부서 팀원 렌더링
+        function renderDeptMembers(deptId) {
+            const dept = organizationData.departments.find(d => d.id === deptId);
+            if (!dept) return;
+
+            const memberProgress = calculateMemberProgressByDept(deptId);
+            const grid = document.getElementById('memberGrid');
+
+            if (Object.keys(memberProgress).length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <div class="empty-state-icon">👤</div>
+                        <h3>아직 등록된 업무가 없습니다</h3>
+                        <p>업무를 등록하고 담당자를 지정하면 여기에 표시됩니다</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const members = Object.values(memberProgress).sort((a, b) => b.avgProgress - a.avgProgress);
+
+            grid.innerHTML = members.map(member => {
+                const progressClass = getProgressClass(member.avgProgress);
+                const bgProgressClass = getBgProgressClass(member.avgProgress);
+
+                return `
+                    <div class="member-card" onclick="showMemberModal('${member.name}', '${deptId}')">
+                        <div class="member-avatar ${dept.avatarClass}">${member.name.slice(0, 2)}</div>
+                        <div class="member-info">
+                            <div class="member-name">${member.name}</div>
+                            <div class="member-role">${member.subDeptName}</div>
+                            <div class="member-progress-bar">
+                                <div class="member-progress-fill ${bgProgressClass}" style="width: ${member.avgProgress}%"></div>
+                            </div>
+                        </div>
+                        <div class="member-stats">
+                            <div class="member-progress-value ${progressClass}">${member.avgProgress}%</div>
+                            <div class="member-task-count">${member.taskCount}건</div>
+                        </div>
+                        <span class="member-arrow">›</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 담당자 모달
+        function showMemberModal(memberName, deptId) {
+            const dept = organizationData.departments.find(d => d.id === deptId);
+            const memberTasks = getMemberTasks(memberName);
+            
+            document.getElementById('modalAvatar').textContent = memberName.slice(0, 2);
+            document.getElementById('modalAvatar').className = `modal-avatar ${dept.avatarClass}`;
+            document.getElementById('modalName').textContent = memberName;
+            document.getElementById('modalDept').textContent = dept.name;
+
+            const totalProgress = memberTasks.reduce((sum, t) => sum + t.progress, 0);
+            const avgProgress = memberTasks.length > 0 ? Math.round(totalProgress / memberTasks.length) : 0;
+            const completed = memberTasks.filter(t => t.progress === 100).length;
+
+            document.getElementById('modalProgress').textContent = avgProgress + '%';
+            document.getElementById('modalProgress').className = `modal-stat-value ${getProgressClass(avgProgress)}`;
+            document.getElementById('modalTaskCount').textContent = memberTasks.length;
+            document.getElementById('modalCompleted').textContent = completed;
+
+            const taskList = document.getElementById('modalTaskList');
+            if (memberTasks.length === 0) {
+                taskList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <h3>담당 업무가 없습니다</h3>
+                    </div>
+                `;
+            } else {
+                taskList.innerHTML = memberTasks.map(task => `
+                    <div class="modal-task-item">
+                        <div>
+                            <div class="modal-task-name">${task.name}</div>
+                            <div class="modal-task-dept">${task.subDeptName}</div>
+                        </div>
+                        <div class="modal-task-progress ${getProgressClass(task.progress)}">${task.progress}%</div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('memberModal').classList.add('show');
+        }
+
+        function closeMemberModal() {
+            document.getElementById('memberModal').classList.remove('show');
+        }
+
+        document.getElementById('memberModal').addEventListener('click', function(e) {
+            if (e.target === this) closeMemberModal();
+        });
+
+        // 담당자 업무 가져오기
+        function getMemberTasks(memberName) {
+            const tasks = [];
+            organizationData.departments.forEach(dept => {
+                dept.subDepts.forEach(sub => {
+                    const subTasks = taskData[sub.id] || [];
+                    subTasks.forEach(task => {
+                        if (task.assignee === memberName) {
+                            tasks.push({ ...task, deptName: dept.name, subDeptName: sub.name });
+                        }
+                    });
+                });
+            });
+            return tasks;
+        }
+
+        // 부서별 담당자 진척률 계산
+        function calculateMemberProgressByDept(deptId) {
+            const dept = organizationData.departments.find(d => d.id === deptId);
+            if (!dept) return {};
+
+            const memberProgress = {};
+            dept.subDepts.forEach(sub => {
+                const tasks = taskData[sub.id] || [];
+                tasks.forEach(task => {
+                    if (task.assignee) {
+                        if (!memberProgress[task.assignee]) {
+                            memberProgress[task.assignee] = {
+                                name: task.assignee,
+                                subDeptName: sub.name,
+                                totalProgress: 0,
+                                taskCount: 0
+                            };
+                        }
+                        memberProgress[task.assignee].totalProgress += task.progress;
+                        memberProgress[task.assignee].taskCount++;
+                    }
+                });
+            });
+
+            Object.values(memberProgress).forEach(member => {
+                member.avgProgress = member.taskCount > 0 ? Math.round(member.totalProgress / member.taskCount) : 0;
+            });
+
+            return memberProgress;
+        }
+
+        // 업무 목록 렌더링
+        function renderTaskList() {
+            if (!currentSubDept) return;
+
+            const taskList = document.getElementById('taskList');
+            const tasks = taskData[currentSubDept] || [];
+
+            updateAssigneeOptions();
+
+            if (tasks.length === 0) {
+                taskList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <h3>등록된 업무가 없습니다</h3>
+                        <p>위의 '업무 추가' 버튼을 클릭하여 새 업무를 등록하세요</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const dept = organizationData.departments.find(d => d.id === currentDept);
+            const subDept = dept?.subDepts.find(s => s.id === currentSubDept);
+            const members = subDept?.members || [];
+
+            taskList.innerHTML = tasks.map((task, index) => `
+                <div class="task-item">
+                    <div class="task-name">${task.name}</div>
+                    <select class="assignee-select" onchange="updateTask(${index}, 'assignee', this.value)">
+                        <option value="">담당자 선택</option>
+                        ${members.map(m => `<option value="${m}" ${task.assignee === m ? 'selected' : ''}>${m}</option>`).join('')}
+                    </select>
+                    <select class="progress-select ${getProgressClass(task.progress)}" onchange="updateTask(${index}, 'progress', this.value)">
+                        ${[0,10,20,30,40,50,60,70,80,90,100].map(p => `
+                            <option value="${p}" ${task.progress === p ? 'selected' : ''}>${p}%</option>
+                        `).join('')}
+                    </select>
+                    <button class="task-delete" onclick="deleteTask(${index})">삭제</button>
+                </div>
+            `).join('');
+        }
+
+        // 담당자 옵션 업데이트
+        function updateAssigneeOptions() {
+            const dept = organizationData.departments.find(d => d.id === currentDept);
+            const subDept = dept?.subDepts.find(s => s.id === currentSubDept);
+            const members = subDept?.members || [];
+
+            const select = document.getElementById('newTaskAssignee');
+            select.innerHTML = '<option value="">담당자 선택</option>' +
+                members.map(m => `<option value="${m}">${m}</option>`).join('');
+        }
+
+        // 업무 입력
+        function showTaskInput() {
+            if (!currentSubDept) {
+                alert('먼저 하위 부서 탭을 선택해주세요.');
+                return;
+            }
+            document.getElementById('taskInputArea').classList.add('show');
+            document.getElementById('newTaskName').focus();
+        }
+
+        function hideTaskInput() {
+            document.getElementById('taskInputArea').classList.remove('show');
+            document.getElementById('newTaskName').value = '';
+            document.getElementById('newTaskAssignee').value = '';
+            document.getElementById('newTaskProgress').value = '0';
+        }
+
+        function addTask() {
+            const name = document.getElementById('newTaskName').value.trim();
+            const assignee = document.getElementById('newTaskAssignee').value;
+            const progress = parseInt(document.getElementById('newTaskProgress').value);
+
+            if (!name) {
+                alert('업무명을 입력해주세요.');
+                return;
+            }
+
+            if (!taskData[currentSubDept]) taskData[currentSubDept] = [];
+            taskData[currentSubDept].push({ name, assignee, progress, createdAt: new Date().toISOString() });
+
+            renderTaskList();
+            renderDeptMembers(currentDept);
+            updateDeptDetailStats(currentDept);
+            calculateAllProgress();
+            hideTaskInput();
+            saveData();
+            showToast('✅ 업무가 등록되었습니다!');
+        }
+
+        function updateTask(index, field, value) {
+            if (taskData[currentSubDept]?.[index]) {
+                taskData[currentSubDept][index][field] = field === 'progress' ? parseInt(value) : value;
+                renderTaskList();
+                renderDeptMembers(currentDept);
+                updateDeptDetailStats(currentDept);
+                calculateAllProgress();
+                saveData();
+            }
+        }
+
+        function deleteTask(index) {
+            if (confirm('이 업무를 삭제하시겠습니까?')) {
+                taskData[currentSubDept].splice(index, 1);
+                renderTaskList();
+                renderDeptMembers(currentDept);
+                updateDeptDetailStats(currentDept);
+                calculateAllProgress();
+                saveData();
+                showToast('🗑️ 업무가 삭제되었습니다.');
+            }
+        }
+
+        // 부서 상세 통계 업데이트
+        function updateDeptDetailStats(deptId) {
+            const stats = calculateDeptStats(deptId);
+            document.getElementById('deptDetailProgress').textContent = stats.avgProgress + '%';
+            document.getElementById('deptDetailProgress').className = `dept-goal-stat-value ${getProgressClass(stats.avgProgress)}`;
+            document.getElementById('deptDetailTasks').textContent = stats.taskCount;
+            document.getElementById('deptDetailMembers').textContent = stats.memberCount;
+        }
+
+        // 부서 통계 계산
+        function calculateDeptStats(deptId) {
+            const dept = organizationData.departments.find(d => d.id === deptId);
+            if (!dept) return { avgProgress: 0, taskCount: 0, memberCount: 0 };
+
+            let totalProgress = 0;
+            let taskCount = 0;
+            const members = new Set();
+
+            dept.subDepts.forEach(sub => {
+                const tasks = taskData[sub.id] || [];
+                tasks.forEach(task => {
+                    totalProgress += task.progress;
+                    taskCount++;
+                    if (task.assignee) members.add(task.assignee);
+                });
+            });
+
+            return {
+                avgProgress: taskCount > 0 ? Math.round(totalProgress / taskCount) : 0,
+                taskCount,
+                memberCount: members.size
+            };
+        }
+
+        // 전체 진척률 계산
+        function calculateAllProgress() {
+            let totalProgress = 0;
+            let totalTasks = 0;
+            let completedTasks = 0;
+            const allMembers = new Set();
+            const deptProgressData = [];
+
+            organizationData.departments.forEach(dept => {
+                let deptTotal = 0;
+                let deptCount = 0;
+
+                dept.subDepts.forEach(sub => {
+                    const tasks = taskData[sub.id] || [];
+                    let subTotal = 0;
+
+                    tasks.forEach(task => {
+                        subTotal += task.progress;
+                        deptTotal += task.progress;
+                        deptCount++;
+                        totalTasks++;
+                        if (task.progress === 100) completedTasks++;
+                        if (task.assignee) allMembers.add(task.assignee);
+                    });
+
+                    // 하위 부서 진척률 업데이트
+                    const subProgress = tasks.length > 0 ? Math.round(subTotal / tasks.length) : 0;
+                    const subEl = document.getElementById(`sidebar_progress_${sub.id}`);
+                    if (subEl) {
+                        subEl.textContent = subProgress + '%';
+                        subEl.className = `sub-dept-progress ${getProgressClass(subProgress)}`;
+                    }
+                });
+
+                // 부서 진척률 업데이트
+                const deptProgress = deptCount > 0 ? Math.round(deptTotal / deptCount) : 0;
+                deptProgressData.push(deptProgress);
+
+                const deptEl = document.getElementById(`sidebar_progress_${dept.id}`);
+                if (deptEl) {
+                    deptEl.textContent = deptProgress + '%';
+                    deptEl.className = `dept-progress ${getProgressClass(deptProgress)}`;
+                }
+
+                totalProgress += deptTotal;
+            });
+
+            const avgProgress = totalTasks > 0 ? Math.round(totalProgress / totalTasks) : 0;
+
+            document.getElementById('totalProgress').textContent = avgProgress + '%';
+            document.getElementById('totalTasks').textContent = totalTasks;
+            document.getElementById('completedTasks').textContent = completedTasks;
+            document.getElementById('totalMembers').textContent = allMembers.size;
+
+            // KPI 목표 카드 업데이트
+            renderKpiGoals();
+
+            // 차트 업데이트
+            if (deptChart) {
+                deptChart.data.datasets[0].data = deptProgressData;
+                deptChart.update();
+            }
+        }
+
+        // 차트 초기화
+        function initChart() {
+            const ctx = document.getElementById('deptChart').getContext('2d');
+            deptChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: organizationData.departments.map(d => d.name),
+                    datasets: [{
+                        label: '진척률 (%)',
+                        data: [0, 0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(139, 92, 246, 0.7)',
+                            'rgba(245, 158, 11, 0.7)',
+                            'rgba(236, 72, 153, 0.7)',
+                            'rgba(6, 182, 212, 0.7)',
+                            'rgba(34, 197, 94, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgb(59, 130, 246)',
+                            'rgb(139, 92, 246)',
+                            'rgb(245, 158, 11)',
+                            'rgb(236, 72, 153)',
+                            'rgb(6, 182, 212)',
+                            'rgb(34, 197, 94)'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { callback: v => v + '%' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 유틸리티
+        function getProgressClass(progress) {
+            return `progress-${Math.floor(progress / 10) * 10}`;
+        }
+
+        function getBgProgressClass(progress) {
+            return `bg-progress-${Math.floor(progress / 10) * 10}`;
+        }
+
+        // 데이터 저장/로드
+        function saveData() {
+            localStorage.setItem('netform_kpi_data_v4', JSON.stringify({
+                taskData,
+                savedAt: new Date().toISOString()
+            }));
+        }
+
+        function saveAllData() {
+            saveData();
+            showToast('✅ 모든 데이터가 저장되었습니다!');
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('netform_kpi_data_v4');
+            if (saved) {
+                const data = JSON.parse(saved);
+                taskData = data.taskData || {};
+            }
+        }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify({
+                company: '넷폼알앤디',
+                exportDate: new Date().toISOString(),
+                taskData,
+                organization: organizationData
+            }, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `넷폼알앤디_전사KPI_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('📤 데이터가 내보내기 되었습니다!');
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+        }
+
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+
+        function updateCurrentDate() {
+            document.getElementById('currentDate').textContent = new Date().toLocaleDateString('ko-KR', {
+                year: 'numeric', month: 'long', day: 'numeric', weekday: 'long', hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 2500);
+        }
+    </script>
+</body>
+</html>

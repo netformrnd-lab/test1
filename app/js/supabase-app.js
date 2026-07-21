@@ -31,8 +31,30 @@ async function route() {
     .from('profiles').select('role, approved, name').eq('id', user.id).single()
   if (error || !profile || !profile.approved) { window.showScreen('s02'); return } // 승인 대기
   if (profile.role === 'auditor') { window.showScreen('s07'); loadAuditorApts() }
-  else { window.showScreen('s11') }
+  else { window.showScreen('s11'); loadResidentHome() }
 }
+
+// ── 입주민·관리소장 홈: 우리 단지 정보 불러오기 ─────────────
+async function loadResidentHome() {
+  const { data: { user } } = await sb.auth.getUser(); if (!user) return
+  const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+  if (!prof || !prof.apartment_id) return
+  const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
+  if (!apt) return
+  const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = apt.name
+  const cur = apt.progress_current || 0, tot = apt.progress_total || 0, pct = tot ? Math.round(cur / tot * 100) : 0
+  const pg = document.getElementById('res-prog'); if (pg) pg.innerHTML = cur + '<span style="opacity:.55">/' + tot + '</span>'
+  const bar = document.getElementById('res-bar'); if (bar) bar.style.width = pct + '%'
+  // 담당 감리사 이름 (PII 노출 없이 이름만 반환하는 함수 사용)
+  if (apt.auditor_id) {
+    const { data: audName } = await sb.rpc('apartment_auditor_name', { apt: apt.id })
+    if (audName) {
+      const an = document.getElementById('res-aud-name'); if (an) an.textContent = audName
+      const av = document.getElementById('res-aud-av'); if (av) av.textContent = String(audName).slice(0, 1)
+    }
+  }
+}
+window.loadResidentHome = loadResidentHome
 
 // ── 감리사: 내 담당 단지 불러오기 ─────────────────────────
 function escH(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }

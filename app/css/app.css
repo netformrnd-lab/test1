@@ -1,0 +1,145 @@
+/* === 아파트스퀘어 앱 === */
+/* 폰트 (Pretendard) */
+
+/*
+Copyright (c) 2021 Kil Hyung-jin, with Reserved Font Name Pretendard.
+https://github.com/orioncactus/pretendard
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+http://scripts.sil.org/OFL
+*/
+
+@font-face {
+	font-family: 'Pretendard';
+	font-weight: 900;
+	font-display: swap;
+	src: local('Pretendard Black'), url("assets/c9336f07-7b6f-40fe-9a18-526a9d23e9c3.woff2") format('woff2'), url("assets/77d0daac-c38e-42b7-bccf-f6f7c9b896d7.woff") format('woff');
+}
+
+@font-face {
+	font-family: 'Pretendard';
+	font-weight: 800;
+	font-display: swap;
+	src: local('Pretendard ExtraBold'), url("assets/e5fa1a2b-6ebb-4db5-bb6e-ceb9454a3e73.woff2") format('woff2'), url("assets/5d263f3c-7264-47ff-a727-9aaaf1864d25.woff") format('woff');
+}
+
+@font-face {
+	font-family: 'Pretendard';
+	font-weight: 700;
+	font-display: swap;
+	src: local('Pretendard Bold'), url("assets/cd9a3b1d-80b5-4a09-8c50-0144cd30454a.woff2") format('woff2'), url("assets/7f6ae0a0-3e9a-40a3-a9ed-b399cac1d675.woff") format('woff');
+}
+
+@font-face {
+	font-family: 'Pretendard';
+	font-weight: 600;
+	font-display: swap;
+	src: local('Pretendard SemiBold'), url("assets/ad4f856b-b91f-41e0-bce9-e4b3b860060d.woff2") format('woff2'), url("assets/91230453-028a-492e-8ad2-e54fab390529.woff") format('woff');
+}
+
+@font-face {
+	font-family: 'Pretendard';
+	font-weight: 500;
+	font-display: swap;
+	src: local('Pretendard Medium'), url("assets/5d70d074-2a56-4fb3-92f6-2c090bf374e3.woff2") format('woff2'), url("assets/ba939e5b-6834-4902-a9e9-86f96fad408c.woff") format('woff');
+}
+
+@font-face {
+	font-family: 'Pretendard';
+	font-weight: 400;
+	font-display: swap;
+	src: local('Pretendard Regular'), url("assets/0a9fd929-f8e6-4d9e-a31a-db759f36dd6e.woff2") format('woff2'), url("assets/07ad6b4e-a313-4d82-9d3a-f02f728640cd.woff") format('woff');
+}
+
+@font-face {
+	font-family: 'Pretendard';
+	font-weight: 300;
+	font-display: swap;
+	src: local('Pretendard Light'), url("assets/b3e1e549-5e3a-4f73-8b2b-52e6f696fc26.woff2") format('woff2'), url("assets/bb0b5ee4-41d2-4745-9c99-4effe5d8394f.woff") format('woff');
+}
+
+@font-face {
+	font-family: 'Pretendard';
+	font-weight: 200;
+	font-display: swap;
+	src: local('Pretendard ExtraLight'), url("assets/e9f7dc0b-be05-4abb-979b-5d14eb6ee940.woff2") format('woff2'), url("assets/8a6b65f9-3bbc-444a-96ad-cd4776d612f9.woff") format('woff');
+}
+
+@font-face {
+	font-family: 'Pretendard';
+	font-weight: 100;
+	font-display: swap;
+	src: local('Pretendard Thin'), url("assets/46021af8-9ab5-4715-9482-20558918376a.woff2") format('woff2'), url("assets/505a6063-1c31-4660-a977-1640d3641f91.woff") format('woff');
+}
+
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: #E7EDF7;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* 화면 중앙에 폰 프레임 */
+#app { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+#frame {
+  width: 320px; height: 664px;
+  background: #F4F6FA;
+  border-radius: 42px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 34px 70px -30px rgba(20,30,60,.5), 0 0 0 9px #10182f, 0 0 0 11px #2c3350;
+}
+#stage { position: relative; width: 320px; height: 100%; }
+
+/* 화면: 한 번에 하나만 보임 */
+.screen { position: absolute; inset: 0; display: none; flex-direction: column; background: #fff; }
+.screen.active { display: flex; }
+
+/* 화면 내부 (기획 보드에서 그대로 가져온 규칙) */
+.bd { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+.nav { display: flex; background: #fff; border-top: 1px solid #eaedf4; padding: 8px 8px 16px; flex-shrink: 0; }
+.nav > div { flex: 1; text-align: center; font-size: 10px; font-weight: 600; color: #98a1b5; cursor: pointer; }
+.nav .ic { font-size: 17px; filter: grayscale(1); opacity: .5; }
+.nav .on { color: #2F6BF6; font-weight: 800; }
+.nav .on .ic { filter: none; opacity: 1; }
+.plus { display: flex; align-items: center; justify-content: center; gap: 7px; background: #2F6BF6; color: #fff; height: 44px; border-radius: 12px; font-size: 13.5px; font-weight: 800; cursor: pointer; }
+
+/* 앱바(상단 바) 및 기타 화면 내부 요소 */
+.ab { display: flex; align-items: center; gap: 9px; padding: 13px 15px; background: #fff; border-bottom: 1px solid #eef1f7; flex-shrink: 0; }
+.abt { font-size: 14px; font-weight: 800; color: #151c33; }
+.badm { font-size: 9px; font-weight: 800; background: rgba(255,255,255,.22); padding: 2px 7px; border-radius: 6px; }
+.opt { transition: transform .12s ease, border-color .12s, background .12s; }
+.opt:active { transform: scale(.97); }
+.opt.sel, .sel { border-color: #2F6BF6 !important; background: #eff5ff !important; }
+.panel { animation: sdgin .32s ease both; }
+@keyframes sdgin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes sdgspin { to { transform: rotate(360deg); } }
+
+/* 실제 폰/앱: 화면 꽉 채우기 */
+@media (max-width: 520px) {
+  #frame { width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; box-shadow: none; }
+}
+
+/* 개발용 화면 목록 */
+#menuBtn {
+  position: fixed; right: 16px; bottom: 16px; z-index: 50;
+  width: 46px; height: 46px; border-radius: 50%; border: none;
+  background: #1F2C5C; color: #fff; font-size: 20px; cursor: pointer;
+  box-shadow: 0 6px 20px rgba(20,30,60,.4);
+}
+#menu {
+  position: fixed; right: 16px; bottom: 72px; z-index: 51;
+  width: 280px; max-height: 70vh; overflow-y: auto;
+  background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(20,30,60,.28);
+  font-family: 'Pretendard', sans-serif;
+}
+.menu-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #eef1f7; font-weight: 800; font-size: 14px; color: #1c2440; position: sticky; top: 0; background: #fff; }
+.menu-head button { border: none; background: none; font-size: 15px; cursor: pointer; color: #98a1b5; }
+#menuList { list-style: none; padding: 6px; }
+#menuList li { padding: 10px 12px; font-size: 12.5px; color: #3a4460; border-radius: 9px; cursor: pointer; font-weight: 600; }
+#menuList li:hover { background: #f2f5fb; }
+#menuList li .num { display: inline-block; width: 22px; color: #98a1b5; font-weight: 700; }

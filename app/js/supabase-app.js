@@ -30,8 +30,46 @@ async function route() {
   const { data: profile, error } = await sb
     .from('profiles').select('role, approved, name').eq('id', user.id).single()
   if (error || !profile || !profile.approved) { window.showScreen('s02'); return } // 승인 대기
-  window.showScreen(profile.role === 'auditor' ? 's07' : 's11')
+  if (profile.role === 'auditor') { window.showScreen('s07'); loadAuditorApts() }
+  else { window.showScreen('s11') }
 }
+
+// ── 감리사: 내 담당 단지 불러오기 ─────────────────────────
+function escH(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
+function auditorCard(a) {
+  const cur = a.progress_current || 0, tot = a.progress_total || 0
+  const pct = tot ? Math.round(cur / tot * 100) : 0
+  const st = { in_progress: ['진행중', '#1f8a5b', '#e7f5ee'], done: ['완료', '#5a6480', '#eef1f7'], scheduled: ['점검예정', '#c98a1e', '#fbf1de'] }
+  const [lbl, col, bg] = st[a.status] || st.scheduled
+  return `<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center">
+    <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,#5c86c8,#33507f);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🏢</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(a.name)}</div>
+      <div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:1px">${escH(a.region) || '지역 미정'} · ${escH(a.construction_type) || '종류 미정'}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px"><div style="flex:1;height:5px;border-radius:9px;background:#eef1f7;overflow:hidden"><div style="width:${pct}%;height:100%;background:#2F6BF6;border-radius:9px"></div></div><span style="font-size:9px;font-weight:800;color:#2F6BF6">${cur}/${tot}</span></div>
+    </div>
+    <span style="align-self:flex-start;font-size:8.5px;font-weight:800;color:${col};background:${bg};padding:3px 7px;border-radius:99px">${lbl}</span>
+  </div>`
+}
+async function loadAuditorApts() {
+  const cont = document.getElementById('aud-apts'); if (!cont) return
+  const sub = document.getElementById('aud-sub')
+  const { data: { user } } = await sb.auth.getUser(); if (!user) return
+  const { data: apts, error } = await sb.from('apartments').select('*').eq('auditor_id', user.id).order('created_at', { ascending: false })
+  if (error) { cont.innerHTML = '<div style="padding:20px;color:#8b95ad;font-size:12px">단지를 불러오지 못했어요</div>'; return }
+  if (!apts || !apts.length) {
+    cont.innerHTML = '<div style="padding:26px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 배정된 담당 단지가 없어요.<br>관리자가 단지를 배정하면 여기에 표시돼요.</div>'
+    if (sub) sub.textContent = '배정된 단지가 아직 없어요'
+    return
+  }
+  cont.innerHTML = apts.map(auditorCard).join('')
+  if (sub) {
+    const ip = apts.filter(a => a.status === 'in_progress').length
+    const sc = apts.filter(a => a.status === 'scheduled').length
+    sub.textContent = `맡은 단지 ${apts.length}곳 · 진행 ${ip} · 점검예정 ${sc}`
+  }
+}
+window.loadAuditorApts = loadAuditorApts
 
 async function doLogin() {
   const email = $('login-email').value.trim()

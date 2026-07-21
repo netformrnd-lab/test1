@@ -182,18 +182,14 @@ function openReport(r) {
   const st = document.getElementById('d-stage')
   if (st) { if (r.stage) { st.textContent = r.stage; st.style.display = '' } else { st.style.display = 'none' } }
   set('d-body', r.content || '작성된 내용이 없어요.')
-  // 사진 표시
+  // 사진 표시 — 2칸 격자로 전부 깔끔하게
   const ph = Array.isArray(r.photos) ? r.photos : []
   const p1 = document.getElementById('d-photo1'), p2 = document.getElementById('d-photo2')
+  if (p2) p2.style.display = 'none'
   if (ph.length && p1) {
-    p1.style.display = ''
-    p1.style.background = `url('${ph[0]}') center/cover`
-    p1.innerHTML = `<span style="font-size:10px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:3px 8px;border-radius:6px">📷 현장 사진 ${ph.length}장</span>`
+    p1.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:4px'
+    p1.innerHTML = ph.map(u => `<div style="aspect-ratio:4/3;border-radius:10px;background:url('${u}') center/cover"></div>`).join('')
   } else if (p1) { p1.style.display = 'none' }
-  if (ph.length > 1 && p2) {
-    p2.style.display = ''
-    p2.innerHTML = ph.slice(1, 4).map(u => `<div style="flex:1;height:40px;border-radius:8px;background:url('${u}') center/cover"></div>`).join('')
-  } else if (p2) { p2.style.display = 'none' }
   // 둘째 본문 섹션(사용 안 함) 숨김
   const h2 = document.getElementById('d-h2'); if (h2) { h2.style.display = 'none'; if (h2.nextElementSibling) h2.nextElementSibling.style.display = 'none' }
   window.showScreen('s10')

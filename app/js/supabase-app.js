@@ -58,12 +58,14 @@ window.loadResidentHome = loadResidentHome
 
 // ── 감리사: 내 담당 단지 불러오기 ─────────────────────────
 function escH(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
+let AUD_APTS = {}
 function auditorCard(a) {
+  AUD_APTS[a.id] = a
   const cur = a.progress_current || 0, tot = a.progress_total || 0
   const pct = tot ? Math.round(cur / tot * 100) : 0
   const st = { in_progress: ['진행중', '#1f8a5b', '#e7f5ee'], done: ['완료', '#5a6480', '#eef1f7'], scheduled: ['점검예정', '#c98a1e', '#fbf1de'] }
   const [lbl, col, bg] = st[a.status] || st.scheduled
-  return `<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center">
+  return `<div data-apt-id="${a.id}" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center;cursor:pointer">
     <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,#5c86c8,#33507f);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🏢</div>
     <div style="flex:1;min-width:0">
       <div style="font-size:12px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(a.name)}</div>
@@ -92,6 +94,72 @@ async function loadAuditorApts() {
   }
 }
 window.loadAuditorApts = loadAuditorApts
+
+// ── 감리보고서: 목록 · 작성 · 상세 ─────────────────────────
+let currentApt = null
+let REPORTS = {}
+
+function openApt(a) {
+  if (!a) return
+  currentApt = a
+  const nm = document.getElementById('rep-apt-name'); if (nm) nm.textContent = a.name
+  window.showScreen('s08')
+  loadReports(a.id)
+}
+async function loadReports(aptId) {
+  const cont = document.getElementById('report-list'); if (!cont) return
+  cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const { data: reports, error } = await sb.from('reports').select('*').eq('apartment_id', aptId).order('created_at', { ascending: false })
+  if (error) { cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">보고서를 불러오지 못했어요</div>'; return }
+  if (!reports || !reports.length) {
+    cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 작성한 감리보고서가 없어요.<br>위 “＋ 감리보고서 작성”으로 첫 보고서를 남겨보세요.</div>'
+    return
+  }
+  cont.innerHTML = reports.map(reportCard).join('')
+}
+function reportCard(r) {
+  REPORTS[r.id] = r
+  const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
+  return `<div data-report-id="${r.id}" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:11px 13px;cursor:pointer">
+    <div style="font-size:12px;font-weight:800;color:#1c2440">${escH(r.title)}</div>
+    <div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:4px">${d}${r.stage ? ' · ' + escH(r.stage) : ''}</div>
+  </div>`
+}
+function openWrite() {
+  if (!currentApt) return
+  const nm = document.getElementById('w-apt-name'); if (nm) nm.textContent = currentApt.name
+  const t = document.getElementById('w-title'), c = document.getElementById('w-content'), s = document.getElementById('w-stage')
+  if (t) t.value = ''; if (c) c.value = ''; if (s) s.value = ''
+  window.showScreen('s09')
+}
+async function saveReport() {
+  if (!currentApt) return
+  const title = (document.getElementById('w-title') || {}).value?.trim()
+  const content = (document.getElementById('w-content') || {}).value?.trim()
+  const stage = (document.getElementById('w-stage') || {}).value?.trim()
+  if (!title) { alert('제목을 입력하세요'); return }
+  const { data: { user } } = await sb.auth.getUser()
+  const btn = document.getElementById('w-submit'); if (btn) btn.textContent = '등록 중…'
+  const { error } = await sb.from('reports').insert({ apartment_id: currentApt.id, author_id: user.id, title, content: content || null, stage: stage || null })
+  if (btn) btn.textContent = '등록하기'
+  if (error) { alert('등록 실패: ' + error.message); return }
+  window.showScreen('s08')
+  loadReports(currentApt.id)
+}
+function openReport(r) {
+  if (!r) return
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v }
+  set('d-title', r.title || '감리보고서')
+  set('d-date', (r.created_at || '').slice(0, 10).replace(/-/g, '.'))
+  const st = document.getElementById('d-stage')
+  if (st) { if (r.stage) { st.textContent = r.stage; st.style.display = '' } else { st.style.display = 'none' } }
+  set('d-body', r.content || '작성된 내용이 없어요.')
+  // 사진 기능은 아직 없으므로 사진/둘째 섹션 숨김
+  ;['d-photo1', 'd-photo2', 'd-h2'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none' })
+  const b2 = document.getElementById('d-h2'); if (b2 && b2.nextElementSibling) b2.nextElementSibling.style.display = 'none'
+  window.showScreen('s10')
+}
+window.openApt = openApt; window.openReport = openReport
 
 async function doLogin() {
   const email = $('login-email').value.trim()
@@ -134,6 +202,13 @@ function wire() {
   const ts = $('auth-toggle-signup'); if (ts) ts.onclick = () => setMode('signup')
   const tl = $('auth-toggle-login'); if (tl) tl.onclick = () => setMode('login')
   const out = $('logout-btn'); if (out) out.onclick = async () => { await sb.auth.signOut(); window.showScreen('s01') }
+  // 감리보고서 흐름
+  const rw = $('rep-write-btn'); if (rw) rw.onclick = openWrite
+  const ws = $('w-submit'); if (ws) ws.onclick = saveReport
+  document.addEventListener('click', (e) => {
+    const c = e.target.closest('#aud-apts [data-apt-id]'); if (c) { openApt(AUD_APTS[c.dataset.aptId]); return }
+    const r = e.target.closest('#report-list [data-report-id]'); if (r) { openReport(REPORTS[r.dataset.reportId]); return }
+  })
   // 앱 열 때 이미 로그인돼 있으면 알맞은 화면으로
   sb.auth.getSession().then(({ data }) => { if (data.session) route() })
 }

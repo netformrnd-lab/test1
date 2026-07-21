@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>아파트스퀘어 관리자</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Pretendard',system-ui,sans-serif; background:#eef1f7; color:#1c2440; }
+  a { color:#2F6BF6; }
+  .wrap { max-width:1100px; margin:0 auto; padding:24px 20px 60px; }
+  header { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
+  header h1 { font-size:20px; font-weight:800; }
+  header h1 small { color:#8b93a8; font-weight:600; font-size:12px; margin-left:8px; }
+  .btn { border:none; background:#1F2C5C; color:#fff; font-weight:700; font-size:13px; padding:9px 14px; border-radius:9px; cursor:pointer; font-family:inherit; }
+  .btn.sm { padding:6px 11px; font-size:12px; }
+  .btn.ghost { background:#fff; color:#3a4460; border:1px solid #d9deea; }
+  .btn.green { background:#1f8a5b; }
+  .card { background:#fff; border:1px solid #e6eaf2; border-radius:14px; padding:18px 20px; margin-bottom:22px; }
+  .card h2 { font-size:15px; font-weight:800; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .badge { font-size:11px; font-weight:700; background:#eef1f7; color:#6b7690; padding:2px 8px; border-radius:20px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:10px 8px; border-bottom:1px solid #eef1f7; vertical-align:middle; }
+  th { font-size:11px; color:#8b93a8; font-weight:800; text-transform:none; }
+  select, input { font-family:inherit; font-size:12.5px; padding:7px 9px; border:1px solid #d9deea; border-radius:8px; background:#fff; color:#1c2440; }
+  .pill { font-size:11px; font-weight:800; padding:3px 9px; border-radius:20px; }
+  .pill.ok { background:#e4f5ec; color:#1f8a5b; }
+  .pill.no { background:#fdeaea; color:#d94b4b; }
+  .row-form { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .row-form input, .row-form select { flex:0 0 auto; }
+  #login { max-width:360px; margin:80px auto; }
+  #login .card { text-align:center; }
+  #login input { width:100%; margin-bottom:10px; padding:12px 14px; }
+  .msg { font-size:12px; font-weight:700; color:#d94b4b; min-height:16px; margin-top:6px; }
+  .hint { font-size:12px; color:#8b93a8; margin-top:4px; }
+  .hide { display:none !important; }
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="login">
+  <div class="card">
+    <h1 style="font-size:20px;font-weight:800;margin-bottom:4px">아파트스퀘어 관리자</h1>
+    <p class="hint" style="margin-bottom:18px">관리자 계정으로 로그인하세요</p>
+    <input id="li-email" type="email" placeholder="이메일">
+    <input id="li-pw" type="password" placeholder="비밀번호">
+    <button class="btn" style="width:100%" onclick="doLogin()">로그인</button>
+    <div class="msg" id="li-msg"></div>
+  </div>
+</div>
+
+<!-- 대시보드 -->
+<div class="wrap hide" id="dash">
+  <header>
+    <h1>아파트스퀘어 관리자 <small id="who"></small></h1>
+    <button class="btn ghost sm" onclick="doLogout()">로그아웃</button>
+  </header>
+
+  <!-- 회원 관리 -->
+  <div class="card">
+    <h2>👤 회원 관리 <span class="badge" id="mCount">0</span></h2>
+    <table>
+      <thead><tr>
+        <th>이름</th><th>이메일</th><th>연락처</th><th>역할</th><th>담당 단지</th><th>승인</th><th></th>
+      </tr></thead>
+      <tbody id="members"></tbody>
+    </table>
+  </div>
+
+  <!-- 단지 관리 -->
+  <div class="card">
+    <h2>🏢 단지 관리 <span class="badge" id="aCount">0</span></h2>
+    <div class="row-form">
+      <input id="na-name" placeholder="단지명 (예: 힐스테이트)" style="width:200px">
+      <input id="na-region" placeholder="지역 (예: 서울 노원)" style="width:150px">
+      <input id="na-type" placeholder="공사종류 (예: 외벽 재도장)" style="width:180px">
+      <select id="na-auditor"><option value="">담당 감리사 선택</option></select>
+      <button class="btn green sm" onclick="addApt()">+ 단지 추가</button>
+    </div>
+    <table>
+      <thead><tr>
+        <th>단지명</th><th>지역</th><th>공사종류</th><th>담당 감리사</th><th>진행</th><th></th>
+      </tr></thead>
+      <tbody id="apts"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://gndktayoicegyqyllybk.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = (id) => document.getElementById(id);
+let MEMBERS = [], APTS = [];
+
+async function doLogin() {
+  const email = $('li-email').value.trim(), pw = $('li-pw').value;
+  $('li-msg').textContent = '로그인 중…';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if (error) { $('li-msg').textContent = '로그인 실패: 이메일/비밀번호를 확인하세요'; return; }
+  gate();
+}
+async function doLogout() { await sb.auth.signOut(); location.reload(); }
+
+// 관리자만 통과
+async function gate() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { show('login'); return; }
+  const { data: me } = await sb.from('profiles').select('role, name, email').eq('id', user.id).single();
+  if (!me || me.role !== 'admin') {
+    $('li-msg').textContent = '이 계정은 관리자 권한이 없습니다.';
+    await sb.auth.signOut(); show('login'); return;
+  }
+  $('who').textContent = (me.name || me.email) + ' 님';
+  show('dash'); loadAll();
+}
+function show(which) {
+  $('login').classList.toggle('hide', which !== 'login');
+  $('dash').classList.toggle('hide', which !== 'dash');
+}
+
+async function loadAll() {
+  const [m, a] = await Promise.all([
+    sb.from('profiles').select('*').order('created_at', { ascending: false }),
+    sb.from('apartments').select('*').order('created_at', { ascending: false })
+  ]);
+  MEMBERS = m.data || []; APTS = a.data || [];
+  renderMembers(); renderApts(); fillAuditorSelect();
+}
+
+const ROLES = { resident:'입주민', manager:'관리소장', auditor:'감리사', admin:'관리자' };
+function aptOptions(sel) {
+  return '<option value="">- 없음 -</option>' + APTS.map(a =>
+    `<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name)}</option>`).join('');
+}
+function roleOptions(sel) {
+  return Object.entries(ROLES).map(([k,v]) =>
+    `<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join('');
+}
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function renderMembers() {
+  $('mCount').textContent = MEMBERS.length;
+  $('members').innerHTML = MEMBERS.map(m => `
+    <tr data-id="${m.id}">
+      <td>${esc(m.name) || '<span style="color:#c3ccdb">(이름없음)</span>'}</td>
+      <td style="color:#5c6580">${esc(m.email)||''}</td>
+      <td style="color:#5c6580">${esc(m.phone)||''}</td>
+      <td><select class="f-role">${roleOptions(m.role)}</select></td>
+      <td><select class="f-apt">${aptOptions(m.apartment_id)}</select></td>
+      <td>${m.approved ? '<span class="pill ok">승인됨</span>' : '<span class="pill no">대기</span>'}</td>
+      <td style="white-space:nowrap">
+        ${m.approved ? '' : '<button class="btn green sm" onclick="approve(\''+m.id+'\')">승인</button> '}
+        <button class="btn sm" onclick="saveMember('${m.id}')">저장</button>
+      </td>
+    </tr>`).join('');
+}
+function renderApts() {
+  $('aCount').textContent = APTS.length;
+  const auditors = MEMBERS.filter(m => m.role === 'auditor');
+  const audOpts = (sel) => '<option value="">- 미배정 -</option>' + auditors.map(a =>
+    `<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name||a.email)}</option>`).join('');
+  $('apts').innerHTML = APTS.map(a => `
+    <tr data-id="${a.id}">
+      <td style="font-weight:700">${esc(a.name)}</td>
+      <td style="color:#5c6580">${esc(a.region)||''}</td>
+      <td style="color:#5c6580">${esc(a.construction_type)||''}</td>
+      <td><select class="f-aud">${audOpts(a.auditor_id)}</select></td>
+      <td>${a.progress_current||0} / ${a.progress_total||0}</td>
+      <td><button class="btn sm" onclick="saveApt('${a.id}')">저장</button></td>
+    </tr>`).join('');
+}
+function fillAuditorSelect() {
+  const auditors = MEMBERS.filter(m => m.role === 'auditor');
+  $('na-auditor').innerHTML = '<option value="">담당 감리사 선택</option>' +
+    auditors.map(a => `<option value="${a.id}">${esc(a.name||a.email)}</option>`).join('');
+}
+
+async function approve(id) {
+  const { error } = await sb.from('profiles').update({ approved: true }).eq('id', id);
+  if (error) return alert('오류: ' + error.message);
+  loadAll();
+}
+async function saveMember(id) {
+  const row = document.querySelector(`#members tr[data-id="${id}"]`);
+  const role = row.querySelector('.f-role').value;
+  const apt = row.querySelector('.f-apt').value || null;
+  const { error } = await sb.from('profiles').update({ role, apartment_id: apt }).eq('id', id);
+  if (error) return alert('오류: ' + error.message);
+  loadAll();
+}
+async function addApt() {
+  const name = $('na-name').value.trim();
+  if (!name) return alert('단지명을 입력하세요');
+  const { error } = await sb.from('apartments').insert({
+    name, region: $('na-region').value.trim() || null,
+    construction_type: $('na-type').value.trim() || null,
+    auditor_id: $('na-auditor').value || null
+  });
+  if (error) return alert('오류: ' + error.message);
+  $('na-name').value = $('na-region').value = $('na-type').value = ''; $('na-auditor').value = '';
+  loadAll();
+}
+async function saveApt(id) {
+  const row = document.querySelector(`#apts tr[data-id="${id}"]`);
+  const aud = row.querySelector('.f-aud').value || null;
+  const { error } = await sb.from('apartments').update({ auditor_id: aud }).eq('id', id);
+  if (error) return alert('오류: ' + error.message);
+  loadAll();
+}
+
+gate();
+</script>
+</body>
+</html>

@@ -78,5 +78,24 @@ function wire() {
   sb.auth.getSession().then(({ data }) => { if (data.session) route() })
 }
 
-if (document.readyState !== 'loading') wire()
-else document.addEventListener('DOMContentLoaded', wire)
+// ── 문의 버튼 → 홈페이지 링크 ─────────────────────────────
+const INQUIRY_URL = 'https://aptsquare.net/ask'
+function normText(s) { return (s || '').replace(/[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/gu, '') }
+const INQUIRY_PHRASES = ['문의', '문의하기', '1:1문의하기', '담당감리자에게문의하기', '무료상담·문의']
+function tagInquiry() {
+  document.querySelectorAll('.screen *').forEach((el) => {
+    if (el.childElementCount > 2) return
+    if (INQUIRY_PHRASES.includes(normText(el.textContent))) {
+      el.dataset.inquiry = '1'
+      el.style.cursor = 'pointer'
+    }
+  })
+}
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-inquiry]')
+  if (el) { e.preventDefault(); window.open(INQUIRY_URL, '_blank', 'noopener') }
+})
+
+function boot() { wire(); tagInquiry() }
+if (document.readyState !== 'loading') boot()
+else document.addEventListener('DOMContentLoaded', boot)

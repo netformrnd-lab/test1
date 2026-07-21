@@ -182,14 +182,27 @@ function openReport(r) {
   const st = document.getElementById('d-stage')
   if (st) { if (r.stage) { st.textContent = r.stage; st.style.display = '' } else { st.style.display = 'none' } }
   set('d-body', r.content || '작성된 내용이 없어요.')
-  // 사진 표시 — 2칸 격자로 전부 깔끔하게
+  // 사진 표시 — 옆으로 넘기는 스와이프 사진첩
   const ph = Array.isArray(r.photos) ? r.photos : []
   const p1 = document.getElementById('d-photo1'), p2 = document.getElementById('d-photo2')
   if (p2) p2.style.display = 'none'
+  let dots = document.getElementById('d-photo-dots')
   if (ph.length && p1) {
-    p1.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:4px'
-    p1.innerHTML = ph.map(u => `<div style="aspect-ratio:4/3;border-radius:10px;background:url('${u}') center/cover"></div>`).join('')
-  } else if (p1) { p1.style.display = 'none' }
+    p1.style.display = ''
+    p1.style.cssText = 'display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:12px'
+    p1.innerHTML = ph.map(u => `<div style="flex:0 0 100%;scroll-snap-align:center;aspect-ratio:4/3;border-radius:12px;background:url('${u}') center/cover"></div>`).join('')
+    if (!dots) { dots = document.createElement('div'); dots.id = 'd-photo-dots'; dots.style.cssText = 'display:flex;justify-content:center;gap:5px;margin-top:9px'; p1.after(dots) }
+    dots.style.display = ph.length > 1 ? 'flex' : 'none'
+    dots.innerHTML = ph.map((_, i) => `<span style="width:6px;height:6px;border-radius:50%;background:${i === 0 ? '#2F6BF6' : '#d3dae8'}"></span>`).join('')
+    p1.onscroll = () => {
+      const idx = Math.round(p1.scrollLeft / p1.clientWidth)
+      Array.from(dots.children).forEach((d, i) => { d.style.background = i === idx ? '#2F6BF6' : '#d3dae8' })
+    }
+    p1.scrollLeft = 0
+  } else {
+    if (p1) p1.style.display = 'none'
+    if (dots) dots.style.display = 'none'
+  }
   // 둘째 본문 섹션(사용 안 함) 숨김
   const h2 = document.getElementById('d-h2'); if (h2) { h2.style.display = 'none'; if (h2.nextElementSibling) h2.nextElementSibling.style.display = 'none' }
   window.showScreen('s10')

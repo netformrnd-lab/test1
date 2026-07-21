@@ -15,15 +15,25 @@
 
         <div class="bd" style="background:#fff;display:flex;flex-direction:column">
           <div style="background:linear-gradient(155deg,#243768,#1F2C5C);position:relative;overflow:hidden;padding:44px 24px 34px;color:#fff;text-align:center"><div style="position:absolute;top:-24px;right:-24px;width:140px;height:140px;background:radial-gradient(circle,rgba(127,161,224,.35),transparent 65%)"></div><div style="position:relative"><img src="assets/a081eb63-6da0-4864-98a1-1a3194cbb947.png" alt="아파트스퀘어" style="height:40px;display:block;margin:0 auto 14px"><div style="font-size:16px;font-weight:800;line-height:1.4">우리 단지 감리를<br>한눈에</div><div style="font-size:11px;color:#c3cee6;font-weight:600;margin-top:7px">로그인하고 우리 단지 소식을 확인하세요</div></div></div>
-          <div style="padding:26px 22px 0;flex:1">
-            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">아이디</div>
-            <div style="background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px">samsunggnaru</div>
+          <div style="padding:26px 22px 24px;flex:1">
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이메일</div>
+            <input id="login-email" type="email" inputmode="email" autocomplete="email" placeholder="이메일 주소" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
             <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">비밀번호</div>
-            <div style="background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#c4ccdb;font-weight:600;margin-bottom:14px">••••••••</div>
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:16px"><span style="width:17px;height:17px;border-radius:5px;background:#1F2C5C;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center">✓</span><span style="font-size:11px;color:#5c6580;font-weight:600">로그인 상태 유지</span></div>
-            <div class="plus" style="background:#1F2C5C;height:48px;border-radius:13px">로그인</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:11.5px;color:#6b7690;font-weight:700"><span>회원가입</span><span>아이디 · 비밀번호 찾기</span></div>
-          </div>
+            <input id="login-pw" type="password" autocomplete="current-password" placeholder="비밀번호 (6자 이상)" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
+            <div id="signup-fields" style="display:none">
+              <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이름 및 직급</div>
+              <input id="signup-name" placeholder="예: 김현수 / 관리소장" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
+              <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">연락처</div>
+              <input id="signup-phone" inputmode="tel" placeholder="010-0000-0000" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
+            </div>
+            <div id="auth-msg" style="font-size:11px;font-weight:700;min-height:15px;margin-bottom:8px;color:#d94b4b"></div>
+            <div id="auth-submit" class="plus" data-mode="login" style="background:#1F2C5C;height:48px;border-radius:13px">로그인</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:11.5px;color:#6b7690;font-weight:700">
+              <span id="auth-toggle-signup" style="cursor:pointer">회원가입</span>
+              <span id="auth-toggle-login" style="cursor:pointer;display:none;color:#2F6BF6">← 로그인으로</span>
+              <span style="cursor:pointer">아이디 · 비밀번호 찾기</span>
+            </div>
+          </div>>
         </div>
       
       </section>
@@ -393,5 +403,7 @@
   </aside>
 </div>
 <script src="js/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-app.js"></script>
 </body>
 </html>

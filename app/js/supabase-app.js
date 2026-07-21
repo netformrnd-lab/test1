@@ -120,16 +120,44 @@ async function loadReports(aptId) {
 function reportCard(r) {
   REPORTS[r.id] = r
   const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
-  return `<div data-report-id="${r.id}" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:11px 13px;cursor:pointer">
-    <div style="font-size:12px;font-weight:800;color:#1c2440">${escH(r.title)}</div>
-    <div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:4px">${d}${r.stage ? ' · ' + escH(r.stage) : ''}</div>
+  const ph = Array.isArray(r.photos) ? r.photos : []
+  const thumb = ph.length
+    ? `<div style="width:50px;height:50px;border-radius:10px;background:url('${ph[0]}') center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">${ph.length}장</span></div>`
+    : `<div style="width:50px;height:50px;border-radius:10px;background:#eef1f7;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">📄</div>`
+  return `<div data-report-id="${r.id}" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer">${thumb}
+    <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">${escH(r.title)}</div>
+    <div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:3px">${d}${r.stage ? ' · ' + escH(r.stage) : ''}${ph.length ? ' · 사진 ' + ph.length + '장' : ''}</div></div>
   </div>`
+}
+// 사진 업로드 (Supabase Storage)
+let W_PHOTOS = []
+function renderPhotoGrid() {
+  const grid = document.getElementById('w-photo-grid'); if (!grid) return
+  const thumbs = W_PHOTOS.map((u, i) => `<div style="aspect-ratio:1;border-radius:8px;background:url('${u}') center/cover;position:relative"><span data-rmphoto="${i}" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#d94b4b;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer">×</span></div>`).join('')
+  const add = '<label style="aspect-ratio:1;border-radius:8px;border:2px dashed #c3ccdb;background:#fff;display:flex;align-items:center;justify-content:center;color:#9aa3b6;font-size:17px;cursor:pointer">＋<input id="w-photo-input" type="file" accept="image/*" multiple style="display:none"></label>'
+  grid.innerHTML = thumbs + add
+  const inp = document.getElementById('w-photo-input')
+  if (inp) inp.onchange = (e) => handlePhotoSelect(e.target.files)
+  grid.querySelectorAll('[data-rmphoto]').forEach(x => x.onclick = () => { W_PHOTOS.splice(+x.dataset.rmphoto, 1); renderPhotoGrid() })
+}
+async function handlePhotoSelect(files) {
+  const { data: { user } } = await sb.auth.getUser()
+  for (const file of Array.from(files)) {
+    const safe = file.name.replace(/[^\w.]/g, '_')
+    const path = user.id + '/' + Date.now() + '_' + Math.round(Math.random() * 1e6) + '_' + safe
+    const { error } = await sb.storage.from('report-photos').upload(path, file, { upsert: false })
+    if (error) { alert('사진 업로드 실패: ' + error.message); continue }
+    const { data: pub } = sb.storage.from('report-photos').getPublicUrl(path)
+    W_PHOTOS.push(pub.publicUrl)
+    renderPhotoGrid()
+  }
 }
 function openWrite() {
   if (!currentApt) return
   const nm = document.getElementById('w-apt-name'); if (nm) nm.textContent = currentApt.name
   const t = document.getElementById('w-title'), c = document.getElementById('w-content'), s = document.getElementById('w-stage')
   if (t) t.value = ''; if (c) c.value = ''; if (s) s.value = ''
+  W_PHOTOS = []; renderPhotoGrid()
   window.showScreen('s09')
 }
 async function saveReport() {
@@ -140,7 +168,7 @@ async function saveReport() {
   if (!title) { alert('제목을 입력하세요'); return }
   const { data: { user } } = await sb.auth.getUser()
   const btn = document.getElementById('w-submit'); if (btn) btn.textContent = '등록 중…'
-  const { error } = await sb.from('reports').insert({ apartment_id: currentApt.id, author_id: user.id, title, content: content || null, stage: stage || null })
+  const { error } = await sb.from('reports').insert({ apartment_id: currentApt.id, author_id: user.id, title, content: content || null, stage: stage || null, photos: W_PHOTOS })
   if (btn) btn.textContent = '등록하기'
   if (error) { alert('등록 실패: ' + error.message); return }
   window.showScreen('s08')
@@ -154,9 +182,20 @@ function openReport(r) {
   const st = document.getElementById('d-stage')
   if (st) { if (r.stage) { st.textContent = r.stage; st.style.display = '' } else { st.style.display = 'none' } }
   set('d-body', r.content || '작성된 내용이 없어요.')
-  // 사진 기능은 아직 없으므로 사진/둘째 섹션 숨김
-  ;['d-photo1', 'd-photo2', 'd-h2'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none' })
-  const b2 = document.getElementById('d-h2'); if (b2 && b2.nextElementSibling) b2.nextElementSibling.style.display = 'none'
+  // 사진 표시
+  const ph = Array.isArray(r.photos) ? r.photos : []
+  const p1 = document.getElementById('d-photo1'), p2 = document.getElementById('d-photo2')
+  if (ph.length && p1) {
+    p1.style.display = ''
+    p1.style.background = `url('${ph[0]}') center/cover`
+    p1.innerHTML = `<span style="font-size:10px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:3px 8px;border-radius:6px">📷 현장 사진 ${ph.length}장</span>`
+  } else if (p1) { p1.style.display = 'none' }
+  if (ph.length > 1 && p2) {
+    p2.style.display = ''
+    p2.innerHTML = ph.slice(1, 4).map(u => `<div style="flex:1;height:40px;border-radius:8px;background:url('${u}') center/cover"></div>`).join('')
+  } else if (p2) { p2.style.display = 'none' }
+  // 둘째 본문 섹션(사용 안 함) 숨김
+  const h2 = document.getElementById('d-h2'); if (h2) { h2.style.display = 'none'; if (h2.nextElementSibling) h2.nextElementSibling.style.display = 'none' }
   window.showScreen('s10')
 }
 window.openApt = openApt; window.openReport = openReport

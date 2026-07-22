@@ -77,24 +77,40 @@ function auditorCard(a) {
     <span style="align-self:flex-start;font-size:8.5px;font-weight:800;color:${col};background:${bg};padding:3px 7px;border-radius:99px">${lbl}</span>
   </div>`
 }
+let AUD_LIST = []           // 불러온 담당 단지 전체
+let audFilter = 'all'       // 활성 필터: all / in_progress / scheduled / done
+let audQuery = ''           // 검색어
 async function loadAuditorApts() {
   currentApt = null // 홈으로 오면 '단지 선택' 해제 → 일정은 개인 일정 모드
   const cont = document.getElementById('aud-apts'); if (!cont) return
-  const sub = document.getElementById('aud-sub')
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
   const { data: apts, error } = await sb.from('apartments').select('*').eq('auditor_id', user.id).order('created_at', { ascending: false })
   if (error) { cont.innerHTML = '<div style="padding:20px;color:#8b95ad;font-size:12px">단지를 불러오지 못했어요</div>'; return }
-  if (!apts || !apts.length) {
+  AUD_LIST = apts || []
+  apts && apts.forEach(a => { AUD_APTS[a.id] = a })
+  renderAudApts()
+}
+function renderAudApts() {
+  const cont = document.getElementById('aud-apts'); if (!cont) return
+  const sub = document.getElementById('aud-sub')
+  if (sub) {
+    const ip = AUD_LIST.filter(a => a.status === 'in_progress').length
+    const sc = AUD_LIST.filter(a => a.status === 'scheduled').length
+    sub.textContent = AUD_LIST.length ? `맡은 단지 ${AUD_LIST.length}곳 · 진행 ${ip} · 점검예정 ${sc}` : '배정된 단지가 아직 없어요'
+  }
+  if (!AUD_LIST.length) {
     cont.innerHTML = '<div style="padding:26px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 배정된 담당 단지가 없어요.<br>관리자가 단지를 배정하면 여기에 표시돼요.</div>'
-    if (sub) sub.textContent = '배정된 단지가 아직 없어요'
     return
   }
-  cont.innerHTML = apts.map(auditorCard).join('')
-  if (sub) {
-    const ip = apts.filter(a => a.status === 'in_progress').length
-    const sc = apts.filter(a => a.status === 'scheduled').length
-    sub.textContent = `맡은 단지 ${apts.length}곳 · 진행 ${ip} · 점검예정 ${sc}`
-  }
+  const q = audQuery.trim().toLowerCase()
+  const list = AUD_LIST.filter(a => {
+    if (audFilter !== 'all' && a.status !== audFilter) return false
+    if (q) { const hay = ((a.name || '') + ' ' + (a.region || '') + ' ' + (a.construction_type || '')).toLowerCase(); if (!hay.includes(q)) return false }
+    return true
+  })
+  cont.innerHTML = list.length
+    ? list.map(auditorCard).join('')
+    : '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">조건에 맞는 단지가 없어요.</div>'
 }
 window.loadAuditorApts = loadAuditorApts
 
@@ -109,16 +125,30 @@ function openApt(a) {
   window.showScreen('s08')
   loadReports(a.id)
 }
+let REP_LIST = []       // 현재 단지의 보고서 전체
+let repQuery = ''       // 보고서 검색어
 async function loadReports(aptId) {
   const cont = document.getElementById('report-list'); if (!cont) return
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const rs = document.getElementById('rep-search'); if (rs) rs.value = ''; repQuery = ''
   const { data: reports, error } = await sb.from('reports').select('*').eq('apartment_id', aptId).order('created_at', { ascending: false })
   if (error) { cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">보고서를 불러오지 못했어요</div>'; return }
-  if (!reports || !reports.length) {
+  REP_LIST = reports || []
+  renderReports()
+}
+function renderReports() {
+  const cont = document.getElementById('report-list'); if (!cont) return
+  if (!REP_LIST.length) {
     cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 작성한 감리보고서가 없어요.<br>위 “＋ 감리보고서 작성”으로 첫 보고서를 남겨보세요.</div>'
     return
   }
-  cont.innerHTML = reports.map(reportCard).join('')
+  const q = repQuery.trim().toLowerCase()
+  const list = q
+    ? REP_LIST.filter(r => ((r.title || '') + ' ' + (r.stage || '') + ' ' + (r.content || '')).toLowerCase().includes(q))
+    : REP_LIST
+  cont.innerHTML = list.length
+    ? list.map(reportCard).join('')
+    : '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">검색 결과가 없어요.</div>'
 }
 function reportCard(r) {
   REPORTS[r.id] = r
@@ -349,7 +379,23 @@ function wire() {
   document.addEventListener('click', (e) => {
     const c = e.target.closest('#aud-apts [data-apt-id]'); if (c) { openApt(AUD_APTS[c.dataset.aptId]); return }
     const r = e.target.closest('#report-list [data-report-id]'); if (r) { openReport(REPORTS[r.dataset.reportId]); return }
+    // 담당 단지 필터 칩 (전체/진행중/점검예정/완료)
+    const f = e.target.closest('#aud-filters [data-filter]')
+    if (f) {
+      audFilter = f.dataset.filter
+      document.querySelectorAll('#aud-filters [data-filter]').forEach(el => {
+        const on = el.dataset.filter === audFilter
+        el.style.color = on ? '#fff' : '#5a6480'
+        el.style.background = on ? '#2F6BF6' : '#eef1f7'
+        el.style.fontWeight = on ? '800' : '700'
+      })
+      renderAudApts(); return
+    }
   })
+  // 담당 단지 검색
+  const as = $('aud-search'); if (as) as.oninput = () => { audQuery = as.value; renderAudApts() }
+  // 감리보고서 검색
+  const rps = $('rep-search'); if (rps) rps.oninput = () => { repQuery = rps.value; renderReports() }
   // 공사 일정
   const addBtn = $('sc-add-btn'); if (addBtn) addBtn.onclick = () => { const f = $('sc-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none' }
   const scSave = $('sc-save'); if (scSave) scSave.onclick = addSchedule

@@ -731,6 +731,11 @@ document.addEventListener('click', (e) => {
   if (el) { e.preventDefault(); window.open(INQUIRY_URL, '_blank', 'noopener') }
 })
 
-function boot() { wire(); tagInquiry(); wireBackArrows(); renderVideos() }
+function boot() {
+  try { wire() } catch (e) { console.error(e) }
+  try { tagInquiry() } catch (e) { console.error(e) }
+  try { wireBackArrows() } catch (e) { console.error(e) }
+  try { renderVideos() } catch (e) { console.error(e) }
+}
 if (document.readyState !== 'loading') boot()
 else document.addEventListener('DOMContentLoaded', boot)

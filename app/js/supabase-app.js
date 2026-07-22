@@ -262,6 +262,77 @@ function openCaseDetail(c) {
   window.showScreen('s25')
 }
 
+// ── 30초 우리 단지 자가진단 (s05) ────────────────────────
+const SDG_Q = [
+  { q: '우리 단지, 입주(준공)한 지 얼마나 됐나요?', a: [
+    { t: '5년 미만', rec: [] }, { t: '5~10년', rec: [] },
+    { t: '10~15년', rec: ['repaint'] }, { t: '15년 이상', rec: ['repaint', 'diagnosis'] } ] },
+  { q: '외벽에 균열이나 페인트 벗겨짐이 보이나요?', a: [
+    { t: '거의 없어요', rec: [] }, { t: '군데군데 있어요', rec: ['repaint'] },
+    { t: '눈에 띄게 많아요', rec: ['repaint', 'diagnosis'] } ] },
+  { q: '천장·벽·지하에서 물이 새거나 얼룩이 있나요?', a: [
+    { t: '없어요', rec: [] }, { t: '가끔 봐요', rec: ['waterproof'] },
+    { t: '자주 있어요', rec: ['waterproof', 'diagnosis'] } ] },
+  { q: '마지막 외벽 도장(페인트)은 언제쯤인가요?', a: [
+    { t: '5년 이내', rec: [] }, { t: '5~10년 전', rec: ['repaint'] },
+    { t: '10년 이상', rec: ['repaint'] }, { t: '잘 모르겠어요', rec: ['diagnosis'] } ] },
+  { q: '지하주차장 바닥 상태는 어떤가요?', a: [
+    { t: '깨끗해요', rec: [] }, { t: '균열·벗겨짐 있어요', rec: ['epoxy'] },
+    { t: '심하게 손상됐어요', rec: ['epoxy', 'diagnosis'] }, { t: '지하가 없어요', rec: [] } ] }
+]
+const SDG_REC = {
+  repaint: { icon: '🎨', title: '외벽 재도장 (균열보수)', desc: '균열을 먼저 보수하고 재도장하면 건물 수명과 미관을 함께 지킬 수 있어요.' },
+  waterproof: { icon: '💧', title: '방수 공사', desc: '누수는 표면만 덧칠하면 재발해요. 방수층부터 원인을 잡아야 합니다.' },
+  epoxy: { icon: '🅿️', title: '지하주차장 에폭시', desc: '바닥 균열·박리는 분진·미끄럼을 유발해요. 보수 후 에폭시 재시공을 권장해요.' },
+  diagnosis: { icon: '🛸', title: '드론·AI 정밀 진단', desc: '눈에 안 보이는 하자까지 정밀하게 확인하는 걸 권장해요.' }
+}
+let sdgAnswers = []
+function startSelfDiag() { sdgAnswers = []; sdgRender(0) }
+function sdgSetBar(done, total) {
+  const bar = document.getElementById('sdgbar'), pct = document.getElementById('sdgpct')
+  const p = Math.round(done / total * 100)
+  if (bar) bar.style.width = p + '%'
+  if (pct) pct.textContent = p + '%'
+}
+function sdgRender(qi) {
+  const box = document.getElementById('sdg'); if (!box) return
+  sdgSetBar(qi, SDG_Q.length)
+  const Q = SDG_Q[qi]
+  box.innerHTML = `<div style="padding:20px 16px">
+    <div style="font-size:11px;font-weight:800;color:#2F6BF6">Q${qi + 1} / ${SDG_Q.length}</div>
+    <div style="font-size:17px;font-weight:800;color:#141d34;line-height:1.4;margin-top:8px">${escH(Q.q)}</div>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-top:18px">
+      ${Q.a.map((o, ai) => `<div data-sdg-a="${ai}" style="cursor:pointer;background:#fff;border:1.5px solid #e6eaf2;border-radius:12px;padding:15px 16px;font-size:13.5px;font-weight:700;color:#2a3350;display:flex;align-items:center;justify-content:space-between">${escH(o.t)}<span style="color:#c3ccdb">›</span></div>`).join('')}
+    </div></div>`
+  box.querySelectorAll('[data-sdg-a]').forEach(el => el.onclick = () => {
+    sdgAnswers[qi] = Q.a[+el.dataset.sdgA]
+    if (qi + 1 < SDG_Q.length) sdgRender(qi + 1); else sdgResult()
+  })
+}
+function sdgResult() {
+  const box = document.getElementById('sdg'); if (!box) return
+  sdgSetBar(SDG_Q.length, SDG_Q.length)
+  const recs = []
+  sdgAnswers.forEach(a => (a.rec || []).forEach(r => { if (!recs.includes(r)) recs.push(r) }))
+  let body
+  if (!recs.length) {
+    body = `<div style="background:#eafaf1;border:1px solid #c7ecd6;border-radius:14px;padding:18px;text-align:center">
+      <div style="font-size:30px">✅</div>
+      <div style="font-size:15px;font-weight:800;color:#1c2440;margin-top:8px">지금은 큰 문제가 없어 보여요</div>
+      <div style="font-size:11.5px;color:#5c6580;font-weight:600;margin-top:6px;line-height:1.6">그래도 정기 점검은 챙기시는 걸 권장해요. 궁금하면 무료로 상담받아 보세요.</div></div>`
+  } else {
+    body = `<div style="font-size:15px;font-weight:800;color:#141d34;margin-bottom:4px">우리 단지엔 이런 점검이 필요해요</div>
+      <div style="font-size:11px;color:#8b95ad;font-weight:600;margin-bottom:13px">답변을 바탕으로 추천드려요 · 정확한 판단은 현장 확인이 필요해요</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+      ${recs.map(r => { const R = SDG_REC[r]; return `<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:14px;display:flex;gap:12px;align-items:flex-start"><span style="font-size:24px;flex-shrink:0">${R.icon}</span><div><div style="font-size:13.5px;font-weight:800;color:#1c2440">${R.title}</div><div style="font-size:11px;color:#5c6580;font-weight:600;margin-top:4px;line-height:1.6">${R.desc}</div></div></div>` }).join('')}
+      </div>`
+  }
+  box.innerHTML = `<div style="padding:18px 16px 24px">${body}
+    <div data-inquiry="1" style="cursor:pointer;margin-top:18px;background:#2F6BF6;color:#fff;border-radius:12px;padding:15px;text-align:center;font-size:13.5px;font-weight:800">무료 상담 신청하기 →</div>
+    <div id="sdg-again" style="cursor:pointer;margin-top:9px;text-align:center;font-size:12px;font-weight:700;color:#8b95ad">다시 진단하기</div></div>`
+  const ag = document.getElementById('sdg-again'); if (ag) ag.onclick = startSelfDiag
+}
+
 // ── 영상으로 보는 감리 이야기 (유튜브 Shorts) ────────────
 const VIDEOS = [
   { id: 'FI86cA8S6Uo', title: '옥상 방수 감리는?' },
@@ -306,7 +377,7 @@ function openResidentMenu() {
 
 // ── 위임 클릭: data-nav / data-soon / data-back / data-notice ──
 document.addEventListener('click', (e) => {
-  const nav = e.target.closest('[data-nav]'); if (nav) { window.showScreen(nav.dataset.nav); if (nav.dataset.nav === 's23') loadCases(); return }
+  const nav = e.target.closest('[data-nav]'); if (nav) { window.showScreen(nav.dataset.nav); if (nav.dataset.nav === 's23') loadCases(); if (nav.dataset.nav === 's05') startSelfDiag(); return }
   const back = e.target.closest('[data-back]'); if (back) { window.goBack(); return }
   const nt = e.target.closest('[data-notice]'); if (nt) { openNotice(NOTICES[nt.dataset.notice]); return }
   const yt = e.target.closest('[data-ytid]'); if (yt) { window.open('https://www.youtube.com/shorts/' + yt.dataset.ytid, '_blank', 'noopener'); return }

@@ -15,11 +15,11 @@ function setMsg(text, ok) {
   if (m) { m.textContent = text || ''; m.style.color = ok ? '#1f8a5b' : '#d94b4b' }
 }
 function ko(m) {
-  if (/Invalid login/i.test(m)) return '이메일 또는 비밀번호가 맞지 않아요'
-  if (/already registered|already been registered/i.test(m)) return '이미 가입된 이메일이에요'
+  if (/Invalid login/i.test(m)) return '아이디 또는 비밀번호가 맞지 않아요'
+  if (/already registered|already been registered/i.test(m)) return '이미 사용 중인 아이디예요'
   if (/Password should be at least/i.test(m)) return '비밀번호는 6자 이상이어야 해요'
-  if (/valid email|invalid.*email/i.test(m)) return '이메일 형식이 올바르지 않아요'
-  if (/Email not confirmed/i.test(m)) return '이메일 인증을 먼저 완료해 주세요'
+  if (/valid email|invalid.*email/i.test(m)) return '아이디에 쓸 수 없는 문자가 있어요 (영문·숫자로 만들어 주세요)'
+  if (/Email not confirmed/i.test(m)) return '아직 승인 전이에요. 관리자 승인 후 이용할 수 있어요'
   return m
 }
 
@@ -730,25 +730,35 @@ async function addSchedule() {
 }
 window.loadSchedule = loadSchedule
 
+// 아이디 → 내부 이메일 변환 (아임웹처럼 이메일 없이 아이디만으로 가입·로그인)
+const ID_DOMAIN = '@aptsquare.app'
+function idToEmail(v) {
+  v = (v || '').trim().toLowerCase()
+  if (!v) return ''
+  if (v.indexOf('@') >= 0) return v            // 이메일을 직접 입력한 경우 그대로 사용
+  return v + ID_DOMAIN
+}
+
 async function doLogin() {
-  const email = $('login-email').value.trim()
+  const id = $('login-email').value.trim()
   const pw = $('login-pw').value
-  if (!email || !pw) { setMsg('이메일과 비밀번호를 입력하세요'); return }
+  if (!id || !pw) { setMsg('아이디와 비밀번호를 입력하세요'); return }
   setMsg('로그인 중…', true)
-  const { error } = await sb.auth.signInWithPassword({ email, password: pw })
+  const { error } = await sb.auth.signInWithPassword({ email: idToEmail(id), password: pw })
   if (error) { setMsg(ko(error.message)); return }
   setMsg('')
   route()
 }
 
 async function doSignup() {
-  const email = $('login-email').value.trim()
+  const id = $('login-email').value.trim()
   const pw = $('login-pw').value
   const name = $('signup-name').value.trim()
   const phone = $('signup-phone').value.trim()
-  if (!email || !pw || !name) { setMsg('이메일·비밀번호·이름을 입력하세요'); return }
+  if (!id || !pw || !name) { setMsg('아이디·비밀번호·이름을 입력하세요'); return }
+  if (pw.length < 6) { setMsg('비밀번호는 6자 이상으로 정해주세요'); return }
   setMsg('가입 중…', true)
-  const { error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, phone } } })
+  const { error } = await sb.auth.signUp({ email: idToEmail(id), password: pw, options: { data: { name, phone, username: id.toLowerCase() } } })
   if (error) { setMsg(ko(error.message)); return }
   setMsg('가입 완료! 관리자 승인 후 이용할 수 있어요.', true)
   setTimeout(() => window.showScreen('s02'), 1400)

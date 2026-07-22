@@ -280,12 +280,6 @@ const SDG_Q = [
     { t: '깨끗해요', rec: [] }, { t: '균열·벗겨짐 있어요', rec: ['epoxy'] },
     { t: '심하게 손상됐어요', rec: ['epoxy', 'diagnosis'] }, { t: '지하가 없어요', rec: [] } ] }
 ]
-const SDG_REC = {
-  repaint: { icon: '🎨', title: '외벽 재도장 (균열보수)', desc: '균열을 먼저 보수하고 재도장하면 건물 수명과 미관을 함께 지킬 수 있어요.' },
-  waterproof: { icon: '💧', title: '방수 공사', desc: '누수는 표면만 덧칠하면 재발해요. 방수층부터 원인을 잡아야 합니다.' },
-  epoxy: { icon: '🅿️', title: '지하주차장 에폭시', desc: '바닥 균열·박리는 분진·미끄럼을 유발해요. 보수 후 에폭시 재시공을 권장해요.' },
-  diagnosis: { icon: '🛸', title: '드론·AI 정밀 진단', desc: '눈에 안 보이는 하자까지 정밀하게 확인하는 걸 권장해요.' }
-}
 let sdgAnswers = []
 function startSelfDiag() { sdgAnswers = []; sdgRender(0) }
 function sdgSetBar(done, total) {
@@ -314,21 +308,18 @@ function sdgResult() {
   sdgSetBar(SDG_Q.length, SDG_Q.length)
   const recs = []
   sdgAnswers.forEach(a => (a.rec || []).forEach(r => { if (!recs.includes(r)) recs.push(r) }))
-  let body
-  if (!recs.length) {
-    body = `<div style="background:#eafaf1;border:1px solid #c7ecd6;border-radius:14px;padding:18px;text-align:center">
-      <div style="font-size:30px">✅</div>
-      <div style="font-size:15px;font-weight:800;color:#1c2440;margin-top:8px">지금은 큰 문제가 없어 보여요</div>
-      <div style="font-size:11.5px;color:#5c6580;font-weight:600;margin-top:6px;line-height:1.6">그래도 정기 점검은 챙기시는 걸 권장해요. 궁금하면 무료로 상담받아 보세요.</div></div>`
-  } else {
-    body = `<div style="font-size:15px;font-weight:800;color:#141d34;margin-bottom:4px">우리 단지엔 이런 점검이 필요해요</div>
-      <div style="font-size:11px;color:#8b95ad;font-weight:600;margin-bottom:13px">답변을 바탕으로 추천드려요 · 정확한 판단은 현장 확인이 필요해요</div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-      ${recs.map(r => { const R = SDG_REC[r]; return `<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:14px;display:flex;gap:12px;align-items:flex-start"><span style="font-size:24px;flex-shrink:0">${R.icon}</span><div><div style="font-size:13.5px;font-weight:800;color:#1c2440">${R.title}</div><div style="font-size:11px;color:#5c6580;font-weight:600;margin-top:4px;line-height:1.6">${R.desc}</div></div></div>` }).join('')}
-      </div>`
-  }
-  box.innerHTML = `<div style="padding:18px 16px 24px">${body}
-    <div data-inquiry="1" style="cursor:pointer;margin-top:18px;background:#2F6BF6;color:#fff;border-radius:12px;padding:15px;text-align:center;font-size:13.5px;font-weight:800">무료 상담 신청하기 →</div>
+  const needs = recs.length > 0
+  const card = needs
+    ? `<div style="background:#fff8ec;border:1px solid #f4e2bf;border-radius:16px;padding:24px 18px;text-align:center">
+        <div style="font-size:34px">🔍</div>
+        <div style="font-size:16px;font-weight:800;color:#1c2440;margin-top:10px">점검을 받아보시길 권해요</div>
+        <div style="font-size:12px;color:#5c6580;font-weight:600;margin-top:9px;line-height:1.7">답변을 보니 우리 단지에 확인이 필요한 부분이 있어 보여요.<br>감리 전문가가 현장에서 정확히 확인해 드릴게요.</div></div>`
+    : `<div style="background:#eafaf1;border:1px solid #c7ecd6;border-radius:16px;padding:24px 18px;text-align:center">
+        <div style="font-size:34px">✅</div>
+        <div style="font-size:16px;font-weight:800;color:#1c2440;margin-top:10px">지금은 큰 문제가 없어 보여요</div>
+        <div style="font-size:12px;color:#5c6580;font-weight:600;margin-top:9px;line-height:1.7">그래도 정기 점검은 챙기시는 걸 권장해요.<br>궁금한 점은 언제든 무료로 상담받아 보세요.</div></div>`
+  box.innerHTML = `<div style="padding:22px 16px 24px">${card}
+    <div data-inquiry="1" style="cursor:pointer;margin-top:20px;background:#2F6BF6;color:#fff;border-radius:12px;padding:15px;text-align:center;font-size:13.5px;font-weight:800">무료 상담 신청하기 →</div>
     <div id="sdg-again" style="cursor:pointer;margin-top:9px;text-align:center;font-size:12px;font-weight:700;color:#8b95ad">다시 진단하기</div></div>`
   const ag = document.getElementById('sdg-again'); if (ag) ag.onclick = startSelfDiag
 }

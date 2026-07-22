@@ -526,7 +526,8 @@ function openReport(r) {
   if (ph.length && p1) {
     p1.style.display = ''
     p1.style.cssText = 'display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:12px'
-    p1.innerHTML = ph.map(u => `<div style="flex:0 0 100%;scroll-snap-align:center;aspect-ratio:4/3;border-radius:12px;background:url('${u}') center/cover"></div>`).join('')
+    // 사진 전체가 보이도록 contain (잘리지 않게) + 중립 배경
+    p1.innerHTML = ph.map(u => `<div style="flex:0 0 100%;scroll-snap-align:center;height:300px;border-radius:12px;background:#eef1f7 url('${u}') center/contain no-repeat"></div>`).join('')
     if (!dots) { dots = document.createElement('div'); dots.id = 'd-photo-dots'; dots.style.cssText = 'display:flex;justify-content:center;gap:5px;margin-top:9px'; p1.after(dots) }
     dots.style.display = ph.length > 1 ? 'flex' : 'none'
     dots.innerHTML = ph.map((_, i) => `<span style="width:6px;height:6px;border-radius:50%;background:${i === 0 ? '#2F6BF6' : '#d3dae8'}"></span>`).join('')

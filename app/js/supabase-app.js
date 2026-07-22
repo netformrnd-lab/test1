@@ -40,6 +40,7 @@ let currentRole = null
 // ── 입주민·관리소장 홈: 우리 단지 정보 불러오기 ─────────────
 let RES_APT = null
 let RES_AUD_NAME = ''
+let RES_AUD_PHONE = ''
 // 담당 감리 → 문의하기 화면(s16)
 function openInquiry() {
   const nm = document.getElementById('q-aud-name'); if (nm && RES_AUD_NAME) nm.textContent = RES_AUD_NAME
@@ -88,6 +89,8 @@ async function loadResidentHome() {
       const an = document.getElementById('res-aud-name'); if (an) an.textContent = audName
       const av = document.getElementById('res-aud-av'); if (av) av.textContent = String(audName).slice(0, 1)
     }
+    const { data: audPhone } = await sb.rpc('apartment_auditor_phone', { apt: apt.id })
+    if (audPhone) RES_AUD_PHONE = audPhone
   }
   loadResidentNext(apt.id)
   loadResidentNotices()
@@ -661,7 +664,9 @@ function wire() {
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = residentReportSoon
   const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu
   const audCard = $('res-aud-card'); if (audCard) audCard.onclick = openInquiry
-  const qib = $('q-inquiry-btn'); if (qib) qib.onclick = () => alert('1:1 문의 남기기 기능은 곧 열릴 예정이에요.')
+  const noPhone = () => alert('담당 감리사 연락처가 아직 등록되지 않았어요.\n(감리사가 회원가입 시 연락처를 입력하면 표시돼요.)')
+  const qc = $('q-call'); if (qc) qc.onclick = () => { if (RES_AUD_PHONE) window.location.href = 'tel:' + RES_AUD_PHONE.replace(/[^0-9+]/g, ''); else noPhone() }
+  const qs = $('q-sms'); if (qs) qs.onclick = () => { if (RES_AUD_PHONE) window.location.href = 'sms:' + RES_AUD_PHONE.replace(/[^0-9+]/g, ''); else noPhone() }
   // 하단 네비게이션 (홈 / 보고서 / 일정)
   document.addEventListener('click', (e) => {
     const nav = e.target.closest('.nav > div'); if (!nav) return

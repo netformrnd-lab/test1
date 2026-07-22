@@ -500,22 +500,41 @@ function renderStageTrack(a, boxId) {
     else if (i === cur && cur < tot) { ic = '<span style="color:#2F6BF6">●</span>'; cName = '#1c2440'; cSub = '진행중'; weight = '800' }
     else { ic = '<span style="color:#c3ccdb">○</span>'; cName = '#aab2c5'; cSub = '예정'; weight = '600' }
     const subCol = cSub === '진행중' ? '#2F6BF6' : (cSub === '완료' ? '#1f8a5b' : '#aab2c5')
-    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+    const info = window.stageInfo ? window.stageInfo(nm) : null
+    const caret = info ? '<span class="stg-caret" style="font-size:12px;color:#b3bccf;flex-shrink:0;width:14px;text-align:center">▾</span>' : '<span style="width:14px;flex-shrink:0"></span>'
+    const panel = info ? `<div class="stg-info" style="display:none;margin:0 0 8px 22px;border-left:2px solid #cfe0ff;padding:9px 0 5px 13px">
+        <div style="font-size:11px;font-weight:800;color:#2F6BF6;margin-bottom:3px">🔧 이 단계는요</div>
+        <div style="font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.7">${escH(info.what)}</div>
+        <div style="font-size:11px;font-weight:800;color:#1f8a5b;margin:9px 0 3px">✅ 왜 할까요?</div>
+        <div style="font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.7">${escH(info.why)}</div>
+      </div>` : ''
+    return `<div class="stg-row"${info ? ' onclick="toggleStg(this)"' : ''} style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-radius:8px;${info ? 'cursor:pointer' : ''}">
       <span style="width:15px;text-align:center;font-size:12px">${ic}</span>
-      <span style="flex:1;font-size:11.5px;font-weight:${weight};color:${cName};${i < cur ? 'text-decoration:line-through' : ''}">${i + 1}. ${escH(nm)}</span>
-      <span style="font-size:9px;font-weight:800;color:${subCol}">${cSub}</span>
-    </div>`
+      <span style="flex:1;font-size:12.5px;font-weight:${weight};color:${cName};${i < cur ? 'text-decoration:line-through' : ''}">${i + 1}. ${escH(nm)}</span>
+      <span style="font-size:9.5px;font-weight:800;color:${subCol}">${cSub}</span>
+      ${caret}
+    </div>${panel}`
   }).join('')
   const pct = tot ? Math.round(cur / tot * 100) : 0
   box.innerHTML = `<div style="background:#f6f9ff;border:1px solid #e2ebff;border-radius:13px;padding:12px 13px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <span style="font-size:11px;font-weight:800;color:#3a445e">🛠️ 공정 순서 · ${escH(window.methodLabel(a.method))}</span>
-      <span style="font-size:10px;font-weight:800;color:#2F6BF6">${cur}/${tot}</span>
+      <span style="font-size:12px;font-weight:800;color:#3a445e">🛠️ 공정 순서 · ${escH(window.methodLabel(a.method))}</span>
+      <span style="font-size:10.5px;font-weight:800;color:#2F6BF6">${cur}/${tot}</span>
     </div>
     <div style="height:5px;border-radius:9px;background:#e2ebff;overflow:hidden;margin-bottom:8px"><div style="width:${pct}%;height:100%;background:#2F6BF6;border-radius:9px"></div></div>
-    <div style="font-size:10.5px;color:#5c6580;font-weight:600;margin-bottom:6px">${head}</div>
+    <div style="font-size:11px;color:#5c6580;font-weight:600;margin-bottom:4px">${head}</div>
+    <div style="font-size:10px;color:#8b95ad;font-weight:700;margin-bottom:8px">👆 각 단계를 누르면 무엇을·왜 하는지 알려드려요</div>
     ${rows}
   </div>`
+}
+// 공정 단계 펼치기/접기 (책갈피식 설명)
+window.toggleStg = function (row) {
+  const panel = row.nextElementSibling
+  if (!panel || !panel.classList || !panel.classList.contains('stg-info')) return
+  const open = panel.style.display !== 'none'
+  panel.style.display = open ? 'none' : 'block'
+  const c = row.querySelector('.stg-caret'); if (c) c.textContent = open ? '▾' : '▴'
+  row.style.background = open ? '' : '#eaf1ff'
 }
 let REP_LIST = []       // 현재 단지의 보고서 전체
 let repQuery = ''       // 보고서 검색어

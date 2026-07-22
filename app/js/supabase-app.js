@@ -461,12 +461,17 @@ async function loadSchedule() {
   const sub = document.getElementById('s-sub'), addBtn = document.getElementById('sc-add-btn')
   if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
   let scheds = []
-  if (currentRole !== 'auditor') {
-    // 입주민·관리소장: 우리 단지 일정 (보기만)
+  // 역할을 DB에서 새로 읽어 판단(캐시된 currentRole 신뢰하지 않음)
+  const { data: prof } = await sb.from('profiles').select('role, apartment_id').eq('id', user.id).single()
+  const isAuditor = prof && prof.role === 'auditor'
+  if (!isAuditor) {
+    // 입주민·관리소장: 우리 단지 일정만 (보기 전용)
     if (addBtn) addBtn.style.display = 'none'
-    const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+    const form = document.getElementById('sc-form'); if (form) form.style.display = 'none'
     if (!prof || !prof.apartment_id) { if (sub) sub.textContent = '아직 배정된 단지가 없어요'; renderCalendar([]); renderSchedList([]); return }
-    if (sub) sub.textContent = '우리 단지 방문·점검 일정이에요'
+    // 우리 단지 이름 표시
+    const { data: apt } = await sb.from('apartments').select('name').eq('id', prof.apartment_id).single()
+    if (sub) sub.innerHTML = (apt ? '<b style="color:#2F6BF6">' + escH(apt.name) + '</b> · ' : '') + '우리 단지 방문·점검 일정이에요'
     const { data } = await sb.from('schedules').select('*').eq('apartment_id', prof.apartment_id).order('date')
     scheds = data || []
   } else {
@@ -476,7 +481,7 @@ async function loadSchedule() {
     const { data } = await sb.from('schedules').select('*').order('date')
     scheds = data || []
   }
-  if (currentRole === 'auditor') populateSchedAptSelect()
+  if (isAuditor) populateSchedAptSelect()
   renderCalendar(scheds)
   renderSchedList(scheds)
 }
@@ -615,7 +620,7 @@ function wire() {
   const goSchedule = () => { showScreen('s14'); loadSchedule() }
   const icSch = $('res-ic-schedule'); if (icSch) icSch.onclick = goSchedule
   const nextCard = $('res-next-card'); if (nextCard) nextCard.onclick = goSchedule
-  const icProg = $('res-ic-progress'); if (icProg) icProg.onclick = () => { const t = $('res-stage-track'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
+  const icProg = $('res-ic-progress'); if (icProg) icProg.onclick = () => { window.showScreen('s24'); loadResidentProgress() }
   const icCase = $('res-ic-case'); if (icCase) icCase.onclick = () => showScreen('s23')
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = residentReportSoon
   const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu

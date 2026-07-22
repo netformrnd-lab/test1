@@ -306,7 +306,7 @@ function openResidentMenu() {
 
 // ── 위임 클릭: data-nav / data-soon / data-back / data-notice ──
 document.addEventListener('click', (e) => {
-  const nav = e.target.closest('[data-nav]'); if (nav) { window.showScreen(nav.dataset.nav); return }
+  const nav = e.target.closest('[data-nav]'); if (nav) { window.showScreen(nav.dataset.nav); if (nav.dataset.nav === 's23') loadCases(); return }
   const back = e.target.closest('[data-back]'); if (back) { window.goBack(); return }
   const nt = e.target.closest('[data-notice]'); if (nt) { openNotice(NOTICES[nt.dataset.notice]); return }
   const yt = e.target.closest('[data-ytid]'); if (yt) { window.open('https://www.youtube.com/shorts/' + yt.dataset.ytid, '_blank', 'noopener'); return }
@@ -725,6 +725,10 @@ function wire() {
     const nav = e.target.closest('.nav > div'); if (!nav) return
     const t = nav.textContent || ''
     if (t.indexOf('문의') >= 0) return // 문의는 별도 처리
+    if (!currentRole) { // 비회원: 홈은 둘러보기(s04), 그 외는 로그인 유도
+      if (t.indexOf('홈') >= 0) showScreen('s04'); else showScreen('s01')
+      return
+    }
     if (t.indexOf('홈') >= 0) {
       if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() } else { showScreen('s11'); loadResidentHome() }
     } else if (t.indexOf('보고서') >= 0) {
@@ -735,8 +739,8 @@ function wire() {
       showScreen('s14'); loadSchedule()
     }
   })
-  // 앱 열 때 이미 로그인돼 있으면 알맞은 화면으로
-  sb.auth.getSession().then(({ data }) => { if (data.session) route() })
+  // 앱 열 때: 로그인돼 있으면 알맞은 화면, 아니면 비회원 둘러보기 홈(s04)
+  sb.auth.getSession().then(({ data }) => { if (data.session) route(); else window.showScreen('s04') })
 }
 
 // ── 문의 버튼 → 홈페이지 링크 ─────────────────────────────

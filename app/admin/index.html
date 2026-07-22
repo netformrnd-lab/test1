@@ -161,6 +161,19 @@
     <section id="sec-members">
       <div class="head"><div><h2>회원 관리</h2><div class="desc">가입한 회원을 승인하고 역할·담당 단지를 지정하세요</div></div></div>
       <div class="card">
+        <h3>➕ 회원 직접 추가 <span style="font-size:11px;font-weight:600;color:var(--mut)">(아이디·비번을 관리자가 만들어 줍니다 · 바로 승인됨)</span></h3>
+        <div class="add-form" style="flex-wrap:wrap;gap:8px">
+          <input id="ma-id" placeholder="아이디 (영문·숫자)" style="width:150px" autocomplete="off">
+          <input id="ma-pw" placeholder="비밀번호 (6자 이상)" style="width:150px" autocomplete="new-password">
+          <input id="ma-name" placeholder="이름" style="width:120px">
+          <input id="ma-phone" placeholder="연락처 (선택)" style="width:140px">
+          <select id="ma-role" class="f"></select>
+          <select id="ma-apt" class="f" style="max-width:200px"><option value="">담당 단지 (선택)</option></select>
+          <button class="b save" onclick="addMemberAccount()">회원 추가</button>
+        </div>
+        <div id="ma-msg" style="font-size:12px;font-weight:700;margin-top:8px;min-height:16px"></div>
+      </div>
+      <div class="card">
         <table>
           <thead><tr><th>이름</th><th>아이디</th><th>연락처</th><th>역할</th><th>담당 단지</th><th>상태</th><th></th></tr></thead>
           <tbody id="members"></tbody>
@@ -302,7 +315,45 @@ async function loadAll(){
     sb.from('field_updates').select('*').order('created_at',{ascending:false})
   ]);
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];
-  renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();
+  renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();
+}
+function fillMemberAddForm(){
+  const rs=$('ma-role'); if(rs && !rs.dataset.filled){ rs.innerHTML=roleOpts('resident'); rs.dataset.filled='1'; }
+  const as=$('ma-apt'); if(as){ const cur=as.value; const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko')); as.innerHTML='<option value="">담당 단지 (선택)</option>'+sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join(''); as.value=cur; }
+}
+async function addMemberAccount(){
+  const id=$('ma-id').value.trim().toLowerCase().replace(/\s/g,'');
+  const pw=$('ma-pw').value;
+  const name=$('ma-name').value.trim();
+  const phone=$('ma-phone').value.trim();
+  const role=$('ma-role').value;
+  const apt=$('ma-apt').value||null;
+  const msg=$('ma-msg'); const setM=(t,c)=>{ if(msg){ msg.textContent=t; msg.style.color=c||'var(--mut2)'; } };
+  if(!id||!pw||!name){ setM('아이디·비밀번호·이름은 꼭 입력하세요','#e4544b'); return; }
+  if(pw.length<6){ setM('비밀번호는 6자 이상으로 정해주세요','#e4544b'); return; }
+  if(!/^[a-z0-9._-]+$/.test(id)){ setM('아이디는 영문 소문자·숫자로 만들어 주세요','#e4544b'); return; }
+  const email=id+'@aptsquare.app';
+  const btn=document.querySelector('#sec-members .save'); if(btn){ btn.textContent='만드는 중…'; btn.disabled=true; }
+  setM('계정을 만드는 중…','#2563eb');
+  // 관리자 세션이 바뀌지 않도록 임시 클라이언트로 가입 처리
+  const tmp=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'apt_tmp_signup'}});
+  const { data, error } = await tmp.auth.signUp({ email, password:pw, options:{ data:{ name, phone, username:id } } });
+  if(btn){ btn.textContent='회원 추가'; btn.disabled=false; }
+  if(error){
+    const dup=/already|registered|exists/i.test(error.message);
+    setM(dup?'이미 사용 중인 아이디예요':('실패: '+error.message),'#e4544b'); return;
+  }
+  const newId=data && data.user && data.user.id;
+  if(newId){
+    const { error:pe }=await sb.from('profiles').update({ name, phone:phone||null, email, role, apartment_id:apt, approved:true }).eq('id', newId);
+    if(pe){ setM('계정은 생성됐지만 정보 저장 오류: '+pe.message+' (목록에서 다시 지정하세요)','#c98a1e'); }
+    else { setM(`✅ '${id}' 회원이 추가되고 승인됐어요 (비번: ${pw})`,'#1f8a5b'); }
+  } else {
+    setM('계정 생성됨. (이메일 인증이 켜져 있으면 로그인 전 인증이 필요할 수 있어요)','#c98a1e');
+  }
+  try{ await tmp.auth.signOut(); }catch(e){}
+  ['ma-id','ma-pw','ma-name','ma-phone'].forEach(x=>{ const el=$(x); if(el)el.value=''; });
+  loadAll();
 }
 function aptName(id){const a=APTS.find(x=>x.id===id);return a?a.name:'(단지)';}
 function memberName(id){const m=MEMBERS.find(x=>x.id===id);return m?(m.name||m.email):'(작성자)';}

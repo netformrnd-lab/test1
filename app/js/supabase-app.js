@@ -31,6 +31,7 @@ async function route() {
     .from('profiles').select('role, approved, name').eq('id', user.id).single()
   if (error || !profile || !profile.approved) { window.showScreen('s02'); return } // 승인 대기
   currentRole = profile.role
+  applyRoleNav(profile.role)
   if (profile.role === 'auditor') { window.showScreen('s07'); loadAuditorApts() }
   else { window.showScreen('s11'); loadResidentHome() }
 }
@@ -81,6 +82,7 @@ async function loadResidentHome() {
     }
   }
   loadResidentNext(apt.id)
+  loadResidentNotices()
 }
 // 다가오는 감리 일정 1건
 async function loadResidentNext(aptId) {
@@ -104,6 +106,129 @@ function residentReportSoon() {
   alert('감리보고서 열람 기능은 곧 열릴 예정이에요.\n지금은 우리 단지 진행 현황과 공사 일정을 확인하실 수 있어요.')
 }
 window.loadResidentHome = loadResidentHome
+
+// ── 뒤로가기(화면 히스토리) ─────────────────────────────
+const ORIG_SHOW = window.showScreen
+const NAV_HIST = []
+let NAV_CUR = (location.hash || '').replace('#', '') || null
+window.showScreen = function (id) {
+  if (!document.getElementById(id)) return
+  if (NAV_CUR && NAV_CUR !== id) NAV_HIST.push(NAV_CUR)
+  NAV_CUR = id
+  ORIG_SHOW(id)
+}
+window.goBack = function () {
+  let p = NAV_HIST.pop()
+  if (!p) p = (currentRole === 'auditor') ? 's07' : 's11'
+  NAV_CUR = p
+  ORIG_SHOW(p)
+}
+function wireBackArrows() {
+  document.querySelectorAll('.ab').forEach((ab) => {
+    const sp = ab.querySelector('span')
+    if (sp && /^[‹<]$/.test((sp.textContent || '').trim()) && !sp.getAttribute('onclick') && !sp.hasAttribute('data-back')) {
+      sp.style.cursor = 'pointer'; sp.onclick = () => window.goBack()
+    }
+  })
+}
+
+// ── 역할별 하단 메뉴 (입주민: 홈/진행현황/일정, 감리사: 홈/보고서/일정) ──
+function applyRoleNav(role) {
+  const isRes = role !== 'auditor'
+  document.querySelectorAll('.nav').forEach((nav) => {
+    const items = nav.querySelectorAll(':scope > div')
+    if (items.length >= 2) items[1].innerHTML = isRes ? '<div class="ic">📊</div>진행현황' : '<div class="ic">📄</div>보고서'
+  })
+}
+
+// ── 입주민 진행 현황 페이지 (s24) ─────────────────────────
+async function loadResidentProgress() {
+  let apt = RES_APT
+  if (!apt) {
+    const { data: { user } } = await sb.auth.getUser(); if (!user) return
+    const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+    if (prof && prof.apartment_id) { const { data } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single(); apt = data; RES_APT = data }
+  }
+  const nm = document.getElementById('prog-apt-name')
+  if (!apt) { if (nm) nm.textContent = '배정된 단지가 없어요'; renderStageTrack({ method: null }, 'prog-track'); return }
+  if (nm) nm.textContent = apt.name
+  renderStageTrack(apt, 'prog-track')
+}
+
+// ── 공지사항 (DB 연동) ───────────────────────────────────
+let NOTICES = {}
+async function loadResidentNotices() {
+  const box = document.getElementById('res-notices'); if (!box) return
+  const { data } = await sb.from('notices').select('*').order('created_at', { ascending: false }).limit(3)
+  if (!data || !data.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">등록된 공지사항이 없어요.</div>'; return }
+  NOTICES = {}
+  box.innerHTML = data.map((n, i) => {
+    NOTICES[n.id] = n
+    const d = (n.created_at || '').slice(2, 10).replace(/-/g, '.')
+    const line = i < data.length - 1 ? 'border-bottom:1px solid #f0f2f7;' : ''
+    return `<div data-notice="${n.id}" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;padding:10px 12px;${line}"><span style="font-size:11px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(n.title)}</span><span style="font-size:9px;color:#aab2c4;font-weight:600;flex-shrink:0">${d}</span></div>`
+  }).join('')
+}
+function openNotice(n) {
+  if (!n) return
+  const t = document.getElementById('n-title'); if (t) t.textContent = n.title
+  const d = document.getElementById('n-date'); if (d) d.textContent = '아파트스퀘어 · ' + ((n.created_at || '').slice(0, 10).replace(/-/g, '.'))
+  const b = document.getElementById('n-body'); if (b) b.innerHTML = escH(n.body || '').replace(/\n/g, '<br>')
+  window.showScreen('s18')
+}
+
+// ── 감리 우수 사례 상세 (s25) ────────────────────────────
+function wireCaseCards() {
+  const s23 = document.getElementById('s23'); if (!s23) return
+  s23.querySelectorAll('div[style*="flex-direction:column"]').forEach((col) => {
+    Array.from(col.children).forEach((card) => {
+      if (!card.querySelector) return
+      card.style.cursor = 'pointer'
+      card.onclick = () => openCaseDetail(card)
+    })
+  })
+}
+function openCaseDetail(card) {
+  const t = card.querySelector('[style*="font-weight:800"]')
+  const meta = card.querySelector('[style*="9.5px"]')
+  const desc = card.querySelector('[style*="10.5px"]')
+  const thumb = card.querySelector('[style*="center/cover"]')
+  const ct = document.getElementById('case-title'); if (ct) ct.textContent = t ? t.textContent : '감리 우수 사례'
+  const cm = document.getElementById('case-meta'); if (cm) cm.textContent = meta ? meta.textContent : ''
+  const cb = document.getElementById('case-body'); if (cb) cb.innerHTML = (desc ? escH(desc.textContent) : '') + '<br><br>자세한 사례 사진과 검측 기록은 곧 업데이트될 예정이에요.'
+  const hero = document.getElementById('case-hero'); if (hero && thumb && thumb.style.background) hero.style.background = thumb.style.background
+  window.showScreen('s25')
+}
+
+// ── 입주민 ≡ 메뉴 ────────────────────────────────────────
+function openResidentMenu() {
+  let ov = document.getElementById('res-menu-ov')
+  if (ov) { ov.remove(); return }
+  ov = document.createElement('div')
+  ov.id = 'res-menu-ov'
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,22,48,.42);z-index:60;display:flex;align-items:flex-end'
+  ov.innerHTML = '<div style="background:#fff;width:100%;border-radius:18px 18px 0 0;padding:6px 0 16px">' +
+    '<div style="width:38px;height:4px;border-radius:9px;background:#e2e7f0;margin:9px auto 8px"></div>' +
+    '<div data-menu="terms" style="padding:15px 20px;font-size:13px;font-weight:700;color:#1c2440;cursor:pointer">📄  이용약관 · 회사 소개</div>' +
+    '<div data-menu="logout" style="padding:15px 20px;font-size:13px;font-weight:700;color:#e4544b;cursor:pointer">🚪  로그아웃</div>' +
+    '</div>'
+  ov.onclick = (e) => {
+    const it = e.target.closest('[data-menu]')
+    if (!it) { if (e.target === ov) ov.remove(); return }
+    ov.remove()
+    if (it.dataset.menu === 'terms') window.showScreen('s22')
+    else if (it.dataset.menu === 'logout') { sb.auth.signOut().then(() => window.showScreen('s01')) }
+  }
+  document.body.appendChild(ov)
+}
+
+// ── 위임 클릭: data-nav / data-soon / data-back / data-notice ──
+document.addEventListener('click', (e) => {
+  const nav = e.target.closest('[data-nav]'); if (nav) { window.showScreen(nav.dataset.nav); return }
+  const back = e.target.closest('[data-back]'); if (back) { window.goBack(); return }
+  const nt = e.target.closest('[data-notice]'); if (nt) { openNotice(NOTICES[nt.dataset.notice]); return }
+  const soon = e.target.closest('[data-soon]'); if (soon) { alert('영상은 곧 제공될 예정이에요.\n준비되면 이곳에서 감리 이야기를 영상으로 보여드릴게요.'); return }
+})
 
 // ── 감리사: 내 담당 단지 불러오기 ─────────────────────────
 function escH(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
@@ -493,6 +618,7 @@ function wire() {
   const icProg = $('res-ic-progress'); if (icProg) icProg.onclick = () => { const t = $('res-stage-track'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
   const icCase = $('res-ic-case'); if (icCase) icCase.onclick = () => showScreen('s23')
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = residentReportSoon
+  const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu
   // 하단 네비게이션 (홈 / 보고서 / 일정)
   document.addEventListener('click', (e) => {
     const nav = e.target.closest('.nav > div'); if (!nav) return
@@ -502,7 +628,8 @@ function wire() {
       if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() } else { showScreen('s11'); loadResidentHome() }
     } else if (t.indexOf('보고서') >= 0) {
       if (currentRole === 'auditor') { if (currentApt) { showScreen('s08'); loadReports(currentApt.id) } else { showScreen('s07'); loadAuditorApts() } }
-      else { residentReportSoon() }
+    } else if (t.indexOf('진행현황') >= 0) {
+      showScreen('s24'); loadResidentProgress()
     } else if (t.indexOf('일정') >= 0) {
       showScreen('s14'); loadSchedule()
     }
@@ -529,6 +656,6 @@ document.addEventListener('click', (e) => {
   if (el) { e.preventDefault(); window.open(INQUIRY_URL, '_blank', 'noopener') }
 })
 
-function boot() { wire(); tagInquiry() }
+function boot() { wire(); tagInquiry(); wireBackArrows(); wireCaseCards() }
 if (document.readyState !== 'loading') boot()
 else document.addEventListener('DOMContentLoaded', boot)

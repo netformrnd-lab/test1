@@ -129,6 +129,7 @@
       <a data-sec="overview" class="on"><span class="ic">📊</span>대시보드</a>
       <a data-sec="members"><span class="ic">👤</span>회원 관리<span class="cnt" id="nav-m">0</span></a>
       <a data-sec="apts"><span class="ic">🏢</span>단지 관리<span class="cnt" id="nav-a">0</span></a>
+      <a data-sec="notices"><span class="ic">📢</span>공지사항<span class="cnt" id="nav-n">0</span></a>
     </nav>
     <div class="me">
       <div class="av" id="me-av">관</div>
@@ -179,6 +180,20 @@
       </div>
       <div class="apt-grid" id="apts"></div>
     </section>
+
+    <!-- 공지사항 -->
+    <section id="sec-notices">
+      <div class="head"><div><h2>공지사항</h2><div class="desc">입주민 홈에 노출되는 공지를 등록하세요 (최신 3개가 홈에 표시됩니다)</div></div></div>
+      <div class="card">
+        <h3>➕ 공지 등록</h3>
+        <div class="add-form" style="align-items:flex-start">
+          <input id="no-title" placeholder="제목 (예: 여름철 외벽 보수공사 안내)" style="width:280px">
+          <textarea id="no-body" placeholder="내용을 입력하세요" style="width:100%;min-height:78px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;outline:none;font-family:inherit;resize:vertical"></textarea>
+          <button class="b save" onclick="addNotice()">등록</button>
+        </div>
+      </div>
+      <div id="notices"></div>
+    </section>
   </main>
  </div>
 </div>
@@ -190,7 +205,7 @@ const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=(id)=>document.getElementById(id);
-let MEMBERS=[],APTS=[];
+let MEMBERS=[],APTS=[],NOTICES=[];
 const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};
 const esc=(s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -226,12 +241,33 @@ document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>{
 });
 
 async function loadAll(){
-  const [m,a]=await Promise.all([
+  const [m,a,n]=await Promise.all([
     sb.from('profiles').select('*').order('created_at',{ascending:false}),
-    sb.from('apartments').select('*').order('created_at',{ascending:false})
+    sb.from('apartments').select('*').order('created_at',{ascending:false}),
+    sb.from('notices').select('*').order('created_at',{ascending:false})
   ]);
-  MEMBERS=m.data||[];APTS=a.data||[];
-  renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();
+  MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];
+  renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();
+}
+function renderNotices(){
+  const nn=$('nav-n');if(nn)nn.textContent=NOTICES.length;
+  const box=$('notices');if(!box)return;
+  if(!NOTICES.length){box.innerHTML='<div class="empty">등록된 공지가 없어요. 위에서 등록해 보세요.</div>';return;}
+  box.innerHTML=NOTICES.map(n=>{
+    const d=(n.created_at||'').slice(0,10).replace(/-/g,'.');
+    return `<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:800;color:var(--ink)">${esc(n.title)}</div><div style="font-size:11px;color:var(--mut);font-weight:600;margin-top:3px">${d}</div><div style="font-size:12px;color:var(--mut2);font-weight:500;margin-top:8px;line-height:1.6;white-space:pre-wrap">${esc(n.body)||''}</div></div><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteNotice('${n.id}')">삭제</button></div></div>`;
+  }).join('');
+}
+async function addNotice(){
+  const title=$('no-title').value.trim();if(!title)return alert('제목을 입력하세요');
+  const{error}=await sb.from('notices').insert({title,body:$('no-body').value.trim()||null});
+  if(error)return alert('오류: '+error.message);
+  $('no-title').value='';$('no-body').value='';loadAll();
+}
+async function deleteNotice(id){
+  if(!confirm('이 공지를 삭제할까요?'))return;
+  const{error}=await sb.from('notices').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);loadAll();
 }
 
 function renderStats(){

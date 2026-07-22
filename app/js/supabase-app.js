@@ -227,17 +227,11 @@ async function loadSchedule() {
     if (sub) sub.textContent = '우리 단지 방문·점검 일정이에요'
     const { data } = await sb.from('schedules').select('*').eq('apartment_id', prof.apartment_id).order('date')
     scheds = data || []
-  } else if (currentApt) {
-    // 감리사 · 단지 선택됨 → 단지 일정 (입주민도 봄)
-    if (addBtn) addBtn.style.display = ''
-    if (sub) sub.innerHTML = '<b style="color:#2F6BF6">' + escH(currentApt.name) + '</b> · 단지 일정 &mdash; 입주민에게도 보여요 👥'
-    const { data } = await sb.from('schedules').select('*').eq('apartment_id', currentApt.id).order('date')
-    scheds = data || []
   } else {
-    // 감리사 · 단지 미선택 → 개인 일정 (나만 봄)
+    // 감리사 → 내 전체 일정(개인 + 담당 단지 모두). RLS가 볼 수 있는 것만 돌려줌
     if (addBtn) addBtn.style.display = ''
-    if (sub) sub.innerHTML = '<b style="color:#8b7a2f">내 개인 일정</b> &mdash; 나만 볼 수 있어요 🔒 (단지를 먼저 누르면 단지 일정)'
-    const { data } = await sb.from('schedules').select('*').eq('owner_id', user.id).is('apartment_id', null).order('date')
+    if (sub) sub.innerHTML = '<b style="color:#2F6BF6">내 전체 일정</b> &mdash; 개인 🔒 + 담당 단지 👥 를 한눈에'
+    const { data } = await sb.from('schedules').select('*').order('date')
     scheds = data || []
   }
   if (currentRole === 'auditor') populateSchedAptSelect()
@@ -276,7 +270,17 @@ function renderSchedList(scheds) {
   el.innerHTML = scheds.map(s => {
     const d = s.date ? new Date(s.date) : null
     const ds = d ? `${d.getMonth() + 1}/${d.getDate()} (${wd[d.getDay()]})` : ''
-    return `<div style="border-left:3px solid #2F6BF6;background:#f8faff;border-radius:0 10px 10px 0;padding:10px 11px"><div style="font-size:11.5px;font-weight:800;color:#1c2440">${escH(s.title)}</div><div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">${ds}${s.description ? ' · ' + escH(s.description) : ''}</div></div>`
+    // 감리사만: 개인 일정인지 어느 단지 일정인지 배지로 표시
+    let badge = ''
+    if (currentRole === 'auditor') {
+      if (s.apartment_id) {
+        const apt = AUD_APTS[s.apartment_id]
+        badge = `<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">👥 ${apt ? escH(apt.name) : '단지'}</span>`
+      } else {
+        badge = `<span style="font-size:9px;font-weight:800;color:#8b7a2f;background:#f6efd8;padding:2px 7px;border-radius:6px">🔒 개인</span>`
+      }
+    }
+    return `<div style="border-left:3px solid #2F6BF6;background:#f8faff;border-radius:0 10px 10px 0;padding:10px 11px"><div style="display:flex;align-items:center;gap:6px"><div style="font-size:11.5px;font-weight:800;color:#1c2440">${escH(s.title)}</div>${badge ? '<span style="margin-left:auto">' + badge + '</span>' : ''}</div><div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">${ds}${s.description ? ' · ' + escH(s.description) : ''}</div></div>`
   }).join('')
 }
 async function addSchedule() {
@@ -286,10 +290,10 @@ async function addSchedule() {
   const desc = document.getElementById('sc-desc').value.trim()
   if (!date || !title) { alert('날짜와 일정 내용을 입력하세요'); return }
   const sel = document.getElementById('sc-apt')
-  const aptId = sel ? sel.value : (currentApt ? currentApt.id : '')
+  const aptId = sel ? sel.value : ''
   const row = { date, title, description: desc || null }
-  if (aptId) { row.apartment_id = aptId; currentApt = AUD_APTS[aptId] || currentApt }  // 단지 일정
-  else { row.owner_id = user.id; row.apartment_id = null; currentApt = null }           // 개인 일정
+  if (aptId) { row.apartment_id = aptId; row.owner_id = null }   // 단지 일정 (입주민도 봄)
+  else { row.owner_id = user.id; row.apartment_id = null }        // 개인 일정 (나만 봄)
   const { error } = await sb.from('schedules').insert(row)
   if (error) { alert('등록 실패: ' + error.message); return }
   document.getElementById('sc-date').value = ''; document.getElementById('sc-title').value = ''; document.getElementById('sc-desc').value = ''

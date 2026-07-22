@@ -200,6 +200,26 @@ function openCaseDetail(card) {
   window.showScreen('s25')
 }
 
+// ── 영상으로 보는 감리 이야기 (유튜브 Shorts) ────────────
+const VIDEOS = [
+  { id: 'FI86cA8S6Uo', title: '옥상 방수 감리는?' },
+  { id: 'I-PiIwjT6ME', title: '22년차 건축사의 옥상 하자유형은?' },
+  { id: 'v41iig-WyzY', title: '외벽 도장 마감공사 감리는?' },
+  { id: 'uOQHBbDvo-s', title: '아파트 외벽 도장 감리는?' },
+  { id: 'pP00I2IJSWs', title: '아파트 보수공사, 잘못하면 수천만원 손해?' }
+]
+function renderVideos() {
+  document.querySelectorAll('.res-videos').forEach((row) => {
+    row.innerHTML = VIDEOS.map((v) => `<div data-ytid="${v.id}" style="cursor:pointer;flex:0 0 132px">
+      <div style="height:200px;border-radius:12px;background:linear-gradient(180deg,rgba(10,16,34,.1),rgba(10,16,34,.6)),url('https://img.youtube.com/vi/${v.id}/hqdefault.jpg') center/cover;position:relative;padding:10px;display:flex;flex-direction:column;justify-content:space-between">
+        <div style="align-self:flex-end;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.9);color:#2F6BF6;display:flex;align-items:center;justify-content:center;font-size:12px">▶</div>
+        <div style="font-size:11px;font-weight:800;color:#fff;line-height:1.3;text-shadow:0 1px 4px rgba(0,0,0,.5)">${escH(v.title)}</div>
+      </div>
+      <div style="font-size:9px;color:#8b95ad;font-weight:700;margin-top:5px">▶ Shorts로 보기</div>
+    </div>`).join('')
+  })
+}
+
 // ── 입주민 ≡ 메뉴 ────────────────────────────────────────
 function openResidentMenu() {
   let ov = document.getElementById('res-menu-ov')
@@ -227,6 +247,7 @@ document.addEventListener('click', (e) => {
   const nav = e.target.closest('[data-nav]'); if (nav) { window.showScreen(nav.dataset.nav); return }
   const back = e.target.closest('[data-back]'); if (back) { window.goBack(); return }
   const nt = e.target.closest('[data-notice]'); if (nt) { openNotice(NOTICES[nt.dataset.notice]); return }
+  const yt = e.target.closest('[data-ytid]'); if (yt) { window.open('https://www.youtube.com/shorts/' + yt.dataset.ytid, '_blank', 'noopener'); return }
   const soon = e.target.closest('[data-soon]'); if (soon) { alert('영상은 곧 제공될 예정이에요.\n준비되면 이곳에서 감리 이야기를 영상으로 보여드릴게요.'); return }
 })
 
@@ -661,6 +682,6 @@ document.addEventListener('click', (e) => {
   if (el) { e.preventDefault(); window.open(INQUIRY_URL, '_blank', 'noopener') }
 })
 
-function boot() { wire(); tagInquiry(); wireBackArrows(); wireCaseCards() }
+function boot() { wire(); tagInquiry(); wireBackArrows(); wireCaseCards(); renderVideos() }
 if (document.readyState !== 'loading') boot()
 else document.addEventListener('DOMContentLoaded', boot)

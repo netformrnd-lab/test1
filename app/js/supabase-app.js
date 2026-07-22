@@ -39,6 +39,13 @@ let currentRole = null
 
 // ── 입주민·관리소장 홈: 우리 단지 정보 불러오기 ─────────────
 let RES_APT = null
+let RES_AUD_NAME = ''
+// 담당 감리 → 문의하기 화면(s16)
+function openInquiry() {
+  const nm = document.getElementById('q-aud-name'); if (nm && RES_AUD_NAME) nm.textContent = RES_AUD_NAME
+  const av = document.getElementById('q-aud-av'); if (av && RES_AUD_NAME) av.textContent = RES_AUD_NAME.slice(0, 1)
+  window.showScreen('s16')
+}
 async function loadResidentHome() {
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
   const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
@@ -77,6 +84,7 @@ async function loadResidentHome() {
   if (apt.auditor_id) {
     const { data: audName } = await sb.rpc('apartment_auditor_name', { apt: apt.id })
     if (audName) {
+      RES_AUD_NAME = audName
       const an = document.getElementById('res-aud-name'); if (an) an.textContent = audName
       const av = document.getElementById('res-aud-av'); if (av) av.textContent = String(audName).slice(0, 1)
     }
@@ -249,6 +257,13 @@ document.addEventListener('click', (e) => {
   const nt = e.target.closest('[data-notice]'); if (nt) { openNotice(NOTICES[nt.dataset.notice]); return }
   const yt = e.target.closest('[data-ytid]'); if (yt) { window.open('https://www.youtube.com/shorts/' + yt.dataset.ytid, '_blank', 'noopener'); return }
   const soon = e.target.closest('[data-soon]'); if (soon) { alert('영상은 곧 제공될 예정이에요.\n준비되면 이곳에서 감리 이야기를 영상으로 보여드릴게요.'); return }
+  const fi = e.target.closest('.faq-item'); if (fi) {
+    const ans = fi.querySelector('.faq-ans'), plus = fi.querySelector('.faq-plus')
+    const open = ans && ans.style.display === 'none'
+    if (ans) ans.style.display = open ? 'block' : 'none'
+    if (plus) plus.textContent = open ? '－' : '＋'
+    return
+  }
 })
 
 // ── 감리사: 내 담당 단지 불러오기 ─────────────────────────
@@ -645,6 +660,8 @@ function wire() {
   const icCase = $('res-ic-case'); if (icCase) icCase.onclick = () => showScreen('s23')
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = residentReportSoon
   const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu
+  const audCard = $('res-aud-card'); if (audCard) audCard.onclick = openInquiry
+  const qib = $('q-inquiry-btn'); if (qib) qib.onclick = () => alert('1:1 문의 남기기 기능은 곧 열릴 예정이에요.')
   // 하단 네비게이션 (홈 / 보고서 / 일정)
   document.addEventListener('click', (e) => {
     const nav = e.target.closest('.nav > div'); if (!nav) return

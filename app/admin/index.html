@@ -200,6 +200,7 @@
     <!-- 감리보고서 (감리사 작성 → 관리자 재작성 → 입주민 공개) -->
     <section id="sec-reports">
       <div class="head"><div><h2>감리보고서</h2><div class="desc">감리사가 올린 보고서를 다듬어 입주민에게 공개하세요. ‘입주민 공개’를 켜야 입주민 앱에 보여요</div></div></div>
+      <div class="add-form" style="margin-bottom:16px"><input id="rep-q" placeholder="🔍 단지명·제목으로 검색" style="width:320px" oninput="renderReports()"></div>
       <div id="reports"></div>
     </section>
 
@@ -282,33 +283,53 @@ async function loadAll(){
 }
 function aptName(id){const a=APTS.find(x=>x.id===id);return a?a.name:'(단지)';}
 function memberName(id){const m=MEMBERS.find(x=>x.id===id);return m?(m.name||m.email):'(작성자)';}
+function reportCardHtml(r){
+  RPHOTOS[r.id]=Array.isArray(r.photos)?r.photos.slice():[];
+  const d=(r.created_at||'').slice(0,10).replace(/-/g,'.');
+  const pub=r.published;
+  return `<div class="card" data-rid="${r.id}" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:11px;color:var(--mut);font-weight:600">작성: ${esc(memberName(r.author_id))} · ${d}</span>
+      <span class="pill ${pub?'ok':'no'}">${pub?'입주민 공개됨':'미공개'}</span>
+    </div>
+    <label style="font-size:11px;font-weight:700;color:var(--mut2)">제목</label>
+    <input class="rf-title" value="${esc(r.title)||''}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
+    <label style="font-size:11px;font-weight:700;color:var(--mut2)">공사 단계</label>
+    <input class="rf-stage" value="${esc(r.stage)||''}" placeholder="예: 외벽 도장" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
+    <label style="font-size:11px;font-weight:700;color:var(--mut2)">내용</label>
+    <textarea class="rf-content" style="width:100%;min-height:90px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit;resize:vertical;line-height:1.6">${esc(r.content)||''}</textarea>
+    <label style="font-size:11px;font-weight:700;color:var(--mut2)">사진</label>
+    <div class="rf-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 9px">${reportPhotoHtml(r.id)}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer"><input type="checkbox" class="rf-pub" ${pub?'checked':''} style="width:17px;height:17px"> 입주민에게 공개</label>
+      <button class="b save" onclick="saveReportAdmin('${r.id}')">저장</button>
+    </div>
+  </div>`;
+}
 function renderReports(){
   const nn=$('nav-r');if(nn)nn.textContent=REPORTS.length;
   const box=$('reports');if(!box)return;
-  if(!REPORTS.length){box.innerHTML='<div class="empty">감리사가 올린 보고서가 아직 없어요.</div>';return;}
   RPHOTOS={};
-  box.innerHTML=REPORTS.map(r=>{
-    RPHOTOS[r.id]=Array.isArray(r.photos)?r.photos.slice():[];
-    const d=(r.created_at||'').slice(0,10).replace(/-/g,'.');
-    const pub=r.published;
-    return `<div class="card" data-rid="${r.id}" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
-        <div><span style="font-size:11px;font-weight:800;color:var(--blue);background:var(--blue-soft);padding:3px 9px;border-radius:7px">${esc(aptName(r.apartment_id))}</span>
-        <span style="font-size:11px;color:var(--mut);font-weight:600;margin-left:8px">작성: ${esc(memberName(r.author_id))} · ${d}</span></div>
-        <span class="pill ${pub?'ok':'no'}">${pub?'입주민 공개됨':'미공개'}</span>
+  if(!REPORTS.length){box.innerHTML='<div class="empty">감리사가 올린 보고서가 아직 없어요.</div>';return;}
+  const q=(($('rep-q')||{}).value||'').trim().toLowerCase();
+  const filtered=REPORTS.filter(r=>{
+    if(!q)return true;
+    return (aptName(r.apartment_id)+' '+(r.title||'')+' '+(r.stage||'')).toLowerCase().includes(q);
+  });
+  if(!filtered.length){box.innerHTML='<div class="empty">검색 결과가 없어요.</div>';return;}
+  // 단지별로 묶기
+  const groups={};
+  filtered.forEach(r=>{ (groups[r.apartment_id]=groups[r.apartment_id]||[]).push(r); });
+  // 단지명 순 정렬
+  const ids=Object.keys(groups).sort((a,b)=>aptName(a).localeCompare(aptName(b),'ko'));
+  box.innerHTML=ids.map(id=>{
+    const list=groups[id];
+    return `<div style="margin-bottom:22px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:7px;border-bottom:2px solid var(--line)">
+        <span style="font-size:15px;font-weight:800;color:var(--navy)">🏢 ${esc(aptName(id))}</span>
+        <span style="font-size:11px;font-weight:700;color:#fff;background:var(--blue);padding:2px 9px;border-radius:99px">${list.length}건</span>
       </div>
-      <label style="font-size:11px;font-weight:700;color:var(--mut2)">제목</label>
-      <input class="rf-title" value="${esc(r.title)||''}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
-      <label style="font-size:11px;font-weight:700;color:var(--mut2)">공사 단계</label>
-      <input class="rf-stage" value="${esc(r.stage)||''}" placeholder="예: 외벽 도장" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
-      <label style="font-size:11px;font-weight:700;color:var(--mut2)">내용</label>
-      <textarea class="rf-content" style="width:100%;min-height:90px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit;resize:vertical;line-height:1.6">${esc(r.content)||''}</textarea>
-      <label style="font-size:11px;font-weight:700;color:var(--mut2)">사진</label>
-      <div class="rf-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 9px">${reportPhotoHtml(r.id)}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
-        <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer"><input type="checkbox" class="rf-pub" ${pub?'checked':''} style="width:17px;height:17px"> 입주민에게 공개</label>
-        <button class="b save" onclick="saveReportAdmin('${r.id}')">저장</button>
-      </div>
+      ${list.map(reportCardHtml).join('')}
     </div>`;
   }).join('');
 }

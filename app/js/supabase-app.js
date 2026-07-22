@@ -121,7 +121,11 @@ async function loadResidentReports() {
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
   const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
-  if (!prof || !prof.apartment_id) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
+  const hdr = document.getElementById('res-rep-apt')
+  if (!prof || !prof.apartment_id) { if (hdr) hdr.textContent = '배정된 단지 없음'; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
+  // 헤더에 로그인한 단지명 표시
+  const { data: apt } = await sb.from('apartments').select('name').eq('id', prof.apartment_id).single()
+  if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
   const { data } = await sb.from('reports').select('*').eq('apartment_id', prof.apartment_id).eq('published', true).order('created_at', { ascending: false })
   if (!data || !data.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 공개된 감리보고서가 없어요.<br>감리가 확인을 마치면 여기에 올라와요.</div>'; return }
   cont.innerHTML = data.map(reportCard).join('')

@@ -168,10 +168,11 @@
           <input id="ma-name" placeholder="이름" style="width:120px">
           <input id="ma-phone" placeholder="연락처 (선택)" style="width:140px">
           <select id="ma-role" class="f"></select>
-          <select id="ma-apt" class="f" style="max-width:200px"><option value="">담당 단지 (선택)</option></select>
+          <input id="ma-apt" list="apt-names" placeholder="담당 단지 (입력/선택)" style="width:190px" autocomplete="off">
           <button class="b save" onclick="addMemberAccount()">회원 추가</button>
         </div>
-        <div id="ma-msg" style="font-size:12px;font-weight:700;margin-top:8px;min-height:16px"></div>
+        <datalist id="apt-names"></datalist>
+        <div id="ma-msg" style="font-size:12px;font-weight:700;margin-top:8px;min-height:16px">새 단지명을 입력하면 자동으로 단지가 등록돼요 (다른 화면에서도 선택 가능)</div>
       </div>
       <div class="card">
         <table>
@@ -319,7 +320,17 @@ async function loadAll(){
 }
 function fillMemberAddForm(){
   const rs=$('ma-role'); if(rs && !rs.dataset.filled){ rs.innerHTML=roleOpts('resident'); rs.dataset.filled='1'; }
-  const as=$('ma-apt'); if(as){ const cur=as.value; const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko')); as.innerHTML='<option value="">담당 단지 (선택)</option>'+sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join(''); as.value=cur; }
+  const dl=$('apt-names'); if(dl){ const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko')); dl.innerHTML=sorted.map(a=>`<option value="${esc(a.name)}"></option>`).join(''); }
+}
+// 단지명(텍스트) → 단지 id. 없으면 새로 등록. 실패 시 undefined
+async function resolveApartment(name){
+  name=(name||'').trim();
+  if(!name) return null;
+  const found=APTS.find(a=>(a.name||'').trim().toLowerCase()===name.toLowerCase());
+  if(found) return found.id;
+  const{data,error}=await sb.from('apartments').insert({name}).select('id').single();
+  if(error){ alert('단지 등록 오류: '+error.message); return undefined; }
+  return data.id;
 }
 async function addMemberAccount(){
   const id=$('ma-id').value.trim().toLowerCase().replace(/\s/g,'');
@@ -327,7 +338,7 @@ async function addMemberAccount(){
   const name=$('ma-name').value.trim();
   const phone=$('ma-phone').value.trim();
   const role=$('ma-role').value;
-  const apt=$('ma-apt').value||null;
+  const aptText=$('ma-apt').value;
   const msg=$('ma-msg'); const setM=(t,c)=>{ if(msg){ msg.textContent=t; msg.style.color=c||'var(--mut2)'; } };
   if(!id||!pw||!name){ setM('아이디·비밀번호·이름은 꼭 입력하세요','#e4544b'); return; }
   if(pw.length<6){ setM('비밀번호는 6자 이상으로 정해주세요','#e4544b'); return; }
@@ -345,6 +356,7 @@ async function addMemberAccount(){
   }
   const newId=data && data.user && data.user.id;
   if(newId){
+    let apt=await resolveApartment(aptText); if(apt===undefined) apt=null; // 새 단지면 자동 등록
     const { error:pe }=await sb.from('profiles').update({ name, phone:phone||null, email, role, apartment_id:apt, approved:true }).eq('id', newId);
     if(pe){ setM('계정은 생성됐지만 정보 저장 오류: '+pe.message+' (목록에서 다시 지정하세요)','#c98a1e'); }
     else { setM(`✅ '${id}' 회원이 추가되고 승인됐어요 (비번: ${pw})`,'#1f8a5b'); }
@@ -352,7 +364,7 @@ async function addMemberAccount(){
     setM('계정 생성됨. (이메일 인증이 켜져 있으면 로그인 전 인증이 필요할 수 있어요)','#c98a1e');
   }
   try{ await tmp.auth.signOut(); }catch(e){}
-  ['ma-id','ma-pw','ma-name','ma-phone'].forEach(x=>{ const el=$(x); if(el)el.value=''; });
+  ['ma-id','ma-pw','ma-name','ma-phone','ma-apt'].forEach(x=>{ const el=$(x); if(el)el.value=''; });
   loadAll();
 }
 function aptName(id){const a=APTS.find(x=>x.id===id);return a?a.name:'(단지)';}
@@ -671,7 +683,7 @@ function renderMembers(){
     <td style="color:var(--mut2)">${esc(dispId(m.email))||''}</td>
     <td><input class="f-phone" value="${esc(m.phone)||''}" placeholder="연락처 입력" style="width:128px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;outline:none;font-family:inherit"></td>
     <td><select class="f f-role">${roleOpts(m.role)}</select></td>
-    <td><select class="f f-apt">${aptOpts(m.apartment_id)}</select></td>
+    <td><input class="f-apt" list="apt-names" value="${m.apartment_id?esc(aptName(m.apartment_id)):''}" placeholder="단지 입력/선택" style="width:150px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;outline:none;font-family:inherit" autocomplete="off"></td>
     <td>${m.approved?'<span class="pill ok">승인됨</span>':'<span class="pill no">대기</span>'}</td>
     <td style="white-space:nowrap">${m.approved?'':'<button class="b approve" onclick="approve(\''+m.id+'\')">승인</button> '}<button class="b save" onclick="saveMember('${m.id}')">저장</button></td>
   </tr>`).join('');
@@ -721,7 +733,9 @@ function fillAuditorSelect(){
 async function approve(id){const{error}=await sb.from('profiles').update({approved:true}).eq('id',id);if(error)return alert('오류: '+error.message);loadAll();}
 async function saveMember(id){
   const row=document.querySelector(`#members tr[data-id="${id}"]`);
-  const role=row.querySelector('.f-role').value,apt=row.querySelector('.f-apt').value||null;
+  const role=row.querySelector('.f-role').value;
+  const apt=await resolveApartment(row.querySelector('.f-apt').value);
+  if(apt===undefined)return; // 단지 등록 실패 시 중단
   const phone=row.querySelector('.f-phone').value.trim()||null;
   const{error}=await sb.from('profiles').update({role,apartment_id:apt,phone}).eq('id',id);
   if(error)return alert('오류: '+error.message);loadAll();

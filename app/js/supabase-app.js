@@ -81,8 +81,6 @@ async function loadResidentHome() {
     if (head) head.textContent = '공사 준비 중이에요'
     if (cap) cap.textContent = '공정이 등록되면 단계별로 알려드릴게요.'
   }
-  // 공정 순서 체크리스트
-  renderStageTrack(apt, 'res-stage-track')
   // 담당 감리사 이름 (PII 노출 없이 이름만 반환하는 함수 사용)
   if (apt.auditor_id) {
     const { data: audName } = await sb.rpc('apartment_auditor_name', { apt: apt.id })
@@ -219,7 +217,7 @@ async function loadResidentNotices(boxId) {
     NOTICES[n.id] = n
     const d = (n.created_at || '').slice(2, 10).replace(/-/g, '.')
     const line = i < data.length - 1 ? 'border-bottom:1px solid #f0f2f7;' : ''
-    return `<div data-notice="${n.id}" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;padding:10px 12px;${line}"><span style="font-size:11px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(n.title)}</span><span style="font-size:9px;color:#aab2c4;font-weight:600;flex-shrink:0">${d}</span></div>`
+    return `<div data-notice="${n.id}" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;padding:12px 13px;${line}"><span style="font-size:12.5px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(n.title)}</span><span style="font-size:10.5px;color:#aab2c4;font-weight:600;flex-shrink:0">${d}</span></div>`
   }).join('')
 }
 // 우리 지역 감리 현황 (익명 · 이름/주소 없음)
@@ -233,7 +231,7 @@ async function loadRegionActivity() {
     const region = r.region || '전국'
     const type = r.construction_type || '유지보수'
     const line = i < data.length - 1 ? 'border-bottom:1px solid #f0f2f7;' : ''
-    return `<div style="display:flex;align-items:center;gap:9px;padding:10px 12px;${line}"><span style="width:7px;height:7px;border-radius:99px;background:${col};flex-shrink:0"></span><div style="flex:1;font-size:11px;font-weight:700;color:#2a3350;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(region)} · ${escH(type)}</div><span style="font-size:9px;color:${col};font-weight:800;flex-shrink:0">${lbl}</span></div>`
+    return `<div style="display:flex;align-items:center;gap:9px;padding:12px 13px;${line}"><span style="width:7px;height:7px;border-radius:99px;background:${col};flex-shrink:0"></span><div style="flex:1;font-size:12.5px;font-weight:700;color:#2a3350;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(region)} · ${escH(type)}</div><span style="font-size:10.5px;color:${col};font-weight:800;flex-shrink:0">${lbl}</span></div>`
   }).join('')
 }
 function openNotice(n) {

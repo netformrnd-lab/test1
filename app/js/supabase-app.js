@@ -63,16 +63,23 @@ function escH(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => (
 let AUD_APTS = {}
 function auditorCard(a) {
   AUD_APTS[a.id] = a
-  const cur = a.progress_current || 0, tot = a.progress_total || 0
+  const stages = (window.methodStages && window.methodStages(a.method)) || null
+  const tot = stages ? stages.length : (a.progress_total || 0)
+  const cur = a.progress_current || 0
   const pct = tot ? Math.round(cur / tot * 100) : 0
   const st = { in_progress: ['진행중', '#1f8a5b', '#e7f5ee'], done: ['완료', '#5a6480', '#eef1f7'], scheduled: ['점검예정', '#c98a1e', '#fbf1de'] }
   const [lbl, col, bg] = st[a.status] || st.scheduled
+  // 현재 공정 단계 이름
+  let stageLine
+  if (stages) stageLine = cur >= tot ? '✅ 공사 완료' : `현재 ${cur + 1}단계 · ${escH(stages[cur])}`
+  else stageLine = escH(a.construction_type) || '공법 미지정'
   return `<div data-apt-id="${a.id}" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center;cursor:pointer">
     <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,#5c86c8,#33507f);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🏢</div>
     <div style="flex:1;min-width:0">
       <div style="font-size:12px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(a.name)}</div>
       <div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:1px">${escH(a.region) || '지역 미정'} · ${escH(a.construction_type) || '종류 미정'}</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:6px"><div style="flex:1;height:5px;border-radius:9px;background:#eef1f7;overflow:hidden"><div style="width:${pct}%;height:100%;background:#2F6BF6;border-radius:9px"></div></div><span style="font-size:9px;font-weight:800;color:#2F6BF6">${cur}/${tot}</span></div>
+      <div style="font-size:10px;color:#2F6BF6;font-weight:800;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${stageLine}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:4px"><div style="flex:1;height:5px;border-radius:9px;background:#eef1f7;overflow:hidden"><div style="width:${pct}%;height:100%;background:#2F6BF6;border-radius:9px"></div></div><span style="font-size:9px;font-weight:800;color:#2F6BF6">${cur}/${tot}</span></div>
     </div>
     <span style="align-self:flex-start;font-size:8.5px;font-weight:800;color:${col};background:${bg};padding:3px 7px;border-radius:99px">${lbl}</span>
   </div>`
@@ -122,8 +129,41 @@ function openApt(a) {
   if (!a) return
   currentApt = a
   const nm = document.getElementById('rep-apt-name'); if (nm) nm.textContent = a.name
+  renderStageTrack(a)
   window.showScreen('s08')
   loadReports(a.id)
+}
+// 공정 순서 체크리스트 (지금 어느 단계인지 순서대로)
+function renderStageTrack(a) {
+  const box = document.getElementById('stage-track'); if (!box) return
+  const stages = (window.methodStages && window.methodStages(a.method)) || null
+  if (!stages) { box.innerHTML = ''; return }
+  const cur = a.progress_current || 0, tot = stages.length
+  const head = cur >= tot
+    ? '<span style="color:#1f8a5b">✅ 모든 공정 완료</span>'
+    : `현재 <b style="color:#2F6BF6">${cur + 1}단계 · ${escH(stages[cur])}</b>`
+  const rows = stages.map((nm, i) => {
+    let ic, cName, cSub, weight
+    if (i < cur) { ic = '<span style="color:#1f8a5b">✔</span>'; cName = '#8b95ad'; cSub = '완료'; weight = '600' }
+    else if (i === cur && cur < tot) { ic = '<span style="color:#2F6BF6">●</span>'; cName = '#1c2440'; cSub = '진행중'; weight = '800' }
+    else { ic = '<span style="color:#c3ccdb">○</span>'; cName = '#aab2c5'; cSub = '예정'; weight = '600' }
+    const subCol = cSub === '진행중' ? '#2F6BF6' : (cSub === '완료' ? '#1f8a5b' : '#aab2c5')
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+      <span style="width:15px;text-align:center;font-size:12px">${ic}</span>
+      <span style="flex:1;font-size:11.5px;font-weight:${weight};color:${cName};${i < cur ? 'text-decoration:line-through' : ''}">${i + 1}. ${escH(nm)}</span>
+      <span style="font-size:9px;font-weight:800;color:${subCol}">${cSub}</span>
+    </div>`
+  }).join('')
+  const pct = tot ? Math.round(cur / tot * 100) : 0
+  box.innerHTML = `<div style="background:#f6f9ff;border:1px solid #e2ebff;border-radius:13px;padding:12px 13px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:800;color:#3a445e">🛠️ 공정 순서 · ${escH(window.methodLabel(a.method))}</span>
+      <span style="font-size:10px;font-weight:800;color:#2F6BF6">${cur}/${tot}</span>
+    </div>
+    <div style="height:5px;border-radius:9px;background:#e2ebff;overflow:hidden;margin-bottom:8px"><div style="width:${pct}%;height:100%;background:#2F6BF6;border-radius:9px"></div></div>
+    <div style="font-size:10.5px;color:#5c6580;font-weight:600;margin-bottom:6px">${head}</div>
+    ${rows}
+  </div>`
 }
 let REP_LIST = []       // 현재 단지의 보고서 전체
 let repQuery = ''       // 보고서 검색어

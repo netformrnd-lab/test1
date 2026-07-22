@@ -184,6 +184,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/stages.js"></script>
 <script>
 const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
@@ -269,18 +270,37 @@ function renderApts(){
   const auds=MEMBERS.filter(m=>m.role==='auditor');
   const audOpts=(sel)=>'<option value="">- 미배정 -</option>'+auds.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name||a.email)}</option>`).join('');
   $('apts').innerHTML=APTS.map(a=>{
-    const pc=a.progress_current||0,pt=a.progress_total||0,pct=pt?Math.round(pc/pt*100):0;
-    const stOpt=(v,t)=>`<option value="${v}" ${a.status===v?'selected':''}>${t}</option>`;
+    const st=(window.STAGE_SETS[a.method]||{}).stages;
+    const pt=st?st.length:(a.progress_total||0);
+    const pc=a.progress_current||0,pct=pt?Math.round(pc/pt*100):0;
+    let now='공법을 선택하세요';
+    if(st){ now = pc>=pt ? '✅ 공사 완료' : `현재 ${pc+1}단계 · ${esc(st[pc])}`; }
     return `<div class="apt" data-id="${a.id}">
       <div class="nm">${esc(a.name)}</div>
       <div class="meta">${esc(a.region)||'지역 미정'} · ${esc(a.construction_type)||'종류 미정'}</div>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <div class="prog"><span>진행률</span><span>${pc} / ${pt} (${pct}%)</span></div>
-      <div class="edit"><label>상태</label><select class="f f-status">${stOpt('scheduled','점검예정')}${stOpt('in_progress','진행중')}${stOpt('done','완료')}</select></div>
-      <div class="edit"><label>진행</label><input type="number" class="f-num f-pc" min="0" value="${pc}"><span>/</span><input type="number" class="f-num f-pt" min="0" value="${pt}"><span>단계</span></div>
+      <div class="prog"><span>${now}</span><span>${pc} / ${pt}</span></div>
+      <div class="edit"><label>공법</label><select class="f f-method" onchange="onMethodChange(this)">${methodOpts(a.method)}</select></div>
+      <div class="edit"><label>공정</label><select class="f f-stage">${stageOpts(a.method,pc)}</select></div>
       <div class="aud"><label style="min-width:34px;font-size:12px;color:var(--mut2);font-weight:700">감리사</label><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
     </div>`;
   }).join('');
+}
+function methodOpts(cur){
+  let o='<option value="">— 공법 미지정 —</option>';
+  for(const k in window.STAGE_SETS){o+=`<option value="${k}" ${k===cur?'selected':''}>${esc(window.STAGE_SETS[k].label)}</option>`;}
+  return o;
+}
+function stageOpts(method,cur){
+  const s=(window.STAGE_SETS[method]||{}).stages;
+  if(!s)return '<option value="0">— 공법을 먼저 선택 —</option>';
+  let o=`<option value="0" ${cur===0?'selected':''}>시작 전 (0/${s.length})</option>`;
+  s.forEach((nm,i)=>{const v=i+1;o+=`<option value="${v}" ${cur===v?'selected':''}>${esc(nm)} 완료 (${v}/${s.length})</option>`;});
+  return o;
+}
+function onMethodChange(sel){
+  const card=sel.closest('.apt');const stg=card.querySelector('.f-stage');
+  stg.innerHTML=stageOpts(sel.value,0);
 }
 function fillAuditorSelect(){
   const auds=MEMBERS.filter(m=>m.role==='auditor');
@@ -303,12 +323,14 @@ async function addApt(){
 async function saveApt(id){
   const row=document.querySelector(`.apt[data-id="${id}"]`);
   const aud=row.querySelector('.f-aud').value||null;
-  const status=row.querySelector('.f-status').value;
-  let pc=parseInt(row.querySelector('.f-pc').value,10);if(isNaN(pc)||pc<0)pc=0;
-  let pt=parseInt(row.querySelector('.f-pt').value,10);if(isNaN(pt)||pt<0)pt=0;
-  if(pt&&pc>pt)pc=pt; // 완료 단계가 전체보다 클 수 없음
+  const method=row.querySelector('.f-method').value||null;
+  const st=(window.STAGE_SETS[method]||{}).stages;
+  const pt=st?st.length:0;
+  let pc=parseInt(row.querySelector('.f-stage').value,10);if(isNaN(pc)||pc<0)pc=0;if(pt&&pc>pt)pc=pt;
+  // 상태 자동 계산: 시작전→점검예정, 마지막단계→완료, 그외→진행중
+  let status='scheduled';if(pt&&pc>=pt)status='done';else if(pc>0)status='in_progress';
   const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
-  const{error}=await sb.from('apartments').update({auditor_id:aud,status,progress_current:pc,progress_total:pt}).eq('id',id);
+  const{error}=await sb.from('apartments').update({auditor_id:aud,method,status,progress_current:pc,progress_total:pt}).eq('id',id);
   if(error){if(btn){btn.textContent='저장';btn.disabled=false;}return alert('오류: '+error.message);}
   loadAll();
 }

@@ -130,6 +130,7 @@
       <a data-sec="members"><span class="ic">👤</span>회원 관리<span class="cnt" id="nav-m">0</span></a>
       <a data-sec="apts"><span class="ic">🏢</span>단지 관리<span class="cnt" id="nav-a">0</span></a>
       <a data-sec="notices"><span class="ic">📢</span>공지사항<span class="cnt" id="nav-n">0</span></a>
+      <a data-sec="reports"><span class="ic">📝</span>감리보고서<span class="cnt" id="nav-r">0</span></a>
       <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
     </nav>
     <div class="me">
@@ -196,6 +197,12 @@
       <div id="notices"></div>
     </section>
 
+    <!-- 감리보고서 (감리사 작성 → 관리자 재작성 → 입주민 공개) -->
+    <section id="sec-reports">
+      <div class="head"><div><h2>감리보고서</h2><div class="desc">감리사가 올린 보고서를 다듬어 입주민에게 공개하세요. ‘입주민 공개’를 켜야 입주민 앱에 보여요</div></div></div>
+      <div id="reports"></div>
+    </section>
+
     <!-- 감리 우수 사례 -->
     <section id="sec-cases">
       <div class="head"><div><h2>감리 우수 사례</h2><div class="desc">전·후 사진과 함께 우수 사례를 등록하세요 (입주민 앱 ‘감리 우수 사례’에 노출됩니다)</div></div></div>
@@ -226,7 +233,8 @@ const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=(id)=>document.getElementById(id);
-let MEMBERS=[],APTS=[],NOTICES=[],CASES=[];
+let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[];
+let RPHOTOS={}; // 보고서별 편집중 사진 목록 {reportId:[url,...]}
 const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};
 const esc=(s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -262,14 +270,85 @@ document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>{
 });
 
 async function loadAll(){
-  const [m,a,n,c]=await Promise.all([
+  const [m,a,n,c,r]=await Promise.all([
     sb.from('profiles').select('*').order('created_at',{ascending:false}),
     sb.from('apartments').select('*').order('created_at',{ascending:false}),
     sb.from('notices').select('*').order('created_at',{ascending:false}),
-    sb.from('cases').select('*').order('created_at',{ascending:false})
+    sb.from('cases').select('*').order('created_at',{ascending:false}),
+    sb.from('reports').select('*').order('created_at',{ascending:false})
   ]);
-  MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];
-  renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();
+  MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];
+  renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();
+}
+function aptName(id){const a=APTS.find(x=>x.id===id);return a?a.name:'(단지)';}
+function memberName(id){const m=MEMBERS.find(x=>x.id===id);return m?(m.name||m.email):'(작성자)';}
+function renderReports(){
+  const nn=$('nav-r');if(nn)nn.textContent=REPORTS.length;
+  const box=$('reports');if(!box)return;
+  if(!REPORTS.length){box.innerHTML='<div class="empty">감리사가 올린 보고서가 아직 없어요.</div>';return;}
+  RPHOTOS={};
+  box.innerHTML=REPORTS.map(r=>{
+    RPHOTOS[r.id]=Array.isArray(r.photos)?r.photos.slice():[];
+    const d=(r.created_at||'').slice(0,10).replace(/-/g,'.');
+    const pub=r.published;
+    return `<div class="card" data-rid="${r.id}" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
+        <div><span style="font-size:11px;font-weight:800;color:var(--blue);background:var(--blue-soft);padding:3px 9px;border-radius:7px">${esc(aptName(r.apartment_id))}</span>
+        <span style="font-size:11px;color:var(--mut);font-weight:600;margin-left:8px">작성: ${esc(memberName(r.author_id))} · ${d}</span></div>
+        <span class="pill ${pub?'ok':'no'}">${pub?'입주민 공개됨':'미공개'}</span>
+      </div>
+      <label style="font-size:11px;font-weight:700;color:var(--mut2)">제목</label>
+      <input class="rf-title" value="${esc(r.title)||''}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
+      <label style="font-size:11px;font-weight:700;color:var(--mut2)">공사 단계</label>
+      <input class="rf-stage" value="${esc(r.stage)||''}" placeholder="예: 외벽 도장" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
+      <label style="font-size:11px;font-weight:700;color:var(--mut2)">내용</label>
+      <textarea class="rf-content" style="width:100%;min-height:90px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit;resize:vertical;line-height:1.6">${esc(r.content)||''}</textarea>
+      <label style="font-size:11px;font-weight:700;color:var(--mut2)">사진</label>
+      <div class="rf-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 9px">${reportPhotoHtml(r.id)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer"><input type="checkbox" class="rf-pub" ${pub?'checked':''} style="width:17px;height:17px"> 입주민에게 공개</label>
+        <button class="b save" onclick="saveReportAdmin('${r.id}')">저장</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function reportPhotoHtml(id){
+  const arr=RPHOTOS[id]||[];
+  const thumbs=arr.map((u,i)=>`<div style="position:relative;width:78px;height:78px"><img src="${u}" style="width:78px;height:78px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"><span onclick="removeReportPhoto('${id}',${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#e4544b;color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer">×</span></div>`).join('');
+  const add=`<label style="width:78px;height:78px;border:2px dashed #c3ccdb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9aa3b6;font-size:22px;cursor:pointer">＋<input type="file" accept="image/*" multiple style="display:none" onchange="addReportPhoto('${id}',this.files)"></label>`;
+  return thumbs+add;
+}
+function refreshReportPhotos(id){
+  const row=document.querySelector(`.card[data-rid="${id}"] .rf-photos`);
+  if(row)row.innerHTML=reportPhotoHtml(id);
+}
+async function addReportPhoto(id,files){
+  for(const f of Array.from(files)){
+    const url=await uploadReportPhoto(f);
+    if(url){ (RPHOTOS[id]=RPHOTOS[id]||[]).push(url); refreshReportPhotos(id); }
+  }
+}
+function removeReportPhoto(id,idx){
+  if(RPHOTOS[id]){ RPHOTOS[id].splice(idx,1); refreshReportPhotos(id); }
+}
+async function uploadReportPhoto(file){
+  if(!file)return null;
+  const safe=file.name.replace(/[^\w.]/g,'_');
+  const path=Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+safe;
+  const{error}=await sb.storage.from('report-photos').upload(path,file,{upsert:false});
+  if(error){alert('사진 업로드 실패: '+error.message);return null;}
+  return sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
+}
+async function saveReportAdmin(id){
+  const row=document.querySelector(`.card[data-rid="${id}"]`);
+  const title=row.querySelector('.rf-title').value.trim();if(!title)return alert('제목을 입력하세요');
+  const stage=row.querySelector('.rf-stage').value.trim()||null;
+  const content=row.querySelector('.rf-content').value.trim()||null;
+  const published=row.querySelector('.rf-pub').checked;
+  const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
+  const{error}=await sb.from('reports').update({title,stage,content,published,photos:RPHOTOS[id]||[]}).eq('id',id);
+  if(btn){btn.textContent='저장';btn.disabled=false;}
+  if(error)return alert('오류: '+error.message);loadAll();
 }
 async function uploadCasePhoto(file){
   if(!file)return null;

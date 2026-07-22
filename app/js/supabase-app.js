@@ -115,9 +115,16 @@ async function loadResidentNext(aptId) {
   if (sub) sub.textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 (${wd[d.getDay()]})${s.description ? ' · ' + s.description : ''}`
   if (dbox) dbox.innerHTML = `<span style="font-size:9px;font-weight:800;color:#2F6BF6">${d.getMonth() + 1}월</span><span style="font-size:17px;font-weight:800;color:#2F6BF6">${d.getDate()}</span>`
 }
-// 입주민 감리보고서 열람은 다음 업데이트 예정
-function residentReportSoon() {
-  alert('감리보고서 열람 기능은 곧 열릴 예정이에요.\n지금은 우리 단지 진행 현황과 공사 일정을 확인하실 수 있어요.')
+// 입주민: 공개된 우리 단지 감리보고서 목록
+async function loadResidentReports() {
+  const cont = document.getElementById('res-report-list'); if (!cont) return
+  cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const { data: { user } } = await sb.auth.getUser(); if (!user) return
+  const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+  if (!prof || !prof.apartment_id) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
+  const { data } = await sb.from('reports').select('*').eq('apartment_id', prof.apartment_id).eq('published', true).order('created_at', { ascending: false })
+  if (!data || !data.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 공개된 감리보고서가 없어요.<br>감리가 확인을 마치면 여기에 올라와요.</div>'; return }
+  cont.innerHTML = data.map(reportCard).join('')
 }
 window.loadResidentHome = loadResidentHome
 
@@ -137,6 +144,20 @@ window.goBack = function () {
   NAV_CUR = p
   ORIG_SHOW(p)
 }
+// iOS 왼쪽 가장자리 스와이프 → 뒤로가기
+;(function () {
+  let sx = 0, sy = 0, edge = false, t0 = 0
+  document.addEventListener('touchstart', (e) => {
+    const t = e.touches[0]; if (!t) return
+    sx = t.clientX; sy = t.clientY; edge = sx <= 40; t0 = Date.now()
+  }, { passive: true })
+  document.addEventListener('touchend', (e) => {
+    if (!edge) return
+    const t = e.changedTouches[0]; if (!t) return
+    const dx = t.clientX - sx, dy = t.clientY - sy
+    if (dx > 60 && Math.abs(dy) < 45 && (Date.now() - t0) < 700) window.goBack()
+  }, { passive: true })
+})()
 function wireBackArrows() {
   document.querySelectorAll('.ab').forEach((ab) => {
     const sp = ab.querySelector('span')
@@ -661,7 +682,7 @@ function wire() {
   const ws = $('w-submit'); if (ws) ws.onclick = saveReport
   document.addEventListener('click', (e) => {
     const c = e.target.closest('#aud-apts [data-apt-id]'); if (c) { openApt(AUD_APTS[c.dataset.aptId]); return }
-    const r = e.target.closest('#report-list [data-report-id]'); if (r) { openReport(REPORTS[r.dataset.reportId]); return }
+    const r = e.target.closest('[data-report-id]'); if (r) { openReport(REPORTS[r.dataset.reportId]); return }
     // 담당 단지 필터 칩 (전체/진행중/점검예정/완료)
     const f = e.target.closest('#aud-filters [data-filter]')
     if (f) {
@@ -688,7 +709,7 @@ function wire() {
   const nextCard = $('res-next-card'); if (nextCard) nextCard.onclick = goSchedule
   const icProg = $('res-ic-progress'); if (icProg) icProg.onclick = () => { window.showScreen('s24'); loadResidentProgress() }
   const icCase = $('res-ic-case'); if (icCase) icCase.onclick = () => { showScreen('s23'); loadCases() }
-  const icRep = $('res-ic-report'); if (icRep) icRep.onclick = residentReportSoon
+  const icRep = $('res-ic-report'); if (icRep) icRep.onclick = () => { showScreen('s12'); loadResidentReports() }
   const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu
   const audCard = $('res-aud-card'); if (audCard) audCard.onclick = openInquiry
   const noPhone = () => alert('담당 감리사 연락처가 아직 등록되지 않았어요.\n(감리사가 회원가입 시 연락처를 입력하면 표시돼요.)')

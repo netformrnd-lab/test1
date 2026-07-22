@@ -30,9 +30,11 @@ async function route() {
   const { data: profile, error } = await sb
     .from('profiles').select('role, approved, name').eq('id', user.id).single()
   if (error || !profile || !profile.approved) { window.showScreen('s02'); return } // 승인 대기
+  currentRole = profile.role
   if (profile.role === 'auditor') { window.showScreen('s07'); loadAuditorApts() }
   else { window.showScreen('s11'); loadResidentHome() }
 }
+let currentRole = null
 
 // ── 입주민·관리소장 홈: 우리 단지 정보 불러오기 ─────────────
 async function loadResidentHome() {
@@ -209,6 +211,65 @@ function openReport(r) {
 }
 window.openApt = openApt; window.openReport = openReport
 
+// ── 감리사: 공사 일정 (달력) ─────────────────────────────
+let schedYM = null
+async function loadSchedule(apt) {
+  const a = apt || currentApt
+  const days = document.getElementById('s-days'), list = document.getElementById('s-list'), sub = document.getElementById('s-sub')
+  if (!a) {
+    if (days) days.innerHTML = ''
+    if (list) list.innerHTML = '<div style="padding:22px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">담당 단지에서 단지를 먼저 누르면<br>그 단지의 일정이 여기 보여요.</div>'
+    return
+  }
+  currentApt = a
+  if (sub) sub.textContent = a.name + ' · 방문·점검 일정을 확인하고 추가하세요'
+  if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
+  const { data: scheds } = await sb.from('schedules').select('*').eq('apartment_id', a.id).order('date')
+  renderCalendar(scheds || [])
+  renderSchedList(scheds || [])
+}
+function renderCalendar(scheds) {
+  const { y, m } = schedYM
+  const mo = document.getElementById('s-month'); if (mo) mo.textContent = y + '년 ' + (m + 1) + '월'
+  const first = new Date(y, m, 1).getDay()
+  const total = new Date(y, m + 1, 0).getDate()
+  const today = new Date()
+  const mark = {}
+  scheds.forEach(s => { if (s.date) { const d = new Date(s.date); if (d.getFullYear() === y && d.getMonth() === m) mark[d.getDate()] = true } })
+  let cells = ''
+  for (let i = 0; i < first; i++) cells += '<span></span>'
+  for (let d = 1; d <= total; d++) {
+    const isT = today.getFullYear() === y && today.getMonth() === m && today.getDate() === d
+    const dot = mark[d] ? '<span style="position:absolute;left:50%;transform:translateX(-50%);bottom:1px;width:4px;height:4px;border-radius:99px;background:#2F6BF6"></span>' : ''
+    const st = isT ? 'position:relative;padding:6px 0;background:#2F6BF6;color:#fff;border-radius:9px;font-weight:800' : 'position:relative;padding:6px 0'
+    cells += '<span style="' + st + '">' + d + dot + '</span>'
+  }
+  const el = document.getElementById('s-days'); if (el) el.innerHTML = cells
+}
+function renderSchedList(scheds) {
+  const el = document.getElementById('s-list'); if (!el) return
+  if (!scheds.length) { el.innerHTML = '<div style="padding:22px 10px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">등록된 일정이 없어요.<br>“＋ 일정 추가”로 방문 일정을 남겨보세요.</div>'; return }
+  const wd = ['일', '월', '화', '수', '목', '금', '토']
+  el.innerHTML = scheds.map(s => {
+    const d = s.date ? new Date(s.date) : null
+    const ds = d ? `${d.getMonth() + 1}/${d.getDate()} (${wd[d.getDay()]})` : ''
+    return `<div style="border-left:3px solid #2F6BF6;background:#f8faff;border-radius:0 10px 10px 0;padding:10px 11px"><div style="font-size:11.5px;font-weight:800;color:#1c2440">${escH(s.title)}</div><div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">${ds}${s.description ? ' · ' + escH(s.description) : ''}</div></div>`
+  }).join('')
+}
+async function addSchedule() {
+  if (!currentApt) { alert('단지를 먼저 선택하세요'); return }
+  const date = document.getElementById('sc-date').value
+  const title = document.getElementById('sc-title').value.trim()
+  const desc = document.getElementById('sc-desc').value.trim()
+  if (!date || !title) { alert('날짜와 일정 내용을 입력하세요'); return }
+  const { error } = await sb.from('schedules').insert({ apartment_id: currentApt.id, date, title, description: desc || null })
+  if (error) { alert('등록 실패: ' + error.message); return }
+  document.getElementById('sc-date').value = ''; document.getElementById('sc-title').value = ''; document.getElementById('sc-desc').value = ''
+  document.getElementById('sc-form').style.display = 'none'
+  loadSchedule(currentApt)
+}
+window.loadSchedule = loadSchedule
+
 async function doLogin() {
   const email = $('login-email').value.trim()
   const pw = $('login-pw').value
@@ -256,6 +317,22 @@ function wire() {
   document.addEventListener('click', (e) => {
     const c = e.target.closest('#aud-apts [data-apt-id]'); if (c) { openApt(AUD_APTS[c.dataset.aptId]); return }
     const r = e.target.closest('#report-list [data-report-id]'); if (r) { openReport(REPORTS[r.dataset.reportId]); return }
+  })
+  // 공사 일정
+  const addBtn = $('sc-add-btn'); if (addBtn) addBtn.onclick = () => { const f = $('sc-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none' }
+  const scSave = $('sc-save'); if (scSave) scSave.onclick = addSchedule
+  // 하단 네비게이션 (홈 / 보고서 / 일정)
+  document.addEventListener('click', (e) => {
+    const nav = e.target.closest('.nav > div'); if (!nav) return
+    const t = nav.textContent || ''
+    if (t.indexOf('문의') >= 0) return // 문의는 별도 처리
+    if (t.indexOf('홈') >= 0) {
+      if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() } else { showScreen('s11'); loadResidentHome() }
+    } else if (t.indexOf('보고서') >= 0) {
+      if (currentRole === 'auditor') { if (currentApt) { showScreen('s08'); loadReports(currentApt.id) } else { showScreen('s07'); loadAuditorApts() } }
+    } else if (t.indexOf('일정') >= 0) {
+      showScreen('s14'); loadSchedule()
+    }
   })
   // 앱 열 때 이미 로그인돼 있으면 알맞은 화면으로
   sb.auth.getSession().then(({ data }) => { if (data.session) route() })

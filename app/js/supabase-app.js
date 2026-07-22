@@ -240,8 +240,16 @@ async function loadSchedule() {
     const { data } = await sb.from('schedules').select('*').eq('owner_id', user.id).is('apartment_id', null).order('date')
     scheds = data || []
   }
+  if (currentRole === 'auditor') populateSchedAptSelect()
   renderCalendar(scheds)
   renderSchedList(scheds)
+}
+function populateSchedAptSelect() {
+  const sel = document.getElementById('sc-apt'); if (!sel) return
+  const apts = Object.values(AUD_APTS)
+  sel.innerHTML = '<option value="">🔒 개인 일정 (나만 봐요)</option>' +
+    apts.map(a => `<option value="${a.id}">${escH(a.name)} · 단지 일정 (입주민도 봄)</option>`).join('')
+  sel.value = currentApt ? currentApt.id : ''
 }
 function renderCalendar(scheds) {
   const { y, m } = schedYM
@@ -277,9 +285,11 @@ async function addSchedule() {
   const title = document.getElementById('sc-title').value.trim()
   const desc = document.getElementById('sc-desc').value.trim()
   if (!date || !title) { alert('날짜와 일정 내용을 입력하세요'); return }
+  const sel = document.getElementById('sc-apt')
+  const aptId = sel ? sel.value : (currentApt ? currentApt.id : '')
   const row = { date, title, description: desc || null }
-  if (currentApt) { row.apartment_id = currentApt.id }        // 단지 일정 (입주민도 봄)
-  else { row.owner_id = user.id; row.apartment_id = null }     // 개인 일정 (나만)
+  if (aptId) { row.apartment_id = aptId; currentApt = AUD_APTS[aptId] || currentApt }  // 단지 일정
+  else { row.owner_id = user.id; row.apartment_id = null; currentApt = null }           // 개인 일정
   const { error } = await sb.from('schedules').insert(row)
   if (error) { alert('등록 실패: ' + error.message); return }
   document.getElementById('sc-date').value = ''; document.getElementById('sc-title').value = ''; document.getElementById('sc-desc').value = ''

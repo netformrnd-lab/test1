@@ -205,26 +205,35 @@ function openNotice(n) {
   window.showScreen('s18')
 }
 
-// ── 감리 우수 사례 상세 (s25) ────────────────────────────
-function wireCaseCards() {
-  const s23 = document.getElementById('s23'); if (!s23) return
-  s23.querySelectorAll('div[style*="flex-direction:column"]').forEach((col) => {
-    Array.from(col.children).forEach((card) => {
-      if (!card.querySelector) return
-      card.style.cursor = 'pointer'
-      card.onclick = () => openCaseDetail(card)
-    })
-  })
+// ── 감리 우수 사례 (관리자가 작성 · 전/후 사진) ────────────
+let CASES = {}
+async function loadCases() {
+  const box = document.getElementById('case-list'); if (!box) return
+  box.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const { data } = await sb.from('cases').select('*').order('created_at', { ascending: false })
+  if (!data || !data.length) { box.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">등록된 우수 사례가 아직 없어요.</div>'; return }
+  CASES = {}
+  box.innerHTML = data.map((c) => {
+    CASES[c.id] = c
+    const thumb = c.after_url || c.before_url
+    const img = thumb
+      ? `background:url('${thumb}') center/cover`
+      : 'background:#eef1f7;display:flex;align-items:center;justify-content:center;font-size:20px'
+    return `<div data-case-id="${c.id}" style="cursor:pointer;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:11px;align-items:center">
+      <div style="width:58px;height:58px;border-radius:10px;flex-shrink:0;${img}">${thumb ? '' : '🏢'}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#1c2440">${escH(c.title)}</div>
+      ${c.meta ? `<div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:2px">${escH(c.meta)}</div>` : ''}
+      ${c.summary ? `<div style="font-size:10.5px;color:#5c6580;font-weight:600;margin-top:5px;line-height:1.5">${escH(c.summary)}</div>` : ''}</div>
+      <span style="font-size:16px;color:#c3ccdb;flex-shrink:0;align-self:center">›</span></div>`
+  }).join('')
 }
-function openCaseDetail(card) {
-  const t = card.querySelector('[style*="font-weight:800"]')
-  const meta = card.querySelector('[style*="9.5px"]')
-  const desc = card.querySelector('[style*="10.5px"]')
-  const thumb = card.querySelector('[style*="center/cover"]')
-  const ct = document.getElementById('case-title'); if (ct) ct.textContent = t ? t.textContent : '감리 우수 사례'
-  const cm = document.getElementById('case-meta'); if (cm) cm.textContent = meta ? meta.textContent : ''
-  const cb = document.getElementById('case-body'); if (cb) cb.innerHTML = (desc ? escH(desc.textContent) : '') + '<br><br>자세한 사례 사진과 검측 기록은 곧 업데이트될 예정이에요.'
-  const hero = document.getElementById('case-hero'); if (hero && thumb && thumb.style.background) hero.style.background = thumb.style.background
+function openCaseDetail(c) {
+  if (!c) return
+  const ct = document.getElementById('case-title'); if (ct) ct.textContent = c.title || '감리 우수 사례'
+  const cm = document.getElementById('case-meta'); if (cm) cm.textContent = c.meta || ''
+  const cb = document.getElementById('case-body'); if (cb) cb.innerHTML = c.body ? escH(c.body).replace(/\n/g, '<br>') : (c.summary ? escH(c.summary) : '')
+  const bf = document.getElementById('case-before'); if (bf) bf.style.background = c.before_url ? `url('${c.before_url}') center/cover` : '#dfe5ee'
+  const af = document.getElementById('case-after'); if (af) af.style.background = c.after_url ? `url('${c.after_url}') center/cover` : '#dfe5ee'
   window.showScreen('s25')
 }
 
@@ -276,6 +285,7 @@ document.addEventListener('click', (e) => {
   const back = e.target.closest('[data-back]'); if (back) { window.goBack(); return }
   const nt = e.target.closest('[data-notice]'); if (nt) { openNotice(NOTICES[nt.dataset.notice]); return }
   const yt = e.target.closest('[data-ytid]'); if (yt) { window.open('https://www.youtube.com/shorts/' + yt.dataset.ytid, '_blank', 'noopener'); return }
+  const cs = e.target.closest('[data-case-id]'); if (cs) { openCaseDetail(CASES[cs.dataset.caseId]); return }
   const soon = e.target.closest('[data-soon]'); if (soon) { alert('영상은 곧 제공될 예정이에요.\n준비되면 이곳에서 감리 이야기를 영상으로 보여드릴게요.'); return }
   const fi = e.target.closest('.faq-item'); if (fi) {
     const ans = fi.querySelector('.faq-ans'), plus = fi.querySelector('.faq-plus')
@@ -677,7 +687,7 @@ function wire() {
   const icSch = $('res-ic-schedule'); if (icSch) icSch.onclick = goSchedule
   const nextCard = $('res-next-card'); if (nextCard) nextCard.onclick = goSchedule
   const icProg = $('res-ic-progress'); if (icProg) icProg.onclick = () => { window.showScreen('s24'); loadResidentProgress() }
-  const icCase = $('res-ic-case'); if (icCase) icCase.onclick = () => showScreen('s23')
+  const icCase = $('res-ic-case'); if (icCase) icCase.onclick = () => { showScreen('s23'); loadCases() }
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = residentReportSoon
   const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu
   const audCard = $('res-aud-card'); if (audCard) audCard.onclick = openInquiry
@@ -721,6 +731,6 @@ document.addEventListener('click', (e) => {
   if (el) { e.preventDefault(); window.open(INQUIRY_URL, '_blank', 'noopener') }
 })
 
-function boot() { wire(); tagInquiry(); wireBackArrows(); wireCaseCards(); renderVideos() }
+function boot() { wire(); tagInquiry(); wireBackArrows(); renderVideos() }
 if (document.readyState !== 'loading') boot()
 else document.addEventListener('DOMContentLoaded', boot)

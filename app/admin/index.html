@@ -477,22 +477,56 @@ async function saveFieldAdmin(id){
   if(btn){btn.textContent='저장';btn.disabled=false;}
   if(error)return alert('오류: '+error.message);loadAll();
 }
-function fieldCardHtml(f){
-  FPHOTOS[f.id]=Array.isArray(f.photos)?f.photos.slice():[];
+// 글 1건 = 접힌 한 줄(날짜·제목·사진수). 클릭하면 그 글만 펼쳐 편집
+function fieldRowHtml(f){
   const d=(f.created_at||'').slice(0,10).replace(/-/g,'.');
-  return `<div class="card" data-fid="${f.id}" style="margin-bottom:12px">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px">
-      <span style="font-size:11px;color:var(--mut);font-weight:600">${d}</span>
-      <button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteField('${f.id}')">삭제</button>
+  const n=Array.isArray(f.photos)?f.photos.length:0;
+  const title=esc(f.title)||'(제목 없음)';
+  return `<div class="fld-item" data-fitem="${f.id}">
+    <div class="fld-row" onclick="toggleFieldEdit('${f.id}')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;border:1px solid var(--line);border-top:none;cursor:pointer">
+      <span style="font-size:11px;color:var(--mut);font-weight:600;flex-shrink:0;width:72px">${d}</span>
+      <span style="font-size:13px;font-weight:700;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title}</span>
+      ${n?`<span style="font-size:10.5px;color:var(--blue);font-weight:700;flex-shrink:0">📷 ${n}</span>`:''}
+      <span class="fld-caret" style="color:#b3bccf;font-size:12px;flex-shrink:0">▾</span>
     </div>
+    <div class="fld-edit" id="fldedit-${f.id}" style="display:none"></div>
+  </div>`;
+}
+// 글 편집 폼 (펼쳤을 때만 생성)
+function fieldEditorHtml(f){
+  FPHOTOS[f.id]=Array.isArray(f.photos)?f.photos.slice():[];
+  return `<div class="card" data-fid="${f.id}" style="margin:0;border-radius:0;border-top:none">
     <label style="font-size:11px;font-weight:700;color:var(--mut2)">제목</label>
     <input class="ff-title" value="${esc(f.title)||''}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
     <label style="font-size:11px;font-weight:700;color:var(--mut2)">내용</label>
     <textarea class="ff-content" style="width:100%;min-height:76px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit;resize:vertical;line-height:1.6">${esc(f.content)||''}</textarea>
     <label style="font-size:11px;font-weight:700;color:var(--mut2)">사진</label>
     <div class="ff-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 9px">${fieldPhotoHtml(f.id)}</div>
-    <div style="display:flex;justify-content:flex-end"><button class="b save" onclick="saveFieldAdmin('${f.id}')">저장</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteField('${f.id}')">삭제</button>
+      <button class="b save" onclick="saveFieldAdmin('${f.id}')">저장</button>
+    </div>
   </div>`;
+}
+function toggleFieldEdit(id){
+  const box=document.getElementById('fldedit-'+id);if(!box)return;
+  const item=document.querySelector(`[data-fitem="${id}"]`);
+  const caret=item?item.querySelector('.fld-caret'):null;
+  if(box.style.display==='none'){
+    if(!box.innerHTML.trim()){const f=FIELDS.find(x=>x.id===id);if(f)box.innerHTML=fieldEditorHtml(f);}
+    box.style.display='block';if(caret)caret.textContent='▴';
+  }else{box.style.display='none';if(caret)caret.textContent='▾';}
+}
+function toggleAptGroup(id){
+  const body=document.getElementById('fldbody-'+id);if(!body)return;
+  const caret=document.querySelector(`[data-fgroup="${id}"] .fg-caret`);
+  if(body.style.display==='none'){
+    if(!body.innerHTML.trim()){
+      const list=FIELDS.filter(f=>f.apartment_id===id);
+      body.innerHTML=list.map(fieldRowHtml).join('');
+    }
+    body.style.display='block';if(caret)caret.textContent='▴';
+  }else{body.style.display='none';if(caret)caret.textContent='▾';}
 }
 function renderField(){
   const nn=$('nav-f');if(nn)nn.textContent=FIELDS.length;
@@ -500,21 +534,33 @@ function renderField(){
   FPHOTOS={};
   if(!FIELDS.length){box.innerHTML='<div class="empty">등록된 현장 기록이 없어요. 위에서 단지를 선택해 추가해 보세요.</div>';return;}
   const q=(($('fld-q')||{}).value||'').trim().toLowerCase();
-  const filtered=FIELDS.filter(f=>{if(!q)return true;return (aptName(f.apartment_id)+' '+(f.title||'')).toLowerCase().includes(q);});
-  if(!filtered.length){box.innerHTML='<div class="empty">검색 결과가 없어요.</div>';return;}
   const groups={};
-  filtered.forEach(f=>{(groups[f.apartment_id]=groups[f.apartment_id]||[]).push(f);});
+  FIELDS.forEach(f=>{(groups[f.apartment_id]=groups[f.apartment_id]||[]).push(f);});
   const ids=Object.keys(groups).sort((a,b)=>aptName(a).localeCompare(aptName(b),'ko'));
-  box.innerHTML=ids.map(id=>{
+  let html='',any=false;
+  ids.forEach(id=>{
     const list=groups[id];
-    return `<div style="margin-bottom:22px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:7px;border-bottom:2px solid var(--line)">
-        <span style="font-size:15px;font-weight:800;color:var(--navy)">🏢 ${esc(aptName(id))}</span>
-        <span style="font-size:11px;font-weight:700;color:#fff;background:var(--blue);padding:2px 9px;border-radius:99px">${list.length}건</span>
+    let shown=list,expand=false;
+    if(q){
+      const aptMatch=aptName(id).toLowerCase().includes(q);
+      shown=aptMatch?list:list.filter(f=>((f.title||'')+' '+(f.content||'')).toLowerCase().includes(q));
+      if(!shown.length)return;
+      expand=true; // 검색 시 해당 단지 자동 펼침
+    }
+    any=true;
+    const rows=expand?shown.map(fieldRowHtml).join(''):'';
+    html+=`<div class="fld-group" data-fgroup="${id}" style="margin-bottom:12px">
+      <div onclick="toggleAptGroup('${id}')" style="display:flex;align-items:center;gap:9px;padding:12px 14px;background:#f3f6fc;border:1px solid var(--line);border-radius:10px 10px ${expand?'0 0':'10px 10px'};cursor:pointer">
+        <span style="font-size:14px;font-weight:800;color:var(--navy)">🏢 ${esc(aptName(id))}</span>
+        <span style="font-size:11px;font-weight:700;color:#fff;background:var(--blue);padding:2px 9px;border-radius:99px">${shown.length}건</span>
+        <span style="flex:1"></span>
+        <span class="fg-caret" style="color:#8b95ad;font-size:13px">${expand?'▴':'▾'}</span>
       </div>
-      ${list.map(fieldCardHtml).join('')}
+      <div class="fld-aptbody" id="fldbody-${id}" style="display:${expand?'block':'none'}">${rows}</div>
     </div>`;
-  }).join('');
+  });
+  if(q&&!any){box.innerHTML='<div class="empty">검색 결과가 없어요.</div>';return;}
+  box.innerHTML=html;
 }
 function renderCases(){
   const nn=$('nav-c');if(nn)nn.textContent=CASES.length;

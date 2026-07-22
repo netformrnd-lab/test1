@@ -29,16 +29,4 @@
   function fromHash() { var id = location.hash.replace('#', ''); if (id) show(id); }
   window.addEventListener('hashchange', fromHash);
   fromHash();
-
-  // 개발용 화면 목록 메뉴
-  var menu = document.getElementById('menu');
-  var list = document.getElementById('menuList');
-  screens.forEach(function (s, i) {
-    var li = document.createElement('li');
-    li.innerHTML = '<span class="num">' + (i + 1) + '</span>' + (s.getAttribute('data-name') || s.id);
-    li.addEventListener('click', function () { show(s.id); menu.hidden = true; });
-    list.appendChild(li);
-  });
-  document.getElementById('menuBtn').addEventListener('click', function () { menu.hidden = !menu.hidden; });
-  document.getElementById('menuClose').addEventListener('click', function () { menu.hidden = true; });
 })();

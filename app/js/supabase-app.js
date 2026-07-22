@@ -78,6 +78,7 @@ function auditorCard(a) {
   </div>`
 }
 async function loadAuditorApts() {
+  currentApt = null // 홈으로 오면 '단지 선택' 해제 → 일정은 개인 일정 모드
   const cont = document.getElementById('aud-apts'); if (!cont) return
   const sub = document.getElementById('aud-sub')
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
@@ -213,20 +214,34 @@ window.openApt = openApt; window.openReport = openReport
 
 // ── 감리사: 공사 일정 (달력) ─────────────────────────────
 let schedYM = null
-async function loadSchedule(apt) {
-  const a = apt || currentApt
-  const days = document.getElementById('s-days'), list = document.getElementById('s-list'), sub = document.getElementById('s-sub')
-  if (!a) {
-    if (days) days.innerHTML = ''
-    if (list) list.innerHTML = '<div style="padding:22px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">담당 단지에서 단지를 먼저 누르면<br>그 단지의 일정이 여기 보여요.</div>'
-    return
-  }
-  currentApt = a
-  if (sub) sub.textContent = a.name + ' · 방문·점검 일정을 확인하고 추가하세요'
+async function loadSchedule() {
+  const { data: { user } } = await sb.auth.getUser()
+  const sub = document.getElementById('s-sub'), addBtn = document.getElementById('sc-add-btn')
   if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
-  const { data: scheds } = await sb.from('schedules').select('*').eq('apartment_id', a.id).order('date')
-  renderCalendar(scheds || [])
-  renderSchedList(scheds || [])
+  let scheds = []
+  if (currentRole !== 'auditor') {
+    // 입주민·관리소장: 우리 단지 일정 (보기만)
+    if (addBtn) addBtn.style.display = 'none'
+    const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+    if (!prof || !prof.apartment_id) { if (sub) sub.textContent = '아직 배정된 단지가 없어요'; renderCalendar([]); renderSchedList([]); return }
+    if (sub) sub.textContent = '우리 단지 방문·점검 일정이에요'
+    const { data } = await sb.from('schedules').select('*').eq('apartment_id', prof.apartment_id).order('date')
+    scheds = data || []
+  } else if (currentApt) {
+    // 감리사 · 단지 선택됨 → 단지 일정 (입주민도 봄)
+    if (addBtn) addBtn.style.display = ''
+    if (sub) sub.innerHTML = '<b style="color:#2F6BF6">' + escH(currentApt.name) + '</b> · 단지 일정 &mdash; 입주민에게도 보여요 👥'
+    const { data } = await sb.from('schedules').select('*').eq('apartment_id', currentApt.id).order('date')
+    scheds = data || []
+  } else {
+    // 감리사 · 단지 미선택 → 개인 일정 (나만 봄)
+    if (addBtn) addBtn.style.display = ''
+    if (sub) sub.innerHTML = '<b style="color:#8b7a2f">내 개인 일정</b> &mdash; 나만 볼 수 있어요 🔒 (단지를 먼저 누르면 단지 일정)'
+    const { data } = await sb.from('schedules').select('*').eq('owner_id', user.id).is('apartment_id', null).order('date')
+    scheds = data || []
+  }
+  renderCalendar(scheds)
+  renderSchedList(scheds)
 }
 function renderCalendar(scheds) {
   const { y, m } = schedYM
@@ -257,16 +272,19 @@ function renderSchedList(scheds) {
   }).join('')
 }
 async function addSchedule() {
-  if (!currentApt) { alert('단지를 먼저 선택하세요'); return }
+  const { data: { user } } = await sb.auth.getUser()
   const date = document.getElementById('sc-date').value
   const title = document.getElementById('sc-title').value.trim()
   const desc = document.getElementById('sc-desc').value.trim()
   if (!date || !title) { alert('날짜와 일정 내용을 입력하세요'); return }
-  const { error } = await sb.from('schedules').insert({ apartment_id: currentApt.id, date, title, description: desc || null })
+  const row = { date, title, description: desc || null }
+  if (currentApt) { row.apartment_id = currentApt.id }        // 단지 일정 (입주민도 봄)
+  else { row.owner_id = user.id; row.apartment_id = null }     // 개인 일정 (나만)
+  const { error } = await sb.from('schedules').insert(row)
   if (error) { alert('등록 실패: ' + error.message); return }
   document.getElementById('sc-date').value = ''; document.getElementById('sc-title').value = ''; document.getElementById('sc-desc').value = ''
   document.getElementById('sc-form').style.display = 'none'
-  loadSchedule(currentApt)
+  loadSchedule()
 }
 window.loadSchedule = loadSchedule
 

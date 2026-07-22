@@ -115,6 +115,20 @@ async function loadResidentNext(aptId) {
   if (sub) sub.textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 (${wd[d.getDay()]})${s.description ? ' · ' + s.description : ''}`
   if (dbox) dbox.innerHTML = `<span style="font-size:9px;font-weight:800;color:#2F6BF6">${d.getMonth() + 1}월</span><span style="font-size:17px;font-weight:800;color:#2F6BF6">${d.getDate()}</span>`
 }
+// 입주민: 우리 단지 현장 현황 (관리자가 올린 현장 사진·글)
+async function loadFieldUpdates() {
+  const cont = document.getElementById('field-list'); if (!cont) return
+  cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const { data: { user } } = await sb.auth.getUser(); if (!user) return
+  const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+  const hdr = document.getElementById('field-apt')
+  if (!prof || !prof.apartment_id) { if (hdr) hdr.textContent = '배정된 단지 없음'; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
+  const { data: apt } = await sb.from('apartments').select('name').eq('id', prof.apartment_id).single()
+  if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
+  const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
+  if (!data || !data.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.</div>'; return }
+  cont.innerHTML = data.map(reportCard).join('')
+}
 // 입주민: 공개된 우리 단지 감리보고서 목록
 async function loadResidentReports() {
   const cont = document.getElementById('res-report-list'); if (!cont) return
@@ -792,6 +806,7 @@ function wire() {
   const icProg = $('res-ic-progress'); if (icProg) icProg.onclick = () => { window.showScreen('s24'); loadResidentProgress() }
   const icCase = $('res-ic-case'); if (icCase) icCase.onclick = () => { showScreen('s23'); loadCases() }
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = () => { showScreen('s12'); loadResidentReports() }
+  const icField = $('res-ic-field'); if (icField) icField.onclick = () => { showScreen('s26'); loadFieldUpdates() }
   const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu
   const audCard = $('res-aud-card'); if (audCard) audCard.onclick = openInquiry
   const noPhone = () => alert('담당 감리사 연락처가 아직 등록되지 않았어요.\n(감리사가 회원가입 시 연락처를 입력하면 표시돼요.)')

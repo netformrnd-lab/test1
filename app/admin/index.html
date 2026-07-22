@@ -131,6 +131,7 @@
       <a data-sec="apts"><span class="ic">🏢</span>단지 관리<span class="cnt" id="nav-a">0</span></a>
       <a data-sec="notices"><span class="ic">📢</span>공지사항<span class="cnt" id="nav-n">0</span></a>
       <a data-sec="reports"><span class="ic">📝</span>감리보고서<span class="cnt" id="nav-r">0</span></a>
+      <a data-sec="field"><span class="ic">📸</span>현장 현황<span class="cnt" id="nav-f">0</span></a>
       <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
     </nav>
     <div class="me">
@@ -204,6 +205,23 @@
       <div id="reports"></div>
     </section>
 
+    <!-- 현장 현황 (단지별 현장 사진·글) -->
+    <section id="sec-field">
+      <div class="head"><div><h2>현장 현황</h2><div class="desc">단지별 현장 사진·글을 올리세요. 입주민·감리사 앱의 ‘현장 현황’에 바로 보입니다</div></div></div>
+      <div class="card">
+        <h3>➕ 현장 기록 추가</h3>
+        <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
+          <select id="fa-apt" class="f" style="max-width:320px"><option value="">단지를 선택하세요</option></select>
+          <input id="fa-title" placeholder="제목 (예: 3동 옥상 방수 시공 현황)">
+          <textarea id="fa-body" placeholder="내용 (현장 설명·진행 상황 등)" style="min-height:78px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;outline:none;font-family:inherit;resize:vertical"></textarea>
+          <div class="fnew-photos" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          <button class="b save" style="align-self:flex-start" onclick="addField()">등록</button>
+        </div>
+      </div>
+      <div class="add-form" style="margin-bottom:16px"><input id="fld-q" placeholder="🔍 단지명·제목으로 검색" style="width:320px" oninput="renderField()"></div>
+      <div id="field"></div>
+    </section>
+
     <!-- 감리 우수 사례 -->
     <section id="sec-cases">
       <div class="head"><div><h2>감리 우수 사례</h2><div class="desc">전·후 사진과 함께 우수 사례를 등록하세요 (입주민 앱 ‘감리 우수 사례’에 노출됩니다)</div></div></div>
@@ -234,8 +252,10 @@ const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=(id)=>document.getElementById(id);
-let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[];
+let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[];
 let RPHOTOS={}; // 보고서별 편집중 사진 목록 {reportId:[url,...]}
+let FPHOTOS={}; // 현장기록별 편집중 사진 목록 {fieldId:[url,...]}
+let FNEW=[];    // 새 현장기록 작성용 사진 목록
 const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};
 const esc=(s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -271,15 +291,16 @@ document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>{
 });
 
 async function loadAll(){
-  const [m,a,n,c,r]=await Promise.all([
+  const [m,a,n,c,r,f]=await Promise.all([
     sb.from('profiles').select('*').order('created_at',{ascending:false}),
     sb.from('apartments').select('*').order('created_at',{ascending:false}),
     sb.from('notices').select('*').order('created_at',{ascending:false}),
     sb.from('cases').select('*').order('created_at',{ascending:false}),
-    sb.from('reports').select('*').order('created_at',{ascending:false})
+    sb.from('reports').select('*').order('created_at',{ascending:false}),
+    sb.from('field_updates').select('*').order('created_at',{ascending:false})
   ]);
-  MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];
-  renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();
+  MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];
+  renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();
 }
 function aptName(id){const a=APTS.find(x=>x.id===id);return a?a.name:'(단지)';}
 function memberName(id){const m=MEMBERS.find(x=>x.id===id);return m?(m.name||m.email):'(작성자)';}
@@ -394,6 +415,106 @@ async function deleteCase(id){
   if(!confirm('이 사례를 삭제할까요?'))return;
   const{error}=await sb.from('cases').delete().eq('id',id);
   if(error)return alert('오류: '+error.message);loadAll();
+}
+
+/* ===== 현장 현황 (field_updates) ===== */
+function fillFieldAptSelect(){
+  const sel=$('fa-apt');if(!sel)return;
+  const cur=sel.value;
+  const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  sel.innerHTML='<option value="">단지를 선택하세요</option>'+sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  sel.value=cur;
+}
+async function uploadFieldPhoto(file){
+  if(!file)return null;
+  const safe=file.name.replace(/[^\w.]/g,'_');
+  const path=Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+safe;
+  const{error}=await sb.storage.from('field-photos').upload(path,file,{upsert:false});
+  if(error){alert('사진 업로드 실패: '+error.message);return null;}
+  return sb.storage.from('field-photos').getPublicUrl(path).data.publicUrl;
+}
+// 새 기록 작성용 사진
+function refreshFieldNewPhotos(){
+  const row=document.querySelector('#sec-field .fnew-photos');if(!row)return;
+  const thumbs=FNEW.map((u,i)=>`<div style="position:relative;width:78px;height:78px"><img src="${u}" style="width:78px;height:78px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"><span onclick="removeFieldNewPhoto(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#e4544b;color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer">×</span></div>`).join('');
+  const add=`<label style="width:78px;height:78px;border:2px dashed #c3ccdb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9aa3b6;font-size:22px;cursor:pointer">＋<input type="file" accept="image/*" multiple style="display:none" onchange="addFieldNewPhoto(this.files)"></label>`;
+  row.innerHTML=thumbs+add;
+}
+async function addFieldNewPhoto(files){
+  for(const f of Array.from(files)){const url=await uploadFieldPhoto(f);if(url){FNEW.push(url);refreshFieldNewPhotos();}}
+}
+function removeFieldNewPhoto(i){FNEW.splice(i,1);refreshFieldNewPhotos();}
+async function addField(){
+  const apartment_id=$('fa-apt').value;if(!apartment_id)return alert('단지를 선택하세요');
+  const title=$('fa-title').value.trim();if(!title)return alert('제목을 입력하세요');
+  const btn=document.querySelector('#sec-field .save');if(btn){btn.textContent='등록 중…';btn.disabled=true;}
+  const{error}=await sb.from('field_updates').insert({apartment_id,title,content:$('fa-body').value.trim()||null,photos:FNEW.slice()});
+  if(btn){btn.textContent='등록';btn.disabled=false;}
+  if(error)return alert('오류: '+error.message);
+  $('fa-title').value='';$('fa-body').value='';FNEW=[];refreshFieldNewPhotos();loadAll();
+}
+async function deleteField(id){
+  if(!confirm('이 현장 기록을 삭제할까요?'))return;
+  const{error}=await sb.from('field_updates').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);loadAll();
+}
+// 기존 기록 사진 편집
+function fieldPhotoHtml(id){
+  const arr=FPHOTOS[id]||[];
+  const thumbs=arr.map((u,i)=>`<div style="position:relative;width:70px;height:70px"><img src="${u}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"><span onclick="removeFieldPhoto('${id}',${i})" style="position:absolute;top:-6px;right:-6px;width:19px;height:19px;border-radius:50%;background:#e4544b;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer">×</span></div>`).join('');
+  const add=`<label style="width:70px;height:70px;border:2px dashed #c3ccdb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9aa3b6;font-size:20px;cursor:pointer">＋<input type="file" accept="image/*" multiple style="display:none" onchange="addFieldPhoto('${id}',this.files)"></label>`;
+  return thumbs+add;
+}
+function refreshFieldPhotos(id){const row=document.querySelector(`.card[data-fid="${id}"] .ff-photos`);if(row)row.innerHTML=fieldPhotoHtml(id);}
+async function addFieldPhoto(id,files){for(const f of Array.from(files)){const url=await uploadFieldPhoto(f);if(url){(FPHOTOS[id]=FPHOTOS[id]||[]).push(url);refreshFieldPhotos(id);}}}
+function removeFieldPhoto(id,idx){if(FPHOTOS[id]){FPHOTOS[id].splice(idx,1);refreshFieldPhotos(id);}}
+async function saveFieldAdmin(id){
+  const row=document.querySelector(`.card[data-fid="${id}"]`);
+  const title=row.querySelector('.ff-title').value.trim();if(!title)return alert('제목을 입력하세요');
+  const content=row.querySelector('.ff-content').value.trim()||null;
+  const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
+  const{error}=await sb.from('field_updates').update({title,content,photos:FPHOTOS[id]||[]}).eq('id',id);
+  if(btn){btn.textContent='저장';btn.disabled=false;}
+  if(error)return alert('오류: '+error.message);loadAll();
+}
+function fieldCardHtml(f){
+  FPHOTOS[f.id]=Array.isArray(f.photos)?f.photos.slice():[];
+  const d=(f.created_at||'').slice(0,10).replace(/-/g,'.');
+  return `<div class="card" data-fid="${f.id}" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px">
+      <span style="font-size:11px;color:var(--mut);font-weight:600">${d}</span>
+      <button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteField('${f.id}')">삭제</button>
+    </div>
+    <label style="font-size:11px;font-weight:700;color:var(--mut2)">제목</label>
+    <input class="ff-title" value="${esc(f.title)||''}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
+    <label style="font-size:11px;font-weight:700;color:var(--mut2)">내용</label>
+    <textarea class="ff-content" style="width:100%;min-height:76px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit;resize:vertical;line-height:1.6">${esc(f.content)||''}</textarea>
+    <label style="font-size:11px;font-weight:700;color:var(--mut2)">사진</label>
+    <div class="ff-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 9px">${fieldPhotoHtml(f.id)}</div>
+    <div style="display:flex;justify-content:flex-end"><button class="b save" onclick="saveFieldAdmin('${f.id}')">저장</button></div>
+  </div>`;
+}
+function renderField(){
+  const nn=$('nav-f');if(nn)nn.textContent=FIELDS.length;
+  const box=$('field');if(!box)return;
+  FPHOTOS={};
+  if(!FIELDS.length){box.innerHTML='<div class="empty">등록된 현장 기록이 없어요. 위에서 단지를 선택해 추가해 보세요.</div>';return;}
+  const q=(($('fld-q')||{}).value||'').trim().toLowerCase();
+  const filtered=FIELDS.filter(f=>{if(!q)return true;return (aptName(f.apartment_id)+' '+(f.title||'')).toLowerCase().includes(q);});
+  if(!filtered.length){box.innerHTML='<div class="empty">검색 결과가 없어요.</div>';return;}
+  const groups={};
+  filtered.forEach(f=>{(groups[f.apartment_id]=groups[f.apartment_id]||[]).push(f);});
+  const ids=Object.keys(groups).sort((a,b)=>aptName(a).localeCompare(aptName(b),'ko'));
+  box.innerHTML=ids.map(id=>{
+    const list=groups[id];
+    return `<div style="margin-bottom:22px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:7px;border-bottom:2px solid var(--line)">
+        <span style="font-size:15px;font-weight:800;color:var(--navy)">🏢 ${esc(aptName(id))}</span>
+        <span style="font-size:11px;font-weight:700;color:#fff;background:var(--blue);padding:2px 9px;border-radius:99px">${list.length}건</span>
+      </div>
+      ${list.map(fieldCardHtml).join('')}
+    </div>`;
+  }).join('');
 }
 function renderCases(){
   const nn=$('nav-c');if(nn)nn.textContent=CASES.length;

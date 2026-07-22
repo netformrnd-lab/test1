@@ -196,8 +196,8 @@ async function loadResidentProgress() {
 
 // ── 공지사항 (DB 연동) ───────────────────────────────────
 let NOTICES = {}
-async function loadResidentNotices() {
-  const box = document.getElementById('res-notices'); if (!box) return
+async function loadResidentNotices(boxId) {
+  const box = document.getElementById(boxId || 'res-notices'); if (!box) return
   const { data } = await sb.from('notices').select('*').order('created_at', { ascending: false }).limit(3)
   if (!data || !data.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">등록된 공지사항이 없어요.</div>'; return }
   NOTICES = {}
@@ -281,9 +281,9 @@ const SDG_Q = [
     { t: '심하게 손상됐어요', rec: ['epoxy', 'diagnosis'] }, { t: '지하가 없어요', rec: [] } ] }
 ]
 const SDG_REC = {
-  waterproof: { chip: '방수', head: '방수 상태부터 확인해 보시면 좋겠어요', body: '물이 새는 자리와 물이 들어온 자리는 다를 때가 많습니다. 어디서 들어왔는지를 찾아야 같은 증상이 반복되지 않아요. 옥상·외벽·지하 중 어디를 먼저 볼지 현장에서 짚어드릴게요.' },
-  repaint: { chip: '외벽 도장', head: '외벽 도장 상태부터 확인해 보시면 좋겠어요', body: '외벽 균열과 페인트 벗겨짐은 미관뿐 아니라 방수·단열에도 영향을 줘요. 균열을 먼저 보수하고 재도장해야 오래가고, 도막 두께·자재 규격을 현장에서 확인해 드릴게요.' },
-  epoxy: { chip: '지하주차장 에폭시', head: '지하주차장 바닥부터 확인해 보시면 좋겠어요', body: '바닥 균열·박리는 분진과 미끄럼 사고로 이어질 수 있어요. 바닥 상태와 습기·누수 여부를 확인한 뒤, 보수 후 에폭시 재시공 범위를 현장에서 짚어드릴게요.' }
+  waterproof: { chip: '방수 공사', short: '누수 원인을 찾아 방수층부터 다시 잡는 공사', head: '방수 상태부터 확인해 보시면 좋겠어요', body: '물이 새는 자리와 물이 들어온 자리는 다를 때가 많습니다. 어디서 들어왔는지를 찾아야 같은 증상이 반복되지 않아요. 옥상·외벽·지하 중 어디를 먼저 볼지 현장에서 짚어드릴게요.' },
+  repaint: { chip: '외벽 재도장', short: '균열을 보수한 뒤 외벽을 다시 칠하는 공사', head: '외벽 도장 상태부터 확인해 보시면 좋겠어요', body: '외벽 균열과 페인트 벗겨짐은 미관뿐 아니라 방수·단열에도 영향을 줘요. 균열을 먼저 보수하고 재도장해야 오래가고, 도막 두께·자재 규격을 현장에서 확인해 드릴게요.' },
+  epoxy: { chip: '지하주차장 에폭시', short: '지하 바닥을 보수한 뒤 에폭시를 재시공하는 공사', head: '지하주차장 바닥부터 확인해 보시면 좋겠어요', body: '바닥 균열·박리는 분진과 미끄럼 사고로 이어질 수 있어요. 바닥 상태와 습기·누수 여부를 확인한 뒤, 보수 후 에폭시 재시공 범위를 현장에서 짚어드릴게요.' }
 }
 const SDG_PRIORITY = ['waterproof', 'repaint', 'epoxy']
 let sdgAnswers = []
@@ -319,7 +319,7 @@ function sdgResult() {
   const head = top ? SDG_REC[top].head : '지금은 큰 문제가 없어 보여요'
   const body = top ? SDG_REC[top].body
     : '답변을 보니 특별히 눈에 띄는 문제는 없어 보여요. 그래도 건물은 시간이 지나며 조금씩 변하니, 정기 점검은 챙기시는 걸 권장해요.'
-  const chips = recs.map(r => `<span style="font-size:11px;font-weight:800;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">${escH(SDG_REC[r].chip)}</span>`).join('')
+  const list = recs.map(r => `<div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 13px"><span style="width:7px;height:7px;border-radius:50%;background:#2F6BF6;flex-shrink:0;margin-top:5px"></span><div><div style="font-size:12.5px;font-weight:800;color:#1c2440">${escH(SDG_REC[r].chip)}</div><div style="font-size:10.5px;color:#5c6580;font-weight:600;margin-top:2px;line-height:1.5">${escH(SDG_REC[r].short)}</div></div></div>`).join('')
   box.innerHTML = `
     <div style="padding:15px 16px 13px;background:#fff;border-bottom:1px solid #eef1f7">
       <div style="display:flex;align-items:center;gap:9px"><span style="font-size:21px">🩺</span><div><div style="font-size:14px;font-weight:800;color:#141d34">30초 우리 단지 자가진단</div><div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:2px">로그인 없이 지금 바로 · 어떤 점검이 필요한지 알려드릴게요</div></div></div>
@@ -327,11 +327,11 @@ function sdgResult() {
     <div style="padding:18px 16px 26px">
       <div style="font-size:11px;font-weight:800;color:#2F6BF6">자가진단 결과</div>
       <div style="font-size:18px;font-weight:800;color:#141d34;line-height:1.42;margin-top:6px">${escH(head)}</div>
-      ${chips ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:13px">${chips}</div>` : ''}
-      <div style="font-size:12px;color:#404a63;line-height:1.85;margin-top:15px">${escH(body)}</div>
+      <div style="font-size:12px;color:#404a63;line-height:1.85;margin-top:14px">${escH(body)}</div>
+      ${list ? `<div style="font-size:12.5px;font-weight:800;color:#141d34;margin:18px 0 9px">이런 공정을 확인해 보세요</div><div style="display:flex;flex-direction:column;gap:8px">${list}</div>` : ''}
       <div style="background:#f2f6ff;border-radius:12px;padding:14px 15px;font-size:11.5px;color:#2a3350;font-weight:700;line-height:1.7;margin-top:15px">계획을 세우기 전에 상태를 먼저 확인해두시면 공사 범위와 예산을 잡기 수월해집니다.</div>
       <div style="font-size:10px;color:#9aa3b8;font-weight:600;line-height:1.7;margin-top:15px">자가진단은 참고용 안내예요. 같은 증상이어도 단지의 기간·환경에 따라 원인이 달라지기 때문에, 정확한 상태는 현장에서 직접 확인해 드릴게요.</div>
-      <div data-inquiry="1" style="cursor:pointer;background:linear-gradient(150deg,#243768,#1F2C5C);border-radius:14px;padding:15px 16px;color:#fff;text-align:center;margin-top:18px"><div style="font-size:10.5px;color:#c3cee6;font-weight:700">외벽 정밀 진단, 비용 부담 없이 받아보실 수 있어요</div><div style="font-size:13.5px;font-weight:800;margin-top:5px">🛸 드론 AI 하자진단 무상지원</div></div>
+      <div data-inquiry="1" style="cursor:pointer;background:linear-gradient(150deg,#243768,#1F2C5C);border-radius:14px;padding:15px 16px;color:#fff;text-align:center;margin-top:18px"><div style="font-size:10.5px;color:#c3cee6;font-weight:700">외벽 정밀 진단, 비용 부담 없이 받아보실 수 있어요</div><div style="font-size:13.5px;font-weight:800;margin-top:5px">드론 AI 하자진단 무상지원</div></div>
       <div data-inquiry="1" style="cursor:pointer;margin-top:11px;background:#2F6BF6;color:#fff;border-radius:12px;padding:15px;text-align:center;font-size:13.5px;font-weight:800">진단 결과로 상담 남기기</div>
       <a href="tel:16006069" style="display:block;text-decoration:none;margin-top:9px;background:#fff;border:1.5px solid #e6eaf2;color:#e4544b;border-radius:12px;padding:14px;text-align:center;font-size:13px;font-weight:800">📞 전화로 바로 상담 1600-6069</a>
       <div id="sdg-again" style="cursor:pointer;margin-top:15px;text-align:center;font-size:12px;font-weight:700;color:#8b95ad">↻ 처음부터 다시 하기</div>
@@ -817,7 +817,7 @@ function wire() {
     }
   })
   // 앱 열 때: 로그인돼 있으면 알맞은 화면, 아니면 비회원 둘러보기 홈(s04)
-  sb.auth.getSession().then(({ data }) => { if (data.session) route(); else window.showScreen('s04') })
+  sb.auth.getSession().then(({ data }) => { if (data.session) route(); else { window.showScreen('s04'); loadResidentNotices('s04-notices') } })
 }
 
 // ── 문의 버튼 → 홈페이지 링크 ─────────────────────────────

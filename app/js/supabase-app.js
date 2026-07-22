@@ -45,6 +45,8 @@ let RES_AUD_PHONE = ''
 function openInquiry() {
   const nm = document.getElementById('q-aud-name'); if (nm && RES_AUD_NAME) nm.textContent = RES_AUD_NAME
   const av = document.getElementById('q-aud-av'); if (av && RES_AUD_NAME) av.textContent = RES_AUD_NAME.slice(0, 1)
+  const ph = document.getElementById('q-aud-phone')
+  if (ph) ph.textContent = RES_AUD_PHONE ? ('📞 ' + RES_AUD_PHONE) : '연락처 미등록 (관리자에게 문의)'
   window.showScreen('s16')
 }
 async function loadResidentHome() {

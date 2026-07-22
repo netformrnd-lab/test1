@@ -37,16 +37,41 @@ async function route() {
 let currentRole = null
 
 // ── 입주민·관리소장 홈: 우리 단지 정보 불러오기 ─────────────
+let RES_APT = null
 async function loadResidentHome() {
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
   const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
-  if (!prof || !prof.apartment_id) return
+  if (!prof || !prof.apartment_id) {
+    const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = '배정된 단지가 없어요'
+    const h = document.getElementById('res-prog-head'); if (h) h.textContent = '관리자가 단지를 배정하면 표시돼요'
+    return
+  }
   const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
   if (!apt) return
+  RES_APT = apt
   const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = apt.name
-  const cur = apt.progress_current || 0, tot = apt.progress_total || 0, pct = tot ? Math.round(cur / tot * 100) : 0
+  // 진행률 · 공정 단계 (공법 기준)
+  const stages = (window.methodStages && window.methodStages(apt.method)) || null
+  const tot = stages ? stages.length : (apt.progress_total || 0)
+  const cur = apt.progress_current || 0, pct = tot ? Math.round(cur / tot * 100) : 0
   const pg = document.getElementById('res-prog'); if (pg) pg.innerHTML = cur + '<span style="opacity:.55">/' + tot + '</span>'
   const bar = document.getElementById('res-bar'); if (bar) bar.style.width = pct + '%'
+  const head = document.getElementById('res-prog-head')
+  const cap = document.getElementById('res-stage-cap')
+  if (stages) {
+    if (cur >= tot) {
+      if (head) head.textContent = '공사가 모두 끝났어요 🎉'
+      if (cap) cap.textContent = '모든 공정이 완료되었습니다.'
+    } else {
+      if (head) head.textContent = `현재 ${cur + 1}단계 · ${stages[cur]}`
+      if (cap) cap.textContent = `지금은 ‘${stages[cur]}’ 단계예요. 감리가 한 단계씩 꼼꼼히 확인하고 있어요.`
+    }
+  } else {
+    if (head) head.textContent = '공사 준비 중이에요'
+    if (cap) cap.textContent = '공정이 등록되면 단계별로 알려드릴게요.'
+  }
+  // 공정 순서 체크리스트
+  renderStageTrack(apt, 'res-stage-track')
   // 담당 감리사 이름 (PII 노출 없이 이름만 반환하는 함수 사용)
   if (apt.auditor_id) {
     const { data: audName } = await sb.rpc('apartment_auditor_name', { apt: apt.id })
@@ -55,6 +80,28 @@ async function loadResidentHome() {
       const av = document.getElementById('res-aud-av'); if (av) av.textContent = String(audName).slice(0, 1)
     }
   }
+  loadResidentNext(apt.id)
+}
+// 다가오는 감리 일정 1건
+async function loadResidentNext(aptId) {
+  const title = document.getElementById('res-next-title'), sub = document.getElementById('res-next-sub'), dbox = document.getElementById('res-next-date')
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const iso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0')
+  const { data } = await sb.from('schedules').select('*').eq('apartment_id', aptId).gte('date', iso).order('date').limit(1)
+  const s = data && data[0]
+  if (!s) {
+    if (title) title.textContent = '예정된 일정이 없어요'
+    if (sub) sub.textContent = '새 일정이 등록되면 여기에 보여드릴게요'
+    return
+  }
+  const d = new Date(s.date), wd = ['일', '월', '화', '수', '목', '금', '토']
+  if (title) title.textContent = s.title
+  if (sub) sub.textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 (${wd[d.getDay()]})${s.description ? ' · ' + s.description : ''}`
+  if (dbox) dbox.innerHTML = `<span style="font-size:9px;font-weight:800;color:#2F6BF6">${d.getMonth() + 1}월</span><span style="font-size:17px;font-weight:800;color:#2F6BF6">${d.getDate()}</span>`
+}
+// 입주민 감리보고서 열람은 다음 업데이트 예정
+function residentReportSoon() {
+  alert('감리보고서 열람 기능은 곧 열릴 예정이에요.\n지금은 우리 단지 진행 현황과 공사 일정을 확인하실 수 있어요.')
 }
 window.loadResidentHome = loadResidentHome
 
@@ -133,11 +180,11 @@ function openApt(a) {
   window.showScreen('s08')
   loadReports(a.id)
 }
-// 공정 순서 체크리스트 (지금 어느 단계인지 순서대로)
-function renderStageTrack(a) {
-  const box = document.getElementById('stage-track'); if (!box) return
+// 공정 순서 체크리스트 (지금 어느 단계인지 순서대로) — 감리사/입주민 공용
+function renderStageTrack(a, boxId) {
+  const box = document.getElementById(boxId || 'stage-track'); if (!box) return
   const stages = (window.methodStages && window.methodStages(a.method)) || null
-  if (!stages) { box.innerHTML = ''; return }
+  if (!stages) { box.innerHTML = '<div style="background:#f6f9ff;border:1px solid #e2ebff;border-radius:13px;padding:14px 13px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">공사 공정 정보가 아직 등록되지 않았어요.</div>'; return }
   const cur = a.progress_current || 0, tot = stages.length
   const head = cur >= tot
     ? '<span style="color:#1f8a5b">✅ 모든 공정 완료</span>'
@@ -439,6 +486,13 @@ function wire() {
   // 공사 일정
   const addBtn = $('sc-add-btn'); if (addBtn) addBtn.onclick = () => { const f = $('sc-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none' }
   const scSave = $('sc-save'); if (scSave) scSave.onclick = addSchedule
+  // 입주민 홈 · 빠른 메뉴
+  const goSchedule = () => { showScreen('s14'); loadSchedule() }
+  const icSch = $('res-ic-schedule'); if (icSch) icSch.onclick = goSchedule
+  const nextCard = $('res-next-card'); if (nextCard) nextCard.onclick = goSchedule
+  const icProg = $('res-ic-progress'); if (icProg) icProg.onclick = () => { const t = $('res-stage-track'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
+  const icCase = $('res-ic-case'); if (icCase) icCase.onclick = () => showScreen('s23')
+  const icRep = $('res-ic-report'); if (icRep) icRep.onclick = residentReportSoon
   // 하단 네비게이션 (홈 / 보고서 / 일정)
   document.addEventListener('click', (e) => {
     const nav = e.target.closest('.nav > div'); if (!nav) return
@@ -448,6 +502,7 @@ function wire() {
       if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() } else { showScreen('s11'); loadResidentHome() }
     } else if (t.indexOf('보고서') >= 0) {
       if (currentRole === 'auditor') { if (currentApt) { showScreen('s08'); loadReports(currentApt.id) } else { showScreen('s07'); loadAuditorApts() } }
+      else { residentReportSoon() }
     } else if (t.indexOf('일정') >= 0) {
       showScreen('s14'); loadSchedule()
     }

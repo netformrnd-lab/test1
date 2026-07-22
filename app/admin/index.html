@@ -89,7 +89,12 @@
   .apt .bar{height:7px;background:#eef1f7;border-radius:20px;margin:13px 0 6px;overflow:hidden}
   .apt .bar > i{display:block;height:100%;background:var(--blue);border-radius:20px}
   .apt .prog{font-size:11.5px;color:var(--mut2);font-weight:700;display:flex;justify-content:space-between}
-  .apt .aud{margin-top:12px;display:flex;align-items:center;gap:7px}
+  .apt .edit{margin-top:11px;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mut2);font-weight:700}
+  .apt .edit label{min-width:34px}
+  .apt .edit select.f{flex:1}
+  .apt .f-num{width:54px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;font-weight:700;text-align:center;outline:none;font-family:inherit}
+  .apt .f-num:focus{border-color:var(--blue)}
+  .apt .aud{margin-top:11px;display:flex;align-items:center;gap:7px}
   .apt .aud select{flex:1}
   .add-form{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
   .add-form input{padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;outline:none}
@@ -265,12 +270,15 @@ function renderApts(){
   const audOpts=(sel)=>'<option value="">- 미배정 -</option>'+auds.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name||a.email)}</option>`).join('');
   $('apts').innerHTML=APTS.map(a=>{
     const pc=a.progress_current||0,pt=a.progress_total||0,pct=pt?Math.round(pc/pt*100):0;
+    const stOpt=(v,t)=>`<option value="${v}" ${a.status===v?'selected':''}>${t}</option>`;
     return `<div class="apt" data-id="${a.id}">
       <div class="nm">${esc(a.name)}</div>
       <div class="meta">${esc(a.region)||'지역 미정'} · ${esc(a.construction_type)||'종류 미정'}</div>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <div class="prog"><span>진행률</span><span>${pc} / ${pt}</span></div>
-      <div class="aud"><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
+      <div class="prog"><span>진행률</span><span>${pc} / ${pt} (${pct}%)</span></div>
+      <div class="edit"><label>상태</label><select class="f f-status">${stOpt('scheduled','점검예정')}${stOpt('in_progress','진행중')}${stOpt('done','완료')}</select></div>
+      <div class="edit"><label>진행</label><input type="number" class="f-num f-pc" min="0" value="${pc}"><span>/</span><input type="number" class="f-num f-pt" min="0" value="${pt}"><span>단계</span></div>
+      <div class="aud"><label style="min-width:34px;font-size:12px;color:var(--mut2);font-weight:700">감리사</label><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
     </div>`;
   }).join('');
 }
@@ -295,8 +303,14 @@ async function addApt(){
 async function saveApt(id){
   const row=document.querySelector(`.apt[data-id="${id}"]`);
   const aud=row.querySelector('.f-aud').value||null;
-  const{error}=await sb.from('apartments').update({auditor_id:aud}).eq('id',id);
-  if(error)return alert('오류: '+error.message);loadAll();
+  const status=row.querySelector('.f-status').value;
+  let pc=parseInt(row.querySelector('.f-pc').value,10);if(isNaN(pc)||pc<0)pc=0;
+  let pt=parseInt(row.querySelector('.f-pt').value,10);if(isNaN(pt)||pt<0)pt=0;
+  if(pt&&pc>pt)pc=pt; // 완료 단계가 전체보다 클 수 없음
+  const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
+  const{error}=await sb.from('apartments').update({auditor_id:aud,status,progress_current:pc,progress_total:pt}).eq('id',id);
+  if(error){if(btn){btn.textContent='저장';btn.disabled=false;}return alert('오류: '+error.message);}
+  loadAll();
 }
 
 gate();

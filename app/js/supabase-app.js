@@ -233,7 +233,10 @@ window.toggleCheck = function (row) {
 function managerFormUrl() {
   const base = location.origin + location.pathname.replace(/\/[^/]*$/, '/') + 'form/'
   const name = currentApt ? currentApt.name : ''
-  return base + (name ? '?apt=' + encodeURIComponent(name) : '')
+  const params = []
+  if (name) params.push('apt=' + encodeURIComponent(name))
+  if (currentApt && currentApt.id) params.push('aptid=' + encodeURIComponent(currentApt.id))
+  return base + (params.length ? '?' + params.join('&') : '')
 }
 function openManagerDoc() {
   const ap = document.getElementById('mgr-apt'); if (ap) ap.textContent = currentApt ? currentApt.name : '단지'
@@ -242,8 +245,40 @@ function openManagerDoc() {
   const m = document.getElementById('mgr-msg'); if (m) m.textContent = ''
   const fb = document.getElementById('mgr-fallback'); if (fb) fb.remove()
   window.showScreen('s31')
+  loadManagerForms()
 }
 window.openManagerDoc = openManagerDoc
+// 이 단지의 제출된 소장님 작성지 목록
+const MGR_LABELS = { writer_name: '작성자', phone: '연락처', households: '세대수/동수', built_year: '준공연도', issue: '주요 하자·불편', request: '요청·희망', wish_when: '희망 시기' }
+async function loadManagerForms() {
+  const box = document.getElementById('mgr-received'); if (!box) return
+  box.innerHTML = '<div style="padding:14px;color:#8b95ad;font-size:12px;font-weight:600">불러오는 중…</div>'
+  if (!currentApt) { box.innerHTML = ''; return }
+  let q = sb.from('manager_forms').select('*').order('created_at', { ascending: false })
+  q = currentApt.id ? q.eq('apartment_id', currentApt.id) : q.eq('apt_name', currentApt.name)
+  const { data, error } = await q
+  if (error) { box.innerHTML = '<div style="padding:14px;color:#8b95ad;font-size:12px;font-weight:600">불러오지 못했어요 (DB 준비 필요)</div>'; return }
+  renderManagerForms(data || [])
+}
+function renderManagerForms(list) {
+  const box = document.getElementById('mgr-received'); if (!box) return
+  if (!list.length) {
+    box.innerHTML = '<div style="padding:18px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 받은 작성지가 없어요.<br>위 링크를 소장님께 보내면 여기에 쌓여요.</div>'
+    return
+  }
+  box.innerHTML = list.map(r => {
+    const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
+    const rows = Object.keys(MGR_LABELS).map(k => {
+      const v = r[k]; if (!v) return ''
+      return `<div style="display:flex;gap:8px;padding:4px 0"><span style="width:66px;flex-shrink:0;font-size:10.5px;font-weight:800;color:#8b95ad">${MGR_LABELS[k]}</span><span style="flex:1;font-size:12px;font-weight:600;color:#2a3350;line-height:1.55;white-space:pre-wrap">${escH(v)}</span></div>`
+    }).join('')
+    return `<div style="background:#fff;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;margin-bottom:9px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:12.5px;font-weight:800;color:#141d34">📝 ${escH(r.writer_name) || '(작성자 미기재)'}</span>
+        <span style="font-size:10px;color:#aab2c4;font-weight:700">${d}</span>
+      </div>${rows}</div>`
+  }).join('')
+}
 function mgrMsg(html, ok) {
   const m = document.getElementById('mgr-msg'); if (!m) return
   m.style.color = ok ? '#1f8a5b' : '#e4544b'; m.innerHTML = html

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>아파트스퀘어 · 관리소장님 작성지</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;background:#F4F6FA;color:#1c2440;line-height:1.5;padding-bottom:40px}
@@ -76,23 +77,28 @@
         <input id="f-when" placeholder="예: 내년 봄 (3~4월)">
       </div>
 
-      <button class="btn btn-kakao" id="sendBtn">✅ 작성 완료 · 감리팀에 보내기</button>
+      <button class="btn btn-kakao" id="sendBtn">✅ 작성 완료 · 제출하기</button>
       <div class="msg" id="msg"></div>
-      <button class="btn btn-ghost" id="copyBtn">📋 안 되면 · 내용 복사하기</button>
-      <div class="foot">💡 ‘보내기’를 누르면 카카오톡·문자 공유 목록이 떠요.<br>공유가 안 되는 화면이면 ‘내용 복사하기’로 복사해 대화방에 붙여넣기 해주세요.</div>
+      <button class="btn btn-ghost" id="copyBtn" style="display:none">📋 내용 복사하기 (제출이 안 될 때)</button>
+      <div class="foot">💡 ‘제출하기’를 누르면 <b>아파트스퀘어 감리팀에 바로 전달</b>돼요.<br>따로 카톡으로 보내실 필요 없어요.</div>
     </div>
 
     <div class="done" id="doneCard">
       <div class="em">✅</div>
-      <h2>작성해 주셔서 감사합니다!</h2>
-      <p>내용을 <b>아파트스퀘어 감리팀</b>에 보내주시면<br>담당 감리사가 확인 후 연락드립니다.</p>
+      <h2>제출 완료!</h2>
+      <p>작성해 주셔서 감사합니다.<br>내용이 <b>아파트스퀘어 감리팀</b>에 전달됐어요.<br>담당 감리사가 확인 후 연락드립니다.</p>
       <button class="btn btn-ghost" id="againBtn" style="max-width:300px;margin:20px auto 0">← 다시 작성하기</button>
     </div>
   </div>
 
 <script>
+  var SB_URL='https://gndktayoicegyqyllybk.supabase.co';
+  var SB_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
+  var sbc = window.supabase.createClient(SB_URL, SB_KEY);
+
   var QS = new URLSearchParams(location.search);
   var aptParam = QS.get('apt') || '';
+  var aptIdParam = QS.get('aptid') || '';
   if (aptParam) { document.getElementById('f-apt').value = aptParam; }
 
   var FIELDS = [
@@ -123,24 +129,45 @@
     }
     return ok;
   }
-  // 공유 우선 (제일 편함) → 안 되는 환경이면 자동으로 복사로
-  document.getElementById('sendBtn').onclick = async function(){
+  // 제출 = DB 저장 (감리사 앱·관리자 대시보드에서 바로 보임). 카톡 전송 불필요.
+  var sendBtn = document.getElementById('sendBtn');
+  sendBtn.onclick = async function(){
     if(!validate()) return;
-    var text=buildText();
-    if(navigator.share){
-      try{ await navigator.share({title:'관리소장님 작성지', text:text}); showDone(); return; }
-      catch(e){ if(e && e.name==='AbortError') return; /* 취소는 무시, 그 외엔 복사로 */ }
+    sendBtn.disabled = true; var orig = sendBtn.textContent; sendBtn.textContent = '제출 중…';
+    setMsg('', true);
+    var row = {
+      apartment_id: aptIdParam || null,
+      apt_name: val('f-apt'),
+      writer_name: val('f-name'),
+      phone: val('f-phone') || null,
+      households: val('f-house') || null,
+      built_year: val('f-year') || null,
+      issue: val('f-issue') || null,
+      request: val('f-want') || null,
+      wish_when: val('f-when') || null
+    };
+    var res;
+    try { res = await sbc.from('manager_forms').insert(row); }
+    catch(e){ res = { error: e }; }
+    sendBtn.disabled = false; sendBtn.textContent = orig;
+    if (res && res.error) {
+      setMsg('제출에 실패했어요. 잠시 후 다시 시도하거나, 아래 ‘내용 복사하기’로 보내주세요.', false);
+      document.getElementById('copyBtn').style.display = 'block';
+      return;
     }
-    var ok=await copyText();
-    if(ok){ setMsg('✅ 복사됐어요! 카카오톡 대화방에 붙여넣기 해서 보내주세요.',true); }
-    else { setMsg('복사가 안 됐어요. 아래 ‘복사하기’를 눌러 다시 시도해 주세요.',false); }
+    showDone();
   };
   document.getElementById('copyBtn').onclick = async function(){
     if(!validate()) return;
     var ok=await copyText();
-    setMsg(ok?'✅ 복사됐어요! 카카오톡에 붙여넣기 해주세요.':'복사가 안 됐어요. 화면을 캡처해서 보내주세요.', ok);
+    setMsg(ok?'✅ 복사됐어요! 카카오톡에 붙여넣어 감리팀에 보내주세요.':'복사가 안 됐어요. 화면을 캡처해서 보내주세요.', ok);
   };
-  document.getElementById('againBtn').onclick = function(){ document.getElementById('doneCard').style.display='none'; document.getElementById('formCard').style.display='block'; };
+  document.getElementById('againBtn').onclick = function(){
+    document.getElementById('doneCard').style.display='none';
+    document.getElementById('formCard').style.display='block';
+    ['f-name','f-phone','f-house','f-year','f-issue','f-want','f-when'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    setMsg('', true);
+  };
 </script>
 </body>
 </html>

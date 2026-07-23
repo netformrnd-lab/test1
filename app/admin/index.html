@@ -133,6 +133,7 @@
       <a data-sec="reports"><span class="ic">📝</span>감리일지<span class="cnt" id="nav-r">0</span></a>
       <a data-sec="field"><span class="ic">📸</span>현장 현황<span class="cnt" id="nav-f">0</span></a>
       <a data-sec="schedules"><span class="ic">📅</span>공사 일정<span class="cnt" id="nav-s">0</span></a>
+      <a data-sec="mgrforms"><span class="ic">📝</span>소장님 작성지<span class="cnt" id="nav-mf">0</span></a>
       <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
     </nav>
     <div class="me">
@@ -273,6 +274,13 @@
       <div id="schedules"></div>
     </section>
 
+    <!-- 소장님 작성지 -->
+    <section id="sec-mgrforms">
+      <div class="head"><div><h2>소장님 작성지</h2><div class="desc">관리소장님이 작성 폼(/form/)에서 제출한 내용이 단지별로 모입니다</div></div></div>
+      <div class="add-form" style="margin-bottom:16px"><input id="mf-q" placeholder="🔍 단지명·작성자·내용으로 검색" style="width:340px" oninput="renderMgrForms()"></div>
+      <div id="mgrforms"></div>
+    </section>
+
     <!-- 감리 우수 사례 -->
     <section id="sec-cases">
       <div class="head"><div><h2>감리 우수 사례</h2><div class="desc">전·후 사진과 함께 우수 사례를 등록하세요 (입주민 앱 ‘감리 우수 사례’에 노출됩니다)</div></div></div>
@@ -304,7 +312,7 @@ const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=(id)=>document.getElementById(id);
-let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[];
+let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],MGRFORMS=[];
 let RPHOTOS={}; // 보고서별 편집중 사진 목록 {reportId:[url,...]}
 let FPHOTOS={}; // 현장기록별 편집중 사진 목록 {fieldId:[url,...]}
 let FNEW=[];    // 새 현장기록 작성용 사진 목록
@@ -356,6 +364,44 @@ async function loadAll(){
   ]);
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
   renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();fillScheduleAptSelect();renderSchedules();
+  loadMgrForms();
+}
+/* ===== 소장님 작성지 (manager_forms) ===== */
+const MF_LABELS={writer_name:'작성자',phone:'연락처',households:'세대수/동수',built_year:'준공연도',issue:'주요 하자·불편',request:'요청·희망',wish_when:'희망 시기'};
+async function loadMgrForms(){
+  const {data,error}=await sb.from('manager_forms').select('*').order('created_at',{ascending:false});
+  if(error){ const box=$('mgrforms'); if(box) box.innerHTML='<div class="card" style="text-align:center;color:var(--mut);font-size:13px;padding:22px">아직 테이블이 없어요. <b>backend/migration-manager-forms.sql</b> 을 Supabase에서 실행해 주세요.</div>'; return; }
+  MGRFORMS=data||[];
+  const nn=$('nav-mf'); if(nn) nn.textContent=MGRFORMS.length;
+  renderMgrForms();
+}
+function mfAptName(r){ if(r.apartment_id){ const a=APTS.find(x=>x.id===r.apartment_id); if(a) return a.name; } return r.apt_name||'(단지 미지정)'; }
+function renderMgrForms(){
+  const box=$('mgrforms'); if(!box) return;
+  const q=($('mf-q')?$('mf-q').value:'').trim().toLowerCase();
+  let list=MGRFORMS.slice();
+  if(q) list=list.filter(r=>((mfAptName(r))+' '+(r.writer_name||'')+' '+(r.issue||'')+' '+(r.request||'')).toLowerCase().includes(q));
+  if(!list.length){ box.innerHTML='<div class="card" style="text-align:center;color:var(--mut);font-size:13px;padding:24px">제출된 소장님 작성지가 없어요.</div>'; return; }
+  const groups={};
+  list.forEach(r=>{ const k=mfAptName(r); (groups[k]=groups[k]||[]).push(r); });
+  box.innerHTML=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ko')).map(name=>{
+    const items=groups[name].map(r=>{
+      const d=(r.created_at||'').slice(0,10).replace(/-/g,'.');
+      const rows=Object.keys(MF_LABELS).map(k=>{ const v=r[k]; if(!v) return ''; return `<div style="display:flex;gap:9px;padding:4px 0"><span style="width:78px;flex-shrink:0;font-size:11px;font-weight:800;color:var(--mut2)">${MF_LABELS[k]}</span><span style="flex:1;font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.55;white-space:pre-wrap">${esc(v)}</span></div>`; }).join('');
+      return `<div style="background:#fff;border:1px solid var(--line);border-top:none;padding:13px 15px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:13px;font-weight:800;color:var(--ink)">📝 ${esc(r.writer_name)||'(작성자 미기재)'}</span>
+          <div style="display:flex;align-items:center;gap:10px"><span style="font-size:11px;color:var(--mut);font-weight:700">${d}</span><button class="b" style="padding:4px 10px;font-size:11px;background:#fdecea;color:#e4544b" onclick="deleteMgrForm('${r.id}')">삭제</button></div>
+        </div>${rows}</div>`;
+    }).join('');
+    return `<div style="margin-bottom:14px"><div style="background:var(--blue);color:#fff;padding:10px 14px;border-radius:9px 9px 0 0;font-weight:800;font-size:13px">🏢 ${esc(name)} <span style="font-size:11px;font-weight:700;opacity:.85">${groups[name].length}건</span></div>${items}</div>`;
+  }).join('');
+}
+async function deleteMgrForm(id){
+  if(!confirm('이 작성지를 삭제할까요?')) return;
+  const {error}=await sb.from('manager_forms').delete().eq('id',id);
+  if(error) return alert('삭제 실패: '+error.message);
+  loadMgrForms();
 }
 function fillMemberAddForm(){
   const rs=$('ma-role'); if(rs && !rs.dataset.filled){ rs.innerHTML=roleOpts('resident'); rs.dataset.filled='1'; }

@@ -391,11 +391,12 @@ function memberName(id){const m=MEMBERS.find(x=>x.id===id);return m?(m.name||m.e
 function reportCardHtml(r){
   RPHOTOS[r.id]=Array.isArray(r.photos)?r.photos.slice():[];
   const d=(r.created_at||'').slice(0,10).replace(/-/g,'.');
-  const pub=r.published;
+  const pm=r.pub_mode||'';
+  const pubLabel=pm==='full'?'공개 · 사진+글':pm==='photo'?'공개 · 사진만':'미공개';
   return `<div class="card" data-rid="${r.id}" style="margin-bottom:14px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
       <span style="font-size:11px;color:var(--mut);font-weight:600">작성: ${esc(memberName(r.author_id))} · ${d}</span>
-      <span class="pill ${pub?'ok':'no'}">${pub?'입주민 공개됨':'미공개'}</span>
+      <span class="pill ${pm?'ok':'no'}">${pubLabel}</span>
     </div>
     <label style="font-size:11px;font-weight:700;color:var(--mut2)">제목</label>
     <input class="rf-title" value="${esc(r.title)||''}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
@@ -403,11 +404,19 @@ function reportCardHtml(r){
     <input class="rf-stage" value="${esc(r.stage)||''}" placeholder="예: 외벽 도장" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
     <label style="font-size:11px;font-weight:700;color:var(--mut2)">내용</label>
     <textarea class="rf-content" style="width:100%;min-height:260px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;margin:4px 0 9px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;line-height:1.7;background:#f9fafc;white-space:pre">${esc(r.content)||''}</textarea>
-    <label style="font-size:11px;font-weight:700;color:var(--mut2)">사진</label>
+    <label style="font-size:11px;font-weight:700;color:var(--mut2)">사진 (현장사진)</label>
     <div class="rf-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 9px">${reportPhotoHtml(r.id)}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
-      <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer"><input type="checkbox" class="rf-pub" ${pub?'checked':''} style="width:17px;height:17px"> 입주민에게 공개</label>
-      <div style="display:flex;gap:8px"><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteReport('${r.id}')">삭제</button><button class="b save" onclick="saveReportAdmin('${r.id}')">저장</button></div>
+    <div style="border-top:1px solid var(--line);margin-top:8px;padding-top:11px">
+      <div style="font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:3px">📸 입주민 현장현황 공개</div>
+      <div style="font-size:11px;color:var(--mut);margin-bottom:8px">공개하면 이 사진들이 입주민 앱 ‘현장 현황’에 올라가요 (다시 안 올려도 됨)</div>
+      <input class="rf-pubtitle" value="${esc(r.pub_title)||''}" placeholder="입주민에게 보일 제목 (예: 20260402 [106동 하도·시트·중도])" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;margin-bottom:8px;font-family:inherit;outline:none">
+      <div class="rf-pubmode" data-mode="${r.pub_mode||''}" style="display:flex;gap:6px">
+        ${['', 'photo', 'full'].map(mm=>{const lbl={'':'비공개','photo':'사진만','full':'사진+글'}[mm];const on=(r.pub_mode||'')===mm;return `<button type="button" class="b pm${on?' save':''}" data-mode="${mm}" onclick="setPubMode(this)"${on?'':' style="background:#eef1f7;color:#5a6480"'}>${lbl}</button>`;}).join('')}
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:11px">
+      <button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteReport('${r.id}')">삭제</button>
+      <button class="b save" onclick="saveReportAdmin('${r.id}')">저장</button>
     </div>
   </div>`;
 }
@@ -479,16 +488,41 @@ async function uploadReportPhoto(file){
   if(error){alert('사진 업로드 실패: '+error.message);return null;}
   return sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
 }
+function setPubMode(btn){
+  const wrap=btn.parentElement;wrap.dataset.mode=btn.dataset.mode;
+  wrap.querySelectorAll('.pm').forEach(b=>{
+    const on=b===btn;
+    b.className='b pm'+(on?' save':'');
+    if(on){b.style.background='';b.style.color='';}else{b.style.background='#eef1f7';b.style.color='#5a6480';}
+  });
+}
 async function saveReportAdmin(id){
   const row=document.querySelector(`.card[data-rid="${id}"]`);
   const title=row.querySelector('.rf-title').value.trim();if(!title)return alert('제목을 입력하세요');
   const stage=row.querySelector('.rf-stage').value.trim()||null;
   const content=row.querySelector('.rf-content').value.trim()||null;
-  const published=row.querySelector('.rf-pub').checked;
+  const photos=RPHOTOS[id]||[];
+  const pubMode=(row.querySelector('.rf-pubmode')||{}).dataset?.mode||'';
+  const pubTitle=(row.querySelector('.rf-pubtitle')||{}).value?.trim()||null;
+  const rep=REPORTS.find(x=>x.id===id);
+  const aptId=rep?rep.apartment_id:null;
   const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
-  const{error}=await sb.from('reports').update({title,stage,content,published,photos:RPHOTOS[id]||[]}).eq('id',id);
+  // 1) 감리일지 저장
+  const{error}=await sb.from('reports').update({title,stage,content,photos,pub_title:pubTitle,pub_mode:pubMode||null,published:!!pubMode}).eq('id',id);
+  if(error){if(btn){btn.textContent='저장';btn.disabled=false;}return alert('오류: '+error.message);}
+  // 2) 입주민 현장현황(field_updates) 동기화
+  if(aptId){
+    if(pubMode){
+      const fdRow={apartment_id:aptId,title:pubTitle||title,content:pubMode==='full'?content:null,photos,source_report_id:id};
+      const{data:ex}=await sb.from('field_updates').select('id').eq('source_report_id',id).maybeSingle();
+      if(ex&&ex.id) await sb.from('field_updates').update(fdRow).eq('id',ex.id);
+      else await sb.from('field_updates').insert(fdRow);
+    }else{
+      await sb.from('field_updates').delete().eq('source_report_id',id);
+    }
+  }
   if(btn){btn.textContent='저장';btn.disabled=false;}
-  if(error)return alert('오류: '+error.message);loadAll();
+  loadAll();
 }
 async function deleteReport(id){
   if(!confirm('이 감리일지를 삭제할까요?'))return;

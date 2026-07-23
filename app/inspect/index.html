@@ -259,8 +259,8 @@
     </div>
     <div class="card">
       <div class="card-title">특이사항 / 지적사항</div>
-      <div class="field" style="margin-bottom:12px;"><div class="field-label">특기사항</div><textarea id="special" placeholder="특별히 기록할 내용, 발생·조치사항 등을 입력하세요"></textarea></div>
-      <div class="field"><div class="field-label">지적사항 및 처리결과</div><textarea id="issue" placeholder="재시공·공사중지 등 지시내용과 처리결과를 입력하세요"></textarea></div>
+      <div class="field" style="margin-bottom:12px;"><div class="field-label" style="display:flex;align-items:center;justify-content:space-between">특기사항 <button type="button" class="mic-btn" onclick="startDictation('special',this)" style="border:1px solid #cdd9ef;background:#eef4ff;color:#2563eb;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🎤 음성입력</button></div><textarea id="special" placeholder="특별히 기록할 내용, 발생·조치사항 등을 입력하세요 (🎤로 말해도 돼요)"></textarea></div>
+      <div class="field"><div class="field-label" style="display:flex;align-items:center;justify-content:space-between">지적사항 및 처리결과 <button type="button" class="mic-btn" onclick="startDictation('issue',this)" style="border:1px solid #cdd9ef;background:#eef4ff;color:#2563eb;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🎤 음성입력</button></div><textarea id="issue" placeholder="재시공·공사중지 등 지시내용과 처리결과를 입력하세요 (🎤로 말해도 돼요)"></textarea></div>
     </div>
 
     <button class="btn-primary" onclick="goStep6()">전송 확인</button>
@@ -963,6 +963,21 @@ function buildMsg(){
   return msg;
 }
 function updatePreview(){const el=document.getElementById('previewBox');if(el)el.textContent=buildMsg();}
+// 음성 입력 (앱 내 받아쓰기)
+let __rec=null, __recBtn=null;
+function startDictation(targetId, btn){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const el = document.getElementById(targetId); if(!el) return;
+  if(!SR){ showToast('이 기기는 앱 내 음성입력을 지원하지 않아요. 키보드의 🎤 버튼을 눌러 말하면 돼요','ng'); el.focus(); return; }
+  if(__rec){ try{__rec.stop()}catch(e){} return; }
+  __rec = new SR(); __rec.lang='ko-KR'; __rec.interimResults=false; __rec.continuous=true;
+  __recBtn = btn; if(btn){ btn.textContent='⏹ 듣는 중…'; btn.style.background='#ffe6e6'; btn.style.color='#e4544b'; btn.style.borderColor='#f3b3b3'; }
+  __rec.onresult=(e)=>{ let t=''; for(let i=e.resultIndex;i<e.results.length;i++){ if(e.results[i].isFinal) t+=e.results[i][0].transcript; } if(t){ el.value=(el.value?el.value.replace(/\s*$/,'')+' ':'')+t.trim(); if(typeof updatePreview==='function')updatePreview(); } };
+  const reset=()=>{ if(__recBtn){ __recBtn.textContent='🎤 음성입력'; __recBtn.style.background='#eef4ff'; __recBtn.style.color='#2563eb'; __recBtn.style.borderColor='#cdd9ef'; } __rec=null; __recBtn=null; };
+  __rec.onerror=(e)=>{ if(e&&e.error==='not-allowed') showToast('마이크 권한을 허용해 주세요','ng'); reset(); };
+  __rec.onend=reset;
+  try{ __rec.start(); showToast('말씀하세요… (다시 누르면 종료)','ok'); }catch(e){ reset(); }
+}
 async function uploadPhotoDataUrl(dataUrl,i){
   try{
     const res=await fetch(dataUrl); const blob=await res.blob();

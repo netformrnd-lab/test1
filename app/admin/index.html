@@ -402,7 +402,7 @@ function reportCardHtml(r){
     <label style="font-size:11px;font-weight:700;color:var(--mut2)">공사 단계</label>
     <input class="rf-stage" value="${esc(r.stage)||''}" placeholder="예: 외벽 도장" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit">
     <label style="font-size:11px;font-weight:700;color:var(--mut2)">내용</label>
-    <textarea class="rf-content" style="width:100%;min-height:90px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin:4px 0 9px;outline:none;font-family:inherit;resize:vertical;line-height:1.6">${esc(r.content)||''}</textarea>
+    <textarea class="rf-content" style="width:100%;min-height:260px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;margin:4px 0 9px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;line-height:1.7;background:#f9fafc;white-space:pre">${esc(r.content)||''}</textarea>
     <label style="font-size:11px;font-weight:700;color:var(--mut2)">사진</label>
     <div class="rf-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 9px">${reportPhotoHtml(r.id)}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
@@ -425,18 +425,32 @@ function renderReports(){
   // 단지별로 묶기
   const groups={};
   filtered.forEach(r=>{ (groups[r.apartment_id]=groups[r.apartment_id]||[]).push(r); });
-  // 단지명 순 정렬
   const ids=Object.keys(groups).sort((a,b)=>aptName(a).localeCompare(aptName(b),'ko'));
   box.innerHTML=ids.map(id=>{
     const list=groups[id];
-    return `<div style="margin-bottom:22px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:7px;border-bottom:2px solid var(--line)">
-        <span style="font-size:15px;font-weight:800;color:var(--navy)">🏢 ${esc(aptName(id))}</span>
+    const expand=!!q; // 검색 시 자동 펼침
+    const rows=expand?list.map(reportCardHtml).join(''):'';
+    return `<div class="rep-group" data-rgroup="${id}" style="margin-bottom:12px">
+      <div onclick="toggleReportGroup('${id}')" style="display:flex;align-items:center;gap:9px;padding:12px 14px;background:#f3f6fc;border:1px solid var(--line);border-radius:10px 10px ${expand?'0 0':'10px 10px'};cursor:pointer">
+        <span style="font-size:14px;font-weight:800;color:var(--navy)">🏢 ${esc(aptName(id))}</span>
         <span style="font-size:11px;font-weight:700;color:#fff;background:var(--blue);padding:2px 9px;border-radius:99px">${list.length}건</span>
+        <span style="flex:1"></span>
+        <span class="rg-caret" style="color:#8b95ad;font-size:13px">${expand?'▴':'▾'}</span>
       </div>
-      ${list.map(reportCardHtml).join('')}
+      <div class="rep-body" id="repbody-${id}" style="display:${expand?'block':'none'};padding:12px 4px 0">${rows}</div>
     </div>`;
   }).join('');
+}
+function toggleReportGroup(id){
+  const body=document.getElementById('repbody-'+id);if(!body)return;
+  const caret=document.querySelector(`[data-rgroup="${id}"] .rg-caret`);
+  if(body.style.display==='none'){
+    if(!body.innerHTML.trim()){
+      const list=REPORTS.filter(r=>r.apartment_id===id);
+      body.innerHTML=list.map(reportCardHtml).join('');
+    }
+    body.style.display='block';if(caret)caret.textContent='▴';
+  }else{body.style.display='none';if(caret)caret.textContent='▾';}
 }
 function reportPhotoHtml(id){
   const arr=RPHOTOS[id]||[];

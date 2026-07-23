@@ -49,6 +49,7 @@ function openInquiry() {
   if (ph) ph.textContent = RES_AUD_PHONE ? ('📞 ' + RES_AUD_PHONE) : '연락처 미등록 (관리자에게 문의)'
   window.showScreen('s16')
 }
+window.openInquiry = openInquiry
 async function loadResidentHome() {
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
   const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()

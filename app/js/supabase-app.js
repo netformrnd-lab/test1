@@ -115,19 +115,57 @@ async function loadResidentNext(aptId) {
   if (dbox) dbox.innerHTML = `<span style="font-size:9px;font-weight:800;color:#2F6BF6">${d.getMonth() + 1}월</span><span style="font-size:17px;font-weight:800;color:#2F6BF6">${d.getDate()}</span>`
 }
 // 입주민: 우리 단지 현장 현황 (관리자가 올린 현장 사진·글)
+let FIELD_LIST = []       // 입주민 현장 현황 전체
+function renderFieldList() {
+  const cont = document.getElementById('field-list'); if (!cont) return
+  const q = ((document.getElementById('field-search') || {}).value || '').trim().toLowerCase()
+  const list = q ? FIELD_LIST.filter(f => ((f.title || '') + ' ' + (f.content || '')).toLowerCase().includes(q)) : FIELD_LIST
+  if (!list.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q ? '검색 결과가 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; return }
+  cont.innerHTML = list.map(reportCard).join('')
+}
 async function loadFieldUpdates() {
   const cont = document.getElementById('field-list'); if (!cont) return
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const fs = document.getElementById('field-search'); if (fs) fs.value = ''
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
   const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
   const hdr = document.getElementById('field-apt')
-  if (!prof || !prof.apartment_id) { if (hdr) hdr.textContent = '배정된 단지 없음'; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
+  if (!prof || !prof.apartment_id) { if (hdr) hdr.textContent = '배정된 단지 없음'; FIELD_LIST = []; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
   const { data: apt } = await sb.from('apartments').select('name').eq('id', prof.apartment_id).single()
   if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
-  if (!data || !data.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.</div>'; return }
-  cont.innerHTML = data.map(reportCard).join('')
+  FIELD_LIST = data || []
+  renderFieldList()
 }
+// 감리사: 단지 선택 후 메뉴 (감리보고서 / 현장 사진)
+function openAuditorMenu(a) {
+  if (!a) return
+  currentApt = a
+  const nm = document.getElementById('aud-menu-apt'); if (nm) nm.textContent = a.name
+  window.showScreen('s27')
+}
+window.openAuditorMenu = openAuditorMenu
+// 감리사: 이 단지 현장 사진 목록
+let AUDFIELD_LIST = []
+function renderAudFieldList() {
+  const cont = document.getElementById('audfield-list'); if (!cont) return
+  const q = ((document.getElementById('audfield-search') || {}).value || '').trim().toLowerCase()
+  const list = q ? AUDFIELD_LIST.filter(f => ((f.title || '') + ' ' + (f.content || '')).toLowerCase().includes(q)) : AUDFIELD_LIST
+  if (!list.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q ? '검색 결과가 없어요.' : '아직 이 단지에 등록된 현장 사진이 없어요.') + '</div>'; return }
+  cont.innerHTML = list.map(reportCard).join('')
+}
+async function openAuditorField(a) {
+  if (!a) return
+  const cont = document.getElementById('audfield-list'); if (!cont) return
+  const hdr = document.getElementById('audfield-apt'); if (hdr) hdr.textContent = a.name
+  const fs = document.getElementById('audfield-search'); if (fs) fs.value = ''
+  window.showScreen('s28')
+  cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const { data } = await sb.from('field_updates').select('*').eq('apartment_id', a.id).order('created_at', { ascending: false })
+  AUDFIELD_LIST = data || []
+  renderAudFieldList()
+}
+window.openAuditorField = openAuditorField
 // 입주민: 공개된 우리 단지 감리보고서 목록
 async function loadResidentReports() {
   const cont = document.getElementById('res-report-list'); if (!cont) return
@@ -805,7 +843,7 @@ function wire() {
   const rw = $('rep-write-btn'); if (rw) rw.onclick = openWrite
   const ws = $('w-submit'); if (ws) ws.onclick = saveReport
   document.addEventListener('click', (e) => {
-    const c = e.target.closest('#aud-apts [data-apt-id]'); if (c) { openApt(AUD_APTS[c.dataset.aptId]); return }
+    const c = e.target.closest('#aud-apts [data-apt-id]'); if (c) { openAuditorMenu(AUD_APTS[c.dataset.aptId]); return }
     const r = e.target.closest('[data-report-id]'); if (r) { openReport(REPORTS[r.dataset.reportId]); return }
     // 담당 단지 필터 칩 (전체/진행중/점검예정/완료)
     const f = e.target.closest('#aud-filters [data-filter]')
@@ -822,6 +860,12 @@ function wire() {
   })
   // 담당 단지 검색
   const as = $('aud-search'); if (as) as.oninput = () => { audQuery = as.value; renderAudApts() }
+  // 감리사 단지 메뉴 (감리보고서 / 현장 사진)
+  const amR = $('aud-menu-report'); if (amR) amR.onclick = () => { if (currentApt) openApt(currentApt) }
+  const amF = $('aud-menu-field'); if (amF) amF.onclick = () => { if (currentApt) openAuditorField(currentApt) }
+  // 현장 현황 검색 (입주민 / 감리사)
+  const ffs = $('field-search'); if (ffs) ffs.oninput = renderFieldList
+  const affs = $('audfield-search'); if (affs) affs.oninput = renderAudFieldList
   // 감리보고서 검색
   const rps = $('rep-search'); if (rps) rps.oninput = () => { repQuery = rps.value; renderReports() }
   // 공사 일정

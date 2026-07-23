@@ -130,7 +130,7 @@
       <a data-sec="members"><span class="ic">👤</span>회원 관리<span class="cnt" id="nav-m">0</span></a>
       <a data-sec="apts"><span class="ic">🏢</span>단지 관리<span class="cnt" id="nav-a">0</span></a>
       <a data-sec="notices"><span class="ic">📢</span>공지사항<span class="cnt" id="nav-n">0</span></a>
-      <a data-sec="reports"><span class="ic">📝</span>감리보고서<span class="cnt" id="nav-r">0</span></a>
+      <a data-sec="reports"><span class="ic">📝</span>감리일지<span class="cnt" id="nav-r">0</span></a>
       <a data-sec="field"><span class="ic">📸</span>현장 현황<span class="cnt" id="nav-f">0</span></a>
       <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
     </nav>
@@ -216,9 +216,9 @@
       <div id="notices"></div>
     </section>
 
-    <!-- 감리보고서 (감리사 작성 → 관리자 재작성 → 입주민 공개) -->
+    <!-- 감리일지 (감리사 작성 → 관리자 재작성 → 입주민 공개) -->
     <section id="sec-reports">
-      <div class="head"><div><h2>감리보고서</h2><div class="desc">감리사가 올린 보고서를 다듬어 입주민에게 공개하세요. ‘입주민 공개’를 켜야 입주민 앱에 보여요</div></div></div>
+      <div class="head"><div><h2>감리일지</h2><div class="desc">감리사가 올린 보고서를 다듬어 입주민에게 공개하세요. ‘입주민 공개’를 켜야 입주민 앱에 보여요</div></div></div>
       <div class="add-form" style="margin-bottom:16px"><input id="rep-q" placeholder="🔍 단지명·제목으로 검색" style="width:320px" oninput="renderReports()"></div>
       <div id="reports"></div>
     </section>
@@ -477,7 +477,7 @@ async function saveReportAdmin(id){
   if(error)return alert('오류: '+error.message);loadAll();
 }
 async function deleteReport(id){
-  if(!confirm('이 감리보고서를 삭제할까요?'))return;
+  if(!confirm('이 감리일지를 삭제할까요?'))return;
   const{error}=await sb.from('reports').delete().eq('id',id);
   if(error)return alert('오류: '+error.message);loadAll();
 }

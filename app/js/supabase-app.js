@@ -32,6 +32,15 @@ async function route() {
   if (error || !profile || !profile.approved) { window.showScreen('s02'); return } // 승인 대기
   currentRole = profile.role
   applyRoleNav(profile.role)
+  // 현장 점검 저장 후 돌아왔을 때: 해당 단지 감리일지 목록으로 바로 이동
+  const openAptId = new URLSearchParams(location.search).get('openApt')
+  if (openAptId && profile.role === 'auditor') {
+    try {
+      history.replaceState(null, '', location.pathname)
+      const { data: apt } = await sb.from('apartments').select('*').eq('id', openAptId).single()
+      if (apt) { NAV_HIST.length = 0; NAV_HIST.push('s07'); openApt(apt); loadAuditorApts(); return }
+    } catch (e) {}
+  }
   if (profile.role === 'auditor') { window.showScreen('s07'); loadAuditorApts() }
   else { window.showScreen('s11'); loadResidentHome() }
 }
@@ -137,7 +146,7 @@ async function loadFieldUpdates() {
   FIELD_LIST = data || []
   renderFieldList()
 }
-// 감리사: 단지 선택 후 메뉴 (감리보고서 / 현장 사진)
+// 감리사: 단지 선택 후 메뉴 (감리일지 / 현장 사진)
 function openAuditorMenu(a) {
   if (!a) return
   currentApt = a
@@ -166,7 +175,7 @@ async function openAuditorField(a) {
   renderAudFieldList()
 }
 window.openAuditorField = openAuditorField
-// 입주민: 공개된 우리 단지 감리보고서 목록
+// 입주민: 공개된 우리 단지 감리일지 목록
 async function loadResidentReports() {
   const cont = document.getElementById('res-report-list'); if (!cont) return
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
@@ -178,7 +187,7 @@ async function loadResidentReports() {
   const { data: apt } = await sb.from('apartments').select('name').eq('id', prof.apartment_id).single()
   if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
   const { data } = await sb.from('reports').select('*').eq('apartment_id', prof.apartment_id).eq('published', true).order('created_at', { ascending: false })
-  if (!data || !data.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 공개된 감리보고서가 없어요.<br>감리가 확인을 마치면 여기에 올라와요.</div>'; return }
+  if (!data || !data.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 공개된 감리일지가 없어요.<br>감리가 확인을 마치면 여기에 올라와요.</div>'; return }
   cont.innerHTML = data.map(reportCard).join('')
 }
 window.loadResidentHome = loadResidentHome
@@ -512,7 +521,7 @@ function renderAudApts() {
 }
 window.loadAuditorApts = loadAuditorApts
 
-// ── 감리보고서: 목록 · 작성 · 상세 ─────────────────────────
+// ── 감리일지: 목록 · 작성 · 상세 ─────────────────────────
 let currentApt = null
 let REPORTS = {}
 
@@ -589,7 +598,7 @@ async function loadReports(aptId) {
 function renderReports() {
   const cont = document.getElementById('report-list'); if (!cont) return
   if (!REP_LIST.length) {
-    cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 작성한 감리보고서가 없어요.<br>위 “＋ 감리보고서 작성”으로 첫 보고서를 남겨보세요.</div>'
+    cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 작성한 감리일지가 없어요.<br>위 “＋ 감리일지 작성”으로 첫 보고서를 남겨보세요.</div>'
     return
   }
   const q = repQuery.trim().toLowerCase()
@@ -644,7 +653,7 @@ window.toggleWTag = function (el) {
 }
 function openWrite() {
   if (!currentApt) return
-  // 현장 점검 앱(체크리스트)으로 이동 — 단지 정보 전달, 저장 시 이 단지 감리보고서로 정리됨
+  // 현장 점검 앱(체크리스트)으로 이동 — 단지 정보 전달, 저장 시 이 단지 감리일지로 정리됨
   const m = currentApt.method || ''
   let work = '', sub = ''
   if (m === 'repaint') work = '외벽 재도장'
@@ -676,7 +685,7 @@ async function saveReport() {
 function openReport(r) {
   if (!r) return
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v }
-  set('d-title', r.title || '감리보고서')
+  set('d-title', r.title || '감리일지')
   set('d-date', (r.created_at || '').slice(0, 10).replace(/-/g, '.'))
   const st = document.getElementById('d-stage')
   if (st) { if (r.stage) { st.textContent = r.stage; st.style.display = '' } else { st.style.display = 'none' } }
@@ -860,7 +869,7 @@ function wire() {
   const ts = $('auth-toggle-signup'); if (ts) ts.onclick = () => setMode('signup')
   const tl = $('auth-toggle-login'); if (tl) tl.onclick = () => setMode('login')
   const out = $('logout-btn'); if (out) out.onclick = async () => { await sb.auth.signOut(); window.showScreen('s01') }
-  // 감리보고서 흐름
+  // 감리일지 흐름
   const rw = $('rep-write-btn'); if (rw) rw.onclick = openWrite
   const ws = $('w-submit'); if (ws) ws.onclick = saveReport
   document.addEventListener('click', (e) => {
@@ -881,13 +890,13 @@ function wire() {
   })
   // 담당 단지 검색
   const as = $('aud-search'); if (as) as.oninput = () => { audQuery = as.value; renderAudApts() }
-  // 감리사 단지 메뉴 (감리보고서 / 현장 사진)
+  // 감리사 단지 메뉴 (감리일지 / 현장 사진)
   const amR = $('aud-menu-report'); if (amR) amR.onclick = () => { if (currentApt) openApt(currentApt) }
   const amF = $('aud-menu-field'); if (amF) amF.onclick = () => { if (currentApt) openAuditorField(currentApt) }
   // 현장 현황 검색 (입주민 / 감리사)
   const ffs = $('field-search'); if (ffs) ffs.oninput = renderFieldList
   const affs = $('audfield-search'); if (affs) affs.oninput = renderAudFieldList
-  // 감리보고서 검색
+  // 감리일지 검색
   const rps = $('rep-search'); if (rps) rps.oninput = () => { repQuery = rps.value; renderReports() }
   // 공사 일정
   const addBtn = $('sc-add-btn'); if (addBtn) addBtn.onclick = () => { const f = $('sc-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none' }

@@ -275,9 +275,17 @@ function showManagerFallback(url) {
   }
   box.value = url; box.focus(); box.select()
 }
-// 링크 전송 = 복사만 사용 (카톡 인앱 브라우저에서 공유가 오류를 내므로)
-// 링크를 복사 → 카톡 대화방에 붙여넣기 하면 오류 없이 소장님께 전달됨
-async function shareManagerDoc() { copyManagerDoc() }
+// 링크 공유 우선 (제일 편함) → 공유 미지원/실패 시 자동으로 복사로
+async function shareManagerDoc() {
+  const url = managerFormUrl()
+  const name = currentApt ? currentApt.name : ''
+  const text = '[아파트스퀘어] ' + (name ? name + ' ' : '') + '관리소장님 작성지입니다. 아래 링크를 열어 간단히 작성해 주세요.'
+  if (navigator.share) {
+    try { await navigator.share({ title: '관리소장님 작성지', text, url }); return }
+    catch (e) { if (e && e.name === 'AbortError') return }  // 취소는 무시, 그 외엔 복사로
+  }
+  copyManagerDoc()
+}
 window.shareManagerDoc = shareManagerDoc
 // 소장님 작성 화면 미리보기 (새 탭)
 function previewManagerForm() { window.open(managerFormUrl(), '_blank') }

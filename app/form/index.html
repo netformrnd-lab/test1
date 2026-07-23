@@ -38,7 +38,7 @@
   <div class="top">
     <div class="brand">🏢 아파트스퀘어 감리팀</div>
     <h1>관리소장님 작성지</h1>
-    <p>아래 내용을 간단히 작성해 주세요.<br>다 쓰신 뒤 맨 아래 <b>‘작성 완료 · 내용 복사하기’</b>를 누르고,<br>카카오톡 대화방에 <b>붙여넣기</b>만 하면 됩니다.</p>
+    <p>아래 내용을 간단히 작성해 주세요.<br>다 쓰신 뒤 맨 아래 <b>‘작성 완료 · 보내기’</b>를 누르시면 됩니다.</p>
   </div>
 
   <div class="wrap">
@@ -76,17 +76,17 @@
         <input id="f-when" placeholder="예: 내년 봄 (3~4월)">
       </div>
 
-      <button class="btn btn-kakao" id="sendBtn">✅ 작성 완료 · 내용 복사하기</button>
+      <button class="btn btn-kakao" id="sendBtn">✅ 작성 완료 · 감리팀에 보내기</button>
       <div class="msg" id="msg"></div>
-      <button class="btn btn-ghost" id="copyBtn">📋 다시 복사하기</button>
-      <div class="foot">💡 ‘작성 완료·내용 복사하기’를 누르면 내용이 복사돼요.<br>바로 위 <b>카카오톡 대화방으로 돌아가 붙여넣기</b> 하면 감리팀에 전달됩니다.</div>
+      <button class="btn btn-ghost" id="copyBtn">📋 안 되면 · 내용 복사하기</button>
+      <div class="foot">💡 ‘보내기’를 누르면 카카오톡·문자 공유 목록이 떠요.<br>공유가 안 되는 화면이면 ‘내용 복사하기’로 복사해 대화방에 붙여넣기 해주세요.</div>
     </div>
 
     <div class="done" id="doneCard">
       <div class="em">✅</div>
-      <h2>내용이 복사됐어요!</h2>
-      <p><b>카카오톡 대화방으로 돌아가</b><br>(감리사님이 링크를 보낸 그 채팅방)<br>빈 곳을 <b>길게 눌러 ‘붙여넣기’</b> 하고 보내주세요.</p>
-      <button class="btn btn-ghost" id="againBtn" style="max-width:300px;margin:20px auto 0">← 다시 작성/복사하기</button>
+      <h2>작성해 주셔서 감사합니다!</h2>
+      <p>내용을 <b>아파트스퀘어 감리팀</b>에 보내주시면<br>담당 감리사가 확인 후 연락드립니다.</p>
+      <button class="btn btn-ghost" id="againBtn" style="max-width:300px;margin:20px auto 0">← 다시 작성하기</button>
     </div>
   </div>
 
@@ -123,12 +123,17 @@
     }
     return ok;
   }
-  // 복사만 사용 (카톡 인앱 브라우저에서 공유가 오류를 내므로)
+  // 공유 우선 (제일 편함) → 안 되는 환경이면 자동으로 복사로
   document.getElementById('sendBtn').onclick = async function(){
     if(!validate()) return;
+    var text=buildText();
+    if(navigator.share){
+      try{ await navigator.share({title:'관리소장님 작성지', text:text}); showDone(); return; }
+      catch(e){ if(e && e.name==='AbortError') return; /* 취소는 무시, 그 외엔 복사로 */ }
+    }
     var ok=await copyText();
-    if(ok){ showDone(); }
-    else { setMsg('복사가 안 됐어요. 아래 ‘내용 복사하기’를 눌러 다시 시도해 주세요.',false); }
+    if(ok){ setMsg('✅ 복사됐어요! 카카오톡 대화방에 붙여넣기 해서 보내주세요.',true); }
+    else { setMsg('복사가 안 됐어요. 아래 ‘복사하기’를 눌러 다시 시도해 주세요.',false); }
   };
   document.getElementById('copyBtn').onclick = async function(){
     if(!validate()) return;

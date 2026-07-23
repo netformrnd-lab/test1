@@ -950,19 +950,15 @@ function buildMsg(){
   const ngCount=Object.values(state.checks).filter(v=>v==='ng').length;
   const naCount=Object.values(state.checks).filter(v=>v==='na').length;
 
-  // 점검 보고서
+  // 점검 보고서 (간단 버전)
   let msg=`[현장 점검 보고서 - ${state.phase}]\n━━━━━━━━━━━━━━━━━━━━\n`;
   msg+=`현장명: ${site}${apt?' ('+apt+')':''}\n공종: ${wl}\n당일 공사: ${tw}\n점검일: ${date}\n점검자: ${insp}\n날씨: ${weather}\n`;
   msg+=`━━━━━━━━━━━━━━━━━━━━\n`;
-  msg+=`체크리스트: 적합 ${okCount} / 부적합 ${ngCount} / 해당없음 ${naCount} (총 ${total}항목)\n`;
   if(ngItems.length>0)msg+=`\n[부적합 항목]\n${ngItems.join('\n')}\n`;
   if(special)msg+=`\n[특기사항]\n${special}\n`;
   if(issue)msg+=`\n[지적사항 및 처리결과]\n${issue}\n`;
   msg+=`\n사진: ${photoCount}장 첨부\n`;
-  msg+='\n\n';
-
-  // 감리일지
-  msg += buildGamriLog();
+  msg+=`━━━━━━━━━━━━━━━━━━━━\n아파트스퀘어 감리팀`;
 
   return msg;
 }

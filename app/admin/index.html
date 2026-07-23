@@ -673,13 +673,48 @@ function toggleFieldEdit(id){
     box.style.display='block';if(caret)caret.textContent='▴';
   }else{box.style.display='none';if(caret)caret.textContent='▾';}
 }
+// 단지 그룹 관리 도구 (글 옮기기·이름 수정)
+function fldMoveBar(id){
+  const opts=APTS.filter(a=>a.id!==id).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko')).map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:#fbfcff;border:1px solid var(--line);border-top:none">
+    <span style="font-size:11.5px;font-weight:700;color:var(--mut2)">이 단지 글 전체를</span>
+    <select id="mv-${id}" class="f" style="max-width:220px"><option value="">- 옮길 단지 선택 -</option>${opts}</select>
+    <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="moveFieldGroup('${id}')">옮기기(합치기)</button>
+    <span style="flex:1"></span>
+    <button class="b" style="background:#f2f4f8;color:var(--ink)" onclick="renameFieldApt('${id}')">✏️ 단지 이름 수정</button>
+  </div>`;
+}
+async function moveFieldGroup(fromId){
+  const sel=document.getElementById('mv-'+fromId);const toId=sel&&sel.value;
+  if(!toId){alert('옮길 단지를 선택하세요');return;}
+  if(toId===fromId){alert('같은 단지예요');return;}
+  const cnt=FIELDS.filter(f=>f.apartment_id===fromId).length;
+  if(!confirm(`'${aptName(fromId)}'의 글 ${cnt}건을\n'${aptName(toId)}'(으)로 옮길까요?`))return;
+  const{error}=await sb.from('field_updates').update({apartment_id:toId}).eq('apartment_id',fromId);
+  if(error)return alert('오류: '+error.message);
+  if(confirm(`옮겼어요! 빈 단지 '${aptName(fromId)}'도 삭제할까요?\n(잘못 만들어진 단지면 삭제 권장)`)){
+    const{error:de}=await sb.from('apartments').delete().eq('id',fromId);
+    if(de)alert('단지 삭제 실패(회원 등이 배정돼 있을 수 있어요): '+de.message);
+  }
+  loadAll();
+}
+async function renameFieldApt(id){
+  const cur=aptName(id);
+  const name=prompt('단지 이름 수정:',cur);
+  if(name===null)return;
+  const t=name.trim();if(!t)return alert('이름을 입력하세요');
+  if(t===cur)return;
+  const{error}=await sb.from('apartments').update({name:t}).eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  loadAll();
+}
 function toggleAptGroup(id){
   const body=document.getElementById('fldbody-'+id);if(!body)return;
   const caret=document.querySelector(`[data-fgroup="${id}"] .fg-caret`);
   if(body.style.display==='none'){
     if(!body.innerHTML.trim()){
       const list=FIELDS.filter(f=>f.apartment_id===id);
-      body.innerHTML=list.map(fieldRowHtml).join('');
+      body.innerHTML=fldMoveBar(id)+list.map(fieldRowHtml).join('');
     }
     body.style.display='block';if(caret)caret.textContent='▴';
   }else{body.style.display='none';if(caret)caret.textContent='▾';}
@@ -704,7 +739,7 @@ function renderField(){
       expand=true; // 검색 시 해당 단지 자동 펼침
     }
     any=true;
-    const rows=expand?shown.map(fieldRowHtml).join(''):'';
+    const rows=expand?(fldMoveBar(id)+shown.map(fieldRowHtml).join('')):'';
     html+=`<div class="fld-group" data-fgroup="${id}" style="margin-bottom:12px">
       <div onclick="toggleAptGroup('${id}')" style="display:flex;align-items:center;gap:9px;padding:12px 14px;background:#f3f6fc;border:1px solid var(--line);border-radius:10px 10px ${expand?'0 0':'10px 10px'};cursor:pointer">
         <span style="font-size:14px;font-weight:800;color:var(--navy)">🏢 ${esc(aptName(id))}</span>

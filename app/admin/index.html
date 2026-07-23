@@ -195,7 +195,10 @@
           <button class="b save" onclick="addApt()">추가</button>
         </div>
       </div>
-      <div class="add-form" style="margin-bottom:16px"><input id="apt-q" placeholder="🔍 단지명·지역·공사종류로 검색" style="width:340px" oninput="renderApts()"></div>
+      <div class="add-form" style="margin-bottom:16px;justify-content:space-between">
+        <input id="apt-q" placeholder="🔍 단지명·지역·공사종류로 검색" style="width:340px" oninput="renderApts()">
+        <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="autofillRegions()">🌍 지역 자동 채우기 (이름 첫 단어)</button>
+      </div>
       <div class="apt-grid" id="apts"></div>
     </section>
 
@@ -404,7 +407,7 @@ function reportCardHtml(r){
     <div class="rf-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 9px">${reportPhotoHtml(r.id)}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
       <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer"><input type="checkbox" class="rf-pub" ${pub?'checked':''} style="width:17px;height:17px"> 입주민에게 공개</label>
-      <button class="b save" onclick="saveReportAdmin('${r.id}')">저장</button>
+      <div style="display:flex;gap:8px"><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteReport('${r.id}')">삭제</button><button class="b save" onclick="saveReportAdmin('${r.id}')">저장</button></div>
     </div>
   </div>`;
 }
@@ -471,6 +474,11 @@ async function saveReportAdmin(id){
   const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
   const{error}=await sb.from('reports').update({title,stage,content,published,photos:RPHOTOS[id]||[]}).eq('id',id);
   if(btn){btn.textContent='저장';btn.disabled=false;}
+  if(error)return alert('오류: '+error.message);loadAll();
+}
+async function deleteReport(id){
+  if(!confirm('이 감리보고서를 삭제할까요?'))return;
+  const{error}=await sb.from('reports').delete().eq('id',id);
   if(error)return alert('오류: '+error.message);loadAll();
 }
 async function uploadCasePhoto(file){
@@ -759,8 +767,26 @@ function renderCases(){
   if(!CASES.length){box.innerHTML='<div class="empty">등록된 우수 사례가 없어요. 위에서 등록해 보세요.</div>';return;}
   box.innerHTML=CASES.map(c=>{
     const imgs=(c.before_url?`<div style="text-align:center"><div style="font-size:9px;color:var(--mut);font-weight:700;margin-bottom:3px">전</div><img src="${c.before_url}" style="width:88px;height:66px;object-fit:cover;border-radius:7px;border:1px solid var(--line)"></div>`:'')+(c.after_url?`<div style="text-align:center"><div style="font-size:9px;color:var(--blue);font-weight:700;margin-bottom:3px">후</div><img src="${c.after_url}" style="width:88px;height:66px;object-fit:cover;border-radius:7px;border:1px solid var(--line)"></div>`:'');
-    return `<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:800;color:var(--ink)">${esc(c.title)}</div><div style="font-size:11px;color:var(--mut);font-weight:600;margin-top:3px">${esc(c.meta)||''}</div><div style="font-size:12px;color:var(--mut2);font-weight:500;margin-top:6px;line-height:1.6">${esc(c.summary)||''}</div><div style="display:flex;gap:10px;margin-top:9px">${imgs}</div></div><button class="b" style="background:#fdecea;color:#e4544b;flex-shrink:0" onclick="deleteCase('${c.id}')">삭제</button></div></div>`;
+    const istyle='width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--line);border-radius:7px;font-family:inherit;outline:none;margin-bottom:7px';
+    return `<div class="card" data-cid="${c.id}" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteCase('${c.id}')">삭제</button></div>
+      <input class="cf-title" value="${esc(c.title)||''}" placeholder="제목" style="${istyle};font-size:13.5px;font-weight:800;color:var(--ink)">
+      <input class="cf-meta" value="${esc(c.meta)||''}" placeholder="부가정보 (예: 15년차 · 2026.05 완료)" style="${istyle};font-size:12px">
+      <input class="cf-summary" value="${esc(c.summary)||''}" placeholder="한 줄 요약" style="${istyle};font-size:12px">
+      <textarea class="cf-body" placeholder="상세 내용" style="${istyle};font-size:12px;min-height:64px;resize:vertical;line-height:1.6">${esc(c.body)||''}</textarea>
+      <div style="display:flex;gap:10px;margin:4px 0 9px">${imgs||'<span style="font-size:11px;color:var(--mut)">사진 없음</span>'}</div>
+      <div style="text-align:right"><button class="b save" onclick="saveCase('${c.id}')">저장</button></div>
+    </div>`;
   }).join('');
+}
+async function saveCase(id){
+  const row=document.querySelector(`.card[data-cid="${id}"]`);
+  const title=row.querySelector('.cf-title').value.trim();if(!title)return alert('제목을 입력하세요');
+  const meta=row.querySelector('.cf-meta').value.trim()||null;
+  const summary=row.querySelector('.cf-summary').value.trim()||null;
+  const body=row.querySelector('.cf-body').value.trim()||null;
+  const{error}=await sb.from('cases').update({title,meta,summary,body}).eq('id',id);
+  if(error)return alert('오류: '+error.message);loadAll();
 }
 function renderNotices(){
   const nn=$('nav-n');if(nn)nn.textContent=NOTICES.length;
@@ -768,8 +794,20 @@ function renderNotices(){
   if(!NOTICES.length){box.innerHTML='<div class="empty">등록된 공지가 없어요. 위에서 등록해 보세요.</div>';return;}
   box.innerHTML=NOTICES.map(n=>{
     const d=(n.created_at||'').slice(0,10).replace(/-/g,'.');
-    return `<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:800;color:var(--ink)">${esc(n.title)}</div><div style="font-size:11px;color:var(--mut);font-weight:600;margin-top:3px">${d}</div><div style="font-size:12px;color:var(--mut2);font-weight:500;margin-top:8px;line-height:1.6;white-space:pre-wrap">${esc(n.body)||''}</div></div><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteNotice('${n.id}')">삭제</button></div></div>`;
+    return `<div class="card" data-nid="${n.id}" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px"><span style="font-size:11px;color:var(--mut);font-weight:600">${d}</span><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteNotice('${n.id}')">삭제</button></div>
+      <input class="nf-title" value="${esc(n.title)||''}" placeholder="제목" style="width:100%;box-sizing:border-box;font-size:13.5px;font-weight:800;color:var(--ink);padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;font-family:inherit;outline:none">
+      <textarea class="nf-body" placeholder="내용" style="width:100%;box-sizing:border-box;min-height:72px;font-size:12.5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;outline:none;resize:vertical;line-height:1.6">${esc(n.body)||''}</textarea>
+      <div style="text-align:right;margin-top:8px"><button class="b save" onclick="saveNotice('${n.id}')">저장</button></div>
+    </div>`;
   }).join('');
+}
+async function saveNotice(id){
+  const row=document.querySelector(`.card[data-nid="${id}"]`);
+  const title=row.querySelector('.nf-title').value.trim();if(!title)return alert('제목을 입력하세요');
+  const body=row.querySelector('.nf-body').value.trim()||null;
+  const{error}=await sb.from('notices').update({title,body}).eq('id',id);
+  if(error)return alert('오류: '+error.message);loadAll();
 }
 async function addNotice(){
   const title=$('no-title').value.trim();if(!title)return alert('제목을 입력하세요');
@@ -811,7 +849,7 @@ function renderMembers(){
     <td><select class="f f-role">${roleOpts(m.role)}</select></td>
     <td><input class="f-apt" list="apt-names" value="${m.apartment_id?esc(aptName(m.apartment_id)):''}" placeholder="단지 입력/선택" style="width:150px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;outline:none;font-family:inherit" autocomplete="off"></td>
     <td>${m.approved?'<span class="pill ok">승인됨</span>':'<span class="pill no">대기</span>'}</td>
-    <td style="white-space:nowrap">${m.approved?'':'<button class="b approve" onclick="approve(\''+m.id+'\')">승인</button> '}<button class="b save" onclick="saveMember('${m.id}')">저장</button></td>
+    <td style="white-space:nowrap">${m.approved?'':'<button class="b approve" onclick="approve(\''+m.id+'\')">승인</button> '}<button class="b save" onclick="saveMember('${m.id}')">저장</button> <button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteMember('${m.id}')">삭제</button></td>
   </tr>`).join('');
 }
 function renderApts(){
@@ -828,13 +866,17 @@ function renderApts(){
     let now='공법을 선택하세요';
     if(st){ now = pc>=pt ? '✅ 공사 완료' : `현재 ${pc+1}단계 · ${esc(st[pc])}`; }
     return `<div class="apt" data-id="${a.id}">
-      <div class="nm">${esc(a.name)}</div>
-      <div class="meta">${esc(a.region)||'지역 미정'} · ${esc(a.construction_type)||'종류 미정'}</div>
+      <input class="f-name" value="${esc(a.name)||''}" placeholder="단지명" style="width:100%;box-sizing:border-box;font-size:15px;font-weight:800;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:inherit;outline:none">
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <input class="f-region" value="${esc(a.region)||''}" placeholder="지역 (예: 서울 노원)" style="flex:1;min-width:0;font-size:11.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-family:inherit;outline:none">
+        <input class="f-type" value="${esc(a.construction_type)||''}" placeholder="공사종류" style="flex:1.3;min-width:0;font-size:11.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-family:inherit;outline:none">
+      </div>
       <div class="bar"><i style="width:${pct}%"></i></div>
       <div class="prog"><span>${now}</span><span>${pc} / ${pt}</span></div>
       <div class="edit"><label>공법</label><select class="f f-method" onchange="onMethodChange(this)">${methodOpts(a.method)}</select></div>
       <div class="edit"><label>공정</label><select class="f f-stage">${stageOpts(a.method,pc)}</select></div>
       <div class="aud"><label style="min-width:34px;font-size:12px;color:var(--mut2);font-weight:700">감리사</label><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
+      <div style="text-align:right;margin-top:9px"><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button></div>
     </div>`;
   }).join('');
 }
@@ -869,6 +911,12 @@ async function saveMember(id){
   const{error}=await sb.from('profiles').update({role,apartment_id:apt,phone}).eq('id',id);
   if(error)return alert('오류: '+error.message);loadAll();
 }
+async function deleteMember(id){
+  const m=MEMBERS.find(x=>x.id===id);const label=(m&&(m.name||dispId(m.email)))||id;
+  if(!confirm(`'${label}' 회원을 삭제할까요?\n(회원 목록에서 사라져요)`))return;
+  const{error}=await sb.from('profiles').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);loadAll();
+}
 async function addApt(){
   const name=$('na-name').value.trim();if(!name)return alert('단지명을 입력하세요');
   const{error}=await sb.from('apartments').insert({name,region:$('na-region').value.trim()||null,construction_type:$('na-type').value.trim()||null,auditor_id:$('na-auditor').value||null});
@@ -877,6 +925,9 @@ async function addApt(){
 }
 async function saveApt(id){
   const row=document.querySelector(`.apt[data-id="${id}"]`);
+  const name=row.querySelector('.f-name').value.trim();if(!name)return alert('단지명을 입력하세요');
+  const region=row.querySelector('.f-region').value.trim()||null;
+  const ctype=row.querySelector('.f-type').value.trim()||null;
   const aud=row.querySelector('.f-aud').value||null;
   const method=row.querySelector('.f-method').value||null;
   const st=(window.STAGE_SETS[method]||{}).stages;
@@ -885,9 +936,29 @@ async function saveApt(id){
   // 상태 자동 계산: 시작전→점검예정, 마지막단계→완료, 그외→진행중
   let status='scheduled';if(pt&&pc>=pt)status='done';else if(pc>0)status='in_progress';
   const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
-  const{error}=await sb.from('apartments').update({auditor_id:aud,method,status,progress_current:pc,progress_total:pt}).eq('id',id);
+  const{error}=await sb.from('apartments').update({name,region,construction_type:ctype,auditor_id:aud,method,status,progress_current:pc,progress_total:pt}).eq('id',id);
   if(error){if(btn){btn.textContent='저장';btn.disabled=false;}return alert('오류: '+error.message);}
   loadAll();
+}
+async function deleteApt(id){
+  const nm=aptName(id);
+  if(!confirm(`'${nm}' 단지를 삭제할까요?\n⚠️ 이 단지의 현장 기록도 함께 삭제돼요. (회원·보고서가 배정돼 있으면 먼저 옮겨야 삭제됩니다)`))return;
+  const{error}=await sb.from('apartments').delete().eq('id',id);
+  if(error)return alert('삭제 실패: '+error.message+'\n(이 단지에 배정된 회원/보고서를 먼저 다른 단지로 옮겨주세요)');
+  loadAll();
+}
+async function autofillRegions(){
+  const targets=APTS.filter(a=>!(a.region&&String(a.region).trim())&&a.name&&a.name.trim().split(/\s+/).length>1);
+  if(!targets.length){alert('지역이 비어있고 이름에 지역이 들어있어 보이는 단지가 없어요.');return;}
+  const preview=targets.slice(0,6).map(a=>`· ${a.name}  →  ${a.name.trim().split(/\s+/)[0]}`).join('\n');
+  if(!confirm(`지역이 비어있는 단지 ${targets.length}개의 지역을 '이름 첫 단어'로 채울까요?\n\n${preview}${targets.length>6?'\n…':''}\n\n(나중에 각 단지에서 직접 수정할 수 있어요)`))return;
+  let ok=0;
+  for(const a of targets){
+    const region=a.name.trim().split(/\s+/)[0];
+    const{error}=await sb.from('apartments').update({region}).eq('id',a.id);
+    if(!error)ok++;
+  }
+  alert(`${ok}개 단지의 지역을 채웠어요.`);loadAll();
 }
 
 gate();

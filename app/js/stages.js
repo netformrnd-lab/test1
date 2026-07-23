@@ -1,4 +1,4 @@
-// 공법별 시공 순서 (POUR 공법 자료 ver08 기준)
+// 공법별 시공 순서
 // progress_current = "끝낸 단계 수" (0 = 시작 전, stages.length = 공사 완료)
 window.STAGE_SETS = {
   repaint: {

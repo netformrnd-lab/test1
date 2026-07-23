@@ -225,9 +225,9 @@
       <div class="head"><div><h2>현장 현황</h2><div class="desc">단지별 현장 사진·글을 올리세요. 입주민·감리사 앱의 ‘현장 현황’에 바로 보입니다</div></div></div>
       <div class="card" style="border:1.5px dashed #b9c6e0;background:#f7faff">
         <h3>📥 아임웹 게시판 엑셀 가져오기</h3>
-        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 12px">아임웹에서 내보낸 게시판 엑셀(.xlsx) 파일을 선택하면, <b>카테고리(단지)별로</b> 현장 현황에 자동 등록돼요. 사진은 아임웹 링크를 그대로 사용하고, 이미 등록된 글은 자동으로 건너뜁니다.</div>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 12px">아임웹에서 내보낸 게시판 엑셀(.xlsx)을 선택하면 <b>카테고리(단지)별로</b> 현장 현황에 자동 등록돼요. <b>여러 파일을 한 번에</b> 선택해도 됩니다. 사진은 아임웹 링크를 그대로 쓰고, 이미 등록된 글은 자동으로 건너뜁니다.</div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <input id="imp-file" type="file" accept=".xlsx,.xls" style="font-size:13px">
+          <input id="imp-file" type="file" accept=".xlsx,.xls" multiple style="font-size:13px">
           <button id="imp-btn" class="b save" onclick="importBoard()">가져오기 시작</button>
         </div>
         <div id="imp-log" style="margin-top:12px;font-size:12px;line-height:1.7;max-height:240px;overflow:auto;font-family:monospace;color:var(--mut2);white-space:pre-wrap"></div>
@@ -536,25 +536,14 @@ function impLog(msg,color){
   box.appendChild(d);box.scrollTop=box.scrollHeight;
 }
 async function importBoard(){
-  const fi=$('imp-file');const f=fi&&fi.files[0];
-  if(!f){alert('엑셀 파일을 먼저 선택하세요');return;}
+  const fi=$('imp-file');const files=fi&&fi.files;
+  if(!files||!files.length){alert('엑셀 파일을 먼저 선택하세요');return;}
   if(typeof XLSX==='undefined'){alert('엑셀 읽기 모듈을 불러오지 못했어요. 인터넷 연결 후 새로고침해 주세요.');return;}
   const btn=$('imp-btn');if(btn){btn.textContent='가져오는 중…';btn.disabled=true;}
   $('imp-log').innerHTML='';
+  const norm=s=>(s||'').replace(/\s/g,'').toLowerCase();
+  const imgsOf=html=>{const out=[];const re=/<img[^>]+src=["']([^"']+)["']/gi;let m;while(m=re.exec(html||''))out.push(m[1]);return out;};
   try{
-    impLog('파일 읽는 중…','#2563eb');
-    const buf=await f.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array'});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
-    if(!rows.length){impLog('데이터가 없어요.','#e4544b');return;}
-    const cols=Object.keys(rows[0]);
-    const keyOf=(names)=>{for(const n of names){const c=cols.find(x=>x===n)||cols.find(x=>x.includes(n));if(c)return c;}return null;};
-    const kTitle=keyOf(['제목']),kBody=keyOf(['내용','본문']),kCat=keyOf(['카테고리','게시판','분류']),kTime=keyOf(['작성시각','작성일시','작성일','등록일']);
-    if(!kTitle||!kBody){impLog('제목/내용 컬럼을 찾지 못했어요. 아임웹 게시판 엑셀이 맞는지 확인해 주세요.','#e4544b');return;}
-    impLog('총 '+rows.length+'건 처리 시작…');
-    const norm=s=>(s||'').replace(/\s/g,'').toLowerCase();
-    const imgsOf=html=>{const out=[];const re=/<img[^>]+src=["']([^"']+)["']/gi;let m;while(m=re.exec(html||''))out.push(m[1]);return out;};
     let{data:aps}=await sb.from('apartments').select('id,name');aps=aps||[];
     const catCache={},seenCache={};
     async function resolveApt(cat){
@@ -570,22 +559,43 @@ async function importBoard(){
       const{data}=await sb.from('field_updates').select('title').eq('apartment_id',aptId);
       const s=new Set((data||[]).map(x=>x.title));seenCache[aptId]=s;return s;
     }
-    let made=0,skip=0,fail=0;
-    for(const r of rows){
-      const title=String(r[kTitle]||'').trim();if(!title)continue;
-      const cat=String((kCat&&r[kCat])||'').trim()||'미분류';
-      let time=kTime?r[kTime]:null;if(time&&typeof time!=='string')time=String(time);
-      const imgs=imgsOf(r[kBody]);
-      const aptId=await resolveApt(cat);if(!aptId){fail++;continue;}
-      const seen=await seenTitles(aptId);
-      if(seen.has(title)){skip++;impLog('⏭️ 이미있음  '+title);continue;}
-      const row={apartment_id:aptId,title,content:null,photos:imgs};
-      if(time)row.created_at=time;
-      const{error}=await sb.from('field_updates').insert(row);
-      if(error){fail++;impLog('❌ 실패  '+title+' → '+error.message,'#e4544b');}
-      else{made++;seen.add(title);impLog('✅ 등록('+imgs.length+'장)  '+title,'#1f8a5b');}
+    const list=Array.from(files);
+    impLog('📂 파일 '+list.length+'개 · 순서대로 처리합니다','#2563eb');
+    let made=0,skip=0,fail=0,fileNo=0;
+    for(const f of list){
+      fileNo++;
+      impLog('');
+      impLog('📄 ('+fileNo+'/'+list.length+') '+f.name+' 읽는 중…','#2563eb');
+      let rows;
+      try{
+        const buf=await f.arrayBuffer();
+        const wb=XLSX.read(buf,{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+      }catch(e){impLog('  → 읽기 실패: '+e.message+' (건너뜀)','#e4544b');fail++;continue;}
+      if(!rows||!rows.length){impLog('  → 데이터 없음 (건너뜀)','#c98a1e');continue;}
+      const cols=Object.keys(rows[0]);
+      const keyOf=(names)=>{for(const n of names){const c=cols.find(x=>x===n)||cols.find(x=>x.includes(n));if(c)return c;}return null;};
+      const kTitle=keyOf(['제목']),kBody=keyOf(['내용','본문']),kCat=keyOf(['카테고리','게시판','분류']),kTime=keyOf(['작성시각','작성일시','작성일','등록일']);
+      if(!kTitle||!kBody){impLog('  → 제목/내용 컬럼을 못 찾음 (아임웹 게시판 엑셀 맞는지 확인) · 건너뜀','#e4544b');continue;}
+      impLog('  · '+rows.length+'건 처리…');
+      for(const r of rows){
+        const title=String(r[kTitle]||'').trim();if(!title)continue;
+        const cat=String((kCat&&r[kCat])||'').trim()||'미분류';
+        let time=kTime?r[kTime]:null;if(time&&typeof time!=='string')time=String(time);
+        const imgs=imgsOf(r[kBody]);
+        const aptId=await resolveApt(cat);if(!aptId){fail++;continue;}
+        const seen=await seenTitles(aptId);
+        if(seen.has(title)){skip++;impLog('⏭️ 이미있음  '+title);continue;}
+        const row={apartment_id:aptId,title,content:null,photos:imgs};
+        if(time)row.created_at=time;
+        const{error}=await sb.from('field_updates').insert(row);
+        if(error){fail++;impLog('❌ 실패  '+title+' → '+error.message,'#e4544b');}
+        else{made++;seen.add(title);impLog('✅ 등록('+imgs.length+'장)  '+title,'#1f8a5b');}
+      }
     }
-    impLog('──── 완료 ──  등록 '+made+' · 이미있음 '+skip+' · 실패 '+fail,'#1c2440');
+    impLog('');
+    impLog('════ 전체 완료 ════  등록 '+made+' · 이미있음 '+skip+' · 실패 '+fail,'#1c2440');
     loadAll();
   }catch(e){impLog('오류: '+e.message,'#e4544b');}
   finally{if(btn){btn.textContent='가져오기 시작';btn.disabled=false;}}

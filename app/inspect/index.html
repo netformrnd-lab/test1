@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>현장 점검 앱</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --blue: #1565C0; --blue-dark: #0D47A1;
+    --blue-light: #E3F2FD; --blue-mid: #90CAF9;
+    --blue-btn: #1976D2; --blue-accent: #42A5F5;
+    --red: #D32F2F; --red-light: #FFEBEE;
+    --gray-bg: #EEF4FF; --gray-border: #90CAF9; --gray-text: #37474F;
+    --radius: 12px;
+  }
+  body { font-family: 'Apple SD Gothic Neo','Malgun Gothic',sans-serif; background: var(--gray-bg); min-height:100vh; color:#111; padding-bottom:40px; }
+  .header { background:#fff; border-bottom:1px solid var(--gray-border); padding:14px 18px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100; }
+  .header-icon { width:38px; height:38px; background:var(--blue-btn); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
+  .header-title { font-size:16px; font-weight:700; color:#111; }
+  .header-sub { font-size:11px; color:var(--gray-text); margin-top:1px; }
+  .gear-btn { margin-left:auto; background:var(--blue-light); border:1px solid var(--gray-border); color:var(--blue-dark); border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; font-family:inherit; font-weight:500; }
+  .gear-btn:hover { background:var(--blue-mid); }
+  .step-bar { background:#fff; border-bottom:1px solid var(--gray-border); padding:10px 18px; display:flex; gap:6px; align-items:center; }
+  .step-dot { width:28px; height:28px; border-radius:50%; background:#dde; color:#aaa; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.2s; }
+  .step-dot.active { background:var(--blue-btn); color:#fff; }
+  .step-dot.done { background:var(--blue-light); color:var(--blue-dark); border:1.5px solid var(--blue-btn); }
+  .step-line { flex:1; height:2px; background:#dde; border-radius:2px; }
+  .step-line.done { background:var(--blue-btn); }
+  .main { padding:16px; max-width:600px; margin:0 auto; }
+  .screen { display:none; } .screen.active { display:block; }
+  .card { background:#fff; border:1px solid var(--gray-border); border-radius:var(--radius); padding:18px; margin-bottom:12px; }
+  .card-title { font-size:12px; font-weight:700; color:var(--gray-text); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:14px; }
+
+  /* 공종 선택 */
+  .work-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .work-btn { background:#fff; border:1.5px solid var(--gray-border); border-radius:var(--radius); padding:18px 12px; text-align:center; cursor:pointer; font-family:inherit; transition:all 0.2s; }
+  .work-btn:hover, .work-btn.selected { border-color:var(--blue-btn); background:var(--blue-light); }
+  .work-btn-title { font-size:15px; font-weight:700; color:#111; margin-bottom:4px; }
+  .work-btn-sub { font-size:11px; color:var(--gray-text); }
+  .sub-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px; }
+  .sub-btn { background:var(--blue-light); border:1px solid var(--gray-border); border-radius:8px; padding:10px; text-align:center; cursor:pointer; font-family:inherit; font-size:13px; font-weight:500; color:var(--blue-dark); transition:all 0.15s; }
+  .sub-btn:hover { border-color:var(--blue-btn); background:var(--blue-mid); }
+  .sub-btn.selected { border-color:var(--blue-dark); background:var(--blue-btn); color:#fff; font-weight:700; }
+
+  /* 공정 선택 (착공/공사중/준공) */
+  .phase-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .phase-btn { background:#fff; border:1.5px solid var(--gray-border); border-radius:var(--radius); padding:16px 8px; text-align:center; cursor:pointer; font-family:inherit; transition:all 0.2s; position:relative; }
+  .phase-btn:hover, .phase-btn.selected { border-color:var(--blue-btn); background:var(--blue-light); }
+  .phase-icon { font-size:22px; margin-bottom:6px; }
+  .phase-title { font-size:14px; font-weight:700; color:#111; margin-bottom:3px; }
+  .phase-sub { font-size:10px; color:var(--gray-text); line-height:1.4; }
+  .phase-btn.selected .phase-title { color:var(--blue-dark); }
+
+  /* 공정 배지 */
+  .phase-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:700; margin-bottom:12px; }
+  .phase-badge.착공 { background:#FFF3CD; color:#854F0B; border:1px solid #FAC775; }
+  .phase-badge.공사중 { background:var(--blue-light); color:var(--blue-dark); border:1px solid var(--blue-mid); }
+  .phase-badge.준공 { background:#EAF3DE; color:#3B6D11; border:1px solid #97C459; }
+
+  /* Fields */
+  .field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .field { display:flex; flex-direction:column; gap:5px; }
+  .field.full { grid-column:1/-1; }
+  .field-label { font-size:12px; font-weight:700; color:#333; }
+  input[type=text], input[type=date], textarea { background:var(--blue-light); border:1px solid var(--gray-border); border-radius:8px; padding:10px 12px; font-size:14px; color:#111; font-family:inherit; width:100%; transition:border-color 0.15s; -webkit-appearance:none; }
+  input:focus, textarea:focus { outline:none; border-color:var(--blue-btn); background:#fff; box-shadow:0 0 0 3px #1976D233; }
+  input::placeholder, textarea::placeholder { color:#aab; }
+  textarea { resize:vertical; min-height:80px; line-height:1.6; }
+  .weather-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .weather-btn { background:var(--blue-light); border:1px solid var(--gray-border); border-radius:8px; padding:9px 4px; text-align:center; cursor:pointer; font-family:inherit; font-size:13px; font-weight:500; color:var(--blue-dark); transition:all 0.15s; }
+  .weather-btn.selected { background:var(--blue-btn); border-color:var(--blue-dark); color:#fff; font-weight:700; }
+
+  /* 체크리스트 */
+  .section-title { font-size:13px; font-weight:700; color:#fff; background:var(--blue-btn); padding:7px 12px; border-radius:8px; margin:14px 0 4px; }
+  .check-item { padding:12px 0; border-bottom:1px solid #f0f4f8; }
+  .check-item:last-child { border-bottom:none; }
+  .check-item-title { font-size:14px; font-weight:700; color:#111; margin-bottom:4px; }
+  .check-item-desc { font-size:12px; color:#666; margin-bottom:10px; line-height:1.6; }
+  .check-btns { display:flex; gap:8px; }
+  .check-btn { flex:1; padding:9px; border-radius:8px; border:1.5px solid #dde; background:#f7f9fc; font-size:13px; font-weight:700; color:#aaa; cursor:pointer; font-family:inherit; transition:all 0.15s; text-align:center; }
+  .check-btn.ok.selected { background:var(--blue-btn); border-color:var(--blue-dark); color:#fff; }
+  .check-btn.ng.selected { background:var(--red-light); border-color:var(--red); color:var(--red); }
+  .check-btn.na.selected { background:#f0f0f0; border-color:#999; color:#555; }
+  .progress-text { font-size:12px; color:var(--gray-text); margin-bottom:6px; text-align:right; }
+  .progress-bar { height:6px; background:#dde; border-radius:3px; margin-bottom:4px; overflow:hidden; }
+  .progress-fill { height:100%; background:var(--blue-btn); border-radius:3px; transition:width 0.3s; }
+
+  /* 사진 */
+  .photo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .photo-slot { aspect-ratio:1; border:2px dashed var(--gray-border); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; background:var(--blue-light); overflow:hidden; position:relative; transition:all 0.15s; }
+  .photo-slot:hover { border-color:var(--blue-btn); }
+  .photo-slot.filled { border-style:solid; border-color:var(--blue-btn); }
+  .photo-slot img { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; }
+  .photo-slot-label { font-size:11px; color:#aab; margin-top:4px; }
+  .photo-slot-plus { font-size:24px; color:var(--blue-mid); line-height:1; }
+  .photo-slot.filled .photo-slot-plus, .photo-slot.filled .photo-slot-label { display:none; }
+  .photo-remove { position:absolute; top:4px; right:4px; width:22px; height:22px; background:rgba(0,0,0,0.5); border:none; border-radius:50%; color:#fff; font-size:14px; cursor:pointer; display:none; align-items:center; justify-content:center; line-height:1; z-index:2; }
+  .photo-slot.filled .photo-remove { display:flex; }
+  .photo-hint { font-size:12px; color:var(--gray-text); margin-top:8px; text-align:center; }
+
+  /* 버튼 */
+  .btn-primary { width:100%; background:var(--blue-btn); border:none; border-radius:var(--radius); padding:15px; font-size:16px; font-weight:700; color:#fff; cursor:pointer; font-family:inherit; transition:background 0.2s; margin-top:4px; }
+  .btn-primary:hover { background:var(--blue-dark); }
+  .btn-primary:disabled { opacity:0.4; cursor:not-allowed; }
+  .btn-secondary { width:100%; background:var(--blue-light); border:1px solid var(--gray-border); border-radius:var(--radius); padding:13px; font-size:15px; font-weight:500; color:var(--blue-dark); cursor:pointer; font-family:inherit; margin-top:8px; transition:background 0.15s; }
+  .btn-secondary:hover { background:var(--blue-mid); }
+
+  /* 배너 */
+  .wh-banner { background:#FFF3CD; border:1px solid #e0a800; border-radius:10px; padding:10px 14px; font-size:13px; font-weight:500; color:#7a5000; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .wh-banner.ok { background:#E3F2FD; border-color:var(--blue-btn); color:var(--blue-dark); }
+  .wh-set-btn { background:#e0a800; border:none; border-radius:6px; padding:5px 10px; font-size:12px; font-weight:700; color:#fff; cursor:pointer; font-family:inherit; white-space:nowrap; flex-shrink:0; }
+  .wh-banner.ok .wh-set-btn { background:var(--blue-btn); }
+  .preview-box { background:var(--blue-light); border:1px solid var(--gray-border); border-radius:8px; padding:14px; font-size:13px; color:#333; white-space:pre-wrap; line-height:1.7; max-height:220px; overflow-y:auto; margin-bottom:12px; }
+
+  /* 완료 */
+  .done-screen { text-align:center; padding:40px 20px; }
+  .done-icon { width:72px; height:72px; background:var(--blue-light); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:700; color:var(--blue); margin:0 auto 16px; }
+  .done-title { font-size:20px; font-weight:700; margin-bottom:8px; }
+  .done-sub { font-size:14px; color:var(--gray-text); margin-bottom:24px; }
+
+  /* 모달 */
+  .modal-back { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:flex-end; justify-content:center; }
+  .modal-back.open { display:flex; }
+  .modal { background:#fff; border-radius:18px 18px 0 0; padding:20px 18px 40px; width:100%; max-width:600px; animation:slideUp 0.25s ease; }
+  @keyframes slideUp { from { transform:translateY(100%); } }
+  .modal-bar { width:36px; height:4px; background:#ccc; border-radius:2px; margin:0 auto 18px; }
+  .modal-title { font-size:16px; font-weight:700; margin-bottom:4px; }
+  .modal-desc { font-size:12px; color:#666; margin-bottom:16px; line-height:1.6; }
+  .modal-field { margin-bottom:14px; }
+  .modal-lbl { font-size:12px; font-weight:700; color:#333; margin-bottom:5px; }
+  .modal-hint { font-size:11px; color:#888; margin-top:4px; }
+
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(60px); background:#fff; border:1px solid #ccc; border-radius:20px; padding:10px 20px; font-size:13px; font-weight:700; transition:transform 0.3s; z-index:999; white-space:nowrap; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+  .toast.ok { border-color:var(--blue-btn); color:var(--blue-dark); }
+  .toast.ng { border-color:var(--red); color:var(--red); }
+  input[type=file] { display:none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">감리</div>
+  <div>
+    <div class="header-title">현장 점검</div>
+    <div class="header-sub" id="headerSub">아파트스퀘어 감리팀</div>
+  </div>
+  <button class="gear-btn" onclick="openModal()">설정</button>
+</div>
+
+<div class="step-bar">
+  <div class="step-dot active" id="sd1">1</div><div class="step-line" id="sl1"></div>
+  <div class="step-dot" id="sd2">2</div><div class="step-line" id="sl2"></div>
+  <div class="step-dot" id="sd3">3</div><div class="step-line" id="sl3"></div>
+  <div class="step-dot" id="sd4">4</div><div class="step-line" id="sl4"></div>
+  <div class="step-dot" id="sd5">5</div><div class="step-line" id="sl5"></div>
+  <div class="step-dot" id="sd6">6</div>
+</div>
+
+<div class="main">
+
+  <!-- Screen 1: 공종 선택 -->
+  <div class="screen active" id="screen1">
+    <div class="card">
+      <div class="card-title">공종 선택</div>
+      <div class="work-grid">
+        <div class="work-btn" onclick="selectWork('외벽 재도장',this)"><div class="work-btn-title">외벽 재도장</div><div class="work-btn-sub">균열보수 및 재도장</div></div>
+        <div class="work-btn" onclick="selectWork('옥상방수',this)"><div class="work-btn-title">옥상방수</div><div class="work-btn-sub">싱글·금속기와·슬라브·PVC</div></div>
+        <div class="work-btn" onclick="selectWork('지하주차장',this)"><div class="work-btn-title">지하주차장</div><div class="work-btn-sub">방수 및 도장</div></div>
+      </div>
+      <div id="roofSubWrap" style="display:none;margin-top:14px;">
+        <div class="field-label" style="margin-bottom:8px;">옥상 공법 선택</div>
+        <div class="sub-grid">
+          <button class="sub-btn" onclick="selectRoofSub('싱글',this)">싱글</button>
+          <button class="sub-btn" onclick="selectRoofSub('금속기와',this)">금속기와</button>
+          <button class="sub-btn" onclick="selectRoofSub('슬라브',this)">슬라브</button>
+          <button class="sub-btn" onclick="selectRoofSub('PVC',this)">PVC</button>
+        </div>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="goStep2()" id="btnStep2" disabled>다음 단계</button>
+  </div>
+
+  <!-- Screen 2: 공정 선택 -->
+  <div class="screen" id="screen2">
+    <div class="card">
+      <div class="card-title">공정 선택</div>
+      <div class="phase-grid">
+        <div class="phase-btn" onclick="selectPhase('착공',this)">
+          
+          <div class="phase-title">착공</div>
+          <div class="phase-sub">자재·장비·안전 점검</div>
+        </div>
+        <div class="phase-btn" onclick="selectPhase('공사중',this)">
+          
+          <div class="phase-title">공사중</div>
+          <div class="phase-sub">시공 진행 상태 점검</div>
+        </div>
+        <div class="phase-btn" onclick="selectPhase('준공',this)">
+          
+          <div class="phase-title">준공</div>
+          <div class="phase-sub">완료·품질 검수</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="goStep3()" id="btnStep3" disabled>다음 단계</button>
+    <button class="btn-secondary" onclick="goScreen(1)">이전으로</button>
+  </div>
+
+  <!-- Screen 3: 현장 정보 -->
+  <div class="screen" id="screen3">
+    <div class="card">
+      <div class="card-title">현장 정보</div>
+      <div class="field-grid">
+        <div class="field full"><div class="field-label">현장명</div><input type="text" id="siteName" placeholder="예: ○○아파트"></div>
+        <div class="field full"><div class="field-label">아파트</div><input type="text" id="aptName" placeholder="예: 래미안 퍼스티지"></div>
+        <div class="field full"><div class="field-label">당일 공사</div><input type="text" id="todayWork" placeholder="예: 101동 외벽 상도 작업"></div>
+        <div class="field"><div class="field-label">점검일</div><input type="date" id="inspDate"></div>
+        <div class="field"><div class="field-label">점검자</div><input type="text" id="inspector" placeholder="예: 홍길동"></div>
+        <div class="field full">
+          <div class="field-label">날씨</div>
+          <div class="weather-grid">
+            <button class="weather-btn" onclick="selectWeather('맑음',this)">맑음</button>
+            <button class="weather-btn" onclick="selectWeather('흐림',this)">흐림</button>
+            <button class="weather-btn" onclick="selectWeather('우천',this)">우천</button>
+            <button class="weather-btn" onclick="selectWeather('강풍',this)">강풍</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="goStep4()">다음 단계</button>
+    <button class="btn-secondary" onclick="goScreen(2)">이전으로</button>
+  </div>
+
+  <!-- Screen 4: 체크리스트 -->
+  <div class="screen" id="screen4">
+    <div class="card" style="padding:14px 18px 18px">
+      <div id="phaseBadgeWrap"></div>
+      <div class="progress-text" id="progressText">0 / 0 항목 완료</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div id="checklistWrap"></div>
+    </div>
+    <button class="btn-primary" onclick="goStep5()">다음 단계</button>
+    <button class="btn-secondary" onclick="goScreen(3)">이전으로</button>
+  </div>
+
+  <!-- Screen 5: 사진 + 특이사항 -->
+  <div class="screen" id="screen5">
+    <div class="card">
+      <div class="card-title">현장 사진</div>
+      <div id="photoUploadBtn" onclick="document.getElementById('fileInput').click()" style="border:2px dashed var(--gray-border);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;background:var(--blue-light);transition:all 0.2s;">
+        <div style="font-size:28px;color:var(--blue-mid);margin-bottom:8px;">+</div>
+        <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:4px;">사진 선택하기</div>
+        <div style="font-size:12px;color:var(--gray-text);">여러 장 동시 선택 가능</div>
+      </div>
+      <div class="photo-grid" id="photoGrid" style="margin-top:10px;"></div>
+      <div id="photoCount" style="font-size:12px;color:var(--gray-text);margin-top:8px;text-align:right;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">특이사항 / 지적사항</div>
+      <div class="field" style="margin-bottom:12px;"><div class="field-label">특기사항</div><textarea id="special" placeholder="특별히 기록할 내용, 발생·조치사항 등을 입력하세요"></textarea></div>
+      <div class="field"><div class="field-label">지적사항 및 처리결과</div><textarea id="issue" placeholder="재시공·공사중지 등 지시내용과 처리결과를 입력하세요"></textarea></div>
+    </div>
+
+    <button class="btn-primary" onclick="goStep6()">전송 확인</button>
+    <button class="btn-secondary" onclick="goScreen(4)">이전으로</button>
+  </div>
+
+  <!-- Screen 6: 저장 -->
+  <div class="screen" id="screen6">
+    <div id="whBanner" class="wh-banner ok" style="display:none">
+      <span id="whBannerText">이 단지 감리보고서에 저장돼요</span>
+      <button class="wh-set-btn" onclick="openModal()">설정</button>
+    </div>
+    <div class="card">
+      <div class="card-title">저장 미리보기</div>
+      <div class="preview-box" id="previewBox"></div>
+    </div>
+    <button class="btn-primary" id="sendBtn" onclick="saveInspection()">앱에 저장하기</button>
+    <button class="btn-secondary" onclick="copyMsg()">메시지 복사만 하기</button>
+    <button class="btn-secondary" onclick="goScreen(5)">이전으로</button>
+  </div>
+
+  <!-- Screen 7: 완료 -->
+  <div class="screen" id="screen7">
+    <div class="card">
+      <div class="done-screen">
+        <div class="done-icon">✓</div>
+        <div class="done-title">저장 완료!</div>
+        <div class="done-sub">이 단지 감리보고서에 저장됐어요.<br>담당·대타 감리사 모두 앱에서 확인할 수 있어요.</div>
+        <button class="btn-primary" onclick="location.href='../index.html'" style="max-width:240px;margin:0 auto 10px;">감리보고서로 돌아가기</button>
+        <button class="btn-secondary" onclick="resetAll()" style="max-width:240px;margin:0 auto;">이 단지 새 점검 작성</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-back" id="modalBack" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-bar"></div>
+    <div class="modal-title">설정</div>
+    <div class="modal-desc">잔디 토픽 → 설정 → 커넥트 → Incoming Webhook → 추가 후 URL 복사<br>채팅창 말고 여기에만 입력하세요!</div>
+    <div class="modal-field"><div class="modal-lbl">잔디 Webhook URL</div><input type="text" id="whUrl" placeholder="https://wh.jandi.com/connect-api/webhook/..."><div class="modal-hint">저장 후 전송 버튼 누르면 잔디로 바로 전송돼요</div></div>
+    <div class="modal-field"><div class="modal-lbl">기본 점검자 이름</div><input type="text" id="defInspector" placeholder="예: 홍길동"><div class="modal-hint">저장하면 매번 입력 안 해도 돼요</div></div>
+    <button class="btn-primary" onclick="saveSettings()">저장하기</button>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" multiple onchange="onPhotoSelected(event)">
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── 아파트스퀘어 앱 연동 ──
+const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
+const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const QS=new URLSearchParams(location.search);
+const APT_ID=QS.get('apt')||'';
+const APT_NAME=QS.get('name')||'';
+const WORK_PARAM=QS.get('work')||'';
+const SUB_PARAM=QS.get('sub')||'';
+let state = { workType:'', roofSub:'', phase:'', weather:'', photos:[], checks:{}, currentPhotoSlot:-1 };
+
+const PHASE_ICONS = { '착공':'', '공사중':'', '준공':'' };
+
+const CL = {
+  '외벽 재도장': {
+    '착공': [
+      { s:'자재 확인', items:[
+        {id:'착1', t:'자재 반입 및 승인',
+          d:'• 도료 제조사·제품명·성적서 확인\n• MSDS(물질안전보건자료) 현장 비치 여부\n• 승인된 자재와 반입 자재 일치 여부'},
+        {id:'착2', t:'자재 보관 상태',
+          d:'• 화기·직사광선 등 위험 요소로부터 안전하게 보관\n• 보관 장소 정리정돈 및 전도 방지 조치\n• 보관 온도·습도 적합 여부'},
+      ]},
+      { s:'안전 준비', items:[
+        {id:'착3', t:'개인 장비·보호구 착용',
+          d:'• 안전대·하강기·안전블록 등 개인장비 점검\n• 장비 이상 유무 일일 점검'},
+        {id:'착4', t:'현장 안전 조치',
+          d:'• 낙하물 방지망 설치 여부\n• 로프 고정점(앙카) 구조 안전성 확인\n• 출입통제 구역 설정 및 감시자 배치\n• 소화기 비치 및 화재감시자 지정'},
+      ]},
+      { s:'행정·공지', items:[
+        {id:'착5', t:'행정 서류 준비',
+          d:'• 재해예방기술지도 계약 여부 (1억원 이상, 30일 이상 시 필수)\n• 비산먼지 신고 완료 및 신고서 사본 비치\n• 공정표 제출/검토 완료'},
+        {id:'착6', t:'입주민 사전 안내',
+          d:'• 작업 일정 및 소음·분진 발생 사전 공지\n• 창문 닫힘, 에어컨 실외기·빨래 정리 안내\n• 보행자 우회 안내 및 출입통제 안내문 부착'},
+      ]},
+    ],
+    '공사중': [
+      { s:'안전 관리', items:[
+        {id:'공0', t:'로프·장비 안전',
+          d:'• 로프작업 2줄 걸이: 주로프·보조로프 2줄 걸이 설치 상태 확인\n• 앙카 안전성: 로프 고정점(앙카) 구조 안전성 확인 (하중 검토)\n• 개인장비: 하강기·안전블록·안전대 등 개인장비 일일 점검'},
+        {id:'공00', t:'현장 통제',
+          d:'• 풍속 확인: 풍속 10m/s 이상 시 작업 중지 여부\n• 출입통제: 지상 출입통제 구역 설정 및 감시자 배치\n• 소화기/화재감시: 소화기 비치 및 화재감시자 배치 여부'},
+      ]},
+      { s:'② 바탕정리 - 고압세척', items:[
+        {id:'공1', t:'세척·비산·배수 처리',
+          d:'• 구도막 제거: 들뜸·박리 부위 완전 제거 진행 여부\n• 비산 방지: 세척수 비산 방지 조치 (인접 세대 창문, 차량, 보행자)\n• 배수 처리: 오염수 유출 방지, 우수관 역류 방지'},
+        {id:'공2', t:'건조 기간',
+          d:'세척 후 건조 기간 확인'},
+      ]},
+      { s:'③ 하지보수', items:[
+        {id:'공3', t:'바탕면·콘크리트 보수',
+          d:'• 바탕면 정리: 균열·들뜸·박리 부위 제거 및 바탕면 정리 완료 여부\n• 콘크리트 보수: 탈락·철근 노출 부위 방청 처리 후 몰탈 보수 완료'},
+        {id:'공4', t:'코킹·누수 처리',
+          d:'• 코킹 점검: 창호 주변·이음부 코킹 상태 점검\n• 누수 방수: 누수 이력 부위 방수 처리 여부'},
+      ]},
+      { s:'③ 균열보수', items:[
+        {id:'공5', t:'보수 및 마감 확인',
+          d:'• 퍼티·몰탈 보수: 균열면 퍼티 및 몰탈 보수 상태 확인 (평활도·밀착 여부)\n• 마감상태 확인: 보수 부위 마감상태 확인 (평활도·주변 청소 완료)\n• 바탕면 확인: 보수 부위 도장 바탕면 적합 여부 확인'},
+      ]},
+      { s:'④ 바인더', items:[
+        {id:'공6', t:'바인더 도포 확인',
+          d:'• 접착 강화 작업: 하지보수 완전 경화 후 바인더 도포 진행 여부\n• 누락 확인: 바인더 도포 누락 구간 확인\n• 건조시간: 바인더 건조시간 준수 확인'},
+      ]},
+      { s:'⑤ 재도장 작업', items:[
+        {id:'공7', t:'색상·도장 시공',
+          d:'• 색상 확인: 최종 색상 시안과 동일 여부 (동별·면별 색상 오차 확인)\n• 도장 시공: 하도·중도·상도 시공 여부 및 공정 간 건조시간 확보 확인\n• 도막 상태: 들뜸, 박리, 흘러내림, 두께 불균일 점검'},
+        {id:'공8', t:'이음부·비산·기상',
+          d:'• 이음부 점검: 층간·면간 도장 이음부 색상 차이 확인\n• 비산 방지: 비산 방지 및 주변 오염 여부 (차량, 조경, 인접 건물)\n• 기상조건: 우천·강풍·직사광선 회피 여부'},
+      ]},
+    ],
+    '준공': [
+      { s:'⑥ 부대시설 복구', items:[
+        {id:'준0', t:'설비·부착물 복구',
+          d:'• 에어컨 복구: 실외기 브라켓·배관 보양 해제 및 원상복구\n• 배수 시설: 우수관·드레인 보양 해제 및 정상 작동 확인\n• 외벽 부착물: 간판, CCTV, 조명 등 원위치 복구\n• 앵커 철거: 로프 고정점(앵커) 철거 후 외벽 마감 복구 확인'},
+      ]},
+      { s:'⑦ 공사 완료 후 점검', items:[
+        {id:'준1', t:'보고서·균일도·사진',
+          d:'• 보고서: 색상확인서, 작업일지, 공정 사진 포함 보고서 제출\n• 균일도 점검: 동별·면별 전체 균일도 육안 점검 완료\n• 공정 사진: 시공 전·중·후 동일 위치 촬영본 확인'},
+        {id:'준2', t:'오염·재균열·민원 대응',
+          d:'• POUR 재균열: POUR공법 보수 부위 재균열 여부 최종 확인\n• 주변 오염: 오염 발생 여부 확인 및 원상복구\n• 민원 대응: 입주민 민원 발생 건 대응 및 결과 보고'},
+      ]},
+      { s:'⑧ 품질 검수', items:[
+        {id:'준3', t:'3자 확인 및 자재 기록',
+          d:'• 3자 확인: 구간별 중간검수 (감리자·시공사·관리소)\n• LOT/잔여자재: 사용 도료 LOT번호 기록, 잔여 도료 수량 확인'},
+      ]},
+    ],
+  },
+  '옥상방수': {
+    '착공': [
+      { s:'자재 확인', items:[
+        {id:'o착1', t:'자재 반입 및 승인',
+          d:'• 방수재 제조사·제품명·성적서 확인\n• MSDS 현장 비치 여부\n• 승인된 자재와 반입 자재 일치 여부'},
+        {id:'o착2', t:'자재 보관 상태',
+          d:'• 화기·직사광선 등 위험 요소로부터 안전하게 보관\n• 보관 장소 정리정돈 및 전도 방지 조치'},
+      ]},
+      { s:'안전 준비', items:[
+        {id:'o착3', t:'현장 안전 조치',
+          d:'• 추락 방지망 설치 여부\n• 안전난간 설치 및 출입통제 구역 설정\n• 개인장비 점검 (안전대, 안전모 등)'},
+      ]},
+      { s:'행정·공지', items:[
+        {id:'o착4', t:'행정 서류 및 입주민 안내',
+          d:'• 공정표 제출 및 우천 시 대체 계획 수립\n• 작업 일정, 소음·분진 발생 사전 공지'},
+      ]},
+    ],
+    '공사중': [
+      { s:'① 바탕 처리', items:[
+        {id:'o공1', t:'청소·보수·건조',
+          d:'• 바탕면 청소: 이물질, 먼지, 오염물 제거 완료 여부\n• 균열 보수: 균열 부위 실링 처리 여부\n• 건조 상태: 바탕면 충분한 건조 여부 확인'},
+      ]},
+      { s:'② 방수 시공', items:[
+        {id:'o공2', t:'방수재 도포·이음부·드레인',
+          d:'• 방수재 도포: 방수재 도포 면적 및 두께 적합 여부\n• 이음부 처리: 이음부 보강 처리 완료 여부\n• 드레인 주변: 드레인 주변 방수 처리 상태 확인'},
+        {id:'o공3', t:'건조 기간',
+          d:'방수재 건조 기간 준수 여부'},
+      ]},
+    ],
+    '준공': [
+      { s:'③ 완료 점검', items:[
+        {id:'o준1', t:'누수 테스트·마감',
+          d:'• 누수 테스트: 담수 테스트 또는 육안 점검 완료\n• 마감 상태: 표면 균일도 및 마감 상태 확인'},
+      ]},
+      { s:'품질 검수', items:[
+        {id:'o준2', t:'공정 사진 및 보고서',
+          d:'• 공정 사진: 시공 전·중·후 사진 촬영 완료\n• 최종 보고서 제출 (작업일지, 담수 테스트 결과 포함)'},
+      ]},
+    ],
+  },
+  '지하주차장': {
+    '착공': [
+      { s:'자재 확인', items:[
+        {id:'g착1', t:'자재 반입 및 승인',
+          d:'• 방수재·도료 제조사·성적서 확인\n• MSDS 현장 비치 여부\n• 승인된 자재와 반입 자재 일치 여부'},
+        {id:'g착2', t:'자재 보관 상태',
+          d:'• 화기·환기 불량 구역으로부터 안전하게 보관\n• 보관 장소 정리정돈 및 전도 방지 조치'},
+      ]},
+      { s:'안전 준비', items:[
+        {id:'g착3', t:'환기·장비 점검',
+          d:'• 환기 시스템 가동 여부 확인\n• 개인 보호구 착용 (방독마스크 등) 확인\n• 차량 통제 구역 설정 및 안내판 설치'},
+      ]},
+      { s:'행정·공지', items:[
+        {id:'g착4', t:'행정 서류 및 입주민 안내',
+          d:'• 공정표 제출 및 작업 계획 수립\n• 차량 통제 일정, 우회 경로 안내 공지'},
+      ]},
+    ],
+    '공사중': [
+      { s:'① 바탕 처리', items:[
+        {id:'g공1', t:'청소·균열·프라이머',
+          d:'• 바탕면 청소: 오염물, 기름, 이물질 완전 제거\n• 균열 보수: 균열 부위 에폭시 주입 또는 실링 처리\n• 프라이머 도포: 프라이머 도포 누락 구간 확인'},
+      ]},
+      { s:'② 방수·도장 시공', items:[
+        {id:'g공2', t:'방수·도장·이음부',
+          d:'• 방수재 도포: 방수재 도포 면적 및 두께 적합 여부\n• 도장 시공: 하도·상도 시공 여부 및 건조시간 확보\n• 이음부 처리: 벽체·바닥 이음부 방수 처리 상태'},
+      ]},
+    ],
+    '준공': [
+      { s:'③ 완료 점검', items:[
+        {id:'g준1', t:'누수·마감',
+          d:'• 누수 점검: 누수 이력 부위 방수 완료 여부\n• 마감 상태: 표면 균일도 및 도막 상태 확인'},
+      ]},
+      { s:'품질 검수', items:[
+        {id:'g준2', t:'공정 사진 및 보고서',
+          d:'• 공정 사진: 시공 전·중·후 사진 촬영 완료\n• 최종 보고서 제출 (작업일지, 검수 결과 포함)'},
+      ]},
+    ],
+  },
+
+  '옥상방수_싱글': {
+    '착공': [
+      { s:'공사 전 준비', items:[
+        {id:'s착1', t:'행정·면허·보험',
+          d:'• 재해예방기술지도: 1억원 이상, 30일 이상 시 필수 계약\n• 비산먼지 신고: 해당 구청 신고 완료, 신고서 사본 비치\n• 공정표 제출: 동별 작업순서, 우천 대체·건조 일정 포함'},
+        {id:'s착2', t:'자재 승인·보관',
+          d:'• 도료 제조사·제품명·성적서 확인, MSDS 현장 비치\n• 원포장 반입, 봉인 확인, 우천·직사광선 차단\n• LOT번호 기록, 잔여 자재 수량 관리'},
+        {id:'s착3', t:'안전 조치 계획',
+          d:'• 낙하물 방지망, 보행자 우회 안내, 출입통제 구역 설정\n• 경사 추락방지 시설, 안전로프 고정점 확인'},
+        {id:'s착4', t:'입주민 사전 안내',
+          d:'• 공사안내 방송 실시\n• 작업 일정, 소음·분진 발생 안내'},
+      ]},
+    ],
+    '공사중': [
+      { s:'① 기존 상태 확인', items:[
+        {id:'s공1', t:'싱글·루핑·바탕면 상태',
+          d:'• 싱글·루핑: 들뜸·파손·탈락·찢어짐 부위 파악\n• 합판(데크): 부식·변형·처짐 여부\n• 바탕면 정리: 이물질·이끼·오염 제거 완료'},
+      ]},
+      { s:'② HOOKER 후레싱·자재 검수', items:[
+        {id:'s공2', t:'HOOKER 시공·자재 확인',
+          d:'• HOOKER 시공: 지붕 끝단 후레싱에 POUR HOOKER 보강\n• 지정 자재: 공법개발자 지정 제품만 사용'},
+      ]},
+      { s:'③ 코너·이음부 보강', items:[
+        {id:'s공3', t:'코트재Ⅰ + 시트 보강',
+          d:'• 코트재Ⅰ 도포 후 압축강화시트 부착\n• 방수보호판 실리콘 마감부까지 시트 치켜올림\n• 배관·환기구 주변 방수 보강'},
+      ]},
+      { s:'④ 하도 + 시트 부착', items:[
+        {id:'s공4', t:'시트 접착·함침',
+          d:'• 시트 접착: 붓/손바닥으로 뜨지 않게 고르게 문질러 접착\n• 방수콘크리트 함침: 시트에 들이부어 붓/롤러로 충분히 함침\n• 입자 불규칙 분포 = 정상 (하자 아님)'},
+      ]},
+      { s:'⑤ 중도 도포', items:[
+        {id:'s공5', t:'중도 시공·건조',
+          d:'• 건조 확인: 손에 묻어나지 않을 때 다음 공정 진행\n• 코트재Ⅱ 원액, 중도 1차 건조 후 시공\n• 코트재Ⅱ 도포 후 충분 건조'},
+      ]},
+      { s:'⑥ 상도 도포', items:[
+        {id:'s공6', t:'상도코트재 시공',
+          d:'• 상도코트재 원액, 롤러/붓 균일 시공\n• 두께 편차·핀홀·기포 없는지 확인'},
+      ]},
+    ],
+    '준공': [
+      { s:'⑦ 부대시설 복구·완료 후 점검', items:[
+        {id:'s준1', t:'설비 복구·사진·보고서',
+          d:'• 공정 사진: 시공 전·중·후 동일 위치 촬영본 확인\n• 완료 보고서: 자재확인서·작업일지·사진 포함 제출'},
+      ]},
+      { s:'⑧ 품질 검수', items:[
+        {id:'s준2', t:'3자 검수·LOT 기록',
+          d:'• 3자 중간검수: 감리자·시공사·관리소 구간별 확인\n• LOT/잔여자재: 사용 도료 LOT번호 기록, 잔여 수량 확인'},
+      ]},
+    ],
+  },
+  '옥상방수_금속기와': {
+    '착공': [
+      { s:'공사 전 준비', items:[
+        {id:'k착1', t:'행정·면허·보험',
+          d:'• 방수공사업 등록증, 산재·공사보험 가입 확인\n• 공정표: 동별 작업순서, 우천 대체·건조 일정 포함'},
+        {id:'k착2', t:'자재 승인·보관',
+          d:'• 지정 제품 여부, 성적서·MSDS 비치\n• 원포장 반입, 봉인 확인, 우천·직사광선 차단\n• LOT번호 기록, 잔여 자재 수량 관리'},
+        {id:'k착3', t:'안전 조치 계획',
+          d:'• 경사 추락방지 시설, 안전로프 고정점 확인\n• 출입통제 구역 설정'},
+        {id:'k착4', t:'입주민 사전 안내',
+          d:'작업 일정, 소음·분진 발생 안내'},
+      ]},
+    ],
+    '공사중': [
+      { s:'① 기존 상태 확인', items:[
+        {id:'k공1', t:'금속기와·바탕면 상태',
+          d:'• 금속기와·칼라강판: 들뜸·파손·도막 박리·녹 발생 부위 파악\n• 후레싱 상태: 탈락·들뜸 확인, 실링재 노화 점검\n• 바탕면 정리: 이물질·이끼·들뜬 도막 제거 완료'},
+      ]},
+      { s:'② HOOKER 후레싱·자재 검수', items:[
+        {id:'k공2', t:'HOOKER 시공·자재 확인',
+          d:'• HOOKER 시공: 지붕 끝단 후레싱에 POUR HOOKER 보강\n• 실측 후 맞춤 제작, 들뜸 부위 전용 못 보강\n• 지정 자재: 공법개발자 지정 제품만 사용'},
+      ]},
+      { s:'③ 코너·이음부 보강', items:[
+        {id:'k공3', t:'코트재Ⅰ + 시트 보강',
+          d:'• 코트재Ⅰ 도포 후 압축강화시트 부착\n• 방수보호판 실리콘 마감부까지 시트 치켜올림\n• 배관·환기구·벤츄레타 주변 방수 보강'},
+      ]},
+      { s:'④ 이음부 시트 보강', items:[
+        {id:'k공4', t:'이음부 위치 파악·시트 부착',
+          d:'• 금속기와·칼라강판 이음부 전체 위치 파악 및 표기\n• 슈퍼복합압축시트 이음부 압착, 들뜸 없이 부착'},
+      ]},
+      { s:'⑤ 표면강화함침액 + 시트 전개', items:[
+        {id:'k공5', t:'함침액 도포·시트 전개',
+          d:'• 표면강화함침액 붓/롤러로 균일 도포, 충분히 침투\n• 전면에 시트 전개, 겹침 50mm 이상, 팽팽하게 부착\n• 롤러로 충분히 압착, 기포·들뜸 없음 확인'},
+      ]},
+      { s:'⑥ 중도·상도 도포', items:[
+        {id:'k공6', t:'중도·상도 시공',
+          d:'• 중도 1차: 코트재Ⅰ:물=5:5, 균일 도포\n• 건조 확인: 손에 묻어나지 않을 때 다음 공정 진행\n• 중도 2차: 코트재Ⅱ 원액, 중도 1차 건조 후 시공\n• 상도코트재 원액, 롤러/붓 균일 시공, 두께 편차 없음 확인'},
+      ]},
+    ],
+    '준공': [
+      { s:'⑦ 부대시설 복구·완료 후 점검', items:[
+        {id:'k준1', t:'설비 복구·사진·보고서',
+          d:'• 안테나·태양광·환기구·벤츄레타 원위치 복구\n• 공정 사진: 시공 전·중·후 동일 위치 촬영본 확인\n• 완료 보고서: 자재확인서·작업일지·사진 포함 제출'},
+      ]},
+      { s:'⑧ 품질 검수', items:[
+        {id:'k준2', t:'3자 검수·LOT 기록',
+          d:'• 3자 중간검수: 감리자·시공사·관리소 구간별 확인\n• LOT/잔여자재: 사용 도료 LOT번호 기록, 잔여 수량 확인'},
+      ]},
+    ],
+  },
+  '옥상방수_슬라브': {
+    '착공': [
+      { s:'공사 전 준비', items:[
+        {id:'sl착1', t:'행정·면허·보험',
+          d:'• 방수공사업 등록증, 산재·공사보험 가입 확인\n• 공정표: 동별 작업순서, 우천 대체·건조 일정 포함'},
+        {id:'sl착2', t:'자재 승인·보관',
+          d:'• 지정 제품 여부, 성적서·MSDS 비치\n• 원포장 반입, 봉인 확인, 우천·직사광선 차단\n• LOT번호 기록, 잔여 자재 수량 관리'},
+        {id:'sl착3', t:'안전 조치 계획',
+          d:'• 경사 추락방지 시설, 안전로프 고정점 확인\n• 출입통제 구역 설정'},
+        {id:'sl착4', t:'입주민 사전 안내',
+          d:'작업 일정, 소음·분진 발생 안내'},
+      ]},
+    ],
+    '공사중': [
+      { s:'① 기존 상태 확인', items:[
+        {id:'sl공1', t:'배수로·바탕면 상태',
+          d:'• 배수로 상태: 방수층 탈락·물고임·균열·이음부 누수 부위 파악\n• 바탕면 정리: 이물질·이끼·들뜬 도막·오염물 제거 완료'},
+      ]},
+      { s:'② 자재 검수 [POUR]', items:[
+        {id:'sl공2', t:'자재 검수',
+          d:'• 지정 자재: 공법개발자 지정 제품만 사용\n• 원포장 반입, 봉인 확인, 우천·직사광선 차단'},
+      ]},
+      { s:'③ 코트재Ⅰ + 복합시트 전개', items:[
+        {id:'sl공3', t:'코트재Ⅰ 도포·시트 전개',
+          d:'• 코트재Ⅰ 원액 롤러로 바탕면 균일 도포\n• 코트재Ⅰ 도포 후 동시에 복합시트 전개, 붓/손바닥으로 밀착 부착\n• 시트 3~10cm 겹침, 기포·들뜸 없이 압착 확인'},
+      ]},
+      { s:'④ 이음부·코너 보강', items:[
+        {id:'sl공4', t:'이음부·치켜올림·관통부',
+          d:'• 시트 이음부: 코트재Ⅰ 도포 후 슈퍼복합압축시트 부착\n• 치켜올림: 방수보호판 실리콘 마감부까지 시트 치켜올림\n• 관통부·코너: 배관·환기구·슬라브 코너 부위 보강'},
+      ]},
+      { s:'⑤ 코트재Ⅱ 도포 (중도)', items:[
+        {id:'sl공5', t:'중도 시공·건조',
+          d:'• 코트재Ⅱ 원액, 롤러/붓 균일 시공\n• 건조 확인: 손에 묻어나지 않을 때 다음 공정 진행\n• 핀홀·기포·뭉침 없음 육안 확인'},
+      ]},
+      { s:'⑥ 상도코트재 도포', items:[
+        {id:'sl공6', t:'상도 시공',
+          d:'• 상도코트재 원액, 롤러/붓 균일 시공\n• 두께 편차·핀홀·기포 없는지 확인'},
+      ]},
+    ],
+    '준공': [
+      { s:'⑦ 완료 후 점검', items:[
+        {id:'sl준1', t:'사진·보고서',
+          d:'• 공정 사진: 시공 전·중·후 동일 위치 촬영본 확인\n• 완료 보고서: 자재확인서·작업일지·사진 포함 제출'},
+      ]},
+      { s:'⑧ 품질 검수', items:[
+        {id:'sl준2', t:'3자 검수·방수층 육안·시공조건',
+          d:'• 3자 중간검수: 감리자·시공사·관리소 구간별 확인\n• 방수층 육안: 파손·들뜸·균열·물고임 육안 확인\n• 시공 조건: 5℃ 이하·우천·결로 시 작업중지 / POUR 시방서 준수'},
+      ]},
+    ],
+  },
+  '옥상방수_PVC': {
+    '착공': [
+      { s:'공사 전 준비', items:[
+        {id:'pvc착1', t:'행정·면허·보험',
+          d:'• 방수공사업 등록증, 산재·공사보험 가입 확인\n• 공정표: 동별 작업순서, 우천 대체·건조 일정 포함'},
+        {id:'pvc착2', t:'자재 승인·보관',
+          d:'• 지정 제품 여부, 성적서·MSDS 비치\n• 원포장 반입, 봉인 확인, 우천·직사광선 차단\n• LOT번호 기록, 잔여 자재 수량 관리'},
+        {id:'pvc착3', t:'안전 조치 계획',
+          d:'• 경사 추락방지 시설, 안전로프 고정점 확인\n• 출입통제 구역 설정'},
+        {id:'pvc착4', t:'입주민 사전 안내',
+          d:'작업 일정, 소음·분진 발생 안내'},
+      ]},
+    ],
+    '공사중': [
+      { s:'① 기존 상태 확인', items:[
+        {id:'pvc공1', t:'배수로·바탕면 상태',
+          d:'• 배수로 상태: 방수층 탈락·물고임·균열·이음부 누수 부위 파악\n• 바탕면 정리: 이물질·이끼·들뜬 도막·오염물 제거 완료'},
+      ]},
+      { s:'② 자재 검수', items:[
+        {id:'pvc공2', t:'자재 검수',
+          d:'• 지정 자재: 공법개발자 지정 제품만 사용\n• 원포장 반입, 봉인 확인, 우천·직사광선 차단'},
+      ]},
+      { s:'③ 코트재Ⅰ + 복합시트 전개', items:[
+        {id:'pvc공3', t:'코트재Ⅰ 도포·시트 전개',
+          d:'• 코트재Ⅰ 원액 롤러로 바탕면 균일 도포\n• 코트재Ⅰ 도포 후 동시에 복합시트 전개, 붓/손바닥으로 밀착 부착\n• 시트 3~10cm 겹침, 기포·들뜸 없이 압착 확인'},
+      ]},
+      { s:'④ 이음부·코너 보강', items:[
+        {id:'pvc공4', t:'이음부·치켜올림·관통부',
+          d:'• 시트 이음부: 코트재Ⅰ 도포 후 슈퍼복합압축시트 부착\n• 치켜올림: 방수보호판 실리콘 마감부까지 시트 치켜올림\n• 관통부·코너: 배관·환기구·슬라브 코너 부위 보강'},
+      ]},
+      { s:'⑤ 코트재Ⅱ 도포 (중도)', items:[
+        {id:'pvc공5', t:'중도 시공·건조',
+          d:'• 코트재Ⅱ 원액, 롤러/붓 균일 시공\n• 건조 확인: 손에 묻어나지 않을 때 다음 공정 진행\n• 핀홀·기포·뭉침 없음 육안 확인'},
+      ]},
+      { s:'⑥ 상도코트재 도포', items:[
+        {id:'pvc공6', t:'상도 시공',
+          d:'• 상도코트재 원액, 롤러/붓 균일 시공\n• 두께 편차·핀홀·기포 없는지 확인'},
+      ]},
+    ],
+    '준공': [
+      { s:'⑦ 완료 후 점검', items:[
+        {id:'pvc준1', t:'사진·보고서',
+          d:'• 공정 사진: 시공 전·중·후 동일 위치 촬영본 확인\n• 완료 보고서: 자재확인서·작업일지·사진 포함 제출'},
+      ]},
+      { s:'⑧ 품질 검수', items:[
+        {id:'pvc준2', t:'3자 검수·방수층 육안·시공조건',
+          d:'• 3자 중간검수: 감리자·시공사·관리소 구간별 확인\n• 방수층 육안: 파손·들뜸·균열·물고임 육안 확인\n• 시공 조건: 5℃ 이하·우천·결로 시 작업중지'},
+      ]},
+    ],
+  },
+};
+
+document.getElementById('inspDate').valueAsDate = new Date();
+initPhotoGrid(); loadSettings(); updateBanner();
+
+// ── 앱에서 넘어온 단지 정보 자동 채우기 ──
+if (APT_NAME) { const s=document.getElementById('siteName'); if(s)s.value=APT_NAME; }
+;(async () => {
+  try {
+    const { data:{ user } } = await sb.auth.getUser();
+    if (user) { const { data:p } = await sb.from('profiles').select('name').eq('id', user.id).single(); if (p && p.name) { const el=document.getElementById('inspector'); if (el && !el.value) el.value=p.name; } }
+  } catch(e){}
+})();
+// 공종 자동 선택 (단지 정보 기준)
+if (WORK_PARAM) {
+  document.querySelectorAll('.work-btn').forEach(b => { const oc=b.getAttribute('onclick')||''; if (oc.includes("'"+WORK_PARAM+"'")) b.click(); });
+  if (SUB_PARAM) setTimeout(() => { document.querySelectorAll('#roofSubWrap [onclick]').forEach(b => { const oc=b.getAttribute('onclick')||''; if (oc.includes("'"+SUB_PARAM+"'")) b.click(); }); }, 30);
+}
+
+function loadSettings() {
+  document.getElementById('whUrl').value = localStorage.getItem('jandi_wh') || '';
+  const di = localStorage.getItem('jandi_insp') || '';
+  document.getElementById('defInspector').value = di;
+  if (di) document.getElementById('inspector').value = di;
+}
+function saveSettings() {
+  localStorage.setItem('jandi_wh', document.getElementById('whUrl').value.trim());
+  const di = document.getElementById('defInspector').value.trim();
+  localStorage.setItem('jandi_insp', di);
+  if (di) document.getElementById('inspector').value = di;
+  closeModal(); updateBanner(); showToast('설정 저장 완료', 'ok');
+}
+function updateBanner() {
+  const wh = localStorage.getItem('jandi_wh');
+  const banner = document.getElementById('whBanner');
+  if (wh) {
+    banner.className = 'wh-banner ok';
+    document.getElementById('whBannerText').textContent = '잔디 연동 완료';
+    banner.querySelector('.wh-set-btn').textContent = '수정';
+  } else {
+    banner.className = 'wh-banner';
+    document.getElementById('whBannerText').textContent = 'Webhook URL이 설정되지 않았어요';
+    banner.querySelector('.wh-set-btn').textContent = '설정하기';
+  }
+}
+function goScreen(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen'+n).classList.add('active');
+  const total = 6;
+  for(let i=1;i<=total;i++){
+    const d=document.getElementById('sd'+i);
+    if(!d) continue;
+    d.className='step-dot';
+    if(i<n)d.classList.add('done');
+    else if(i===n)d.classList.add('active');
+  }
+  for(let i=1;i<=total-1;i++){
+    const l=document.getElementById('sl'+i);
+    if(!l) continue;
+    l.className='step-line';
+    if(i<n)l.classList.add('done');
+  }
+  window.scrollTo(0,0);
+}
+function selectWork(type,btn) {
+  document.querySelectorAll('.work-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected'); state.workType=type; state.roofSub='';
+  document.querySelectorAll('.sub-btn').forEach(b=>b.classList.remove('selected'));
+  if(type==='옥상방수'){document.getElementById('roofSubWrap').style.display='block';document.getElementById('btnStep2').disabled=true;}
+  else{document.getElementById('roofSubWrap').style.display='none';document.getElementById('btnStep2').disabled=false;}
+}
+function selectRoofSub(sub,btn) {
+  document.querySelectorAll('.sub-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected'); state.roofSub=sub;
+  document.getElementById('btnStep2').disabled=false;
+}
+function selectPhase(phase,btn) {
+  document.querySelectorAll('.phase-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected'); state.phase=phase;
+  document.getElementById('btnStep3').disabled=false;
+}
+function goStep2(){
+  if(!state.workType)return showToast('공종을 선택해주세요','ng');
+  const label=state.workType==='옥상방수'?`옥상방수 (${state.roofSub})`:state.workType;
+  document.getElementById('headerSub').textContent=label;
+  goScreen(2);
+}
+function goStep3(){if(!state.phase)return showToast('공정을 선택해주세요','ng');goScreen(3);}
+function goStep4(){if(!document.getElementById('siteName').value)return showToast('현장명을 입력해주세요','ng');renderChecklist();goScreen(4);}
+function goStep5(){goScreen(5);}
+function goStep6(){updatePreview();goScreen(6);}
+function selectWeather(w,btn){document.querySelectorAll('.weather-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');state.weather=w;}
+
+function renderChecklist(){
+  let clKey = state.workType;
+  if (state.workType === '옥상방수') clKey = '옥상방수_' + state.roofSub;
+  const workData = CL[clKey];
+  const secs = workData ? (workData[state.phase]||[]) : [];
+  state.checks={};
+  const badgeEl = document.getElementById('phaseBadgeWrap');
+  badgeEl.innerHTML=`<div class="phase-badge ${state.phase}">${state.phase}</div>`;
+  let html='';
+  secs.forEach(sec=>{
+    html+=`<div class="section-title">${sec.s}</div>`;
+    sec.items.forEach(item=>{
+      state.checks[item.id]='';
+      const descHtml=item.d.replace(/\n/g,'<br>');
+      html+=`<div class="check-item" id="ci_${item.id}">
+        <div class="check-item-title">${item.t}</div>
+        <div class="check-item-desc">${descHtml}</div>
+        <div class="check-btns">
+          <button class="check-btn ok" onclick="setCheck('${item.id}','ok',this)">적합</button>
+          <button class="check-btn ng" onclick="setCheck('${item.id}','ng',this)">부적합</button>
+          <button class="check-btn na" onclick="setCheck('${item.id}','na',this)">해당없음</button>
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('checklistWrap').innerHTML=html;
+  updateProgress();
+}
+function setCheck(id,val,btn){document.getElementById('ci_'+id).querySelectorAll('.check-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');state.checks[id]=val;updateProgress();}
+function updateProgress(){
+  const total=Object.keys(state.checks).length;
+  const done=Object.values(state.checks).filter(v=>v!=='').length;
+  document.getElementById('progressText').textContent=`${done} / ${total} 항목 완료`;
+  document.getElementById('progressFill').style.width=(total?Math.round(done/total*100):0)+'%';
+}
+function initPhotoGrid(){
+  const grid=document.getElementById('photoGrid'); grid.innerHTML='';
+  const cnt=document.getElementById('photoCount'); if(cnt)cnt.textContent='';
+  state.photos=[];
+}
+
+function onPhotoSelected(e){
+  const files=Array.from(e.target.files);
+  if(!files.length)return;
+  const remaining=6-state.photos.length;
+  const toLoad=files.slice(0,remaining);
+  if(files.length>remaining)showToast(`최대 6장까지 가능해요 (${remaining}장 추가됨)`,'ok');
+  toLoad.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      state.photos.push(ev.target.result);
+      renderPhotoGrid();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value='';
+}
+function renderPhotoGrid(){
+  const grid=document.getElementById('photoGrid');
+  grid.innerHTML='';
+  state.photos.forEach((src,i)=>{
+    grid.innerHTML+=`<div class="photo-slot filled" id="slot_${i}"><img src="${src}"><button class="photo-remove" onclick="removePhoto(event,${i})">×</button></div>`;
+  });
+  const cnt=document.getElementById('photoCount');
+  if(cnt)cnt.textContent=state.photos.length>0?`${state.photos.length}장 선택됨`:'';
+  const btn=document.getElementById('photoUploadBtn');
+  if(btn){
+    if(state.photos.length>=6){btn.style.display='none';}
+    else{btn.style.display='block';}
+  }
+}
+function removePhoto(e,idx){
+  e.stopPropagation();
+  state.photos.splice(idx,1);
+  renderPhotoGrid();
+}
+// 공종별 감리착안사항
+const GAMLRI_ITEMS = {
+  '외벽 재도장': [
+    {착안:'자재성능 관련 서류', 내용:'자재 성능 관련 서류 확인'},
+    {착안:'마감상태 육안', 내용:'마감상태 육안 확인'},
+    {착안:'균열보수 바탕면', 내용:'균열보수 바탕면 확인'},
+    {착안:'도막할 곳 주변 보양', 내용:'도막할 곳 주변, 도장이 끝난 면에 오염·손상을 주지 않도록 보호를 위한 보양 확인'},
+    {착안:'도막의 결함', 내용:'도장시 발생한 도막의 결함 확인'},
+  ],
+  '옥상방수_싱글': [
+    {착안:'자재성능 관련 서류', 내용:'방수재 성능 관련 서류 및 MSDS 확인'},
+    {착안:'싱글·루핑 상태', 내용:'들뜸·파손·탈락·찢어짐 부위 파악 및 바탕면 정리 확인'},
+    {착안:'HOOKER 후레싱 보강', 내용:'지붕 끝단 후레싱 POUR HOOKER 보강 확인'},
+    {착안:'시트 접착 및 함침', 내용:'복합시트 접착 상태 및 방수콘크리트 함침 상태 확인'},
+    {착안:'중도·상도 시공', 내용:'코트재 도포 두께 및 건조 상태 확인'},
+  ],
+  '옥상방수_금속기와': [
+    {착안:'자재성능 관련 서류', 내용:'방수재 성능 관련 서류 및 MSDS 확인'},
+    {착안:'금속기와·칼라강판 상태', 내용:'들뜸·파손·도막 박리·녹 발생 부위 파악 확인'},
+    {착안:'HOOKER 후레싱 보강', 내용:'지붕 끝단 후레싱 POUR HOOKER 보강 및 맞춤 제작 확인'},
+    {착안:'이음부 시트 보강', 내용:'슈퍼복합압축시트 이음부 압착 상태 확인'},
+    {착안:'중도·상도 시공', 내용:'코트재 배합비 및 도포 두께, 건조 상태 확인'},
+  ],
+  '옥상방수_슬라브': [
+    {착안:'자재성능 관련 서류', 내용:'방수재 성능 관련 서류 및 MSDS 확인'},
+    {착안:'배수로·바탕면 상태', 내용:'방수층 탈락·물고임·균열·이음부 누수 부위 파악'},
+    {착안:'복합시트 전개', 내용:'코트재Ⅰ 도포 후 복합시트 밀착 부착 및 겹침 확인'},
+    {착안:'이음부·코너 보강', 내용:'슈퍼복합압축시트 이음부·코너·관통부 보강 확인'},
+    {착안:'중도·상도 시공', 내용:'코트재Ⅱ 및 상도코트재 도포 두께, 건조 상태 확인'},
+  ],
+  '옥상방수_PVC': [
+    {착안:'자재성능 관련 서류', 내용:'방수재 성능 관련 서류 및 MSDS 확인'},
+    {착안:'배수로·바탕면 상태', 내용:'방수층 탈락·물고임·균열·이음부 누수 부위 파악'},
+    {착안:'복합시트 전개', 내용:'코트재Ⅰ 도포 후 복합시트 밀착 부착 및 겹침 확인'},
+    {착안:'이음부·코너 보강', 내용:'슈퍼복합압축시트 이음부·코너·관통부 보강 확인'},
+    {착안:'중도·상도 시공', 내용:'코트재Ⅱ 및 상도코트재 도포 두께, 건조 상태 확인'},
+  ],
+  '지하주차장': [
+    {착안:'자재성능 관련 서류', 내용:'방수재·도료 성능 관련 서류 확인'},
+    {착안:'바탕면 상태', 내용:'바탕면 청소 및 이물질 제거 확인'},
+    {착안:'방수·도장 시공 상태', 내용:'방수재 도포 두께 및 도장 시공 상태 확인'},
+    {착안:'이음부 처리', 내용:'벽체·바닥 이음부 방수 처리 확인'},
+  ],
+};
+
+function buildGamriLog(){
+  const wl=state.workType==='옥상방수'?`옥상방수 (${state.roofSub})`:state.workType;
+  const site=document.getElementById('siteName').value||'';
+  const apt=document.getElementById('aptName').value||'';
+  const date=document.getElementById('inspDate').value||'';
+  const weather=state.weather||'';
+  const insp=document.getElementById('inspector').value||'';
+  const special=document.getElementById('special').value||'없음';
+  const issue=document.getElementById('issue').value||'없음';
+  let gamriKey=state.workType;
+  if(state.workType==='옥상방수') gamriKey='옥상방수_'+state.roofSub;
+  const items=GAMLRI_ITEMS[gamriKey]||GAMLRI_ITEMS[state.workType]||[];
+
+  let log='';
+  log+='┌────────────────────────────────┐\n';
+  log+='│          공사감리일지            │\n';
+  log+='└────────────────────────────────┘\n';
+  log+=`공사감리자: 조현식 | 감리원: ${insp}\n`;
+  log+=`공사명: ${site}${apt?' ('+apt+')':''} ${wl}\n`;
+  log+=`날짜: ${date} | 날씨: ${weather}\n`;
+  log+='━━━━━━━━━━━━━━━━━━━━\n';
+  log+='[작업사항]\n';
+  log+=`공종: ${wl}\n\n`;
+  items.forEach(item=>{
+    log+=`▪ ${item.착안}\n  → ${item.내용}\n`;
+  });
+  log+='━━━━━━━━━━━━━━━━━━━━\n';
+  log+=`[특기사항]\n${special}\n`;
+  log+='━━━━━━━━━━━━━━━━━━━━\n';
+  log+=`[지적사항 및 처리결과]\n${issue}\n`;
+  log+='━━━━━━━━━━━━━━━━━━━━\n';
+  log+='아파트스퀘어 감리팀';
+  return log;
+}
+
+function buildMsg(){
+  const wl=state.workType==='옥상방수'?`옥상방수 (${state.roofSub})`:state.workType;
+  const site=document.getElementById('siteName').value||'(미입력)';
+  const apt=document.getElementById('aptName').value||'';
+  const tw=document.getElementById('todayWork').value||'';
+  const date=document.getElementById('inspDate').value||'';
+  const insp=document.getElementById('inspector').value||'(미입력)';
+  const weather=state.weather||'(미선택)';
+  const special=document.getElementById('special').value||'';
+  const issue=document.getElementById('issue').value||'';
+  const photoCount=state.photos.filter(p=>p!==null).length;
+  let clKey=state.workType;
+  if(state.workType==='옥상방수') clKey='옥상방수_'+state.roofSub;
+  const workData=CL[clKey];
+  const secs=workData?(workData[state.phase]||[]):[];
+  let ngItems=[];
+  secs.forEach(sec=>sec.items.forEach(item=>{if(state.checks[item.id]==='ng')ngItems.push(`• ${item.t}`);}));
+  const total=Object.keys(state.checks).length;
+  const okCount=Object.values(state.checks).filter(v=>v==='ok').length;
+  const ngCount=Object.values(state.checks).filter(v=>v==='ng').length;
+  const naCount=Object.values(state.checks).filter(v=>v==='na').length;
+
+  // 점검 보고서
+  let msg=`[현장 점검 보고서 - ${state.phase}]\n━━━━━━━━━━━━━━━━━━━━\n`;
+  msg+=`현장명: ${site}${apt?' ('+apt+')':''}\n공종: ${wl}\n당일 공사: ${tw}\n점검일: ${date}\n점검자: ${insp}\n날씨: ${weather}\n`;
+  msg+=`━━━━━━━━━━━━━━━━━━━━\n`;
+  msg+=`체크리스트: 적합 ${okCount} / 부적합 ${ngCount} / 해당없음 ${naCount} (총 ${total}항목)\n`;
+  if(ngItems.length>0)msg+=`\n[부적합 항목]\n${ngItems.join('\n')}\n`;
+  if(special)msg+=`\n[특기사항]\n${special}\n`;
+  if(issue)msg+=`\n[지적사항 및 처리결과]\n${issue}\n`;
+  msg+=`\n사진: ${photoCount}장 첨부\n`;
+  msg+='\n\n';
+
+  // 감리일지
+  msg += buildGamriLog();
+
+  return msg;
+}
+function updatePreview(){const el=document.getElementById('previewBox');if(el)el.textContent=buildMsg();}
+async function uploadPhotoDataUrl(dataUrl,i){
+  try{
+    const res=await fetch(dataUrl); const blob=await res.blob();
+    const ext=((blob.type||'image/jpeg').split('/')[1]||'jpg').replace('jpeg','jpg');
+    const path='insp_'+Date.now()+'_'+i+'_'+Math.round(Math.random()*1e6)+'.'+ext;
+    const{error}=await sb.storage.from('report-photos').upload(path,blob,{contentType:blob.type||'image/jpeg',upsert:false});
+    if(error)return null;
+    return sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
+  }catch(e){return null;}
+}
+async function saveInspection(){
+  if(!APT_ID){ showToast('단지 정보가 없어요. 앱에서 단지를 열고 작성해 주세요','ng'); return; }
+  const btn=document.getElementById('sendBtn'); btn.disabled=true; btn.textContent='저장 중...';
+  try{
+    const { data:{ user } } = await sb.auth.getUser();
+    if(!user){ showToast('로그인이 필요해요. 앱에서 열어주세요','ng'); btn.disabled=false; btn.textContent='앱에 저장하기'; return; }
+    // 사진 업로드
+    const urls=[]; const photos=state.photos.filter(p=>p);
+    for(let i=0;i<photos.length;i++){ btn.textContent=`사진 저장 중... (${i+1}/${photos.length})`; const u=await uploadPhotoDataUrl(photos[i],i); if(u)urls.push(u); }
+    const wl=state.workType==='옥상방수'?`옥상방수 (${state.roofSub})`:state.workType;
+    const date=document.getElementById('inspDate').value||'';
+    const title=`[점검·${state.phase}] ${wl||'현장 점검'}${date?' · '+date:''}`;
+    btn.textContent='저장 중...';
+    const{error}=await sb.from('reports').insert({ apartment_id:APT_ID, author_id:user.id, title, content:buildMsg(), stage:state.phase||null, photos:urls });
+    if(error){ showToast('저장 실패: '+error.message,'ng'); btn.disabled=false; btn.textContent='앱에 저장하기'; return; }
+    showToast('저장 완료!','ok'); goScreen(7);
+  }catch(e){ showToast('오류: '+e.message,'ng'); btn.disabled=false; btn.textContent='앱에 저장하기'; }
+}
+function copyMsg(){navigator.clipboard.writeText(buildMsg()).then(()=>showToast('복사 완료!','ok'));}
+function resetAll(){
+  state={workType:'',roofSub:'',phase:'',weather:'',photos:[],checks:{},currentPhotoSlot:-1};
+  ['siteName','aptName','todayWork','special','issue','serialNo','supervisor','contractor'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  document.getElementById('inspDate').valueAsDate=new Date();
+  document.getElementById('inspector').value=localStorage.getItem('jandi_insp')||'';
+  document.querySelectorAll('.work-btn,.weather-btn,.sub-btn,.phase-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('roofSubWrap').style.display='none';
+  document.getElementById('btnStep2').disabled=true;
+  document.getElementById('btnStep3').disabled=true;
+  document.getElementById('headerSub').textContent='아파트스퀘어 감리팀';
+  document.getElementById('sendBtn').disabled=false;
+  document.getElementById('sendBtn').textContent='앱에 저장하기';
+  // 단지 정보 다시 채우기
+  if(APT_NAME){const s=document.getElementById('siteName');if(s)s.value=APT_NAME;}
+  if(WORK_PARAM){document.querySelectorAll('.work-btn').forEach(b=>{const oc=b.getAttribute('onclick')||'';if(oc.includes("'"+WORK_PARAM+"'"))b.click();});if(SUB_PARAM)setTimeout(()=>{document.querySelectorAll('#roofSubWrap [onclick]').forEach(b=>{const oc=b.getAttribute('onclick')||'';if(oc.includes("'"+SUB_PARAM+"'"))b.click();});},30);}
+  initPhotoGrid(); goScreen(1);
+}
+function openModal(){document.getElementById('modalBack').classList.add('open');}
+function closeModal(e){if(!e||e.target===document.getElementById('modalBack'))document.getElementById('modalBack').classList.remove('open');}
+
+function printGamriLog() {
+  const wl = state.workType === '옥상방수' ? `옥상방수 (${state.roofSub})` : state.workType;
+  const site = document.getElementById('siteName').value || '';
+  const apt = document.getElementById('aptName').value || '';
+  const date = document.getElementById('inspDate').value || '';
+  const weather = state.weather || '';
+  const insp = document.getElementById('inspector').value || '';
+  const special = document.getElementById('special').value || '해당 없음';
+  const issue = document.getElementById('issue').value || '해당 없음';
+
+  let gamriKey = state.workType;
+  if (state.workType === '옥상방수') gamriKey = '옥상방수_' + state.roofSub;
+  const items = GAMLRI_ITEMS[gamriKey] || GAMLRI_ITEMS[state.workType] || [];
+
+  // 부적합 항목
+  const secs = (CL[gamriKey] || CL[state.workType] || {})[state.phase] || [];
+  let ngItems = [];
+  secs.forEach(sec => sec.items.forEach(item => {
+    if (state.checks[item.id] === 'ng') ngItems.push(item.t);
+  }));
+
+  const itemRows = items.map(item => `
+    <tr>
+      <td rowspan="${items.length}" class="col-gongjeong" style="display:none"></td>
+      <td class="col-chakan">${item.착안}</td>
+      <td class="col-naeyong">${item.내용}</td>
+    </tr>`).join('');
+
+  // 첫 번째 row에만 공종 셀 표시
+  const itemRowsFixed = items.map((item, i) => `
+    <tr>
+      ${i === 0 ? `<td class="col-gongjeong" rowspan="${items.length}">${wl}</td>` : ''}
+      <td class="col-chakan">${item.착안}</td>
+      <td class="col-naeyong">${item.내용}</td>
+    </tr>`).join('');
+
+  const printWin = window.open('', '_blank', 'width=900,height=1200');
+  printWin.document.write(`<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>공사감리일지</title>
+<style>
+  @page { size: A4; margin: 20mm 15mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: '맑은 고딕', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; font-size: 10pt; color: #000; background: #fff; }
+
+  .wrap { width: 100%; max-width: 180mm; margin: 0 auto; }
+
+  .law-text { font-size: 8pt; margin-bottom: 6mm; }
+
+  h1 { text-align: center; font-size: 20pt; font-weight: bold; letter-spacing: 6px; margin-bottom: 6mm; }
+
+  /* 상단 정보 테이블 */
+  .info-table { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
+  .info-table td { border: 1px solid #000; padding: 3mm 4mm; font-size: 9.5pt; vertical-align: middle; }
+  .info-table .lbl { background: #f0f0f0; font-weight: bold; width: 20mm; text-align: center; }
+  .info-table .stamp-cell { width: 20mm; height: 14mm; text-align: center; vertical-align: middle; font-size: 8pt; color: #888; border: 1px solid #000; }
+
+  /* 작업사항 테이블 */
+  .work-label { font-weight: bold; font-size: 9.5pt; border: 1px solid #000; border-bottom: none; padding: 2mm 4mm; background: #f5f5f5; }
+  .work-table { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
+  .work-table th { border: 1px solid #000; padding: 2.5mm 3mm; background: #f0f0f0; font-size: 9pt; font-weight: bold; text-align: center; }
+  .work-table td { border: 1px solid #000; padding: 2.5mm 3mm; font-size: 9pt; vertical-align: middle; }
+  .col-gongjeong { width: 22mm; text-align: center; font-weight: bold; }
+  .col-chakan { width: 50mm; }
+  .col-naeyong { width: auto; }
+
+  /* 특기/지적사항 */
+  .section-box { margin-bottom: 4mm; }
+  .section-title { font-weight: bold; font-size: 9.5pt; border: 1px solid #000; border-bottom: none; padding: 2mm 4mm; background: #f5f5f5; }
+  .section-body { border: 1px solid #000; padding: 3mm 4mm; min-height: 28mm; font-size: 9pt; line-height: 1.8; white-space: pre-wrap; }
+
+  /* 부적합 항목 */
+  .ng-list { font-size: 9pt; color: #c00; }
+
+  /* 작성방법 */
+  .guide-box { border: 1px solid #000; margin-top: 4mm; }
+  .guide-title { background: #e0e0e0; font-weight: bold; font-size: 9pt; padding: 2mm 4mm; text-align: center; border-bottom: 1px solid #000; }
+  .guide-body { padding: 3mm 4mm; font-size: 8.5pt; line-height: 1.7; }
+  .guide-body ol { padding-left: 5mm; }
+
+  /* 용지 하단 */
+  .paper-size { text-align: right; font-size: 7.5pt; color: #555; margin-top: 3mm; }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="law-text">■ 건축법 시행규칙 [별지 제21호서식] &lt;개정 2021. 8. 27.&gt;</div>
+  <h1>공 사 감 리 일 지</h1>
+
+  <table class="info-table">
+    <tr>
+      <td class="lbl">일련번호</td>
+      <td colspan="4">&nbsp;</td>
+    </tr>
+    <tr>
+      <td class="lbl">공사감리자</td>
+      <td style="width:35mm">조 현 식</td>
+      <td class="stamp-cell">(직인)</td>
+      <td class="lbl" style="width:15mm">감리원</td>
+      <td style="width:35mm">${insp}</td>
+      <td style="font-size:8pt;text-align:right;border:none;width:25mm">(서명 또는 인)</td>
+    </tr>
+    <tr>
+      <td class="lbl">공사명</td>
+      <td colspan="2">${site}${apt ? ' (' + apt + ')' : ''} ${wl} 공사</td>
+      <td colspan="2">${date.replace(/-/g,'년 ').replace(/-/,'월 ')}일&nbsp;&nbsp;&nbsp;날씨 : ${weather}</td>
+    </tr>
+  </table>
+
+  <div class="work-label">작업사항</div>
+  <table class="work-table">
+    <thead>
+      <tr>
+        <th class="col-gongjeong">공종</th>
+        <th class="col-chakan">감리착안사항</th>
+        <th class="col-naeyong">감리내용</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemRowsFixed}
+    </tbody>
+  </table>
+
+  <div class="section-box">
+    <div class="section-title">특기사항</div>
+    <div class="section-body">${special}</div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-title">지적사항 및 처리결과</div>
+    <div class="section-body">${issue}${ngItems.length > 0 ? '\n\n[체크리스트 부적합 항목]\n' + ngItems.map(n => '- ' + n).join('\n') : ''}</div>
+  </div>
+
+  <div class="guide-box">
+    <div class="guide-title">작 성 방 법</div>
+    <div class="guide-body">
+      <ol>
+        <li>공종에는 주요공종 및 단위공종을 기재합니다.</li>
+        <li>감리착안사항은 공사감리의 주안점 및 점검계획을 기재합니다.</li>
+        <li>특기사항은 특별히 명확하게 기록되어 있지 않은 내용의 발생·조치사항 등을 기재합니다.</li>
+        <li>지적사항 및 처리결과는 재시공 및 공사중지 등 구두 또는 서면에 의한 지시내용과 처리결과를 기재합니다.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="paper-size">210㎜×297㎜[일반용지 60g/㎡]</div>
+</div>
+<script>window.onload = function(){ window.print(); };<\/script>
+</body>
+</html>`);
+  printWin.document.close();
+}
+
+function showToast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type}`;setTimeout(()=>t.classList.add('show'),10);setTimeout(()=>t.classList.remove('show'),2800);}
+</script>
+</body>
+</html>

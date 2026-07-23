@@ -644,19 +644,15 @@ window.toggleWTag = function (el) {
 }
 function openWrite() {
   if (!currentApt) return
-  const nm = document.getElementById('w-apt-name'); if (nm) nm.textContent = currentApt.name
-  const t = document.getElementById('w-title'); if (t) t.value = ''
-  const memo = document.getElementById('w-memo'); if (memo) memo.value = ''
-  // 공사 단계 드롭다운을 이 단지 공법 기준으로 채움 (탭 선택)
-  const s = document.getElementById('w-stage')
-  if (s) {
-    const stages = (window.methodStages && window.methodStages(currentApt.method)) || null
-    s.innerHTML = '<option value="">단계 선택</option>' + (stages ? stages.map(x => `<option value="${escH(x)}">${escH(x)}</option>`).join('') : '')
-  }
-  // 특이사항 태그 초기화
-  document.querySelectorAll('#w-tags .wtag').forEach(el => { el.setAttribute('data-on', '0'); el.style.background = '#fff'; el.style.color = '#3a445e'; el.style.borderColor = '#dbe3f0' })
-  W_PHOTOS = []; renderPhotoGrid()
-  window.showScreen('s09')
+  // 현장 점검 앱(체크리스트)으로 이동 — 단지 정보 전달, 저장 시 이 단지 감리보고서로 정리됨
+  const m = currentApt.method || ''
+  let work = '', sub = ''
+  if (m === 'repaint') work = '외벽 재도장'
+  else if (m === 'metalroof') { work = '옥상방수'; sub = '금속기와' }
+  else if (m === 'shingle') { work = '옥상방수'; sub = '싱글' }
+  else if (m === 'epoxy') work = '지하주차장'
+  const url = 'inspect/?apt=' + encodeURIComponent(currentApt.id) + '&name=' + encodeURIComponent(currentApt.name || '') + '&work=' + encodeURIComponent(work) + '&sub=' + encodeURIComponent(sub)
+  location.href = url
 }
 async function saveReport() {
   if (!currentApt) return

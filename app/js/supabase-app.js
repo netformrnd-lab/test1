@@ -635,20 +635,40 @@ async function handlePhotoSelect(files) {
     renderPhotoGrid()
   }
 }
+window.toggleWTag = function (el) {
+  const on = el.getAttribute('data-on') === '1'
+  el.setAttribute('data-on', on ? '0' : '1')
+  el.style.background = on ? '#fff' : '#2F6BF6'
+  el.style.color = on ? '#3a445e' : '#fff'
+  el.style.borderColor = on ? '#dbe3f0' : '#2F6BF6'
+}
 function openWrite() {
   if (!currentApt) return
   const nm = document.getElementById('w-apt-name'); if (nm) nm.textContent = currentApt.name
-  const t = document.getElementById('w-title'), c = document.getElementById('w-content'), s = document.getElementById('w-stage')
-  if (t) t.value = ''; if (c) c.value = ''; if (s) s.value = ''
+  const t = document.getElementById('w-title'); if (t) t.value = ''
+  const memo = document.getElementById('w-memo'); if (memo) memo.value = ''
+  // 공사 단계 드롭다운을 이 단지 공법 기준으로 채움 (탭 선택)
+  const s = document.getElementById('w-stage')
+  if (s) {
+    const stages = (window.methodStages && window.methodStages(currentApt.method)) || null
+    s.innerHTML = '<option value="">단계 선택</option>' + (stages ? stages.map(x => `<option value="${escH(x)}">${escH(x)}</option>`).join('') : '')
+  }
+  // 특이사항 태그 초기화
+  document.querySelectorAll('#w-tags .wtag').forEach(el => { el.setAttribute('data-on', '0'); el.style.background = '#fff'; el.style.color = '#3a445e'; el.style.borderColor = '#dbe3f0' })
   W_PHOTOS = []; renderPhotoGrid()
   window.showScreen('s09')
 }
 async function saveReport() {
   if (!currentApt) return
-  const title = (document.getElementById('w-title') || {}).value?.trim()
-  const content = (document.getElementById('w-content') || {}).value?.trim()
   const stage = (document.getElementById('w-stage') || {}).value?.trim()
-  if (!title) { alert('제목을 입력하세요'); return }
+  const memo = (document.getElementById('w-memo') || {}).value?.trim()
+  let title = (document.getElementById('w-title') || {}).value?.trim()
+  const tags = Array.from(document.querySelectorAll('#w-tags .wtag[data-on="1"]')).map(x => x.dataset.tag)
+  if (!W_PHOTOS.length && !tags.length && !memo) { alert('사진이나 특이사항을 하나 이상 남겨주세요'); return }
+  if (!title) title = stage ? (stage + ' 점검') : '현장 점검'
+  let content = ''
+  if (tags.length) content += '특이사항: ' + tags.join(', ')
+  if (memo) content += (content ? '\n' : '') + memo
   const { data: { user } } = await sb.auth.getUser()
   const btn = document.getElementById('w-submit'); if (btn) btn.textContent = '등록 중…'
   const { error } = await sb.from('reports').insert({ apartment_id: currentApt.id, author_id: user.id, title, content: content || null, stage: stage || null, photos: W_PHOTOS })
@@ -833,6 +853,11 @@ function setMode(mode) {
   setMsg('')
 }
 
+window.appLogout = async function () {
+  try { await sb.auth.signOut() } catch (e) {}
+  currentRole = null
+  window.showScreen('s01')
+}
 function wire() {
   const submit = $('auth-submit')
   if (submit) submit.onclick = () => (submit.dataset.mode === 'signup' ? doSignup() : doLogin())

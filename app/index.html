@@ -126,7 +126,7 @@
 
         <div class="bd">
           <div style="padding:15px 16px 9px;background:#fff">
-            <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:15px;font-weight:800;color:#141d34">담당 단지</div><span style="font-size:10px;font-weight:800;color:#e4544b;background:#fdecea;padding:4px 9px;border-radius:99px">🛠️ 감리사</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:15px;font-weight:800;color:#141d34">담당 단지</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;font-weight:800;color:#e4544b;background:#fdecea;padding:4px 9px;border-radius:99px">🛠️ 감리사</span><span onclick="appLogout()" style="cursor:pointer;font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:4px 9px;border-radius:99px">로그아웃</span></div></div>
             <div id="aud-sub" style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:3px">맡은 단지 불러오는 중…</div>
           </div>
           <div style="padding:0 14px"><div style="display:flex;align-items:center;gap:8px;background:#f2f5fa;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px"><span style="font-size:12px">🔍</span><input id="aud-search" placeholder="단지 이름·지역 검색" style="border:none;background:transparent;outline:none;flex:1;min-width:0;font-size:11.5px;font-weight:600;color:#141d34;font-family:inherit"></div>
@@ -207,19 +207,33 @@
       </section>
       <section class="screen" id="s09" data-name="감리보고서 작성 (감리사)" style="background:#EDF2FA">
 
-        <div class="ab"><span onclick="showScreen('s08')" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">감리보고서 작성</span></div>
+        <div class="ab"><span onclick="showScreen('s08')" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">현장 간편 작성</span></div>
         <div class="bd" style="padding:14px">
-          <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">단지</div>
-          <div style="background:#fff;border:1.5px solid #cdd9ef;border-radius:11px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:11px"><span id="w-apt-name" style="font-size:12px;font-weight:700;color:#151c33">단지</span><span style="font-size:11px;color:#2F6BF6;font-weight:800">▾</span></div>
-          <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">공사 단계</div>
-          <input id="w-stage" placeholder="예: 외벽 도장" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:10px 12px;font-size:12px;font-weight:700;color:#151c33;margin-bottom:11px;font-family:inherit;outline:none;-webkit-appearance:none">
-          <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">제목</div>
-          <input id="w-title" placeholder="예: 외벽 재도장 시공 감리" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:10px 12px;font-size:12px;font-weight:700;color:#151c33;margin-bottom:11px;font-family:inherit;outline:none;-webkit-appearance:none">
-          <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">점검 내용</div>
-          <textarea id="w-content" placeholder="점검한 내용을 적어주세요" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:10px 12px;font-size:12px;font-weight:700;color:#151c33;margin-bottom:11px;font-family:inherit;outline:none;-webkit-appearance:none;min-height:76px;line-height:1.6;resize:vertical"></textarea>
-          <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">현장 사진</div>
-          <div id="w-photo-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:12px"></div>
-          <div id="w-submit" class="plus" style="height:44px">등록하기</div>
+          <div style="background:#eaf1ff;border:1px solid #d5e3ff;border-radius:11px;padding:10px 12px;font-size:10.5px;color:#2F6BF6;font-weight:700;line-height:1.55;margin-bottom:13px">📷 현장에선 사진과 태그만 톡톡 남겨주세요. 자세한 내용은 관리자가 다듬어 공개해요.</div>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">📷 현장 사진</div>
+          <div id="w-photo-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:14px"></div>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">단지</div>
+          <div style="background:#fff;border:1.5px solid #cdd9ef;border-radius:11px;padding:10px 12px;margin-bottom:13px"><span id="w-apt-name" style="font-size:12.5px;font-weight:800;color:#151c33">단지</span></div>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">공사 단계 <span style="color:#b7c0d2;font-weight:600">(탭해서 선택)</span></div>
+          <select id="w-stage" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:11px 12px;font-size:12.5px;font-weight:700;color:#151c33;margin-bottom:14px;font-family:inherit;outline:none"><option value="">단계 선택</option></select>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:7px">특이사항 <span style="color:#b7c0d2;font-weight:600">(해당되는 것 톡톡)</span></div>
+          <div id="w-tags" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">
+            <span class="wtag" data-tag="이상 없음" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">이상 없음</span>
+            <span class="wtag" data-tag="균열 발견" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">균열 발견</span>
+            <span class="wtag" data-tag="누수·결로" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">누수·결로</span>
+            <span class="wtag" data-tag="들뜸·박리" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">들뜸·박리</span>
+            <span class="wtag" data-tag="백화" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">백화</span>
+            <span class="wtag" data-tag="재시공 필요" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">재시공 필요</span>
+            <span class="wtag" data-tag="자재 확인" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">자재 확인</span>
+            <span class="wtag" data-tag="안전 조치" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">안전 조치</span>
+            <span class="wtag" data-tag="우천·중단" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">우천·중단</span>
+            <span class="wtag" data-tag="기타" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">기타</span>
+          </div>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">한 줄 메모 <span style="color:#b7c0d2;font-weight:600">(선택)</span></div>
+          <input id="w-memo" placeholder="필요할 때만 짧게 (예: 3동 균열 5곳)" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:11px 12px;font-size:12.5px;font-weight:700;color:#151c33;margin-bottom:13px;font-family:inherit;outline:none;-webkit-appearance:none">
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">제목 <span style="color:#b7c0d2;font-weight:600">(선택 · 비우면 자동)</span></div>
+          <input id="w-title" placeholder="비우면 '단계 점검'으로 자동 생성" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:11px 12px;font-size:12.5px;font-weight:700;color:#151c33;margin-bottom:14px;font-family:inherit;outline:none;-webkit-appearance:none">
+          <div id="w-submit" class="plus" style="height:46px">등록하기</div>
         </div>
       
       </section>

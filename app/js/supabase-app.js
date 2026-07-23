@@ -570,10 +570,26 @@ function renderStageTrack(a, boxId) {
       <span style="font-size:10.5px;font-weight:800;color:#2F6BF6">${cur}/${tot}</span>
     </div>
     <div style="height:5px;border-radius:9px;background:#e2ebff;overflow:hidden;margin-bottom:8px"><div style="width:${pct}%;height:100%;background:#2F6BF6;border-radius:9px"></div></div>
-    <div style="font-size:11px;color:#5c6580;font-weight:600;margin-bottom:4px">${head}</div>
-    <div style="font-size:10px;color:#8b95ad;font-weight:700;margin-bottom:8px">👆 각 단계를 누르면 무엇을·왜 하는지 알려드려요</div>
-    ${rows}
+    <div style="font-size:11px;color:#5c6580;font-weight:600;margin-bottom:8px">${head}</div>
+    <div class="stg-all" style="display:none">
+      <div style="font-size:10px;color:#8b95ad;font-weight:700;margin-bottom:4px">👆 각 단계를 누르면 무엇을·왜 하는지 알려드려요</div>
+      ${rows}
+    </div>
+    <div class="stg-toggle" onclick="toggleStageAll(this)" style="display:flex;align-items:center;justify-content:center;gap:5px;padding:9px;margin-top:2px;background:#eaf1ff;border-radius:9px;cursor:pointer;font-size:11px;font-weight:800;color:#2F6BF6">
+      <span class="stg-toggle-txt">전체 공정 ${tot}단계 보기</span><span class="stg-toggle-ic">▾</span>
+    </div>
   </div>`
+}
+// 전체 공정 순서 펼치기/접기
+window.toggleStageAll = function (btn) {
+  const box = btn.parentElement
+  const all = box.querySelector('.stg-all'); if (!all) return
+  const open = all.style.display !== 'none'
+  all.style.display = open ? 'none' : 'block'
+  const t = btn.querySelector('.stg-toggle-txt'), ic = btn.querySelector('.stg-toggle-ic')
+  const tot = box.querySelectorAll('.stg-row').length
+  if (t) t.textContent = open ? `전체 공정 ${tot}단계 보기` : '접기'
+  if (ic) ic.textContent = open ? '▾' : '▴'
 }
 // 공정 단계 펼치기/접기 (책갈피식 설명)
 window.toggleStg = function (row) {

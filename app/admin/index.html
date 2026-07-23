@@ -226,6 +226,11 @@
       <div class="card" style="border:1.5px dashed #b9c6e0;background:#f7faff">
         <h3>📥 아임웹 게시판 엑셀 가져오기</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 12px">아임웹에서 내보낸 게시판 엑셀(.xlsx)을 선택하면 <b>카테고리(단지)별로</b> 현장 현황에 자동 등록돼요. <b>여러 파일을 한 번에</b> 선택해도 됩니다. 사진은 아임웹 링크를 그대로 쓰고, 이미 등록된 글은 자동으로 건너뜁니다.</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+          <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">넣을 단지:</label>
+          <select id="imp-apt" class="f" style="max-width:280px"><option value="">📂 엑셀 카테고리로 자동 분류</option></select>
+        </div>
+        <div style="font-size:11.5px;color:var(--mut);line-height:1.5;margin-bottom:10px">※ 단지명이 자동으로 안 잡히면, 위에서 <b>넣을 단지를 직접 선택</b>하세요. 그러면 올린 파일의 모든 글이 그 단지로 들어가요. (한 파일 = 한 단지일 때 추천)</div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <input id="imp-file" type="file" accept=".xlsx,.xls" multiple style="font-size:13px">
           <button id="imp-btn" class="b save" onclick="importBoard()">가져오기 시작</button>
@@ -495,11 +500,12 @@ async function deleteCase(id){
 
 /* ===== 현장 현황 (field_updates) ===== */
 function fillFieldAptSelect(){
-  const sel=$('fa-apt');if(!sel)return;
-  const cur=sel.value;
   const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
-  sel.innerHTML='<option value="">단지를 선택하세요</option>'+sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
-  sel.value=cur;
+  const opts=sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  const sel=$('fa-apt');
+  if(sel){const cur=sel.value;sel.innerHTML='<option value="">단지를 선택하세요</option>'+opts;sel.value=cur;}
+  const imp=$('imp-apt');
+  if(imp){const cur=imp.value;imp.innerHTML='<option value="">📂 엑셀 카테고리로 자동 분류</option>'+opts;imp.value=cur;}
 }
 async function uploadFieldPhoto(file){
   if(!file)return null;
@@ -543,10 +549,13 @@ async function importBoard(){
   $('imp-log').innerHTML='';
   const norm=s=>(s||'').replace(/\s/g,'').toLowerCase();
   const imgsOf=html=>{const out=[];const re=/<img[^>]+src=["']([^"']+)["']/gi;let m;while(m=re.exec(html||''))out.push(m[1]);return out;};
+  const forcedApt=($('imp-apt')||{}).value||'';
   try{
     let{data:aps}=await sb.from('apartments').select('id,name');aps=aps||[];
+    if(forcedApt){const fa=aps.find(x=>x.id===forcedApt);impLog('📍 지정된 단지로 넣기: '+(fa?fa.name:forcedApt),'#2563eb');}
     const catCache={},seenCache={};
     async function resolveApt(cat){
+      if(forcedApt)return forcedApt;
       if(catCache[cat]!==undefined)return catCache[cat];
       const c=norm(cat);
       let a=aps.find(x=>norm(x.name)===c)||aps.find(x=>norm(x.name).includes(c)||c.includes(norm(x.name)));

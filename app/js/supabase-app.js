@@ -175,6 +175,100 @@ async function openAuditorField(a) {
   renderAudFieldList()
 }
 window.openAuditorField = openAuditorField
+
+/* ===== 미팅 자료 (첫 미팅 질문리스트 / 내부 상담 체크리스트) ===== */
+// ⚠️ 아래 항목은 임시 틀입니다. 실제 질문·체크 항목은 추후 교체 예정.
+const MEET_DOCS = {
+  first: {
+    title: '첫 미팅 질문리스트',
+    intro: '단지 관계자(관리소장·입주자대표)와 첫 미팅에서 확인할 항목이에요.',
+    sections: [
+      { h: '① 단지 기본 정보', items: ['준공 연도 / 총 세대수 / 동 수', '최근 대규모 수선 이력', '장기수선충당금 적립 현황'] },
+      { h: '② 하자·현황', items: ['현재 가장 문제되는 하자 부위', '과거 보수 이력과 재발 여부', '누수·균열 관련 민원 빈도'] },
+      { h: '③ 공사 범위·예산', items: ['이번에 검토 중인 공사 종류', '예상 예산 규모 / 확보 여부', '우선순위(꼭 해야 할 것 / 미룰 수 있는 것)'] },
+      { h: '④ 의사결정·일정', items: ['의사결정 구조(입대의 의결 등)', '희망 착공 시기 / 제약 일정', '주민 동의·공지 방식'] },
+      { h: '⑤ 감리 진행', items: ['감리 방문 가능 요일·시간', '현장 출입·주차 방법', '비상 연락 담당자'] }
+    ]
+  },
+  internal: {
+    title: '내부 상담 체크리스트',
+    intro: '상담을 진행하며 우리가 빠짐없이 챙겨야 할 항목이에요.',
+    sections: [
+      { h: '① 상담 전 준비', items: ['단지 위치·규모 사전 조사', '유사 단지 시공 사례 준비', '견적 기준표·계약서 양식 지참'] },
+      { h: '② 현장 확인', items: ['하자 부위 사진 촬영(전경·근접)', '공법 적용 가능성 검토', '안전·접근성 확인'] },
+      { h: '③ 제안·설명', items: ['공법별 장단점 쉽게 설명', '예상 공사기간·비용 안내', '감리의 역할·이점 설명'] },
+      { h: '④ 마무리', items: ['다음 미팅·현장 방문 일정 확정', '필요 서류 안내', '담당자 연락처 교환'] }
+    ]
+  }
+}
+function openMeetingDoc(type) {
+  const doc = MEET_DOCS[type]; if (!doc) return
+  const t = document.getElementById('meetdoc-title'); if (t) t.textContent = doc.title
+  const body = document.getElementById('meetdoc-body'); if (!body) return
+  body.innerHTML = `<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:16px 15px">
+      <div style="font-size:16px;font-weight:800;color:#141d34">${escH(doc.title)}</div>
+      <div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.6;margin:6px 0 4px">${escH(doc.intro)}</div>
+      <div style="font-size:10px;color:#aab2c4;font-weight:700;margin-bottom:6px">👆 항목을 누르면 체크돼요 · 실제 내용은 추후 업데이트됩니다</div>
+      ${doc.sections.map(s => `<div style="margin-top:13px">
+        <div style="font-size:12.5px;font-weight:800;color:#2F6BF6;margin-bottom:7px">${escH(s.h)}</div>
+        ${s.items.map(it => `<div onclick="toggleCheck(this)" style="display:flex;align-items:flex-start;gap:9px;padding:9px 10px;background:#f7f9fc;border:1px solid #eef1f7;border-radius:10px;margin-bottom:6px;cursor:pointer">
+          <span class="ck-box" style="width:18px;height:18px;border-radius:6px;border:2px solid #c3ccdb;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:800"></span>
+          <span class="ck-txt" style="flex:1;font-size:12.5px;font-weight:600;color:#3a445e;line-height:1.55">${escH(it)}</span>
+        </div>`).join('')}
+      </div>`).join('')}
+    </div>`
+  window.showScreen('s30')
+}
+window.openMeetingDoc = openMeetingDoc
+window.toggleCheck = function (row) {
+  const on = row.dataset.on === '1'
+  row.dataset.on = on ? '' : '1'
+  const box = row.querySelector('.ck-box'), txt = row.querySelector('.ck-txt')
+  if (on) { box.style.background = '#fff'; box.style.borderColor = '#c3ccdb'; box.textContent = ''; txt.style.color = '#3a445e'; txt.style.textDecoration = ''; row.style.background = '#f7f9fc' }
+  else { box.style.background = '#1f8a5b'; box.style.borderColor = '#1f8a5b'; box.textContent = '✓'; txt.style.color = '#8b95ad'; txt.style.textDecoration = 'line-through'; row.style.background = '#eafaf2' }
+}
+
+/* ===== 소장님 작성지 (관리소장이 작성 → 카톡 공유) ===== */
+// ⚠️ 아래 항목은 임시 틀입니다. 실제 양식은 추후 교체 예정.
+const MGR_FIELDS = [
+  { id: 'apt', label: '단지명', type: 'text' },
+  { id: 'name', label: '작성자 (관리소장님 성함)', type: 'text' },
+  { id: 'phone', label: '연락처', type: 'tel' },
+  { id: 'house', label: '세대수 / 동 수', type: 'text' },
+  { id: 'year', label: '준공 연도', type: 'text' },
+  { id: 'issue', label: '주요 하자·불편 사항', type: 'area' },
+  { id: 'want', label: '요청·희망 사항', type: 'area' },
+  { id: 'when', label: '희망 공사 시기', type: 'text' }
+]
+function openManagerDoc() {
+  const ap = document.getElementById('mgr-apt'); if (ap) ap.textContent = currentApt ? currentApt.name : '단지'
+  const form = document.getElementById('mgr-form'); if (!form) return
+  form.innerHTML = `<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px;margin-bottom:12px">` +
+    MGR_FIELDS.map(f => {
+      const val = (f.id === 'apt' && currentApt) ? escH(currentApt.name) : ''
+      const input = f.type === 'area'
+        ? `<textarea id="md-${f.id}" style="width:100%;box-sizing:border-box;min-height:66px;padding:10px;border:1px solid #e6eaf2;border-radius:9px;font-size:13px;font-family:inherit;outline:none;resize:vertical;line-height:1.6">${val}</textarea>`
+        : `<input id="md-${f.id}" type="${f.type}" value="${val}" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #e6eaf2;border-radius:9px;font-size:13px;font-family:inherit;outline:none">`
+      return `<div style="margin-bottom:11px"><div style="font-size:11.5px;font-weight:800;color:#2a3350;margin-bottom:5px">${escH(f.label)}</div>${input}</div>`
+    }).join('') + `</div>`
+  window.showScreen('s31')
+}
+window.openManagerDoc = openManagerDoc
+async function shareManagerDoc() {
+  const g = id => { const el = document.getElementById('md-' + id); return el ? el.value.trim() : '' }
+  const lines = ['［아파트스퀘어 · 관리소장님 작성지］', '']
+  MGR_FIELDS.forEach(f => { const v = g(f.id); lines.push(f.label + ': ' + (v || '(미작성)')) })
+  lines.push('', '— 아파트스퀘어 감리팀')
+  const text = lines.join('\n')
+  if (navigator.share) {
+    try { await navigator.share({ title: '관리소장님 작성지', text }); return }
+    catch (e) { if (e && e.name === 'AbortError') return }
+  }
+  try { await navigator.clipboard.writeText(text); alert('내용을 복사했어요. 카카오톡에 붙여넣기 해서 보내세요.') }
+  catch (e) { window.prompt('아래 내용을 복사해서 카톡으로 보내세요', text) }
+}
+window.shareManagerDoc = shareManagerDoc
+
 // 입주민: 공개된 우리 단지 감리일지 목록
 async function loadResidentReports() {
   const cont = document.getElementById('res-report-list'); if (!cont) return
@@ -906,9 +1000,16 @@ function wire() {
   })
   // 담당 단지 검색
   const as = $('aud-search'); if (as) as.oninput = () => { audQuery = as.value; renderAudApts() }
-  // 감리사 단지 메뉴 (감리일지 / 현장 사진)
+  // 감리사 단지 메뉴 (감리일지 / 현장 사진 / 미팅 자료 / 소장님 작성지)
   const amR = $('aud-menu-report'); if (amR) amR.onclick = () => { if (currentApt) openApt(currentApt) }
   const amF = $('aud-menu-field'); if (amF) amF.onclick = () => { if (currentApt) openAuditorField(currentApt) }
+  const amM = $('aud-menu-meeting'); if (amM) amM.onclick = () => window.showScreen('s29')
+  const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
+  // 미팅 자료 선택
+  const mf = $('meet-first'); if (mf) mf.onclick = () => openMeetingDoc('first')
+  const mi = $('meet-internal'); if (mi) mi.onclick = () => openMeetingDoc('internal')
+  // 소장님 작성지 카톡 공유
+  const mgS = $('mgr-share'); if (mgS) mgS.onclick = shareManagerDoc
   // 현장 현황 검색 (입주민 / 감리사)
   const ffs = $('field-search'); if (ffs) ffs.oninput = renderFieldList
   const affs = $('audfield-search'); if (affs) affs.oninput = renderAudFieldList

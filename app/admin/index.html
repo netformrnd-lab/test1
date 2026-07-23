@@ -195,6 +195,7 @@
           <button class="b save" onclick="addApt()">추가</button>
         </div>
       </div>
+      <div class="add-form" style="margin-bottom:16px"><input id="apt-q" placeholder="🔍 단지명·지역·공사종류로 검색" style="width:340px" oninput="renderApts()"></div>
       <div class="apt-grid" id="apts"></div>
     </section>
 
@@ -692,7 +693,10 @@ function renderApts(){
   if(!APTS.length){$('apts').innerHTML='<div class="empty">등록된 단지가 없어요. 위에서 추가해 보세요.</div>';return;}
   const auds=MEMBERS.filter(m=>m.role==='auditor');
   const audOpts=(sel)=>'<option value="">- 미배정 -</option>'+auds.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name||a.email)}</option>`).join('');
-  $('apts').innerHTML=APTS.map(a=>{
+  const q=(($('apt-q')||{}).value||'').trim().toLowerCase();
+  const list=q?APTS.filter(a=>((a.name||'')+' '+(a.region||'')+' '+(a.construction_type||'')).toLowerCase().includes(q)):APTS;
+  if(!list.length){$('apts').innerHTML='<div class="empty">검색 결과가 없어요.</div>';return;}
+  $('apts').innerHTML=list.map(a=>{
     const st=(window.STAGE_SETS[a.method]||{}).stages;
     const pt=st?st.length:(a.progress_total||0);
     const pc=a.progress_current||0,pct=pt?Math.round(pc/pt*100):0;

@@ -228,80 +228,68 @@ window.toggleCheck = function (row) {
   else { box.style.background = '#1f8a5b'; box.style.borderColor = '#1f8a5b'; box.textContent = '✓'; txt.style.color = '#8b95ad'; txt.style.textDecoration = 'line-through'; row.style.background = '#eafaf2' }
 }
 
-/* ===== 소장님 작성지 (관리소장이 작성 → 카톡 공유) ===== */
-// ⚠️ 아래 항목은 임시 틀입니다. 실제 양식은 추후 교체 예정.
-const MGR_FIELDS = [
-  { id: 'apt', label: '단지명', type: 'text' },
-  { id: 'name', label: '작성자 (관리소장님 성함)', type: 'text' },
-  { id: 'phone', label: '연락처', type: 'tel' },
-  { id: 'house', label: '세대수 / 동 수', type: 'text' },
-  { id: 'year', label: '준공 연도', type: 'text' },
-  { id: 'issue', label: '주요 하자·불편 사항', type: 'area' },
-  { id: 'want', label: '요청·희망 사항', type: 'area' },
-  { id: 'when', label: '희망 공사 시기', type: 'text' }
-]
+/* ===== 소장님 작성지 (작성 링크를 소장님께 전송) ===== */
+// 소장님이 열어서 직접 채우는 공개 폼 페이지 (같은 도메인의 /form/)
+function managerFormUrl() {
+  const base = location.origin + location.pathname.replace(/\/[^/]*$/, '/') + 'form/'
+  const name = currentApt ? currentApt.name : ''
+  return base + (name ? '?apt=' + encodeURIComponent(name) : '')
+}
 function openManagerDoc() {
   const ap = document.getElementById('mgr-apt'); if (ap) ap.textContent = currentApt ? currentApt.name : '단지'
-  const form = document.getElementById('mgr-form'); if (!form) return
-  form.innerHTML = `<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px;margin-bottom:12px">` +
-    MGR_FIELDS.map(f => {
-      const val = (f.id === 'apt' && currentApt) ? escH(currentApt.name) : ''
-      const input = f.type === 'area'
-        ? `<textarea id="md-${f.id}" style="width:100%;box-sizing:border-box;min-height:66px;padding:10px;border:1px solid #e6eaf2;border-radius:9px;font-size:13px;font-family:inherit;outline:none;resize:vertical;line-height:1.6">${val}</textarea>`
-        : `<input id="md-${f.id}" type="${f.type}" value="${val}" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #e6eaf2;border-radius:9px;font-size:13px;font-family:inherit;outline:none">`
-      return `<div style="margin-bottom:11px"><div style="font-size:11.5px;font-weight:800;color:#2a3350;margin-bottom:5px">${escH(f.label)}</div>${input}</div>`
-    }).join('') + `</div>`
+  const url = managerFormUrl()
+  const lk = document.getElementById('mgr-link'); if (lk) lk.textContent = url
+  const m = document.getElementById('mgr-msg'); if (m) m.textContent = ''
+  const fb = document.getElementById('mgr-fallback'); if (fb) fb.remove()
   window.showScreen('s31')
 }
 window.openManagerDoc = openManagerDoc
-function buildManagerText() {
-  const g = id => { const el = document.getElementById('md-' + id); return el ? el.value.trim() : '' }
-  const lines = ['［아파트스퀘어 · 관리소장님 작성지］', '']
-  MGR_FIELDS.forEach(f => { const v = g(f.id); lines.push(f.label + ': ' + (v || '(미작성)')) })
-  lines.push('', '— 아파트스퀘어 감리팀')
-  return lines.join('\n')
-}
 function mgrMsg(html, ok) {
   const m = document.getElementById('mgr-msg'); if (!m) return
   m.style.color = ok ? '#1f8a5b' : '#e4544b'; m.innerHTML = html
 }
-// 클립보드 복사 (navigator.clipboard → execCommand → 직접 선택 폴백)
+// 링크 복사 (clipboard → execCommand → 화면 표시 폴백)
 async function copyManagerDoc() {
-  const text = buildManagerText()
+  const url = managerFormUrl()
   let ok = false
-  try { await navigator.clipboard.writeText(text); ok = true }
+  try { await navigator.clipboard.writeText(url); ok = true }
   catch (e) {
     try {
       const ta = document.createElement('textarea')
-      ta.value = text; ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0'; ta.style.opacity = '0'
+      ta.value = url; ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0'; ta.style.opacity = '0'
       document.body.appendChild(ta); ta.focus(); ta.select()
       ok = document.execCommand('copy'); ta.remove()
     } catch (_) { ok = false }
   }
-  if (ok) mgrMsg('✅ 복사 완료! 카카오톡 대화방을 열고 <b>붙여넣기(길게 눌러 붙여넣기)</b> 하세요.', true)
-  else { mgrMsg('복사가 안 됐어요. 아래 칸의 내용을 길게 눌러 직접 복사하세요.', false); showManagerFallback(text) }
+  if (ok) mgrMsg('✅ 링크 복사 완료! 카카오톡에 <b>붙여넣기</b> 해서 소장님께 보내세요.', true)
+  else { mgrMsg('복사가 안 됐어요. 아래 링크를 길게 눌러 복사하세요.', false); showManagerFallback(url) }
 }
 window.copyManagerDoc = copyManagerDoc
-// 복사 실패 시: 내용을 화면에 띄워 직접 복사하도록
-function showManagerFallback(text) {
+// 복사 실패 시: 링크를 화면에 띄워 직접 복사하도록
+function showManagerFallback(url) {
   let box = document.getElementById('mgr-fallback')
   if (!box) {
-    box = document.createElement('textarea'); box.id = 'mgr-fallback'
-    box.style.cssText = 'width:100%;box-sizing:border-box;min-height:180px;margin-top:8px;padding:11px;border:1.5px solid #FEE500;border-radius:10px;font-size:12.5px;font-family:inherit;line-height:1.6'
+    box = document.createElement('input'); box.id = 'mgr-fallback'; box.readOnly = true
+    box.style.cssText = 'width:100%;box-sizing:border-box;margin-top:8px;padding:11px;border:1.5px solid #FEE500;border-radius:10px;font-size:12px;font-family:inherit'
     const m = document.getElementById('mgr-msg'); if (m && m.parentNode) m.parentNode.insertBefore(box, m.nextSibling)
   }
-  box.value = text; box.focus(); box.select()
+  box.value = url; box.focus(); box.select()
 }
-// 휴대폰 네이티브 공유 (미지원/실패 시 복사로 폴백)
+// 휴대폰 네이티브 공유 (링크 전송). 미지원/실패 시 복사로 폴백
 async function shareManagerDoc() {
-  const text = buildManagerText()
+  const url = managerFormUrl()
+  const name = currentApt ? currentApt.name : ''
+  const text = '[아파트스퀘어] ' + (name ? name + ' ' : '') + '관리소장님 작성지입니다. 아래 링크를 열어 간단히 작성해 주세요.'
   if (navigator.share) {
-    try { await navigator.share({ title: '관리소장님 작성지', text }); return }
-    catch (e) { if (e && e.name === 'AbortError') return }  // 사용자가 취소
+    try { await navigator.share({ title: '관리소장님 작성지', text, url }); return }
+    catch (e) { if (e && e.name === 'AbortError') return }
   }
   copyManagerDoc()
 }
 window.shareManagerDoc = shareManagerDoc
+// 소장님 작성 화면 미리보기 (새 탭)
+function previewManagerForm() { window.open(managerFormUrl(), '_blank') }
+window.previewManagerForm = previewManagerForm
 
 // 입주민: 공개된 우리 단지 감리일지 목록
 async function loadResidentReports() {
@@ -1042,9 +1030,10 @@ function wire() {
   // 미팅 자료 선택
   const mf = $('meet-first'); if (mf) mf.onclick = () => openMeetingDoc('first')
   const mi = $('meet-internal'); if (mi) mi.onclick = () => openMeetingDoc('internal')
-  // 소장님 작성지: 복사(메인) / 공유(보조)
-  const mgC = $('mgr-copy'); if (mgC) mgC.onclick = copyManagerDoc
+  // 소장님 작성지: 카톡 링크 전송(메인) / 링크 복사 / 미리보기
   const mgS = $('mgr-share'); if (mgS) mgS.onclick = shareManagerDoc
+  const mgC = $('mgr-copy'); if (mgC) mgC.onclick = copyManagerDoc
+  const mgP = $('mgr-preview'); if (mgP) mgP.onclick = previewManagerForm
   // 현장 현황 검색 (입주민 / 감리사)
   const ffs = $('field-search'); if (ffs) ffs.oninput = renderFieldList
   const affs = $('audfield-search'); if (affs) affs.oninput = renderAudFieldList

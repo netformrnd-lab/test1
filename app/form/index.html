@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>아파트스퀘어 · 관리소장님 작성지</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;background:#F4F6FA;color:#1c2440;line-height:1.5;padding-bottom:40px}
+  .top{background:linear-gradient(150deg,#243768,#1F2C5C);color:#fff;padding:22px 20px 26px;position:relative;overflow:hidden}
+  .top::after{content:"";position:absolute;top:-30px;right:-30px;width:150px;height:150px;background:radial-gradient(circle,rgba(127,161,224,.35),transparent 65%)}
+  .brand{font-size:12px;font-weight:800;letter-spacing:.5px;opacity:.85}
+  .top h1{font-size:20px;font-weight:800;margin-top:8px;line-height:1.35}
+  .top p{font-size:12px;color:#c3cee6;font-weight:600;margin-top:8px;line-height:1.6}
+  .wrap{max-width:520px;margin:0 auto;padding:16px}
+  .card{background:#fff;border:1px solid #eef1f7;border-radius:15px;padding:17px 16px;margin-top:-14px;box-shadow:0 10px 24px -18px rgba(23,38,80,.5)}
+  .fld{margin-bottom:15px}
+  .fld:last-child{margin-bottom:0}
+  label{display:block;font-size:12.5px;font-weight:800;color:#2a3350;margin-bottom:6px}
+  label .req{color:#e4544b;margin-left:2px}
+  input,textarea{width:100%;padding:12px 13px;border:1.5px solid #e1e7f0;border-radius:10px;font-size:15px;font-family:inherit;color:#1c2440;outline:none;background:#fbfcfe;transition:border-color .15s}
+  input:focus,textarea:focus{border-color:#2F6BF6;background:#fff}
+  textarea{min-height:80px;resize:vertical;line-height:1.6}
+  .hint{font-size:11px;color:#8b95ad;font-weight:600;margin-top:5px}
+  .btn{width:100%;border:none;border-radius:13px;padding:16px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:16px}
+  .btn-kakao{background:#FEE500;color:#191600}
+  .btn-ghost{background:#fff;border:1.5px solid #d7deea;color:#3a445e;font-size:13px;padding:13px;margin-top:10px}
+  .msg{min-height:20px;text-align:center;font-size:12.5px;font-weight:800;margin-top:12px}
+  .foot{text-align:center;font-size:11px;color:#8b95ad;font-weight:600;margin-top:14px;line-height:1.7}
+  .done{display:none;text-align:center;padding:30px 10px}
+  .done .em{font-size:52px}
+  .done h2{font-size:19px;font-weight:800;margin-top:10px}
+  .done p{font-size:13px;color:#5c6580;font-weight:600;margin-top:8px;line-height:1.7}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand">🏢 아파트스퀘어 감리팀</div>
+    <h1>관리소장님 작성지</h1>
+    <p>아래 내용을 간단히 작성해 주세요.<br>다 쓰신 뒤 맨 아래 <b>‘작성 완료 · 보내기’</b>를 누르시면 됩니다.</p>
+  </div>
+
+  <div class="wrap">
+    <div class="card" id="formCard">
+      <div class="fld">
+        <label>단지명 <span class="req">*</span></label>
+        <input id="f-apt" placeholder="예: 위례역푸르지오">
+      </div>
+      <div class="fld">
+        <label>작성자 (관리소장님 성함) <span class="req">*</span></label>
+        <input id="f-name" placeholder="예: 홍길동">
+      </div>
+      <div class="fld">
+        <label>연락처</label>
+        <input id="f-phone" type="tel" inputmode="tel" placeholder="예: 010-0000-0000">
+      </div>
+      <div class="fld">
+        <label>세대수 / 동 수</label>
+        <input id="f-house" placeholder="예: 500세대 / 8개동">
+      </div>
+      <div class="fld">
+        <label>준공 연도</label>
+        <input id="f-year" inputmode="numeric" placeholder="예: 2005년">
+      </div>
+      <div class="fld">
+        <label>주요 하자·불편 사항</label>
+        <textarea id="f-issue" placeholder="예: 옥상 방수가 들떠서 누수가 있어요. 지하주차장에 균열이 보입니다."></textarea>
+      </div>
+      <div class="fld">
+        <label>요청·희망 사항</label>
+        <textarea id="f-want" placeholder="예: 외벽 재도장을 검토하고 있습니다. 견적을 받아보고 싶어요."></textarea>
+      </div>
+      <div class="fld">
+        <label>희망 공사 시기</label>
+        <input id="f-when" placeholder="예: 내년 봄 (3~4월)">
+      </div>
+
+      <button class="btn btn-kakao" id="sendBtn">✅ 작성 완료 · 감리팀에 보내기</button>
+      <div class="msg" id="msg"></div>
+      <button class="btn btn-ghost" id="copyBtn">📋 내용 복사하기 (붙여넣기용)</button>
+      <div class="foot">💡 휴대폰에서는 ‘보내기’를 누르면 카카오톡·문자 목록이 떠요.<br>안 되면 ‘내용 복사하기’로 복사해서 감리팀에 붙여넣기 해주세요.</div>
+    </div>
+
+    <div class="done" id="doneCard">
+      <div class="em">✅</div>
+      <h2>작성해 주셔서 감사합니다!</h2>
+      <p>내용이 준비됐어요.<br>카카오톡·문자로 <b>아파트스퀘어 감리팀</b>에 보내주시면<br>담당 감리사가 확인 후 연락드립니다.</p>
+      <button class="btn btn-kakao" id="againBtn" style="max-width:300px;margin:20px auto 0">다시 보내기</button>
+    </div>
+  </div>
+
+<script>
+  var QS = new URLSearchParams(location.search);
+  var aptParam = QS.get('apt') || '';
+  if (aptParam) { document.getElementById('f-apt').value = aptParam; }
+
+  var FIELDS = [
+    ['f-apt','단지명'],['f-name','작성자(관리소장님)'],['f-phone','연락처'],
+    ['f-house','세대수 / 동 수'],['f-year','준공 연도'],
+    ['f-issue','주요 하자·불편 사항'],['f-want','요청·희망 사항'],['f-when','희망 공사 시기']
+  ];
+  function val(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
+  function buildText(){
+    var lines=['［아파트스퀘어 · 관리소장님 작성지］',''];
+    FIELDS.forEach(function(f){ var v=val(f[0]); lines.push(f[1]+': '+(v||'(미작성)')); });
+    lines.push('','작성일: '+new Date().toLocaleDateString('ko-KR'));
+    return lines.join('\n');
+  }
+  function setMsg(t,ok){ var m=document.getElementById('msg'); m.style.color=ok?'#1f8a5b':'#e4544b'; m.textContent=t; }
+  function validate(){
+    if(!val('f-apt')){ setMsg('단지명을 입력해 주세요.',false); document.getElementById('f-apt').focus(); return false; }
+    if(!val('f-name')){ setMsg('작성자 성함을 입력해 주세요.',false); document.getElementById('f-name').focus(); return false; }
+    return true;
+  }
+  function showDone(){ document.getElementById('formCard').style.display='none'; document.getElementById('doneCard').style.display='block'; window.scrollTo(0,0); }
+
+  async function copyText(){
+    var text=buildText(), ok=false;
+    try{ await navigator.clipboard.writeText(text); ok=true; }
+    catch(e){
+      try{ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); ok=document.execCommand('copy'); ta.remove(); }catch(_){}
+    }
+    return ok;
+  }
+  document.getElementById('sendBtn').onclick = async function(){
+    if(!validate()) return;
+    var text=buildText();
+    if(navigator.share){
+      try{ await navigator.share({title:'관리소장님 작성지', text:text}); showDone(); return; }
+      catch(e){ if(e && e.name==='AbortError') return; }
+    }
+    var ok=await copyText();
+    if(ok){ setMsg('✅ 복사됐어요! 카카오톡을 열어 감리팀에 붙여넣기 해주세요.',true); }
+    else { setMsg('복사가 안 됐어요. 아래 ‘내용 복사하기’를 눌러주세요.',false); }
+  };
+  document.getElementById('copyBtn').onclick = async function(){
+    if(!validate()) return;
+    var ok=await copyText();
+    setMsg(ok?'✅ 복사됐어요! 카카오톡에 붙여넣기 해주세요.':'복사가 안 됐어요. 화면을 캡처해서 보내주세요.', ok);
+  };
+  document.getElementById('againBtn').onclick = function(){ document.getElementById('doneCard').style.display='none'; document.getElementById('formCard').style.display='block'; };
+</script>
+</body>
+</html>

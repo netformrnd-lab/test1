@@ -485,9 +485,14 @@
             <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">받은 작성지</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">소장님이 제출한 작성지 확인</div></div>
             <span style="font-size:19px;color:#c3ccdb">›</span>
           </div>
-          <div id="aud-menu-chat" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+          <div id="aud-menu-chat" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
             <div style="width:50px;height:50px;border-radius:14px;background:#eaf1ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">💬</div>
-            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">입주민 채팅</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">이 단지 입주민과 실시간 대화</div></div>
+            <div style="flex:1;display:flex;align-items:center;gap:8px"><div><div style="font-size:15px;font-weight:800;color:#1c2440">입주민 채팅</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">이 단지 입주민과 실시간 대화</div></div><span id="aud-chat-badge" style="display:none;background:#e4544b;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;padding:0 5px;align-items:center;justify-content:center">0</span></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+          <div id="aud-menu-contract" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#f3eeff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">📑</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">계약서</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">이 단지 계약서 보기·등록 (감리사만)</div></div>
             <span style="font-size:19px;color:#c3ccdb">›</span>
           </div>
         </div>
@@ -583,6 +588,17 @@
         <div class="ab" style="align-items:center"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div style="display:flex;align-items:center;gap:9px;flex:1;min-width:0"><div id="chat-av" style="width:34px;height:34px;border-radius:50%;background:linear-gradient(150deg,#7FA1E0,#4a6bb0);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff">감</div><div style="min-width:0"><div id="chat-title" class="abt" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">채팅</div><div id="chat-sub" style="font-size:10px;color:#8b95ad;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">연결 중…</div></div></div></div>
         <div id="chat-body" class="bd" style="background:#eef1f6;padding:14px 12px;display:flex;flex-direction:column;gap:9px"></div>
         <div style="flex-shrink:0;display:flex;align-items:flex-end;gap:8px;padding:9px 11px;background:#fff;border-top:1px solid #eaedf4"><textarea id="chat-input" rows="1" placeholder="메시지를 입력하세요" style="flex:1;resize:none;max-height:88px;border:1px solid #e1e7f0;border-radius:18px;padding:10px 14px;font-size:13.5px;font-family:inherit;outline:none;line-height:1.4;background:#f7f9fc"></textarea><button id="chat-send" style="flex-shrink:0;width:42px;height:42px;border-radius:50%;background:#2F6BF6;color:#fff;border:none;font-size:17px;cursor:pointer">➤</button></div>
+      </section>
+
+      <!-- s35: 계약서 (감리사) -->
+      <section class="screen" id="s35" data-name="계약서">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">계약서</div><div style="font-size:10px;color:#2F6BF6;font-weight:800" id="ct-apt">단지</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <label style="display:flex;align-items:center;justify-content:center;gap:7px;border:1.5px dashed #b9a6e8;background:#f7f3ff;border-radius:12px;padding:14px;cursor:pointer;font-size:13.5px;font-weight:800;color:#7c5cc4;margin-bottom:14px">＋ 계약서 올리기 (PDF·사진)<input id="ct-file" type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadContract(this.files)"></label>
+          <div id="ct-msg" style="font-size:11.5px;font-weight:700;text-align:center;min-height:16px;margin-bottom:8px;color:#8b95ad"></div>
+          <div id="ct-list" style="display:flex;flex-direction:column;gap:9px"></div>
+        </div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
       </section>
     </div>
   </div>

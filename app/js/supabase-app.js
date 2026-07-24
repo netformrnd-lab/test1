@@ -126,18 +126,38 @@ async function loadResidentNext(aptId) {
   if (dbox) dbox.innerHTML = `<span style="font-size:9px;font-weight:800;color:#2F6BF6">${d.getMonth() + 1}월</span><span style="font-size:17px;font-weight:800;color:#2F6BF6">${d.getDate()}</span>`
 }
 // 입주민: 우리 단지 현장 현황 (관리자가 올린 현장 사진·글)
+// 동(棟) 추출: dong 컬럼 우선, 없으면 제목/내용에서 'N동' 자동 추출
+function fieldDong(f) {
+  if (f.dong) return f.dong
+  const m = ((f.title || '') + ' ' + (f.content || '')).match(/(\d{1,3})\s*동/)
+  return m ? (m[1] + '동') : '기타'
+}
+function dongList(items) {
+  return [...new Set(items.map(fieldDong))].sort((a, b) => { const na = parseInt(a), nb = parseInt(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; if (!isNaN(na)) return -1; if (!isNaN(nb)) return 1; return a.localeCompare(b, 'ko') })
+}
+function dongBar(items, sel, fn) {
+  const dongs = dongList(items)
+  if (dongs.length <= 1) return ''
+  const chip = (val, label, on) => `<span onclick="${fn}('${val}')" style="cursor:pointer;font-size:11px;font-weight:${on ? '800' : '700'};color:${on ? '#fff' : '#5a6480'};background:${on ? '#2F6BF6' : '#eef1f7'};padding:6px 13px;border-radius:99px;white-space:nowrap">${label}</span>`
+  return `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:11px;scrollbar-width:none">${chip('', '전체', !sel)}${dongs.map(d => chip(d, d, sel === d)).join('')}</div>`
+}
 let FIELD_LIST = []       // 입주민 현장 현황 전체
+let FIELD_DONG = ''
+window.selectFieldDong = function (d) { FIELD_DONG = d; renderFieldList() }
 function renderFieldList() {
   const cont = document.getElementById('field-list'); if (!cont) return
   const q = ((document.getElementById('field-search') || {}).value || '').trim().toLowerCase()
-  const list = q ? FIELD_LIST.filter(f => ((f.title || '') + ' ' + (f.content || '')).toLowerCase().includes(q)) : FIELD_LIST
-  if (!list.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q ? '검색 결과가 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; return }
-  cont.innerHTML = list.map(reportCard).join('')
+  let list = q ? FIELD_LIST.filter(f => ((f.title || '') + ' ' + (f.content || '')).toLowerCase().includes(q)) : FIELD_LIST
+  const bar = dongBar(FIELD_LIST, FIELD_DONG, 'selectFieldDong')
+  if (FIELD_DONG) list = list.filter(f => fieldDong(f) === FIELD_DONG)
+  if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || FIELD_DONG ? '해당 사진이 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; return }
+  cont.innerHTML = bar + list.map(reportCard).join('')
 }
 async function loadFieldUpdates() {
   const cont = document.getElementById('field-list'); if (!cont) return
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
   const fs = document.getElementById('field-search'); if (fs) fs.value = ''
+  FIELD_DONG = ''
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
   const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
   const hdr = document.getElementById('field-apt')
@@ -149,27 +169,38 @@ async function loadFieldUpdates() {
   renderFieldList()
 }
 // 감리사: 단지 선택 후 메뉴 (감리일지 / 현장 사진)
-function openAuditorMenu(a) {
+async function openAuditorMenu(a) {
   if (!a) return
   currentApt = a
   const nm = document.getElementById('aud-menu-apt'); if (nm) nm.textContent = a.name
   window.showScreen('s27')
+  const badge = document.getElementById('aud-chat-badge'); if (badge) badge.style.display = 'none'
+  try {
+    const { data } = await sb.from('chat_messages').select('created_at,sender_role').eq('thread', 'apt:' + a.id).order('created_at', { ascending: true })
+    const n = unreadFor(data, 'auditor', 'apt:' + a.id)
+    if (badge) { if (n > 0) { badge.textContent = n > 99 ? '99+' : String(n); badge.style.display = 'flex' } else badge.style.display = 'none' }
+  } catch (e) {}
 }
 window.openAuditorMenu = openAuditorMenu
 // 감리사: 이 단지 현장 사진 목록
 let AUDFIELD_LIST = []
+let AUD_DONG = ''
+window.selectAudDong = function (d) { AUD_DONG = d; renderAudFieldList() }
 function renderAudFieldList() {
   const cont = document.getElementById('audfield-list'); if (!cont) return
   const q = ((document.getElementById('audfield-search') || {}).value || '').trim().toLowerCase()
-  const list = q ? AUDFIELD_LIST.filter(f => ((f.title || '') + ' ' + (f.content || '')).toLowerCase().includes(q)) : AUDFIELD_LIST
-  if (!list.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q ? '검색 결과가 없어요.' : '아직 이 단지에 등록된 현장 사진이 없어요.') + '</div>'; return }
-  cont.innerHTML = list.map(reportCard).join('')
+  let list = q ? AUDFIELD_LIST.filter(f => ((f.title || '') + ' ' + (f.content || '')).toLowerCase().includes(q)) : AUDFIELD_LIST
+  const bar = dongBar(AUDFIELD_LIST, AUD_DONG, 'selectAudDong')
+  if (AUD_DONG) list = list.filter(f => fieldDong(f) === AUD_DONG)
+  if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || AUD_DONG ? '해당 사진이 없어요.' : '아직 이 단지에 등록된 현장 사진이 없어요.') + '</div>'; return }
+  cont.innerHTML = bar + list.map(reportCard).join('')
 }
 async function openAuditorField(a) {
   if (!a) return
   const cont = document.getElementById('audfield-list'); if (!cont) return
   const hdr = document.getElementById('audfield-apt'); if (hdr) hdr.textContent = a.name
   const fs = document.getElementById('audfield-search'); if (fs) fs.value = ''
+  AUD_DONG = ''
   window.showScreen('s28')
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', a.id).order('created_at', { ascending: false })
@@ -888,7 +919,7 @@ function openReport(r) {
     p1.style.display = ''
     p1.style.cssText = 'display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:12px'
     // 사진 전체가 보이도록 contain (잘리지 않게) + 중립 배경
-    p1.innerHTML = ph.map(u => `<div style="flex:0 0 100%;scroll-snap-align:center;height:300px;border-radius:12px;background:#eef1f7 url('${u}') center/contain no-repeat"></div>`).join('')
+    p1.innerHTML = ph.map(u => `<div onclick="zoomPhoto('${u}')" style="flex:0 0 100%;scroll-snap-align:center;height:300px;border-radius:12px;cursor:zoom-in;background:#eef1f7 url('${u}') center/contain no-repeat"></div>`).join('')
     if (!dots) { dots = document.createElement('div'); dots.id = 'd-photo-dots'; dots.style.cssText = 'display:flex;justify-content:center;gap:5px;margin-top:9px'; p1.after(dots) }
     dots.style.display = ph.length > 1 ? 'flex' : 'none'
     dots.innerHTML = ph.map((_, i) => `<span style="width:6px;height:6px;border-radius:50%;background:${i === 0 ? '#2F6BF6' : '#d3dae8'}"></span>`).join('')
@@ -1086,6 +1117,7 @@ function wire() {
   const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
   const amRcv = $('aud-menu-received'); if (amRcv) amRcv.onclick = () => openReceivedForms()
   const amChat = $('aud-menu-chat'); if (amChat) amChat.onclick = () => { if (currentApt) openChat({ thread: 'apt:' + currentApt.id, aptId: currentApt.id, role: 'auditor', name: MY_NAME || '감리사', title: currentApt.name, sub: '입주민과 대화' }) }
+  const amCt = $('aud-menu-contract'); if (amCt) amCt.onclick = () => openContracts()
   // 채팅 입력
   const cSend = $('chat-send'); if (cSend) cSend.onclick = sendChat
   const cInp = $('chat-input')
@@ -1324,6 +1356,76 @@ window.openAlimContent = function (i) {
 }
 
 /* ===== 인앱 채팅 (입주민↔감리사 / 손님↔관리자) ===== */
+/* ===== 계약서 (감리사) ===== */
+let CONTRACTS = []
+function openContracts() {
+  if (!currentApt) return
+  const ap = document.getElementById('ct-apt'); if (ap) ap.textContent = currentApt.name
+  const msg = document.getElementById('ct-msg'); if (msg) msg.textContent = ''
+  window.showScreen('s35')
+  loadContracts()
+}
+window.openContracts = openContracts
+async function loadContracts() {
+  const box = document.getElementById('ct-list'); if (!box || !currentApt) return
+  box.innerHTML = '<div style="padding:14px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const { data, error } = await sb.from('contracts').select('*').eq('apartment_id', currentApt.id).order('created_at', { ascending: false })
+  if (error) { box.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px;line-height:1.7">불러오지 못했어요.<br><b>backend/migration-week.sql</b> 실행이 필요해요.</div>'; return }
+  CONTRACTS = data || []
+  renderContracts()
+}
+function renderContracts() {
+  const box = document.getElementById('ct-list'); if (!box) return
+  if (!CONTRACTS.length) { box.innerHTML = '<div style="padding:22px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">아직 등록된 계약서가 없어요.<br>위 버튼으로 올려보세요.</div>'; return }
+  box.innerHTML = CONTRACTS.map(c => {
+    const d = (c.created_at || '').slice(0, 10).replace(/-/g, '.')
+    const ic = c.kind === 'pdf' ? '📄' : '🖼️'
+    return `<div style="background:#fff;border:1px solid #e6eaf2;border-radius:13px;padding:12px 13px;display:flex;align-items:center;gap:11px">
+      <div onclick="openContractFile('${c.file_url}','${c.kind}')" style="flex:1;display:flex;align-items:center;gap:11px;cursor:pointer;min-width:0"><div style="width:44px;height:44px;border-radius:11px;background:#f3eeff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:21px">${ic}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(c.name) || '계약서'}</div><div style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:2px">${d} · ${c.kind === 'pdf' ? 'PDF' : '사진'} · 탭하면 열기</div></div></div>
+      <span onclick="deleteContract('${c.id}')" style="flex-shrink:0;color:#e4544b;font-size:11px;font-weight:800;cursor:pointer;padding:6px">삭제</span>
+    </div>`
+  }).join('')
+}
+window.openContractFile = function (url, kind) { if (kind === 'image') zoomPhoto(url); else window.open(url, '_blank', 'noopener') }
+async function uploadContract(files) {
+  const f = files && files[0]; if (!f || !currentApt) return
+  const msg = document.getElementById('ct-msg'); if (msg) { msg.style.color = '#8b95ad'; msg.textContent = '올리는 중…' }
+  const safe = f.name.replace(/[^\w.\-]/g, '_')
+  const path = 'contracts/' + currentApt.id + '/' + Date.now() + '_' + safe
+  const { error: upErr } = await sb.storage.from('field-photos').upload(path, f, { upsert: false })
+  if (upErr) { if (msg) { msg.style.color = '#e4544b'; msg.textContent = '업로드 실패: ' + upErr.message } return }
+  const url = sb.storage.from('field-photos').getPublicUrl(path).data.publicUrl
+  const kind = f.type === 'application/pdf' ? 'pdf' : 'image'
+  const { error } = await sb.from('contracts').insert({ apartment_id: currentApt.id, name: f.name, file_url: url, kind })
+  if (error) { if (msg) { msg.style.color = '#e4544b'; msg.textContent = '등록 실패: ' + error.message } return }
+  if (msg) { msg.style.color = '#1f8a5b'; msg.textContent = '✅ 등록됐어요' }
+  const fi = document.getElementById('ct-file'); if (fi) fi.value = ''
+  loadContracts()
+}
+window.uploadContract = uploadContract
+async function deleteContract(id) {
+  if (!confirm('이 계약서를 삭제할까요?')) return
+  const { error } = await sb.from('contracts').delete().eq('id', id)
+  if (error) { alert('삭제 실패: ' + error.message); return }
+  loadContracts()
+}
+window.deleteContract = deleteContract
+
+// 사진 확대 (라이트박스)
+window.zoomPhoto = function (url) {
+  if (!url) return
+  let ov = document.getElementById('photo-zoom')
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'photo-zoom'
+    ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(8,12,24,.92);display:flex;align-items:center;justify-content:center;padding:16px'
+    ov.onclick = () => { ov.style.display = 'none' }
+    document.body.appendChild(ov)
+  }
+  ov.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain">' +
+    '<span style="position:absolute;top:16px;right:18px;color:#fff;font-size:26px;font-weight:300">✕</span>'
+  ov.style.display = 'flex'
+}
+
 function chatGuestId() {
   let g = localStorage.getItem('aptsq_guest')
   if (!g) { g = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (String(Date.now()) + Math.random().toString(16).slice(2)); localStorage.setItem('aptsq_guest', g) }
@@ -1351,6 +1453,8 @@ async function loadChat(scroll) {
   if (msgs.length === CHAT.lastCount) return
   CHAT.lastCount = msgs.length
   renderChat(msgs, scroll)
+  if (msgs.length) localStorage.setItem(chatSeenKey(CHAT.thread), msgs[msgs.length - 1].created_at || new Date().toISOString())
+  setChatNavBadge(0)
 }
 function renderChat(msgs, mode) {
   const body = document.getElementById('chat-body'); if (!body) return
@@ -1384,6 +1488,26 @@ function chatFromNav() {
   }
 }
 window.chatFromNav = chatFromNav
+
+// 채팅 안 읽음 빨간 배지
+function chatSeenKey(th) { return 'aptsq_seen_' + th }
+function unreadFor(msgs, myRole, th) { const seen = localStorage.getItem(chatSeenKey(th)) || ''; return (msgs || []).filter(m => m.sender_role !== myRole && (m.created_at || '') > seen).length }
+function setChatNavBadge(n) {
+  document.querySelectorAll('.nav [data-tab="chat"]').forEach(tab => {
+    let b = tab.querySelector('.chat-badge')
+    if (!b) { b = document.createElement('span'); b.className = 'chat-badge'; b.style.cssText = 'position:absolute;top:-1px;left:56%;background:#e4544b;color:#fff;font-size:9px;font-weight:800;min-width:15px;height:15px;border-radius:99px;padding:0 4px;display:none;align-items:center;justify-content:center;line-height:1;z-index:2'; tab.style.position = 'relative'; tab.appendChild(b) }
+    if (n > 0) { b.textContent = n > 99 ? '99+' : String(n); b.style.display = 'flex' } else b.style.display = 'none'
+  })
+}
+async function refreshChatBadge() {
+  let th, role
+  if (currentRole && currentRole !== 'auditor' && RES_APT && RES_APT.id) { th = 'apt:' + RES_APT.id; role = (currentRole === 'manager' ? 'manager' : 'resident') }
+  else if (!currentRole) { th = 'guest:' + chatGuestId(); role = 'guest' }
+  else { setChatNavBadge(0); return }
+  try { const { data } = await sb.from('chat_messages').select('created_at,sender_role').eq('thread', th).order('created_at', { ascending: true }); setChatNavBadge(unreadFor(data, role, th)) } catch (e) {}
+}
+window.refreshChatBadge = refreshChatBadge
+setInterval(refreshChatBadge, 20000)
 
 // ── 문의 버튼 → 카카오톡 채널 채팅 ─────────────────────────────
 const INQUIRY_URL = 'https://pf.kakao.com/_DpQHG/chat'

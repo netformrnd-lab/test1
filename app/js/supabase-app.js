@@ -1135,12 +1135,12 @@ function wire() {
   sb.auth.getSession().then(({ data }) => { if (data.session) route(); else { window.showScreen('s04'); loadResidentNotices('s04-notices') } })
 }
 
-/* ===== 알림 탭 = 아파트스퀘어 소개 (감리 중심, 아파트스퀘어 고유 디자인) ===== */
+/* ===== 알림 탭 = 아파트스퀘어 소개 (실행 로드맵 기반, 감리 토탈 솔루션) ===== */
 // 콘텐츠(블로그·유튜브) 목록 — 실제 링크는 여기 채우면 됨
 const ALIM_CONTENT = [
   { type: 'youtube', title: '아파트 외벽 재도장, 감리는 무엇을 확인할까요?', desc: '현장 감리 포인트를 영상으로', url: '' },
   { type: 'blog', title: '우리 단지 옥상 방수, 이렇게 진행됩니다', desc: '공정별 감리 체크 포인트', url: '' },
-  { type: 'blog', title: '감리일지, 이렇게 읽으세요', desc: '입주민을 위한 감리일지 가이드', url: '' },
+  { type: 'blog', title: '할 공사 vs 미뤄도 되는 공사, 어떻게 구분할까', desc: '입주자대표회의를 위한 진단 이야기', url: '' },
   { type: 'youtube', title: '지하주차장 에폭시 하자, 왜 생길까?', desc: '원인과 올바른 보수 방법', url: '' }
 ]
 // 아파트스퀘어 네이비 브랜드 히어로
@@ -1152,64 +1152,71 @@ function navyHero(kicker, title) {
 }
 function alimCard(inner, pad) { return '<div style="background:#fff;border:1px solid #eef1f7;border-radius:15px;padding:' + (pad || '15px 15px') + ';box-shadow:0 8px 18px -14px rgba(23,38,80,.35)">' + inner + '</div>' }
 const ALIM = {
+  // 소개 · 비전 · 철학
   philosophy() {
-    let h = navyHero('APARTSQUARE · 아파트 보수공사 감리', '우리 단지 보수공사,<br>감리가 끝까지 지켜봅니다')
+    let h = navyHero('APARTSQUARE · 아파트 보수공사 감리', '아파트 보수공사,<br>쉽게 · 공정하게 · 안심되게')
     h += '<div style="padding:16px 14px 26px">'
-    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85">아파트스퀘어는 아파트·공동주택 <b>보수공사에 전문 감리</b>를 붙이는 서비스예요.<br>공사업체가 아니라, <b style="color:#2F6BF6">주민 편에서</b> 공사를 확인하는 감리사가 함께합니다.</div>', '16px 15px')
-    // 감리란?
+    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9">아파트스퀘어는 <b>비전문가도</b> 아파트 보수공사의<br><b style="color:#2F6BF6">진단 · 설계 · 입찰 · 시공 · 준공</b>을<br>쉽게 이해하고 공정하게 관리할 수 있도록 돕는<br><b>보수공사 감리 토탈 솔루션</b>입니다.</div>', '16px 15px')
     h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:15px;padding:16px 15px;margin-top:12px">'
       + '<div style="font-size:13px;font-weight:800;color:#2F6BF6;margin-bottom:6px">🛡️ 감리가 뭔가요?</div>'
-      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8">공사가 <b>약속대로 되는지 제3자가 확인</b>하는 일이에요. 자재·공정·품질을 <b>주민 대신 검측</b>하고, 기록으로 남겨 드려요.</div></div>'
-    // 3 value
-    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:24px 4px 11px">아파트스퀘어는 이렇게 다릅니다</div>'
+      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8">공사가 <b>약속대로 되는지 제3자가 확인</b>하는 일이에요. 공사업체가 아니라 <b>주민 편에서</b> 자재·공정·품질을 검측하고 기록으로 남겨 드려요.</div></div>'
+    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:24px 4px 11px">아파트스퀘어가 지키는 세 가지</div>'
     h += '<div style="display:flex;flex-direction:column;gap:10px">'
-    h += [['🛡️', '주민 편에 섭니다', '공사업체가 아닌, 입주민 편에 선 독립 감리사가 확인해요.'],
-      ['📋', '기록으로 남깁니다', '감리일지·현장사진으로 매 공정을 투명하게 남겨요.'],
-      ['🤝', '끝까지 함께합니다', '상담부터 준공·하자 관리까지 한 감리가 함께해요.']]
+    h += [['🔎', '쉽게 이해돼요', '전문적인 판단을 쉬운 말·현장 사진으로 설명해요.'],
+      ['⚖️', '공정하게 결정해요', '할 공사와 미뤄도 되는 공사를 구분하고, 업체 선정도 공정하게.'],
+      ['🛡️', '안심하고 맡겨요', '진단부터 준공·하자관리까지 표준화된 감리로 함께해요.']]
       .map(c => alimCard('<div style="display:flex;gap:12px;align-items:flex-start"><div style="width:42px;height:42px;border-radius:12px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:21px">' + c[0] + '</div><div><div style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</div><div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.6;margin-top:3px">' + c[2] + '</div></div></div>', '13px 14px')).join('')
-    h += '</div></div>'
-    return h
-  },
-  features() {
-    // 비교 (감리 없는 공사 vs 아파트스퀘어)
-    const rows = [['공사 끝나면 그걸로 끝', '준공·사후관리까지 확인'], ['무엇을 했는지 알기 어려움', '감리일지·현장사진으로 확인'], ['업체 말에만 의존', '제3자 감리가 직접 검측']]
-    let cmp = '<div style="display:flex;gap:8px;margin-bottom:8px"><div style="flex:1;text-align:center;font-size:11px;font-weight:800;color:#98a1b5">감리 없는 공사</div><div style="flex:1;text-align:center;font-size:11px;font-weight:800;color:#2F6BF6">아파트스퀘어</div></div>'
-    cmp += rows.map(r => '<div style="display:flex;gap:8px;margin-bottom:8px"><div style="flex:1;background:#f4f6fa;border-radius:10px;padding:11px 10px;font-size:11px;color:#8b95ad;font-weight:600;line-height:1.4;text-align:center">✕ ' + r[0] + '</div><div style="flex:1;background:#eef4ff;border:1px solid #d7e3fb;border-radius:10px;padding:11px 10px;font-size:11px;color:#2455c0;font-weight:700;line-height:1.4;text-align:center">✓ ' + r[1] + '</div></div>').join('')
-    let h = navyHero('WHY APARTSQUARE', '감리가 있으면,<br>공사가 이렇게 달라져요')
-    h += '<div style="padding:16px 14px 8px">' + cmp + '</div>'
-    // 실제 앱 기능
-    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:14px 18px 11px">앱에서 이렇게 확인해요</div>'
-    h += '<div style="display:flex;flex-direction:column;gap:10px;padding:0 14px 26px">'
-    h += [['📋', '#eef4ff', '감리일지를 폰으로', '감리사가 현장에서 남긴 기록을 그날 바로 확인해요.', '알림·현황 탭'],
-      ['📸', '#eafaf2', '현장 사진', '매 공정을 사진으로 남겨, 눈으로 직접 확인해요.', '현황 탭'],
-      ['📊', '#fff4e6', '공정 진행률', '우리 단지 공사가 지금 몇 단계인지 홈에서 한눈에.', '홈'],
-      ['💬', '#fdecef', '담당 감리사', '궁금한 건 카카오톡으로 담당 감리사에게 바로.', '채팅 탭']]
-      .map(c => alimCard('<div style="display:flex;gap:12px;align-items:center"><div style="width:46px;height:46px;border-radius:12px;background:' + c[1] + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">' + c[0] + '</div><div style="flex:1"><div style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[2] + '</div><div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.6;margin-top:3px">' + c[3] + '</div></div><span style="font-size:9.5px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:4px 8px;border-radius:99px;flex-shrink:0">' + c[4] + '</span></div>', '12px 13px')).join('')
+    h += '</div>'
+    h += '<div style="background:#1c2440;color:#fff;border-radius:15px;padding:20px 18px;margin-top:20px;text-align:center"><div style="font-size:12.5px;font-weight:600;color:#c3cee6;line-height:1.7">아파트스퀘어의 경쟁력은</div><div style="font-size:14.5px;font-weight:800;line-height:1.6;margin-top:8px">전문적인 판단을 고객이<br><span style="color:#7FA1E0">쉽게 이해하고, 공정하게 결정하고,<br>안심하고 맡길 수 있게</span> 만든<br>표준 감리 운영체계</div></div>'
     h += '</div>'
     return h
   },
+  // 서비스 = 대표 상품 3종 + 대상 공종
+  features() {
+    const pkg = (ic, bg, name, tag, items) => alimCard(
+      '<div style="display:flex;align-items:center;gap:11px;margin-bottom:10px"><div style="width:44px;height:44px;border-radius:12px;background:' + bg + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">' + ic + '</div><div><div style="font-size:14.5px;font-weight:800;color:#1c2440">' + name + '</div><div style="font-size:10.5px;font-weight:800;color:#2F6BF6;margin-top:2px">' + tag + '</div></div></div>'
+      + '<div style="display:flex;flex-direction:column;gap:6px">' + items.map(t => '<div style="display:flex;gap:7px;font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.5"><span style="color:#2F6BF6;flex-shrink:0">✓</span><span>' + t + '</span></div>').join('') + '</div>', '15px 15px')
+    let h = navyHero('SERVICE', '진단부터 준공까지,<br>필요한 만큼 맡기세요')
+    h += '<div style="padding:16px 14px 8px;display:flex;flex-direction:column;gap:12px">'
+    h += pkg('🔍', '#eef4ff', '공사 전 진단 패키지', 'STEP 1 · 무엇을 할지 정해요', ['현장 상태 진단', '할 공사 · 미뤄도 되는 공사 구분', '공법별 장단점 비교', '예상 공사비 범위 안내', '입주자대표회의 설명자료'])
+    h += pkg('📐', '#eafaf2', '설계 · 입찰 패키지', 'STEP 2 · 공정하게 업체를 정해요', ['공사 범위 확정 · 설계도서 · 시방서', '물량 산출 · 입찰조건 작성', '업체 평가기준 수립', '현장설명회 · 기술평가 지원'])
+    h += pkg('🛡️', '#fff4e6', '토털 감리 패키지', 'STEP 3 · 끝까지 확인해요', ['사전진단 · 설계 · 입찰 지원', '시공 감리 · 공정별 검측', '준공 검사 · 하자 관리'])
+    h += '</div>'
+    // 대상 공종
+    h += '<div style="padding:14px 16px 6px"><div style="font-size:12px;font-weight:800;color:#1c2440;margin-bottom:9px">이런 공사를 감리해요</div><div style="display:flex;flex-wrap:wrap;gap:7px">'
+      + ['외벽 재도장', '옥상 · 외벽 방수', '지하주차장 에폭시 · 누수', '보도블럭 · 아스콘'].map(t => '<span style="font-size:11px;font-weight:700;color:#3a445e;background:#eef1f7;padding:6px 11px;border-radius:99px">' + t + '</span>').join('') + '</div></div>'
+    // 대표 상품 예시
+    h += '<div style="margin:14px 16px 0;background:#eef4ff;border:1px solid #d7e3fb;border-radius:14px;padding:15px"><div style="font-size:10.5px;font-weight:800;color:#2F6BF6">대표 상품</div><div style="font-size:13.5px;font-weight:800;color:#1c2440;line-height:1.5;margin-top:5px">500세대 이상 아파트<br>외벽도장 · 방수공사 토털 관리 패키지</div></div>'
+    // 공사 중엔 앱으로
+    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:22px 16px 10px">공사가 시작되면, 앱으로 확인해요</div>'
+    h += '<div style="display:flex;flex-direction:column;gap:9px;padding:0 14px 26px">'
+    h += [['📋', '감리일지', '감리사가 남긴 기록을 그날 바로', '현황'], ['📸', '현장 사진', '매 공정을 사진으로 투명하게', '현황'], ['📊', '공정 진행률', '지금 몇 단계인지 홈에서 한눈에', '홈'], ['💬', '담당 감리사', '궁금하면 카톡으로 바로 문의', '채팅']]
+      .map(c => alimCard('<div style="display:flex;gap:11px;align-items:center"><div style="width:40px;height:40px;border-radius:11px;background:#f4f6fa;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + c[0] + '</div><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#1c2440">' + c[1] + '</div><div style="font-size:11px;color:#5c6580;font-weight:600;margin-top:2px">' + c[2] + '</div></div><span style="font-size:9.5px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:4px 8px;border-radius:99px;flex-shrink:0">' + c[3] + '</span></div>', '11px 13px')).join('')
+    h += '</div>'
+    return h
+  },
+  // 진행과정 = 고객 여정과 각 단계 경험
   process() {
-    const STEPS = [
-      ['상담 신청', '카카오톡으로 우리 단지 상황을 편하게 알려주세요.'],
-      ['현장 진단', '감리사가 방문해 하자와 꼭 필요한 공사를 진단해요.'],
-      ['감리 계약', '공사 범위·자재·일정·비용을 투명하게 정해요.'],
-      ['단계별 감리', '공정마다 감리일지·현장사진으로 확인·검측해요.'],
-      ['준공·사후관리', '준공을 함께 확인하고 하자 점검까지 책임져요.']
+    const J = [
+      ['💬', '문의', '“우리 단지 상황을 이해하는 전문가를 찾았다.”'],
+      ['📝', '상담', '“우리 문제를 정확히 이해하고 정리해줬다.”'],
+      ['🔍', '현장 진단', '“무엇을 하고 무엇은 미뤄도 되는지 알게 됐다.”'],
+      ['📄', '제안 · 계약', '“앞으로 어떤 절차로 진행되는지 명확하다.”'],
+      ['⚖️', '설계 · 입찰', '“업체 선정 과정이 공정하고 설명 가능하다.”'],
+      ['🏗️', '공사 · 감리', '“매일 안 가도 공사가 투명하게 관리되고 있다.”'],
+      ['✅', '준공', '“공사가 제대로 끝났다는 근거가 있다.”'],
+      ['🤝', '사후관리', '“일회성이 아니라, 장기적인 보수공사 파트너다.”']
     ]
-    let h = navyHero('PROCESS', '감리는 이렇게<br>진행됩니다')
-    h += '<div style="padding:20px 16px 30px">'
-    STEPS.forEach((s, i) => {
-      const last = i === STEPS.length - 1
-      h += '<div style="display:flex;gap:14px">'
-        + '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">'
-        + '<div style="width:34px;height:34px;border-radius:50%;background:#2F6BF6;color:#fff;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</div>'
-        + (last ? '' : '<div style="flex:1;width:2px;background:#cfe0ff;margin:4px 0"></div>') + '</div>'
-        + '<div style="flex:1;padding-bottom:' + (last ? '0' : '16px') + '">'
-        + alimCard('<div style="font-size:14.5px;font-weight:800;color:#1c2440">' + s[0] + '</div><div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.7;margin-top:5px">' + s[1] + '</div>'
-          + (i === 3 ? '<div style="height:6px;border-radius:9px;background:#e2ebff;margin-top:11px;overflow:hidden"><div style="width:60%;height:100%;background:#2F6BF6"></div></div><div style="display:flex;justify-content:space-between;margin-top:5px"><span style="font-size:9.5px;font-weight:700;color:#8b95ad">공정 진행률</span><span style="font-size:10px;font-weight:800;color:#2F6BF6">예시 60%</span></div>' : ''), '13px 14px')
-        + '</div></div>'
+    let h = navyHero('CUSTOMER JOURNEY', '문의부터 사후관리까지,<br>이런 경험을 드려요')
+    h += '<div style="padding:20px 16px 26px">'
+    J.forEach((s, i) => {
+      const last = i === J.length - 1
+      h += '<div style="display:flex;gap:13px">'
+        + '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:38px;height:38px;border-radius:11px;background:#eef4ff;display:flex;align-items:center;justify-content:center;font-size:19px">' + s[0] + '</div>' + (last ? '' : '<div style="flex:1;width:2px;background:#cfe0ff;margin:4px 0"></div>') + '</div>'
+        + '<div style="flex:1;padding-bottom:' + (last ? '0' : '16px') + '"><div style="font-size:14px;font-weight:800;color:#1c2440;margin-bottom:6px">' + s[1] + '</div>'
+        + '<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 13px;font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.6;box-shadow:0 8px 18px -15px rgba(23,38,80,.35)">' + s[2] + '</div></div></div>'
     })
-    h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:14px;padding:15px;text-align:center;margin-top:8px"><div style="font-size:12.5px;font-weight:800;color:#1c2440">우리 단지도 감리받고 싶다면?</div><div data-inquiry="1" style="cursor:pointer;margin-top:10px;background:#2F6BF6;color:#fff;border-radius:11px;padding:12px;font-size:13px;font-weight:800">💬 카카오톡으로 상담 신청</div></div>'
+    h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:14px;padding:16px;text-align:center;margin-top:6px"><div style="font-size:12.5px;font-weight:800;color:#1c2440">우리 단지도 감리받고 싶다면?</div><div data-inquiry="1" style="cursor:pointer;margin-top:10px;background:#2F6BF6;color:#fff;border-radius:11px;padding:12px;font-size:13px;font-weight:800">💬 카카오톡으로 상담 신청</div></div>'
     h += '</div>'
     return h
   },
@@ -1217,7 +1224,7 @@ const ALIM = {
     const icon = t => t === 'youtube' ? '▶' : '📖'
     const col = t => t === 'youtube' ? '#e4544b' : '#2f7a56'
     const lbl = t => t === 'youtube' ? '유튜브' : '블로그'
-    let h = navyHero('CONTENT', '감리·보수공사 이야기,<br>영상과 글로 만나요')
+    let h = navyHero('CONTENT', '감리 · 보수공사 이야기,<br>영상과 글로 만나요')
     h += '<div style="display:flex;flex-direction:column;gap:10px;padding:16px 14px 8px">'
     h += ALIM_CONTENT.map((c, i) => '<div onclick="openAlimContent(' + i + ')" style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:11px 12px;cursor:pointer;box-shadow:0 8px 18px -14px rgba(23,38,80,.35)">'
       + '<div style="width:52px;height:52px;border-radius:12px;background:' + (c.type === 'youtube' ? 'linear-gradient(150deg,#f3a6a0,#e4544b)' : 'linear-gradient(150deg,#8fd3b0,#2f7a56)') + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px">' + icon(c.type) + '</div>'

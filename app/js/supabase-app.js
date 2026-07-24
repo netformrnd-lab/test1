@@ -1114,6 +1114,7 @@ function wire() {
   // 하단 네비게이션 (홈 / 보고서 / 일정)
   document.addEventListener('click', (e) => {
     const nav = e.target.closest('.nav > div'); if (!nav) return
+    if (nav.hasAttribute('data-tab')) return // 신규 5탭 nav는 data-tab 핸들러가 처리
     const t = nav.textContent || ''
     if (t.indexOf('문의') >= 0) return // 문의는 별도 처리
     if (!currentRole) { // 비회원: 홈은 둘러보기(s04), 그 외는 로그인 유도
@@ -1134,6 +1135,109 @@ function wire() {
   sb.auth.getSession().then(({ data }) => { if (data.session) route(); else { window.showScreen('s04'); loadResidentNotices('s04-notices') } })
 }
 
+/* ===== 알림 탭 = 아파트스퀘어 소개 (서브탭: 철학·특징·진행순서·콘텐츠) ===== */
+// 콘텐츠(블로그·유튜브) 목록 — 실제 링크는 여기 채우면 됨
+const ALIM_CONTENT = [
+  { type: 'youtube', title: '아파트 외벽 재도장, 감리는 무엇을 확인할까요?', desc: '현장 감리 포인트를 영상으로', url: '' },
+  { type: 'blog', title: '우리 단지 옥상 방수, 이렇게 진행됩니다', desc: '공정별 감리 체크 포인트', url: '' },
+  { type: 'blog', title: '감리일지, 이렇게 읽으세요', desc: '입주민을 위한 감리일지 가이드', url: '' },
+  { type: 'youtube', title: '지하주차장 에폭시 하자, 왜 생길까?', desc: '원인과 올바른 보수 방법', url: '' }
+]
+function alimHero(tag, title) {
+  return '<div style="height:150px;background:linear-gradient(150deg,rgba(31,44,92,.82),rgba(31,44,92,.5)),url(&quot;assets/intro.jpg&quot;) center/cover;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;text-align:center">'
+    + '<div style="font-size:11px;font-weight:800;color:#a9c2f2;letter-spacing:1px">' + tag + '</div>'
+    + '<div style="font-size:20px;font-weight:800;margin-top:6px">' + title + '</div></div>'
+}
+function alimSection(title, body) {
+  return '<div style="text-align:center;margin:26px 0 8px"><div style="font-size:17px;font-weight:800;color:#2F6BF6">' + title + '</div></div>'
+    + '<div style="font-size:12.5px;color:#5c6580;font-weight:600;line-height:1.85;text-align:center;padding:0 22px">' + body + '</div>'
+}
+const ALIM = {
+  philosophy() {
+    return alimHero('PHILOSOPHY', '아파트스퀘어의 철학')
+      + '<div style="padding:6px 0 28px">'
+      + alimSection('감리 전문가가 만든 서비스', '아파트스퀘어는 <b>보수공사에 감리를 붙여</b><br>주민이 끝까지 안심할 수 있게 만듭니다.')
+      + alimSection('더 쉽고, 더 믿을 수 있도록', '전문 지식이 없어도 누구나 쉽게 이해하고,<br>믿고 맡길 수 있도록 곁에서 돕습니다.')
+      + alimSection('공정한 공사', '꼭 필요한 공사와 미뤄도 되는 공사를 구분해,<br>불필요한 비용이 새지 않게 지켜봅니다.')
+      + alimSection('올바른 공사 문화', '투명한 감리 기록으로<br>더 올바른 아파트 보수공사 문화를 만듭니다.')
+      + '<div style="font-size:11px;font-weight:800;color:#1c2440;text-align:center;margin:26px 0 10px">주민이 느끼는 경험</div>'
+      + '<div style="display:flex;flex-direction:column;gap:9px;padding:0 16px">'
+      + [['👋', '쉽게 이해돼요', '전문 용어 대신 쉬운 말과 현장 사진으로 설명해요'], ['⚖️', '공정하게 결정해요', '꼭 필요한 공사와 미뤄도 되는 공사를 구분해 드려요'], ['🛡️', '끝까지 안심돼요', '상담부터 준공·사후관리까지 감리가 함께해요']]
+        .map(c => '<div style="display:flex;gap:11px;align-items:flex-start;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:13px 14px"><span style="font-size:19px;flex-shrink:0;margin-top:1px">' + c[0] + '</span><div><div style="font-size:13px;font-weight:800;color:#1c2440">' + c[1] + '</div><div style="font-size:11px;color:#5c6580;font-weight:600;margin-top:3px;line-height:1.5">' + c[2] + '</div></div></div>').join('')
+      + '</div></div>'
+  },
+  features() {
+    const gripe = (q, a) => '<div style="background:#fff;border:1px solid #eef1f7;border-radius:15px;padding:17px 16px;margin-bottom:12px"><div style="font-size:15.5px;font-weight:800;color:#1c2440;line-height:1.45">“' + q + '”</div><div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.7;margin-top:9px">' + a + '</div></div>'
+    const feat = (ic, t, d) => '<div style="text-align:center;padding:26px 20px"><div style="font-size:34px">' + ic + '</div><div style="font-size:16px;font-weight:800;color:#2F6BF6;margin-top:10px">' + t + '</div><div style="font-size:12.5px;color:#5c6580;font-weight:600;line-height:1.7;margin-top:8px">' + d + '</div></div>'
+    return '<div style="padding:16px 16px 0">'
+      + '<div style="text-align:center;font-size:13px;font-weight:800;color:#e4544b;margin-bottom:14px">이런 걱정, 해보셨나요?</div>'
+      + gripe('공사 끝나니 하자 연락이 안 돼요', '외벽·옥상 공사가 끝나고 누수가 생겼는데, 업체와 연락이 닿지 않아 발만 동동 굴렀어요.')
+      + gripe('중간에 자재가 바뀌고 비용이 늘었어요', '처음 약속한 자재와 다르게 시공됐는데, 확인할 방법이 없어 그대로 넘어갔어요.')
+      + '</div>'
+      + '<div style="background:#1c2440;color:#fff;padding:30px 22px;text-align:center;margin-top:6px"><div style="font-size:15px;font-weight:700;line-height:1.6">공사 계약 전에는<br>누구나 좋을 수밖에 없습니다.</div><div style="font-size:20px;font-weight:800;margin-top:16px;line-height:1.4">모든 문제는<br><span style="color:#7FA1E0">공사가 시작된 뒤</span>에 생깁니다.</div></div>'
+      + feat('👁️', '현장 실시간 확인', '감리일지·현장사진으로 매 공정을<br>사진과 함께 투명하게 확인해요.')
+      + feat('⚖️', '투명한 공정 관리', '약속된 자재·공법대로 시공되는지<br>감리사가 단계별로 검측해요.')
+      + feat('👷', '전문 감리사 배정', '경험 많은 감리사가 우리 단지를 맡아<br>준공까지 책임지고 확인해요.')
+      + '<div style="height:170px;background:linear-gradient(150deg,rgba(31,44,92,.86),rgba(31,44,92,.55)),url(&quot;assets/1a905ffe-a717-4079-b676-a56a4131335d.jpg&quot;) center/cover;display:flex;align-items:center;justify-content:center;padding:20px"><div style="color:#fff;text-align:center;font-size:18px;font-weight:800;line-height:1.45">아파트스퀘어,<br>보수공사의 모든 순간을<br>곁에서 확인합니다</div></div>'
+  },
+  process() {
+    const STEPS = [
+      ['STEP 1', '상담·신청', '우리 단지 상황을 알려주세요', '카카오톡 채팅이나 문의로 간편하게 상담을 신청하세요.'],
+      ['STEP 2', '현장 진단', '감리사가 현장을 확인해요', '전문 감리사가 방문해 하자와 꼭 필요한 공사를 진단합니다.'],
+      ['STEP 3', '계약·착공 준비', '범위·일정을 확정해요', '공사 범위·자재·일정을 투명하게 정하고 착공을 준비합니다.'],
+      ['STEP 4', '감리 진행', '단계별로 확인해요', '매 공정을 감리일지·현장사진으로 확인. 약속된 자재·공법대로 시공되는지 검측합니다.'],
+      ['STEP 5', '준공·사후관리', '끝까지 책임져요', '준공 상태를 함께 확인하고, 하자 점검·사후관리까지 함께합니다.']
+    ]
+    let h = '<div style="height:96px;background:linear-gradient(150deg,#243768,#1F2C5C);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:800">아파트스퀘어 진행순서</div>'
+    h += '<div style="padding:22px 16px 30px">'
+    STEPS.forEach((s, i) => {
+      const last = i === STEPS.length - 1
+      h += '<div style="display:flex;gap:13px">'
+        + '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="font-size:9px;font-weight:800;color:#2F6BF6">' + s[0] + '</div><div style="width:15px;height:15px;border-radius:50%;background:#2F6BF6;margin-top:3px;border:3px solid #cfe0ff"></div>' + (last ? '' : '<div style="flex:1;width:2px;background:#cfe0ff;margin:2px 0"></div>') + '</div>'
+        + '<div style="flex:1;padding-bottom:' + (last ? '0' : '18px') + '"><div style="font-size:16px;font-weight:800;color:#1c2440">' + s[1] + '</div>'
+        + '<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:13px 14px;margin-top:8px"><div style="font-size:13px;font-weight:800;color:#2F6BF6">' + s[2] + '</div><div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.7;margin-top:5px">' + s[3] + '</div>'
+        + (i === 3 ? '<div style="height:6px;border-radius:9px;background:#e2ebff;margin-top:11px;overflow:hidden"><div style="width:60%;height:100%;background:#2F6BF6"></div></div><div style="text-align:right;font-size:10px;font-weight:800;color:#2F6BF6;margin-top:4px">공사진척률 예시 60%</div>' : '')
+        + '</div></div></div>'
+    })
+    h += '</div>'
+    return h
+  },
+  content() {
+    const icon = t => t === 'youtube' ? '▶' : '📖'
+    const col = t => t === 'youtube' ? '#e4544b' : '#2f7a56'
+    const lbl = t => t === 'youtube' ? '유튜브' : '블로그'
+    let h = '<div style="padding:18px 16px 8px"><div style="font-size:17px;font-weight:800;color:#1c2440">아파트스퀘어 콘텐츠</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:4px">블로그·유튜브로 감리와 보수공사 이야기를 만나보세요</div></div>'
+    h += '<div style="display:flex;flex-direction:column;gap:10px;padding:6px 16px 26px">'
+    h += ALIM_CONTENT.map((c, i) => '<div onclick="openAlimContent(' + i + ')" style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:11px 12px;cursor:pointer">'
+      + '<div style="width:52px;height:52px;border-radius:11px;background:' + (c.type === 'youtube' ? 'linear-gradient(150deg,#f3a6a0,#e4544b)' : 'linear-gradient(150deg,#8fd3b0,#2f7a56)') + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px">' + icon(c.type) + '</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#1c2440;line-height:1.4">' + c.title + '</div><div style="font-size:10px;font-weight:800;color:' + col(c.type) + ';margin-top:4px">' + icon(c.type) + ' ' + lbl(c.type) + ' · ' + c.desc + '</div></div>'
+      + '<span style="color:#c3ccdb;font-size:16px">›</span></div>').join('')
+    h += '</div>'
+    h += '<div style="text-align:center;font-size:10.5px;color:#aab2c4;font-weight:600;padding:0 16px 30px">※ 링크는 준비되는 대로 연결됩니다.</div>'
+    return h
+  }
+}
+let alimTab = 'philosophy'
+function renderAlim(tab) {
+  alimTab = tab || alimTab
+  const body = document.getElementById('alim-body'); if (!body) return
+  body.innerHTML = (ALIM[alimTab] || ALIM.philosophy)()
+  document.querySelectorAll('.alim-tab').forEach(t => {
+    const on = t.dataset.atab === alimTab
+    t.style.color = on ? '#2F6BF6' : '#98a1b5'
+    t.style.fontWeight = on ? '800' : '700'
+    t.style.borderBottomColor = on ? '#2F6BF6' : 'transparent'
+  })
+  const bd = document.querySelector('#s33 .bd'); if (bd) bd.scrollTop = 0
+}
+function openAlim() { window.showScreen('s33'); renderAlim(alimTab) }
+window.openAlim = openAlim
+window.openAlimContent = function (i) {
+  const c = ALIM_CONTENT[i]; if (!c) return
+  if (c.url) window.open(c.url, '_blank', 'noopener')
+  else alert('아직 링크가 연결되지 않았어요. 곧 준비됩니다!')
+}
+
 // ── 문의 버튼 → 카카오톡 채널 채팅 ─────────────────────────────
 const INQUIRY_URL = 'https://pf.kakao.com/_DpQHG/chat'
 function normText(s) { return (s || '').replace(/[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/gu, '') }
@@ -1150,6 +1254,22 @@ function tagInquiry() {
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-inquiry]')
   if (el) { e.preventDefault(); window.open(INQUIRY_URL, '_blank', 'noopener') }
+})
+
+// 하단 5탭(홈·현황·일정·알림·채팅) + 알림 서브탭 라우팅
+document.addEventListener('click', (e) => {
+  const tabEl = e.target.closest('.nav [data-tab]')
+  if (tabEl) {
+    const tab = tabEl.dataset.tab
+    if (tab === 'home') { showScreen('s11'); loadResidentHome() }
+    else if (tab === 'field') { showScreen('s26'); loadFieldUpdates() }
+    else if (tab === 'schedule') { showScreen('s14'); loadSchedule() }
+    else if (tab === 'alim') { openAlim() }
+    else if (tab === 'chat') { window.open(INQUIRY_URL, '_blank', 'noopener') }
+    return
+  }
+  const at = e.target.closest('.alim-tab')
+  if (at) { renderAlim(at.dataset.atab) }
 })
 
 function boot() {

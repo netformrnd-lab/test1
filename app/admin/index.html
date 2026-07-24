@@ -434,7 +434,7 @@ async function deleteMgrForm(id){
 }
 
 /* ===== 채팅 (chat_messages) ===== */
-let CHAT_MSGS=[], CHAT_CUR='', CHAT_POLL=null;
+let CHAT_MSGS=[], CHAT_CUR='', CHAT_POLL=null, CHAT_SIG='';
 function chatThreadName(th, aptId){
   if(th && th.indexOf('apt:')===0){ const a=APTS.find(x=>('apt:'+x.id)===th||x.id===aptId); return '🏢 '+(a?a.name:'단지'); }
   return '🙋 손님 '+String(th||'').replace('guest:','').slice(0,6);
@@ -442,7 +442,11 @@ function chatThreadName(th, aptId){
 async function loadChatAdmin(){
   const {data,error}=await sb.from('chat_messages').select('*').order('created_at',{ascending:true}).limit(2000);
   if(error){ const b=$('chat-threads'); if(b) b.innerHTML='<div style="padding:16px;color:var(--mut);font-size:13px;line-height:1.6">채팅 테이블이 없어요.<br><b>backend/migration-chat.sql</b> 을 Supabase에서 실행해 주세요.</div>'; return; }
-  CHAT_MSGS=data||[]; renderChatThreads(); if(CHAT_CUR) renderChatConv();
+  CHAT_MSGS=data||[];
+  const sig=CHAT_MSGS.length+':'+((CHAT_MSGS[CHAT_MSGS.length-1]||{}).id||'');
+  if(sig===CHAT_SIG) return; // 변화 없으면 다시 그리지 않음 (깜빡임 방지)
+  CHAT_SIG=sig;
+  renderChatThreads(); if(CHAT_CUR) renderChatConv();
 }
 function renderChatThreads(){
   const box=$('chat-threads'); if(!box)return;
@@ -462,9 +466,10 @@ function renderChatThreads(){
     </div>`;
   }).join('');
 }
-function openChatThread(th){ CHAT_CUR=th; const bar=$('chat-reply-bar'); if(bar) bar.style.display='flex'; renderChatThreads(); renderChatConv(); const r=$('chat-reply'); if(r) r.focus(); }
-function renderChatConv(){
+function openChatThread(th){ CHAT_CUR=th; const bar=$('chat-reply-bar'); if(bar) bar.style.display='flex'; renderChatThreads(); renderChatConv(true); const r=$('chat-reply'); if(r) r.focus(); }
+function renderChatConv(force){
   const box=$('chat-conv'); if(!box)return;
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
   const ms=CHAT_MSGS.filter(m=>m.thread===CHAT_CUR);
   const head=$('chat-conv-head'); if(head) head.textContent=chatThreadName(CHAT_CUR, ms[0]&&ms[0].apartment_id);
   box.innerHTML=ms.map(m=>{
@@ -472,7 +477,7 @@ function renderChatConv(){
     if(mine) return `<div style="align-self:flex-end;max-width:70%"><div style="background:#2F6BF6;color:#fff;border-radius:14px 14px 4px 14px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(m.body)}</div><div style="text-align:right;font-size:9px;color:var(--mut);margin-top:2px">${time}</div></div>`;
     return `<div style="align-self:flex-start;max-width:72%"><div style="font-size:9.5px;color:var(--mut);font-weight:700;margin-bottom:2px">${esc(m.sender_name||m.sender_role)}</div><div style="background:#fff;border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:var(--ink)">${esc(m.body)}</div><div style="font-size:9px;color:var(--mut);margin-top:2px">${time}</div></div>`;
   }).join('');
-  box.scrollTop=box.scrollHeight;
+  if(force||atBottom) box.scrollTop=box.scrollHeight;
 }
 async function sendChatAdmin(){
   const inp=$('chat-reply'); if(!inp)return; const body=(inp.value||'').trim(); if(!body||!CHAT_CUR)return;

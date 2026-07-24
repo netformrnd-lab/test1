@@ -1351,8 +1351,9 @@ async function loadChat(scroll) {
   CHAT.lastCount = msgs.length
   renderChat(msgs, scroll)
 }
-function renderChat(msgs, scroll) {
+function renderChat(msgs, mode) {
   const body = document.getElementById('chat-body'); if (!body) return
+  const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40
   if (!msgs.length) { body.innerHTML = '<div style="text-align:center;color:#9aa3b6;font-size:12px;padding:26px 20px;line-height:1.7">아직 대화가 없어요.<br>편하게 메시지를 남겨보세요 💬</div>'; return }
   body.innerHTML = msgs.map(m => {
     const mine = m.sender_role === CHAT.role
@@ -1360,7 +1361,7 @@ function renderChat(msgs, scroll) {
     if (mine) return '<div style="align-self:flex-end;max-width:78%;display:flex;flex-direction:column;align-items:flex-end"><div style="background:#2F6BF6;color:#fff;border-radius:15px 15px 4px 15px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word">' + escH(m.body) + '</div><div style="font-size:9px;color:#aab2c4;margin-top:3px">' + time + '</div></div>'
     return '<div style="align-self:flex-start;max-width:80%"><div style="font-size:9.5px;color:#8b95ad;font-weight:700;margin:0 0 3px 3px">' + escH(m.sender_name || roleLabel(m.sender_role)) + '</div><div style="background:#fff;border:1px solid #e6eaf2;border-radius:15px 15px 15px 4px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:#1c2440">' + escH(m.body) + '</div><div style="font-size:9px;color:#aab2c4;margin:3px 0 0 3px">' + time + '</div></div>'
   }).join('')
-  if (scroll !== false) { body.scrollTop = body.scrollHeight }
+  if (mode === true || (mode === 'auto' && atBottom)) { body.scrollTop = body.scrollHeight }
 }
 async function sendChat() {
   const inp = document.getElementById('chat-input'); if (!inp) return
@@ -1371,7 +1372,7 @@ async function sendChat() {
   await loadChat(true)
 }
 window.sendChat = sendChat
-function startChatPoll() { stopChatPoll(); CHAT_POLL = setInterval(() => { const s = document.getElementById('s34'); if (!s || !s.classList.contains('active')) { stopChatPoll(); return } loadChat(false) }, 3500) }
+function startChatPoll() { stopChatPoll(); CHAT_POLL = setInterval(() => { const s = document.getElementById('s34'); if (!s || !s.classList.contains('active')) { stopChatPoll(); return } loadChat('auto') }, 3500) }
 function stopChatPoll() { if (CHAT_POLL) { clearInterval(CHAT_POLL); CHAT_POLL = null } }
 // 하단 '채팅' 탭 진입: 로그인=담당 감리사와 / 비로그인=관리자(손님 상담)
 function chatFromNav() {

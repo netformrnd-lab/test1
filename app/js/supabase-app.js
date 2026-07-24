@@ -153,6 +153,19 @@ function renderFieldList() {
   if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || FIELD_DONG ? '해당 사진이 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; return }
   cont.innerHTML = bar + list.map(reportCard).join('')
 }
+// 현장 현황 상단: 공정 진행 단계 요약 (탭하면 s24 상세)
+function renderFieldProgress(apt) {
+  const box = document.getElementById('field-prog'); if (!box) return
+  const stages = (apt && window.methodStages && window.methodStages(apt.method)) || null
+  if (!stages) { box.style.display = 'none'; return }
+  const cur = apt.progress_current || 0, tot = stages.length
+  const pct = tot ? Math.round(Math.min(cur, tot) / tot * 100) : 0
+  const pctEl = document.getElementById('field-prog-pct'); if (pctEl) pctEl.textContent = Math.min(cur, tot) + '/' + tot + ' 단계'
+  const barEl = document.getElementById('field-prog-bar'); if (barEl) barEl.style.width = pct + '%'
+  const capEl = document.getElementById('field-prog-cap')
+  if (capEl) capEl.textContent = cur >= tot ? '✅ 모든 공정 완료' : ('현재 ' + (cur + 1) + '단계 · ' + stages[cur])
+  box.style.display = 'block'
+}
 async function loadFieldUpdates() {
   const cont = document.getElementById('field-list'); if (!cont) return
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
@@ -162,8 +175,10 @@ async function loadFieldUpdates() {
   const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
   const hdr = document.getElementById('field-apt')
   if (!prof || !prof.apartment_id) { if (hdr) hdr.textContent = '배정된 단지 없음'; FIELD_LIST = []; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
-  const { data: apt } = await sb.from('apartments').select('name').eq('id', prof.apartment_id).single()
+  const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
+  if (apt) RES_APT = apt
   if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
+  renderFieldProgress(apt)
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
   FIELD_LIST = data || []
   renderFieldList()
@@ -452,33 +467,66 @@ async function loadResidentProgress() {
   renderStageTrack(apt, 'prog-track')
 }
 
-// ── 공지사항 (DB 연동) ───────────────────────────────────
+// ── 공지사항 (DB 연동) — 기본 3개, 전체보기로 펼침 ───────────────
 let NOTICES = {}
-async function loadResidentNotices(boxId) {
-  const box = document.getElementById(boxId || 'res-notices'); if (!box) return
-  const { data } = await sb.from('notices').select('*').order('created_at', { ascending: false }).limit(3)
-  if (!data || !data.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">등록된 공지사항이 없어요.</div>'; return }
-  NOTICES = {}
-  box.innerHTML = data.map((n, i) => {
-    NOTICES[n.id] = n
+let NOTICE_LIST = []
+let NOTICE_BOX = 'res-notices'
+let NOTICE_MORE = false
+const NOTICE_CAP = 3
+window.toggleNotices = function (el) {
+  NOTICE_MORE = !NOTICE_MORE
+  renderNotices()
+  if (el) el.textContent = NOTICE_MORE ? '접기 ›' : '전체보기 ›'
+}
+function renderNotices() {
+  const box = document.getElementById(NOTICE_BOX); if (!box) return
+  if (!NOTICE_LIST.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">등록된 공지사항이 없어요.</div>'; return }
+  const list = NOTICE_MORE ? NOTICE_LIST : NOTICE_LIST.slice(0, NOTICE_CAP)
+  box.innerHTML = list.map((n, i) => {
     const d = (n.created_at || '').slice(2, 10).replace(/-/g, '.')
-    const line = i < data.length - 1 ? 'border-bottom:1px solid #f0f2f7;' : ''
+    const line = i < list.length - 1 ? 'border-bottom:1px solid #f0f2f7;' : ''
     return `<div data-notice="${n.id}" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;padding:12px 13px;${line}"><span style="font-size:12.5px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(n.title)}</span><span style="font-size:10.5px;color:#aab2c4;font-weight:600;flex-shrink:0">${d}</span></div>`
   }).join('')
 }
-// 우리 지역 감리 현황 (익명 · 이름/주소 없음)
-async function loadRegionActivity() {
+async function loadResidentNotices(boxId) {
+  NOTICE_BOX = boxId || 'res-notices'
+  NOTICE_MORE = false
+  const box = document.getElementById(NOTICE_BOX); if (!box) return
+  const { data } = await sb.from('notices').select('*').order('created_at', { ascending: false }).limit(30)
+  NOTICE_LIST = data || []
+  NOTICES = {}
+  NOTICE_LIST.forEach(n => { NOTICES[n.id] = n })
+  renderNotices()
+}
+// 우리 지역 감리 현황 (익명 · 이름/주소 없음) — 기본 5개, 전체보기로 더 표시
+let REGION_ALL = []
+let REGION_MORE = false
+const REGION_CAP = 5
+window.toggleRegionMore = function () { REGION_MORE = !REGION_MORE; renderRegionActivity() }
+function renderRegionActivity() {
   const box = document.getElementById('res-region'); if (!box) return
-  const { data } = await sb.rpc('region_activity')
-  if (!data || !data.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">표시할 감리 활동이 없어요.</div>'; return }
+  if (!REGION_ALL.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">표시할 감리 활동이 없어요.</div>'; return }
   const stMap = { in_progress: ['감리 진행 중', '#2F6BF6'], scheduled: ['점검 예정', '#c98a1e'], done: ['점검 완료', '#1f8a5b'] }
-  box.innerHTML = data.map((r, i) => {
+  const list = REGION_MORE ? REGION_ALL : REGION_ALL.slice(0, REGION_CAP)
+  let html = list.map((r, i) => {
     const [lbl, col] = stMap[r.status] || stMap.scheduled
     const region = r.region || '전국'
     const type = r.construction_type || '유지보수'
-    const line = i < data.length - 1 ? 'border-bottom:1px solid #f0f2f7;' : ''
+    const line = (i < list.length - 1 || REGION_ALL.length > REGION_CAP) ? 'border-bottom:1px solid #f0f2f7;' : ''
     return `<div style="display:flex;align-items:center;gap:9px;padding:12px 13px;${line}"><span style="width:7px;height:7px;border-radius:99px;background:${col};flex-shrink:0"></span><div style="flex:1;font-size:12.5px;font-weight:700;color:#2a3350;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(region)} · ${escH(type)}</div><span style="font-size:10.5px;color:${col};font-weight:800;flex-shrink:0">${lbl}</span></div>`
   }).join('')
+  if (REGION_ALL.length > REGION_CAP) {
+    const label = REGION_MORE ? '접기 ▲' : `전체보기 (+${REGION_ALL.length - REGION_CAP}) ▼`
+    html += `<div onclick="toggleRegionMore()" style="cursor:pointer;text-align:center;padding:11px;font-size:12px;font-weight:800;color:#2F6BF6">${label}</div>`
+  }
+  box.innerHTML = html
+}
+async function loadRegionActivity() {
+  const box = document.getElementById('res-region'); if (!box) return
+  const { data } = await sb.rpc('region_activity')
+  REGION_ALL = data || []
+  REGION_MORE = false
+  renderRegionActivity()
 }
 function openNotice(n) {
   if (!n) return
@@ -1138,7 +1186,6 @@ function wire() {
   const goSchedule = () => { showScreen('s14'); loadSchedule() }
   const icSch = $('res-ic-schedule'); if (icSch) icSch.onclick = goSchedule
   const nextCard = $('res-next-card'); if (nextCard) nextCard.onclick = goSchedule
-  const icProg = $('res-ic-progress'); if (icProg) icProg.onclick = () => { window.showScreen('s24'); loadResidentProgress() }
   const icCase = $('res-ic-case'); if (icCase) icCase.onclick = () => { showScreen('s23'); loadCases() }
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = () => { showScreen('s12'); loadResidentReports() }
   const icField = $('res-ic-field'); if (icField) icField.onclick = () => { showScreen('s26'); loadFieldUpdates() }

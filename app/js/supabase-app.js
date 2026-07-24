@@ -1145,10 +1145,11 @@ const ALIM_CONTENT = [
   { type: 'youtube', yt: 'k_RGeslphd0', title: '아파트스퀘어 현장 쇼츠 ⑤', url: 'https://youtube.com/shorts/k_RGeslphd0' },
   { type: 'youtube', yt: 'JfHwcYDGcck', title: '아파트스퀘어 현장 쇼츠 ⑥', url: 'https://youtube.com/shorts/JfHwcYDGcck' },
   { type: 'youtube', yt: 'OtNt2Jv08ag', title: '아파트스퀘어 영상 보기', url: 'https://youtu.be/OtNt2Jv08ag' },
-  { type: 'blog', title: '아파트스퀘어 블로그 글 ①', url: 'https://blog.naver.com/aptsquare_/224318743314' },
-  { type: 'blog', title: '아파트스퀘어 블로그 글 ②', url: 'https://blog.naver.com/aptsquare_/224324551316' },
-  { type: 'blog', title: '아파트스퀘어 블로그 글 ③', url: 'https://blog.naver.com/aptsquare_/224316637130' },
-  { type: 'blog', title: '아파트스퀘어 블로그 글 ④', url: 'https://blog.naver.com/aptsquare_/224310591587' }
+  { type: 'blog', title: '아파트 외벽 도색 감리, 22년차 건축사가 짚어주는 핵심 포인트', url: 'https://blog.naver.com/aptsquare_/224318743314' },
+  { type: 'blog', title: '지하주차장 에폭시 재하자, 감리 없이 반복되는 이유', url: 'https://blog.naver.com/aptsquare_/224324551316' },
+  { type: 'blog', title: '22년차 건축사가 알려주는 아파트 보수공사 감리 — 소통과 품질의 기준', url: 'https://blog.naver.com/aptsquare_/224316637130' },
+  { type: 'blog', title: '아파트 외벽누수, 공동주택 보수공사에 시공감리가 필요한 이유', url: 'https://blog.naver.com/aptsquare_/224310591587' },
+  { type: 'blog', title: '아파트 보수공사 공동주택 시공감리 특허공법, 22년차 설계감리는?', url: 'https://blog.naver.com/aptsquare_/224298094040' }
 ]
 // 아파트스퀘어 네이비 브랜드 히어로
 function navyHero(kicker, title) {

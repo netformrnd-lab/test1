@@ -1251,24 +1251,44 @@ const ALIM = {
     return h
   }
 }
-// 자동 콘텐츠 피드 (Cloudflare 함수 /content) — 실패 시 정적 ALIM_CONTENT 폴백
+// 자동 콘텐츠 피드 (앱이 브라우저에서 직접 읽음, CORS 중계 경유) — 실패 시 정적 목록 폴백
+// 유튜브 채널 ID(UC...)를 알면 아래에 넣으면 유튜브도 자동 갱신됨. (비우면 유튜브는 아래 정적 목록 사용)
+const ALIM_YT_CHANNEL = ''
+const ALIM_PROXY = u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u)
 let ALIM_FEED = null, ALIM_FEED_STATE = 'idle'
 function alimList() {
-  if (ALIM_FEED && (((ALIM_FEED.youtube || []).length) || ((ALIM_FEED.blog || []).length))) {
-    const yt = (ALIM_FEED.youtube || []).map(v => ({ type: 'youtube', yt: v.id, title: v.title || '아파트스퀘어 영상', url: 'https://www.youtube.com/watch?v=' + v.id }))
-    const bl = (ALIM_FEED.blog || []).map(b => ({ type: 'blog', title: b.title || '아파트스퀘어 블로그', url: b.url }))
-    return yt.concat(bl)
-  }
-  return ALIM_CONTENT
+  const sYt = ALIM_CONTENT.filter(c => c.type === 'youtube')
+  const sBl = ALIM_CONTENT.filter(c => c.type === 'blog')
+  const fy = ((ALIM_FEED && ALIM_FEED.youtube) || []).map(v => ({ type: 'youtube', yt: v.id, title: v.title || '아파트스퀘어 영상', url: 'https://www.youtube.com/watch?v=' + v.id }))
+  const fb = ((ALIM_FEED && ALIM_FEED.blog) || []).map(b => ({ type: 'blog', title: b.title || '아파트스퀘어 블로그', url: b.url }))
+  return (fy.length ? fy : sYt).concat(fb.length ? fb : sBl)
+}
+async function fetchNaverFeed() {
+  const r = await fetch(ALIM_PROXY('https://rss.blog.naver.com/aptsquare_.xml'))
+  if (!r.ok) return []
+  const doc = new DOMParser().parseFromString(await r.text(), 'text/xml')
+  return Array.from(doc.querySelectorAll('item')).slice(0, 15)
+    .map(it => ({ title: ((it.querySelector('title') || {}).textContent || '').trim(), url: ((it.querySelector('link') || {}).textContent || '').trim() }))
+    .filter(i => i.title && i.url)
+}
+async function fetchYtFeed(cid) {
+  const r = await fetch(ALIM_PROXY('https://www.youtube.com/feeds/videos.xml?channel_id=' + cid))
+  if (!r.ok) return []
+  const doc = new DOMParser().parseFromString(await r.text(), 'text/xml')
+  return Array.from(doc.getElementsByTagName('entry')).slice(0, 15)
+    .map(e => ({ id: ((e.getElementsByTagName('yt:videoId')[0] || {}).textContent || '').trim(), title: ((e.getElementsByTagName('title')[0] || {}).textContent || '').trim() }))
+    .filter(i => i.id)
 }
 async function loadAlimFeed() {
   if (ALIM_FEED_STATE === 'loading' || ALIM_FEED_STATE === 'done') return
   ALIM_FEED_STATE = 'loading'
-  try {
-    const r = await fetch('/content', { cache: 'no-store' })
-    if (r.ok) { ALIM_FEED = await r.json(); ALIM_FEED_STATE = 'done' } else { ALIM_FEED_STATE = 'fail' }
-  } catch (e) { ALIM_FEED_STATE = 'fail' }
-  if (alimTab === 'content' && (ALIM_FEED_STATE === 'done')) renderAlim('content')
+  const out = { youtube: [], blog: [] }
+  await Promise.all([
+    fetchNaverFeed().then(v => { out.blog = v }).catch(() => {}),
+    (ALIM_YT_CHANNEL ? fetchYtFeed(ALIM_YT_CHANNEL) : Promise.resolve([])).then(v => { out.youtube = v }).catch(() => {})
+  ])
+  if (out.blog.length || out.youtube.length) { ALIM_FEED = out; ALIM_FEED_STATE = 'done' } else { ALIM_FEED_STATE = 'fail' }
+  if (alimTab === 'content' && ALIM_FEED_STATE === 'done') renderAlim('content')
 }
 window.openAlimUrl = function (u) { if (u) window.open(u, '_blank', 'noopener') }
 let alimTab = 'philosophy'

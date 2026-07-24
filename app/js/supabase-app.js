@@ -1134,8 +1134,8 @@ function wire() {
   sb.auth.getSession().then(({ data }) => { if (data.session) route(); else { window.showScreen('s04'); loadResidentNotices('s04-notices') } })
 }
 
-// ── 문의 버튼 → 홈페이지 링크 ─────────────────────────────
-const INQUIRY_URL = 'https://aptsquare.net/ask'
+// ── 문의 버튼 → 카카오톡 채널 채팅 ─────────────────────────────
+const INQUIRY_URL = 'https://pf.kakao.com/_DpQHG/chat'
 function normText(s) { return (s || '').replace(/[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/gu, '') }
 const INQUIRY_PHRASES = ['문의', '문의하기', '1:1문의하기', '담당감리자에게문의하기', '무료상담·문의', '무료진단신청하기', '무료진단을신청해요']
 function tagInquiry() {

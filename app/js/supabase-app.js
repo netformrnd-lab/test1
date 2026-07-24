@@ -1406,9 +1406,13 @@ document.addEventListener('click', (e) => {
   const tabEl = e.target.closest('.nav [data-tab]')
   if (tabEl) {
     const tab = tabEl.dataset.tab
-    if (tab === 'home') { showScreen('s11'); loadResidentHome() }
-    else if (tab === 'field') { showScreen('s26'); loadFieldUpdates() }
-    else if (tab === 'schedule') { showScreen('s14'); loadSchedule() }
+    if (tab === 'home') {
+      if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() }
+      else if (currentRole) { showScreen('s11'); loadResidentHome() }
+      else { showScreen('s04'); loadResidentNotices('s04-notices') }
+    }
+    else if (tab === 'field') { if (currentRole) { showScreen('s26'); loadFieldUpdates() } else { showScreen('s01') } }
+    else if (tab === 'schedule') { if (currentRole) { showScreen('s14'); loadSchedule() } else { showScreen('s01') } }
     else if (tab === 'alim') { openAlim() }
     else if (tab === 'chat') { chatFromNav() }
     return

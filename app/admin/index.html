@@ -177,6 +177,7 @@
         <datalist id="apt-names"></datalist>
         <div id="ma-msg" style="font-size:12px;font-weight:700;margin-top:8px;min-height:16px">새 단지명을 입력하면 자동으로 단지가 등록돼요 (다른 화면에서도 선택 가능)</div>
       </div>
+      <div class="add-form" style="margin-bottom:16px"><input id="mem-q" placeholder="🔍 이름·아이디·연락처·역할·단지로 검색" style="width:360px" oninput="renderMembers()"></div>
       <div class="card">
         <table>
           <thead><tr><th>이름</th><th>아이디</th><th>연락처</th><th>역할</th><th>담당 단지</th><th>상태</th><th></th></tr></thead>
@@ -278,6 +279,7 @@
     <!-- 채팅 -->
     <section id="sec-chat">
       <div class="head"><div><h2>채팅</h2><div class="desc">손님(비로그인) 상담과 입주민·감리사 대화에 답하세요. 손님 문의는 여기서 관리합니다</div></div></div>
+      <div class="add-form" style="margin-bottom:14px"><input id="chat-q" placeholder="🔍 단지·손님·대화 내용으로 검색" style="width:340px" oninput="renderChatThreads()"></div>
       <div style="display:flex;gap:14px;align-items:flex-start">
         <div class="card" style="width:300px;flex-shrink:0;max-height:72vh;overflow:auto;padding:0"><div id="chat-threads"></div></div>
         <div class="card" style="flex:1;display:flex;flex-direction:column;height:72vh;padding:0">
@@ -445,10 +447,12 @@ async function loadChatAdmin(){
 function renderChatThreads(){
   const box=$('chat-threads'); if(!box)return;
   const groups={}; CHAT_MSGS.forEach(m=>{(groups[m.thread]=groups[m.thread]||[]).push(m);});
-  const threads=Object.keys(groups).map(th=>{const ms=groups[th];const last=ms[ms.length-1];return {th,last,aptId:last.apartment_id};});
+  let threads=Object.keys(groups).map(th=>{const ms=groups[th];const last=ms[ms.length-1];return {th,last,aptId:last.apartment_id,ms};});
   threads.sort((a,b)=>(b.last.created_at||'').localeCompare(a.last.created_at||''));
   const nn=$('nav-chat'); if(nn) nn.textContent=threads.length;
-  if(!threads.length){ box.innerHTML='<div style="padding:18px;color:var(--mut);font-size:13px;text-align:center">아직 문의가 없어요.</div>'; return; }
+  const q=(($('chat-q')||{}).value||'').trim().toLowerCase();
+  if(q) threads=threads.filter(t=>(chatThreadName(t.th,t.aptId)+' '+t.ms.map(m=>(m.body||'')+' '+(m.sender_name||'')).join(' ')).toLowerCase().includes(q));
+  if(!threads.length){ box.innerHTML='<div style="padding:18px;color:var(--mut);font-size:13px;text-align:center">'+(q?'검색 결과가 없어요.':'아직 문의가 없어요.')+'</div>'; return; }
   box.innerHTML=threads.map(t=>{
     const on=t.th===CHAT_CUR; const nm=chatThreadName(t.th,t.aptId);
     const prev=(t.last.body||'').slice(0,26); const d=(t.last.created_at||'').slice(5,16).replace('T',' ');
@@ -1119,8 +1123,12 @@ function renderPending(){
 function roleOpts(sel){return Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join('');}
 function aptOpts(sel){return '<option value="">- 없음 -</option>'+APTS.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name)}</option>`).join('');}
 function renderMembers(){
+  const nn=$('nav-m');if(nn)nn.textContent=MEMBERS.length;
   if(!MEMBERS.length){$('members').innerHTML='<tr><td colspan="7" class="empty">아직 회원이 없어요</td></tr>';return;}
-  $('members').innerHTML=MEMBERS.map(m=>`<tr data-id="${m.id}">
+  const q=(($('mem-q')||{}).value||'').trim().toLowerCase();
+  const list=q?MEMBERS.filter(m=>((m.name||'')+' '+dispId(m.email)+' '+(m.phone||'')+' '+(ROLES[m.role]||m.role||'')+' '+(m.apartment_id?aptName(m.apartment_id):'')).toLowerCase().includes(q)):MEMBERS;
+  if(!list.length){$('members').innerHTML='<tr><td colspan="7" class="empty">검색 결과가 없어요.</td></tr>';return;}
+  $('members').innerHTML=list.map(m=>`<tr data-id="${m.id}">
     <td style="font-weight:700">${esc(m.name)||'<span style="color:#c3ccdb">(이름없음)</span>'}</td>
     <td style="color:var(--mut2)">${esc(dispId(m.email))||''}</td>
     <td><input class="f-phone" value="${esc(m.phone)||''}" placeholder="연락처 입력" style="width:128px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;outline:none;font-family:inherit"></td>

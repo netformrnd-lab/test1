@@ -266,18 +266,32 @@ function renderManagerForms(list) {
     box.innerHTML = '<div style="padding:18px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 받은 작성지가 없어요.<br>위 링크를 소장님께 보내면 여기에 쌓여요.</div>'
     return
   }
-  box.innerHTML = list.map(r => {
+  const name = currentApt ? currentApt.name : '단지'
+  const items = list.map(r => {
     const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
     const rows = Object.keys(MGR_LABELS).map(k => {
       const v = r[k]; if (!v) return ''
       return `<div style="display:flex;gap:8px;padding:4px 0"><span style="width:66px;flex-shrink:0;font-size:10.5px;font-weight:800;color:#8b95ad">${MGR_LABELS[k]}</span><span style="flex:1;font-size:12px;font-weight:600;color:#2a3350;line-height:1.55;white-space:pre-wrap">${escH(v)}</span></div>`
     }).join('')
-    return `<div style="background:#fff;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;margin-bottom:9px">
+    return `<div style="background:#fff;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;margin-top:8px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <span style="font-size:12.5px;font-weight:800;color:#141d34">📝 ${escH(r.writer_name) || '(작성자 미기재)'}</span>
         <span style="font-size:10px;color:#aab2c4;font-weight:700">${d}</span>
       </div>${rows}</div>`
   }).join('')
+  box.innerHTML = `<div>
+    <div onclick="toggleMgrRecv(this)" style="cursor:pointer;background:#eef4ff;border:1px solid #d7e3fb;border-radius:11px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12.5px;font-weight:800;color:#2F6BF6">🏢 ${escH(name)} <span style="font-size:10.5px;font-weight:700;opacity:.8">${list.length}건</span></span>
+      <span class="mgr-recv-caret" style="font-size:12px;color:#2F6BF6">▾</span>
+    </div>
+    <div class="mgr-recv-body" style="display:none">${items}</div>
+  </div>`
+}
+window.toggleMgrRecv = function (head) {
+  const b = head.nextElementSibling; if (!b) return
+  const open = b.style.display !== 'none'
+  b.style.display = open ? 'none' : 'block'
+  const c = head.querySelector('.mgr-recv-caret'); if (c) c.textContent = open ? '▾' : '▴'
 }
 function mgrMsg(html, ok) {
   const m = document.getElementById('mgr-msg'); if (!m) return

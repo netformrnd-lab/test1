@@ -1092,6 +1092,7 @@ function wire() {
   if (cInp) {
     cInp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat() } })
     cInp.addEventListener('input', () => { cInp.style.height = 'auto'; cInp.style.height = Math.min(cInp.scrollHeight, 88) + 'px' })
+    cInp.addEventListener('focus', () => { setTimeout(() => { const bd = document.getElementById('chat-body'); if (bd) bd.scrollTop = bd.scrollHeight }, 350) })
   }
   // 미팅 자료 선택
   const mf = $('meet-first'); if (mf) mf.onclick = () => openMeetingDoc('first')

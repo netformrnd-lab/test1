@@ -4,14 +4,21 @@
   var frame = document.getElementById('frame');
 
   // 폰 디자인(가로 320px)을 실제 화면 폭에 맞춰 확대/축소
+  // 키보드가 올라오면 보이는 영역(visualViewport)만큼만 높이를 잡아 입력창이 키보드 위에 붙게 함
   function fit() {
-    var w = frame.clientWidth, h = frame.clientHeight;
+    var w = frame.clientWidth;
+    var vv = window.visualViewport;
+    var h = (vv && vv.height) ? vv.height : frame.clientHeight;
     var scale = w / 320;
     stage.style.zoom = scale;
     stage.style.width = '320px';
     stage.style.height = (h / scale) + 'px';
   }
   window.addEventListener('resize', fit);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fit);
+    window.visualViewport.addEventListener('scroll', function () { window.scrollTo(0, 0); });
+  }
   fit();
 
   // 화면 전환

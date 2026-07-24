@@ -245,9 +245,15 @@ function openManagerDoc() {
   const m = document.getElementById('mgr-msg'); if (m) m.textContent = ''
   const fb = document.getElementById('mgr-fallback'); if (fb) fb.remove()
   window.showScreen('s31')
-  loadManagerForms()
 }
 window.openManagerDoc = openManagerDoc
+// 받은 작성지 화면 (소장님이 제출한 내용)
+function openReceivedForms() {
+  const ap = document.getElementById('recv-apt'); if (ap) ap.textContent = currentApt ? currentApt.name : '단지'
+  window.showScreen('s32')
+  loadManagerForms()
+}
+window.openReceivedForms = openReceivedForms
 // 이 단지의 제출된 소장님 작성지 목록
 const MGR_LABELS = { writer_name: '작성자', phone: '연락처', households: '세대수/동수', built_year: '준공연도', issue: '주요 하자·불편', request: '요청·희망', wish_when: '희망 시기' }
 async function loadManagerForms() {
@@ -1076,6 +1082,7 @@ function wire() {
   const amF = $('aud-menu-field'); if (amF) amF.onclick = () => { if (currentApt) openAuditorField(currentApt) }
   const amM = $('aud-menu-meeting'); if (amM) amM.onclick = () => window.showScreen('s29')
   const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
+  const amRcv = $('aud-menu-received'); if (amRcv) amRcv.onclick = () => openReceivedForms()
   // 미팅 자료 선택
   const mf = $('meet-first'); if (mf) mf.onclick = () => openMeetingDoc('first')
   const mi = $('meet-internal'); if (mi) mi.onclick = () => openMeetingDoc('internal')

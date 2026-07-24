@@ -748,12 +748,12 @@ const SHOOT_RULES=[
   '<b>안전모·안전조끼·안전화·안전그네·안전로프</b> 등 안전장비 착용 후 촬영',
   '사진 촬영 시 <b>동영상도 함께</b> 촬영'
 ];
-// 각 공법: incl = 작업자 포함/불포함 예시 공정, same = 1개동 똑같은 위치·각도 공정
+// 각 공법: img = guides/{img}_incl.jpg (작업자 포함/불포함), guides/{img}_same.jpg (똑같은 위치)
 const SHOOT_GUIDES={
-  '듀얼강화':{ title:'듀얼강화 방수', incl:['함침','시트부착','이음부작업','코트재 도포'], same:['시트부착','코트재 도포','시공완료'] },
-  '금속기와':{ title:'금속기와 방수', incl:['함침작업','시트부착','중도','상도'], same:['시트부착','중도','상도'] },
-  '싱글':{ title:'아스팔트 슁글', incl:['시트부착','함침작업','중도','상도'], same:['시트부착','중도','상도'] },
-  'PVC':{ title:'PVC 방수', detail:true, incl:['작업 상세내용 (작업 내용이 보이게)','작업 전체모습'], same:['시트부착','시트부착 2','완공'] }
+  '듀얼강화':{ title:'듀얼강화 방수', img:'dual' },
+  '금속기와':{ title:'금속기와 방수', img:'metal' },
+  '싱글':{ title:'아스팔트 슁글', img:'shingle' },
+  'PVC':{ title:'PVC 방수', img:'pvc' }
 };
 // 공사일정표 예시 (모든 공법 공통 템플릿)
 const SCHED_ROWS=[
@@ -796,25 +796,14 @@ function renderShootGuide(key){
     document.getElementById('guideBody').innerHTML=h;
     return;
   }
-  // 작업자 포함 / 불포함
+  // 작업자 포함 / 불포함 (실제 예시 사진)
   h+=sectionHead('작업자 포함 / 불포함');
   h+='<div style="font-size:11px;color:#8b95ad;font-weight:600;margin:-4px 2px 10px">공정마다 <b>작업 장면</b>과 <b>완료 결과</b>를 함께 남기세요</div>';
-  h+='<div style="display:flex;flex-direction:column;gap:14px">';
-  g.incl.forEach(function(name){
-    h+='<div><div style="font-size:12.5px;font-weight:800;color:#141d34;margin-bottom:6px">▪ '+name+'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-      + shotSlot(g.detail?(name+' ①'):'작업자 포함')
-      + shotSlot(g.detail?(name+' ②'):'완료 결과')
-      +'</div></div>';
-  });
-  h+='</div>';
-  // 1개동 똑같은 위치 / 각도
+  h+='<img src="guides/'+g.img+'_incl.jpg" alt="작업자 포함/불포함 예시" style="width:100%;border-radius:10px;border:1px solid #d7deea;display:block">';
+  // 1개동 똑같은 위치 / 각도 (실제 예시 사진)
   h+=sectionHead('1개동 똑같은 위치 / 각도');
   h+='<div style="font-size:11px;color:#8b95ad;font-weight:600;margin:-4px 2px 10px">같은 동은 <b>매 공정 같은 지점·같은 각도</b>로 찍어 비교되게</div>';
-  h+='<div style="display:flex;flex-direction:column;gap:9px">';
-  g.same.forEach(function(name){ h+=shotSlot(name); });
-  h+=shotSlot('전경 · 전체적 모습 보이게');
-  h+='</div>';
+  h+='<img src="guides/'+g.img+'_same.jpg" alt="똑같은 위치/각도 예시" style="width:100%;max-width:340px;border-radius:10px;border:1px solid #d7deea;display:block">';
   // 공사일정표
   h+=scheduleHtml();
   document.getElementById('guideBody').innerHTML=h;

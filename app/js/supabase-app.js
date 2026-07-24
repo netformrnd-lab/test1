@@ -174,12 +174,6 @@ async function openAuditorMenu(a) {
   currentApt = a
   const nm = document.getElementById('aud-menu-apt'); if (nm) nm.textContent = a.name
   window.showScreen('s27')
-  const badge = document.getElementById('aud-chat-badge'); if (badge) badge.style.display = 'none'
-  try {
-    const { data } = await sb.from('chat_messages').select('created_at,sender_role').eq('thread', 'apt:' + a.id).order('created_at', { ascending: true })
-    const n = unreadFor(data, 'auditor', 'apt:' + a.id)
-    if (badge) { if (n > 0) { badge.textContent = n > 99 ? '99+' : String(n); badge.style.display = 'flex' } else badge.style.display = 'none' }
-  } catch (e) {}
 }
 window.openAuditorMenu = openAuditorMenu
 // 감리사: 이 단지 현장 사진 목록
@@ -1116,7 +1110,6 @@ function wire() {
   const amM = $('aud-menu-meeting'); if (amM) amM.onclick = () => window.showScreen('s29')
   const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
   const amRcv = $('aud-menu-received'); if (amRcv) amRcv.onclick = () => openReceivedForms()
-  const amChat = $('aud-menu-chat'); if (amChat) amChat.onclick = () => { if (currentApt) openChat({ thread: 'apt:' + currentApt.id, aptId: currentApt.id, role: 'auditor', name: MY_NAME || '감리사', title: currentApt.name, sub: '입주민과 대화' }) }
   const amCt = $('aud-menu-contract'); if (amCt) amCt.onclick = () => openContracts()
   // 채팅 입력
   const cSend = $('chat-send'); if (cSend) cSend.onclick = sendChat
@@ -1481,6 +1474,7 @@ function startChatPoll() { stopChatPoll(); CHAT_POLL = setInterval(() => { const
 function stopChatPoll() { if (CHAT_POLL) { clearInterval(CHAT_POLL); CHAT_POLL = null } }
 // 하단 '채팅' 탭 진입: 로그인=담당 감리사와 / 비로그인=관리자(손님 상담)
 function chatFromNav() {
+  if (currentRole === 'auditor') { openAuditorChatList(); return }
   if (currentRole && RES_APT && RES_APT.id) {
     openChat({ thread: 'apt:' + RES_APT.id, aptId: RES_APT.id, role: (currentRole === 'manager' ? 'manager' : 'resident'), name: MY_NAME, title: RES_AUD_NAME ? (RES_AUD_NAME + ' 감리사') : '담당 감리사', sub: '우리 단지 감리 상담' })
   } else {
@@ -1488,6 +1482,43 @@ function chatFromNav() {
   }
 }
 window.chatFromNav = chatFromNav
+
+// 감리사: 담당 단지별 채팅 목록
+async function openAuditorChatList() {
+  window.showScreen('s36')
+  const cont = document.getElementById('audchat-list'); if (!cont) return
+  const apts = Object.values(AUD_APTS || {})
+  if (!apts.length) { cont.innerHTML = '<div style="padding:26px 16px;text-align:center;color:#8b95ad;font-size:12.5px;line-height:1.7">담당 단지가 없어요.<br>홈에서 단지를 먼저 확인해 주세요.</div>'; return }
+  cont.innerHTML = '<div style="text-align:center;color:#9aa3b6;font-size:12px;padding:18px">불러오는 중…</div>'
+  const rows = []
+  for (const a of apts) {
+    const th = 'apt:' + a.id
+    let last = null, unread = 0
+    try {
+      const { data } = await sb.from('chat_messages').select('*').eq('thread', th).order('created_at', { ascending: true })
+      const msgs = data || []
+      last = msgs.length ? msgs[msgs.length - 1] : null
+      unread = unreadFor(msgs, 'auditor', th)
+    } catch (e) {}
+    rows.push({ a, last, unread })
+  }
+  rows.sort((x, y) => (y.last ? y.last.created_at : '').localeCompare(x.last ? x.last.created_at : ''))
+  cont.innerHTML = rows.map(r => {
+    const preview = r.last ? escH((r.last.sender_role === 'auditor' ? '나: ' : '') + r.last.body).slice(0, 40) : '아직 대화가 없어요'
+    const time = r.last ? (r.last.created_at || '').slice(5, 16).replace('T', ' ') : ''
+    const badge = r.unread > 0 ? '<span style="flex-shrink:0;background:#e4544b;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;padding:0 5px;display:flex;align-items:center;justify-content:center;line-height:1">' + (r.unread > 99 ? '99+' : r.unread) + '</span>' : ''
+    return '<div onclick="openAuditorChatFor(\'' + r.a.id + '\')" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:11px 12px;display:flex;gap:11px;align-items:center;cursor:pointer">' +
+      '<div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(150deg,#7FA1E0,#4a6bb0);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px">🏢</div>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escH(r.a.name) + '</div>' +
+      '<div style="font-size:11px;color:#8b95ad;font-weight:600;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + preview + '</div></div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0"><div style="font-size:9px;color:#aab2c4;font-weight:700">' + time + '</div>' + badge + '</div></div>'
+  }).join('')
+}
+window.openAuditorChatList = openAuditorChatList
+window.openAuditorChatFor = function (aptId) {
+  const a = AUD_APTS[aptId]; if (!a) return
+  openChat({ thread: 'apt:' + a.id, aptId: a.id, role: 'auditor', name: MY_NAME || '감리사', title: a.name, sub: '입주민과 대화' })
+}
 
 // 채팅 안 읽음 빨간 배지
 function chatSeenKey(th) { return 'aptsq_seen_' + th }
@@ -1500,8 +1531,23 @@ function setChatNavBadge(n) {
   })
 }
 async function refreshChatBadge() {
+  // 감리사: 담당 단지 전체의 안 읽음 합산
+  if (currentRole === 'auditor') {
+    try {
+      const apts = Object.values(AUD_APTS || {})
+      let total = 0
+      for (const a of apts) {
+        if (!a || !a.id) continue
+        const th = 'apt:' + a.id
+        const { data } = await sb.from('chat_messages').select('created_at,sender_role').eq('thread', th)
+        total += unreadFor(data, 'auditor', th)
+      }
+      setChatNavBadge(total)
+    } catch (e) {}
+    return
+  }
   let th, role
-  if (currentRole && currentRole !== 'auditor' && RES_APT && RES_APT.id) { th = 'apt:' + RES_APT.id; role = (currentRole === 'manager' ? 'manager' : 'resident') }
+  if (currentRole && RES_APT && RES_APT.id) { th = 'apt:' + RES_APT.id; role = (currentRole === 'manager' ? 'manager' : 'resident') }
   else if (!currentRole) { th = 'guest:' + chatGuestId(); role = 'guest' }
   else { setChatNavBadge(0); return }
   try { const { data } = await sb.from('chat_messages').select('created_at,sender_role').eq('thread', th).order('created_at', { ascending: true }); setChatNavBadge(unreadFor(data, role, th)) } catch (e) {}

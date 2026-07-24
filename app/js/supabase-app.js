@@ -414,6 +414,8 @@ window.showScreen = function (id) {
   if (NAV_CUR && NAV_CUR !== id) NAV_HIST.push(NAV_CUR)
   NAV_CUR = id
   ORIG_SHOW(id)
+  // 채팅 목록으로 돌아오면 안 읽음 배지를 즉시 최신화
+  if (id === 's36' && typeof renderAuditorChatList === 'function') { try { renderAuditorChatList() } catch (e) {} }
 }
 window.goBack = function () {
   let p = NAV_HIST.pop()
@@ -467,37 +469,34 @@ async function loadResidentProgress() {
   renderStageTrack(apt, 'prog-track')
 }
 
-// ── 공지사항 (DB 연동) — 기본 3개, 전체보기로 펼침 ───────────────
+// ── 공지사항 (DB 연동) ───────────────────────────────────
 let NOTICES = {}
-let NOTICE_LIST = []
-let NOTICE_BOX = 'res-notices'
-let NOTICE_MORE = false
-const NOTICE_CAP = 3
-window.toggleNotices = function (el) {
-  NOTICE_MORE = !NOTICE_MORE
-  renderNotices()
-  if (el) el.textContent = NOTICE_MORE ? '접기 ›' : '전체보기 ›'
-}
-function renderNotices() {
-  const box = document.getElementById(NOTICE_BOX); if (!box) return
-  if (!NOTICE_LIST.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">등록된 공지사항이 없어요.</div>'; return }
-  const list = NOTICE_MORE ? NOTICE_LIST : NOTICE_LIST.slice(0, NOTICE_CAP)
-  box.innerHTML = list.map((n, i) => {
+async function loadResidentNotices(boxId) {
+  const box = document.getElementById(boxId || 'res-notices'); if (!box) return
+  const { data } = await sb.from('notices').select('*').order('created_at', { ascending: false }).limit(3)
+  if (!data || !data.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">등록된 공지사항이 없어요.</div>'; return }
+  data.forEach(n => { NOTICES[n.id] = n })
+  box.innerHTML = data.map((n, i) => {
     const d = (n.created_at || '').slice(2, 10).replace(/-/g, '.')
-    const line = i < list.length - 1 ? 'border-bottom:1px solid #f0f2f7;' : ''
+    const line = i < data.length - 1 ? 'border-bottom:1px solid #f0f2f7;' : ''
     return `<div data-notice="${n.id}" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;padding:12px 13px;${line}"><span style="font-size:12.5px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(n.title)}</span><span style="font-size:10.5px;color:#aab2c4;font-weight:600;flex-shrink:0">${d}</span></div>`
   }).join('')
 }
-async function loadResidentNotices(boxId) {
-  NOTICE_BOX = boxId || 'res-notices'
-  NOTICE_MORE = false
-  const box = document.getElementById(NOTICE_BOX); if (!box) return
-  const { data } = await sb.from('notices').select('*').order('created_at', { ascending: false }).limit(30)
-  NOTICE_LIST = data || []
-  NOTICES = {}
-  NOTICE_LIST.forEach(n => { NOTICES[n.id] = n })
-  renderNotices()
+// 공지사항 전체 화면 (전체보기 → 별도 목록 화면)
+async function openNoticeList() {
+  window.showScreen('s38')
+  const box = document.getElementById('notice-list'); if (!box) return
+  box.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const { data } = await sb.from('notices').select('*').order('created_at', { ascending: false }).limit(100)
+  if (!data || !data.length) { box.innerHTML = '<div style="padding:26px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">등록된 공지사항이 없어요.</div>'; return }
+  data.forEach(n => { NOTICES[n.id] = n })
+  box.innerHTML = data.map((n) => {
+    const d = (n.created_at || '').slice(0, 10).replace(/-/g, '.')
+    const body = (n.body || '').replace(/\s+/g, ' ').trim()
+    return `<div data-notice="${n.id}" style="cursor:pointer;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:13px 14px"><div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:13px;font-weight:800;color:#1c2440;line-height:1.4">${escH(n.title)}</span><span style="font-size:10px;color:#aab2c4;font-weight:700;flex-shrink:0">${d}</span></div>${body ? `<div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:5px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(body)}</div>` : ''}</div>`
+  }).join('')
 }
+window.openNoticeList = openNoticeList
 // 우리 지역 감리 현황 (익명 · 이름/주소 없음) — 기본 5개, 전체보기로 더 표시
 let REGION_ALL = []
 let REGION_MORE = false
@@ -990,6 +989,11 @@ async function loadSchedule() {
   // 역할을 DB에서 새로 읽어 판단(캐시된 currentRole 신뢰하지 않음)
   const { data: prof } = await sb.from('profiles').select('role, apartment_id').eq('id', user.id).single()
   const isAuditor = prof && prof.role === 'auditor'
+  // 일정 화면 하단 탭을 역할에 맞게 (감리사: 홈·보고서·일정·채팅 / 입주민: 5탭)
+  const snav = document.getElementById('sched-nav')
+  if (snav) snav.innerHTML = isAuditor
+    ? '<div><div class="ic">🏠</div>홈</div><div><div class="ic">📄</div>보고서</div><div class="on"><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
   if (!isAuditor) {
     // 입주민·관리소장: 우리 단지 일정만 (보기 전용)
     if (addBtn) addBtn.style.display = 'none'
@@ -1494,7 +1498,7 @@ async function loadChat(scroll) {
   CHAT.lastCount = msgs.length
   renderChat(msgs, scroll)
   if (msgs.length) localStorage.setItem(chatSeenKey(CHAT.thread), msgs[msgs.length - 1].created_at || new Date().toISOString())
-  setChatNavBadge(0)
+  refreshChatBadge() // 읽는 즉시 새로고침 없이 배지 갱신 (역할별 정확 합산)
 }
 function renderChat(msgs, mode) {
   const body = document.getElementById('chat-body'); if (!body) return
@@ -1531,8 +1535,10 @@ function chatFromNav() {
 window.chatFromNav = chatFromNav
 
 // 감리사: 담당 단지별 채팅 목록
-async function openAuditorChatList() {
-  window.showScreen('s36')
+function openAuditorChatList() {
+  window.showScreen('s36') // showScreen 훅이 renderAuditorChatList()를 호출
+}
+async function renderAuditorChatList() {
   const cont = document.getElementById('audchat-list'); if (!cont) return
   const apts = Object.values(AUD_APTS || {})
   if (!apts.length) { cont.innerHTML = '<div style="padding:26px 16px;text-align:center;color:#8b95ad;font-size:12.5px;line-height:1.7">담당 단지가 없어요.<br>홈에서 단지를 먼저 확인해 주세요.</div>'; return }
@@ -1562,6 +1568,7 @@ async function openAuditorChatList() {
   }).join('')
 }
 window.openAuditorChatList = openAuditorChatList
+window.renderAuditorChatList = renderAuditorChatList
 window.openAuditorChatFor = function (aptId) {
   const a = AUD_APTS[aptId]; if (!a) return
   openChat({ thread: 'apt:' + a.id, aptId: a.id, role: 'auditor', name: MY_NAME || '감리사', title: a.name, sub: '입주민과 대화' })

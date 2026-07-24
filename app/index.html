@@ -271,7 +271,7 @@
           <div style="padding:0 14px 16px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 2px 9px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">무료 진단 서비스</span><span data-nav="s17" style="cursor:pointer;font-size:11px;font-weight:700;color:#2F6BF6">더보기 ›</span></div>
             <div data-nav="s17" style="cursor:pointer;border-radius:14px;overflow:hidden;position:relative;background:linear-gradient(120deg,rgba(15,22,48,.88) 0%,rgba(15,22,48,.62) 55%,rgba(15,22,48,.35) 100%),url(&quot;assets/64b64e0c-3fe7-4f86-bfd3-90263d67f89b.jpg&quot;) center/cover;padding:14px;color:#fff"><span style="font-size:9px;font-weight:800;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:99px">드론·AI 정밀 진단</span><div style="font-size:14px;font-weight:800;margin-top:9px;line-height:1.4">드론 AI 하자진단<br>무료 지원</div><div style="font-size:10px;color:#dbe6fb;font-weight:500;margin-top:6px">우리 단지 외벽 상태, 비용 부담 없이 먼저 확인하세요</div></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 2px 9px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">공지사항</span><span onclick="toggleNotices(this)" style="cursor:pointer;font-size:11px;font-weight:700;color:#2F6BF6">전체보기 ›</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 2px 9px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">공지사항</span><span onclick="openNoticeList()" style="cursor:pointer;font-size:11px;font-weight:700;color:#2F6BF6">전체보기 ›</span></div>
             <div id="res-notices" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;overflow:hidden"><div style="display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #f0f2f7;"><span style="font-size:11px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">여름철 외벽 보수공사 안전 점검 안내</span><span style="font-size:9px;color:#aab2c4;font-weight:600;flex-shrink:0">06.28</span></div><div style="display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #f0f2f7;"><span style="font-size:11px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">무료 하자진단 신청 방법이 쉬워졌어요</span><span style="font-size:9px;color:#aab2c4;font-weight:600;flex-shrink:0">06.15</span></div><div style="display:flex;justify-content:space-between;gap:8px;padding:10px 12px;"><span style="font-size:11px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">감리일지 발송 서비스가 열렸어요</span><span style="font-size:9px;color:#aab2c4;font-weight:600;flex-shrink:0">05.30</span></div></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 2px 9px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">타 감리 감독 현황</span><span style="font-size:9px;font-weight:800;color:#1f8a5b;background:#e7f5ee;padding:3px 9px;border-radius:99px">● 실시간</span></div>
             <div id="res-region" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;overflow:hidden"></div>
@@ -337,7 +337,7 @@
           <div id="s-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:11px;font-weight:700;color:#3a445e"></div>
           <div id="s-list" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
         </div>
-        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+        <div class="nav" id="sched-nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
       
       </section>
       <section class="screen" id="s15" data-name="정보 · 보수공사">
@@ -605,6 +605,13 @@
         <div class="ab"><div><div class="abt">채팅</div><div style="font-size:10px;color:#8b95ad;font-weight:700">담당 단지 입주민과 대화</div></div></div>
         <div id="audchat-list" class="bd" style="background:#F4F6FA;padding:12px;display:flex;flex-direction:column;gap:9px"></div>
         <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📄</div>보고서</div><div><div class="ic">📅</div>일정</div><div data-tab="chat" class="on"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <!-- s38: 공지사항 전체 목록 -->
+      <section class="screen" id="s38" data-name="공지사항">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">공지사항</span></div>
+        <div id="notice-list" class="bd" style="background:#F4F6FA;padding:14px;display:flex;flex-direction:column;gap:9px"></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
       </section>
     </div>
   </div>

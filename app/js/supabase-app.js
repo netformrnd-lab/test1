@@ -1138,10 +1138,17 @@ function wire() {
 /* ===== 알림 탭 = 아파트스퀘어 소개 (실행 로드맵 기반, 감리 토탈 솔루션) ===== */
 // 콘텐츠(블로그·유튜브) 목록 — 실제 링크는 여기 채우면 됨
 const ALIM_CONTENT = [
-  { type: 'youtube', title: '아파트 외벽 재도장, 감리는 무엇을 확인할까요?', desc: '현장 감리 포인트를 영상으로', url: '' },
-  { type: 'blog', title: '우리 단지 옥상 방수, 이렇게 진행됩니다', desc: '공정별 감리 체크 포인트', url: '' },
-  { type: 'blog', title: '할 공사 vs 미뤄도 되는 공사, 어떻게 구분할까', desc: '입주자대표회의를 위한 진단 이야기', url: '' },
-  { type: 'youtube', title: '지하주차장 에폭시 하자, 왜 생길까?', desc: '원인과 올바른 보수 방법', url: '' }
+  { type: 'youtube', yt: 'yQUeooyXpPA', title: '아파트스퀘어 현장 쇼츠 ①', url: 'https://youtube.com/shorts/yQUeooyXpPA' },
+  { type: 'youtube', yt: 'i7061vU2BXE', title: '아파트스퀘어 현장 쇼츠 ②', url: 'https://youtube.com/shorts/i7061vU2BXE' },
+  { type: 'youtube', yt: 'Hz6Z2T1v5nY', title: '아파트스퀘어 현장 쇼츠 ③', url: 'https://youtube.com/shorts/Hz6Z2T1v5nY' },
+  { type: 'youtube', yt: 'XVegF05f1js', title: '아파트스퀘어 현장 쇼츠 ④', url: 'https://youtube.com/shorts/XVegF05f1js' },
+  { type: 'youtube', yt: 'k_RGeslphd0', title: '아파트스퀘어 현장 쇼츠 ⑤', url: 'https://youtube.com/shorts/k_RGeslphd0' },
+  { type: 'youtube', yt: 'JfHwcYDGcck', title: '아파트스퀘어 현장 쇼츠 ⑥', url: 'https://youtube.com/shorts/JfHwcYDGcck' },
+  { type: 'youtube', yt: 'OtNt2Jv08ag', title: '아파트스퀘어 영상 보기', url: 'https://youtu.be/OtNt2Jv08ag' },
+  { type: 'blog', title: '아파트스퀘어 블로그 글 ①', url: 'https://blog.naver.com/aptsquare_/224318743314' },
+  { type: 'blog', title: '아파트스퀘어 블로그 글 ②', url: 'https://blog.naver.com/aptsquare_/224324551316' },
+  { type: 'blog', title: '아파트스퀘어 블로그 글 ③', url: 'https://blog.naver.com/aptsquare_/224316637130' },
+  { type: 'blog', title: '아파트스퀘어 블로그 글 ④', url: 'https://blog.naver.com/aptsquare_/224310591587' }
 ]
 // 아파트스퀘어 네이비 브랜드 히어로
 function navyHero(kicker, title) {
@@ -1159,7 +1166,7 @@ const ALIM = {
     h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9">아파트스퀘어는 <b>비전문가도</b> 아파트 보수공사의<br><b style="color:#2F6BF6">진단 · 설계 · 입찰 · 시공 · 준공</b>을<br>쉽게 이해하고 공정하게 관리할 수 있도록 돕는<br><b>보수공사 감리 토탈 솔루션</b>입니다.</div>', '16px 15px')
     h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:15px;padding:16px 15px;margin-top:12px">'
       + '<div style="font-size:13px;font-weight:800;color:#2F6BF6;margin-bottom:6px">🛡️ 감리가 뭔가요?</div>'
-      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8">공사가 <b>약속대로 되는지 제3자가 확인</b>하는 일이에요. 공사업체가 아니라 <b>주민 편에서</b> 자재·공정·품질을 검측하고 기록으로 남겨 드려요.</div></div>'
+      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8">공사가 <b>약속대로 되는지 제3자가 확인</b>하는 일이에요. 공사업체가 아닌 <b>독립된 감리사</b>가 자재·공정·품질을 검측하고 기록으로 남겨 드려요.</div></div>'
     h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:24px 4px 11px">아파트스퀘어가 지키는 세 가지</div>'
     h += '<div style="display:flex;flex-direction:column;gap:10px">'
     h += [['🔎', '쉽게 이해돼요', '전문적인 판단을 쉬운 말·현장 사진으로 설명해요.'],
@@ -1177,16 +1184,15 @@ const ALIM = {
       '<div style="display:flex;align-items:center;gap:11px;margin-bottom:10px"><div style="width:44px;height:44px;border-radius:12px;background:' + bg + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">' + ic + '</div><div><div style="font-size:14.5px;font-weight:800;color:#1c2440">' + name + '</div><div style="font-size:10.5px;font-weight:800;color:#2F6BF6;margin-top:2px">' + tag + '</div></div></div>'
       + '<div style="display:flex;flex-direction:column;gap:6px">' + items.map(t => '<div style="display:flex;gap:7px;font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.5"><span style="color:#2F6BF6;flex-shrink:0">✓</span><span>' + t + '</span></div>').join('') + '</div>', '15px 15px')
     let h = navyHero('SERVICE', '진단부터 준공까지,<br>필요한 만큼 맡기세요')
-    h += '<div style="padding:16px 14px 8px;display:flex;flex-direction:column;gap:12px">'
-    h += pkg('🔍', '#eef4ff', '공사 전 진단 패키지', 'STEP 1 · 무엇을 할지 정해요', ['현장 상태 진단', '할 공사 · 미뤄도 되는 공사 구분', '공법별 장단점 비교', '예상 공사비 범위 안내', '입주자대표회의 설명자료'])
+    h += '<div style="padding:16px 14px 2px"><div style="background:linear-gradient(150deg,#2455c0,#2F6BF6);border-radius:16px;padding:18px 17px;color:#fff;position:relative;overflow:hidden"><div style="position:absolute;top:-20px;right:-20px;width:110px;height:110px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)"></div><div style="position:relative"><div style="display:inline-block;font-size:10px;font-weight:800;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:99px">아파트스퀘어 대표 기술</div><div style="font-size:17px;font-weight:800;margin-top:9px">🚁 드론 AI 하자진단</div><div style="font-size:11.5px;color:#dbe6ff;font-weight:600;line-height:1.7;margin-top:7px">사람이 오르기 어려운 <b>외벽·옥상을 드론으로 정밀 촬영</b>하고, <b>AI가 균열·들뜸·누수 흔적을 분석</b>해요. 더 정확하고 안전하게 진단합니다.</div></div></div></div>'
+    h += '<div style="padding:14px 14px 8px;display:flex;flex-direction:column;gap:12px">'
+    h += pkg('🔍', '#eef4ff', '공사 전 진단 패키지', 'STEP 1 · 무엇을 할지 정해요', ['드론 AI 하자진단으로 정밀 촬영·분석', '현장 상태 진단', '할 공사 · 미뤄도 되는 공사 구분', '공법별 장단점 비교', '예상 공사비 범위 안내', '입주자대표회의 설명자료'])
     h += pkg('📐', '#eafaf2', '설계 · 입찰 패키지', 'STEP 2 · 공정하게 업체를 정해요', ['공사 범위 확정 · 설계도서 · 시방서', '물량 산출 · 입찰조건 작성', '업체 평가기준 수립', '현장설명회 · 기술평가 지원'])
     h += pkg('🛡️', '#fff4e6', '토털 감리 패키지', 'STEP 3 · 끝까지 확인해요', ['사전진단 · 설계 · 입찰 지원', '시공 감리 · 공정별 검측', '준공 검사 · 하자 관리'])
     h += '</div>'
     // 대상 공종
     h += '<div style="padding:14px 16px 6px"><div style="font-size:12px;font-weight:800;color:#1c2440;margin-bottom:9px">이런 공사를 감리해요</div><div style="display:flex;flex-wrap:wrap;gap:7px">'
       + ['외벽 재도장', '옥상 · 외벽 방수', '지하주차장 에폭시 · 누수', '보도블럭 · 아스콘'].map(t => '<span style="font-size:11px;font-weight:700;color:#3a445e;background:#eef1f7;padding:6px 11px;border-radius:99px">' + t + '</span>').join('') + '</div></div>'
-    // 대표 상품 예시
-    h += '<div style="margin:14px 16px 0;background:#eef4ff;border:1px solid #d7e3fb;border-radius:14px;padding:15px"><div style="font-size:10.5px;font-weight:800;color:#2F6BF6">대표 상품</div><div style="font-size:13.5px;font-weight:800;color:#1c2440;line-height:1.5;margin-top:5px">500세대 이상 아파트<br>외벽도장 · 방수공사 토털 관리 패키지</div></div>'
     // 공사 중엔 앱으로
     h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:22px 16px 10px">공사가 시작되면, 앱으로 확인해요</div>'
     h += '<div style="display:flex;flex-direction:column;gap:9px;padding:0 14px 26px">'
@@ -1221,16 +1227,25 @@ const ALIM = {
     return h
   },
   content() {
-    const icon = t => t === 'youtube' ? '▶' : '📖'
-    const col = t => t === 'youtube' ? '#e4544b' : '#2f7a56'
-    const lbl = t => t === 'youtube' ? '유튜브' : '블로그'
     let h = navyHero('CONTENT', '감리 · 보수공사 이야기,<br>영상과 글로 만나요')
-    h += '<div style="display:flex;flex-direction:column;gap:10px;padding:16px 14px 8px">'
-    h += ALIM_CONTENT.map((c, i) => '<div onclick="openAlimContent(' + i + ')" style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:11px 12px;cursor:pointer;box-shadow:0 8px 18px -14px rgba(23,38,80,.35)">'
-      + '<div style="width:52px;height:52px;border-radius:12px;background:' + (c.type === 'youtube' ? 'linear-gradient(150deg,#f3a6a0,#e4544b)' : 'linear-gradient(150deg,#8fd3b0,#2f7a56)') + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px">' + icon(c.type) + '</div>'
-      + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#1c2440;line-height:1.4">' + c.title + '</div><div style="font-size:10px;font-weight:800;color:' + col(c.type) + ';margin-top:4px">' + icon(c.type) + ' ' + lbl(c.type) + ' · ' + c.desc + '</div></div>'
-      + '<span style="color:#c3ccdb;font-size:16px">›</span></div>').join('')
-    h += '</div><div style="text-align:center;font-size:10.5px;color:#aab2c4;font-weight:600;padding:8px 16px 30px">※ 블로그·유튜브 링크는 준비되는 대로 연결됩니다.</div>'
+    const yt = ALIM_CONTENT.filter(c => c.type === 'youtube')
+    const bl = ALIM_CONTENT.filter(c => c.type === 'blog')
+    // 유튜브 (실제 썸네일)
+    h += '<div style="padding:16px 16px 6px"><div style="font-size:13px;font-weight:800;color:#1c2440">▶ 유튜브</div></div>'
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 6px">'
+    h += yt.map(c => { const i = ALIM_CONTENT.indexOf(c); return '<div onclick="openAlimContent(' + i + ')" style="cursor:pointer">'
+      + '<div style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/10"><img src="https://img.youtube.com/vi/' + c.yt + '/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:34px;height:34px;border-radius:50%;background:rgba(228,84,75,.92);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;padding-left:2px">▶</div></div></div>'
+      + '<div style="font-size:11px;font-weight:700;color:#2a3350;line-height:1.4;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + c.title + '</div></div>'; }).join('')
+    h += '</div>'
+    // 블로그
+    h += '<div style="padding:18px 16px 6px"><div style="font-size:13px;font-weight:800;color:#1c2440">📖 블로그</div></div>'
+    h += '<div style="display:flex;flex-direction:column;gap:9px;padding:0 14px 8px">'
+    h += bl.map(c => { const i = ALIM_CONTENT.indexOf(c); return '<div onclick="openAlimContent(' + i + ')" style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:11px 12px;cursor:pointer;box-shadow:0 8px 18px -14px rgba(23,38,80,.35)">'
+      + '<div style="width:48px;height:48px;border-radius:11px;background:linear-gradient(150deg,#8fd3b0,#2f7a56);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px">📖</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#1c2440;line-height:1.4">' + c.title + '</div><div style="font-size:10px;font-weight:800;color:#2f7a56;margin-top:4px">네이버 블로그</div></div>'
+      + '<span style="color:#c3ccdb;font-size:16px">›</span></div>'; }).join('')
+    h += '</div>'
+    h += '<div style="text-align:center;font-size:10.5px;color:#aab2c4;font-weight:600;padding:8px 16px 30px">더 많은 콘텐츠는 아파트스퀘어 채널에서 만나요</div>'
     return h
   }
 }

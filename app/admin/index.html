@@ -134,6 +134,7 @@
       <a data-sec="field"><span class="ic">📸</span>현장 현황<span class="cnt" id="nav-f">0</span></a>
       <a data-sec="schedules"><span class="ic">📅</span>공사 일정<span class="cnt" id="nav-s">0</span></a>
       <a data-sec="mgrforms"><span class="ic">📝</span>소장님 작성지<span class="cnt" id="nav-mf">0</span></a>
+      <a data-sec="chat"><span class="ic">💬</span>채팅<span class="cnt" id="nav-chat">0</span></a>
       <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
     </nav>
     <div class="me">
@@ -274,6 +275,22 @@
       <div id="schedules"></div>
     </section>
 
+    <!-- 채팅 -->
+    <section id="sec-chat">
+      <div class="head"><div><h2>채팅</h2><div class="desc">손님(비로그인) 상담과 입주민·감리사 대화에 답하세요. 손님 문의는 여기서 관리합니다</div></div></div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div class="card" style="width:300px;flex-shrink:0;max-height:72vh;overflow:auto;padding:0"><div id="chat-threads"></div></div>
+        <div class="card" style="flex:1;display:flex;flex-direction:column;height:72vh;padding:0">
+          <div id="chat-conv-head" style="padding:13px 16px;border-bottom:1px solid var(--line);font-weight:800;font-size:14px;color:var(--ink)">왼쪽에서 대화를 선택하세요</div>
+          <div id="chat-conv" style="flex:1;overflow:auto;padding:14px 16px;background:#eef1f6;display:flex;flex-direction:column;gap:9px"></div>
+          <div id="chat-reply-bar" style="display:none;gap:8px;padding:11px 14px;border-top:1px solid var(--line)">
+            <input id="chat-reply" placeholder="답장을 입력하세요…" style="flex:1;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')sendChatAdmin()">
+            <button class="b save" onclick="sendChatAdmin()">보내기</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- 소장님 작성지 -->
     <section id="sec-mgrforms">
       <div class="head"><div><h2>소장님 작성지</h2><div class="desc">관리소장님이 작성 폼(/form/)에서 제출한 내용이 단지별로 모입니다</div></div></div>
@@ -350,6 +367,7 @@ document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>{
   a.classList.add('on');
   document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));
   $('sec-'+a.dataset.sec).classList.add('on');
+  if(a.dataset.sec==='chat'){ loadChatAdmin(); startChatPoll(); } else { stopChatPoll(); }
 });
 
 async function loadAll(){
@@ -365,6 +383,7 @@ async function loadAll(){
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
   renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();fillScheduleAptSelect();renderSchedules();
   loadMgrForms();
+  loadChatAdmin();
 }
 /* ===== 소장님 작성지 (manager_forms) ===== */
 const MF_LABELS={writer_name:'작성자',phone:'연락처',households:'세대수/동수',built_year:'준공연도',issue:'주요 하자·불편',request:'요청·희망',wish_when:'희망 시기'};
@@ -411,6 +430,56 @@ async function deleteMgrForm(id){
   if(error) return alert('삭제 실패: '+error.message);
   loadMgrForms();
 }
+
+/* ===== 채팅 (chat_messages) ===== */
+let CHAT_MSGS=[], CHAT_CUR='', CHAT_POLL=null;
+function chatThreadName(th, aptId){
+  if(th && th.indexOf('apt:')===0){ const a=APTS.find(x=>('apt:'+x.id)===th||x.id===aptId); return '🏢 '+(a?a.name:'단지'); }
+  return '🙋 손님 '+String(th||'').replace('guest:','').slice(0,6);
+}
+async function loadChatAdmin(){
+  const {data,error}=await sb.from('chat_messages').select('*').order('created_at',{ascending:true}).limit(2000);
+  if(error){ const b=$('chat-threads'); if(b) b.innerHTML='<div style="padding:16px;color:var(--mut);font-size:13px;line-height:1.6">채팅 테이블이 없어요.<br><b>backend/migration-chat.sql</b> 을 Supabase에서 실행해 주세요.</div>'; return; }
+  CHAT_MSGS=data||[]; renderChatThreads(); if(CHAT_CUR) renderChatConv();
+}
+function renderChatThreads(){
+  const box=$('chat-threads'); if(!box)return;
+  const groups={}; CHAT_MSGS.forEach(m=>{(groups[m.thread]=groups[m.thread]||[]).push(m);});
+  const threads=Object.keys(groups).map(th=>{const ms=groups[th];const last=ms[ms.length-1];return {th,last,aptId:last.apartment_id};});
+  threads.sort((a,b)=>(b.last.created_at||'').localeCompare(a.last.created_at||''));
+  const nn=$('nav-chat'); if(nn) nn.textContent=threads.length;
+  if(!threads.length){ box.innerHTML='<div style="padding:18px;color:var(--mut);font-size:13px;text-align:center">아직 문의가 없어요.</div>'; return; }
+  box.innerHTML=threads.map(t=>{
+    const on=t.th===CHAT_CUR; const nm=chatThreadName(t.th,t.aptId);
+    const prev=(t.last.body||'').slice(0,26); const d=(t.last.created_at||'').slice(5,16).replace('T',' ');
+    return `<div onclick="openChatThread('${t.th}')" style="padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;background:${on?'#eef4ff':'#fff'}">
+      <div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:13px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nm)}</span><span style="font-size:9.5px;color:var(--mut);flex-shrink:0">${d}</span></div>
+      <div style="font-size:11.5px;color:var(--mut2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.last.sender_role==='admin'?'나: ':''}${esc(prev)}</div>
+    </div>`;
+  }).join('');
+}
+function openChatThread(th){ CHAT_CUR=th; const bar=$('chat-reply-bar'); if(bar) bar.style.display='flex'; renderChatThreads(); renderChatConv(); const r=$('chat-reply'); if(r) r.focus(); }
+function renderChatConv(){
+  const box=$('chat-conv'); if(!box)return;
+  const ms=CHAT_MSGS.filter(m=>m.thread===CHAT_CUR);
+  const head=$('chat-conv-head'); if(head) head.textContent=chatThreadName(CHAT_CUR, ms[0]&&ms[0].apartment_id);
+  box.innerHTML=ms.map(m=>{
+    const mine=m.sender_role==='admin'; const time=(m.created_at||'').slice(11,16);
+    if(mine) return `<div style="align-self:flex-end;max-width:70%"><div style="background:#2F6BF6;color:#fff;border-radius:14px 14px 4px 14px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(m.body)}</div><div style="text-align:right;font-size:9px;color:var(--mut);margin-top:2px">${time}</div></div>`;
+    return `<div style="align-self:flex-start;max-width:72%"><div style="font-size:9.5px;color:var(--mut);font-weight:700;margin-bottom:2px">${esc(m.sender_name||m.sender_role)}</div><div style="background:#fff;border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:var(--ink)">${esc(m.body)}</div><div style="font-size:9px;color:var(--mut);margin-top:2px">${time}</div></div>`;
+  }).join('');
+  box.scrollTop=box.scrollHeight;
+}
+async function sendChatAdmin(){
+  const inp=$('chat-reply'); if(!inp)return; const body=(inp.value||'').trim(); if(!body||!CHAT_CUR)return;
+  inp.value='';
+  const first=CHAT_MSGS.find(m=>m.thread===CHAT_CUR);
+  const {error}=await sb.from('chat_messages').insert({thread:CHAT_CUR, apartment_id:first?first.apartment_id:null, sender_role:'admin', sender_name:'아파트스퀘어', body});
+  if(error){ alert('전송 실패: '+error.message); inp.value=body; return; }
+  loadChatAdmin();
+}
+function startChatPoll(){ stopChatPoll(); CHAT_POLL=setInterval(loadChatAdmin,4000); }
+function stopChatPoll(){ if(CHAT_POLL){clearInterval(CHAT_POLL);CHAT_POLL=null;} }
 function fillMemberAddForm(){
   const rs=$('ma-role'); if(rs && !rs.dataset.filled){ rs.innerHTML=roleOpts('resident'); rs.dataset.filled='1'; }
   const dl=$('apt-names'); if(dl){ const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko')); dl.innerHTML=sorted.map(a=>`<option value="${esc(a.name)}"></option>`).join(''); }

@@ -31,6 +31,7 @@ async function route() {
     .from('profiles').select('role, approved, name').eq('id', user.id).single()
   if (error || !profile || !profile.approved) { window.showScreen('s02'); return } // 승인 대기
   currentRole = profile.role
+  MY_ID = user.id; MY_NAME = profile.name || ''
   applyRoleNav(profile.role)
   // 현장 점검 저장 후 돌아왔을 때: 해당 단지 감리일지 목록으로 바로 이동
   const openAptId = new URLSearchParams(location.search).get('openApt')
@@ -45,6 +46,7 @@ async function route() {
   else { window.showScreen('s11'); loadResidentHome() }
 }
 let currentRole = null
+let MY_ID = null, MY_NAME = ''
 
 // ── 입주민·관리소장 홈: 우리 단지 정보 불러오기 ─────────────
 let RES_APT = null
@@ -1083,6 +1085,14 @@ function wire() {
   const amM = $('aud-menu-meeting'); if (amM) amM.onclick = () => window.showScreen('s29')
   const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
   const amRcv = $('aud-menu-received'); if (amRcv) amRcv.onclick = () => openReceivedForms()
+  const amChat = $('aud-menu-chat'); if (amChat) amChat.onclick = () => { if (currentApt) openChat({ thread: 'apt:' + currentApt.id, aptId: currentApt.id, role: 'auditor', name: MY_NAME || '감리사', title: currentApt.name, sub: '입주민과 대화' }) }
+  // 채팅 입력
+  const cSend = $('chat-send'); if (cSend) cSend.onclick = sendChat
+  const cInp = $('chat-input')
+  if (cInp) {
+    cInp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat() } })
+    cInp.addEventListener('input', () => { cInp.style.height = 'auto'; cInp.style.height = Math.min(cInp.scrollHeight, 88) + 'px' })
+  }
   // 미팅 자료 선택
   const mf = $('meet-first'); if (mf) mf.onclick = () => openMeetingDoc('first')
   const mi = $('meet-internal'); if (mi) mi.onclick = () => openMeetingDoc('internal')
@@ -1253,7 +1263,7 @@ const ALIM = {
 }
 // 자동 콘텐츠 피드 (앱이 브라우저에서 직접 읽음, CORS 중계 경유) — 실패 시 정적 목록 폴백
 // 유튜브 채널 ID(UC...)를 알면 아래에 넣으면 유튜브도 자동 갱신됨. (비우면 유튜브는 아래 정적 목록 사용)
-const ALIM_YT_CHANNEL = ''
+const ALIM_YT_CHANNEL = 'UCeZr7L1jurF7WF1wNUHxWMw'
 const ALIM_PROXY = u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u)
 let ALIM_FEED = null, ALIM_FEED_STATE = 'idle'
 function alimList() {
@@ -1312,6 +1322,67 @@ window.openAlimContent = function (i) {
   else alert('아직 링크가 연결되지 않았어요. 곧 준비됩니다!')
 }
 
+/* ===== 인앱 채팅 (입주민↔감리사 / 손님↔관리자) ===== */
+function chatGuestId() {
+  let g = localStorage.getItem('aptsq_guest')
+  if (!g) { g = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (String(Date.now()) + Math.random().toString(16).slice(2)); localStorage.setItem('aptsq_guest', g) }
+  return g
+}
+let CHAT = { thread: '', aptId: null, role: 'guest', name: '', lastCount: -1 }
+let CHAT_POLL = null
+function roleLabel(r) { return { guest: '손님', resident: '입주민', manager: '관리소장', auditor: '감리사', admin: '아파트스퀘어' }[r] || '상대' }
+async function openChat(o) {
+  CHAT = { thread: o.thread, aptId: o.aptId || null, role: o.role, name: o.name || '', lastCount: -1 }
+  const t = document.getElementById('chat-title'); if (t) t.textContent = o.title || '채팅'
+  const s = document.getElementById('chat-sub'); if (s) s.textContent = o.sub || ''
+  const av = document.getElementById('chat-av'); if (av) av.textContent = (o.title || '아').slice(0, 1)
+  const body = document.getElementById('chat-body'); if (body) body.innerHTML = '<div style="text-align:center;color:#9aa3b6;font-size:12px;padding:20px">불러오는 중…</div>'
+  window.showScreen('s34')
+  await loadChat(true)
+  startChatPoll()
+}
+window.openChat = openChat
+async function loadChat(scroll) {
+  if (!CHAT.thread) return
+  const { data, error } = await sb.from('chat_messages').select('*').eq('thread', CHAT.thread).order('created_at', { ascending: true })
+  if (error) { const b = document.getElementById('chat-body'); if (b && CHAT.lastCount < 0) b.innerHTML = '<div style="text-align:center;color:#9aa3b6;font-size:12px;padding:22px;line-height:1.7">채팅을 불러오지 못했어요.<br><b>backend/migration-chat.sql</b> 을 Supabase에서 실행해 주세요.</div>'; return }
+  const msgs = data || []
+  if (msgs.length === CHAT.lastCount) return
+  CHAT.lastCount = msgs.length
+  renderChat(msgs, scroll)
+}
+function renderChat(msgs, scroll) {
+  const body = document.getElementById('chat-body'); if (!body) return
+  if (!msgs.length) { body.innerHTML = '<div style="text-align:center;color:#9aa3b6;font-size:12px;padding:26px 20px;line-height:1.7">아직 대화가 없어요.<br>편하게 메시지를 남겨보세요 💬</div>'; return }
+  body.innerHTML = msgs.map(m => {
+    const mine = m.sender_role === CHAT.role
+    const time = (m.created_at || '').slice(11, 16)
+    if (mine) return '<div style="align-self:flex-end;max-width:78%;display:flex;flex-direction:column;align-items:flex-end"><div style="background:#2F6BF6;color:#fff;border-radius:15px 15px 4px 15px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word">' + escH(m.body) + '</div><div style="font-size:9px;color:#aab2c4;margin-top:3px">' + time + '</div></div>'
+    return '<div style="align-self:flex-start;max-width:80%"><div style="font-size:9.5px;color:#8b95ad;font-weight:700;margin:0 0 3px 3px">' + escH(m.sender_name || roleLabel(m.sender_role)) + '</div><div style="background:#fff;border:1px solid #e6eaf2;border-radius:15px 15px 15px 4px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:#1c2440">' + escH(m.body) + '</div><div style="font-size:9px;color:#aab2c4;margin:3px 0 0 3px">' + time + '</div></div>'
+  }).join('')
+  if (scroll !== false) { body.scrollTop = body.scrollHeight }
+}
+async function sendChat() {
+  const inp = document.getElementById('chat-input'); if (!inp) return
+  const body = inp.value.trim(); if (!body || !CHAT.thread) return
+  inp.value = ''; inp.style.height = 'auto'
+  const { error } = await sb.from('chat_messages').insert({ thread: CHAT.thread, apartment_id: CHAT.aptId, sender_role: CHAT.role, sender_name: CHAT.name || roleLabel(CHAT.role), body })
+  if (error) { alert('전송 실패: ' + error.message); inp.value = body; return }
+  await loadChat(true)
+}
+window.sendChat = sendChat
+function startChatPoll() { stopChatPoll(); CHAT_POLL = setInterval(() => { const s = document.getElementById('s34'); if (!s || !s.classList.contains('active')) { stopChatPoll(); return } loadChat(false) }, 3500) }
+function stopChatPoll() { if (CHAT_POLL) { clearInterval(CHAT_POLL); CHAT_POLL = null } }
+// 하단 '채팅' 탭 진입: 로그인=담당 감리사와 / 비로그인=관리자(손님 상담)
+function chatFromNav() {
+  if (currentRole && RES_APT && RES_APT.id) {
+    openChat({ thread: 'apt:' + RES_APT.id, aptId: RES_APT.id, role: (currentRole === 'manager' ? 'manager' : 'resident'), name: MY_NAME, title: RES_AUD_NAME ? (RES_AUD_NAME + ' 감리사') : '담당 감리사', sub: '우리 단지 감리 상담' })
+  } else {
+    openChat({ thread: 'guest:' + chatGuestId(), aptId: null, role: 'guest', name: '손님', title: '아파트스퀘어 상담', sub: '무엇이든 편하게 물어보세요' })
+  }
+}
+window.chatFromNav = chatFromNav
+
 // ── 문의 버튼 → 카카오톡 채널 채팅 ─────────────────────────────
 const INQUIRY_URL = 'https://pf.kakao.com/_DpQHG/chat'
 function normText(s) { return (s || '').replace(/[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/gu, '') }
@@ -1339,7 +1410,7 @@ document.addEventListener('click', (e) => {
     else if (tab === 'field') { showScreen('s26'); loadFieldUpdates() }
     else if (tab === 'schedule') { showScreen('s14'); loadSchedule() }
     else if (tab === 'alim') { openAlim() }
-    else if (tab === 'chat') { window.open(INQUIRY_URL, '_blank', 'noopener') }
+    else if (tab === 'chat') { chatFromNav() }
     return
   }
   const at = e.target.closest('.alim-tab')

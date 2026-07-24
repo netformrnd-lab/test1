@@ -1229,27 +1229,48 @@ const ALIM = {
   },
   content() {
     let h = navyHero('CONTENT', '감리 · 보수공사 이야기,<br>영상과 글로 만나요')
-    const yt = ALIM_CONTENT.filter(c => c.type === 'youtube')
-    const bl = ALIM_CONTENT.filter(c => c.type === 'blog')
-    // 유튜브 (실제 썸네일)
-    h += '<div style="padding:16px 16px 6px"><div style="font-size:13px;font-weight:800;color:#1c2440">▶ 유튜브</div></div>'
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 6px">'
-    h += yt.map(c => { const i = ALIM_CONTENT.indexOf(c); return '<div onclick="openAlimContent(' + i + ')" style="cursor:pointer">'
-      + '<div style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/10"><img src="https://img.youtube.com/vi/' + c.yt + '/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:34px;height:34px;border-radius:50%;background:rgba(228,84,75,.92);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;padding-left:2px">▶</div></div></div>'
-      + '<div style="font-size:11px;font-weight:700;color:#2a3350;line-height:1.4;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + c.title + '</div></div>'; }).join('')
-    h += '</div>'
-    // 블로그
-    h += '<div style="padding:18px 16px 6px"><div style="font-size:13px;font-weight:800;color:#1c2440">📖 블로그</div></div>'
+    const list = alimList()
+    const yt = list.filter(c => c.type === 'youtube')
+    const bl = list.filter(c => c.type === 'blog')
+    h += '<div style="padding:16px 16px 6px"><div style="font-size:13px;font-weight:800;color:#1c2440">\u25b6 유튜브</div></div>'
+    if (yt.length) {
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 6px">'
+      h += yt.map(c => '<div onclick="openAlimUrl(\'' + c.url + '\')" style="cursor:pointer">'
+        + '<div style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/10"><img src="https://img.youtube.com/vi/' + c.yt + '/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:34px;height:34px;border-radius:50%;background:rgba(228,84,75,.92);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;padding-left:2px">\u25b6</div></div></div>'
+        + '<div style="font-size:11px;font-weight:700;color:#2a3350;line-height:1.4;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escH(c.title) + '</div></div>').join('')
+      h += '</div>'
+    }
+    h += '<div style="padding:18px 16px 6px"><div style="font-size:13px;font-weight:800;color:#1c2440">\ud83d\udcd6 블로그</div></div>'
     h += '<div style="display:flex;flex-direction:column;gap:9px;padding:0 14px 8px">'
-    h += bl.map(c => { const i = ALIM_CONTENT.indexOf(c); return '<div onclick="openAlimContent(' + i + ')" style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:11px 12px;cursor:pointer;box-shadow:0 8px 18px -14px rgba(23,38,80,.35)">'
-      + '<div style="width:48px;height:48px;border-radius:11px;background:linear-gradient(150deg,#8fd3b0,#2f7a56);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px">📖</div>'
-      + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#1c2440;line-height:1.4">' + c.title + '</div><div style="font-size:10px;font-weight:800;color:#2f7a56;margin-top:4px">네이버 블로그</div></div>'
-      + '<span style="color:#c3ccdb;font-size:16px">›</span></div>'; }).join('')
+    h += bl.map(c => '<div onclick="openAlimUrl(\'' + c.url + '\')" style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:11px 12px;cursor:pointer;box-shadow:0 8px 18px -14px rgba(23,38,80,.35)">'
+      + '<div style="width:48px;height:48px;border-radius:11px;background:linear-gradient(150deg,#8fd3b0,#2f7a56);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px">\ud83d\udcd6</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#1c2440;line-height:1.4">' + escH(c.title) + '</div><div style="font-size:10px;font-weight:800;color:#2f7a56;margin-top:4px">네이버 블로그</div></div>'
+      + '<span style="color:#c3ccdb;font-size:16px">\u203a</span></div>').join('')
     h += '</div>'
     h += '<div style="text-align:center;font-size:10.5px;color:#aab2c4;font-weight:600;padding:8px 16px 30px">더 많은 콘텐츠는 아파트스퀘어 채널에서 만나요</div>'
     return h
   }
 }
+// 자동 콘텐츠 피드 (Cloudflare 함수 /content) — 실패 시 정적 ALIM_CONTENT 폴백
+let ALIM_FEED = null, ALIM_FEED_STATE = 'idle'
+function alimList() {
+  if (ALIM_FEED && (((ALIM_FEED.youtube || []).length) || ((ALIM_FEED.blog || []).length))) {
+    const yt = (ALIM_FEED.youtube || []).map(v => ({ type: 'youtube', yt: v.id, title: v.title || '아파트스퀘어 영상', url: 'https://www.youtube.com/watch?v=' + v.id }))
+    const bl = (ALIM_FEED.blog || []).map(b => ({ type: 'blog', title: b.title || '아파트스퀘어 블로그', url: b.url }))
+    return yt.concat(bl)
+  }
+  return ALIM_CONTENT
+}
+async function loadAlimFeed() {
+  if (ALIM_FEED_STATE === 'loading' || ALIM_FEED_STATE === 'done') return
+  ALIM_FEED_STATE = 'loading'
+  try {
+    const r = await fetch('/content', { cache: 'no-store' })
+    if (r.ok) { ALIM_FEED = await r.json(); ALIM_FEED_STATE = 'done' } else { ALIM_FEED_STATE = 'fail' }
+  } catch (e) { ALIM_FEED_STATE = 'fail' }
+  if (alimTab === 'content' && (ALIM_FEED_STATE === 'done')) renderAlim('content')
+}
+window.openAlimUrl = function (u) { if (u) window.open(u, '_blank', 'noopener') }
 let alimTab = 'philosophy'
 function renderAlim(tab) {
   alimTab = tab || alimTab
@@ -1263,7 +1284,7 @@ function renderAlim(tab) {
   })
   const bd = document.querySelector('#s33 .bd'); if (bd) bd.scrollTop = 0
 }
-function openAlim() { window.showScreen('s33'); renderAlim(alimTab) }
+function openAlim() { window.showScreen('s33'); renderAlim(alimTab); loadAlimFeed() }
 window.openAlim = openAlim
 window.openAlimContent = function (i) {
   const c = ALIM_CONTENT[i]; if (!c) return

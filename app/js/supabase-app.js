@@ -507,8 +507,7 @@ const SURVEY_ITEMS = [
   { key: 'r_defect', label: '하자 대응', desc: '하자를 잘 잡아냈나요?' },
   { key: 'r_quality', label: '시공 품질', desc: '마감·품질이 만족스러웠나요?' }
 ]
-const SURVEY_AGAIN = ['외벽 도색', '옥상·외벽 방수', '균열 보수', '지하주차장 에폭시', '창호 교체', '조경·기타']
-let SURVEY = null // { apt, overall, r_comm.., best, again:Set, comment }
+let SURVEY = null // { apt, overall, r_comm.., best, again, comment } — best/again은 자유 입력
 // 공사 완료 여부: status='done' 또는 공정 단계가 모두 끝남
 function isConstructionDone(apt) {
   if (!apt) return false
@@ -545,9 +544,14 @@ function starRow(key, val) {
   }
   return `<div style="display:flex;gap:4px">${s}</div>`
 }
-window.svSetStar = function (key, v) { if (!SURVEY) return; SURVEY[key] = v; renderSurveyForm() }
-window.svToggleBest = function (v) { if (!SURVEY) return; SURVEY.best = (SURVEY.best === v ? '' : v); renderSurveyForm() }
-window.svToggleAgain = function (v) { if (!SURVEY) return; if (SURVEY.again.has(v)) SURVEY.again.delete(v); else SURVEY.again.add(v); renderSurveyForm() }
+// 별점 변경 시에도 자유 입력 값이 날아가지 않도록 현재 textarea 값을 먼저 보존
+window.svSetStar = function (key, v) {
+  if (!SURVEY) return
+  const be = document.getElementById('sv-best'); if (be) SURVEY.best = be.value
+  const ag = document.getElementById('sv-again'); if (ag) SURVEY.again = ag.value
+  const cm = document.getElementById('sv-comment'); if (cm) SURVEY.comment = cm.value
+  SURVEY[key] = v; renderSurveyForm()
+}
 async function openSurvey() {
   let apt = RES_APT
   if (!apt) {
@@ -566,7 +570,7 @@ async function openSurvey() {
     const { data } = await sb.from('surveys').select('id').eq('apartment_id', apt.id).eq('respondent_id', user.id).limit(1)
     if (data && data.length) { localStorage.setItem(surveyKey(apt.id), '1'); renderSurveyDone(); return }
   } catch (e) {}
-  SURVEY = { apt: apt, overall: 0, r_comm: 0, r_site: 0, r_defect: 0, r_quality: 0, best: '', again: new Set(), comment: '' }
+  SURVEY = { apt: apt, overall: 0, r_comm: 0, r_site: 0, r_defect: 0, r_quality: 0, best: '', again: '', comment: '' }
   renderSurveyForm()
 }
 window.openSurvey = openSurvey
@@ -583,16 +587,20 @@ function renderSurveyForm() {
   html += card(sec('전체 만족도는 어떠셨나요?') + '<div style="display:flex;justify-content:center;padding:4px 0">' + starRow('overall', SURVEY.overall) + '</div>')
   let items = SURVEY_ITEMS.map(it => `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f4f6fa"><div style="min-width:0"><div style="font-size:12.5px;font-weight:800;color:#26314d">${it.label}</div><div style="font-size:10px;color:#9aa3b6;font-weight:600;margin-top:1px">${it.desc}</div></div>${starRow(it.key, SURVEY[it.key])}</div>`).join('')
   html += card(sec('항목별 평가') + items)
-  html += card(sec('가장 만족스러웠던 점은? <span style="font-weight:600;color:#9aa3b6;font-size:11px">(하나 선택)</span>') + '<div>' + SURVEY_ITEMS.map(it => chip(it.label, SURVEY.best === it.label, 'svToggleBest')).join('') + chip('빠른 진행', SURVEY.best === '빠른 진행', 'svToggleBest') + '</div>')
-  html += card(sec('다음에 또 맡긴다면 하고 싶은 공정은? <span style="font-weight:600;color:#9aa3b6;font-size:11px">(여러 개)</span>') + '<div>' + SURVEY_AGAIN.map(v => chip(v, SURVEY.again.has(v), 'svToggleAgain')).join('') + '</div>')
-  html += card(sec('한 줄 의견 <span style="font-weight:600;color:#9aa3b6;font-size:11px">(선택)</span>') + `<textarea id="sv-comment" rows="3" placeholder="자유롭게 남겨주세요" style="width:100%;box-sizing:border-box;resize:none;border:1px solid #e1e7f0;border-radius:11px;padding:11px 12px;font-size:13px;font-family:inherit;outline:none;line-height:1.5;background:#f7f9fc">${escH(SURVEY.comment)}</textarea>`)
+  const taStyle = 'width:100%;box-sizing:border-box;resize:none;border:1px solid #e1e7f0;border-radius:11px;padding:11px 12px;font-size:13px;font-family:inherit;outline:none;line-height:1.5;background:#f7f9fc'
+  html += card(sec('가장 만족스러웠던 점은? <span style="font-weight:600;color:#9aa3b6;font-size:11px">(자유롭게)</span>') + `<textarea id="sv-best" rows="2" placeholder="예: 하자를 꼼꼼히 잡아준 점이 가장 좋았어요" style="${taStyle}">${escH(SURVEY.best)}</textarea>`)
+  html += card(sec('다음에 또 맡긴다면 하고 싶은 공정은? <span style="font-weight:600;color:#9aa3b6;font-size:11px">(자유롭게)</span>') + `<textarea id="sv-again" rows="2" placeholder="예: 옥상 방수, 외벽 도색도 맡기고 싶어요" style="${taStyle}">${escH(SURVEY.again)}</textarea>`)
+  html += card(sec('한 줄 의견 <span style="font-weight:600;color:#9aa3b6;font-size:11px">(선택)</span>') + `<textarea id="sv-comment" rows="3" placeholder="자유롭게 남겨주세요" style="${taStyle}">${escH(SURVEY.comment)}</textarea>`)
   html += `<div id="sv-msg" style="text-align:center;font-size:11.5px;font-weight:700;color:#e4544b;min-height:15px;margin-bottom:6px"></div>`
   html += `<div onclick="submitSurvey()" style="cursor:pointer;text-align:center;background:#F5A623;color:#fff;font-size:14.5px;font-weight:800;padding:15px;border-radius:13px;box-shadow:0 10px 20px -12px rgba(245,166,35,.7)">만족도 제출하기</div>`
   body.innerHTML = html
-  const ta = document.getElementById('sv-comment'); if (ta) ta.addEventListener('input', () => { SURVEY.comment = ta.value })
+  const bind = (id, k) => { const el = document.getElementById(id); if (el) el.addEventListener('input', () => { SURVEY[k] = el.value }) }
+  bind('sv-best', 'best'); bind('sv-again', 'again'); bind('sv-comment', 'comment')
 }
 async function submitSurvey() {
   if (!SURVEY) return
+  const be = document.getElementById('sv-best'); if (be) SURVEY.best = be.value
+  const ag = document.getElementById('sv-again'); if (ag) SURVEY.again = ag.value
   const c = document.getElementById('sv-comment'); if (c) SURVEY.comment = c.value
   const msg = document.getElementById('sv-msg')
   if (!SURVEY.overall) { if (msg) msg.textContent = '전체 만족도 별점을 선택해 주세요.'; return }
@@ -603,7 +611,7 @@ async function submitSurvey() {
     respondent_role: (prof && prof.role === 'manager') ? 'manager' : 'resident',
     overall: SURVEY.overall, r_comm: SURVEY.r_comm || null, r_site: SURVEY.r_site || null,
     r_defect: SURVEY.r_defect || null, r_quality: SURVEY.r_quality || null,
-    best: SURVEY.best || null, again: Array.from(SURVEY.again).join(', ') || null, comment: (SURVEY.comment || '').trim() || null
+    best: (SURVEY.best || '').trim() || null, again: (SURVEY.again || '').trim() || null, comment: (SURVEY.comment || '').trim() || null
   }
   const { error } = await sb.from('surveys').upsert(row, { onConflict: 'apartment_id,respondent_id' })
   if (error) {
@@ -638,14 +646,16 @@ function renderSurveyStats(rows) {
     const v = avg(rows, it.key), pct = Math.round(v / 5 * 100)
     return `<div style="padding:7px 0"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#26314d"><span>${it.label}</span><span style="color:#F5A623">${v.toFixed(1)}</span></div><div style="height:6px;border-radius:9px;background:#f0f2f7;margin-top:5px;overflow:hidden"><div style="width:${pct}%;height:100%;background:#F5A623;border-radius:9px"></div></div></div>`
   }).join('') + '</div>'
-  // 재이용 희망 공정 집계
-  const againCnt = {}
-  rows.forEach(r => (r.again || '').split(',').map(s => s.trim()).filter(Boolean).forEach(v => againCnt[v] = (againCnt[v] || 0) + 1))
-  const againArr = Object.entries(againCnt).sort((a, b) => b[1] - a[1])
-  if (againArr.length) html += '<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px;margin-bottom:13px"><div style="font-size:12.5px;font-weight:800;color:#1c2440;margin-bottom:9px">다음에 하고 싶은 공정</div>' + againArr.map(([v, n]) => `<span style="display:inline-block;font-size:11.5px;font-weight:700;color:#5a6480;background:#f0f2f7;padding:6px 11px;border-radius:99px;margin:0 6px 6px 0">${escH(v)} · ${n}</span>`).join('') + '</div>'
-  // 코멘트 목록
-  const cmts = rows.filter(r => r.comment)
-  if (cmts.length) html += '<div style="font-size:12.5px;font-weight:800;color:#1c2440;margin:4px 2px 9px">입주민 한 줄 의견</div>' + cmts.map(r => `<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 13px;margin-bottom:8px"><div style="font-size:12.5px;color:#333c54;font-weight:600;line-height:1.6">“${escH(r.comment)}”</div>${r.best ? `<div style="font-size:10px;color:#F5A623;font-weight:800;margin-top:6px">👍 가장 만족: ${escH(r.best)}</div>` : ''}</div>`).join('')
+  // 자유 입력 답변 목록 (가장 만족한 점 / 다음에 하고 싶은 공정 / 한 줄 의견)
+  const textList = (title, key) => {
+    const list = rows.filter(r => (r[key] || '').trim())
+    if (!list.length) return ''
+    return '<div style="font-size:12.5px;font-weight:800;color:#1c2440;margin:6px 2px 9px">' + title + '</div>' +
+      list.map(r => `<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 13px;margin-bottom:8px"><div style="font-size:12.5px;color:#333c54;font-weight:600;line-height:1.6">“${escH(r[key])}”</div><div style="font-size:9.5px;color:#aab2c4;font-weight:700;margin-top:5px">${r.respondent_role === 'manager' ? '관리소장' : '입주민'}</div></div>`).join('')
+  }
+  html += textList('👍 가장 만족스러웠던 점', 'best')
+  html += textList('🔁 다음에 하고 싶은 공정', 'again')
+  html += textList('💬 한 줄 의견', 'comment')
   return html
 }
 window.renderSurveyStats = renderSurveyStats

@@ -136,6 +136,7 @@
       <a data-sec="mgrforms"><span class="ic">📝</span>소장님 작성지<span class="cnt" id="nav-mf">0</span></a>
       <a data-sec="chat"><span class="ic">💬</span>채팅<span class="cnt" id="nav-chat">0</span></a>
       <a data-sec="contract"><span class="ic">📑</span>계약서<span class="cnt" id="nav-ct">0</span></a>
+      <a data-sec="survey"><span class="ic">⭐</span>만족도<span class="cnt" id="nav-sv">0</span></a>
       <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
     </nav>
     <div class="me">
@@ -309,6 +310,13 @@
       </div>
     </section>
 
+    <!-- 만족도 조사 -->
+    <section id="sec-survey">
+      <div class="head"><div><h2>만족도 조사</h2><div class="desc">공사 완료 후 입주민·관리소장이 남긴 만족도를 단지별로 확인하세요</div></div></div>
+      <div class="add-form" style="margin-bottom:16px"><input id="sv-q" placeholder="🔍 단지명으로 검색" style="width:320px" oninput="renderSurveysAdmin()"></div>
+      <div id="surveys"></div>
+    </section>
+
     <!-- 소장님 작성지 -->
     <section id="sec-mgrforms">
       <div class="head"><div><h2>소장님 작성지</h2><div class="desc">관리소장님이 작성 폼(/form/)에서 제출한 내용이 단지별로 모입니다</div></div></div>
@@ -404,6 +412,39 @@ async function loadAll(){
   loadChatAdmin();
   fillContractApt();
   loadContractsAdmin();
+  loadSurveysAdmin();
+}
+/* ===== 만족도 조사 (surveys) ===== */
+let SURVEYS_A=[];
+const SV_ITEMS=[['r_comm','감리 소통'],['r_site','현장 관리·안전'],['r_defect','하자 대응'],['r_quality','시공 품질']];
+async function loadSurveysAdmin(){
+  const {data,error}=await sb.from('surveys').select('*').order('created_at',{ascending:false});
+  if(error){ const box=$('surveys'); if(box) box.innerHTML='<div class="card" style="text-align:center;color:var(--mut);font-size:13px;padding:22px">아직 테이블이 없어요. <b>backend/migration-survey.sql</b> 을 Supabase에서 실행해 주세요.</div>'; return; }
+  SURVEYS_A=data||[]; const nn=$('nav-sv'); if(nn) nn.textContent=SURVEYS_A.length; renderSurveysAdmin();
+}
+function svAvg(arr,key){ const v=arr.map(r=>r[key]).filter(x=>x!=null); return v.length?(v.reduce((a,b)=>a+b,0)/v.length):0; }
+function svStars(n){ const f=Math.round(n); return '★★★★★'.slice(0,f)+'☆☆☆☆☆'.slice(0,5-f); }
+function renderSurveysAdmin(){
+  const box=$('surveys'); if(!box) return;
+  const q=($('sv-q').value||'').trim().toLowerCase();
+  if(!SURVEYS_A.length){ box.innerHTML='<div class="card" style="text-align:center;color:var(--mut);font-size:13px;padding:26px">아직 제출된 만족도가 없어요.</div>'; return; }
+  const aptName=id=>{ const a=(APTS||[]).find(x=>x.id===id); return a?a.name:'(삭제된 단지)'; };
+  const groups={};
+  SURVEYS_A.forEach(s=>{ (groups[s.apartment_id]=groups[s.apartment_id]||[]).push(s); });
+  let html='';
+  Object.keys(groups).forEach(aid=>{
+    const name=aptName(aid);
+    if(q && name.toLowerCase().indexOf(q)<0) return;
+    const rows=groups[aid], ov=svAvg(rows,'overall');
+    const items=SV_ITEMS.map(([k,l])=>{ const v=svAvg(rows,k),pct=Math.round(v/5*100); return `<div style="padding:5px 0"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:var(--ink)"><span>${l}</span><span style="color:#F5A623">${v.toFixed(1)}</span></div><div style="height:6px;border-radius:9px;background:#eef1f7;margin-top:4px;overflow:hidden"><div style="width:${pct}%;height:100%;background:#F5A623;border-radius:9px"></div></div></div>`; }).join('');
+    const againCnt={}; rows.forEach(r=>(r.again||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(v=>againCnt[v]=(againCnt[v]||0)+1));
+    const againArr=Object.entries(againCnt).sort((a,b)=>b[1]-a[1]);
+    const again=againArr.length?('<div style="margin-top:10px;font-size:12px;font-weight:800;color:var(--ink)">다음에 하고 싶은 공정</div><div style="margin-top:6px">'+againArr.map(([v,n])=>`<span style="display:inline-block;font-size:11px;font-weight:700;color:#5a6480;background:#f0f2f7;padding:5px 10px;border-radius:99px;margin:0 5px 5px 0">${v} · ${n}</span>`).join('')+'</div>'):'';
+    const cmts=rows.filter(r=>r.comment);
+    const comments=cmts.length?('<div style="margin-top:10px;font-size:12px;font-weight:800;color:var(--ink)">한 줄 의견</div>'+cmts.map(r=>`<div style="background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-top:6px;font-size:12px;color:#333c54;font-weight:600;line-height:1.55">“${(r.comment||'').replace(/</g,'&lt;')}”${r.best?` <span style="color:#F5A623;font-weight:800">· 👍 ${r.best}</span>`:''} <span style="color:var(--mut);font-weight:600">· ${r.respondent_role==='manager'?'관리소장':'입주민'}</span></div>`).join('')):'';
+    html+=`<div class="card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div><h3 style="margin:0">${name}</h3><div style="font-size:12px;color:var(--mut);font-weight:600;margin-top:2px">응답 ${rows.length}명</div></div><div style="text-align:right"><div style="font-size:24px;font-weight:800;color:var(--ink);line-height:1">${ov.toFixed(1)}<span style="font-size:12px;color:var(--mut)">/5</span></div><div style="font-size:15px;color:#F5A623;letter-spacing:1px">${svStars(ov)}</div></div></div><div style="border-top:1px solid var(--line);padding-top:10px">${items}${again}${comments}</div></div>`;
+  });
+  box.innerHTML=html||'<div class="card" style="text-align:center;color:var(--mut);font-size:13px;padding:22px">검색 결과가 없어요.</div>';
 }
 /* ===== 소장님 작성지 (manager_forms) ===== */
 const MF_LABELS={writer_name:'작성자',phone:'연락처',households:'세대수/동수',built_year:'준공연도',issue:'주요 하자·불편',request:'요청·희망',wish_when:'희망 시기'};

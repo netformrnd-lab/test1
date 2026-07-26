@@ -107,6 +107,7 @@ async function loadResidentHome() {
   loadResidentNext(apt.id)
   loadResidentNotices()
   loadRegionActivity()
+  checkSurveyBanner(apt)
 }
 // 다가오는 감리 일정 1건
 async function loadResidentNext(aptId) {
@@ -179,6 +180,7 @@ async function loadFieldUpdates() {
   if (apt) RES_APT = apt
   if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
   renderFieldProgress(apt)
+  checkSurveyBanner(apt)
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
   FIELD_LIST = data || []
   renderFieldList()
@@ -497,6 +499,156 @@ async function openNoticeList() {
   }).join('')
 }
 window.openNoticeList = openNoticeList
+
+/* ===== 공사 완료 후 만족도 조사 ===== */
+const SURVEY_ITEMS = [
+  { key: 'r_comm', label: '감리 소통', desc: '연락·설명이 잘 됐나요?' },
+  { key: 'r_site', label: '현장 관리·안전', desc: '현장이 안전하게 관리됐나요?' },
+  { key: 'r_defect', label: '하자 대응', desc: '하자를 잘 잡아냈나요?' },
+  { key: 'r_quality', label: '시공 품질', desc: '마감·품질이 만족스러웠나요?' }
+]
+const SURVEY_AGAIN = ['외벽 도색', '옥상·외벽 방수', '균열 보수', '지하주차장 에폭시', '창호 교체', '조경·기타']
+let SURVEY = null // { apt, overall, r_comm.., best, again:Set, comment }
+// 공사 완료 여부: status='done' 또는 공정 단계가 모두 끝남
+function isConstructionDone(apt) {
+  if (!apt) return false
+  if (apt.status === 'done') return true
+  const stages = (window.methodStages && window.methodStages(apt.method)) || null
+  if (stages && (apt.progress_current || 0) >= stages.length) return true
+  return false
+}
+function surveyKey(aptId) { return 'aptsq_survey_' + aptId }
+// 홈·현장현황 상단 만족도 배너 표시 여부
+async function checkSurveyBanner(apt) {
+  const homeB = document.getElementById('res-survey-banner')
+  const fieldB = document.getElementById('field-survey-banner')
+  const show = (on) => { if (homeB) homeB.style.display = on ? 'flex' : 'none'; if (fieldB) fieldB.style.display = on ? 'block' : 'none' }
+  if (!apt || !isConstructionDone(apt)) { show(false); return }
+  // 이미 참여했으면 배너 숨김 (로컬 우선, DB로 확인)
+  if (localStorage.getItem(surveyKey(apt.id))) { show(false); return }
+  try {
+    const { data: { user } } = await sb.auth.getUser()
+    if (user) {
+      const { data } = await sb.from('surveys').select('id').eq('apartment_id', apt.id).eq('respondent_id', user.id).limit(1)
+      if (data && data.length) { localStorage.setItem(surveyKey(apt.id), '1'); show(false); return }
+    }
+  } catch (e) {}
+  show(true)
+}
+window.checkSurveyBanner = checkSurveyBanner
+// 별점 위젯 HTML
+function starRow(key, val) {
+  let s = ''
+  for (let i = 1; i <= 5; i++) {
+    const on = i <= val
+    s += `<span onclick="svSetStar('${key}',${i})" style="cursor:pointer;font-size:27px;line-height:1;color:${on ? '#F5A623' : '#dfe3ec'}">★</span>`
+  }
+  return `<div style="display:flex;gap:4px">${s}</div>`
+}
+window.svSetStar = function (key, v) { if (!SURVEY) return; SURVEY[key] = v; renderSurveyForm() }
+window.svToggleBest = function (v) { if (!SURVEY) return; SURVEY.best = (SURVEY.best === v ? '' : v); renderSurveyForm() }
+window.svToggleAgain = function (v) { if (!SURVEY) return; if (SURVEY.again.has(v)) SURVEY.again.delete(v); else SURVEY.again.add(v); renderSurveyForm() }
+async function openSurvey() {
+  let apt = RES_APT
+  if (!apt) {
+    const { data: { user } } = await sb.auth.getUser(); if (!user) { showScreen('s01'); return }
+    const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+    if (prof && prof.apartment_id) { const { data } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single(); apt = data; RES_APT = data }
+  }
+  const nm = document.getElementById('survey-apt'); if (nm) nm.textContent = apt ? apt.name : '우리 단지'
+  window.showScreen('s39')
+  const body = document.getElementById('survey-body')
+  if (!apt) { if (body) body.innerHTML = '<div style="padding:24px;text-align:center;color:#8b95ad;font-size:12px">배정된 단지가 없어요.</div>'; return }
+  // 이미 참여했는지 확인
+  if (body) body.innerHTML = '<div style="text-align:center;color:#9aa3b6;font-size:12px;padding:22px">불러오는 중…</div>'
+  try {
+    const { data: { user } } = await sb.auth.getUser()
+    const { data } = await sb.from('surveys').select('id').eq('apartment_id', apt.id).eq('respondent_id', user.id).limit(1)
+    if (data && data.length) { localStorage.setItem(surveyKey(apt.id), '1'); renderSurveyDone(); return }
+  } catch (e) {}
+  SURVEY = { apt: apt, overall: 0, r_comm: 0, r_site: 0, r_defect: 0, r_quality: 0, best: '', again: new Set(), comment: '' }
+  renderSurveyForm()
+}
+window.openSurvey = openSurvey
+function renderSurveyDone() {
+  const body = document.getElementById('survey-body'); if (!body) return
+  body.innerHTML = '<div style="text-align:center;padding:40px 20px"><div style="font-size:46px;margin-bottom:12px">🙏</div><div style="font-size:16px;font-weight:800;color:#1c2440">이미 참여해 주셨어요</div><div style="font-size:12.5px;color:#8b95ad;font-weight:600;margin-top:8px;line-height:1.7">소중한 의견 감사합니다.<br>더 나은 감리로 보답할게요.</div></div>'
+}
+function renderSurveyForm() {
+  const body = document.getElementById('survey-body'); if (!body || !SURVEY) return
+  const sec = (t) => `<div style="font-size:13px;font-weight:800;color:#1c2440;margin:0 0 10px">${t}</div>`
+  const card = (inner) => `<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px;margin-bottom:12px">${inner}</div>`
+  const chip = (label, on, fn) => `<span onclick="${fn}('${label}')" style="cursor:pointer;font-size:12px;font-weight:${on ? '800' : '700'};color:${on ? '#fff' : '#5a6480'};background:${on ? '#F5A623' : '#f0f2f7'};padding:8px 13px;border-radius:99px;white-space:nowrap;display:inline-block;margin:0 6px 6px 0">${label}</span>`
+  let html = ''
+  html += card(sec('전체 만족도는 어떠셨나요?') + '<div style="display:flex;justify-content:center;padding:4px 0">' + starRow('overall', SURVEY.overall) + '</div>')
+  let items = SURVEY_ITEMS.map(it => `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f4f6fa"><div style="min-width:0"><div style="font-size:12.5px;font-weight:800;color:#26314d">${it.label}</div><div style="font-size:10px;color:#9aa3b6;font-weight:600;margin-top:1px">${it.desc}</div></div>${starRow(it.key, SURVEY[it.key])}</div>`).join('')
+  html += card(sec('항목별 평가') + items)
+  html += card(sec('가장 만족스러웠던 점은? <span style="font-weight:600;color:#9aa3b6;font-size:11px">(하나 선택)</span>') + '<div>' + SURVEY_ITEMS.map(it => chip(it.label, SURVEY.best === it.label, 'svToggleBest')).join('') + chip('빠른 진행', SURVEY.best === '빠른 진행', 'svToggleBest') + '</div>')
+  html += card(sec('다음에 또 맡긴다면 하고 싶은 공정은? <span style="font-weight:600;color:#9aa3b6;font-size:11px">(여러 개)</span>') + '<div>' + SURVEY_AGAIN.map(v => chip(v, SURVEY.again.has(v), 'svToggleAgain')).join('') + '</div>')
+  html += card(sec('한 줄 의견 <span style="font-weight:600;color:#9aa3b6;font-size:11px">(선택)</span>') + `<textarea id="sv-comment" rows="3" placeholder="자유롭게 남겨주세요" style="width:100%;box-sizing:border-box;resize:none;border:1px solid #e1e7f0;border-radius:11px;padding:11px 12px;font-size:13px;font-family:inherit;outline:none;line-height:1.5;background:#f7f9fc">${escH(SURVEY.comment)}</textarea>`)
+  html += `<div id="sv-msg" style="text-align:center;font-size:11.5px;font-weight:700;color:#e4544b;min-height:15px;margin-bottom:6px"></div>`
+  html += `<div onclick="submitSurvey()" style="cursor:pointer;text-align:center;background:#F5A623;color:#fff;font-size:14.5px;font-weight:800;padding:15px;border-radius:13px;box-shadow:0 10px 20px -12px rgba(245,166,35,.7)">만족도 제출하기</div>`
+  body.innerHTML = html
+  const ta = document.getElementById('sv-comment'); if (ta) ta.addEventListener('input', () => { SURVEY.comment = ta.value })
+}
+async function submitSurvey() {
+  if (!SURVEY) return
+  const c = document.getElementById('sv-comment'); if (c) SURVEY.comment = c.value
+  const msg = document.getElementById('sv-msg')
+  if (!SURVEY.overall) { if (msg) msg.textContent = '전체 만족도 별점을 선택해 주세요.'; return }
+  const { data: { user } } = await sb.auth.getUser(); if (!user) { showScreen('s01'); return }
+  const { data: prof } = await sb.from('profiles').select('role, name').eq('id', user.id).single()
+  const row = {
+    apartment_id: SURVEY.apt.id, respondent_id: user.id,
+    respondent_role: (prof && prof.role === 'manager') ? 'manager' : 'resident',
+    overall: SURVEY.overall, r_comm: SURVEY.r_comm || null, r_site: SURVEY.r_site || null,
+    r_defect: SURVEY.r_defect || null, r_quality: SURVEY.r_quality || null,
+    best: SURVEY.best || null, again: Array.from(SURVEY.again).join(', ') || null, comment: (SURVEY.comment || '').trim() || null
+  }
+  const { error } = await sb.from('surveys').upsert(row, { onConflict: 'apartment_id,respondent_id' })
+  if (error) {
+    if (msg) msg.textContent = /relation|table|column/.test(error.message) ? 'backend/migration-survey.sql 실행이 필요해요.' : ('제출 실패: ' + error.message)
+    return
+  }
+  localStorage.setItem(surveyKey(SURVEY.apt.id), '1')
+  checkSurveyBanner(SURVEY.apt)
+  SURVEY = null
+  renderSurveyDone()
+}
+window.submitSurvey = submitSurvey
+// 감리사: 담당 단지 만족도 결과
+async function openSurveyResults(apt) {
+  const a = apt || currentApt; if (!a) return
+  const nm = document.getElementById('svr-apt'); if (nm) nm.textContent = a.name
+  window.showScreen('s40')
+  const body = document.getElementById('svr-body'); if (!body) return
+  body.innerHTML = '<div style="text-align:center;color:#9aa3b6;font-size:12px;padding:22px">불러오는 중…</div>'
+  const { data, error } = await sb.from('surveys').select('*').eq('apartment_id', a.id).order('created_at', { ascending: false })
+  if (error) { body.innerHTML = '<div style="padding:20px;text-align:center;color:#8b95ad;font-size:12px;line-height:1.7">불러오지 못했어요.<br><b>backend/migration-survey.sql</b> 실행이 필요해요.</div>'; return }
+  body.innerHTML = renderSurveyStats(data || [])
+}
+window.openSurveyResults = openSurveyResults
+function avg(arr, key) { const v = arr.map(r => r[key]).filter(x => x != null); return v.length ? (v.reduce((a, b) => a + b, 0) / v.length) : 0 }
+function starText(n) { const f = Math.round(n); return '★★★★★'.slice(0, f) + '☆☆☆☆☆'.slice(0, 5 - f) }
+function renderSurveyStats(rows) {
+  if (!rows.length) return '<div style="padding:34px 16px;text-align:center;color:#8b95ad;font-size:12.5px;font-weight:600;line-height:1.7">아직 제출된 만족도가 없어요.<br>공사 완료 후 입주민이 참여하면 여기에 표시됩니다.</div>'
+  const ov = avg(rows, 'overall')
+  let html = `<div style="background:linear-gradient(150deg,#243768,#1F2C5C);border-radius:16px;padding:18px;color:#fff;margin-bottom:13px;text-align:center"><div style="font-size:11px;font-weight:800;color:#c3cee6">전체 만족도 · 응답 ${rows.length}명</div><div style="font-size:34px;font-weight:800;margin:6px 0 2px">${ov.toFixed(1)}<span style="font-size:15px;opacity:.6">/5</span></div><div style="font-size:19px;color:#F7C948;letter-spacing:2px">${starText(ov)}</div></div>`
+  html += '<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px;margin-bottom:13px">' + SURVEY_ITEMS.map(it => {
+    const v = avg(rows, it.key), pct = Math.round(v / 5 * 100)
+    return `<div style="padding:7px 0"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#26314d"><span>${it.label}</span><span style="color:#F5A623">${v.toFixed(1)}</span></div><div style="height:6px;border-radius:9px;background:#f0f2f7;margin-top:5px;overflow:hidden"><div style="width:${pct}%;height:100%;background:#F5A623;border-radius:9px"></div></div></div>`
+  }).join('') + '</div>'
+  // 재이용 희망 공정 집계
+  const againCnt = {}
+  rows.forEach(r => (r.again || '').split(',').map(s => s.trim()).filter(Boolean).forEach(v => againCnt[v] = (againCnt[v] || 0) + 1))
+  const againArr = Object.entries(againCnt).sort((a, b) => b[1] - a[1])
+  if (againArr.length) html += '<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px;margin-bottom:13px"><div style="font-size:12.5px;font-weight:800;color:#1c2440;margin-bottom:9px">다음에 하고 싶은 공정</div>' + againArr.map(([v, n]) => `<span style="display:inline-block;font-size:11.5px;font-weight:700;color:#5a6480;background:#f0f2f7;padding:6px 11px;border-radius:99px;margin:0 6px 6px 0">${escH(v)} · ${n}</span>`).join('') + '</div>'
+  // 코멘트 목록
+  const cmts = rows.filter(r => r.comment)
+  if (cmts.length) html += '<div style="font-size:12.5px;font-weight:800;color:#1c2440;margin:4px 2px 9px">입주민 한 줄 의견</div>' + cmts.map(r => `<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 13px;margin-bottom:8px"><div style="font-size:12.5px;color:#333c54;font-weight:600;line-height:1.6">“${escH(r.comment)}”</div>${r.best ? `<div style="font-size:10px;color:#F5A623;font-weight:800;margin-top:6px">👍 가장 만족: ${escH(r.best)}</div>` : ''}</div>`).join('')
+  return html
+}
+window.renderSurveyStats = renderSurveyStats
 // 우리 지역 감리 현황 (익명 · 이름/주소 없음) — 기본 5개, 전체보기로 더 표시
 let REGION_ALL = []
 let REGION_MORE = false
@@ -1163,6 +1315,7 @@ function wire() {
   const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
   const amRcv = $('aud-menu-received'); if (amRcv) amRcv.onclick = () => openReceivedForms()
   const amCt = $('aud-menu-contract'); if (amCt) amCt.onclick = () => openContracts()
+  const amSv = $('aud-menu-survey'); if (amSv) amSv.onclick = () => { if (currentApt) openSurveyResults(currentApt) }
   // 채팅 입력
   const cSend = $('chat-send'); if (cSend) cSend.onclick = sendChat
   const cInp = $('chat-input')

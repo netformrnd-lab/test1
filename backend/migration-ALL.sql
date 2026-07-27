@@ -129,4 +129,8 @@ create policy profiles_update_self on profiles
 -- 7) 감리일지 '작업한 동' → 동별 작업 현황 자동 분류 ------------------
 alter table reports add column if not exists dongs text;
 
+-- 8) 감리일지 입주민 공개용 PDF(관리자가 문서화해서 올림) ---------------
+alter table reports add column if not exists pdf_url text;
+alter table reports add column if not exists pdf_name text;
+
 -- 완료! 'Success. No rows returned' 이 뜨면 정상입니다.

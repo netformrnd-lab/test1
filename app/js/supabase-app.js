@@ -1175,6 +1175,9 @@ window.openApt = openApt; window.openReport = openReport
 // ── 감리사: 공사 일정 (달력) ─────────────────────────────
 let schedYM = null
 async function loadSchedule() {
+  // 감리사용 '일정 추가' 버튼/폼을 먼저 숨겨 깜빡임 방지 (역할 확인 후 감리사면 다시 표시)
+  const addBtn0 = document.getElementById('sc-add-btn'); if (addBtn0) addBtn0.style.display = 'none'
+  const form0 = document.getElementById('sc-form'); if (form0) form0.style.display = 'none'
   const { data: { user } } = await sb.auth.getUser()
   const sub = document.getElementById('s-sub'), addBtn = document.getElementById('sc-add-btn')
   if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
@@ -1494,7 +1497,7 @@ const ALIM = {
     // 마무리 대표 사진
     h += '<div style="margin-top:22px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:200px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">우리 단지가 안심할 때까지 함께합니다</div></div></div>'
     // 약속 — 브랜드 사진(감리사가 고객에게 설명) 위에 문구
-    h += '<div style="border-radius:16px;overflow:hidden;position:relative;margin-top:14px"><img src="assets/philo_promise.jpg" style="width:100%;display:block;height:240px;object-fit:cover;object-position:center 30%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.42) 0%,rgba(15,22,48,.66) 45%,rgba(15,22,48,.97) 100%)"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:22px 18px 24px;text-align:center;color:#fff"><div style="font-size:16px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:11px;font-size:12px;font-weight:800;color:#dbe6ff">— 아파트스퀘어</div></div></div>'
+    h += '<div style="border-radius:16px;overflow:hidden;position:relative;margin-top:14px"><img src="assets/philo_promise.jpg" style="width:100%;display:block;height:240px;object-fit:cover;object-position:center 30%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.18) 0%,rgba(15,22,48,.22) 56%,rgba(15,22,48,.72) 76%,rgba(15,22,48,.96) 100%)"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:22px 18px 24px;text-align:center;color:#fff"><div style="font-size:16px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:11px;font-size:12px;font-weight:800;color:#dbe6ff">— 아파트스퀘어</div></div></div>'
     h += '</div>'
     return h
   },

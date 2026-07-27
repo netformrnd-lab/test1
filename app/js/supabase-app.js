@@ -1402,8 +1402,6 @@ function wire() {
       if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() } else { showScreen('s11'); loadResidentHome() }
     } else if (t.indexOf('보고서') >= 0) {
       if (currentRole === 'auditor') { if (currentApt) { showScreen('s08'); loadReports(currentApt.id) } else { showScreen('s07'); loadAuditorApts() } }
-    } else if (t.indexOf('진행현황') >= 0) {
-      showScreen('s24'); loadResidentProgress()
     } else if (t.indexOf('일정') >= 0) {
       showScreen('s14'); loadSchedule()
     }

@@ -1444,28 +1444,34 @@ function navyHero(kicker, title) {
 }
 function alimCard(inner, pad) { return '<div style="background:#fff;border:1px solid #eef1f7;border-radius:15px;padding:' + (pad || '15px 15px') + ';box-shadow:0 8px 18px -14px rgba(23,38,80,.35)">' + inner + '</div>' }
 const ALIM = {
-  // 브랜드 철학 · 왜 아파트스퀘어인가 · 주고자 하는 가치
+  // 브랜드 철학 · 짧고 스캔하기 쉽게
   brand() {
     const wb = 'word-break:keep-all;'
     let h = navyHero('BRAND PHILOSOPHY', '믿을 수 있는 감리가<br>당연한 세상을 위해')
-    h += '<div style="padding:18px 14px 26px">'
-    // 왜 필요한가
-    h += '<div style="font-size:12px;font-weight:800;color:#2F6BF6;margin:2px 4px 10px">왜 아파트스퀘어가 필요할까요?</div>'
-    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9;' + wb + '">아파트 보수공사는 한 번에 <b>수억~수십억 원</b>이 오가는 큰일입니다. 그런데 정작 그 비용을 부담하는 입주민과 관리주체는 <b>건설 전문가가 아니기에</b>, 무엇이 제대로 됐는지 확인하기가 어렵습니다.</div>', '16px 15px')
-    h += '<div style="margin-top:11px">' + alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9;' + wb + '">그래서 어쩔 수 없이 <b>공사업체의 말에만</b> 기대게 되고, 부실·과잉 공사와 <b style="color:#e4544b">반복되는 하자</b>로 이어지곤 합니다. 큰돈을 쓰고도 마음이 놓이지 않는 이유입니다.</div>', '16px 15px') + '</div>'
-    // 우리의 믿음
-    h += '<div style="background:linear-gradient(150deg,#2455c0,#2F6BF6);color:#fff;border-radius:16px;padding:20px 18px;margin-top:16px;position:relative;overflow:hidden"><div style="position:absolute;top:-24px;right:-24px;width:120px;height:120px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)"></div><div style="position:relative"><div style="font-size:11px;font-weight:800;color:#dbe6ff;letter-spacing:1px">OUR BELIEF</div><div style="font-size:15px;font-weight:800;line-height:1.65;margin-top:9px;' + wb + '">전문 지식이 없어도 누구나<br>자기 아파트의 공사를<br><span style="color:#cfe0ff">이해하고 · 공정하게 결정하고 · 안심하고</span><br>맡길 수 있어야 합니다.</div></div></div>'
-    // 주고자 하는 가치
-    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:24px 4px 11px">우리가 드리고 싶은 가치</div>'
-    h += '<div style="display:flex;flex-direction:column;gap:10px">'
-    h += [['🔍', '투명성', '모든 공정을 사진과 기록으로 남겨, 보이지 않던 공사를 눈으로 확인하게 합니다.'],
-      ['⚖️', '공정성', '공사업체가 아닌 이해관계 없는 제3자의 시선으로, 할 공사와 미룰 공사를 정직하게 가립니다.'],
-      ['🛡️', '전문성', '22년차 건축사의 눈으로 자재·공정·품질을 하나하나 검측합니다.'],
-      ['💡', '이해', '어려운 전문 판단을 쉬운 말과 현장 사진으로 풀어, 누구나 알 수 있게 합니다.']]
-      .map(c => alimCard('<div style="display:flex;gap:12px;align-items:flex-start"><div style="width:42px;height:42px;border-radius:12px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:21px">' + c[0] + '</div><div><div style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</div><div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.65;margin-top:3px;' + wb + '">' + c[2] + '</div></div></div>', '13px 14px')).join('')
+    h += '<div style="padding:20px 15px 28px">'
+    // 문제 — 짧은 고민 3줄
+    h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:0 2px 12px">이런 고민, 있으셨죠?</div>'
+    h += '<div style="display:flex;flex-direction:column;gap:9px">'
+    h += [['💸', '수억 원이 드는데,<br>제대로 되는 건지 모르겠어요'],
+      ['🤷', '전문가가 아니라<br>업체 말만 믿어야 해요'],
+      ['🔁', '고쳐도 또<br>하자가 생겨요']]
+      .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:13px 14px"><div style="font-size:22px;flex-shrink:0">' + c[0] + '</div><div style="font-size:13px;font-weight:700;color:#3a445e;line-height:1.5;' + wb + '">' + c[1] + '</div></div>').join('')
     h += '</div>'
-    // 약속
-    h += '<div style="background:#1c2440;color:#fff;border-radius:16px;padding:22px 18px;margin-top:20px;text-align:center"><div style="font-size:22px;margin-bottom:8px">🤝</div><div style="font-size:13px;font-weight:600;color:#c3cee6;line-height:1.8;' + wb + '">공사가 끝나도 끝이 아닙니다.<br>진단부터 준공, 사후관리까지<br><b style="color:#7FA1E0">끝까지 곁에서</b> 확인하는<br>든든한 보수공사 파트너가 되겠습니다.</div><div style="margin-top:14px;font-size:12.5px;font-weight:800;color:#fff">— 아파트스퀘어</div></div>'
+    // 전환 — 화살표
+    h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:14px 0 4px">↓</div>'
+    // 믿음 — 큰 한 문장
+    h += '<div style="background:linear-gradient(150deg,#2455c0,#2F6BF6);color:#fff;border-radius:18px;padding:24px 20px;position:relative;overflow:hidden;text-align:center"><div style="position:absolute;top:-24px;right:-24px;width:120px;height:120px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)"></div><div style="position:relative"><div style="font-size:11px;font-weight:800;color:#cfe0ff;letter-spacing:1px;margin-bottom:10px">아파트스퀘어는 믿습니다</div><div style="font-size:17px;font-weight:800;line-height:1.6;' + wb + '">전문 지식이 없어도<br>누구나 <span style="color:#ffd873">안심하고</span><br>맡길 수 있어야 한다고.</div></div></div>'
+    // 가치 — 4개 한 줄 카드
+    h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:26px 2px 12px">그래서 이 네 가지를 지킵니다</div>'
+    h += '<div style="display:flex;flex-direction:column;gap:8px">'
+    h += [['🔍', '투명성', '모든 공정을 사진·기록으로'],
+      ['⚖️', '공정성', '이해관계 없는 제3자의 판단'],
+      ['🛡️', '전문성', '22년차 건축사가 직접 검측'],
+      ['💡', '쉬움', '어려운 판단을 쉬운 말로']]
+      .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:12px 14px"><div style="width:38px;height:38px;border-radius:11px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + c[0] + '</div><div style="flex:1;min-width:0"><span style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</span><span style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-left:8px;' + wb + '">' + c[2] + '</span></div></div>').join('')
+    h += '</div>'
+    // 약속 — 짧게
+    h += '<div style="background:#1c2440;color:#fff;border-radius:16px;padding:22px 18px;margin-top:22px;text-align:center"><div style="font-size:24px;margin-bottom:8px">🤝</div><div style="font-size:14px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:12px;font-size:12px;font-weight:800;color:#aeb9d6">— 아파트스퀘어</div></div>'
     h += '</div>'
     return h
   },

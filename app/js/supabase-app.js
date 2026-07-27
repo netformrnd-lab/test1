@@ -1458,25 +1458,26 @@ const ALIM = {
       .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:13px 14px"><div style="font-size:22px;flex-shrink:0">' + c[0] + '</div><div style="font-size:13px;font-weight:700;color:#3a445e;line-height:1.5;' + wb + '">' + c[1] + '</div></div>').join('')
     h += '</div>'
     // 문제를 눈으로 — 방치된 현장 사진
-    h += '<div style="margin-top:12px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/7fc9e5a0-4126-43bf-9a05-02c1bdde7e05.jpg" style="width:100%;display:block;height:150px;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 45%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800;' + wb + '">확인하는 사람이 없으면, 하자는 이렇게 반복됩니다</div></div>'
+    // 실제 하자 사진 3장
+    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:16px 2px 10px">방치하면, 이런 하자로 이어집니다</div>'
+    h += '<div style="display:flex;gap:6px">'
+    h += [['assets/philo_defect1.jpg', '외벽 균열'], ['assets/philo_defect2.jpg', '박리·곰팡이'], ['assets/philo_defect3.jpg', '바닥 손상']]
+      .map(c => '<div style="flex:1;border-radius:11px;overflow:hidden;position:relative"><img src="' + c[0] + '" style="width:100%;height:90px;object-fit:cover;display:block" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 42%,rgba(10,16,34,.82))"></div><span style="position:absolute;left:6px;bottom:5px;color:#fff;font-size:9px;font-weight:800">' + c[1] + '</span></div>').join('')
+    h += '</div>'
     // 전환 — 화살표
     h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:16px 0 6px">↓</div>'
     // 해결 — 아파트스퀘어가 대신 확인
     h += '<div style="font-size:16px;font-weight:800;color:#1c2440;margin:0 2px 10px;' + wb + '">그래서, 아파트스퀘어가<br><span style="color:#2F6BF6">대신 확인합니다</span></div>'
     h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '">공사업체가 아닌 <b>독립된 제3자 감리사</b>가 여러분의 눈이 되어, 진단부터 준공까지 <b>자재·공정·품질을 직접 검측</b>하고 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다.</div>', '15px 15px')
-    // 현장 확인 사진
-    h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="inspect/guides/dual_incl.jpg" style="width:100%;display:block;height:150px;object-fit:cover;object-position:center 20%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 50%,rgba(10,16,34,.78))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12px;font-weight:800">현장에서 공정을 하나하나 확인해요</div></div>'
+    // 감리 진행중 사진
+    h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit2.jpg" style="width:100%;display:block;height:180px;object-fit:cover;object-position:center 60%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 52%,rgba(10,16,34,.8))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">감리사가 현장에서 직접 확인합니다</div></div>'
     // 3단계 흐름
     h += '<div style="display:flex;gap:7px;margin-top:13px">'
     h += [['🔍', '정밀 진단', '드론·AI로 상태 파악'], ['🛡️', '공정별 검측', '단계마다 직접 확인'], ['📄', '기록·보고', '사진과 문서로 남김']]
       .map(c => '<div style="flex:1;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 6px;text-align:center"><div style="font-size:22px">' + c[0] + '</div><div style="font-size:11.5px;font-weight:800;color:#1c2440;margin-top:5px">' + c[1] + '</div><div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:3px;line-height:1.4;' + wb + '">' + c[2] + '</div></div>').join('')
     h += '</div>'
-    // 관리 전 → 감리 후 비교
-    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:22px 2px 10px">관리 전 → 감리 후</div>'
-    h += '<div style="display:flex;gap:8px">'
-    h += '<div style="flex:1;border-radius:12px;overflow:hidden;position:relative"><img src="assets/7fc9e5a0-4126-43bf-9a05-02c1bdde7e05.jpg" style="width:100%;height:110px;object-fit:cover;display:block" loading="lazy"><span style="position:absolute;top:7px;left:7px;font-size:9px;font-weight:800;color:#fff;background:rgba(228,84,75,.9);padding:3px 8px;border-radius:99px">관리 전</span></div>'
-    h += '<div style="flex:1;border-radius:12px;overflow:hidden;position:relative"><img src="assets/1a905ffe-a717-4079-b676-a56a4131335d.jpg" style="width:100%;height:110px;object-fit:cover;display:block" loading="lazy"><span style="position:absolute;top:7px;left:7px;font-size:9px;font-weight:800;color:#fff;background:rgba(31,138,91,.92);padding:3px 8px;border-radius:99px">감리 후</span></div>'
-    h += '</div>'
+    // 감리 진행 결과 사진
+    h += '<div style="margin-top:14px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit1.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 62%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 55%,rgba(10,16,34,.78))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12px;font-weight:800">공정마다 꼼꼼히, 끝까지 함께합니다</div></div>'
     // 믿음 — 큰 한 문장
     h += '<div style="background:linear-gradient(150deg,#2455c0,#2F6BF6);color:#fff;border-radius:18px;padding:24px 20px;margin-top:20px;position:relative;overflow:hidden;text-align:center"><div style="position:absolute;top:-24px;right:-24px;width:120px;height:120px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)"></div><div style="position:relative"><div style="font-size:11px;font-weight:800;color:#cfe0ff;letter-spacing:1px;margin-bottom:10px">아파트스퀘어는 믿습니다</div><div style="font-size:17px;font-weight:800;line-height:1.6;' + wb + '">전문 지식이 없어도<br>누구나 <span style="color:#ffd873">안심하고</span><br>맡길 수 있어야 한다고.</div></div></div>'
     // 가치 — 4개 한 줄 카드

@@ -245,7 +245,7 @@ async function loadFieldUpdates() {
     renderDongProgress(apt, reps || [])
   } catch (e) { renderDongProgress(apt, []) }
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
-  FIELD_LIST = data || []
+  FIELD_LIST = (data || []).map(f => { f._field = true; return f }) // 현장현황 항목 표시(감리일지와 구분)
   renderFieldList()
 }
 // 감리사: 단지 선택 후 메뉴 (감리일지 / 현장 사진)
@@ -278,7 +278,7 @@ async function openAuditorField(a) {
   window.showScreen('s28')
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', a.id).order('created_at', { ascending: false })
-  AUDFIELD_LIST = data || []
+  AUDFIELD_LIST = (data || []).map(f => { f._field = true; return f })
   renderAudFieldList()
 }
 window.openAuditorField = openAuditorField
@@ -1207,28 +1207,27 @@ function openReport(r) {
   const dd = document.getElementById('d-dong'); const dgs = reportDongs(r)
   if (dd) { if (dgs.length) { dd.textContent = dgs.join(' · '); dd.style.display = '' } else dd.style.display = 'none' }
   set('d-body', r.content || '작성된 내용이 없어요.')
-  // 입주민·관리소장: 점검내용 원문 대신 관리자가 올린 PDF만 (미리보기 + 문서)
+  // 구분: 현장현황(사진 항목, _field) vs 감리일지(reports)
   const isRes = currentRole && currentRole !== 'auditor'
+  const isField = !!r._field
+  const showPdf = isRes && !isField      // 입주민이 감리일지를 열 때만 PDF
+  const showBody = !isRes && !isField     // 감리사가 감리일지를 열 때만 점검내용 원문
   const bodyEl = document.getElementById('d-body'), bodyLabel = document.getElementById('d-body-label')
   const pdfEl = document.getElementById('d-pdf')
-  if (isRes) {
-    if (bodyEl) bodyEl.style.display = 'none'
-    if (bodyLabel) bodyLabel.style.display = 'none'
-    if (pdfEl) {
+  if (bodyEl) bodyEl.style.display = showBody ? '' : 'none'
+  if (bodyLabel) bodyLabel.style.display = showBody ? '' : 'none'
+  if (pdfEl) {
+    if (showPdf) {
       if (r.pdf_url) {
         pdfEl.innerHTML = '<div onclick="window.open(\'' + r.pdf_url + '\',\'_blank\')" style="cursor:pointer;display:flex;align-items:center;gap:11px;background:linear-gradient(150deg,#243768,#1F2C5C);color:#fff;border-radius:13px;padding:14px 15px"><div style="width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.16);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px">📄</div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800">감리 보고서 보기</div><div style="font-size:10.5px;color:#c3cee6;font-weight:600;margin-top:2px">관리자 확인·문서화한 PDF</div></div><span style="font-size:17px">›</span></div>'
       } else {
         pdfEl.innerHTML = '<div style="background:#f7f9fc;border:1px solid #eef1f7;border-radius:12px;padding:16px;text-align:center;font-size:12px;color:#8b95ad;font-weight:600;line-height:1.6">감리 보고서를 정리하고 있어요.<br>확인이 끝나면 문서로 올라와요.</div>'
       }
       pdfEl.style.display = 'block'
-    }
-  } else {
-    if (bodyEl) bodyEl.style.display = ''
-    if (bodyLabel) bodyLabel.style.display = ''
-    if (pdfEl) pdfEl.style.display = 'none'
+    } else pdfEl.style.display = 'none'
   }
-  // 사진 표시 — 옆으로 넘기는 사진첩 (감리사만; 입주민 감리일지는 PDF만, 사진은 현장현황에서)
-  const ph = (!isRes && Array.isArray(r.photos)) ? r.photos : []
+  // 사진 표시: 현장현황 항목은 항상 사진, 입주민 감리일지는 PDF만(사진 숨김)
+  const ph = (!showPdf && Array.isArray(r.photos)) ? r.photos : []
   const p1 = document.getElementById('d-photo1'), p2 = document.getElementById('d-photo2')
   if (p2) p2.style.display = 'none'
   let dots = document.getElementById('d-photo-dots')

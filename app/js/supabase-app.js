@@ -1478,8 +1478,12 @@ const ALIM = {
     h += '</div>'
     // 감리 진행 결과 사진
     h += '<div style="margin-top:14px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit1.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 62%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 55%,rgba(10,16,34,.78))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">시작부터 마무리까지, 곁에서 함께합니다</div></div>'
-    // 믿음 — 큰 한 문장 (인용구 스타일)
-    h += '<div style="background:linear-gradient(150deg,#2455c0,#2F6BF6);color:#fff;border-radius:18px;padding:26px 22px;margin-top:20px;position:relative;overflow:hidden;text-align:center"><div style="position:absolute;top:-24px;right:-24px;width:120px;height:120px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)"></div><div style="position:relative"><div style="font-size:40px;line-height:0.5;color:rgba(255,255,255,.35);font-family:Georgia,serif;margin-bottom:8px">“</div><div style="font-size:17px;font-weight:800;line-height:1.6;' + wb + '">전문 지식이 없어도<br>누구나 <span style="color:#ffd873">안심하고</span><br>맡길 수 있어야 합니다.</div><div style="width:26px;height:3px;background:rgba(255,255,255,.4);border-radius:9px;margin:14px auto 0"></div></div></div>'
+    // 믿음 — 브랜드 선언 (페이지에 녹아드는 깔끔한 중앙 정렬)
+    h += '<div style="text-align:center;padding:34px 16px 16px">'
+      + '<div style="width:34px;height:3px;background:#2F6BF6;border-radius:9px;margin:0 auto 18px"></div>'
+      + '<div style="font-size:18px;font-weight:800;color:#1c2440;line-height:1.7;' + wb + '">전문 지식이 없어도 누구나<br><span style="color:#2F6BF6">안심하고 맡길 수 있어야</span> 합니다</div>'
+      + '<div style="font-size:12px;color:#8b95ad;font-weight:600;margin-top:13px;' + wb + '">그 당연한 믿음에서, 아파트스퀘어는 시작됐습니다</div>'
+      + '</div>'
     // 가치 — 4개 한 줄 카드
     h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:26px 2px 12px">그래서 이 네 가지를 지킵니다</div>'
     h += '<div style="display:flex;flex-direction:column;gap:8px">'

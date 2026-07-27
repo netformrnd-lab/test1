@@ -422,15 +422,17 @@ async function loadDongProgress(){
   if(error){ DONGPROG=[]; return; }
   DONGPROG=data||[]; renderApts();
 }
-// 감리일지 제목·동 정보에서 이 단지의 동 목록을 자동 수집 (+ 이미 설정한 동)
+// 감리일지 + 현장사진의 동을 이 단지 기준으로 자동 수집 (+ 이미 설정한 동)
 function autoDongsFor(aptId){
   const set=new Set();
+  const scan=(txt)=>{ const re=/(\d{1,3})\s*동/g; let m; while((m=re.exec(txt||''))) set.add(m[1]+'동'); };
   DONGPROG.filter(x=>x.apartment_id===aptId).forEach(x=>set.add(x.dong));
   (REPORTS||[]).filter(r=>r.apartment_id===aptId).forEach(r=>{
     const raw=(r.dongs||'').trim();
     if(raw){ raw.split(',').map(s=>s.trim()).filter(Boolean).forEach(d=>set.add(d)); }
-    else { const txt=(r.title||'')+' '+(r.content||''); const re=/(\d{1,3})\s*동/g; let m; while((m=re.exec(txt))){ set.add(m[1]+'동'); } }
+    else scan((r.title||'')+' '+(r.content||''));
   });
+  (FIELDS||[]).filter(f=>f.apartment_id===aptId).forEach(f=>{ if(f.dong) set.add(f.dong); else scan((f.title||'')+' '+(f.content||'')); });
   return [...set].sort((a,b)=>(parseInt(a)||999)-(parseInt(b)||999));
 }
 function dongProgHtml(a){

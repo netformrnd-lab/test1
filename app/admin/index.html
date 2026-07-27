@@ -870,25 +870,8 @@ async function saveReportAdmin(id){
   const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
   const{error}=await sb.from('reports').update({title,stage,content,photos,pub_title:pubTitle}).eq('id',id);
   if(error){if(btn){btn.textContent='저장';btn.disabled=false;}return alert('오류: '+error.message);}
-  await syncReportField(id);
   if(btn){btn.textContent='저장';btn.disabled=false;}
   loadAll();
-}
-// 입주민 현장현황(field_updates) 사진 동기화 (공개 상태에 따라)
-async function syncReportField(id){
-  const rep=REPORTS.find(x=>x.id===id); if(!rep||!rep.apartment_id) return;
-  const row=document.querySelector(`.card[data-rid="${id}"]`);
-  const pubTitle=(row&&row.querySelector('.rf-pubtitle')||{}).value?.trim()||rep.pub_title||rep.title;
-  const photos=RPHOTOS[id]||rep.photos||[];
-  const dong=(rep.dongs||'').split(',')[0].trim()||null;
-  if(rep.published){
-    const fdRow={apartment_id:rep.apartment_id,title:pubTitle,content:null,photos,source_report_id:id,dong};
-    const{data:ex}=await sb.from('field_updates').select('id').eq('source_report_id',id).maybeSingle();
-    if(ex&&ex.id) await sb.from('field_updates').update(fdRow).eq('id',ex.id);
-    else await sb.from('field_updates').insert(fdRow);
-  } else {
-    await sb.from('field_updates').delete().eq('source_report_id',id);
-  }
 }
 // PDF 업로드 → reports.pdf_url 저장
 async function uploadReportPdf(id, files){
@@ -911,7 +894,6 @@ async function toggleReportPublish(id){
   const{error}=await sb.from('reports').update({published:next}).eq('id',id);
   if(error){ alert('오류: '+error.message); return; }
   rep.published=next;
-  await syncReportField(id);
   loadAll();
 }
 async function deleteReport(id){

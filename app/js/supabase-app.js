@@ -6,7 +6,31 @@
 const SUPABASE_URL = 'https://gndktayoicegyqyllybk.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE'
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+// 자동 로그인: 켜짐(기본)이면 localStorage(브라우저 꺼도 유지), 꺼짐이면 sessionStorage(탭 닫으면 로그아웃)
+const REMEMBER_KEY = 'aptsq_remember'
+function aptRemember () {
+  try { const v = localStorage.getItem(REMEMBER_KEY); return v === null ? true : v === '1' } catch (e) { return true }
+}
+window.aptSetRemember = function (on) { try { localStorage.setItem(REMEMBER_KEY, on ? '1' : '0') } catch (e) {} }
+const aptAuthStorage = {
+  getItem (k) {
+    try {
+      const v = (aptRemember() ? localStorage : sessionStorage).getItem(k)
+      if (v !== null) return v
+      return aptRemember() ? sessionStorage.getItem(k) : null // 자동로그인 OFF면 localStorage에서 되살리지 않음
+    } catch (e) { return null }
+  },
+  setItem (k, v) {
+    try {
+      if (aptRemember()) { localStorage.setItem(k, v); sessionStorage.removeItem(k) }
+      else { sessionStorage.setItem(k, v); localStorage.removeItem(k) }
+    } catch (e) {}
+  },
+  removeItem (k) { try { localStorage.removeItem(k); sessionStorage.removeItem(k) } catch (e) {} }
+}
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: aptAuthStorage }
+})
 window.sb = sb
 
 const $ = (id) => document.getElementById(id)
@@ -901,6 +925,7 @@ function openResidentMenu() {
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,22,48,.42);z-index:60;display:flex;align-items:flex-end'
   ov.innerHTML = '<div style="background:#fff;width:100%;border-radius:18px 18px 0 0;padding:6px 0 16px">' +
     '<div style="width:38px;height:4px;border-radius:9px;background:#e2e7f0;margin:9px auto 8px"></div>' +
+    '<div data-menu="account" style="padding:15px 20px;font-size:13px;font-weight:700;color:#1c2440;cursor:pointer">⚙️  내 정보 · 비밀번호 변경</div>' +
     '<div data-menu="terms" style="padding:15px 20px;font-size:13px;font-weight:700;color:#1c2440;cursor:pointer">📄  이용약관 · 회사 소개</div>' +
     '<div data-menu="logout" style="padding:15px 20px;font-size:13px;font-weight:700;color:#e4544b;cursor:pointer">🚪  로그아웃</div>' +
     '</div>'
@@ -909,6 +934,7 @@ function openResidentMenu() {
     if (!it) { if (e.target === ov) ov.remove(); return }
     ov.remove()
     if (it.dataset.menu === 'terms') window.showScreen('s22')
+    else if (it.dataset.menu === 'account') window.openAccount()
     else if (it.dataset.menu === 'logout') { window.appLogout() }
   }
   document.body.appendChild(ov)
@@ -1370,6 +1396,8 @@ async function doLogin() {
   const id = $('login-email').value.trim()
   const pw = $('login-pw').value
   if (!id || !pw) { setMsg('아이디와 비밀번호를 입력하세요'); return }
+  // 세션을 저장하기 전에 자동로그인 여부를 먼저 확정 (저장소 선택에 반영됨)
+  const rem = $('login-remember'); window.aptSetRemember(!rem || rem.checked)
   setMsg('로그인 중…', true)
   const { error } = await sb.auth.signInWithPassword({ email: idToEmail(id), password: pw })
   if (error) { setMsg(ko(error.message)); return }
@@ -1395,6 +1423,7 @@ async function doSignup() {
 function setMode(mode) {
   const signup = mode === 'signup'
   $('signup-fields').style.display = signup ? 'block' : 'none'
+  const rr = $('login-remember-row'); if (rr) rr.style.display = signup ? 'none' : 'flex'
   $('auth-submit').textContent = signup ? '회원가입' : '로그인'
   $('auth-submit').dataset.mode = mode
   $('auth-toggle-signup').style.display = signup ? 'none' : 'inline'
@@ -1409,6 +1438,48 @@ window.appLogout = async function () {
   window.showScreen('s04')            // 로그인 전 둘러보기 홈으로
   try { loadResidentNotices('s04-notices') } catch (e) {}
   try { setChatNavBadge(0); refreshChatBadge() } catch (e) {}
+}
+
+// ── 내 정보(회원정보·비밀번호) ────────────────────────────
+function accMsg (t, err) { const m = $('acc-msg'); if (m) { m.textContent = t || ''; m.style.color = err ? '#d94b4b' : '#1f8a5b' } }
+function dispLoginId (email) {
+  if (!email) return ''
+  return email.indexOf(ID_DOMAIN) >= 0 ? email.slice(0, email.length - ID_DOMAIN.length) : email
+}
+window.openAccount = async function () {
+  accMsg('')
+  const { data: { user } } = await sb.auth.getUser(); if (!user) { window.showScreen('s01'); return }
+  const { data: prof } = await sb.from('profiles').select('name, phone, email').eq('id', user.id).single()
+  const meta = user.user_metadata || {}
+  const idEl = $('acc-id'); if (idEl) idEl.value = dispLoginId((prof && prof.email) || user.email) || meta.username || ''
+  const nm = $('acc-name'); if (nm) nm.value = (prof && prof.name) || meta.name || ''
+  const ph = $('acc-phone'); if (ph) ph.value = (prof && prof.phone) || meta.phone || ''
+  const p1 = $('acc-pw1'); if (p1) p1.value = ''
+  const p2 = $('acc-pw2'); if (p2) p2.value = ''
+  window.showScreen('s41')
+}
+window.saveAccountInfo = async function () {
+  const { data: { user } } = await sb.auth.getUser(); if (!user) { window.showScreen('s01'); return }
+  const name = ($('acc-name').value || '').trim()
+  const phone = ($('acc-phone').value || '').trim()
+  if (!name) { accMsg('이름을 입력하세요', true); return }
+  accMsg('저장 중…')
+  const { error } = await sb.from('profiles').update({ name, phone: phone || null }).eq('id', user.id)
+  if (error) { accMsg(ko(error.message), true); return }
+  try { await sb.auth.updateUser({ data: { name, phone } }) } catch (e) {}
+  MY_NAME = name
+  accMsg('회원정보를 저장했어요 ✓')
+}
+window.changePassword = async function () {
+  const p1 = ($('acc-pw1').value || ''), p2 = ($('acc-pw2').value || '')
+  if (!p1 || !p2) { accMsg('새 비밀번호를 입력하세요', true); return }
+  if (p1.length < 6) { accMsg('비밀번호는 6자 이상으로 정해주세요', true); return }
+  if (p1 !== p2) { accMsg('두 비밀번호가 일치하지 않아요', true); return }
+  accMsg('변경 중…')
+  const { error } = await sb.auth.updateUser({ password: p1 })
+  if (error) { accMsg(ko(error.message), true); return }
+  $('acc-pw1').value = ''; $('acc-pw2').value = ''
+  accMsg('비밀번호를 변경했어요 ✓')
 }
 function wire() {
   const submit = $('auth-submit')

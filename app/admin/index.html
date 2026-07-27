@@ -413,6 +413,51 @@ async function loadAll(){
   fillContractApt();
   loadContractsAdmin();
   loadSurveysAdmin();
+  loadDongProgress();
+}
+/* ===== 동별 진행 (dong_progress) ===== */
+let DONGPROG=[];
+async function loadDongProgress(){
+  const {data,error}=await sb.from('dong_progress').select('*');
+  if(error){ DONGPROG=[]; return; }
+  DONGPROG=data||[]; renderApts();
+}
+function dpFor(aptId){ return DONGPROG.filter(x=>x.apartment_id===aptId).sort((a,b)=>(parseInt(a.dong)||999)-(parseInt(b.dong)||999)); }
+function dongProgHtml(a){
+  const st=(window.STAGE_SETS[a.method]||{}).stages;
+  const tot=st?st.length:0;
+  const rows=dpFor(a.id);
+  const opt=(cur)=>{ let o=''; o+=`<option value="0" ${cur===0?'selected':''}>시작 전 (0/${tot||'?'})</option>`;
+    if(st){ for(let i=1;i<=tot;i++){ o+=`<option value="${i}" ${cur===i?'selected':''}>${i}단계${i<tot?(' · '+esc(st[i-1])):' · 완료'} (${i}/${tot})</option>`; } }
+    return o; };
+  const list=rows.map(r=>`<div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+      <span style="min-width:52px;font-size:12px;font-weight:800;color:#2F6BF6">${esc(r.dong)}</span>
+      <select onchange="saveDongStage('${a.id}','${esc(r.dong)}',this.value)" style="flex:1;min-width:0;font-size:11.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-family:inherit;outline:none"${st?'':' disabled'}>${opt(r.stage||0)}</select>
+      <button class="b" style="background:#fdecea;color:#e4544b;padding:5px 9px;font-size:11px" onclick="removeDong('${r.id}')">삭제</button>
+    </div>`).join('');
+  return `<div style="border-top:1px dashed var(--line);margin-top:10px;padding-top:10px">
+    <div style="font-size:12px;font-weight:800;color:var(--ink);margin-bottom:2px">🏢 동별 진행 ${st?'':'<span style="font-size:10px;color:#e4544b;font-weight:700">(공법을 먼저 저장하세요)</span>'}</div>
+    <div style="font-size:10.5px;color:var(--mut);margin-bottom:6px">동을 추가하고 각 동의 현재 단계를 정하면 입주민 현장현황에 진행바로 보여요</div>
+    ${list||'<div style="font-size:11px;color:var(--mut);padding:2px 0">아직 등록된 동이 없어요</div>'}
+    <div style="display:flex;gap:6px;margin-top:8px"><input class="dp-new" placeholder="동 추가 (예: 101)" style="flex:1;min-width:0;font-size:11.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-family:inherit;outline:none"><button class="b save" style="font-size:11.5px" onclick="addDong('${a.id}',this)">＋ 동 추가</button></div>
+  </div>`;
+}
+async function addDong(aptId,btn){
+  const row=btn.closest('.apt'); const inp=row.querySelector('.dp-new'); const raw=(inp.value||'').trim();
+  const n=raw.replace(/[^0-9]/g,''); const dong=n?(n+'동'):raw; if(!dong) return alert('동을 입력하세요 (예: 101)');
+  if(dpFor(aptId).some(x=>x.dong===dong)) return alert('이미 있는 동이에요');
+  const{error}=await sb.from('dong_progress').insert({apartment_id:aptId,dong,stage:0});
+  if(error) return alert('추가 실패: '+error.message);
+  inp.value=''; loadDongProgress();
+}
+async function saveDongStage(aptId,dong,stage){
+  const{error}=await sb.from('dong_progress').update({stage:parseInt(stage)||0,updated_at:new Date().toISOString()}).eq('apartment_id',aptId).eq('dong',dong);
+  if(error) alert('저장 실패: '+error.message); else loadDongProgress();
+}
+async function removeDong(id){
+  if(!confirm('이 동을 삭제할까요?')) return;
+  const{error}=await sb.from('dong_progress').delete().eq('id',id);
+  if(error) return alert('삭제 실패: '+error.message); loadDongProgress();
 }
 /* ===== 만족도 조사 (surveys) ===== */
 let SURVEYS_A=[];
@@ -1318,6 +1363,7 @@ function renderApts(){
       <div class="edit"><label>공법</label><select class="f f-method" onchange="onMethodChange(this)">${methodOpts(a.method)}</select></div>
       <div class="edit"><label>공정</label><select class="f f-stage">${stageOpts(a.method,pc)}</select></div>
       <div class="aud"><label style="min-width:34px;font-size:12px;color:var(--mut2);font-weight:700">감리사</label><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
+      ${dongProgHtml(a)}
       <div style="text-align:right;margin-top:9px"><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button></div>
     </div>`;
   }).join('');

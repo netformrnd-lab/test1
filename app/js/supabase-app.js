@@ -189,25 +189,22 @@ function renderFieldList() {
   if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || FIELD_DONG ? '해당 사진이 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; return }
   cont.innerHTML = bar + list.map(reportCard).join('')
 }
-// 동별 진행 현황: 각 동의 '최신 감리일지 공정' = 그 동의 현재 단계
-function renderDongProgress(apt, reports) {
+// 동별 진행 현황: 관리자가 설정한 dong_progress 기준 (stage = 완료 단계 수)
+function renderDongProgress(apt, rows) {
   const box = document.getElementById('field-dongprog'); if (!box) return
-  const byDong = {}
-  ;(reports || []).forEach(r => { reportDongs(r).forEach(d => { if (!byDong[d] || (r.created_at || '') > (byDong[d].created_at || '')) byDong[d] = r }) })
-  const dongs = Object.keys(byDong).sort((a, b) => (parseInt(a) || 999) - (parseInt(b) || 999))
-  if (!dongs.length) { box.style.display = 'none'; box.innerHTML = ''; return }
+  const list = (rows || []).slice().sort((a, b) => (parseInt(a.dong) || 999) - (parseInt(b.dong) || 999))
+  if (!list.length) { box.style.display = 'none'; box.innerHTML = ''; return }
   const stages = (apt && window.methodStages && window.methodStages(apt.method)) || null
+  const tot = stages ? stages.length : 0
   box.innerHTML = '<div style="font-size:12.5px;font-weight:800;color:#1c2440;margin:2px 2px 9px">🏢 동별 진행 현황</div>'
     + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:15px">'
-    + dongs.map(d => {
-      const r = byDong[d], stage = r.stage || '진행 중'
-      let bar = ''
-      if (stages) {
-        const idx = stages.indexOf(r.stage), cur = idx >= 0 ? idx + 1 : 0, pct = cur ? Math.round(cur / stages.length * 100) : 0
-        bar = '<div style="height:5px;border-radius:9px;background:#eef1f7;margin-top:7px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:#2F6BF6;border-radius:9px"></div></div>'
-          + (cur ? '<div style="font-size:9px;color:#8b95ad;font-weight:700;margin-top:3px">' + cur + '/' + stages.length + ' 단계</div>' : '')
-      }
-      return '<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 13px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:800;color:#2F6BF6">' + escH(d) + '</span><span style="font-size:9px;color:#aab2c4;font-weight:700">' + ((r.created_at || '').slice(0, 10).replace(/-/g, '.')) + '</span></div><div style="font-size:11.5px;font-weight:700;color:#3a445e;margin-top:3px">현재 공정 · ' + escH(stage) + '</div>' + bar + '</div>'
+    + list.map(r => {
+      const cur = Math.max(0, Math.min(r.stage || 0, tot || (r.stage || 0)))
+      const done = tot && cur >= tot
+      const name = stages ? (done ? '공사 완료' : (stages[cur] || stages[tot - 1] || '진행 중')) : '진행 중'
+      const pct = tot ? Math.round(cur / tot * 100) : 0
+      const bar = tot ? '<div style="height:5px;border-radius:9px;background:#eef1f7;margin-top:7px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + (done ? '#1f8a5b' : '#2F6BF6') + ';border-radius:9px"></div></div><div style="font-size:9px;color:#8b95ad;font-weight:700;margin-top:3px">' + cur + '/' + tot + ' 단계</div>' : ''
+      return '<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 13px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:800;color:#2F6BF6">' + escH(r.dong) + '</span><span style="font-size:9.5px;font-weight:800;color:' + (done ? '#1f8a5b' : '#c98a1e') + ';background:' + (done ? '#e7f5ee' : '#fbf1de') + ';padding:2px 8px;border-radius:99px">' + (done ? '완료' : '진행 중') + '</span></div><div style="font-size:11.5px;font-weight:700;color:#3a445e;margin-top:4px">현재 공정 · ' + escH(name) + '</div>' + bar + '</div>'
     }).join('')
     + '</div>'
   box.style.display = 'block'
@@ -237,12 +234,11 @@ async function loadFieldUpdates() {
   const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
   if (apt) RES_APT = apt
   if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
-  renderFieldProgress(apt)
   checkSurveyBanner(apt)
-  // 동별 진행 현황: 공개된 감리일지의 동+공정으로 각 동 최신 단계 계산
+  // 동별 진행 현황: 관리자가 설정한 dong_progress
   try {
-    const { data: reps } = await sb.from('reports').select('stage,dongs,title,content,created_at').eq('apartment_id', prof.apartment_id).eq('published', true).order('created_at', { ascending: false })
-    renderDongProgress(apt, reps || [])
+    const { data: dp } = await sb.from('dong_progress').select('dong,stage').eq('apartment_id', prof.apartment_id)
+    renderDongProgress(apt, dp || [])
   } catch (e) { renderDongProgress(apt, []) }
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
   FIELD_LIST = (data || []).map(f => { f._field = true; return f }) // 현장현황 항목 표시(감리일지와 구분)

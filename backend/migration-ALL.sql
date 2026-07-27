@@ -133,4 +133,21 @@ alter table reports add column if not exists dongs text;
 alter table reports add column if not exists pdf_url text;
 alter table reports add column if not exists pdf_name text;
 
+-- 9) 동(棟)별 공정 진행 상태 (관리자 설정) ----------------------------
+create table if not exists dong_progress (
+  id            uuid primary key default gen_random_uuid(),
+  apartment_id  uuid references apartments(id) on delete cascade,
+  dong          text not null,
+  stage         int default 0,
+  updated_at    timestamptz default now(),
+  unique (apartment_id, dong)
+);
+alter table dong_progress enable row level security;
+drop policy if exists dong_progress_read on dong_progress;
+create policy dong_progress_read on dong_progress
+  for select to anon, authenticated using (true);
+drop policy if exists dong_progress_admin on dong_progress;
+create policy dong_progress_admin on dong_progress
+  for all using (is_admin()) with check (is_admin());
+
 -- 완료! 'Success. No rows returned' 이 뜨면 정상입니다.

@@ -32,6 +32,7 @@ async function route() {
   if (error || !profile || !profile.approved) { window.showScreen('s02'); return } // 승인 대기
   currentRole = profile.role
   MY_ID = user.id; MY_NAME = profile.name || ''
+  await loadChatReads()
   applyRoleNav(profile.role)
   // 현장 점검 저장 후 돌아왔을 때: 해당 단지 감리일지 목록으로 바로 이동
   const openAptId = new URLSearchParams(location.search).get('openApt')
@@ -47,6 +48,14 @@ async function route() {
 }
 let currentRole = null
 let MY_ID = null, MY_NAME = ''
+let MY_CHAT_READS = {} // 계정에 저장된 스레드별 '읽음' 시각 (profiles.chat_reads)
+async function loadChatReads() {
+  if (!MY_ID) return
+  try {
+    const { data } = await sb.from('profiles').select('chat_reads').eq('id', MY_ID).single()
+    if (data && data.chat_reads && typeof data.chat_reads === 'object') MY_CHAT_READS = data.chat_reads
+  } catch (e) {}
+}
 
 // ── 입주민·관리소장 홈: 우리 단지 정보 불러오기 ─────────────
 let RES_APT = null
@@ -674,6 +683,13 @@ let REGION_ALL = []
 let REGION_MORE = false
 const REGION_CAP = 5
 window.toggleRegionMore = function () { REGION_MORE = !REGION_MORE; renderRegionActivity() }
+// 개인정보 보호: 시/도만 통과, 그 외(단지명 등)는 '전국'으로 익명화
+const KNOWN_REGIONS = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '충청', '전북', '전남', '전라', '경북', '경남', '경상', '제주']
+function safeRegion(r) {
+  const s = (r || '').trim()
+  if (s && KNOWN_REGIONS.some(k => s.startsWith(k))) return s
+  return '전국'
+}
 function renderRegionActivity() {
   const box = document.getElementById('res-region'); if (!box) return
   if (!REGION_ALL.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">표시할 감리 활동이 없어요.</div>'; return }
@@ -681,7 +697,7 @@ function renderRegionActivity() {
   const list = REGION_MORE ? REGION_ALL : REGION_ALL.slice(0, REGION_CAP)
   let html = list.map((r, i) => {
     const [lbl, col] = stMap[r.status] || stMap.scheduled
-    const region = r.region || '전국'
+    const region = safeRegion(r.region)
     const type = r.construction_type || '유지보수'
     const line = (i < list.length - 1 || REGION_ALL.length > REGION_CAP) ? 'border-bottom:1px solid #f0f2f7;' : ''
     return `<div style="display:flex;align-items:center;gap:9px;padding:12px 13px;${line}"><span style="width:7px;height:7px;border-radius:99px;background:${col};flex-shrink:0"></span><div style="flex:1;font-size:12.5px;font-weight:700;color:#2a3350;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(region)} · ${escH(type)}</div><span style="font-size:10.5px;color:${col};font-weight:800;flex-shrink:0">${lbl}</span></div>`
@@ -1147,6 +1163,11 @@ function openReport(r) {
   }
   // 둘째 본문 섹션(사용 안 함) 숨김
   const h2 = document.getElementById('d-h2'); if (h2) { h2.style.display = 'none'; if (h2.nextElementSibling) h2.nextElementSibling.style.display = 'none' }
+  // 하단 탭을 역할에 맞게 (입주민이 감리일지·현장사진을 열었을 때 감리사 탭이 보이지 않도록)
+  const rnav = document.getElementById('report-nav')
+  if (rnav) rnav.innerHTML = (currentRole === 'auditor')
+    ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📄</div>보고서</div><div><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
   window.showScreen('s10')
 }
 window.openApt = openApt; window.openReport = openReport
@@ -1670,7 +1691,7 @@ async function loadChat(scroll) {
   if (msgs.length === CHAT.lastCount) return
   CHAT.lastCount = msgs.length
   renderChat(msgs, scroll)
-  if (msgs.length) localStorage.setItem(chatSeenKey(CHAT.thread), msgs[msgs.length - 1].created_at || new Date().toISOString())
+  if (msgs.length) markThreadRead(CHAT.thread, msgs[msgs.length - 1].created_at || '')
   refreshChatBadge() // 읽는 즉시 새로고침 없이 배지 갱신 (역할별 정확 합산)
 }
 function renderChat(msgs, mode) {
@@ -1749,7 +1770,24 @@ window.openAuditorChatFor = function (aptId) {
 
 // 채팅 안 읽음 빨간 배지
 function chatSeenKey(th) { return 'aptsq_seen_' + th }
-function unreadFor(msgs, myRole, th) { const seen = localStorage.getItem(chatSeenKey(th)) || ''; return (msgs || []).filter(m => m.sender_role !== myRole && (m.created_at || '') > seen).length }
+// '읽음' 시각 = 로컬(이 기기) 과 계정(profiles.chat_reads) 중 더 최근 것
+function chatSeenTs(th) {
+  const local = localStorage.getItem(chatSeenKey(th)) || ''
+  const remote = (MY_CHAT_READS && MY_CHAT_READS[th]) || ''
+  return local > remote ? local : remote
+}
+// 스레드를 읽음 처리 (로컬 + 계정 동시 저장 → 재로그인·다른 기기에서도 유지)
+function markThreadRead(th, ts) {
+  if (!th || !ts) return
+  localStorage.setItem(chatSeenKey(th), ts)
+  if (MY_ID) {
+    if ((MY_CHAT_READS[th] || '') < ts) {
+      MY_CHAT_READS[th] = ts
+      sb.from('profiles').update({ chat_reads: MY_CHAT_READS }).eq('id', MY_ID).then(function () {}, function () {})
+    }
+  }
+}
+function unreadFor(msgs, myRole, th) { const seen = chatSeenTs(th); return (msgs || []).filter(m => m.sender_role !== myRole && (m.created_at || '') > seen).length }
 function setChatNavBadge(n) {
   document.querySelectorAll('.nav [data-tab="chat"]').forEach(tab => {
     let b = tab.querySelector('.chat-badge')

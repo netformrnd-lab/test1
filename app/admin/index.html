@@ -748,6 +748,10 @@ function reportCardHtml(r){
       ${(Array.isArray(r.photos)&&r.photos.length)?`<button type="button" class="b" style="padding:5px 10px;font-size:11px;background:#eef4ff;color:#2F6BF6" onclick='downloadAllPhotos(${JSON.stringify(r.photos)})'>⬇ 사진 전체 다운로드 (${r.photos.length})</button>`:''}
     </div>
     <div class="rf-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 9px">${reportPhotoHtml(r.id)}</div>
+    <div style="background:#f0fbf5;border:1px solid #cdeeda;border-radius:9px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div style="font-size:11.5px;color:#1f8a5b;font-weight:700">📸 이 현장사진들을 <b>입주민 현장현황</b>에 올리기 ${(r.dongs||'')?`(${esc((r.dongs||'').split(',')[0].trim())})`:''}</div>
+      <button type="button" class="b save" style="font-size:12px" onclick="pushReportToField('${r.id}',this)">현장현황에 올리기</button>
+    </div>
     <div style="border-top:1px solid var(--line);margin-top:8px;padding-top:11px">
       <div style="font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:3px">📄 입주민 공개 (PDF 문서)</div>
       <div style="font-size:11px;color:var(--mut);margin-bottom:9px">감리사 작성 내용을 확인하고, <b>문서화한 PDF를 올려 공개</b>하세요. 입주민에겐 <b>동·작업 미리보기 + 이 PDF</b>만 보여요 (점검내용 원문은 안 보임).</div>
@@ -871,6 +875,20 @@ async function saveReportAdmin(id){
   const{error}=await sb.from('reports').update({title,stage,content,photos,pub_title:pubTitle}).eq('id',id);
   if(error){if(btn){btn.textContent='저장';btn.disabled=false;}return alert('오류: '+error.message);}
   if(btn){btn.textContent='저장';btn.disabled=false;}
+  loadAll();
+}
+// 감리사 현장사진 → 입주민 현장현황(field_updates)에 올리기 (관리자 수동)
+async function pushReportToField(id, btn){
+  const rep=REPORTS.find(x=>x.id===id); if(!rep||!rep.apartment_id) return alert('단지 정보가 없어요');
+  const photos=RPHOTOS[id]||rep.photos||[];
+  if(!photos.length) return alert('올릴 현장사진이 없어요');
+  const dong=(rep.dongs||'').split(',')[0].trim()||null;
+  if(!confirm('이 현장사진 '+photos.length+'장을 입주민 현장현황'+(dong?('('+dong+')'):'')+'에 올릴까요?\n(감리일지와 별개로, 현장현황에 사진만 올라가요)')) return;
+  if(btn){btn.textContent='올리는 중…';btn.disabled=true;}
+  const{error}=await sb.from('field_updates').insert({apartment_id:rep.apartment_id,title:rep.pub_title||rep.title,content:null,photos,dong});
+  if(btn){btn.disabled=false;btn.textContent='현장현황에 올리기';}
+  if(error) return alert('실패: '+error.message);
+  alert('현장현황에 올렸어요! (입주민 현장현황 · '+(dong||'동 미지정')+')');
   loadAll();
 }
 // PDF 업로드 → reports.pdf_url 저장

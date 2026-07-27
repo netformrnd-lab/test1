@@ -1199,8 +1199,8 @@ function openReport(r) {
     if (bodyLabel) bodyLabel.style.display = ''
     if (pdfEl) pdfEl.style.display = 'none'
   }
-  // 사진 표시 — 옆으로 넘기는 스와이프 사진첩
-  const ph = Array.isArray(r.photos) ? r.photos : []
+  // 사진 표시 — 옆으로 넘기는 사진첩 (감리사만; 입주민 감리일지는 PDF만, 사진은 현장현황에서)
+  const ph = (!isRes && Array.isArray(r.photos)) ? r.photos : []
   const p1 = document.getElementById('d-photo1'), p2 = document.getElementById('d-photo2')
   if (p2) p2.style.display = 'none'
   let dots = document.getElementById('d-photo-dots')

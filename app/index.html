@@ -42,6 +42,8 @@
             <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">비밀번호</div>
             <input id="login-pw" type="password" autocomplete="current-password" placeholder="비밀번호 (6자 이상)" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
             <div id="signup-fields" style="display:none">
+              <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이메일 <span style="color:#2F6BF6">(비밀번호 찾기에 사용)</span></div>
+              <input id="signup-email" type="email" inputmode="email" autocapitalize="none" autocorrect="off" autocomplete="email" placeholder="example@naver.com" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
               <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이름 및 직급</div>
               <input id="signup-name" placeholder="예: 김현수 / 관리소장" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
               <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">연락처</div>
@@ -56,7 +58,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:11.5px;color:#6b7690;font-weight:700">
               <span id="auth-toggle-signup" style="cursor:pointer">회원가입</span>
               <span id="auth-toggle-login" style="cursor:pointer;display:none;color:#2F6BF6">← 로그인으로</span>
-              <span style="cursor:pointer">아이디 · 비밀번호 찾기</span>
+              <span onclick="openFindAccount()" style="cursor:pointer">아이디 · 비밀번호 찾기</span>
             </div>
             <div style="font-size:10px;color:#9aa3b6;font-weight:600;text-align:center;margin-top:13px;line-height:1.7">회원가입 시 <span onclick="showScreen('s43')" style="color:#2F6BF6;text-decoration:underline;cursor:pointer">이용약관</span> 및 <span onclick="showScreen('s44')" style="color:#2F6BF6;text-decoration:underline;cursor:pointer">개인정보처리방침</span>에<br>동의하는 것으로 간주됩니다.</div>
           </div>
@@ -681,7 +683,9 @@
             <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이름 · 직급</div>
             <input id="acc-name" type="text" placeholder="예: 김현수 / 관리소장" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none">
             <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">연락처</div>
-            <input id="acc-phone" type="text" inputmode="tel" placeholder="010-0000-0000" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:14px;font-family:inherit;outline:none">
+            <input id="acc-phone" type="text" inputmode="tel" placeholder="010-0000-0000" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none">
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이메일 <span style="color:#2F6BF6">(비밀번호 찾기에 사용)</span></div>
+            <input id="acc-email" type="email" inputmode="email" autocapitalize="none" autocorrect="off" placeholder="example@naver.com" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:14px;font-family:inherit;outline:none">
             <div onclick="saveAccountInfo()" style="cursor:pointer;text-align:center;background:#1F2C5C;color:#fff;height:46px;line-height:46px;border-radius:12px;font-size:13px;font-weight:800">회원정보 저장</div>
           </div>
           <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px 15px 17px">
@@ -755,6 +759,41 @@
           <div class="tos-h">10. 개인정보 보호책임자</div>
           <div class="tos-box">성명: 조현식 (스퀘어건축사사무소 대표)<br>이메일: square1600@naver.com &nbsp;|&nbsp; 전화: 1600-6069</div>
           <div class="tos-p" style="margin-top:14px;color:#8b95ad">본 방침은 2026년 8월 7일부터 시행합니다.</div>
+        </div>
+      </section>
+
+      <section class="screen" id="s45" data-name="아이디 · 비밀번호 찾기">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">아이디 · 비밀번호 찾기</span></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px;overflow-y:auto">
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px 15px 17px;margin-bottom:14px">
+            <div style="font-size:13px;font-weight:800;color:#1c2440;margin-bottom:4px">아이디 찾기</div>
+            <div style="font-size:11px;color:#8b95ad;font-weight:600;margin-bottom:11px">가입할 때 등록한 연락처로 아이디를 찾아드려요.</div>
+            <input id="find-phone" inputmode="tel" placeholder="연락처 (010-0000-0000)" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:11px;font-family:inherit;outline:none">
+            <div onclick="findMyId()" style="cursor:pointer;text-align:center;background:#1F2C5C;color:#fff;height:44px;line-height:44px;border-radius:12px;font-size:13px;font-weight:800">아이디 찾기</div>
+            <div id="find-id-result" style="font-size:12px;font-weight:800;margin-top:11px;text-align:center;color:#1c2440"></div>
+          </div>
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px 15px 17px">
+            <div style="font-size:13px;font-weight:800;color:#1c2440;margin-bottom:4px">비밀번호 재설정</div>
+            <div style="font-size:11px;color:#8b95ad;font-weight:600;margin-bottom:11px">가입한 아이디 또는 이메일을 입력하면, 등록된 이메일로 <b>재설정 링크</b>를 보내드려요.</div>
+            <input id="reset-id" type="text" autocapitalize="none" autocorrect="off" placeholder="아이디 또는 이메일" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:11px;font-family:inherit;outline:none">
+            <div onclick="requestPasswordReset()" style="cursor:pointer;text-align:center;background:#2F6BF6;color:#fff;height:44px;line-height:44px;border-radius:12px;font-size:13px;font-weight:800">재설정 메일 보내기</div>
+            <div id="reset-msg" style="font-size:11.5px;font-weight:700;margin-top:11px;text-align:center;color:#1f8a5b;line-height:1.6"></div>
+          </div>
+          <div style="font-size:10.5px;color:#9aa3b6;font-weight:600;text-align:center;margin-top:14px;line-height:1.7">이메일이 등록되지 않은 예전 계정은<br><span onclick="window.open(INQUIRY_URL,'_blank','noopener')" style="color:#2F6BF6;text-decoration:underline;cursor:pointer">카카오 상담</span>으로 도와드려요.</div>
+        </div>
+      </section>
+
+      <section class="screen" id="s46" data-name="새 비밀번호 설정">
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="text-align:center;margin:18px 0 8px"><img src="assets/a081eb63-6da0-4864-98a1-1a3194cbb947.png" alt="" style="height:44px;filter:brightness(0.15)"></div>
+          <div style="font-size:15px;font-weight:800;color:#1c2440;text-align:center;margin-bottom:4px">새 비밀번호 설정</div>
+          <div style="font-size:11.5px;color:#8b95ad;font-weight:600;text-align:center;margin-bottom:16px">새로 사용할 비밀번호를 입력해 주세요.</div>
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px 15px 17px">
+            <input id="recover-pw1" type="password" autocomplete="new-password" placeholder="새 비밀번호 (6자 이상)" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:11px;font-family:inherit;outline:none">
+            <input id="recover-pw2" type="password" autocomplete="new-password" placeholder="새 비밀번호 확인" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:14px;font-family:inherit;outline:none">
+            <div onclick="submitRecoverPassword()" style="cursor:pointer;text-align:center;background:#2F6BF6;color:#fff;height:46px;line-height:46px;border-radius:12px;font-size:13px;font-weight:800">비밀번호 변경 완료</div>
+            <div id="recover-msg" style="font-size:11.5px;font-weight:800;min-height:15px;margin-top:11px;text-align:center;color:#1f8a5b"></div>
+          </div>
         </div>
       </section>
     </div>

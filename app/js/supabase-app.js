@@ -29,9 +29,14 @@ const aptAuthStorage = {
   removeItem (k) { try { localStorage.removeItem(k); sessionStorage.removeItem(k) } catch (e) {} }
 }
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: aptAuthStorage }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: aptAuthStorage }
 })
 window.sb = sb
+// 비밀번호 재설정 메일 링크로 들어온 경우 → 새 비밀번호 설정 화면
+let RECOVERING = false
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'PASSWORD_RECOVERY') { RECOVERING = true; try { window.showScreen('s46') } catch (e) {} }
+})
 
 const $ = (id) => document.getElementById(id)
 function setMsg(text, ok) {
@@ -1403,7 +1408,12 @@ async function doLogin() {
   // 세션을 저장하기 전에 자동로그인 여부를 먼저 확정 (저장소 선택에 반영됨)
   const rem = $('login-remember'); window.aptSetRemember(!rem || rem.checked)
   setMsg('로그인 중…', true)
-  const { error } = await sb.auth.signInWithPassword({ email: idToEmail(id), password: pw })
+  // 아이디 → 로그인 이메일 매칭 (신규=실제 이메일, 기존=아이디@aptsquare.app)
+  let email = id
+  if (id.indexOf('@') < 0) {
+    try { const { data } = await sb.rpc('login_email', { uname: id }); email = data || idToEmail(id) } catch (e) { email = idToEmail(id) }
+  }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw })
   if (error) { setMsg(ko(error.message)); return }
   setMsg('')
   route()
@@ -1412,12 +1422,16 @@ async function doLogin() {
 async function doSignup() {
   const id = $('login-email').value.trim()
   const pw = $('login-pw').value
+  const email = ($('signup-email').value || '').trim()
   const name = $('signup-name').value.trim()
   const phone = $('signup-phone').value.trim()
-  if (!id || !pw || !name) { setMsg('아이디·비밀번호·이름을 입력하세요'); return }
+  if (!id || !pw || !name || !email) { setMsg('아이디·이메일·비밀번호·이름을 입력하세요'); return }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setMsg('올바른 이메일을 입력하세요'); return }
   if (pw.length < 6) { setMsg('비밀번호는 6자 이상으로 정해주세요'); return }
   setMsg('가입 중…', true)
-  const { error } = await sb.auth.signUp({ email: idToEmail(id), password: pw, options: { data: { name, phone, username: id.toLowerCase() } } })
+  // 아이디 중복 확인
+  try { const { data: taken } = await sb.rpc('login_email', { uname: id }); if (taken) { setMsg('이미 사용 중인 아이디예요. 다른 아이디를 써주세요.'); return } } catch (e) {}
+  const { error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, phone, username: id.toLowerCase() } } })
   if (error) { setMsg(ko(error.message)); return }
   setMsg('가입 완료! 관리자 승인 후 이용할 수 있어요.', true)
   setTimeout(() => window.showScreen('s02'), 1400)
@@ -1455,9 +1469,12 @@ window.openAccount = async function () {
   const { data: { user } } = await sb.auth.getUser(); if (!user) { window.showScreen('s01'); return }
   const { data: prof } = await sb.from('profiles').select('name, phone, email').eq('id', user.id).single()
   const meta = user.user_metadata || {}
-  const idEl = $('acc-id'); if (idEl) idEl.value = dispLoginId((prof && prof.email) || user.email) || meta.username || ''
+  const rawEmail = (prof && prof.email) || user.email || ''
+  const isSynthetic = rawEmail.indexOf(ID_DOMAIN) >= 0
+  const idEl = $('acc-id'); if (idEl) idEl.value = dispLoginId(rawEmail) || meta.username || ''
   const nm = $('acc-name'); if (nm) nm.value = (prof && prof.name) || meta.name || ''
   const ph = $('acc-phone'); if (ph) ph.value = (prof && prof.phone) || meta.phone || ''
+  const em = $('acc-email'); if (em) em.value = isSynthetic ? '' : rawEmail
   const p1 = $('acc-pw1'); if (p1) p1.value = ''
   const p2 = $('acc-pw2'); if (p2) p2.value = ''
   window.showScreen('s41')
@@ -1466,13 +1483,79 @@ window.saveAccountInfo = async function () {
   const { data: { user } } = await sb.auth.getUser(); if (!user) { window.showScreen('s01'); return }
   const name = ($('acc-name').value || '').trim()
   const phone = ($('acc-phone').value || '').trim()
+  const email = ($('acc-email').value || '').trim()
   if (!name) { accMsg('이름을 입력하세요', true); return }
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { accMsg('올바른 이메일을 입력하세요', true); return }
   accMsg('저장 중…')
   const { error } = await sb.from('profiles').update({ name, phone: phone || null }).eq('id', user.id)
   if (error) { accMsg(ko(error.message), true); return }
   try { await sb.auth.updateUser({ data: { name, phone } }) } catch (e) {}
+  // 이메일 등록/변경 (현재 로그인 이메일과 다른 실제 이메일이면 인증 이메일도 변경)
+  const curEmail = user.email || ''
+  if (email && email.toLowerCase() !== curEmail.toLowerCase()) {
+    const { error: eErr } = await sb.auth.updateUser({ email })
+    if (eErr) { accMsg('이메일 저장 실패: ' + ko(eErr.message), true); return }
+    try { await sb.from('profiles').update({ email }).eq('id', user.id) } catch (e) {}
+    MY_NAME = name
+    accMsg('저장했어요 ✓ (이메일로 확인 메일이 갈 수 있어요)')
+    return
+  }
   MY_NAME = name
   accMsg('회원정보를 저장했어요 ✓')
+}
+// ── 아이디 찾기 · 비밀번호 재설정 ─────────────────────────
+window.openFindAccount = function () {
+  const p = $('find-phone'); if (p) p.value = ''
+  const r = $('find-id-result'); if (r) r.textContent = ''
+  const ri = $('reset-id'); if (ri) ri.value = ''
+  const rm = $('reset-msg'); if (rm) rm.textContent = ''
+  window.showScreen('s45')
+}
+window.findMyId = async function () {
+  const phone = ($('find-phone').value || '').trim()
+  const out = $('find-id-result')
+  if (!phone) { if (out) { out.style.color = '#d94b4b'; out.textContent = '연락처를 입력하세요' } return }
+  if (out) { out.style.color = '#8b95ad'; out.textContent = '찾는 중…' }
+  const { data, error } = await sb.rpc('find_login_ids', { p_phone: phone })
+  if (error) { if (out) { out.style.color = '#d94b4b'; out.textContent = '조회 실패: ' + ko(error.message) } return }
+  const ids = (data || []).map(r => r.username).filter(Boolean)
+  if (!ids.length) { if (out) { out.style.color = '#d94b4b'; out.textContent = '해당 연락처로 가입된 아이디가 없어요' } return }
+  if (out) { out.style.color = '#1c2440'; out.innerHTML = '회원님의 아이디: <span style="color:#2F6BF6">' + ids.map(escH).join(', ') + '</span>' }
+}
+window.requestPasswordReset = async function () {
+  const inp = ($('reset-id').value || '').trim()
+  const msg = $('reset-msg')
+  if (!inp) { if (msg) { msg.style.color = '#d94b4b'; msg.textContent = '아이디 또는 이메일을 입력하세요' } return }
+  if (msg) { msg.style.color = '#8b95ad'; msg.textContent = '확인 중…' }
+  // 입력값 → 재설정 보낼 이메일
+  let email = inp
+  if (inp.indexOf('@') < 0) {
+    try { const { data } = await sb.rpc('login_email', { uname: inp }); email = data || '' } catch (e) { email = '' }
+  }
+  if (!email) { if (msg) { msg.style.color = '#d94b4b'; msg.textContent = '가입 정보를 찾지 못했어요. 아이디·이메일을 확인해 주세요.' } return }
+  if (email.indexOf(ID_DOMAIN) >= 0) {
+    if (msg) { msg.style.color = '#d94b4b'; msg.innerHTML = '이 계정은 이메일이 등록돼 있지 않아요.<br>로그인 후 ‘내 정보’에서 이메일을 먼저 등록하거나, 카카오 상담을 이용해 주세요.' }
+    return
+  }
+  const redirectTo = location.origin + location.pathname
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo })
+  if (error) { if (msg) { msg.style.color = '#d94b4b'; msg.textContent = '메일 발송 실패: ' + ko(error.message) } return }
+  if (msg) { msg.style.color = '#1f8a5b'; msg.innerHTML = '재설정 메일을 보냈어요! 메일함(스팸함도)에서<br>링크를 눌러 새 비밀번호를 설정해 주세요.' }
+}
+window.submitRecoverPassword = async function () {
+  const p1 = ($('recover-pw1').value || ''), p2 = ($('recover-pw2').value || '')
+  const msg = $('recover-msg')
+  const set = (t, err) => { if (msg) { msg.textContent = t; msg.style.color = err ? '#d94b4b' : '#1f8a5b' } }
+  if (!p1 || !p2) { set('새 비밀번호를 입력하세요', true); return }
+  if (p1.length < 6) { set('비밀번호는 6자 이상으로 정해주세요', true); return }
+  if (p1 !== p2) { set('두 비밀번호가 일치하지 않아요', true); return }
+  set('변경 중…')
+  const { error } = await sb.auth.updateUser({ password: p1 })
+  if (error) { set('변경 실패: ' + ko(error.message), true); return }
+  RECOVERING = false
+  set('비밀번호를 변경했어요 ✓ 잠시 후 이동해요')
+  try { if (history.replaceState) history.replaceState(null, '', location.origin + location.pathname) } catch (e) {}
+  setTimeout(() => { try { route() } catch (e) { window.showScreen('s01') } }, 1200)
 }
 window.changePassword = async function () {
   const p1 = ($('acc-pw1').value || ''), p2 = ($('acc-pw2').value || '')
@@ -1573,8 +1656,10 @@ function wire() {
       showScreen('s14'); loadSchedule()
     }
   })
+  // 비밀번호 재설정 메일 링크로 들어온 경우 → 새 비밀번호 설정 화면 (홈으로 라우팅하지 않음)
+  if (RECOVERING || (location.hash || '').indexOf('type=recovery') >= 0) { RECOVERING = true; window.showScreen('s46'); return }
   // 앱 열 때: 로그인돼 있으면 알맞은 화면, 아니면 비회원 둘러보기 홈(s04)
-  sb.auth.getSession().then(({ data }) => { if (data.session) route(); else { window.showScreen('s04'); loadResidentNotices('s04-notices') } })
+  sb.auth.getSession().then(({ data }) => { if (RECOVERING) return; if (data.session) route(); else { window.showScreen('s04'); loadResidentNotices('s04-notices') } })
 }
 
 /* ===== 알림 탭 = 아파트스퀘어 소개 (실행 로드맵 기반, 감리 토탈 솔루션) ===== */

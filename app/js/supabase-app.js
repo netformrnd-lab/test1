@@ -1461,7 +1461,7 @@ const ALIM = {
     // 실제 하자 사진 3장
     h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:16px 2px 10px">방치하면, 이런 하자로 이어집니다</div>'
     h += '<div style="display:flex;gap:6px">'
-    h += [['assets/philo_defect1.jpg', '외벽 균열'], ['assets/philo_defect2.jpg', '박리·곰팡이'], ['assets/philo_defect3.jpg', '바닥 손상']]
+    h += [['assets/philo_defect1.jpg', '외벽 균열'], ['assets/philo_defect2.jpg', '박리·들뜸'], ['assets/philo_defect3.jpg', '바닥 손상']]
       .map(c => '<div style="flex:1;border-radius:11px;overflow:hidden;position:relative"><img src="' + c[0] + '" style="width:100%;height:90px;object-fit:cover;display:block" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 42%,rgba(10,16,34,.82))"></div><span style="position:absolute;left:6px;bottom:5px;color:#fff;font-size:9px;font-weight:800">' + c[1] + '</span></div>').join('')
     h += '</div>'
     // 전환 — 화살표
@@ -1476,8 +1476,6 @@ const ALIM = {
     h += [['🔍', '정밀 진단', '드론·AI로 상태 파악'], ['🛡️', '공정별 검측', '단계마다 직접 확인'], ['📄', '기록·보고', '사진과 문서로 남김']]
       .map(c => '<div style="flex:1;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 6px;text-align:center"><div style="font-size:22px">' + c[0] + '</div><div style="font-size:11.5px;font-weight:800;color:#1c2440;margin-top:5px">' + c[1] + '</div><div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:3px;line-height:1.4;' + wb + '">' + c[2] + '</div></div>').join('')
     h += '</div>'
-    // 감리 진행 결과 사진
-    h += '<div style="margin-top:14px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit1.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 62%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 55%,rgba(10,16,34,.78))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">시작부터 마무리까지, 곁에서 함께합니다</div></div>'
     // 믿음 — 브랜드 선언 (페이지에 녹아드는 깔끔한 중앙 정렬)
     h += '<div style="text-align:center;padding:34px 16px 16px">'
       + '<div style="width:34px;height:3px;background:#2F6BF6;border-radius:9px;margin:0 auto 18px"></div>'
@@ -1485,7 +1483,7 @@ const ALIM = {
       + '<div style="font-size:12px;color:#8b95ad;font-weight:600;margin-top:13px;' + wb + '">그 당연한 믿음에서, 아파트스퀘어는 시작됐습니다</div>'
       + '</div>'
     // 가치 — 4개 한 줄 카드
-    h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:26px 2px 12px">그래서 이 네 가지를 지킵니다</div>'
+    h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:26px 2px 12px">그 믿음을 지키는 네 가지</div>'
     h += '<div style="display:flex;flex-direction:column;gap:8px">'
     h += [['🔍', '투명성', '모든 공정을 사진·기록으로'],
       ['⚖️', '공정성', '이해관계 없는 제3자의 판단'],
@@ -1494,7 +1492,7 @@ const ALIM = {
       .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:12px 14px"><div style="width:38px;height:38px;border-radius:11px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + c[0] + '</div><div style="flex:1;min-width:0"><span style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</span><span style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-left:8px;' + wb + '">' + c[2] + '</span></div></div>').join('')
     h += '</div>'
     // 마무리 대표 사진
-    h += '<div style="margin-top:22px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:200px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">우리 단지가 안심할 때까지</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">끝까지 곁에서 확인하고 기록합니다</div></div></div>'
+    h += '<div style="margin-top:22px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:200px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">우리 단지가 안심할 때까지 함께합니다</div></div></div>'
     // 약속 — 브랜드 사진(감리사가 고객에게 설명) 위에 문구
     h += '<div style="border-radius:16px;overflow:hidden;position:relative;margin-top:14px"><img src="assets/philo_promise.jpg" style="width:100%;display:block;height:240px;object-fit:cover;object-position:center 30%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.08) 0%,rgba(15,22,48,.42) 44%,rgba(15,22,48,.94) 100%)"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:20px 18px 22px;text-align:center;color:#fff"><div style="font-size:22px;margin-bottom:6px">🤝</div><div style="font-size:15px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:10px;font-size:12px;font-weight:800;color:#dbe6ff">— 아파트스퀘어</div></div></div>'
     h += '</div>'

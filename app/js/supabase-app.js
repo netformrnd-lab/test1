@@ -74,33 +74,13 @@ async function loadResidentHome() {
   const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
   if (!prof || !prof.apartment_id) {
     const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = '배정된 단지가 없어요'
-    const h = document.getElementById('res-prog-head'); if (h) h.textContent = '관리자가 단지를 배정하면 표시돼요'
     return
   }
   const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
   if (!apt) return
   RES_APT = apt
   const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = apt.name
-  // 진행률 · 공정 단계 (공법 기준)
-  const stages = (window.methodStages && window.methodStages(apt.method)) || null
-  const tot = stages ? stages.length : (apt.progress_total || 0)
-  const cur = apt.progress_current || 0, pct = tot ? Math.round(cur / tot * 100) : 0
-  const pg = document.getElementById('res-prog'); if (pg) pg.innerHTML = cur + '<span style="opacity:.55">/' + tot + '</span>'
-  const bar = document.getElementById('res-bar'); if (bar) bar.style.width = pct + '%'
-  const head = document.getElementById('res-prog-head')
-  const cap = document.getElementById('res-stage-cap')
-  if (stages) {
-    if (cur >= tot) {
-      if (head) head.textContent = '공사가 모두 끝났어요 🎉'
-      if (cap) cap.textContent = '모든 공정이 완료되었습니다.'
-    } else {
-      if (head) head.textContent = `현재 ${cur + 1}단계 · ${stages[cur]}`
-      if (cap) cap.textContent = `지금은 ‘${stages[cur]}’ 단계예요. 감리가 한 단계씩 꼼꼼히 확인하고 있어요.`
-    }
-  } else {
-    if (head) head.textContent = '공사 준비 중이에요'
-    if (cap) cap.textContent = '공정이 등록되면 단계별로 알려드릴게요.'
-  }
+  // (전체 진행률 바는 제거됨 — 동별 진행 현황은 현장현황 화면에서 표시)
   // 담당 감리사 이름 (PII 노출 없이 이름만 반환하는 함수 사용)
   if (apt.auditor_id) {
     const { data: audName } = await sb.rpc('apartment_auditor_name', { apt: apt.id })
@@ -1130,16 +1110,21 @@ function repTitle(r) {
 }
 function reportCard(r) {
   REPORTS[r.id] = r
+  // 입주민·관리소장에게 감리일지는 'PDF 문서'로만 보임 — 감리사 원본 사진 썸네일·장수는 감춤(상세와 동일 규칙)
+  const isRes = currentRole && currentRole !== 'auditor'
   const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
   const ph = Array.isArray(r.photos) ? r.photos : []
-  const thumb = ph.length
+  const thumb = (ph.length && !isRes)
     ? `<div style="width:50px;height:50px;border-radius:10px;background:url('${ph[0]}') center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">${ph.length}장</span></div>`
     : `<div style="width:50px;height:50px;border-radius:10px;background:#eef1f7;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">📄</div>`
   const dongs = reportDongs(r)
   const dongBadges = dongs.length ? '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">' + dongs.map(dg => '<span style="font-size:8.5px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:2px 6px;border-radius:5px">' + escH(dg) + '</span>').join('') + '</div>' : ''
+  const meta = isRes
+    ? d + (r.pdf_url ? ' · 감리 보고서 PDF' : '')
+    : d + (r.stage ? ' · ' + escH(r.stage) : '') + (ph.length ? ' · 사진 ' + ph.length + '장' : '')
   return `<div data-report-id="${r.id}" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer">${thumb}
     <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">${escH(repTitle(r))}</div>
-    <div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:3px">${d}${r.stage ? ' · ' + escH(r.stage) : ''}${ph.length ? ' · 사진 ' + ph.length + '장' : ''}</div>${dongBadges}</div>
+    <div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:3px">${meta}</div>${dongBadges}</div>
   </div>`
 }
 // 사진 업로드 (Supabase Storage)
@@ -1214,7 +1199,9 @@ function openReport(r) {
   // 동(棟) 표시
   const dd = document.getElementById('d-dong'); const dgs = reportDongs(r)
   if (dd) { if (dgs.length) { dd.textContent = dgs.join(' · '); dd.style.display = '' } else dd.style.display = 'none' }
-  set('d-body', r.content || '작성된 내용이 없어요.')
+  // 입주민에겐 감리사 원문(점검 메모)을 DOM에도 넣지 않음 (PDF만 노출)
+  const _isResView = currentRole && currentRole !== 'auditor'
+  set('d-body', _isResView ? '' : (r.content || '작성된 내용이 없어요.'))
   // 구분: 현장현황(사진 항목, _field) vs 감리일지(reports)
   const isRes = currentRole && currentRole !== 'auditor'
   const isField = !!r._field
@@ -1261,7 +1248,7 @@ function openReport(r) {
   // 하단 탭을 역할에 맞게 (입주민이 감리일지·현장사진을 열었을 때 감리사 탭이 보이지 않도록)
   const rnav = document.getElementById('report-nav')
   if (rnav) rnav.innerHTML = (currentRole === 'auditor')
-    ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📄</div>보고서</div><div><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    ? '<div data-tab="home"><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📄</div>보고서</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
     : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
   window.showScreen('s10')
 }

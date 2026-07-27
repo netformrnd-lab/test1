@@ -422,6 +422,7 @@ async function loadSurveysAdmin(){
   if(error){ const box=$('surveys'); if(box) box.innerHTML='<div class="card" style="text-align:center;color:var(--mut);font-size:13px;padding:22px">아직 테이블이 없어요. <b>backend/migration-survey.sql</b> 을 Supabase에서 실행해 주세요.</div>'; return; }
   SURVEYS_A=data||[]; const nn=$('nav-sv'); if(nn) nn.textContent=SURVEYS_A.length; renderSurveysAdmin();
 }
+function toggleSvCard(id,head){ const el=$(id); if(!el) return; const open=el.style.display!=='none'; el.style.display=open?'none':'block'; const c=head&&head.querySelector('.svc-caret'); if(c) c.style.transform=open?'rotate(0deg)':'rotate(90deg)'; }
 function svAvg(arr,key){ const v=arr.map(r=>r[key]).filter(x=>x!=null); return v.length?(v.reduce((a,b)=>a+b,0)/v.length):0; }
 function svStars(n){ const f=Math.round(n); return '★★★★★'.slice(0,f)+'☆☆☆☆☆'.slice(0,5-f); }
 function renderSurveysAdmin(){
@@ -443,7 +444,7 @@ function renderSurveysAdmin(){
     const best=textList('👍 가장 만족스러웠던 점','best');
     const again=textList('🔁 다음에 하고 싶은 공정','again');
     const comments=textList('💬 한 줄 의견','comment');
-    html+=`<div class="card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div><h3 style="margin:0">${name}</h3><div style="font-size:12px;color:var(--mut);font-weight:600;margin-top:2px">응답 ${rows.length}명</div></div><div style="text-align:right"><div style="font-size:24px;font-weight:800;color:var(--ink);line-height:1">${ov.toFixed(1)}<span style="font-size:12px;color:var(--mut)">/5</span></div><div style="font-size:15px;color:#F5A623;letter-spacing:1px">${svStars(ov)}</div></div></div><div style="border-top:1px solid var(--line);padding-top:10px">${items}${best}${again}${comments}</div></div>`;
+    html+=`<div class="card" style="margin-bottom:14px;padding-bottom:6px"><div onclick="toggleSvCard('svc-${aid}',this)" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding-bottom:6px"><div style="display:flex;align-items:center;gap:8px"><span class="svc-caret" style="font-size:13px;color:#b3bccf;transition:transform .15s">▸</span><div><h3 style="margin:0">${name}</h3><div style="font-size:12px;color:var(--mut);font-weight:600;margin-top:2px">응답 ${rows.length}명 · 눌러서 상세 보기</div></div></div><div style="text-align:right"><div style="font-size:24px;font-weight:800;color:var(--ink);line-height:1">${ov.toFixed(1)}<span style="font-size:12px;color:var(--mut)">/5</span></div><div style="font-size:15px;color:#F5A623;letter-spacing:1px">${svStars(ov)}</div></div></div><div id="svc-${aid}" style="display:none;border-top:1px solid var(--line);padding-top:10px;margin-top:6px">${items}${best}${again}${comments}</div></div>`;
   });
   box.innerHTML=html||'<div class="card" style="text-align:center;color:var(--mut);font-size:13px;padding:22px">검색 결과가 없어요.</div>';
 }

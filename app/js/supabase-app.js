@@ -574,9 +574,19 @@ async function openSurvey() {
   renderSurveyForm()
 }
 window.openSurvey = openSurvey
-function renderSurveyDone() {
+function renderSurveyDone(justSubmitted) {
   const body = document.getElementById('survey-body'); if (!body) return
-  body.innerHTML = '<div style="text-align:center;padding:40px 20px"><div style="font-size:46px;margin-bottom:12px">🙏</div><div style="font-size:16px;font-weight:800;color:#1c2440">이미 참여해 주셨어요</div><div style="font-size:12.5px;color:#8b95ad;font-weight:600;margin-top:8px;line-height:1.7">소중한 의견 감사합니다.<br>더 나은 감리로 보답할게요.</div></div>'
+  const title = justSubmitted ? '소중한 평가, 감사합니다' : '이미 참여해 주셨어요'
+  const msg = justSubmitted
+    ? '남겨주신 한마디 한마디를 감리사와 함께 깊이 새기겠습니다.<br>아파트스퀘어는 눈에 보이지 않는 곳까지<br><b style="color:#F5A623">끝까지 곁에서 꼼꼼하게</b> 확인하는<br>믿을 수 있는 감리로 늘 함께하겠습니다.'
+    : '이미 소중한 의견을 남겨주셨어요.<br>보내주신 신뢰에 보답하는 마음으로<br>아파트스퀘어는 <b style="color:#F5A623">한 단계 한 단계</b><br>정직하게 확인하며 함께하겠습니다.'
+  body.innerHTML = '<div style="text-align:center;padding:44px 22px">'
+    + '<div style="font-size:52px;margin-bottom:14px">' + (justSubmitted ? '🎉' : '🙏') + '</div>'
+    + '<div style="font-size:17px;font-weight:800;color:#1c2440">' + title + '</div>'
+    + '<div style="font-size:12.5px;color:#5c6580;font-weight:600;margin-top:12px;line-height:1.9">' + msg + '</div>'
+    + '<div style="margin-top:22px;display:inline-flex;align-items:center;gap:6px;background:#fff8ec;border:1px solid #f6e2bd;color:#a9791b;font-size:11px;font-weight:800;padding:8px 14px;border-radius:99px">⭐ 아파트스퀘어 · 감리 토탈 솔루션</div>'
+    + '<div onclick="showScreen(currentRole===\'manager\'||currentRole===\'resident\'?\'s11\':\'s11\');loadResidentHome()" style="cursor:pointer;margin-top:24px;font-size:13px;font-weight:800;color:#2F6BF6">홈으로 돌아가기 ›</div>'
+    + '</div>'
 }
 function renderSurveyForm() {
   const body = document.getElementById('survey-body'); if (!body || !SURVEY) return
@@ -621,7 +631,7 @@ async function submitSurvey() {
   localStorage.setItem(surveyKey(SURVEY.apt.id), '1')
   checkSurveyBanner(SURVEY.apt)
   SURVEY = null
-  renderSurveyDone()
+  renderSurveyDone(true)
 }
 window.submitSurvey = submitSurvey
 // 감리사: 담당 단지 만족도 결과

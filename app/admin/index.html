@@ -357,6 +357,7 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=(id)=>document.getElementById(id);
 let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],MGRFORMS=[];
 let RPHOTOS={}; // 보고서별 편집중 사진 목록 {reportId:[url,...]}
+let OPEN_REP_GROUPS=new Set(); // 펼쳐둔 단지 그룹 (저장/업로드 후에도 유지)
 let FPHOTOS={}; // 현장기록별 편집중 사진 목록 {fieldId:[url,...]}
 let FNEW=[];    // 새 현장기록 작성용 사진 목록
 const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};
@@ -830,7 +831,7 @@ function renderReports(){
   const ids=Object.keys(groups).sort((a,b)=>aptName(a).localeCompare(aptName(b),'ko'));
   box.innerHTML=ids.map(id=>{
     const list=groups[id];
-    const expand=!!q; // 검색 시 자동 펼침
+    const expand=!!q||OPEN_REP_GROUPS.has(id); // 검색 시 자동 펼침 · 열어둔 그룹 유지
     const rows=expand?list.map(reportCardHtml).join(''):'';
     return `<div class="rep-group" data-rgroup="${id}" style="margin-bottom:12px">
       <div onclick="toggleReportGroup('${id}')" style="display:flex;align-items:center;gap:9px;padding:12px 14px;background:#f3f6fc;border:1px solid var(--line);border-radius:10px 10px ${expand?'0 0':'10px 10px'};cursor:pointer">
@@ -852,7 +853,21 @@ function toggleReportGroup(id){
       body.innerHTML=list.map(reportCardHtml).join('');
     }
     body.style.display='block';if(caret)caret.textContent='▴';
-  }else{body.style.display='none';if(caret)caret.textContent='▾';}
+    OPEN_REP_GROUPS.add(id);
+  }else{body.style.display='none';if(caret)caret.textContent='▾';OPEN_REP_GROUPS.delete(id);}
+}
+// 카드에 입력해 둔(아직 저장 안 한) 값들을 읽어옴 — PDF 업로드/공개 시 함께 저장
+function collectReportForm(id){
+  const row=document.querySelector(`.card[data-rid="${id}"]`);
+  if(!row)return null;
+  const g=s=>row.querySelector(s);
+  return {
+    title:(g('.rf-title')||{}).value?.trim()||null,
+    stage:(g('.rf-stage')||{}).value?.trim()||null,
+    content:(g('.rf-content')||{}).value?.trim()||null,
+    pub_title:(g('.rf-pubtitle')||{}).value?.trim()||null,
+    photos:RPHOTOS[id]||undefined
+  };
 }
 function reportPhotoHtml(id){
   const arr=RPHOTOS[id]||[];
@@ -919,6 +934,7 @@ async function saveReportAdmin(id){
   const{error}=await sb.from('reports').update({title,stage,content,photos,pub_title:pubTitle}).eq('id',id);
   if(error){if(btn){btn.textContent='저장';btn.disabled=false;}return alert('오류: '+error.message);}
   if(btn){btn.textContent='저장';btn.disabled=false;}
+  const rep=REPORTS.find(x=>x.id===id); if(rep)OPEN_REP_GROUPS.add(rep.apartment_id);
   loadAll();
 }
 // 감리사 현장사진 → 입주민 현장현황(field_updates)에 올리기 (관리자 수동)
@@ -933,6 +949,7 @@ async function pushReportToField(id, btn){
   if(btn){btn.disabled=false;btn.textContent='현장현황에 올리기';}
   if(error) return alert('실패: '+error.message);
   alert('현장현황에 올렸어요! (입주민 현장현황 · '+(dong||'동 미지정')+')');
+  OPEN_REP_GROUPS.add(rep.apartment_id);
   loadAll();
 }
 // PDF 업로드 → reports.pdf_url 저장
@@ -944,8 +961,17 @@ async function uploadReportPdf(id, files){
   const{error:upErr}=await sb.storage.from('report-photos').upload(path,f,{contentType:'application/pdf',upsert:true});
   if(upErr){ alert('업로드 실패: '+upErr.message); return; }
   const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
-  const{error}=await sb.from('reports').update({pdf_url:url,pdf_name:f.name}).eq('id',id);
+  // 입력해 둔 제목·내용 등이 있으면 PDF와 함께 저장 (타이핑한 게 날아가지 않도록)
+  const upd={pdf_url:url,pdf_name:f.name};
+  const form=collectReportForm(id);
+  if(form){
+    if(form.title)upd.title=form.title;
+    upd.stage=form.stage; upd.content=form.content; upd.pub_title=form.pub_title;
+    if(form.photos!==undefined)upd.photos=form.photos;
+  }
+  const{error}=await sb.from('reports').update(upd).eq('id',id);
   if(error){ alert('저장 실패: '+error.message); return; }
+  const rep=REPORTS.find(x=>x.id===id); if(rep)OPEN_REP_GROUPS.add(rep.apartment_id);
   loadAll();
 }
 // 입주민 공개 ON/OFF
@@ -953,13 +979,22 @@ async function toggleReportPublish(id){
   const rep=REPORTS.find(x=>x.id===id); if(!rep) return;
   const next=!rep.published;
   if(next&&!rep.pdf_url&&!confirm('아직 PDF를 안 올리셨어요. PDF 없이 공개하면 입주민에겐 “정리 중” 안내만 보여요.\n그래도 공개할까요?')) return;
-  const{error}=await sb.from('reports').update({published:next}).eq('id',id);
+  const upd={published:next};
+  const form=collectReportForm(id); // 입력해 둔 값이 있으면 함께 저장
+  if(form){
+    if(form.title)upd.title=form.title;
+    upd.stage=form.stage; upd.content=form.content; upd.pub_title=form.pub_title;
+    if(form.photos!==undefined)upd.photos=form.photos;
+  }
+  const{error}=await sb.from('reports').update(upd).eq('id',id);
   if(error){ alert('오류: '+error.message); return; }
   rep.published=next;
+  OPEN_REP_GROUPS.add(rep.apartment_id);
   loadAll();
 }
 async function deleteReport(id){
   if(!confirm('이 감리일지를 삭제할까요?'))return;
+  const rep=REPORTS.find(x=>x.id===id); if(rep)OPEN_REP_GROUPS.add(rep.apartment_id);
   const{error}=await sb.from('reports').delete().eq('id',id);
   if(error)return alert('오류: '+error.message);loadAll();
 }

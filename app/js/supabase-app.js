@@ -1491,8 +1491,8 @@ const ALIM = {
     h += '</div>'
     // 마무리 대표 사진
     h += '<div style="margin-top:22px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:200px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">우리 단지가 안심할 수 있을 때까지 함께합니다</div></div></div>'
-    // 약속 — 짧게
-    h += '<div style="background:#1c2440;color:#fff;border-radius:16px;padding:22px 18px;margin-top:14px;text-align:center"><div style="font-size:24px;margin-bottom:8px">🤝</div><div style="font-size:14px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:12px;font-size:12px;font-weight:800;color:#aeb9d6">— 아파트스퀘어</div></div>'
+    // 약속 — 브랜드 사진(감리사가 고객에게 설명) 위에 문구
+    h += '<div style="border-radius:16px;overflow:hidden;position:relative;margin-top:14px"><img src="assets/philo_promise.jpg" style="width:100%;display:block;height:240px;object-fit:cover;object-position:center 30%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.08) 0%,rgba(15,22,48,.42) 44%,rgba(15,22,48,.94) 100%)"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:20px 18px 22px;text-align:center;color:#fff"><div style="font-size:22px;margin-bottom:6px">🤝</div><div style="font-size:15px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:10px;font-size:12px;font-weight:800;color:#dbe6ff">— 아파트스퀘어</div></div></div>'
     h += '</div>'
     return h
   },

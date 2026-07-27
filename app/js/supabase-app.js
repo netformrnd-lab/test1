@@ -1113,7 +1113,7 @@ function renderReports() {
   }
   const q = repQuery.trim().toLowerCase()
   let list = q
-    ? REP_LIST.filter(r => ((r.title || '') + ' ' + (r.stage || '') + ' ' + (r.content || '')).toLowerCase().includes(q))
+    ? REP_LIST.filter(r => ((repTitle(r) || '') + ' ' + (r.title || '') + ' ' + (r.stage || '') + ' ' + (r.content || '')).toLowerCase().includes(q))
     : REP_LIST
   const bar = dongChips(reportDongList(REP_LIST), REP_DONG, 'selectRepDong')
   if (REP_DONG) list = list.filter(r => reportDongs(r).indexOf(REP_DONG) >= 0)
@@ -1123,6 +1123,11 @@ function renderReports() {
 }
 let REP_DONG = ''
 window.selectRepDong = function (d) { REP_DONG = d; renderReports() }
+// 입주민·관리소장에겐 '입주민에게 보일 제목(pub_title)'을 우선 표시, 감리사에겐 원제목
+function repTitle(r) {
+  const isRes = currentRole && currentRole !== 'auditor'
+  return (isRes && !r._field && r.pub_title) ? r.pub_title : r.title
+}
 function reportCard(r) {
   REPORTS[r.id] = r
   const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
@@ -1133,7 +1138,7 @@ function reportCard(r) {
   const dongs = reportDongs(r)
   const dongBadges = dongs.length ? '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">' + dongs.map(dg => '<span style="font-size:8.5px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:2px 6px;border-radius:5px">' + escH(dg) + '</span>').join('') + '</div>' : ''
   return `<div data-report-id="${r.id}" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer">${thumb}
-    <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">${escH(r.title)}</div>
+    <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">${escH(repTitle(r))}</div>
     <div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:3px">${d}${r.stage ? ' · ' + escH(r.stage) : ''}${ph.length ? ' · 사진 ' + ph.length + '장' : ''}</div>${dongBadges}</div>
   </div>`
 }
@@ -1202,7 +1207,7 @@ async function saveReport() {
 function openReport(r) {
   if (!r) return
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v }
-  set('d-title', r.title || '감리일지')
+  set('d-title', repTitle(r) || '감리일지')
   set('d-date', (r.created_at || '').slice(0, 10).replace(/-/g, '.'))
   const st = document.getElementById('d-stage')
   if (st) { if (r.stage) { st.textContent = r.stage; st.style.display = '' } else { st.style.display = 'none' } }

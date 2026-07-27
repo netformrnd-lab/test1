@@ -249,7 +249,14 @@
       <div class="card">
         <h3>➕ 현장 기록 추가</h3>
         <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input id="fa-apt-q" placeholder="🔍 단지 검색" oninput="filterFieldApt(this.value)" style="width:150px"><select id="fa-apt" class="f" style="max-width:320px"><option value="">단지를 선택하세요</option></select><input id="fa-dong" placeholder="동 (예: 106동)" style="width:140px"></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
+            <div style="position:relative;flex:1;min-width:200px;max-width:320px">
+              <input id="fa-apt-q" placeholder="🔍 단지 검색·선택" autocomplete="off" oninput="fieldAptSearch(this.value)" onfocus="fieldAptSearch(this.value)" onblur="setTimeout(hideFieldAptList,180)" style="width:100%;box-sizing:border-box">
+              <input type="hidden" id="fa-apt">
+              <div id="fa-apt-list" style="display:none;position:absolute;z-index:40;left:0;right:0;top:calc(100% + 3px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(20,29,52,.14);max-height:230px;overflow:auto"></div>
+            </div>
+            <input id="fa-dong" placeholder="동 (예: 106동)" style="width:140px">
+          </div>
           <input id="fa-title" placeholder="제목 (예: 3동 옥상 방수 시공 현황)">
           <textarea id="fa-body" placeholder="내용 (현장 설명·진행 상황 등)" style="min-height:78px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;outline:none;font-family:inherit;resize:vertical"></textarea>
           <div class="fnew-photos" style="display:flex;flex-wrap:wrap;gap:8px"></div>
@@ -1005,26 +1012,26 @@ async function deleteCase(id){
 function fillFieldAptSelect(){
   const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   const opts=sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
-  const sel=$('fa-apt');
-  if(sel){const cur=sel.value;sel.innerHTML='<option value="">단지를 선택하세요</option>'+opts;sel.value=cur;}
   const imp=$('imp-apt');
   if(imp){const cur=imp.value;imp.innerHTML='<option value="">📂 엑셀 카테고리로 자동 분류</option>'+opts;imp.value=cur;}
 }
-// 현장 기록 추가 — 단지 목록이 길 때 이름으로 걸러 보여줌
-function filterFieldApt(q){
-  const sel=$('fa-apt');if(!sel)return;
+// 현장 기록 추가 — 단지 검색·선택 콤보박스 (모바일에서도 동작)
+function fieldAptSearch(q){
+  const box=$('fa-apt-list');if(!box)return;
   const s=(q||'').trim().toLowerCase();
-  let firstMatch='';
-  Array.from(sel.options).forEach(o=>{
-    if(!o.value){o.hidden=false;return;} // '단지를 선택하세요'는 항상 표시
-    const hit=o.textContent.toLowerCase().includes(s);
-    o.hidden=!hit;
-    if(hit&&!firstMatch)firstMatch=o.value;
-  });
-  // 현재 선택이 걸러졌으면, 첫 번째 매칭으로 자동 이동
-  const cur=sel.selectedOptions[0];
-  if(s&&(!cur||cur.hidden))sel.value=firstMatch;
+  const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  const list=sorted.filter(a=>!s||(a.name||'').toLowerCase().includes(s)).slice(0,60);
+  if(!list.length){box.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--mut)">검색 결과가 없어요</div>';box.style.display='block';return;}
+  box.innerHTML=list.map(a=>`<div onmousedown="pickFieldApt('${a.id}')" style="padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--line)">${esc(a.name)}</div>`).join('');
+  box.style.display='block';
 }
+function pickFieldApt(id){
+  const a=APTS.find(x=>x.id===id);if(!a)return;
+  const h=$('fa-apt');if(h)h.value=id;
+  const q=$('fa-apt-q');if(q)q.value=a.name||'';
+  hideFieldAptList();
+}
+function hideFieldAptList(){const b=$('fa-apt-list');if(b)b.style.display='none';}
 async function uploadFieldPhoto(file){
   if(!file)return null;
   const safe=file.name.replace(/[^\w.]/g,'_');
@@ -1051,7 +1058,9 @@ async function addField(){
   const{error}=await sb.from('field_updates').insert({apartment_id,title,dong:$('fa-dong').value.trim()||null,content:$('fa-body').value.trim()||null,photos:FNEW.slice()});
   if(btn){btn.textContent='등록';btn.disabled=false;}
   if(error)return alert('오류: '+error.message);
-  $('fa-title').value='';$('fa-body').value='';const fd=$('fa-dong');if(fd)fd.value='';FNEW=[];refreshFieldNewPhotos();loadAll();
+  $('fa-title').value='';$('fa-body').value='';const fd=$('fa-dong');if(fd)fd.value='';
+  const fq=$('fa-apt-q');if(fq)fq.value='';const fap=$('fa-apt');if(fap)fap.value='';
+  FNEW=[];refreshFieldNewPhotos();loadAll();
 }
 // ── 아임웹 게시판 엑셀 가져오기 ─────────────────────────────
 function impLog(msg,color){

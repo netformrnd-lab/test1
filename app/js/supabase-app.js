@@ -1939,7 +1939,8 @@ function chatFromNav() {
   if (RES_APT && RES_APT.id) {
     openChat({ thread: 'apt:' + RES_APT.id, aptId: RES_APT.id, role: (currentRole === 'manager' ? 'manager' : 'resident'), name: MY_NAME, title: RES_AUD_NAME ? (RES_AUD_NAME + ' 감리사') : '담당 감리사', sub: '우리 단지 감리 상담' })
   } else {
-    openChat({ thread: 'guest:' + chatGuestId(), aptId: null, role: 'guest', name: '손님', title: '아파트스퀘어 상담', sub: '무엇이든 편하게 물어보세요' })
+    // 배정 단지가 없는 사용자는 단지 채팅이 없으므로 카카오 채널로 안내
+    window.open(INQUIRY_URL, '_blank', 'noopener')
   }
 }
 window.chatFromNav = chatFromNav

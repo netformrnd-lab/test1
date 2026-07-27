@@ -42,9 +42,15 @@ create table if not exists chat_messages (
 );
 create index if not exists chat_messages_thread_idx on chat_messages (thread, created_at);
 alter table chat_messages enable row level security;
+-- 전송: 로그인한 '우리 단지' 사용자만, 자기 단지 스레드에만 (스팸·사칭 차단)
 drop policy if exists chat_insert on chat_messages;
 create policy chat_insert on chat_messages
-  for insert to anon, authenticated with check (true);
+  for insert to authenticated with check (
+    apartment_id is not null and (
+      exists (select 1 from profiles p where p.id = auth.uid() and p.apartment_id = chat_messages.apartment_id)
+      or exists (select 1 from apartments a where a.id = chat_messages.apartment_id and a.auditor_id = auth.uid())
+    )
+  );
 drop policy if exists chat_admin_all on chat_messages;
 create policy chat_admin_all on chat_messages
   for all using (is_admin()) with check (is_admin());
@@ -56,9 +62,8 @@ create policy chat_apt_read on chat_messages
       or exists (select 1 from apartments a where a.id = chat_messages.apartment_id and a.auditor_id = auth.uid())
     )
   );
+-- (게스트 비로그인 열람 정책은 보안상 두지 않음)
 drop policy if exists chat_guest_read on chat_messages;
-create policy chat_guest_read on chat_messages
-  for select to anon using (thread like 'guest:%');
 
 -- 3) 소장님 작성지 ----------------------------------------------------
 create table if not exists manager_forms (

@@ -2076,6 +2076,12 @@ function boot() {
   try { tagInquiry() } catch (e) { console.error(e) }
   try { wireBackArrows() } catch (e) { console.error(e) }
   try { renderVideos() } catch (e) { console.error(e) }
+  try { hideSplash() } catch (e) {}
+}
+// 첫 실행 로고 화면(스플래시) 자연스럽게 사라지기
+function hideSplash() {
+  const s = document.getElementById('app-splash'); if (!s) return
+  setTimeout(() => { s.classList.add('hide'); setTimeout(() => { if (s.parentNode) s.remove() }, 600) }, 1100)
 }
 if (document.readyState !== 'loading') boot()
 else document.addEventListener('DOMContentLoaded', boot)

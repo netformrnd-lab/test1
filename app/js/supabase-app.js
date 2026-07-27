@@ -1494,7 +1494,7 @@ const ALIM = {
     // 마무리 대표 사진
     h += '<div style="margin-top:22px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:200px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">우리 단지가 안심할 때까지 함께합니다</div></div></div>'
     // 약속 — 브랜드 사진(감리사가 고객에게 설명) 위에 문구
-    h += '<div style="border-radius:16px;overflow:hidden;position:relative;margin-top:14px"><img src="assets/philo_promise.jpg" style="width:100%;display:block;height:240px;object-fit:cover;object-position:center 30%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.08) 0%,rgba(15,22,48,.42) 44%,rgba(15,22,48,.94) 100%)"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:20px 18px 22px;text-align:center;color:#fff"><div style="font-size:22px;margin-bottom:6px">🤝</div><div style="font-size:15px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:10px;font-size:12px;font-weight:800;color:#dbe6ff">— 아파트스퀘어</div></div></div>'
+    h += '<div style="border-radius:16px;overflow:hidden;position:relative;margin-top:14px"><img src="assets/philo_promise.jpg" style="width:100%;display:block;height:240px;object-fit:cover;object-position:center 30%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.42) 0%,rgba(15,22,48,.66) 45%,rgba(15,22,48,.97) 100%)"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:22px 18px 24px;text-align:center;color:#fff"><div style="font-size:16px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:11px;font-size:12px;font-weight:800;color:#dbe6ff">— 아파트스퀘어</div></div></div>'
     h += '</div>'
     return h
   },
@@ -1777,7 +1777,8 @@ function stopChatPoll() { if (CHAT_POLL) { clearInterval(CHAT_POLL); CHAT_POLL =
 // 하단 '채팅' 탭 진입: 로그인=담당 감리사와 / 비로그인=관리자(손님 상담)
 function chatFromNav() {
   if (currentRole === 'auditor') { openAuditorChatList(); return }
-  if (currentRole && RES_APT && RES_APT.id) {
+  if (!currentRole) { window.open(INQUIRY_URL, '_blank', 'noopener'); return } // 로그인 전 → 카카오톡 채널
+  if (RES_APT && RES_APT.id) {
     openChat({ thread: 'apt:' + RES_APT.id, aptId: RES_APT.id, role: (currentRole === 'manager' ? 'manager' : 'resident'), name: MY_NAME, title: RES_AUD_NAME ? (RES_AUD_NAME + ' 감리사') : '담당 감리사', sub: '우리 단지 감리 상담' })
   } else {
     openChat({ thread: 'guest:' + chatGuestId(), aptId: null, role: 'guest', name: '손님', title: '아파트스퀘어 상담', sub: '무엇이든 편하게 물어보세요' })
@@ -1868,9 +1869,10 @@ async function refreshChatBadge() {
     } catch (e) {}
     return
   }
+  // 로그인 전은 카카오톡 채널로 연결되므로 인앱 채팅 배지 없음
+  if (!currentRole) { setChatNavBadge(0); return }
   let th, role
-  if (currentRole && RES_APT && RES_APT.id) { th = 'apt:' + RES_APT.id; role = (currentRole === 'manager' ? 'manager' : 'resident') }
-  else if (!currentRole) { th = 'guest:' + chatGuestId(); role = 'guest' }
+  if (RES_APT && RES_APT.id) { th = 'apt:' + RES_APT.id; role = (currentRole === 'manager' ? 'manager' : 'resident') }
   else { setChatNavBadge(0); return }
   try { const { data } = await sb.from('chat_messages').select('created_at,sender_role').eq('thread', th).order('created_at', { ascending: true }); setChatNavBadge(unreadFor(data, role, th)) } catch (e) {}
 }

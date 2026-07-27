@@ -33,7 +33,6 @@ async function route() {
   currentRole = profile.role
   MY_ID = user.id; MY_NAME = profile.name || ''
   await loadChatReads()
-  applyRoleNav(profile.role)
   // 현장 점검 저장 후 돌아왔을 때: 해당 단지 감리일지 목록으로 바로 이동
   const openAptId = new URLSearchParams(location.search).get('openApt')
   if (openAptId && profile.role === 'auditor') {
@@ -457,16 +456,7 @@ function wireBackArrows() {
   })
 }
 
-// ── 역할별 하단 메뉴 (입주민: 홈/진행현황/일정, 감리사: 홈/보고서/일정) ──
-function applyRoleNav(role) {
-  const isRes = role !== 'auditor'
-  document.querySelectorAll('.nav').forEach((nav) => {
-    const items = nav.querySelectorAll(':scope > div')
-    if (items.length >= 2) items[1].innerHTML = isRes ? '<div class="ic">📊</div>진행현황' : '<div class="ic">📄</div>보고서'
-  })
-}
-
-// ── 입주민 진행 현황 페이지 (s24) ─────────────────────────
+// ── 입주민 현장 현황 페이지 (s24) ─────────────────────────
 async function loadResidentProgress() {
   let apt = RES_APT
   if (!apt) {
@@ -1167,7 +1157,7 @@ function openReport(r) {
   const rnav = document.getElementById('report-nav')
   if (rnav) rnav.innerHTML = (currentRole === 'auditor')
     ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📄</div>보고서</div><div><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
-    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
   window.showScreen('s10')
 }
 window.openApt = openApt; window.openReport = openReport
@@ -1189,7 +1179,7 @@ async function loadSchedule() {
   const snav = document.getElementById('sched-nav')
   if (snav) snav.innerHTML = isAuditor
     ? '<div><div class="ic">🏠</div>홈</div><div><div class="ic">📄</div>보고서</div><div class="on"><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
-    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
   if (!isAuditor) {
     // 입주민·관리소장: 우리 단지 일정만 (보기 전용)
     if (addBtn) addBtn.style.display = 'none'

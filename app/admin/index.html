@@ -422,42 +422,39 @@ async function loadDongProgress(){
   if(error){ DONGPROG=[]; return; }
   DONGPROG=data||[]; renderApts();
 }
-function dpFor(aptId){ return DONGPROG.filter(x=>x.apartment_id===aptId).sort((a,b)=>(parseInt(a.dong)||999)-(parseInt(b.dong)||999)); }
+// 감리일지 제목·동 정보에서 이 단지의 동 목록을 자동 수집 (+ 이미 설정한 동)
+function autoDongsFor(aptId){
+  const set=new Set();
+  DONGPROG.filter(x=>x.apartment_id===aptId).forEach(x=>set.add(x.dong));
+  (REPORTS||[]).filter(r=>r.apartment_id===aptId).forEach(r=>{
+    const raw=(r.dongs||'').trim();
+    if(raw){ raw.split(',').map(s=>s.trim()).filter(Boolean).forEach(d=>set.add(d)); }
+    else { const txt=(r.title||'')+' '+(r.content||''); const re=/(\d{1,3})\s*동/g; let m; while((m=re.exec(txt))){ set.add(m[1]+'동'); } }
+  });
+  return [...set].sort((a,b)=>(parseInt(a)||999)-(parseInt(b)||999));
+}
 function dongProgHtml(a){
   const st=(window.STAGE_SETS[a.method]||{}).stages;
   const tot=st?st.length:0;
-  const rows=dpFor(a.id);
-  const opt=(cur)=>{ let o=''; o+=`<option value="0" ${cur===0?'selected':''}>시작 전 (0/${tot||'?'})</option>`;
+  const dongs=autoDongsFor(a.id);
+  const stageOf=(dong)=>{ const r=DONGPROG.find(x=>x.apartment_id===a.id&&x.dong===dong); return r?(r.stage||0):0; };
+  const opt=(cur)=>{ let o=`<option value="0" ${cur===0?'selected':''}>시작 전 (0/${tot||'?'})</option>`;
     if(st){ for(let i=1;i<=tot;i++){ o+=`<option value="${i}" ${cur===i?'selected':''}>${i}단계${i<tot?(' · '+esc(st[i-1])):' · 완료'} (${i}/${tot})</option>`; } }
     return o; };
-  const list=rows.map(r=>`<div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-      <span style="min-width:52px;font-size:12px;font-weight:800;color:#2F6BF6">${esc(r.dong)}</span>
-      <select onchange="saveDongStage('${a.id}','${esc(r.dong)}',this.value)" style="flex:1;min-width:0;font-size:11.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-family:inherit;outline:none"${st?'':' disabled'}>${opt(r.stage||0)}</select>
-      <button class="b" style="background:#fdecea;color:#e4544b;padding:5px 9px;font-size:11px" onclick="removeDong('${r.id}')">삭제</button>
+  const list=dongs.map(d=>`<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+      <span style="min-width:52px;font-size:12.5px;font-weight:800;color:#2F6BF6">${esc(d)}</span>
+      <select onchange="saveDongStage('${a.id}','${esc(d)}',this.value)" style="flex:1;min-width:0;font-size:11.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-family:inherit;outline:none"${st?'':' disabled'}>${opt(stageOf(d))}</select>
     </div>`).join('');
   return `<div style="border-top:1px dashed var(--line);margin-top:10px;padding-top:10px">
-    <div style="font-size:12px;font-weight:800;color:var(--ink);margin-bottom:2px">🏢 동별 진행 ${st?'':'<span style="font-size:10px;color:#e4544b;font-weight:700">(공법을 먼저 저장하세요)</span>'}</div>
-    <div style="font-size:10.5px;color:var(--mut);margin-bottom:6px">동을 추가하고 각 동의 현재 단계를 정하면 입주민 현장현황에 진행바로 보여요</div>
-    ${list||'<div style="font-size:11px;color:var(--mut);padding:2px 0">아직 등록된 동이 없어요</div>'}
-    <div style="display:flex;gap:6px;margin-top:8px"><input class="dp-new" placeholder="동 추가 (예: 101)" style="flex:1;min-width:0;font-size:11.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-family:inherit;outline:none"><button class="b save" style="font-size:11.5px" onclick="addDong('${a.id}',this)">＋ 동 추가</button></div>
+    <div style="font-size:12px;font-weight:800;color:var(--ink);margin-bottom:2px">🏢 동별 진행 <span style="font-size:10px;color:var(--mut);font-weight:600">(감리일지에서 자동)</span> ${st?'':'<span style="font-size:10px;color:#e4544b;font-weight:700">· 공법 먼저 저장</span>'}</div>
+    <div style="font-size:10.5px;color:var(--mut);margin-bottom:4px">감리일지에 적힌 동이 자동으로 나와요. <b>단계만 골라주면</b> 입주민 현장현황에 진행바로 표시돼요.</div>
+    ${list||'<div style="font-size:11px;color:var(--mut);padding:4px 0">아직 감리일지에 동 정보가 없어요. 감리사가 감리일지를 작성하면 자동으로 나와요.</div>'}
   </div>`;
 }
-async function addDong(aptId,btn){
-  const row=btn.closest('.apt'); const inp=row.querySelector('.dp-new'); const raw=(inp.value||'').trim();
-  const n=raw.replace(/[^0-9]/g,''); const dong=n?(n+'동'):raw; if(!dong) return alert('동을 입력하세요 (예: 101)');
-  if(dpFor(aptId).some(x=>x.dong===dong)) return alert('이미 있는 동이에요');
-  const{error}=await sb.from('dong_progress').insert({apartment_id:aptId,dong,stage:0});
-  if(error) return alert('추가 실패: '+error.message);
-  inp.value=''; loadDongProgress();
-}
+// 단계 저장 (없으면 자동 생성 = upsert)
 async function saveDongStage(aptId,dong,stage){
-  const{error}=await sb.from('dong_progress').update({stage:parseInt(stage)||0,updated_at:new Date().toISOString()}).eq('apartment_id',aptId).eq('dong',dong);
+  const{error}=await sb.from('dong_progress').upsert({apartment_id:aptId,dong,stage:parseInt(stage)||0,updated_at:new Date().toISOString()},{onConflict:'apartment_id,dong'});
   if(error) alert('저장 실패: '+error.message); else loadDongProgress();
-}
-async function removeDong(id){
-  if(!confirm('이 동을 삭제할까요?')) return;
-  const{error}=await sb.from('dong_progress').delete().eq('id',id);
-  if(error) return alert('삭제 실패: '+error.message); loadDongProgress();
 }
 /* ===== 만족도 조사 (surveys) ===== */
 let SURVEYS_A=[];

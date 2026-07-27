@@ -189,6 +189,13 @@ function renderFieldList() {
   if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || FIELD_DONG ? '해당 사진이 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; return }
   cont.innerHTML = bar + list.map(reportCard).join('')
 }
+// 동별 진행 현황 펼치기/접기
+window.toggleDongProg = function (head) {
+  const el = document.getElementById('dongprog-list'); if (!el) return
+  const open = el.style.display !== 'none'
+  el.style.display = open ? 'none' : 'flex'
+  const c = head && head.querySelector('.dp-caret'); if (c) c.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)'
+}
 // 동별 진행 현황: 관리자가 설정한 dong_progress 기준 (stage = 완료 단계 수)
 function renderDongProgress(apt, rows) {
   const box = document.getElementById('field-dongprog'); if (!box) return
@@ -196,8 +203,8 @@ function renderDongProgress(apt, rows) {
   if (!list.length) { box.style.display = 'none'; box.innerHTML = ''; return }
   const stages = (apt && window.methodStages && window.methodStages(apt.method)) || null
   const tot = stages ? stages.length : 0
-  box.innerHTML = '<div style="font-size:12.5px;font-weight:800;color:#1c2440;margin:2px 2px 9px">🏢 동별 진행 현황</div>'
-    + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:15px">'
+  box.innerHTML = '<div onclick="toggleDongProg(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 14px;margin-bottom:11px"><span style="font-size:12.5px;font-weight:800;color:#1c2440">🏢 동별 진행 현황 <span style="font-size:11px;color:#8b95ad;font-weight:700">(' + list.length + '개 동)</span></span><span class="dp-caret" style="font-size:12px;color:#b3bccf;transition:transform .15s">▾</span></div>'
+    + '<div id="dongprog-list" style="display:none;flex-direction:column;gap:8px;margin-bottom:15px">'
     + list.map(r => {
       const cur = Math.max(0, Math.min(r.stage || 0, tot || (r.stage || 0)))
       const done = tot && cur >= tot

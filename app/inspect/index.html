@@ -216,6 +216,7 @@
         <div class="field full"><div class="field-label">현장명</div><input type="text" id="siteName" placeholder="예: ○○아파트"></div>
         <div class="field full"><div class="field-label">아파트</div><input type="text" id="aptName" placeholder="예: 래미안 퍼스티지"></div>
         <div class="field full"><div class="field-label">당일 공사</div><input type="text" id="todayWork" placeholder="예: 101동 외벽 상도 작업"></div>
+        <div class="field full"><div class="field-label">작업한 동 <span style="font-weight:400;color:#8b95ad">(쉼표로 여러 개 · 비우면 위 '당일 공사'에서 자동 인식)</span></div><input type="text" id="inspDong" placeholder="예: 101, 102, 105"></div>
         <div class="field"><div class="field-label">점검일</div><input type="date" id="inspDate"></div>
         <div class="field"><div class="field-label">점검자</div><input type="text" id="inspector" placeholder="예: 홍길동"></div>
         <div class="field full">
@@ -1106,7 +1107,12 @@ async function saveInspection(){
     const date=document.getElementById('inspDate').value||'';
     const title=`[점검·${state.phase}] ${wl||'현장 점검'}${date?' · '+date:''}`;
     btn.textContent='저장 중...';
-    const{error}=await sb.from('reports').insert({ apartment_id:APT_ID, author_id:user.id, title, content:buildMsg(), stage:state.phase||null, photos:urls });
+    // 작업한 동: 입력값 우선, 없으면 '당일 공사'에서 'N동' 자동 추출
+    let dongs='';
+    const dv=(document.getElementById('inspDong').value||'').trim();
+    if(dv){ dongs=dv.split(/[,\s]+/).map(function(s){return s.trim();}).filter(Boolean).map(function(s){var n=s.replace(/[^0-9]/g,'');return n?n+'동':'';}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;}).join(', '); }
+    else { var tw=document.getElementById('todayWork').value||'', re=/(\d{1,3})\s*동/g, m, arr=[]; while((m=re.exec(tw))){var d=m[1]+'동'; if(arr.indexOf(d)<0)arr.push(d);} dongs=arr.join(', '); }
+    const{error}=await sb.from('reports').insert({ apartment_id:APT_ID, author_id:user.id, title, content:buildMsg(), stage:state.phase||null, dongs:dongs||null, photos:urls });
     if(error){ showToast('저장 실패: '+error.message,'ng'); btn.disabled=false; btn.textContent='앱에 저장하기'; return; }
     showToast('저장 완료!','ok'); goScreen(7);
   }catch(e){ showToast('오류: '+e.message,'ng'); btn.disabled=false; btn.textContent='앱에 저장하기'; }
@@ -1114,7 +1120,7 @@ async function saveInspection(){
 function copyMsg(){navigator.clipboard.writeText(buildMsg()).then(()=>showToast('복사 완료!','ok'));}
 function resetAll(){
   state={workType:'',roofSub:'',phase:'',weather:'',photos:[],checks:{},currentPhotoSlot:-1};
-  ['siteName','aptName','todayWork','special','issue','serialNo','supervisor','contractor'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  ['siteName','aptName','todayWork','inspDong','special','issue','serialNo','supervisor','contractor'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   document.getElementById('inspDate').valueAsDate=new Date();
   document.getElementById('inspector').value=localStorage.getItem('jandi_insp')||'';
   document.querySelectorAll('.work-btn,.weather-btn,.sub-btn,.phase-btn').forEach(b=>b.classList.remove('selected'));

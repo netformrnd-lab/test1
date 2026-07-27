@@ -126,4 +126,7 @@ drop policy if exists profiles_update_self on profiles;
 create policy profiles_update_self on profiles
   for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
+-- 7) 감리일지 '작업한 동' → 동별 작업 현황 자동 분류 ------------------
+alter table reports add column if not exists dongs text;
+
 -- 완료! 'Success. No rows returned' 이 뜨면 정상입니다.

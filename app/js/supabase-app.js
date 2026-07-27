@@ -150,6 +150,33 @@ function dongBar(items, sel, fn) {
   const chip = (val, label, on) => `<span onclick="${fn}('${val}')" style="cursor:pointer;font-size:11px;font-weight:${on ? '800' : '700'};color:${on ? '#fff' : '#5a6480'};background:${on ? '#2F6BF6' : '#eef1f7'};padding:6px 13px;border-radius:99px;white-space:nowrap">${label}</span>`
   return `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:11px;scrollbar-width:none">${chip('', '전체', !sel)}${dongs.map(d => chip(d, d, sel === d)).join('')}</div>`
 }
+// 감리일지 동(棟): dongs 컬럼(쉼표, 여러 동) 우선, 없으면 제목/내용에서 추출
+function reportDongs(r) {
+  const raw = (r.dongs || '').trim()
+  let arr = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
+  if (!arr.length) {
+    const txt = (r.title || '') + ' ' + (r.content || ''); const re = /(\d{1,3})\s*동/g; let m
+    while ((m = re.exec(txt))) { const d = m[1] + '동'; if (arr.indexOf(d) < 0) arr.push(d) }
+  }
+  return arr
+}
+function reportDongList(items) {
+  const set = []
+  ;(items || []).forEach(r => reportDongs(r).forEach(d => { if (set.indexOf(d) < 0) set.push(d) }))
+  return set.sort((a, b) => (parseInt(a) || 999) - (parseInt(b) || 999))
+}
+// 칩 UI (동 문자열 배열을 직접 받음)
+function dongChips(dongs, sel, fn) {
+  if (!dongs || dongs.length <= 1) return ''
+  const chip = (val, label, on) => `<span onclick="${fn}('${val}')" style="cursor:pointer;font-size:11px;font-weight:${on ? '800' : '700'};color:${on ? '#fff' : '#5a6480'};background:${on ? '#2F6BF6' : '#eef1f7'};padding:6px 13px;border-radius:99px;white-space:nowrap">${label}</span>`
+  return `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:11px;scrollbar-width:none">${chip('', '전체', !sel)}${dongs.map(d => chip(d, d, sel === d)).join('')}</div>`
+}
+// 입력 정규화: "101, 102 105동" → "101동, 102동, 105동"
+function normDongsInput(str) {
+  return (str || '').split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+    .map(s => { const n = s.replace(/[^0-9]/g, ''); return n ? (n + '동') : s })
+    .filter((v, i, a) => a.indexOf(v) === i).join(', ')
+}
 let FIELD_LIST = []       // 입주민 현장 현황 전체
 let FIELD_DONG = ''
 window.selectFieldDong = function (d) { FIELD_DONG = d; renderFieldList() }
@@ -410,8 +437,20 @@ async function loadResidentReports() {
   const { data: apt } = await sb.from('apartments').select('name').eq('id', prof.apartment_id).single()
   if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
   const { data } = await sb.from('reports').select('*').eq('apartment_id', prof.apartment_id).eq('published', true).order('created_at', { ascending: false })
-  if (!data || !data.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 공개된 감리일지가 없어요.<br>감리가 확인을 마치면 여기에 올라와요.</div>'; return }
-  cont.innerHTML = data.map(reportCard).join('')
+  RES_REP_LIST = data || []
+  RES_REP_DONG = ''
+  renderResReports()
+}
+let RES_REP_LIST = []
+let RES_REP_DONG = ''
+window.selectResRepDong = function (d) { RES_REP_DONG = d; renderResReports() }
+function renderResReports() {
+  const cont = document.getElementById('res-report-list'); if (!cont) return
+  if (!RES_REP_LIST.length) { cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 공개된 감리일지가 없어요.<br>감리가 확인을 마치면 여기에 올라와요.</div>'; return }
+  const bar = dongChips(reportDongList(RES_REP_LIST), RES_REP_DONG, 'selectResRepDong')
+  let list = RES_REP_LIST
+  if (RES_REP_DONG) list = list.filter(r => reportDongs(r).indexOf(RES_REP_DONG) >= 0)
+  cont.innerHTML = bar + (list.length ? list.map(reportCard).join('') : '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">해당 동 감리일지가 없어요.</div>')
 }
 window.loadResidentHome = loadResidentHome
 
@@ -1032,6 +1071,7 @@ async function loadReports(aptId) {
   const { data: reports, error } = await sb.from('reports').select('*').eq('apartment_id', aptId).order('created_at', { ascending: false })
   if (error) { cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">보고서를 불러오지 못했어요</div>'; return }
   REP_LIST = reports || []
+  REP_DONG = ''
   renderReports()
 }
 function renderReports() {
@@ -1041,13 +1081,17 @@ function renderReports() {
     return
   }
   const q = repQuery.trim().toLowerCase()
-  const list = q
+  let list = q
     ? REP_LIST.filter(r => ((r.title || '') + ' ' + (r.stage || '') + ' ' + (r.content || '')).toLowerCase().includes(q))
     : REP_LIST
-  cont.innerHTML = list.length
+  const bar = dongChips(reportDongList(REP_LIST), REP_DONG, 'selectRepDong')
+  if (REP_DONG) list = list.filter(r => reportDongs(r).indexOf(REP_DONG) >= 0)
+  cont.innerHTML = bar + (list.length
     ? list.map(reportCard).join('')
-    : '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">검색 결과가 없어요.</div>'
+    : '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">해당 동 감리일지가 없어요.</div>')
 }
+let REP_DONG = ''
+window.selectRepDong = function (d) { REP_DONG = d; renderReports() }
 function reportCard(r) {
   REPORTS[r.id] = r
   const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
@@ -1055,9 +1099,11 @@ function reportCard(r) {
   const thumb = ph.length
     ? `<div style="width:50px;height:50px;border-radius:10px;background:url('${ph[0]}') center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">${ph.length}장</span></div>`
     : `<div style="width:50px;height:50px;border-radius:10px;background:#eef1f7;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">📄</div>`
+  const dongs = reportDongs(r)
+  const dongBadges = dongs.length ? '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">' + dongs.map(dg => '<span style="font-size:8.5px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:2px 6px;border-radius:5px">' + escH(dg) + '</span>').join('') + '</div>' : ''
   return `<div data-report-id="${r.id}" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer">${thumb}
     <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">${escH(r.title)}</div>
-    <div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:3px">${d}${r.stage ? ' · ' + escH(r.stage) : ''}${ph.length ? ' · 사진 ' + ph.length + '장' : ''}</div></div>
+    <div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:3px">${d}${r.stage ? ' · ' + escH(r.stage) : ''}${ph.length ? ' · 사진 ' + ph.length + '장' : ''}</div>${dongBadges}</div>
   </div>`
 }
 // 사진 업로드 (Supabase Storage)
@@ -1115,7 +1161,8 @@ async function saveReport() {
   if (memo) content += (content ? '\n' : '') + memo
   const { data: { user } } = await sb.auth.getUser()
   const btn = document.getElementById('w-submit'); if (btn) btn.textContent = '등록 중…'
-  const { error } = await sb.from('reports').insert({ apartment_id: currentApt.id, author_id: user.id, title, content: content || null, stage: stage || null, photos: W_PHOTOS })
+  const dongs = normDongsInput((document.getElementById('w-dongs') || {}).value)
+  const { error } = await sb.from('reports').insert({ apartment_id: currentApt.id, author_id: user.id, title, content: content || null, stage: stage || null, dongs: dongs || null, photos: W_PHOTOS })
   if (btn) btn.textContent = '등록하기'
   if (error) { alert('등록 실패: ' + error.message); return }
   window.showScreen('s08')

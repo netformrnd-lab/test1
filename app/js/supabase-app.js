@@ -189,6 +189,29 @@ function renderFieldList() {
   if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || FIELD_DONG ? '해당 사진이 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; return }
   cont.innerHTML = bar + list.map(reportCard).join('')
 }
+// 동별 진행 현황: 각 동의 '최신 감리일지 공정' = 그 동의 현재 단계
+function renderDongProgress(apt, reports) {
+  const box = document.getElementById('field-dongprog'); if (!box) return
+  const byDong = {}
+  ;(reports || []).forEach(r => { reportDongs(r).forEach(d => { if (!byDong[d] || (r.created_at || '') > (byDong[d].created_at || '')) byDong[d] = r }) })
+  const dongs = Object.keys(byDong).sort((a, b) => (parseInt(a) || 999) - (parseInt(b) || 999))
+  if (!dongs.length) { box.style.display = 'none'; box.innerHTML = ''; return }
+  const stages = (apt && window.methodStages && window.methodStages(apt.method)) || null
+  box.innerHTML = '<div style="font-size:12.5px;font-weight:800;color:#1c2440;margin:2px 2px 9px">🏢 동별 진행 현황</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:15px">'
+    + dongs.map(d => {
+      const r = byDong[d], stage = r.stage || '진행 중'
+      let bar = ''
+      if (stages) {
+        const idx = stages.indexOf(r.stage), cur = idx >= 0 ? idx + 1 : 0, pct = cur ? Math.round(cur / stages.length * 100) : 0
+        bar = '<div style="height:5px;border-radius:9px;background:#eef1f7;margin-top:7px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:#2F6BF6;border-radius:9px"></div></div>'
+          + (cur ? '<div style="font-size:9px;color:#8b95ad;font-weight:700;margin-top:3px">' + cur + '/' + stages.length + ' 단계</div>' : '')
+      }
+      return '<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 13px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:800;color:#2F6BF6">' + escH(d) + '</span><span style="font-size:9px;color:#aab2c4;font-weight:700">' + ((r.created_at || '').slice(0, 10).replace(/-/g, '.')) + '</span></div><div style="font-size:11.5px;font-weight:700;color:#3a445e;margin-top:3px">현재 공정 · ' + escH(stage) + '</div>' + bar + '</div>'
+    }).join('')
+    + '</div>'
+  box.style.display = 'block'
+}
 // 현장 현황 상단: 공정 진행 단계 요약 (탭하면 s24 상세)
 function renderFieldProgress(apt) {
   const box = document.getElementById('field-prog'); if (!box) return
@@ -216,6 +239,11 @@ async function loadFieldUpdates() {
   if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
   renderFieldProgress(apt)
   checkSurveyBanner(apt)
+  // 동별 진행 현황: 공개된 감리일지의 동+공정으로 각 동 최신 단계 계산
+  try {
+    const { data: reps } = await sb.from('reports').select('stage,dongs,title,content,created_at').eq('apartment_id', prof.apartment_id).eq('published', true).order('created_at', { ascending: false })
+    renderDongProgress(apt, reps || [])
+  } catch (e) { renderDongProgress(apt, []) }
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
   FIELD_LIST = data || []
   renderFieldList()

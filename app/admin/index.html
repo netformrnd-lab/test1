@@ -260,7 +260,7 @@
           <input id="fa-title" placeholder="제목 (예: 20260718 [107동 필로티 도장작업])">
           <textarea id="fa-body" placeholder="내용 (현장 설명·진행 상황 등)" style="min-height:78px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;outline:none;font-family:inherit;resize:vertical"></textarea>
           <div class="fnew-photos" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-          <button class="b save" style="align-self:flex-start" onclick="addField()">등록</button>
+          <button id="fa-btn" class="b save" style="align-self:flex-start" onclick="addField()">등록</button>
         </div>
       </div>
       <div class="add-form" style="margin-bottom:16px"><input id="fld-q" placeholder="🔍 단지명·제목으로 검색" style="width:320px" oninput="renderField()"></div>
@@ -1054,7 +1054,7 @@ function removeFieldNewPhoto(i){FNEW.splice(i,1);refreshFieldNewPhotos();}
 async function addField(){
   const apartment_id=$('fa-apt').value;if(!apartment_id)return alert('단지를 선택하세요');
   const title=$('fa-title').value.trim();if(!title)return alert('제목을 입력하세요');
-  const btn=document.querySelector('#sec-field .save');if(btn){btn.textContent='등록 중…';btn.disabled=true;}
+  const btn=$('fa-btn');if(btn){btn.textContent='등록 중…';btn.disabled=true;}
   const{error}=await sb.from('field_updates').insert({apartment_id,title,dong:$('fa-dong').value.trim()||null,content:$('fa-body').value.trim()||null,photos:FNEW.slice()});
   if(btn){btn.textContent='등록';btn.disabled=false;}
   if(error)return alert('오류: '+error.message);

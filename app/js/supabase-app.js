@@ -1149,16 +1149,18 @@ function repTitle(r) {
 }
 function reportCard(r) {
   REPORTS[r.id] = r
-  // 입주민·관리소장에게 감리일지는 'PDF 문서'로만 보임 — 감리사 원본 사진 썸네일·장수는 감춤(상세와 동일 규칙)
+  // 현장현황(_field)은 항상 사진 썸네일. 입주민 감리일지(reports)만 PDF 문서 아이콘으로 표시
   const isRes = currentRole && currentRole !== 'auditor'
+  const isField = !!r._field
   const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
   const ph = Array.isArray(r.photos) ? r.photos : []
-  const thumb = (ph.length && !isRes)
+  const showPhoto = ph.length && (isField || !isRes)
+  const thumb = showPhoto
     ? `<div style="width:50px;height:50px;border-radius:10px;background:url('${ph[0]}') center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">${ph.length}장</span></div>`
     : `<div style="width:50px;height:50px;border-radius:10px;background:#eef1f7;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">📄</div>`
   const dongs = reportDongs(r)
   const dongBadges = dongs.length ? '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">' + dongs.map(dg => '<span style="font-size:8.5px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:2px 6px;border-radius:5px">' + escH(dg) + '</span>').join('') + '</div>' : ''
-  const meta = isRes
+  const meta = (isRes && !isField)
     ? d + (r.pdf_url ? ' · 감리 보고서 PDF' : '')
     : d + (r.stage ? ' · ' + escH(r.stage) : '') + (ph.length ? ' · 사진 ' + ph.length + '장' : '')
   return `<div data-report-id="${r.id}" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer">${thumb}

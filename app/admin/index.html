@@ -225,6 +225,20 @@
     <!-- 감리일지 (감리사 작성 → 관리자 재작성 → 입주민 공개) -->
     <section id="sec-reports">
       <div class="head"><div><h2>감리일지</h2><div class="desc">감리사가 올린 보고서를 다듬어 입주민에게 공개하세요. ‘입주민 공개’를 켜야 입주민 앱에 보여요</div></div></div>
+      <div class="card" style="border:1.5px dashed #b9c6e0;background:#f7faff">
+        <h3>📁 감리일지 PDF 여러 개 올리기</h3>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 12px">단지를 고르고 <b>감리일지 PDF들(폴더 안 파일 전체 선택)</b>을 올리면, <b>파일 하나가 감리일지 하나</b>로 등록돼요. 파일명이 제목이 되고, 파일명에 <b>날짜(20260401)·동(927동)</b>이 있으면 자동으로 잡아요.</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+          <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">단지:</label>
+          <select id="rep-imp-apt" class="f" style="max-width:280px"><option value="">단지를 선택하세요</option></select>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--mut2);cursor:pointer"><input type="checkbox" id="rep-imp-pub" checked> 올리자마자 입주민에게 공개</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input id="rep-imp-files" type="file" accept="application/pdf" multiple style="font-size:13px">
+          <button id="rep-imp-btn" class="b save" onclick="importReportPdfs()">가져오기 시작</button>
+        </div>
+        <div id="rep-imp-log" style="margin-top:12px;font-size:12px;line-height:1.7;max-height:240px;overflow:auto;font-family:monospace;color:var(--mut2);white-space:pre-wrap"></div>
+      </div>
       <div class="add-form" style="margin-bottom:16px"><input id="rep-q" placeholder="🔍 단지명·제목으로 검색" style="width:320px" oninput="renderReports()"></div>
       <div id="reports"></div>
     </section>
@@ -1073,6 +1087,55 @@ function fillFieldAptSelect(){
   const opts=sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
   const imp=$('imp-apt');
   if(imp){const cur=imp.value;imp.innerHTML='<option value="">📂 엑셀 카테고리로 자동 분류</option>'+opts;imp.value=cur;}
+  const rimp=$('rep-imp-apt');
+  if(rimp){const cur=rimp.value;rimp.innerHTML='<option value="">단지를 선택하세요</option>'+opts;rimp.value=cur;}
+}
+// 감리일지 PDF 폴더/여러 개 대량 등록 (파일 1개 = 감리일지 1개)
+function cleanRepTitle(name){ return name.replace(/\.[^.]+$/,'').replace(/[_]+/g,' ').trim(); }
+function dateFromName(name){
+  const m=(name||'').match(/(20\d{2})[.\-_ ]?(\d{2})[.\-_ ]?(\d{2})/);
+  if(!m) return null;
+  const mo=+m[2], da=+m[3]; if(mo<1||mo>12||da<1||da>31) return null;
+  return m[1]+'-'+m[2]+'-'+m[3]+'T00:00:00Z';
+}
+async function importReportPdfs(){
+  const aptId=($('rep-imp-apt')||{}).value||'';
+  if(!aptId){ alert('단지를 먼저 선택하세요'); return; }
+  const fi=$('rep-imp-files'); const all=fi&&fi.files;
+  if(!all||!all.length){ alert('PDF 파일을 선택하세요'); return; }
+  const list=Array.from(all).filter(f=>/\.pdf$/i.test(f.name)||f.type==='application/pdf');
+  if(!list.length){ alert('PDF 파일이 없어요'); return; }
+  const pubs=!!($('rep-imp-pub')||{}).checked;
+  const btn=$('rep-imp-btn'); if(btn){btn.disabled=true;btn.textContent='올리는 중…';}
+  const log=$('rep-imp-log'); if(log) log.innerHTML='';
+  const say=(m,c)=>{ if(!log)return; const d=document.createElement('div'); d.textContent=m; if(c)d.style.color=c; log.appendChild(d); log.scrollTop=log.scrollHeight; };
+  say('총 '+list.length+'개 PDF 처리 시작…','#2563eb');
+  let ok=0,fail=0,skip=0;
+  const {data:{user}}=await sb.auth.getUser();
+  const {data:existing}=await sb.from('reports').select('title').eq('apartment_id',aptId);
+  const seen=new Set((existing||[]).map(x=>x.title));
+  for(const f of list){
+    const title=cleanRepTitle(f.name);
+    if(!title){ skip++; continue; }
+    if(seen.has(title)){ skip++; say('건너뜀(이미 있음): '+title); continue; }
+    try{
+      const safe=f.name.replace(/[^\w.\-]/g,'_');
+      const path='report-pdf/'+aptId+'_'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+safe;
+      const {error:upErr}=await sb.storage.from('report-photos').upload(path,f,{contentType:'application/pdf',upsert:false});
+      if(upErr){ fail++; say('업로드 실패: '+title+' — '+upErr.message,'#e4544b'); continue; }
+      const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
+      const dongs=(window.parseDongs?window.parseDongs(title):[]).join(', ')||null;
+      const row={apartment_id:aptId,title,pdf_url:url,pdf_name:f.name,dongs,published:pubs,author_id:user?user.id:null};
+      const created=dateFromName(f.name); if(created) row.created_at=created;
+      const {error}=await sb.from('reports').insert(row);
+      if(error){ fail++; say('저장 실패: '+title+' — '+error.message,'#e4544b'); continue; }
+      seen.add(title); ok++; say('✓ '+title+(dongs?(' ['+dongs+']'):''));
+    }catch(e){ fail++; say('오류: '+title+' — '+(e.message||e),'#e4544b'); }
+  }
+  say('완료 — 등록 '+ok+' · 건너뜀 '+skip+' · 실패 '+fail, ok?'#1f8a5b':'#e4544b');
+  if(btn){btn.disabled=false;btn.textContent='가져오기 시작';}
+  if(fi)fi.value='';
+  loadAll();
 }
 // 현장 기록 추가 — 단지 검색·선택 콤보박스 (모바일에서도 동작)
 function fieldAptSearch(q){

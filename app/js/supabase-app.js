@@ -765,18 +765,20 @@ function safeRegion(r) {
 }
 function renderRegionActivity() {
   const box = document.getElementById('res-region'); if (!box) return
-  if (!REGION_ALL.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">표시할 감리 활동이 없어요.</div>'; return }
-  const stMap = { in_progress: ['감리 진행 중', '#2F6BF6'], scheduled: ['점검 예정', '#c98a1e'], done: ['점검 완료', '#1f8a5b'] }
-  const list = REGION_MORE ? REGION_ALL : REGION_ALL.slice(0, REGION_CAP)
+  // 완료된 단지는 '타 단지 감리 현황' 피드에 표시하지 않음 (진행 중·예정만)
+  const feed = (REGION_ALL || []).filter(r => r.status !== 'done')
+  if (!feed.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">지금 진행 중인 타 단지 감리가 없어요.</div>'; return }
+  const stMap = { in_progress: ['감리 진행 중', '#2F6BF6'], scheduled: ['점검 예정', '#c98a1e'] }
+  const list = REGION_MORE ? feed : feed.slice(0, REGION_CAP)
   let html = list.map((r, i) => {
     const [lbl, col] = stMap[r.status] || stMap.scheduled
     const region = safeRegion(r.region)
     const type = r.construction_type || '유지보수'
-    const line = (i < list.length - 1 || REGION_ALL.length > REGION_CAP) ? 'border-bottom:1px solid #f0f2f7;' : ''
+    const line = (i < list.length - 1 || feed.length > REGION_CAP) ? 'border-bottom:1px solid #f0f2f7;' : ''
     return `<div style="display:flex;align-items:center;gap:9px;padding:12px 13px;${line}"><span style="width:7px;height:7px;border-radius:99px;background:${col};flex-shrink:0"></span><div style="flex:1;font-size:12.5px;font-weight:700;color:#2a3350;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(region)} · ${escH(type)}</div><span style="font-size:10.5px;color:${col};font-weight:800;flex-shrink:0">${lbl}</span></div>`
   }).join('')
-  if (REGION_ALL.length > REGION_CAP) {
-    const label = REGION_MORE ? '접기 ▲' : `전체보기 (+${REGION_ALL.length - REGION_CAP}) ▼`
+  if (feed.length > REGION_CAP) {
+    const label = REGION_MORE ? '접기 ▲' : `전체보기 (+${feed.length - REGION_CAP}) ▼`
     html += `<div onclick="toggleRegionMore()" style="cursor:pointer;text-align:center;padding:11px;font-size:12px;font-weight:800;color:#2F6BF6">${label}</div>`
   }
   box.innerHTML = html

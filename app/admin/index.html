@@ -1525,6 +1525,7 @@ function renderApts(){
       <div class="prog"><span>${now}</span><span>${pc} / ${pt}</span></div>
       <div class="edit"><label>공법</label><select class="f f-method" onchange="onMethodChange(this)">${methodOpts(a.method)}</select></div>
       <div class="edit"><label>공정</label><select class="f f-stage">${stageOpts(a.method,pc)}</select></div>
+      <div class="edit"><label>상태</label><select class="f f-status"><option value="scheduled" ${(!a.status||a.status==='scheduled')?'selected':''}>점검 예정</option><option value="in_progress" ${a.status==='in_progress'?'selected':''}>감리 진행 중</option><option value="done" ${a.status==='done'?'selected':''}>완료 (타 단지 피드엔 숨김)</option></select></div>
       <div class="aud"><label style="min-width:34px;font-size:12px;color:var(--mut2);font-weight:700">감리사</label><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
       ${dongProgHtml(a)}
       <div style="text-align:right;margin-top:9px"><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button></div>
@@ -1584,8 +1585,9 @@ async function saveApt(id){
   const st=(window.STAGE_SETS[method]||{}).stages;
   const pt=st?st.length:0;
   let pc=parseInt(row.querySelector('.f-stage').value,10);if(isNaN(pc)||pc<0)pc=0;if(pt&&pc>pt)pc=pt;
-  // 상태 자동 계산: 시작전→점검예정, 마지막단계→완료, 그외→진행중
-  let status='scheduled';if(pt&&pc>=pt)status='done';else if(pc>0)status='in_progress';
+  // 감독 상태: 관리자가 드롭다운으로 직접 지정 (없으면 점검 예정)
+  const statusEl=row.querySelector('.f-status');
+  const status=statusEl?statusEl.value:'scheduled';
   const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
   const{error}=await sb.from('apartments').update({name,region,construction_type:ctype,auditor_id:aud,method,status,progress_current:pc,progress_total:pt}).eq('id',id);
   if(error){if(btn){btn.textContent='저장';btn.disabled=false;}return alert('오류: '+error.message);}

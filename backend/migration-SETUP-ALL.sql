@@ -323,8 +323,9 @@ as $$
          a.construction_type,
          a.status
   from apartments a
-  order by a.created_at desc
-  limit 8
+  where a.status is distinct from 'done'
+  order by (a.status = 'in_progress') desc, a.created_at desc
+  limit 12
 $$;
 grant execute on function public.region_activity() to anon, authenticated;
 

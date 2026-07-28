@@ -192,7 +192,8 @@ function normDongsInput(str) {
 }
 let FIELD_LIST = []       // 입주민 현장 현황 전체
 let FIELD_DONG = ''
-window.selectFieldDong = function (d) { FIELD_DONG = d; renderFieldList() }
+let DONG_ROWS = []        // 동별 진행 현황(dong_progress) 원본
+window.selectFieldDong = function (d) { FIELD_DONG = d; renderFieldList(); renderDongProgress(RES_APT, DONG_ROWS) }
 function renderFieldList() {
   const cont = document.getElementById('field-list'); if (!cont) return
   const q = ((document.getElementById('field-search') || {}).value || '').trim().toLowerCase()
@@ -212,12 +213,22 @@ window.toggleDongProg = function (head) {
 // 동별 진행 현황: 관리자가 설정한 dong_progress 기준 (stage = 완료 단계 수)
 function renderDongProgress(apt, rows) {
   const box = document.getElementById('field-dongprog'); if (!box) return
-  const list = (rows || []).slice().sort((a, b) => (parseInt(a.dong) || 999) - (parseInt(b.dong) || 999))
+  let list = (rows || []).slice().sort((a, b) => (parseInt(a.dong) || 999) - (parseInt(b.dong) || 999))
+  const sel = FIELD_DONG
+  if (sel) list = list.filter(r => r.dong === sel)
+  // 특정 동 선택 시 진행 정보가 없으면 안내
+  if (sel && !list.length) {
+    box.innerHTML = '<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 14px;margin-bottom:11px;font-size:12px;font-weight:700;color:#8b95ad">🏢 ' + escH(sel) + ' 진행 정보가 아직 없어요.</div>'
+    box.style.display = 'block'; return
+  }
   if (!list.length) { box.style.display = 'none'; box.innerHTML = ''; return }
   const stages = (apt && window.methodStages && window.methodStages(apt.method)) || null
   const tot = stages ? stages.length : 0
-  box.innerHTML = '<div onclick="toggleDongProg(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 14px;margin-bottom:11px"><span style="font-size:12.5px;font-weight:800;color:#1c2440">🏢 동별 진행 현황 <span style="font-size:11px;color:#8b95ad;font-weight:700">(' + list.length + '개 동)</span></span><span class="dp-caret" style="font-size:12px;color:#b3bccf;transition:transform .15s">▾</span></div>'
-    + '<div id="dongprog-list" style="display:none;flex-direction:column;gap:8px;margin-bottom:15px">'
+  const openInit = sel ? 'flex' : 'none'         // 특정 동 선택 시 자동 펼침
+  const caretRot = sel ? 'rotate(180deg)' : 'rotate(0deg)'
+  const headTxt = sel ? ('🏢 ' + escH(sel) + ' 진행 현황') : ('🏢 동별 진행 현황 <span style="font-size:11px;color:#8b95ad;font-weight:700">(' + list.length + '개 동)</span>')
+  box.innerHTML = '<div onclick="toggleDongProg(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 14px;margin-bottom:11px"><span style="font-size:12.5px;font-weight:800;color:#1c2440">' + headTxt + '</span><span class="dp-caret" style="font-size:12px;color:#b3bccf;transition:transform .15s;transform:' + caretRot + '">▾</span></div>'
+    + '<div id="dongprog-list" style="display:' + openInit + ';flex-direction:column;gap:8px;margin-bottom:15px">'
     + list.map(r => {
       const cur = Math.max(0, Math.min(r.stage || 0, tot || (r.stage || 0)))
       const done = tot && cur >= tot
@@ -258,8 +269,9 @@ async function loadFieldUpdates() {
   // 동별 진행 현황: 관리자가 설정한 dong_progress
   try {
     const { data: dp } = await sb.from('dong_progress').select('dong,stage').eq('apartment_id', prof.apartment_id)
-    renderDongProgress(apt, dp || [])
-  } catch (e) { renderDongProgress(apt, []) }
+    DONG_ROWS = dp || []
+    renderDongProgress(apt, DONG_ROWS)
+  } catch (e) { DONG_ROWS = []; renderDongProgress(apt, []) }
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
   FIELD_LIST = (data || []).map(f => { f._field = true; return f }) // 현장현황 항목 표시(감리일지와 구분)
   renderFieldList()

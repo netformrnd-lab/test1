@@ -151,7 +151,8 @@ async function loadResidentNext(aptId) {
 function fieldDong(f) {
   if (f.dong) return f.dong
   const base = APT_DONG_BASE[f.apartment_id] || 0
-  const ds = window.parseDongs ? window.parseDongs((f.title || '') + ' ' + (f.content || ''), base) : []
+  // 제목에서만 추출 (본문엔 라인번호·호수 등 숫자 노이즈가 많음)
+  const ds = window.parseDongs ? window.parseDongs((f.title || ''), base) : []
   return ds.length ? ds[0] : '기타'
 }
 function dongList(items) {
@@ -169,7 +170,7 @@ function reportDongs(r) {
   const base = APT_DONG_BASE[r.apartment_id] || 0
   const raw = (r.dongs || '').trim()
   let arr = raw ? (P ? P(raw, base) : raw.split(',').map(s => s.trim()).filter(Boolean)) : []
-  if (!arr.length) arr = P ? P((r.title || '') + ' ' + (r.content || ''), base) : []
+  if (!arr.length) arr = P ? P((r.title || ''), base) : [] // 제목만 (본문 숫자 노이즈 제외)
   return arr
 }
 function reportDongList(items) {

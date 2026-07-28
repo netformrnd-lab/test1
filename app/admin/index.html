@@ -441,12 +441,13 @@ function autoDongsFor(aptId){
   const P=window.parseDongs;
   const scan=(txt)=>{ (P?P(txt,base):[]).forEach(d=>set.add(d)); };
   DONGPROG.filter(x=>x.apartment_id===aptId&&!x.hidden).forEach(x=>set.add(x.dong));
+  // 동은 '제목'에서만 추출 — 본문엔 라인번호·호수·작업설명 숫자가 많아 오검출됨
   (REPORTS||[]).filter(r=>r.apartment_id===aptId).forEach(r=>{
     const raw=(r.dongs||'').trim();
     if(raw){ (P?P(raw,base):raw.split(',').map(s=>s.trim()).filter(Boolean)).forEach(d=>set.add(d)); }
-    else scan((r.title||'')+' '+(r.content||''));
+    else scan((r.title||''));
   });
-  (FIELDS||[]).filter(f=>f.apartment_id===aptId).forEach(f=>{ if(f.dong) set.add(f.dong); else scan((f.title||'')+' '+(f.content||'')); });
+  (FIELDS||[]).filter(f=>f.apartment_id===aptId).forEach(f=>{ if(f.dong) set.add(f.dong); else scan((f.title||'')); });
   hidden.forEach(h=>set.delete(h)); // 숨긴 동은 자동 감지돼도 제외
   return [...set].sort((a,b)=>(parseInt(a)||999)-(parseInt(b)||999));
 }

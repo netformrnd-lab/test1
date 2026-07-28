@@ -1956,17 +1956,61 @@ async function deleteContract(id) {
 window.deleteContract = deleteContract
 
 // 사진 확대 (라이트박스)
+// 사진 팝업 — 핀치 줌 + 드래그 이동 + 두 번 탭 확대 (감리 사진 자세히 보기)
+function wirePhotoZoom (ov) {
+  const img = ov.querySelector('#pz-img')
+  let scale = 1, tx = 0, ty = 0, start = null, lastTap = 0, lastTouchTs = 0
+  const MIN = 1, MAX = 5
+  const apply = () => { img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')' }
+  const setT = (on) => { img.style.transition = on ? 'transform .22s ease' : 'none' }
+  const reset = () => { scale = 1; tx = 0; ty = 0; setT(false); apply() }
+  ov._reset = reset
+  const close = () => { ov.style.display = 'none' }
+  const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
+  ov.addEventListener('touchstart', (e) => {
+    if (e.target.id === 'pz-close') { close(); return }
+    setT(false)
+    if (e.touches.length === 2) start = { mode: 'pinch', d0: dist(e.touches), s0: scale }
+    else if (e.touches.length === 1) start = { mode: 'pan', x0: e.touches[0].clientX, y0: e.touches[0].clientY, tx0: tx, ty0: ty, moved: false }
+  }, { passive: false })
+  ov.addEventListener('touchmove', (e) => {
+    if (!start) return
+    e.preventDefault()
+    if (start.mode === 'pinch' && e.touches.length >= 2) {
+      scale = Math.max(MIN, Math.min(MAX, start.s0 * (dist(e.touches) / start.d0))); apply()
+    } else if (start.mode === 'pan' && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - start.x0, dy = e.touches[0].clientY - start.y0
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) start.moved = true
+      if (scale > 1.03) { tx = start.tx0 + dx; ty = start.ty0 + dy; apply() }
+    }
+  }, { passive: false })
+  ov.addEventListener('touchend', (e) => {
+    lastTouchTs = Date.now()
+    if (start && start.mode === 'pinch' && scale <= 1.03) { setT(true); reset() }
+    if (start && start.mode === 'pan' && !start.moved) {
+      const now = Date.now()
+      if (now - lastTap < 300) { setT(true); if (scale > 1.03) reset(); else { scale = 2.6; apply() } lastTap = 0 }
+      else { lastTap = now; setTimeout(() => { if (lastTap && Date.now() - lastTap >= 290 && scale <= 1.03) close() }, 310) }
+    }
+    start = null
+  })
+  ov.addEventListener('wheel', (e) => { e.preventDefault(); scale = Math.max(MIN, Math.min(MAX, scale * (e.deltaY < 0 ? 1.12 : 0.89))); if (scale <= 1.02) { tx = 0; ty = 0 } apply() }, { passive: false })
+  ov.addEventListener('click', (e) => { if (Date.now() - lastTouchTs < 600) return; if (e.target.id === 'pz-close' || (e.target === ov && scale <= 1.03)) close() })
+}
 window.zoomPhoto = function (url) {
   if (!url) return
   let ov = document.getElementById('photo-zoom')
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'photo-zoom'
-    ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(8,12,24,.92);display:flex;align-items:center;justify-content:center;padding:16px'
-    ov.onclick = () => { ov.style.display = 'none' }
+    ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(8,12,24,.94);display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none'
+    ov.innerHTML = '<img id="pz-img" alt="" style="max-width:100%;max-height:100%;object-fit:contain;transform-origin:center center;will-change:transform;-webkit-user-select:none;user-select:none;-webkit-user-drag:none">' +
+      '<span id="pz-close" style="position:absolute;top:14px;right:16px;color:#fff;font-size:26px;font-weight:300;cursor:pointer;z-index:2;padding:4px 8px">✕</span>' +
+      '<div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#c3cee6;font-size:11px;font-weight:600;pointer-events:none">손가락으로 확대 · 두 번 탭 · 밀어서 이동</div>'
     document.body.appendChild(ov)
+    wirePhotoZoom(ov)
   }
-  ov.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain">' +
-    '<span style="position:absolute;top:16px;right:18px;color:#fff;font-size:26px;font-weight:300">✕</span>'
+  ov.querySelector('#pz-img').src = url
+  if (ov._reset) ov._reset()
   ov.style.display = 'flex'
 }
 

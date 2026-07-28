@@ -324,7 +324,7 @@ as $$
          a.status
   from apartments a
   where a.status is distinct from 'done'
-  order by (a.status = 'in_progress') desc, a.created_at desc
+  order by (a.status = 'in_progress') desc, (coalesce(a.region,'') <> '') desc, a.created_at desc
   limit 12
 $$;
 grant execute on function public.region_activity() to anon, authenticated;

@@ -760,13 +760,21 @@ window.toggleRegionMore = function () { REGION_MORE = !REGION_MORE; renderRegion
 const KNOWN_REGIONS = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '충청', '전북', '전남', '전라', '경북', '경남', '경상', '제주']
 function safeRegion(r) {
   const s = (r || '').trim()
-  if (s && KNOWN_REGIONS.some(k => s.startsWith(k))) return s
-  return '전국'
+  if (!s) return '전국'
+  // 첫 단어(시/도 또는 시/군)만 표시 — 단지명·상세주소는 노출하지 않음
+  const first = s.split(/\s+/)[0]
+  return (first && first.length <= 6) ? first : '전국'
 }
 function renderRegionActivity() {
   const box = document.getElementById('res-region'); if (!box) return
   // 완료된 단지는 '타 단지 감리 현황' 피드에 표시하지 않음 (진행 중·예정만)
-  const feed = (REGION_ALL || []).filter(r => r.status !== 'done')
+  // 진행 중 → 지역 있는 것 순으로 정렬 (지역 없는 '전국'이 위를 차지하지 않게)
+  const feed = (REGION_ALL || []).filter(r => r.status !== 'done').slice().sort((a, b) => {
+    const ai = a.status === 'in_progress' ? 0 : 1, bi = b.status === 'in_progress' ? 0 : 1
+    if (ai !== bi) return ai - bi
+    const ar = (a.region || '').trim() ? 0 : 1, br = (b.region || '').trim() ? 0 : 1
+    return ar - br
+  })
   if (!feed.length) { box.innerHTML = '<div style="padding:14px;font-size:11px;color:#8b95ad;font-weight:600;text-align:center">지금 진행 중인 타 단지 감리가 없어요.</div>'; return }
   const stMap = { in_progress: ['감리 진행 중', '#2F6BF6'], scheduled: ['점검 예정', '#c98a1e'] }
   const list = REGION_MORE ? feed : feed.slice(0, REGION_CAP)

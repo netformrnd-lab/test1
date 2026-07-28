@@ -233,8 +233,9 @@
           <select id="rep-imp-apt" class="f" style="max-width:280px"><option value="">단지를 선택하세요</option></select>
           <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--mut2);cursor:pointer"><input type="checkbox" id="rep-imp-pub" checked> 올리자마자 입주민에게 공개</label>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <input id="rep-imp-files" type="file" accept="application/pdf" multiple style="font-size:13px">
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+          <label style="font-size:12px;color:var(--mut2);font-weight:700">📄 파일 여러 개 선택: <input id="rep-imp-files" type="file" accept="application/pdf" multiple style="font-size:13px"></label>
+          <label style="font-size:12px;color:var(--mut2);font-weight:700">📂 폴더 통째로 선택(날짜 폴더 포함): <input id="rep-imp-dir" type="file" webkitdirectory directory multiple style="font-size:13px"></label>
           <button id="rep-imp-btn" class="b save" onclick="importReportPdfs()">가져오기 시작</button>
         </div>
         <div id="rep-imp-log" style="margin-top:12px;font-size:12px;line-height:1.7;max-height:240px;overflow:auto;font-family:monospace;color:var(--mut2);white-space:pre-wrap"></div>
@@ -1101,10 +1102,11 @@ function dateFromName(name){
 async function importReportPdfs(){
   const aptId=($('rep-imp-apt')||{}).value||'';
   if(!aptId){ alert('단지를 먼저 선택하세요'); return; }
-  const fi=$('rep-imp-files'); const all=fi&&fi.files;
-  if(!all||!all.length){ alert('PDF 파일을 선택하세요'); return; }
-  const list=Array.from(all).filter(f=>/\.pdf$/i.test(f.name)||f.type==='application/pdf');
-  if(!list.length){ alert('PDF 파일이 없어요'); return; }
+  const fi=$('rep-imp-files'), di=$('rep-imp-dir');
+  const all=[...(fi&&fi.files?Array.from(fi.files):[]), ...(di&&di.files?Array.from(di.files):[])];
+  if(!all.length){ alert('PDF 파일이나 폴더를 선택하세요'); return; }
+  const list=all.filter(f=>/\.pdf$/i.test(f.name)||f.type==='application/pdf');
+  if(!list.length){ alert('선택한 곳에 PDF 파일이 없어요'); return; }
   const pubs=!!($('rep-imp-pub')||{}).checked;
   const btn=$('rep-imp-btn'); if(btn){btn.disabled=true;btn.textContent='올리는 중…';}
   const log=$('rep-imp-log'); if(log) log.innerHTML='';
@@ -1115,18 +1117,21 @@ async function importReportPdfs(){
   const {data:existing}=await sb.from('reports').select('title').eq('apartment_id',aptId);
   const seen=new Set((existing||[]).map(x=>x.title));
   for(const f of list){
-    const title=cleanRepTitle(f.name);
+    // 폴더 구조면 상위 폴더명(날짜)까지 제목·날짜에 사용
+    const rel=f.webkitRelativePath||f.name;
+    const parts=rel.split('/'); const fname=parts[parts.length-1]; const parent=parts.length>=2?parts[parts.length-2]:'';
+    const title=cleanRepTitle((parent&&parent!==fname)?(parent+' '+fname):fname);
     if(!title){ skip++; continue; }
     if(seen.has(title)){ skip++; say('건너뜀(이미 있음): '+title); continue; }
     try{
-      const safe=f.name.replace(/[^\w.\-]/g,'_');
+      const safe=fname.replace(/[^\w.\-]/g,'_');
       const path='report-pdf/'+aptId+'_'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+safe;
       const {error:upErr}=await sb.storage.from('report-photos').upload(path,f,{contentType:'application/pdf',upsert:false});
       if(upErr){ fail++; say('업로드 실패: '+title+' — '+upErr.message,'#e4544b'); continue; }
       const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
       const dongs=(window.parseDongs?window.parseDongs(title):[]).join(', ')||null;
-      const row={apartment_id:aptId,title,pdf_url:url,pdf_name:f.name,dongs,published:pubs,author_id:user?user.id:null};
-      const created=dateFromName(f.name); if(created) row.created_at=created;
+      const row={apartment_id:aptId,title,pdf_url:url,pdf_name:fname,dongs,published:pubs,author_id:user?user.id:null};
+      const created=dateFromName(parent)||dateFromName(fname); if(created) row.created_at=created;
       const {error}=await sb.from('reports').insert(row);
       if(error){ fail++; say('저장 실패: '+title+' — '+error.message,'#e4544b'); continue; }
       seen.add(title); ok++; say('✓ '+title+(dongs?(' ['+dongs+']'):''));
@@ -1134,7 +1139,7 @@ async function importReportPdfs(){
   }
   say('완료 — 등록 '+ok+' · 건너뜀 '+skip+' · 실패 '+fail, ok?'#1f8a5b':'#e4544b');
   if(btn){btn.disabled=false;btn.textContent='가져오기 시작';}
-  if(fi)fi.value='';
+  if(fi)fi.value=''; if(di)di.value='';
   loadAll();
 }
 // 현장 기록 추가 — 단지 검색·선택 콤보박스 (모바일에서도 동작)

@@ -2211,6 +2211,23 @@ document.addEventListener('click', (e) => {
   if (at) { renderAlim(at.dataset.atab) }
 })
 
+// 앱이 다시 앞으로 올 때(홈화면 앱을 백그라운드에서 되돌아올 때) 현재 화면 데이터 새로고침
+// → 관리자가 지운/올린 내용이 폰에 바로 반영되도록 (오래된 화면 방지)
+let _lastRefresh = 0
+function refreshActive () {
+  try {
+    if (!currentRole) return
+    const now = Date.now(); if (now - _lastRefresh < 1500) return; _lastRefresh = now
+    const id = NAV_CUR
+    if (id === 's26') loadFieldUpdates()
+    else if (id === 's11') loadResidentHome()
+    else if (id === 's14') loadSchedule()
+    else if (id === 's07') loadAuditorApts()
+    else if (id === 's12' && typeof loadResidentReports === 'function') loadResidentReports()
+  } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshActive() })
+window.addEventListener('pageshow', (e) => { if (e.persisted) refreshActive() })
 function boot() {
   try { wire() } catch (e) { console.error(e) }
   try { tagInquiry() } catch (e) { console.error(e) }

@@ -138,6 +138,7 @@
       <a data-sec="contract"><span class="ic">📑</span>계약서<span class="cnt" id="nav-ct">0</span></a>
       <a data-sec="survey"><span class="ic">⭐</span>만족도<span class="cnt" id="nav-sv">0</span></a>
       <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
+      <a data-sec="promo"><span class="ic">🖼️</span>배너·팝업<span class="cnt" id="nav-pr">0</span></a>
     </nav>
     <div class="me">
       <div class="av" id="me-av">관</div>
@@ -365,6 +366,47 @@
       </div>
       <div id="cases"></div>
     </section>
+
+    <!-- 배너 · 팝업 -->
+    <section id="sec-promo">
+      <div class="head"><div><h2>배너 · 팝업</h2><div class="desc">홈 화면 상단 슬라이드 배너와, 앱 열 때 뜨는 팝업을 관리하세요 (로그인 전·후 홈 모두 노출)</div></div></div>
+
+      <div class="card">
+        <h3>🖼️ 홈 배너 추가</h3>
+        <div style="font-size:12px;color:var(--mut2);line-height:1.6;margin:4px 0 12px">이미지를 올리면 <b>이미지 배너</b>, 안 올리고 제목·배경색만 넣으면 <b>글자 배너</b>로 나와요. 여러 개 넣으면 홈에서 <b>자동으로 옆으로 넘어갑니다</b>.</div>
+        <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">📷 배너 이미지(선택) <input id="bn-img" type="file" accept="image/*"></label>
+            <span id="bn-img-state" style="font-size:11.5px;font-weight:700;color:var(--mut)"></span>
+          </div>
+          <input id="bn-title" placeholder="제목 (글자 배너일 때 · 예: 여름철 외벽 점검 안내)">
+          <input id="bn-sub" placeholder="부제목 (선택)">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">배경색 <input id="bn-bg" type="color" value="#2F6BF6" style="vertical-align:middle;width:44px;height:28px;border:1px solid var(--line);border-radius:6px;padding:0;cursor:pointer"></label>
+            <input id="bn-link" placeholder="탭하면 이동(선택 · 예: s05 또는 https://...)" style="flex:1;min-width:200px">
+            <input id="bn-sort" type="number" value="0" title="노출 순서" style="width:90px" placeholder="순서">
+          </div>
+          <button id="bn-btn" class="b save" style="align-self:flex-start" onclick="addBanner()">배너 추가</button>
+        </div>
+      </div>
+      <div id="banners-list"></div>
+
+      <div class="card" style="margin-top:18px">
+        <h3>📢 홈 팝업 (앱 열 때 표시)</h3>
+        <div style="font-size:12px;color:var(--mut2);line-height:1.6;margin:4px 0 12px">활성화하면 앱을 열 때 팝업이 떠요. 입주민은 ‘오늘 하루 보지 않기’를 누를 수 있어요. <b>한 번에 하나</b>만 노출됩니다(가장 최근 활성 팝업).</div>
+        <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
+          <input id="pp-title" placeholder="팝업 제목 (예: 앱 리뉴얼 완료 안내)">
+          <textarea id="pp-body" placeholder="내용 (예: 아파트스퀘어가 새롭게 단장했어요! ...)" style="min-height:90px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;outline:none;font-family:inherit;resize:vertical"></textarea>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">📷 팝업 이미지(선택) <input id="pp-img" type="file" accept="image/*"></label>
+            <span id="pp-img-state" style="font-size:11.5px;font-weight:700;color:var(--mut)"></span>
+            <label style="font-size:12.5px;font-weight:700;color:var(--mut2);margin-left:auto"><input id="pp-active" type="checkbox" checked style="vertical-align:middle"> 지금 노출</label>
+          </div>
+          <button id="pp-btn" class="b save" style="align-self:flex-start" onclick="savePopup()">팝업 저장</button>
+        </div>
+      </div>
+      <div id="popups-list"></div>
+    </section>
   </main>
  </div>
 </div>
@@ -440,7 +482,96 @@ async function loadAll(){
   loadContractsAdmin();
   loadSurveysAdmin();
   loadDongProgress();
+  loadPromo();
 }
+/* ===== 배너 · 팝업 ===== */
+let BANNERS_A=[], POPUPS_A=[], BN_IMG='', PP_IMG='';
+async function uploadPromoImage(file,stateId){
+  if(!file)return '';
+  const st=$(stateId); if(st){st.textContent='업로드 중…';st.style.color='var(--mut)';}
+  const safe=file.name.replace(/[^\w.]/g,'_');
+  const path='promo/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+safe;
+  const{error}=await sb.storage.from('report-photos').upload(path,file,{upsert:false});
+  if(error){ if(st){st.textContent='업로드 실패: '+error.message;st.style.color='#e4544b';} return ''; }
+  const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
+  if(st){st.textContent='✔ 업로드 완료';st.style.color='#1f8a5b';}
+  return url;
+}
+async function loadPromo(){
+  const [b,p]=await Promise.all([
+    sb.from('banners').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}),
+    sb.from('popups').select('*').order('created_at',{ascending:false})
+  ]);
+  BANNERS_A=(b&&b.data)||[]; POPUPS_A=(p&&p.data)||[];
+  const nn=$('nav-pr'); if(nn) nn.textContent=BANNERS_A.length;
+  renderBannersAdmin(); renderPopupsAdmin();
+}
+function renderBannersAdmin(){
+  const box=$('banners-list'); if(!box)return;
+  if(!BANNERS_A.length){ box.innerHTML='<div style="color:var(--mut);font-size:12.5px;padding:6px 2px">등록된 배너가 없어요. 위에서 추가하세요.</div>'; return; }
+  box.innerHTML=BANNERS_A.map(b=>{
+    const prev=b.image_url
+      ? `<div style="width:120px;height:56px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--line)"><img src="${esc(b.image_url)}" style="width:100%;height:100%;object-fit:cover"></div>`
+      : `<div style="width:120px;height:56px;border-radius:8px;flex-shrink:0;background:${esc(b.bg||'#2F6BF6')};display:flex;flex-direction:column;justify-content:center;padding:0 10px;color:#fff"><div style="font-size:11px;font-weight:800;line-height:1.3;overflow:hidden">${esc(b.title||'(제목 없음)')}</div>${b.subtitle?`<div style="font-size:9px;opacity:.9;margin-top:2px">${esc(b.subtitle)}</div>`:''}</div>`;
+    return `<div class="card" style="display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:8px">
+      ${prev}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:800;color:var(--ink)">${b.image_url?'🖼️ 이미지 배너':'🎨 글자 배너'} <span style="font-size:10.5px;font-weight:700;color:var(--mut)">· 순서 ${b.sort||0}</span></div>
+        ${b.link?`<div style="font-size:11px;color:var(--mut2);margin-top:2px">🔗 ${esc(b.link)}</div>`:''}
+      </div>
+      <label style="font-size:11.5px;font-weight:700;color:var(--mut2);white-space:nowrap"><input type="checkbox" ${b.active?'checked':''} onchange="toggleBanner('${b.id}',this.checked)" style="vertical-align:middle"> 노출</label>
+      <span onclick="delBanner('${b.id}')" style="cursor:pointer;color:#e4544b;font-size:12.5px;font-weight:800">삭제</span>
+    </div>`;
+  }).join('');
+}
+$('bn-img')&&($('bn-img').onchange=async function(){ BN_IMG=await uploadPromoImage(this.files&&this.files[0],'bn-img-state'); });
+async function addBanner(){
+  const title=($('bn-title').value||'').trim();
+  if(!BN_IMG && !title) return alert('이미지를 올리거나, 글자 배너 제목을 입력하세요');
+  const btn=$('bn-btn'); if(btn){btn.textContent='추가 중…';btn.disabled=true;}
+  const row={ image_url:BN_IMG||null, title:title||null, subtitle:($('bn-sub').value||'').trim()||null,
+    bg:$('bn-bg').value||'#2F6BF6', link:($('bn-link').value||'').trim()||null,
+    sort:parseInt($('bn-sort').value||'0')||0, active:true };
+  const{error}=await sb.from('banners').insert(row);
+  if(btn){btn.textContent='배너 추가';btn.disabled=false;}
+  if(error)return alert('오류: '+error.message);
+  $('bn-title').value='';$('bn-sub').value='';$('bn-link').value='';$('bn-sort').value='0';
+  const im=$('bn-img'); if(im)im.value=''; const ist=$('bn-img-state'); if(ist)ist.textContent=''; BN_IMG='';
+  loadPromo();
+}
+async function toggleBanner(id,on){ const{error}=await sb.from('banners').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);loadPromo();} }
+async function delBanner(id){ if(!confirm('이 배너를 삭제할까요?'))return; const{error}=await sb.from('banners').delete().eq('id',id); if(error)return alert('오류: '+error.message); loadPromo(); }
+function renderPopupsAdmin(){
+  const box=$('popups-list'); if(!box)return;
+  if(!POPUPS_A.length){ box.innerHTML=''; return; }
+  box.innerHTML='<div style="font-size:11.5px;font-weight:800;color:var(--mut2);margin:14px 2px 6px">저장된 팝업</div>'+POPUPS_A.map(p=>`
+    <div class="card" style="display:flex;align-items:center;gap:12px;padding:11px 14px;margin-bottom:8px">
+      ${p.image_url?`<div style="width:54px;height:54px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--line)"><img src="${esc(p.image_url)}" style="width:100%;height:100%;object-fit:cover"></div>`:''}
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:var(--ink)">${esc(p.title||'(제목 없음)')} ${p.active?'<span style="font-size:10px;font-weight:800;color:#1f8a5b;background:#e7f5ee;padding:1px 7px;border-radius:20px">노출 중</span>':'<span style="font-size:10px;font-weight:700;color:var(--mut);background:#eef1f7;padding:1px 7px;border-radius:20px">숨김</span>'}</div><div style="font-size:11px;color:var(--mut2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.body||'')}</div></div>
+      <label style="font-size:11.5px;font-weight:700;color:var(--mut2);white-space:nowrap"><input type="checkbox" ${p.active?'checked':''} onchange="togglePopup('${p.id}',this.checked)" style="vertical-align:middle"> 노출</label>
+      <span onclick="delPopup('${p.id}')" style="cursor:pointer;color:#e4544b;font-size:12.5px;font-weight:800">삭제</span>
+    </div>`).join('');
+}
+$('pp-img')&&($('pp-img').onchange=async function(){ PP_IMG=await uploadPromoImage(this.files&&this.files[0],'pp-img-state'); });
+async function savePopup(){
+  const title=($('pp-title').value||'').trim();
+  const body=($('pp-body').value||'').trim();
+  if(!title && !body) return alert('팝업 제목이나 내용을 입력하세요');
+  const active=$('pp-active').checked;
+  const btn=$('pp-btn'); if(btn){btn.textContent='저장 중…';btn.disabled=true;}
+  // 새 팝업을 '노출'로 저장하면 기존 노출 팝업은 자동으로 숨김 (한 번에 하나)
+  if(active){ await sb.from('popups').update({active:false}).eq('active',true); }
+  const{error}=await sb.from('popups').insert({ title:title||null, body:body||null, image_url:PP_IMG||null, active });
+  if(btn){btn.textContent='팝업 저장';btn.disabled=false;}
+  if(error)return alert('오류: '+error.message);
+  $('pp-title').value='';$('pp-body').value='';const im=$('pp-img');if(im)im.value='';const ist=$('pp-img-state');if(ist)ist.textContent='';PP_IMG='';$('pp-active').checked=true;
+  loadPromo();
+}
+async function togglePopup(id,on){
+  if(on){ await sb.from('popups').update({active:false}).eq('active',true); }
+  const{error}=await sb.from('popups').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);} loadPromo();
+}
+async function delPopup(id){ if(!confirm('이 팝업을 삭제할까요?'))return; const{error}=await sb.from('popups').delete().eq('id',id); if(error)return alert('오류: '+error.message); loadPromo(); }
 /* ===== 동별 진행 (dong_progress) ===== */
 let DONGPROG=[];
 async function loadDongProgress(){

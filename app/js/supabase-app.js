@@ -2254,11 +2254,87 @@ function refreshActive () {
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshActive() })
 window.addEventListener('pageshow', (e) => { if (e.persisted) refreshActive() })
+/* ===== 홈 배너 (자동 슬라이드) · 팝업 — 관리자 대시보드에서 관리 ===== */
+let BANNERS = []
+window.bannerGo = function (link) {
+  if (!link) return
+  if (/^https?:\/\//i.test(link)) window.open(link, '_blank')
+  else if (/^s\d+$/.test(link)) window.showScreen(link)
+}
+function bannerSlideHTML(b) {
+  const clickable = b.link ? 'onclick="bannerGo(\'' + escH(String(b.link)) + '\')" ' : ''
+  const cur = 'style="' + (b.link ? 'cursor:pointer;' : '') + 'min-width:100%;flex-shrink:0;height:120px;scroll-snap-align:start;'
+  if (b.image_url) {
+    return '<div ' + clickable + cur + 'background:#eef1f7">' +
+      '<img src="' + escH(b.image_url) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>'
+  }
+  const bg = b.bg || '#2F6BF6'
+  return '<div ' + clickable + cur + 'background:' + escH(bg) + ';display:flex;flex-direction:column;justify-content:center;padding:0 22px;color:#fff">' +
+    '<div style="font-size:15px;font-weight:800;line-height:1.4">' + escH(b.title || '') + '</div>' +
+    (b.subtitle ? '<div style="font-size:11px;font-weight:600;margin-top:5px;opacity:.92">' + escH(b.subtitle) + '</div>' : '') + '</div>'
+}
+function mountBanner(id) {
+  const host = document.getElementById(id); if (!host) return
+  if (host._t) { clearInterval(host._t); host._t = null }
+  if (!BANNERS.length) { host.innerHTML = ''; host.style.display = 'none'; return }
+  host.style.display = 'block'
+  const many = BANNERS.length > 1
+  const dots = many ? BANNERS.map(() => '<span class="bn-dot" style="width:6px;height:6px;border-radius:99px;background:rgba(255,255,255,.55);transition:all .2s"></span>').join('') : ''
+  host.innerHTML = '<div style="margin:10px 14px 0;border-radius:15px;overflow:hidden;position:relative;box-shadow:0 6px 16px -11px rgba(23,38,80,.45)">' +
+    '<div class="bn-track" style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch">' + BANNERS.map(bannerSlideHTML).join('') + '</div>' +
+    (many ? '<div style="position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:5px;pointer-events:none">' + dots + '</div>' : '') + '</div>'
+  const track = host.querySelector('.bn-track'); if (!track) return
+  const dotEls = host.querySelectorAll('.bn-dot')
+  const setDots = () => { if (!dotEls.length || !track.clientWidth) return; const i = Math.round(track.scrollLeft / track.clientWidth); dotEls.forEach((d, k) => { d.style.background = k === i ? '#fff' : 'rgba(255,255,255,.55)'; d.style.width = k === i ? '15px' : '6px' }) }
+  track.addEventListener('scroll', setDots, { passive: true }); setDots()
+  if (many) {
+    host._t = setInterval(() => {
+      if (!host.isConnected) { clearInterval(host._t); host._t = null; return }
+      const w = track.clientWidth; if (!w) return
+      let i = Math.round(track.scrollLeft / w) + 1; if (i >= BANNERS.length) i = 0
+      track.scrollTo({ left: i * w, behavior: 'smooth' })
+    }, 4200)
+  }
+}
+async function loadBanners() {
+  try {
+    const { data } = await sb.from('banners').select('*').eq('active', true).order('sort', { ascending: true }).order('created_at', { ascending: false })
+    BANNERS = data || []
+  } catch (e) { BANNERS = [] }
+  mountBanner('home-banner-s04'); mountBanner('home-banner-s11')
+}
+window.loadBanners = loadBanners
+function showPopup(p) {
+  const ov = document.getElementById('home-popup'); if (!ov) return
+  ov._pid = p.id
+  const img = document.getElementById('home-popup-img')
+  if (img) { if (p.image_url) { img.src = p.image_url; img.style.display = 'block' } else { img.style.display = 'none' } }
+  const t = document.getElementById('home-popup-title'); if (t) t.textContent = p.title || '안내'
+  const b = document.getElementById('home-popup-body'); if (b) b.innerHTML = escH(p.body || '').replace(/\n/g, '<br>')
+  ov.style.display = 'flex'
+}
+window.closePopup = function (hideToday) {
+  const ov = document.getElementById('home-popup'); if (!ov) return
+  if (hideToday && ov._pid) { try { localStorage.setItem('popup_hide_' + ov._pid, new Date().toISOString().slice(0, 10)) } catch (e) {} }
+  ov.style.display = 'none'
+}
+async function loadPopup() {
+  try {
+    const { data } = await sb.from('popups').select('*').eq('active', true).order('created_at', { ascending: false }).limit(1)
+    const p = data && data[0]; if (!p) return
+    let hide = ''; try { hide = localStorage.getItem('popup_hide_' + p.id) || '' } catch (e) {}
+    if (hide === new Date().toISOString().slice(0, 10)) return
+    showPopup(p)
+  } catch (e) {}
+}
+window.loadPopup = loadPopup
 function boot() {
   try { wire() } catch (e) { console.error(e) }
   try { tagInquiry() } catch (e) { console.error(e) }
   try { wireBackArrows() } catch (e) { console.error(e) }
   try { renderVideos() } catch (e) { console.error(e) }
+  try { loadBanners() } catch (e) {}
+  setTimeout(() => { try { loadPopup() } catch (e) {} }, 1500)
   try { hideSplash() } catch (e) {}
 }
 // 첫 실행 로고 화면(스플래시) 자연스럽게 사라지기

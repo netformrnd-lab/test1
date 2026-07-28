@@ -467,9 +467,14 @@ function dongProgHtml(a){
     <div style="font-size:12px;font-weight:800;color:var(--ink);margin-bottom:2px">🏢 동별 진행 <span style="font-size:10px;color:var(--mut);font-weight:600">(감리일지 자동 + 직접 추가)</span> ${st?'':'<span style="font-size:10px;color:#e4544b;font-weight:700">· 공법 먼저 저장</span>'}</div>
     <div style="font-size:10.5px;color:var(--mut);margin-bottom:4px">감리일지에 적힌 동은 자동으로 나와요. 안 나오는 단지는 아래에서 <b>직접 추가</b>하세요. <b>단계만 골라주면</b> 입주민 현장현황에 진행바로 표시돼요.</div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
-      <span style="font-size:10.5px;color:var(--mut2);font-weight:800">100동대 보정</span>
-      <input class="f-dongbase" value="${a.dong_base||''}" onchange="saveDongBase('${a.id}',this.value)" placeholder="예: 100" inputmode="numeric" style="width:66px;font-size:11px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;font-family:inherit;outline:none">
-      <span style="font-size:10px;color:var(--mut)">21동→121동으로 보정 (비우면 안 함)</span>
+      <span style="font-size:10.5px;color:var(--mut2);font-weight:800">동 번호대</span>
+      <select class="f-dongbase" onchange="saveDongBase('${a.id}',this.value)" style="font-size:11px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;font-family:inherit;outline:none">
+        <option value="" ${!a.dong_base?'selected':''}>보정 없음 (그대로)</option>
+        <option value="100" ${a.dong_base==100?'selected':''}>100동대 (21동→121동)</option>
+        <option value="200" ${a.dong_base==200?'selected':''}>200동대 (21동→221동)</option>
+        <option value="300" ${a.dong_base==300?'selected':''}>300동대 (21동→321동)</option>
+        <option value="400" ${a.dong_base==400?'selected':''}>400동대 (21동→421동)</option>
+      </select>
     </div>
     ${list||'<div style="font-size:11px;color:var(--mut);padding:4px 0">아직 등록된 동이 없어요. 아래에서 직접 추가할 수 있어요.</div>'}
     <div style="display:flex;gap:6px;margin-top:9px">

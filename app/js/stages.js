@@ -60,20 +60,25 @@ window.STAGE_INFO = {
 };
 window.stageInfo = function (name) { return window.STAGE_INFO[name] || null; };
 
-// 텍스트에서 동(棟)들을 뽑아냄 — 줄임표기("102,3동"=102·103동)·범위("103~106동")도 풀어줌
-window.parseDongs = function (text) {
+// 텍스트에서 동(棟)들을 뽑아냄 — 줄임표기("102,3동"=102·103동)·범위("103~106동") 풀어줌
+// base: 단지가 100동대면 100 지정 → 2자리 동(21동)을 121동으로 보정
+window.parseDongs = function (text, base) {
+  base = parseInt(base, 10) || 0;
+  const hund = base ? String(Math.floor(base / 100)) : ''; // 예: base 100 → '1'
   let s = ' ' + String(text || '') + ' ';
   const out = [];
-  const push = (n) => { n = parseInt(n, 10); if (!isNaN(n)) { const d = n + '동'; if (out.indexOf(d) < 0) out.push(d); } };
-  // 1) 범위: 103~106동 / 103동~106동 / 103-106동
-  s = s.replace(/(\d{1,3})\s*동?\s*[~\-～]\s*(\d{1,3})\s*동/g, (m, a, b) => {
+  const push = (n) => { n = parseInt(n, 10); if (!isNaN(n)) { if (base && n < 100) n = n + base; const d = n + '동'; if (out.indexOf(d) < 0) out.push(d); } };
+  // 1) 범위: 103~106동 (물결표만 범위로 — '-'는 '1-21동'=121 처럼 붙임표로 쓰이므로 제외)
+  s = s.replace(/(\d{1,3})\s*동?\s*[~～]\s*(\d{1,3})\s*동/g, (m, a, b) => {
     a = parseInt(a, 10); b = parseInt(b, 10); if (b < a) { const t = a; a = b; b = t; }
     if (b - a <= 40) { for (let i = a; i <= b; i++) push(i); }
     return '  ';
   });
-  // 2) 콤마/가운뎃점 묶음: 102,3동 / 102,103동 / 101·102·103동 (뒤 숫자가 짧으면 앞자리 채움)
-  s = s.replace(/(\d{1,3}(?:\s*[,·\/，、]\s*\d{1,3})+)\s*동/g, (m, g) => {
-    const nums = g.split(/\s*[,·\/，、]\s*/).filter(Boolean);
+  // 2) 콤마/가운뎃점/붙임표 묶음: 102,3동 / 102,103동 / 1-21동(=121, base 단지)
+  s = s.replace(/(\d{1,3}(?:\s*[,·\/，、\-]\s*\d{1,3})+)\s*동/g, (m, g) => {
+    let nums = g.split(/\s*[,·\/，、\-]\s*/).filter(Boolean);
+    // base 단지에서 맨 앞이 백단위 접두('1')면 접두로 처리: "1-21동"=121, "1,21,22동"=121,122
+    if (base && nums.length >= 2 && nums[0] === hund) nums = nums.slice(1);
     let prev = null;
     nums.forEach(ns => {
       let n;

@@ -148,6 +148,8 @@ create table if not exists dong_progress (
   unique (apartment_id, dong)
 );
 alter table dong_progress add column if not exists hidden boolean default false;
+-- 단지별 '동 번호 100단위 보정'(예: 세종조치원 21동→121동). null=보정 안 함
+alter table apartments add column if not exists dong_base int;
 alter table dong_progress enable row level security;
 drop policy if exists dong_progress_read on dong_progress;
 create policy dong_progress_read on dong_progress

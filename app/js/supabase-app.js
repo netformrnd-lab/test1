@@ -87,6 +87,9 @@ async function loadChatReads() {
 
 // ── 입주민·관리소장 홈: 우리 단지 정보 불러오기 ─────────────
 let RES_APT = null
+// 단지별 '100동대 보정' 값 캐시 {apartment_id: base}
+const APT_DONG_BASE = {}
+function noteAptBase (a) { if (a && a.id) APT_DONG_BASE[a.id] = a.dong_base || 0 }
 let RES_AUD_NAME = ''
 let RES_AUD_PHONE = ''
 // 담당 감리 → 문의하기 화면(s16)
@@ -107,7 +110,7 @@ async function loadResidentHome() {
   }
   const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
   if (!apt) return
-  RES_APT = apt
+  RES_APT = apt; noteAptBase(apt)
   const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = apt.name
   // (전체 진행률 바는 제거됨 — 동별 진행 현황은 현장현황 화면에서 표시)
   // 담당 감리사 이름 (PII 노출 없이 이름만 반환하는 함수 사용)
@@ -147,7 +150,8 @@ async function loadResidentNext(aptId) {
 // 동(棟) 추출: dong 컬럼 우선, 없으면 제목/내용에서 'N동' 자동 추출
 function fieldDong(f) {
   if (f.dong) return f.dong
-  const ds = window.parseDongs ? window.parseDongs((f.title || '') + ' ' + (f.content || '')) : []
+  const base = APT_DONG_BASE[f.apartment_id] || 0
+  const ds = window.parseDongs ? window.parseDongs((f.title || '') + ' ' + (f.content || ''), base) : []
   return ds.length ? ds[0] : '기타'
 }
 function dongList(items) {
@@ -162,9 +166,10 @@ function dongBar(items, sel, fn) {
 // 감리일지 동(棟): dongs 컬럼(쉼표, 여러 동) 우선, 없으면 제목/내용에서 추출
 function reportDongs(r) {
   const P = window.parseDongs
+  const base = APT_DONG_BASE[r.apartment_id] || 0
   const raw = (r.dongs || '').trim()
-  let arr = raw ? (P ? P(raw) : raw.split(',').map(s => s.trim()).filter(Boolean)) : []
-  if (!arr.length) arr = P ? P((r.title || '') + ' ' + (r.content || '')) : []
+  let arr = raw ? (P ? P(raw, base) : raw.split(',').map(s => s.trim()).filter(Boolean)) : []
+  if (!arr.length) arr = P ? P((r.title || '') + ' ' + (r.content || ''), base) : []
   return arr
 }
 function reportDongList(items) {
@@ -246,7 +251,7 @@ async function loadFieldUpdates() {
   const hdr = document.getElementById('field-apt')
   if (!prof || !prof.apartment_id) { if (hdr) hdr.textContent = '배정된 단지 없음'; FIELD_LIST = []; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
   const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
-  if (apt) RES_APT = apt
+  if (apt) { RES_APT = apt; noteAptBase(apt) }
   if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
   checkSurveyBanner(apt)
   // 동별 진행 현황: 관리자가 설정한 dong_progress
@@ -539,7 +544,7 @@ async function loadResidentProgress() {
   if (!apt) {
     const { data: { user } } = await sb.auth.getUser(); if (!user) return
     const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
-    if (prof && prof.apartment_id) { const { data } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single(); apt = data; RES_APT = data }
+    if (prof && prof.apartment_id) { const { data } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single(); apt = data; RES_APT = data; noteAptBase(data) }
   }
   const nm = document.getElementById('prog-apt-name')
   if (!apt) { if (nm) nm.textContent = '배정된 단지가 없어요'; renderStageTrack({ method: null }, 'prog-track'); return }
@@ -633,7 +638,7 @@ async function openSurvey() {
   if (!apt) {
     const { data: { user } } = await sb.auth.getUser(); if (!user) { showScreen('s01'); return }
     const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
-    if (prof && prof.apartment_id) { const { data } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single(); apt = data; RES_APT = data }
+    if (prof && prof.apartment_id) { const { data } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single(); apt = data; RES_APT = data; noteAptBase(data) }
   }
   const nm = document.getElementById('survey-apt'); if (nm) nm.textContent = apt ? apt.name : '우리 단지'
   window.showScreen('s39')
@@ -968,7 +973,7 @@ document.addEventListener('click', (e) => {
 function escH(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
 let AUD_APTS = {}
 function auditorCard(a) {
-  AUD_APTS[a.id] = a
+  AUD_APTS[a.id] = a; noteAptBase(a)
   const stages = (window.methodStages && window.methodStages(a.method)) || null
   const tot = stages ? stages.length : (a.progress_total || 0)
   const cur = a.progress_current || 0
@@ -1000,7 +1005,7 @@ async function loadAuditorApts() {
   const { data: apts, error } = await sb.from('apartments').select('*').eq('auditor_id', user.id).order('created_at', { ascending: false })
   if (error) { cont.innerHTML = '<div style="padding:20px;color:#8b95ad;font-size:12px">단지를 불러오지 못했어요</div>'; return }
   AUD_LIST = apts || []
-  apts && apts.forEach(a => { AUD_APTS[a.id] = a })
+  apts && apts.forEach(a => { AUD_APTS[a.id] = a; noteAptBase(a) })
   renderAudApts()
 }
 function renderAudApts() {

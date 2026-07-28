@@ -68,12 +68,15 @@ window.parseDongs = function (text, base) {
   let s = ' ' + String(text || '') + ' ';
   const out = [];
   const push = (n) => { n = parseInt(n, 10); if (!isNaN(n)) { if (base && n < 100) n = n + base; const d = n + '동'; if (out.indexOf(d) < 0) out.push(d); } };
-  // 1) 범위: 103~106동 (물결표만 범위로 — '-'는 '1-21동'=121 처럼 붙임표로 쓰이므로 제외)
-  s = s.replace(/(\d{1,3})\s*동?\s*[~～]\s*(\d{1,3})\s*동/g, (m, a, b) => {
-    a = parseInt(a, 10); b = parseInt(b, 10); if (b < a) { const t = a; a = b; b = t; }
-    if (b - a <= 40) { for (let i = a; i <= b; i++) push(i); }
+  const rangeExpand = (m, a, b) => {
+    let lo = parseInt(a, 10), hi = parseInt(b, 10); if (hi < lo) { const t = lo; lo = hi; hi = t; }
+    if (hi - lo <= 40) { for (let i = lo; i <= hi; i++) push(i); }
     return '  ';
-  });
+  };
+  // 1) 물결표 범위: 103~106동 (항상 범위)
+  s = s.replace(/(\d{1,3})\s*동?\s*[~～]\s*(\d{1,3})\s*동/g, rangeExpand);
+  // 1-2) 붙임표: 자릿수 같으면 범위(101-105동), 다르면 접두(1-21동=121)로 그룹 처리에 넘김
+  s = s.replace(/(\d{1,3})\s*동?\s*-\s*(\d{1,3})\s*동/g, (m, a, b) => (a.length === b.length ? rangeExpand(m, a, b) : m));
   // 2) 콤마/가운뎃점/붙임표 묶음: 102,3동 / 102,103동 / 1-21동(=121, base 단지)
   s = s.replace(/(\d{1,3}(?:\s*[,·\/，、\-]\s*\d{1,3})+)\s*동/g, (m, g) => {
     let nums = g.split(/\s*[,·\/，、\-]\s*/).filter(Boolean);

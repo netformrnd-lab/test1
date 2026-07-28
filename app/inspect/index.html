@@ -325,6 +325,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/stages.js"></script>
 <script>
 // ── 아파트스퀘어 앱 연동 ──
 const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
@@ -1109,9 +1110,11 @@ async function saveInspection(){
     btn.textContent='저장 중...';
     // 작업한 동: 입력값 우선, 없으면 '당일 공사'에서 'N동' 자동 추출
     let dongs='';
+    // 숫자 목록 확장: "102,3" → 102동,103동 / "102 103" → 102동,103동 (뒤 숫자 짧으면 앞자리 채움)
+    const _expandNums=function(str){var toks=(str||'').split(/[\s,·\/、，]+/).map(function(s){return s.replace(/[^0-9]/g,'');}).filter(Boolean);var out=[],prev=null;toks.forEach(function(t){var n;if(prev!=null&&t.length<(''+prev).length){var p=''+prev;n=parseInt(p.slice(0,p.length-t.length)+t,10);}else n=parseInt(t,10);if(!isNaN(n)){var d=n+'동';if(out.indexOf(d)<0)out.push(d);}prev=n;});return out;};
     const dv=(document.getElementById('inspDong').value||'').trim();
-    if(dv){ dongs=dv.split(/[,\s]+/).map(function(s){return s.trim();}).filter(Boolean).map(function(s){var n=s.replace(/[^0-9]/g,'');return n?n+'동':'';}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;}).join(', '); }
-    else { var tw=document.getElementById('todayWork').value||'', re=/(\d{1,3})\s*동/g, m, arr=[]; while((m=re.exec(tw))){var d=m[1]+'동'; if(arr.indexOf(d)<0)arr.push(d);} dongs=arr.join(', '); }
+    if(dv){ dongs=_expandNums(dv).join(', '); }
+    else { dongs=(window.parseDongs?window.parseDongs(document.getElementById('todayWork').value||''):[]).join(', '); }
     const{error}=await sb.from('reports').insert({ apartment_id:APT_ID, author_id:user.id, title, content:buildMsg(), stage:state.phase||null, dongs:dongs||null, photos:urls });
     if(error){ showToast('저장 실패: '+error.message,'ng'); btn.disabled=false; btn.textContent='앱에 저장하기'; return; }
     showToast('저장 완료!','ok'); goScreen(7);

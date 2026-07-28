@@ -147,8 +147,8 @@ async function loadResidentNext(aptId) {
 // 동(棟) 추출: dong 컬럼 우선, 없으면 제목/내용에서 'N동' 자동 추출
 function fieldDong(f) {
   if (f.dong) return f.dong
-  const m = ((f.title || '') + ' ' + (f.content || '')).match(/(\d{1,3})\s*동/)
-  return m ? (m[1] + '동') : '기타'
+  const ds = window.parseDongs ? window.parseDongs((f.title || '') + ' ' + (f.content || '')) : []
+  return ds.length ? ds[0] : '기타'
 }
 function dongList(items) {
   return [...new Set(items.map(fieldDong))].sort((a, b) => { const na = parseInt(a), nb = parseInt(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; if (!isNaN(na)) return -1; if (!isNaN(nb)) return 1; return a.localeCompare(b, 'ko') })
@@ -161,12 +161,10 @@ function dongBar(items, sel, fn) {
 }
 // 감리일지 동(棟): dongs 컬럼(쉼표, 여러 동) 우선, 없으면 제목/내용에서 추출
 function reportDongs(r) {
+  const P = window.parseDongs
   const raw = (r.dongs || '').trim()
-  let arr = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
-  if (!arr.length) {
-    const txt = (r.title || '') + ' ' + (r.content || ''); const re = /(\d{1,3})\s*동/g; let m
-    while ((m = re.exec(txt))) { const d = m[1] + '동'; if (arr.indexOf(d) < 0) arr.push(d) }
-  }
+  let arr = raw ? (P ? P(raw) : raw.split(',').map(s => s.trim()).filter(Boolean)) : []
+  if (!arr.length) arr = P ? P((r.title || '') + ' ' + (r.content || '')) : []
   return arr
 }
 function reportDongList(items) {

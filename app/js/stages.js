@@ -59,3 +59,32 @@ window.STAGE_INFO = {
   '방수 중도 도포': { what: '방수 코트(중도)를 도포해 방수층을 두껍게 쌓아요.', why: '물을 막는 핵심 방수막을 견고하게 만들고, 철근 부식·콘크리트 중성화도 억제해요.' }
 };
 window.stageInfo = function (name) { return window.STAGE_INFO[name] || null; };
+
+// 텍스트에서 동(棟)들을 뽑아냄 — 줄임표기("102,3동"=102·103동)·범위("103~106동")도 풀어줌
+window.parseDongs = function (text) {
+  let s = ' ' + String(text || '') + ' ';
+  const out = [];
+  const push = (n) => { n = parseInt(n, 10); if (!isNaN(n)) { const d = n + '동'; if (out.indexOf(d) < 0) out.push(d); } };
+  // 1) 범위: 103~106동 / 103동~106동 / 103-106동
+  s = s.replace(/(\d{1,3})\s*동?\s*[~\-～]\s*(\d{1,3})\s*동/g, (m, a, b) => {
+    a = parseInt(a, 10); b = parseInt(b, 10); if (b < a) { const t = a; a = b; b = t; }
+    if (b - a <= 40) { for (let i = a; i <= b; i++) push(i); }
+    return '  ';
+  });
+  // 2) 콤마/가운뎃점 묶음: 102,3동 / 102,103동 / 101·102·103동 (뒤 숫자가 짧으면 앞자리 채움)
+  s = s.replace(/(\d{1,3}(?:\s*[,·\/，、]\s*\d{1,3})+)\s*동/g, (m, g) => {
+    const nums = g.split(/\s*[,·\/，、]\s*/).filter(Boolean);
+    let prev = null;
+    nums.forEach(ns => {
+      let n;
+      if (prev != null && ns.length < String(prev).length) {
+        const p = String(prev); n = parseInt(p.slice(0, p.length - ns.length) + ns, 10);
+      } else { n = parseInt(ns, 10); }
+      push(n); prev = n;
+    });
+    return '  ';
+  });
+  // 3) 남은 단일 N동
+  s.replace(/(\d{1,3})\s*동/g, (m, a) => { push(a); return '  '; });
+  return out.sort((a, b) => (parseInt(a) || 999) - (parseInt(b) || 999));
+};

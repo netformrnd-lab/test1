@@ -469,6 +469,7 @@ function dongProgHtml(a){
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
       <span style="font-size:10.5px;color:var(--mut2);font-weight:800">동 번호대</span>
       <select class="f-dongbase" onchange="saveDongBase('${a.id}',this.value)" style="font-size:11px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;font-family:inherit;outline:none">
+        ${(a.dong_base&&[100,200,300,400].indexOf(+a.dong_base)<0)?`<option value="${esc(''+a.dong_base)}" selected>⚠ 현재값 +${esc(''+a.dong_base)} (수정 필요)</option>`:''}
         <option value="" ${!a.dong_base?'selected':''}>보정 없음 (그대로)</option>
         <option value="100" ${a.dong_base==100?'selected':''}>100동대 (21동→121동)</option>
         <option value="200" ${a.dong_base==200?'selected':''}>200동대 (21동→221동)</option>

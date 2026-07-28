@@ -162,7 +162,7 @@ function dongBar(items, sel, fn) {
   const dongs = dongList(items)
   if (dongs.length <= 1) return ''
   const chip = (val, label, on) => `<span onclick="${fn}('${val}')" style="cursor:pointer;font-size:11px;font-weight:${on ? '800' : '700'};color:${on ? '#fff' : '#5a6480'};background:${on ? '#2F6BF6' : '#eef1f7'};padding:6px 13px;border-radius:99px;white-space:nowrap">${label}</span>`
-  return `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:11px;scrollbar-width:none">${chip('', '전체', !sel)}${dongs.map(d => chip(d, d, sel === d)).join('')}</div>`
+  return `<div class="dong-bar" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:11px;scrollbar-width:none">${chip('', '전체', !sel)}${dongs.map(d => chip(d, d, sel === d)).join('')}</div>`
 }
 // 감리일지 동(棟): dongs 컬럼(쉼표, 여러 동) 우선, 없으면 제목/내용에서 추출
 function reportDongs(r) {
@@ -196,12 +196,14 @@ let DONG_ROWS = []        // 동별 진행 현황(dong_progress) 원본
 window.selectFieldDong = function (d) { FIELD_DONG = d; renderFieldList(); renderDongProgress(RES_APT, DONG_ROWS) }
 function renderFieldList() {
   const cont = document.getElementById('field-list'); if (!cont) return
+  const prevBar = cont.querySelector('.dong-bar'); const prevScroll = prevBar ? prevBar.scrollLeft : 0
   const q = ((document.getElementById('field-search') || {}).value || '').trim().toLowerCase()
   let list = q ? FIELD_LIST.filter(f => ((f.title || '') + ' ' + (f.content || '')).toLowerCase().includes(q)) : FIELD_LIST
   const bar = dongBar(FIELD_LIST, FIELD_DONG, 'selectFieldDong')
   if (FIELD_DONG) list = list.filter(f => fieldDong(f) === FIELD_DONG)
-  if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || FIELD_DONG ? '해당 사진이 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; return }
+  if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || FIELD_DONG ? '해당 사진이 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; const nb0 = cont.querySelector('.dong-bar'); if (nb0) nb0.scrollLeft = prevScroll; return }
   cont.innerHTML = bar + list.map(reportCard).join('')
+  const nb = cont.querySelector('.dong-bar'); if (nb) nb.scrollLeft = prevScroll
 }
 // 동별 진행 현황 펼치기/접기
 window.toggleDongProg = function (head) {
@@ -290,12 +292,14 @@ let AUD_DONG = ''
 window.selectAudDong = function (d) { AUD_DONG = d; renderAudFieldList() }
 function renderAudFieldList() {
   const cont = document.getElementById('audfield-list'); if (!cont) return
+  const prevBar = cont.querySelector('.dong-bar'); const prevScroll = prevBar ? prevBar.scrollLeft : 0
   const q = ((document.getElementById('audfield-search') || {}).value || '').trim().toLowerCase()
   let list = q ? AUDFIELD_LIST.filter(f => ((f.title || '') + ' ' + (f.content || '')).toLowerCase().includes(q)) : AUDFIELD_LIST
   const bar = dongBar(AUDFIELD_LIST, AUD_DONG, 'selectAudDong')
   if (AUD_DONG) list = list.filter(f => fieldDong(f) === AUD_DONG)
-  if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || AUD_DONG ? '해당 사진이 없어요.' : '아직 이 단지에 등록된 현장 사진이 없어요.') + '</div>'; return }
+  if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || AUD_DONG ? '해당 사진이 없어요.' : '아직 이 단지에 등록된 현장 사진이 없어요.') + '</div>'; const nb0 = cont.querySelector('.dong-bar'); if (nb0) nb0.scrollLeft = prevScroll; return }
   cont.innerHTML = bar + list.map(reportCard).join('')
+  const nb = cont.querySelector('.dong-bar'); if (nb) nb.scrollLeft = prevScroll
 }
 async function openAuditorField(a) {
   if (!a) return

@@ -147,6 +147,7 @@ create table if not exists dong_progress (
   updated_at    timestamptz default now(),
   unique (apartment_id, dong)
 );
+alter table dong_progress add column if not exists hidden boolean default false;
 alter table dong_progress enable row level security;
 drop policy if exists dong_progress_read on dong_progress;
 create policy dong_progress_read on dong_progress

@@ -1870,7 +1870,7 @@ const ALIM = {
     if (yt.length) {
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 6px">'
       h += yt.map(c => '<div onclick="openAlimUrl(\'' + c.url + '\')" style="cursor:pointer">'
-        + '<div style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/10"><img src="https://img.youtube.com/vi/' + c.yt + '/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:34px;height:34px;border-radius:50%;background:rgba(228,35,27,.55);color:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;font-size:13px;padding-left:2px">\u25b6</div></div></div>'
+        + '<div style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/10"><img src="https://img.youtube.com/vi/' + c.yt + '/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:29px;height:29px;border-radius:50%;background:rgba(228,35,27,.38);color:rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;font-size:11px;padding-left:2px">\u25b6</div></div></div>'
         + '<div style="font-size:11.5px;font-weight:700;color:#2a3350;line-height:1.4;margin-top:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:31px">' + escH(c.title) + '</div></div>').join('')
       h += '</div>'
     }

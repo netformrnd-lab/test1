@@ -2226,7 +2226,6 @@ document.addEventListener('click', (e) => {
       if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() }
       else if (currentRole) { showScreen('s11'); loadResidentHome() }
       else { showScreen('s04'); loadResidentNotices('s04-notices') }
-      try { loadBanners() } catch (e) {}
     }
     else if (tab === 'field') { if (currentRole) { showScreen('s26'); loadFieldUpdates() } else { showScreen('s01') } }
     else if (tab === 'schedule') { if (currentRole) { showScreen('s14'); loadSchedule() } else { showScreen('s01') } }
@@ -2247,8 +2246,7 @@ function refreshActive () {
     const now = Date.now(); if (now - _lastRefresh < 1500) return; _lastRefresh = now
     const id = NAV_CUR
     if (id === 's26') loadFieldUpdates()
-    else if (id === 's11') { loadResidentHome(); loadBanners() }
-    else if (id === 's04') loadBanners()
+    else if (id === 's11') loadResidentHome()
     else if (id === 's14') loadSchedule()
     else if (id === 's07') loadAuditorApts()
     else if (id === 's12' && typeof loadResidentReports === 'function') loadResidentReports()
@@ -2256,105 +2254,11 @@ function refreshActive () {
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshActive() })
 window.addEventListener('pageshow', (e) => { if (e.persisted) refreshActive() })
-/* ===== 홈 배너 (자동 슬라이드) · 팝업 — 관리자 대시보드에서 관리 ===== */
-let BANNERS = []
-window.bannerGo = function (link) {
-  if (!link) return
-  if (/^https?:\/\//i.test(link)) window.open(link, '_blank')
-  else if (/^s\d+$/.test(link)) window.showScreen(link)
-}
-// 배경색 밝기에 따라 글자색 자동 대비 (밝은 배경 → 검정 글자)
-function bannerTextColor(bg) {
-  let c = String(bg || '').trim().replace('#', '')
-  if (c.length === 3) c = c.split('').map(x => x + x).join('')
-  const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16)
-  if ([r, g, b].some(isNaN)) return '#fff'
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return lum > 0.6 ? '#1c2440' : '#fff'
-}
-function bannerSlideHTML(b) {
-  const clickable = b.link ? 'onclick="bannerGo(\'' + escH(String(b.link)) + '\')" ' : ''
-  // 배너 칸 비율 고정(가로:세로 = 1200:628 ≈ 1.91:1). padding-top 방식이라 모든 브라우저에서 안정적.
-  // 이미지는 잘리지 않게 전체 표시(contain)하고, 남는 여백은 같은 이미지를 흐리게 깐 배경으로 채움.
-  const base = (b.link ? 'cursor:pointer;' : '') + 'min-width:100%;flex-shrink:0;position:relative;padding-top:52.33%;scroll-snap-align:start;overflow:hidden;'
-  if (b.image_url) {
-    const u = escH(b.image_url)
-    return '<div ' + clickable + 'style="' + base + 'background:#1c2440">' +
-      '<img src="' + u + '" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(16px);transform:scale(1.12);opacity:.5">' +
-      '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#c3ccdb;font-weight:700;padding:0 16px;text-align:center;z-index:0">이미지를 불러오는 중…</span>' +
-      '<img src="' + u + '" alt="" onerror="this.style.display=\'none\';var s=this.parentNode.querySelector(\'span\');if(s)s.textContent=\'⚠ 이미지를 불러오지 못했어요 (관리자에서 다시 등록)\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1">' +
-      '</div>'
-  }
-  const bg = b.bg || '#2F6BF6'
-  const fg = bannerTextColor(bg)
-  return '<div ' + clickable + 'style="' + base + 'background:' + escH(bg) + '">' +
-    '<div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:0 24px;color:' + fg + '">' +
-    '<div style="font-size:16px;font-weight:800;line-height:1.4">' + escH(b.title || '') + '</div>' +
-    (b.subtitle ? '<div style="font-size:11.5px;font-weight:600;margin-top:6px;opacity:.9">' + escH(b.subtitle) + '</div>' : '') +
-    '</div></div>'
-}
-function mountBanner(id) {
-  const host = document.getElementById(id); if (!host) return
-  if (host._t) { clearInterval(host._t); host._t = null }
-  if (!BANNERS.length) { host.innerHTML = ''; host.style.display = 'none'; return }
-  host.style.display = 'block'
-  const many = BANNERS.length > 1
-  const dots = many ? BANNERS.map(() => '<span class="bn-dot" style="width:6px;height:6px;border-radius:99px;background:rgba(255,255,255,.55);transition:all .2s"></span>').join('') : ''
-  host.innerHTML = '<div style="margin:12px 14px 16px;border-radius:16px;overflow:hidden;position:relative;box-shadow:0 8px 20px -12px rgba(23,38,80,.4)">' +
-    '<div class="bn-track" style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch">' + BANNERS.map(bannerSlideHTML).join('') + '</div>' +
-    (many ? '<div style="position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:5px;pointer-events:none">' + dots + '</div>' : '') + '</div>'
-  const track = host.querySelector('.bn-track'); if (!track) return
-  const dotEls = host.querySelectorAll('.bn-dot')
-  const setDots = () => { if (!dotEls.length || !track.clientWidth) return; const i = Math.round(track.scrollLeft / track.clientWidth); dotEls.forEach((d, k) => { d.style.background = k === i ? '#fff' : 'rgba(255,255,255,.55)'; d.style.width = k === i ? '15px' : '6px' }) }
-  track.addEventListener('scroll', setDots, { passive: true }); setDots()
-  if (many) {
-    host._t = setInterval(() => {
-      if (!host.isConnected) { clearInterval(host._t); host._t = null; return }
-      const w = track.clientWidth; if (!w) return
-      let i = Math.round(track.scrollLeft / w) + 1; if (i >= BANNERS.length) i = 0
-      track.scrollTo({ left: i * w, behavior: 'smooth' })
-    }, 4200)
-  }
-}
-async function loadBanners() {
-  try {
-    const { data } = await sb.from('banners').select('*').eq('active', true).order('sort', { ascending: true }).order('created_at', { ascending: false })
-    BANNERS = data || []
-  } catch (e) { BANNERS = [] }
-  mountBanner('home-banner-s04'); mountBanner('home-banner-s11')
-}
-window.loadBanners = loadBanners
-function showPopup(p) {
-  const ov = document.getElementById('home-popup'); if (!ov) return
-  ov._pid = p.id
-  const img = document.getElementById('home-popup-img')
-  if (img) { if (p.image_url) { img.src = p.image_url; img.style.display = 'block' } else { img.style.display = 'none' } }
-  const t = document.getElementById('home-popup-title'); if (t) t.textContent = p.title || '안내'
-  const b = document.getElementById('home-popup-body'); if (b) b.innerHTML = escH(p.body || '').replace(/\n/g, '<br>')
-  ov.style.display = 'flex'
-}
-window.closePopup = function (hideToday) {
-  const ov = document.getElementById('home-popup'); if (!ov) return
-  if (hideToday && ov._pid) { try { localStorage.setItem('popup_hide_' + ov._pid, new Date().toISOString().slice(0, 10)) } catch (e) {} }
-  ov.style.display = 'none'
-}
-async function loadPopup() {
-  try {
-    const { data } = await sb.from('popups').select('*').eq('active', true).order('created_at', { ascending: false }).limit(1)
-    const p = data && data[0]; if (!p) return
-    let hide = ''; try { hide = localStorage.getItem('popup_hide_' + p.id) || '' } catch (e) {}
-    if (hide === new Date().toISOString().slice(0, 10)) return
-    showPopup(p)
-  } catch (e) {}
-}
-window.loadPopup = loadPopup
 function boot() {
   try { wire() } catch (e) { console.error(e) }
   try { tagInquiry() } catch (e) { console.error(e) }
   try { wireBackArrows() } catch (e) { console.error(e) }
   try { renderVideos() } catch (e) { console.error(e) }
-  try { loadBanners() } catch (e) {}
-  setTimeout(() => { try { loadPopup() } catch (e) {} }, 1500)
   try { hideSplash() } catch (e) {}
 }
 // 첫 실행 로고 화면(스플래시) 자연스럽게 사라지기

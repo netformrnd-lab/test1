@@ -2274,18 +2274,24 @@ function bannerTextColor(bg) {
 }
 function bannerSlideHTML(b) {
   const clickable = b.link ? 'onclick="bannerGo(\'' + escH(String(b.link)) + '\')" ' : ''
-  // 배너 칸 비율을 1200×628(≈1.91:1)로 고정 → 그 크기 이미지가 잘리지 않고 딱 맞음
-  const cur = 'style="' + (b.link ? 'cursor:pointer;' : '') + 'min-width:100%;flex-shrink:0;aspect-ratio:1200/628;scroll-snap-align:start;'
+  // 배너 칸 비율 고정(가로:세로 = 1200:628 ≈ 1.91:1). padding-top 방식이라 모든 브라우저에서 안정적.
+  // 이미지는 잘리지 않게 전체 표시(contain)하고, 남는 여백은 같은 이미지를 흐리게 깐 배경으로 채움.
+  const base = (b.link ? 'cursor:pointer;' : '') + 'min-width:100%;flex-shrink:0;position:relative;padding-top:52.33%;scroll-snap-align:start;overflow:hidden;'
   if (b.image_url) {
-    return '<div ' + clickable + cur + 'background:#eef1f7;position:relative;display:flex;align-items:center;justify-content:center">' +
-      '<span style="position:absolute;font-size:11px;color:#9aa3b6;font-weight:700;padding:0 16px;text-align:center">이미지를 불러오는 중…</span>' +
-      '<img src="' + escH(b.image_url) + '" alt="" onerror="this.style.display=\'none\';var s=this.previousElementSibling;if(s)s.textContent=\'⚠ 이미지를 불러오지 못했어요 (관리자에서 다시 등록해 주세요)\'" style="position:relative;width:100%;height:100%;object-fit:cover;display:block"></div>'
+    const u = escH(b.image_url)
+    return '<div ' + clickable + 'style="' + base + 'background:#1c2440">' +
+      '<img src="' + u + '" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(16px);transform:scale(1.12);opacity:.5">' +
+      '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#c3ccdb;font-weight:700;padding:0 16px;text-align:center;z-index:0">이미지를 불러오는 중…</span>' +
+      '<img src="' + u + '" alt="" onerror="this.style.display=\'none\';var s=this.parentNode.querySelector(\'span\');if(s)s.textContent=\'⚠ 이미지를 불러오지 못했어요 (관리자에서 다시 등록)\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1">' +
+      '</div>'
   }
   const bg = b.bg || '#2F6BF6'
   const fg = bannerTextColor(bg)
-  return '<div ' + clickable + cur + 'background:' + escH(bg) + ';display:flex;flex-direction:column;justify-content:center;padding:0 22px;color:' + fg + '">' +
-    '<div style="font-size:15px;font-weight:800;line-height:1.4">' + escH(b.title || '') + '</div>' +
-    (b.subtitle ? '<div style="font-size:11px;font-weight:600;margin-top:5px;opacity:.9">' + escH(b.subtitle) + '</div>' : '') + '</div>'
+  return '<div ' + clickable + 'style="' + base + 'background:' + escH(bg) + '">' +
+    '<div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:0 24px;color:' + fg + '">' +
+    '<div style="font-size:16px;font-weight:800;line-height:1.4">' + escH(b.title || '') + '</div>' +
+    (b.subtitle ? '<div style="font-size:11.5px;font-weight:600;margin-top:6px;opacity:.9">' + escH(b.subtitle) + '</div>' : '') +
+    '</div></div>'
 }
 function mountBanner(id) {
   const host = document.getElementById(id); if (!host) return

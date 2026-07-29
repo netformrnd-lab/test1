@@ -1665,9 +1665,18 @@ async function saveApt(id){
 }
 async function deleteApt(id){
   const nm=aptName(id);
-  if(!confirm(`'${nm}' 단지를 삭제할까요?\n⚠️ 이 단지의 현장 기록도 함께 삭제돼요. (회원·보고서가 배정돼 있으면 먼저 옮겨야 삭제됩니다)`))return;
+  if(!confirm(`'${nm}' 단지를 삭제할까요?\n⚠️ 이 단지의 동·현장기록·감리일지·일정·계약서·만족도·소장 작성지가 모두 함께 삭제돼요.\n되돌릴 수 없어요. (회원이 배정돼 있으면 먼저 다른 단지로 옮겨주세요)`))return;
+  const a=(APTS||[]).find(x=>x.id===id);
+  // 1) 관련 데이터(동 포함) 먼저 삭제 — 안 지우면 앱에 동·기록이 남아요
+  for(const t of ['dong_progress','field_updates','reports','schedules','contracts','surveys','manager_forms']){
+    const{error:ce}=await sb.from(t).delete().eq('apartment_id',id);
+    if(ce) console.warn('관련 데이터 삭제 경고('+t+'): '+ce.message);
+  }
+  // 소장 작성지가 apt_name 으로만 저장된 경우도 정리
+  if(a&&a.name){ try{ await sb.from('manager_forms').delete().eq('apt_name',a.name); }catch(e){} }
+  // 2) 단지 삭제
   const{error}=await sb.from('apartments').delete().eq('id',id);
-  if(error)return alert('삭제 실패: '+error.message+'\n(이 단지에 배정된 회원/보고서를 먼저 다른 단지로 옮겨주세요)');
+  if(error)return alert('삭제 실패: '+error.message+'\n(이 단지에 배정된 회원을 먼저 다른 단지로 옮겨주세요)');
   loadAll();
 }
 async function autofillRegions(){

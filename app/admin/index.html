@@ -138,6 +138,7 @@
       <a data-sec="contract"><span class="ic">📑</span>계약서<span class="cnt" id="nav-ct">0</span></a>
       <a data-sec="survey"><span class="ic">⭐</span>만족도<span class="cnt" id="nav-sv">0</span></a>
       <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
+      <a data-sec="creds"><span class="ic">🏅</span>인증·이력<span class="cnt" id="nav-cr">0</span></a>
     </nav>
     <div class="me">
       <div class="av" id="me-av">관</div>
@@ -365,6 +366,27 @@
       </div>
       <div id="cases"></div>
     </section>
+
+    <!-- 인증·이력 (공신력) -->
+    <section id="sec-creds">
+      <div class="head"><div><h2>인증·이력 (공신력)</h2><div class="desc">인증서·위촉장 이미지를 올리면 앱 ‘이야기 › 철학’ 탭 아래 인증 섹션에 표시됩니다</div></div></div>
+      <div class="card" style="border:1.5px solid #fbe2b0;background:#fffdf6">
+        <div style="font-size:12.5px;color:#8a6d1e;line-height:1.7;font-weight:600">⚠️ <b>개인정보 주의</b> — 위촉장·자격증에는 대표님의 <b>생년월일·자격번호·주소·관인(도장)</b> 이 담겨 있어요. 공개 앱에 그대로 올리면 노출·도용 위험이 있으니, <b>개인정보 부분은 가리고(모자이크)</b> 올리시길 권장합니다.</div>
+      </div>
+      <div class="card">
+        <h3>➕ 인증서 추가</h3>
+        <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">📷 인증서 이미지 <input id="cr-img" type="file" accept="image/*"></label>
+            <span id="cr-img-state" style="font-size:11.5px;font-weight:700;color:var(--mut)"></span>
+          </div>
+          <input id="cr-cap" placeholder="설명 (예: 오산시 경관위원회 위원 · 2022~2025)">
+          <input id="cr-sort" type="number" value="0" title="노출 순서" style="width:110px" placeholder="순서">
+          <button id="cr-btn" class="b save" style="align-self:flex-start" onclick="addCredential()">인증서 추가</button>
+        </div>
+      </div>
+      <div id="creds-list"></div>
+    </section>
   </main>
  </div>
 </div>
@@ -440,7 +462,49 @@ async function loadAll(){
   loadContractsAdmin();
   loadSurveysAdmin();
   loadDongProgress();
+  loadCredentialsAdmin();
 }
+/* ===== 인증·이력 (credentials) ===== */
+let CREDS_A=[], CR_IMG='';
+async function uploadCredImage(file){
+  if(!file)return '';
+  const st=$('cr-img-state'); if(st){st.textContent='업로드 중…';st.style.color='var(--mut)';}
+  const safe=file.name.replace(/[^\w.]/g,'_');
+  const path='cred/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+safe;
+  const{error}=await sb.storage.from('report-photos').upload(path,file,{upsert:false});
+  if(error){ if(st){st.textContent='업로드 실패: '+error.message;st.style.color='#e4544b';} return ''; }
+  const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
+  if(st){st.textContent='✔ 업로드 완료';st.style.color='#1f8a5b';}
+  return url;
+}
+async function loadCredentialsAdmin(){
+  const {data}=await sb.from('credentials').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false});
+  CREDS_A=data||[]; const nn=$('nav-cr'); if(nn) nn.textContent=CREDS_A.length; renderCredsAdmin();
+}
+function renderCredsAdmin(){
+  const box=$('creds-list'); if(!box)return;
+  if(!CREDS_A.length){ box.innerHTML='<div style="color:var(--mut);font-size:12.5px;padding:6px 2px">등록된 인증서가 없어요. 위에서 추가하세요.</div>'; return; }
+  box.innerHTML=CREDS_A.map(c=>`<div class="card" style="display:flex;align-items:center;gap:12px;padding:11px 14px;margin-bottom:8px">
+    ${c.image_url?`<div style="width:70px;height:64px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--line)"><img src="${esc(c.image_url)}" style="width:100%;height:100%;object-fit:cover;object-position:top"></div>`:''}
+    <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:var(--ink);line-height:1.4">${esc(c.caption||'(설명 없음)')}</div><div style="font-size:10.5px;font-weight:700;color:var(--mut);margin-top:2px">순서 ${c.sort||0}</div></div>
+    <label style="font-size:11.5px;font-weight:700;color:var(--mut2);white-space:nowrap"><input type="checkbox" ${c.active?'checked':''} onchange="toggleCred('${c.id}',this.checked)" style="vertical-align:middle"> 노출</label>
+    <span onclick="delCred('${c.id}')" style="cursor:pointer;color:#e4544b;font-size:12.5px;font-weight:800">삭제</span>
+  </div>`).join('');
+}
+$('cr-img')&&($('cr-img').onchange=async function(){ CR_IMG=await uploadCredImage(this.files&&this.files[0]); });
+async function addCredential(){
+  const fileChosen=$('cr-img')&&$('cr-img').files&&$('cr-img').files.length;
+  if(fileChosen && !CR_IMG){ return alert('이미지 업로드가 아직 안 끝났거나 실패했어요. 잠깐 기다렸다 다시 눌러주세요.'); }
+  if(!CR_IMG) return alert('인증서 이미지를 올려주세요');
+  const btn=$('cr-btn'); if(btn){btn.textContent='추가 중…';btn.disabled=true;}
+  const{error}=await sb.from('credentials').insert({ image_url:CR_IMG, caption:($('cr-cap').value||'').trim()||null, sort:parseInt($('cr-sort').value||'0')||0, active:true });
+  if(btn){btn.textContent='인증서 추가';btn.disabled=false;}
+  if(error)return alert('오류: '+error.message);
+  $('cr-cap').value='';$('cr-sort').value='0';const im=$('cr-img');if(im)im.value='';const ist=$('cr-img-state');if(ist)ist.textContent='';CR_IMG='';
+  loadCredentialsAdmin();
+}
+async function toggleCred(id,on){ const{error}=await sb.from('credentials').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);loadCredentialsAdmin();} }
+async function delCred(id){ if(!confirm('이 인증서를 삭제할까요?'))return; const{error}=await sb.from('credentials').delete().eq('id',id); if(error)return alert('오류: '+error.message); loadCredentialsAdmin(); }
 /* ===== 동별 진행 (dong_progress) ===== */
 let DONGPROG=[];
 async function loadDongProgress(){

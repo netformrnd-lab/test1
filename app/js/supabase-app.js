@@ -1706,7 +1706,26 @@ const ALIM = {
     h += block('더 쉽고, 더 믿을 수 있도록', '공사 전문 지식이 없어도 누구나 쉽고, 편안하고, 믿을 수 있게 공사할 수 있도록 만듭니다.')
     h += block('만족하는 공사', '우리는 공사에 관한 다양한 문제에 도움을 주고, 피해 보는 사람 없이 만족하는 공사를 위해 존재합니다.')
     h += block('올바른 공사 문화', '더 올바른 공사 문화를 만들고, 새로운 가치를 사회에 제공합니다.')
-    // ── 공신력(수상내역·특허) 섹션은 여기에 추가 예정 (문서 받으면 채움) ──
+    // ── 인증·이력(공신력) ──
+    h += '<div style="margin-top:34px;padding:0 16px">'
+    h += '<div style="text-align:center;margin-bottom:4px"><div style="font-size:12px;font-weight:800;letter-spacing:1.5px;color:#2F6BF6">CREDENTIALS</div><div style="font-size:20px;font-weight:800;color:#1c2440;margin-top:6px">대표 건축사 인증·이력</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:7px;' + wb + '">국가 자격을 갖춘 건축사가, 여러 지자체 심의·자문위원으로 활동하고 있습니다</div></div>'
+    // 텍스트 이력 리스트
+    const creds = [
+      ['🏛️', '건축사 자격 등록', '대한건축사협회 (등록번호 2025)'],
+      ['📐', '건축사사무소 개설', '법인 · 자격번호 14276'],
+      ['🌆', '화성시 경관위원회 위원', '2014 ~ 2018'],
+      ['📢', '화성시 옥외광고발전기금 운용심의위원회 위원', '2022 ~ 2025'],
+      ['🌳', '오산시 도시공원위원회 위원', '2018 ~ 2020'],
+      ['🏗️', '오산시 건축위원회 위원', '2022 ~ 2025'],
+      ['🏙️', '오산시 경관·도시건축공동위원회 위원', '2014 ~ 2024'],
+      ['🛠️', '성남시 기술자문위원회 위원 (건축계획)', '2023 ~ 2025']
+    ]
+    h += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">'
+    h += creds.map(c => '<div style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 13px"><div style="width:34px;height:34px;border-radius:10px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">' + c[0] + '</div><div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#1c2440;line-height:1.4;' + wb + '">' + c[1] + '</div><div style="font-size:10.5px;color:#8b95ad;font-weight:700;margin-top:2px">' + c[2] + '</div></div></div>').join('')
+    h += '</div>'
+    // 인증서 이미지 그리드 (관리자가 올린 것 자동 표시)
+    h += '<div id="cred-grid" style="margin-top:14px"></div>'
+    h += '</div>'
     h += '</div>'
     return h
   },
@@ -1878,10 +1897,26 @@ async function loadAlimFeed() {
 }
 window.openAlimUrl = function (u) { if (u) window.open(u, '_blank', 'noopener') }
 let alimTab = 'brand'
+async function loadCredentials() {
+  const box = document.getElementById('cred-grid'); if (!box) return
+  try {
+    const { data } = await sb.from('credentials').select('*').eq('active', true).order('sort', { ascending: true }).order('created_at', { ascending: false })
+    const list = data || []
+    if (!list.length) { box.innerHTML = ''; return }
+    box.innerHTML = '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:8px 2px 10px">📄 인증서</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      + list.map(c => '<div onclick="zoomPhoto(\'' + escH(c.image_url) + '\')" style="cursor:pointer;border:1px solid #eef1f7;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 6px 14px -12px rgba(23,38,80,.4)">'
+        + '<img src="' + escH(c.image_url) + '" alt="" style="width:100%;height:150px;object-fit:cover;object-position:top;display:block" loading="lazy">'
+        + (c.caption ? '<div style="font-size:10px;font-weight:700;color:#5c6580;padding:7px 9px;line-height:1.45">' + escH(c.caption) + '</div>' : '')
+        + '</div>').join('')
+      + '</div>'
+  } catch (e) { box.innerHTML = '' }
+}
 function renderAlim(tab) {
   alimTab = tab || alimTab
   const body = document.getElementById('alim-body'); if (!body) return
   body.innerHTML = (ALIM[alimTab] || ALIM.philosophy)()
+  if (alimTab === 'brand') { try { loadCredentials() } catch (e) {} }
   document.querySelectorAll('.alim-tab').forEach(t => {
     const on = t.dataset.atab === alimTab
     t.style.color = on ? '#2F6BF6' : '#98a1b5'

@@ -1250,7 +1250,9 @@ function openReport(r) {
   if (pdfEl) {
     if (showPdf) {
       if (r.pdf_url) {
-        pdfEl.innerHTML = '<div onclick="window.open(\'' + r.pdf_url + '\',\'_blank\')" style="cursor:pointer;display:flex;align-items:center;gap:11px;background:linear-gradient(150deg,#243768,#1F2C5C);color:#fff;border-radius:13px;padding:14px 15px"><div style="width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.16);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px">📄</div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800">감리 보고서 보기</div><div style="font-size:10.5px;color:#c3cee6;font-weight:600;margin-top:2px">관리자 확인·문서화한 PDF</div></div><span style="font-size:17px">›</span></div>'
+        // PDF 페이지를 이미지로 앱 안에서 바로 보여주고, 다운로드는 맨 아래
+        pdfEl.innerHTML = '<div id="pdf-pages" style="display:flex;flex-direction:column;gap:10px"><div style="text-align:center;color:#8b95ad;font-size:12px;font-weight:600;padding:26px 12px">📄 감리 보고서를 불러오는 중…</div></div>'
+          + '<a href="' + r.pdf_url + '" target="_blank" rel="noopener" download style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;background:linear-gradient(150deg,#243768,#1F2C5C);color:#fff;border-radius:12px;padding:14px;font-size:13px;font-weight:800;text-decoration:none">⬇ PDF 다운로드</a>'
       } else {
         pdfEl.innerHTML = '<div style="background:#f7f9fc;border:1px solid #eef1f7;border-radius:12px;padding:16px;text-align:center;font-size:12px;color:#8b95ad;font-weight:600;line-height:1.6">감리 보고서를 정리하고 있어요.<br>확인이 끝나면 문서로 올라와요.</div>'
       }
@@ -1287,6 +1289,52 @@ function openReport(r) {
     ? '<div data-tab="home"><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📄</div>보고서</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
     : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
   window.showScreen('s10')
+  if (showPdf && r.pdf_url) { try { renderPdfInline(r.pdf_url, 'pdf-pages') } catch (e) {} }
+}
+// PDF.js 로 감리 보고서 PDF 를 앱 안에서 이미지(캔버스)로 렌더링
+function ensurePdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib)
+  if (window._pdfjsLoading) return window._pdfjsLoading
+  window._pdfjsLoading = new Promise((res, rej) => {
+    const s = document.createElement('script')
+    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
+    s.onload = () => {
+      try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js' } catch (e) {}
+      res(window.pdfjsLib)
+    }
+    s.onerror = rej
+    document.head.appendChild(s)
+  })
+  return window._pdfjsLoading
+}
+let _pdfReqId = 0
+async function renderPdfInline(url, containerId) {
+  const myReq = ++_pdfReqId
+  const box = document.getElementById(containerId); if (!box) return
+  try {
+    const pdfjsLib = await ensurePdfJs()
+    const pdf = await pdfjsLib.getDocument(url).promise
+    if (myReq !== _pdfReqId) return                 // 그 사이 다른 보고서를 열면 취소
+    box.innerHTML = ''
+    const cssW = box.clientWidth || 300
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const page = await pdf.getPage(n)
+      if (myReq !== _pdfReqId) return
+      const base = page.getViewport({ scale: 1 })
+      const vp = page.getViewport({ scale: (cssW / base.width) * dpr })
+      const canvas = document.createElement('canvas')
+      canvas.width = vp.width; canvas.height = vp.height
+      canvas.style.cssText = 'width:100%;height:auto;display:block;border-radius:8px;border:1px solid #eef1f7;background:#fff'
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
+      if (myReq !== _pdfReqId) return
+      box.appendChild(canvas)
+    }
+    if (!pdf.numPages) box.innerHTML = ''
+  } catch (e) {
+    if (myReq !== _pdfReqId) return
+    box.innerHTML = '<div style="background:#f7f9fc;border:1px solid #eef1f7;border-radius:12px;padding:18px;text-align:center;font-size:12px;color:#8b95ad;font-weight:600;line-height:1.7">보고서 미리보기를 불러오지 못했어요.<br>아래 <b>PDF 다운로드</b>로 확인해 주세요.</div>'
+  }
 }
 window.openApt = openApt; window.openReport = openReport
 

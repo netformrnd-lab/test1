@@ -1325,9 +1325,11 @@ async function renderPdfInline(url, containerId) {
       const vp = page.getViewport({ scale: (cssW / base.width) * dpr })
       const canvas = document.createElement('canvas')
       canvas.width = vp.width; canvas.height = vp.height
-      canvas.style.cssText = 'width:100%;height:auto;display:block;border-radius:8px;border:1px solid #eef1f7;background:#fff'
+      canvas.style.cssText = 'width:100%;height:auto;display:block;border-radius:8px;border:1px solid #eef1f7;background:#fff;cursor:zoom-in'
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
       if (myReq !== _pdfReqId) return
+      // 탭하면 확대(핀치·줌) — 페이지를 이미지로 변환해 사진 뷰어로 열기
+      canvas.addEventListener('click', function () { try { window.zoomPhoto(canvas.toDataURL('image/jpeg', 0.92)) } catch (e) {} })
       box.appendChild(canvas)
     }
     if (!pdf.numPages) box.innerHTML = ''

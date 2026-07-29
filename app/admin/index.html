@@ -377,11 +377,12 @@
         <h3>➕ 인증서 추가</h3>
         <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">📷 인증서 이미지 <input id="cr-img" type="file" accept="image/*"></label>
+            <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">📷 인증서 이미지 <input id="cr-img" type="file" accept="image/*" multiple></label>
             <span id="cr-img-state" style="font-size:11.5px;font-weight:700;color:var(--mut)"></span>
           </div>
-          <input id="cr-cap" placeholder="설명 (예: 오산시 경관위원회 위원 · 2022~2025)">
-          <input id="cr-sort" type="number" value="0" title="노출 순서" style="width:110px" placeholder="순서">
+          <div style="font-size:11.5px;color:var(--mut);line-height:1.5">여러 장을 <b>한 번에 선택</b>하면 한꺼번에 올라가요. 설명은 비워둬도 되고, 적으면 선택한 모든 장에 같이 붙어요.</div>
+          <input id="cr-cap" placeholder="설명(선택 · 예: 지자체 심의·자문위원 위촉)">
+          <input id="cr-sort" type="number" value="0" title="시작 순서" style="width:110px" placeholder="시작 순서">
           <button id="cr-btn" class="b save" style="align-self:flex-start" onclick="addCredential()">인증서 추가</button>
         </div>
       </div>
@@ -465,17 +466,14 @@ async function loadAll(){
   loadCredentialsAdmin();
 }
 /* ===== 인증·이력 (credentials) ===== */
-let CREDS_A=[], CR_IMG='';
-async function uploadCredImage(file){
+let CREDS_A=[];
+async function uploadCredImageFile(file){
   if(!file)return '';
-  const st=$('cr-img-state'); if(st){st.textContent='업로드 중…';st.style.color='var(--mut)';}
   const safe=file.name.replace(/[^\w.]/g,'_');
   const path='cred/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+safe;
   const{error}=await sb.storage.from('report-photos').upload(path,file,{upsert:false});
-  if(error){ if(st){st.textContent='업로드 실패: '+error.message;st.style.color='#e4544b';} return ''; }
-  const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
-  if(st){st.textContent='✔ 업로드 완료';st.style.color='#1f8a5b';}
-  return url;
+  if(error) return '';
+  return sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
 }
 async function loadCredentialsAdmin(){
   const {data}=await sb.from('credentials').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false});
@@ -491,16 +489,24 @@ function renderCredsAdmin(){
     <span onclick="delCred('${c.id}')" style="cursor:pointer;color:#e4544b;font-size:12.5px;font-weight:800">삭제</span>
   </div>`).join('');
 }
-$('cr-img')&&($('cr-img').onchange=async function(){ CR_IMG=await uploadCredImage(this.files&&this.files[0]); });
 async function addCredential(){
-  const fileChosen=$('cr-img')&&$('cr-img').files&&$('cr-img').files.length;
-  if(fileChosen && !CR_IMG){ return alert('이미지 업로드가 아직 안 끝났거나 실패했어요. 잠깐 기다렸다 다시 눌러주세요.'); }
-  if(!CR_IMG) return alert('인증서 이미지를 올려주세요');
-  const btn=$('cr-btn'); if(btn){btn.textContent='추가 중…';btn.disabled=true;}
-  const{error}=await sb.from('credentials').insert({ image_url:CR_IMG, caption:($('cr-cap').value||'').trim()||null, sort:parseInt($('cr-sort').value||'0')||0, active:true });
+  const files=$('cr-img')&&$('cr-img').files;
+  if(!files||!files.length) return alert('인증서 이미지를 선택하세요 (여러 장 선택 가능)');
+  const cap=($('cr-cap').value||'').trim();
+  const startSort=parseInt($('cr-sort').value||'0')||0;
+  const btn=$('cr-btn'); if(btn){btn.disabled=true;}
+  const st=$('cr-img-state');
+  let ok=0, fail=0;
+  for(let i=0;i<files.length;i++){
+    if(st){ st.textContent=`업로드 중… (${i+1}/${files.length})`; st.style.color='var(--mut)'; }
+    const url=await uploadCredImageFile(files[i]);
+    if(!url){ fail++; continue; }
+    const{error}=await sb.from('credentials').insert({ image_url:url, caption:cap||null, sort:startSort+i, active:true });
+    if(error) fail++; else ok++;
+  }
   if(btn){btn.textContent='인증서 추가';btn.disabled=false;}
-  if(error)return alert('오류: '+error.message);
-  $('cr-cap').value='';$('cr-sort').value='0';const im=$('cr-img');if(im)im.value='';const ist=$('cr-img-state');if(ist)ist.textContent='';CR_IMG='';
+  if(st){ st.textContent = `✔ ${ok}장 추가 완료`+(fail?` · ${fail}장 실패`:''); st.style.color = fail?'#e4544b':'#1f8a5b'; }
+  $('cr-cap').value=''; const im=$('cr-img'); if(im) im.value='';
   loadCredentialsAdmin();
 }
 async function toggleCred(id,on){ const{error}=await sb.from('credentials').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);loadCredentialsAdmin();} }

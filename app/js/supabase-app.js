@@ -1702,21 +1702,11 @@ const ALIM = {
       + '<div style="font-size:13px;font-weight:800;letter-spacing:2px;color:#9dc0ff">Philosophy</div>'
       + '<div style="font-size:24px;font-weight:800;margin-top:9px">아파트스퀘어의 철학</div></div></div>'
     h += '<div style="padding:6px 0 34px">'
-    // 리드 문구 (승인: B안)
-    h += '<div style="padding:26px 24px 4px;text-align:center">'
-      + '<div style="font-size:15.5px;font-weight:800;color:#1c2440;line-height:1.75;' + wb + '">신축에는 감리가 있어도,<br><span style="color:#2F6BF6">유지보수 공사에는 감리가 없었습니다.</span></div>'
-      + '<div style="font-size:13px;color:#5c6580;font-weight:600;line-height:1.9;margin-top:12px;' + wb + '">수억 원이 드는 우리 아파트 보수공사, 정작 지켜봐 줄 사람이 없던 시장 — 그 빈자리에서 <b>아파트스퀘어</b>가 시작되었습니다.</div>'
-      + '</div>'
     h += block('건축사가 만든 서비스', '22년 경력 건축사가 현장을 직접 확인합니다. 서류가 아니라, 사람이 책임집니다.')
     h += block('어렵던 공사를, 쉽고 투명하게', '전문 지식이 없어도 누구나 이해하도록. 모든 과정을 사진과 기록으로 투명하게 남깁니다.')
     h += block('만족하는 감리', '공사가 아니라 그 결과에 만족하도록, 입주민이 안심할 때까지 함께합니다.')
     h += block('바른 공사가 당연한 문화로', '한 번에 제대로 끝내는 공사를. 아파트스퀘어가 그 기준을 만들어갑니다.')
     h += block('감리의 기준', '신축에만 있던 감리를 유지보수 현장으로. 아파트스퀘어가 그 첫 기준을 세웁니다.')
-    // 마지막 강조 문구
-    h += '<div style="margin:36px 16px 0;background:#1c2440;color:#fff;border-radius:16px;padding:26px 20px;text-align:center">'
-      + '<div style="width:30px;height:3px;background:#7FA1E0;border-radius:9px;margin:0 auto 16px"></div>'
-      + '<div style="font-size:15.5px;font-weight:800;line-height:1.7;' + wb + '">중요한 것은 공법이 아니라 <span style="color:#7FA1E0">결과</span>입니다.<br>좋은 공사는, <span style="color:#7FA1E0">좋은 감리</span>에서 시작됩니다.</div>'
-      + '</div>'
     // ── 인증·이력(공신력) : 관리자가 올린 인증서 이미지 (없으면 섹션 자체가 숨겨짐) ──
     h += '<div id="cred-section" style="display:none;margin-top:34px;padding:0 16px 20px">'
     h += '<div style="text-align:center;font-size:20px;font-weight:800;color:#1c2440;margin-bottom:14px">인증·이력</div>'

@@ -1716,13 +1716,13 @@ function wire() {
 /* ===== 알림 탭 = 아파트스퀘어 소개 (실행 로드맵 기반, 감리 토탈 솔루션) ===== */
 // 콘텐츠(블로그·유튜브) 목록 — 실제 링크는 여기 채우면 됨
 const ALIM_CONTENT = [
-  { type: 'youtube', yt: 'yQUeooyXpPA', title: '아파트스퀘어 현장 쇼츠 ①', url: 'https://youtube.com/shorts/yQUeooyXpPA' },
-  { type: 'youtube', yt: 'i7061vU2BXE', title: '아파트스퀘어 현장 쇼츠 ②', url: 'https://youtube.com/shorts/i7061vU2BXE' },
-  { type: 'youtube', yt: 'Hz6Z2T1v5nY', title: '아파트스퀘어 현장 쇼츠 ③', url: 'https://youtube.com/shorts/Hz6Z2T1v5nY' },
-  { type: 'youtube', yt: 'XVegF05f1js', title: '아파트스퀘어 현장 쇼츠 ④', url: 'https://youtube.com/shorts/XVegF05f1js' },
-  { type: 'youtube', yt: 'k_RGeslphd0', title: '아파트스퀘어 현장 쇼츠 ⑤', url: 'https://youtube.com/shorts/k_RGeslphd0' },
-  { type: 'youtube', yt: 'JfHwcYDGcck', title: '아파트스퀘어 현장 쇼츠 ⑥', url: 'https://youtube.com/shorts/JfHwcYDGcck' },
-  { type: 'youtube', yt: 'OtNt2Jv08ag', title: '아파트스퀘어 영상 보기', url: 'https://youtu.be/OtNt2Jv08ag' },
+  { type: 'youtube', yt: 'yQUeooyXpPA', title: '시트방수에 필요한 “이것”은?', url: 'https://youtube.com/shorts/yQUeooyXpPA' },
+  { type: 'youtube', yt: 'i7061vU2BXE', title: '옥상 바탕면의 보강방법은?', url: 'https://youtube.com/shorts/i7061vU2BXE' },
+  { type: 'youtube', yt: 'Hz6Z2T1v5nY', title: '이음부위 보수는?', url: 'https://youtube.com/shorts/Hz6Z2T1v5nY' },
+  { type: 'youtube', yt: 'XVegF05f1js', title: '옥상방수감리는?', url: 'https://youtube.com/shorts/XVegF05f1js' },
+  { type: 'youtube', yt: 'k_RGeslphd0', title: '아스팔트슁글 하자유형은?', url: 'https://youtube.com/shorts/k_RGeslphd0' },
+  { type: 'youtube', yt: 'JfHwcYDGcck', title: '22년차 건축사가 알려주는 옥상누수 원인 총정리', url: 'https://youtube.com/shorts/JfHwcYDGcck' },
+  { type: 'youtube', yt: 'OtNt2Jv08ag', title: '드론 AI 하자 사전진단 무상제공, 누적 50만 세대 데이터 학습한 AI가 완벽 진단합니다! | 아파트스퀘어', url: 'https://youtu.be/OtNt2Jv08ag' },
   { type: 'blog', title: '아파트 외벽 도색 감리, 22년차 건축사가 짚어주는 핵심 포인트', url: 'https://blog.naver.com/aptsquare_/224318743314' },
   { type: 'blog', title: '지하주차장 에폭시 재하자, 감리 없이 반복되는 이유', url: 'https://blog.naver.com/aptsquare_/224324551316' },
   { type: 'blog', title: '22년차 건축사가 알려주는 아파트 보수공사 감리 — 소통과 품질의 기준', url: 'https://blog.naver.com/aptsquare_/224316637130' },

@@ -192,8 +192,7 @@ function normDongsInput(str) {
 }
 let FIELD_LIST = []       // 입주민 현장 현황 전체
 let FIELD_DONG = ''
-let DONG_ROWS = []        // 동별 진행 현황(dong_progress) 원본
-window.selectFieldDong = function (d) { FIELD_DONG = d; renderFieldList(); renderDongProgress(RES_APT, DONG_ROWS) }
+window.selectFieldDong = function (d) { FIELD_DONG = d; renderFieldList() }
 function renderFieldList() {
   const cont = document.getElementById('field-list'); if (!cont) return
   const prevBar = cont.querySelector('.dong-bar'); const prevScroll = prevBar ? prevBar.scrollLeft : 0
@@ -204,43 +203,6 @@ function renderFieldList() {
   if (!list.length) { cont.innerHTML = bar + '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">' + (q || FIELD_DONG ? '해당 사진이 없어요.' : '아직 등록된 현장 기록이 없어요.<br>새 현장 사진이 올라오면 여기에 표시돼요.') + '</div>'; const nb0 = cont.querySelector('.dong-bar'); if (nb0) nb0.scrollLeft = prevScroll; return }
   cont.innerHTML = bar + list.map(reportCard).join('')
   const nb = cont.querySelector('.dong-bar'); if (nb) nb.scrollLeft = prevScroll
-}
-// 동별 진행 현황 펼치기/접기
-window.toggleDongProg = function (head) {
-  const el = document.getElementById('dongprog-list'); if (!el) return
-  const open = el.style.display !== 'none'
-  el.style.display = open ? 'none' : 'flex'
-  const c = head && head.querySelector('.dp-caret'); if (c) c.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)'
-}
-// 동별 진행 현황: 관리자가 설정한 dong_progress 기준 (stage = 완료 단계 수)
-function renderDongProgress(apt, rows) {
-  const box = document.getElementById('field-dongprog'); if (!box) return
-  let list = (rows || []).slice().sort((a, b) => (parseInt(a.dong) || 999) - (parseInt(b.dong) || 999))
-  const sel = FIELD_DONG
-  if (sel) list = list.filter(r => r.dong === sel)
-  // 특정 동 선택 시 진행 정보가 없으면 안내
-  if (sel && !list.length) {
-    box.innerHTML = '<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 14px;margin-bottom:11px;font-size:12px;font-weight:700;color:#8b95ad">🏢 ' + escH(sel) + ' 진행 정보가 아직 없어요.</div>'
-    box.style.display = 'block'; return
-  }
-  if (!list.length) { box.style.display = 'none'; box.innerHTML = ''; return }
-  const stages = (apt && window.methodStages && window.methodStages(apt.method)) || null
-  const tot = stages ? stages.length : 0
-  const openInit = sel ? 'flex' : 'none'         // 특정 동 선택 시 자동 펼침
-  const caretRot = sel ? 'rotate(180deg)' : 'rotate(0deg)'
-  const headTxt = sel ? ('🏢 ' + escH(sel) + ' 진행 현황') : ('🏢 동별 진행 현황 <span style="font-size:11px;color:#8b95ad;font-weight:700">(' + list.length + '개 동)</span>')
-  box.innerHTML = '<div onclick="toggleDongProg(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 14px;margin-bottom:11px"><span style="font-size:12.5px;font-weight:800;color:#1c2440">' + headTxt + '</span><span class="dp-caret" style="font-size:12px;color:#b3bccf;transition:transform .15s;transform:' + caretRot + '">▾</span></div>'
-    + '<div id="dongprog-list" style="display:' + openInit + ';flex-direction:column;gap:8px;margin-bottom:15px">'
-    + list.map(r => {
-      const cur = Math.max(0, Math.min(r.stage || 0, tot || (r.stage || 0)))
-      const done = tot && cur >= tot
-      const name = stages ? (done ? '공사 완료' : (stages[cur] || stages[tot - 1] || '진행 중')) : '진행 중'
-      const pct = tot ? Math.round(cur / tot * 100) : 0
-      const bar = tot ? '<div style="height:5px;border-radius:9px;background:#eef1f7;margin-top:7px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + (done ? '#1f8a5b' : '#2F6BF6') + ';border-radius:9px"></div></div><div style="font-size:9px;color:#8b95ad;font-weight:700;margin-top:3px">' + cur + '/' + tot + ' 단계</div>' : ''
-      return '<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 13px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:800;color:#2F6BF6">' + escH(r.dong) + '</span><span style="font-size:9.5px;font-weight:800;color:' + (done ? '#1f8a5b' : '#c98a1e') + ';background:' + (done ? '#e7f5ee' : '#fbf1de') + ';padding:2px 8px;border-radius:99px">' + (done ? '완료' : '진행 중') + '</span></div><div style="font-size:11.5px;font-weight:700;color:#3a445e;margin-top:4px">현재 공정 · ' + escH(name) + '</div>' + bar + '</div>'
-    }).join('')
-    + '</div>'
-  box.style.display = 'block'
 }
 // 현장 현황 상단: 공정 진행 단계 요약 (탭하면 s24 상세)
 function renderFieldProgress(apt) {
@@ -268,12 +230,6 @@ async function loadFieldUpdates() {
   if (apt) { RES_APT = apt; noteAptBase(apt) }
   if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
   checkSurveyBanner(apt)
-  // 동별 진행 현황: 관리자가 설정한 dong_progress
-  try {
-    const { data: dp } = await sb.from('dong_progress').select('dong,stage').eq('apartment_id', prof.apartment_id)
-    DONG_ROWS = dp || []
-    renderDongProgress(apt, DONG_ROWS)
-  } catch (e) { DONG_ROWS = []; renderDongProgress(apt, []) }
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
   FIELD_LIST = (data || []).map(f => { f._field = true; return f }) // 현장현황 항목 표시(감리일지와 구분)
   renderFieldList()
@@ -547,11 +503,24 @@ window.goBack = function () {
   }, { passive: true })
 })()
 function wireBackArrows() {
-  document.querySelectorAll('.ab').forEach((ab) => {
-    const sp = ab.querySelector('span')
-    if (sp && /^[‹<]$/.test((sp.textContent || '').trim()) && !sp.getAttribute('onclick') && !sp.hasAttribute('data-back')) {
-      sp.style.cursor = 'pointer'; sp.onclick = () => window.goBack()
-    }
+  // 뒤로가기 화살표(‹)는 글자 하나라 탭 영역이 너무 작아 잘 안 눌림 → 영역을 키우고 동작 보장
+  const isBack = (sp) => sp && /^[‹<]$/.test((sp.textContent || '').trim())
+  const enlarge = (sp) => {
+    sp.style.cursor = 'pointer'
+    sp.style.display = 'inline-flex'
+    sp.style.alignItems = 'center'
+    sp.style.justifyContent = 'center'
+    sp.style.padding = '10px 14px'
+    sp.style.margin = '-10px -8px -10px -12px'
+    sp.style.webkitTapHighlightColor = 'transparent'
+    sp.style.userSelect = 'none'
+  }
+  // 1) 헤더(.ab) 안의 ‹  2) data-back 표시가 붙은 화살표
+  document.querySelectorAll('.ab span, [data-back]').forEach((sp) => {
+    if (!isBack(sp)) return
+    enlarge(sp)
+    // 인라인 onclick·data-back 은 그대로 두고, 미연결 화살표만 goBack 연결
+    if (!sp.getAttribute('onclick') && !sp.hasAttribute('data-back')) sp.onclick = () => window.goBack()
   })
 }
 
@@ -1666,7 +1635,7 @@ function wire() {
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = () => { showScreen('s12'); loadResidentReports() }
   const icField = $('res-ic-field'); if (icField) icField.onclick = () => { showScreen('s26'); loadFieldUpdates() }
   const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu
-  const audCard = $('res-aud-card'); if (audCard) audCard.onclick = () => window.open(INQUIRY_URL, '_blank', 'noopener')
+  const audCard = $('res-aud-card'); if (audCard) audCard.onclick = () => chatFromNav() // 카톡 대신 자체 앱 채팅으로
   const noPhone = () => alert('담당 감리사 연락처가 아직 등록되지 않았어요.\n(감리사가 회원가입 시 연락처를 입력하면 표시돼요.)')
   const qc = $('q-call'); if (qc) qc.onclick = () => { if (RES_AUD_PHONE) window.location.href = 'tel:' + RES_AUD_PHONE.replace(/[^0-9+]/g, ''); else noPhone() }
   const qs = $('q-sms'); if (qs) qs.onclick = () => { if (RES_AUD_PHONE) window.location.href = 'sms:' + RES_AUD_PHONE.replace(/[^0-9+]/g, ''); else noPhone() }
@@ -1719,46 +1688,70 @@ function navyHero(kicker, title) {
 }
 function alimCard(inner, pad) { return '<div style="background:#fff;border:1px solid #eef1f7;border-radius:15px;padding:' + (pad || '15px 15px') + ';box-shadow:0 8px 18px -14px rgba(23,38,80,.35)">' + inner + '</div>' }
 const ALIM = {
-  // 브랜드 철학 · 짧고 스캔하기 쉽게
+  // 철학 = 창업 스토리 (왜 생겨났는가)
   brand() {
     const wb = 'word-break:keep-all;'
-    let h = navyHero('BRAND PHILOSOPHY', '믿을 수 있는 감리가<br>당연한 세상을 위해')
-    h += '<div style="padding:20px 15px 28px">'
-    // 문제 — 짧은 고민 3줄
-    h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:0 2px 12px">이런 고민, 있으셨죠?</div>'
+    const scene = (img, cap, title, body) => '<div style="margin-top:18px">'
+      + '<div style="border-radius:14px;overflow:hidden;position:relative"><img src="' + img + '" style="width:100%;height:152px;object-fit:cover;display:block" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 45%,rgba(10,16,34,.72))"></div><span style="position:absolute;left:12px;bottom:10px;color:#fff;font-size:9.5px;font-weight:800;letter-spacing:1px">' + cap + '</span></div>'
+      + '<div style="font-size:15px;font-weight:800;color:#1c2440;margin:13px 2px 7px;line-height:1.5;' + wb + '">' + title + '</div>'
+      + '<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;margin:0 2px;' + wb + '">' + body + '</div></div>'
+    let h = navyHero('OUR STORY · 우리가 시작한 이유', '왜 아파트스퀘어를<br>시작했을까요')
+    h += '<div style="padding:22px 15px 28px">'
+    h += '<div style="font-size:14.5px;font-weight:800;color:#1c2440;line-height:1.7;margin:0 2px 2px;' + wb + '">22년, 건축과 감리 현장에서<br>같은 장면을 반복해서 봤습니다.</div>'
+    h += scene('assets/philo_defect1.jpg', 'SCENE 01', '수억 원이 드는 공사, 정작 주인은 몰랐습니다', '아파트 보수공사에는 수억 원이 듭니다. 그런데 비용을 부담하는 입주민은 “무슨 공사를, 왜, 제대로 하고 있는지” 확인할 방법이 없었습니다. 모든 판단은 늘 <b>공사업체의 몫</b>이었죠.')
+    h += scene('assets/philo_defect3.jpg', 'SCENE 02', '확인하는 사람이 없으면, 하자는 반복됐습니다', '제대로 된 확인 없이 끝난 공사는 몇 년 뒤 <b>같은 자리, 같은 하자</b>로 돌아왔습니다. 그때마다 입주민만 두 번, 세 번 비용을 치렀습니다.')
+    h += scene('assets/philo_audit2.jpg', 'SCENE 03', '문제는 실력이 아니라, ‘곁에서 확인해줄 눈’의 부재였습니다', '좋은 기술도, 성실한 업체도 있었습니다. 하지만 <b>입주민 편에 서서 공정을 대신 확인하고 기록으로 남겨줄 독립된 눈</b>이 없었습니다.')
+    // 전환
+    h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:22px 0 4px">↓</div>'
+    h += '<div style="font-size:17px;font-weight:800;color:#1c2440;line-height:1.6;margin:0 2px 11px;text-align:center;' + wb + '">그래서 <span style="color:#2F6BF6">아파트스퀘어</span>를<br>시작했습니다</div>'
+    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9;' + wb + '">공사업체가 아닌, <b>오직 입주민 편에 서는 독립 감리.</b><br>진단부터 준공까지 자재·공정·품질을 직접 확인하고, 모든 과정을 <b style="color:#2F6BF6">사진과 기록으로 투명하게</b> 남깁니다. 전문 지식이 없어도 누구나 <b>쉽게 이해하고, 공정하게 결정하고, 안심하고 맡길 수 있도록.</b></div>', '16px 16px')
+    // 선언
+    h += '<div style="text-align:center;padding:30px 16px 8px">'
+      + '<div style="width:34px;height:3px;background:#2F6BF6;border-radius:9px;margin:0 auto 18px"></div>'
+      + '<div style="font-size:18px;font-weight:800;color:#1c2440;line-height:1.7;' + wb + '">“전문가가 아니어도 누구나<br><span style="color:#2F6BF6">안심하고 맡길 수 있어야</span> 합니다”</div>'
+      + '<div style="font-size:12px;color:#8b95ad;font-weight:600;margin-top:13px;' + wb + '">그 당연한 믿음에서, 아파트스퀘어는 시작됐습니다</div>'
+      + '</div>'
+    // 약속 사진
+    h += '<div style="border-radius:16px;overflow:hidden;position:relative;margin-top:16px"><img src="assets/philo_promise.jpg" style="width:100%;display:block;height:240px;object-fit:cover;object-position:center 30%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.18) 0%,rgba(15,22,48,.22) 56%,rgba(15,22,48,.72) 76%,rgba(15,22,48,.96) 100%)"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:22px 18px 24px;text-align:center;color:#fff"><div style="font-size:16px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:11px;font-size:12px;font-weight:800;color:#dbe6ff">— 아파트스퀘어</div></div></div>'
+    h += '</div>'
+    return h
+  },
+  // 소개 = 아파트스퀘어가 어떤 회사인지 + (기존 철학 내용 녹여서)
+  philosophy() {
+    const wb = 'word-break:keep-all;'
+    let h = navyHero('APARTSQUARE · 아파트 보수공사 감리', '아파트 보수공사,<br>쉽게 · 공정하게 · 안심되게')
+    h += '<div style="padding:16px 14px 26px">'
+    // 무엇을 하는 회사인가
+    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9;' + wb + '">아파트스퀘어는 <b>비전문가도</b> 아파트 보수공사의 <b style="color:#2F6BF6">진단 · 설계 · 입찰 · 시공 · 준공</b>을 쉽게 이해하고 공정하게 관리할 수 있도록 돕는 <b>보수공사 감리 토탈 솔루션</b>입니다.</div>', '16px 15px')
+    h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:15px;padding:16px 15px;margin-top:12px">'
+      + '<div style="font-size:13px;font-weight:800;color:#2F6BF6;margin-bottom:6px">🛡️ 감리가 뭔가요?</div>'
+      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8;' + wb + '">공사가 <b>약속대로 되는지 제3자가 확인</b>하는 일이에요. 공사업체가 아닌 <b>독립된 감리사</b>가 자재·공정·품질을 검측하고 기록으로 남겨 드려요.</div></div>'
+    // 이런 고민 (기존 철학에서 녹임)
+    h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:24px 2px 12px">이런 고민, 있으셨죠?</div>'
     h += '<div style="display:flex;flex-direction:column;gap:9px">'
     h += [['💸', '수억 원이 드는데,<br>제대로 되는 건지 모르겠어요'],
       ['🤷', '전문가가 아니라<br>업체 말만 믿어야 해요'],
       ['🔁', '고쳐도 또<br>하자가 생겨요']]
       .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:13px 14px"><div style="font-size:22px;flex-shrink:0">' + c[0] + '</div><div style="font-size:13px;font-weight:700;color:#3a445e;line-height:1.5;' + wb + '">' + c[1] + '</div></div>').join('')
     h += '</div>'
-    // 문제를 눈으로 — 방치된 현장 사진
-    // 실제 하자 사진 3장
-    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:16px 2px 10px">방치하면, 이런 하자로 이어집니다</div>'
+    // 방치하면 이런 하자
+    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:20px 2px 10px">방치하면, 이런 하자로 이어집니다</div>'
     h += '<div style="display:flex;gap:6px">'
     h += [['assets/philo_defect1.jpg', '외벽 균열'], ['assets/philo_defect2.jpg', '박리·들뜸'], ['assets/philo_defect3.jpg', '바닥 손상']]
       .map(c => '<div style="flex:1;border-radius:11px;overflow:hidden;position:relative"><img src="' + c[0] + '" style="width:100%;height:90px;object-fit:cover;display:block" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 42%,rgba(10,16,34,.82))"></div><span style="position:absolute;left:6px;bottom:5px;color:#fff;font-size:9px;font-weight:800">' + c[1] + '</span></div>').join('')
     h += '</div>'
-    // 전환 — 화살표
+    // 그래서 대신 확인
     h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:16px 0 6px">↓</div>'
-    // 해결 — 아파트스퀘어가 대신 확인
     h += '<div style="font-size:16px;font-weight:800;color:#1c2440;margin:0 2px 10px;' + wb + '">그래서, 아파트스퀘어가<br><span style="color:#2F6BF6">대신 확인합니다</span></div>'
     h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '">공사업체가 아닌 <b>독립된 제3자 감리사</b>가 여러분의 눈이 되어, 진단부터 준공까지 <b>자재·공정·품질을 직접 검측</b>하고 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다.</div>', '15px 15px')
-    // 감리 진행중 사진
-    h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit2.jpg" style="width:100%;display:block;height:180px;object-fit:cover;object-position:center 60%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 52%,rgba(10,16,34,.8))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">감리사가 현장에서 직접 확인합니다</div></div>'
+    h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit2.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 60%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 52%,rgba(10,16,34,.8))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">감리사가 현장에서 직접 확인합니다</div></div>'
     // 3단계 흐름
     h += '<div style="display:flex;gap:7px;margin-top:13px">'
     h += [['🔍', '정밀 진단', '드론·AI로 상태 파악'], ['🛡️', '공정별 검측', '단계마다 직접 확인'], ['📄', '기록·보고', '사진과 문서로 남김']]
       .map(c => '<div style="flex:1;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 6px;text-align:center"><div style="font-size:22px">' + c[0] + '</div><div style="font-size:11.5px;font-weight:800;color:#1c2440;margin-top:5px">' + c[1] + '</div><div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:3px;line-height:1.4;' + wb + '">' + c[2] + '</div></div>').join('')
     h += '</div>'
-    // 믿음 — 브랜드 선언 (페이지에 녹아드는 깔끔한 중앙 정렬)
-    h += '<div style="text-align:center;padding:34px 16px 16px">'
-      + '<div style="width:34px;height:3px;background:#2F6BF6;border-radius:9px;margin:0 auto 18px"></div>'
-      + '<div style="font-size:18px;font-weight:800;color:#1c2440;line-height:1.7;' + wb + '">전문 지식이 없어도 누구나<br><span style="color:#2F6BF6">안심하고 맡길 수 있어야</span> 합니다</div>'
-      + '<div style="font-size:12px;color:#8b95ad;font-weight:600;margin-top:13px;' + wb + '">그 당연한 믿음에서, 아파트스퀘어는 시작됐습니다</div>'
-      + '</div>'
-    // 가치 — 4개 한 줄 카드
-    h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:26px 2px 12px">그 믿음을 지키는 네 가지</div>'
+    // 우리가 지키는 가치 (4)
+    h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:26px 2px 12px">아파트스퀘어가 지키는 네 가지</div>'
     h += '<div style="display:flex;flex-direction:column;gap:8px">'
     h += [['🔍', '투명성', '모든 공정을 사진·기록으로'],
       ['⚖️', '공정성', '이해관계 없는 제3자의 판단'],
@@ -1766,29 +1759,10 @@ const ALIM = {
       ['💡', '쉬움', '어려운 판단을 쉬운 말로']]
       .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:12px 14px"><div style="width:38px;height:38px;border-radius:11px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + c[0] + '</div><div style="flex:1;min-width:0"><span style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</span><span style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-left:8px;' + wb + '">' + c[2] + '</span></div></div>').join('')
     h += '</div>'
-    // 마무리 대표 사진
-    h += '<div style="margin-top:22px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:200px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">우리 단지가 안심할 때까지 함께합니다</div></div></div>'
-    // 약속 — 브랜드 사진(감리사가 고객에게 설명) 위에 문구
-    h += '<div style="border-radius:16px;overflow:hidden;position:relative;margin-top:14px"><img src="assets/philo_promise.jpg" style="width:100%;display:block;height:240px;object-fit:cover;object-position:center 30%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.18) 0%,rgba(15,22,48,.22) 56%,rgba(15,22,48,.72) 76%,rgba(15,22,48,.96) 100%)"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:22px 18px 24px;text-align:center;color:#fff"><div style="font-size:16px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:11px;font-size:12px;font-weight:800;color:#dbe6ff">— 아파트스퀘어</div></div></div>'
-    h += '</div>'
-    return h
-  },
-  // 소개 · 비전 · 철학
-  philosophy() {
-    let h = navyHero('APARTSQUARE · 아파트 보수공사 감리', '아파트 보수공사,<br>쉽게 · 공정하게 · 안심되게')
-    h += '<div style="padding:16px 14px 26px">'
-    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9">아파트스퀘어는 <b>비전문가도</b> 아파트 보수공사의<br><b style="color:#2F6BF6">진단 · 설계 · 입찰 · 시공 · 준공</b>을<br>쉽게 이해하고 공정하게 관리할 수 있도록 돕는<br><b>보수공사 감리 토탈 솔루션</b>입니다.</div>', '16px 15px')
-    h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:15px;padding:16px 15px;margin-top:12px">'
-      + '<div style="font-size:13px;font-weight:800;color:#2F6BF6;margin-bottom:6px">🛡️ 감리가 뭔가요?</div>'
-      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8">공사가 <b>약속대로 되는지 제3자가 확인</b>하는 일이에요. 공사업체가 아닌 <b>독립된 감리사</b>가 자재·공정·품질을 검측하고 기록으로 남겨 드려요.</div></div>'
-    h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:24px 4px 11px">아파트스퀘어가 지키는 세 가지</div>'
-    h += '<div style="display:flex;flex-direction:column;gap:10px">'
-    h += [['🔎', '쉽게 이해돼요', '전문적인 판단을 쉬운 말·현장 사진으로 설명해요.'],
-      ['⚖️', '공정하게 결정해요', '할 공사와 미뤄도 되는 공사를 구분하고, 업체 선정도 공정하게.'],
-      ['🛡️', '안심하고 맡겨요', '진단부터 준공·하자관리까지 표준화된 감리로 함께해요.']]
-      .map(c => alimCard('<div style="display:flex;gap:12px;align-items:flex-start"><div style="width:42px;height:42px;border-radius:12px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:21px">' + c[0] + '</div><div><div style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</div><div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.6;margin-top:3px">' + c[2] + '</div></div></div>', '13px 14px')).join('')
-    h += '</div>'
-    h += '<div style="background:#1c2440;color:#fff;border-radius:15px;padding:20px 18px;margin-top:20px;text-align:center"><div style="font-size:12.5px;font-weight:600;color:#c3cee6;line-height:1.7">아파트스퀘어의 경쟁력은</div><div style="font-size:14.5px;font-weight:800;line-height:1.6;margin-top:8px">전문적인 판단을 고객이<br><span style="color:#7FA1E0">쉽게 이해하고, 공정하게 결정하고,<br>안심하고 맡길 수 있게</span> 만든<br>표준 감리 운영체계</div></div>'
+    // 경쟁력 선언
+    h += '<div style="background:#1c2440;color:#fff;border-radius:15px;padding:20px 18px;margin-top:22px;text-align:center"><div style="font-size:12.5px;font-weight:600;color:#c3cee6;line-height:1.7">아파트스퀘어의 경쟁력은</div><div style="font-size:14.5px;font-weight:800;line-height:1.6;margin-top:8px;' + wb + '">전문적인 판단을 고객이<br><span style="color:#7FA1E0">쉽게 이해하고, 공정하게 결정하고,<br>안심하고 맡길 수 있게</span> 만든<br>표준 감리 운영체계</div></div>'
+    // 마무리 사진
+    h += '<div style="margin-top:16px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:190px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">우리 단지가 안심할 때까지 함께합니다</div></div></div>'
     h += '</div>'
     return h
   },
@@ -1815,28 +1789,33 @@ const ALIM = {
     h += '</div>'
     return h
   },
-  // 진행과정 = 고객 여정과 각 단계 경험
+  // 진행과정 = 단계별로 '어떻게 진행되고, 무엇이 해결되는지'
   process() {
+    const wb = 'word-break:keep-all;'
+    // [아이콘, 단계, 이렇게 진행해요(설명), 이렇게 해결돼요(성과)]
     const J = [
-      ['💬', '문의', '“우리 단지 상황을 이해하는 전문가를 찾았다.”'],
-      ['📝', '상담', '“우리 문제를 정확히 이해하고 정리해줬다.”'],
-      ['🔍', '현장 진단', '“무엇을 하고 무엇은 미뤄도 되는지 알게 됐다.”'],
-      ['📄', '제안 · 계약', '“앞으로 어떤 절차로 진행되는지 명확하다.”'],
-      ['⚖️', '설계 · 입찰', '“업체 선정 과정이 공정하고 설명 가능하다.”'],
-      ['🏗️', '공사 · 감리', '“매일 안 가도 공사가 투명하게 관리되고 있다.”'],
-      ['✅', '준공', '“공사가 제대로 끝났다는 근거가 있다.”'],
-      ['🤝', '사후관리', '“일회성이 아니라, 장기적인 보수공사 파트너다.”']
+      ['💬', '① 문의 · 접수', '카카오톡·전화·앱으로 우리 단지 상황을 남기면, 단지 규모·공사 이력·지금 고민을 먼저 듣고 <b>담당 감리사를 배정</b>해요.', '처음부터 우리 편에 서는 전문가가 생겨요.'],
+      ['🔍', '② 현장 정밀 진단', '사람이 오르기 어려운 외벽·옥상을 <b>드론·AI로 촬영·분석</b>하고, 현장을 직접 점검해 상태를 정확히 파악해요.', '<b>꼭 할 공사와 미뤄도 되는 공사</b>가 구분돼, 불필요한 비용을 막아요.'],
+      ['📄', '③ 제안 · 계약', '진단 결과를 바탕으로 <b>공사 범위·공법·예상 비용 범위·진행 절차</b>를 쉬운 말로 설명하고, 입주자대표회의 설명자료도 만들어 드려요.', '앞으로 무엇을, 얼마에, 어떻게 하는지 명확해져요.'],
+      ['⚖️', '④ 설계 · 입찰', '설계도서·시방서·물량을 정리하고, <b>업체 평가기준</b>을 세워 현장설명회·기술평가를 지원해요.', '아는 업체·최저가가 아니라, <b>공정한 기준</b>으로 업체가 정해져요.'],
+      ['🏗️', '⑤ 시공 감리 · 공정별 검측', '공사가 시작되면 감리사가 <b>매 공정을 직접 검측</b>하고, 감리일지·현장 사진을 <b>앱으로 그날 바로 공유</b>해요. 문제가 보이면 즉시 시정을 요구해요.', '매일 현장에 안 가도 투명하게 관리되고, 하자는 덮이기 전에 잡혀요.'],
+      ['✅', '⑥ 준공 검사', '마지막으로 시공 상태를 점검하고 <b>준공 서류·검측 기록</b>으로 마무리해요.', '“제대로 끝났다”는 <b>객관적인 근거</b>가 남아요.'],
+      ['🤝', '⑦ 하자 · 사후관리', '준공 후에도 하자 대응을 돕고 <b>모든 기록을 보관</b>해, 다음 공사·점검까지 이어가요.', '일회성이 아니라, <b>장기적인 보수공사 파트너</b>가 돼요.']
     ]
-    let h = navyHero('CUSTOMER JOURNEY', '문의부터 사후관리까지,<br>이런 경험을 드려요')
+    let h = navyHero('HOW IT WORKS · 진행 과정', '문의부터 사후관리까지,<br>이렇게 해결해 드려요')
     h += '<div style="padding:20px 16px 26px">'
     J.forEach((s, i) => {
       const last = i === J.length - 1
       h += '<div style="display:flex;gap:13px">'
-        + '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:38px;height:38px;border-radius:11px;background:#eef4ff;display:flex;align-items:center;justify-content:center;font-size:19px">' + s[0] + '</div>' + (last ? '' : '<div style="flex:1;width:2px;background:#cfe0ff;margin:4px 0"></div>') + '</div>'
-        + '<div style="flex:1;padding-bottom:' + (last ? '0' : '16px') + '"><div style="font-size:14px;font-weight:800;color:#1c2440;margin-bottom:6px">' + s[1] + '</div>'
-        + '<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 13px;font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.6;box-shadow:0 8px 18px -15px rgba(23,38,80,.35)">' + s[2] + '</div></div></div>'
+        + '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:40px;height:40px;border-radius:12px;background:#eef4ff;display:flex;align-items:center;justify-content:center;font-size:20px">' + s[0] + '</div>' + (last ? '' : '<div style="flex:1;width:2px;background:#cfe0ff;margin:4px 0"></div>') + '</div>'
+        + '<div style="flex:1;padding-bottom:' + (last ? '0' : '18px') + '"><div style="font-size:14.5px;font-weight:800;color:#1c2440;margin-bottom:7px">' + s[1] + '</div>'
+        + '<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 13px;box-shadow:0 8px 18px -15px rgba(23,38,80,.35)">'
+        + '<div style="font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.7;' + wb + '">' + s[2] + '</div>'
+        + '<div style="display:flex;gap:6px;align-items:flex-start;margin-top:9px;padding-top:9px;border-top:1px dashed #eef1f7"><span style="color:#1f8a5b;font-weight:800;font-size:11px;flex-shrink:0">✓ 이렇게 해결돼요</span></div>'
+        + '<div style="font-size:11.5px;color:#1f6d4a;font-weight:700;line-height:1.6;margin-top:3px;' + wb + '">' + s[3] + '</div>'
+        + '</div></div></div>'
     })
-    h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:14px;padding:16px;text-align:center;margin-top:6px"><div style="font-size:12.5px;font-weight:800;color:#1c2440">우리 단지도 감리받고 싶다면?</div><div data-inquiry="1" style="cursor:pointer;margin-top:10px;background:#2F6BF6;color:#fff;border-radius:11px;padding:12px;font-size:13px;font-weight:800">💬 카카오톡으로 상담 신청</div></div>'
+    h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:14px;padding:16px;text-align:center;margin-top:8px"><div style="font-size:12.5px;font-weight:800;color:#1c2440">우리 단지도 감리받고 싶다면?</div><div data-inquiry="1" style="cursor:pointer;margin-top:10px;background:#2F6BF6;color:#fff;border-radius:11px;padding:12px;font-size:13px;font-weight:800">💬 카카오톡으로 상담 신청</div></div>'
     h += '</div>'
     return h
   },

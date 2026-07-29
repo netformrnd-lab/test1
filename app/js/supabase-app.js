@@ -1877,8 +1877,8 @@ const ALIM = {
     if (yt.length) {
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 6px">'
       h += yt.map(c => '<div onclick="openAlimUrl(\'' + c.url + '\')" style="cursor:pointer">'
-        + '<div style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/10"><img src="https://img.youtube.com/vi/' + c.yt + '/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:34px;height:34px;border-radius:50%;background:rgba(228,84,75,.92);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;padding-left:2px">\u25b6</div></div></div>'
-        + '<div style="font-size:11px;font-weight:700;color:#2a3350;line-height:1.4;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escH(c.title) + '</div></div>').join('')
+        + '<div style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/10"><img src="https://img.youtube.com/vi/' + c.yt + '/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover" loading="lazy"><div style="position:absolute;inset:0;background:rgba(10,14,26,.16)"></div><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:42px;height:42px;border-radius:50%;background:#E4231B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;padding-left:2px;box-shadow:0 4px 12px rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.92)">\u25b6</div></div></div>'
+        + '<div style="font-size:11.5px;font-weight:700;color:#2a3350;line-height:1.4;margin-top:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:31px">' + escH(c.title) + '</div></div>').join('')
       h += '</div>'
     }
     h += '<div style="padding:18px 16px 6px"><div style="font-size:13px;font-weight:800;color:#1c2440">\ud83d\udcd6 블로그</div></div>'

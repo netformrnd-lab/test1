@@ -2300,7 +2300,7 @@ function mountBanner(id) {
   host.style.display = 'block'
   const many = BANNERS.length > 1
   const dots = many ? BANNERS.map(() => '<span class="bn-dot" style="width:6px;height:6px;border-radius:99px;background:rgba(255,255,255,.55);transition:all .2s"></span>').join('') : ''
-  host.innerHTML = '<div style="margin:10px 14px 0;border-radius:15px;overflow:hidden;position:relative;box-shadow:0 6px 16px -11px rgba(23,38,80,.45)">' +
+  host.innerHTML = '<div style="margin:12px 14px 16px;border-radius:16px;overflow:hidden;position:relative;box-shadow:0 8px 20px -12px rgba(23,38,80,.4)">' +
     '<div class="bn-track" style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch">' + BANNERS.map(bannerSlideHTML).join('') + '</div>' +
     (many ? '<div style="position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:5px;pointer-events:none">' + dots + '</div>' : '') + '</div>'
   const track = host.querySelector('.bn-track'); if (!track) return

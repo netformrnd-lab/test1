@@ -528,6 +528,8 @@ function renderBannersAdmin(){
 $('bn-img')&&($('bn-img').onchange=async function(){ BN_IMG=await uploadPromoImage(this.files&&this.files[0],'bn-img-state'); });
 async function addBanner(){
   const title=($('bn-title').value||'').trim();
+  const fileChosen=$('bn-img')&&$('bn-img').files&&$('bn-img').files.length;
+  if(fileChosen && !BN_IMG){ return alert('이미지 업로드가 아직 안 끝났거나 실패했어요.\n잠깐 기다렸다가 다시 누르거나, 이미지를 다시 선택해 주세요.'); }
   if(!BN_IMG && !title) return alert('이미지를 올리거나, 글자 배너 제목을 입력하세요');
   const btn=$('bn-btn'); if(btn){btn.textContent='추가 중…';btn.disabled=true;}
   const row={ image_url:BN_IMG||null, title:title||null, subtitle:($('bn-sub').value||'').trim()||null,

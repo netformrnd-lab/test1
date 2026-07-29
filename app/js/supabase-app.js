@@ -2226,6 +2226,7 @@ document.addEventListener('click', (e) => {
       if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() }
       else if (currentRole) { showScreen('s11'); loadResidentHome() }
       else { showScreen('s04'); loadResidentNotices('s04-notices') }
+      try { loadBanners() } catch (e) {}
     }
     else if (tab === 'field') { if (currentRole) { showScreen('s26'); loadFieldUpdates() } else { showScreen('s01') } }
     else if (tab === 'schedule') { if (currentRole) { showScreen('s14'); loadSchedule() } else { showScreen('s01') } }
@@ -2246,7 +2247,8 @@ function refreshActive () {
     const now = Date.now(); if (now - _lastRefresh < 1500) return; _lastRefresh = now
     const id = NAV_CUR
     if (id === 's26') loadFieldUpdates()
-    else if (id === 's11') loadResidentHome()
+    else if (id === 's11') { loadResidentHome(); loadBanners() }
+    else if (id === 's04') loadBanners()
     else if (id === 's14') loadSchedule()
     else if (id === 's07') loadAuditorApts()
     else if (id === 's12' && typeof loadResidentReports === 'function') loadResidentReports()
@@ -2261,17 +2263,28 @@ window.bannerGo = function (link) {
   if (/^https?:\/\//i.test(link)) window.open(link, '_blank')
   else if (/^s\d+$/.test(link)) window.showScreen(link)
 }
+// 배경색 밝기에 따라 글자색 자동 대비 (밝은 배경 → 검정 글자)
+function bannerTextColor(bg) {
+  let c = String(bg || '').trim().replace('#', '')
+  if (c.length === 3) c = c.split('').map(x => x + x).join('')
+  const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16)
+  if ([r, g, b].some(isNaN)) return '#fff'
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return lum > 0.6 ? '#1c2440' : '#fff'
+}
 function bannerSlideHTML(b) {
   const clickable = b.link ? 'onclick="bannerGo(\'' + escH(String(b.link)) + '\')" ' : ''
   const cur = 'style="' + (b.link ? 'cursor:pointer;' : '') + 'min-width:100%;flex-shrink:0;height:120px;scroll-snap-align:start;'
   if (b.image_url) {
-    return '<div ' + clickable + cur + 'background:#eef1f7">' +
-      '<img src="' + escH(b.image_url) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>'
+    return '<div ' + clickable + cur + 'background:#eef1f7;position:relative;display:flex;align-items:center;justify-content:center">' +
+      '<span style="position:absolute;font-size:11px;color:#9aa3b6;font-weight:700;padding:0 16px;text-align:center">이미지를 불러오는 중…</span>' +
+      '<img src="' + escH(b.image_url) + '" alt="" onerror="this.style.display=\'none\';var s=this.previousElementSibling;if(s)s.textContent=\'⚠ 이미지를 불러오지 못했어요 (관리자에서 다시 등록해 주세요)\'" style="position:relative;width:100%;height:100%;object-fit:cover;display:block"></div>'
   }
   const bg = b.bg || '#2F6BF6'
-  return '<div ' + clickable + cur + 'background:' + escH(bg) + ';display:flex;flex-direction:column;justify-content:center;padding:0 22px;color:#fff">' +
+  const fg = bannerTextColor(bg)
+  return '<div ' + clickable + cur + 'background:' + escH(bg) + ';display:flex;flex-direction:column;justify-content:center;padding:0 22px;color:' + fg + '">' +
     '<div style="font-size:15px;font-weight:800;line-height:1.4">' + escH(b.title || '') + '</div>' +
-    (b.subtitle ? '<div style="font-size:11px;font-weight:600;margin-top:5px;opacity:.92">' + escH(b.subtitle) + '</div>' : '') + '</div>'
+    (b.subtitle ? '<div style="font-size:11px;font-weight:600;margin-top:5px;opacity:.9">' + escH(b.subtitle) + '</div>' : '') + '</div>'
 }
 function mountBanner(id) {
   const host = document.getElementById(id); if (!host) return

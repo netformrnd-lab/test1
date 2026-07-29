@@ -2274,7 +2274,8 @@ function bannerTextColor(bg) {
 }
 function bannerSlideHTML(b) {
   const clickable = b.link ? 'onclick="bannerGo(\'' + escH(String(b.link)) + '\')" ' : ''
-  const cur = 'style="' + (b.link ? 'cursor:pointer;' : '') + 'min-width:100%;flex-shrink:0;height:120px;scroll-snap-align:start;'
+  // 배너 칸 비율을 1200×628(≈1.91:1)로 고정 → 그 크기 이미지가 잘리지 않고 딱 맞음
+  const cur = 'style="' + (b.link ? 'cursor:pointer;' : '') + 'min-width:100%;flex-shrink:0;aspect-ratio:1200/628;scroll-snap-align:start;'
   if (b.image_url) {
     return '<div ' + clickable + cur + 'background:#eef1f7;position:relative;display:flex;align-items:center;justify-content:center">' +
       '<span style="position:absolute;font-size:11px;color:#9aa3b6;font-weight:700;padding:0 16px;text-align:center">이미지를 불러오는 중…</span>' +

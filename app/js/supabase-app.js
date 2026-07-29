@@ -358,7 +358,7 @@ async function loadManagerForms() {
 function renderManagerForms(list) {
   const box = document.getElementById('mgr-received'); if (!box) return
   if (!list.length) {
-    box.innerHTML = '<div style="padding:18px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 받은 작성지가 없어요.<br>위 링크를 소장님께 보내면 여기에 쌓여요.</div>'
+    box.innerHTML = '<div style="padding:18px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.6">아직 받은 점검표가 없어요.<br>위 링크를 소장님께 보내면 여기에 쌓여요.</div>'
     return
   }
   const name = currentApt ? currentApt.name : '단지'

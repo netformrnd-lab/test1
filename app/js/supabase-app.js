@@ -1688,31 +1688,25 @@ function navyHero(kicker, title) {
 }
 function alimCard(inner, pad) { return '<div style="background:#fff;border:1px solid #eef1f7;border-radius:15px;padding:' + (pad || '15px 15px') + ';box-shadow:0 8px 18px -14px rgba(23,38,80,.35)">' + inner + '</div>' }
 const ALIM = {
-  // 철학 = 창업 스토리 (왜 생겨났는가)
+  // 철학 = 아파트스퀘어의 철학 (간결한 선언형 카피)
   brand() {
     const wb = 'word-break:keep-all;'
-    const scene = (img, cap, title, body) => '<div style="margin-top:18px">'
-      + '<div style="border-radius:14px;overflow:hidden;position:relative"><img src="' + img + '" style="width:100%;height:152px;object-fit:cover;display:block" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 45%,rgba(10,16,34,.72))"></div><span style="position:absolute;left:12px;bottom:10px;color:#fff;font-size:9.5px;font-weight:800;letter-spacing:1px">' + cap + '</span></div>'
-      + '<div style="font-size:15px;font-weight:800;color:#1c2440;margin:13px 2px 7px;line-height:1.5;' + wb + '">' + title + '</div>'
-      + '<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;margin:0 2px;' + wb + '">' + body + '</div></div>'
-    let h = navyHero('OUR STORY · 우리가 시작한 이유', '왜 아파트스퀘어를<br>시작했을까요')
-    h += '<div style="padding:22px 15px 28px">'
-    h += '<div style="font-size:14.5px;font-weight:800;color:#1c2440;line-height:1.7;margin:0 2px 2px;' + wb + '">22년, 건축과 감리 현장에서<br>같은 장면을 반복해서 봤습니다.</div>'
-    h += scene('assets/philo_defect1.jpg', 'SCENE 01', '수억 원이 드는 공사, 정작 주인은 몰랐습니다', '아파트 보수공사에는 수억 원이 듭니다. 그런데 비용을 부담하는 입주민은 “무슨 공사를, 왜, 제대로 하고 있는지” 확인할 방법이 없었습니다. 모든 판단은 늘 <b>공사업체의 몫</b>이었죠.')
-    h += scene('assets/philo_defect3.jpg', 'SCENE 02', '확인하는 사람이 없으면, 하자는 반복됐습니다', '제대로 된 확인 없이 끝난 공사는 몇 년 뒤 <b>같은 자리, 같은 하자</b>로 돌아왔습니다. 그때마다 입주민만 두 번, 세 번 비용을 치렀습니다.')
-    h += scene('assets/philo_audit2.jpg', 'SCENE 03', '문제는 실력이 아니라, ‘곁에서 확인해줄 눈’의 부재였습니다', '좋은 기술도, 성실한 업체도 있었습니다. 하지만 <b>입주민 편에 서서 공정을 대신 확인하고 기록으로 남겨줄 독립된 눈</b>이 없었습니다.')
-    // 전환
-    h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:22px 0 4px">↓</div>'
-    h += '<div style="font-size:17px;font-weight:800;color:#1c2440;line-height:1.6;margin:0 2px 11px;text-align:center;' + wb + '">그래서 <span style="color:#2F6BF6">아파트스퀘어</span>를<br>시작했습니다</div>'
-    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9;' + wb + '">공사업체가 아닌, <b>오직 입주민 편에 서는 독립 감리.</b><br>진단부터 준공까지 자재·공정·품질을 직접 확인하고, 모든 과정을 <b style="color:#2F6BF6">사진과 기록으로 투명하게</b> 남깁니다. 전문 지식이 없어도 누구나 <b>쉽게 이해하고, 공정하게 결정하고, 안심하고 맡길 수 있도록.</b></div>', '16px 16px')
-    // 선언
-    h += '<div style="text-align:center;padding:30px 16px 8px">'
-      + '<div style="width:34px;height:3px;background:#2F6BF6;border-radius:9px;margin:0 auto 18px"></div>'
-      + '<div style="font-size:18px;font-weight:800;color:#1c2440;line-height:1.7;' + wb + '">“전문가가 아니어도 누구나<br><span style="color:#2F6BF6">안심하고 맡길 수 있어야</span> 합니다”</div>'
-      + '<div style="font-size:12px;color:#8b95ad;font-weight:600;margin-top:13px;' + wb + '">그 당연한 믿음에서, 아파트스퀘어는 시작됐습니다</div>'
-      + '</div>'
-    // 약속 사진
-    h += '<div style="border-radius:16px;overflow:hidden;position:relative;margin-top:16px"><img src="assets/philo_promise.jpg" style="width:100%;display:block;height:240px;object-fit:cover;object-position:center 30%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.18) 0%,rgba(15,22,48,.22) 56%,rgba(15,22,48,.72) 76%,rgba(15,22,48,.96) 100%)"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:22px 18px 24px;text-align:center;color:#fff"><div style="font-size:16px;font-weight:800;line-height:1.6;' + wb + '">진단부터 사후관리까지,<br><span style="color:#7FA1E0">끝까지 곁에서.</span></div><div style="margin-top:11px;font-size:12px;font-weight:800;color:#dbe6ff">— 아파트스퀘어</div></div></div>'
+    const block = (title, body) => '<div style="text-align:center;padding:28px 22px 0">'
+      + '<div style="font-size:19px;font-weight:800;color:#2F6BF6;line-height:1.4;' + wb + '">' + title + '</div>'
+      + '<div style="font-size:13px;color:#5c6580;font-weight:600;line-height:1.9;margin-top:12px;' + wb + '">' + body + '</div></div>'
+    // 히어로 이미지 + 타이틀 (헤더 이미지는 교체 가능)
+    let h = '<div style="position:relative;height:224px;overflow:hidden">'
+      + '<img src="assets/philo_promise.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center 30%;display:block" loading="lazy">'
+      + '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,22,48,.32),rgba(15,22,48,.6))"></div>'
+      + '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:0 20px">'
+      + '<div style="font-size:13px;font-weight:800;letter-spacing:2px;color:#9dc0ff">Philosophy</div>'
+      + '<div style="font-size:24px;font-weight:800;margin-top:9px">아파트스퀘어의 철학</div></div></div>'
+    h += '<div style="padding:6px 0 34px">'
+    h += block('건축사가 만든 서비스', '아파트스퀘어는 22년 경력 건축사의 가슴에서 태어난 서비스입니다. 우리가 이 일을 하는 이유는, 열정을 가졌기 때문입니다.')
+    h += block('더 쉽고, 더 믿을 수 있도록', '공사 전문 지식이 없어도 누구나 쉽고, 편안하고, 믿을 수 있게 공사할 수 있도록 만듭니다.')
+    h += block('만족하는 공사', '우리는 공사에 관한 다양한 문제에 도움을 주고, 피해 보는 사람 없이 만족하는 공사를 위해 존재합니다.')
+    h += block('올바른 공사 문화', '더 올바른 공사 문화를 만들고, 새로운 가치를 사회에 제공합니다.')
+    // ── 공신력(수상내역·특허) 섹션은 여기에 추가 예정 (문서 받으면 채움) ──
     h += '</div>'
     return h
   },

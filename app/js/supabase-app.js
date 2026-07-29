@@ -1702,10 +1702,21 @@ const ALIM = {
       + '<div style="font-size:13px;font-weight:800;letter-spacing:2px;color:#9dc0ff">Philosophy</div>'
       + '<div style="font-size:24px;font-weight:800;margin-top:9px">아파트스퀘어의 철학</div></div></div>'
     h += '<div style="padding:6px 0 34px">'
-    h += block('건축사가 만든 서비스', '아파트스퀘어는 22년 경력 건축사의 가슴에서 태어난 서비스입니다. 우리가 이 일을 하는 이유는, 열정을 가졌기 때문입니다.')
-    h += block('더 쉽고, 더 믿을 수 있도록', '공사 전문 지식이 없어도 누구나 쉽고, 편안하고, 믿을 수 있게 공사할 수 있도록 만듭니다.')
-    h += block('만족하는 공사', '우리는 공사에 관한 다양한 문제에 도움을 주고, 피해 보는 사람 없이 만족하는 공사를 위해 존재합니다.')
-    h += block('올바른 공사 문화', '더 올바른 공사 문화를 만들고, 새로운 가치를 사회에 제공합니다.')
+    // 리드 문구 (승인: B안)
+    h += '<div style="padding:26px 24px 4px;text-align:center">'
+      + '<div style="font-size:15.5px;font-weight:800;color:#1c2440;line-height:1.75;' + wb + '">신축에는 감리가 있어도,<br><span style="color:#2F6BF6">유지보수 공사에는 감리가 없었습니다.</span></div>'
+      + '<div style="font-size:13px;color:#5c6580;font-weight:600;line-height:1.9;margin-top:12px;' + wb + '">수억 원이 드는 우리 아파트 보수공사, 정작 지켜봐 줄 사람이 없던 시장 — 그 빈자리에서 <b>아파트스퀘어</b>가 시작되었습니다.</div>'
+      + '</div>'
+    h += block('건축사가 만든 서비스', '22년간 신축·보수 현장을 두루 겪으며 마주한 진짜 문제는, 시공사가 아니라 <b>‘보수공사에는 기준이 없다’</b>는 것이었습니다.')
+    h += block('공사보다 먼저', '먼저 진단하고, 설계하고, 기준을 세웁니다. 그래야 공사의 품질이 흔들리지 않으니까요.')
+    h += block('좋은 시공사보다, 좋은 감리', '설계대로 시공되는지, 약속한 품질이 끝까지 지켜지는지 — 그 확인을 멈추지 않습니다.')
+    h += block('견적보다 품질', '싸게 끝내는 공사가 아니라, <b>다시 하지 않아도 되는 공사</b>를 지향합니다.')
+    h += block('완료가 아니라, 완성도', '하자진단부터 설계·시공·준공까지, 아파트스퀘어가 전 과정을 끝까지 함께합니다.')
+    // 마지막 강조 문구
+    h += '<div style="margin:36px 16px 0;background:#1c2440;color:#fff;border-radius:16px;padding:26px 20px;text-align:center">'
+      + '<div style="width:30px;height:3px;background:#7FA1E0;border-radius:9px;margin:0 auto 16px"></div>'
+      + '<div style="font-size:15.5px;font-weight:800;line-height:1.7;' + wb + '">중요한 것은 공법이 아니라 <span style="color:#7FA1E0">결과</span>입니다.<br>좋은 공사는, <span style="color:#7FA1E0">좋은 감리</span>에서 시작됩니다.</div>'
+      + '</div>'
     // ── 인증·이력(공신력) : 관리자가 올린 인증서 이미지 (없으면 섹션 자체가 숨겨짐) ──
     h += '<div id="cred-section" style="display:none;margin-top:34px;padding:0 16px 20px">'
     h += '<div style="text-align:center;font-size:20px;font-weight:800;color:#1c2440;margin-bottom:14px">인증·이력</div>'

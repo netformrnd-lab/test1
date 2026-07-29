@@ -340,15 +340,9 @@ function openManagerDoc() {
   const m = document.getElementById('mgr-msg'); if (m) m.textContent = ''
   const fb = document.getElementById('mgr-fallback'); if (fb) fb.remove()
   window.showScreen('s31')
+  loadManagerForms() // 같은 화면 아래 '받은 점검표' 목록도 함께 로드
 }
 window.openManagerDoc = openManagerDoc
-// 받은 작성지 화면 (소장님이 제출한 내용)
-function openReceivedForms() {
-  const ap = document.getElementById('recv-apt'); if (ap) ap.textContent = currentApt ? currentApt.name : '단지'
-  window.showScreen('s32')
-  loadManagerForms()
-}
-window.openReceivedForms = openReceivedForms
 // 이 단지의 제출된 소장님 작성지 목록
 const MGR_LABELS = { writer_name: '작성자', phone: '연락처', households: '세대수/동수', built_year: '준공연도', issue: '주요 하자·불편', request: '요청·희망', wish_when: '희망 시기' }
 async function loadManagerForms() {
@@ -1649,9 +1643,8 @@ function wire() {
   // 감리사 단지 메뉴 (감리일지 / 현장 사진 / 미팅 자료 / 소장님 작성지)
   const amR = $('aud-menu-report'); if (amR) amR.onclick = () => { if (currentApt) openApt(currentApt) }
   const amF = $('aud-menu-field'); if (amF) amF.onclick = () => { if (currentApt) openAuditorField(currentApt) }
-  const amM = $('aud-menu-meeting'); if (amM) amM.onclick = () => window.showScreen('s29')
+  const amM = $('aud-menu-meeting'); if (amM) amM.onclick = () => openMeetingDoc('first') // 중간 선택화면 건너뛰고 바로 첫 미팅 질문리스트
   const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
-  const amRcv = $('aud-menu-received'); if (amRcv) amRcv.onclick = () => openReceivedForms()
   const amCt = $('aud-menu-contract'); if (amCt) amCt.onclick = () => openContracts()
   const amSv = $('aud-menu-survey'); if (amSv) amSv.onclick = () => { if (currentApt) openSurveyResults(currentApt) }
   // 채팅 입력

@@ -474,12 +474,15 @@ window.loadResidentHome = loadResidentHome
 // ── 뒤로가기(화면 히스토리) ─────────────────────────────
 const ORIG_SHOW = window.showScreen
 const NAV_HIST = []
+const SCROLL_POS = {}   // 화면별 스크롤 위치 (뒤로가기 시 복원)
 let NAV_CUR = (location.hash || '').replace('#', '') || null
+function saveScroll(id) { if (!id) return; const b = document.querySelector('#' + id + ' .bd'); if (b) SCROLL_POS[id] = b.scrollTop }
 window.showScreen = function (id) {
   if (!document.getElementById(id)) return
+  saveScroll(NAV_CUR)   // 떠나는 화면 스크롤 저장
   if (NAV_CUR && NAV_CUR !== id) NAV_HIST.push(NAV_CUR)
   NAV_CUR = id
-  ORIG_SHOW(id)
+  ORIG_SHOW(id)          // 새 화면은 맨 위(정상)
   // 채팅 목록으로 돌아오면 안 읽음 배지를 즉시 최신화
   if (id === 's36' && typeof renderAuditorChatList === 'function') { try { renderAuditorChatList() } catch (e) {} }
   // 승인 대기 화면: 승인되면 자동으로 홈으로 넘어가게 폴링
@@ -506,10 +509,12 @@ function startApprovalPoll() {
 }
 function stopApprovalPoll() { if (_approvalPoll) { clearInterval(_approvalPoll); _approvalPoll = null } }
 window.goBack = function () {
+  saveScroll(NAV_CUR)   // 떠나는 화면 스크롤 저장
   let p = NAV_HIST.pop()
   if (!p) p = (currentRole === 'auditor') ? 's07' : 's11'
   NAV_CUR = p
-  ORIG_SHOW(p)
+  ORIG_SHOW(p)          // show()가 0으로 리셋하므로
+  const b = document.querySelector('#' + p + ' .bd'); if (b && SCROLL_POS[p] != null) b.scrollTop = SCROLL_POS[p]  // 원래 위치로 복원
 }
 // iOS 왼쪽 가장자리 스와이프 → 뒤로가기
 ;(function () {

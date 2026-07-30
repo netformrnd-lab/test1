@@ -1402,21 +1402,43 @@ function renderSchedList(scheds) {
   const el = document.getElementById('s-list'); if (!el) return
   if (!scheds.length) { el.innerHTML = '<div style="padding:22px 10px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">등록된 일정이 없어요.<br>“＋ 일정 추가”로 방문 일정을 남겨보세요.</div>'; return }
   const wd = ['일', '월', '화', '수', '목', '금', '토']
-  el.innerHTML = scheds.map(s => {
+  const today = new Date(); today.setHours(0, 0, 0, 0); const todayMs = today.getTime(); const DAY = 86400000
+  // 각 일정에 '오늘 기준 상대일수(diff)' 계산
+  const items = scheds.map(s => {
     const d = s.date ? new Date(s.date) : null
+    let diff = null
+    if (d) { const dO = new Date(d); dO.setHours(0, 0, 0, 0); diff = Math.round((dO.getTime() - todayMs) / DAY) }
+    return { s, d, diff }
+  })
+  // 다가오는(오늘 포함) 먼저 가까운 순, 지난 일정은 아래에 최근 순
+  const upcoming = items.filter(it => it.diff !== null && it.diff >= 0).sort((a, b) => a.diff - b.diff)
+  const past = items.filter(it => it.diff === null || it.diff < 0).sort((a, b) => (b.diff || 0) - (a.diff || 0))
+  const card = (it) => {
+    const s = it.s, d = it.d, diff = it.diff
     const ds = d ? `${d.getMonth() + 1}/${d.getDate()} (${wd[d.getDay()]})` : ''
-    // 감리사만: 개인 일정인지 어느 단지 일정인지 배지로 표시
+    const isToday = diff === 0, isPast = diff !== null && diff < 0
+    // 상대 표시 배지 (오늘 / D-n / 지남)
+    let rel = ''
+    if (isToday) rel = '<span style="font-size:9.5px;font-weight:800;color:#fff;background:#e4544b;padding:2px 9px;border-radius:6px">오늘</span>'
+    else if (diff !== null && diff >= 1 && diff <= 30) rel = `<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">D-${diff}</span>`
+    else if (isPast) rel = '<span style="font-size:9px;font-weight:700;color:#9aa3b6;background:#eef1f7;padding:2px 7px;border-radius:6px">지남</span>'
+    // 감리사만: 개인/단지 배지
     let badge = ''
     if (currentRole === 'auditor') {
-      if (s.apartment_id) {
-        const apt = AUD_APTS[s.apartment_id]
-        badge = `<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">👥 ${apt ? escH(apt.name) : '단지'}</span>`
-      } else {
-        badge = `<span style="font-size:9px;font-weight:800;color:#8b7a2f;background:#f6efd8;padding:2px 7px;border-radius:6px">🔒 개인</span>`
-      }
+      if (s.apartment_id) { const apt = AUD_APTS[s.apartment_id]; badge = `<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">👥 ${apt ? escH(apt.name) : '단지'}</span>` }
+      else badge = `<span style="font-size:9px;font-weight:800;color:#8b7a2f;background:#f6efd8;padding:2px 7px;border-radius:6px">🔒 개인</span>`
     }
-    return `<div style="border-left:3px solid #2F6BF6;background:#f8faff;border-radius:0 10px 10px 0;padding:10px 11px"><div style="display:flex;align-items:center;gap:6px"><div style="font-size:11.5px;font-weight:800;color:#1c2440">${escH(s.title)}</div>${badge ? '<span style="margin-left:auto">' + badge + '</span>' : ''}</div><div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">${ds}${s.description ? ' · ' + escH(s.description) : ''}</div></div>`
-  }).join('')
+    const accent = isToday ? '#e4544b' : '#2F6BF6'
+    const bg = isToday ? '#fff5f4' : (isPast ? '#f7f8fa' : '#f8faff')
+    const titleColor = isPast ? '#9aa3b6' : '#1c2440'
+    return `<div style="border-left:3px solid ${accent};background:${bg};border-radius:0 10px 10px 0;padding:10px 11px${isToday ? ';box-shadow:0 6px 14px -10px rgba(228,84,75,.5)' : ''}"><div style="display:flex;align-items:center;gap:6px">${rel}<div style="font-size:11.5px;font-weight:800;color:${titleColor}">${escH(s.title)}</div>${badge ? '<span style="margin-left:auto">' + badge + '</span>' : ''}</div><div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">${ds}${s.description ? ' · ' + escH(s.description) : ''}</div></div>`
+  }
+  let html = upcoming.map(card).join('')
+  if (past.length) {
+    html += '<div style="display:flex;align-items:center;gap:8px;margin:14px 2px 2px"><span style="font-size:10px;font-weight:800;color:#aab2c4">지난 일정</span><span style="flex:1;height:1px;background:#eef1f7"></span></div>'
+    html += past.map(card).join('')
+  }
+  el.innerHTML = html
 }
 async function addSchedule() {
   const { data: { user } } = await sb.auth.getUser()

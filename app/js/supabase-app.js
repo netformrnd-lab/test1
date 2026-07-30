@@ -1839,7 +1839,7 @@ const ALIM = {
     h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9;' + wb + '">아파트스퀘어는 <b>비전문가도</b> 아파트 보수공사의 <b style="color:#2F6BF6">진단 · 설계 · 입찰 · 시공 · 준공</b>을 쉽게 이해하고 공정하게 관리할 수 있도록 돕는 <b>보수공사 감리 토탈 솔루션</b>입니다.</div>', '16px 15px')
     h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:15px;padding:16px 15px;margin-top:12px">'
       + '<div style="font-size:13px;font-weight:800;color:#2F6BF6;margin-bottom:6px">🛡️ 감리가 뭔가요?</div>'
-      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8;' + wb + '">공사가 <b>약속대로 되는지 제3자가 확인</b>하는 일이에요. 공사업체가 아닌 <b>독립된 감리사</b>가 자재·공정·품질을 검측하고 기록으로 남겨 드려요.</div></div>'
+      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8;' + wb + '">공사가 <b>약속대로 되는지 확인</b>하는 일이에요. <b>전문 감리사</b>가 자재·공정·품질을 단계마다 검측하고, 사진과 기록으로 남겨 직접 확인하실 수 있어요.</div></div>'
     // 이런 고민 (기존 철학에서 녹임)
     h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:24px 2px 12px">이런 고민, 있으셨죠?</div>'
     h += '<div style="display:flex;flex-direction:column;gap:9px">'
@@ -1856,8 +1856,8 @@ const ALIM = {
     h += '</div>'
     // 그래서 대신 확인
     h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:16px 0 6px">↓</div>'
-    h += '<div style="font-size:16px;font-weight:800;color:#1c2440;margin:0 2px 10px;' + wb + '">그래서, 아파트스퀘어가<br><span style="color:#2F6BF6">대신 확인합니다</span></div>'
-    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '">공사업체가 아닌 <b>독립된 제3자 감리사</b>가 여러분의 눈이 되어, 진단부터 준공까지 <b>자재·공정·품질을 직접 검측</b>하고 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다.</div>', '15px 15px')
+    h += '<div style="font-size:16px;font-weight:800;color:#1c2440;margin:0 2px 10px;' + wb + '">그래서, 아파트스퀘어가<br><span style="color:#2F6BF6">함께 확인합니다</span></div>'
+    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '"><b>전문감리기관의 감리사</b>가 진단부터 준공까지 <b>자재·공정·품질을 직접 검측</b>하고, 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다. 언제든 직접 확인하실 수 있어요.</div>', '15px 15px')
     h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit2.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 60%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 52%,rgba(10,16,34,.8))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">감리사가 현장에서 직접 확인합니다</div></div>'
     // 3단계 흐름
     h += '<div style="display:flex;gap:7px;margin-top:13px">'
@@ -1868,7 +1868,7 @@ const ALIM = {
     h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:26px 2px 12px">아파트스퀘어가 지키는 네 가지</div>'
     h += '<div style="display:flex;flex-direction:column;gap:8px">'
     h += [['🔍', '투명성', '모든 공정을 사진·기록으로'],
-      ['⚖️', '공정성', '이해관계 없는 제3자의 판단'],
+      ['⚖️', '공정성', '정해진 기준과 기록에 따른 검증'],
       ['🛡️', '전문성', '22년차 건축사가 직접 검측'],
       ['💡', '쉬움', '어려운 판단을 쉬운 말로']]
       .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:12px 14px"><div style="width:38px;height:38px;border-radius:11px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + c[0] + '</div><div style="flex:1;min-width:0"><span style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</span><span style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-left:8px;' + wb + '">' + c[2] + '</span></div></div>').join('')
@@ -1894,7 +1894,7 @@ const ALIM = {
     h += '</div>'
     // 대상 공종
     h += '<div style="padding:14px 16px 6px"><div style="font-size:12px;font-weight:800;color:#1c2440;margin-bottom:9px">이런 공사를 감리해요</div><div style="display:flex;flex-wrap:wrap;gap:7px">'
-      + ['외벽 재도장', '옥상 · 외벽 방수', '지하주차장 에폭시 · 누수', '보도블럭 · 아스콘'].map(t => '<span style="font-size:11px;font-weight:700;color:#3a445e;background:#eef1f7;padding:6px 11px;border-radius:99px">' + t + '</span>').join('') + '</div></div>'
+      + ['외벽 재도장', '옥상 · 외벽 방수', '지하주차장 에폭시 · 누수'].map(t => '<span style="font-size:11px;font-weight:700;color:#3a445e;background:#eef1f7;padding:6px 11px;border-radius:99px">' + t + '</span>').join('') + '</div></div>'
     // 공사 중엔 앱으로
     h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:22px 16px 10px">공사가 시작되면, 앱으로 확인해요</div>'
     h += '<div style="display:flex;flex-direction:column;gap:9px;padding:0 14px 26px">'

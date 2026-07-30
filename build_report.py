@@ -340,6 +340,22 @@ bino_cards = [
          url_text="스마트스토어"),
 ]
 
+# ----- 9. 겨울 유니폼 -----
+uniform_cards = [
+    card("①", "아트윈 A-701 쿨맥스 냉감 점퍼 (네이비)",
+         [("품번", "A-701"), ("원단", "쿨맥스 냉감 소재"),
+          ("색상", "네이비"), ("단가", "확인 예정")],
+         [{"path": "유니폼1_A701.jpg", "label": "제품 이미지 (파일 필요)"}],
+         url="https://dyuniform.com/product/%EC%95%84%ED%8A%B8%EC%9C%88-a-701-%EC%BF%A8%EB%A7%A5%EC%8A%A4-%EB%83%89%EA%B0%90-%EC%A0%90%ED%8D%BC%EB%84%A4%EC%9D%B4%EB%B9%84/5299/category/54/display/1/",
+         url_text="제품 페이지", pending=True),
+    card("②", "아트윈 A-42 프라다 점퍼 (추동 내피 탈부착)",
+         [("품번", "A-42"), ("종류", "추동(가을·겨울) 점퍼"),
+          ("특징", "내피 탈부착"), ("단가", "확인 예정")],
+         [{"path": "유니폼2_A42.jpg", "label": "제품 이미지 (파일 필요)"}],
+         url="https://dyuniform.com/product/%EC%95%84%ED%8A%B8%EC%9C%88-a-42-%ED%94%84%EB%9D%BC%EB%8B%A4%EC%A0%90%ED%8D%BC%EC%B6%94%EB%8F%99%EB%82%B4%ED%94%BC%EC%B0%B0%EB%B6%80%EC%B0%A9/5230/category/54/display/1/",
+         url_text="제품 페이지", pending=True),
+]
+
 sections_html = "".join([
     section("1", "볼펜 / 젤펜", "4종 검토", pen_cards),
     section("2", "손전등 / 랜턴", "4종 비교", flash_cards),
@@ -349,12 +365,13 @@ sections_html = "".join([
     section("6", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),
     section("7", "열화상 카메라", "2종 비교", thermal_cards),
     section("8", "쌍안경", "2종 비교", bino_cards),
+    section("9", "겨울 유니폼", "2종 검토", uniform_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("8", "검토 카테고리"), ("24", "검토 제품"),
+summary_cards = [("9", "검토 카테고리"), ("26", "검토 제품"),
                  ("29", "확보 이미지"), ("11", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -470,11 +487,11 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 측정기 · 칫솔 세트 · DJI · 장비가방 · 열화상 · 쌍안경</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울 유니폼</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 8개 카테고리</span>
-    <span class="chip">24개 제품 검토</span>
+    <span class="chip">총 9개 카테고리</span>
+    <span class="chip">26개 제품 검토</span>
   </div>
 </header>
 

@@ -134,69 +134,85 @@ def section(num, title, badge, cards):
 
 
 # ===========================================================================
-# 제품 정의
+# 제품 정의  (제품명·순서·링크: 확정 리스트 기준)
 # ===========================================================================
-TBD = [("주요 스펙", "확인 예정"), ("단가", "확인 예정")]
 
-# ----- 1. 볼펜 -----
+# ----- 1. 볼펜 / 젤펜 -----
 pen_cards = [
-    card("①", "에어슬림 볼펜 (흰/네이비/검정 3색)",
+    card("①", "대한기프트 — 클릭형 볼펜 (흑/백 2컬러)",
+         [("타입", "클릭형 볼펜"), ("색상", "블랙 / 화이트 2컬러"),
+          ("단가", "확인 예정")],
+         [{"path": "01_볼펜_검정_목업.png", "label": "목업 — 블랙", "mock": True},
+          {"path": "02_볼펜_흰색_목업.png", "label": "목업 — 화이트"}],
+         url="https://daehangift-gyeonggi.com/shop/view.php?index_no=726254", pending=True),
+    card("②", "고려기프트 — 네오블랙 젤펜 (B3865)",
+         [("모델", "B3865"), ("타입", "무광 블랙 젤펜"),
+          ("단가", "확인 예정")],
+         [{"path": "04_네오블랙_젤펜_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
+          {"path": "03_네오블랙_젤펜_원본.png", "label": "원본"}],
+         url="https://koreagift.com/ez/mall.php?cat=001002000&query=view&no=53123", pending=True),
+    card("③", "에어슬림 볼펜 (흰/네이비/검정 3색)",
          [("타입", "클릭형 슬림 볼펜 (골드 포인트)"),
           ("색상", "화이트, 네이비, 블랙 3색"),
           ("인쇄", "실크 인쇄")],
-         [{"path": "05_에어슬림_볼펜.png", "label": "목업 — 3색 (골드 포인트)", "mock": True}]),
-    card("②", "노블 무광 볼펜 (흰/검정 2색)",
+         [{"path": "05_에어슬림_볼펜.png", "label": "목업 — 3색 (골드 포인트)", "mock": True}],
+         url="https://koreagift.com/ez/mall.php?cat=001002000&query=view&no=198014"),
+    card("④", "노블 무광 볼펜 (흰/검정 2색)",
          [("타입", "트위스트형 무광 볼펜 (골드 포인트)"),
           ("색상", "화이트, 블랙 2색"),
           ("분위기", "프리미엄 무광 메탈 질감")],
-         [{"path": "06_노블_무광_볼펜.png", "label": "목업 — 무광 고급형", "mock": True, "dark": True}]),
-    card("③", "네오블랙 젤펜",
-         TBD,
-         [{"path": "04_네오블랙_젤펜_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
-          {"path": "03_네오블랙_젤펜_원본.png", "label": "원본"}],
-         pending=True),
-    card("④", "무광 클릭 볼펜 (검정/흰색)",
-         TBD,
-         [{"path": "01_볼펜_검정_목업.png", "label": "목업 — 검정", "mock": True},
-          {"path": "02_볼펜_흰색_목업.png", "label": "목업 — 흰색"}],
-         pending=True),
+         [{"path": "06_노블_무광_볼펜.png", "label": "목업 — 무광 고급형", "mock": True, "dark": True}],
+         url="https://koreagift.com/ez/mall.php?cat=001002000&query=view&no=160146"),
 ]
 
-# ----- 2. 손전등 -----
+# ----- 2. 손전등 / 랜턴 -----
 flash_cards = [
-    card("①", "벤딕트 BEAM-LX800 — 충전식 LED 손전등",
+    card("①", "홍보물닷컴 — 미니 펜라이트 (14×85mm)",
+         [("규격", "14 × 85mm"), ("타입", "휴대용 미니 펜라이트"),
+          ("단가", "확인 예정")],
+         [{"path": "07_미니_펜라이트_스튜디오_목업.png", "label": "목업 — 스튜디오", "mock": True},
+          {"path": "08_미니_펜라이트_라이프스타일_목업.png", "label": "목업 — 라이프스타일"}],
+         url="https://www.hongbomool.com/new/shop/detail.php?start=0&code=130495", pending=True),
+    card("②", "가나기프트 — 하이파워 LED 줌 랜턴",
+         [("타입", "LED 줌 랜턴 (줌 조절)"), ("단가", "확인 예정")],
+         [{"path": "10_하이파워_LED_줌_랜턴_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
+          {"path": "09_하이파워_LED_줌_랜턴_원본.jpg", "label": "원본"}],
+         url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=173345", pending=True),
+    card("③", "벤딕트 BEAM-LX800 — 충전식 LED 손전등",
          [("밝기", "1,000루멘"), ("조사 거리", "800m"),
           ("특징", "자석 내장, COB 조명, USB 충전"),
           ("리뷰", "2,180건"), ("단가", "<strong>39,900원</strong> (42% 할인)")],
          [{"path": "11_벤딕트_BEAM-LX800.jpg", "label": "제품 이미지"}],
          url="https://brand.naver.com/vendict/products/11458530519", url_text="네이버 링크"),
-    card("②", "Shadowhawk SH1476 — 초강력 LED 손전등",
+    card("④", "Shadowhawk SH1476 — 초강력 LED 손전등",
          [("밝기", "2,000루멘"), ("방수", "IP67"),
           ("배터리", "5,000mAh, 12시간 사용"),
           ("리뷰", "214건"), ("단가", "<strong>29,700원</strong> (40% 할인)")],
          [{"path": "12_Shadowhawk_SH1476.jpg", "label": "제품 이미지"}],
          url="https://www.coupang.com/vp/products/9217364344?itemId=27233625678", url_text="쿠팡 링크"),
-    card("③", "미니 펜라이트",
-         TBD,
-         [{"path": "07_미니_펜라이트_스튜디오_목업.png", "label": "목업 — 스튜디오", "mock": True},
-          {"path": "08_미니_펜라이트_라이프스타일_목업.png", "label": "목업 — 라이프스타일"}],
-         pending=True),
-    card("④", "하이파워 LED 줌 랜턴",
-         TBD,
-         [{"path": "10_하이파워_LED_줌_랜턴_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
-          {"path": "09_하이파워_LED_줌_랜턴_원본.jpg", "label": "원본"}],
-         pending=True),
 ]
 
 # ----- 3. 함수율 측정기 -----
 moist_cards = [
-    card("①", "MT68 콘크리트 함수율측정기 (비파괴)",
+    card("①", "리녹(RINOC) 핀타입 목재 수분측정기",
+         [("측정 방식", "핀타입 (접촉식)"), ("대상", "목재"),
+          ("단가", "확인 예정")],
+         [{"path": "리녹.jpg", "label": "제품 이미지"}],
+         url="https://www.coupang.com/vp/products/9168776109?itemId=27018617058",
+         url_text="쿠팡 링크", pending=True),
+    card("②", "티앤디시스템 목재 수분측정기",
+         [("측정 방식", "목재 수분 측정"), ("대상", "목재"),
+          ("단가", "확인 예정")],
+         [{"path": "티앤디.jpg", "label": "제품 이미지"}],
+         url="https://www.coupang.com/vp/products/331406358?itemId=20066227415",
+         url_text="쿠팡 링크", pending=True),
+    card("③", "MT68 콘크리트 함수율측정기 (비파괴)",
          [("측정 방식", "비파괴 유도방식 (핀 불필요)"),
           ("대상", "콘크리트, 벽돌, 석고보드 등"),
           ("단가", "<strong>139,260원</strong>")],
          [{"path": "13_MT68_함수율측정기.jpg", "label": "제품 이미지"}],
          url="https://www.coupang.com/vp/products/9575236206?itemId=28580819389", url_text="쿠팡 링크"),
-    card("②", "CT-7822S 건축용 수분계 (전자파 방식)",
+    card("④", "CT-7822S 건축용 수분계 (전자파 방식)",
          [("측정 방식", "전자파 방식 (비파괴)"),
           ("대상", "건축 자재 전반"),
           ("단가", "<strong>153,200원</strong>")],
@@ -204,41 +220,41 @@ moist_cards = [
          url="https://www.coupang.com/vp/products/8906011099?itemId=26203505510", url_text="쿠팡 링크"),
 ]
 
-# ----- 4. 칫솔 세트 -----
+# ----- 4. 칫솔치약세트 -----
 tooth_cards = [
-    card("①", "제이웨이기프트 — 굿즈 골드넬 여행용 칫솔치약세트",
+    card("①", "제이웨이기프트 — 이즈 슬림사이즈 칫솔치약세트",
+         [("구성", "칫솔 + 치약 세트 (슬림사이즈)"), ("단가", "확인 예정")],
+         [{"path": "16_이즈_슬림_칫솔치약세트_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
+          {"path": "15_이즈_슬림_칫솔치약세트_원본.png", "label": "원본"}],
+         url="https://www.jwaygift.com/product_w/product_view_d.asp?p_idx=421691", pending=True),
+    card("②", "기프트인포 — 시니바이트 디아고 칫솔세트",
+         [("구성", "칫솔세트"), ("단가", "확인 예정")],
+         [{"path": "18_시니바이트_디아고_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
+          {"path": "17_시니바이트_디아고_원본.png", "label": "원본"}],
+         url="https://giftinfo.co.kr/shop/view.php?item=819866", pending=True),
+    card("③", "제이웨이기프트 — 굿즈 골드넬 여행용 칫솔치약세트",
          [("구성", "칫솔 + 치약(50g) + PP케이스 + 슬리브 종이케이스"),
           ("규격", "198×46×27mm"), ("기본 수량", "100개 이상"),
           ("단가", "100개 3,798원 / 5,000개 3,235원 (VAT 별도)"),
           ("인쇄", "전화 확인 필요")],
          [{"path": "19_굿즈_골드넬_칫솔치약세트.png", "label": "목업 — 아파트스퀘어 로고", "mock": True}],
          url="https://www.jwaygift.com/product_w/product_view_d.asp?p_idx=495992", url_text="제품 링크"),
-    card("②", "홍보물닷컴 — 링칫솔 페리오치약(5g) 투명케이스세트",
+    card("④", "홍보물닷컴 — 링칫솔 페리오치약(5g) 투명케이스세트",
          [("구성", "링칫솔 + 페리오치약(5g) + 투명 링케이스"),
           ("인쇄", "실크인쇄 (기본 수량 이상 무료)"),
           ("단가", "300개 669원 / 10,000개 572원 (VAT 별도)"),
           ("제작 기간", "3~4일")],
          [{"path": "20_링칫솔_페리오치약_투명케이스세트.png", "label": "목업 — 아파트스퀘어 로고", "mock": True}],
          url="https://www.hongbomool.com/new/shop/detail.php?start=&code=1913062&cid=448", url_text="제품 링크"),
-    card("③", "이즈 슬림 칫솔치약세트",
-         TBD,
-         [{"path": "16_이즈_슬림_칫솔치약세트_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
-          {"path": "15_이즈_슬림_칫솔치약세트_원본.png", "label": "원본"}],
-         pending=True),
-    card("④", "시니바이트 디아고 칫솔세트",
-         TBD,
-         [{"path": "18_시니바이트_디아고_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
-          {"path": "17_시니바이트_디아고_원본.png", "label": "원본"}],
-         pending=True),
 ]
 
-# ----- 5. DJI 조종기 -----
+# ----- 5. 드론 조종기 -----
 dji_cards = [
     card("①", "DJI RC Pro 2 조종기",
-         TBD,
+         [("종류", "드론 조종기 (고휘도 디스플레이 내장)"), ("단가", "확인 예정")],
          [{"path": "22_DJI_RC_Pro_2_현장_운용_목업.png", "label": "목업 — 현장 운용", "mock": True},
           {"path": "21_DJI_RC_Pro_2_제품_이미지.jpg", "label": "제품 이미지"}],
-         pending=True),
+         url="https://www.dji.com/rc-pro-2", url_text="DJI 공식", pending=True),
 ]
 
 # ----- 6. 장비가방 -----
@@ -283,21 +299,23 @@ thermal_cards = [
 # ----- 8. 쌍안경 -----
 bino_cards = [
     card("①", "니쿠라(Nikula) 쌍안경",
-         TBD,
+         [("종류", "쌍안경"), ("단가", "확인 예정")],
          [{"path": "28_니쿠라__Nikula__쌍안경.png", "label": "제품 이미지"}],
-         pending=True),
+         url="https://search.shopping.naver.com/catalog/46079948618?query=쌍안경",
+         url_text="네이버 링크", pending=True),
     card("②", "라라캠프 콤팩트 쌍안경",
-         TBD,
+         [("종류", "콤팩트 쌍안경"), ("단가", "확인 예정")],
          [{"path": "29_라라캠프_콤팩트_쌍안경.jpg", "label": "제품 이미지"}],
-         pending=True),
+         url="https://smartstore.naver.com/lalacamp/products/7484467111",
+         url_text="스마트스토어", pending=True),
 ]
 
 sections_html = "".join([
-    section("1", "볼펜", "4종 검토", pen_cards),
-    section("2", "손전등", "4종 비교", flash_cards),
-    section("3", "함수율 측정기", "2종 비교", moist_cards),
-    section("4", "칫솔 세트", "4종 비교", tooth_cards),
-    section("5", "DJI 조종기", "현장 운용 장비", dji_cards),
+    section("1", "볼펜 / 젤펜", "4종 검토", pen_cards),
+    section("2", "손전등 / 랜턴", "4종 비교", flash_cards),
+    section("3", "함수율 측정기", "4종 비교", moist_cards),
+    section("4", "칫솔치약세트", "4종 비교", tooth_cards),
+    section("5", "드론 조종기", "현장 운용 장비", dji_cards),
     section("6", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),
     section("7", "열화상 카메라", "2종 비교", thermal_cards),
     section("8", "쌍안경", "2종 비교", bino_cards),
@@ -306,7 +324,7 @@ sections_html = "".join([
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("8", "검토 카테고리"), ("22", "검토 제품"),
+summary_cards = [("8", "검토 카테고리"), ("24", "검토 제품"),
                  ("29", "확보 이미지"), ("11", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -426,7 +444,7 @@ DOC = f"""<!DOCTYPE html>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
     <span class="chip">총 8개 카테고리</span>
-    <span class="chip">22개 제품 검토</span>
+    <span class="chip">24개 제품 검토</span>
   </div>
 </header>
 

@@ -103,9 +103,18 @@ function openInquiry() {
 window.openInquiry = openInquiry
 async function loadResidentHome() {
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
+  // 단지와 무관한 공통 콘텐츠(공지사항 · 타 감리감독 현황)는 항상 로드
+  loadResidentNotices()
+  loadRegionActivity()
   const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
   if (!prof || !prof.apartment_id) {
+    RES_APT = null
     const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = '배정된 단지가 없어요'
+    const an = document.getElementById('res-aud-name'); if (an) an.textContent = '단지 배정 후 연결돼요'
+    const av = document.getElementById('res-aud-av'); if (av) av.textContent = '·'
+    const nt = document.getElementById('res-next-title'); if (nt) nt.textContent = '단지 배정 후 일정이 보여요'
+    const ns = document.getElementById('res-next-sub'); if (ns) ns.textContent = ''
+    const svb = document.getElementById('res-survey-banner'); if (svb) svb.style.display = 'none'
     return
   }
   const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
@@ -125,8 +134,6 @@ async function loadResidentHome() {
     if (audPhone) RES_AUD_PHONE = audPhone
   }
   loadResidentNext(apt.id)
-  loadResidentNotices()
-  loadRegionActivity()
   checkSurveyBanner(apt)
 }
 // 다가오는 감리 일정 1건

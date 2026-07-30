@@ -53,6 +53,27 @@ def spec_rows(specs):
     return "\n".join(out)
 
 
+def placeholder_card(number, category):
+    return f"""<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>{number} (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="{placeholder(category + ' — 추가 예정')}" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
+    </table>
+  </div>
+</div>"""
+
+
 def card(number, title, specs, img_label, img_dark=False, is_mock=False,
          url=None, url_text="제품 링크"):
     label_cls = "img-label mock" if is_mock else "img-label"
@@ -108,6 +129,8 @@ pen_cards = [
           ("색상", "화이트, 블랙 2색"),
           ("분위기", "프리미엄 무광 메탈 질감")],
          "목업 — 트위스트형 무광 고급", img_dark=True, is_mock=True),
+    placeholder_card("③", "볼펜"),
+    placeholder_card("④", "볼펜"),
 ]
 
 flash_cards = [
@@ -129,6 +152,8 @@ flash_cards = [
          "제품 이미지",
          url="https://www.coupang.com/vp/products/9217364344?itemId=27233625678",
          url_text="쿠팡 링크"),
+    placeholder_card("③", "손전등"),
+    placeholder_card("④", "손전등"),
 ]
 
 moist_cards = [
@@ -146,6 +171,8 @@ moist_cards = [
          "제품 이미지",
          url="https://www.coupang.com/vp/products/8906011099?itemId=26203505510",
          url_text="쿠팡 링크"),
+    placeholder_card("③", "함수율 측정기"),
+    placeholder_card("④", "함수율 측정기"),
 ]
 
 tooth_cards = [
@@ -166,6 +193,13 @@ tooth_cards = [
          "목업 — 아파트스퀘어 로고 적용", is_mock=True,
          url="https://www.hongbomool.com/new/shop/detail.php?start=&code=1913062&cid=448",
          url_text="제품 링크"),
+    placeholder_card("③", "칫솔 세트"),
+    placeholder_card("④", "칫솔 세트"),
+]
+
+bino_cards = [
+    placeholder_card("①", "쌍안경"),
+    placeholder_card("②", "쌍안경"),
 ]
 
 bag_cards = [
@@ -213,22 +247,23 @@ thermal_cards = [
 ]
 
 sections_html = "".join([
-    section("1", "볼펜", "2종 검토", pen_cards),
-    section("2", "손전등", "2종 비교", flash_cards),
-    section("3", "함수율 측정기", "2종 비교", moist_cards),
-    section("4", "칫솔 세트", "2종 비교", tooth_cards),
+    section("1", "볼펜", "4종 검토", pen_cards),
+    section("2", "손전등", "4종 비교", flash_cards),
+    section("3", "함수율 측정기", "4종 비교", moist_cards),
+    section("4", "칫솔 세트", "4종 비교", tooth_cards),
     section("5", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),
     section("6", "열화상 카메라", "2종 비교", thermal_cards),
+    section("7", "쌍안경", "2종 비교", bino_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
 summary_cards = [
-    ("6", "검토 카테고리"),
-    ("13", "검토 제품 수"),
-    ("8", "온라인 링크 확보"),
-    ("4", "목업 시안 제작"),
+    ("7", "검토 카테고리"),
+    ("23", "검토 제품 수"),
+    ("13", "정보 확보"),
+    ("10", "추가 예정"),
 ]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -269,7 +304,7 @@ DOC = f"""<!DOCTYPE html>
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }}
-  .content {{ max-width: 1120px; margin: 0 auto; padding: 0 24px 80px; }}
+  .content {{ max-width: 1440px; margin: 0 auto; padding: 0 24px 80px; }}
 
   /* ===== 커버 ===== */
   .cover {{
@@ -297,7 +332,7 @@ DOC = f"""<!DOCTYPE html>
   /* ===== 요약 지표 ===== */
   .stat-grid {{
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
-    margin: -76px auto 44px; max-width: 1072px; position: relative; z-index: 2;
+    margin: -76px auto 44px; max-width: 1392px; position: relative; z-index: 2;
     padding: 0 24px;
   }}
   .stat-card {{
@@ -327,21 +362,26 @@ DOC = f"""<!DOCTYPE html>
   }}
 
   /* ===== 제품 카드 그리드 ===== */
+  /* 한 줄에 4개 고정 배치 */
   .product-grid {{
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 22px; align-items: start;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 16px; align-items: start;
   }}
   .product-card {{
-    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
     overflow: hidden; box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s;
   }}
   .product-card:hover {{ transform: translateY(-3px); box-shadow: var(--shadow-lg); }}
+  .product-card.placeholder {{ border-style: dashed; background: #fafcff; }}
+  .product-card.placeholder .product-card-header {{ background: #f1f5f9; }}
+  .product-card.placeholder h3 {{ color: var(--muted); }}
   .product-card-header {{
-    display: flex; align-items: center; gap: 10px;
-    padding: 16px 18px; background: #f8fafc; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 15px; background: #f8fafc; border-bottom: 1px solid var(--line);
+    min-height: 58px;
   }}
-  .product-card-header h3 {{ font-size: 16px; font-weight: 700; line-height: 1.4; }}
-  .product-card-body {{ padding: 18px; }}
+  .product-card-header h3 {{ font-size: 14.5px; font-weight: 700; line-height: 1.4; }}
+  .product-card-body {{ padding: 15px; }}
 
   .img-grid {{ display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; }}
   .img-box {{
@@ -383,7 +423,11 @@ DOC = f"""<!DOCTYPE html>
   }}
   .report-footer strong {{ color: var(--ink); }}
 
+  @media (max-width: 1200px) {{
+    .product-grid {{ grid-template-columns: repeat(2, 1fr); }}
+  }}
   @media (max-width: 720px) {{
+    .product-grid {{ grid-template-columns: 1fr; }}
     .stat-grid {{ grid-template-columns: repeat(2, 1fr); margin-top: -60px; }}
     .cover h1 {{ font-size: 30px; }}
     .section-badge {{ display: none; }}
@@ -403,8 +447,8 @@ DOC = f"""<!DOCTYPE html>
   <div class="sub">볼펜 · 손전등 · 함수율 측정기 · 칫솔 세트 · 장비가방 · 열화상 카메라</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 6개 카테고리</span>
-    <span class="chip">13개 제품 검토</span>
+    <span class="chip">총 7개 카테고리</span>
+    <span class="chip">23개 제품 검토</span>
   </div>
 </header>
 

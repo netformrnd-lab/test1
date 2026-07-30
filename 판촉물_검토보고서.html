@@ -26,7 +26,7 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  .content { max-width: 1120px; margin: 0 auto; padding: 0 24px 80px; }
+  .content { max-width: 1440px; margin: 0 auto; padding: 0 24px 80px; }
 
   /* ===== 커버 ===== */
   .cover {
@@ -54,7 +54,7 @@
   /* ===== 요약 지표 ===== */
   .stat-grid {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
-    margin: -76px auto 44px; max-width: 1072px; position: relative; z-index: 2;
+    margin: -76px auto 44px; max-width: 1392px; position: relative; z-index: 2;
     padding: 0 24px;
   }
   .stat-card {
@@ -84,21 +84,26 @@
   }
 
   /* ===== 제품 카드 그리드 ===== */
+  /* 한 줄에 4개 고정 배치 */
   .product-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 22px; align-items: start;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 16px; align-items: start;
   }
   .product-card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
     overflow: hidden; box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s;
   }
   .product-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .product-card.placeholder { border-style: dashed; background: #fafcff; }
+  .product-card.placeholder .product-card-header { background: #f1f5f9; }
+  .product-card.placeholder h3 { color: var(--muted); }
   .product-card-header {
-    display: flex; align-items: center; gap: 10px;
-    padding: 16px 18px; background: #f8fafc; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 15px; background: #f8fafc; border-bottom: 1px solid var(--line);
+    min-height: 58px;
   }
-  .product-card-header h3 { font-size: 16px; font-weight: 700; line-height: 1.4; }
-  .product-card-body { padding: 18px; }
+  .product-card-header h3 { font-size: 14.5px; font-weight: 700; line-height: 1.4; }
+  .product-card-body { padding: 15px; }
 
   .img-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; }
   .img-box {
@@ -140,7 +145,11 @@
   }
   .report-footer strong { color: var(--ink); }
 
+  @media (max-width: 1200px) {
+    .product-grid { grid-template-columns: repeat(2, 1fr); }
+  }
   @media (max-width: 720px) {
+    .product-grid { grid-template-columns: 1fr; }
     .stat-grid { grid-template-columns: repeat(2, 1fr); margin-top: -60px; }
     .cover h1 { font-size: 30px; }
     .section-badge { display: none; }
@@ -160,16 +169,16 @@
   <div class="sub">볼펜 · 손전등 · 함수율 측정기 · 칫솔 세트 · 장비가방 · 열화상 카메라</div>
   <div class="meta">
     <span class="chip">작성일 2026-07-30</span>
-    <span class="chip">총 6개 카테고리</span>
-    <span class="chip">13개 제품 검토</span>
+    <span class="chip">총 7개 카테고리</span>
+    <span class="chip">23개 제품 검토</span>
   </div>
 </header>
 
 <div class="stat-grid">
-      <div class="stat-card"><div class="stat-num">6</div><div class="stat-label">검토 카테고리</div></div>
-      <div class="stat-card"><div class="stat-num">13</div><div class="stat-label">검토 제품 수</div></div>
-      <div class="stat-card"><div class="stat-num">8</div><div class="stat-label">온라인 링크 확보</div></div>
-      <div class="stat-card"><div class="stat-num">4</div><div class="stat-label">목업 시안 제작</div></div>
+      <div class="stat-card"><div class="stat-num">7</div><div class="stat-label">검토 카테고리</div></div>
+      <div class="stat-card"><div class="stat-num">23</div><div class="stat-label">검토 제품 수</div></div>
+      <div class="stat-card"><div class="stat-num">13</div><div class="stat-label">정보 확보</div></div>
+      <div class="stat-card"><div class="stat-num">10</div><div class="stat-label">추가 예정</div></div>
 </div>
 
 <main class="content">
@@ -178,7 +187,7 @@
   <div class="section-header">
     <div class="section-num">1</div>
     <div class="section-title">볼펜</div>
-    <span class="section-badge">2종 검토</span>
+    <span class="section-badge">4종 검토</span>
   </div>
   <div class="product-grid">
 <div class="product-card">
@@ -219,6 +228,42 @@
     </table>
   </div>
 </div>
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>③ (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuuzvO2OnCDigJQg7LaU6rCAIOyYiOyglTwvdGV4dD4KICA8dGV4dCB4PSIyNDAiIHk9IjI1NiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTMiCiAgICAgICAgZmlsbD0iI2NiZDVlMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+7J2066+47KeAIOykgOu5hCDsmIjsoJUgKOq1kOyytCDqsIDriqUpPC90ZXh0Pgo8L3N2Zz4=" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
+    </table>
+  </div>
+</div>
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>④ (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuuzvO2OnCDigJQg7LaU6rCAIOyYiOyglTwvdGV4dD4KICA8dGV4dCB4PSIyNDAiIHk9IjI1NiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTMiCiAgICAgICAgZmlsbD0iI2NiZDVlMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+7J2066+47KeAIOykgOu5hCDsmIjsoJUgKOq1kOyytCDqsIDriqUpPC90ZXh0Pgo8L3N2Zz4=" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
+    </table>
+  </div>
+</div>
   </div>
 </section>
 <!-- ===== 2. 손전등 ===== -->
@@ -226,7 +271,7 @@
   <div class="section-header">
     <div class="section-num">2</div>
     <div class="section-title">손전등</div>
-    <span class="section-badge">2종 비교</span>
+    <span class="section-badge">4종 비교</span>
   </div>
   <div class="product-grid">
 <div class="product-card">
@@ -271,6 +316,42 @@
     </table>
   </div>
 </div>
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>③ (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuyGkOyghOuTsSDigJQg7LaU6rCAIOyYiOyglTwvdGV4dD4KICA8dGV4dCB4PSIyNDAiIHk9IjI1NiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTMiCiAgICAgICAgZmlsbD0iI2NiZDVlMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+7J2066+47KeAIOykgOu5hCDsmIjsoJUgKOq1kOyytCDqsIDriqUpPC90ZXh0Pgo8L3N2Zz4=" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
+    </table>
+  </div>
+</div>
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>④ (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuyGkOyghOuTsSDigJQg7LaU6rCAIOyYiOyglTwvdGV4dD4KICA8dGV4dCB4PSIyNDAiIHk9IjI1NiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTMiCiAgICAgICAgZmlsbD0iI2NiZDVlMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+7J2066+47KeAIOykgOu5hCDsmIjsoJUgKOq1kOyytCDqsIDriqUpPC90ZXh0Pgo8L3N2Zz4=" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
+    </table>
+  </div>
+</div>
   </div>
 </section>
 <!-- ===== 3. 함수율 측정기 ===== -->
@@ -278,7 +359,7 @@
   <div class="section-header">
     <div class="section-num">3</div>
     <div class="section-title">함수율 측정기</div>
-    <span class="section-badge">2종 비교</span>
+    <span class="section-badge">4종 비교</span>
   </div>
   <div class="product-grid">
 <div class="product-card">
@@ -319,6 +400,42 @@
     </table>
   </div>
 </div>
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>③ (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPu2VqOyImOycqCDsuKHsoJXquLAg4oCUIOy2lOqwgCDsmIjsoJU8L3RleHQ+CiAgPHRleHQgeD0iMjQwIiB5PSIyNTYiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjEzIgogICAgICAgIGZpbGw9IiNjYmQ1ZTEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuydtOuvuOyngCDspIDruYQg7JiI7KCVICjqtZDssrQg6rCA64qlKTwvdGV4dD4KPC9zdmc+" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
+    </table>
+  </div>
+</div>
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>④ (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPu2VqOyImOycqCDsuKHsoJXquLAg4oCUIOy2lOqwgCDsmIjsoJU8L3RleHQ+CiAgPHRleHQgeD0iMjQwIiB5PSIyNTYiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjEzIgogICAgICAgIGZpbGw9IiNjYmQ1ZTEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuydtOuvuOyngCDspIDruYQg7JiI7KCVICjqtZDssrQg6rCA64qlKTwvdGV4dD4KPC9zdmc+" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
+    </table>
+  </div>
+</div>
   </div>
 </section>
 <!-- ===== 4. 칫솔 세트 ===== -->
@@ -326,7 +443,7 @@
   <div class="section-header">
     <div class="section-num">4</div>
     <div class="section-title">칫솔 세트</div>
-    <span class="section-badge">2종 비교</span>
+    <span class="section-badge">4종 비교</span>
   </div>
   <div class="product-grid">
 <div class="product-card">
@@ -367,6 +484,42 @@
       <tr><th>인쇄</th><td>실크인쇄 (기본 수량 이상 무료)</td></tr>
       <tr><th>단가</th><td>300개 기준 669원 / 10,000개 기준 572원 (부가세 별도)</td></tr>
       <tr><th>제작 기간</th><td>3~4일</td></tr>
+    </table>
+  </div>
+</div>
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>③ (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuy5q+yGlCDshLjtirgg4oCUIOy2lOqwgCDsmIjsoJU8L3RleHQ+CiAgPHRleHQgeD0iMjQwIiB5PSIyNTYiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjEzIgogICAgICAgIGZpbGw9IiNjYmQ1ZTEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuydtOuvuOyngCDspIDruYQg7JiI7KCVICjqtZDssrQg6rCA64qlKTwvdGV4dD4KPC9zdmc+" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
+    </table>
+  </div>
+</div>
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>④ (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuy5q+yGlCDshLjtirgg4oCUIOy2lOqwgCDsmIjsoJU8L3RleHQ+CiAgPHRleHQgeD0iMjQwIiB5PSIyNTYiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjEzIgogICAgICAgIGZpbGw9IiNjYmQ1ZTEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuydtOuvuOyngCDspIDruYQg7JiI7KCVICjqtZDssrQg6rCA64qlKTwvdGV4dD4KPC9zdmc+" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
     </table>
   </div>
 </div>
@@ -485,6 +638,52 @@
       <tr><th>특징</th><td>동영상 촬영 가능, 한국어 지원, USB 충전식</td></tr>
       <tr><th>상품평</th><td>39개 / 95% 긍정</td></tr>
       <tr><th>단가</th><td><strong>179,500원</strong> (53% 할인)</td></tr>
+    </table>
+  </div>
+</div>
+  </div>
+</section>
+<!-- ===== 7. 쌍안경 ===== -->
+<section class="report-section">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div class="section-title">쌍안경</div>
+    <span class="section-badge">2종 비교</span>
+  </div>
+  <div class="product-grid">
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>① (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuyMjeyViOqyvSDigJQg7LaU6rCAIOyYiOyglTwvdGV4dD4KICA8dGV4dCB4PSIyNDAiIHk9IjI1NiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTMiCiAgICAgICAgZmlsbD0iI2NiZDVlMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+7J2066+47KeAIOykgOu5hCDsmIjsoJUgKOq1kOyytCDqsIDriqUpPC90ZXh0Pgo8L3N2Zz4=" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
+    </table>
+  </div>
+</div>
+<div class="product-card placeholder">
+  <div class="product-card-header">
+    <h3>② (제품 정보 추가 예정)</h3>
+  </div>
+  <div class="product-card-body">
+    <div class="img-grid">
+      <div class="img-box">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0ODAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDgwIDMwMCI+CiAgPHJlY3Qgd2lkdGg9IjQ4MCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmMWY1ZjkiLz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMyI+CiAgICA8cmVjdCB4PSIxODAiIHk9IjEwOCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSI4NCIgcng9IjgiLz4KICAgIDxjaXJjbGUgY3g9IjI0MCIgY3k9IjE1MCIgcj0iMjYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMjg4IiBjeT0iMTIyIiByPSI1IiBmaWxsPSIjY2JkNWUxIi8+CiAgPHRleHQgeD0iMjQwIiB5PSIyMjgiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iNzAwIgogICAgICAgIGZpbGw9IiM5NGEzYjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuyMjeyViOqyvSDigJQg7LaU6rCAIOyYiOyglTwvdGV4dD4KICA8dGV4dCB4PSIyNDAiIHk9IjI1NiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTMiCiAgICAgICAgZmlsbD0iI2NiZDVlMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+7J2066+47KeAIOykgOu5hCDsmIjsoJUgKOq1kOyytCDqsIDriqUpPC90ZXh0Pgo8L3N2Zz4=" alt="추가 예정">
+        <div class="img-label">정보 입력 대기</div>
+      </div>
+    </div>
+    <table class="spec-table">
+      <tr><th>제품명</th><td>—</td></tr>
+      <tr><th>단가</th><td>—</td></tr>
+      <tr><th>비고</th><td>세부 정보 확인 필요</td></tr>
     </table>
   </div>
 </div>

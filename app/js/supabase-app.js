@@ -1336,6 +1336,25 @@ window.openApt = openApt; window.openReport = openReport
 
 // ── 감리사: 공사 일정 (달력) ─────────────────────────────
 let schedYM = null
+let SCHED_ALL = []   // 현재 불러온 전체 일정 (월 이동 시 달력 다시 그리기용)
+// 달력 월 이동: delta=-1/+1, 'today'=이번 달로
+window.changeSchedMonth = function (delta) {
+  if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
+  if (delta === 'today') { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
+  else { let m = schedYM.m + delta, y = schedYM.y; while (m < 0) { m += 12; y-- } while (m > 11) { m -= 12; y++ } schedYM = { y, m } }
+  renderCalendar(SCHED_ALL)
+}
+// 달력 좌우 스와이프로 월 넘기기
+function wireSchedSwipe() {
+  const cal = document.getElementById('s-cal'); if (!cal || cal._wired) return; cal._wired = true
+  let sx = 0, sy = 0
+  cal.addEventListener('touchstart', (e) => { const t = e.touches[0]; if (t) { sx = t.clientX; sy = t.clientY } }, { passive: true })
+  cal.addEventListener('touchend', (e) => {
+    const t = e.changedTouches[0]; if (!t) return
+    const dx = t.clientX - sx, dy = t.clientY - sy
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) window.changeSchedMonth(dx < 0 ? 1 : -1)
+  }, { passive: true })
+}
 async function loadSchedule() {
   // 감리사용 '일정 추가' 버튼/폼을 먼저 숨겨 깜빡임 방지 (역할 확인 후 감리사면 다시 표시)
   const addBtn0 = document.getElementById('sc-add-btn'); if (addBtn0) addBtn0.style.display = 'none'
@@ -1370,8 +1389,10 @@ async function loadSchedule() {
     scheds = data || []
   }
   if (isAuditor) populateSchedAptSelect()
+  SCHED_ALL = scheds
   renderCalendar(scheds)
   renderSchedList(scheds)
+  wireSchedSwipe()
 }
 function populateSchedAptSelect() {
   const sel = document.getElementById('sc-apt'); if (!sel) return

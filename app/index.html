@@ -355,7 +355,11 @@
 
         <div class="ab"><span onclick="window.goBack()" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">공사 일정</span></div>
         <div class="bd" style="background:#fff;padding:14px">
-          <div style="margin-bottom:4px"><span id="s-month" style="font-size:14px;font-weight:800;color:#1c2440">2026년 7월</span></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:4px">
+            <span onclick="changeSchedMonth(-1)" style="cursor:pointer;padding:6px 12px;margin:-6px 0;font-size:20px;color:#9aa3b6;-webkit-tap-highlight-color:transparent;user-select:none">‹</span>
+            <span id="s-month" onclick="changeSchedMonth('today')" style="cursor:pointer;font-size:14px;font-weight:800;color:#1c2440;min-width:96px;text-align:center">2026년 7월</span>
+            <span onclick="changeSchedMonth(1)" style="cursor:pointer;padding:6px 12px;margin:-6px 0;font-size:20px;color:#9aa3b6;-webkit-tap-highlight-color:transparent;user-select:none">›</span>
+          </div>
           <div id="s-sub" style="font-size:10.5px;color:#5c6580;font-weight:600;margin-bottom:12px">감리사가 방문하는 날을 미리 알려드려요. 그날 무엇을 보는지 함께 확인해요</div>
           <div id="sc-add-btn" class="plus" style="height:40px;margin-bottom:11px;display:none">＋ 일정 추가 <span class="badm">감리사</span></div>
           <div id="sc-form" style="display:none;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px;margin-bottom:12px">
@@ -369,8 +373,11 @@
             <input id="sc-desc" placeholder="예: 오후 2시" style="width:100%;min-width:0;background:#fff;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;color:#151c33;margin-bottom:9px;box-sizing:border-box;font-family:inherit;outline:none">
             <div id="sc-save" class="plus" style="height:40px;margin-top:3px">등록</div>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:9.5px;color:#98a1b5;font-weight:700;margin-bottom:4px"><span style="color:#d06b62">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style="color:#5a78b8">토</span></div>
-          <div id="s-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:11px;font-weight:700;color:#3a445e"></div>
+          <div id="s-cal" style="touch-action:pan-y">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:9.5px;color:#98a1b5;font-weight:700;margin-bottom:4px"><span style="color:#d06b62">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style="color:#5a78b8">토</span></div>
+            <div id="s-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:11px;font-weight:700;color:#3a445e"></div>
+            <div style="text-align:center;font-size:9.5px;color:#b3bccf;font-weight:600;margin-top:7px">← 옆으로 넘겨 다른 달 보기 · 월 이름을 누르면 오늘로</div>
+          </div>
           <div id="s-list" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
         </div>
         <div class="nav" id="sched-nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>

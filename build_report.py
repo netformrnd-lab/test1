@@ -9,7 +9,19 @@ import base64
 import html as _html
 from pathlib import Path
 
-OUT = Path(__file__).with_name("판촉물_검토보고서.html")
+BASE = Path(__file__).parent
+IMGDIR = BASE / "images"
+OUT = BASE / "판촉물_검토보고서.html"
+
+
+def file_b64(path):
+    """실제 이미지 파일을 data URI(base64)로 임베드."""
+    p = Path(path)
+    data = p.read_bytes()
+    ext = p.suffix.lower().lstrip(".")
+    if ext in ("jpg", "jpe"):
+        ext = "jpeg"
+    return f"data:image/{ext};base64,{base64.b64encode(data).decode()}"
 
 
 # ---------------------------------------------------------------------------
@@ -74,22 +86,39 @@ def placeholder_card(number, category):
 </div>"""
 
 
-def card(number, title, specs, img_label, img_dark=False, is_mock=False,
-         url=None, url_text="제품 링크"):
-    label_cls = "img-label mock" if is_mock else "img-label"
-    label_style = ' style="color:#90caf9;"' if (is_mock and img_dark) else ""
-    box_style = ' style="background:#1a1a2e;"' if img_dark else ""
+def render_img_box(entry, alt):
+    """이미지 박스 1개 렌더. 실제 파일 있으면 임베드, 없으면 플레이스홀더."""
+    label = entry["label"]
+    dark = entry.get("dark", False)
+    mock = entry.get("mock", False)
+    path = entry.get("path")
+    if path and (IMGDIR / path).exists():
+        src = file_b64(IMGDIR / path)
+    else:
+        src = placeholder(label, dark)
+    label_cls = "img-label mock" if mock else "img-label"
+    label_style = ' style="color:#90caf9;"' if (mock and dark) else ""
+    box_style = ' style="background:#1a1a2e;"' if dark else ""
+    return (f'<div class="img-box"{box_style}>\n'
+            f'        <img src="{src}" alt="{_html.escape(alt)}">\n'
+            f'        <div class="{label_cls}"{label_style}>{label}</div>\n'
+            f'      </div>')
+
+
+def card(number, title, specs, img_label=None, img_dark=False, is_mock=False,
+         url=None, url_text="제품 링크", imgs=None):
+    if imgs is None:
+        imgs = [{"label": img_label, "dark": img_dark, "mock": is_mock}]
+    cols = "1fr" if len(imgs) == 1 else "1fr 1fr"
+    boxes = "\n      ".join(render_img_box(e, title) for e in imgs)
     return f"""<div class="product-card">
   <div class="product-card-header">
     <h3>{number} {title}</h3>
     {link_btn(url, url_text)}
   </div>
   <div class="product-card-body">
-    <div class="img-grid">
-      <div class="img-box"{box_style}>
-        <img src="{placeholder(img_label, img_dark)}" alt="{_html.escape(title)}">
-        <div class="{label_cls}"{label_style}>{img_label}</div>
-      </div>
+    <div class="img-grid" style="grid-template-columns:{cols};">
+      {boxes}
     </div>
     <table class="spec-table">
 {spec_rows(specs)}
@@ -182,17 +211,23 @@ tooth_cards = [
           ("기본 수량", "100개 이상"),
           ("단가", "100개 기준 3,798원 / 5,000개 기준 3,235원 (부가세 별도)"),
           ("인쇄", "전화 확인 필요")],
-         "목업 — 아파트스퀘어 로고 적용", is_mock=True,
          url="https://www.jwaygift.com/product_w/product_view_d.asp?p_idx=495992",
-         url_text="제품 링크"),
+         url_text="제품 링크",
+         imgs=[
+             {"path": "칫솔1_골드넬_목업.jpg", "label": "목업 — 아파트스퀘어 로고 적용", "mock": True},
+             {"path": "칫솔1_골드넬_사례.jpg", "label": "제작 사례 (아주대학교)"},
+         ]),
     card("②", "홍보물닷컴 — 링칫솔 페리오치약(5g) 투명케이스세트",
          [("구성", "링칫솔 + 페리오치약(5g) + 투명 링케이스"),
           ("인쇄", "실크인쇄 (기본 수량 이상 무료)"),
           ("단가", "300개 기준 669원 / 10,000개 기준 572원 (부가세 별도)"),
           ("제작 기간", "3~4일")],
-         "목업 — 아파트스퀘어 로고 적용", is_mock=True,
          url="https://www.hongbomool.com/new/shop/detail.php?start=&code=1913062&cid=448",
-         url_text="제품 링크"),
+         url_text="제품 링크",
+         imgs=[
+             {"path": "칫솔2_링칫솔_목업.jpg", "label": "목업 — 아파트스퀘어 로고 적용", "mock": True},
+             {"path": "칫솔2_링칫솔_기본.jpg", "label": "제품 기본컷"},
+         ]),
     placeholder_card("③", "칫솔 세트"),
     placeholder_card("④", "칫솔 세트"),
 ]

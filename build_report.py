@@ -272,10 +272,13 @@ tooth_cards = [
 # ----- 5. 드론 조종기 -----
 dji_cards = [
     card("①", "DJI RC Pro 2 조종기",
-         [("종류", "드론 조종기 (고휘도 디스플레이 내장)"), ("단가", "확인 예정")],
+         [("종류", "드론 조종기 (고휘도 디스플레이 내장)"),
+          ("디스플레이", "Mini-LED · 2,000nit · HDR · 10bit"),
+          ("명암 / 색역", "1,000,000:1 · 98% DCI-P3"),
+          ("단가", "<strong>1,220,000원</strong>")],
          [{"path": "22_DJI_RC_Pro_2_현장_운용_목업.png", "label": "목업 — 현장 운용", "mock": True},
           {"path": "21_DJI_RC_Pro_2_제품_이미지.jpg", "label": "제품 이미지"}],
-         url="https://www.dji.com/rc-pro-2", url_text="DJI 공식", pending=True),
+         url="https://www.dji.com/rc-pro-2", url_text="DJI 공식"),
 ]
 
 # ----- 6. 장비가방 -----
@@ -327,11 +330,14 @@ bino_cards = [
          [{"path": "28_니쿠라__Nikula__쌍안경.png", "label": "제품 이미지"}],
          url="https://search.shopping.naver.com/catalog/46079948618?query=쌍안경",
          url_text="네이버 링크"),
-    card("②", "라라캠프 콤팩트 쌍안경",
-         [("종류", "콤팩트 쌍안경"), ("단가", "확인 예정")],
+    card("②", "라라캠프 콤팩트 쌍안경 (럭슨 LUXUN)",
+         [("모델", "럭슨(LUXUN) 자동초점 오페라글라스"),
+          ("특징", "자동초점 · 콘서트/뮤지컬 관람용 콤팩트"),
+          ("상품평", "2,329건 / 평점 4.82"),
+          ("가격", "<strong>36,800원</strong> (20% 할인, 정가 46,000원) · 배송 3,000원")],
          [{"path": "29_라라캠프_콤팩트_쌍안경.jpg", "label": "제품 이미지"}],
          url="https://smartstore.naver.com/lalacamp/products/7484467111",
-         url_text="스마트스토어", pending=True),
+         url_text="스마트스토어"),
 ]
 
 sections_html = "".join([

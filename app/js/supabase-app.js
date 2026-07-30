@@ -1910,7 +1910,22 @@ const ALIM = {
 // 자동 콘텐츠 피드 (앱이 브라우저에서 직접 읽음, CORS 중계 경유) — 실패 시 정적 목록 폴백
 // 유튜브 채널 ID(UC...)를 알면 아래에 넣으면 유튜브도 자동 갱신됨. (비우면 유튜브는 아래 정적 목록 사용)
 const ALIM_YT_CHANNEL = 'UCeZr7L1jurF7WF1wNUHxWMw'
-const ALIM_PROXY = u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u)
+// CORS 중계 프록시 여러 개 — 앞에서부터 시도해 하나라도 되면 자동갱신 성공 (안정성↑)
+const ALIM_PROXIES = [
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
+  u => 'https://thingproxy.freeboard.io/fetch/' + u
+]
+async function proxiedFetch(url) {
+  for (const p of ALIM_PROXIES) {
+    try {
+      const r = await fetch(p(url))
+      if (r && r.ok) { const t = await r.text(); if (t && t.length > 80) return t }
+    } catch (e) {}
+  }
+  return null
+}
 let ALIM_FEED = null, ALIM_FEED_STATE = 'idle'
 function alimList() {
   const sYt = ALIM_CONTENT.filter(c => c.type === 'youtube')
@@ -1920,17 +1935,15 @@ function alimList() {
   return (fy.length ? fy : sYt).concat(fb.length ? fb : sBl)
 }
 async function fetchNaverFeed() {
-  const r = await fetch(ALIM_PROXY('https://rss.blog.naver.com/aptsquare_.xml'))
-  if (!r.ok) return []
-  const doc = new DOMParser().parseFromString(await r.text(), 'text/xml')
+  const txt = await proxiedFetch('https://rss.blog.naver.com/aptsquare_.xml'); if (!txt) return []
+  const doc = new DOMParser().parseFromString(txt, 'text/xml')
   return Array.from(doc.querySelectorAll('item')).slice(0, 15)
     .map(it => ({ title: ((it.querySelector('title') || {}).textContent || '').trim(), url: ((it.querySelector('link') || {}).textContent || '').trim() }))
     .filter(i => i.title && i.url)
 }
 async function fetchYtFeed(cid) {
-  const r = await fetch(ALIM_PROXY('https://www.youtube.com/feeds/videos.xml?channel_id=' + cid))
-  if (!r.ok) return []
-  const doc = new DOMParser().parseFromString(await r.text(), 'text/xml')
+  const txt = await proxiedFetch('https://www.youtube.com/feeds/videos.xml?channel_id=' + cid); if (!txt) return []
+  const doc = new DOMParser().parseFromString(txt, 'text/xml')
   return Array.from(doc.getElementsByTagName('entry')).slice(0, 15)
     .map(e => ({ id: ((e.getElementsByTagName('yt:videoId')[0] || {}).textContent || '').trim(), title: ((e.getElementsByTagName('title')[0] || {}).textContent || '').trim() }))
     .filter(i => i.id)

@@ -1281,8 +1281,9 @@ async function importBoard(){
       if(forcedApt)return forcedApt;
       if(catCache[cat]!==undefined)return catCache[cat];
       const c=norm(cat);
-      let a=aps.find(x=>norm(x.name)===c)||aps.find(x=>norm(x.name).includes(c)||c.includes(norm(x.name)));
-      if(!a){const{data,error}=await sb.from('apartments').insert({name:cat}).select('id,name').single();if(error){impLog('단지 생성 실패('+cat+'): '+error.message,'#e4544b');catCache[cat]=null;return null;}a=data;aps.push(a);impLog('🏢 단지 새로 생성: '+cat);}
+      // ⚠️ 단지 오분류(다른 단지 사진 섞임) 방지 — '정확히 일치'할 때만 매칭. 애매하면 새 단지로 분리 생성.
+      let a=aps.find(x=>norm(x.name)===c);
+      if(!a){const{data,error}=await sb.from('apartments').insert({name:cat}).select('id,name').single();if(error){impLog('단지 생성 실패('+cat+'): '+error.message,'#e4544b');catCache[cat]=null;return null;}a=data;aps.push(a);impLog('🏢 단지 새로 생성(정확 일치 없음): '+cat);}
       else impLog("🏢 매칭: '"+cat+"' → '"+a.name+"'");
       catCache[cat]=a.id;return a.id;
     }

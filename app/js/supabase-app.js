@@ -475,7 +475,29 @@ window.showScreen = function (id) {
   ORIG_SHOW(id)
   // 채팅 목록으로 돌아오면 안 읽음 배지를 즉시 최신화
   if (id === 's36' && typeof renderAuditorChatList === 'function') { try { renderAuditorChatList() } catch (e) {} }
+  // 승인 대기 화면: 승인되면 자동으로 홈으로 넘어가게 폴링
+  if (id === 's02') startApprovalPoll(); else stopApprovalPoll()
 }
+// 승인 대기(s02): 관리자가 승인하면 자동으로 홈으로 이동
+let _approvalPoll = null
+async function checkApprovalNow() {
+  try {
+    const { data: { user } } = await sb.auth.getUser(); if (!user) return false
+    const { data: prof } = await sb.from('profiles').select('approved').eq('id', user.id).single()
+    if (prof && prof.approved) { stopApprovalPoll(); route(); return true }
+  } catch (e) {}
+  return false
+}
+window.checkApprovalNow = checkApprovalNow
+function startApprovalPoll() {
+  if (_approvalPoll) return
+  _approvalPoll = setInterval(() => {
+    const s = document.getElementById('s02')
+    if (!s || !s.classList.contains('active')) { stopApprovalPoll(); return }
+    checkApprovalNow()
+  }, 5000)
+}
+function stopApprovalPoll() { if (_approvalPoll) { clearInterval(_approvalPoll); _approvalPoll = null } }
 window.goBack = function () {
   let p = NAV_HIST.pop()
   if (!p) p = (currentRole === 'auditor') ? 's07' : 's11'

@@ -103,6 +103,8 @@ function openInquiry() {
 window.openInquiry = openInquiry
 async function loadResidentHome() {
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
+  // 무료 진단 서비스: 관리소장에게만 노출 (입주민 홈에서는 숨김)
+  const fd = document.getElementById('res-freediag'); if (fd) fd.style.display = (currentRole === 'manager') ? 'block' : 'none'
   // 단지와 무관한 공통 콘텐츠(공지사항 · 타 감리감독 현황)는 항상 로드
   loadResidentNotices()
   loadRegionActivity()
@@ -2025,8 +2027,8 @@ async function loadCredentials() {
     if (!list.length) { box.innerHTML = ''; if (sec) sec.style.display = 'none'; return }
     if (sec) sec.style.display = 'block'
     box.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      + list.map(c => '<div onclick="zoomPhoto(\'' + escH(c.image_url) + '\')" style="cursor:pointer;border:1px solid #eef1f7;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 6px 14px -12px rgba(23,38,80,.4)">'
-        + '<img src="' + escH(c.image_url) + '" alt="" style="width:100%;height:170px;object-fit:cover;object-position:top;display:block" loading="lazy">'
+      + list.map(c => '<div style="border:1px solid #eef1f7;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 6px 14px -12px rgba(23,38,80,.4)">'
+        + '<img src="' + escH(c.image_url) + '" alt="" style="width:100%;height:140px;object-fit:cover;object-position:top;display:block" loading="lazy">'
         + (c.caption ? '<div style="font-size:10px;font-weight:700;color:#5c6580;padding:7px 9px;line-height:1.45">' + escH(c.caption) + '</div>' : '')
         + '</div>').join('')
       + '</div>'

@@ -368,6 +368,20 @@ uniform_cards = [
          url_text="제품 페이지"),
 ]
 
+# ----- 10. 아코디언 파일 (디자인 시안 A/B) -----
+accordion_cards = [
+    card("A안", "진한 네이비",
+         [("컨셉", "전문성 · 신뢰감 · 무게감"),
+          ("구성", "앞면 + 실제 뒷면")],
+         [{"path": "아코디언_A_앞.png", "label": "A안 앞면 (파일 필요)", "mock": True},
+          {"path": "아코디언_A_뒤.png", "label": "A안 실제 뒷면 (파일 필요)"}]),
+    card("B안", "화이트 · 코발트 블루",
+         [("컨셉", "개방감 · 고급 패키지 인상 · 명료함"),
+          ("구성", "앞면 + 실제 뒷면")],
+         [{"path": "아코디언_B_앞.png", "label": "B안 앞면 (파일 필요)", "mock": True},
+          {"path": "아코디언_B_뒤.png", "label": "B안 실제 뒷면 (파일 필요)"}]),
+]
+
 sections_html = "".join([
     section("1", "볼펜 / 젤펜", "4종 검토", pen_cards),
     section("2", "손전등 / 랜턴", "4종 비교", flash_cards),
@@ -378,13 +392,14 @@ sections_html = "".join([
     section("7", "열화상 카메라", "2종 비교", thermal_cards),
     section("8", "쌍안경", "2종 비교", bino_cards),
     section("9", "겨울 유니폼", "2종 검토", uniform_cards),
+    section("10", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("9", "검토 카테고리"), ("26", "검토 제품"),
-                 ("29", "확보 이미지"), ("11", "목업 시안")]
+summary_cards = [("10", "검토 카테고리"), ("28", "검토 항목"),
+                 ("31", "확보 이미지"), ("13", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
     f'<div class="stat-label">{l}</div></div>' for n, l in summary_cards)
@@ -507,11 +522,11 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울 유니폼</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울 유니폼 · 아코디언 파일</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 9개 카테고리</span>
-    <span class="chip">26개 제품 검토</span>
+    <span class="chip">총 10개 카테고리</span>
+    <span class="chip">28개 항목 검토</span>
   </div>
 </header>
 

@@ -158,15 +158,21 @@ pen_cards = [
           {"path": "03_네오블랙_젤펜_원본.png", "label": "원본"}],
          url="https://koreagift.com/ez/mall.php?cat=001002000&query=view&no=53123"),
     card("③", "에어슬림 볼펜 (흰/네이비/검정 3색)",
-         [("타입", "클릭형 슬림 볼펜 (골드 포인트)"),
+         [("모델", "B8459"),
+          ("타입", "클릭형 슬림 볼펜 (골드 포인트)"),
           ("색상", "화이트, 네이비, 블랙 3색"),
-          ("인쇄", "실크 인쇄")],
+          ("인쇄", "실크 인쇄 (인쇄비 무료)"),
+          ("단가", "200개 <strong>1,330원</strong> ~ 10,000개 1,170원 (VAT 별도)"),
+          ("제작기간", "영업일 3~5일")],
          [{"path": "05_에어슬림_볼펜.png", "label": "목업 — 3색 (골드 포인트)", "mock": True}],
          url="https://koreagift.com/ez/mall.php?cat=001002000&query=view&no=198014"),
     card("④", "노블 무광 볼펜 (흰/검정 2색)",
-         [("타입", "트위스트형 무광 볼펜 (골드 포인트)"),
+         [("모델", "B7512"),
+          ("타입", "트위스트형 무광 볼펜 (골드 포인트)"),
           ("색상", "화이트, 블랙 2색"),
-          ("분위기", "프리미엄 무광 메탈 질감")],
+          ("인쇄", "인쇄비 무료"),
+          ("단가", "100개 <strong>1,820원</strong> ~ 10,000개 1,570원 (VAT 별도)"),
+          ("제작기간", "영업일 3~5일")],
          [{"path": "06_노블_무광_볼펜.png", "label": "목업 — 무광 고급형", "mock": True, "dark": True}],
          url="https://koreagift.com/ez/mall.php?cat=001002000&query=view&no=160146"),
 ]
@@ -448,7 +454,7 @@ DOC = f"""<!DOCTYPE html>
   .img-grid {{ display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:14px; }}
   .img-box {{ background:#f1f5f9; border-radius:10px; overflow:hidden; text-align:center;
     border:1px solid var(--line); }}
-  .img-box img {{ width:100%; max-height:190px; object-fit:contain; display:block; }}
+  .img-box img {{ width:100%; max-height:190px; object-fit:contain; display:block; cursor:zoom-in; }}
   .img-label {{ font-size:12px; color:var(--muted); padding:7px; font-weight:500; background:rgba(255,255,255,.6); }}
   .img-label.mock {{ color:#b45309; background:#fffbeb; }}
   .thumb-row {{ display:flex; gap:8px; }}
@@ -474,6 +480,14 @@ DOC = f"""<!DOCTYPE html>
   .report-footer {{ margin-top:48px; padding:24px; background:var(--card); border:1px solid var(--line);
     border-radius:14px; font-size:13px; color:var(--muted); line-height:1.8; }}
   .report-footer strong {{ color:var(--ink); }}
+
+  /* 이미지 클릭 확대 (라이트박스) */
+  .lightbox {{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.88);
+    z-index:1000; align-items:center; justify-content:center; padding:24px; cursor:zoom-out; }}
+  .lightbox.open {{ display:flex; }}
+  .lightbox img {{ max-width:96%; max-height:96%; object-fit:contain; border-radius:8px;
+    box-shadow:0 12px 48px rgba(0,0,0,.6); background:#fff; }}
+  .lightbox-hint {{ position:fixed; top:16px; right:22px; color:#fff; font-size:13px; opacity:.7; }}
 
   @media (max-width:1200px) {{ .product-grid {{ grid-template-columns:repeat(2,1fr); }} }}
   @media (max-width:720px) {{
@@ -516,6 +530,28 @@ DOC = f"""<!DOCTYPE html>
   </div>
 </main>
 
+<div id="lightbox" class="lightbox">
+  <span class="lightbox-hint">클릭 또는 ESC로 닫기</span>
+  <img id="lightbox-img" src="" alt="확대 이미지">
+</div>
+<script>
+(function(){{
+  var lb = document.getElementById('lightbox');
+  var im = document.getElementById('lightbox-img');
+  document.addEventListener('click', function(e){{
+    var t = e.target;
+    if (t.tagName === 'IMG' && t.closest('.img-box')) {{
+      im.src = t.src;
+      lb.classList.add('open');
+    }} else if (lb.classList.contains('open')) {{
+      lb.classList.remove('open');
+    }}
+  }});
+  document.addEventListener('keydown', function(e){{
+    if (e.key === 'Escape') lb.classList.remove('open');
+  }});
+}})();
+</script>
 </body>
 </html>"""
 

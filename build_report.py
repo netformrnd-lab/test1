@@ -63,8 +63,13 @@ def placeholder(label, dark=False):
 def img_src(entry, thumb=False):
     path = entry.get("path")
     if path and (IMGDIR / path).exists():
-        return optimize_b64(IMGDIR / path, max_side=420 if thumb else 1000,
-                            quality=80 if thumb else 82)
+        if thumb:
+            ms, q = 460, 82
+        elif entry.get("hifi"):          # 디자인 시안: 실제 PDF에 가깝게 고해상도
+            ms, q = 1480, 92
+        else:
+            ms, q = 1000, 82
+        return optimize_b64(IMGDIR / path, max_side=ms, quality=q)
     return placeholder(entry["label"], entry.get("dark", False))
 
 
@@ -434,14 +439,14 @@ leaflet_cards = [
          [("앞면", "아파트 보수공사, 끝까지 함께합니다"),
           ("뒷면", "결정은 쉽게, 근거는 남게 — Q&A 4"),
           ("톤", "딥네이비 · 항공사진 · 무게감/신뢰")],
-         [{"path": "리플릿A_앞.png", "label": "A안 앞면 · 클릭 시 원본 PDF", "mock": True, "file": "leaflet_a"},
-          {"path": "리플릿A_뒤.png", "label": "A안 뒷면", "file": "leaflet_a"}]),
+         [{"path": "리플릿A_앞.png", "label": "A안 앞면 · 클릭 시 원본 PDF", "mock": True, "file": "leaflet_a", "hifi": True},
+          {"path": "리플릿A_뒤.png", "label": "A안 뒷면", "file": "leaflet_a", "hifi": True}]),
     card("B안", "라이트 프로세스형",
          [("앞면", "모든 과정을 한 곳에서 — 통합 관리 5단계"),
           ("뒷면", "무엇을 점검하고 무엇을 드리나"),
           ("톤", "화이트 · 밝고 명료 · 프로세스 강조")],
-         [{"path": "리플릿B_앞.png", "label": "B안 앞면 · 클릭 시 원본 PDF", "mock": True, "file": "leaflet_b"},
-          {"path": "리플릿B_뒤.png", "label": "B안 뒷면", "file": "leaflet_b"}]),
+         [{"path": "리플릿B_앞.png", "label": "B안 앞면 · 클릭 시 원본 PDF", "mock": True, "file": "leaflet_b", "hifi": True},
+          {"path": "리플릿B_뒤.png", "label": "B안 뒷면", "file": "leaflet_b", "hifi": True}]),
 ]
 
 sections_html = "".join([

@@ -13,7 +13,12 @@ from PIL import Image
 
 BASE = Path(__file__).parent
 IMGDIR = BASE / "images"
+ORIGDIR = IMGDIR / "originals"
 OUT = BASE / "판촉물_검토보고서.html"
+
+
+def raw_b64(path):
+    return base64.b64encode(Path(path).read_bytes()).decode()
 
 
 # ---------------------------------------------------------------------------
@@ -81,10 +86,11 @@ def _img_box(entry, alt, thumb=False):
     label = entry["label"]
     dark = entry.get("dark", False)
     mock = entry.get("mock", False)
+    file_attr = f' data-file="{entry["file"]}"' if entry.get("file") else ""
     label_cls = "img-label mock" if mock else "img-label"
     box_style = ' style="background:#1a1a2e;"' if dark else ""
     cls = "img-box thumb" if thumb else "img-box"
-    inner = f'<img src="{img_src(entry, thumb)}" alt="{_html.escape(alt)}">'
+    inner = f'<img src="{img_src(entry, thumb)}" alt="{_html.escape(alt)}"{file_attr}>'
     if not thumb:
         inner += f'\n        <div class="{label_cls}">{label}</div>'
     return f'<div class="{cls}"{box_style}>{inner}</div>'
@@ -373,13 +379,13 @@ accordion_cards = [
     card("A안", "진한 네이비",
          [("컨셉", "전문성 · 신뢰감 · 무게감"),
           ("구성", "앞면 + 실제 뒷면")],
-         [{"path": "아코디언_A_앞.png", "label": "A안 앞면 (아파트스퀘어 목업)", "mock": True},
-          {"path": "아코디언_A_뒤.png", "label": "A안 실제 뒷면"}]),
+         [{"path": "아코디언_A_앞.png", "label": "A안 앞면 · 클릭 시 원본 파일", "mock": True, "file": "accordion"},
+          {"path": "아코디언_A_뒤.png", "label": "A안 실제 뒷면", "file": "accordion"}]),
     card("B안", "화이트 · 코발트 블루",
          [("컨셉", "개방감 · 고급 패키지 인상 · 명료함"),
           ("구성", "앞면 + 실제 뒷면")],
-         [{"path": "아코디언_B_앞.png", "label": "B안 앞면 (아파트스퀘어 목업)", "mock": True},
-          {"path": "아코디언_B_뒤.png", "label": "B안 실제 뒷면"}]),
+         [{"path": "아코디언_B_앞.png", "label": "B안 앞면 · 클릭 시 원본 파일", "mock": True, "file": "accordion"},
+          {"path": "아코디언_B_뒤.png", "label": "B안 실제 뒷면", "file": "accordion"}]),
 ]
 
 # ----- 11. 하드커버 (양장) — 표지 + 내부 -----
@@ -390,12 +396,12 @@ hardcover_cards = [
           ("뒤표지", "로고 · 연락처 (square1600@naver.com / 1600-6069)"),
           ("슬로건", "신뢰받는 파트너, 완성도 높은 결과"),
           ("제본", "하드커버 양장")],
-         [{"path": "하드커버_B.png", "label": "표지 스프레드 — 뒤 · 책등 · 앞", "mock": True}]),
+         [{"path": "하드커버_B.png", "label": "표지 스프레드 · 클릭 시 원본 PDF", "mock": True, "file": "hardcover"}]),
     card("내부", "좌 · 우 (내지)",
          [("우면", "공동주택 유지보수의 전문감리기관"),
           ("카피", "문의부터 준공까지, 전 과정을 투명하게 설계합니다"),
           ("좌면", "여백 · 네이비 배경")],
-         [{"path": "하드커버_A.png", "label": "내부 스프레드 — 좌 · 우", "mock": True}]),
+         [{"path": "하드커버_A.png", "label": "내부 스프레드 · 클릭 시 원본 PDF", "mock": True, "file": "hardcover"}]),
 ]
 
 sections_html = "".join([
@@ -422,6 +428,17 @@ summary_html = "\n".join(
     f'<div class="stat-label">{l}</div></div>' for n, l in summary_cards)
 
 TODAY = "2026-07-30"
+
+# 원본 파일(클릭 시 새 탭에서 열람) 임베드
+ORIGINALS = {
+    "accordion": {"mime": "image/png", "name": "아파트스퀘어_아코디언_AB.png",
+                  "b64": raw_b64(ORIGDIR / "아코디언_원본.png")},
+    "hardcover": {"mime": "application/pdf", "name": "아파트스퀘어_하드커버.pdf",
+                  "b64": raw_b64(ORIGDIR / "하드커버_원본.pdf")},
+}
+originals_js = ",\n".join(
+    f'  "{k}": {{mime:"{v["mime"]}", name:"{v["name"]}", b64:"{v["b64"]}"}}'
+    for k, v in ORIGINALS.items())
 
 # ---------------------------------------------------------------------------
 # 최종 HTML
@@ -487,6 +504,7 @@ DOC = f"""<!DOCTYPE html>
   .img-box {{ background:#f1f5f9; border-radius:10px; overflow:hidden; text-align:center;
     border:1px solid var(--line); }}
   .img-box img {{ width:100%; max-height:190px; object-fit:contain; display:block; cursor:zoom-in; }}
+  .img-box img[data-file] {{ cursor:pointer; }}
   .img-label {{ font-size:12px; color:var(--muted); padding:7px; font-weight:500; background:rgba(255,255,255,.6); }}
   .img-label.mock {{ color:#b45309; background:#fffbeb; }}
   .thumb-row {{ display:flex; gap:8px; }}
@@ -567,12 +585,24 @@ DOC = f"""<!DOCTYPE html>
   <img id="lightbox-img" src="" alt="확대 이미지">
 </div>
 <script>
+var ORIGINALS = {{
+{originals_js}
+}};
 (function(){{
   var lb = document.getElementById('lightbox');
   var im = document.getElementById('lightbox-img');
+  function openOriginal(f){{
+    var bin = atob(f.b64), n = bin.length, arr = new Uint8Array(n);
+    for (var i=0;i<n;i++) arr[i] = bin.charCodeAt(i);
+    var url = URL.createObjectURL(new Blob([arr], {{type: f.mime}}));
+    var w = window.open(url, '_blank');
+    setTimeout(function(){{ URL.revokeObjectURL(url); }}, 60000);
+  }}
   document.addEventListener('click', function(e){{
     var t = e.target;
     if (t.tagName === 'IMG' && t.closest('.img-box')) {{
+      var key = t.getAttribute('data-file');
+      if (key && ORIGINALS[key]) {{ openOriginal(ORIGINALS[key]); return; }}
       im.src = t.src;
       lb.classList.add('open');
     }} else if (lb.classList.contains('open')) {{

@@ -382,6 +382,20 @@ accordion_cards = [
           {"path": "아코디언_B_뒤.png", "label": "B안 실제 뒷면"}]),
 ]
 
+# ----- 11. 하드커버 표지 (디자인 시안 A/B) -----
+hardcover_cards = [
+    card("A안", "카피 중심 — 전문감리기관",
+         [("앞표지", "공동주택 유지보수의 전문감리기관"),
+          ("컨셉", "미니멀 · 카피 중심 · 무게감"),
+          ("구성", "앞표지 + 책등 + 뒤표지 (220+15+220mm)")],
+         [{"path": "하드커버_A.png", "label": "목업 — A안 (뒤·책등·앞 스프레드)", "mock": True}]),
+    card("B안", "로고 강조 + 연락처·아이콘",
+         [("앞표지", "신뢰받는 파트너, 완성도 높은 결과"),
+          ("컨셉", "로고 강조 · 4아이콘 · 뒤표지 연락처"),
+          ("구성", "앞표지 + 책등 + 뒤표지 (220+15+220mm)")],
+         [{"path": "하드커버_B.png", "label": "목업 — B안 (뒤·책등·앞 스프레드)", "mock": True}]),
+]
+
 sections_html = "".join([
     section("1", "볼펜 / 젤펜", "4종 검토", pen_cards),
     section("2", "손전등 / 랜턴", "4종 비교", flash_cards),
@@ -393,13 +407,14 @@ sections_html = "".join([
     section("8", "쌍안경", "2종 비교", bino_cards),
     section("9", "겨울 유니폼", "2종 검토", uniform_cards),
     section("10", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
+    section("11", "하드커버 표지 (디자인 시안)", "A/B 시안 — 택1 결정 필요", hardcover_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("10", "검토 카테고리"), ("28", "검토 항목"),
-                 ("31", "확보 이미지"), ("13", "목업 시안")]
+summary_cards = [("11", "검토 카테고리"), ("30", "검토 항목"),
+                 ("33", "확보 이미지"), ("15", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
     f'<div class="stat-label">{l}</div></div>' for n, l in summary_cards)
@@ -522,11 +537,11 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울 유니폼 · 아코디언 파일</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울 유니폼 · 아코디언 파일 · 하드커버</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 10개 카테고리</span>
-    <span class="chip">28개 항목 검토</span>
+    <span class="chip">총 11개 카테고리</span>
+    <span class="chip">30개 항목 검토</span>
   </div>
 </header>
 

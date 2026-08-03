@@ -428,6 +428,22 @@ hardcover_cards = [
          [{"path": "하드커버_A.png", "label": "내부 스프레드 · 클릭 시 원본 PDF", "mock": True, "file": "hardcover"}]),
 ]
 
+# ----- A4 리플릿 (디자인 시안 A/B) -----
+leaflet_cards = [
+    card("A안", "딥네이비 히어로형",
+         [("앞면", "아파트 보수공사, 끝까지 함께합니다"),
+          ("뒷면", "결정은 쉽게, 근거는 남게 — Q&A 4"),
+          ("톤", "딥네이비 · 항공사진 · 무게감/신뢰")],
+         [{"path": "리플릿A_앞.png", "label": "A안 앞면 · 클릭 시 원본 PDF", "mock": True, "file": "leaflet_a"},
+          {"path": "리플릿A_뒤.png", "label": "A안 뒷면", "file": "leaflet_a"}]),
+    card("B안", "라이트 프로세스형",
+         [("앞면", "모든 과정을 한 곳에서 — 통합 관리 5단계"),
+          ("뒷면", "무엇을 점검하고 무엇을 드리나"),
+          ("톤", "화이트 · 밝고 명료 · 프로세스 강조")],
+         [{"path": "리플릿B_앞.png", "label": "B안 앞면 · 클릭 시 원본 PDF", "mock": True, "file": "leaflet_b"},
+          {"path": "리플릿B_뒤.png", "label": "B안 뒷면", "file": "leaflet_b"}]),
+]
+
 sections_html = "".join([
     section("1", "볼펜 / 젤펜", "4종 검토", pen_cards),
     section("2", "손전등 / 랜턴", "4종 비교", flash_cards),
@@ -439,15 +455,16 @@ sections_html = "".join([
     section("8", "쌍안경", "2종 비교", bino_cards),
     section("9", "겨울 유니폼", "2종 검토", uniform_cards),
     section("10", "여름 유니폼", "2종 — 춘하/여름", summer_cards),
-    section("11", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
-    section("12", "하드커버 (양장)", "표지 + 내부 구성", hardcover_cards),
+    section("11", "A4 리플릿 (디자인 시안)", "A/B 시안 — 택1 결정 필요", leaflet_cards),
+    section("12", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
+    section("13", "하드커버 (양장)", "표지 + 내부 구성", hardcover_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("12", "검토 카테고리"), ("32", "검토 항목"),
-                 ("35", "확보 이미지"), ("17", "목업 시안")]
+summary_cards = [("13", "검토 카테고리"), ("34", "검토 항목"),
+                 ("39", "확보 이미지"), ("21", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
     f'<div class="stat-label">{l}</div></div>' for n, l in summary_cards)
@@ -460,6 +477,10 @@ ORIGINALS = {
                   "b64": raw_b64(ORIGDIR / "아코디언_원본.png")},
     "hardcover": {"mime": "application/pdf", "name": "아파트스퀘어_하드커버.pdf",
                   "b64": raw_b64(ORIGDIR / "하드커버_원본.pdf")},
+    "leaflet_a": {"mime": "application/pdf", "name": "아파트스퀘어_리플릿_A안.pdf",
+                  "b64": raw_b64(ORIGDIR / "리플릿A_원본.pdf")},
+    "leaflet_b": {"mime": "application/pdf", "name": "아파트스퀘어_리플릿_B안.pdf",
+                  "b64": raw_b64(ORIGDIR / "리플릿B_원본.pdf")},
 }
 originals_js = ",\n".join(
     f'  "{k}": {{mime:"{v["mime"]}", name:"{v["name"]}", b64:"{v["b64"]}"}}'
@@ -582,11 +603,11 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 아코디언 · 하드커버</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 아코디언 · 하드커버</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 12개 카테고리</span>
-    <span class="chip">32개 항목 검토</span>
+    <span class="chip">총 13개 카테고리</span>
+    <span class="chip">34개 항목 검토</span>
   </div>
 </header>
 

@@ -101,24 +101,28 @@ def _img_box(entry, alt, thumb=False):
     return f'<div class="{cls}"{box_style}>{inner}</div>'
 
 
-def images_block(imgs, alt):
+def images_block(imgs, alt, cols=1, stack=False):
+    if stack or len(imgs) == 1:
+        style = f' style="grid-template-columns:repeat({cols},1fr);"' if cols > 1 else ""
+        boxes = "\n      ".join(_img_box(e, alt) for e in imgs)
+        return f'<div class="img-grid"{style}>\n      {boxes}\n    </div>'
     primary = _img_box(imgs[0], alt)
-    if len(imgs) == 1:
-        return f'<div class="img-grid">\n      {primary}\n    </div>'
     thumbs = "\n        ".join(_img_box(e, alt, thumb=True) for e in imgs[1:])
     return (f'<div class="img-grid">\n      {primary}\n'
             f'      <div class="thumb-row">\n        {thumbs}\n      </div>\n    </div>')
 
 
-def card(number, title, specs, imgs, url=None, url_text="제품 링크", pending=False):
+def card(number, title, specs, imgs, url=None, url_text="제품 링크", pending=False,
+         stack=False, cols=1, span=False):
     badge = '<span class="pend-badge">정보 확인 예정</span>' if pending else ""
-    return f"""<div class="product-card{' pending' if pending else ''}">
+    cls = "product-card" + (" pending" if pending else "") + (" fullspan" if span else "")
+    return f"""<div class="{cls}">
   <div class="product-card-header">
     <h3>{number} {title}</h3>
     {link_btn(url, url_text)}
   </div>
   <div class="product-card-body">
-    {images_block(imgs, title)}
+    {images_block(imgs, title, cols=cols, stack=stack)}
     {badge}
     <table class="spec-table">
 {spec_rows(specs)}
@@ -419,18 +423,14 @@ accordion_cards = [
 
 # ----- 11. 하드커버 (양장) — 표지 + 내부 -----
 hardcover_cards = [
-    card("표지", "뒤 · 책등 · 앞 (외지)",
-         [("구성", "앞표지 + 책등 + 뒤표지 (220 + 15 + 220mm)"),
-          ("앞표지", "로고 강조 · 슬로건 · 4아이콘"),
-          ("뒤표지", "로고 · 연락처 (square1600@naver.com / 1600-6069)"),
-          ("슬로건", "신뢰받는 파트너, 완성도 높은 결과"),
-          ("제본", "하드커버 양장")],
-         [{"path": "하드커버_B.png", "label": "표지 스프레드 · 클릭 시 원본 PDF", "mock": True, "file": "hardcover"}]),
-    card("내부", "좌 · 우 (내지)",
-         [("우면", "공동주택 유지보수의 전문감리기관"),
-          ("카피", "문의부터 준공까지, 전 과정을 투명하게 설계합니다"),
-          ("좌면", "여백 · 네이비 배경")],
-         [{"path": "하드커버_A.png", "label": "내부 스프레드 · 클릭 시 원본 PDF", "mock": True, "file": "hardcover"}]),
+    card("아파트스퀘어 하드커버", "(양장 · 표지 + 내부)",
+         [("구성", "앞표지 + 책등 + 뒤표지 (220 + 15 + 220mm) · 하드커버 양장"),
+          ("표지", "앞: 로고·슬로건·4아이콘 / 뒤: 로고·연락처 (1600-6069)"),
+          ("내부", "공동주택 유지보수의 전문감리기관 — 투명한 설계 카피"),
+          ("원본", "이미지 클릭 시 원본 PDF 새 탭 열림")],
+         [{"path": "하드커버_B.png", "label": "① 표지 — 뒤 · 책등 · 앞 · 클릭 시 원본 PDF", "mock": True, "file": "hardcover", "hifi": True},
+          {"path": "하드커버_A.png", "label": "② 내부 — 좌 · 우 · 클릭 시 원본 PDF", "mock": True, "file": "hardcover", "hifi": True}],
+         stack=True, cols=2, span=True),
 ]
 
 # ----- A4 리플릿 (디자인 시안 A/B) -----
@@ -468,7 +468,7 @@ sections_html = "".join([
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("13", "검토 카테고리"), ("34", "검토 항목"),
+summary_cards = [("13", "검토 카테고리"), ("33", "검토 항목"),
                  ("39", "확보 이미지"), ("21", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -545,6 +545,9 @@ DOC = f"""<!DOCTYPE html>
     overflow:hidden; box-shadow:var(--shadow); transition:transform .15s, box-shadow .15s; }}
   .product-card:hover {{ transform:translateY(-3px); box-shadow:var(--shadow-lg); }}
   .product-card.pending {{ border-color:#fcd9a8; }}
+  .product-card.fullspan {{ grid-column:1 / -1; }}
+  .product-card.fullspan .img-box img {{ max-height:360px; }}
+  @media (max-width:720px) {{ .product-card.fullspan .img-grid {{ grid-template-columns:1fr !important; }} }}
   .product-card-header {{ display:flex; align-items:center; gap:8px; padding:14px 15px;
     background:#f8fafc; border-bottom:1px solid var(--line); min-height:58px; }}
   .product-card.pending .product-card-header {{ background:#fffbeb; }}

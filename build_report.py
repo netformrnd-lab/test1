@@ -374,7 +374,27 @@ uniform_cards = [
          url_text="제품 페이지"),
 ]
 
-# ----- 10. 아코디언 파일 (디자인 시안 A/B) -----
+# ----- 여름 유니폼 -----
+summer_cards = [
+    card("①", "JS유니폼 UBS-3103 — 나일론 스판 작업복 점퍼",
+         [("품번", "UBS-3103"),
+          ("종류", "작업복 점퍼 (긴팔)"),
+          ("특징", "나일론 스판 · 춘하 신축성"),
+          ("단가", "확인 예정")],
+         [{"path": "여름유니폼1_UBS3103.png", "label": "목업 — 아파트스퀘어 로고 (앞/뒤)", "mock": True}],
+         url="https://jsuniform.com/product/ubs-3103-%EB%82%98%EC%9D%BC%EB%A1%A0-%EC%8A%A4%ED%8C%90-%EC%9E%91%EC%97%85%EB%B3%B5-%EC%A0%90%ED%8D%BC-%EC%B6%98%ED%95%98%EC%8B%A0%EC%B6%95%EC%84%B1/10673/category/107/display/1/",
+         url_text="제품 페이지", pending=True),
+    card("②", "JS유니폼 TBS-5241 — 반팔 워크 셔츠 (여름)",
+         [("품번", "TBS-5241"),
+          ("종류", "반팔 워크 셔츠 (여름)"),
+          ("특징", "등판 벤틸레이션(통풍)"),
+          ("단가", "확인 예정")],
+         [{"path": "여름유니폼2_TBS5241.png", "label": "목업 — 아파트스퀘어 로고 (앞/뒤)", "mock": True}],
+         url="https://jsuniform.com/product/tbs-5241-%EB%B0%98%ED%8C%94-%EC%9B%8C%ED%81%AC-%EC%97%AC%EB%A6%84-%EC%A0%90%ED%8D%BC-%EC%97%AC%EB%A6%84%EB%93%B1%ED%8C%90%EB%B2%A4%EB%94%9C%EB%A0%88%EC%9D%B4%EC%85%98/10390/category/33/display/1/",
+         url_text="제품 페이지", pending=True),
+]
+
+# ----- 아코디언 파일 (디자인 시안 A/B) -----
 accordion_cards = [
     card("A안", "진한 네이비",
          [("컨셉", "전문성 · 신뢰감 · 무게감"),
@@ -414,15 +434,16 @@ sections_html = "".join([
     section("7", "열화상 카메라", "2종 비교", thermal_cards),
     section("8", "쌍안경", "2종 비교", bino_cards),
     section("9", "겨울 유니폼", "2종 검토", uniform_cards),
-    section("10", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
-    section("11", "하드커버 (양장)", "표지 + 내부 구성", hardcover_cards),
+    section("10", "여름 유니폼", "2종 — 춘하/여름", summer_cards),
+    section("11", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
+    section("12", "하드커버 (양장)", "표지 + 내부 구성", hardcover_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("11", "검토 카테고리"), ("30", "검토 항목"),
-                 ("33", "확보 이미지"), ("15", "목업 시안")]
+summary_cards = [("12", "검토 카테고리"), ("32", "검토 항목"),
+                 ("35", "확보 이미지"), ("17", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
     f'<div class="stat-label">{l}</div></div>' for n, l in summary_cards)
@@ -557,11 +578,11 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울 유니폼 · 아코디언 파일 · 하드커버</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 아코디언 · 하드커버</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 11개 카테고리</span>
-    <span class="chip">30개 항목 검토</span>
+    <span class="chip">총 12개 카테고리</span>
+    <span class="chip">32개 항목 검토</span>
   </div>
 </header>
 

@@ -113,9 +113,11 @@ def images_block(imgs, alt, cols=1, stack=False):
 
 
 def card(number, title, specs, imgs, url=None, url_text="제품 링크", pending=False,
-         stack=False, cols=1, span=False):
-    badge = '<span class="pend-badge">정보 확인 예정</span>' if pending else ""
-    cls = "product-card" + (" pending" if pending else "") + (" fullspan" if span else "")
+         stack=False, cols=1, span=False, badge=None):
+    badge_text = badge or ("정보 확인 예정" if pending else None)
+    badge = f'<span class="pend-badge">{badge_text}</span>' if badge_text else ""
+    is_pending = pending or bool(badge_text)
+    cls = "product-card" + (" pending" if is_pending else "") + (" fullspan" if span else "")
     return f"""<div class="{cls}">
   <div class="product-card-header">
     <h3>{number} {title}</h3>
@@ -429,6 +431,11 @@ hardcover_cards = [
           ("구성", "앞표지 + 책등 + 뒤표지 (220+15+220mm)")],
          [{"path": "하드커버_B.png", "label": "표지 (뒤·책등·앞) · 클릭 시 원본 PDF", "mock": True, "file": "hardcover", "hifi": True},
           {"path": "하드커버_A.png", "label": "내부 (좌·우)", "file": "hardcover"}]),
+    card("B안", "준비 중",
+         [("상태", "디자인 시안 준비 중"),
+          ("비고", "확정되면 이 자리에 표시됩니다")],
+         [{"path": "__하드커버_B안_준비중__.png", "label": "B안 준비 중"}],
+         badge="🕒 준비 중"),
 ]
 
 # ----- A4 리플릿 (디자인 시안 A/B) -----

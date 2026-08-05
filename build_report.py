@@ -455,6 +455,16 @@ leaflet_cards = [
           {"path": "리플릿B_뒤.png", "label": "B안 뒷면", "file": "leaflet_b", "hifi": True}]),
 ]
 
+# ----- 회사소개 책자 -----
+booklet_cards = [
+    card("📖", "아파트스퀘어 회사소개 책자 (A4 · 9p)",
+         [("구성", "표지 · 인사말 · 실적 · ONE-STOP · 품질 · 서비스 · 사전점검 · 앱 · 클로징 (9p)"),
+          ("형식", "A4 · 스크롤형 PDF"),
+          ("표지 입력란", "{단지명}·{공사종류}·{착공일}·{세대수}·{공사기간}"),
+          ("원본", "표지 이미지 클릭 시 책자 PDF 새 탭 열림")],
+         [{"path": "책자_표지.png", "label": "표지 · 클릭 시 책자 PDF 전체", "mock": True, "file": "booklet", "hifi": True}]),
+]
+
 sections_html = "".join([
     section("1", "볼펜 / 젤펜", "4종 검토", pen_cards),
     section("2", "손전등 / 랜턴", "4종 비교", flash_cards),
@@ -469,13 +479,14 @@ sections_html = "".join([
     section("11", "A4 리플릿 (디자인 시안)", "A/B 시안 — 택1 결정 필요", leaflet_cards),
     section("12", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
     section("13", "하드커버 (디자인 시안)", "A/B 시안 — 택1 결정 필요", hardcover_cards),
+    section("14", "회사소개 책자", "A4 9p · 클릭 시 원본 PDF", booklet_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("13", "검토 카테고리"), ("34", "검토 항목"),
-                 ("41", "확보 이미지"), ("23", "목업 시안")]
+summary_cards = [("14", "검토 카테고리"), ("35", "검토 항목"),
+                 ("42", "확보 이미지"), ("24", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
     f'<div class="stat-label">{l}</div></div>' for n, l in summary_cards)
@@ -494,6 +505,8 @@ ORIGINALS = {
                   "b64": raw_b64(ORIGDIR / "리플릿B_원본.pdf")},
     "hardcover_b": {"mime": "application/pdf", "name": "아파트스퀘어_하드커버_B안.pdf",
                     "b64": raw_b64(ORIGDIR / "하드커버B_원본.pdf")},
+    "booklet": {"mime": "application/pdf", "name": "아파트스퀘어_회사소개_책자.pdf",
+                "b64": raw_b64(ORIGDIR / "책자_원본.pdf")},
 }
 originals_js = ",\n".join(
     f'  "{k}": {{mime:"{v["mime"]}", name:"{v["name"]}", b64:"{v["b64"]}"}}'
@@ -622,8 +635,8 @@ DOC = f"""<!DOCTYPE html>
   <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 아코디언 · 하드커버</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 13개 카테고리</span>
-    <span class="chip">34개 항목 검토</span>
+    <span class="chip">총 14개 카테고리</span>
+    <span class="chip">35개 항목 검토</span>
   </div>
 </header>
 

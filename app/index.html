@@ -159,7 +159,7 @@
           </div>
           <div style="padding:0 14px"><div style="display:flex;align-items:center;gap:8px;background:#f2f5fa;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px"><span style="font-size:12px">🔍</span><input id="aud-search" placeholder="단지 이름·지역 검색" style="border:none;background:transparent;outline:none;flex:1;min-width:0;font-size:11.5px;font-weight:600;color:#141d34;font-family:inherit"></div>
           <div id="aud-filters" style="display:flex;gap:6px;margin:11px 0 2px"><span data-filter="all" style="cursor:pointer;font-size:10px;font-weight:800;color:#fff;background:#2F6BF6;padding:5px 11px;border-radius:99px">전체</span><span data-filter="in_progress" style="cursor:pointer;font-size:10px;font-weight:700;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">진행중</span><span data-filter="scheduled" style="cursor:pointer;font-size:10px;font-weight:700;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">점검예정</span><span data-filter="done" style="cursor:pointer;font-size:10px;font-weight:700;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">완료</span></div></div>
-          <div style="padding:2px 14px 0"><button onclick="audAddApt()" style="width:100%;border:1.5px dashed #b9c6e0;background:#f7faff;color:#2F6BF6;font-size:12.5px;font-weight:800;padding:11px;border-radius:12px;font-family:inherit;cursor:pointer">＋ 단지 추가</button></div>
+          <div style="padding:2px 14px 0"><button onclick="showScreen('s48')" style="width:100%;border:1.5px dashed #b9c6e0;background:#f7faff;color:#2F6BF6;font-size:12.5px;font-weight:800;padding:11px;border-radius:12px;font-family:inherit;cursor:pointer">＋ 단지 추가</button></div>
           <div id="aud-apts" style="padding:8px 14px 14px;display:flex;flex-direction:column;gap:9px">
 
           <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center">
@@ -227,6 +227,44 @@
         </div>
         <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div class="on"><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
       </section>
+      <section class="screen" id="s48" data-name="단지 추가">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">단지 추가</div><div style="font-size:10px;color:#2F6BF6;font-weight:800">새 담당 단지 등록</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:17px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">단지 이름 <span style="color:#e4544b">*</span></label>
+              <input id="na-name" placeholder="예: 동탄역시범리슈빌" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">지역</label>
+              <input id="na-region" placeholder="예: 경기 화성" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">공종(종류)</label>
+              <input id="na-ctype" list="na-ctype-opts" placeholder="예: 외벽 재도장 / 옥상 방수 / 지하 에폭시" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit">
+              <datalist id="na-ctype-opts"><option value="외벽 재도장"><option value="옥상 방수"><option value="옥상·외벽 방수"><option value="지하주차장 에폭시"><option value="지하 방수"><option value="착공 전 진단"></datalist>
+            </div>
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">상태</label>
+              <select id="na-status" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit;background:#fff">
+                <option value="scheduled">점검예정</option>
+                <option value="in_progress">진행중</option>
+                <option value="done">완료</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">진행 단계 (현재 / 전체)</label>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+                <input id="na-pc" type="number" value="0" min="0" style="flex:1;min-width:0;box-sizing:border-box;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit">
+                <span style="color:#8b95ad;font-weight:800;flex-shrink:0">/</span>
+                <input id="na-pt" type="number" value="0" min="0" style="flex:1;min-width:0;box-sizing:border-box;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit">
+              </div>
+              <div style="font-size:10.5px;color:#9aa3b6;font-weight:600;margin-top:5px">예) 전체 공정이 11단계면 오른쪽에 11, 지금 7단계까지 됐으면 왼쪽에 7</div>
+            </div>
+            <button id="na-btn" onclick="audCreateApt()" style="margin-top:2px;border:none;background:#2F6BF6;color:#fff;font-size:14px;font-weight:800;padding:13px;border-radius:11px;font-family:inherit;cursor:pointer">단지 추가</button>
+          </div>
+        </div>
+      </section>
       <section class="screen" id="s08" data-name="감리일지 목록">
 
         <div class="ab"><span onclick="goBack()" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">감리일지</div><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#2F6BF6;font-weight:800"><span id="rep-apt-name">이편한세상한강신도시2차</span> <span style="opacity:.7"></span></div></div></div>
@@ -241,7 +279,7 @@
             <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center"><div style="width:50px;height:50px;border-radius:10px;background:url(&quot;assets/bd71d251-4fa6-47f9-a364-f688b91aeec9.jpg&quot;) center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">9장</span></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">공사 시작 전, 상태부터 점검했어요</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">2026.03.11 · 사진 9장</div></div></div>
           </div>
         </div>
-        <div class="nav"><div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📄</div>보고서</div><div><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
       
       </section>
       <section class="screen" id="s09" data-name="감리일지 작성 (감리사)" style="background:#EDF2FA">
@@ -292,7 +330,7 @@
           <div id="d-h2" style="font-size:13px;font-weight:800;color:#2F6BF6;margin-top:12px">상태는 괜찮은가요</div>
           <div style="font-size:11.5px;color:#404a63;line-height:1.7;margin-top:4px">몇 군데를 골라 확인해 보니 칠 상태가 좋아요. 다음 방문 때 한 번 더 살펴보고 알려드릴게요. 궁금한 점은 언제든 문의해 주세요</div>
         </div>
-        <div class="nav" id="report-nav"><div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📄</div>보고서</div><div><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+        <div class="nav" id="report-nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
       
       </section>
       <section class="screen" id="s11" data-name="입주민·관리소장 홈">
@@ -654,14 +692,14 @@
           <div id="ct-msg" style="font-size:11.5px;font-weight:700;text-align:center;min-height:16px;margin-bottom:8px;color:#8b95ad"></div>
           <div id="ct-list" style="display:flex;flex-direction:column;gap:9px"></div>
         </div>
-        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📄</div>보고서</div><div><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
       </section>
 
       <!-- s36: 감리사 채팅 목록 (담당 단지별) -->
       <section class="screen" id="s36" data-name="채팅">
         <div class="ab"><div><div class="abt">채팅</div><div style="font-size:11.5px;color:#8b95ad;font-weight:700">담당 단지 입주민과 대화</div></div></div>
         <div id="audchat-list" class="bd" style="background:#F4F6FA;padding:12px;display:flex;flex-direction:column;gap:9px"></div>
-        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📄</div>보고서</div><div><div class="ic">📅</div>일정</div><div data-tab="chat" class="on"><div class="ic">💬</div>채팅</div></div>
+        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat" class="on"><div class="ic">💬</div>채팅</div></div>
       </section>
 
       <!-- s38: 공지사항 전체 목록 -->
@@ -681,7 +719,7 @@
       <section class="screen" id="s40" data-name="만족도 결과">
         <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">만족도 결과</div><div id="svr-apt" style="font-size:10px;color:#2F6BF6;font-weight:800">단지</div></div></div>
         <div id="svr-body" class="bd" style="background:#F4F6FA;padding:16px"></div>
-        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📄</div>보고서</div><div><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
       </section>
 
       <section class="screen" id="s41" data-name="내 정보 · 비밀번호 변경">

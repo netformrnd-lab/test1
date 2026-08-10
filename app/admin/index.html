@@ -406,7 +406,7 @@
         <h3>➕ 리플렛 추가</h3>
         <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">📷 리플렛 이미지 <input id="lf-img" type="file" accept="image/*" multiple></label>
+            <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">📷 리플렛 이미지·PDF <input id="lf-img" type="file" accept="image/*,application/pdf" multiple></label>
             <span id="lf-img-state" style="font-size:11.5px;font-weight:700;color:var(--mut)"></span>
           </div>
           <div style="font-size:11.5px;color:var(--mut);line-height:1.5">여러 장을 <b>한 번에 선택</b>하면 순서대로 올라가요. (리플렛이 여러 페이지면 페이지 순서대로 선택하세요.) 설명은 비워둬도 돼요.</div>
@@ -546,8 +546,10 @@ let LEAFLETS_A=[];
 async function uploadLeafletImage(file){
   if(!file)return '';
   const safe=file.name.replace(/[^\w.]/g,'_');
+  const isPdf=/\.pdf$/i.test(file.name);
   const path='leaflet/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+safe;
-  const{error}=await sb.storage.from('report-photos').upload(path,file,{upsert:false});
+  const opts=isPdf?{contentType:'application/pdf',upsert:false}:{upsert:false};
+  const{error}=await sb.storage.from('report-photos').upload(path,file,opts);
   if(error) return '';
   return sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
 }
@@ -558,12 +560,12 @@ async function loadLeafletsAdmin(){
 function renderLeafletsAdmin(){
   const box=$('leaflets-list'); if(!box)return;
   if(!LEAFLETS_A.length){ box.innerHTML='<div style="color:var(--mut);font-size:12.5px;padding:6px 2px">등록된 리플렛이 없어요. 위에서 추가하세요.</div>'; return; }
-  box.innerHTML=LEAFLETS_A.map(c=>`<div class="card" style="display:flex;align-items:center;gap:12px;padding:11px 14px;margin-bottom:8px">
-    ${c.image_url?`<div style="width:70px;height:64px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--line)"><img src="${esc(c.image_url)}" style="width:100%;height:100%;object-fit:cover;object-position:top"></div>`:''}
-    <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:var(--ink);line-height:1.4">${esc(c.caption||'(설명 없음)')}</div><div style="font-size:10.5px;font-weight:700;color:var(--mut);margin-top:2px">순서 ${c.sort||0}</div></div>
+  box.innerHTML=LEAFLETS_A.map(c=>{const isPdf=/\.pdf(\?|$)/i.test(c.image_url||'');return `<div class="card" style="display:flex;align-items:center;gap:12px;padding:11px 14px;margin-bottom:8px">
+    ${c.image_url?(isPdf?`<a href="${esc(c.image_url)}" target="_blank" rel="noopener" style="width:70px;height:64px;border-radius:8px;flex-shrink:0;border:1px solid var(--line);background:#f3f6fc;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none"><span style="font-size:22px">📄</span><span style="font-size:9px;font-weight:800;color:var(--blue)">PDF</span></a>`:`<div style="width:70px;height:64px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--line)"><img src="${esc(c.image_url)}" style="width:100%;height:100%;object-fit:cover;object-position:top"></div>`):''}
+    <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:var(--ink);line-height:1.4">${esc(c.caption||'(설명 없음)')}</div><div style="font-size:10.5px;font-weight:700;color:var(--mut);margin-top:2px">순서 ${c.sort||0}${isPdf?' · PDF':''}</div></div>
     <label style="font-size:11.5px;font-weight:700;color:var(--mut2);white-space:nowrap"><input type="checkbox" ${c.active?'checked':''} onchange="toggleLeaflet('${c.id}',this.checked)" style="vertical-align:middle"> 노출</label>
     <span onclick="delLeaflet('${c.id}')" style="cursor:pointer;color:#e4544b;font-size:12.5px;font-weight:800">삭제</span>
-  </div>`).join('');
+  </div>`;}).join('');
 }
 async function addLeaflet(){
   const files=$('lf-img')&&$('lf-img').files;

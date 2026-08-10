@@ -1057,23 +1057,47 @@ function renderAudApts() {
     : '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">조건에 맞는 단지가 없어요.</div>'
 }
 window.loadAuditorApts = loadAuditorApts
-// 감리사: 단지 직접 추가 (관리자처럼 종류·지역·상태·진행 설정)
+// 감리사 단지 추가 폼: 공법·공정 드롭다운 (관리자와 동일)
+function audMethodOpts (cur) {
+  let o = '<option value="">— 공법 선택 —</option>'
+  const S = window.STAGE_SETS || {}
+  for (const k in S) o += `<option value="${k}" ${k === cur ? 'selected' : ''}>${escH(S[k].label)}</option>`
+  return o
+}
+function audStageOpts (method, cur) {
+  const s = ((window.STAGE_SETS || {})[method] || {}).stages
+  if (!s) return '<option value="0">— 공법을 먼저 선택 —</option>'
+  let o = `<option value="0" ${cur === 0 ? 'selected' : ''}>시작 전 (0/${s.length})</option>`
+  s.forEach((nm, i) => { const v = i + 1; o += `<option value="${v}" ${cur === v ? 'selected' : ''}>${escH(nm)} 완료 (${v}/${s.length})</option>` })
+  return o
+}
+window.audMethodChange = function () {
+  const m = document.getElementById('na-method'); const stg = document.getElementById('na-stage')
+  if (m && stg) stg.innerHTML = audStageOpts(m.value, 0)
+}
+window.openAudAptForm = function () {
+  const g = id => document.getElementById(id)
+  if (g('na-method')) g('na-method').innerHTML = audMethodOpts('')
+  if (g('na-stage')) g('na-stage').innerHTML = audStageOpts('', 0)
+  ;['na-name', 'na-region', 'na-ctype'].forEach(i => { const el = g(i); if (el) el.value = '' })
+  if (g('na-status')) g('na-status').value = 'scheduled'
+  showScreen('s48')
+}
 window.audCreateApt = async function () {
   const g = id => document.getElementById(id)
   const name = (g('na-name').value || '').trim(); if (!name) { alert('단지 이름을 입력하세요'); g('na-name').focus(); return }
   const region = (g('na-region').value || '').trim()
   const ctype = (g('na-ctype').value || '').trim()
   const status = g('na-status').value || 'scheduled'
-  const pc = parseInt(g('na-pc').value || '0') || 0
-  const pt = parseInt(g('na-pt').value || '0') || 0
+  const method = g('na-method').value || null
+  const stages = ((window.STAGE_SETS || {})[method] || {}).stages
+  const pt = stages ? stages.length : 0
+  const pc = Math.min(parseInt(g('na-stage').value || '0') || 0, pt)
   const { data: { user } } = await sb.auth.getUser(); if (!user) { alert('로그인이 필요해요'); return }
   const btn = g('na-btn'); if (btn) { btn.disabled = true; btn.textContent = '추가 중…' }
-  const { error } = await sb.from('apartments').insert({ name, region: region || null, construction_type: ctype || null, auditor_id: user.id, status, progress_current: pc, progress_total: pt })
+  const { error } = await sb.from('apartments').insert({ name, region: region || null, construction_type: ctype || null, method: method || null, auditor_id: user.id, status, progress_current: pc, progress_total: pt })
   if (btn) { btn.disabled = false; btn.textContent = '단지 추가' }
   if (error) { alert('단지 추가 실패: ' + error.message + '\n(권한 설정 SQL을 실행했는지 확인해 주세요 · migration-leaflets.sql)'); return }
-  // 입력 초기화 후 목록으로
-  ;['na-name', 'na-region', 'na-ctype'].forEach(i => { const el = g(i); if (el) el.value = '' })
-  g('na-pc').value = '0'; g('na-pt').value = '0'; g('na-status').value = 'scheduled'
   goBack(); loadAuditorApts()
 }
 // 리플렛: 감리사 앱에서 보기 (태블릿 확대 · 다운로드 · 공유)
@@ -1085,22 +1109,41 @@ async function loadLeaflets () {
     const list = data || []
     if (!list.length) { box.innerHTML = '<div style="padding:34px 18px;text-align:center;color:#8b95ad;font-size:12.5px;font-weight:600;line-height:1.7">아직 등록된 리플렛이 없어요.<br>관리자 페이지에서 리플렛을 올리면 여기에 보여요.</div>'; return }
     const isPdf = u => /\.pdf(\?|$)/i.test(u || '')
-    box.innerHTML = list.map(l => {
+    // 좌우 스와이프 캐러셀 (페이지를 옆으로 넘겨봄)
+    box.innerHTML =
+      '<div style="text-align:center;font-size:11px;color:#8b95ad;font-weight:600;margin-bottom:8px">← 좌우로 넘겨보세요 · 탭하면 확대 →</div>' +
+      '<div id="lf-track" style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;border-radius:14px;border:1px solid #eef1f7;background:#fff;box-shadow:0 10px 22px -18px rgba(23,38,80,.5)"></div>' +
+      '<div id="lf-actions" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"></div>'
+    const track = document.getElementById('lf-track')
+    const actions = document.getElementById('lf-actions')
+    const addSlide = () => { const s = document.createElement('div'); s.style.cssText = 'flex:0 0 100%;scroll-snap-align:center;display:flex;align-items:flex-start;justify-content:center;min-width:0'; track.appendChild(s); return s }
+    for (const l of list) {
       const u = l.image_url
-      const media = isPdf(u)
-        ? `<div id="lf-pdf-${l.id}" style="display:flex;flex-direction:column;gap:8px;padding:10px 10px 0"><div style="text-align:center;color:#8b95ad;font-size:12px;font-weight:600;padding:22px 12px">📄 PDF 불러오는 중…</div></div>`
-        : `<img src="${u}" onclick="zoomPhoto('${u}')" style="width:100%;display:block;cursor:zoom-in">`
-      return `<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;overflow:hidden;box-shadow:0 10px 22px -18px rgba(23,38,80,.5)">
-        ${media}
-        ${l.caption ? `<div style="font-size:12px;color:#5c6580;font-weight:600;padding:10px 13px 0;line-height:1.55">${escH(l.caption)}</div>` : ''}
-        <div style="display:flex;gap:8px;padding:11px 13px">
-          <a href="${u}" download target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;background:#eef4ff;color:#2F6BF6;font-size:12.5px;font-weight:800;padding:10px;border-radius:10px">⬇ 다운로드</a>
-          <button onclick="shareLeaflet('${u}')" style="flex:1;border:none;background:#2F6BF6;color:#fff;font-size:12.5px;font-weight:800;padding:10px;border-radius:10px;font-family:inherit;cursor:pointer">공유</button>
-        </div>
-      </div>`
-    }).join('')
-    // PDF 리플렛은 순차적으로 인라인 렌더 (renderPdfInline 이 전역 요청id를 써서 동시 호출 시 서로 취소됨)
-    for (const l of list) { if (isPdf(l.image_url)) { try { await renderPdfInline(l.image_url, 'lf-pdf-' + l.id) } catch (e) {} } }
+      if (isPdf(u)) {
+        try {
+          const pdfjsLib = await ensurePdfJs()
+          const pdf = await pdfjsLib.getDocument(u).promise
+          const cssW = track.clientWidth || 320
+          const dpr = Math.min(window.devicePixelRatio || 1, 2)
+          for (let n = 1; n <= pdf.numPages; n++) {
+            const page = await pdf.getPage(n)
+            const base = page.getViewport({ scale: 1 })
+            const vp = page.getViewport({ scale: (cssW / base.width) * dpr })
+            const canvas = document.createElement('canvas')
+            canvas.width = vp.width; canvas.height = vp.height
+            canvas.style.cssText = 'width:100%;height:auto;display:block;cursor:zoom-in'
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
+            canvas.addEventListener('click', function () { try { window.zoomPhoto(canvas.toDataURL('image/jpeg', 0.92)) } catch (e) {} })
+            addSlide().appendChild(canvas)
+          }
+        } catch (e) { addSlide().innerHTML = '<div style="padding:30px 14px;color:#8b95ad;font-size:12px">PDF를 불러오지 못했어요</div>' }
+      } else {
+        addSlide().innerHTML = `<img src="${u}" onclick="zoomPhoto('${u}')" style="width:100%;display:block;cursor:zoom-in">`
+      }
+      actions.insertAdjacentHTML('beforeend',
+        `<a href="${u}" download target="_blank" rel="noopener" style="flex:1;min-width:130px;text-align:center;text-decoration:none;background:#eef4ff;color:#2F6BF6;font-size:12.5px;font-weight:800;padding:11px;border-radius:10px">⬇ 다운로드</a>` +
+        `<button onclick="shareLeaflet('${u}')" style="flex:1;min-width:130px;border:none;background:#2F6BF6;color:#fff;font-size:12.5px;font-weight:800;padding:11px;border-radius:10px;font-family:inherit;cursor:pointer">공유</button>`)
+    }
   } catch (e) { box.innerHTML = '<div style="padding:24px;text-align:center;color:#e4544b;font-size:12px">불러오지 못했어요</div>' }
 }
 window.loadLeaflets = loadLeaflets
@@ -2202,6 +2245,13 @@ function wirePhotoZoom (ov) {
   })
   ov.addEventListener('wheel', (e) => { e.preventDefault(); scale = Math.max(MIN, Math.min(MAX, scale * (e.deltaY < 0 ? 1.12 : 0.89))); if (scale <= 1.02) { tx = 0; ty = 0 } apply() }, { passive: false })
   ov.addEventListener('click', (e) => { if (Date.now() - lastTouchTs < 600) return; if (e.target.id === 'pz-close' || (e.target === ov && scale <= 1.03)) close() })
+  // 닫기(✕) 버튼 확실히 동작하도록 직접 연결 (데스크톱 클릭·모바일 탭 모두)
+  const cbtn = ov.querySelector('#pz-close')
+  if (cbtn) {
+    cbtn.addEventListener('click', (e) => { e.stopPropagation(); close() })
+    cbtn.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); close() }, { passive: false })
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ov.style.display !== 'none') close() })
 }
 window.zoomPhoto = function (url) {
   if (!url) return

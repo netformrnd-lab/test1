@@ -1057,6 +1057,42 @@ function renderAudApts() {
     : '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">조건에 맞는 단지가 없어요.</div>'
 }
 window.loadAuditorApts = loadAuditorApts
+// 감리사: 단지 직접 추가
+window.audAddApt = async function () {
+  const name = prompt('추가할 단지 이름을 입력하세요')
+  if (name === null) return
+  const nm = name.trim(); if (!nm) { alert('단지 이름을 입력하세요'); return }
+  const region = (prompt('지역 (선택 · 예: 경기 용인) — 없으면 비워두세요', '') || '').trim()
+  const { data: { user } } = await sb.auth.getUser(); if (!user) { alert('로그인이 필요해요'); return }
+  const { error } = await sb.from('apartments').insert({ name: nm, region: region || null, auditor_id: user.id, status: 'scheduled' })
+  if (error) { alert('단지 추가 실패: ' + error.message + '\n(권한 설정이 필요할 수 있어요 · 관리자에게 문의)'); return }
+  loadAuditorApts()
+}
+// 리플렛: 감리사 앱에서 보기 (태블릿 확대 · 다운로드 · 공유)
+async function loadLeaflets () {
+  const box = document.getElementById('leaflet-list'); if (!box) return
+  box.innerHTML = '<div style="padding:24px;text-align:center;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  try {
+    const { data } = await sb.from('leaflets').select('*').eq('active', true).order('sort', { ascending: true }).order('created_at', { ascending: false })
+    const list = data || []
+    if (!list.length) { box.innerHTML = '<div style="padding:34px 18px;text-align:center;color:#8b95ad;font-size:12.5px;font-weight:600;line-height:1.7">아직 등록된 리플렛이 없어요.<br>관리자 페이지에서 리플렛을 올리면 여기에 보여요.</div>'; return }
+    box.innerHTML = list.map(l => {
+      const u = l.image_url
+      return `<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;overflow:hidden;box-shadow:0 10px 22px -18px rgba(23,38,80,.5)">
+        <img src="${u}" onclick="zoomPhoto('${u}')" style="width:100%;display:block;cursor:zoom-in">
+        ${l.caption ? `<div style="font-size:12px;color:#5c6580;font-weight:600;padding:10px 13px 0;line-height:1.55">${escH(l.caption)}</div>` : ''}
+        <div style="display:flex;gap:8px;padding:11px 13px">
+          <a href="${u}" download target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;background:#eef4ff;color:#2F6BF6;font-size:12.5px;font-weight:800;padding:10px;border-radius:10px">⬇ 다운로드</a>
+          <button onclick="shareLeaflet('${u}')" style="flex:1;border:none;background:#2F6BF6;color:#fff;font-size:12.5px;font-weight:800;padding:10px;border-radius:10px;font-family:inherit;cursor:pointer">공유</button>
+        </div>
+      </div>`
+    }).join('')
+  } catch (e) { box.innerHTML = '<div style="padding:24px;text-align:center;color:#e4544b;font-size:12px">불러오지 못했어요</div>' }
+}
+window.loadLeaflets = loadLeaflets
+window.shareLeaflet = async function (u) {
+  try { if (navigator.share) { await navigator.share({ title: '아파트스퀘어 리플렛', url: u }) } else { window.open(u, '_blank', 'noopener') } } catch (e) {}
+}
 
 // ── 감리일지: 목록 · 작성 · 상세 ─────────────────────────
 let currentApt = null
@@ -1316,7 +1352,7 @@ function openReport(r) {
   // 하단 탭을 역할에 맞게 (입주민이 감리일지·현장사진을 열었을 때 감리사 탭이 보이지 않도록)
   const rnav = document.getElementById('report-nav')
   if (rnav) rnav.innerHTML = (currentRole === 'auditor')
-    ? '<div data-tab="home"><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📄</div>보고서</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    ? '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
     : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
   window.showScreen('s10')
   if (showPdf && r.pdf_url) { try { renderPdfInline(r.pdf_url, 'pdf-pages') } catch (e) {} }
@@ -1405,7 +1441,7 @@ async function loadSchedule() {
   // 일정 화면 하단 탭을 역할에 맞게 (감리사: 홈·보고서·일정·채팅 / 입주민: 5탭)
   const snav = document.getElementById('sched-nav')
   if (snav) snav.innerHTML = isAuditor
-    ? '<div><div class="ic">🏠</div>홈</div><div><div class="ic">📄</div>보고서</div><div class="on"><div class="ic">📅</div>일정</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
     : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
   if (!isAuditor) {
     // 입주민·관리소장: 우리 단지 일정만 (보기 전용)
@@ -1773,8 +1809,8 @@ function wire() {
     }
     if (t.indexOf('홈') >= 0) {
       if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() } else { showScreen('s11'); loadResidentHome() }
-    } else if (t.indexOf('보고서') >= 0) {
-      if (currentRole === 'auditor') { if (currentApt) { showScreen('s08'); loadReports(currentApt.id) } else { showScreen('s07'); loadAuditorApts() } }
+    } else if (t.indexOf('리플렛') >= 0) {
+      showScreen('s47'); loadLeaflets()
     } else if (t.indexOf('일정') >= 0) {
       showScreen('s14'); loadSchedule()
     }

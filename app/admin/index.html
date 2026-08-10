@@ -76,9 +76,10 @@
   .pill{display:inline-block;white-space:nowrap;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px}
   .pill.ok{background:var(--green-soft);color:var(--green)}
   .pill.no{background:var(--amber-soft);color:var(--amber)}
-  .b{border:none;border-radius:8px;font-size:12px;font-weight:800;padding:7px 12px}
+  .b{display:inline-block;vertical-align:middle;border:none;border-radius:8px;font-size:12px;font-weight:800;padding:7px 12px}
   .b.approve{background:var(--green);color:#fff}
   .b.save{background:var(--navy);color:#fff}
+  td input,td select,td .b,td .pill{vertical-align:middle}
   .empty{font-size:13px;color:var(--mut);padding:16px 4px}
 
   /* apartment cards */
@@ -139,6 +140,7 @@
       <a data-sec="survey"><span class="ic">⭐</span>만족도<span class="cnt" id="nav-sv">0</span></a>
       <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
       <a data-sec="creds"><span class="ic">🏅</span>인증·이력<span class="cnt" id="nav-cr">0</span></a>
+      <a data-sec="leaflets"><span class="ic">📕</span>리플렛<span class="cnt" id="nav-lf">0</span></a>
     </nav>
     <div class="me">
       <div class="av" id="me-av">관</div>
@@ -396,6 +398,25 @@
       </div>
       <div id="creds-list"></div>
     </section>
+
+    <!-- 리플렛 (감리사 앱에서 태블릿으로 보여주거나 다운로드·공유) -->
+    <section id="sec-leaflets">
+      <div class="head"><div><h2>리플렛</h2><div class="desc">리플렛 이미지를 올리면 감리사 앱 하단 ‘리플렛’ 탭에 표시됩니다. 감리사가 태블릿에서 확대해 보여주거나, 다운받아 공유할 수 있어요</div></div></div>
+      <div class="card">
+        <h3>➕ 리플렛 추가</h3>
+        <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <label style="font-size:12.5px;font-weight:700;color:var(--mut2)">📷 리플렛 이미지 <input id="lf-img" type="file" accept="image/*" multiple></label>
+            <span id="lf-img-state" style="font-size:11.5px;font-weight:700;color:var(--mut)"></span>
+          </div>
+          <div style="font-size:11.5px;color:var(--mut);line-height:1.5">여러 장을 <b>한 번에 선택</b>하면 순서대로 올라가요. (리플렛이 여러 페이지면 페이지 순서대로 선택하세요.) 설명은 비워둬도 돼요.</div>
+          <input id="lf-cap" placeholder="설명(선택 · 예: 아파트스퀘어 감리 서비스 소개)">
+          <input id="lf-sort" type="number" value="0" title="시작 순서" style="width:110px" placeholder="시작 순서">
+          <button id="lf-btn" class="b save" style="align-self:flex-start" onclick="addLeaflet()">리플렛 추가</button>
+        </div>
+      </div>
+      <div id="leaflets-list"></div>
+    </section>
   </main>
  </div>
 </div>
@@ -472,6 +493,7 @@ async function loadAll(){
   loadSurveysAdmin();
   loadDongProgress();
   loadCredentialsAdmin();
+  loadLeafletsAdmin();
 }
 /* ===== 인증·이력 (credentials) ===== */
 let CREDS_A=[];
@@ -519,6 +541,52 @@ async function addCredential(){
 }
 async function toggleCred(id,on){ const{error}=await sb.from('credentials').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);loadCredentialsAdmin();} }
 async function delCred(id){ if(!confirm('이 인증서를 삭제할까요?'))return; const{error}=await sb.from('credentials').delete().eq('id',id); if(error)return alert('오류: '+error.message); loadCredentialsAdmin(); }
+/* ===== 리플렛 (leaflets) ===== */
+let LEAFLETS_A=[];
+async function uploadLeafletImage(file){
+  if(!file)return '';
+  const safe=file.name.replace(/[^\w.]/g,'_');
+  const path='leaflet/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+safe;
+  const{error}=await sb.storage.from('report-photos').upload(path,file,{upsert:false});
+  if(error) return '';
+  return sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
+}
+async function loadLeafletsAdmin(){
+  const {data}=await sb.from('leaflets').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false});
+  LEAFLETS_A=data||[]; const nn=$('nav-lf'); if(nn) nn.textContent=LEAFLETS_A.length; renderLeafletsAdmin();
+}
+function renderLeafletsAdmin(){
+  const box=$('leaflets-list'); if(!box)return;
+  if(!LEAFLETS_A.length){ box.innerHTML='<div style="color:var(--mut);font-size:12.5px;padding:6px 2px">등록된 리플렛이 없어요. 위에서 추가하세요.</div>'; return; }
+  box.innerHTML=LEAFLETS_A.map(c=>`<div class="card" style="display:flex;align-items:center;gap:12px;padding:11px 14px;margin-bottom:8px">
+    ${c.image_url?`<div style="width:70px;height:64px;border-radius:8px;overflow:hidden;flex-shrink:0;border:1px solid var(--line)"><img src="${esc(c.image_url)}" style="width:100%;height:100%;object-fit:cover;object-position:top"></div>`:''}
+    <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:var(--ink);line-height:1.4">${esc(c.caption||'(설명 없음)')}</div><div style="font-size:10.5px;font-weight:700;color:var(--mut);margin-top:2px">순서 ${c.sort||0}</div></div>
+    <label style="font-size:11.5px;font-weight:700;color:var(--mut2);white-space:nowrap"><input type="checkbox" ${c.active?'checked':''} onchange="toggleLeaflet('${c.id}',this.checked)" style="vertical-align:middle"> 노출</label>
+    <span onclick="delLeaflet('${c.id}')" style="cursor:pointer;color:#e4544b;font-size:12.5px;font-weight:800">삭제</span>
+  </div>`).join('');
+}
+async function addLeaflet(){
+  const files=$('lf-img')&&$('lf-img').files;
+  if(!files||!files.length) return alert('리플렛 이미지를 선택하세요 (여러 장 선택 가능)');
+  const cap=($('lf-cap').value||'').trim();
+  const startSort=parseInt($('lf-sort').value||'0')||0;
+  const btn=$('lf-btn'); if(btn){btn.disabled=true;}
+  const st=$('lf-img-state');
+  let ok=0, fail=0;
+  for(let i=0;i<files.length;i++){
+    if(st){ st.textContent=`업로드 중… (${i+1}/${files.length})`; st.style.color='var(--mut)'; }
+    const url=await uploadLeafletImage(files[i]);
+    if(!url){ fail++; continue; }
+    const{error}=await sb.from('leaflets').insert({ image_url:url, caption:cap||null, sort:startSort+i, active:true });
+    if(error) fail++; else ok++;
+  }
+  if(btn){btn.textContent='리플렛 추가';btn.disabled=false;}
+  if(st){ st.textContent = `✔ ${ok}장 추가 완료`+(fail?` · ${fail}장 실패`:''); st.style.color = fail?'#e4544b':'#1f8a5b'; }
+  $('lf-cap').value=''; const im=$('lf-img'); if(im) im.value='';
+  loadLeafletsAdmin();
+}
+async function toggleLeaflet(id,on){ const{error}=await sb.from('leaflets').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);loadLeafletsAdmin();} }
+async function delLeaflet(id){ if(!confirm('이 리플렛을 삭제할까요?'))return; const{error}=await sb.from('leaflets').delete().eq('id',id); if(error)return alert('오류: '+error.message); loadLeafletsAdmin(); }
 /* ===== 동별 진행 (dong_progress) ===== */
 let DONGPROG=[];
 async function loadDongProgress(){

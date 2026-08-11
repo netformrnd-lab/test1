@@ -429,7 +429,8 @@ hardcover_cards = [
          [("표지", "앞: 로고·슬로건·4아이콘 / 뒤: 로고·연락처"),
           ("내부", "공동주택 유지보수의 전문감리기관 카피"),
           ("구성", "앞표지 + 책등 + 뒤표지 (220+15+220mm)")],
-         [{"path": "하드커버_B.png", "label": "표지 (뒤·책등·앞) · 클릭 시 원본 PDF", "mock": True, "file": "hardcover", "hifi": True},
+         [{"path": "하드커버_목업.png", "label": "실물 목업 (펼침) · 클릭 시 원본 PDF", "mock": True, "file": "hardcover", "hifi": True},
+          {"path": "하드커버_B.png", "label": "표지 (뒤·책등·앞)", "file": "hardcover"},
           {"path": "하드커버_A.png", "label": "내부 (좌·우)", "file": "hardcover"}]),
 ]
 

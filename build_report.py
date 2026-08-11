@@ -439,29 +439,25 @@ hardcover_cards = [
           {"path": "하드커버B_내부.png", "label": "내부 (좌·우)", "file": "hardcover_b"}]),
 ]
 
-# ----- A4 리플릿 (디자인 시안 A/B) -----
+# ----- A4 리플릿 (4p 완성본) -----
 leaflet_cards = [
-    card("A안", "딥네이비 히어로형",
-         [("앞면", "아파트 보수공사, 끝까지 함께합니다"),
-          ("뒷면", "결정은 쉽게, 근거는 남게 — Q&A 4"),
-          ("톤", "딥네이비 · 항공사진 · 무게감/신뢰")],
-         [{"path": "리플릿A_앞.png", "label": "A안 앞면 · 클릭 시 원본 PDF", "mock": True, "file": "leaflet_a", "hifi": True},
-          {"path": "리플릿A_뒤.png", "label": "A안 뒷면", "file": "leaflet_a", "hifi": True}]),
-    card("B안", "라이트 프로세스형",
-         [("앞면", "모든 과정을 한 곳에서 — 통합 관리 5단계"),
-          ("뒷면", "무엇을 점검하고 무엇을 드리나"),
-          ("톤", "화이트 · 밝고 명료 · 프로세스 강조")],
-         [{"path": "리플릿B_앞.png", "label": "B안 앞면 · 클릭 시 원본 PDF", "mock": True, "file": "leaflet_b", "hifi": True},
-          {"path": "리플릿B_뒤.png", "label": "B안 뒷면", "file": "leaflet_b", "hifi": True}]),
+    card("📄", "아파트스퀘어 리플릿 (A4 · 4p)",
+         [("구성", "표지 · SERVICE(감리 프로세스 5단계) · 앱·기록 · 클로징"),
+          ("형식", "A4 · 4페이지 (양면 2장)"),
+          ("원본", "이미지 클릭 시 리플릿 PDF 새 탭 열림")],
+         [{"path": "리플릿_p1.png", "label": "표지 · 클릭 시 원본 PDF", "mock": True, "file": "leaflet", "hifi": True},
+          {"path": "리플릿_p2.png", "label": "SERVICE", "file": "leaflet"},
+          {"path": "리플릿_p3.png", "label": "SERVICE 이어서", "file": "leaflet"},
+          {"path": "리플릿_p4.png", "label": "클로징", "file": "leaflet"}]),
 ]
 
-# ----- 회사소개 책자 -----
-booklet_cards = [
-    card("📖", "아파트스퀘어 회사소개 책자",
-         [("구성", "표지 · 인사말 · 실적 · ONE-STOP · 품질 · 서비스 · 사전점검 · 앱 · 클로징"),
+# ----- 제안서 -----
+proposal_cards = [
+    card("📑", "공동주택 유지보수 감리 제안서",
+         [("구성", "표지 · 회사소개 · 서비스 · 감리 프로세스 · 품질/안전 · 사례 등"),
           ("형식", "스크롤형 PDF (세로 연결)"),
-          ("원본", "표지 이미지 클릭 시 책자 PDF 새 탭 열림")],
-         [{"path": "책자_표지.png", "label": "표지 · 클릭 시 책자 PDF 전체", "mock": True, "file": "booklet", "hifi": True}]),
+          ("원본", "표지 이미지 클릭 시 제안서 PDF 새 탭 열림")],
+         [{"path": "제안서_표지.png", "label": "표지 · 클릭 시 제안서 PDF 전체", "mock": True, "file": "proposal", "hifi": True}]),
 ]
 
 sections_html = "".join([
@@ -475,16 +471,16 @@ sections_html = "".join([
     section("8", "쌍안경", "2종 비교", bino_cards),
     section("9", "겨울 유니폼", "2종 검토", uniform_cards),
     section("10", "여름 유니폼", "2종 — 춘하/여름", summer_cards),
-    section("11", "A4 리플릿 (디자인 시안)", "A/B 시안 — 택1 결정 필요", leaflet_cards),
+    section("11", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
     section("12", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
     section("13", "하드커버 (디자인 시안)", "A/B 시안 — 택1 결정 필요", hardcover_cards),
-    section("14", "회사소개 책자", "클릭 시 원본 PDF", booklet_cards),
+    section("14", "제안서", "클릭 시 원본 PDF", proposal_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("14", "검토 카테고리"), ("35", "검토 항목"),
+summary_cards = [("14", "검토 카테고리"), ("34", "검토 항목"),
                  ("42", "확보 이미지"), ("24", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -498,14 +494,12 @@ ORIGINALS = {
                   "b64": raw_b64(ORIGDIR / "아코디언_원본.png")},
     "hardcover": {"mime": "application/pdf", "name": "아파트스퀘어_하드커버.pdf",
                   "b64": raw_b64(ORIGDIR / "하드커버_원본.pdf")},
-    "leaflet_a": {"mime": "application/pdf", "name": "아파트스퀘어_리플릿_A안.pdf",
-                  "b64": raw_b64(ORIGDIR / "리플릿A_원본.pdf")},
-    "leaflet_b": {"mime": "application/pdf", "name": "아파트스퀘어_리플릿_B안.pdf",
-                  "b64": raw_b64(ORIGDIR / "리플릿B_원본.pdf")},
+    "leaflet": {"mime": "application/pdf", "name": "아파트스퀘어_리플릿_4p.pdf",
+                "b64": raw_b64(ORIGDIR / "리플릿_원본.pdf")},
     "hardcover_b": {"mime": "application/pdf", "name": "아파트스퀘어_하드커버_B안.pdf",
                     "b64": raw_b64(ORIGDIR / "하드커버B_원본.pdf")},
-    "booklet": {"mime": "application/pdf", "name": "아파트스퀘어_회사소개_책자.pdf",
-                "b64": raw_b64(ORIGDIR / "책자_원본.pdf")},
+    "proposal": {"mime": "application/pdf", "name": "공동주택_유지보수_감리_제안서.pdf",
+                 "b64": raw_b64(ORIGDIR / "제안서_원본.pdf")},
 }
 originals_js = ",\n".join(
     f'  "{k}": {{mime:"{v["mime"]}", name:"{v["name"]}", b64:"{v["b64"]}"}}'
@@ -631,7 +625,7 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 아코디언 · 하드커버</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 아코디언 · 하드커버 · 제안서</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
     <span class="chip">총 14개 카테고리</span>

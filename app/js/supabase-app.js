@@ -1144,7 +1144,19 @@ async function loadLeaflets () {
         `<a href="${u}" download target="_blank" rel="noopener" style="flex:1;min-width:130px;text-align:center;text-decoration:none;background:#eef4ff;color:#2F6BF6;font-size:12.5px;font-weight:800;padding:11px;border-radius:10px">⬇ 다운로드</a>` +
         `<button onclick="shareLeaflet('${u}')" style="flex:1;min-width:130px;border:none;background:#2F6BF6;color:#fff;font-size:12.5px;font-weight:800;padding:11px;border-radius:10px;font-family:inherit;cursor:pointer">공유</button>`)
     }
+    enableDragScroll(track)   // 마우스로도 좌우로 끌어 넘기기 (컴퓨터 발표용)
   } catch (e) { box.innerHTML = '<div style="padding:24px;text-align:center;color:#e4544b;font-size:12px">불러오지 못했어요</div>' }
+}
+// 가로 스크롤 영역을 마우스로 끌어서 넘길 수 있게 (터치는 기본 동작 유지)
+function enableDragScroll (el) {
+  if (!el || el._dragWired) return; el._dragWired = true
+  let down = false, sx = 0, sl = 0, moved = false
+  el.style.cursor = 'grab'
+  el.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; down = true; moved = false; sx = e.clientX; sl = el.scrollLeft; try { el.setPointerCapture(e.pointerId) } catch (_) {} el.style.cursor = 'grabbing' })
+  el.addEventListener('pointermove', e => { if (!down) return; const dx = e.clientX - sx; if (Math.abs(dx) > 4) moved = true; el.scrollLeft = sl - dx })
+  const up = () => { down = false; el.style.cursor = 'grab' }
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('pointerleave', up)
+  el.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false } }, true) // 끌었을 땐 확대 클릭 무시
 }
 window.loadLeaflets = loadLeaflets
 window.shareLeaflet = async function (u) {

@@ -1488,6 +1488,9 @@ async function loadSchedule() {
   // 감리사용 '일정 추가' 버튼/폼을 먼저 숨겨 깜빡임 방지 (역할 확인 후 감리사면 다시 표시)
   const addBtn0 = document.getElementById('sc-add-btn'); if (addBtn0) addBtn0.style.display = 'none'
   const form0 = document.getElementById('sc-form'); if (form0) form0.style.display = 'none'
+  // 진입 즉시 '현재 달' 달력을 먼저 그림 — 정적 샘플(빈 7월 달력)이 잠깐 보이는 깜빡임 방지
+  if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
+  try { renderCalendar([]) } catch (e) {}
   const { data: { user } } = await sb.auth.getUser()
   const sub = document.getElementById('s-sub'), addBtn = document.getElementById('sc-add-btn')
   if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }

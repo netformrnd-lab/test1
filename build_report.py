@@ -425,7 +425,7 @@ accordion_cards = [
 
 # ----- 11. 하드커버 (양장) — 표지 + 내부 -----
 hardcover_cards = [
-    card("A안", "아파트스퀘어 하드커버 (양장)",
+    card("📕", "아파트스퀘어 하드커버 (양장)",
          [("표지", "앞: 로고·슬로건·4아이콘 / 뒤: 로고·연락처"),
           ("내부", "공동주택 유지보수의 전문감리기관 카피"),
           ("구성", "앞표지 + 책등 + 뒤표지 (220+15+220mm)")],
@@ -467,7 +467,7 @@ sections_html = "".join([
     section("10", "여름 유니폼", "2종 — 춘하/여름", summer_cards),
     section("11", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
     section("12", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
-    section("13", "하드커버 (양장)", "A안 확정 · 클릭 시 원본 PDF", hardcover_cards),
+    section("13", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards),
     section("14", "제안서", "클릭 시 원본 PDF", proposal_cards),
 ])
 

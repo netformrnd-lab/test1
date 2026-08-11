@@ -13,14 +13,24 @@
 - 배포 주소: `https://<배포도메인>/admin/`  (예: `https://arecm.workers.dev/admin/`)
 - 접속: **관리자 계정으로 로그인** (profiles.role = 'admin' 인 계정만)
 
-## 2. 파일 구성 (딱 2개)
+## 2. 파일 구성
 
 | 파일 | 역할 |
 |---|---|
-| `admin/index.html` | 대시보드 본체 — HTML·CSS·JS 전부 인라인 (약 1,900줄, 자체 완결) |
-| `js/stages.js` | 공법·공정 단계 정의 (`STAGE_SETS`) — 단지 관리에서 사용. `../js/stages.js`로 참조 |
+| `admin/index.html` | 대시보드 본체 — HTML·CSS·JS 전부 인라인 (자체 완결) |
+| `js/stages.js` | 공법·공정 단계 정의 (`STAGE_SETS`) — 단지 관리·PPT에서 사용. `../js/stages.js`로 참조 |
+| `assets/apartsquare-logo.png` | 준공사진첩 PPT에 넣는 아파트스퀘어 로고. `../assets/apartsquare-logo.png`로 참조 |
+| `backend/*.sql` | Supabase 테이블·RLS·함수 정의 (스키마 참고 / 별도 Supabase 세팅 시 실행) |
 
-> 그 외 의존성 없음. 외부 라이브러리는 **Supabase JS (CDN)** 하나뿐이고 파일 안에서 `<script>`로 불러옵니다.
+> 외부 라이브러리(모두 CDN, 파일 안 `<script>`로 로드): **Supabase JS**, **JSZip**(사진 ZIP 다운로드), **PptxGenJS**(준공사진첩 PPT).
+> 배포 구조는 `배포루트/admin/index.html` + `배포루트/js/…` + `배포루트/assets/…` 를 유지해야 상대경로가 맞습니다.
+
+### 주요 기능 (최근 추가분 포함)
+- 메뉴: 사이드바 **카테고리 5개**(대시보드·운영관리·현장관리·입주민소통·홍보자료) + 콘텐츠 상단 **탭**으로 하위 화면 전환
+- 회원 승인·단지 관리·공지·감리일지·현장사진·일정·리플렛 등 앱 콘텐츠 관리
+- **현장 사진 다운로드**: 전체/날짜별/공정별 → 날짜·공정 폴더로 정리한 **ZIP**
+- **준공사진첩 PPT 자동 생성**: 표지 + 공정 단계별 2×2 사진 슬라이드 (`.pptx`)
+- 관리자 비밀번호 변경·재설정, 폰 반응형
 
 ## 3. Supabase 연결
 

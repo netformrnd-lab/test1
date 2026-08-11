@@ -1333,7 +1333,7 @@ async function makeFieldPPT(id, opts, btn){
     cover.addText(aptName(id),{x:0.85,y:4.72,w:8,h:0.4,fontSize:12,color:'8B93A8',fontFace:FF});
     cover.addText('아파트스퀘어\nsquare1600@naver.com · 1600-6069',{x:7.3,y:3.8,w:5.2,h:0.7,fontSize:12,color:'5C6580',fontFace:FF});
     // 공정별 페이지 (사진 4장씩 2×2)
-    const POS=[[0.4,1.2],[6.82,1.2],[0.4,4.2],[6.82,4.2]]; const IW=6.11,IH=2.7;
+    const POS=[[1.0,1.3],[6.83,1.3],[1.0,4.4],[6.83,4.4]]; const IW=5.5,IH=2.9;   // 원본 비율(≈1.9:1)·여백 있게
     let step=0, done=0;
     for(const f of withPhotos){
       step++;
@@ -1341,10 +1341,10 @@ async function makeFieldPPT(id, opts, btn){
       for(let c=0;c<photos.length;c+=4){
         const chunk=photos.slice(c,c+4);
         const s=P.addSlide(); s.background={color:'FFFFFF'};
-        s.addText(step+'. '+(f.title||'현장'),{x:0.4,y:0.3,w:6,h:0.5,fontSize:15,color:'333333',fontFace:FF});
-        s.addText(project,{x:4.5,y:0.26,w:6.6,h:0.6,align:'right',fontSize:21,bold:true,color:'1F2C5C',fontFace:FF});
-        if(logo) s.addImage({data:logo, x:11.35, y:0.32, w:1.55, h:1.55*LR});
-        s.addShape(P.ShapeType.line,{x:0.4,y:1.02,w:12.53,h:0,line:{color:'DDDDDD',width:1}});
+        s.addText(step+'. '+(f.title||'현장'),{x:0.6,y:0.34,w:6.5,h:0.5,fontSize:14,color:'444444',fontFace:FF});
+        s.addText(project,{x:5,y:0.26,w:5.9,h:0.6,align:'right',fontSize:23,bold:true,color:'1F2C5C',fontFace:FF});
+        if(logo) s.addImage({data:logo, x:11.25, y:0.36, w:1.6, h:1.6*LR});
+        s.addShape(P.ShapeType.line,{x:0.6,y:1.08,w:12.13,h:0,line:{color:'DDDDDD',width:1}});
         for(let i=0;i<chunk.length;i++){
           const b=await fetchBlob(chunk[i]); if(!b) continue;
           const data=await blobToDataURL(b); if(!data) continue;

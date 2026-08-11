@@ -44,14 +44,14 @@
   .nav a.on{background:#2b3d6b;color:#fff}
   .nav a .cnt{margin-left:auto;font-size:11px;font-weight:800;background:rgba(255,255,255,.10);color:#aab5d4;padding:1px 8px;border-radius:20px}
   .nav a.on .cnt{background:rgba(255,255,255,.22);color:#fff}
-  /* 카테고리 안 상단 탭 바 */
-  #subtabs{margin-bottom:20px}
-  .stab{display:flex;gap:8px;flex-wrap:wrap}
-  .stab button{font-size:13.5px;font-weight:800;color:var(--mut2);background:var(--panel);border:1px solid var(--line);padding:9px 16px;border-radius:99px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
-  .stab button:hover{border-color:var(--blue);color:var(--blue)}
-  .stab button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  /* 카테고리 안 상단 탭 바 (세그먼트 컨트롤 · 잘 보이게) */
+  #subtabs{margin-bottom:22px;display:inline-block;background:#fff;border:1px solid var(--line);border-radius:13px;padding:6px;box-shadow:0 6px 18px -12px rgba(20,30,60,.35)}
+  .stab{display:flex;gap:5px;flex-wrap:wrap}
+  .stab button{font-size:14.5px;font-weight:800;color:var(--mut2);background:transparent;border:none;padding:11px 22px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+  .stab button:hover{background:#eef2fb;color:var(--blue)}
+  .stab button.on{background:var(--navy);color:#fff;box-shadow:0 5px 14px -6px rgba(31,44,92,.6)}
   .stab button .tcnt{font-size:11px;font-weight:800;background:#eef1f7;color:var(--mut);padding:1px 8px;border-radius:20px}
-  .stab button.on .tcnt{background:rgba(255,255,255,.22);color:#fff}
+  .stab button.on .tcnt{background:rgba(255,255,255,.25);color:#fff}
   .side .me{padding:14px 16px;border-top:1px solid rgba(255,255,255,.09);display:flex;align-items:center;gap:10px}
   .side .me .av{width:32px;height:32px;border-radius:50%;background:#2F6BF6;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
   .side .me .nm{font-size:12.5px;font-weight:800;line-height:1.2;color:#fff}
@@ -98,9 +98,9 @@
     .nav .lbl{display:none}
     .nav a{flex:0 0 auto;white-space:nowrap;margin-bottom:0;padding:8px 12px}
     .nav a .cnt{margin-left:6px}
-    #subtabs{margin-bottom:14px}
+    #subtabs{margin-bottom:14px;display:block}
     .stab{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
-    .stab button{flex:0 0 auto}
+    .stab button{flex:0 0 auto;padding:10px 16px}
     main{padding:16px 13px 60px;max-width:none}
     .head{flex-direction:column;align-items:flex-start;gap:4px}
     .head h2{font-size:18px}
@@ -1275,6 +1275,61 @@ async function downloadFieldPhotos(id, opts, btn){
   }catch(e){ alert('오류: '+e.message); }
   finally{ if(btn){ btn.disabled=false; btn.textContent=orig; } }
 }
+// ── 준공사진첩 PPT 자동 생성 (POUR 템플릿) ──
+function ensurePptx(){
+  if(window.PptxGenJS) return Promise.resolve();
+  if(window._pptxP) return window._pptxP;
+  window._pptxP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  return window._pptxP;
+}
+function blobToDataURL(b){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(null); r.readAsDataURL(b); }); }
+async function makeFieldPPT(id, btn){
+  const recs=(FIELDS||[]).filter(f=>f.apartment_id===id).slice()
+    .sort((a,b)=>((a.created_at||'')<(b.created_at||'')?-1:1));                 // 시간순 = 공정 순서
+  const withPhotos=recs.filter(f=>Array.isArray(f.photos)&&f.photos.length);
+  if(!withPhotos.length){ alert('사진이 있는 현장 기록이 없어요'); return; }
+  const total=withPhotos.reduce((n,f)=>n+f.photos.length,0);
+  if(!confirm(`${aptName(id)} 준공사진첩 PPT를 만들까요?\n공정 ${withPhotos.length}단계 · 사진 ${total}장 (조금 걸려요)`)) return;
+  const apt=(APTS||[]).find(a=>a.id===id)||{};
+  const project=(apt.construction_type||'').trim() || (window.methodLabel&&window.methodLabel(apt.method)) || aptName(id);
+  const orig=btn?btn.textContent:''; if(btn) btn.disabled=true;
+  try{
+    await ensurePptx();
+    const P=new PptxGenJS(); P.defineLayout({name:'W',width:13.333,height:7.5}); P.layout='W';
+    const FF='맑은 고딕';
+    // 표지
+    const cover=P.addSlide(); cover.background={color:'E9EBEE'};
+    cover.addText('POUR공법',{x:0.8,y:2.55,w:8,h:1,fontSize:40,bold:true,color:'1F2C5C',fontFace:FF});
+    cover.addText('준공 사진첩',{x:0.85,y:3.55,w:6,h:0.5,fontSize:20,bold:true,color:'1F2C5C',fontFace:FF});
+    cover.addText(project,{x:0.85,y:4.05,w:7.5,h:0.4,fontSize:15,color:'5C6580',fontFace:FF});
+    cover.addText(aptName(id),{x:0.85,y:4.5,w:7.5,h:0.4,fontSize:12,color:'8B93A8',fontFace:FF});
+    cover.addText('POUR공법\nnetform@naver.com',{x:6.3,y:3.55,w:5,h:0.7,fontSize:12,color:'5C6580',fontFace:FF});
+    // 공정별 페이지 (사진 4장씩 2×2)
+    const POS=[[0.4,1.15],[6.82,1.15],[0.4,4.15],[6.82,4.15]]; const IW=6.11,IH=2.7;
+    let step=0, done=0;
+    for(const f of withPhotos){
+      step++;
+      const photos=f.photos;
+      for(let c=0;c<photos.length;c+=4){
+        const chunk=photos.slice(c,c+4);
+        const s=P.addSlide(); s.background={color:'FFFFFF'};
+        s.addText(step+'. '+(f.title||'현장'),{x:0.4,y:0.28,w:6,h:0.5,fontSize:15,color:'333333',fontFace:FF});
+        s.addText(project,{x:5,y:0.22,w:7.9,h:0.6,align:'right',fontSize:22,bold:true,color:'1F2C5C',fontFace:FF});
+        s.addShape(P.ShapeType.line,{x:0.4,y:0.95,w:12.53,h:0,line:{color:'DDDDDD',width:1}});
+        for(let i=0;i<chunk.length;i++){
+          const b=await fetchBlob(chunk[i]); if(!b) continue;
+          const data=await blobToDataURL(b); if(!data) continue;
+          const p=POS[i];
+          s.addImage({data:data,x:p[0],y:p[1],w:IW,h:IH,sizing:{type:'cover',w:IW,h:IH}});
+          done++; if(btn) btn.textContent=`만드는 중… ${done}/${total}`;
+        }
+      }
+    }
+    if(btn) btn.textContent='저장 중…';
+    await P.writeFile({fileName: safeName(aptName(id))+'_준공사진첩.pptx'});
+  }catch(e){ alert('PPT 생성 오류: '+e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=orig; } }
+}
 async function downloadAllPhotos(urls){
   if(!Array.isArray(urls))return;
   for(let i=0;i<urls.length;i++){
@@ -1671,6 +1726,8 @@ function fldMoveBar(id){
       <span style="width:1px;height:15px;background:var(--line)"></span>
       <select id="dld-t-${id}" class="f" style="max-width:170px"><option value="">🔧 공정 선택</option>${titleOpts}</select>
       <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="downloadFieldByPick('${id}','title',this)">이 공정만</button>
+      <span style="width:1px;height:15px;background:var(--line)"></span>
+      <button class="b" style="background:#fff3e0;color:#b26a00" onclick="makeFieldPPT('${id}',this)">📊 준공사진첩 PPT</button>
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line2);padding-top:8px">
       <span style="font-size:11.5px;font-weight:700;color:var(--mut2)">이 단지 글 전체를</span>

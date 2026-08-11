@@ -1229,8 +1229,17 @@ function ensureJSZip(){
 }
 async function fetchBlob(url){ try{ const r=await fetch(url,{mode:'cors'}); if(r.ok) return await r.blob(); }catch(e){} return null; }
 function safeName(s){ return String(s||'').replace(/[\\/:*?"<>|\n\r\t]/g,'_').replace(/\s+/g,' ').trim().slice(0,60)||'무제'; }
-async function downloadAptPhotos(id, btn){
-  const recs=(FIELDS||[]).filter(f=>f.apartment_id===id);
+function downloadFieldByPick(id, kind, btn){
+  const sel=document.getElementById((kind==='date'?'dld-d-':'dld-t-')+id);
+  const v=sel&&sel.value;
+  if(!v){ alert(kind==='date'?'받을 날짜를 선택하세요':'받을 공정을 선택하세요'); return; }
+  downloadFieldPhotos(id, kind==='date'?{date:v}:{title:v}, btn);
+}
+// opts: null=전체 / {date} / {title}
+async function downloadFieldPhotos(id, opts, btn){
+  let recs=(FIELDS||[]).filter(f=>f.apartment_id===id);
+  if(opts && opts.date)  recs=recs.filter(f=>(f.created_at||'').slice(0,10)===opts.date);
+  if(opts && opts.title) recs=recs.filter(f=>(f.title||'').trim()===opts.title);
   const items=[];
   recs.forEach(f=>{
     const arr=Array.isArray(f.photos)?f.photos:[];
@@ -1241,8 +1250,9 @@ async function downloadAptPhotos(id, btn){
       items.push({url:u, path:folder+'/'+String(i+1).padStart(2,'0')+'.'+ext});
     });
   });
-  if(!items.length){ alert('이 단지에 다운로드할 사진이 없어요'); return; }
-  if(!confirm(`${aptName(id)}의 현장 사진 ${items.length}장을\n날짜·공정별 폴더로 정리해서 ZIP으로 받을까요?`)) return;
+  const tag = opts&&opts.date ? ('('+opts.date.replace(/-/g,'.')+') ') : opts&&opts.title ? ('('+opts.title+') ') : '';
+  if(!items.length){ alert('받을 사진이 없어요'+(tag?' '+tag:'')); return; }
+  if(!confirm(`${aptName(id)} ${tag}현장 사진 ${items.length}장을\n날짜·공정별 폴더로 정리해서 ZIP으로 받을까요?`)) return;
   const orig=btn?btn.textContent:'';
   if(btn){ btn.disabled=true; }
   try{
@@ -1258,7 +1268,7 @@ async function downloadAptPhotos(id, btn){
     const content=await zip.generateAsync({type:'blob'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(content);
-    a.download=safeName(aptName(id))+'_현장사진.zip';
+    a.download=safeName(aptName(id)+(tag?' '+tag.replace(/[()]/g,'').trim():'')+' 현장사진')+'.zip';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href),5000);
     if(fail) alert(`${ok}장 저장 · ${fail}장은 불러오지 못해 빠졌어요`);
@@ -1645,15 +1655,31 @@ function toggleFieldEdit(id){
 // 단지 그룹 관리 도구 (글 옮기기·이름 수정)
 function fldMoveBar(id){
   const opts=APTS.filter(a=>a.id!==id).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko')).map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
-  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:#fbfcff;border:1px solid var(--line);border-top:none">
-    <button class="b" style="background:#e7f5ee;color:#1f8a5b" onclick="downloadAptPhotos('${id}',this)">📦 사진 전체 다운로드</button>
-    <span style="width:1px;height:16px;background:var(--line)"></span>
-    <span style="font-size:11.5px;font-weight:700;color:var(--mut2)">이 단지 글 전체를</span>
-    <select id="mv-${id}" class="f" style="max-width:200px"><option value="">- 옮길 단지 선택 -</option>${opts}</select>
-    <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="moveFieldGroup('${id}')">옮기기(합치기)</button>
-    <span style="flex:1"></span>
-    <button class="b" style="background:#f2f4f8;color:var(--ink)" onclick="renameFieldApt('${id}')">✏️ 단지 이름 수정</button>
-    <button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteApt('${id}')">🗑 이 단지 통째로 삭제</button>
+  // 이 단지 기록에서 날짜·공정(제목) 목록 뽑기
+  const recs=(FIELDS||[]).filter(f=>f.apartment_id===id);
+  const dates=[...new Set(recs.map(f=>(f.created_at||'').slice(0,10)).filter(Boolean))].sort().reverse();
+  const titles=[...new Set(recs.map(f=>(f.title||'').trim()).filter(Boolean))];
+  const dateOpts=dates.map(d=>`<option value="${d}">${d.replace(/-/g,'.')}</option>`).join('');
+  const titleOpts=titles.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  return `<div style="padding:10px 12px;background:#fbfcff;border:1px solid var(--line);border-top:none;display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span style="font-size:11.5px;font-weight:800;color:#1f8a5b">📦 사진 다운로드</span>
+      <button class="b" style="background:#e7f5ee;color:#1f8a5b" onclick="downloadFieldPhotos('${id}',null,this)">전체</button>
+      <span style="width:1px;height:15px;background:var(--line)"></span>
+      <select id="dld-d-${id}" class="f" style="max-width:130px"><option value="">📅 날짜 선택</option>${dateOpts}</select>
+      <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="downloadFieldByPick('${id}','date',this)">이 날짜만</button>
+      <span style="width:1px;height:15px;background:var(--line)"></span>
+      <select id="dld-t-${id}" class="f" style="max-width:170px"><option value="">🔧 공정 선택</option>${titleOpts}</select>
+      <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="downloadFieldByPick('${id}','title',this)">이 공정만</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line2);padding-top:8px">
+      <span style="font-size:11.5px;font-weight:700;color:var(--mut2)">이 단지 글 전체를</span>
+      <select id="mv-${id}" class="f" style="max-width:200px"><option value="">- 옮길 단지 선택 -</option>${opts}</select>
+      <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="moveFieldGroup('${id}')">옮기기(합치기)</button>
+      <span style="flex:1"></span>
+      <button class="b" style="background:#f2f4f8;color:var(--ink)" onclick="renameFieldApt('${id}')">✏️ 단지 이름 수정</button>
+      <button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteApt('${id}')">🗑 이 단지 통째로 삭제</button>
+    </div>
   </div>`;
 }
 // 위쪽 선택창에서 단지 하나 골라 통째로 삭제

@@ -1227,7 +1227,24 @@ function ensureJSZip(){
   window._jszipP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   return window._jszipP;
 }
-async function fetchBlob(url){ try{ const r=await fetch(url,{mode:'cors'}); if(r.ok) return await r.blob(); }catch(e){} return null; }
+function parseStoragePath(url){
+  const m=String(url||'').match(/\/storage\/v1\/object\/(?:public\/)?([^/?]+)\/([^?]+)/);
+  return m ? {bucket:m[1], path:decodeURIComponent(m[2])} : null;
+}
+async function fetchBlob(url){
+  // 1순위: Supabase 스토리지 download (CORS 안전) → 저장·다운로드 실패 방지
+  const s=parseStoragePath(url);
+  if(s){ try{ const {data,error}=await sb.storage.from(s.bucket).download(s.path); if(!error&&data) return data; }catch(e){} }
+  // 2순위: 직접 fetch
+  try{ const r=await fetch(url,{mode:'cors'}); if(r.ok) return await r.blob(); }catch(e){}
+  return null;
+}
+// 같은 도메인 에셋(로고 등)을 base64로
+async function assetDataURL(url){
+  if(window._assetCache&&window._assetCache[url]) return window._assetCache[url];
+  try{ const r=await fetch(url); if(!r.ok) return null; const b=await r.blob(); const d=await blobToDataURL(b);
+    window._assetCache=window._assetCache||{}; window._assetCache[url]=d; return d; }catch(e){ return null; }
+}
 function safeName(s){ return String(s||'').replace(/[\\/:*?"<>|\n\r\t]/g,'_').replace(/\s+/g,' ').trim().slice(0,60)||'무제'; }
 function downloadFieldByPick(id, kind, btn){
   const sel=document.getElementById((kind==='date'?'dld-d-':'dld-t-')+id);
@@ -1283,29 +1300,40 @@ function ensurePptx(){
   return window._pptxP;
 }
 function blobToDataURL(b){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(null); r.readAsDataURL(b); }); }
-async function makeFieldPPT(id, btn){
-  const recs=(FIELDS||[]).filter(f=>f.apartment_id===id).slice()
-    .sort((a,b)=>((a.created_at||'')<(b.created_at||'')?-1:1));                 // 시간순 = 공정 순서
+function makePptByPick(id,kind,btn){
+  const sel=document.getElementById((kind==='date'?'dld-d-':'dld-t-')+id);
+  const v=sel&&sel.value;
+  if(!v){ alert(kind==='date'?'날짜를 선택하세요':'공정을 선택하세요'); return; }
+  makeFieldPPT(id, kind==='date'?{date:v}:{title:v}, btn);
+}
+async function makeFieldPPT(id, opts, btn){
+  let recs=(FIELDS||[]).filter(f=>f.apartment_id===id);
+  if(opts&&opts.date)  recs=recs.filter(f=>(f.created_at||'').slice(0,10)===opts.date);
+  if(opts&&opts.title) recs=recs.filter(f=>(f.title||'').trim()===opts.title);
+  recs=recs.slice().sort((a,b)=>((a.created_at||'')<(b.created_at||'')?-1:1));   // 시간순 = 공정 순서
   const withPhotos=recs.filter(f=>Array.isArray(f.photos)&&f.photos.length);
   if(!withPhotos.length){ alert('사진이 있는 현장 기록이 없어요'); return; }
   const total=withPhotos.reduce((n,f)=>n+f.photos.length,0);
-  if(!confirm(`${aptName(id)} 준공사진첩 PPT를 만들까요?\n공정 ${withPhotos.length}단계 · 사진 ${total}장 (조금 걸려요)`)) return;
+  const tag = opts&&opts.date ? ('('+opts.date.replace(/-/g,'.')+') ') : opts&&opts.title ? ('('+opts.title+') ') : '';
+  if(!confirm(`${aptName(id)} ${tag}준공사진첩 PPT를 만들까요?\n공정 ${withPhotos.length}단계 · 사진 ${total}장 (조금 걸려요)`)) return;
   const apt=(APTS||[]).find(a=>a.id===id)||{};
   const project=(apt.construction_type||'').trim() || (window.methodLabel&&window.methodLabel(apt.method)) || aptName(id);
   const orig=btn?btn.textContent:''; if(btn) btn.disabled=true;
   try{
     await ensurePptx();
+    const logo=await assetDataURL('../assets/apartsquare-logo.png');   // 아파트스퀘어 로고
+    const LR=320/1379;                                                 // 로고 세로/가로 비
     const P=new PptxGenJS(); P.defineLayout({name:'W',width:13.333,height:7.5}); P.layout='W';
     const FF='맑은 고딕';
     // 표지
-    const cover=P.addSlide(); cover.background={color:'E9EBEE'};
-    cover.addText('POUR공법',{x:0.8,y:2.55,w:8,h:1,fontSize:40,bold:true,color:'1F2C5C',fontFace:FF});
-    cover.addText('준공 사진첩',{x:0.85,y:3.55,w:6,h:0.5,fontSize:20,bold:true,color:'1F2C5C',fontFace:FF});
-    cover.addText(project,{x:0.85,y:4.05,w:7.5,h:0.4,fontSize:15,color:'5C6580',fontFace:FF});
-    cover.addText(aptName(id),{x:0.85,y:4.5,w:7.5,h:0.4,fontSize:12,color:'8B93A8',fontFace:FF});
-    cover.addText('POUR공법\nnetform@naver.com',{x:6.3,y:3.55,w:5,h:0.7,fontSize:12,color:'5C6580',fontFace:FF});
+    const cover=P.addSlide(); cover.background={color:'EEF1F6'};
+    if(logo) cover.addImage({data:logo, x:0.8, y:2.4, w:4.6, h:4.6*LR});
+    cover.addText('준공 사진첩',{x:0.85,y:3.75,w:6,h:0.5,fontSize:22,bold:true,color:'1F2C5C',fontFace:FF});
+    cover.addText(project,{x:0.85,y:4.3,w:8,h:0.4,fontSize:15,color:'5C6580',fontFace:FF});
+    cover.addText(aptName(id),{x:0.85,y:4.72,w:8,h:0.4,fontSize:12,color:'8B93A8',fontFace:FF});
+    cover.addText('아파트스퀘어\nsquare1600@naver.com · 1600-6069',{x:7.3,y:3.8,w:5.2,h:0.7,fontSize:12,color:'5C6580',fontFace:FF});
     // 공정별 페이지 (사진 4장씩 2×2)
-    const POS=[[0.4,1.15],[6.82,1.15],[0.4,4.15],[6.82,4.15]]; const IW=6.11,IH=2.7;
+    const POS=[[0.4,1.2],[6.82,1.2],[0.4,4.2],[6.82,4.2]]; const IW=6.11,IH=2.7;
     let step=0, done=0;
     for(const f of withPhotos){
       step++;
@@ -1313,9 +1341,10 @@ async function makeFieldPPT(id, btn){
       for(let c=0;c<photos.length;c+=4){
         const chunk=photos.slice(c,c+4);
         const s=P.addSlide(); s.background={color:'FFFFFF'};
-        s.addText(step+'. '+(f.title||'현장'),{x:0.4,y:0.28,w:6,h:0.5,fontSize:15,color:'333333',fontFace:FF});
-        s.addText(project,{x:5,y:0.22,w:7.9,h:0.6,align:'right',fontSize:22,bold:true,color:'1F2C5C',fontFace:FF});
-        s.addShape(P.ShapeType.line,{x:0.4,y:0.95,w:12.53,h:0,line:{color:'DDDDDD',width:1}});
+        s.addText(step+'. '+(f.title||'현장'),{x:0.4,y:0.3,w:6,h:0.5,fontSize:15,color:'333333',fontFace:FF});
+        s.addText(project,{x:4.5,y:0.26,w:6.6,h:0.6,align:'right',fontSize:21,bold:true,color:'1F2C5C',fontFace:FF});
+        if(logo) s.addImage({data:logo, x:11.35, y:0.32, w:1.55, h:1.55*LR});
+        s.addShape(P.ShapeType.line,{x:0.4,y:1.02,w:12.53,h:0,line:{color:'DDDDDD',width:1}});
         for(let i=0;i<chunk.length;i++){
           const b=await fetchBlob(chunk[i]); if(!b) continue;
           const data=await blobToDataURL(b); if(!data) continue;
@@ -1326,7 +1355,7 @@ async function makeFieldPPT(id, btn){
       }
     }
     if(btn) btn.textContent='저장 중…';
-    await P.writeFile({fileName: safeName(aptName(id))+'_준공사진첩.pptx'});
+    await P.writeFile({fileName: safeName(aptName(id)+(tag?' '+tag.replace(/[()]/g,'').trim():'')+' 준공사진첩')+'.pptx'});
   }catch(e){ alert('PPT 생성 오류: '+e.message); }
   finally{ if(btn){ btn.disabled=false; btn.textContent=orig; } }
 }
@@ -1718,16 +1747,18 @@ function fldMoveBar(id){
   const titleOpts=titles.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
   return `<div style="padding:10px 12px;background:#fbfcff;border:1px solid var(--line);border-top:none;display:flex;flex-direction:column;gap:8px">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <span style="font-size:11.5px;font-weight:800;color:#1f8a5b">📦 사진 다운로드</span>
-      <button class="b" style="background:#e7f5ee;color:#1f8a5b" onclick="downloadFieldPhotos('${id}',null,this)">전체</button>
+      <span style="font-size:11.5px;font-weight:800;color:#1f8a5b">📦 사진·PPT</span>
+      <span style="font-size:11px;font-weight:700;color:var(--mut2)">전체</span>
+      <button class="b" style="background:#e7f5ee;color:#1f8a5b" onclick="downloadFieldPhotos('${id}',null,this)">🖼 사진</button>
+      <button class="b" style="background:#fff3e0;color:#b26a00" onclick="makeFieldPPT('${id}',null,this)">📊 PPT</button>
       <span style="width:1px;height:15px;background:var(--line)"></span>
-      <select id="dld-d-${id}" class="f" style="max-width:130px"><option value="">📅 날짜 선택</option>${dateOpts}</select>
-      <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="downloadFieldByPick('${id}','date',this)">이 날짜만</button>
+      <select id="dld-d-${id}" class="f" style="max-width:120px"><option value="">📅 날짜</option>${dateOpts}</select>
+      <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="downloadFieldByPick('${id}','date',this)">🖼</button>
+      <button class="b" style="background:#fff3e0;color:#b26a00" onclick="makePptByPick('${id}','date',this)">📊</button>
       <span style="width:1px;height:15px;background:var(--line)"></span>
-      <select id="dld-t-${id}" class="f" style="max-width:170px"><option value="">🔧 공정 선택</option>${titleOpts}</select>
-      <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="downloadFieldByPick('${id}','title',this)">이 공정만</button>
-      <span style="width:1px;height:15px;background:var(--line)"></span>
-      <button class="b" style="background:#fff3e0;color:#b26a00" onclick="makeFieldPPT('${id}',this)">📊 준공사진첩 PPT</button>
+      <select id="dld-t-${id}" class="f" style="max-width:160px"><option value="">🔧 공정</option>${titleOpts}</select>
+      <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="downloadFieldByPick('${id}','title',this)">🖼</button>
+      <button class="b" style="background:#fff3e0;color:#b26a00" onclick="makePptByPick('${id}','title',this)">📊</button>
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line2);padding-top:8px">
       <span style="font-size:11.5px;font-weight:700;color:var(--mut2)">이 단지 글 전체를</span>

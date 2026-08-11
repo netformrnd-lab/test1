@@ -1,17 +1,18 @@
-# 아파트스퀘어 관리자 대시보드 — 인수인계 문서
+# 아파트스퀘어 관리자 대시보드 — 구조 안내
 
-> 서비스운영팀(Claude Code 작업)이 **영업 대시보드에 이 관리자 대시보드를 통합**하기 위한 안내서입니다.
-> 이 문서 + 아래 2개 파일만 있으면 이 대시보드가 어떻게 돌아가는지 전부 파악할 수 있습니다.
+> 관리자 대시보드가 **무엇이고, 어떻게 구성돼 있는지** 설명하는 문서입니다.
+> (어떻게 고칠지는 코드를 보면 되고, 이 문서는 "어디에 무엇이 있는지" 지도 역할)
 
 ---
 
 ## 1. 이게 뭔가요
 
-**아파트스퀘어 관리자 대시보드**입니다. 입주민·감리사용 앱(아파트스퀘어)의 **뒷단(백오피스)**으로,
+**아파트스퀘어 관리자 대시보드** — 입주민·감리사용 앱의 **뒷단(백오피스)**.
 회원 승인·단지 배정·공지·감리일지·현장사진·일정·리플렛 등 **앱에 보이는 모든 콘텐츠를 여기서 관리**합니다.
 
-- 배포 주소: `https://<배포도메인>/admin/`  (예: `https://arecm.workers.dev/admin/`)
+- 배포 주소: `https://<배포도메인>/admin/`
 - 접속: **관리자 계정으로 로그인** (profiles.role = 'admin' 인 계정만)
+- 앱과 **같은 Supabase DB**를 공유 → 여기서 넣은 게 앱에 보이고, 앱에서 올라온 게 여기서 관리됨.
 
 ## 2. 파일 구성
 
@@ -19,115 +20,64 @@
 |---|---|
 | `admin/index.html` | 대시보드 본체 — HTML·CSS·JS 전부 인라인 (자체 완결) |
 | `js/stages.js` | 공법·공정 단계 정의 (`STAGE_SETS`) — 단지 관리·PPT에서 사용. `../js/stages.js`로 참조 |
-| `assets/apartsquare-logo.png` | 준공사진첩 PPT에 넣는 아파트스퀘어 로고. `../assets/apartsquare-logo.png`로 참조 |
-| `backend/*.sql` | Supabase 테이블·RLS·함수 정의 (스키마 참고 / 별도 Supabase 세팅 시 실행) |
+| `assets/apartsquare-logo.png` | 준공사진첩 PPT에 넣는 로고. `../assets/apartsquare-logo.png`로 참조 |
+| `backend/*.sql` | Supabase 테이블·RLS·함수 정의 (DB 구조) |
 
-> 외부 라이브러리(모두 CDN, 파일 안 `<script>`로 로드): **Supabase JS**, **JSZip**(사진 ZIP 다운로드), **PptxGenJS**(준공사진첩 PPT).
-> 배포 구조는 `배포루트/admin/index.html` + `배포루트/js/…` + `배포루트/assets/…` 를 유지해야 상대경로가 맞습니다.
+> 외부 라이브러리(모두 CDN): **Supabase JS**, **JSZip**(사진 ZIP), **PptxGenJS**(준공사진첩 PPT).
+> 배포 구조 `배포루트/admin/index.html` + `배포루트/js/…` + `배포루트/assets/…` 를 유지해야 상대경로가 맞습니다.
 
-### 주요 기능 (최근 추가분 포함)
-- 메뉴: 사이드바 **카테고리 5개**(대시보드·운영관리·현장관리·입주민소통·홍보자료) + 콘텐츠 상단 **탭**으로 하위 화면 전환
-- 회원 승인·단지 관리·공지·감리일지·현장사진·일정·리플렛 등 앱 콘텐츠 관리
+## 3. 화면 구성 (메뉴)
+
+- 좌측 사이드바 **카테고리 5개**: 대시보드 · 운영관리 · 현장관리 · 입주민소통 · 홍보자료
+- 카테고리를 누르면 콘텐츠 상단에 **탭**이 뜨고, 탭으로 하위 화면 전환.
+  - 운영관리: 회원 관리 · 단지 관리
+  - 현장관리: 감리일지 · 현장 현황 · 공사 일정 · 소장님 작성지 · 계약서
+  - 입주민소통: 공지사항 · 채팅 · 만족도
+  - 홍보자료: 우수 사례 · 인증·이력 · 리플렛
+
+### 눈에 띄는 기능
 - **현장 사진 다운로드**: 전체/날짜별/공정별 → 날짜·공정 폴더로 정리한 **ZIP**
 - **준공사진첩 PPT 자동 생성**: 표지 + 공정 단계별 2×2 사진 슬라이드 (`.pptx`)
 - 관리자 비밀번호 변경·재설정, 폰 반응형
 
-## 3. Supabase 연결
+## 4. Supabase 연결
 
 ```
 URL : https://gndktayoicegyqyllybk.supabase.co
-KEY : sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE   ← 공개용(publishable) 키. 노출돼도 안전(RLS로 보호)
+KEY : sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE   ← 공개용(publishable). 노출돼도 안전(RLS 보호)
 ```
+- publishable(anon) 키라 코드에 그대로 있어도 됩니다. (service_role 같은 비밀키 아님)
+- 권한은 **RLS + `is_admin()`**(`profiles.role='admin'`). admin이 아니면 데이터가 안 보이고 수정도 막힘. (`gate()` 함수가 문지기)
 
-- 이 키는 **anon/publishable 키**라 코드에 그대로 있어도 됩니다. (service_role 같은 비밀키 아님)
-- 권한은 **RLS + `is_admin()`** 로 통제. `is_admin()` = `profiles.role = 'admin'` 인지 검사.
-- 즉 로그인한 계정이 admin이 아니면 데이터가 안 보이고 수정도 막힙니다. (`gate()` 함수가 문지기)
+## 5. 대시보드 지도 (메뉴 = 화면 = 함수 = 테이블)
 
-## 4. 사용하는 DB 테이블 (14개)
-
-`profiles`(회원·역할), `apartments`(단지), `notices`(공지), `reports`(감리일지),
-`field_updates`(현장 사진·글), `schedules`(일정), `manager_forms`(소장 작성지),
-`chat_messages`(채팅), `contracts`(계약서), `surveys`(만족도), `cases`(우수 사례),
-`credentials`(인증서), `leaflets`(리플렛), `dong_progress`(동별 진행).
-
-> 스키마·RLS 정의는 우리 저장소 `backend/*.sql`(migration 파일들)에 있습니다. 새 기능으로 **테이블/컬럼을 추가하려면 이 SQL도 같이 손봐야** 합니다.
-
-## 5. 대시보드 구조 (메뉴 = 섹션 = 함수)
-
-좌측 사이드바 메뉴(`<a data-sec="XXX">`)를 누르면 해당 섹션(`<section id="sec-XXX">`)이 보입니다.
-각 섹션의 데이터는 같은 이름의 테이블에서 오고, `renderXXX()` / `loadXXXAdmin()` 함수가 그립니다.
+상단 탭(`<button data-sec="XXX">`)을 누르면 해당 화면(`<section id="sec-XXX">`)이 보이고,
+그 데이터는 같은 이름의 테이블에서 오며, `renderXXX()` / `loadXXXAdmin()` 함수가 그립니다.
 
 | 메뉴 | data-sec | 테이블 | 주요 함수(검색 키워드) |
 |---|---|---|---|
 | 대시보드(요약) | `overview` | 여러 개 | `renderOverview`, `renderPending` |
 | 회원 관리 | `members` | profiles | `renderMembers`, `approve`, `saveMember`, `deleteMember` |
 | 단지 관리 | `apts` | apartments, dong_progress | `renderApts`, `saveApt`, `deleteApt`, `methodOpts`/`stageOpts` |
-| 공지사항 | `notices` | notices | `renderNotices`, `addNotice` |
 | 감리일지 | `reports` | reports | `renderReports` |
 | 현장 현황 | `field` | field_updates | `renderField`, `fieldRowHtml`, `deleteField` |
 | 공사 일정 | `schedules` | schedules | 일정 관리 함수 |
 | 소장님 작성지 | `mgrforms` | manager_forms | 소장 폼 함수 |
-| 채팅 | `chat` | chat_messages | `loadChatAdmin`, `startChatPoll` |
 | 계약서 | `contract` | contracts | `loadContractsAdmin` |
+| 공지사항 | `notices` | notices | `renderNotices`, `addNotice` |
+| 채팅 | `chat` | chat_messages | `loadChatAdmin`, `startChatPoll` |
 | 만족도 | `survey` | surveys | `loadSurveysAdmin` |
 | 우수 사례 | `cases` | cases | `renderCases` |
 | 인증·이력 | `creds` | credentials | `renderCredsAdmin`, `addCredential` |
 | 리플렛 | `leaflets` | leaflets | `renderLeafletsAdmin`, `addLeaflet` |
 
-> **패턴 규칙**: 섹션 하나 = `sec-XXX` div + `renderXXX/loadXXXAdmin` 함수 + `XXX` 테이블.
-> 기능 하나를 빼내려면 이 3개(HTML 섹션 + 함수 + 테이블 접근)만 따라가면 됩니다.
+> **패턴 규칙**: 화면 하나 = `sec-XXX` div + `renderXXX/loadXXXAdmin` 함수 + `XXX` 테이블.
+> 이 3개만 따라가면 그 기능이 어디서 오고 어디에 그려지는지 다 보입니다.
 
-## 6. 배포 방법
+## 6. 배포
+- **정적 파일**. 웹 호스팅(Cloudflare Pages 등)에 올리면 끝. 서버 불필요.
+- `admin/index.html` 과 `js/stages.js` 의 **상대경로(`../js/stages.js`)** 를 유지 → `배포루트/admin/…` + `배포루트/js/…` 구조.
 
-- 지금은 **정적 파일**이라, 파일을 웹 호스팅(Cloudflare Pages 등)에 올리면 끝. 서버 불필요.
-- `admin/index.html` 과 `js/stages.js` 의 **상대경로(`../js/stages.js`)** 를 유지해야 합니다.
-  → 즉 `배포루트/admin/index.html` + `배포루트/js/stages.js` 구조로 두세요.
-
----
-
-## 7. 통합 시나리오 (서비스운영팀이 하려는 것)
-
-### (A) 영업 대시보드 → "대외보기" 누르면 이 관리자 대시보드 열기
-
-**가장 안전한 방법 = 그냥 링크로 연다.** (복사·중복 없음 → 나중에 갈라질 일 없음)
-
-```html
-<!-- 영업 대시보드에 넣을 버튼 -->
-<button onclick="window.open('https://<배포도메인>/admin/', '_blank')">대외보기</button>
-```
-
-또는 화면 안에 끼워 보이고 싶으면 iframe:
-
-```html
-<iframe src="https://<배포도메인>/admin/" style="width:100%;height:100%;border:none"></iframe>
-```
-
-- 이 관리자 대시보드는 **로그인이 필요**하므로, 열면 관리자 로그인 화면이 뜹니다. (별도 SSO 연동은 추가 작업)
-- 이 방식이면 우리 관리자 대시보드는 **그대로 두고**(원본 1개 유지), 영업 대시보드는 버튼만 추가하면 됩니다.
-
-### (B) 이 대시보드에서 기능 하나를 빼서 영업 대시보드에 넣기
-
-1. `admin/index.html`에서 그 기능의 **섹션(`sec-XXX`)** 과 **함수(`renderXXX` 등)** 를 찾는다 (위 5번 표 참고).
-2. 그 섹션 HTML + 관련 함수 + 그 함수가 쓰는 **Supabase 쿼리(`sb.from('XXX')...`)** 를 통째로 복사.
-3. 영업 대시보드에서도 **같은 Supabase 클라이언트(위 3번 URL·KEY)** 로 접속하면 동일하게 동작.
-4. 그 기능이 admin 전용이면 영업 대시보드 계정도 `is_admin()`을 통과해야 데이터가 보입니다.
-
-> Claude Code에게 이렇게 시키면 됩니다: *"admin/index.html에서 `sec-<메뉴>` 섹션과 `render<메뉴>`·관련 함수를 찾아, 우리 영업 대시보드에 이식해줘. Supabase는 같은 프로젝트(URL·publishable key)를 쓴다."*
-
----
-
-## 8. ⚠️ 꼭 지킬 것
-
-1. **원본은 하나로.** 관리자 대시보드 전체를 복사해서 두 곳에서 각자 고치면 **버전이 갈라져 충돌**합니다.
-   → 통째로 쓰려면 **(A) 링크/iframe**, 일부만 필요하면 **(B) 그 기능만 추출**. 전체 복제는 비권장.
-2. **라이브 운영 DB에 붙어 있음.** 테스트하다 회원·단지를 실수로 지우면 실제 데이터가 사라집니다.
-   → 테스트는 **별도 Supabase 복제 프로젝트**에서 하는 걸 권장.
-3. **기능 추가(새 항목·연동)는 DB도 같이 바뀜.** 새 테이블·컬럼·RLS는 `backend/*.sql`에 반영해야 앱과 어긋나지 않습니다.
-4. **누가 언제 수정할지 정하기.** 양쪽 다 Claude Code로 작업하니, 관리자 파일 담당을 한쪽으로 정하면 깔끔합니다.
-
-## 9. 요약
-
-- 넘길 것: `admin/index.html` + `js/stages.js` + 이 문서.
-- "대외보기" = 우리 `/admin/`을 **링크로 열기**(제일 안전).
-- 기능 이식 = 섹션+함수+쿼리만 추출, **같은 Supabase** 로 접속.
-- DB 바꾸는 변경은 우리 쪽과 협의(SQL 동기화).
+## 7. ⚠️ 주의
+- **라이브 운영 DB에 붙어 있음.** 테스트하다 회원·단지를 실수로 지우면 실제 데이터가 사라짐 → **별도 Supabase 복제본**에서 테스트 권장.
+- **DB를 바꾸는 변경**(새 테이블·컬럼·RLS)은 `backend/*.sql`에도 반영해야 앱과 어긋나지 않음.

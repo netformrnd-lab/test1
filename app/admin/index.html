@@ -44,6 +44,18 @@
   .nav a.on{background:#2b3d6b;color:#fff}
   .nav a .cnt{margin-left:auto;font-size:11px;font-weight:800;background:rgba(255,255,255,.10);color:#aab5d4;padding:1px 8px;border-radius:20px}
   .nav a.on .cnt{background:rgba(255,255,255,.22);color:#fff}
+  /* 접이식 그룹 메뉴 */
+  .nav .grp{display:flex;align-items:center;gap:10px;padding:11px 11px;margin-top:6px;border-radius:9px;font-size:12.5px;font-weight:800;color:#e6ebf7;cursor:pointer;user-select:none}
+  .nav .grp:hover{background:rgba(255,255,255,.06)}
+  .nav .grp .ic{font-size:15px;width:18px;text-align:center}
+  .nav .grp .gt{flex:1}
+  .nav .grp .caret{font-size:10px;color:#7d89b0;transition:transform .15s}
+  .nav .grp.open .caret{transform:rotate(180deg)}
+  .nav .grp.has-active{color:#fff}
+  .nav .grp.has-active .caret{color:#9fb0dc}
+  .nav .grp-items{display:none;flex-direction:column;padding-left:12px;margin-top:2px}
+  .nav .grp-items.open{display:flex}
+  .nav .grp-items a{padding:9px 11px}
   .side .me{padding:14px 16px;border-top:1px solid rgba(255,255,255,.09);display:flex;align-items:center;gap:10px}
   .side .me .av{width:32px;height:32px;border-radius:50%;background:#2F6BF6;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
   .side .me .nm{font-size:12.5px;font-weight:800;line-height:1.2;color:#fff}
@@ -90,6 +102,8 @@
     .nav .lbl{display:none}
     .nav a{flex:0 0 auto;white-space:nowrap;margin-bottom:0;padding:8px 12px}
     .nav a .cnt{margin-left:6px}
+    .nav .grp{display:none}
+    .nav .grp-items{display:contents !important}
     main{padding:16px 13px 60px;max-width:none}
     .head{flex-direction:column;align-items:flex-start;gap:4px}
     .head h2{font-size:18px}
@@ -158,21 +172,36 @@
       <div class="sub">관리자 워크스페이스</div>
     </div>
     <nav class="nav">
-      <div class="lbl">관리</div>
       <a data-sec="overview" class="on"><span class="ic">📊</span>대시보드</a>
-      <a data-sec="members"><span class="ic">👤</span>회원 관리<span class="cnt" id="nav-m">0</span></a>
-      <a data-sec="apts"><span class="ic">🏢</span>단지 관리<span class="cnt" id="nav-a">0</span></a>
-      <a data-sec="notices"><span class="ic">📢</span>공지사항<span class="cnt" id="nav-n">0</span></a>
-      <a data-sec="reports"><span class="ic">📝</span>감리일지<span class="cnt" id="nav-r">0</span></a>
-      <a data-sec="field"><span class="ic">📸</span>현장 현황<span class="cnt" id="nav-f">0</span></a>
-      <a data-sec="schedules"><span class="ic">📅</span>공사 일정<span class="cnt" id="nav-s">0</span></a>
-      <a data-sec="mgrforms"><span class="ic">📝</span>소장님 작성지<span class="cnt" id="nav-mf">0</span></a>
-      <a data-sec="chat"><span class="ic">💬</span>채팅<span class="cnt" id="nav-chat">0</span></a>
-      <a data-sec="contract"><span class="ic">📑</span>계약서<span class="cnt" id="nav-ct">0</span></a>
-      <a data-sec="survey"><span class="ic">⭐</span>만족도<span class="cnt" id="nav-sv">0</span></a>
-      <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
-      <a data-sec="creds"><span class="ic">🏅</span>인증·이력<span class="cnt" id="nav-cr">0</span></a>
-      <a data-sec="leaflets"><span class="ic">📕</span>리플렛<span class="cnt" id="nav-lf">0</span></a>
+
+      <div class="grp" data-grp="ops"><span class="ic">👥</span><span class="gt">운영 관리</span><span class="caret">▾</span></div>
+      <div class="grp-items" data-items="ops">
+        <a data-sec="members"><span class="ic">👤</span>회원 관리<span class="cnt" id="nav-m">0</span></a>
+        <a data-sec="apts"><span class="ic">🏢</span>단지 관리<span class="cnt" id="nav-a">0</span></a>
+      </div>
+
+      <div class="grp" data-grp="site"><span class="ic">🏗️</span><span class="gt">현장 관리</span><span class="caret">▾</span></div>
+      <div class="grp-items" data-items="site">
+        <a data-sec="reports"><span class="ic">📝</span>감리일지<span class="cnt" id="nav-r">0</span></a>
+        <a data-sec="field"><span class="ic">📸</span>현장 현황<span class="cnt" id="nav-f">0</span></a>
+        <a data-sec="schedules"><span class="ic">📅</span>공사 일정<span class="cnt" id="nav-s">0</span></a>
+        <a data-sec="mgrforms"><span class="ic">📝</span>소장님 작성지<span class="cnt" id="nav-mf">0</span></a>
+      </div>
+
+      <div class="grp" data-grp="comm"><span class="ic">💬</span><span class="gt">입주민 소통</span><span class="caret">▾</span></div>
+      <div class="grp-items" data-items="comm">
+        <a data-sec="notices"><span class="ic">📢</span>공지사항<span class="cnt" id="nav-n">0</span></a>
+        <a data-sec="chat"><span class="ic">💬</span>채팅<span class="cnt" id="nav-chat">0</span></a>
+        <a data-sec="survey"><span class="ic">⭐</span>만족도<span class="cnt" id="nav-sv">0</span></a>
+        <a data-sec="contract"><span class="ic">📑</span>계약서<span class="cnt" id="nav-ct">0</span></a>
+      </div>
+
+      <div class="grp" data-grp="promo"><span class="ic">🏅</span><span class="gt">홍보·자료</span><span class="caret">▾</span></div>
+      <div class="grp-items" data-items="promo">
+        <a data-sec="cases"><span class="ic">🏆</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
+        <a data-sec="creds"><span class="ic">🏅</span>인증·이력<span class="cnt" id="nav-cr">0</span></a>
+        <a data-sec="leaflets"><span class="ic">📕</span>리플렛<span class="cnt" id="nav-lf">0</span></a>
+      </div>
     </nav>
     <div class="me">
       <div class="av" id="me-av">관</div>
@@ -545,8 +574,24 @@ document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>{
   a.classList.add('on');
   document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));
   $('sec-'+a.dataset.sec).classList.add('on');
+  markActiveGroup(a);
   if(a.dataset.sec==='chat'){ loadChatAdmin(); startChatPoll(); } else { stopChatPoll(); }
 });
+// 접이식 그룹: 헤더 클릭 시 펼치기/접기
+document.querySelectorAll('.nav .grp').forEach(g=>g.onclick=()=>{
+  const items=document.querySelector('.nav .grp-items[data-items="'+g.dataset.grp+'"]');
+  const open=g.classList.toggle('open'); if(items) items.classList.toggle('open',open);
+});
+// 현재 열려 있는 섹션이 속한 그룹을 펼치고 표시
+function markActiveGroup(a){
+  const items=a && a.closest('.grp-items');
+  document.querySelectorAll('.nav .grp').forEach(g=>g.classList.remove('has-active'));
+  if(items){
+    const key=items.dataset.items;
+    const hdr=document.querySelector('.nav .grp[data-grp="'+key+'"]');
+    if(hdr){ hdr.classList.add('has-active','open'); items.classList.add('open'); }
+  }
+}
 
 async function loadAll(){
   const [m,a,n,c,r,f,s]=await Promise.all([

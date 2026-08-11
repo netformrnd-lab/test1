@@ -172,7 +172,7 @@
       <a data-cat="overview" class="on"><span class="ic">📊</span>대시보드</a>
       <a data-cat="ops"><span class="ic">👥</span>운영 관리</a>
       <a data-cat="site"><span class="ic">🏗️</span>현장 관리</a>
-      <a data-cat="comm"><span class="ic">💬</span>입주민 소통</a>
+      <a data-cat="comm"><span class="ic">💬</span>입주민 소통<span class="cnt" id="cat-comm-cnt" style="display:none"></span></a>
       <a data-cat="promo"><span class="ic">🏅</span>홍보·자료</a>
     </nav>
     <div class="me">
@@ -602,6 +602,7 @@ async function loadAll(){
   loadDongProgress();
   loadCredentialsAdmin();
   loadLeafletsAdmin();
+  startChatBadgePoll();
 }
 /* ===== 인증·이력 (credentials) ===== */
 let CREDS_A=[];
@@ -914,6 +915,13 @@ function renderChatThreads(){
     </div>`;
   }).join('');
   const navc=$('nav-chat'); if(navc){ navc.textContent=totalUnread||threads.length; navc.style.background=totalUnread?'#e4544b':''; navc.style.color=totalUnread?'#fff':''; }
+  updateCommBadge(totalUnread);
+}
+// 사이드바 '입주민 소통' 카테고리에 안읽은 채팅 수 뱃지
+function updateCommBadge(n){
+  const b=$('cat-comm-cnt'); if(!b) return;
+  if(n>0){ b.textContent=n>99?'99+':n; b.style.display=''; b.style.background='#e4544b'; b.style.color='#fff'; }
+  else { b.style.display='none'; }
 }
 function markAdminSeen(th){ const ms=CHAT_MSGS.filter(m=>m.thread===th); if(ms.length) localStorage.setItem('aptsq_adminseen_'+th, ms[ms.length-1].created_at||''); }
 function openChatThread(th){ CHAT_CUR=th; markAdminSeen(th); const bar=$('chat-reply-bar'); if(bar) bar.style.display='flex'; renderChatThreads(); renderChatConv(true); const r=$('chat-reply'); if(r) r.focus(); }
@@ -939,6 +947,9 @@ async function sendChatAdmin(){
 }
 function startChatPoll(){ stopChatPoll(); CHAT_POLL=setInterval(loadChatAdmin,4000); }
 function stopChatPoll(){ if(CHAT_POLL){clearInterval(CHAT_POLL);CHAT_POLL=null;} }
+// 어느 탭에 있든 새 채팅을 감지해 사이드바 '입주민 소통' 뱃지를 갱신 (느린 전역 폴링)
+let CHAT_BADGE_POLL=null;
+function startChatBadgePoll(){ if(CHAT_BADGE_POLL) return; CHAT_BADGE_POLL=setInterval(()=>{ if(!CHAT_POLL) loadChatAdmin(); },15000); }
 
 /* ===== 계약서 (contracts) ===== */
 let CONTRACTS_A=[];

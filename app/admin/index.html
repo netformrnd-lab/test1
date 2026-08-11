@@ -1220,6 +1220,51 @@ async function downloadPhoto(url,name){
     setTimeout(()=>URL.revokeObjectURL(a.href),1500);
   }catch(e){ window.open(url,'_blank'); }
 }
+// 현장 사진 전체 다운로드 — 날짜·공정(기록 제목)별 폴더로 정리해 ZIP
+function ensureJSZip(){
+  if(window.JSZip) return Promise.resolve();
+  if(window._jszipP) return window._jszipP;
+  window._jszipP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  return window._jszipP;
+}
+async function fetchBlob(url){ try{ const r=await fetch(url,{mode:'cors'}); if(r.ok) return await r.blob(); }catch(e){} return null; }
+function safeName(s){ return String(s||'').replace(/[\\/:*?"<>|\n\r\t]/g,'_').replace(/\s+/g,' ').trim().slice(0,60)||'무제'; }
+async function downloadAptPhotos(id, btn){
+  const recs=(FIELDS||[]).filter(f=>f.apartment_id===id);
+  const items=[];
+  recs.forEach(f=>{
+    const arr=Array.isArray(f.photos)?f.photos:[];
+    const d=(f.created_at||'').slice(0,10)||'날짜미상';
+    arr.forEach((u,i)=>{
+      const folder=safeName(d+' '+(f.title||'현장'));               // 날짜 + 공정(제목)
+      const ext=((u.split('?')[0].split('.').pop())||'jpg').slice(0,4);
+      items.push({url:u, path:folder+'/'+String(i+1).padStart(2,'0')+'.'+ext});
+    });
+  });
+  if(!items.length){ alert('이 단지에 다운로드할 사진이 없어요'); return; }
+  if(!confirm(`${aptName(id)}의 현장 사진 ${items.length}장을\n날짜·공정별 폴더로 정리해서 ZIP으로 받을까요?`)) return;
+  const orig=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; }
+  try{
+    await ensureJSZip();
+    const zip=new JSZip(); let ok=0, fail=0;
+    for(let i=0;i<items.length;i++){
+      if(btn) btn.textContent=`받는 중… ${i+1}/${items.length}`;
+      const b=await fetchBlob(items[i].url);
+      if(b){ zip.file(items[i].path, b); ok++; } else { fail++; }
+    }
+    if(!ok){ alert('사진을 불러오지 못했어요 (네트워크·권한 확인)'); return; }
+    if(btn) btn.textContent='압축 중…';
+    const content=await zip.generateAsync({type:'blob'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(content);
+    a.download=safeName(aptName(id))+'_현장사진.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    if(fail) alert(`${ok}장 저장 · ${fail}장은 불러오지 못해 빠졌어요`);
+  }catch(e){ alert('오류: '+e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=orig; } }
+}
 async function downloadAllPhotos(urls){
   if(!Array.isArray(urls))return;
   for(let i=0;i<urls.length;i++){
@@ -1601,8 +1646,10 @@ function toggleFieldEdit(id){
 function fldMoveBar(id){
   const opts=APTS.filter(a=>a.id!==id).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko')).map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
   return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:#fbfcff;border:1px solid var(--line);border-top:none">
+    <button class="b" style="background:#e7f5ee;color:#1f8a5b" onclick="downloadAptPhotos('${id}',this)">📦 사진 전체 다운로드</button>
+    <span style="width:1px;height:16px;background:var(--line)"></span>
     <span style="font-size:11.5px;font-weight:700;color:var(--mut2)">이 단지 글 전체를</span>
-    <select id="mv-${id}" class="f" style="max-width:220px"><option value="">- 옮길 단지 선택 -</option>${opts}</select>
+    <select id="mv-${id}" class="f" style="max-width:200px"><option value="">- 옮길 단지 선택 -</option>${opts}</select>
     <button class="b" style="background:#eaf1ff;color:var(--blue)" onclick="moveFieldGroup('${id}')">옮기기(합치기)</button>
     <span style="flex:1"></span>
     <button class="b" style="background:#f2f4f8;color:var(--ink)" onclick="renameFieldApt('${id}')">✏️ 단지 이름 수정</button>

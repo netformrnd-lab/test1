@@ -431,12 +431,6 @@ hardcover_cards = [
           ("구성", "앞표지 + 책등 + 뒤표지 (220+15+220mm)")],
          [{"path": "하드커버_B.png", "label": "표지 (뒤·책등·앞) · 클릭 시 원본 PDF", "mock": True, "file": "hardcover", "hifi": True},
           {"path": "하드커버_A.png", "label": "내부 (좌·우)", "file": "hardcover"}]),
-    card("B안", "아파트스퀘어 하드커버 (양장)",
-         [("표지", "앞: 대형 로고·슬로건·4아이콘 / 뒤: 로고·연락처"),
-          ("내부", "신뢰로 증명합니다 · 150+/1,200+/98%/10년+ · ONE-STOP"),
-          ("구성", "앞표지 + 책등 + 뒤표지 (220+15+220mm)")],
-         [{"path": "하드커버B_표지.png", "label": "표지 (뒤·앞) · 클릭 시 원본 PDF", "mock": True, "file": "hardcover_b", "hifi": True},
-          {"path": "하드커버B_내부.png", "label": "내부 (좌·우)", "file": "hardcover_b"}]),
 ]
 
 # ----- A4 리플릿 (4p 완성본) -----
@@ -473,14 +467,14 @@ sections_html = "".join([
     section("10", "여름 유니폼", "2종 — 춘하/여름", summer_cards),
     section("11", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
     section("12", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
-    section("13", "하드커버 (디자인 시안)", "A/B 시안 — 택1 결정 필요", hardcover_cards),
+    section("13", "하드커버 (양장)", "A안 확정 · 클릭 시 원본 PDF", hardcover_cards),
     section("14", "제안서", "클릭 시 원본 PDF", proposal_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("14", "검토 카테고리"), ("34", "검토 항목"),
+summary_cards = [("14", "검토 카테고리"), ("33", "검토 항목"),
                  ("42", "확보 이미지"), ("24", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -496,8 +490,6 @@ ORIGINALS = {
                   "b64": raw_b64(ORIGDIR / "하드커버_원본.pdf")},
     "leaflet": {"mime": "application/pdf", "name": "아파트스퀘어_리플릿_4p.pdf",
                 "b64": raw_b64(ORIGDIR / "리플릿_원본.pdf")},
-    "hardcover_b": {"mime": "application/pdf", "name": "아파트스퀘어_하드커버_B안.pdf",
-                    "b64": raw_b64(ORIGDIR / "하드커버B_원본.pdf")},
     "proposal": {"mime": "application/pdf", "name": "공동주택_유지보수_감리_제안서.pdf",
                  "b64": raw_b64(ORIGDIR / "제안서_원본.pdf")},
 }

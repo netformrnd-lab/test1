@@ -409,20 +409,6 @@ summer_cards = [
          url_text="제품 페이지"),
 ]
 
-# ----- 아코디언 파일 (디자인 시안 A/B) -----
-accordion_cards = [
-    card("A안", "진한 네이비",
-         [("컨셉", "전문성 · 신뢰감 · 무게감"),
-          ("구성", "앞면 + 실제 뒷면")],
-         [{"path": "아코디언_A_앞.png", "label": "A안 앞면 · 클릭 시 원본 파일", "mock": True, "file": "accordion"},
-          {"path": "아코디언_A_뒤.png", "label": "A안 실제 뒷면", "file": "accordion"}]),
-    card("B안", "화이트 · 코발트 블루",
-         [("컨셉", "개방감 · 고급 패키지 인상 · 명료함"),
-          ("구성", "앞면 + 실제 뒷면")],
-         [{"path": "아코디언_B_앞.png", "label": "B안 앞면 · 클릭 시 원본 파일", "mock": True, "file": "accordion"},
-          {"path": "아코디언_B_뒤.png", "label": "B안 실제 뒷면", "file": "accordion"}]),
-]
-
 # ----- 11. 하드커버 (양장) — 표지 + 내부 -----
 hardcover_cards = [
     card("📕", "아파트스퀘어 하드커버 (양장)",
@@ -467,15 +453,14 @@ sections_html = "".join([
     section("9", "겨울 유니폼", "2종 검토", uniform_cards),
     section("10", "여름 유니폼", "2종 — 춘하/여름", summer_cards),
     section("11", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
-    section("12", "아코디언 파일 (디자인 시안)", "A/B 시안 — 택1 결정 필요", accordion_cards),
-    section("13", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards),
-    section("14", "제안서", "클릭 시 원본 PDF", proposal_cards),
+    section("12", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards),
+    section("13", "제안서", "클릭 시 원본 PDF", proposal_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("14", "검토 카테고리"), ("33", "검토 항목"),
+summary_cards = [("13", "검토 카테고리"), ("31", "검토 항목"),
                  ("42", "확보 이미지"), ("24", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -485,8 +470,6 @@ TODAY = "2026-07-30"
 
 # 원본 파일(클릭 시 새 탭에서 열람) 임베드
 ORIGINALS = {
-    "accordion": {"mime": "image/png", "name": "아파트스퀘어_아코디언_AB.png",
-                  "b64": raw_b64(ORIGDIR / "아코디언_원본.png")},
     "hardcover": {"mime": "application/pdf", "name": "아파트스퀘어_하드커버.pdf",
                   "b64": raw_b64(ORIGDIR / "하드커버_원본.pdf")},
     "leaflet": {"mime": "application/pdf", "name": "아파트스퀘어_리플릿_4p.pdf",
@@ -618,10 +601,10 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 아코디언 · 하드커버 · 제안서</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 14개 카테고리</span>
+    <span class="chip">총 13개 카테고리</span>
     <span class="chip">35개 항목 검토</span>
   </div>
 </header>

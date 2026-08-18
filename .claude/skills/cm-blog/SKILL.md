@@ -73,15 +73,39 @@ description: 넷폼알앤디 CRM마케팅팀 블로그 원고를 브랜드 기�
 
 바꾼 것은 마지막 보고에 **"자동 교정한 표현"** 으로 목록화합니다.
 
+**예외**: `국토교통부 건설신기술` 은 금지어 `신기술` 을 포함하지만 **공식 제도 명칭**이므로
+그대로 씁니다. 이런 고유명사 예외는 교정하지 말고, 보고에 한 줄로 알립니다.
+
 ## 5단계 — 저장한다
 
-`콘텐츠/블로그/YYYY-MM-DD-브랜드-키워드/` 폴더를 만들고 **파일 2개**를 저장합니다.
+`콘텐츠/블로그/YYYY-MM-DD-브랜드-키워드/` 폴더를 만들고 **파일 3개**를 저장합니다.
 
 **① `본문.html`** — 복사용. HTML 조각만 넣습니다.
 `<!DOCTYPE>` `<html>` `<head>` `<body>` 같은 뼈대 태그와 코드블록 표시(```)는 **넣지 않습니다.**
 (브라우저로 열어서 미리보기도 됩니다)
 
-**② `정보.md`**
+**② `미리보기.html`** — 브라우저로 열어 확인하는 용도.
+`본문.html` 내용을 아래 껍데기로 감쌉니다. **복사는 `본문.html` 에서 합니다.**
+```html
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>미리보기 — [제목]</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+ body{margin:0;background:#f1f3f5;font-family:'Noto Sans KR',sans-serif;color:#333;line-height:2;font-size:15px;}
+ .bar{background:#fff;border-bottom:1px solid #e5e7eb;padding:14px 20px;font-size:13px;color:#6b7280;text-align:center;}
+ .bar b{color:#C21414;}
+ .paper{max-width:620px;margin:24px auto 60px;background:#fff;padding:32px 24px 48px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+ table{width:100%;}
+</style></head><body>
+<div class="bar">이 화면은 <b>미리보기</b>입니다 · 네이버 블로그에 붙여넣을 파일은 <b>본문.html</b> 입니다</div>
+<div class="paper">
+[여기에 본문.html 내용 그대로]
+</div></body></html>
+```
+> 아파트스퀘어 글이면 `.paper` 의 `max-width` 는 그대로 두되 본문 문단이 가운데 정렬입니다.
+
+**③ `정보.md`**
 ```markdown
 | 항목 | 내용 |
 |---|---|
@@ -124,6 +148,8 @@ description: 넷폼알앤디 CRM마케팅팀 블로그 원고를 브랜드 기�
 3. **`[확인 필요]` 로 비워둔 곳** ← 사용자가 사실을 채워야 하는 부분
 4. **기준이 없어 제가 정한 것**
 5. 다음 할 일: `/cm-review 콘텐츠/블로그/폴더명/본문.html`
+
+그리고 **`미리보기.html` 을 사용자에게 파일로 보내서 눈으로 확인**하게 합니다.
 
 원고 전문을 터미널에 다시 쏟아내지 마세요. 파일을 열어보면 됩니다.
 

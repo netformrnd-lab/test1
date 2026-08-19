@@ -31,7 +31,7 @@
   /* ===== 레이아웃 ===== */
   #app{display:none;min-height:100vh}
   .layout{display:flex;min-height:100vh}
-  .side{width:236px;flex-shrink:0;background:#1a2749;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .side{width:236px;flex-shrink:0;background:#1a2749;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
   .side .brand{padding:22px 22px 18px;border-bottom:1px solid rgba(255,255,255,.09)}
   .side .brand .nm{font-size:16px;font-weight:800;display:flex;align-items:center;gap:9px;color:#fff}
   .side .brand .ic{width:27px;height:27px;border-radius:8px;background:linear-gradient(135deg,#3f74e6,#2F6BF6);display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -169,11 +169,24 @@
       <div class="sub">관리자 워크스페이스</div>
     </div>
     <nav class="nav">
-      <a data-cat="overview" class="on"><span class="ic">📊</span>대시보드</a>
-      <a data-cat="ops"><span class="ic">👥</span>운영 관리</a>
-      <a data-cat="site"><span class="ic">🏗️</span>현장 관리</a>
-      <a data-cat="comm"><span class="ic">💬</span>입주민 소통<span class="cnt" id="cat-comm-cnt" style="display:none"></span></a>
-      <a data-cat="promo"><span class="ic">🏅</span>홍보·자료</a>
+      <div class="lbl">한눈에 보기</div>
+      <a data-sec="overview" class="on"><span class="ic">📊</span>대시보드</a>
+      <a data-sec="schedules"><span class="ic">🗓️</span>공사 일정<span class="cnt" id="nav-s">0</span></a>
+      <div class="lbl">현장 관리</div>
+      <a data-sec="apts"><span class="ic">🏢</span>단지 관리<span class="cnt" id="nav-a">0</span></a>
+      <a data-sec="reports"><span class="ic">📄</span>감리일지<span class="cnt" id="nav-r">0</span></a>
+      <a data-sec="field"><span class="ic">📷</span>현장 현황<span class="cnt" id="nav-f">0</span></a>
+      <a data-sec="contract"><span class="ic">📑</span>계약서<span class="cnt" id="nav-ct">0</span></a>
+      <a data-sec="mgrforms"><span class="ic">📝</span>소장님 작성지<span class="cnt" id="nav-mf">0</span></a>
+      <div class="lbl">앱 관리</div>
+      <a data-sec="members"><span class="ic">👤</span>회원<span class="cnt" id="nav-m">0</span></a>
+      <a data-sec="notices"><span class="ic">📢</span>공지사항<span class="cnt" id="nav-n">0</span></a>
+      <a data-sec="chat"><span class="ic">💬</span>채팅<span class="cnt" id="nav-chat">0</span></a>
+      <a data-sec="survey"><span class="ic">⭐</span>만족도<span class="cnt" id="nav-sv">0</span></a>
+      <div class="lbl">홍보·자료</div>
+      <a data-sec="cases"><span class="ic">🏅</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
+      <a data-sec="creds"><span class="ic">📜</span>인증·이력<span class="cnt" id="nav-cr">0</span></a>
+      <a data-sec="leaflets"><span class="ic">📁</span>리플렛<span class="cnt" id="nav-lf">0</span></a>
     </nav>
     <div class="me">
       <div class="av" id="me-av">관</div>
@@ -183,30 +196,6 @@
   </aside>
 
   <main>
-    <!-- 카테고리 안의 화면 전환 탭 (상단) -->
-    <div id="subtabs">
-      <div class="stab" data-cat="ops" style="display:none">
-        <button data-sec="members" class="on">회원 관리<span class="tcnt" id="nav-m">0</span></button>
-        <button data-sec="apts">단지 관리<span class="tcnt" id="nav-a">0</span></button>
-      </div>
-      <div class="stab" data-cat="site" style="display:none">
-        <button data-sec="reports" class="on">감리일지<span class="tcnt" id="nav-r">0</span></button>
-        <button data-sec="field">현장 현황<span class="tcnt" id="nav-f">0</span></button>
-        <button data-sec="schedules">공사 일정<span class="tcnt" id="nav-s">0</span></button>
-        <button data-sec="mgrforms">소장님 작성지<span class="tcnt" id="nav-mf">0</span></button>
-        <button data-sec="contract">계약서<span class="tcnt" id="nav-ct">0</span></button>
-      </div>
-      <div class="stab" data-cat="comm" style="display:none">
-        <button data-sec="notices" class="on">공지사항<span class="tcnt" id="nav-n">0</span></button>
-        <button data-sec="chat">채팅<span class="tcnt" id="nav-chat">0</span></button>
-        <button data-sec="survey">만족도<span class="tcnt" id="nav-sv">0</span></button>
-      </div>
-      <div class="stab" data-cat="promo" style="display:none">
-        <button data-sec="cases" class="on">우수 사례<span class="tcnt" id="nav-c">0</span></button>
-        <button data-sec="creds">인증·이력<span class="tcnt" id="nav-cr">0</span></button>
-        <button data-sec="leaflets">리플렛<span class="tcnt" id="nav-lf">0</span></button>
-      </div>
-    </div>
     <!-- 개요 -->
     <section id="sec-overview" class="on">
       <div class="head"><div><h2>대시보드</h2><div class="desc">아파트스퀘어 서비스 현황을 한눈에</div></div></div>
@@ -564,23 +553,16 @@ async function gate(){
   loadAll();
 }
 
-// 사이드바 이동
-// 카테고리(사이드바) → 그 안 첫 화면. 상단 탭으로 화면 전환
-const CAT_FIRST={overview:'overview',ops:'members',site:'reports',comm:'notices',promo:'cases'};
+// 사이드바 이동 (그룹형 사이드바 · 항목 클릭 → 해당 화면)
 function showSection(sec){
   document.querySelectorAll('main section').forEach(s=>s.classList.remove('on'));
   const el=$('sec-'+sec); if(el) el.classList.add('on');
-  document.querySelectorAll('#subtabs .stab button').forEach(b=>b.classList.toggle('on', b.dataset.sec===sec));
+  document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on', a.dataset.sec===sec));
   if(sec==='chat'){ loadChatAdmin(); startChatPoll(); } else { stopChatPoll(); }
+  window.scrollTo(0,0);
 }
-function showCategory(cat){
-  document.querySelectorAll('.nav a').forEach(x=>x.classList.toggle('on', x.dataset.cat===cat));
-  document.querySelectorAll('#subtabs .stab').forEach(b=>b.style.display=(b.dataset.cat===cat)?'flex':'none');
-  showSection(CAT_FIRST[cat]||cat);
-}
-document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>showCategory(a.dataset.cat));
-document.querySelectorAll('#subtabs .stab button').forEach(b=>b.onclick=()=>showSection(b.dataset.sec));
-// 초기 상태(대시보드 선택·탭바 숨김)는 HTML에 이미 반영돼 있어 별도 호출 불필요
+document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>showSection(a.dataset.sec));
+// 초기 상태(대시보드 선택)는 HTML에 이미 반영돼 있어 별도 호출 불필요
 
 async function loadAll(){
   const [m,a,n,c,r,f,s]=await Promise.all([

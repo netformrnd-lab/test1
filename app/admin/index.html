@@ -877,7 +877,7 @@ async function loadSurveysAdmin(){
 }
 function toggleSvCard(id,head){ const el=$(id); if(!el) return; const open=el.style.display!=='none'; el.style.display=open?'none':'block'; const c=head&&head.querySelector('.svc-caret'); if(c) c.style.transform=open?'rotate(0deg)':'rotate(90deg)'; }
 function svAvg(arr,key){ const v=arr.map(r=>r[key]).filter(x=>x!=null); return v.length?(v.reduce((a,b)=>a+b,0)/v.length):0; }
-function svStars(n){ const f=Math.round(n); return '★★★★★'.slice(0,f)+'☆☆☆☆☆'.slice(0,5-f); }
+function svStars(n){ let f=Math.round(n); if(f<0)f=0; if(f>5)f=5; return '⭐'.repeat(f)+'☆'.repeat(5-f); }
 function renderSurveysAdmin(){
   const box=$('surveys'); if(!box) return;
   const q=($('sv-q').value||'').trim().toLowerCase();

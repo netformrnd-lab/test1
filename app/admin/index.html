@@ -898,7 +898,19 @@ function renderSurveysAdmin(){
     const comments=textList('💬 한 줄 의견','comment');
     html+=`<div class="card" style="margin-bottom:14px;padding-bottom:6px"><div onclick="toggleSvCard('svc-${aid}',this)" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding-bottom:6px"><div style="display:flex;align-items:center;gap:8px"><span class="svc-caret" style="font-size:13px;color:#b3bccf;transition:transform .15s">▸</span><div><h3 style="margin:0">${esc(name)}</h3><div style="font-size:12px;color:var(--mut);font-weight:600;margin-top:2px">응답 ${rows.length}명 · 눌러서 상세 보기</div></div></div><div style="text-align:right"><div style="font-size:24px;font-weight:800;color:var(--ink);line-height:1">${ov.toFixed(1)}<span style="font-size:12px;color:var(--mut)">/5</span></div><div style="font-size:15px;color:#F5A623;letter-spacing:1px">${svStars(ov)}</div></div></div><div id="svc-${aid}" style="display:none;border-top:1px solid var(--line);padding-top:10px;margin-top:6px">${items}${best}${again}${comments}</div></div>`;
   });
-  box.innerHTML=html||'<div class="card" style="text-align:center;color:var(--mut);font-size:13px;padding:22px">검색 결과가 없어요.</div>';
+  // ⭐ NPS 요약 (5점 척도 → 추천 5점 / 비추천 3점 이하)
+  const rated=SURVEYS_A.filter(r=>r.overall!=null && r.overall!=='');
+  const total=SURVEYS_A.length;
+  const prom=rated.filter(r=>+r.overall>=5).length;
+  const det=rated.filter(r=>+r.overall<=3).length;
+  const nps=rated.length?Math.round((prom-det)/rated.length*100):0;
+  const npsStr=(nps>0?'+':'')+nps;
+  const npsColor=nps>0?'var(--green)':(nps<0?'#e4544b':'var(--ink)');
+  const summary='<div class="tiles" style="margin-bottom:18px">'+
+    '<div class="tile good"><span class="edge"></span><div class="v" style="color:'+npsColor+'">'+npsStr+'</div><div class="k">⭐ NPS 점수</div><div class="sub">추천(5점) − 비추천(3점↓)</div></div>'+
+    '<div class="tile"><span class="edge"></span><div class="v">'+total+'<small style="font-size:13px;color:var(--mut);font-weight:700"> 명</small></div><div class="k">응답 수</div></div>'+
+    '</div>';
+  box.innerHTML=summary+(html||'<div class="card" style="text-align:center;color:var(--mut);font-size:13px;padding:22px">검색 결과가 없어요.</div>');
 }
 /* ===== 소장님 작성지 (manager_forms) ===== */
 const MF_LABELS={writer_name:'작성자',phone:'연락처',households:'세대수/동수',built_year:'준공연도',issue:'주요 하자·불편',request:'요청·희망',wish_when:'희망 시기'};

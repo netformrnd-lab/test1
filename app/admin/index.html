@@ -137,6 +137,33 @@
   .add-form{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
   .add-form input{padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;outline:none}
   .add-form input:focus{border-color:var(--blue)}
+
+  /* ===== 시안 공통 컴포넌트 (페이지 내부 디자인) ===== */
+  .tiles{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+  .tile{position:relative;overflow:hidden}
+  .tile .edge{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
+  .tile.good .edge{background:var(--green)}.tile.warn .edge{background:var(--amber)}.tile.crit .edge{background:#e4544b}
+  .tile .sub{font-size:11px;color:var(--mut);font-weight:600;margin-top:4px}
+  .alert{border:1px solid;border-radius:13px;padding:14px 17px;margin-bottom:16px;font-size:13px;line-height:1.6}
+  .alert.crit{background:#fdecea;border-color:#f3c6c6;color:#a11f1f}
+  .alert.info{background:var(--blue-soft);border-color:#c3ddf7;color:#184f95}
+  .alert .ah{font-weight:800;margin-bottom:5px;display:flex;align-items:center;gap:7px}
+  .alert .row{padding:7px 0;border-top:1px dashed rgba(0,0,0,.1)}.alert .row:first-of-type{border-top:none}
+  .pill.blue{background:var(--blue-soft);color:var(--blue)}
+  .pill.gray{background:#eef1f7;color:var(--mut2)}
+  .pill.red{background:#fdecea;color:#e4544b}
+  .pill.violet{background:#efedfb;color:#5b4bd6}
+  .hbar{display:flex;align-items:center;gap:11px;margin-bottom:11px}
+  .hbar .hk{width:100px;font-size:12.5px;font-weight:700}
+  .hbar .ht{flex:1}.hbar .hv{width:52px;text-align:right;font-weight:800;font-size:13px}
+  .bar2{height:8px;background:#eef1f7;border-radius:20px;overflow:hidden}.bar2>i{display:block;height:100%;background:var(--blue);border-radius:20px}
+  .kv{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line2)}
+  .kv:last-child{border-bottom:none}.kv>span{width:110px;color:var(--mut2);font-size:12px;font-weight:800;flex-shrink:0}.kv>b{font-weight:700;font-size:13px}
+  .link{color:var(--blue);font-weight:800;cursor:pointer}.link:hover{text-decoration:underline}
+  .dlwrap{background:#f4f6fb;border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:14px}
+  .dlrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:8px 0;border-top:1px dashed #d9dfea}.dlrow:first-child{border-top:none}
+  .dlrow .lb{font-size:12.5px;font-weight:800;color:var(--mut2);min-width:118px}
+  .star{background:#fff7e6;border:1px solid #f0d9a8;color:#8a6d1e;font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px}
 </style>
 </head>
 <body>
@@ -195,11 +222,14 @@
     <!-- 개요 -->
     <section id="sec-overview" class="on">
       <div class="head"><div><h2>대시보드</h2><div class="desc">아파트스퀘어 서비스 현황을 한눈에</div></div></div>
+      <div class="alert info"><div class="ah">🔔 오늘 확인할 것</div>
+        <div class="row">👤 <b>승인 대기 회원</b>은 아래에서 역할을 지정한 뒤 승인하세요.</div>
+        <div class="row">💬 <b>안읽은 입주민 문의</b>는 왼쪽 <span class="link" onclick="showGroup('comm')">입주민 소통</span>에서 응대하세요.</div></div>
       <div class="tiles">
-        <div class="tile"><div class="v" id="t-members">0</div><div class="k">전체 회원</div></div>
-        <div class="tile warn"><div class="v" id="t-pending">0</div><div class="k">승인 대기</div></div>
-        <div class="tile"><div class="v" id="t-auditors">0</div><div class="k">감리사</div></div>
-        <div class="tile"><div class="v" id="t-apts">0</div><div class="k">등록 단지</div></div>
+        <div class="tile"><span class="edge"></span><div class="v" id="t-members">0</div><div class="k">전체 회원</div></div>
+        <div class="tile warn"><span class="edge"></span><div class="v" id="t-pending">0</div><div class="k">승인 대기</div></div>
+        <div class="tile good"><span class="edge"></span><div class="v" id="t-auditors">0</div><div class="k">감리사</div></div>
+        <div class="tile"><span class="edge"></span><div class="v" id="t-apts">0</div><div class="k">등록 단지</div></div>
       </div>
       <div class="card">
         <h3>⏳ 승인 대기 회원 <span class="badge" id="pend-badge">0</span></h3>

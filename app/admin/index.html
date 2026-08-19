@@ -44,7 +44,9 @@
   .nav a.on{background:#2b3d6b;color:#fff}
   .nav a .cnt{margin-left:auto;font-size:11px;font-weight:800;background:rgba(255,255,255,.10);color:#aab5d4;padding:1px 8px;border-radius:20px}
   .nav a.on .cnt{background:rgba(255,255,255,.22);color:#fff}
-  /* 카테고리 안 상단 탭 바 (세그먼트 컨트롤 · 잘 보이게) */
+  /* 그룹 안 상단 탭 바 (세그먼트 컨트롤 · 잘 보이게) */
+  #groupbar{margin-bottom:22px;display:none;background:#fff;border:1px solid var(--line);border-radius:13px;padding:6px;box-shadow:0 6px 18px -12px rgba(20,30,60,.35)}
+  #groupbar.show{display:inline-block}
   #subtabs{margin-bottom:22px;display:inline-block;background:#fff;border:1px solid var(--line);border-radius:13px;padding:6px;box-shadow:0 6px 18px -12px rgba(20,30,60,.35)}
   .stab{display:flex;gap:5px;flex-wrap:wrap}
   .stab button{font-size:14.5px;font-weight:800;color:var(--mut2);background:transparent;border:none;padding:11px 22px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
@@ -174,19 +176,11 @@
       <a data-sec="schedules"><span class="ic">🗓️</span>공사 일정<span class="cnt" id="nav-s">0</span></a>
       <div class="lbl">현장 관리</div>
       <a data-sec="apts"><span class="ic">🏢</span>단지 관리<span class="cnt" id="nav-a">0</span></a>
-      <a data-sec="reports"><span class="ic">📄</span>감리일지<span class="cnt" id="nav-r">0</span></a>
-      <a data-sec="field"><span class="ic">📷</span>현장 현황<span class="cnt" id="nav-f">0</span></a>
-      <a data-sec="contract"><span class="ic">📑</span>계약서<span class="cnt" id="nav-ct">0</span></a>
-      <a data-sec="mgrforms"><span class="ic">📝</span>소장님 작성지<span class="cnt" id="nav-mf">0</span></a>
+      <a data-group="site"><span class="ic">🏗️</span>공사관리</a>
       <div class="lbl">앱 관리</div>
       <a data-sec="members"><span class="ic">👤</span>회원<span class="cnt" id="nav-m">0</span></a>
-      <a data-sec="notices"><span class="ic">📢</span>공지사항<span class="cnt" id="nav-n">0</span></a>
-      <a data-sec="chat"><span class="ic">💬</span>채팅<span class="cnt" id="nav-chat">0</span></a>
-      <a data-sec="survey"><span class="ic">⭐</span>만족도<span class="cnt" id="nav-sv">0</span></a>
-      <div class="lbl">홍보·자료</div>
-      <a data-sec="cases"><span class="ic">🏅</span>우수 사례<span class="cnt" id="nav-c">0</span></a>
-      <a data-sec="creds"><span class="ic">📜</span>인증·이력<span class="cnt" id="nav-cr">0</span></a>
-      <a data-sec="leaflets"><span class="ic">📁</span>리플렛<span class="cnt" id="nav-lf">0</span></a>
+      <a data-group="comm"><span class="ic">💬</span>입주민 소통<span class="cnt" id="nav-comm" style="display:none"></span></a>
+      <a data-group="promo"><span class="ic">🏅</span>홍보·자료</a>
     </nav>
     <div class="me">
       <div class="av" id="me-av">관</div>
@@ -196,6 +190,8 @@
   </aside>
 
   <main>
+    <!-- 그룹(공사관리·입주민 소통·홍보·자료) 안 화면 전환 탭 -->
+    <div id="groupbar"><div class="stab" id="groupbar-in"></div></div>
     <!-- 개요 -->
     <section id="sec-overview" class="on">
       <div class="head"><div><h2>대시보드</h2><div class="desc">아파트스퀘어 서비스 현황을 한눈에</div></div></div>
@@ -553,15 +549,30 @@ async function gate(){
   loadAll();
 }
 
-// 사이드바 이동 (그룹형 사이드바 · 항목 클릭 → 해당 화면)
+// 사이드바 이동 (그룹형 · 묶음 항목은 상단 탭으로 세부 화면 전환)
+const GROUPS={
+  site:{subs:[['reports','감리일지'],['field','현장 현황'],['contract','계약서']]},
+  comm:{subs:[['notices','공지사항'],['chat','채팅'],['survey','만족도'],['mgrforms','소장님 작성지']]},
+  promo:{subs:[['cases','우수 사례'],['creds','인증·이력'],['leaflets','리플렛']]}
+};
+const SEC_GROUP={}; Object.keys(GROUPS).forEach(g=>GROUPS[g].subs.forEach(s=>SEC_GROUP[s[0]]=g));
+function buildGroupbar(g,active){
+  const box=$('groupbar-in');
+  box.innerHTML=GROUPS[g].subs.map(s=>`<button data-sec="${s[0]}" class="${s[0]===active?'on':''}">${s[1]}</button>`).join('');
+  box.querySelectorAll('button').forEach(b=>b.onclick=()=>showSection(b.dataset.sec));
+  $('groupbar').classList.add('show');
+}
 function showSection(sec){
   document.querySelectorAll('main section').forEach(s=>s.classList.remove('on'));
   const el=$('sec-'+sec); if(el) el.classList.add('on');
-  document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on', a.dataset.sec===sec));
+  const g=SEC_GROUP[sec];
+  if(g){ buildGroupbar(g,sec); document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on', a.dataset.group===g)); }
+  else { $('groupbar').classList.remove('show'); document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on', a.dataset.sec===sec)); }
   if(sec==='chat'){ loadChatAdmin(); startChatPoll(); } else { stopChatPoll(); }
   window.scrollTo(0,0);
 }
-document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>showSection(a.dataset.sec));
+function showGroup(g){ showSection(GROUPS[g].subs[0][0]); }
+document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>{ if(a.dataset.group) showGroup(a.dataset.group); else showSection(a.dataset.sec); });
 // 초기 상태(대시보드 선택)는 HTML에 이미 반영돼 있어 별도 호출 불필요
 
 async function loadAll(){
@@ -899,9 +910,9 @@ function renderChatThreads(){
   const navc=$('nav-chat'); if(navc){ navc.textContent=totalUnread||threads.length; navc.style.background=totalUnread?'#e4544b':''; navc.style.color=totalUnread?'#fff':''; }
   updateCommBadge(totalUnread);
 }
-// 사이드바 '입주민 소통' 카테고리에 안읽은 채팅 수 뱃지
+// 사이드바 '입주민 소통' 항목에 안읽은 채팅 수 뱃지
 function updateCommBadge(n){
-  const b=$('cat-comm-cnt'); if(!b) return;
+  const b=$('nav-comm'); if(!b) return;
   if(n>0){ b.textContent=n>99?'99+':n; b.style.display=''; b.style.background='#e4544b'; b.style.color='#fff'; }
   else { b.style.display='none'; }
 }

@@ -61,6 +61,7 @@ async function route() {
   if (error || !profile || !profile.approved) { window.showScreen('s02'); return } // 승인 대기
   currentRole = profile.role
   MY_ID = user.id; MY_NAME = profile.name || ''
+  try { registerPush() } catch (e) {}
   await loadChatReads()
   // 현장 점검 저장 후 돌아왔을 때: 해당 단지 감리일지 목록으로 바로 이동
   const openAptId = new URLSearchParams(location.search).get('openApt')
@@ -2341,7 +2342,7 @@ async function sendChat() {
   const inp = document.getElementById('chat-input'); if (!inp) return
   const body = inp.value.trim(); if (!body || !CHAT.thread) return
   inp.value = ''; inp.style.height = 'auto'
-  const { error } = await sb.from('chat_messages').insert({ thread: CHAT.thread, apartment_id: CHAT.aptId, sender_role: CHAT.role, sender_name: CHAT.name || roleLabel(CHAT.role), body })
+  const { error } = await sb.from('chat_messages').insert({ thread: CHAT.thread, apartment_id: CHAT.aptId, sender_role: CHAT.role, sender_name: CHAT.name || roleLabel(CHAT.role), body, sender_id: (typeof MY_ID !== 'undefined' ? MY_ID : null) })
   if (error) { alert('전송 실패: ' + error.message); inp.value = body; return }
   await loadChat(true)
 }
@@ -2546,3 +2547,33 @@ else document.addEventListener('DOMContentLoaded', boot)
   window.addEventListener('load', wire)
   setTimeout(wire, 1500)
 })()
+
+// ===== 푸시 알림: 이 폰의 FCM 토큰을 받아 Supabase(device_tokens)에 저장 =====
+let _pushWired = false
+async function registerPush() {
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications
+  if (!P) return                 // 네이티브 앱이 아니면(브라우저) 그냥 통과
+  try {
+    if (!_pushWired) {
+      _pushWired = true
+      // 토큰 발급 성공 → 저장
+      P.addListener('registration', async (t) => {
+        const token = t && t.value; if (!token) return
+        try {
+          const { data: { user } } = await sb.auth.getUser(); if (!user) return
+          await sb.from('device_tokens').upsert(
+            { token, user_id: user.id, platform: 'android', updated_at: new Date().toISOString() },
+            { onConflict: 'token' }
+          )
+        } catch (e) {}
+      })
+      P.addListener('registrationError', () => {})
+      // (선택) 알림 눌러서 앱 열었을 때 처리 자리 — 추후 화면 이동 연결 가능
+      P.addListener('pushNotificationActionPerformed', () => {})
+    }
+    let perm = await P.checkPermissions()
+    if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') perm = await P.requestPermissions()
+    if (perm.receive !== 'granted') return
+    await P.register()
+  } catch (e) {}
+}

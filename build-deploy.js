@@ -70,5 +70,10 @@ for (const f of fs.readdirSync(APP + "/assets")) {
 if (fs.existsSync(APP + "/manifest.json")) fs.copyFileSync(APP + "/manifest.json", OUT + "/manifest.json");
 if (fs.existsSync(APP + "/privacy.html")) fs.copyFileSync(APP + "/privacy.html", OUT + "/privacy.html");
 
+// --- Cloudflare Pages Functions (서버 함수: /content, /push 등) ---
+if (fs.existsSync(APP + "/functions")) {
+  cp.execSync(`mkdir -p "${OUT}/functions" && cp -rf "${APP}/functions/." "${OUT}/functions/"`);
+}
+
 console.log("version:", V, "· assets kept:", kept, "· fonts dropped:", dropped);
 console.log("→ dist-deploy/ 안의 내용을 Cloudflare Pages에 업로드하세요.");

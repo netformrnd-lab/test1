@@ -2523,3 +2523,26 @@ function hideSplash() {
 }
 if (document.readyState !== 'loading') boot()
 else document.addEventListener('DOMContentLoaded', boot)
+
+// 안드로이드 하드웨어 뒤로가기 버튼:
+//  - 홈이 아니면 → 이전 화면(goBack). 이렇게 계속 누르면 결국 홈으로 온다.
+//  - 홈(감리사 s07 / 입주민·소장 s11)에서 누르면 → 앱 종료.
+;(function () {
+  let wired = false
+  function wire() {
+    if (wired) return
+    const A = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App
+    if (!A || !A.addListener) return
+    wired = true
+    const HOME = ['s07', 's11']
+    A.addListener('backButton', function () {
+      const onHome = HOME.indexOf(NAV_CUR) !== -1 || NAV_HIST.length === 0
+      if (!onHome) { try { window.goBack() } catch (e) {} }
+      else { try { A.exitApp() } catch (e) {} }
+    })
+  }
+  wire()
+  document.addEventListener('DOMContentLoaded', wire)
+  window.addEventListener('load', wire)
+  setTimeout(wire, 1500)
+})()

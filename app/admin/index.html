@@ -735,22 +735,27 @@ async function loadAll(){
   startChatBadgePoll();
   startDataPoll();
 }
-// 새 감리일지·현장사진이 폰에서 올라오면 새로고침 없이 자동 반영 (가벼운 폴링)
-let DATA_POLL=null, REP_SIG='', FLD_SIG='';
+// 새 감리일지·현장사진·회원가입이 올라오면 새로고침 없이 자동 반영 (가벼운 폴링)
+let DATA_POLL=null, REP_SIG='', FLD_SIG='', MEM_SIG='';
 function dataSig(arr){ return (arr||[]).length+':'+(((arr||[])[0]||{}).id||''); }
+function memSig(arr){ return (arr||[]).length+':'+(arr||[]).filter(m=>!m.approved).length+':'+(((arr||[])[0]||{}).id||''); }
 async function refreshDataLight(){
   try{
-    const [r,f]=await Promise.all([
+    const [r,f,p]=await Promise.all([
       sb.from('reports').select('*').order('created_at',{ascending:false}),
-      sb.from('field_updates').select('*').order('created_at',{ascending:false})
+      sb.from('field_updates').select('*').order('created_at',{ascending:false}),
+      sb.from('profiles').select('*').order('created_at',{ascending:false})
     ]);
-    let changed=false;
+    let changed=false, memChanged=false;
     if(r.data){ const sig=dataSig(r.data); if(sig!==REP_SIG){ REP_SIG=sig; REPORTS=r.data; changed=true; } }
     if(f.data){ const sig=dataSig(f.data); if(sig!==FLD_SIG){ FLD_SIG=sig; FIELDS=f.data; changed=true; } }
-    if(changed){ renderNewReports(); renderStats(); renderApts(); if($('sec-reports')&&$('sec-reports').classList.contains('on')) renderReports(); refreshFieldNewPhotos&&refreshFieldNewPhotos(); }
+    if(p.data){ const sig=memSig(p.data); if(sig!==MEM_SIG){ MEM_SIG=sig; MEMBERS=p.data; memChanged=true; } }
+    if(changed){ renderNewReports(); renderApts(); if($('sec-reports')&&$('sec-reports').classList.contains('on')) renderReports(); refreshFieldNewPhotos&&refreshFieldNewPhotos(); }
+    if(memChanged){ renderPending(); renderMembers(); renderApts(); }
+    if(changed||memChanged){ renderStats(); }
   }catch(e){}
 }
-function startDataPoll(){ if(DATA_POLL) return; REP_SIG=dataSig(REPORTS); FLD_SIG=dataSig(FIELDS); DATA_POLL=setInterval(refreshDataLight, 15000); }
+function startDataPoll(){ if(DATA_POLL) return; REP_SIG=dataSig(REPORTS); FLD_SIG=dataSig(FIELDS); MEM_SIG=memSig(MEMBERS); DATA_POLL=setInterval(refreshDataLight, 12000); }
 /* ===== 인증·이력 (credentials) ===== */
 let CREDS_A=[];
 async function uploadCredImageFile(file){

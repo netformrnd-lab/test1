@@ -75,6 +75,19 @@ async function buildPlan(env, table, type, rec, old) {
     return { title: '💬 ' + (rec.sender_name || '새 메시지'), body: preview, userIds: ids, data: { kind: 'chat', thread: rec.thread || '', apartment_id: rec.apartment_id || '' } }
   }
 
+  if (table === 'profiles' && type === 'UPDATE') {
+    // 담당 단지 배정(또는 변경) → 본인에게
+    if (rec.apartment_id && rec.apartment_id !== old.apartment_id) {
+      const aptName = await aptName_(env, rec.apartment_id)
+      return { title: '🏢 담당 단지 배정 완료', body: (aptName ? aptName + ' · ' : '') + '이제 우리 단지 소식을 받아보세요', userIds: [rec.id], data: { kind: 'assigned', apartment_id: rec.apartment_id } }
+    }
+    // 가입 승인(미승인→승인) → 본인에게
+    if (rec.approved && !old.approved) {
+      return { title: '✅ 가입이 승인됐어요', body: '이제 아파트스퀘어를 이용하실 수 있어요', userIds: [rec.id], data: { kind: 'approved' } }
+    }
+    return null
+  }
+
   return null
 }
 

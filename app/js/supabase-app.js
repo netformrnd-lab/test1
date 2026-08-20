@@ -73,7 +73,27 @@ async function route() {
     } catch (e) {}
   }
   if (profile.role === 'auditor') { window.showScreen('s07'); loadAuditorApts() }
-  else { window.showScreen('s11'); loadResidentHome() }
+  else { window.showScreen('s11'); loadResidentHome(); startResidentPoll() }
+}
+// 입주민: 로그인 중에 관리자가 단지를 배정/변경하면 자동으로 홈 갱신 + 안내
+let RES_POLL = null, RES_LAST_APT
+function startResidentPoll() {
+  if (RES_POLL) return
+  RES_POLL = setInterval(async () => {
+    try {
+      if (currentRole === 'auditor' || currentRole === 'admin' || !currentRole) return
+      const { data: { user } } = await sb.auth.getUser(); if (!user) return
+      const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+      if (!prof) return
+      const cur = prof.apartment_id || null
+      if (RES_LAST_APT === undefined) { RES_LAST_APT = cur; return }
+      if (cur !== RES_LAST_APT) {
+        const wasNull = !RES_LAST_APT; RES_LAST_APT = cur
+        if (cur) appToast(wasNull ? '담당 단지가 배정됐어요! 🏢' : '담당 단지가 변경됐어요', 2600)
+        loadResidentHome()
+      }
+    } catch (e) {}
+  }, 12000)
 }
 let currentRole = null
 let MY_ID = null, MY_NAME = ''
@@ -507,7 +527,7 @@ async function checkApprovalNow() {
   try {
     const { data: { user } } = await sb.auth.getUser(); if (!user) return false
     const { data: prof } = await sb.from('profiles').select('approved').eq('id', user.id).single()
-    if (prof && prof.approved) { stopApprovalPoll(); route(); return true }
+    if (prof && prof.approved) { stopApprovalPoll(); try { appToast('가입이 승인됐어요! 🎉', 2600) } catch (e) {} route(); return true }
   } catch (e) {}
   return false
 }
@@ -2563,18 +2583,18 @@ else document.addEventListener('DOMContentLoaded', boot)
   setTimeout(wire, 1500)
 })()
 
-// 뒤로가기 종료 안내 토스트
-function showExitToast() {
-  let t = document.getElementById('exit-toast')
+// 앱 하단 토스트 (재사용)
+function appToast(msg, ms) {
+  let t = document.getElementById('app-toast')
   if (!t) {
-    t = document.createElement('div'); t.id = 'exit-toast'
-    t.textContent = '한 번 더 누르면 종료됩니다'
-    t.style.cssText = 'position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:rgba(28,34,52,.92);color:#fff;padding:10px 18px;border-radius:22px;font-size:13px;font-weight:600;z-index:99999;opacity:0;transition:opacity .22s;pointer-events:none;max-width:80%;text-align:center;white-space:nowrap'
+    t = document.createElement('div'); t.id = 'app-toast'
+    t.style.cssText = 'position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:rgba(28,34,52,.94);color:#fff;padding:11px 18px;border-radius:22px;font-size:13px;font-weight:700;z-index:99999;opacity:0;transition:opacity .22s;pointer-events:none;max-width:82%;text-align:center;box-shadow:0 8px 24px -8px rgba(0,0,0,.45)'
     document.body.appendChild(t)
   }
-  t.style.opacity = '1'
-  clearTimeout(t._to); t._to = setTimeout(() => { t.style.opacity = '0' }, 1800)
+  t.textContent = msg; t.style.opacity = '1'
+  clearTimeout(t._to); t._to = setTimeout(() => { t.style.opacity = '0' }, ms || 1900)
 }
+function showExitToast() { appToast('한 번 더 누르면 종료됩니다') }
 
 // ===== 푸시 알림: 이 폰의 FCM 토큰을 받아 Supabase(device_tokens)에 저장 =====
 let _pushWired = false

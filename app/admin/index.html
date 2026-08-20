@@ -665,7 +665,7 @@ async function loadAll(){
     sb.from('schedules').select('*').order('date',{ascending:true})
   ]);
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
-  renderStats();renderPending();renderNewReports();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();fillScheduleAptSelect();renderSchedules();
+  initRepSeenBaseline();renderStats();renderPending();renderNewReports();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();fillScheduleAptSelect();renderSchedules();
   loadMgrForms();
   loadChatAdmin();
   fillContractApt();
@@ -2085,6 +2085,8 @@ function toggleAptEdit(id,btn){ const e=$('aptedit-'+id); if(!e) return; const o
 function repSeen(aid){ return localStorage.getItem('aptsq_repseen_'+aid)||''; }
 function newRepCount(aid){ const s=repSeen(aid); return (REPORTS||[]).filter(r=>r.apartment_id===aid && (r.created_at||'')>s).length; }
 function markRepsSeen(aid){ const rs=(REPORTS||[]).filter(r=>r.apartment_id===aid); if(!rs.length) return; const mx=rs.reduce((m,r)=>((r.created_at||'')>m?(r.created_at||''):m),''); if(mx) localStorage.setItem('aptsq_repseen_'+aid,mx); }
+// 처음 한 번: 이미 올라와 있는 감리일지는 전부 '읽음'으로 기준선 잡기 (이후 새 것만 알림)
+function initRepSeenBaseline(){ if(localStorage.getItem('aptsq_rep_init')) return; (APTS||[]).forEach(a=>markRepsSeen(a.id)); localStorage.setItem('aptsq_rep_init','1'); }
 // 대시보드 홈: 단지별 '새 감리일지' 요약
 function renderNewReports(){
   const box=$('new-reports'); if(!box) return;

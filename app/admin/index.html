@@ -200,10 +200,9 @@
     <nav class="nav">
       <div class="lbl">한눈에 보기</div>
       <a data-sec="overview" class="on"><span class="ic">📊</span>대시보드</a>
-      <a data-sec="schedules"><span class="ic">🗓️</span>공사 일정<span class="cnt" id="nav-s">0</span></a>
       <div class="lbl">현장 관리</div>
-      <a data-sec="apts"><span class="ic">🏢</span>단지 관리<span class="cnt" id="nav-a">0</span></a>
-      <a data-sec="site"><span class="ic">🏗️</span>공사관리</a>
+      <a data-sec="apts"><span class="ic">🏗️</span>공사관리<span class="cnt" id="nav-a">0</span></a>
+      <a data-sec="schedules"><span class="ic">🗓️</span>공사 일정<span class="cnt" id="nav-s">0</span></a>
       <div class="lbl">앱 관리</div>
       <a data-sec="members"><span class="ic">👤</span>회원<span class="cnt" id="nav-m">0</span></a>
       <a data-group="comm"><span class="ic">💬</span>입주민 소통<span class="cnt" id="nav-comm" style="display:none"></span></a>
@@ -221,12 +220,6 @@
     <div id="groupbar"><div class="stab" id="groupbar-in"></div></div>
     <!-- 공사관리 단지 상세 탭 바 (단지 목록 → 클릭 시 표시) -->
     <div id="site-bar"><div class="stab" id="site-bar-in"></div></div>
-    <!-- 공사관리 (단지 목록) -->
-    <section id="sec-site">
-      <div class="head"><div><h2>🏗️ 공사관리</h2><div class="desc">단지를 클릭하면 그 단지의 감리일지·현장 현황·계약서를 한곳에서 봐요</div></div></div>
-      <div class="alert info"><div class="ah">🏗️ 단지별 상세</div>단지명을 누르면 <b>그 단지만</b> 필터링해서 감리일지·현장 현황·계약서를 탭으로 볼 수 있어요.</div>
-      <div id="site-list"></div>
-    </section>
     <!-- 개요 -->
     <section id="sec-overview" class="on">
       <div class="head"><div><h2>📊 대시보드</h2><div class="desc">아파트스퀘어 서비스 현황을 한눈에</div></div></div>
@@ -273,7 +266,8 @@
 
     <!-- 단지 관리 -->
     <section id="sec-apts">
-      <div class="head"><div><h2>🏢 단지 관리</h2><div class="desc">단지를 등록하고 담당 감리사를 배정하세요</div></div></div>
+      <div class="head"><div><h2>🏗️ 공사관리</h2><div class="desc">단지 등록·감리사 배정·공법/공정 설정 · 각 단지의 “상세 →”에서 감리일지·현장·계약 관리</div></div></div>
+      <div class="alert info"><div class="ah">🏗️ 단지별 상세</div>단지 카드의 <b>“📂 상세 →”</b>를 누르면 그 단지만 필터링해서 <b>감리일지·현장 현황·계약서</b>를 탭으로 볼 수 있어요.</div>
       <div class="card">
         <h3>➕ 단지 추가</h3>
         <div class="add-form">
@@ -593,7 +587,7 @@ const GROUPS={
   promo:{subs:[['cases','🏅 우수 사례'],['creds','📜 인증·이력'],['leaflets','📁 리플렛']]}
 };
 const SEC_GROUP={}; Object.keys(GROUPS).forEach(g=>GROUPS[g].subs.forEach(s=>SEC_GROUP[s[0]]=g));
-const SITE_SECS=['site','reports','field','contract']; // 공사관리(단지 목록·상세)
+const SITE_SECS=['apts','reports','field','contract']; // 공사관리(단지 목록=apts · 상세=reports/field/contract)
 function buildGroupbar(g,active){
   const box=$('groupbar-in');
   box.innerHTML=GROUPS[g].subs.map(s=>`<button data-sec="${s[0]}" class="${s[0]===active?'on':''}">${s[1]}</button>`).join('');
@@ -606,8 +600,8 @@ function showSection(sec){
   const g=SEC_GROUP[sec];
   if(SITE_SECS.includes(sec)){
     $('groupbar').classList.remove('show');
-    document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on', a.dataset.sec==='site'));
-    if(sec==='site'){ $('site-bar').classList.remove('show'); renderSiteList(); }
+    document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on', a.dataset.sec==='apts'));
+    if(sec==='apts'){ $('site-bar').classList.remove('show'); }
     else { renderSiteBar(sec); $('site-bar').classList.add('show'); }
   } else if(g){ buildGroupbar(g,sec); $('site-bar').classList.remove('show'); document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on', a.dataset.group===g)); }
   else { $('groupbar').classList.remove('show'); $('site-bar').classList.remove('show'); document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on', a.dataset.sec===sec)); }
@@ -634,7 +628,7 @@ function renderSiteList(){
     '</tbody></table></div>';
 }
 function openSite(id){ CUR_SITE=(APTS||[]).find(a=>a.id===id)||null; showSiteTab('reports'); }
-function backToSiteList(){ CUR_SITE=null; showSection('site'); }
+function backToSiteList(){ CUR_SITE=null; showSection('apts'); }
 function renderSiteBar(active){
   const box=$('site-bar-in'); const nm=CUR_SITE?esc(CUR_SITE.name):'';
   const tabs=[['reports','📄 감리일지'],['field','📷 현장 현황'],['contract','📑 계약서']];
@@ -2063,7 +2057,10 @@ function renderApts(){
       <div class="edit"><label>상태</label><select class="f f-status"><option value="scheduled" ${(!a.status||a.status==='scheduled')?'selected':''}>점검 예정</option><option value="in_progress" ${a.status==='in_progress'?'selected':''}>감리 진행 중</option><option value="done" ${a.status==='done'?'selected':''}>완료 (타 단지 피드엔 숨김)</option></select></div>
       <div class="aud"><label style="min-width:34px;font-size:12px;color:var(--mut2);font-weight:700">감리사</label><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
       ${dongProgHtml(a)}
-      <div style="text-align:right;margin-top:9px"><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line2)">
+        <button class="b save" onclick="openSite('${a.id}')">📂 감리일지·현장·계약 →</button>
+        <button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button>
+      </div>
     </div>`;
   }).join('');
 }

@@ -627,7 +627,7 @@ function renderSiteList(){
       <td><button class="b save" onclick="openSite('${a.id}')">관리 →</button></td></tr>`;}).join('')+
     '</tbody></table></div>';
 }
-function openSite(id){ CUR_SITE=(APTS||[]).find(a=>a.id===id)||null; showSiteTab('reports'); }
+function openSite(id){ CUR_SITE=(APTS||[]).find(a=>a.id===id)||null; if(CUR_SITE){ markRepsSeen(CUR_SITE.id); if(window.renderApts) renderApts(); } showSiteTab('reports'); }
 function backToSiteList(){ CUR_SITE=null; showSection('apts'); }
 function renderSiteBar(active){
   const box=$('site-bar-in'); const nm=CUR_SITE?esc(CUR_SITE.name):'';
@@ -2045,8 +2045,10 @@ function renderApts(){
     let now='공법을 선택하세요';
     if(st){ now = pc>=pt ? '✅ 공사 완료' : `현재 ${pc+1}단계 · ${esc(st[pc])}`; }
     const audNm=siteAuditor(a);
+    const nrc=newRepCount(a.id);
+    const repBadge=nrc>0?`<span title="새 감리일지 ${nrc}건" style="background:#e4544b;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:20px;margin-left:6px;vertical-align:middle">${nrc>99?'99+':nrc}</span>`:'';
     return `<div class="apt" data-id="${a.id}">
-      <div class="nm">${esc(a.name)||'<span style="color:#c3ccdb">(이름없음)</span>'}</div>
+      <div class="nm" style="cursor:pointer" onclick="openSite('${a.id}')">${esc(a.name)||'<span style="color:#c3ccdb">(이름없음)</span>'}${repBadge}</div>
       <div class="meta">${esc(a.region)||'지역 미정'} · ${esc(a.construction_type)||'공종 미정'} · 감리사 ${esc(audNm)}</div>
       <div class="bar"><i style="width:${pct}%"></i></div>
       <div class="prog"><span>${now}</span><span>${pc} / ${pt}</span></div>
@@ -2071,6 +2073,10 @@ function renderApts(){
   }).join('');
 }
 function toggleAptEdit(id,btn){ const e=$('aptedit-'+id); if(!e) return; const open=e.style.display==='none'; e.style.display=open?'block':'none'; if(btn) btn.innerHTML=open?'⚙️ 설정 ▴':'⚙️ 설정 ▾'; }
+// 단지별 '새 감리일지'(내가 아직 안 본) 알림 — 브라우저에 마지막 본 시각 저장
+function repSeen(aid){ return localStorage.getItem('aptsq_repseen_'+aid)||''; }
+function newRepCount(aid){ const s=repSeen(aid); return (REPORTS||[]).filter(r=>r.apartment_id===aid && (r.created_at||'')>s).length; }
+function markRepsSeen(aid){ const rs=(REPORTS||[]).filter(r=>r.apartment_id===aid); if(!rs.length) return; const mx=rs.reduce((m,r)=>((r.created_at||'')>m?(r.created_at||''):m),''); if(mx) localStorage.setItem('aptsq_repseen_'+aid,mx); }
 function methodOpts(cur){
   let o='<option value="">— 공법 미지정 —</option>';
   for(const k in window.STAGE_SETS){o+=`<option value="${k}" ${k===cur?'selected':''}>${esc(window.STAGE_SETS[k].label)}</option>`;}

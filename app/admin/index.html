@@ -1435,15 +1435,13 @@ async function makeFieldPPT(id, opts, btn){
     const dateStr=lastDate?lastDate.replace(/-/g,'.'):'';
     const proj=(project+'').trim();
     const covName=aptName(id)+' · '+proj;
-    let coverImg=null;
-    try{ const cb=await fetchBlob(withPhotos[0].photos[0]); if(cb) coverImg=await blobToDataURL(cb); }catch(e){}
-    // ===== 표지 =====
+    // ===== 표지 (사진 없이 · 브랜드 패널) =====
     const cover=P.addSlide(); cover.background={color:'FFFFFF'};
     cover.addShape(R.rect,{x:11.69,y:0,w:6.08,h:10,fill:{color:PANEL}});
     cover.addShape(R.rect,{x:11.28,y:0,w:1.08,h:10,fill:{color:NAVY}});
     cover.addShape(R.rect,{x:15.0,y:0,w:2.78,h:0.47,fill:{color:NAVY}});
-    cover.addShape(R.rect,{x:12.56,y:1.02,w:4.58,h:7.22,fill:{color:PHBG}});
-    if(coverImg) cover.addImage({data:coverImg,x:12.66,y:1.12,w:4.38,h:7.02,sizing:{type:'contain',w:4.38,h:7.02}});
+    if(logo) cover.addImage({data:logo,x:13.35,y:4.2,w:3.4,h:0.79});
+    cover.addText('준공 확인 사진첩',{x:12.4,y:5.12,w:4.9,h:0.4,fontSize:15,color:MUT,fontFace:FL,align:'center',margin:0});
     if(logo) cover.addImage({data:logo,x:0.78,y:0.67,w:2.44,h:0.57});
     cover.addText('COMPLETION PHOTO RECORD',{x:0.78,y:2.61,w:9,h:0.39,fontSize:18,color:NAVY,fontFace:FL,charSpacing:2,margin:0});
     cover.addText('준공 확인\n사진첩',{x:0.78,y:3.31,w:9.03,h:2.0,fontSize:54,bold:true,color:NAVY,fontFace:FT,margin:0});

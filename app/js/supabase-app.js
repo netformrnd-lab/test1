@@ -62,7 +62,7 @@ async function route() {
   currentRole = profile.role
   MY_ID = user.id; MY_NAME = profile.name || ''
   try { registerPush() } catch (e) {}
-  await loadChatReads()
+  loadChatReads().catch(() => {})   // 홈을 막지 않게 백그라운드로 (로그인 체감 속도 개선)
   // 현장 점검 저장 후 돌아왔을 때: 해당 단지 감리일지 목록으로 바로 이동
   const openAptId = new URLSearchParams(location.search).get('openApt')
   if (openAptId && profile.role === 'auditor') {

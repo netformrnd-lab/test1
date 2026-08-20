@@ -647,12 +647,18 @@ const GROUPS={
 };
 const SEC_GROUP={}; Object.keys(GROUPS).forEach(g=>GROUPS[g].subs.forEach(s=>SEC_GROUP[s[0]]=g));
 const SITE_SECS=['apts','reports','field','contract']; // 공사관리(단지 목록=apts · 상세=reports/field/contract)
+const TABCNT_CSS='margin-left:6px;background:#e4544b;color:#fff;font-size:10px;font-weight:800;min-width:17px;height:17px;border-radius:99px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle';
 function buildGroupbar(g,active){
   const box=$('groupbar-in');
-  box.innerHTML=GROUPS[g].subs.map(s=>`<button data-sec="${s[0]}" class="${s[0]===active?'on':''}">${s[1]}</button>`).join('');
+  box.innerHTML=GROUPS[g].subs.map(s=>{
+    let extra='';
+    if(s[0]==='chat') extra=`<span id="gb-chat-badge" style="${TABCNT_CSS};display:${CHAT_UNREAD>0?'inline-flex':'none'}">${CHAT_UNREAD>99?'99+':CHAT_UNREAD}</span>`;
+    return `<button data-sec="${s[0]}" class="${s[0]===active?'on':''}">${s[1]}${extra}</button>`;
+  }).join('');
   box.querySelectorAll('button').forEach(b=>b.onclick=()=>showSection(b.dataset.sec));
   $('groupbar').classList.add('show');
 }
+function updateChatTabBadge(n){ const b=$('gb-chat-badge'); if(!b) return; if(n>0){ b.textContent=n>99?'99+':n; b.style.display='inline-flex'; } else b.style.display='none'; }
 function showSection(sec){
   document.querySelectorAll('main section').forEach(s=>s.classList.remove('on'));
   const el=$('sec-'+sec); if(el) el.classList.add('on');
@@ -727,7 +733,24 @@ async function loadAll(){
   loadCredentialsAdmin();
   loadLeafletsAdmin();
   startChatBadgePoll();
+  startDataPoll();
 }
+// 새 감리일지·현장사진이 폰에서 올라오면 새로고침 없이 자동 반영 (가벼운 폴링)
+let DATA_POLL=null, REP_SIG='', FLD_SIG='';
+function dataSig(arr){ return (arr||[]).length+':'+(((arr||[])[0]||{}).id||''); }
+async function refreshDataLight(){
+  try{
+    const [r,f]=await Promise.all([
+      sb.from('reports').select('*').order('created_at',{ascending:false}),
+      sb.from('field_updates').select('*').order('created_at',{ascending:false})
+    ]);
+    let changed=false;
+    if(r.data){ const sig=dataSig(r.data); if(sig!==REP_SIG){ REP_SIG=sig; REPORTS=r.data; changed=true; } }
+    if(f.data){ const sig=dataSig(f.data); if(sig!==FLD_SIG){ FLD_SIG=sig; FIELDS=f.data; changed=true; } }
+    if(changed){ renderNewReports(); renderStats(); renderApts(); if($('sec-reports')&&$('sec-reports').classList.contains('on')) renderReports(); refreshFieldNewPhotos&&refreshFieldNewPhotos(); }
+  }catch(e){}
+}
+function startDataPoll(){ if(DATA_POLL) return; REP_SIG=dataSig(REPORTS); FLD_SIG=dataSig(FIELDS); DATA_POLL=setInterval(refreshDataLight, 15000); }
 /* ===== 인증·이력 (credentials) ===== */
 let CREDS_A=[];
 async function uploadCredImageFile(file){
@@ -1013,7 +1036,7 @@ async function deleteMgrForm(id){
 }
 
 /* ===== 채팅 (chat_messages) ===== */
-let CHAT_MSGS=[], CHAT_CUR='', CHAT_POLL=null, CHAT_SIG='';
+let CHAT_MSGS=[], CHAT_CUR='', CHAT_POLL=null, CHAT_SIG='', CHAT_UNREAD=0;
 function chatThreadName(th, aptId){
   if(th && th.indexOf('apt:')===0){ const a=APTS.find(x=>('apt:'+x.id)===th||x.id===aptId); return '🏢 '+(a?a.name:'단지'); }
   return '🙋 손님 '+String(th||'').replace('guest:','').slice(0,6);
@@ -1051,7 +1074,7 @@ function renderChatThreads(){
     </div>`;
   }).join('');
   const navc=$('nav-chat'); if(navc){ navc.textContent=totalUnread||threads.length; navc.style.background=totalUnread?'#e4544b':''; navc.style.color=totalUnread?'#fff':''; }
-  updateCommBadge(totalUnread);
+  CHAT_UNREAD=totalUnread; updateCommBadge(totalUnread); updateChatTabBadge(totalUnread);
 }
 // 사이드바 '입주민 소통' 항목에 안읽은 채팅 수 뱃지
 function updateCommBadge(n){

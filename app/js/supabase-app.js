@@ -429,16 +429,26 @@ function showManagerFallback(url) {
   }
   box.value = url; box.focus(); box.select()
 }
+// 네이티브 공유(카톡 등 공유 목록) → 앱(WebView)에선 Capacitor Share, 브라우저에선 navigator.share
+async function nativeShare(opts) {
+  const S = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share
+  if (S && S.share) {
+    try { await S.share(opts); return true }
+    catch (e) { if (e && /cancel/i.test((e.message || '') + (e.code || ''))) return true }  // 취소는 성공 취급
+  }
+  if (navigator.share) {
+    try { await navigator.share({ title: opts.title, text: opts.text, url: opts.url }); return true }
+    catch (e) { if (e && e.name === 'AbortError') return true }
+  }
+  return false  // 공유 수단 없음 → 호출측에서 복사로 폴백
+}
 // 링크 공유 우선 (제일 편함) → 공유 미지원/실패 시 자동으로 복사로
 async function shareManagerDoc() {
   const url = managerFormUrl()
   const name = currentApt ? currentApt.name : ''
   const text = '[아파트스퀘어] ' + (name ? name + ' ' : '') + '관리소장님 작성지입니다. 아래 링크를 열어 간단히 작성해 주세요.'
-  if (navigator.share) {
-    try { await navigator.share({ title: '관리소장님 작성지', text, url }); return }
-    catch (e) { if (e && e.name === 'AbortError') return }  // 취소는 무시, 그 외엔 복사로
-  }
-  copyManagerDoc()
+  const ok = await nativeShare({ title: '관리소장님 작성지', text, url, dialogTitle: '카톡 등으로 보내기' })
+  if (!ok) copyManagerDoc()
 }
 window.shareManagerDoc = shareManagerDoc
 // 소장님 작성 화면 미리보기 (새 탭)
@@ -1171,7 +1181,8 @@ function enableDragScroll (el) {
 }
 window.loadLeaflets = loadLeaflets
 window.shareLeaflet = async function (u) {
-  try { if (navigator.share) { await navigator.share({ title: '아파트스퀘어 리플렛', url: u }) } else { window.open(u, '_blank', 'noopener') } } catch (e) {}
+  const ok = await nativeShare({ title: '아파트스퀘어 리플렛', url: u, dialogTitle: '리플렛 공유' })
+  if (!ok) { try { window.open(u, '_blank', 'noopener') } catch (e) {} }
 }
 
 // ── 감리일지: 목록 · 작성 · 상세 ─────────────────────────

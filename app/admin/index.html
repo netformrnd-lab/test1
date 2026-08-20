@@ -139,6 +139,8 @@
   .add-form input:focus{border-color:var(--blue)}
 
   /* ===== 시안 공통 컴포넌트 (페이지 내부 디자인) ===== */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
   .tiles{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
   .tile{position:relative;overflow:hidden}
   .tile .edge{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
@@ -232,9 +234,15 @@
         <div class="tile good"><span class="edge"></span><div class="v" id="t-auditors">0</div><div class="k">감리사</div></div>
         <div class="tile"><span class="edge"></span><div class="v" id="t-apts">0</div><div class="k">등록 단지</div></div>
       </div>
-      <div class="card">
-        <h3>⏳ 승인 대기 회원 <span class="badge" id="pend-badge">0</span></h3>
-        <div id="pending-list"></div>
+      <div class="grid2">
+        <div class="card">
+          <h3>⏳ 승인 대기 회원 <span class="badge" id="pend-badge">0</span></h3>
+          <div id="pending-list"></div>
+        </div>
+        <div class="card">
+          <h3>📄 새 감리일지 <span class="badge" id="newrep-badge">0</span></h3>
+          <div id="new-reports"></div>
+        </div>
       </div>
     </section>
 
@@ -627,7 +635,7 @@ function renderSiteList(){
       <td><button class="b save" onclick="openSite('${a.id}')">관리 →</button></td></tr>`;}).join('')+
     '</tbody></table></div>';
 }
-function openSite(id){ CUR_SITE=(APTS||[]).find(a=>a.id===id)||null; if(CUR_SITE){ markRepsSeen(CUR_SITE.id); if(window.renderApts) renderApts(); } showSiteTab('reports'); }
+function openSite(id){ CUR_SITE=(APTS||[]).find(a=>a.id===id)||null; if(CUR_SITE){ markRepsSeen(CUR_SITE.id); if(window.renderApts) renderApts(); if(window.renderNewReports) renderNewReports(); } showSiteTab('reports'); }
 function backToSiteList(){ CUR_SITE=null; showSection('apts'); }
 function renderSiteBar(active){
   const box=$('site-bar-in'); const nm=CUR_SITE?esc(CUR_SITE.name):'';
@@ -657,7 +665,7 @@ async function loadAll(){
     sb.from('schedules').select('*').order('date',{ascending:true})
   ]);
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
-  renderStats();renderPending();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();fillScheduleAptSelect();renderSchedules();
+  renderStats();renderPending();renderNewReports();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();fillScheduleAptSelect();renderSchedules();
   loadMgrForms();
   loadChatAdmin();
   fillContractApt();
@@ -2077,6 +2085,15 @@ function toggleAptEdit(id,btn){ const e=$('aptedit-'+id); if(!e) return; const o
 function repSeen(aid){ return localStorage.getItem('aptsq_repseen_'+aid)||''; }
 function newRepCount(aid){ const s=repSeen(aid); return (REPORTS||[]).filter(r=>r.apartment_id===aid && (r.created_at||'')>s).length; }
 function markRepsSeen(aid){ const rs=(REPORTS||[]).filter(r=>r.apartment_id===aid); if(!rs.length) return; const mx=rs.reduce((m,r)=>((r.created_at||'')>m?(r.created_at||''):m),''); if(mx) localStorage.setItem('aptsq_repseen_'+aid,mx); }
+// 대시보드 홈: 단지별 '새 감리일지' 요약
+function renderNewReports(){
+  const box=$('new-reports'); if(!box) return;
+  const list=(APTS||[]).map(a=>({a,n:newRepCount(a.id)})).filter(x=>x.n>0).sort((x,y)=>y.n-x.n);
+  const total=list.reduce((s,x)=>s+x.n,0);
+  const badge=$('newrep-badge'); if(badge){ badge.textContent=total; badge.style.background=total?'#e4544b':''; badge.style.color=total?'#fff':''; }
+  if(!list.length){ box.innerHTML='<div class="empty">새로 올라온 감리일지가 없어요 👍</div>'; return; }
+  box.innerHTML='<table><tbody>'+list.map(x=>`<tr style="cursor:pointer" onclick="openSite('${x.a.id}')"><td style="font-weight:700">🏢 ${esc(x.a.name)}</td><td style="color:var(--mut);font-size:11px">눌러서 보기</td><td style="text-align:right"><span style="background:#e4544b;color:#fff;font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px">${x.n}건</span></td></tr>`).join('')+'</tbody></table>';
+}
 function methodOpts(cur){
   let o='<option value="">— 공법 미지정 —</option>';
   for(const k in window.STAGE_SETS){o+=`<option value="${k}" ${k===cur?'selected':''}>${esc(window.STAGE_SETS[k].label)}</option>`;}

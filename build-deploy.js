@@ -70,6 +70,9 @@ for (const f of fs.readdirSync(APP + "/assets")) {
 if (fs.existsSync(APP + "/manifest.json")) fs.copyFileSync(APP + "/manifest.json", OUT + "/manifest.json");
 if (fs.existsSync(APP + "/privacy.html")) fs.copyFileSync(APP + "/privacy.html", OUT + "/privacy.html");
 
+// --- 관리자 웹 푸시 서비스 워커 (루트 경로에 있어야 FCM이 인식) ---
+if (fs.existsSync(APP + "/firebase-messaging-sw.js")) fs.copyFileSync(APP + "/firebase-messaging-sw.js", OUT + "/firebase-messaging-sw.js");
+
 // 참고: functions/ (서버 함수)는 정적 업로더가 거부하므로 배포 번들에서 제외한다.
 // 푸시 발송은 별도 Cloudflare Worker(cloudflare-push-worker/worker.js)로 배포한다.
 

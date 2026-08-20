@@ -526,6 +526,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="../js/stages.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script>
 const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
@@ -609,6 +611,33 @@ async function gate(){
   $('me-nm').textContent=nm; $('me-av').textContent=nm.slice(0,1);
   $('login').style.display='none';$('app').style.display='block';
   loadAll();
+  registerAdminWebPush();
+}
+
+// ===== 관리자 대시보드 웹 푸시 (브라우저 알림) =====
+const FCM_CONFIG={apiKey:'AIzaSyCxhisDzLon1_l1-gB6Wzrd1opC537Jocw',authDomain:'aptsquare-4cb7b.firebaseapp.com',projectId:'aptsquare-4cb7b',storageBucket:'aptsquare-4cb7b.firebasestorage.app',messagingSenderId:'592390365459',appId:'1:592390365459:web:a02bd61c8ca615f368bae6'};
+const FCM_VAPID='BDXaVU_JYgZvqUVn_r8t9JleDQWfFdxtByksHjS8WwAs_L9_T8UwR1ndBz5txl0VaX8Bsp6MHCFrauKinSH0-ls';
+let _adminPushDone=false;
+async function registerAdminWebPush(){
+  try{
+    if(_adminPushDone) return; _adminPushDone=true;
+    if(!('serviceWorker' in navigator)||!('Notification' in window)||!window.firebase) return;
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted') return;
+    const reg=await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    if(!firebase.apps.length) firebase.initializeApp(FCM_CONFIG);
+    const messaging=firebase.messaging();
+    const token=await messaging.getToken({vapidKey:FCM_VAPID,serviceWorkerRegistration:reg});
+    if(token){
+      const {data:{user}}=await sb.auth.getUser();
+      if(user) await sb.from('device_tokens').upsert({token,user_id:user.id,platform:'web',updated_at:new Date().toISOString()},{onConflict:'token'});
+    }
+    // 대시보드를 보고 있을 때(포그라운드) 들어온 알림 표시
+    messaging.onMessage((payload)=>{
+      const n=(payload&&payload.notification)||{};
+      try{ new Notification(n.title||'알림',{body:n.body||''}); }catch(e){}
+    });
+  }catch(e){ console.warn('web push 등록 실패',e); }
 }
 
 // 사이드바 이동 (그룹형 · 묶음 항목은 상단 탭으로 세부 화면 전환)

@@ -1428,37 +1428,66 @@ async function makeFieldPPT(id, opts, btn){
     await ensurePptx();
     const logo=await assetDataURL('../assets/apartsquare-logo.png');   // 아파트스퀘어 로고
     const LR=320/1379;                                                 // 로고 세로/가로 비
-    const P=new PptxGenJS(); P.defineLayout({name:'W',width:13.333,height:7.5}); P.layout='W';
-    const FF='맑은 고딕';
-    // 표지
-    const cover=P.addSlide(); cover.background={color:'EEF1F6'};
-    if(logo) cover.addImage({data:logo, x:0.8, y:2.4, w:4.6, h:4.6*LR});
-    cover.addText('준공 사진첩',{x:0.85,y:3.75,w:6,h:0.5,fontSize:22,bold:true,color:'1F2C5C',fontFace:FF});
-    cover.addText(project,{x:0.85,y:4.3,w:8,h:0.4,fontSize:15,color:'5C6580',fontFace:FF});
-    cover.addText(aptName(id),{x:0.85,y:4.72,w:8,h:0.4,fontSize:12,color:'8B93A8',fontFace:FF});
-    cover.addText('아파트스퀘어\nsquare1600@naver.com · 1600-6069',{x:7.3,y:3.8,w:5.2,h:0.7,fontSize:12,color:'5C6580',fontFace:FF});
-    // 공정별 페이지 (사진 4장씩 2×2)
-    const POS=[[1.0,1.3],[6.83,1.3],[1.0,4.4],[6.83,4.4]]; const IW=5.5,IH=2.9;   // 원본 비율(≈1.9:1)·여백 있게
-    let step=0, done=0;
+    const P=new PptxGenJS(); P.defineLayout({name:'T',width:17.78,height:10}); P.layout='T';
+    const R=P.ShapeType, FT='Calibri', FL='맑은 고딕';
+    const NAVY='18326A',DNAVY='102752',ACCENT='4A90E2',DARK='222222',MUT='666666',PANEL='F8F9FA',PHBG='E7EDF5',LINE='E0E0E0';
+    const lastDate=(opts&&opts.date)?opts.date:(withPhotos.map(f=>(f.created_at||'').slice(0,10)).filter(Boolean).sort().pop()||'');
+    const dateStr=lastDate?lastDate.replace(/-/g,'.'):'';
+    const proj=(project+'').trim();
+    const covName=aptName(id)+' · '+proj;
+    let coverImg=null;
+    try{ const cb=await fetchBlob(withPhotos[0].photos[0]); if(cb) coverImg=await blobToDataURL(cb); }catch(e){}
+    // ===== 표지 =====
+    const cover=P.addSlide(); cover.background={color:'FFFFFF'};
+    cover.addShape(R.rect,{x:11.69,y:0,w:6.08,h:10,fill:{color:PANEL}});
+    cover.addShape(R.rect,{x:11.28,y:0,w:1.08,h:10,fill:{color:NAVY}});
+    cover.addShape(R.rect,{x:15.0,y:0,w:2.78,h:0.47,fill:{color:NAVY}});
+    cover.addShape(R.rect,{x:12.56,y:1.02,w:4.58,h:7.22,fill:{color:PHBG}});
+    if(coverImg) cover.addImage({data:coverImg,x:12.56,y:1.02,w:4.58,h:7.22,sizing:{type:'cover',w:4.58,h:7.22}});
+    if(logo) cover.addImage({data:logo,x:0.78,y:0.67,w:2.44,h:0.57});
+    cover.addText('COMPLETION PHOTO RECORD',{x:0.78,y:2.61,w:9,h:0.39,fontSize:18,color:NAVY,fontFace:FL,charSpacing:2,margin:0});
+    cover.addText('준공 확인\n사진첩',{x:0.78,y:3.31,w:9.03,h:2.0,fontSize:54,bold:true,color:NAVY,fontFace:FT,margin:0});
+    cover.addShape(R.rect,{x:0.78,y:5.89,w:1.56,h:0.05,fill:{color:NAVY}});
+    cover.addText(covName,{x:0.78,y:6.28,w:9.17,h:0.5,fontSize:24,color:DARK,fontFace:FT,margin:0});
+    cover.addText(dateStr,{x:0.78,y:7.0,w:4.58,h:0.39,fontSize:17,color:MUT,fontFace:FL,margin:0});
+    cover.addText('사진으로 함께 확인하는 공사 기록',{x:12.25,y:8.58,w:4.58,h:0.39,fontSize:14,color:MUT,fontFace:FL,align:'center',margin:0});
+    // ===== 공정별 내용 (사진 4장/슬라이드) =====
+    const boxes=[[0.78,2.61],[9.06,2.61],[0.78,5.75],[9.06,5.75]]; const BW=7.94,BH=2.78;
+    let step=0, done=0, page=1;
     for(const f of withPhotos){
       step++;
       const photos=f.photos;
       for(let c=0;c<photos.length;c+=4){
-        const chunk=photos.slice(c,c+4);
+        const chunk=photos.slice(c,c+4); page++;
         const s=P.addSlide(); s.background={color:'FFFFFF'};
-        s.addText(step+'. '+(f.title||'현장'),{x:0.6,y:0.34,w:6.5,h:0.5,fontSize:14,color:'444444',fontFace:FF});
-        s.addText(project,{x:5,y:0.26,w:5.9,h:0.6,align:'right',fontSize:23,bold:true,color:'1F2C5C',fontFace:FF});
-        if(logo) s.addImage({data:logo, x:11.25, y:0.36, w:1.6, h:1.6*LR});
-        s.addShape(P.ShapeType.line,{x:0.6,y:1.08,w:12.13,h:0,line:{color:'DDDDDD',width:1}});
-        for(let i=0;i<chunk.length;i++){
-          const b=await fetchBlob(chunk[i]); if(!b) continue;
-          const data=await blobToDataURL(b); if(!data) continue;
-          const p=POS[i];
-          s.addImage({data:data,x:p[0],y:p[1],w:IW,h:IH,sizing:{type:'cover',w:IW,h:IH}});
-          done++; if(btn) btn.textContent=`만드는 중… ${done}/${total}`;
+        s.addShape(R.rect,{x:0.78,y:0.61,w:0.44,h:0.28,fill:{color:NAVY}});
+        s.addText('아파트스퀘어 준공 확인 사진첩',{x:1.44,y:0.6,w:6,h:0.4,fontSize:14,color:MUT,fontFace:FL,valign:'middle',margin:0});
+        if(logo) s.addImage({data:logo,x:14.72,y:0.58,w:2.28,h:0.53});
+        s.addShape(R.line,{x:0.78,y:1.44,w:16.22,h:0,line:{color:LINE,width:1}});
+        s.addText(step+'. '+(f.title||'현장'),{x:0.78,y:1.75,w:4.25,h:0.5,fontSize:22,bold:true,color:NAVY,fontFace:FT,valign:'middle',margin:0});
+        s.addText(proj,{x:5.11,y:1.75,w:11.9,h:0.53,fontSize:25,bold:true,color:DARK,fontFace:FT,align:'right',valign:'middle',margin:0});
+        for(let i=0;i<4;i++){ const x=boxes[i][0],y=boxes[i][1];
+          s.addShape(R.rect,{x,y,w:BW,h:BH,fill:{color:PANEL},line:{color:LINE,width:1}});
+          if(chunk[i]){ const b=await fetchBlob(chunk[i]); if(b){ const data=await blobToDataURL(b); if(data){ s.addImage({data,x,y,w:BW,h:BH,sizing:{type:'cover',w:BW,h:BH}}); done++; if(btn) btn.textContent=`만드는 중… ${done}/${total}`; } } }
         }
+        s.addShape(R.line,{x:0.78,y:9.03,w:16.22,h:0,line:{color:LINE,width:1}});
+        s.addText('아파트스퀘어 준공 확인 사진첩',{x:0.78,y:9.24,w:6,h:0.32,fontSize:14,color:MUT,fontFace:FL,valign:'middle',margin:0});
+        s.addText(String(page).padStart(2,'0'),{x:16.31,y:9.2,w:0.69,h:0.36,fontSize:14,color:MUT,fontFace:FL,align:'right',valign:'middle',margin:0});
       }
     }
+    // ===== 마무리 =====
+    const fin=P.addSlide(); fin.background={color:'FFFFFF'};
+    fin.addShape(R.rect,{x:13.67,y:0,w:1.33,h:10,fill:{color:ACCENT}});
+    fin.addShape(R.rect,{x:14.67,y:0,w:3.11,h:10,fill:{color:NAVY}});
+    fin.addShape(R.rect,{x:14.67,y:0,w:3.11,h:0.33,fill:{color:DNAVY}});
+    fin.addShape(R.rect,{x:14.67,y:9.33,w:3.11,h:0.67,fill:{color:DNAVY}});
+    if(logo) fin.addImage({data:logo,x:0.78,y:0.67,w:2.44,h:0.57});
+    fin.addText('COMPLETION PHOTO RECORD',{x:0.78,y:3.08,w:9,h:0.39,fontSize:18,color:NAVY,fontFace:FL,charSpacing:2,margin:0});
+    fin.addText('함께 확인한\n공사 기록',{x:0.78,y:3.78,w:10.28,h:1.89,fontSize:52,bold:true,color:NAVY,fontFace:FT,margin:0});
+    fin.addShape(R.rect,{x:0.78,y:6.28,w:1.56,h:0.05,fill:{color:NAVY}});
+    fin.addText(covName,{x:0.78,y:6.69,w:10,h:0.5,fontSize:24,color:DARK,fontFace:FT,margin:0});
+    fin.addText(dateStr,{x:0.78,y:7.39,w:4.58,h:0.39,fontSize:17,color:MUT,fontFace:FL,margin:0});
+    fin.addText('APARTMENT SQUARE',{x:14.97,y:8.03,w:2.5,h:0.33,fontSize:13,color:'FFFFFF',fontFace:FL,align:'center',margin:0});
     if(btn) btn.textContent='저장 중…';
     await P.writeFile({fileName: safeName(aptName(id)+(tag?' '+tag.replace(/[()]/g,'').trim():'')+' 준공사진첩')+'.pptx'});
   }catch(e){ alert('PPT 생성 오류: '+e.message); }

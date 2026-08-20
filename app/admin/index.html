@@ -254,6 +254,16 @@
           <div id="new-reports"></div>
         </div>
       </div>
+      <div class="grid2">
+        <div class="card">
+          <h3>🧑‍🔧 감리사별 담당 단지</h3>
+          <div id="assign-list"></div>
+        </div>
+        <div class="card">
+          <h3>⚠️ 미배정 단지 <span class="badge" id="unassigned-badge">0</span></h3>
+          <div id="unassigned-list"></div>
+        </div>
+      </div>
     </section>
 
     <!-- 회원 관리 -->
@@ -675,7 +685,7 @@ async function loadAll(){
     sb.from('schedules').select('*').order('date',{ascending:true})
   ]);
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
-  initRepSeenBaseline();renderStats();renderPending();renderNewReports();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();fillScheduleAptSelect();renderSchedules();
+  initRepSeenBaseline();renderStats();renderPending();renderNewReports();renderAssignments();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();fillScheduleAptSelect();renderSchedules();
   loadMgrForms();
   loadChatAdmin();
   fillContractApt();
@@ -2137,6 +2147,30 @@ function renderNewReports(){
   const badge=$('newrep-badge'); if(badge){ badge.textContent=total; badge.style.background=total?'#e4544b':''; badge.style.color=total?'#fff':''; }
   if(!list.length){ box.innerHTML='<div class="empty">새로 올라온 감리일지가 없어요 👍</div>'; return; }
   box.innerHTML='<table><tbody>'+list.map(x=>`<tr style="cursor:pointer" onclick="openSite('${x.a.id}')"><td style="font-weight:700">🏢 ${esc(x.a.name)}</td><td style="color:var(--mut);font-size:11px">눌러서 보기</td><td style="text-align:right"><span style="background:#e4544b;color:#fff;font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px">${x.n}건</span></td></tr>`).join('')+'</tbody></table>';
+}
+// 대시보드 홈: 감리사별 담당 단지 + 미배정 단지
+function renderAssignments(){
+  const auds=(MEMBERS||[]).filter(m=>m.role==='auditor');
+  const box=$('assign-list');
+  if(box){
+    box.innerHTML = !auds.length ? '<div class="empty">등록된 감리사가 없어요.</div>' :
+      '<table><tbody>'+auds.map(m=>{
+        const mine=(APTS||[]).filter(a=>a.auditor_id===m.id);
+        const chips=mine.length?mine.map(a=>`<span class="pill blue" style="cursor:pointer;margin:2px 4px 2px 0;display:inline-block" onclick="openSite('${a.id}')">${esc(a.name)}</span>`).join(''):'<span style="color:var(--mut);font-size:12px">담당 단지 없음</span>';
+        return `<tr><td style="font-weight:700;white-space:nowrap;vertical-align:top;width:96px;padding-top:12px">${esc(m.name||m.email)}<div style="font-size:11px;color:var(--mut);font-weight:600">${mine.length}곳</div></td><td>${chips}</td></tr>`;
+      }).join('')+'</tbody></table>';
+  }
+  const un=(APTS||[]).filter(a=>!(a.auditor_id && (MEMBERS||[]).some(m=>m.id===a.auditor_id)));
+  const ubadge=$('unassigned-badge'); if(ubadge){ ubadge.textContent=un.length; ubadge.style.background=un.length?'#e4544b':''; ubadge.style.color=un.length?'#fff':''; }
+  const ubox=$('unassigned-list');
+  if(ubox){
+    ubox.innerHTML = un.length ? '<table><tbody>'+un.map(a=>`<tr style="cursor:pointer" onclick="assignApt('${a.id}')"><td style="font-weight:700">🏢 ${esc(a.name)}</td><td style="color:var(--mut)">${esc(a.region)||''}</td><td style="text-align:right"><span class="pill no">배정하기 →</span></td></tr>`).join('')+'</tbody></table>' : '<div class="empty">모든 단지에 감리사가 배정됐어요 👍</div>';
+  }
+}
+// 미배정 단지 클릭 → 공사관리에서 그 단지 설정(감리사 배정) 열기
+function assignApt(id){
+  showSection('apts');
+  setTimeout(()=>{ const e=$('aptedit-'+id); if(e){ e.style.display='block'; const card=e.closest('.apt'); if(card){ const b=card.querySelector('button[onclick^="toggleAptEdit"]'); if(b) b.innerHTML='⚙️ 설정 ▴'; card.scrollIntoView({behavior:'smooth',block:'center'}); } } }, 70);
 }
 function methodOpts(cur){
   let o='<option value="">— 공법 미지정 —</option>';

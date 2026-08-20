@@ -2536,10 +2536,14 @@ else document.addEventListener('DOMContentLoaded', boot)
     if (!A || !A.addListener) return
     wired = true
     const HOME = ['s07', 's11']
+    let lastBack = 0
     A.addListener('backButton', function () {
       const onHome = HOME.indexOf(NAV_CUR) !== -1 || NAV_HIST.length === 0
-      if (!onHome) { try { window.goBack() } catch (e) {} }
-      else { try { A.exitApp() } catch (e) {} }
+      if (!onHome) { try { window.goBack() } catch (e) {} return }
+      // 홈: 한 번 더(2초 내) 눌러야 종료
+      const now = Date.now()
+      if (now - lastBack < 2000) { try { A.exitApp() } catch (e) {} }
+      else { lastBack = now; showExitToast() }
     })
   }
   wire()
@@ -2547,6 +2551,19 @@ else document.addEventListener('DOMContentLoaded', boot)
   window.addEventListener('load', wire)
   setTimeout(wire, 1500)
 })()
+
+// 뒤로가기 종료 안내 토스트
+function showExitToast() {
+  let t = document.getElementById('exit-toast')
+  if (!t) {
+    t = document.createElement('div'); t.id = 'exit-toast'
+    t.textContent = '한 번 더 누르면 종료됩니다'
+    t.style.cssText = 'position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:rgba(28,34,52,.92);color:#fff;padding:10px 18px;border-radius:22px;font-size:13px;font-weight:600;z-index:99999;opacity:0;transition:opacity .22s;pointer-events:none;max-width:80%;text-align:center;white-space:nowrap'
+    document.body.appendChild(t)
+  }
+  t.style.opacity = '1'
+  clearTimeout(t._to); t._to = setTimeout(() => { t.style.opacity = '0' }, 1800)
+}
 
 // ===== 푸시 알림: 이 폰의 FCM 토큰을 받아 Supabase(device_tokens)에 저장 =====
 let _pushWired = false

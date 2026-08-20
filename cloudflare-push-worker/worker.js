@@ -128,11 +128,14 @@ async function auditors_(env, aptId) {
 }
 async function chatRecipients_(env, rec) {
   const thread = rec.thread || ''
+  // apartment_id 컬럼이 비어 있으면 스레드 이름 'apt:<id>' 에서 단지 ID를 뽑아 쓴다
+  let aptId = rec.apartment_id
+  if (!aptId && thread.indexOf('apt:') === 0) aptId = thread.slice(4)
   let ids = []
   if (thread.indexOf('guest:') === 0) {
     ids = await admins_(env)
   } else {
-    const [res, aud, adm] = await Promise.all([residents_(env, rec.apartment_id), auditors_(env, rec.apartment_id), admins_(env)])
+    const [res, aud, adm] = await Promise.all([residents_(env, aptId), auditors_(env, aptId), admins_(env)])
     ids = [...new Set([...res, ...aud, ...adm])]
   }
   if (rec.sender_id) ids = ids.filter(id => id !== rec.sender_id)

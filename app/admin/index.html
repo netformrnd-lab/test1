@@ -531,7 +531,9 @@ const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=(id)=>document.getElementById(id);
-let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],MGRFORMS=[];
+let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],MGRFORMS=[],APT_AUD={};
+// 단지의 감리사 목록: 조인(APT_AUD) 있으면 그걸, 없으면 대표(auditor_id) 하나
+function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return a.auditor_id?[a.auditor_id]:[]; }
 let RPHOTOS={}; // 보고서별 편집중 사진 목록 {reportId:[url,...]}
 let OPEN_REP_GROUPS=new Set(); // 펼쳐둔 단지 그룹 (저장/업로드 후에도 유지)
 let FPHOTOS={}; // 현장기록별 편집중 사진 목록 {fieldId:[url,...]}
@@ -685,6 +687,7 @@ async function loadAll(){
     sb.from('schedules').select('*').order('date',{ascending:true})
   ]);
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
+  APT_AUD={}; try{ const {data:aa}=await sb.from('apartment_auditors').select('*'); (aa||[]).forEach(x=>{(APT_AUD[x.apartment_id]=APT_AUD[x.apartment_id]||[]).push(x.auditor_id);}); }catch(e){}
   initRepSeenBaseline();renderStats();renderPending();renderNewReports();renderAssignments();renderMembers();renderApts();fillAuditorSelect();renderNotices();renderCases();renderReports();fillFieldAptSelect();renderField();refreshFieldNewPhotos();fillMemberAddForm();fillScheduleAptSelect();renderSchedules();
   loadMgrForms();
   loadChatAdmin();
@@ -2125,7 +2128,9 @@ function renderApts(){
         <div class="edit"><label>공법</label><select class="f f-method" onchange="onMethodChange(this)">${methodOpts(a.method)}</select></div>
         <div class="edit"><label>공정</label><select class="f f-stage">${stageOpts(a.method,pc)}</select></div>
         <div class="edit"><label>상태</label><select class="f f-status"><option value="scheduled" ${(!a.status||a.status==='scheduled')?'selected':''}>점검 예정</option><option value="in_progress" ${a.status==='in_progress'?'selected':''}>감리 진행 중</option><option value="done" ${a.status==='done'?'selected':''}>완료 (타 단지 피드엔 숨김)</option></select></div>
-        <div class="aud"><label style="min-width:34px;font-size:12px;color:var(--mut2);font-weight:700">감리사</label><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
+        <div class="aud"><label style="min-width:34px;font-size:12px;color:var(--mut2);font-weight:700">대표</label><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
+        <div style="margin-top:9px;font-size:11.5px;color:var(--mut2);font-weight:700">함께 담당 감리사 <span style="color:var(--mut);font-weight:600">(여러 명 가능 · 입주민에겐 대표만 표시)</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:6px">${auds.length?auds.map(m=>`<label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" class="f-aud-team" value="${m.id}" ${aptAuditors(a).includes(m.id)?'checked':''}> ${esc(m.name||m.email)}</label>`).join(''):'<span style="color:var(--mut);font-size:12px">등록된 감리사 없음</span>'}</div>
         ${dongProgHtml(a)}
         <div style="text-align:right;margin-top:9px"><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button></div>
       </div>
@@ -2155,12 +2160,12 @@ function renderAssignments(){
   if(box){
     box.innerHTML = !auds.length ? '<div class="empty">등록된 감리사가 없어요.</div>' :
       '<table><tbody>'+auds.map(m=>{
-        const mine=(APTS||[]).filter(a=>a.auditor_id===m.id);
+        const mine=(APTS||[]).filter(a=>aptAuditors(a).includes(m.id));
         const chips=mine.length?mine.map(a=>`<span class="pill blue" style="cursor:pointer;margin:2px 4px 2px 0;display:inline-block" onclick="openSite('${a.id}')">${esc(a.name)}</span>`).join(''):'<span style="color:var(--mut);font-size:12px">담당 단지 없음</span>';
         return `<tr><td style="font-weight:700;white-space:nowrap;vertical-align:top;width:96px;padding-top:12px">${esc(m.name||m.email)}<div style="font-size:11px;color:var(--mut);font-weight:600">${mine.length}곳</div></td><td>${chips}</td></tr>`;
       }).join('')+'</tbody></table>';
   }
-  const un=(APTS||[]).filter(a=>!(a.auditor_id && (MEMBERS||[]).some(m=>m.id===a.auditor_id)));
+  const un=(APTS||[]).filter(a=>aptAuditors(a).length===0);
   const ubadge=$('unassigned-badge'); if(ubadge){ ubadge.textContent=un.length; ubadge.style.background=un.length?'#e4544b':''; ubadge.style.color=un.length?'#fff':''; }
   const ubox=$('unassigned-list');
   if(ubox){
@@ -2228,9 +2233,17 @@ async function saveApt(id){
   // 감독 상태: 관리자가 드롭다운으로 직접 지정 (없으면 점검 예정)
   const statusEl=row.querySelector('.f-status');
   const status=statusEl?statusEl.value:'scheduled';
+  // 함께 담당 감리사(체크) + 대표 = 팀 전체
+  const team=[...row.querySelectorAll('.f-aud-team:checked')].map(c=>c.value);
+  const all=[...new Set([aud,...team].filter(Boolean))];
   const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}
   const{error}=await sb.from('apartments').update({name,region,construction_type:ctype,auditor_id:aud,method,status,progress_current:pc,progress_total:pt}).eq('id',id);
   if(error){if(btn){btn.textContent='저장';btn.disabled=false;}return alert('오류: '+error.message);}
+  // 다대다 조인 갱신 (테이블 없으면 조용히 건너뜀)
+  try{
+    await sb.from('apartment_auditors').delete().eq('apartment_id',id);
+    if(all.length) await sb.from('apartment_auditors').insert(all.map(x=>({apartment_id:id,auditor_id:x})));
+  }catch(e){}
   loadAll();
 }
 async function deleteApt(id){

@@ -1028,10 +1028,20 @@ async function loadAuditorApts() {
   currentApt = null // 홈으로 오면 '단지 선택' 해제 → 일정은 개인 일정 모드
   const cont = document.getElementById('aud-apts'); if (!cont) return
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
-  const { data: apts, error } = await sb.from('apartments').select('*').eq('auditor_id', user.id).order('created_at', { ascending: false })
-  if (error) { cont.innerHTML = '<div style="padding:20px;color:#8b95ad;font-size:12px">단지를 불러오지 못했어요</div>'; return }
-  AUD_LIST = apts || []
-  apts && apts.forEach(a => { AUD_APTS[a.id] = a; noteAptBase(a) })
+  let apts = []
+  // 배정된 단지(다대다 조인) 전부
+  try {
+    const { data: rows } = await sb.from('apartment_auditors').select('apartment_id').eq('auditor_id', user.id)
+    const ids = (rows || []).map(r => r.apartment_id)
+    if (ids.length) { const { data } = await sb.from('apartments').select('*').in('id', ids).order('created_at', { ascending: false }); apts = data || [] }
+  } catch (e) {}
+  // 대표(auditor_id) 단지도 합침 (조인 미설정 대비 + 누락 방지)
+  try {
+    const { data: legacy } = await sb.from('apartments').select('*').eq('auditor_id', user.id).order('created_at', { ascending: false })
+    ;(legacy || []).forEach(a => { if (!apts.some(x => x.id === a.id)) apts.push(a) })
+  } catch (e) {}
+  AUD_LIST = apts
+  apts.forEach(a => { AUD_APTS[a.id] = a; noteAptBase(a) })
   renderAudApts()
 }
 function renderAudApts() {

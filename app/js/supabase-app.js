@@ -473,9 +473,36 @@ async function shareManagerDoc() {
   if (!ok) copyManagerDoc()
 }
 window.shareManagerDoc = shareManagerDoc
-// 소장님 작성 화면 미리보기 (새 탭)
-function previewManagerForm() { window.open(managerFormUrl(), '_blank') }
+// 소장님 작성 화면 미리보기 (앱 안에서 오버레이로 열기)
+// window.open('_blank')는 앱 웹뷰에서 뒤로가기·상하단바 처리가 안 돼 겹쳐 보임 → 앱 내부 오버레이로 대체
+function previewManagerForm() {
+  let ov = document.getElementById('mgr-preview-ov')
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'mgr-preview-ov'
+    ov.style.cssText = 'position:fixed;inset:0;z-index:210;background:#fff;display:flex;flex-direction:column;' +
+      'padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)'
+    ov.innerHTML =
+      '<div style="display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid #eef1f7;flex-shrink:0">' +
+        '<span id="mgr-preview-back" style="font-size:22px;color:#2a3350;cursor:pointer;line-height:1;padding:2px 4px">‹</span>' +
+        '<div style="font-size:14px;font-weight:800;color:#151c33">소장님 작성 화면 미리보기</div>' +
+        '<span style="margin-left:auto;font-size:10px;font-weight:800;color:#8b95ad;background:#eef1f7;padding:4px 9px;border-radius:99px">미리보기</span>' +
+      '</div>' +
+      '<div style="flex:1;min-height:0;position:relative"><iframe id="mgr-preview-frame" style="width:100%;height:100%;border:0;display:block"></iframe></div>'
+    document.body.appendChild(ov)
+    ov.querySelector('#mgr-preview-back').onclick = closeManagerPreview
+  }
+  ov.querySelector('#mgr-preview-frame').src = managerFormUrl()
+  ov.style.display = 'flex'
+}
+function closeManagerPreview() {
+  const ov = document.getElementById('mgr-preview-ov'); if (!ov) return false
+  const on = ov.style.display !== 'none'
+  ov.style.display = 'none'
+  const f = ov.querySelector('#mgr-preview-frame'); if (f) f.src = 'about:blank'  // 재생·로딩 정지
+  return on
+}
 window.previewManagerForm = previewManagerForm
+window.closeManagerPreview = closeManagerPreview
 
 // 입주민: 공개된 우리 단지 감리일지 목록
 async function loadResidentReports() {
@@ -2674,6 +2701,8 @@ else document.addEventListener('DOMContentLoaded', boot)
     const HOME = ['s07', 's11', 's04']   // s04 = 로그인 전 홈
     let lastBack = 0
     A.addListener('backButton', function () {
+      // 미리보기 오버레이가 떠 있으면 먼저 닫기
+      try { if (closeManagerPreview()) return } catch (e) {}
       const onHome = HOME.indexOf(NAV_CUR) !== -1 || NAV_HIST.length === 0
       if (!onHome) { try { window.goBack() } catch (e) {} return }
       // 홈: 한 번 더(2초 내) 눌러야 종료

@@ -2487,6 +2487,22 @@ async function refreshChatBadge() {
 window.refreshChatBadge = refreshChatBadge
 setInterval(refreshChatBadge, 20000)
 
+// 관리자가 삭제·수정하면 앱에서도 자동 반영: 현재 화면을 주기적으로/앱 복귀 시 다시 로드
+function refreshCurrentScreen() {
+  try {
+    if (!currentRole) return
+    const id = NAV_CUR
+    if (id === 's11') { loadResidentHome() }
+    else if (id === 's38') { openNoticeList() }
+    else if (id === 's26') { loadFieldUpdates() }
+    else if (id === 's12') { loadResidentReports() }
+    else if (id === 's14') { loadSchedule() }
+    else if (id === 's07') { loadAuditorApts() }
+  } catch (e) {}
+}
+window.refreshCurrentScreen = refreshCurrentScreen
+setInterval(refreshCurrentScreen, 25000)
+
 // ── 문의 버튼 → 카카오톡 채널 채팅 ─────────────────────────────
 const INQUIRY_URL = 'https://pf.kakao.com/_DpQHG/chat'
 function normText(s) { return (s || '').replace(/[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/gu, '') }
@@ -2576,6 +2592,11 @@ else document.addEventListener('DOMContentLoaded', boot)
       const now = Date.now()
       if (now - lastBack < 2000) { try { A.exitApp() } catch (e) {} }
       else { lastBack = now; showExitToast() }
+    })
+    // 앱을 다시 열면(백그라운드→복귀) 현재 화면·배지 자동 갱신
+    A.addListener('resume', function () {
+      try { refreshCurrentScreen() } catch (e) {}
+      try { refreshChatBadge() } catch (e) {}
     })
   }
   wire()

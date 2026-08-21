@@ -29,18 +29,23 @@ export default {
     const old = payload.old_record || {}
 
     try {
+      console.log('[push] 수신:', table, type)
       const plan = await buildPlan(env, table, type, rec, old)
-      if (!plan || !plan.userIds || plan.userIds.length === 0) return json({ ok: true, sent: 0, reason: 'no targets' })
+      if (!plan || !plan.userIds || plan.userIds.length === 0) { console.log('[push] 대상 없음(no targets)'); return json({ ok: true, sent: 0, reason: 'no targets' }) }
+      console.log('[push] 대상 사용자 수:', plan.userIds.length, '| 제목:', plan.title)
       const tokens = await tokensForUsers(env, plan.userIds)
-      if (tokens.length === 0) return json({ ok: true, sent: 0, reason: 'no tokens' })
+      console.log('[push] 대상 폰(토큰) 수:', tokens.length)
+      if (tokens.length === 0) { console.log('[push] 토큰 없음 → 그 사용자들이 폰에서 알림 등록을 안 함'); return json({ ok: true, sent: 0, reason: 'no tokens' }) }
       const accessToken = await getAccessToken(env)
       let sent = 0, failed = 0
       for (const tk of tokens) {
         const ok = await sendOne(env, accessToken, tk, plan.title, plan.body, plan.data || {})
         if (ok) sent++; else failed++
       }
+      console.log('[push] 발송 완료 → 성공:', sent, '실패:', failed)
       return json({ ok: true, sent, failed })
     } catch (e) {
+      console.log('[push] 오류:', String((e && e.message) || e))
       return json({ ok: false, error: String((e && e.message) || e) }, 500)
     }
   }

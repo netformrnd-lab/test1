@@ -990,7 +990,7 @@ function openResidentMenu() {
   ov = document.createElement('div')
   ov.id = 'res-menu-ov'
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,22,48,.42);z-index:60;display:flex;align-items:flex-end'
-  ov.innerHTML = '<div style="background:#fff;width:100%;border-radius:18px 18px 0 0;padding:6px 0 16px">' +
+  ov.innerHTML = '<div style="background:#fff;width:100%;border-radius:18px 18px 0 0;padding:6px 0 calc(16px + env(safe-area-inset-bottom))">' +
     '<div style="width:38px;height:4px;border-radius:9px;background:#e2e7f0;margin:9px auto 8px"></div>' +
     '<div data-menu="account" style="padding:15px 20px;font-size:13px;font-weight:700;color:#1c2440;cursor:pointer">⚙️  내 정보 · 비밀번호 변경</div>' +
     '<div data-menu="about" style="padding:15px 20px;font-size:13px;font-weight:700;color:#1c2440;cursor:pointer">🏢  회사 소개</div>' +

@@ -62,6 +62,7 @@ async function route() {
   currentRole = profile.role
   MY_ID = user.id; MY_NAME = profile.name || ''
   try { registerPush() } catch (e) {}
+  try { setupRealtime() } catch (e) {}   // 삭제·추가 즉시 반영(실시간)
   loadChatReads().catch(() => {})   // 홈을 막지 않게 백그라운드로 (로그인 체감 속도 개선)
   // 현장 점검 저장 후 돌아왔을 때: 해당 단지 감리일지 목록으로 바로 이동
   const openAptId = new URLSearchParams(location.search).get('openApt')
@@ -2510,7 +2511,30 @@ async function refreshCurrentScreen(force) {
   } catch (e) {}
 }
 window.refreshCurrentScreen = refreshCurrentScreen
-setInterval(refreshCurrentScreen, 7000)
+setInterval(refreshCurrentScreen, 7000)   // 안전망(실시간이 끊겼을 때 대비)
+
+// 실시간(Realtime): 관리자가 삭제·추가·수정하면 즉시 앱에 반영
+let _rtDone = false, _rtTimer = null
+function scheduleRealtimeRefresh() {
+  clearTimeout(_rtTimer)
+  _rtTimer = setTimeout(() => {
+    try { refreshCurrentScreen(true) } catch (e) {}
+    try { refreshChatBadge() } catch (e) {}
+  }, 250)
+}
+function setupRealtime() {
+  if (_rtDone) return
+  try {
+    if (!sb.channel) return
+    _rtDone = true
+    const ch = sb.channel('app-live-changes')
+    ;['notices', 'reports', 'field_updates', 'schedules', 'apartments', 'chat_messages'].forEach((t) => {
+      ch.on('postgres_changes', { event: '*', schema: 'public', table: t }, scheduleRealtimeRefresh)
+    })
+    ch.subscribe()
+  } catch (e) { _rtDone = false }
+}
+window.setupRealtime = setupRealtime
 
 // ── 문의 버튼 → 카카오톡 채널 채팅 ─────────────────────────────
 const INQUIRY_URL = 'https://pf.kakao.com/_DpQHG/chat'

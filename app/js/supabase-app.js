@@ -2487,21 +2487,30 @@ async function refreshChatBadge() {
 window.refreshChatBadge = refreshChatBadge
 setInterval(refreshChatBadge, 20000)
 
-// 관리자가 삭제·수정하면 앱에서도 자동 반영: 현재 화면을 주기적으로/앱 복귀 시 다시 로드
-function refreshCurrentScreen() {
+// 관리자가 삭제·추가하면 앱에서도 자동 반영: 현재 화면을 자주 확인하되,
+// 데이터가 실제로 바뀌었을 때만 다시 그린다(스크롤 튐 방지).
+let LAST_SIG = {}
+function sigChanged(key, rows) {
+  const sig = (rows || []).length + ':' + (rows || []).map(r => r.id).join(',')
+  if (!(key in LAST_SIG)) { LAST_SIG[key] = sig; return false } // 첫 관측은 기준만 잡음
+  if (LAST_SIG[key] === sig) return false
+  LAST_SIG[key] = sig; return true
+}
+async function refreshCurrentScreen(force) {
   try {
     if (!currentRole) return
     const id = NAV_CUR
-    if (id === 's11') { loadResidentHome() }
-    else if (id === 's38') { openNoticeList() }
-    else if (id === 's26') { loadFieldUpdates() }
-    else if (id === 's12') { loadResidentReports() }
-    else if (id === 's14') { loadSchedule() }
-    else if (id === 's07') { loadAuditorApts() }
+    const aid = RES_APT && RES_APT.id
+    if (id === 's38') { const { data } = await sb.from('notices').select('id').order('created_at', { ascending: false }).limit(80); if (force || sigChanged('s38', data)) openNoticeList() }
+    else if (id === 's11') { const { data } = await sb.from('notices').select('id').order('created_at', { ascending: false }).limit(80); if (force || sigChanged('s11', data)) loadResidentHome() }
+    else if (id === 's26' && aid) { const { data } = await sb.from('field_updates').select('id').eq('apartment_id', aid); if (force || sigChanged('s26', data)) loadFieldUpdates() }
+    else if (id === 's12' && aid) { const { data } = await sb.from('reports').select('id').eq('apartment_id', aid).eq('published', true); if (force || sigChanged('s12', data)) loadResidentReports() }
+    else if (id === 's14' && aid) { const { data } = await sb.from('schedules').select('id').eq('apartment_id', aid); if (force || sigChanged('s14', data)) loadSchedule() }
+    else if (id === 's07') { const { data } = await sb.from('apartments').select('id'); if (force || sigChanged('s07', data)) loadAuditorApts() }
   } catch (e) {}
 }
 window.refreshCurrentScreen = refreshCurrentScreen
-setInterval(refreshCurrentScreen, 25000)
+setInterval(refreshCurrentScreen, 7000)
 
 // ── 문의 버튼 → 카카오톡 채널 채팅 ─────────────────────────────
 const INQUIRY_URL = 'https://pf.kakao.com/_DpQHG/chat'
@@ -2593,9 +2602,9 @@ else document.addEventListener('DOMContentLoaded', boot)
       if (now - lastBack < 2000) { try { A.exitApp() } catch (e) {} }
       else { lastBack = now; showExitToast() }
     })
-    // 앱을 다시 열면(백그라운드→복귀) 현재 화면·배지 자동 갱신
+    // 앱을 다시 열면(백그라운드→복귀) 현재 화면·배지 무조건 최신으로 갱신
     A.addListener('resume', function () {
-      try { refreshCurrentScreen() } catch (e) {}
+      try { refreshCurrentScreen(true) } catch (e) {}
       try { refreshChatBadge() } catch (e) {}
     })
   }

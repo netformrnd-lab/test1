@@ -158,6 +158,7 @@ async function loadResidentHome() {
   }
   loadResidentNext(apt.id)
   checkSurveyBanner(apt)
+  try { refreshChatBadge() } catch (e) {}
 }
 // 다가오는 감리 일정 1건
 async function loadResidentNext(aptId) {
@@ -2610,6 +2611,23 @@ async function savePushToken(token) {
     else if (data === 'not-authenticated') { try { appToast('로그인 정보가 없어요 · 다시 로그인 해주세요') } catch (e) {} }
   } catch (e) {}
 }
+// 알림을 탭했을 때 종류에 맞는 화면으로 이동
+function navigateFromPush(data) {
+  if (!data) return
+  const kind = data.kind || ''
+  const go = () => {
+    try {
+      if (kind === 'chat') { chatFromNav() }
+      else if (kind === 'field_new') { window.showScreen('s26'); loadFieldUpdates() }
+      else if (kind === 'report_pub') { window.showScreen('s12'); loadResidentReports() }
+      else if (kind === 'notice') { openAlim() }
+      else if (kind === 'assigned' || kind === 'approved') { route() }
+      try { refreshChatBadge() } catch (e) {}
+    } catch (e) {}
+  }
+  // 알림으로 앱을 갓 열었으면 로그인·라우팅이 끝날 때까지 잠깐 대기
+  if (!currentRole) setTimeout(go, 1000); else go()
+}
 async function registerPush() {
   const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications
   if (!P) { try { appToast('이 앱 버전은 알림 기능이 없어요 (업데이트 필요)') } catch (e) {} return }
@@ -2618,10 +2636,14 @@ async function registerPush() {
       _pushWired = true
       P.addListener('registration', (t) => { savePushToken(t && t.value) })
       P.addListener('registrationError', () => {})
-      P.addListener('pushNotificationActionPerformed', () => {})
-      // 앱이 켜져 있을 때(포그라운드) 도착한 알림 → 화면에 토스트로 보여줌
+      // 알림을 탭하면 해당 화면으로 이동
+      P.addListener('pushNotificationActionPerformed', (ev) => {
+        try { navigateFromPush(ev && ev.notification && ev.notification.data) } catch (e) {}
+      })
+      // 앱이 켜져 있을 때(포그라운드) 도착한 알림 → 토스트 + 채팅 배지 즉시 갱신
       P.addListener('pushNotificationReceived', (n) => {
         try { appToast('🔔 ' + ((n && (n.title || (n.data && n.data.title))) || '새 알림'), 3200) } catch (e) {}
+        try { refreshChatBadge() } catch (e) {}
       })
     }
     let perm = await P.checkPermissions()

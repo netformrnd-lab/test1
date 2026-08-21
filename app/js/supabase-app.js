@@ -2597,31 +2597,36 @@ function appToast(msg, ms) {
 function showExitToast() { appToast('한 번 더 누르면 종료됩니다') }
 
 // ===== 푸시 알림: 이 폰의 FCM 토큰을 받아 Supabase(device_tokens)에 저장 =====
-let _pushWired = false
+let _pushWired = false, LAST_PUSH_TOKEN = null
+// 현재 로그인한 사용자로 이 폰의 토큰을 저장(소유자 갱신). 계정 바꿔도 다시 저장됨.
+async function savePushToken(token) {
+  if (!token) return
+  LAST_PUSH_TOKEN = token
+  try {
+    const { data: { user } } = await sb.auth.getUser(); if (!user) return
+    const { error } = await sb.from('device_tokens').upsert(
+      { token, user_id: user.id, platform: 'android', updated_at: new Date().toISOString() },
+      { onConflict: 'token' }
+    )
+    if (!error) { try { appToast('🔔 이 폰에 알림이 등록됐어요') } catch (e) {} }
+    else { try { appToast('알림 등록 실패: ' + (error.message || '')) } catch (e) {} }
+  } catch (e) {}
+}
 async function registerPush() {
   const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications
-  if (!P) return                 // 네이티브 앱이 아니면(브라우저) 그냥 통과
+  if (!P) { try { appToast('이 앱 버전은 알림 기능이 없어요 (업데이트 필요)') } catch (e) {} return }
   try {
     if (!_pushWired) {
       _pushWired = true
-      // 토큰 발급 성공 → 저장
-      P.addListener('registration', async (t) => {
-        const token = t && t.value; if (!token) return
-        try {
-          const { data: { user } } = await sb.auth.getUser(); if (!user) return
-          await sb.from('device_tokens').upsert(
-            { token, user_id: user.id, platform: 'android', updated_at: new Date().toISOString() },
-            { onConflict: 'token' }
-          )
-        } catch (e) {}
-      })
+      P.addListener('registration', (t) => { savePushToken(t && t.value) })
       P.addListener('registrationError', () => {})
-      // (선택) 알림 눌러서 앱 열었을 때 처리 자리 — 추후 화면 이동 연결 가능
       P.addListener('pushNotificationActionPerformed', () => {})
     }
     let perm = await P.checkPermissions()
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') perm = await P.requestPermissions()
-    if (perm.receive !== 'granted') return
+    if (perm.receive !== 'granted') { try { appToast('알림 권한이 꺼져 있어요 (설정에서 켜주세요)') } catch (e) {} return }
     await P.register()
+    // 계정 전환 등으로 이미 받은 토큰이 있으면 현재 사용자로 소유자 갱신
+    if (LAST_PUSH_TOKEN) savePushToken(LAST_PUSH_TOKEN)
   } catch (e) {}
 }

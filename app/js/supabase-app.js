@@ -2621,6 +2621,10 @@ async function registerPush() {
       P.addListener('registration', (t) => { savePushToken(t && t.value) })
       P.addListener('registrationError', () => {})
       P.addListener('pushNotificationActionPerformed', () => {})
+      // 앱이 켜져 있을 때(포그라운드) 도착한 알림 → 화면에 토스트로 보여줌
+      P.addListener('pushNotificationReceived', (n) => {
+        try { appToast('🔔 ' + ((n && (n.title || (n.data && n.data.title))) || '새 알림'), 3200) } catch (e) {}
+      })
     }
     let perm = await P.checkPermissions()
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') perm = await P.requestPermissions()

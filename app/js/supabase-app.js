@@ -1057,6 +1057,16 @@ function auditorCard(a) {
 let AUD_LIST = []           // 불러온 담당 단지 전체
 let audFilter = 'all'       // 활성 필터: all / in_progress / scheduled / done
 let audQuery = ''           // 검색어
+let audCho = ''             // 선택된 초성(ㄱㄴㄷ…), '' = 전체
+// 한글 초성 추출: 이름 첫 글자의 자음(ㄱ~ㅎ). 쌍자음은 기본 자음으로 묶고, 한글이 아니면 '#'
+const CHO_BASE = ['ㄱ','ㄱ','ㄴ','ㄷ','ㄷ','ㄹ','ㅁ','ㅂ','ㅂ','ㅅ','ㅅ','ㅇ','ㅈ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ']
+const CHO_ORDER = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ']
+function choseongOf (name) {
+  const s = (name || '').trim(); if (!s) return '#'
+  const c = s.charCodeAt(0)
+  if (c >= 0xac00 && c <= 0xd7a3) return CHO_BASE[Math.floor((c - 0xac00) / 588)]
+  return '#'  // 영문·숫자·기호
+}
 async function loadAuditorApts() {
   currentApt = null // 홈으로 오면 '단지 선택' 해제 → 일정은 개인 일정 모드
   const cont = document.getElementById('aud-apts'); if (!cont) return
@@ -1090,14 +1100,31 @@ function renderAudApts() {
     return
   }
   const q = audQuery.trim().toLowerCase()
-  const list = AUD_LIST.filter(a => {
+  // 상태·검색 필터 (초성 바 구성은 이 결과 기준)
+  let base = AUD_LIST.filter(a => {
     if (audFilter !== 'all' && a.status !== audFilter) return false
     if (q) { const hay = ((a.name || '') + ' ' + (a.region || '') + ' ' + (a.construction_type || '')).toLowerCase(); if (!hay.includes(q)) return false }
     return true
   })
+  // 가나다순 정렬
+  base.sort((x, y) => (x.name || '').localeCompare(y.name || '', 'ko'))
+  renderChoBar(base)
+  // 선택된 초성으로 좁히기
+  const list = audCho ? base.filter(a => choseongOf(a.name) === audCho) : base
   cont.innerHTML = list.length
     ? list.map(auditorCard).join('')
     : '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">조건에 맞는 단지가 없어요.</div>'
+}
+// ㄱㄴㄷ 초성 정렬 바: 현재 목록에 있는 초성만 버튼으로 (스크롤로 선택)
+function renderChoBar (base) {
+  const bar = document.getElementById('aud-cho'); if (!bar) return
+  const present = new Set(base.map(a => choseongOf(a.name)))
+  if (present.size <= 1) { bar.innerHTML = ''; audCho = ''; return }  // 나눌 게 없으면 숨김
+  const chips = CHO_ORDER.filter(c => present.has(c))
+  if (present.has('#')) chips.push('#')
+  if (audCho && !present.has(audCho)) audCho = ''  // 사라진 초성 선택 해제
+  bar.innerHTML = `<span class="cho-chip${audCho === '' ? ' on' : ''}" data-cho="">전체</span>` +
+    chips.map(c => `<span class="cho-chip${audCho === c ? ' on' : ''}" data-cho="${c}">${c}</span>`).join('')
 }
 window.loadAuditorApts = loadAuditorApts
 // 감리사 단지 추가 폼: 공법·공정 드롭다운 (관리자와 동일)
@@ -1202,7 +1229,26 @@ function enableDragScroll (el) {
   el.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false } }, true) // 끌었을 땐 확대 클릭 무시
 }
 window.loadLeaflets = loadLeaflets
+// 리플렛 공유: 카톡에서 '파일'로 받아 바로 열 수 있게 이미지/PDF 자체를 공유.
+// (URL만 보내면 카톡 미리보기가 안 뜨거나 다운이 안 되는 경우가 있어서, 파일 공유를 먼저 시도)
 window.shareLeaflet = async function (u) {
+  // 1순위: 파일 자체 공유 (Web Share Level 2 · 안드로이드 웹뷰 지원)
+  try {
+    if (navigator.canShare) {
+      const res = await fetch(u)
+      if (res.ok) {
+        const blob = await res.blob()
+        const isPdf = /\.pdf(\?|$)/i.test(u) || blob.type === 'application/pdf'
+        const ext = isPdf ? 'pdf' : ((blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg'))
+        const file = new File([blob], '아파트스퀘어_리플렛.' + ext, { type: blob.type || (isPdf ? 'application/pdf' : 'image/jpeg') })
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: '아파트스퀘어 리플렛' })
+          return
+        }
+      }
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return }  // 사용자가 취소
+  // 2순위: 링크 공유 (카톡 등)
   const ok = await nativeShare({ title: '아파트스퀘어 리플렛', url: u, dialogTitle: '리플렛 공유' })
   if (!ok) { try { window.open(u, '_blank', 'noopener') } catch (e) {} }
 }
@@ -1866,8 +1912,12 @@ function wire() {
         el.style.background = on ? '#2F6BF6' : '#eef1f7'
         el.style.fontWeight = on ? '800' : '700'
       })
+      audCho = ''  // 필터 바꾸면 초성 선택 초기화
       renderAudApts(); return
     }
+    // ㄱㄴㄷ 초성 정렬 칩
+    const ch = e.target.closest('#aud-cho [data-cho]')
+    if (ch) { audCho = ch.dataset.cho; renderAudApts(); return }
   })
   // 담당 단지 검색
   const as = $('aud-search'); if (as) as.oninput = () => { audQuery = as.value; renderAudApts() }

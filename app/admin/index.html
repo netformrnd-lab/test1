@@ -754,26 +754,31 @@ async function loadAll(){
   startDataPoll();
 }
 // 새 감리일지·현장사진·회원가입이 올라오면 새로고침 없이 자동 반영 (가벼운 폴링)
-let DATA_POLL=null, REP_SIG='', FLD_SIG='', MEM_SIG='';
+let DATA_POLL=null, REP_SIG='', FLD_SIG='', MEM_SIG='', APT_SIG='';
 function dataSig(arr){ return (arr||[]).length+':'+(((arr||[])[0]||{}).id||''); }
 function memSig(arr){ return (arr||[]).length+':'+(arr||[]).filter(m=>!m.approved).length+':'+(((arr||[])[0]||{}).id||''); }
+function aptSig(arr){ return (arr||[]).length+':'+(arr||[]).map(a=>a.id+(a.auditor_id||'')+(a.status||'')).join(','); }
 async function refreshDataLight(){
   try{
-    const [r,f,p]=await Promise.all([
+    const [r,f,p,a]=await Promise.all([
       sb.from('reports').select('*').order('created_at',{ascending:false}),
       sb.from('field_updates').select('*').order('created_at',{ascending:false}),
-      sb.from('profiles').select('*').order('created_at',{ascending:false})
+      sb.from('profiles').select('*').order('created_at',{ascending:false}),
+      sb.from('apartments').select('*').order('created_at',{ascending:false})
     ]);
-    let changed=false, memChanged=false;
+    let changed=false, memChanged=false, aptChanged=false;
     if(r.data){ const sig=dataSig(r.data); if(sig!==REP_SIG){ REP_SIG=sig; REPORTS=r.data; changed=true; } }
     if(f.data){ const sig=dataSig(f.data); if(sig!==FLD_SIG){ FLD_SIG=sig; FIELDS=f.data; changed=true; } }
     if(p.data){ const sig=memSig(p.data); if(sig!==MEM_SIG){ MEM_SIG=sig; MEMBERS=p.data; memChanged=true; } }
-    if(changed){ renderNewReports(); renderApts(); if($('sec-reports')&&$('sec-reports').classList.contains('on')) renderReports(); refreshFieldNewPhotos&&refreshFieldNewPhotos(); }
-    if(memChanged){ renderPending(); renderMembers(); renderApts(); }
-    if(changed||memChanged){ renderStats(); }
+    if(a.data){ const sig=aptSig(a.data); if(sig!==APT_SIG){ APT_SIG=sig; APTS=a.data; aptChanged=true;
+      try{ const {data:aa}=await sb.from('apartment_auditors').select('*'); APT_AUD={}; (aa||[]).forEach(x=>{(APT_AUD[x.apartment_id]=APT_AUD[x.apartment_id]||[]).push(x.auditor_id);}); }catch(e){} } }
+    if(changed){ renderNewReports(); if($('sec-reports')&&$('sec-reports').classList.contains('on')) renderReports(); refreshFieldNewPhotos&&refreshFieldNewPhotos(); }
+    if(memChanged){ renderPending(); renderMembers(); }
+    if(aptChanged){ renderAssignments&&renderAssignments(); fillAuditorSelect&&fillAuditorSelect(); fillFieldAptSelect&&fillFieldAptSelect(); fillContractApt&&fillContractApt(); fillScheduleAptSelect&&fillScheduleAptSelect(); }
+    if(changed||memChanged||aptChanged){ renderStats(); renderApts(); }
   }catch(e){}
 }
-function startDataPoll(){ if(DATA_POLL) return; REP_SIG=dataSig(REPORTS); FLD_SIG=dataSig(FIELDS); MEM_SIG=memSig(MEMBERS); DATA_POLL=setInterval(refreshDataLight, 12000); }
+function startDataPoll(){ if(DATA_POLL) return; REP_SIG=dataSig(REPORTS); FLD_SIG=dataSig(FIELDS); MEM_SIG=memSig(MEMBERS); APT_SIG=aptSig(APTS); DATA_POLL=setInterval(refreshDataLight, 10000); }
 /* ===== 인증·이력 (credentials) ===== */
 let CREDS_A=[];
 async function uploadCredImageFile(file){

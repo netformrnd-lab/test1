@@ -2520,6 +2520,11 @@ function scheduleRealtimeRefresh() {
   _rtTimer = setTimeout(() => {
     try { refreshCurrentScreen(true) } catch (e) {}
     try { refreshChatBadge() } catch (e) {}
+    // 다른 화면에 있어도 홈 콘텐츠(공지·일정 등)를 백그라운드로 갱신 → 뒤로가기로 홈 와도 최신
+    try {
+      if (currentRole && currentRole !== 'auditor' && NAV_CUR !== 's11') loadResidentHome()
+      else if (currentRole === 'auditor' && NAV_CUR !== 's07') loadAuditorApts()
+    } catch (e) {}
   }, 250)
 }
 function setupRealtime() {

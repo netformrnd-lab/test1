@@ -2603,13 +2603,11 @@ async function savePushToken(token) {
   if (!token) return
   LAST_PUSH_TOKEN = token
   try {
-    const { data: { user } } = await sb.auth.getUser(); if (!user) return
-    const { error } = await sb.from('device_tokens').upsert(
-      { token, user_id: user.id, platform: 'android', updated_at: new Date().toISOString() },
-      { onConflict: 'token' }
-    )
-    if (!error) { try { appToast('🔔 이 폰에 알림이 등록됐어요') } catch (e) {} }
-    else { try { appToast('알림 등록 실패: ' + (error.message || '')) } catch (e) {} }
+    // 서버 함수(RLS 우회)로 저장 — 로그인한 사람 본인으로 서버가 채움
+    const { data, error } = await sb.rpc('save_device_token', { p_token: token, p_platform: 'android' })
+    if (error) { try { appToast('알림 등록 실패: ' + (error.message || '')) } catch (e) {} return }
+    if (data === 'ok') { try { appToast('🔔 이 폰에 알림이 등록됐어요') } catch (e) {} }
+    else if (data === 'not-authenticated') { try { appToast('로그인 정보가 없어요 · 다시 로그인 해주세요') } catch (e) {} }
   } catch (e) {}
 }
 async function registerPush() {

@@ -1256,26 +1256,55 @@ function enableDragScroll (el) {
   el.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false } }, true) // 끌었을 땐 확대 클릭 무시
 }
 window.loadLeaflets = loadLeaflets
-// 리플렛 공유: 카톡에서 '파일'로 받아 바로 열 수 있게 이미지/PDF 자체를 공유.
-// (URL만 보내면 카톡 미리보기가 안 뜨거나 다운이 안 되는 경우가 있어서, 파일 공유를 먼저 시도)
+// Blob → base64 (Capacitor Filesystem 저장용, data: 접두어 제거)
+function blobToBase64 (blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader()
+    r.onload = () => { const s = String(r.result || ''); res(s.slice(s.indexOf(',') + 1)) }
+    r.onerror = rej
+    r.readAsDataURL(blob)
+  })
+}
+function leafletExt (u, mime) {
+  const isPdf = /\.pdf(\?|$)/i.test(u || '') || mime === 'application/pdf'
+  if (isPdf) return 'pdf'
+  const m = /\.(png|jpe?g|webp|gif)(\?|$)/i.exec(u || '')
+  if (m) return m[1].toLowerCase().replace('jpeg', 'jpg')
+  return ((mime || '').split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+}
+// 리플렛 공유: 카톡 등에 '파일'로 보내 상대가 바로 열 수 있게 이미지/PDF 자체를 공유.
 window.shareLeaflet = async function (u) {
-  // 1순위: 파일 자체 공유 (Web Share Level 2 · 안드로이드 웹뷰 지원)
+  const P = window.Capacitor && window.Capacitor.Plugins
+  const FS = P && P.Filesystem, SH = P && P.Share
+  // 1순위: 앱(네이티브) — 파일을 폰에 잠깐 저장 후 '파일'로 공유 (카톡에서 파일로 받아 열림)
+  if (FS && FS.writeFile && SH && SH.share) {
+    try {
+      const res = await fetch(u)
+      if (res.ok) {
+        const blob = await res.blob()
+        const ext = leafletExt(u, blob.type)
+        const b64 = await blobToBase64(blob)
+        const path = 'apartsquare_leaflet_' + Date.now() + '.' + ext
+        const w = await FS.writeFile({ path, data: b64, directory: 'CACHE' })
+        const uri = (w && w.uri) || (await FS.getUri({ path, directory: 'CACHE' })).uri
+        await SH.share({ title: '아파트스퀘어 리플렛', files: [uri], dialogTitle: '리플렛 공유' })
+        return
+      }
+    } catch (e) { if (e && /cancel/i.test((e.message || '') + (e.code || ''))) return }  // 취소는 성공 취급, 그 외엔 아래로 폴백
+  }
+  // 2순위: 브라우저 Web Share Level 2 (파일)
   try {
     if (navigator.canShare) {
       const res = await fetch(u)
       if (res.ok) {
         const blob = await res.blob()
-        const isPdf = /\.pdf(\?|$)/i.test(u) || blob.type === 'application/pdf'
-        const ext = isPdf ? 'pdf' : ((blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg'))
-        const file = new File([blob], '아파트스퀘어_리플렛.' + ext, { type: blob.type || (isPdf ? 'application/pdf' : 'image/jpeg') })
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: '아파트스퀘어 리플렛' })
-          return
-        }
+        const ext = leafletExt(u, blob.type)
+        const file = new File([blob], '아파트스퀘어_리플렛.' + ext, { type: blob.type || (ext === 'pdf' ? 'application/pdf' : 'image/jpeg') })
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: '아파트스퀘어 리플렛' }); return }
       }
     }
-  } catch (e) { if (e && e.name === 'AbortError') return }  // 사용자가 취소
-  // 2순위: 링크 공유 (카톡 등)
+  } catch (e) { if (e && e.name === 'AbortError') return }
+  // 3순위: 링크 공유 (파일 공유 불가 환경)
   const ok = await nativeShare({ title: '아파트스퀘어 리플렛', url: u, dialogTitle: '리플렛 공유' })
   if (!ok) { try { window.open(u, '_blank', 'noopener') } catch (e) {} }
 }

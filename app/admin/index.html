@@ -420,6 +420,7 @@
       <div class="card">
         <h3>➕ 계약서 등록</h3>
         <div class="add-form" style="flex-wrap:wrap;gap:8px">
+          <div id="ct-apt-fixed" style="display:none;align-self:center;font-weight:800;font-size:13px;color:var(--navy);background:#eef4ff;border:1px solid #d6e3fb;border-radius:9px;padding:9px 13px"></div>
           <select id="ct-apt-sel" class="f" style="width:220px"><option value="">단지 선택</option></select>
           <label class="b save" style="cursor:pointer">📎 파일 선택(PDF·사진)<input id="ct-file-a" type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadContractAdmin(this.files)"></label>
         </div>
@@ -717,7 +718,13 @@ function showSiteTab(sec){
     const wr=$('fa-apt-wrap'); if(wr) wr.style.display='none';
     const fq=$('fa-apt-q'); if(fq) fq.value=q;
   }
-  else if(sec==='contract'){ const e=$('ct-q'); if(e) e.value=q; if(window.renderContractsAdmin) renderContractsAdmin(); }
+  else if(sec==='contract'){
+    const e=$('ct-q'); if(e) e.value=q; if(window.renderContractsAdmin) renderContractsAdmin();
+    // 계약서 등록: 현재 단지로 고정 표시
+    const sel=$('ct-apt-sel'); if(sel){ sel.value=CUR_SITE.id; sel.style.display='none'; }
+    const cf=$('ct-apt-fixed'); if(cf){ cf.textContent='🏢 '+q; cf.style.display=''; }
+    const cm=$('ct-msg-a'); if(cm) cm.textContent='파일을 선택하면 이 단지에 등록돼요';
+  }
   showSection(sec);
 }
 // 초기 상태(대시보드 선택)는 HTML에 이미 반영돼 있어 별도 호출 불필요

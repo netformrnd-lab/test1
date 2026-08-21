@@ -546,7 +546,7 @@ function stopApprovalPoll() { if (_approvalPoll) { clearInterval(_approvalPoll);
 window.goBack = function () {
   saveScroll(NAV_CUR)   // 떠나는 화면 스크롤 저장
   let p = NAV_HIST.pop()
-  if (!p) p = (currentRole === 'auditor') ? 's07' : 's11'
+  if (!p) p = currentRole ? ((currentRole === 'auditor') ? 's07' : 's11') : 's04'
   NAV_CUR = p
   ORIG_SHOW(p)          // show()가 0으로 리셋하므로
   const b = document.querySelector('#' + p + ' .bd'); if (b && SCROLL_POS[p] != null) b.scrollTop = SCROLL_POS[p]  // 원래 위치로 복원
@@ -1728,8 +1728,8 @@ function setMode(mode) {
 window.appLogout = async function () {
   try { await sb.auth.signOut() } catch (e) {}
   currentRole = null; MY_ID = null; MY_NAME = ''; MY_CHAT_READS = {}; RES_APT = null
-  NAV_HIST.length = 0
   window.showScreen('s04')            // 로그인 전 둘러보기 홈으로
+  NAV_HIST.length = 0                 // 화면 전환 후 비워야 로그인된 화면이 기록에 안 남음
   try { loadResidentNotices('s04-notices') } catch (e) {}
   try { setChatNavBadge(0); refreshChatBadge() } catch (e) {}
 }
@@ -2621,7 +2621,7 @@ else document.addEventListener('DOMContentLoaded', boot)
     const A = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App
     if (!A || !A.addListener) return
     wired = true
-    const HOME = ['s07', 's11']
+    const HOME = ['s07', 's11', 's04']   // s04 = 로그인 전 홈
     let lastBack = 0
     A.addListener('backButton', function () {
       const onHome = HOME.indexOf(NAV_CUR) !== -1 || NAV_HIST.length === 0

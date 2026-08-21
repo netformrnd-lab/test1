@@ -370,11 +370,12 @@
         <h3>➕ 현장 기록 추가</h3>
         <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
-            <div style="position:relative;flex:1;min-width:200px;max-width:320px">
+            <div id="fa-apt-fixed" style="display:none;align-self:center;font-weight:800;font-size:13px;color:var(--navy);background:#eef4ff;border:1px solid #d6e3fb;border-radius:9px;padding:9px 13px"></div>
+            <div id="fa-apt-wrap" style="position:relative;flex:1;min-width:200px;max-width:320px">
               <input id="fa-apt-q" placeholder="🔍 단지 검색·선택" autocomplete="off" oninput="fieldAptSearch(this.value)" onfocus="fieldAptSearch(this.value)" onblur="setTimeout(hideFieldAptList,180)" style="width:100%;box-sizing:border-box">
-              <input type="hidden" id="fa-apt">
               <div id="fa-apt-list" style="display:none;position:absolute;z-index:40;left:0;right:0;top:calc(100% + 3px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(20,29,52,.14);max-height:230px;overflow:auto"></div>
             </div>
+            <input type="hidden" id="fa-apt">
             <input id="fa-dong" placeholder="동 (예: 106동)" style="width:140px">
           </div>
           <input id="fa-title" placeholder="제목 (예: 20260718 [107동 필로티 도장작업])">
@@ -704,8 +705,18 @@ function renderSiteBar(active){
 function showSiteTab(sec){
   if(!CUR_SITE){ showSection('site'); return; }
   const q=CUR_SITE.name||'';
-  if(sec==='reports'){ const e=$('rep-q'); if(e) e.value=q; if(window.renderReports) renderReports(); }
-  else if(sec==='field'){ const e=$('fld-q'); if(e) e.value=q; if(window.renderField) renderField(); }
+  if(sec==='reports'){
+    const e=$('rep-q'); if(e) e.value=q; if(window.renderReports) renderReports();
+    const imp=$('rep-imp-apt'); if(imp) imp.value=CUR_SITE.id;   // PDF 업로드도 이 단지로 미리 선택
+  }
+  else if(sec==='field'){
+    const e=$('fld-q'); if(e) e.value=q; if(window.renderField) renderField();
+    // 현장 기록 추가: 단지 선택 대신 현재 단지로 고정 표시
+    const h=$('fa-apt'); if(h) h.value=CUR_SITE.id;
+    const fx=$('fa-apt-fixed'); if(fx){ fx.textContent='🏢 '+q; fx.style.display=''; }
+    const wr=$('fa-apt-wrap'); if(wr) wr.style.display='none';
+    const fq=$('fa-apt-q'); if(fq) fq.value=q;
+  }
   else if(sec==='contract'){ const e=$('ct-q'); if(e) e.value=q; if(window.renderContractsAdmin) renderContractsAdmin(); }
   showSection(sec);
 }
@@ -1783,7 +1794,9 @@ async function addField(){
   if(btn){btn.textContent='등록';btn.disabled=false;}
   if(error)return alert('오류: '+error.message);
   $('fa-title').value='';$('fa-body').value='';const fd=$('fa-dong');if(fd)fd.value='';
-  const fq=$('fa-apt-q');if(fq)fq.value='';const fap=$('fa-apt');if(fap)fap.value='';
+  // 단지 상세 안에서 추가한 거면 그 단지를 유지, 아니면 초기화
+  if(CUR_SITE){ const fap=$('fa-apt');if(fap)fap.value=CUR_SITE.id; }
+  else { const fq=$('fa-apt-q');if(fq)fq.value='';const fap=$('fa-apt');if(fap)fap.value=''; }
   FNEW=[];refreshFieldNewPhotos();loadAll();
 }
 // ── 아임웹 게시판 엑셀 가져오기 ─────────────────────────────

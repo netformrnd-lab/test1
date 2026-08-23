@@ -1272,6 +1272,31 @@ function leafletExt (u, mime) {
   if (m) return m[1].toLowerCase().replace('jpeg', 'jpg')
   return ((mime || '').split('/')[1] || 'jpg').replace('jpeg', 'jpg')
 }
+// 사진 업로드 전 자동 압축(리사이즈): 저장 용량 절감 + 업로드·로딩 속도 향상.
+// 카메라 원본(보통 3~5MB)을 긴 변 1600px·JPEG 화질 0.82로 줄여 대개 0.3~0.6MB로.
+// 이미지가 아니거나(PDF 등) 압축이 오히려 커지면 원본 그대로 반환(안전).
+async function compressImage (file, opts) {
+  try {
+    if (!file || !file.type || !/^image\/(jpe?g|png|webp)$/i.test(file.type)) return file
+    const MAX = (opts && opts.max) || 1600
+    const Q = (opts && opts.quality) || 0.82
+    let bmp
+    try { bmp = await createImageBitmap(file) }
+    catch (e) { bmp = await new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = URL.createObjectURL(file) }) }
+    const w0 = bmp.width, h0 = bmp.height
+    if (!w0 || !h0) return file
+    const scale = Math.min(1, MAX / Math.max(w0, h0))
+    const w = Math.round(w0 * scale), h = Math.round(h0 * scale)
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
+    canvas.getContext('2d').drawImage(bmp, 0, 0, w, h)
+    if (bmp.close) { try { bmp.close() } catch (_) {} }
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', Q))
+    if (!blob || blob.size >= file.size) return file       // 효과 없으면 원본 유지
+    const name = (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg'
+    return new File([blob], name, { type: 'image/jpeg' })
+  } catch (e) { return file }
+}
+window.compressImage = compressImage
 // 리플렛 공유: 카톡 등에 '파일'로 보내 상대가 바로 열 수 있게 이미지/PDF 자체를 공유.
 window.shareLeaflet = async function (u) {
   const P = window.Capacitor && window.Capacitor.Plugins
@@ -1457,7 +1482,8 @@ function renderPhotoGrid() {
 }
 async function handlePhotoSelect(files) {
   const { data: { user } } = await sb.auth.getUser()
-  for (const file of Array.from(files)) {
+  for (const file0 of Array.from(files)) {
+    const file = await compressImage(file0)
     const safe = file.name.replace(/[^\w.]/g, '_')
     const path = user.id + '/' + Date.now() + '_' + Math.round(Math.random() * 1e6) + '_' + safe
     const { error } = await sb.storage.from('report-photos').upload(path, file, { upsert: false })
@@ -2346,7 +2372,8 @@ function renderContracts() {
 }
 window.openContractFile = function (url, kind) { if (kind === 'image') zoomPhoto(url); else window.open(url, '_blank', 'noopener') }
 async function uploadContract(files) {
-  const f = files && files[0]; if (!f || !currentApt) return
+  const f0 = files && files[0]; if (!f0 || !currentApt) return
+  const f = await compressImage(f0)   // 이미지 계약서는 압축, PDF는 원본 그대로 통과
   const msg = document.getElementById('ct-msg'); if (msg) { msg.style.color = '#8b95ad'; msg.textContent = '올리는 중…' }
   const safe = f.name.replace(/[^\w.\-]/g, '_')
   const path = 'contracts/' + currentApt.id + '/' + Date.now() + '_' + safe

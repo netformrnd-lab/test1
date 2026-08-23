@@ -366,6 +366,16 @@
         </div>
         <div id="imp-log" style="margin-top:12px;font-size:12px;line-height:1.7;max-height:240px;overflow:auto;font-family:monospace;color:var(--mut2);white-space:pre-wrap"></div>
       </div>
+      <div class="card" style="border:1.5px dashed #e0a94b;background:#fffaf0">
+        <h3>🚚 아임웹 사진 → 우리 저장소로 이전 <span style="font-size:11px;font-weight:800;color:#b26a00;background:#ffedcc;padding:2px 8px;border-radius:99px">출시 전 1회</span></h3>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 12px">가져온 현장 사진은 지금 <b>아임웹 주소를 빌려</b> 보여주고 있어요. 아임웹을 닫으면 사진이 깨지므로, <b>출시 전에 이 버튼으로 사진을 우리 저장소로 복사</b>해 두세요. 복사만 하고 실패한 사진은 기존 링크를 그대로 둬서 <b>사진이 사라지지 않아요.</b></div>
+        <div style="font-size:11.5px;color:var(--mut);line-height:1.5;margin-bottom:10px">① 먼저 <b>1장 테스트</b>로 브라우저가 아임웹 사진을 가져올 수 있는지 확인 → 성공하면 ② <b>전체 이전</b> 실행.</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button id="mig-test-btn" class="b" style="background:#fff3dd;color:#b26a00" onclick="migrateImwebPhotos(true)">① 1장 테스트</button>
+          <button id="mig-run-btn" class="b save" onclick="if(confirm('아임웹 사진을 전부 우리 저장소로 복사합니다. 계속할까요?'))migrateImwebPhotos(false)">② 전체 이전 시작</button>
+        </div>
+        <div id="mig-log" style="margin-top:12px;font-size:12px;line-height:1.7;max-height:280px;overflow:auto;font-family:monospace;color:var(--mut2);white-space:pre-wrap"></div>
+      </div>
       <div class="card">
         <h3>➕ 현장 기록 추가</h3>
         <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
@@ -1926,6 +1936,79 @@ async function importBoard(){
     loadAll();
   }catch(e){impLog('오류: '+e.message,'#e4544b');}
   finally{if(btn){btn.textContent='가져오기 시작';btn.disabled=false;}}
+}
+// ── 아임웹 사진 → Supabase 저장소로 이전 (출시 전 1회) ──────────────
+function migLog(msg,color){ const box=$('mig-log'); if(!box)return; const d=document.createElement('div'); d.textContent=msg; if(color)d.style.color=color; box.appendChild(d); box.scrollTop=box.scrollHeight; }
+function isImwebUrl(u){ return typeof u==='string' && /imweb/i.test(u); }
+function isSupaUrl(u){ return typeof u==='string' && /supabase\.co\/storage/i.test(u); }
+// 아임웹 사진을 브라우저에서 blob으로 가져오기 (fetch → 실패 시 img+canvas 폴백)
+async function migFetchBlob(url){
+  try{ const r=await fetch(url,{mode:'cors'}); if(r.ok){ const b=await r.blob(); if(b&&b.size>0) return b; } }catch(e){}
+  try{
+    return await new Promise((res,rej)=>{
+      const img=new Image(); img.crossOrigin='anonymous';
+      img.onload=()=>{ try{ const c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight; c.getContext('2d').drawImage(img,0,0); c.toBlob(b=>b?res(b):rej(new Error('toBlob null')),'image/jpeg',0.9); }catch(e){ rej(e); } };
+      img.onerror=()=>rej(new Error('img load fail')); img.src=url;
+    });
+  }catch(e){ return null; }
+}
+async function migUpload(blob){
+  const t=blob.type||'image/jpeg';
+  const ext=(t.split('/')[1]||'jpg').replace('jpeg','jpg');
+  const file=new File([blob],'imweb_'+Date.now()+'_'+Math.round(Math.random()*1e6)+'.'+ext,{type:t});
+  const comp=await compressImage(file);   // 이전하면서 같이 압축
+  const path='field/imweb/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'.'+((comp.type.split('/')[1]||'jpg').replace('jpeg','jpg'));
+  const {error}=await sb.storage.from('field-photos').upload(path,comp,{upsert:false});
+  if(error){ migLog('   업로드 실패: '+error.message,'#e4544b'); return null; }
+  return sb.storage.from('field-photos').getPublicUrl(path).data.publicUrl;
+}
+async function migrateImwebPhotos(testOnly){
+  const tb=$('mig-test-btn'), rb=$('mig-run-btn');
+  if(tb)tb.disabled=true; if(rb)rb.disabled=true;
+  try{
+    const {data,error}=await sb.from('field_updates').select('id,title,photos').order('created_at',{ascending:true});
+    if(error){ migLog('불러오기 실패: '+error.message,'#e4544b'); return; }
+    const rows=(data||[]).filter(r=>Array.isArray(r.photos)&&r.photos.some(isImwebUrl));
+    const totalImgs=rows.reduce((s,r)=>s+r.photos.filter(isImwebUrl).length,0);
+    if(!rows.length){ migLog('이전할 아임웹 사진이 없어요. (이미 이전됐거나, 저장된 링크가 아임웹이 아님)','#1f8a5b'); return; }
+    if(testOnly){
+      $('mig-log').innerHTML='';
+      const first=rows[0].photos.find(isImwebUrl);
+      migLog('테스트 대상 사진 1장:','#2563eb'); migLog(first);
+      migLog('가져오는 중…');
+      const blob=await migFetchBlob(first);
+      if(blob){ migLog('✅ 성공! 브라우저에서 아임웹 사진을 가져올 수 있어요 ('+Math.round(blob.size/1024)+'KB).','#1f8a5b'); migLog('→ 대상: 글 '+rows.length+'개 · 사진 '+totalImgs+'장. 이제 ② 전체 이전을 눌러도 돼요.','#1f8a5b'); }
+      else { migLog('❌ 브라우저가 아임웹 사진을 직접 못 가져와요 (아임웹이 외부반출을 막은 경우).','#e4544b'); migLog('→ 이 경우 서버 방식(플랜B)으로 처리해야 해요. 이 로그를 저에게 알려주세요.','#c98a1e'); }
+      return;
+    }
+    $('mig-log').innerHTML='';
+    migLog('시작 · 글 '+rows.length+'개 · 아임웹 사진 '+totalImgs+'장','#2563eb');
+    let done=0,fail=0,rowN=0;
+    for(const r of rows){
+      rowN++;
+      const arr=r.photos.slice(); let changed=false,rowFail=0;
+      for(let i=0;i<arr.length;i++){
+        if(!isImwebUrl(arr[i]))continue;
+        const blob=await migFetchBlob(arr[i]);
+        if(!blob){ fail++; rowFail++; continue; }      // 실패 → 기존 아임웹 링크 유지(안전)
+        const nu=await migUpload(blob);
+        if(!nu){ fail++; rowFail++; continue; }
+        arr[i]=nu; changed=true; done++;
+      }
+      if(changed){
+        const {error:ue}=await sb.from('field_updates').update({photos:arr}).eq('id',r.id);
+        if(ue){ migLog('❌ 주소 갱신 실패: '+r.title+' → '+ue.message,'#e4544b'); }
+        else migLog('✅ ('+rowN+'/'+rows.length+') '+r.title+' — '+arr.filter(isSupaUrl).length+'장 이전'+(rowFail?(' · 실패 '+rowFail):''),'#1f8a5b');
+      } else if(rowFail){
+        migLog('⚠️ ('+rowN+'/'+rows.length+') '+r.title+' — 이전 실패 '+rowFail+'장 (기존 링크 유지)','#c98a1e');
+      }
+    }
+    migLog('');
+    migLog('════ 완료 ════ 이전 '+done+'장 · 실패 '+fail+'장','#1c2440');
+    if(fail) migLog('실패분은 아임웹 링크를 그대로 뒀어요(사진 안 사라짐). 실패가 많으면 서버 방식으로 다시 처리할게요.','#c98a1e');
+    loadAll();
+  }catch(e){ migLog('오류: '+e.message,'#e4544b'); }
+  finally{ if(tb)tb.disabled=false; if(rb)rb.disabled=false; }
 }
 async function deleteField(id){
   if(!confirm('이 현장 기록을 삭제할까요?'))return;

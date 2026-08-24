@@ -785,23 +785,25 @@ function startAdminRealtime(){
       .on('postgres_changes',{event:'*',schema:'public',table:'apartment_auditors'},kick)
       .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},kick)
       .on('postgres_changes',{event:'*',schema:'public',table:'reports'},kick)
+      .on('postgres_changes',{event:'*',schema:'public',table:'surveys'},()=>{ try{ loadSurveysAdmin(); }catch(e){} })
       .subscribe();
   }catch(e){}
 }
 // 새 감리일지·현장사진·회원가입이 올라오면 새로고침 없이 자동 반영 (가벼운 폴링)
-let DATA_POLL=null, REP_SIG='', FLD_SIG='', MEM_SIG='', APT_SIG='';
+let DATA_POLL=null, REP_SIG='', FLD_SIG='', MEM_SIG='', APT_SIG='', SURVEYS_SIG='';
 function dataSig(arr){ return (arr||[]).length+':'+(((arr||[])[0]||{}).id||''); }
 function memSig(arr){ return (arr||[]).length+':'+(arr||[]).filter(m=>!m.approved).length+':'+(((arr||[])[0]||{}).id||''); }
 function aptSig(arr){ return (arr||[]).length+':'+(arr||[]).map(a=>a.id+(a.auditor_id||'')+(a.status||'')).join(','); }
 async function refreshDataLight(){
   try{
-    const [r,f,p,a]=await Promise.all([
+    const [r,f,p,a,sv]=await Promise.all([
       sb.from('reports').select('*').order('created_at',{ascending:false}),
       sb.from('field_updates').select('*').order('created_at',{ascending:false}),
       sb.from('profiles').select('*').order('created_at',{ascending:false}),
-      sb.from('apartments').select('*').order('created_at',{ascending:false})
+      sb.from('apartments').select('*').order('created_at',{ascending:false}),
+      sb.from('surveys').select('*').order('created_at',{ascending:false})
     ]);
-    let changed=false, memChanged=false, aptChanged=false;
+    let changed=false, memChanged=false, aptChanged=false, survChanged=false;
     if(r.data){ const sig=dataSig(r.data); if(sig!==REP_SIG){ REP_SIG=sig; REPORTS=r.data; changed=true; } }
     if(f.data){ const sig=dataSig(f.data); if(sig!==FLD_SIG){ FLD_SIG=sig; FIELDS=f.data; changed=true; } }
     if(p.data){ const sig=memSig(p.data); if(sig!==MEM_SIG){ MEM_SIG=sig; MEMBERS=p.data; memChanged=true; } }
@@ -810,10 +812,12 @@ async function refreshDataLight(){
     if(changed){ renderNewReports(); if($('sec-reports')&&$('sec-reports').classList.contains('on')) renderReports(); refreshFieldNewPhotos&&refreshFieldNewPhotos(); }
     if(memChanged){ renderPending(); renderMembers(); }
     if(aptChanged){ renderAssignments&&renderAssignments(); fillAuditorSelect&&fillAuditorSelect(); fillFieldAptSelect&&fillFieldAptSelect(); fillContractApt&&fillContractApt(); fillScheduleAptSelect&&fillScheduleAptSelect(); }
+    if(sv&&sv.data){ const sig=dataSig(sv.data); if(sig!==SURVEYS_SIG){ SURVEYS_SIG=sig; SURVEYS_A=sv.data; survChanged=true; } }
+    if(survChanged){ const nn=$('nav-sv'); if(nn) nn.textContent=SURVEYS_A.length; renderSurveysAdmin&&renderSurveysAdmin(); }
     if(changed||memChanged||aptChanged){ renderStats(); renderApts(); }
   }catch(e){}
 }
-function startDataPoll(){ if(DATA_POLL) return; REP_SIG=dataSig(REPORTS); FLD_SIG=dataSig(FIELDS); MEM_SIG=memSig(MEMBERS); APT_SIG=aptSig(APTS); DATA_POLL=setInterval(refreshDataLight, 10000); }
+function startDataPoll(){ if(DATA_POLL) return; REP_SIG=dataSig(REPORTS); FLD_SIG=dataSig(FIELDS); MEM_SIG=memSig(MEMBERS); APT_SIG=aptSig(APTS); SURVEYS_SIG=dataSig(SURVEYS_A); DATA_POLL=setInterval(refreshDataLight, 10000); }
 /* ===== 인증·이력 (credentials) ===== */
 let CREDS_A=[];
 // 사진 업로드 전 자동 압축(리사이즈): 저장 용량 절감 + 업로드·로딩 속도 향상.

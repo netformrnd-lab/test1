@@ -2756,6 +2756,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 document.addEventListener('focusin', function (e) {
   const el = e.target
   if (!el || !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
+  if (!el.closest('.bd')) return   // 하단 고정 입력바(채팅 등)는 제외 — 이미 키보드 위에 붙어 있음
   const scrollIn = () => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch (_) {} }
   setTimeout(scrollIn, 300)   // 키보드가 올라온 뒤
   setTimeout(scrollIn, 650)   // 애니메이션 타이밍 보정

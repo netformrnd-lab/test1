@@ -552,6 +552,7 @@ let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],MGR
 function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return a.auditor_id?[a.auditor_id]:[]; }
 let RPHOTOS={}; // 보고서별 편집중 사진 목록 {reportId:[url,...]}
 let OPEN_REP_GROUPS=new Set(); // 펼쳐둔 단지 그룹 (저장/업로드 후에도 유지)
+let OPEN_APT_EDITS=new Set(); // 펼쳐둔 단지 '설정' 패널 (저장 후에도 유지)
 let FPHOTOS={}; // 현장기록별 편집중 사진 목록 {fieldId:[url,...]}
 let FNEW=[];    // 새 현장기록 작성용 사진 목록
 const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};
@@ -2399,9 +2400,9 @@ function renderApts(){
       <div class="prog"><span>${now}</span><span>${pc} / ${pt}</span></div>
       <div style="display:flex;gap:8px;margin-top:11px">
         <button class="b save" style="flex:1" onclick="openSite('${a.id}')">📂 감리일지·현장·계약 →</button>
-        <button class="b" style="background:#eef1f7;color:var(--mut2)" onclick="toggleAptEdit('${a.id}',this)">⚙️ 설정 ▾</button>
+        <button class="b" style="background:#eef1f7;color:var(--mut2)" onclick="toggleAptEdit('${a.id}',this)">⚙️ 설정 ${OPEN_APT_EDITS.has(a.id)?'▴':'▾'}</button>
       </div>
-      <div class="apt-edit" id="aptedit-${a.id}" style="display:none;margin-top:11px;padding-top:11px;border-top:1px solid var(--line2)">
+      <div class="apt-edit" id="aptedit-${a.id}" style="display:${OPEN_APT_EDITS.has(a.id)?'block':'none'};margin-top:11px;padding-top:11px;border-top:1px solid var(--line2)">
         <input class="f-name" value="${esc(a.name)||''}" placeholder="단지명" style="width:100%;box-sizing:border-box;font-size:14px;font-weight:800;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:inherit;outline:none">
         <div style="display:flex;gap:6px;margin-top:6px">
           <input class="f-region" value="${esc(a.region)||''}" placeholder="지역 (예: 서울 노원)" style="flex:1;min-width:0;font-size:11.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-family:inherit;outline:none">
@@ -2419,7 +2420,7 @@ function renderApts(){
     </div>`;
   }).join('');
 }
-function toggleAptEdit(id,btn){ const e=$('aptedit-'+id); if(!e) return; const open=e.style.display==='none'; e.style.display=open?'block':'none'; if(btn) btn.innerHTML=open?'⚙️ 설정 ▴':'⚙️ 설정 ▾'; }
+function toggleAptEdit(id,btn){ const e=$('aptedit-'+id); if(!e) return; const open=e.style.display==='none'; e.style.display=open?'block':'none'; if(open)OPEN_APT_EDITS.add(id);else OPEN_APT_EDITS.delete(id); if(btn) btn.innerHTML=open?'⚙️ 설정 ▴':'⚙️ 설정 ▾'; }
 // 단지별 '새 감리일지'(내가 아직 안 본) 알림 — 브라우저에 마지막 본 시각 저장
 function repSeen(aid){ return localStorage.getItem('aptsq_repseen_'+aid)||''; }
 function newRepCount(aid){ const s=repSeen(aid); return (REPORTS||[]).filter(r=>r.apartment_id===aid && (r.created_at||'')>s).length; }
@@ -2526,7 +2527,10 @@ async function saveApt(id){
     await sb.from('apartment_auditors').delete().eq('apartment_id',id);
     if(all.length) await sb.from('apartment_auditors').insert(all.map(x=>({apartment_id:id,auditor_id:x})));
   }catch(e){}
-  loadAll();
+  const sy=window.scrollY;           // 저장 후에도 보던 위치·펼친 패널 유지
+  await loadAll();
+  window.scrollTo(0,sy);
+  if(btn){ const nb=document.querySelector(`.apt[data-id="${id}"] .save`); if(nb){ nb.textContent='저장됨 ✓'; setTimeout(()=>{ if(nb)nb.textContent='저장'; },1500); } }
 }
 async function deleteApt(id){
   const nm=aptName(id);

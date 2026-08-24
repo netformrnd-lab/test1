@@ -1668,7 +1668,16 @@ function wireSchedSwipe() {
     if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) window.changeSchedMonth(dx < 0 ? 1 : -1)
   }, { passive: true })
 }
+// 일정 화면 하단 탭 세팅 (감리사: 홈·일정·리플렛·채팅 / 입주민: 5탭)
+function setSchedNav (isAud) {
+  const snav = document.getElementById('sched-nav'); if (!snav) return
+  snav.innerHTML = isAud
+    ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+}
 async function loadSchedule() {
+  // 진입 즉시 '아는 역할(currentRole)'로 하단 탭을 먼저 세팅 → 입주민 탭이 잠깐 뜨는 깜빡임 방지
+  setSchedNav(currentRole === 'auditor')
   // 감리사용 '일정 추가' 버튼/폼을 먼저 숨겨 깜빡임 방지 (역할 확인 후 감리사면 다시 표시)
   const addBtn0 = document.getElementById('sc-add-btn'); if (addBtn0) addBtn0.style.display = 'none'
   const form0 = document.getElementById('sc-form'); if (form0) form0.style.display = 'none'
@@ -1682,11 +1691,8 @@ async function loadSchedule() {
   // 역할을 DB에서 새로 읽어 판단(캐시된 currentRole 신뢰하지 않음)
   const { data: prof } = await sb.from('profiles').select('role, apartment_id').eq('id', user.id).single()
   const isAuditor = prof && prof.role === 'auditor'
-  // 일정 화면 하단 탭을 역할에 맞게 (감리사: 홈·보고서·일정·채팅 / 입주민: 5탭)
-  const snav = document.getElementById('sched-nav')
-  if (snav) snav.innerHTML = isAuditor
-    ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
-    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+  // DB로 확인된 역할로 하단 탭 재확정 (진입 시 세팅과 다르면 여기서 정정)
+  setSchedNav(isAuditor)
   if (!isAuditor) {
     // 입주민·관리소장: 우리 단지 일정만 (보기 전용)
     if (addBtn) addBtn.style.display = 'none'

@@ -2370,18 +2370,26 @@ function renderContracts() {
     </div>`
   }).join('')
 }
-window.openContractFile = function (url, kind) { if (kind === 'image') zoomPhoto(url); else window.open(url, '_blank', 'noopener') }
+// 계약서 열람: 비공개 버킷 경로면 짧은 임시 링크(서명 URL)를 만들어 엶. 옛 공개 URL(http)은 그대로.
+window.openContractFile = async function (url, kind) {
+  let open = url
+  if (url && !/^https?:\/\//i.test(url)) {
+    const { data, error } = await sb.storage.from('contracts').createSignedUrl(url, 300)
+    if (error || !data || !data.signedUrl) { alert('계약서를 여는 중 오류가 났어요'); return }
+    open = data.signedUrl
+  }
+  if (kind === 'image') zoomPhoto(open); else window.open(open, '_blank', 'noopener')
+}
 async function uploadContract(files) {
   const f0 = files && files[0]; if (!f0 || !currentApt) return
   const f = await compressImage(f0)   // 이미지 계약서는 압축, PDF는 원본 그대로 통과
   const msg = document.getElementById('ct-msg'); if (msg) { msg.style.color = '#8b95ad'; msg.textContent = '올리는 중…' }
   const safe = f.name.replace(/[^\w.\-]/g, '_')
-  const path = 'contracts/' + currentApt.id + '/' + Date.now() + '_' + safe
-  const { error: upErr } = await sb.storage.from('field-photos').upload(path, f, { upsert: false })
-  if (upErr) { if (msg) { msg.style.color = '#e4544b'; msg.textContent = '업로드 실패: ' + upErr.message } return }
-  const url = sb.storage.from('field-photos').getPublicUrl(path).data.publicUrl
+  const path = currentApt.id + '/' + Date.now() + '_' + safe
+  const { error: upErr } = await sb.storage.from('contracts').upload(path, f, { upsert: false })  // 비공개 버킷
+  if (upErr) { if (msg) { msg.style.color = '#e4544b'; msg.textContent = '업로드 실패: ' + upErr.message + '\n(migration-security-contracts.sql 실행 필요)' } return }
   const kind = f.type === 'application/pdf' ? 'pdf' : 'image'
-  const { error } = await sb.from('contracts').insert({ apartment_id: currentApt.id, name: f.name, file_url: url, kind })
+  const { error } = await sb.from('contracts').insert({ apartment_id: currentApt.id, name: f.name, file_url: path, kind })  // 경로만 저장(공개 URL 아님)
   if (error) { if (msg) { msg.style.color = '#e4544b'; msg.textContent = '등록 실패: ' + error.message } return }
   if (msg) { msg.style.color = '#1f8a5b'; msg.textContent = '✅ 등록됐어요' }
   const fi = document.getElementById('ct-file'); if (fi) fi.value = ''

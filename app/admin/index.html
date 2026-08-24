@@ -438,6 +438,13 @@
         </div>
         <div id="ct-msg-a" style="font-size:12px;font-weight:700;margin-top:8px;min-height:16px;color:var(--mut)">단지를 먼저 고르고 파일을 선택하세요</div>
       </div>
+      <div class="card" style="border:1.5px dashed #e0a94b;background:#fffaf0;margin-bottom:14px">
+        <h3>🔒 계약서 비공개 전환 <span style="font-size:11px;font-weight:800;color:#b26a00;background:#ffedcc;padding:2px 8px;border-radius:99px">출시 전 1회</span></h3>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 10px">예전에 올린 계약서는 <b>공개 저장소</b>에 있어서 링크만 알면 열려요. 이 버튼을 누르면 <b>비공개 저장소로 옮기고 공개본은 삭제</b>해, 감리사·관리자만 임시 링크로 열 수 있게 돼요. (새로 올리는 계약서는 자동으로 비공개예요)</div>
+        <div style="font-size:11.5px;color:var(--mut);margin-bottom:10px">※ 먼저 <b>backend/migration-security-contracts.sql</b> 을 Supabase에서 실행한 뒤 눌러주세요.</div>
+        <button id="ctmig-btn" class="b save" onclick="if(confirm('기존 계약서를 비공개로 옮기고 공개본을 삭제합니다. 계속할까요?'))migrateContracts()">기존 계약서 비공개로 옮기기</button>
+        <div id="ctmig-log" style="margin-top:12px;font-size:12px;line-height:1.7;max-height:220px;overflow:auto;font-family:monospace;color:var(--mut2);white-space:pre-wrap"></div>
+      </div>
       <div class="add-form" style="margin-bottom:16px"><input id="ct-q" placeholder="🔍 단지명·계약서명으로 검색" style="width:320px" oninput="renderContractsAdmin()"></div>
       <div id="contracts"></div>
     </section>
@@ -1211,11 +1218,54 @@ function renderContractsAdmin(){
     const items=groups[aid].map(c=>{
       const d=(c.created_at||'').slice(0,10).replace(/-/g,'.'); const ic=c.kind==='pdf'?'📄':'🖼️';
       return `<div style="display:flex;align-items:center;gap:11px;background:#fff;border:1px solid var(--line);border-top:none;padding:12px 15px">
-        <a href="${c.file_url}" target="_blank" style="flex:1;display:flex;align-items:center;gap:11px;text-decoration:none;min-width:0"><span style="font-size:22px">${ic}</span><div style="min-width:0"><div style="font-size:13px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)||'계약서'}</div><div style="font-size:11px;color:var(--mut);margin-top:2px">${d} · ${c.kind==='pdf'?'PDF':'사진'} · 열기</div></div></a>
+        <div onclick="openContractAdmin('${c.file_url}','${c.kind}')" style="flex:1;display:flex;align-items:center;gap:11px;cursor:pointer;min-width:0"><span style="font-size:22px">${ic}</span><div style="min-width:0"><div style="font-size:13px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)||'계약서'}</div><div style="font-size:11px;color:var(--mut);margin-top:2px">${d} · ${c.kind==='pdf'?'PDF':'사진'} · 열기</div></div></div>
         <button class="b" style="padding:5px 11px;font-size:11px;background:#fdecea;color:#e4544b" onclick="deleteContractAdmin('${c.id}')">삭제</button></div>`;
     }).join('');
     return `<div style="margin-bottom:14px"><div style="background:var(--blue);color:#fff;padding:10px 14px;border-radius:9px 9px 0 0;font-weight:800;font-size:13px">🏢 ${esc(aptName(aid))} <span style="font-size:11px;font-weight:700;opacity:.85">${groups[aid].length}건</span></div>${items}</div>`;
   }).join('');
+}
+// 계약서 열람: 비공개 버킷 경로면 짧은 임시 링크(서명 URL) 생성 후 엶. 옛 공개 URL(http)은 그대로.
+async function openContractAdmin(fileUrl, kind){
+  let open=fileUrl;
+  if(fileUrl && !/^https?:\/\//i.test(fileUrl)){
+    const {data,error}=await sb.storage.from('contracts').createSignedUrl(fileUrl,300);
+    if(error||!data||!data.signedUrl){ alert('계약서를 여는 중 오류가 났어요'); return; }
+    open=data.signedUrl;
+  }
+  window.open(open,'_blank','noopener');
+}
+// 기존(공개 field-photos) 계약서 → 비공개 contracts 버킷으로 이전 (출시 전 1회)
+async function migrateContracts(){
+  const btn=$('ctmig-btn');
+  const log=(m,c)=>{ const b=$('ctmig-log'); if(!b)return; const d=document.createElement('div'); d.textContent=m; if(c)d.style.color=c; b.appendChild(d); b.scrollTop=b.scrollHeight; };
+  if(btn)btn.disabled=true; if($('ctmig-log'))$('ctmig-log').innerHTML='';
+  try{
+    const {data,error}=await sb.from('contracts').select('id,name,file_url');
+    if(error){ log('불러오기 실패: '+error.message,'#e4544b'); return; }
+    const rows=(data||[]).filter(c=>/^https?:\/\//i.test(c.file_url||'') && /field-photos/.test(c.file_url));
+    if(!rows.length){ log('옮길 공개 계약서가 없어요. (이미 비공개거나 계약서 없음) ✅','#1f8a5b'); return; }
+    log('대상 계약서: '+rows.length+'건','#2563eb');
+    let done=0,fail=0;
+    for(const c of rows){
+      const m=/\/object\/public\/field-photos\/(.+)$/.exec(c.file_url);
+      const oldPath=m?decodeURIComponent(m[1]):null;
+      if(!oldPath){ fail++; log('❌ 경로 파악 실패: '+(c.name||c.id),'#e4544b'); continue; }
+      try{
+        const res=await fetch(c.file_url); if(!res.ok) throw new Error('다운로드 실패('+res.status+')');
+        const blob=await res.blob();
+        const newPath=oldPath.replace(/^contracts\//,'');   // 'contracts/<aid>/<file>' → '<aid>/<file>'
+        const {error:ue}=await sb.storage.from('contracts').upload(newPath,blob,{upsert:true});
+        if(ue) throw new Error(ue.message);
+        const {error:de}=await sb.from('contracts').update({file_url:newPath}).eq('id',c.id);
+        if(de) throw new Error(de.message);
+        try{ await sb.storage.from('field-photos').remove([oldPath]); }catch(_){}   // 공개 원본 제거(노출 차단)
+        done++; log('✅ '+(c.name||c.id),'#1f8a5b');
+      }catch(e){ fail++; log('❌ '+(c.name||c.id)+' → '+e.message,'#e4544b'); }
+    }
+    log('════ 완료 ════ 이전 '+done+' · 실패 '+fail,'#1c2440');
+    loadContractsAdmin();
+  }catch(e){ log('오류: '+e.message,'#e4544b'); }
+  finally{ if(btn)btn.disabled=false; }
 }
 async function uploadContractAdmin(files){
   let f=files&&files[0]; const aid=$('ct-apt-sel').value; const msg=$('ct-msg-a');
@@ -1223,12 +1273,11 @@ async function uploadContractAdmin(files){
   if(!f) return;
   f=await compressImage(f);   // 이미지 계약서는 압축, PDF는 원본 그대로 통과
   if(msg){msg.style.color='var(--mut)';msg.textContent='올리는 중…';}
-  const safe=f.name.replace(/[^\w.\-]/g,'_'); const path='contracts/'+aid+'/'+Date.now()+'_'+safe;
-  const {error:upErr}=await sb.storage.from('field-photos').upload(path,f,{upsert:false});
-  if(upErr){ if(msg){msg.style.color='#e4544b';msg.textContent='업로드 실패: '+upErr.message;} return; }
-  const url=sb.storage.from('field-photos').getPublicUrl(path).data.publicUrl;
+  const safe=f.name.replace(/[^\w.\-]/g,'_'); const path=aid+'/'+Date.now()+'_'+safe;
+  const {error:upErr}=await sb.storage.from('contracts').upload(path,f,{upsert:false});  // 비공개 버킷
+  if(upErr){ if(msg){msg.style.color='#e4544b';msg.textContent='업로드 실패: '+upErr.message+' (migration-security-contracts.sql 실행 필요)';} return; }
   const kind=f.type==='application/pdf'?'pdf':'image';
-  const {error}=await sb.from('contracts').insert({apartment_id:aid,name:f.name,file_url:url,kind});
+  const {error}=await sb.from('contracts').insert({apartment_id:aid,name:f.name,file_url:path,kind});  // 경로만 저장
   if(error){ if(msg){msg.style.color='#e4544b';msg.textContent='등록 실패: '+error.message;} return; }
   if(msg){msg.style.color='#1f8a5b';msg.textContent='✅ 등록됐어요';}
   $('ct-file-a').value=''; loadContractsAdmin();

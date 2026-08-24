@@ -2750,6 +2750,16 @@ function refreshActive () {
   } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshActive() })
+
+// 입력창을 누르면 키보드가 올라오며 화면이 밀려 안 보이는 문제 방지:
+// 포커스된 입력창을 (키보드 위) 보이는 영역 가운데로 스크롤
+document.addEventListener('focusin', function (e) {
+  const el = e.target
+  if (!el || !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
+  const scrollIn = () => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch (_) {} }
+  setTimeout(scrollIn, 300)   // 키보드가 올라온 뒤
+  setTimeout(scrollIn, 650)   // 애니메이션 타이밍 보정
+})
 window.addEventListener('pageshow', (e) => { if (e.persisted) refreshActive() })
 function boot() {
   try { wire() } catch (e) { console.error(e) }

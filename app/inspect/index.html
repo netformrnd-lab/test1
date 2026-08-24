@@ -14,8 +14,9 @@
     --gray-bg: #EEF4FF; --gray-border: #90CAF9; --gray-text: #37474F;
     --radius: 12px;
   }
-  body { font-family: 'Apple SD Gothic Neo','Malgun Gothic',sans-serif; background: var(--gray-bg); min-height:100vh; color:#111; padding-bottom:40px; }
-  .header { background:#fff; border-bottom:1px solid var(--gray-border); padding:14px 18px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100; }
+  body { font-family: 'Apple SD Gothic Neo','Malgun Gothic',sans-serif; background: var(--gray-bg); min-height:100vh; color:#111; padding-bottom:calc(40px + env(safe-area-inset-bottom)); }
+  .header { background:#fff; border-bottom:1px solid var(--gray-border); padding:calc(14px + env(safe-area-inset-top)) 18px 14px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100; }
+  .insp-back { font-size:24px; line-height:1; color:#2a3350; cursor:pointer; padding:2px 4px; margin-left:-4px; flex-shrink:0; }
   .header-icon { width:38px; height:38px; background:var(--blue-btn); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
   .header-title { font-size:16px; font-weight:700; color:#111; }
   .header-sub { font-size:11px; color:var(--gray-text); margin-top:1px; }
@@ -141,6 +142,7 @@
 <body>
 
 <div class="header">
+  <span class="insp-back" onclick="inspBack()">‹</span>
   <div class="header-icon">감리</div>
   <div>
     <div class="header-title">현장 점검</div>
@@ -831,9 +833,17 @@ function openShootGuide(){
 }
 function closeShootGuide(){ document.getElementById('guideOverlay').style.display='none'; }
 
+let curScreen = 1;
+// 헤더 뒤로가기: 2단계 이상이면 이전 단계로, 1단계면 앱으로 복귀
+function inspBack(){
+  if(curScreen>1){ goScreen(curScreen-1); return; }
+  if(history.length>1){ history.back(); } else { location.href='../index.html#s08'; }
+}
 function goScreen(n) {
+  curScreen = n;
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen'+n).classList.add('active');
+  try { window.scrollTo(0,0); } catch(e){}
   const total = 6;
   for(let i=1;i<=total;i++){
     const d=document.getElementById('sd'+i);
@@ -1075,7 +1085,7 @@ let __rec=null, __recBtn=null;
 function startDictation(targetId, btn){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const el = document.getElementById(targetId); if(!el) return;
-  if(!SR){ showToast('이 기기는 앱 내 음성입력을 지원하지 않아요. 키보드의 🎤 버튼을 눌러 말하면 돼요','ng'); el.focus(); return; }
+  if(!SR){ el.focus(); showToast('키보드의 🎤(마이크)를 눌러 말하면 그대로 입력돼요','ok'); return; }
   if(__rec){ try{__rec.stop()}catch(e){} return; }
   __rec = new SR(); __rec.lang='ko-KR'; __rec.interimResults=false; __rec.continuous=true;
   __recBtn = btn; if(btn){ btn.textContent='⏹ 듣는 중…'; btn.style.background='#ffe6e6'; btn.style.color='#e4544b'; btn.style.borderColor='#f3b3b3'; }

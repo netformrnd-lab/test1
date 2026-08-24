@@ -1,5 +1,9 @@
 package com.imweb.appS202408051a19f7159fdc6_9cfb6b4e8f3d0;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -16,6 +20,12 @@ public class MainActivity extends BridgeActivity {
     try {
       WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
       if (c != null) c.setAppearanceLightStatusBars(true);
+    } catch (Exception e) {}
+    // 감리일지 음성입력용 마이크 권한 — 없으면 한 번 요청 (설정에도 마이크 항목이 생김)
+    try {
+      if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        ActivityCompat.requestPermissions(this, new String[]{ Manifest.permission.RECORD_AUDIO }, 4001);
+      }
     } catch (Exception e) {}
   }
 }

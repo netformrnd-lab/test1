@@ -1940,8 +1940,9 @@ async function importBoard(){
 }
 // ── 아임웹 사진 → Supabase 저장소로 이전 (출시 전 1회) ──────────────
 function migLog(msg,color){ const box=$('mig-log'); if(!box)return; const d=document.createElement('div'); d.textContent=msg; if(color)d.style.color=color; box.appendChild(d); box.scrollTop=box.scrollHeight; }
-function isImwebUrl(u){ return typeof u==='string' && /imweb/i.test(u); }
 function isSupaUrl(u){ return typeof u==='string' && /supabase\.co\/storage/i.test(u); }
+// 아임웹 원본 링크만 true. (우리 저장소로 옮긴 주소는 경로에 'imweb'이 들어가도 제외)
+function isImwebUrl(u){ return typeof u==='string' && /imweb/i.test(u) && !isSupaUrl(u); }
 let MIG_LAST_ERR='';
 const migSleep=ms=>new Promise(r=>setTimeout(r,ms));
 // 아임웹 사진을 브라우저에서 blob으로 가져오기 (fetch → img+canvas 폴백) · 2회 재시도
@@ -1966,7 +1967,7 @@ async function migUpload(blob){
   const comp=await compressImage(file);   // 이전하면서 같이 압축
   const ext=(comp.type.split('/')[1]||'jpg').replace('jpeg','jpg');
   for(let a=0;a<3;a++){   // 업로드 3회 재시도(일시적 네트워크 실패 대비)
-    const path='field/imweb/'+Date.now()+'_'+Math.round(Math.random()*1e9)+'.'+ext;
+    const path='field/migrated/'+Date.now()+'_'+Math.round(Math.random()*1e9)+'.'+ext;
     const {error}=await sb.storage.from('field-photos').upload(path,comp,{upsert:false});
     if(!error) return sb.storage.from('field-photos').getPublicUrl(path).data.publicUrl;
     MIG_LAST_ERR='업로드: '+(error.message||error);

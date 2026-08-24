@@ -549,6 +549,14 @@ window.showScreen = function (id) {
   if (id === 's36' && typeof renderAuditorChatList === 'function') { try { renderAuditorChatList() } catch (e) {} }
   // 승인 대기 화면: 승인되면 자동으로 홈으로 넘어가게 폴링
   if (id === 's02') startApprovalPoll(); else stopApprovalPoll()
+  // 무료 진단 영상(s17): 화면이 실제로 보일 때만 src를 넣어 자동재생(숨겨진 채 자동재생 차단 회피), 나가면 정지
+  try {
+    const dv = document.getElementById('diag-video')
+    if (dv) {
+      if (id === 's17') { const s = dv.getAttribute('data-src'); if (s && dv.getAttribute('src') !== s) dv.src = s }
+      else if (dv.getAttribute('src') && dv.getAttribute('src') !== 'about:blank') dv.src = 'about:blank'
+    }
+  } catch (e) {}
 }
 // 승인 대기(s02): 관리자가 승인하면 자동으로 홈으로 이동
 let _approvalPoll = null

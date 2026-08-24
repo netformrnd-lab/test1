@@ -373,6 +373,7 @@
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button id="mig-test-btn" class="b" style="background:#fff3dd;color:#b26a00" onclick="migrateImwebPhotos(true)">① 1장 테스트</button>
           <button id="mig-run-btn" class="b save" onclick="if(confirm('아임웹 사진을 전부 우리 저장소로 복사합니다. 계속할까요?'))migrateImwebPhotos(false)">② 전체 이전 시작</button>
+          <button id="mig-stat-btn" class="b" style="background:#eef1f7;color:var(--mut2)" onclick="migStatus()">📊 현황 보기</button>
         </div>
         <div id="mig-log" style="margin-top:12px;font-size:12px;line-height:1.7;max-height:280px;overflow:auto;font-family:monospace;color:var(--mut2);white-space:pre-wrap"></div>
       </div>
@@ -1962,6 +1963,23 @@ async function migUpload(blob){
   if(error){ migLog('   업로드 실패: '+error.message,'#e4544b'); return null; }
   return sb.storage.from('field-photos').getPublicUrl(path).data.publicUrl;
 }
+// 현황: 전체 현장글 중 사진 이전 완료/미완료 집계
+async function migStatus(){
+  $('mig-log').innerHTML='';
+  migLog('현황 확인 중…','#2563eb');
+  const {data,error}=await sb.from('field_updates').select('id,photos');
+  if(error){ migLog('불러오기 실패: '+error.message,'#e4544b'); return; }
+  const rows=data||[];
+  const withPhoto=rows.filter(r=>Array.isArray(r.photos)&&r.photos.length);
+  const remain=withPhoto.filter(r=>r.photos.some(isImwebUrl));
+  const remainImgs=remain.reduce((s,r)=>s+r.photos.filter(isImwebUrl).length,0);
+  const doneRows=withPhoto.length-remain.length;
+  migLog('──────────');
+  migLog('사진 있는 현장글: '+withPhoto.length+'개');
+  migLog('✅ 이전 완료: '+doneRows+'개', '#1f8a5b');
+  migLog((remain.length?'⚠️ ':'')+'아직 아임웹: '+remain.length+'개 (사진 '+remainImgs+'장)', remain.length?'#b26a00':'#1f8a5b');
+  migLog(remain.length? '→ ② 전체 이전을 누르면 남은 것만 옮겨요.' : '→ 모두 이전 완료됐어요! 이제 아임웹을 닫아도 안전해요.', remain.length?'#5a6480':'#1f8a5b');
+}
 async function migrateImwebPhotos(testOnly){
   const tb=$('mig-test-btn'), rb=$('mig-run-btn');
   if(tb)tb.disabled=true; if(rb)rb.disabled=true;
@@ -2052,10 +2070,16 @@ function fieldRowHtml(f){
   const d=(f.created_at||'').slice(0,10).replace(/-/g,'.');
   const n=Array.isArray(f.photos)?f.photos.length:0;
   const title=esc(f.title)||'(제목 없음)';
+  // 사진 이전 상태 배지: 아임웹 링크가 남았으면 ⚠️, 사진이 있고 전부 우리 저장소면 ✅
+  const hasImweb=Array.isArray(f.photos)&&f.photos.some(isImwebUrl);
+  const migBadge=n?(hasImweb
+    ?`<span title="아직 아임웹 링크 사진이 있어요 (이전 필요)" style="font-size:9.5px;color:#b26a00;font-weight:800;background:#fff3dd;padding:2px 7px;border-radius:99px;flex-shrink:0">⚠️ 아임웹</span>`
+    :`<span title="우리 저장소로 이전 완료" style="font-size:9.5px;color:#1f8a5b;font-weight:800;background:#e7f5ee;padding:2px 7px;border-radius:99px;flex-shrink:0">✅ 이전됨</span>`):'';
   return `<div class="fld-item" data-fitem="${f.id}">
     <div class="fld-row" onclick="toggleFieldEdit('${f.id}')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;border:1px solid var(--line);border-top:none;cursor:pointer">
       <span style="font-size:11px;color:var(--mut);font-weight:600;flex-shrink:0;width:72px">${d}</span>
       <span style="font-size:13px;font-weight:700;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title}</span>
+      ${migBadge}
       ${n?`<span style="font-size:10.5px;color:var(--blue);font-weight:700;flex-shrink:0">📷 ${n}</span>`:''}
       <span onclick="event.stopPropagation();deleteField('${f.id}')" title="이 기록 삭제" style="flex-shrink:0;width:26px;height:26px;border-radius:7px;background:#fdecea;color:#e4544b;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer">🗑</span>
       <span class="fld-caret" style="color:#b3bccf;font-size:12px;flex-shrink:0">▾</span>

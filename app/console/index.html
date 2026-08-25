@@ -346,6 +346,8 @@ function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return
 function auditorName(id){ const m=MEMBERS.find(x=>x.id===id); return m?(m.name||m.email||'-'):'-'; }
 function siteAuditors(a){ const ids=aptAuditors(a); return ids.length?ids.map(auditorName).join(', '):'<span style="color:var(--mut)">미배정</span>'; }
 function aptName(id){ const a=APTS.find(x=>x.id===id); return a?a.name:'-'; }
+// 공종 표시: 공법(methodLabel)을 우선 사용, 없으면 옛 construction_type
+function siteType(a){ return (window.methodLabel&&window.methodLabel(a.method))||(a.construction_type&&String(a.construction_type).trim())||''; }
 function STG(m){ return (window.STAGE_SETS&&window.STAGE_SETS[m])||null; }
 function progressOf(a){ const st=STG(a.method); const tot=st?st.stages.length:(a.progress_total||0); const cur=a.progress_current||0; return {cur,tot,pct:tot?Math.round(cur/tot*100):0}; }
 const STATUS={in_progress:['공사중','blue'],done:['완료','gray'],scheduled:['점검예정','no']};
@@ -493,7 +495,7 @@ function exportAllExcel(){
   const d10=s=>(s||'').slice(0,10);
   const wb=XLSX.utils.book_new();
   const add=(name,rows)=>{ const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{'':''}]); XLSX.utils.book_append_sheet(wb,ws,name); };
-  add('단지', APTS.map(a=>({단지명:a.name,지역:a.region,공종:a.construction_type,상태:(STATUS[a.status]||STATUS.scheduled)[0],담당감리사:aptAuditors(a).map(auditorName).join(', '),계약금액:a.contract_amount,감리비:a.supervision_fee,수금액:a.received_amount,미수금:(a.supervision_fee!=null?a.supervision_fee-(a.received_amount||0):null),등급:siteGrade(a.id),등록일:d10(a.created_at)})));
+  add('단지', APTS.map(a=>({단지명:a.name,지역:a.region,공종:siteType(a),상태:(STATUS[a.status]||STATUS.scheduled)[0],담당감리사:aptAuditors(a).map(auditorName).join(', '),계약금액:a.contract_amount,감리비:a.supervision_fee,수금액:a.received_amount,미수금:(a.supervision_fee!=null?a.supervision_fee-(a.received_amount||0):null),등급:siteGrade(a.id),등록일:d10(a.created_at)})));
   add('감리일지', REPORTS.map(r=>({단지:aptName(r.apartment_id),제목:r.title,동:r.dongs,사진수:Array.isArray(r.photos)?r.photos.length:0,공개:r.published?'공개':'비공개',작성일:d10(r.created_at)})));
   add('현장기록', FIELDS.map(f=>({단지:aptName(f.apartment_id),제목:f.title,동:f.dong,사진수:Array.isArray(f.photos)?f.photos.length:0,작성일:d10(f.created_at)})));
   add('회원', MEMBERS.map(m=>({이름:m.name,아이디:loginId(m),역할:ROLES[m.role]||m.role,담당단지:m.apartment_id?aptName(m.apartment_id):'',연락처:m.phone,승인:m.approved?'승인':'대기'})));
@@ -512,7 +514,7 @@ function renderOrgs(){
   let list=APTS.slice();
   if(q)list=list.filter(a=>((a.name||'')+' '+(a.region||'')).toLowerCase().includes(q));
   list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
-  $('orgRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td>${esc(a.region)||'-'}</td><td>${esc(a.construction_type)||'-'}</td><td>${siteAuditors(a)}</td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join(''):'<tr><td colspan="5" class="empty">단지가 없어요</td></tr>';
+  $('orgRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td>${esc(a.region)||'-'}</td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join(''):'<tr><td colspan="5" class="empty">단지가 없어요</td></tr>';
 }
 
 /* ===== 캘린더 ===== */
@@ -533,7 +535,7 @@ function renderProjList(){
   const q=($('proj-q')?.value||'').trim().toLowerCase();
   let list=APTS.slice(); if(q)list=list.filter(a=>((a.name||'')+' '+(a.region||'')).toLowerCase().includes(q));
   list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
-  $('projRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span><br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(a.construction_type)||'-'}</td><td>${siteAuditors(a)}</td><td>${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td>${outHtml}</td><td>${nrep}건</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join(''):'<tr><td colspan="8" class="empty">단지가 없어요</td></tr>';
+  $('projRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span><br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td>${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td>${outHtml}</td><td>${nrep}건</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join(''):'<tr><td colspan="8" class="empty">단지가 없어요</td></tr>';
 }
 let curProj=null,projTab='report';
 function backToProjList(){$('projList').style.display='block';$('projDetail').style.display='none';curProj=null;}
@@ -564,7 +566,7 @@ function renderProj(){
   let body='';
   if(projTab==='overview'){
     body=`<div class="grid2"><div class="card"><h3>현장 정보 <span class="r"><button class="b line sm" onclick="openAptEdit('${p.id}')">⚙️ 단지 설정</button></span></h3>
-      <div class="kv"><span>지역</span><b>${esc(p.region)||'-'}</b></div><div class="kv"><span>공종</span><b>${esc(p.construction_type)||'-'}</b></div>
+      <div class="kv"><span>지역</span><b>${esc(p.region)||'-'}</b></div><div class="kv"><span>공종</span><b>${esc(siteType(p))||'-'}</b></div>
       <div class="kv"><span>담당 감리</span><b>${siteAuditors(p)}</b></div>
       <div class="kv"><span>공법</span><b>${esc((window.methodLabel&&window.methodLabel(p.method))||p.method||'미지정')}</b></div>
       <div class="kv"><span>상태</span><b>${(STATUS[p.status]||STATUS.scheduled)[0]}</b></div>
@@ -583,7 +585,7 @@ function renderProj(){
   } else if(projTab==='photo'){
     body=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button></div>`+(flds.length?[...flds].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(f=>`<div class="card"><div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:14px;font-weight:800;color:var(--blue)">📅 ${(f.created_at||'').slice(0,10)}</span><span class="pill blue">📷 ${(Array.isArray(f.photos)?f.photos.length:0)}장</span>${f.dong?`<span class="pill gray">${esc(f.dong)}</span>`:''}<span style="flex:1"></span>${(Array.isArray(f.photos)&&f.photos.length)?`<button class="b line sm" onclick="downloadFieldPhotos('${f.id}',this)">⬇ 사진 ${f.photos.length}</button> `:''}<button class="b line sm" onclick="openFieldEdit('${f.id}')">편집</button> <button class="b red sm" onclick="deleteField('${f.id}')">삭제</button></div><div style="font-size:13px;font-weight:700">${esc(f.title)||'-'}</div>${f.content?`<div style="font-size:12.5px;color:var(--mut2);margin-top:5px;white-space:pre-wrap">${esc(f.content)}</div>`:''}${(Array.isArray(f.photos)&&f.photos.length)?`<div class="phwrap" style="margin-top:9px">${f.photos.slice(0,12).map(u=>`<img src="${esc(u)}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`).join('')}${f.photos.length>12?`<span style="align-self:center;color:var(--mut);font-size:12px">+${f.photos.length-12}</span>`:''}</div>`:''}</div>`).join(''):'<div class="card empty">등록된 현장기록이 없어요</div>');
   }
-  $('projDetail').innerHTML=`<div class="head"><div><h2>${esc(p.name)}</h2><div class="desc"><span class="link" onclick="backToProjList()">← 공사관리</span> · ${esc(p.construction_type)||''} · 감리 ${siteAuditors(p)}</div></div></div>${tabs}${body}`;
+  $('projDetail').innerHTML=`<div class="head"><div><h2>${esc(p.name)}</h2><div class="desc"><span class="link" onclick="backToProjList()">← 공사관리</span>${siteType(p)?' · '+esc(siteType(p)):''} · 감리 ${siteAuditors(p)}</div></div></div>${tabs}${body}`;
 }
 
 /* ===== 활동기록 ===== */
@@ -801,32 +803,33 @@ function methodOptsC(cur){ let o='<option value="">— 공법 미지정 —</opt
 function stageOptsC(method,cur){ const s=((window.STAGE_SETS||{})[method]||{}).stages; if(!s)return '<option value="0">— 공법을 먼저 선택 —</option>'; let o=`<option value="0" ${cur===0?'selected':''}>시작 전 (0/${s.length})</option>`; s.forEach((nm,i)=>{const v=i+1;o+=`<option value="${v}" ${cur===v?'selected':''}>${esc(nm)} 완료 (${v}/${s.length})</option>`;}); return o; }
 function onMethodChangeC(sel){ const box=$('m-stage'); if(box) box.innerHTML=stageOptsC(sel.value,0); }
 function openAptAdd(){
-  const auds=MEMBERS.filter(m=>m.role==='auditor');
+  const auds=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
   openModal(mHead('➕ 단지 추가')+`
     <div class="fld"><label>단지명 *</label><input id="m-name" placeholder="예: 서울 노원 ○○아파트"></div>
-    <div class="frow"><div class="fld"><label>지역</label><input id="m-region" placeholder="예: 서울 노원"></div><div class="fld"><label>공사종류</label><input id="m-type" placeholder="예: 외벽 도장"></div></div>
-    <div class="fld"><label>대표 감리사</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(a=>`<option value="${a.id}">${esc(a.name||a.email)}</option>`).join('')}</select></div>
+    <div class="fld"><label>지역</label><input id="m-region" placeholder="예: 서울 노원"></div>
+    <div class="fld"><label>대표 감리사</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(a=>`<option value="${a.id}">${esc(a.name||loginId(a))}</option>`).join('')}</select></div>
+    <div style="font-size:11px;color:var(--mut);margin-bottom:6px">💡 공종(공사종류)·공정은 추가 후 <b>단지 설정</b>에서 ‘공법’을 고르면 자동으로 잡혀요.</div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAptAdd()">추가</button></div>`);
 }
 async function submitAptAdd(){
   const name=$('m-name').value.trim(); if(!name){$('m-msg').textContent='단지명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const {error}=await sb.from('apartments').insert({name,region:$('m-region').value.trim()||null,construction_type:$('m-type').value.trim()||null,auditor_id:$('m-aud').value||null});
+  const {error}=await sb.from('apartments').insert({name,region:$('m-region').value.trim()||null,auditor_id:$('m-aud').value||null});
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();
 }
 function openAptEdit(id){
   const a=APTS.find(x=>x.id===id); if(!a)return;
-  const auds=MEMBERS.filter(m=>m.role==='auditor');
+  const auds=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
   const team=aptAuditors(a);
   const st=((window.STAGE_SETS||{})[a.method]||{}).stages; const pc=a.progress_current||0;
   openModal(mHead('⚙️ 단지 설정')+`
     <div class="fld"><label>단지명 *</label><input id="m-name" value="${esc(a.name)||''}"></div>
-    <div class="frow"><div class="fld"><label>지역</label><input id="m-region" value="${esc(a.region)||''}"></div><div class="fld"><label>공사종류</label><input id="m-type" value="${esc(a.construction_type)||''}"></div></div>
-    <div class="frow"><div class="fld"><label>공법</label><select id="m-method" onchange="onMethodChangeC(this)">${methodOptsC(a.method)}</select></div><div class="fld"><label>공정</label><select id="m-stage">${stageOptsC(a.method,pc)}</select></div></div>
+    <div class="fld"><label>지역</label><input id="m-region" value="${esc(a.region)||''}"></div>
+    <div class="frow"><div class="fld"><label>공법 <span style="font-weight:600;color:var(--mut)">(공종이 자동으로 잡혀요)</span></label><select id="m-method" onchange="onMethodChangeC(this)">${methodOptsC(a.method)}</select></div><div class="fld"><label>공정</label><select id="m-stage">${stageOptsC(a.method,pc)}</select></div></div>
     <div class="fld"><label>상태</label><select id="m-status"><option value="scheduled" ${(!a.status||a.status==='scheduled')?'selected':''}>점검 예정</option><option value="in_progress" ${a.status==='in_progress'?'selected':''}>감리 진행 중</option><option value="done" ${a.status==='done'?'selected':''}>완료</option></select></div>
-    <div class="fld"><label>대표 감리사</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||m.email)}</option>`).join('')}</select></div>
-    <div class="fld"><label>함께 담당 감리사 (여러 명 가능)</label><div style="display:flex;flex-wrap:wrap;gap:6px 14px">${auds.length?auds.map(m=>`<label style="font-size:12.5px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-weight:600"><input type="checkbox" class="m-team" value="${m.id}" ${team.includes(m.id)?'checked':''}> ${esc(m.name||m.email)}</label>`).join(''):'<span style="color:var(--mut)">등록된 감리사 없음</span>'}</div></div>
+    <div class="fld"><label>대표 감리사</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>
+    <div class="fld"><label>함께 담당 감리사 <span style="font-weight:600;color:var(--mut)">(여러 명 체크 가능)</span></label>${auds.length?`<div style="max-height:150px;overflow-y:auto;border:1px solid var(--line);border-radius:9px;padding:6px 10px">${auds.map(m=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 2px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid var(--line2)"><input type="checkbox" class="m-team" value="${m.id}" ${team.includes(m.id)?'checked':''}> ${esc(m.name||loginId(m)||'(이름없음)')}</label>`).join('')}</div>`:'<div style="color:var(--mut);font-size:12px">등록된 감리사가 없어요. 회원 메뉴에서 역할을 ‘감리사’로 지정하세요.</div>'}</div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b red" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAptEdit('${a.id}')">저장</button></div>`);
 }
@@ -838,7 +841,7 @@ async function submitAptEdit(id){
   const aud=$('m-aud').value||null;
   const team=[...document.querySelectorAll('.m-team:checked')].map(c=>c.value);
   const all=[...new Set([aud,...team].filter(Boolean))];
-  const {error}=await sb.from('apartments').update({name,region:$('m-region').value.trim()||null,construction_type:$('m-type').value.trim()||null,auditor_id:aud,method,status:$('m-status').value,progress_current:pc,progress_total:pt}).eq('id',id);
+  const {error}=await sb.from('apartments').update({name,region:$('m-region').value.trim()||null,auditor_id:aud,method,status:$('m-status').value,progress_current:pc,progress_total:pt}).eq('id',id);
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
   try{ await sb.from('apartment_auditors').delete().eq('apartment_id',id); if(all.length) await sb.from('apartment_auditors').insert(all.map(x=>({apartment_id:id,auditor_id:x}))); }catch(e){}
   closeModal(); await loadAll();

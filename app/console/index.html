@@ -1551,30 +1551,51 @@ async function syncGSheet(manual){
         iContact=keyOf(['연락처','휴대폰','전화','핸드폰','번호','연락']), iCtype=keyOf(['공사','공종','종류','품목']),
         iRegion=keyOf(['지역','주소']), iMemo=keyOf(['내용','문의','상담','메시지','본문','요청','비고','상세']),
         iOwner=keyOf(['담당자','담당','영업담당','영업','매니저']),
+        iStage=keyOf(['진행사항','진행상황','진행','단계','상태','현황','스테이지','pipeline']),
         iTime=keyOf(['타임','작성','신청','등록','접수','일시','날짜']);
-  if(manual) gsLog('컬럼 인식 → 아파트:'+(iApt>=0?cols[iApt]:'없음')+' · 이름:'+(iPerson>=0?cols[iPerson]:'없음')+' · 연락처:'+(iContact>=0?cols[iContact]:'없음')+' · 담당:'+(iOwner>=0?cols[iOwner]:'없음')+' · 공사:'+(iCtype>=0?cols[iCtype]:'없음')+' · 지역:'+(iRegion>=0?cols[iRegion]:'없음')+' · 내용:'+(iMemo>=0?cols[iMemo]:'없음'),'#9db4de');
-  const seen=new Set(SALES.map(gsSig));
+  if(manual) gsLog('컬럼 인식 → 아파트:'+(iApt>=0?cols[iApt]:'없음')+' · 이름:'+(iPerson>=0?cols[iPerson]:'없음')+' · 연락처:'+(iContact>=0?cols[iContact]:'없음')+' · 담당:'+(iOwner>=0?cols[iOwner]:'없음')+' · 진행:'+(iStage>=0?cols[iStage]:'없음')+' · 공사:'+(iCtype>=0?cols[iCtype]:'없음')+' · 지역:'+(iRegion>=0?cols[iRegion]:'없음')+' · 내용:'+(iMemo>=0?cols[iMemo]:'없음'),'#9db4de');
+  const sigToLead={}; SALES.forEach(l=>{ sigToLead[gsSig(l)]=l; });
   const isNum=s=>/^[\d,\.\s]+$/.test(String(s||'').trim());
-  let made=0,skip=0,fail=0;
+  let made=0,moved=0,skip=0,fail=0;
   for(let r=1;r<rows.length;r++){ const row=rows[r]; if(!row||!row.join('').trim())continue;
     const person=String((iPerson>=0?row[iPerson]:'')||'').trim(), apt=String((iApt>=0?row[iApt]:'')||'').trim();
-    // 이름(아파트명) 우선. 숫자(세대수 등)로 잡히면 사람명으로 대체
     let name=apt; if(!name||isNum(name)) name=person; if(!name||isNum(name)) name='';
     if(!name){ continue; }
     const contact=[person&&person!==name?person:'',String((iContact>=0?row[iContact]:'')||'').trim()].filter(x=>String(x).trim()).join(' ').trim()||null;
     const owner=(iOwner>=0?String(row[iOwner]||'').trim():'')||'구글시트';
+    const stage=iStage>=0?stageFromText(row[iStage]):'inquiry';
     const lead={ name:name.slice(0,120), contact:contact?contact.slice(0,200):null,
       construction_type:(iCtype>=0?(row[iCtype]||'').trim():'')||null, region:(iRegion>=0?(row[iRegion]||'').trim():'')||null,
-      memo:(iMemo>=0?(row[iMemo]||'').trim():'')||null, stage:'inquiry', next_action:'첫 연락', owner };
-    const t=(iTime>=0?(row[iTime]||'').trim():''); if(t){ const d=new Date(t); if(!isNaN(d.getTime())){ lead.created_at=t; lead.stage_changed_at=t; } }
-    if(seen.has(gsSig(lead))){ skip++; continue; }
+      memo:(iMemo>=0?(row[iMemo]||'').trim():'')||null, stage, next_action:'첫 연락', owner };
+    const t=(iTime>=0?(row[iTime]||'').trim():''); if(t){ const d=new Date(t); if(!isNaN(d.getTime())){ lead.created_at=t; } }
+    const ex=sigToLead[gsSig(lead)];
+    if(ex){ // 이미 있는 딜 — 시트의 진행사항에 맞춰 단계만 이동
+      if(iStage>=0 && ex.stage!==stage){
+        const {error}=await sb.from('sales_leads').update({stage, stage_changed_at:new Date().toISOString(), owner}).eq('id',ex.id);
+        if(error){ fail++; } else { moved++; ex.stage=stage; if(manual)gsLog('↔ 이동  '+name+' → '+(SALES_LABEL[stage]||stage),'#f0c674'); }
+      } else skip++;
+      continue;
+    }
+    if(t){ lead.stage_changed_at=t; }
     const {error}=await sb.from('sales_leads').insert(lead);
     if(error){ fail++; if(manual)gsLog('❌ '+name+' → '+error.message,'#ff8a8a'); }
-    else { made++; seen.add(gsSig(lead)); if(manual)gsLog('✅ '+name+(contact?(' · '+contact):''),'#8ce0a0'); }
+    else { made++; sigToLead[gsSig(lead)]=lead; if(manual)gsLog('✅ 신규  '+name+' ['+(SALES_LABEL[stage]||stage)+']'+(contact?(' · '+contact):''),'#8ce0a0'); }
   }
-  if(manual){ gsLog('════ 완료 ════ 신규 '+made+' · 기존 '+skip+' · 실패 '+fail,'#cfe0ff'); if(made)gsLog('→ 영업 ‘문의’ 칸에서 확인하세요.','#8ce0a0'); }
-  if(made) await loadAll();
-  else if(manual&&!made&&!fail) gsLog('새로 추가된 행이 없어요 (이미 다 등록됨).','#8ce0a0');
+  if(manual){ gsLog('════ 완료 ════ 신규 '+made+' · 단계이동 '+moved+' · 유지 '+skip+' · 실패 '+fail,'#cfe0ff'); }
+  if(made||moved) await loadAll();
+  else if(manual&&!fail) gsLog('변동 사항이 없어요 (이미 최신).','#8ce0a0');
+}
+// 시트의 진행사항 텍스트 → 파이프라인 단계
+function stageFromText(t){
+  const s=String(t||'').replace(/\s/g,'').toLowerCase();
+  if(!s) return 'inquiry';
+  if(/성사|수주|계약완료|계약체결|완료|성공|낙찰|win|won/.test(s)) return 'won';
+  if(/실패|취소|무산|보류|거절|종료|드랍|포기|lost|hold/.test(s)) return 'lost';
+  if(/계약/.test(s)) return 'contract';
+  if(/견적|제안|proposal|quote/.test(s)) return 'quote';
+  if(/미팅|상담|방문|통화|현장|meeting/.test(s)) return 'meeting';
+  if(/문의|신규|접수|리드|대기|inquiry|lead/.test(s)) return 'inquiry';
+  return 'inquiry';
 }
 async function clearGSheetLeads(){
   if(!confirm('구글시트로 들어온 영업 문의(담당 “구글시트”)를 모두 삭제할까요?\n헤더 매칭을 고친 뒤 다시 동기화하려면 눌러 정리하세요.'))return;

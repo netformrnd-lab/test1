@@ -123,6 +123,16 @@ function openInquiry() {
   window.showScreen('s16')
 }
 window.openInquiry = openInquiry
+// 고객사 사용빈도 로깅: 하루 1회(단지·사용자별)만 app_events에 기록 (테이블 없으면 조용히 무시)
+async function logAptView(aptId, uid) {
+  try {
+    if (!aptId || !uid) return
+    const key = 'aptsq_view_' + aptId + '_' + new Date().toISOString().slice(0, 10)
+    if (localStorage.getItem(key)) return
+    localStorage.setItem(key, '1')
+    await sb.from('app_events').insert({ apartment_id: aptId, profile_id: uid, kind: 'view' })
+  } catch (e) {}
+}
 async function loadResidentHome() {
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
   // 무료 진단 서비스: 관리소장에게만 노출 (입주민 홈에서는 숨김)
@@ -144,6 +154,7 @@ async function loadResidentHome() {
   const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
   if (!apt) return
   RES_APT = apt; noteAptBase(apt)
+  logAptView(apt.id, user.id)
   const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = apt.name
   // (전체 진행률 바는 제거됨 — 동별 진행 현황은 현장현황 화면에서 표시)
   // 담당 감리사 이름 (PII 노출 없이 이름만 반환하는 함수 사용)

@@ -77,5 +77,21 @@ alter table public.site_notes enable row level security;
 drop policy if exists site_notes_admin on public.site_notes;
 create policy site_notes_admin on public.site_notes for all to authenticated using (is_admin()) with check (is_admin());
 
+-- ── 6) 앱 조회 로그 (app_events) · 고객사 등급의 '사용빈도' 신호 ──
+create table if not exists public.app_events (
+  id uuid primary key default gen_random_uuid(),
+  apartment_id uuid references public.apartments(id) on delete cascade,
+  profile_id uuid,               -- 조회한 사용자
+  kind text default 'view',      -- view(홈 열람) 등
+  created_at timestamptz default now()
+);
+alter table public.app_events enable row level security;
+-- 로그인한 본인이 자기 이벤트만 기록
+drop policy if exists app_events_insert on public.app_events;
+create policy app_events_insert on public.app_events for insert to authenticated with check (profile_id = auth.uid());
+-- 집계는 관리자만 조회
+drop policy if exists app_events_admin_read on public.app_events;
+create policy app_events_admin_read on public.app_events for select to authenticated using (is_admin());
+
 -- 완료! 'Success. No rows returned' 이면 정상입니다.
 -- 자료실 파일은 기존 'report-photos' 버킷(공개)의 docs/ 경로에 올라갑니다. 새 버킷 필요 없어요.

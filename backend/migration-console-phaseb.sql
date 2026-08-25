@@ -59,8 +59,11 @@ alter table public.doc_files enable row level security;
 drop policy if exists doc_files_admin on public.doc_files;
 create policy doc_files_admin on public.doc_files for all to authenticated using (is_admin()) with check (is_admin());
 
--- ── 4) 현장개요 (apartments.overview) ───────────────────────
-alter table public.apartments add column if not exists overview text; -- 단지 상세의 '현장개요' 메모
+-- ── 4) 현장개요 + 계약·수금 (apartments 컬럼) ───────────────
+alter table public.apartments add column if not exists overview text;          -- 현장개요 메모
+alter table public.apartments add column if not exists contract_amount bigint; -- 총 계약금액(공사비)
+alter table public.apartments add column if not exists supervision_fee bigint; -- 감리비(우리 매출)
+alter table public.apartments add column if not exists received_amount bigint; -- 수금액(받은 금액) · 미수금 = 감리비-수금액
 
 -- ── 5) 현장 히스토리 (site_notes) ───────────────────────────
 create table if not exists public.site_notes (

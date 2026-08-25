@@ -797,7 +797,7 @@ function promoTab(t,btn){
   if(btn){document.querySelectorAll('#promoTabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
   let h='';
   if(t==='case'){
-    h=`<div class="toolbar"><button class="b blue" onclick="openCaseAdd()">➕ 사례 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>구분</th><th>관리</th></tr></thead><tbody>${CASES.length?CASES.map(c=>`<tr style="cursor:pointer" onclick="openCaseView('${c.id}')"><td style="font-weight:700"><span class="link">${esc(c.title)||'-'}</span></td><td><span class="pill blue">${esc(c.type||c.meta)||'사례'}</span></td><td style="white-space:nowrap" onclick="event.stopPropagation()"><button class="b line sm" onclick="openCaseView('${c.id}')">보기</button> <button class="b red sm" onclick="deleteCase('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">사례가 없어요</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openCaseAdd()">➕ 사례 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>구분</th><th>관리</th></tr></thead><tbody>${CASES.length?CASES.map(c=>`<tr style="cursor:pointer" onclick="openCaseView('${c.id}')"><td style="font-weight:700"><span class="link">${esc(c.title)||'-'}</span></td><td><span class="pill blue">${esc(c.type||c.meta)||'사례'}</span></td><td style="white-space:nowrap" onclick="event.stopPropagation()"><button class="b line sm" onclick="openCaseView('${c.id}')">보기</button> <button class="b line sm" onclick="openCaseEdit('${c.id}')">편집</button> <button class="b red sm" onclick="deleteCase('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">사례가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='cred'){
     h=`<div class="toolbar"><button class="b blue" onclick="openCredAdd()">➕ 인증·이력 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>이미지</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${CREDS.length?CREDS.map(c=>`<tr><td>${c.image_url?`<img src="${esc(c.image_url)}" style="width:52px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`:'-'}</td><td style="font-weight:700">${esc(c.caption)||'(설명 없음)'}</td><td><label style="cursor:pointer"><input type="checkbox" ${c.active?'checked':''} onchange="toggleCred('${c.id}',this.checked)"> ${c.active?'노출중':'숨김'}</label></td><td><button class="b red sm" onclick="delCred('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">인증·이력이 없어요</td></tr>'}</tbody></table></div>`;
   } else {
@@ -1231,7 +1231,30 @@ function openCaseView(id){
     ${c.summary?`<div style="font-size:13.5px;font-weight:700;margin-bottom:8px">${esc(c.summary)}</div>`:''}
     ${c.body?`<div style="font-size:13px;color:var(--mut2);line-height:1.7;white-space:pre-wrap">${esc(c.body)}</div>`:''}
     ${(!c.summary&&!c.body&&!imgs.length)?'<div class="empty">등록된 상세 내용이 없어요</div>':''}
-    <div class="modal-actions"><button class="b red" onclick="deleteCase('${c.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">닫기</button></div>`,true);
+    <div class="modal-actions"><button class="b red" onclick="deleteCase('${c.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="openCaseEdit('${c.id}')">✏️ 편집</button><button class="b blue" onclick="closeModal()">닫기</button></div>`,true);
+}
+function openCaseEdit(id){
+  const c=CASES.find(x=>x.id===id); if(!c)return;
+  const imgFld=(lbl,url,inp)=>`<div class="fld"><label>${lbl}</label>${url?`<div style="margin-bottom:6px"><img src="${esc(url)}" style="width:100%;max-height:150px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"></div>`:''}<input id="${inp}" type="file" accept="image/*"><div style="font-size:11px;color:var(--mut);margin-top:3px">${url?'새 사진을 고르면 교체돼요 (안 고르면 유지)':'사진 없음'}</div></div>`;
+  openModal(mHead('✏️ 사례 편집')+`
+    <div class="fld"><label>제목 *</label><input id="m-title" value="${esc(c.title)||''}"></div>
+    <div class="fld"><label>구분/메타</label><input id="m-meta" value="${esc(c.meta||c.type)||''}"></div>
+    <div class="fld"><label>요약</label><input id="m-summary" value="${esc(c.summary)||''}"></div>
+    <div class="fld"><label>본문</label><textarea id="m-body" style="min-height:150px">${esc(c.body)||''}</textarea></div>
+    <div class="frow">${imgFld('Before 사진',c.before_url,'m-before')}${imgFld('After 사진',c.after_url,'m-after')}</div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b red" onclick="deleteCase('${c.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitCaseEdit('${c.id}')">저장</button></div>`,true);
+}
+async function submitCaseEdit(id){
+  const c=CASES.find(x=>x.id===id); if(!c)return;
+  const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const btn=$('m-submit'); if(btn){btn.disabled=true;btn.textContent='저장 중…';}
+  let before_url=c.before_url, after_url=c.after_url;
+  const bf=($('m-before').files||[])[0]; if(bf){ const u=await uploadTo('case-photos',bf,''); if(u)before_url=u; }
+  const af=($('m-after').files||[])[0]; if(af){ const u=await uploadTo('case-photos',af,''); if(u)after_url=u; }
+  const {error}=await sb.from('cases').update({title,meta:$('m-meta').value.trim()||null,summary:$('m-summary').value.trim()||null,body:$('m-body').value.trim()||null,before_url,after_url}).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';if(btn){btn.disabled=false;btn.textContent='저장';}return;}
+  closeModal(); await loadAll();
 }
 const SURVEY_RATE=[['r_comm','감리 소통'],['r_site','현장 관리·안전'],['r_defect','하자 대응'],['r_quality','시공 품질']];
 const SURVEY_TEXT=[['best','👍 가장 좋았던 점'],['again','🔁 다음에 맡기고 싶은 공정'],['comment','💬 한마디']];

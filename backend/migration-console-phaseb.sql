@@ -20,8 +20,10 @@ create table if not exists public.sales_leads (
   memo text,
   apartment_id uuid references public.apartments(id) on delete set null, -- 성사 시 연결된 단지
   sort int default 0,
+  stage_changed_at timestamptz default now(), -- 마지막 단계 이동 시각(정체 딜 계산용)
   created_at timestamptz default now()
 );
+alter table public.sales_leads add column if not exists stage_changed_at timestamptz default now();
 alter table public.sales_leads enable row level security;
 drop policy if exists sales_leads_admin on public.sales_leads;
 create policy sales_leads_admin on public.sales_leads for all to authenticated using (is_admin()) with check (is_admin());
@@ -56,6 +58,21 @@ create table if not exists public.doc_files (
 alter table public.doc_files enable row level security;
 drop policy if exists doc_files_admin on public.doc_files;
 create policy doc_files_admin on public.doc_files for all to authenticated using (is_admin()) with check (is_admin());
+
+-- ── 4) 현장개요 (apartments.overview) ───────────────────────
+alter table public.apartments add column if not exists overview text; -- 단지 상세의 '현장개요' 메모
+
+-- ── 5) 현장 히스토리 (site_notes) ───────────────────────────
+create table if not exists public.site_notes (
+  id uuid primary key default gen_random_uuid(),
+  apartment_id uuid references public.apartments(id) on delete cascade,
+  body text,                     -- 히스토리 내용(방문/통화/이슈 등)
+  author_name text,              -- 작성자 표시명
+  created_at timestamptz default now()
+);
+alter table public.site_notes enable row level security;
+drop policy if exists site_notes_admin on public.site_notes;
+create policy site_notes_admin on public.site_notes for all to authenticated using (is_admin()) with check (is_admin());
 
 -- 완료! 'Success. No rows returned' 이면 정상입니다.
 -- 자료실 파일은 기존 'report-photos' 버킷(공개)의 docs/ 경로에 올라갑니다. 새 버킷 필요 없어요.

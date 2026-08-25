@@ -137,7 +137,9 @@ tbody tr:hover{background:#f8fafc}
 .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
 @media(max-width:1000px){.board{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){.board{grid-template-columns:1fr}}
-.col{background:#f4f6fb;border:1px solid var(--line);border-radius:14px;padding:12px;min-height:80px}
+.col{background:#f4f6fb;border:1px solid var(--line);border-radius:14px;padding:12px;min-height:80px;transition:.12s}
+.col.dragover{border-color:var(--blue);background:#eaf1ff;box-shadow:inset 0 0 0 2px var(--blue)}
+.lead[draggable=true]{cursor:grab}.lead:active{cursor:grabbing}
 .col .ch{font-size:13px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:7px;margin-bottom:10px}
 .col .ch .cn{font-size:11px;font-weight:800;background:#fff;color:var(--mut2);border:1px solid var(--line);padding:1px 8px;border-radius:20px}
 .col .ch .cs{margin-left:auto;font-size:11px;font-weight:800;color:var(--blue)}
@@ -152,6 +154,8 @@ tbody tr:hover{background:#f8fafc}
 .rmitem:last-child{border-radius:0 0 10px 10px}
 .stog{border:none;border-radius:20px;font-size:11px;font-weight:800;padding:4px 11px;cursor:pointer;white-space:nowrap}
 .stog.todo{background:#eef1f7;color:var(--mut2)}.stog.doing{background:var(--blue-soft);color:var(--blue)}.stog.done{background:var(--green-soft);color:var(--green)}
+.rmboard{display:flex;gap:12px;min-width:min-content;align-items:flex-start}
+.rmcard{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:9px}
 </style>
 </head>
 <body>
@@ -201,12 +205,20 @@ tbody tr:hover{background:#f8fafc}
 
   <main>
     <section class="sec on" id="s-dashboard">
-      <div class="head"><div><h2>통합 관제센터</h2><div class="desc">전 부문 실시간 현황</div></div></div>
+      <div class="head"><div><h2>통합 관제센터</h2><div class="desc">전 부문 실시간 현황</div></div><button class="b line" onclick="exportAllExcel()">⬇ 전체 데이터 엑셀</button></div>
       <div id="dashAlert"></div>
       <div class="tiles" id="dashTiles"></div>
       <div class="grid2">
-        <div class="card"><h3>⚠️ 담당 감리사 미배정 단지 <span class="r"><span class="link" onclick="go('projects')">공사관리 →</span></span></h3><div id="dashUnassigned"></div></div>
+        <div class="card"><h3>📊 매출 목표 대비 <span class="r"><span class="link" onclick="setSalesGoal()">분기 목표 설정</span></span></h3><div id="dashRevenue"></div></div>
+        <div class="card"><h3>🏅 고객사 등급 분포 <span class="r">사용빈도+문의 자동</span></h3><div id="dashGrades"></div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h3>⚠️ 이번 주 배치 필요 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div id="dashAssign"></div></div>
+        <div class="card"><h3>🚨 2일 이상 정체된 딜 <span class="r"><span class="link" onclick="go('sales')">영업 →</span></span></h3><div id="dashStalled"></div></div>
+      </div>
+      <div class="grid2">
         <div class="card"><h3>🆕 새로 올라온 감리일지 <span class="r"><span class="link" onclick="go('projects')">공사관리 →</span></span></h3><div id="dashNewReports"></div></div>
+        <div class="card"><h3>🕒 최근 현장 히스토리 <span class="r"><span class="link" onclick="go('history')">활동기록 →</span></span></h3><div id="dashNotes"></div></div>
       </div>
     </section>
 
@@ -327,7 +339,7 @@ const dispId=(email)=>{const e=(email||'');return e.endsWith('@aptsquare.app')?e
 const loginId=(m)=>m.username||dispId(m.email)||'';
 
 let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],APT_AUD={};
-let SALES=[],ROADMAP=[],DOCS=[],PHASEB_OK={sales:false,roadmap:false,docs:false};
+let SALES=[],ROADMAP=[],DOCS=[],SITE_NOTES=[],PHASEB_OK={sales:false,roadmap:false,docs:false};
 function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return a.auditor_id?[a.auditor_id]:[]; }
 function auditorName(id){ const m=MEMBERS.find(x=>x.id===id); return m?(m.name||m.email||'-'):'-'; }
 function siteAuditors(a){ const ids=aptAuditors(a); return ids.length?ids.map(auditorName).join(', '):'<span style="color:var(--mut)">미배정</span>'; }
@@ -375,6 +387,7 @@ async function loadAll(){
   try{ const {data:sl,error}=await sb.from('sales_leads').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); SALES=sl||[]; PHASEB_OK.sales=!error; }catch(e){ SALES=[]; PHASEB_OK.sales=false; }
   try{ const {data:rm,error}=await sb.from('roadmap_items').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); ROADMAP=rm||[]; PHASEB_OK.roadmap=!error; }catch(e){ ROADMAP=[]; PHASEB_OK.roadmap=false; }
   try{ const {data:dc,error}=await sb.from('doc_files').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); DOCS=dc||[]; PHASEB_OK.docs=!error; }catch(e){ DOCS=[]; PHASEB_OK.docs=false; }
+  try{ const {data:sn}=await sb.from('site_notes').select('*').order('created_at',{ascending:false}); SITE_NOTES=sn||[]; }catch(e){ SITE_NOTES=[]; }
   renderAll();
   startPoll();
 }
@@ -415,24 +428,77 @@ function go(s){
 
 /* ===== 관제센터 ===== */
 function npsScore(){ const rated=SURVEYS.filter(r=>r.overall!=null&&r.overall!==''); if(!rated.length)return null; const prom=rated.filter(r=>+r.overall>=5).length, det=rated.filter(r=>+r.overall<=3).length; return Math.round((prom-det)/rated.length*100); }
+function siteScore(aid){ const r=REPORTS.filter(x=>x.apartment_id===aid).length; const f=FIELDS.filter(x=>x.apartment_id===aid).length; const c=CHAT.filter(x=>x.apartment_id===aid).length; const s=SURVEYS.filter(x=>x.apartment_id===aid).length; return r*2+f+c+s*2; }
+function siteGrade(aid){ const sc=siteScore(aid); return sc>=8?'상':(sc>=3?'중':'하'); }
+function needAssignList(){ return APTS.filter(a=>a.status!=='done' && !aptAuditors(a).length); }
+function stalledDeals(){ if(!PHASEB_OK.sales)return []; const now=Date.now(); return SALES.filter(s=>['inquiry','meeting','quote','contract'].includes(s.stage)).map(s=>{ const t=new Date(s.stage_changed_at||s.created_at||Date.now()).getTime(); const days=Math.floor((now-t)/86400000); return {s,days}; }).filter(x=>x.days>=2).sort((a,b)=>b.days-a.days); }
+function recontractRate(){ if(!PHASEB_OK.sales)return null; const won=SALES.filter(s=>s.stage==='won').length, lost=SALES.filter(s=>s.stage==='lost').length; const d=won+lost; return d?Math.round(won/d*100):null; }
 function renderDash(){
   const inprog=APTS.filter(a=>a.status==='in_progress').length;
   const pend=MEMBERS.filter(x=>!x.approved).length;
-  const unassigned=APTS.filter(a=>!aptAuditors(a).length && a.status!=='done');
+  const need=needAssignList();
+  const stalled=stalledDeals();
   const nps=npsScore();
+  const rc=recontractRate();
   $('dashTiles').innerHTML=
     tile('','진행중 현장',inprog+'<small>곳</small>','감리 진행 중')+
-    tile(unassigned.length?'warn':'good','감리사 미배정',unassigned.length+'<small>곳</small>','담당 배정 필요')+
-    tile(pend?'crit':'good','승인 대기 회원',pend+'<small>명</small>','회원 승인 필요')+
-    tile('','등록 단지',APTS.length+'<small>곳</small>','전체')+
-    tile('good','NPS',(nps==null?'-':(nps>0?'+':'')+nps),'만족도 조사 기준');
+    tile(need.length?'warn':'good','이번주 배치필요',need.length+'<small>곳</small>','담당·날짜 미배정')+
+    tile(stalled.length?'crit':'good','정체된 딜',stalled.length+'<small>건</small>','2일+ 미이동')+
+    tile('good','재계약율',(rc==null?'-':rc+'%'),'계약/성사 기준')+
+    tile('good','NPS',(nps==null?'-':(nps>0?'+':'')+nps),'입주민소통/NPS');
+  // 관제 알림
   const alerts=[];
+  if(need.length)alerts.push(`📍 <b>이번 주 방문 배치가 필요한 현장 ${need.length}곳</b> — 담당·날짜 미배정 <span class="link" onclick="go('calendar')">배정하기 →</span>`);
+  if(stalled.length)alerts.push(`⏱️ <b>2일 이상 정체된 영업 딜 ${stalled.length}건</b> — ${stalled.slice(0,2).map(x=>esc(x.s.name)).join(', ')} <span class="link" onclick="go('sales')">확인 →</span>`);
   if(pend)alerts.push(`👤 <b>승인 대기 회원 ${pend}명</b> <span class="link" onclick="go('members')">승인하기 →</span>`);
-  if(unassigned.length)alerts.push(`🏗️ <b>감리사 미배정 단지 ${unassigned.length}곳</b> <span class="link" onclick="go('projects')">배정하기 →</span>`);
-  $('dashAlert').innerHTML=alerts.length?`<div class="alert crit"><div class="ah">🔔 오늘의 관제 알림</div>${alerts.map(a=>`<div class="row">${a}</div>`).join('')}</div>`:'';
-  $('dashUnassigned').innerHTML=unassigned.length?`<table><tbody>${unassigned.slice(0,6).map(a=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td>${esc(a.region)||'-'}</td><td style="text-align:right"><span class="pill no">미배정</span></td></tr>`).join('')}</tbody></table>`:'<div class="empty">미배정 단지가 없어요 👍</div>';
+  $('dashAlert').innerHTML=alerts.length?`<div class="alert crit"><div class="ah">🔔 오늘의 관제 알림</div>${alerts.map(a=>`<div class="row">${a}</div>`).join('')}</div>`:'<div class="alert info"><div class="ah">🔔 오늘의 관제 알림</div><div class="row">지금은 급한 알림이 없어요 👍</div></div>';
+  // 매출 목표 대비 (분기별 성사 감리비)
+  renderRevenue();
+  // 고객사 등급 분포
+  const grades={상:0,중:0,하:0}; APTS.forEach(a=>{ grades[siteGrade(a.id)]++; });
+  $('dashGrades').innerHTML=`<div style="display:flex;gap:12px">${[['상','good'],['중','blue'],['하','gray']].map(([g,cl])=>`<div style="flex:1;text-align:center;background:#f6f8fc;border:1px solid var(--line);border-radius:12px;padding:14px 8px"><div style="font-size:12px;font-weight:800;color:var(--mut2)">${g}</div><div style="font-size:24px;font-weight:800;margin-top:4px">${grades[g]}<small style="font-size:12px;color:var(--mut);font-weight:700">곳</small></div></div>`).join('')}</div><div style="font-size:11px;color:var(--mut);margin-top:8px">감리일지·현장기록·문의·설문 활동량 기준 자동 산정</div>`;
+  // 이번 주 배치 필요 현장
+  $('dashAssign').innerHTML=need.length?`<table><tbody>${need.slice(0,7).map(a=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td style="color:var(--mut)">${esc(a.region)||'미지정'}</td><td style="text-align:right"><span class="pill no">미배정</span></td></tr>`).join('')}</tbody></table>`:'<div class="empty">모든 현장에 담당이 배정됐어요 👍</div>';
+  // 정체된 딜
+  $('dashStalled').innerHTML=!PHASEB_OK.sales?'<div class="empty" style="font-size:12px">영업 기능을 켜면 표시돼요</div>':(stalled.length?`<table><tbody>${stalled.slice(0,7).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openSalesEdit('${x.s.id}')">${esc(x.s.name)}</span></td><td><span class="pill blue">${SALES_LABEL[x.s.stage]||x.s.stage}</span></td><td style="text-align:right;color:var(--red);font-weight:700">${x.days}일 정체</td></tr>`).join('')}</tbody></table>`:'<div class="empty">정체된 딜이 없어요 👍</div>');
+  // 최근 감리일지
   const recent=[...REPORTS].slice(0,6);
   $('dashNewReports').innerHTML=recent.length?`<table><tbody>${recent.map(r=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${r.apartment_id}')">${esc(aptName(r.apartment_id))}</span></td><td style="color:var(--mut)">${esc(r.title)||'감리일지'}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(r.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">아직 감리일지가 없어요</div>';
+  // 최근 히스토리
+  const notes=[...SITE_NOTES].slice(0,6);
+  $('dashNotes').innerHTML=notes.length?`<table><tbody>${notes.map(n=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${n.apartment_id}')">${esc(aptName(n.apartment_id))}</span></td><td style="color:var(--mut2)">${esc((n.body||'').slice(0,30))}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(n.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">작성된 히스토리가 없어요</div>';
+}
+function renderRevenue(){
+  const box=$('dashRevenue'); if(!box)return;
+  if(!PHASEB_OK.sales){ box.innerHTML='<div class="empty" style="font-size:12px">영업 기능을 켜면 표시돼요</div>'; return; }
+  const goal=parseInt(localStorage.getItem('aptsq_sales_goal')||'0',10)||0;
+  const yr=new Date().getFullYear();
+  const q=[0,0,0,0];
+  SALES.filter(s=>s.stage==='won'&&s.amount).forEach(s=>{ const d=new Date(s.stage_changed_at||s.created_at||Date.now()); if(d.getFullYear()===yr){ q[Math.floor(d.getMonth()/3)]+=(+s.amount||0); } });
+  box.innerHTML=q.map((v,i)=>{ const pct=goal?Math.min(100,Math.round(v/goal*100)):0; return `<div class="hbar"><div class="k">${i+1}분기</div><div class="t"><div class="bar"><i style="width:${goal?pct:(v?100:0)}%;background:${pct>=80?'var(--green)':pct>=50?'var(--blue)':'var(--amber)'}"></i></div></div><div class="v">${goal?pct+'%':moneyKR(v)}</div></div>`; }).join('')+(goal?`<div style="font-size:11px;color:var(--mut);margin-top:4px">분기 목표 ${moneyKR(goal)}원 · 성사(감리비) 기준</div>`:`<div style="font-size:11px;color:var(--mut);margin-top:4px">‘분기 목표 설정’을 누르면 목표 대비 %로 보여요 · 지금은 분기별 성사 금액</div>`);
+}
+function setSalesGoal(){
+  const cur=localStorage.getItem('aptsq_sales_goal')||'';
+  const v=prompt('분기 매출 목표를 원 단위로 입력하세요 (예: 100000000 = 1억)',cur);
+  if(v===null)return; const n=parseInt(String(v).replace(/[^0-9]/g,''),10)||0;
+  if(n)localStorage.setItem('aptsq_sales_goal',String(n)); else localStorage.removeItem('aptsq_sales_goal');
+  renderRevenue();
+}
+function exportAllExcel(){
+  if(typeof XLSX==='undefined'){alert('엑셀 모듈을 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.');return;}
+  const d10=s=>(s||'').slice(0,10);
+  const wb=XLSX.utils.book_new();
+  const add=(name,rows)=>{ const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{'':''}]); XLSX.utils.book_append_sheet(wb,ws,name); };
+  add('단지', APTS.map(a=>({단지명:a.name,지역:a.region,공종:a.construction_type,상태:(STATUS[a.status]||STATUS.scheduled)[0],담당감리사:aptAuditors(a).map(auditorName).join(', '),등급:siteGrade(a.id),등록일:d10(a.created_at)})));
+  add('감리일지', REPORTS.map(r=>({단지:aptName(r.apartment_id),제목:r.title,동:r.dongs,사진수:Array.isArray(r.photos)?r.photos.length:0,공개:r.published?'공개':'비공개',작성일:d10(r.created_at)})));
+  add('현장기록', FIELDS.map(f=>({단지:aptName(f.apartment_id),제목:f.title,동:f.dong,사진수:Array.isArray(f.photos)?f.photos.length:0,작성일:d10(f.created_at)})));
+  add('회원', MEMBERS.map(m=>({이름:m.name,아이디:loginId(m),역할:ROLES[m.role]||m.role,담당단지:m.apartment_id?aptName(m.apartment_id):'',연락처:m.phone,승인:m.approved?'승인':'대기'})));
+  add('일정', SCHEDULES.filter(s=>s.apartment_id).map(s=>({날짜:d10(s.date),단지:aptName(s.apartment_id),일정:s.title,상세:s.description})));
+  add('만족도', SURVEYS.map(s=>({단지:aptName(s.apartment_id),종합:s.overall,작성일:d10(s.created_at)})));
+  if(PHASEB_OK.sales) add('영업', SALES.map(s=>({고객명:s.name,지역:s.region,단계:SALES_LABEL[s.stage]||s.stage,금액:s.amount,담당:s.owner,다음할일:s.next_action,다음일정:s.next_date,메모:s.memo,등록일:d10(s.created_at)})));
+  if(PHASEB_OK.roadmap) add('로드맵', ROADMAP.map(r=>({단계:r.phase,할일:r.title,상태:RM_LABEL[r.status]||r.status,단지:r.apartment_id?aptName(r.apartment_id):'공통',마감일:r.due_date})));
+  const today=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,'아파트스퀘어_전체데이터_'+today+'.xlsx');
 }
 function tile(cls,k,v,sub){ return `<div class="tile ${cls}"><span class="edge"></span><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`; }
 
@@ -473,7 +539,7 @@ function showProjectsSection(){
   document.querySelectorAll('[data-s]').forEach(a=>a.classList.toggle('on',a.dataset.s==='projects'));
 }
 function openProj(id){
-  curProj=APTS.find(a=>a.id===id); if(!curProj)return; projTab='report';
+  curProj=APTS.find(a=>a.id===id); if(!curProj)return; projTab='overview';
   showProjectsSection();                 // go() 대신 직접 전환(상세 리셋 방지)
   $('projList').style.display='none'; $('projDetail').style.display='block';
   renderProj(); window.scrollTo(0,0);
@@ -487,10 +553,10 @@ function renderProj(){
   const cons=CONTRACTS.filter(c=>c.apartment_id===p.id);
   const pr=progressOf(p);
   const tabs=`<div class="seg">
+    <button class="${projTab==='overview'?'on':''}" onclick="setProjTab('overview')">📋 현장개요</button>
     <button class="${projTab==='report'?'on':''}" onclick="setProjTab('report')">📄 감리일지 ${reps.length}</button>
     <button class="${projTab==='photo'?'on':''}" onclick="setProjTab('photo')">📷 작업사진 ${flds.length}</button>
-    <button class="${projTab==='contract'?'on':''}" onclick="setProjTab('contract')">📑 계약서 ${cons.length}</button>
-    <button class="${projTab==='overview'?'on':''}" onclick="setProjTab('overview')">📋 개요</button></div>`;
+    <button class="${projTab==='contract'?'on':''}" onclick="setProjTab('contract')">📑 계약서 ${cons.length}</button></div>`;
   let body='';
   if(projTab==='overview'){
     const auds=MEMBERS.filter(m=>m.role==='auditor'); const cur=aptAuditors(p);
@@ -502,7 +568,13 @@ function renderProj(){
       <div class="kv"><span>공정률</span><b>${pr.cur}/${pr.tot} (${pr.pct}%)</b></div></div>
       <div class="card"><h3>👤 담당 감리사 배정 <span class="r">여러 명 가능 · 첫 번째=대표</span></h3>
         <div style="margin-bottom:12px">${audChk}</div>
-        <button class="b blue" onclick="saveAuditors('${p.id}')">배정 저장</button></div></div>`;
+        <button class="b blue" onclick="saveAuditors('${p.id}')">배정 저장</button></div></div>`+
+      `<div class="card"><h3>📝 현장개요 <span class="r">이 현장의 핵심 요약 (관리자 메모)</span></h3>
+        <textarea id="ov-text" placeholder="예: 106~110동 외벽 재도장. 2026.03 착공, 감리 주 1회 방문. 특이사항: 옥상 방수 추가 검토 중." style="width:100%;box-sizing:border-box;min-height:110px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none;resize:vertical;line-height:1.6">${esc(p.overview)||''}</textarea>
+        <div style="text-align:right;margin-top:10px"><button class="b blue" onclick="saveOverview('${p.id}')">현장개요 저장</button></div></div>`+
+      `<div class="card"><h3>🕒 현장 히스토리 <span class="r">방문·통화·이슈 기록</span></h3>
+        <div style="display:flex;gap:8px;margin-bottom:12px"><input id="note-input" placeholder="예: 3/12 현장방문 — 106동 상도 완료 확인" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')addSiteNote('${p.id}')"><button class="b blue" onclick="addSiteNote('${p.id}')">기록 추가</button></div>
+        ${siteNotesHtml(p.id)}</div>`;
   } else if(projTab==='report'){
     body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700">${esc(r.title)||'-'}</td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap"><button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(projTab==='photo'){
@@ -517,8 +589,9 @@ function renderProj(){
 function renderHistory(){
   const items=[
     ...REPORTS.map(r=>({t:r.created_at,who:aptName(r.apartment_id),what:'감리일지: '+(r.title||''),tag:'report'})),
-    ...FIELDS.map(f=>({t:f.created_at,who:aptName(f.apartment_id),what:'현장기록: '+(f.title||''),tag:'field'}))
-  ].filter(x=>x.t).sort((a,b)=>b.t.localeCompare(a.t)).slice(0,40);
+    ...FIELDS.map(f=>({t:f.created_at,who:aptName(f.apartment_id),what:'현장기록: '+(f.title||''),tag:'field'})),
+    ...SITE_NOTES.map(n=>({t:n.created_at,who:aptName(n.apartment_id),what:'히스토리: '+(n.body||''),tag:'note'}))
+  ].filter(x=>x.t).sort((a,b)=>b.t.localeCompare(a.t)).slice(0,60);
   $('histBody').innerHTML=items.length?`<table><tbody>${items.map(i=>`<tr><td style="color:var(--mut);width:96px">${i.t.slice(0,10)}</td><td style="font-weight:700;width:180px">${esc(i.who)}</td><td>${esc(i.what)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">활동 기록이 없어요</div>';
 }
 
@@ -659,6 +732,33 @@ async function saveAuditors(aptId){
   try{ await sb.from('apartment_auditors').delete().eq('apartment_id',aptId); if(ids.length) await sb.from('apartment_auditors').insert(ids.map(x=>({apartment_id:aptId,auditor_id:x}))); }catch(e){}
   const a=APTS.find(x=>x.id===aptId); if(a)a.auditor_id=rep; APT_AUD[aptId]=ids;
   renderProj(); renderProjList(); renderOrgs(); renderDash(); alert('감리사 배정을 저장했어요');
+}
+/* ===== 현장개요 / 히스토리 ===== */
+async function saveOverview(aptId){
+  const t=($('ov-text')||{}).value||''; const btn=event&&event.target;
+  const {error}=await sb.from('apartments').update({overview:t.trim()||null}).eq('id',aptId);
+  if(error){alert('저장 실패: '+error.message+'\n(현장개요 기능은 migration-console-phaseb.sql 실행이 필요해요)');return;}
+  const a=APTS.find(x=>x.id===aptId); if(a)a.overview=t.trim()||null; if(curProj)curProj.overview=a?a.overview:null;
+  if(btn){btn.textContent='저장됨 ✓';setTimeout(()=>{if(btn)btn.textContent='현장개요 저장';},1500);}
+}
+function siteNotesHtml(aptId){
+  const list=SITE_NOTES.filter(n=>n.apartment_id===aptId);
+  if(!list.length)return '<div class="empty" style="padding:12px">아직 기록이 없어요</div>';
+  return `<div>${list.map(n=>`<div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line2)"><div style="font-size:11px;color:var(--mut);white-space:nowrap;width:78px;flex-shrink:0">${(n.created_at||'').slice(5,10).replace('-','/')} ${(n.created_at||'').slice(11,16)}</div><div style="flex:1;font-size:13px;line-height:1.5;white-space:pre-wrap">${esc(n.body)}</div><span onclick="deleteSiteNote('${n.id}')" style="cursor:pointer;color:var(--red);font-weight:800;font-size:12px;flex-shrink:0">삭제</span></div>`).join('')}</div>`;
+}
+async function addSiteNote(aptId){
+  const inp=$('note-input'); if(!inp)return; const body=(inp.value||'').trim(); if(!body)return;
+  const {data:{user}}=await sb.auth.getUser();
+  const nm=($('me-nm')||{}).textContent||'관리자';
+  const {data,error}=await sb.from('site_notes').insert({apartment_id:aptId,body,author_name:nm}).select('*').single();
+  if(error){alert('기록 실패: '+error.message+'\n(히스토리 기능은 migration-console-phaseb.sql 실행이 필요해요)');return;}
+  SITE_NOTES.unshift(data); inp.value=''; renderProj(); renderDash();
+}
+async function deleteSiteNote(id){
+  if(!confirm('이 기록을 삭제할까요?'))return;
+  const {error}=await sb.from('site_notes').delete().eq('id',id);
+  if(error)return alert('삭제 실패: '+error.message);
+  SITE_NOTES=SITE_NOTES.filter(n=>n.id!==id); renderProj(); renderDash();
 }
 
 /* ===== 단지 추가/편집/삭제 ===== */
@@ -1275,10 +1375,19 @@ function renderSales(){
     tile('good','예상 금액',moneyKR(pipeSum),'진행중 합계')+
     tile('good','성사',won.length+'<small>건</small>',moneyKR(wonSum)+' 계약')+
     tile(lost.length?'warn':'','실패',lost.length+'<small>건</small>','아쉽게 종료');
-  const card=s=>`<div class="lead" onclick="openSalesEdit('${s.id}')"><div class="ln">${esc(s.name)||'(이름 없음)'}</div><div class="lm">${esc(s.region)||''}${s.construction_type?' · '+esc(s.construction_type):''}${s.owner?' · 담당 '+esc(s.owner):''}</div>${s.amount?`<div class="la">${moneyKR(s.amount)}원</div>`:''}${s.next_action?`<div class="lnx">▶ ${esc(s.next_action)}${s.next_date?' ('+esc(s.next_date)+')':''}</div>`:''}</div>`;
-  let h='<div class="board">'+SALES_STAGES.map(([k,lbl])=>{
+  const idx={inquiry:0,meeting:1,quote:2,contract:3,won:4};
+  const card=s=>{ const i=idx[s.stage]; return `<div class="lead" draggable="true" ondragstart="salesDragStart(event,'${s.id}')" ondragend="salesDragEnd(event)" onclick="openSalesEdit('${s.id}')">
+    <div class="ln">${esc(s.name)||'(이름 없음)'}</div>
+    <div class="lm">${esc(s.region)||''}${s.construction_type?' · '+esc(s.construction_type):''}${s.owner?' · 담당 '+esc(s.owner):''}</div>
+    ${s.amount?`<div class="la">${moneyKR(s.amount)}원</div>`:''}
+    ${s.next_action?`<div class="lnx">▶ ${esc(s.next_action)}${s.next_date?' ('+esc(s.next_date)+')':''}</div>`:''}
+    <div style="display:flex;gap:6px;margin-top:9px" onclick="event.stopPropagation()">
+      <button class="b line sm" style="flex:1" ${i<=0?'disabled style="flex:1;opacity:.35"':''} onclick="moveSalesStage(event,'${s.id}',-1)">◀ 이전</button>
+      <button class="b blue sm" style="flex:1" ${i>=4?'disabled style="flex:1;opacity:.35"':''} onclick="moveSalesStage(event,'${s.id}',1)">${i===3?'성사 ▶':'다음 ▶'}</button>
+    </div></div>`; };
+  let h='<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">💡 카드를 다른 칸으로 <b>끌어다 놓거나</b>, 카드의 ◀ ▶ 버튼으로 단계를 옮길 수 있어요.</div><div class="board">'+SALES_STAGES.map(([k,lbl])=>{
     const list=active.filter(s=>s.stage===k); const sum=list.reduce((a,b)=>a+(+b.amount||0),0);
-    return `<div class="col"><div class="ch">${lbl}<span class="cn">${list.length}</span>${sum?`<span class="cs">${moneyKR(sum)}</span>`:''}</div>${list.map(card).join('')||'<div style="font-size:11.5px;color:var(--mut);text-align:center;padding:8px">비어 있음</div>'}</div>`;
+    return `<div class="col" data-stage="${k}" ondragover="salesDragOver(event)" ondragleave="salesDragLeave(event)" ondrop="salesDrop(event,'${k}')"><div class="ch">${lbl}<span class="cn">${list.length}</span>${sum?`<span class="cs">${moneyKR(sum)}</span>`:''}</div>${list.map(card).join('')||'<div class="colempty" style="font-size:11.5px;color:var(--mut);text-align:center;padding:8px">여기로 끌어다 놓기</div>'}</div>`;
   }).join('')+'</div>';
   if(won.length||lost.length){
     h+=`<div class="grid2" style="margin-top:16px">
@@ -1330,9 +1439,28 @@ async function convertLeadToApt(id){
   if(!confirm(`'${s.name}' 을(를) 단지(고객사)로 등록할까요?\n공사관리에 새 단지가 생기고, 이 영업 건과 연결돼요.`))return;
   const {data,error}=await sb.from('apartments').insert({name:s.name,region:s.region||null,construction_type:s.construction_type||null}).select('id').single();
   if(error)return alert('단지 등록 실패: '+error.message);
-  await sb.from('sales_leads').update({apartment_id:data.id,stage:'won'}).eq('id',id);
+  await sb.from('sales_leads').update({apartment_id:data.id,stage:'won',stage_changed_at:new Date().toISOString()}).eq('id',id);
   closeModal(); await loadAll(); alert('단지로 등록했어요. 공사관리에서 확인하세요.');
 }
+const SALES_ORDER=['inquiry','meeting','quote','contract','won'];
+async function setSalesStage(id,stage){
+  const s=SALES.find(x=>x.id===id); if(!s||s.stage===stage)return;
+  const {error}=await sb.from('sales_leads').update({stage,stage_changed_at:new Date().toISOString()}).eq('id',id);
+  if(error){alert('이동 실패: '+error.message);return;}
+  s.stage=stage; s.stage_changed_at=new Date().toISOString(); renderSales(); renderDash();
+}
+async function moveSalesStage(ev,id,dir){
+  ev.stopPropagation();
+  const s=SALES.find(x=>x.id===id); if(!s)return;
+  let i=SALES_ORDER.indexOf(s.stage); if(i<0)i=0; i+=dir; if(i<0||i>=SALES_ORDER.length)return;
+  await setSalesStage(id,SALES_ORDER[i]);
+}
+let DRAG_SALES_ID=null;
+function salesDragStart(ev,id){ DRAG_SALES_ID=id; ev.dataTransfer.effectAllowed='move'; try{ev.dataTransfer.setData('text/plain',id);}catch(e){} }
+function salesDragEnd(ev){ DRAG_SALES_ID=null; document.querySelectorAll('.col.dragover').forEach(c=>c.classList.remove('dragover')); }
+function salesDragOver(ev){ ev.preventDefault; ev.preventDefault(); const c=ev.currentTarget; c.classList.add('dragover'); }
+function salesDragLeave(ev){ ev.currentTarget.classList.remove('dragover'); }
+function salesDrop(ev,stage){ ev.preventDefault(); ev.currentTarget.classList.remove('dragover'); const id=DRAG_SALES_ID||ev.dataTransfer.getData('text/plain'); if(id)setSalesStage(id,stage); }
 
 /* ===== 업무 로드맵 (roadmap_items) ===== */
 const RM_PHASES=['준비','계약','착공','시공','준공','기타'];
@@ -1340,14 +1468,15 @@ const RM_NEXT={todo:'doing',doing:'done',done:'todo'}, RM_LABEL={todo:'예정',d
 function renderRoadmap(){
   const box=$('roadmapBody'); if(!box)return;
   if(!PHASEB_OK.roadmap){ box.innerHTML=needSQL('로드맵'); return; }
-  if(!ROADMAP.length){ box.innerHTML='<div class="empty">등록된 할 일이 없어요. 오른쪽 위 ‘할 일 추가’로 시작하세요.</div>'; return; }
-  const groups={}; ROADMAP.forEach(r=>{ const p=(r.phase||'기타'); (groups[p]=groups[p]||[]).push(r); });
-  const order=[...RM_PHASES.filter(p=>groups[p]),...Object.keys(groups).filter(p=>!RM_PHASES.includes(p))];
-  box.innerHTML=order.map(p=>{
-    const list=groups[p]; const done=list.filter(x=>x.status==='done').length;
-    return `<div class="card" style="padding:16px 18px"><h3>${esc(p)} <span class="r">${done}/${list.length} 완료</span></h3>
-      ${list.map(r=>`<div class="rmitem"><button class="stog ${r.status||'todo'}" onclick="cycleRoadmap('${r.id}')">${RM_LABEL[r.status||'todo']}</button><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;${r.status==='done'?'text-decoration:line-through;color:var(--mut)':''}">${esc(r.title)||'-'}</div><div style="font-size:11px;color:var(--mut)">${r.apartment_id?'🏢 '+esc(aptName(r.apartment_id)):'공통'}${r.due_date?' · 📅 '+esc(r.due_date):''}${r.memo?' · '+esc(r.memo):''}</div></div><button class="b line sm" onclick="openRoadmapEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteRoadmap('${r.id}')">삭제</button></div>`).join('')}</div>`;
-  }).join('');
+  const custom=[...new Set(ROADMAP.map(r=>r.phase).filter(p=>p&&!RM_PHASES.includes(p)))];
+  const cols=[...RM_PHASES,...custom];
+  const cardHtml=r=>`<div class="rmcard"><div style="display:flex;align-items:center;gap:7px"><button class="stog ${r.status||'todo'}" onclick="cycleRoadmap('${r.id}')">${RM_LABEL[r.status||'todo']}</button><span style="flex:1"></span><span onclick="openRoadmapEdit('${r.id}')" style="cursor:pointer;color:var(--mut);font-size:12px;font-weight:800">✎</span><span onclick="deleteRoadmap('${r.id}')" style="cursor:pointer;color:var(--red);font-size:12px;font-weight:800">✕</span></div>
+    <div style="font-size:13px;font-weight:700;margin-top:7px;${r.status==='done'?'text-decoration:line-through;color:var(--mut)':''}">${esc(r.title)||'-'}</div>
+    <div style="font-size:11px;color:var(--mut);margin-top:4px">${r.apartment_id?'🏢 '+esc(aptName(r.apartment_id)):'공통'}${r.due_date?' · 📅 '+esc(r.due_date):''}</div>${r.memo?`<div style="font-size:11px;color:var(--mut2);margin-top:3px">${esc(r.memo)}</div>`:''}</div>`;
+  box.innerHTML='<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">💡 단계별 칸에서 상태를 눌러 <b>예정→진행→완료</b>로 바꿔요. 칸의 ＋로 그 단계에 바로 추가할 수 있어요.</div><div style="overflow-x:auto;padding-bottom:6px"><div class="rmboard">'+cols.map(p=>{
+    const list=ROADMAP.filter(r=>(r.phase||'기타')===p); const done=list.filter(x=>x.status==='done').length;
+    return `<div class="col" style="width:240px;flex-shrink:0"><div class="ch">${esc(p)}<span class="cn">${done}/${list.length}</span><button class="b line sm" style="margin-left:auto;padding:2px 8px" onclick="openRoadmapAdd('${p}')">＋</button></div>${list.map(cardHtml).join('')||'<div style="font-size:11.5px;color:var(--mut);text-align:center;padding:8px">비어 있음</div>'}</div>`;
+  }).join('')+'</div></div>';
 }
 function roadmapFields(r){ r=r||{};
   const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
@@ -1360,9 +1489,9 @@ function roadmapFields(r){ r=r||{};
     <div class="fld"><label>메모</label><input id="rm-memo" value="${esc(r.memo)||''}"></div>`;
 }
 function readRoadmap(){ return {title:$('rm-title').value.trim(),phase:$('rm-phase').value,status:$('rm-status').value,apartment_id:$('rm-apt').value||null,due_date:$('rm-due').value||null,memo:$('rm-memo').value.trim()||null}; }
-function openRoadmapAdd(){
+function openRoadmapAdd(phase){
   if(!PHASEB_OK.roadmap){alert('먼저 backend/migration-console-phaseb.sql 을 실행해 주세요');return;}
-  openModal(mHead('➕ 할 일 추가')+roadmapFields({phase:'준비',status:'todo'})+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitRoadmapAdd()">추가</button></div>`);
+  openModal(mHead('➕ 할 일 추가')+roadmapFields({phase:(typeof phase==='string'&&RM_PHASES.includes(phase))?phase:'준비',status:'todo'})+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitRoadmapAdd()">추가</button></div>`);
 }
 async function submitRoadmapAdd(){
   const d=readRoadmap(); if(!d.title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}

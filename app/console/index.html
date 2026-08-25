@@ -1635,11 +1635,13 @@ async function clearGSheetLeads(){
   try{ await sb.from('sales_leads').delete().eq('owner','구글시트'); }catch(e){}
   try{ await sb.from('sales_leads').delete().eq('next_action','첫 연락'); }catch(e){} // 가져온 문의 공통 표시
   gsLog('✅ 가져온 문의를 정리했어요. 이제 ‘지금 동기화’를 한 번만 누르세요.','#8ce0a0');
+  if(lsGet('aptsq_gsheet_auto')==='1') gsLog('※ 자동 동기화가 켜져 있어 몇 분 뒤 시트 기준으로 다시 채워져요(중복은 안 생겨요). 완전히 비워두려면 자동 동기화를 끄세요.','#f0c674');
   await loadAll();
 }
-let GS_POLL=null;
+let GS_POLL=null,GS_INITED=false;
 function maybeAutoSyncGSheet(){
-  if(lsGet('aptsq_gsheet_auto')==='1' && lsGet('aptsq_gsheet_url')){ syncGSheet(false); }
+  // 최초 1회만 즉시 동기화 (loadAll 이 여러 번 불려도 매번 재동기화하지 않도록 → 삭제 직후 되살아나는 문제 방지)
+  if(!GS_INITED){ GS_INITED=true; if(lsGet('aptsq_gsheet_auto')==='1' && lsGet('aptsq_gsheet_url')) syncGSheet(false); }
   if(!GS_POLL) GS_POLL=setInterval(()=>{ if(lsGet('aptsq_gsheet_auto')==='1' && lsGet('aptsq_gsheet_url')) syncGSheet(false); }, 180000); // 3분마다
 }
 

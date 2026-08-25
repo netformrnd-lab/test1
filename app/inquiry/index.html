@@ -10,6 +10,12 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Pretendard',system-ui,sans-serif;background:transparent;color:#1c2440;-webkit-font-smoothing:antialiased;padding:14px}
 .card{max-width:520px;margin:0 auto;background:#fff;border:1px solid #e7ebf3;border-radius:18px;padding:26px 24px;box-shadow:0 18px 46px -24px rgba(20,30,60,.22)}
+/* 임베드(아임웹 등)에 납작하게 박히는 모드: 카드·제목·그림자 제거, 배경 투명 */
+body.embed{padding:0}
+body.embed .card{max-width:none;background:transparent;border:0;border-radius:0;padding:0;box-shadow:none}
+body.embed .tt,body.embed .desc,body.embed .foot{display:none}
+body.embed label{margin-top:18px}
+body.embed #form>label:first-of-type{margin-top:0}
 .tt{font-size:20px;font-weight:800;display:flex;align-items:center;gap:9px}
 .tt .ic{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#3f74e6,#2F6BF6);display:flex;align-items:center;justify-content:center}
 .desc{font-size:13px;color:#8b93a8;margin:8px 0 18px;line-height:1.6}
@@ -93,6 +99,11 @@ const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=(id)=>document.getElementById(id);
+// 임베드 모드: ?embed=1 이면 카드/제목 없이 납작하게 (아임웹 삽입용)
+if(/[?&]embed/.test(location.search)) document.body.classList.add('embed');
+// 부모(아임웹) 페이지에 현재 높이를 알려 자동으로 iframe 높이 맞추기 (안쪽 스크롤 제거)
+function postH(){ try{ parent.postMessage({aptsqH:document.documentElement.scrollHeight}, '*'); }catch(e){} }
+window.addEventListener('load',postH); window.addEventListener('resize',postH); setInterval(postH,700);
 // 연락처 칸 자동 이동
 function hop(cur,next){ const el=$(cur); el&&el.addEventListener('input',()=>{ if(el.value.length>=el.maxLength && $(next)) $(next).focus(); }); }
 hop('q-p1','q-p2'); hop('q-p2','q-p3');

@@ -231,7 +231,7 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-orgs">
       <div class="head"><div><h2>고객관리</h2><div class="desc">단지(고객사) 목록 · 지역·담당별</div></div></div>
       <div class="toolbar"><input class="inp" id="org-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderOrgs()"><button class="b blue" onclick="openAptAdd()">➕ 단지 추가</button></div>
-      <div style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:760px"><table><thead><tr><th>고객사(단지)</th><th>지역</th><th>세대수</th><th>등급</th><th>담당 감리</th><th>진행딜</th><th>계약</th><th>상태</th></tr></thead><tbody id="orgRows"></tbody></table></div></div>
+      <div style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:860px"><table><thead><tr><th>고객사(단지)</th><th>지역</th><th>세대수</th><th>등급</th><th>담당 감리</th><th>진행딜</th><th>계약</th><th>상태</th></tr></thead><tbody id="orgRows"></tbody></table></div></div>
     </section>
 
     <section class="sec" id="s-calendar">
@@ -250,7 +250,7 @@ tbody tr:hover{background:#f8fafc}
       <div class="head"><div><h2>공사관리</h2><div class="desc">단지 클릭 → 상세(감리일지·작업사진·계약서·방문이력)</div></div></div>
       <div id="projList">
         <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openAptAdd()">➕ 단지 추가</button></div>
-        <div style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:760px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리사</th><th>감리비</th><th>미수금</th><th>감리일지</th><th>공정률</th><th>상태</th></tr></thead><tbody id="projRows"></tbody></table></div></div>
+        <div style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:860px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리사</th><th>감리비</th><th>미수금</th><th>감리일지</th><th>방문</th><th>공정률</th><th>상태</th></tr></thead><tbody id="projRows"></tbody></table></div></div>
       </div>
       <div id="projDetail" style="display:none"></div>
     </section>
@@ -416,8 +416,10 @@ function renderAll(){
 /* ===== 배지·읽음(NEW) 추적 ===== */
 function setBadge(id,n){ const e=$(id); if(!e)return; e.textContent=n>99?'99+':n; e.style.display=n>0?'':'none'; }
 // 감리일지 '새 것' 추적 — 단지별로 마지막에 본 시각을 저장 (단지별 배지)
-function repSeenApt(aid){ return lsGet('aptsq_repseen_'+aid)||''; }
-function markAptRepsSeen(aid){ const rs=REPORTS.filter(r=>r.apartment_id===aid); if(!rs.length)return; const mx=rs.reduce((m,r)=>((r.created_at||'')>m?(r.created_at||''):m),''); if(mx)lsSet('aptsq_repseen_'+aid,mx); }
+// localStorage가 막힌 환경(사생활보호 WebView 등)에서도 세션 동안 읽음이 유지되도록 메모리 폴백 병행
+const SEENMEM={};
+function repSeenApt(aid){ const a=lsGet('aptsq_repseen_'+aid)||''; const b=SEENMEM[aid]||''; return a>b?a:b; }
+function markAptRepsSeen(aid){ const rs=REPORTS.filter(r=>r.apartment_id===aid); if(!rs.length)return; const mx=rs.reduce((m,r)=>((r.created_at||'')>m?(r.created_at||''):m),''); if(mx){ SEENMEM[aid]=mx; lsSet('aptsq_repseen_'+aid,mx); } }
 function markAllRepsSeen(){ APTS.forEach(a=>markAptRepsSeen(a.id)); }
 function aptNewReps(aid){ const s=repSeenApt(aid); return REPORTS.filter(r=>r.apartment_id===aid && (r.created_at||'')>s).length; }
 function isNewReport(r){ return (r.created_at||'')>repSeenApt(r.apartment_id); }
@@ -596,7 +598,7 @@ function renderProjList(){
   const q=($('proj-q')?.value||'').trim().toLowerCase();
   let list=APTS.slice(); if(q)list=list.filter(a=>((a.name||'')+' '+(a.region||'')).toLowerCase().includes(q));
   list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
-  $('projRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td>${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td>${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join(''):'<tr><td colspan="8" class="empty">단지가 없어요</td></tr>';
+  $('projRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nvisit=FIELDS.filter(f=>f.apartment_id===a.id).length;const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td>${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td>${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}</td><td>${nvisit}회</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join(''):'<tr><td colspan="9" class="empty">단지가 없어요</td></tr>';
 }
 let curProj=null,projTab='report';
 function backToProjList(){$('projList').style.display='block';$('projDetail').style.display='none';curProj=null;}
@@ -608,7 +610,7 @@ function showProjectsSection(){
 function openProj(id){
   curProj=APTS.find(a=>a.id===id); if(!curProj)return; projTab='overview';
   showProjectsSection();                 // go() 대신 직접 전환(상세 리셋 방지)
-  markAptRepsSeen(id); updateBadges(); renderProjList();  // 이 단지 감리일지 '읽음' 처리 → 배지 정리
+  markAptRepsSeen(id); updateBadges(); renderProjList(); renderDash();  // 이 단지 감리일지 '읽음' 처리 → 배지·관제센터 즉시 정리
   $('projList').style.display='none'; $('projDetail').style.display='block';
   renderProj(); window.scrollTo(0,0);
 }
@@ -1575,9 +1577,10 @@ function salesFormFields(s){ s=s||{};
     <div class="frow"><div class="fld"><label>단계</label><select id="sl-stage">${stageOpts}</select></div><div class="fld"><label>예상/계약 금액 (원)</label><input id="sl-amount" type="number" value="${s.amount!=null?s.amount:''}" placeholder="예: 50000000"></div></div>
     <div class="frow"><div class="fld"><label>담당자·연락처</label><input id="sl-contact" value="${esc(s.contact)||''}"></div><div class="fld"><label>영업 담당</label><input id="sl-owner" value="${esc(s.owner)||''}"></div></div>
     <div class="frow"><div class="fld"><label>다음 할 일</label><input id="sl-next" value="${esc(s.next_action)||''}" placeholder="예: 견적서 발송"></div><div class="fld"><label>다음 일정</label><input id="sl-nextdate" type="date" value="${esc(s.next_date)||''}"></div></div>
+    <div class="fld"><label>연결 단지(고객사) <span style="font-weight:600;color:var(--mut)">— 고객관리 '진행딜' 집계에 반영</span></label><select id="sl-apt"><option value="">연결 안 함</option>${APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko')).map(a=>`<option value="${a.id}" ${s.apartment_id===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
     <div class="fld"><label>메모</label><textarea id="sl-memo">${esc(s.memo)||''}</textarea></div>`;
 }
-function readSalesForm(){ return {name:$('sl-name').value.trim(),region:$('sl-region').value.trim()||null,construction_type:$('sl-type').value.trim()||null,stage:$('sl-stage').value,amount:$('sl-amount').value?parseInt($('sl-amount').value,10):null,contact:$('sl-contact').value.trim()||null,owner:$('sl-owner').value.trim()||null,next_action:$('sl-next').value.trim()||null,next_date:$('sl-nextdate').value||null,memo:$('sl-memo').value.trim()||null}; }
+function readSalesForm(){ return {name:$('sl-name').value.trim(),region:$('sl-region').value.trim()||null,construction_type:$('sl-type').value.trim()||null,stage:$('sl-stage').value,amount:$('sl-amount').value?parseInt($('sl-amount').value,10):null,contact:$('sl-contact').value.trim()||null,owner:$('sl-owner').value.trim()||null,next_action:$('sl-next').value.trim()||null,next_date:$('sl-nextdate').value||null,apartment_id:$('sl-apt').value||null,memo:$('sl-memo').value.trim()||null}; }
 function openSalesAdd(){
   if(!PHASEB_OK.sales){alert('먼저 backend/migration-console-phaseb.sql 을 실행해 주세요');return;}
   openModal(mHead('➕ 영업 추가')+salesFormFields({stage:'inquiry'})+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitSalesAdd()">추가</button></div>`);

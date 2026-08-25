@@ -9,10 +9,11 @@
 -- ============================================================
 
 create or replace function public.submit_web_inquiry(
-  p_name text,
-  p_contact text default null,
-  p_region text default null,
-  p_message text default null
+  p_name text,                       -- 아파트(단지)명
+  p_contact text default null,       -- "성함(직급) 010-0000-0000" 형태로 폼에서 합쳐 보냄
+  p_construction_type text default null, -- 공사 종류
+  p_region text default null,        -- 지역
+  p_message text default null        -- 문의 내용
 ) returns void
 language plpgsql
 security definer
@@ -21,18 +22,17 @@ as $$
 declare
   nm text := nullif(btrim(coalesce(p_name,'')), '');
   ct text := nullif(btrim(coalesce(p_contact,'')), '');
-  msg text := nullif(btrim(coalesce(p_message,'')), '');
 begin
   if nm is null and ct is null then
-    raise exception '이름 또는 연락처를 입력해주세요';
+    raise exception '아파트명 또는 연락처를 입력해주세요';
   end if;
-  -- 과도한 길이 방어
-  insert into public.sales_leads(name, contact, region, memo, stage, next_action, owner)
+  insert into public.sales_leads(name, contact, construction_type, region, memo, stage, next_action, owner)
   values (
     left(coalesce(nm, '홈페이지 문의'), 120),
-    left(ct, 120),
-    left(nullif(btrim(coalesce(p_region,'')),''), 120),
-    left(msg, 2000),
+    left(ct, 200),
+    left(nullif(btrim(coalesce(p_construction_type,'')), ''), 120),
+    left(nullif(btrim(coalesce(p_region,'')), ''), 120),
+    left(nullif(btrim(coalesce(p_message,'')), ''), 2000),
     'inquiry',
     '첫 연락',
     '홈페이지'
@@ -41,7 +41,7 @@ end;
 $$;
 
 -- 로그인 안 한 방문자(anon)와 로그인 사용자 모두 제출 가능
-grant execute on function public.submit_web_inquiry(text, text, text, text) to anon, authenticated;
+grant execute on function public.submit_web_inquiry(text, text, text, text, text) to anon, authenticated;
 
 -- 완료! 'Success. No rows returned' 이면 정상입니다.
 -- 이제 홈페이지 폼에서 이 함수를 호출하면 영업 '문의' 단계에 카드가 자동으로 생겨요.

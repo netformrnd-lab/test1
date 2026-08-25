@@ -9,24 +9,31 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Pretendard',system-ui,sans-serif;background:transparent;color:#1c2440;-webkit-font-smoothing:antialiased;padding:14px}
-.card{max-width:460px;margin:0 auto;background:#fff;border:1px solid #e7ebf3;border-radius:18px;padding:26px 24px;box-shadow:0 18px 46px -24px rgba(20,30,60,.28)}
+.card{max-width:520px;margin:0 auto;background:#fff;border:1px solid #e7ebf3;border-radius:18px;padding:26px 24px;box-shadow:0 18px 46px -24px rgba(20,30,60,.22)}
 .tt{font-size:20px;font-weight:800;display:flex;align-items:center;gap:9px}
 .tt .ic{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#3f74e6,#2F6BF6);display:flex;align-items:center;justify-content:center}
-.desc{font-size:13px;color:#8b93a8;margin:8px 0 20px;line-height:1.6}
-label{display:block;font-size:12.5px;font-weight:800;color:#5c6580;margin:14px 0 6px}
-label .req{color:#e4544b}
-input,textarea{width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #e7ebf3;border-radius:11px;font-size:14px;outline:none;font-family:inherit}
-input:focus,textarea:focus{border-color:#2F6BF6}
-textarea{resize:vertical;min-height:96px;line-height:1.6}
-.btn{width:100%;border:none;border-radius:12px;background:#2F6BF6;color:#fff;font-size:15px;font-weight:800;padding:14px;margin-top:20px;cursor:pointer}
-.btn:disabled{opacity:.6}
+.desc{font-size:13px;color:#8b93a8;margin:8px 0 18px;line-height:1.6}
+label{display:block;font-size:13px;font-weight:800;color:#3a445e;margin:16px 0 7px}
+label .req{color:#e4544b;margin-left:2px}
+input,textarea,select{width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #e7ebf3;border-radius:11px;font-size:14px;outline:none;font-family:inherit;background:#fff}
+input:focus,textarea:focus,select:focus{border-color:#2F6BF6}
+textarea{resize:vertical;min-height:90px;line-height:1.6}
+.policy{height:150px;overflow-y:auto;border:1px solid #e7ebf3;border-radius:11px;padding:13px 15px;font-size:12px;color:#5c6580;line-height:1.7;background:#fafbfd}
+.policy h4{font-size:12.5px;color:#1c2440;margin:10px 0 3px}
+.agree{display:flex;align-items:center;gap:9px;margin-top:11px;font-size:13.5px;font-weight:700;color:#1c2440;cursor:pointer}
+.agree input{width:18px;height:18px;flex-shrink:0;accent-color:#2F6BF6}
+.phone{display:flex;align-items:center;gap:8px}
+.phone input{text-align:center}
+.phone span{color:#c3ccdb;font-weight:800}
+.btn{width:100%;border:none;border-radius:12px;background:#2F6BF6;color:#fff;font-size:15px;font-weight:800;padding:15px;margin-top:22px;cursor:pointer}
+.btn:disabled{opacity:.55}
 .msg{font-size:13px;font-weight:700;text-align:center;min-height:18px;margin-top:12px}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-.ok-wrap{text-align:center;padding:20px 6px}
-.ok-wrap .em{font-size:46px}
-.ok-wrap h2{font-size:19px;font-weight:800;margin-top:12px}
-.ok-wrap p{font-size:13.5px;color:#8b93a8;margin-top:8px;line-height:1.6}
-.foot{font-size:11px;color:#aab2c4;text-align:center;margin-top:16px}
+.ok-wrap{text-align:center;padding:26px 6px}
+.ok-wrap .em{font-size:48px}
+.ok-wrap h2{font-size:20px;font-weight:800;margin-top:12px}
+.ok-wrap p{font-size:14px;color:#8b93a8;margin-top:10px;line-height:1.7}
+.foot{font-size:11px;color:#aab2c4;text-align:center;margin-top:18px}
 </style>
 </head>
 <body>
@@ -34,17 +41,49 @@ textarea{resize:vertical;min-height:96px;line-height:1.6}
   <div class="tt"><span class="ic"><svg width="16" height="16" viewBox="0 0 100 100"><path d="M38 20 L18 50 L38 80" stroke="#fff" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M62 20 L82 50 L62 80" stroke="#fff" stroke-width="13" fill="none" stroke-linecap="round"/></svg></span>무료 상담·문의</div>
   <div class="desc">공동주택 보수공사 감리, 무엇이든 편하게 문의하세요. 담당자가 확인 후 빠르게 연락드립니다.</div>
   <div id="form">
-    <label>단지(아파트)명</label>
-    <input id="q-apt" placeholder="예: 서울 노원 ○○아파트" autocomplete="off">
+    <label>개인정보 수집 및 이용 동의 <span class="req">*</span></label>
+    <div class="policy">
+      아파트스퀘어(이하 ‘회사’라 한다)는 개인정보 보호법 제30조에 따라 정보주체의 개인정보를 보호하고 이와 관련한 고충을 신속하고 원활하게 처리할 수 있도록 다음과 같이 개인정보 처리방침을 수립·공개합니다.
+      <h4>1. 수집 항목</h4>성함, 직급, 연락처, 아파트명, 공사 종류, 지역, 문의 내용
+      <h4>2. 수집·이용 목적</h4>문의에 대한 상담 및 회신, 감리 서비스 안내
+      <h4>3. 보유·이용 기간</h4>문의 처리 완료 후 관련 법령에 따른 기간까지 보관하며, 목적 달성 후 지체 없이 파기합니다.
+      <h4>4. 동의 거부 권리</h4>동의를 거부할 수 있으나, 이 경우 문의 접수 및 상담이 제한될 수 있습니다.
+    </div>
+    <label class="agree"><input type="checkbox" id="q-agree"> 개인정보 수집 및 이용에 동의합니다.</label>
+
     <label>성함 <span class="req">*</span></label>
     <input id="q-name" placeholder="성함을 입력하세요" autocomplete="name">
+
+    <label>직급 (ex: 관리소장, 입주자대표) <span class="req">*</span></label>
+    <input id="q-title" placeholder="예: 관리소장">
+
     <label>연락처 <span class="req">*</span></label>
-    <input id="q-contact" placeholder="예: 010-1234-5678" autocomplete="tel" inputmode="tel">
-    <label>문의 내용</label>
-    <textarea id="q-msg" placeholder="예: 외벽 재도장 감리 비용·일정 문의드립니다."></textarea>
+    <div class="phone">
+      <input id="q-p1" inputmode="numeric" maxlength="3" placeholder="010">
+      <span>-</span>
+      <input id="q-p2" inputmode="numeric" maxlength="4" placeholder="1234">
+      <span>-</span>
+      <input id="q-p3" inputmode="numeric" maxlength="4" placeholder="5678">
+    </div>
+
+    <label>아파트명 <span class="req">*</span></label>
+    <input id="q-apt" placeholder="예: 서울 노원 ○○아파트">
+
+    <label>공사 종류 <span class="req">*</span></label>
+    <input id="q-ctype" placeholder="예: 외벽 재도장, 옥상 방수">
+
+    <label>지역</label>
+    <select id="q-region">
+      <option value="">(선택)</option>
+      <option>서울</option><option>경기</option><option>인천</option><option>부산</option><option>대구</option><option>광주</option><option>대전</option><option>울산</option><option>세종</option><option>강원</option><option>충북</option><option>충남</option><option>전북</option><option>전남</option><option>경북</option><option>경남</option><option>제주</option>
+    </select>
+
+    <label>문의내용</label>
+    <textarea id="q-msg" placeholder="문의하실 내용을 자유롭게 적어주세요."></textarea>
+
     <input class="hp" id="q-company" tabindex="-1" autocomplete="off" aria-hidden="true" placeholder="회사명">
-    <button class="btn" id="q-btn" onclick="submitInquiry()">문의 보내기</button>
-    <div class="msg" id="q-msg-out"></div>
+    <button class="btn" id="q-btn" onclick="submitInquiry()">문의하기</button>
+    <div class="msg" id="q-out"></div>
   </div>
   <div class="foot">아파트스퀘어 · 투명하고 꼼꼼한 공동주택 보수공사 감리</div>
 </div>
@@ -54,21 +93,33 @@ const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=(id)=>document.getElementById(id);
+// 연락처 칸 자동 이동
+function hop(cur,next){ const el=$(cur); el&&el.addEventListener('input',()=>{ if(el.value.length>=el.maxLength && $(next)) $(next).focus(); }); }
+hop('q-p1','q-p2'); hop('q-p2','q-p3');
+function err(t){ const o=$('q-out'); o.style.color='#e4544b'; o.textContent=t; }
 async function submitInquiry(){
-  if($('q-company').value){ return; } // 스팸봇 허니팟 — 채워지면 조용히 무시
+  if($('q-company').value) return; // 스팸봇 허니팟
+  const agree=$('q-agree').checked;
   const name=$('q-name').value.trim();
-  const contact=$('q-contact').value.trim();
+  const title=$('q-title').value.trim();
+  const p1=$('q-p1').value.trim(),p2=$('q-p2').value.trim(),p3=$('q-p3').value.trim();
   const apt=$('q-apt').value.trim();
+  const ctype=$('q-ctype').value.trim();
+  const region=$('q-region').value;
   const message=$('q-msg').value.trim();
-  const out=$('q-msg-out');
-  if(!name && !contact){ out.style.color='#e4544b'; out.textContent='성함 또는 연락처를 입력해주세요'; return; }
-  if(!contact){ out.style.color='#e4544b'; out.textContent='연락처를 입력해주세요'; return; }
-  const btn=$('q-btn'); btn.disabled=true; btn.textContent='보내는 중…'; out.textContent='';
-  const {error}=await sb.rpc('submit_web_inquiry',{ p_name:apt||name, p_contact:(apt&&name?name+' · ':'')+contact, p_region:null, p_message:message||null });
-  if(error){ btn.disabled=false; btn.textContent='문의 보내기'; out.style.color='#e4544b'; out.textContent='전송에 실패했어요. 잠시 후 다시 시도해주세요.'; return; }
+  if(!agree) return err('개인정보 수집 및 이용에 동의해주세요.');
+  if(!name) return err('성함을 입력해주세요.');
+  if(!title) return err('직급을 입력해주세요.');
+  if(!(p1&&p2&&p3)) return err('연락처를 모두 입력해주세요.');
+  if(!apt) return err('아파트명을 입력해주세요.');
+  if(!ctype) return err('공사 종류를 입력해주세요.');
+  const phone=p1+'-'+p2+'-'+p3;
+  const contact=name+'('+title+') '+phone;
+  const btn=$('q-btn'); btn.disabled=true; btn.textContent='보내는 중…'; $('q-out').textContent='';
+  const {error}=await sb.rpc('submit_web_inquiry',{ p_name:apt, p_contact:contact, p_construction_type:ctype, p_region:region||null, p_message:message||null });
+  if(error){ btn.disabled=false; btn.textContent='문의하기'; return err('전송에 실패했어요. 잠시 후 다시 시도해주세요.'); }
   $('card').innerHTML='<div class="ok-wrap"><div class="em">✅</div><h2>문의가 접수됐어요!</h2><p>담당자가 확인 후 입력해주신 연락처로<br>빠르게 연락드리겠습니다. 감사합니다 🙂</p></div>';
 }
-$('q-contact')&&$('q-contact').addEventListener('keydown',e=>{ if(e.key==='Enter')submitInquiry(); });
 </script>
 </body>
 </html>

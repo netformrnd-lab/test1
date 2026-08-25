@@ -34,6 +34,13 @@ admin = admin.replace("</head>", PRETENDARD + "\n" + NOCACHE + "\n</head>");
 admin = admin.replace('../js/stages.js"', '../js/stages.js?v=' + V + '"');
 fs.writeFileSync(OUT + "/admin/index.html", admin);
 
+// --- console/index.html (통합 관리자 대시보드) ---
+cp.execSync(`mkdir -p "${OUT}/console"`);
+let konsole = fs.readFileSync(APP + "/console/index.html", "utf8");
+konsole = konsole.replace("</head>", NOCACHE + "\n</head>");
+konsole = konsole.replace('../js/stages.js"', '../js/stages.js?v=' + V + '"');
+fs.writeFileSync(OUT + "/console/index.html", konsole);
+
 // --- js files (copy verbatim) ---
 for (const f of ["app.js", "stages.js", "supabase-app.js"]) {
   fs.copyFileSync(APP + "/js/" + f, OUT + "/js/" + f);

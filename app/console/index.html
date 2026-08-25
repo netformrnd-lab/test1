@@ -308,6 +308,15 @@ tbody tr:hover{background:#f8fafc}
         <div class="log" id="imp-log" style="display:none"></div>
       </div>
       <div class="card">
+        <h3>📥 아임웹/홈페이지 문의 엑셀 → 영업 등록</h3>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">아임웹 관리자에서 <b>문의/상담 신청 내역을 엑셀(.xlsx)로 내려받아</b> 올리면, 영업 파이프라인 <b>‘문의’ 단계</b>에 자동으로 카드가 만들어져요. 이미 등록된 문의는 자동으로 건너뜁니다.</div>
+        <div class="toolbar">
+          <input id="inq-file" type="file" accept=".xlsx,.xls" multiple class="inp">
+          <button class="b blue" id="inq-btn" onclick="importInquiries()">문의 가져오기</button>
+        </div>
+        <div class="log" id="inq-log" style="display:none"></div>
+      </div>
+      <div class="card">
         <h3>🖼️ 아임웹 사진 → 우리 저장소로 이전</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">출시 전 1회. 현장기록의 아임웹 링크 사진을 우리 저장소(Supabase)로 옮겨요. 옮기면 아임웹을 닫아도 사진이 사라지지 않아요.</div>
         <div class="toolbar">
@@ -1437,6 +1446,59 @@ async function importBoard(){
     await loadAll();
   }catch(e){impLog('오류: '+e.message,'#ff8a8a');}
   finally{ if(btn){btn.textContent='가져오기 시작';btn.disabled=false;} }
+}
+
+/* ===== 데이터 도구: 아임웹/홈페이지 문의 엑셀 → 영업 등록 ===== */
+function inqLog(msg,color){ const box=$('inq-log'); if(!box)return; box.style.display='block'; const d=document.createElement('div'); d.textContent=msg; if(color)d.style.color=color; box.appendChild(d); box.scrollTop=box.scrollHeight; }
+async function importInquiries(){
+  if(!PHASEB_OK.sales){ alert('영업 기능이 켜져 있어야 해요. backend/migration-console-phaseb.sql 을 먼저 실행하세요.'); return; }
+  const fi=$('inq-file'); const files=fi&&fi.files;
+  if(!files||!files.length){ alert('아임웹 문의 엑셀 파일을 선택하세요'); return; }
+  if(typeof XLSX==='undefined'){ alert('엑셀 읽기 모듈을 못 불러왔어요. 새로고침 후 다시 시도해 주세요.'); return; }
+  const btn=$('inq-btn'); if(btn){btn.disabled=true;btn.textContent='가져오는 중…';}
+  $('inq-log').innerHTML='';
+  const norm=s=>(s||'').replace(/\s/g,'').toLowerCase();
+  const keyOf=(cols,names)=>{ for(const n of names){ const c=cols.find(x=>x===n)||cols.find(x=>x.includes(n)); if(c)return c; } return null; };
+  // 이미 등록된 문의 서명(중복 방지)
+  const sig=x=>norm((x.name||'')+'|'+(x.contact||'')+'|'+String(x.memo||'').slice(0,24));
+  const seen=new Set(SALES.map(sig));
+  try{
+    const list=Array.from(files); let made=0,skip=0,fail=0,fileNo=0;
+    for(const f of list){
+      fileNo++; inqLog('📄 ('+fileNo+'/'+list.length+') '+f.name+' 읽는 중…','#7fb0ff');
+      let rows;
+      try{ const buf=await f.arrayBuffer(); const wb=XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false}); }
+      catch(e){ inqLog('  → 읽기 실패: '+e.message,'#ff8a8a'); fail++; continue; }
+      if(!rows||!rows.length){ inqLog('  → 데이터 없음','#f0c674'); continue; }
+      const cols=Object.keys(rows[0]);
+      const kName=keyOf(cols,['단지','아파트','단지명','고객사']);
+      const kPerson=keyOf(cols,['이름','성함','작성자','고객명','신청자']);
+      const kContact=keyOf(cols,['연락처','휴대폰','전화','핸드폰','번호','연락']);
+      const kMemo=keyOf(cols,['내용','문의','상담','메시지','본문','제목','요청']);
+      const kRegion=keyOf(cols,['지역','주소']);
+      const kTime=keyOf(cols,['작성일','신청일','등록일','작성시각','일시','접수일']);
+      inqLog('  · '+rows.length+'건 처리…');
+      for(const r of rows){
+        const person=String((kPerson&&r[kPerson])||'').trim();
+        const aptNm=String((kName&&r[kName])||'').trim();
+        const name=aptNm||person||'(문의)'; if(name==='(문의)'&&!person&&!aptNm){ continue; }
+        const contact=[person&&person!==name?person:'',String((kContact&&r[kContact])||'').trim()].filter(Boolean).join(' ').trim()||null;
+        const memo=String((kMemo&&r[kMemo])||'').trim()||null;
+        const region=String((kRegion&&r[kRegion])||'').trim()||null;
+        let time=kTime?r[kTime]:null; if(time&&typeof time!=='string')time=String(time);
+        const row={name,contact,memo,region,stage:'inquiry',next_action:'첫 연락',owner:null};
+        if(time){ row.created_at=time; row.stage_changed_at=time; }
+        if(seen.has(sig(row))){ skip++; inqLog('⏭️ 이미있음  '+name); continue; }
+        const {error}=await sb.from('sales_leads').insert(row);
+        if(error){ fail++; inqLog('❌ 실패  '+name+' → '+error.message,'#ff8a8a'); }
+        else { made++; seen.add(sig(row)); inqLog('✅ 영업 등록  '+name+(contact?(' · '+contact):''),'#8ce0a0'); }
+      }
+    }
+    inqLog(''); inqLog('════ 완료 ════ 등록 '+made+' · 이미있음 '+skip+' · 실패 '+fail,'#cfe0ff');
+    if(made) inqLog('→ 영업 메뉴 ‘문의’ 칸에서 확인하세요.','#8ce0a0');
+    await loadAll();
+  }catch(e){ inqLog('오류: '+e.message,'#ff8a8a'); }
+  finally{ if(btn){btn.disabled=false;btn.textContent='문의 가져오기';} if(fi)fi.value=''; }
 }
 
 /* ===== 데이터 도구: 아임웹 사진 이전 ===== */

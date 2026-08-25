@@ -337,6 +337,10 @@ const $=(id)=>document.getElementById(id);
 const esc=(s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};
 const dispId=(email)=>{const e=(email||'');return e.endsWith('@aptsquare.app')?e.slice(0,-'@aptsquare.app'.length):e;};
+// localStorage 안전 접근 (사생활보호 모드·일부 WebView에서 예외가 나도 화면이 깨지지 않게)
+const lsGet=(k)=>{try{return localStorage.getItem(k);}catch(e){return null;}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}};
+const lsDel=(k)=>{try{localStorage.removeItem(k);}catch(e){}};
 const loginId=(m)=>m.username||dispId(m.email)||'';
 const realEmail=(m)=>{const e=(m.email||'');return e.endsWith('@aptsquare.app')?'':e;};
 
@@ -477,17 +481,17 @@ function renderDash(){
 function renderRevenue(){
   const box=$('dashRevenue'); if(!box)return;
   if(!PHASEB_OK.sales){ box.innerHTML='<div class="empty" style="font-size:12px">영업 기능을 켜면 표시돼요</div>'; return; }
-  const goal=parseInt(localStorage.getItem('aptsq_sales_goal')||'0',10)||0;
+  const goal=parseInt(lsGet('aptsq_sales_goal')||'0',10)||0;
   const yr=new Date().getFullYear();
   const q=[0,0,0,0];
   SALES.filter(s=>s.stage==='won'&&s.amount).forEach(s=>{ const d=new Date(s.stage_changed_at||s.created_at||Date.now()); if(d.getFullYear()===yr){ q[Math.floor(d.getMonth()/3)]+=(+s.amount||0); } });
   box.innerHTML=q.map((v,i)=>{ const pct=goal?Math.min(100,Math.round(v/goal*100)):0; return `<div class="hbar"><div class="k">${i+1}분기</div><div class="t"><div class="bar"><i style="width:${goal?pct:(v?100:0)}%;background:${pct>=80?'var(--green)':pct>=50?'var(--blue)':'var(--amber)'}"></i></div></div><div class="v">${goal?pct+'%':moneyKR(v)}</div></div>`; }).join('')+(goal?`<div style="font-size:11px;color:var(--mut);margin-top:4px">분기 목표 ${moneyKR(goal)}원 · 성사(감리비) 기준</div>`:`<div style="font-size:11px;color:var(--mut);margin-top:4px">‘분기 목표 설정’을 누르면 목표 대비 %로 보여요 · 지금은 분기별 성사 금액</div>`);
 }
 function setSalesGoal(){
-  const cur=localStorage.getItem('aptsq_sales_goal')||'';
+  const cur=lsGet('aptsq_sales_goal')||'';
   const v=prompt('분기 매출 목표를 원 단위로 입력하세요 (예: 100000000 = 1억)',cur);
   if(v===null)return; const n=parseInt(String(v).replace(/[^0-9]/g,''),10)||0;
-  if(n)localStorage.setItem('aptsq_sales_goal',String(n)); else localStorage.removeItem('aptsq_sales_goal');
+  if(n)lsSet('aptsq_sales_goal',String(n)); else lsDel('aptsq_sales_goal');
   renderRevenue();
 }
 function exportAllExcel(){

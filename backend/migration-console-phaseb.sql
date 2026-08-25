@@ -64,6 +64,7 @@ alter table public.apartments add column if not exists overview text;          -
 alter table public.apartments add column if not exists contract_amount bigint; -- 총 계약금액(공사비)
 alter table public.apartments add column if not exists supervision_fee bigint; -- 감리비(우리 매출)
 alter table public.apartments add column if not exists received_amount bigint; -- 수금액(받은 금액) · 미수금 = 감리비-수금액
+alter table public.apartments add column if not exists households int;         -- 세대수
 
 -- ── 5) 현장 히스토리 (site_notes) ───────────────────────────
 create table if not exists public.site_notes (

@@ -259,8 +259,9 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-history">
-      <div class="head"><div><h2>활동기록</h2><div class="desc">최근 감리일지·현장기록 타임라인</div></div></div>
-      <div class="card"><h3>🕒 최근 활동</h3><div id="histBody"></div></div>
+      <div class="head"><div><h2>활동기록</h2><div class="desc">현장별 기록 · 담당 인계 · 미해결 이슈</div></div></div>
+      <div class="toolbar"><input class="inp" id="hist-q" placeholder="🔍 단지명 검색" style="min-width:240px" oninput="renderHistory()"><label style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--mut2);cursor:pointer"><input type="checkbox" id="hist-issue" onchange="renderHistory()" style="width:16px;height:16px"> 미해결 이슈 있는 단지만</label></div>
+      <div id="histBody"></div>
     </section>
 
     <section class="sec" id="s-members">
@@ -679,13 +680,38 @@ function renderProj(){
 }
 
 /* ===== 활동기록 ===== */
+function unresolvedIssues(aid){ return SITE_NOTES.filter(n=>n.apartment_id===aid && n.kind==='issue' && !n.resolved); }
 function renderHistory(){
-  const items=[
-    ...REPORTS.map(r=>({t:r.created_at,who:aptName(r.apartment_id),what:'감리일지: '+(r.title||''),tag:'report'})),
-    ...FIELDS.map(f=>({t:f.created_at,who:aptName(f.apartment_id),what:'현장기록: '+(f.title||''),tag:'field'})),
-    ...SITE_NOTES.map(n=>({t:n.created_at,who:aptName(n.apartment_id),what:'히스토리: '+(n.body||''),tag:'note'}))
-  ].filter(x=>x.t).sort((a,b)=>b.t.localeCompare(a.t)).slice(0,60);
-  $('histBody').innerHTML=items.length?`<table><tbody>${items.map(i=>`<tr><td style="color:var(--mut);width:96px">${i.t.slice(0,10)}</td><td style="font-weight:700;width:180px">${esc(i.who)}</td><td>${esc(i.what)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">활동 기록이 없어요</div>';
+  const box=$('histBody'); if(!box)return;
+  const q=(($('hist-q')||{}).value||'').trim().toLowerCase();
+  const onlyIssue=(($('hist-issue')||{}).checked)||false;
+  // 단지별 활동 모으기
+  const byApt={};
+  const push=(aid,t,tag,text,extra)=>{ if(!aid||!t)return; (byApt[aid]=byApt[aid]||[]).push(Object.assign({t,tag,text},extra||{})); };
+  REPORTS.forEach(r=>push(r.apartment_id,r.created_at,'report','감리일지: '+(r.title||'')));
+  FIELDS.forEach(f=>push(f.apartment_id,f.created_at,'field','현장기록: '+(f.title||'')));
+  SITE_NOTES.forEach(n=>push(n.apartment_id,n.created_at,(n.kind||'visit'),(NOTE_KIND[n.kind]?NOTE_KIND[n.kind][0]:'기록')+': '+(n.body||''),{noteId:n.id,resolved:n.resolved,isIssue:n.kind==='issue'}));
+  const tagBadge={report:['감리일지','blue'],field:['현장','gray'],visit:['방문','ok'],call:['통화','blue'],msg:['메시지','violet'],issue:['이슈','red'],etc:['기록','gray']};
+  let aids=Object.keys(byApt);
+  if(q) aids=aids.filter(aid=>(aptName(aid)||'').toLowerCase().includes(q));
+  if(onlyIssue) aids=aids.filter(aid=>unresolvedIssues(aid).length>0);
+  aids.sort((a,b)=>{ const la=byApt[a].reduce((m,x)=>x.t>m?x.t:m,''), lb=byApt[b].reduce((m,x)=>x.t>m?x.t:m,''); return lb.localeCompare(la); });
+  if(!aids.length){ box.innerHTML='<div class="empty">활동 기록이 없어요</div>'; return; }
+  box.innerHTML=aids.map(aid=>{
+    const items=byApt[aid].slice().sort((a,b)=>b.t.localeCompare(a.t));
+    const issues=unresolvedIssues(aid);
+    const apt=APTS.find(x=>x.id===aid);
+    const issueBox=issues.length?`<div class="alert crit" style="margin:2px 0 12px"><div class="ah">⚠️ 미해결 이슈 ${issues.length}</div>${issues.map(n=>`<div class="row" style="display:flex;align-items:center;gap:8px"><span style="flex:1">${esc(n.body)}<span style="color:var(--mut);font-weight:600;font-size:11px"> · ${(n.created_at||'').slice(0,10)}${n.author_name?' · '+esc(n.author_name):''}</span></span><button class="b green sm" onclick="resolveIssue('${n.id}')">해결</button></div>`).join('')}</div>`:'';
+    const rows=items.slice(0,7).map(i=>{ const b=tagBadge[i.tag]||tagBadge.etc; return `<div style="display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-top:1px solid var(--line2)"><span style="color:var(--mut);font-size:11px;white-space:nowrap;width:74px;flex-shrink:0;padding-top:2px">${(i.t||'').slice(0,10)}</span><span class="pill ${b[1]}" style="flex-shrink:0">${b[0]}</span><span style="flex:1;font-size:13px;line-height:1.5">${esc(i.text)}</span>${(i.isIssue&&!i.resolved)?`<button class="b green sm" onclick="resolveIssue('${i.noteId}')">해결</button>`:''}</div>`;}).join('');
+    const more=items.length>7?`<div style="text-align:center;margin-top:8px"><span class="link" onclick="openProj('${aid}')">전체 ${items.length}건 · 현장개요/히스토리 →</span></div>`:'';
+    return `<div class="card"><h3><span style="display:flex;align-items:center;gap:8px">🏢 <span class="link" onclick="openProj('${aid}')">${esc(aptName(aid))}</span>${issues.length?`<span class="pill red">이슈 ${issues.length}</span>`:''}</span><span class="r">담당 ${apt?siteAuditors(apt):'-'} · <span class="link" onclick="openProj('${aid}')">상세 →</span></span></h3>${issueBox}${rows}${more}</div>`;
+  }).join('');
+}
+async function resolveIssue(id){
+  const n=SITE_NOTES.find(x=>x.id===id); if(!n)return;
+  const {error}=await sb.from('site_notes').update({resolved:true}).eq('id',id);
+  if(error){ alert('처리 실패: '+error.message+'\n(migration-console-phaseb.sql 재실행이 필요할 수 있어요)'); return; }
+  n.resolved=true; renderHistory(); renderProj(); renderDash();
 }
 
 /* ===== 회원 ===== */
@@ -852,8 +878,8 @@ function siteNotesHtml(aptId){
   const seq={}; visitsAsc.forEach((n,i)=>{ seq[n.id]=i+1; });
   // 화면엔 최신순으로 표시
   const disp=list.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
-  return `<div>${disp.map(n=>{ const badge=isVisit(n)?`<span class="pill ok" style="flex-shrink:0;font-weight:800">${seq[n.id]}회차</span>`:noteKindPill(n.kind);
-    return `<div style="display:flex;gap:10px;padding:11px 0;border-top:1px solid var(--line2);align-items:flex-start">${badge}<div style="width:118px;flex-shrink:0;font-size:11px;color:var(--mut);padding-top:2px">${(n.created_at||'').slice(0,10)}${n.author_name?' · '+esc(n.author_name):''}</div><div style="flex:1;font-size:13px;line-height:1.5;white-space:pre-wrap">${esc(n.body)}</div><span onclick="deleteSiteNote('${n.id}')" style="cursor:pointer;color:var(--red);font-weight:800;font-size:12px;flex-shrink:0">삭제</span></div>`;
+  return `<div>${disp.map(n=>{ const isIssue=n.kind==='issue'; const badge=isVisit(n)?`<span class="pill ok" style="flex-shrink:0;font-weight:800">${seq[n.id]}회차</span>`:noteKindPill(n.kind);
+    return `<div style="display:flex;gap:10px;padding:11px 0;border-top:1px solid var(--line2);align-items:flex-start${isIssue&&!n.resolved?';background:#fff6f5':''}">${badge}<div style="width:118px;flex-shrink:0;font-size:11px;color:var(--mut);padding-top:2px">${(n.created_at||'').slice(0,10)}${n.author_name?' · '+esc(n.author_name):''}</div><div style="flex:1;font-size:13px;line-height:1.5;white-space:pre-wrap${isIssue&&n.resolved?';color:var(--mut);text-decoration:line-through':''}">${esc(n.body)}${isIssue&&n.resolved?' <span class="pill ok">해결됨</span>':''}</div>${isIssue&&!n.resolved?`<button class="b green sm" onclick="resolveIssue('${n.id}')">해결</button> `:''}<span onclick="deleteSiteNote('${n.id}')" style="cursor:pointer;color:var(--red);font-weight:800;font-size:12px;flex-shrink:0">삭제</span></div>`;
   }).join('')}</div>`;
 }
 async function addSiteNote(aptId){

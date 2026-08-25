@@ -76,6 +76,7 @@ create table if not exists public.site_notes (
   created_at timestamptz default now()
 );
 alter table public.site_notes add column if not exists kind text default 'visit';
+alter table public.site_notes add column if not exists resolved boolean default false; -- 이슈 해결 여부(미해결 이슈 표시용)
 alter table public.site_notes enable row level security;
 drop policy if exists site_notes_admin on public.site_notes;
 create policy site_notes_admin on public.site_notes for all to authenticated using (is_admin()) with check (is_admin());

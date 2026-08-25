@@ -53,6 +53,12 @@ insp = insp.replace("</head>", NOCACHE + "\n</head>");
 fs.writeFileSync(OUT + "/inspect/index.html", insp);
 cp.execSync(`mkdir -p "${OUT}/inspect/guides" && cp -f "${APP}/inspect/guides/"*.jpg "${OUT}/inspect/guides/" 2>/dev/null || true`);
 
+// --- 홈페이지 문의 폼 (inquiry/) — 아임웹 iframe 삽입용 ---
+cp.execSync(`mkdir -p "${OUT}/inquiry"`);
+let inq = fs.readFileSync(APP + "/inquiry/index.html", "utf8");
+inq = inq.replace("</head>", NOCACHE + "\n</head>");
+fs.writeFileSync(OUT + "/inquiry/index.html", inq);
+
 // --- 소장님 작성 폼 (form/) ---
 cp.execSync(`mkdir -p "${OUT}/form"`);
 let mform = fs.readFileSync(APP + "/form/index.html", "utf8");

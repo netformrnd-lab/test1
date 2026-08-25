@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>아파트스퀘어 무료 상담·문의</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard',system-ui,sans-serif;background:transparent;color:#1c2440;-webkit-font-smoothing:antialiased;padding:14px}
+.card{max-width:460px;margin:0 auto;background:#fff;border:1px solid #e7ebf3;border-radius:18px;padding:26px 24px;box-shadow:0 18px 46px -24px rgba(20,30,60,.28)}
+.tt{font-size:20px;font-weight:800;display:flex;align-items:center;gap:9px}
+.tt .ic{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#3f74e6,#2F6BF6);display:flex;align-items:center;justify-content:center}
+.desc{font-size:13px;color:#8b93a8;margin:8px 0 20px;line-height:1.6}
+label{display:block;font-size:12.5px;font-weight:800;color:#5c6580;margin:14px 0 6px}
+label .req{color:#e4544b}
+input,textarea{width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #e7ebf3;border-radius:11px;font-size:14px;outline:none;font-family:inherit}
+input:focus,textarea:focus{border-color:#2F6BF6}
+textarea{resize:vertical;min-height:96px;line-height:1.6}
+.btn{width:100%;border:none;border-radius:12px;background:#2F6BF6;color:#fff;font-size:15px;font-weight:800;padding:14px;margin-top:20px;cursor:pointer}
+.btn:disabled{opacity:.6}
+.msg{font-size:13px;font-weight:700;text-align:center;min-height:18px;margin-top:12px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.ok-wrap{text-align:center;padding:20px 6px}
+.ok-wrap .em{font-size:46px}
+.ok-wrap h2{font-size:19px;font-weight:800;margin-top:12px}
+.ok-wrap p{font-size:13.5px;color:#8b93a8;margin-top:8px;line-height:1.6}
+.foot{font-size:11px;color:#aab2c4;text-align:center;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="tt"><span class="ic"><svg width="16" height="16" viewBox="0 0 100 100"><path d="M38 20 L18 50 L38 80" stroke="#fff" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M62 20 L82 50 L62 80" stroke="#fff" stroke-width="13" fill="none" stroke-linecap="round"/></svg></span>무료 상담·문의</div>
+  <div class="desc">공동주택 보수공사 감리, 무엇이든 편하게 문의하세요. 담당자가 확인 후 빠르게 연락드립니다.</div>
+  <div id="form">
+    <label>단지(아파트)명</label>
+    <input id="q-apt" placeholder="예: 서울 노원 ○○아파트" autocomplete="off">
+    <label>성함 <span class="req">*</span></label>
+    <input id="q-name" placeholder="성함을 입력하세요" autocomplete="name">
+    <label>연락처 <span class="req">*</span></label>
+    <input id="q-contact" placeholder="예: 010-1234-5678" autocomplete="tel" inputmode="tel">
+    <label>문의 내용</label>
+    <textarea id="q-msg" placeholder="예: 외벽 재도장 감리 비용·일정 문의드립니다."></textarea>
+    <input class="hp" id="q-company" tabindex="-1" autocomplete="off" aria-hidden="true" placeholder="회사명">
+    <button class="btn" id="q-btn" onclick="submitInquiry()">문의 보내기</button>
+    <div class="msg" id="q-msg-out"></div>
+  </div>
+  <div class="foot">아파트스퀘어 · 투명하고 꼼꼼한 공동주택 보수공사 감리</div>
+</div>
+
+<script>
+const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
+const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=(id)=>document.getElementById(id);
+async function submitInquiry(){
+  if($('q-company').value){ return; } // 스팸봇 허니팟 — 채워지면 조용히 무시
+  const name=$('q-name').value.trim();
+  const contact=$('q-contact').value.trim();
+  const apt=$('q-apt').value.trim();
+  const message=$('q-msg').value.trim();
+  const out=$('q-msg-out');
+  if(!name && !contact){ out.style.color='#e4544b'; out.textContent='성함 또는 연락처를 입력해주세요'; return; }
+  if(!contact){ out.style.color='#e4544b'; out.textContent='연락처를 입력해주세요'; return; }
+  const btn=$('q-btn'); btn.disabled=true; btn.textContent='보내는 중…'; out.textContent='';
+  const {error}=await sb.rpc('submit_web_inquiry',{ p_name:apt||name, p_contact:(apt&&name?name+' · ':'')+contact, p_region:null, p_message:message||null });
+  if(error){ btn.disabled=false; btn.textContent='문의 보내기'; out.style.color='#e4544b'; out.textContent='전송에 실패했어요. 잠시 후 다시 시도해주세요.'; return; }
+  $('card').innerHTML='<div class="ok-wrap"><div class="em">✅</div><h2>문의가 접수됐어요!</h2><p>담당자가 확인 후 입력해주신 연락처로<br>빠르게 연락드리겠습니다. 감사합니다 🙂</p></div>';
+}
+$('q-contact')&&$('q-contact').addEventListener('keydown',e=>{ if(e.key==='Enter')submitInquiry(); });
+</script>
+</body>
+</html>

@@ -121,6 +121,11 @@ tbody tr:hover{background:#f8fafc}
 .fld{margin-bottom:12px}
 .fld>label{display:block;font-size:12px;font-weight:800;color:var(--mut2);margin-bottom:5px}
 .fld input,.fld select,.fld textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:13px;outline:none;font-family:inherit}
+.fld input[type=checkbox],.fld input[type=radio]{width:17px;height:17px;padding:0;margin:0;border-radius:4px;flex-shrink:0;accent-color:var(--blue)}
+.audlist{max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:10px}
+.audlist label{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:13.5px;font-weight:600;cursor:pointer;border-bottom:1px solid var(--line2)}
+.audlist label:last-child{border-bottom:none}
+.audlist label:hover{background:#f4f7fd}
 .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--blue)}
 .fld textarea{resize:vertical;min-height:90px;line-height:1.6}
 .frow{display:flex;gap:10px}.frow>.fld{flex:1}
@@ -190,11 +195,11 @@ tbody tr:hover{background:#f8fafc}
       <a data-s="calendar" onclick="go('calendar')"><span class="ic">🗓️</span>캘린더</a>
       <div class="lbl">업무 흐름</div>
       <a data-s="sales" onclick="go('sales')"><span class="ic">📈</span>영업</a>
-      <a data-s="projects" onclick="go('projects')"><span class="ic">🏗️</span>공사관리<span class="cnt" id="c-proj">0</span></a>
+      <a data-s="projects" onclick="go('projects')"><span class="ic">🏗️</span>공사관리<span class="cnt red" id="c-newrep" style="display:none">0</span><span class="cnt" id="c-proj">0</span></a>
       <a data-s="history" onclick="go('history')"><span class="ic">🗂️</span>활동기록</a>
       <div class="lbl">앱 관리</div>
       <a data-s="members" onclick="go('members')"><span class="ic">👤</span>회원<span class="cnt red" id="c-pending">0</span></a>
-      <a data-s="comm" onclick="go('comm')"><span class="ic">💬</span>입주민소통/NPS</a>
+      <a data-s="comm" onclick="go('comm')"><span class="ic">💬</span>입주민소통/NPS<span class="cnt red" id="c-chat" style="display:none">0</span></a>
       <a data-s="promo" onclick="go('promo')"><span class="ic">🏅</span>홍보·자료</a>
       <div class="lbl">기타</div>
       <a data-s="tools" onclick="go('tools')"><span class="ic">🧰</span>데이터 도구</a>
@@ -218,7 +223,7 @@ tbody tr:hover{background:#f8fafc}
         <div class="card"><h3>🚨 2일 이상 정체된 딜 <span class="r"><span class="link" onclick="go('sales')">영업 →</span></span></h3><div id="dashStalled"></div></div>
       </div>
       <div class="grid2">
-        <div class="card"><h3>🆕 새로 올라온 감리일지 <span class="r"><span class="link" onclick="go('projects')">공사관리 →</span></span></h3><div id="dashNewReports"></div></div>
+        <div class="card"><h3>🆕 새로 올라온 감리일지 <span class="r"><b id="dashNewCnt" style="color:var(--red)"></b> <span class="link" onclick="go('projects')">공사관리 →</span></span></h3><div id="dashNewReports"></div></div>
         <div class="card"><h3>🕒 최근 현장 히스토리 <span class="r"><span class="link" onclick="go('history')">활동기록 →</span></span></h3><div id="dashNotes"></div></div>
       </div>
     </section>
@@ -397,32 +402,76 @@ async function loadAll(){
   try{ const {data:dc,error}=await sb.from('doc_files').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); DOCS=dc||[]; PHASEB_OK.docs=!error; }catch(e){ DOCS=[]; PHASEB_OK.docs=false; }
   try{ const {data:sn}=await sb.from('site_notes').select('*').order('created_at',{ascending:false}); SITE_NOTES=sn||[]; }catch(e){ SITE_NOTES=[]; }
   try{ const {data:ev}=await sb.from('app_events').select('apartment_id'); VIEWS={}; (ev||[]).forEach(e=>{ if(e.apartment_id)VIEWS[e.apartment_id]=(VIEWS[e.apartment_id]||0)+1; }); }catch(e){ VIEWS={}; }
+  initSeen();
   renderAll();
-  startPoll();
+  startPoll(); startChatPoll(); startConsoleRealtime();
 }
 function renderAll(){
   renderDash(); renderOrgs(); renderCalendar(); renderSchedules(); renderProjList(); renderHistory();
   renderPending(); renderMembers(); fillAptSelectsConsole(); commTab('notice',document.querySelector('#commTabs button')); promoTab('case',document.querySelector('#promoTabs button'));
   renderSales(); renderRoadmap(); renderDocs();
   if(curProj){ const np=APTS.find(a=>a.id===curProj.id); if(np){curProj=np; if($('projDetail').style.display!=='none') renderProj();} }
+  updateBadges();
+}
+/* ===== 배지·읽음(NEW) 추적 ===== */
+function setBadge(id,n){ const e=$(id); if(!e)return; e.textContent=n>99?'99+':n; e.style.display=n>0?'':'none'; }
+function repSeen(){ return lsGet('aptsq_repseen')||''; }
+function markRepsSeen(){ const mx=REPORTS.reduce((m,r)=>((r.created_at||'')>m?(r.created_at||''):m),''); if(mx)lsSet('aptsq_repseen',mx); }
+function newReportList(){ const s=repSeen(); return REPORTS.filter(r=>(r.created_at||'')>s); }
+function isNewReport(r){ return (r.created_at||'')>repSeen(); }
+function markFldsSeen(){ const mx=FIELDS.reduce((m,r)=>((r.created_at||'')>m?(r.created_at||''):m),''); if(mx)lsSet('aptsq_fldseen',mx); }
+function chatKey(c){ return c.thread||('apt:'+c.apartment_id); }
+function chatSeen(th){ return lsGet('aptsq_chatseen_'+th)||''; }
+function markChatSeen(th){ const ms=CHAT.filter(c=>chatKey(c)===th); if(ms.length){ const mx=ms.reduce((m,c)=>((c.created_at||'')>m?(c.created_at||''):m),''); lsSet('aptsq_chatseen_'+th,mx); } }
+function threadUnread(th){ const s=chatSeen(th); return CHAT.filter(c=>chatKey(c)===th && c.sender_role!=='admin' && (c.created_at||'')>s).length; }
+function chatUnreadTotal(){ const g={}; CHAT.forEach(c=>{ g[chatKey(c)]=1; }); return Object.keys(g).reduce((n,k)=>n+threadUnread(k),0); }
+function initSeen(){ if(lsGet('aptsq_seen_init'))return; markRepsSeen(); markFldsSeen(); const g={}; CHAT.forEach(c=>{ g[chatKey(c)]=1; }); Object.keys(g).forEach(markChatSeen); lsSet('aptsq_seen_init','1'); }
+function updateBadges(){
   $('c-orgs').textContent=APTS.length; $('c-proj').textContent=APTS.length;
-  const pend=MEMBERS.filter(x=>!x.approved).length; const pe=$('c-pending'); pe.textContent=pend; pe.style.display=pend?'':'none';
+  setBadge('c-pending', MEMBERS.filter(m=>!m.approved).length);
+  setBadge('c-newrep', newReportList().length);
+  setBadge('c-chat', chatUnreadTotal());
 }
 let POLL=null,SIG='';
-function dataSig(){ return APTS.length+'|'+REPORTS.length+'|'+FIELDS.length+'|'+MEMBERS.filter(m=>!m.approved).length+'|'+SURVEYS.length+'|'+(REPORTS[0]||{}).id; }
+function dataSig(){ return APTS.length+'|'+REPORTS.length+'|'+FIELDS.length+'|'+MEMBERS.filter(m=>!m.approved).length+'|'+SURVEYS.length+'|'+CHAT.length+'|'+NOTICES.length+'|'+SCHEDULES.length+'|'+SITE_NOTES.length+'|'+(REPORTS[0]||{}).id+'|'+(FIELDS[0]||{}).id+'|'+(CHAT[0]||{}).id; }
 function startPoll(){ if(POLL)return; SIG=dataSig(); POLL=setInterval(refreshLight,10000); }
 async function refreshLight(){
   try{
-    const [a,r,f,m,sv]=await Promise.all([
+    const [a,r,f,m,sv,n,s]=await Promise.all([
       sb.from('apartments').select('*').order('created_at',{ascending:false}),
       sb.from('reports').select('*').order('created_at',{ascending:false}),
       sb.from('field_updates').select('*').order('created_at',{ascending:false}),
       sb.from('profiles').select('*').order('created_at',{ascending:false}),
-      sb.from('surveys').select('*').order('created_at',{ascending:false})
+      sb.from('surveys').select('*').order('created_at',{ascending:false}),
+      sb.from('notices').select('*').order('created_at',{ascending:false}),
+      sb.from('schedules').select('*').order('date',{ascending:true})
     ]);
-    if(a.data)APTS=a.data; if(r.data)REPORTS=r.data; if(f.data)FIELDS=f.data; if(m.data)MEMBERS=m.data; if(sv.data)SURVEYS=sv.data;
+    if(a.data)APTS=a.data; if(r.data)REPORTS=r.data; if(f.data)FIELDS=f.data; if(m.data)MEMBERS=m.data; if(sv.data)SURVEYS=sv.data; if(n.data)NOTICES=n.data; if(s.data)SCHEDULES=s.data;
     try{ const {data:aa}=await sb.from('apartment_auditors').select('*'); APT_AUD={}; (aa||[]).forEach(x=>{(APT_AUD[x.apartment_id]=APT_AUD[x.apartment_id]||[]).push(x.auditor_id);}); }catch(e){}
-    const ns=dataSig(); if(ns!==SIG){ SIG=ns; renderAll(); }
+    try{ const {data:ch}=await sb.from('chat_messages').select('*').order('created_at',{ascending:false}).limit(400); if(ch)CHAT=ch; }catch(e){}
+    try{ const {data:sn}=await sb.from('site_notes').select('*').order('created_at',{ascending:false}); if(sn)SITE_NOTES=sn; }catch(e){}
+    try{ const {data:sl}=await sb.from('sales_leads').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); if(sl)SALES=sl; }catch(e){}
+    const ns=dataSig(); if(ns!==SIG){ SIG=ns; renderAll(); } else { updateBadges(); }
+  }catch(e){}
+}
+/* 채팅 빠른 폴링(5초) — 새 문의를 거의 실시간으로 감지 */
+let CHATPOLL=null;
+function startChatPoll(){ if(CHATPOLL)return; CHATPOLL=setInterval(async()=>{
+  try{ const {data}=await sb.from('chat_messages').select('*').order('created_at',{ascending:false}).limit(400); if(!data)return;
+    const changed=(data.length!==CHAT.length)||((data[0]||{}).id!==(CHAT[0]||{}).id); CHAT=data; updateBadges();
+    if(changed){ const commOn=$('s-comm')&&$('s-comm').classList.contains('on'); const tabBtn=document.querySelector('#commTabs button.on'); if(commOn&&tabBtn&&tabBtn.textContent.includes('채팅')) commTab('chat',tabBtn); if(window.CHAT_CUR&&$('modalBg').classList.contains('on')) loadChatThread(false); }
+  }catch(e){}
+},5000); }
+/* 실시간 구독(가능한 테이블) — 변경 즉시 새로고침 */
+let RT=null,SOFT=null;
+function scheduleSoftRefresh(){ if(SOFT)return; SOFT=setTimeout(()=>{ SOFT=null; refreshLight(); },700); }
+function startConsoleRealtime(){
+  try{
+    if(RT)return; RT=sb.channel('console-rt');
+    ['reports','field_updates','chat_messages','notices','schedules','apartments','surveys','profiles','site_notes'].forEach(t=>{
+      try{ RT.on('postgres_changes',{event:'*',schema:'public',table:t},()=>scheduleSoftRefresh()); }catch(e){}
+    });
+    RT.subscribe();
   }catch(e){}
 }
 
@@ -431,7 +480,7 @@ function go(s){
   document.querySelectorAll('.sec').forEach(e=>e.classList.remove('on'));
   const el=$('s-'+s);if(el)el.classList.add('on');
   document.querySelectorAll('[data-s]').forEach(a=>a.classList.toggle('on',a.dataset.s===s));
-  if(s==='projects')backToProjList();
+  if(s==='projects'){ backToProjList(); markRepsSeen(); markFldsSeen(); updateBadges(); renderDash(); }
   window.scrollTo(0,0);
 }
 
@@ -471,9 +520,11 @@ function renderDash(){
   $('dashAssign').innerHTML=need.length?`<table><tbody>${need.slice(0,7).map(a=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td style="color:var(--mut)">${esc(a.region)||'미지정'}</td><td style="text-align:right"><span class="pill no">미배정</span></td></tr>`).join('')}</tbody></table>`:'<div class="empty">모든 현장에 담당이 배정됐어요 👍</div>';
   // 정체된 딜
   $('dashStalled').innerHTML=!PHASEB_OK.sales?'<div class="empty" style="font-size:12px">영업 기능을 켜면 표시돼요</div>':(stalled.length?`<table><tbody>${stalled.slice(0,7).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openSalesEdit('${x.s.id}')">${esc(x.s.name)}</span></td><td><span class="pill blue">${SALES_LABEL[x.s.stage]||x.s.stage}</span></td><td style="text-align:right;color:var(--red);font-weight:700">${x.days}일 정체</td></tr>`).join('')}</tbody></table>`:'<div class="empty">정체된 딜이 없어요 👍</div>');
-  // 최근 감리일지
-  const recent=[...REPORTS].slice(0,6);
-  $('dashNewReports').innerHTML=recent.length?`<table><tbody>${recent.map(r=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${r.apartment_id}')">${esc(aptName(r.apartment_id))}</span></td><td style="color:var(--mut)">${esc(r.title)||'감리일지'}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(r.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">아직 감리일지가 없어요</div>';
+  // 새로 올라온 감리일지 (안 본 것 우선 + NEW 표시)
+  const newReps=newReportList();
+  const nc=$('dashNewCnt'); if(nc)nc.textContent=newReps.length?('새 '+newReps.length+'건'):'';
+  const show=(newReps.length?newReps:[...REPORTS]).slice(0,7);
+  $('dashNewReports').innerHTML=show.length?`<table><tbody>${show.map(r=>`<tr style="${isNewReport(r)?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${r.apartment_id}')">${esc(aptName(r.apartment_id))}</span> ${isNewReport(r)?'<span class="pill red" style="margin-left:4px">NEW</span>':''}</td><td style="color:var(--mut)">${esc(r.title)||'감리일지'}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(r.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">아직 감리일지가 없어요</div>';
   // 최근 히스토리
   const notes=[...SITE_NOTES].slice(0,6);
   $('dashNotes').innerHTML=notes.length?`<table><tbody>${notes.map(n=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${n.apartment_id}')">${esc(aptName(n.apartment_id))}</span></td><td style="color:var(--mut2)">${esc((n.body||'').slice(0,30))}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(n.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">작성된 히스토리가 없어요</div>';
@@ -632,7 +683,8 @@ function commTab(t,btn){
     h=`<div class="toolbar"><button class="b blue" onclick="openNoticeAdd()">➕ 공지 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>단지</th><th>날짜</th><th>관리</th></tr></thead><tbody>${NOTICES.length?NOTICES.map(n=>`<tr><td style="font-weight:700">${esc(n.title)||'-'}</td><td>${n.apartment_id?esc(aptName(n.apartment_id)):'<span style="color:var(--mut)">전체</span>'}</td><td style="color:var(--mut)">${(n.created_at||'').slice(0,10)}</td><td style="white-space:nowrap"><button class="b line sm" onclick="openNoticeEdit('${n.id}')">편집</button> <button class="b red sm" onclick="deleteNotice('${n.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">공지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='chat'){
     const threads={}; CHAT.forEach(c=>{ const k=c.thread||('apt:'+c.apartment_id); if(!threads[k])threads[k]={last:c,apt:c.apartment_id}; });
-    const rows=Object.entries(threads).map(([k,v])=>`<tr style="cursor:pointer" onclick="openChatModal('${esc(k)}')"><td style="font-weight:700">${v.apt?'🏢 '+esc(aptName(v.apt)):(k.startsWith('guest')?'🙋 손님 문의':esc(k))}</td><td style="color:var(--mut)">${esc((v.last.body||'').slice(0,40))}</td><td style="color:var(--mut);font-size:11px">${(v.last.created_at||'').slice(0,10)}</td><td><span class="link">답장 →</span></td></tr>`).join('');
+    const list=Object.entries(threads).map(([k,v])=>({k,v,un:threadUnread(k)})).sort((a,b)=>(b.un-a.un)||(b.v.last.created_at||'').localeCompare(a.v.last.created_at||''));
+    const rows=list.map(({k,v,un})=>`<tr style="cursor:pointer;${un?'background:#fff6f5':''}" onclick="openChatModal('${esc(k)}')"><td style="font-weight:${un?'800':'700'}">${un?`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:6px"></span>`:''}${v.apt?'🏢 '+esc(aptName(v.apt)):(k.startsWith('guest')?'🙋 손님 문의':esc(k))}</td><td style="color:var(--mut)">${esc((v.last.body||'').slice(0,40))}</td><td style="color:var(--mut);font-size:11px">${(v.last.created_at||'').slice(0,10)}</td><td style="text-align:right">${un?`<span class="pill red">새 ${un}</span>`:'<span class="link">답장 →</span>'}</td></tr>`).join('');
     h=`<div class="card" style="padding:6px 20px"><table><thead><tr><th>대화</th><th>최근 메시지</th><th>날짜</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="empty">채팅이 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='nps'){
     const rated=SURVEYS.filter(r=>r.overall!=null&&r.overall!=='');
@@ -838,7 +890,7 @@ function openAptEdit(id){
     <div class="frow"><div class="fld"><label>공법 <span style="font-weight:600;color:var(--mut)">(공종이 자동으로 잡혀요)</span></label><select id="m-method" onchange="onMethodChangeC(this)">${methodOptsC(a.method)}</select></div><div class="fld"><label>공정</label><select id="m-stage">${stageOptsC(a.method,pc)}</select></div></div>
     <div class="fld"><label>상태</label><select id="m-status"><option value="scheduled" ${(!a.status||a.status==='scheduled')?'selected':''}>점검 예정</option><option value="in_progress" ${a.status==='in_progress'?'selected':''}>감리 진행 중</option><option value="done" ${a.status==='done'?'selected':''}>완료</option></select></div>
     <div class="fld"><label>대표 감리사</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>
-    <div class="fld"><label>함께 담당 감리사 <span style="font-weight:600;color:var(--mut)">(여러 명 체크 가능)</span></label>${auds.length?`<div style="max-height:150px;overflow-y:auto;border:1px solid var(--line);border-radius:9px;padding:6px 10px">${auds.map(m=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 2px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid var(--line2)"><input type="checkbox" class="m-team" value="${m.id}" ${team.includes(m.id)?'checked':''}> ${esc(m.name||loginId(m)||'(이름없음)')}</label>`).join('')}</div>`:'<div style="color:var(--mut);font-size:12px">등록된 감리사가 없어요. 회원 메뉴에서 역할을 ‘감리사’로 지정하세요.</div>'}</div>
+    <div class="fld"><label>함께 담당 감리사 <span style="font-weight:600;color:var(--mut)">(여러 명 체크 가능)</span></label>${auds.length?`<div class="audlist">${auds.map(m=>`<label><input type="checkbox" class="m-team" value="${m.id}" ${team.includes(m.id)?'checked':''}><span>${esc(m.name||loginId(m)||'(이름없음)')}</span></label>`).join('')}</div>`:'<div style="color:var(--mut);font-size:12px">등록된 감리사가 없어요. 회원 메뉴에서 역할을 ‘감리사’로 지정하세요.</div>'}</div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b red" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAptEdit('${a.id}')">저장</button></div>`);
 }
@@ -1294,7 +1346,9 @@ async function loadChatThread(force){
     return `<div style="align-self:flex-start;max-width:76%"><div style="font-size:9.5px;color:var(--mut);font-weight:700;margin-bottom:2px">${esc(m.sender_name||m.sender_role)}</div><div style="background:#fff;border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(m.body)}</div><div style="font-size:9px;color:var(--mut);margin-top:2px">${time}</div></div>`;
   }).join('')||'<div style="text-align:center;color:var(--mut);font-size:12px">메시지가 없어요</div>';
   if(force||atBottom)box.scrollTop=box.scrollHeight;
+  markChatSeen(CHAT_CUR); refreshChatUI();
 }
+function refreshChatUI(){ updateBadges(); const tb=document.querySelector('#commTabs button.on'); if($('s-comm')&&$('s-comm').classList.contains('on')&&tb&&tb.textContent.includes('채팅')) commTab('chat',tb); }
 async function sendChatConsole(){
   const inp=$('chatReply'); if(!inp)return; const body=(inp.value||'').trim(); if(!body||!CHAT_CUR)return;
   inp.value='';

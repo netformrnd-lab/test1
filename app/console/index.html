@@ -1581,7 +1581,7 @@ async function syncGSheet(manual){
     const lead={ name:name.slice(0,120), contact:contact?contact.slice(0,200):null,
       construction_type:gv(iCtype)||null, region:gv(iRegion)||null,
       memo:memo?memo.slice(0,2000):null, stage, next_action:'첫 연락', owner };
-    const t=(iTime>=0?(row[iTime]||'').trim():''); if(t){ const d=new Date(t); if(!isNaN(d.getTime())){ lead.created_at=t; } }
+    const iso=kdate(gv(iTime)); if(iso) lead.created_at=iso;
     const ex=sigToLead[gsSig(lead)];
     if(ex){ // 이미 있는 딜 — 시트의 진행사항에 맞춰 단계만 이동
       if(iStage>=0 && ex.stage!==stage){
@@ -1590,7 +1590,7 @@ async function syncGSheet(manual){
       } else skip++;
       continue;
     }
-    if(t){ lead.stage_changed_at=t; }
+    if(iso) lead.stage_changed_at=iso;
     const {error}=await sb.from('sales_leads').insert(lead);
     if(error){ fail++; if(manual)gsLog('❌ '+name+' → '+error.message,'#ff8a8a'); }
     else { made++; sigToLead[gsSig(lead)]=lead; if(manual)gsLog('✅ 신규  '+name+' ['+(SALES_LABEL[stage]||stage)+']'+(contact?(' · '+contact):''),'#8ce0a0'); }
@@ -1598,6 +1598,16 @@ async function syncGSheet(manual){
   if(manual){ gsLog('════ 완료 ════ 신규 '+made+' · 단계이동 '+moved+' · 유지 '+skip+' · 실패 '+fail,'#cfe0ff'); }
   if(made||moved) await loadAll();
   else if(manual&&!fail) gsLog('변동 사항이 없어요 (이미 최신).','#8ce0a0');
+}
+// 한국식 날짜 문자열("2026. 1. 22. 오전 10:24:37" 등) → ISO. 못 읽으면 null(=DB 기본 now())
+function kdate(t){
+  t=String(t||'').trim(); if(!t) return null;
+  const m=t.match(/(\d{4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/);
+  if(!m){ const d=new Date(t); return isNaN(d.getTime())?null:d.toISOString(); }
+  let H=0,Mi=0,S=0; const tm=t.match(/(오전|오후)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(tm){ H=+tm[2]; Mi=+tm[3]; S=+(tm[4]||0); if(tm[1]==='오후'&&H<12)H+=12; if(tm[1]==='오전'&&H===12)H=0; }
+  const iso=`${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}T${String(H).padStart(2,'0')}:${String(Mi).padStart(2,'0')}:${String(S).padStart(2,'0')}`;
+  const d=new Date(iso); return isNaN(d.getTime())?null:d.toISOString();
 }
 // 시트의 진행사항 텍스트 → 파이프라인 단계
 function stageFromText(t){

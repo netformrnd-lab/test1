@@ -580,7 +580,7 @@ function renderProj(){
         <div style="text-align:right;margin-top:10px"><button class="b blue" onclick="saveOverview('${p.id}')">현장개요 저장</button></div></div>`;
   } else if(projTab==='history'){
     body=`<div class="card"><h3>🕒 현장 히스토리 <span class="r">방문·통화·이슈 등 이 현장의 기록</span></h3>
-      <div style="display:flex;gap:8px;margin-bottom:14px"><input id="note-input" placeholder="예: 3/12 현장방문 — 106동 상도 완료 확인" style="flex:1;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')addSiteNote('${p.id}')"><button class="b blue" onclick="addSiteNote('${p.id}')">기록 추가</button></div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><select id="note-kind" class="inp" style="width:110px">${Object.entries(NOTE_KIND).map(([k,v])=>`<option value="${k}">${v[2]} ${v[0]}</option>`).join('')}</select><input id="note-input" placeholder="예: 106동 상도 완료 확인 / 소장님과 일정 협의" style="flex:1;min-width:180px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')addSiteNote('${p.id}')"><button class="b blue" onclick="addSiteNote('${p.id}')">기록 추가</button></div>
       ${siteNotesHtml(p.id)}</div>`;
   } else if(projTab==='report'){
     body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700">${esc(r.title)||'-'}</td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
@@ -746,16 +746,19 @@ async function saveOverview(aptId){
   const a=APTS.find(x=>x.id===aptId); if(a)a.overview=t.trim()||null; if(curProj)curProj.overview=a?a.overview:null;
   if(btn){btn.textContent='저장됨 ✓';setTimeout(()=>{if(btn)btn.textContent='현장개요 저장';},1500);}
 }
+const NOTE_KIND={visit:['방문','ok','🏢'],call:['통화','blue','📞'],msg:['메시지','violet','💬'],issue:['이슈','red','⚠️'],etc:['기타','gray','📌']};
+function noteKindPill(k){ const v=NOTE_KIND[k]||NOTE_KIND.etc; return `<span class="pill ${v[1]}" style="flex-shrink:0">${v[2]} ${v[0]}</span>`; }
 function siteNotesHtml(aptId){
   const list=SITE_NOTES.filter(n=>n.apartment_id===aptId);
   if(!list.length)return '<div class="empty" style="padding:12px">아직 기록이 없어요</div>';
-  return `<div>${list.map(n=>`<div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line2)"><div style="font-size:11px;color:var(--mut);white-space:nowrap;width:78px;flex-shrink:0">${(n.created_at||'').slice(5,10).replace('-','/')} ${(n.created_at||'').slice(11,16)}</div><div style="flex:1;font-size:13px;line-height:1.5;white-space:pre-wrap">${esc(n.body)}</div><span onclick="deleteSiteNote('${n.id}')" style="cursor:pointer;color:var(--red);font-weight:800;font-size:12px;flex-shrink:0">삭제</span></div>`).join('')}</div>`;
+  return `<div>${list.map(n=>`<div style="display:flex;gap:10px;padding:11px 0;border-top:1px solid var(--line2);align-items:flex-start"><div style="font-size:11px;color:var(--mut);white-space:nowrap;width:74px;flex-shrink:0;padding-top:2px">${(n.created_at||'').slice(5,10).replace('-','/')} ${(n.created_at||'').slice(11,16)}</div>${noteKindPill(n.kind)}<div style="flex:1;font-size:13px;line-height:1.5;white-space:pre-wrap">${esc(n.body)}${n.author_name?`<span style="font-size:11px;color:var(--mut);margin-left:6px">· ${esc(n.author_name)}</span>`:''}</div><span onclick="deleteSiteNote('${n.id}')" style="cursor:pointer;color:var(--red);font-weight:800;font-size:12px;flex-shrink:0">삭제</span></div>`).join('')}</div>`;
 }
 async function addSiteNote(aptId){
   const inp=$('note-input'); if(!inp)return; const body=(inp.value||'').trim(); if(!body)return;
+  const kind=($('note-kind')||{}).value||'visit';
   const {data:{user}}=await sb.auth.getUser();
   const nm=($('me-nm')||{}).textContent||'관리자';
-  const {data,error}=await sb.from('site_notes').insert({apartment_id:aptId,body,author_name:nm}).select('*').single();
+  const {data,error}=await sb.from('site_notes').insert({apartment_id:aptId,body,kind,author_name:nm}).select('*').single();
   if(error){alert('기록 실패: '+error.message+'\n(히스토리 기능은 migration-console-phaseb.sql 실행이 필요해요)');return;}
   SITE_NOTES.unshift(data); inp.value=''; renderProj(); renderDash();
 }
@@ -797,7 +800,7 @@ async function submitBilling(aptId){
   const {error}=await sb.from('apartments').update(upd).eq('id',aptId);
   if(error){$('m-msg').textContent='저장 실패: '+error.message+'\n(migration-console-phaseb.sql 실행이 필요해요)';$('m-msg').style.color='var(--red)';return;}
   const a=APTS.find(x=>x.id===aptId); if(a)Object.assign(a,upd); if(curProj&&curProj.id===aptId)Object.assign(curProj,upd);
-  closeModal(); renderProj(); renderDash();
+  closeModal(); renderProj(); renderProjList(); renderOrgs(); renderDash();
 }
 
 /* ===== 단지 추가/편집/삭제 ===== */

@@ -70,9 +70,11 @@ create table if not exists public.site_notes (
   id uuid primary key default gen_random_uuid(),
   apartment_id uuid references public.apartments(id) on delete cascade,
   body text,                     -- 히스토리 내용(방문/통화/이슈 등)
+  kind text default 'visit',     -- visit(방문) call(통화) issue(이슈) msg(메시지) etc(기타)
   author_name text,              -- 작성자 표시명
   created_at timestamptz default now()
 );
+alter table public.site_notes add column if not exists kind text default 'visit';
 alter table public.site_notes enable row level security;
 drop policy if exists site_notes_admin on public.site_notes;
 create policy site_notes_admin on public.site_notes for all to authenticated using (is_admin()) with check (is_admin());

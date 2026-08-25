@@ -6,6 +6,7 @@
 <title>아파트스퀘어 통합 관리자</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#eef2f8;--panel:#fff;--line:#e7ebf3;--line2:#eef1f7;
@@ -110,6 +111,28 @@ tbody tr:hover{background:#f8fafc}
 .empty{text-align:center;color:var(--mut);font-size:13px;padding:22px}
 .soon{background:#fff7e6;border:1px dashed #f0d48a;color:#8a6d1e;border-radius:12px;padding:14px 16px;font-size:12.5px;font-weight:700}
 @media(max-width:820px){.side{position:fixed;z-index:60;transform:translateX(-100%);transition:.2s}.side.open{transform:none}main{padding:18px}}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,45,.55);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:38px 14px;overflow-y:auto}
+.modal-bg.on{display:flex}
+.modal{background:#fff;border-radius:16px;width:560px;max-width:100%;padding:22px 24px;box-shadow:0 30px 70px -20px rgba(10,20,50,.5);margin-bottom:40px}
+.modal.wide{width:820px}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.modal .x{cursor:pointer;color:var(--mut);font-size:22px;font-weight:800;border:none;background:none;line-height:1}
+.fld{margin-bottom:12px}
+.fld>label{display:block;font-size:12px;font-weight:800;color:var(--mut2);margin-bottom:5px}
+.fld input,.fld select,.fld textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:13px;outline:none;font-family:inherit}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--blue)}
+.fld textarea{resize:vertical;min-height:90px;line-height:1.6}
+.frow{display:flex;gap:10px}.frow>.fld{flex:1}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+.mmsg{font-size:12px;font-weight:700;min-height:16px;margin-top:6px}
+.log{background:#0f1830;color:#cfe0ff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;border-radius:10px;padding:12px;max-height:300px;overflow-y:auto;line-height:1.7;margin-top:12px;white-space:pre-wrap;word-break:break-word}
+.log div{white-space:pre-wrap}
+.phwrap{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.thumb{position:relative;width:74px;height:74px}
+.thumb img{width:74px;height:74px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.thumb .rm{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.addph{width:74px;height:74px;border:2px dashed #c3ccdb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9aa3b6;font-size:22px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -128,6 +151,8 @@ tbody tr:hover{background:#f8fafc}
 
 <!-- 앱 -->
 <div id="app" style="display:none">
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()"><div class="modal" id="modalBox"></div></div>
+<datalist id="apt-names"></datalist>
 <div class="layout">
   <aside class="side" id="side">
     <div class="brand">
@@ -148,6 +173,7 @@ tbody tr:hover{background:#f8fafc}
       <a data-s="comm" onclick="go('comm')"><span class="ic">💬</span>입주민소통/NPS</a>
       <a data-s="promo" onclick="go('promo')"><span class="ic">🏅</span>홍보·자료</a>
       <div class="lbl">기타</div>
+      <a data-s="tools" onclick="go('tools')"><span class="ic">🧰</span>데이터 도구</a>
       <a data-s="roadmap" onclick="go('roadmap')"><span class="ic">🧭</span>업무 로드맵</a>
       <a data-s="docs" onclick="go('docs')"><span class="ic">📚</span>자료실</a>
     </nav>
@@ -167,13 +193,14 @@ tbody tr:hover{background:#f8fafc}
 
     <section class="sec" id="s-orgs">
       <div class="head"><div><h2>고객관리</h2><div class="desc">단지(고객사) 목록 · 지역·담당별</div></div></div>
-      <div class="toolbar"><input class="inp" id="org-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderOrgs()"></div>
+      <div class="toolbar"><input class="inp" id="org-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderOrgs()"><button class="b blue" onclick="openAptAdd()">➕ 단지 추가</button></div>
       <div class="card" style="padding:6px 20px"><table><thead><tr><th>단지</th><th>지역</th><th>공종</th><th>담당 감리사</th><th>상태</th></tr></thead><tbody id="orgRows"></tbody></table></div>
     </section>
 
     <section class="sec" id="s-calendar">
-      <div class="head"><div><h2>캘린더</h2><div class="desc">단지 방문·점검 일정</div></div></div>
-      <div class="card"><h3 id="calTitle">일정</h3><div class="cal" id="calGrid"></div></div>
+      <div class="head"><div><h2>캘린더</h2><div class="desc">단지 방문·점검 일정</div></div><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div>
+      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button></span></h3><div class="cal" id="calGrid"></div></div>
+      <div class="card"><h3>📋 등록된 일정</h3><div id="schList"></div></div>
     </section>
 
     <section class="sec" id="s-sales">
@@ -184,7 +211,7 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-projects">
       <div class="head"><div><h2>공사관리</h2><div class="desc">단지 클릭 → 상세(감리일지·작업사진·계약서·방문이력)</div></div></div>
       <div id="projList">
-        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"></div>
+        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openAptAdd()">➕ 단지 추가</button></div>
         <div class="card" style="padding:6px 20px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리사</th><th>감리일지</th><th>공정률</th><th>상태</th></tr></thead><tbody id="projRows"></tbody></table></div>
       </div>
       <div id="projDetail" style="display:none"></div>
@@ -199,8 +226,8 @@ tbody tr:hover{background:#f8fafc}
       <div class="head"><div><h2>회원</h2><div class="desc">앱 로그인 계정(입주민·감리사·소장·관리자) 승인·관리</div></div></div>
       <div class="card"><h3>⏳ 승인 대기 <span class="r" id="pendCnt"></span></h3><div id="pendBody"></div></div>
       <div class="card"><h3>전체 회원 <span class="r" id="memCnt"></span></h3>
-        <div class="toolbar"><input class="inp" id="mem-q" placeholder="🔍 이름·아이디 검색" style="min-width:220px" oninput="renderMembers()"></div>
-        <div style="overflow-x:auto"><table><thead><tr><th>이름</th><th>아이디</th><th>역할</th><th>담당 단지</th><th>상태</th></tr></thead><tbody id="memRows"></tbody></table></div>
+        <div class="toolbar"><input class="inp" id="mem-q" placeholder="🔍 이름·아이디 검색" style="min-width:220px" oninput="renderMembers()"><button class="b blue" onclick="openMemberAdd()">➕ 회원 추가</button></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>이름</th><th>아이디</th><th>역할</th><th>담당 단지</th><th>상태</th><th>관리</th></tr></thead><tbody id="memRows"></tbody></table></div>
       </div>
     </section>
 
@@ -228,6 +255,37 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-roadmap">
       <div class="head"><div><h2>업무 로드맵</h2><div class="desc">준비 → 준공 단계별</div></div></div>
       <div class="soon">🚧 로드맵 관리 기능은 <b>Phase B</b>에서 추가돼요.</div>
+    </section>
+
+    <section class="sec" id="s-tools">
+      <div class="head"><div><h2>데이터 도구</h2><div class="desc">아임웹 게시판 가져오기 · 사진/계약서 저장소 이전</div></div></div>
+      <div class="card">
+        <h3>📥 아임웹 게시판 엑셀 가져오기</h3>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">아임웹에서 내보낸 게시판 엑셀(.xlsx)을 고르면 <b>카테고리(단지)별로</b> 현장기록에 자동 등록돼요. 여러 파일 한 번에 가능 · 이미 등록된 글은 자동으로 건너뜁니다.</div>
+        <div class="toolbar">
+          <input id="imp-file" type="file" accept=".xlsx,.xls" multiple class="inp">
+          <select id="imp-apt" class="inp"><option value="">📂 엑셀 카테고리로 자동 분류</option></select>
+          <button class="b blue" id="imp-btn" onclick="importBoard()">가져오기 시작</button>
+        </div>
+        <div class="log" id="imp-log" style="display:none"></div>
+      </div>
+      <div class="card">
+        <h3>🖼️ 아임웹 사진 → 우리 저장소로 이전</h3>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">출시 전 1회. 현장기록의 아임웹 링크 사진을 우리 저장소(Supabase)로 옮겨요. 옮기면 아임웹을 닫아도 사진이 사라지지 않아요.</div>
+        <div class="toolbar">
+          <button class="b line" onclick="migStatus()">① 현황 보기</button>
+          <button class="b line" id="mig-test-btn" onclick="migrateImwebPhotos(true)">테스트(1장)</button>
+          <button class="b blue" id="mig-run-btn" onclick="migrateImwebPhotos(false)">② 전체 이전</button>
+          <button class="b line" onclick="migCheck()">정밀 점검</button>
+        </div>
+        <div class="log" id="mig-log" style="display:none"></div>
+      </div>
+      <div class="card">
+        <h3>🔒 계약서 비공개 전환</h3>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">과거 공개 버킷에 올라간 계약서를 비공개(contracts) 버킷으로 옮겨요. 출시 전 1회.</div>
+        <div class="toolbar"><button class="b blue" id="ctmig-btn" onclick="migrateContracts()">계약서 이전 실행</button></div>
+        <div class="log" id="ctmig-log" style="display:none"></div>
+      </div>
     </section>
 
     <section class="sec" id="s-docs">
@@ -297,8 +355,9 @@ async function loadAll(){
   startPoll();
 }
 function renderAll(){
-  renderDash(); renderOrgs(); renderCalendar(); renderProjList(); renderHistory();
-  renderPending(); renderMembers(); commTab('notice',document.querySelector('#commTabs button')); promoTab('case',document.querySelector('#promoTabs button'));
+  renderDash(); renderOrgs(); renderCalendar(); renderSchedules(); renderProjList(); renderHistory();
+  renderPending(); renderMembers(); fillAptSelectsConsole(); commTab('notice',document.querySelector('#commTabs button')); promoTab('case',document.querySelector('#promoTabs button'));
+  if(curProj){ const np=APTS.find(a=>a.id===curProj.id); if(np){curProj=np; if($('projDetail').style.display!=='none') renderProj();} }
   $('c-orgs').textContent=APTS.length; $('c-proj').textContent=APTS.length;
   const pend=MEMBERS.filter(x=>!x.approved).length; const pe=$('c-pending'); pe.textContent=pend; pe.style.display=pend?'':'none';
 }
@@ -365,7 +424,7 @@ function renderOrgs(){
 let calYM=null;
 function renderCalendar(){
   const now=new Date(); if(!calYM)calYM={y:now.getFullYear(),m:now.getMonth()};
-  const {y,m}=calYM; $('calTitle').textContent=`${y}년 ${m+1}월`;
+  const {y,m}=calYM; const cl=$('calLabel'); if(cl)cl.textContent=`${y}년 ${m+1}월`;
   const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate();
   const byDay={}; SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const k=d.getDate(); (byDay[k]=byDay[k]||[]).push(s.title||'일정'); }});
   let h=''; ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
@@ -383,7 +442,17 @@ function renderProjList(){
 }
 let curProj=null,projTab='report';
 function backToProjList(){$('projList').style.display='block';$('projDetail').style.display='none';curProj=null;}
-function openProj(id){curProj=APTS.find(a=>a.id===id);if(!curProj)return;projTab='report';go('projects');$('projList').style.display='none';$('projDetail').style.display='block';renderProj();window.scrollTo(0,0);}
+function showProjectsSection(){
+  document.querySelectorAll('.sec').forEach(e=>e.classList.remove('on'));
+  $('s-projects').classList.add('on');
+  document.querySelectorAll('[data-s]').forEach(a=>a.classList.toggle('on',a.dataset.s==='projects'));
+}
+function openProj(id){
+  curProj=APTS.find(a=>a.id===id); if(!curProj)return; projTab='report';
+  showProjectsSection();                 // go() 대신 직접 전환(상세 리셋 방지)
+  $('projList').style.display='none'; $('projDetail').style.display='block';
+  renderProj(); window.scrollTo(0,0);
+}
 function setProjTab(t){projTab=t;renderProj();}
 async function openContractFile(fileUrl,kind){ let open=fileUrl; if(fileUrl&&!/^https?:\/\//i.test(fileUrl)){ const {data,error}=await sb.storage.from('contracts').createSignedUrl(fileUrl,300); if(error||!data){alert('계약서를 여는 중 오류가 났어요');return;} open=data.signedUrl; } window.open(open,'_blank','noopener'); }
 function renderProj(){
@@ -399,17 +468,22 @@ function renderProj(){
     <button class="${projTab==='overview'?'on':''}" onclick="setProjTab('overview')">📋 개요</button></div>`;
   let body='';
   if(projTab==='overview'){
-    body=`<div class="grid2"><div class="card"><h3>현장 정보</h3>
+    const auds=MEMBERS.filter(m=>m.role==='auditor'); const cur=aptAuditors(p);
+    const audChk=auds.length?auds.map(m=>`<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;margin:3px 12px 3px 0;cursor:pointer"><input type="checkbox" class="aud-chk" value="${m.id}" ${cur.includes(m.id)?'checked':''}> ${esc(m.name||m.email)}</label>`).join(''):'<span style="color:var(--mut)">등록된 감리사가 없어요</span>';
+    body=`<div class="grid2"><div class="card"><h3>현장 정보 <span class="r"><button class="b line sm" onclick="openAptEdit('${p.id}')">⚙️ 단지 설정</button></span></h3>
       <div class="kv"><span>지역</span><b>${esc(p.region)||'-'}</b></div><div class="kv"><span>공종</span><b>${esc(p.construction_type)||'-'}</b></div>
       <div class="kv"><span>공법</span><b>${esc((window.methodLabel&&window.methodLabel(p.method))||p.method||'-')}</b></div>
-      <div class="kv"><span>담당 감리사</span><b>${siteAuditors(p)}</b></div>
-      <div class="kv"><span>공정률</span><b>${pr.cur}/${pr.tot} (${pr.pct}%)</b></div></div></div>`;
+      <div class="kv"><span>상태</span><b>${(STATUS[p.status]||STATUS.scheduled)[0]}</b></div>
+      <div class="kv"><span>공정률</span><b>${pr.cur}/${pr.tot} (${pr.pct}%)</b></div></div>
+      <div class="card"><h3>👤 담당 감리사 배정 <span class="r">여러 명 가능 · 첫 번째=대표</span></h3>
+        <div style="margin-bottom:12px">${audChk}</div>
+        <button class="b blue" onclick="saveAuditors('${p.id}')">배정 저장</button></div></div>`;
   } else if(projTab==='report'){
-    body=`<div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700">${esc(r.title)||'-'}</td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><span class="pill ${r.published?'ok':'gray'}">${r.published?'공개중':'미공개'}</span></td></tr>`).join(''):'<tr><td colspan="5" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
+    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700">${esc(r.title)||'-'}</td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap"><button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(projTab==='photo'){
-    body=flds.length?[...flds].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(f=>`<div class="card"><div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:14px;font-weight:800;color:var(--blue)">📅 ${(f.created_at||'').slice(0,10)}</span><span class="pill blue">📷 ${(Array.isArray(f.photos)?f.photos.length:0)}장</span>${f.dong?`<span class="pill gray">${esc(f.dong)}</span>`:''}</div><div style="font-size:13px;font-weight:700">${esc(f.title)||'-'}</div>${f.content?`<div style="font-size:12.5px;color:var(--mut2);margin-top:5px">${esc(f.content)}</div>`:''}</div>`).join(''):'<div class="card empty">등록된 작업사진이 없어요</div>';
+    body=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button></div>`+(flds.length?[...flds].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(f=>`<div class="card"><div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:14px;font-weight:800;color:var(--blue)">📅 ${(f.created_at||'').slice(0,10)}</span><span class="pill blue">📷 ${(Array.isArray(f.photos)?f.photos.length:0)}장</span>${f.dong?`<span class="pill gray">${esc(f.dong)}</span>`:''}<span style="flex:1"></span><button class="b line sm" onclick="openFieldEdit('${f.id}')">편집</button> <button class="b red sm" onclick="deleteField('${f.id}')">삭제</button></div><div style="font-size:13px;font-weight:700">${esc(f.title)||'-'}</div>${f.content?`<div style="font-size:12.5px;color:var(--mut2);margin-top:5px;white-space:pre-wrap">${esc(f.content)}</div>`:''}${(Array.isArray(f.photos)&&f.photos.length)?`<div class="phwrap" style="margin-top:9px">${f.photos.slice(0,12).map(u=>`<img src="${esc(u)}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`).join('')}${f.photos.length>12?`<span style="align-self:center;color:var(--mut);font-size:12px">+${f.photos.length-12}</span>`:''}</div>`:''}</div>`).join(''):'<div class="card empty">등록된 현장기록이 없어요</div>');
   } else {
-    body=`<div class="card" style="padding:6px 20px"><table><thead><tr><th>계약서</th><th>종류</th><th>등록일</th><th style="text-align:right">열기</th></tr></thead><tbody>${cons.length?cons.map(c=>`<tr><td style="font-weight:700">${esc(c.name)||'계약서'}</td><td>${c.kind==='pdf'?'PDF':'사진'}</td><td style="color:var(--mut)">${(c.created_at||'').slice(0,10)}</td><td style="text-align:right"><button class="b line sm" onclick="openContractFile('${esc(c.file_url)}','${c.kind}')">📑 열기</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">등록된 계약서가 없어요</td></tr>'}</tbody></table></div>`;
+    body=`<div class="toolbar"><label class="b blue" style="cursor:pointer">📎 계약서 올리기<input type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadContractConsole('${p.id}',this.files)"></label><span id="ct-msg-c" class="mmsg" style="margin:0 0 0 4px"></span></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>계약서</th><th>종류</th><th>등록일</th><th style="text-align:right">관리</th></tr></thead><tbody>${cons.length?cons.map(c=>`<tr><td style="font-weight:700">${esc(c.name)||'계약서'}</td><td>${c.kind==='pdf'?'PDF':'사진'}</td><td style="color:var(--mut)">${(c.created_at||'').slice(0,10)}</td><td style="text-align:right;white-space:nowrap"><button class="b line sm" onclick="openContractFile('${esc(c.file_url)}','${c.kind}')">📑 열기</button> <button class="b red sm" onclick="deleteContractConsole('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">등록된 계약서가 없어요</td></tr>'}</tbody></table></div>`;
   }
   $('projDetail').innerHTML=`<div class="head"><div><h2>${esc(p.name)}</h2><div class="desc"><span class="link" onclick="backToProjList()">← 공사관리</span> · ${esc(p.construction_type)||''} · 감리 ${siteAuditors(p)}</div></div></div>${tabs}${body}`;
 }
@@ -440,7 +514,7 @@ function renderMembers(){
   const q=($('mem-q')?.value||'').trim().toLowerCase();
   let list=MEMBERS.slice(); if(q)list=list.filter(m=>((m.name||'')+' '+loginId(m)).toLowerCase().includes(q));
   $('memCnt').textContent=MEMBERS.length+'명';
-  $('memRows').innerHTML=list.length?list.map(m=>{const apt=m.apartment_id?aptName(m.apartment_id):'-';return `<tr><td style="font-weight:700">${esc(m.name)||'-'}</td><td>${esc(loginId(m))}</td><td>${ROLES[m.role]||m.role||'-'}</td><td>${esc(apt)}</td><td><span class="pill ${m.approved?'ok':'no'}">${m.approved?'승인됨':'대기'}</span></td></tr>`;}).join(''):'<tr><td colspan="5" class="empty">회원이 없어요</td></tr>';
+  $('memRows').innerHTML=list.length?list.map(m=>{const apt=m.apartment_id?aptName(m.apartment_id):'-';return `<tr><td style="font-weight:700">${esc(m.name)||'-'}</td><td>${esc(loginId(m))}</td><td>${ROLES[m.role]||m.role||'-'}</td><td>${esc(apt)}</td><td><span class="pill ${m.approved?'ok':'no'}">${m.approved?'승인됨':'대기'}</span></td><td style="white-space:nowrap"><button class="b line sm" onclick="openMemberEdit('${m.id}')">편집</button></td></tr>`;}).join(''):'<tr><td colspan="6" class="empty">회원이 없어요</td></tr>';
 }
 
 /* ===== 입주민소통/NPS ===== */
@@ -448,11 +522,11 @@ function commTab(t,btn){
   if(btn){document.querySelectorAll('#commTabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
   let h='';
   if(t==='notice'){
-    h=`<div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>단지</th><th>날짜</th></tr></thead><tbody>${NOTICES.length?NOTICES.map(n=>`<tr><td style="font-weight:700">${esc(n.title)||'-'}</td><td>${n.apartment_id?esc(aptName(n.apartment_id)):'<span style="color:var(--mut)">전체</span>'}</td><td style="color:var(--mut)">${(n.created_at||'').slice(0,10)}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">공지가 없어요</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openNoticeAdd()">➕ 공지 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>단지</th><th>날짜</th><th>관리</th></tr></thead><tbody>${NOTICES.length?NOTICES.map(n=>`<tr><td style="font-weight:700">${esc(n.title)||'-'}</td><td>${n.apartment_id?esc(aptName(n.apartment_id)):'<span style="color:var(--mut)">전체</span>'}</td><td style="color:var(--mut)">${(n.created_at||'').slice(0,10)}</td><td style="white-space:nowrap"><button class="b line sm" onclick="openNoticeEdit('${n.id}')">편집</button> <button class="b red sm" onclick="deleteNotice('${n.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">공지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='chat'){
-    const threads={}; CHAT.forEach(c=>{ const k=c.thread||('apt:'+c.apartment_id); if(!threads[k])threads[k]={last:c,n:0,apt:c.apartment_id}; });
-    const rows=Object.entries(threads).map(([k,v])=>`<tr><td style="font-weight:700">${v.apt?'🏢 '+esc(aptName(v.apt)):(k.startsWith('guest')?'🙋 손님 문의':esc(k))}</td><td style="color:var(--mut)">${esc((v.last.body||'').slice(0,40))}</td><td style="color:var(--mut);font-size:11px">${(v.last.created_at||'').slice(0,10)}</td></tr>`).join('');
-    h=`<div class="card" style="padding:6px 20px"><table><thead><tr><th>대화</th><th>최근 메시지</th><th>날짜</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="empty">채팅이 없어요</td></tr>'}</tbody></table></div><div style="font-size:11.5px;color:var(--mut);padding:0 4px">채팅 답장 기능은 Phase B에서 추가돼요 (현재 읽기 전용).</div>`;
+    const threads={}; CHAT.forEach(c=>{ const k=c.thread||('apt:'+c.apartment_id); if(!threads[k])threads[k]={last:c,apt:c.apartment_id}; });
+    const rows=Object.entries(threads).map(([k,v])=>`<tr style="cursor:pointer" onclick="openChatModal('${esc(k)}')"><td style="font-weight:700">${v.apt?'🏢 '+esc(aptName(v.apt)):(k.startsWith('guest')?'🙋 손님 문의':esc(k))}</td><td style="color:var(--mut)">${esc((v.last.body||'').slice(0,40))}</td><td style="color:var(--mut);font-size:11px">${(v.last.created_at||'').slice(0,10)}</td><td><span class="link">답장 →</span></td></tr>`).join('');
+    h=`<div class="card" style="padding:6px 20px"><table><thead><tr><th>대화</th><th>최근 메시지</th><th>날짜</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="empty">채팅이 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='nps'){
     const rated=SURVEYS.filter(r=>r.overall!=null&&r.overall!=='');
     const nps=npsScore();
@@ -470,13 +544,690 @@ function promoTab(t,btn){
   if(btn){document.querySelectorAll('#promoTabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
   let h='';
   if(t==='case'){
-    h=`<div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>구분</th></tr></thead><tbody>${CASES.length?CASES.map(c=>`<tr><td style="font-weight:700">${esc(c.title)||'-'}</td><td><span class="pill blue">${esc(c.type)||'사례'}</span></td></tr>`).join(''):'<tr><td colspan="2" class="empty">사례가 없어요</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openCaseAdd()">➕ 사례 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>구분</th><th>관리</th></tr></thead><tbody>${CASES.length?CASES.map(c=>`<tr><td style="font-weight:700">${esc(c.title)||'-'}</td><td><span class="pill blue">${esc(c.type||c.meta)||'사례'}</span></td><td><button class="b red sm" onclick="deleteCase('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">사례가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='cred'){
-    h=`<div class="card" style="padding:6px 20px"><table><thead><tr><th>설명</th><th>노출</th></tr></thead><tbody>${CREDS.length?CREDS.map(c=>`<tr><td style="font-weight:700">${esc(c.caption)||'-'}</td><td><span class="pill ${c.active?'ok':'gray'}">${c.active?'노출중':'숨김'}</span></td></tr>`).join(''):'<tr><td colspan="2" class="empty">인증·이력이 없어요</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openCredAdd()">➕ 인증·이력 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>이미지</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${CREDS.length?CREDS.map(c=>`<tr><td>${c.image_url?`<img src="${esc(c.image_url)}" style="width:52px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`:'-'}</td><td style="font-weight:700">${esc(c.caption)||'(설명 없음)'}</td><td><label style="cursor:pointer"><input type="checkbox" ${c.active?'checked':''} onchange="toggleCred('${c.id}',this.checked)"> ${c.active?'노출중':'숨김'}</label></td><td><button class="b red sm" onclick="delCred('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">인증·이력이 없어요</td></tr>'}</tbody></table></div>`;
   } else {
-    h=`<div class="card" style="padding:6px 20px"><table><thead><tr><th>설명</th><th>노출</th></tr></thead><tbody>${LEAFLETS.length?LEAFLETS.map(l=>`<tr><td style="font-weight:700">${esc(l.caption)||'(설명 없음)'}</td><td><span class="pill ${l.active?'ok':'gray'}">${l.active?'노출중':'숨김'}</span></td></tr>`).join(''):'<tr><td colspan="2" class="empty">리플렛이 없어요</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openLeafletAdd()">➕ 리플렛 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>미리보기</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${LEAFLETS.length?LEAFLETS.map(l=>{const isPdf=/\.pdf(\?|$)/i.test(l.image_url||'');return `<tr><td>${l.image_url?(isPdf?`<a href="${esc(l.image_url)}" target="_blank" style="font-size:20px">📄</a>`:`<img src="${esc(l.image_url)}" style="width:52px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`):'-'}</td><td style="font-weight:700">${esc(l.caption)||'(설명 없음)'}</td><td><label style="cursor:pointer"><input type="checkbox" ${l.active?'checked':''} onchange="toggleLeaflet('${l.id}',this.checked)"> ${l.active?'노출중':'숨김'}</label></td><td><button class="b red sm" onclick="delLeaflet('${l.id}')">삭제</button></td></tr>`;}).join(''):'<tr><td colspan="4" class="empty">리플렛이 없어요</td></tr>'}</tbody></table></div>`;
   }
   $('promoBody').innerHTML=h;
+}
+
+/* ==================================================================== */
+/* ===============  쓰기(작성/수정/삭제) 기능 — /console  ============== */
+/* ==================================================================== */
+
+/* ----- 모달 인프라 ----- */
+function openModal(html,wide){ const box=$('modalBox'); box.className='modal'+(wide?' wide':''); box.innerHTML=html; $('modalBg').classList.add('on'); }
+function closeModal(){ $('modalBg').classList.remove('on'); $('modalBox').innerHTML=''; MPHOTOS=[]; }
+function mHead(title){ return `<h3><span>${title}</span><button class="x" onclick="closeModal()">×</button></h3>`; }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')closeModal(); });
+
+/* ----- 공통 유틸 ----- */
+async function compressImage(file,opts){
+  try{
+    if(!file||!file.type||!/^image\/(jpe?g|png|webp)$/i.test(file.type)) return file;
+    const MAX=(opts&&opts.max)||1600, Q=(opts&&opts.quality)||0.82;
+    let bmp;
+    try{ bmp=await createImageBitmap(file); }
+    catch(e){ bmp=await new Promise((res,rej)=>{const img=new Image();img.onload=()=>res(img);img.onerror=rej;img.src=URL.createObjectURL(file);}); }
+    const w0=bmp.width,h0=bmp.height; if(!w0||!h0) return file;
+    const scale=Math.min(1,MAX/Math.max(w0,h0));
+    const w=Math.round(w0*scale),h=Math.round(h0*scale);
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(bmp,0,0,w,h);
+    if(bmp.close){try{bmp.close();}catch(_){}}
+    const blob=await new Promise(res=>canvas.toBlob(res,'image/jpeg',Q));
+    if(!blob||blob.size>=file.size) return file;
+    const name=(file.name||'photo').replace(/\.[^.]+$/,'')+'.jpg';
+    return new File([blob],name,{type:'image/jpeg'});
+  }catch(e){ return file; }
+}
+function fillAptSelectsConsole(){
+  const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  const dl=$('apt-names'); if(dl) dl.innerHTML=sorted.map(a=>`<option value="${esc(a.name)}"></option>`).join('');
+  const imp=$('imp-apt'); if(imp){ const cur=imp.value; imp.innerHTML='<option value="">📂 엑셀 카테고리로 자동 분류</option>'+sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join(''); imp.value=cur; }
+}
+async function uploadTo(bucket,file,prefix){
+  if(!file) return null;
+  const isPdf=/\.pdf$/i.test(file.name)||file.type==='application/pdf';
+  if(!isPdf) file=await compressImage(file);
+  const safe=(file.name||'file').replace(/[^\w.\-]/g,'_');
+  const path=(prefix||'')+Date.now()+'_'+Math.round(Math.random()*1e9)+'_'+safe;
+  const opts=isPdf?{contentType:'application/pdf',upsert:false}:{upsert:false};
+  const {error}=await sb.storage.from(bucket).upload(path,file,opts);
+  if(error){ alert('업로드 실패: '+error.message); return null; }
+  return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+
+/* ----- 모달 내 사진 편집기 (MPHOTOS + MBUCKET) ----- */
+let MPHOTOS=[], MBUCKET='report-photos', MPREFIX='';
+function mPhotoBox(){
+  return `<div class="phwrap" id="mphotos">${mPhotoInner()}</div>`;
+}
+function mPhotoInner(){
+  const thumbs=MPHOTOS.map((u,i)=>`<div class="thumb"><img src="${esc(u)}"><span class="rm" onclick="removeMPhoto(${i})">×</span></div>`).join('');
+  const add=`<label class="addph">＋<input type="file" accept="image/*" multiple style="display:none" onchange="addMPhoto(this.files)"></label>`;
+  return thumbs+add;
+}
+function refreshMPhotos(){ const b=$('mphotos'); if(b) b.innerHTML=mPhotoInner(); }
+async function addMPhoto(files){
+  for(const f of Array.from(files)){ const url=await uploadTo(MBUCKET,f,MPREFIX); if(url){ MPHOTOS.push(url); refreshMPhotos(); } }
+}
+function removeMPhoto(i){ MPHOTOS.splice(i,1); refreshMPhotos(); }
+
+/* ===== 감리일지: 공개 토글 ===== */
+async function togglePub(id){
+  const r=REPORTS.find(x=>x.id===id); if(!r)return;
+  const next=!r.published;
+  if(next&&!r.pdf_url&&!confirm('아직 PDF를 안 올리셨어요. PDF 없이 공개하면 입주민에겐 “정리 중” 안내만 보여요.\n그래도 공개할까요?')) return;
+  const {error}=await sb.from('reports').update({published:next}).eq('id',id);
+  if(error){alert('변경 실패: '+error.message);return;}
+  r.published=next; renderProj();
+}
+/* ===== 감리사 배정 저장 ===== */
+async function saveAuditors(aptId){
+  const ids=[...document.querySelectorAll('.aud-chk:checked')].map(c=>c.value);
+  const rep=ids[0]||null;
+  const {error}=await sb.from('apartments').update({auditor_id:rep}).eq('id',aptId);
+  if(error){alert('저장 실패: '+error.message);return;}
+  try{ await sb.from('apartment_auditors').delete().eq('apartment_id',aptId); if(ids.length) await sb.from('apartment_auditors').insert(ids.map(x=>({apartment_id:aptId,auditor_id:x}))); }catch(e){}
+  const a=APTS.find(x=>x.id===aptId); if(a)a.auditor_id=rep; APT_AUD[aptId]=ids;
+  renderProj(); renderProjList(); renderOrgs(); renderDash(); alert('감리사 배정을 저장했어요');
+}
+
+/* ===== 단지 추가/편집/삭제 ===== */
+function methodOptsC(cur){ let o='<option value="">— 공법 미지정 —</option>'; const S=window.STAGE_SETS||{}; for(const k in S){o+=`<option value="${k}" ${k===cur?'selected':''}>${esc(S[k].label)}</option>`;} return o; }
+function stageOptsC(method,cur){ const s=((window.STAGE_SETS||{})[method]||{}).stages; if(!s)return '<option value="0">— 공법을 먼저 선택 —</option>'; let o=`<option value="0" ${cur===0?'selected':''}>시작 전 (0/${s.length})</option>`; s.forEach((nm,i)=>{const v=i+1;o+=`<option value="${v}" ${cur===v?'selected':''}>${esc(nm)} 완료 (${v}/${s.length})</option>`;}); return o; }
+function onMethodChangeC(sel){ const box=$('m-stage'); if(box) box.innerHTML=stageOptsC(sel.value,0); }
+function openAptAdd(){
+  const auds=MEMBERS.filter(m=>m.role==='auditor');
+  openModal(mHead('➕ 단지 추가')+`
+    <div class="fld"><label>단지명 *</label><input id="m-name" placeholder="예: 서울 노원 ○○아파트"></div>
+    <div class="frow"><div class="fld"><label>지역</label><input id="m-region" placeholder="예: 서울 노원"></div><div class="fld"><label>공사종류</label><input id="m-type" placeholder="예: 외벽 도장"></div></div>
+    <div class="fld"><label>대표 감리사</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(a=>`<option value="${a.id}">${esc(a.name||a.email)}</option>`).join('')}</select></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAptAdd()">추가</button></div>`);
+}
+async function submitAptAdd(){
+  const name=$('m-name').value.trim(); if(!name){$('m-msg').textContent='단지명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('apartments').insert({name,region:$('m-region').value.trim()||null,construction_type:$('m-type').value.trim()||null,auditor_id:$('m-aud').value||null});
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+function openAptEdit(id){
+  const a=APTS.find(x=>x.id===id); if(!a)return;
+  const auds=MEMBERS.filter(m=>m.role==='auditor');
+  const team=aptAuditors(a);
+  const st=((window.STAGE_SETS||{})[a.method]||{}).stages; const pc=a.progress_current||0;
+  openModal(mHead('⚙️ 단지 설정')+`
+    <div class="fld"><label>단지명 *</label><input id="m-name" value="${esc(a.name)||''}"></div>
+    <div class="frow"><div class="fld"><label>지역</label><input id="m-region" value="${esc(a.region)||''}"></div><div class="fld"><label>공사종류</label><input id="m-type" value="${esc(a.construction_type)||''}"></div></div>
+    <div class="frow"><div class="fld"><label>공법</label><select id="m-method" onchange="onMethodChangeC(this)">${methodOptsC(a.method)}</select></div><div class="fld"><label>공정</label><select id="m-stage">${stageOptsC(a.method,pc)}</select></div></div>
+    <div class="fld"><label>상태</label><select id="m-status"><option value="scheduled" ${(!a.status||a.status==='scheduled')?'selected':''}>점검 예정</option><option value="in_progress" ${a.status==='in_progress'?'selected':''}>감리 진행 중</option><option value="done" ${a.status==='done'?'selected':''}>완료</option></select></div>
+    <div class="fld"><label>대표 감리사</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||m.email)}</option>`).join('')}</select></div>
+    <div class="fld"><label>함께 담당 감리사 (여러 명 가능)</label><div style="display:flex;flex-wrap:wrap;gap:6px 14px">${auds.length?auds.map(m=>`<label style="font-size:12.5px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-weight:600"><input type="checkbox" class="m-team" value="${m.id}" ${team.includes(m.id)?'checked':''}> ${esc(m.name||m.email)}</label>`).join(''):'<span style="color:var(--mut)">등록된 감리사 없음</span>'}</div></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b red" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAptEdit('${a.id}')">저장</button></div>`);
+}
+async function submitAptEdit(id){
+  const name=$('m-name').value.trim(); if(!name){$('m-msg').textContent='단지명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const method=$('m-method').value||null;
+  const stArr=((window.STAGE_SETS||{})[method]||{}).stages; const pt=stArr?stArr.length:0;
+  let pc=parseInt($('m-stage').value,10); if(isNaN(pc)||pc<0)pc=0; if(pt&&pc>pt)pc=pt;
+  const aud=$('m-aud').value||null;
+  const team=[...document.querySelectorAll('.m-team:checked')].map(c=>c.value);
+  const all=[...new Set([aud,...team].filter(Boolean))];
+  const {error}=await sb.from('apartments').update({name,region:$('m-region').value.trim()||null,construction_type:$('m-type').value.trim()||null,auditor_id:aud,method,status:$('m-status').value,progress_current:pc,progress_total:pt}).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  try{ await sb.from('apartment_auditors').delete().eq('apartment_id',id); if(all.length) await sb.from('apartment_auditors').insert(all.map(x=>({apartment_id:id,auditor_id:x}))); }catch(e){}
+  closeModal(); await loadAll();
+}
+async function deleteApt(id){
+  const nm=aptName(id);
+  if(!confirm(`'${nm}' 단지를 삭제할까요?\n⚠️ 이 단지의 동·현장기록·감리일지·일정·계약서·만족도·소장 작성지가 모두 함께 삭제돼요. 되돌릴 수 없어요.\n(회원이 배정돼 있으면 먼저 다른 단지로 옮겨주세요)`))return;
+  const a=APTS.find(x=>x.id===id);
+  for(const t of ['dong_progress','field_updates','reports','schedules','contracts','surveys','manager_forms']){
+    const {error:ce}=await sb.from(t).delete().eq('apartment_id',id); if(ce)console.warn(t,ce.message);
+  }
+  if(a&&a.name){ try{ await sb.from('manager_forms').delete().eq('apt_name',a.name); }catch(e){} }
+  const {error}=await sb.from('apartments').delete().eq('id',id);
+  if(error)return alert('삭제 실패: '+error.message+'\n(이 단지에 배정된 회원을 먼저 다른 단지로 옮겨주세요)');
+  closeModal(); if(curProj&&curProj.id===id){curProj=null;backToProjList();} await loadAll();
+}
+
+/* ===== 감리일지(reports) 추가/편집/삭제 ===== */
+function openReportAdd(aptId){
+  MPHOTOS=[]; MBUCKET='report-photos'; MPREFIX='';
+  openModal(mHead('➕ 감리일지 추가')+`
+    <div class="fld"><label>단지</label><input value="${esc(aptName(aptId))}" disabled></div>
+    <div class="fld"><label>제목 *</label><input id="m-title" placeholder="예: 106동 외벽 상도 1차"></div>
+    <div class="frow"><div class="fld"><label>동 (쉼표로 구분)</label><input id="m-dongs" placeholder="예: 106동, 107동"></div></div>
+    <div class="fld"><label>점검 내용 (감리사 원문)</label><textarea id="m-content" placeholder="점검 내용을 적으세요"></textarea></div>
+    <div class="fld"><label>현장 사진</label>${mPhotoBox()}</div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitReportAdd('${aptId}')">등록</button></div>`);
+}
+async function submitReportAdd(aptId){
+  const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {data:{user}}=await sb.auth.getUser();
+  const {error}=await sb.from('reports').insert({apartment_id:aptId,title,dongs:$('m-dongs').value.trim()||null,content:$('m-content').value.trim()||null,photos:MPHOTOS.slice(),published:false,author_id:user?user.id:null});
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+function openReportEdit(id){
+  const r=REPORTS.find(x=>x.id===id); if(!r)return;
+  MPHOTOS=Array.isArray(r.photos)?r.photos.slice():[]; MBUCKET='report-photos'; MPREFIX='';
+  openModal(mHead('📄 감리일지 편집')+`
+    <div class="fld"><label>제목 *</label><input id="m-title" value="${esc(r.title)||''}"></div>
+    <div class="fld"><label>동 (쉼표로 구분)</label><input id="m-dongs" value="${esc(r.dongs)||''}"></div>
+    <div class="fld"><label>점검 내용 (감리사 원문)</label><textarea id="m-content" style="min-height:180px">${esc(r.content)||''}</textarea></div>
+    <div class="fld"><label>현장 사진</label>${mPhotoBox()}</div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>📄 입주민 공개용 PDF</label>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${r.pdf_url?`<a href="${esc(r.pdf_url)}" target="_blank" class="b line">📄 ${esc(r.pdf_name||'PDF')} 보기</a>`:'<span style="font-size:12px;color:var(--mut)">아직 PDF 없음</span>'}
+      <label class="b line" style="cursor:pointer">📎 PDF ${r.pdf_url?'교체':'올리기'}<input type="file" accept="application/pdf" style="display:none" onchange="uploadReportPdfConsole('${r.id}',this.files)"></label></div>
+      <input id="m-pubtitle" value="${esc(r.pub_title)||''}" placeholder="입주민에게 보일 제목 (선택)" style="margin-top:8px"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b red" onclick="deleteReport('${r.id}')">삭제</button><span style="flex:1"></span><button class="b ${r.published?'line':'green'}" onclick="togglePubModal('${r.id}')">${r.published?'공개 중 → 비공개':'입주민에게 공개'}</button><button class="b blue" onclick="submitReportEdit('${r.id}')">저장</button></div>`);
+}
+function collectReportModal(){ return {title:$('m-title').value.trim(),dongs:$('m-dongs').value.trim()||null,content:$('m-content').value.trim()||null,pub_title:($('m-pubtitle')||{}).value?($('m-pubtitle').value.trim()||null):null,photos:MPHOTOS.slice()}; }
+async function submitReportEdit(id){
+  const f=collectReportModal(); if(!f.title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('reports').update({title:f.title,dongs:f.dongs,content:f.content,pub_title:f.pub_title,photos:f.photos}).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+async function uploadReportPdfConsole(id,files){
+  const fl=files&&files[0]; if(!fl)return; if(fl.type!=='application/pdf'){alert('PDF 파일만 올릴 수 있어요');return;}
+  const msg=$('m-msg'); if(msg){msg.textContent='PDF 올리는 중…';msg.style.color='var(--mut)';}
+  const safe=fl.name.replace(/[^\w.\-]/g,'_'); const path='report-pdf/'+id+'_'+Date.now()+'_'+safe;
+  const {error:ue}=await sb.storage.from('report-photos').upload(path,fl,{contentType:'application/pdf',upsert:true});
+  if(ue){if(msg){msg.textContent='업로드 실패: '+ue.message;msg.style.color='var(--red)';}return;}
+  const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
+  const f=collectReportModal();
+  const {error}=await sb.from('reports').update({pdf_url:url,pdf_name:fl.name,title:f.title||undefined,content:f.content,pub_title:f.pub_title,photos:f.photos}).eq('id',id);
+  if(error){if(msg){msg.textContent='저장 실패: '+error.message;msg.style.color='var(--red)';}return;}
+  const rr=REPORTS.find(x=>x.id===id); if(rr){rr.pdf_url=url;rr.pdf_name=fl.name;if(f.title)rr.title=f.title;rr.content=f.content;rr.pub_title=f.pub_title;rr.photos=f.photos;}
+  if(msg){msg.textContent='✅ PDF 저장됐어요';msg.style.color='var(--green)';}
+  openReportEdit(id);
+}
+async function togglePubModal(id){
+  const r=REPORTS.find(x=>x.id===id); if(!r)return;
+  const next=!r.published;
+  if(next&&!r.pdf_url&&!confirm('아직 PDF를 안 올리셨어요. 그래도 공개할까요?')) return;
+  const f=collectReportModal();
+  const {error}=await sb.from('reports').update({published:next,title:f.title||undefined,content:f.content,pub_title:f.pub_title,photos:f.photos}).eq('id',id);
+  if(error){alert('오류: '+error.message);return;}
+  r.published=next; closeModal(); await loadAll();
+}
+async function deleteReport(id){
+  if(!confirm('이 감리일지를 삭제할까요?'))return;
+  const {error}=await sb.from('reports').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  closeModal(); await loadAll();
+}
+
+/* ===== 현장기록(field_updates) 추가/편집/삭제 ===== */
+function openFieldAdd(aptId){
+  MPHOTOS=[]; MBUCKET='field-photos'; MPREFIX='';
+  openModal(mHead('➕ 현장기록 추가')+`
+    <div class="fld"><label>단지</label><input value="${esc(aptName(aptId))}" disabled></div>
+    <div class="fld"><label>제목 *</label><input id="m-title" placeholder="예: 106동 옥상 방수 2차"></div>
+    <div class="fld"><label>동 (선택)</label><input id="m-dong" placeholder="예: 106동"></div>
+    <div class="fld"><label>내용 (선택)</label><textarea id="m-content"></textarea></div>
+    <div class="fld"><label>사진</label>${mPhotoBox()}</div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitFieldAdd('${aptId}')">등록</button></div>`);
+}
+async function submitFieldAdd(aptId){
+  const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('field_updates').insert({apartment_id:aptId,title,dong:$('m-dong').value.trim()||null,content:$('m-content').value.trim()||null,photos:MPHOTOS.slice()});
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+function openFieldEdit(id){
+  const f=FIELDS.find(x=>x.id===id); if(!f)return;
+  MPHOTOS=Array.isArray(f.photos)?f.photos.slice():[]; MBUCKET='field-photos'; MPREFIX='';
+  openModal(mHead('📷 현장기록 편집')+`
+    <div class="fld"><label>제목 *</label><input id="m-title" value="${esc(f.title)||''}"></div>
+    <div class="fld"><label>동 (선택)</label><input id="m-dong" value="${esc(f.dong)||''}"></div>
+    <div class="fld"><label>내용</label><textarea id="m-content">${esc(f.content)||''}</textarea></div>
+    <div class="fld"><label>사진</label>${mPhotoBox()}</div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b red" onclick="deleteField('${f.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitFieldEdit('${f.id}')">저장</button></div>`);
+}
+async function submitFieldEdit(id){
+  const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('field_updates').update({title,dong:$('m-dong').value.trim()||null,content:$('m-content').value.trim()||null,photos:MPHOTOS.slice()}).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+async function deleteField(id){
+  if(!confirm('이 현장기록을 삭제할까요?'))return;
+  const {error}=await sb.from('field_updates').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  closeModal(); await loadAll();
+}
+
+/* ===== 계약서(contracts) 업로드/삭제 (비공개 버킷) ===== */
+async function uploadContractConsole(aptId,files){
+  const fl=files&&files[0]; if(!fl)return; const msg=$('ct-msg-c');
+  let f=fl; if(f.type!=='application/pdf') f=await compressImage(f);
+  if(msg){msg.textContent='올리는 중…';msg.style.color='var(--mut)';}
+  const safe=f.name.replace(/[^\w.\-]/g,'_'); const path=aptId+'/'+Date.now()+'_'+safe;
+  const {error:ue}=await sb.storage.from('contracts').upload(path,f,{upsert:false});
+  if(ue){if(msg){msg.textContent='업로드 실패: '+ue.message;msg.style.color='var(--red)';}return;}
+  const kind=f.type==='application/pdf'?'pdf':'image';
+  const {error}=await sb.from('contracts').insert({apartment_id:aptId,name:fl.name,file_url:path,kind});
+  if(error){if(msg){msg.textContent='등록 실패: '+error.message;msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='✅ 등록됐어요';msg.style.color='var(--green)';}
+  await loadAll();
+}
+async function deleteContractConsole(id){
+  if(!confirm('이 계약서를 삭제할까요?'))return;
+  const {error}=await sb.from('contracts').delete().eq('id',id);
+  if(error)return alert('삭제 실패: '+error.message);
+  await loadAll();
+}
+
+/* ===== 공지(notices) ===== */
+function openNoticeAdd(){
+  const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  openModal(mHead('➕ 공지 등록')+`
+    <div class="fld"><label>대상 단지</label><select id="m-apt"><option value="">전체(모든 단지)</option>${sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label>제목 *</label><input id="m-title" placeholder="공지 제목"></div>
+    <div class="fld"><label>내용</label><textarea id="m-body"></textarea></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitNoticeAdd()">등록</button></div>`);
+}
+async function submitNoticeAdd(){
+  const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const row={title,body:$('m-body').value.trim()||null}; const apt=$('m-apt').value; if(apt)row.apartment_id=apt;
+  const {error}=await sb.from('notices').insert(row);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+function openNoticeEdit(id){
+  const n=NOTICES.find(x=>x.id===id); if(!n)return;
+  openModal(mHead('📢 공지 편집')+`
+    <div class="fld"><label>제목 *</label><input id="m-title" value="${esc(n.title)||''}"></div>
+    <div class="fld"><label>내용</label><textarea id="m-body" style="min-height:140px">${esc(n.body)||''}</textarea></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b red" onclick="deleteNotice('${n.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitNoticeEdit('${n.id}')">저장</button></div>`);
+}
+async function submitNoticeEdit(id){
+  const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('notices').update({title,body:$('m-body').value.trim()||null}).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+async function deleteNotice(id){
+  if(!confirm('이 공지를 삭제할까요?'))return;
+  const {error}=await sb.from('notices').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  if($('modalBg').classList.contains('on'))closeModal(); await loadAll();
+}
+
+/* ===== 우수사례(cases) ===== */
+function openCaseAdd(){
+  openModal(mHead('➕ 우수 사례 등록')+`
+    <div class="fld"><label>제목 *</label><input id="m-title" placeholder="예: ○○아파트 외벽 재도장"></div>
+    <div class="fld"><label>구분/메타 (선택)</label><input id="m-meta" placeholder="예: 2024 · 외벽도장"></div>
+    <div class="fld"><label>요약 (선택)</label><input id="m-summary"></div>
+    <div class="fld"><label>본문 (선택)</label><textarea id="m-body"></textarea></div>
+    <div class="frow"><div class="fld"><label>Before 사진</label><input id="m-before" type="file" accept="image/*"></div><div class="fld"><label>After 사진</label><input id="m-after" type="file" accept="image/*"></div></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitCaseAdd()">등록</button></div>`);
+}
+async function submitCaseAdd(){
+  const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const btn=$('m-submit'); if(btn){btn.disabled=true;btn.textContent='등록 중…';}
+  const before_url=await uploadTo('case-photos',($('m-before').files||[])[0],'');
+  const after_url=await uploadTo('case-photos',($('m-after').files||[])[0],'');
+  const {error}=await sb.from('cases').insert({title,meta:$('m-meta').value.trim()||null,summary:$('m-summary').value.trim()||null,body:$('m-body').value.trim()||null,before_url,after_url});
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';if(btn){btn.disabled=false;btn.textContent='등록';}return;}
+  closeModal(); await loadAll();
+}
+async function deleteCase(id){
+  if(!confirm('이 사례를 삭제할까요?'))return;
+  const {error}=await sb.from('cases').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  await loadAll();
+}
+
+/* ===== 인증·이력(credentials) ===== */
+function openCredAdd(){
+  openModal(mHead('➕ 인증·이력 추가')+`
+    <div class="fld"><label>이미지 * (여러 장 가능)</label><input id="m-img" type="file" accept="image/*" multiple></div>
+    <div class="fld"><label>설명</label><input id="m-cap" placeholder="예: 건설업 등록증"></div>
+    <div class="fld"><label>정렬 순서</label><input id="m-sort" type="number" value="0"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitCredAdd()">추가</button></div>`);
+}
+async function submitCredAdd(){
+  const files=($('m-img').files||[]); if(!files.length){$('m-msg').textContent='이미지를 선택하세요';$('m-msg').style.color='var(--red)';return;}
+  const cap=$('m-cap').value.trim(); const start=parseInt($('m-sort').value||'0')||0;
+  const btn=$('m-submit'); if(btn){btn.disabled=true;}
+  let ok=0,fail=0;
+  for(let i=0;i<files.length;i++){
+    if($('m-msg')){$('m-msg').textContent=`업로드 중… (${i+1}/${files.length})`;$('m-msg').style.color='var(--mut)';}
+    const url=await uploadTo('report-photos',files[i],'cred/'); if(!url){fail++;continue;}
+    const {error}=await sb.from('credentials').insert({image_url:url,caption:cap||null,sort:start+i,active:true}); if(error)fail++;else ok++;
+  }
+  closeModal(); await loadAll();
+}
+async function toggleCred(id,on){ const {error}=await sb.from('credentials').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);} const c=CREDS.find(x=>x.id===id); if(c)c.active=on; }
+async function delCred(id){ if(!confirm('이 인증서를 삭제할까요?'))return; const {error}=await sb.from('credentials').delete().eq('id',id); if(error)return alert('오류: '+error.message); await loadAll(); }
+
+/* ===== 리플렛(leaflets) ===== */
+function openLeafletAdd(){
+  openModal(mHead('➕ 리플렛 추가')+`
+    <div class="fld"><label>파일 * (이미지 또는 PDF, 여러 개 가능)</label><input id="m-img" type="file" accept="image/*,application/pdf" multiple></div>
+    <div class="fld"><label>설명</label><input id="m-cap"></div>
+    <div class="fld"><label>정렬 순서</label><input id="m-sort" type="number" value="0"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitLeafletAdd()">추가</button></div>`);
+}
+async function submitLeafletAdd(){
+  const files=($('m-img').files||[]); if(!files.length){$('m-msg').textContent='파일을 선택하세요';$('m-msg').style.color='var(--red)';return;}
+  const cap=$('m-cap').value.trim(); const start=parseInt($('m-sort').value||'0')||0;
+  const btn=$('m-submit'); if(btn){btn.disabled=true;}
+  let ok=0,fail=0;
+  for(let i=0;i<files.length;i++){
+    if($('m-msg')){$('m-msg').textContent=`업로드 중… (${i+1}/${files.length})`;$('m-msg').style.color='var(--mut)';}
+    const url=await uploadTo('report-photos',files[i],'leaflet/'); if(!url){fail++;continue;}
+    const {error}=await sb.from('leaflets').insert({image_url:url,caption:cap||null,sort:start+i,active:true}); if(error)fail++;else ok++;
+  }
+  closeModal(); await loadAll();
+}
+async function toggleLeaflet(id,on){ const {error}=await sb.from('leaflets').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);} const l=LEAFLETS.find(x=>x.id===id); if(l)l.active=on; }
+async function delLeaflet(id){ if(!confirm('이 리플렛을 삭제할까요?'))return; const {error}=await sb.from('leaflets').delete().eq('id',id); if(error)return alert('오류: '+error.message); await loadAll(); }
+
+/* ===== 회원(members) 추가/편집/삭제 ===== */
+async function resolveApartment(name){
+  name=(name||'').trim(); if(!name)return null;
+  const found=APTS.find(a=>(a.name||'').trim().toLowerCase()===name.toLowerCase());
+  if(found)return found.id;
+  const {data,error}=await sb.from('apartments').insert({name}).select('id').single();
+  if(error){alert('단지 등록 오류: '+error.message);return undefined;}
+  return data.id;
+}
+function roleOptsC(sel){ return Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join(''); }
+function openMemberAdd(){
+  openModal(mHead('➕ 회원 추가')+`
+    <div class="frow"><div class="fld"><label>아이디 * (영문소문자·숫자)</label><input id="ma-id" placeholder="hong123"></div><div class="fld"><label>비밀번호 * (6자↑)</label><input id="ma-pw" type="text"></div></div>
+    <div class="frow"><div class="fld"><label>이름 *</label><input id="ma-name"></div><div class="fld"><label>연락처</label><input id="ma-phone"></div></div>
+    <div class="frow"><div class="fld"><label>역할</label><select id="ma-role">${roleOptsC('resident')}</select></div><div class="fld"><label>담당 단지</label><input id="ma-apt" list="apt-names" placeholder="단지 입력/선택"></div></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitMemberAdd()">회원 추가</button></div>`);
+}
+async function submitMemberAdd(){
+  const id=$('ma-id').value.trim().toLowerCase().replace(/\s/g,''); const pw=$('ma-pw').value; const name=$('ma-name').value.trim();
+  const phone=$('ma-phone').value.trim(); const role=$('ma-role').value; const aptText=$('ma-apt').value;
+  const setM=(t,c)=>{ if($('m-msg')){$('m-msg').textContent=t;$('m-msg').style.color=c||'var(--mut2)';} };
+  if(!id||!pw||!name){setM('아이디·비밀번호·이름은 꼭 입력하세요','var(--red)');return;}
+  if(pw.length<6){setM('비밀번호는 6자 이상으로 정해주세요','var(--red)');return;}
+  if(!/^[a-z0-9._-]+$/.test(id)){setM('아이디는 영문 소문자·숫자로 만들어 주세요','var(--red)');return;}
+  const email=id+'@aptsquare.app'; const btn=$('m-submit'); if(btn){btn.disabled=true;btn.textContent='만드는 중…';}
+  setM('계정을 만드는 중…','var(--blue)');
+  const tmp=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'apt_tmp_signup'}});
+  const {data,error}=await tmp.auth.signUp({email,password:pw,options:{data:{name,phone,username:id}}});
+  if(btn){btn.disabled=false;btn.textContent='회원 추가';}
+  if(error){ setM(/already|registered|exists/i.test(error.message)?'이미 사용 중인 아이디예요':('실패: '+error.message),'var(--red)'); return; }
+  const newId=data&&data.user&&data.user.id;
+  if(newId){
+    let apt=await resolveApartment(aptText); if(apt===undefined)apt=null;
+    const {error:pe}=await sb.from('profiles').update({name,phone:phone||null,email,role,apartment_id:apt,approved:true}).eq('id',newId);
+    if(pe){setM('계정은 생성됐지만 정보 저장 오류: '+pe.message,'var(--amber)');}
+    else{setM(`✅ '${id}' 회원 추가·승인 완료 (비번: ${pw})`,'var(--green)');}
+  } else setM('계정 생성됨(이메일 인증 필요할 수 있어요)','var(--amber)');
+  try{ await tmp.auth.signOut(); }catch(e){}
+  await loadAll();
+}
+function openMemberEdit(id){
+  const m=MEMBERS.find(x=>x.id===id); if(!m)return;
+  openModal(mHead('회원 편집')+`
+    <div class="fld"><label>이름 · 아이디</label><input value="${esc(m.name||'-')} · ${esc(loginId(m))}" disabled></div>
+    <div class="fld"><label>연락처</label><input id="me-phone" value="${esc(m.phone)||''}"></div>
+    <div class="frow"><div class="fld"><label>역할</label><select id="me-role">${roleOptsC(m.role)}</select></div><div class="fld"><label>담당 단지</label><input id="me-apt" list="apt-names" value="${m.apartment_id?esc(aptName(m.apartment_id)):''}" placeholder="단지 입력/선택"></div></div>
+    <div class="fld"><label>승인 상태</label><select id="me-appr"><option value="1" ${m.approved?'selected':''}>승인됨</option><option value="0" ${!m.approved?'selected':''}>대기</option></select></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b red" onclick="deleteMember('${m.id}')">회원 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitMemberEdit('${m.id}')">저장</button></div>`);
+}
+async function submitMemberEdit(id){
+  const role=$('me-role').value; const apt=await resolveApartment($('me-apt').value); if(apt===undefined)return;
+  const phone=$('me-phone').value.trim()||null; const approved=$('me-appr').value==='1';
+  const {error}=await sb.from('profiles').update({role,apartment_id:apt,phone,approved}).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+async function deleteMember(id){
+  const m=MEMBERS.find(x=>x.id===id); const label=(m&&(m.name||loginId(m)))||id;
+  if(!confirm(`'${label}' 회원을 삭제할까요?`))return;
+  const {error}=await sb.from('profiles').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  closeModal(); await loadAll();
+}
+
+/* ===== 일정(schedules) ===== */
+let calYMset=false;
+function calMove(d){ if(!calYM){const n=new Date();calYM={y:n.getFullYear(),m:n.getMonth()};} let m=calYM.m+d,y=calYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} calYM={y,m}; renderCalendar(); }
+function renderSchedules(){
+  const box=$('schList'); if(!box)return;
+  let list=SCHEDULES.filter(s=>s.apartment_id);
+  if(!list.length){box.innerHTML='<div class="empty">등록된 일정이 없어요</div>';return;}
+  const today=new Date().toISOString().slice(0,10);
+  const groups={}; list.forEach(s=>{(groups[s.apartment_id]=groups[s.apartment_id]||[]).push(s);});
+  box.innerHTML='<table><thead><tr><th>날짜</th><th>단지</th><th>일정</th><th>관리</th></tr></thead><tbody>'+
+    Object.keys(groups).sort((a,b)=>(aptName(a)||'').localeCompare(aptName(b)||'','ko')).map(aid=>
+      groups[aid].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(s=>`<tr style="${s.date<today?'opacity:.55':''}"><td style="white-space:nowrap;color:var(--mut)">${esc(s.date)||'-'}</td><td style="font-weight:700">${esc(aptName(s.apartment_id))}</td><td>${esc(s.title)||'-'}${s.description?`<div style="font-size:11px;color:var(--mut)">${esc(s.description)}</div>`:''}</td><td><button class="b red sm" onclick="deleteSchedule('${s.id}')">삭제</button></td></tr>`).join('')
+    ).join('')+'</tbody></table>';
+}
+function openScheduleAdd(){
+  const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  openModal(mHead('➕ 일정 추가')+`
+    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date"></div><div class="fld"><label>단지 *</label><select id="m-apt"><option value="">단지 선택</option>${sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div></div>
+    <div class="fld"><label>일정 내용 *</label><input id="m-title" placeholder="예: 옥상 방수 점검"></div>
+    <div class="fld"><label>상세 (선택)</label><input id="m-desc"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitScheduleAdd()">등록</button></div>`);
+}
+async function submitScheduleAdd(){
+  const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim();
+  if(!date||!aptId||!title){$('m-msg').textContent='날짜·단지·일정 내용을 모두 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('schedules').insert({date,apartment_id:aptId,title,description:$('m-desc').value.trim()||null,owner_id:null});
+  if(error){$('m-msg').textContent='등록 실패: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+async function deleteSchedule(id){
+  if(!confirm('이 일정을 삭제할까요?'))return;
+  const {error}=await sb.from('schedules').delete().eq('id',id);
+  if(error)return alert('삭제 실패: '+error.message);
+  await loadAll();
+}
+
+/* ===== 채팅 답장 ===== */
+let CHAT_CUR=null, CHAT_FULL=[], CHAT_POLL=null;
+async function openChatModal(thread){
+  CHAT_CUR=thread;
+  openModal(mHead('💬 채팅 답장')+`
+    <div id="chatConv" style="display:flex;flex-direction:column;gap:10px;max-height:400px;overflow-y:auto;padding:6px 2px;background:#f4f6fb;border-radius:12px;padding:14px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px"><input id="chatReply" placeholder="답장을 입력하세요" style="flex:1;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:13px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')sendChatConsole()"><button class="b blue" onclick="sendChatConsole()">전송</button></div>`);
+  await loadChatThread(true);
+  if(CHAT_POLL)clearInterval(CHAT_POLL);
+  CHAT_POLL=setInterval(()=>{ if(!$('modalBg').classList.contains('on')){clearInterval(CHAT_POLL);CHAT_POLL=null;return;} loadChatThread(false); },4000);
+}
+async function loadChatThread(force){
+  const {data}=await sb.from('chat_messages').select('*').eq('thread',CHAT_CUR).order('created_at',{ascending:true}).limit(500);
+  CHAT_FULL=data||[]; const box=$('chatConv'); if(!box)return;
+  const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<50;
+  box.innerHTML=CHAT_FULL.map(m=>{ const mine=m.sender_role==='admin'; const time=(m.created_at||'').slice(11,16);
+    if(mine)return `<div style="align-self:flex-end;max-width:74%"><div style="background:var(--blue);color:#fff;border-radius:14px 14px 4px 14px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(m.body)}</div><div style="text-align:right;font-size:9px;color:var(--mut);margin-top:2px">${time}</div></div>`;
+    return `<div style="align-self:flex-start;max-width:76%"><div style="font-size:9.5px;color:var(--mut);font-weight:700;margin-bottom:2px">${esc(m.sender_name||m.sender_role)}</div><div style="background:#fff;border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:9px 13px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(m.body)}</div><div style="font-size:9px;color:var(--mut);margin-top:2px">${time}</div></div>`;
+  }).join('')||'<div style="text-align:center;color:var(--mut);font-size:12px">메시지가 없어요</div>';
+  if(force||atBottom)box.scrollTop=box.scrollHeight;
+}
+async function sendChatConsole(){
+  const inp=$('chatReply'); if(!inp)return; const body=(inp.value||'').trim(); if(!body||!CHAT_CUR)return;
+  inp.value='';
+  const first=CHAT_FULL[0];
+  const {error}=await sb.from('chat_messages').insert({thread:CHAT_CUR,apartment_id:first?first.apartment_id:null,sender_role:'admin',sender_name:'아파트스퀘어',body});
+  if(error){alert('전송 실패: '+error.message);inp.value=body;return;}
+  await loadChatThread(true);
+}
+
+/* ===== 데이터 도구: 아임웹 게시판 엑셀 가져오기 ===== */
+function impLog(msg,color){ const box=$('imp-log'); if(!box)return; box.style.display='block'; const d=document.createElement('div'); d.textContent=msg; if(color)d.style.color=color; box.appendChild(d); box.scrollTop=box.scrollHeight; }
+async function importBoard(){
+  const fi=$('imp-file'); const files=fi&&fi.files;
+  if(!files||!files.length){alert('엑셀 파일을 먼저 선택하세요');return;}
+  if(typeof XLSX==='undefined'){alert('엑셀 읽기 모듈을 불러오지 못했어요. 인터넷 연결 후 새로고침해 주세요.');return;}
+  const btn=$('imp-btn'); if(btn){btn.textContent='가져오는 중…';btn.disabled=true;}
+  $('imp-log').innerHTML='';
+  const norm=s=>(s||'').replace(/\s/g,'').toLowerCase();
+  const imgsOf=html=>{const out=[];const re=/<img[^>]+src=["']([^"']+)["']/gi;let m;while(m=re.exec(html||''))out.push(m[1]);return out;};
+  const forcedApt=($('imp-apt')||{}).value||'';
+  try{
+    let {data:aps}=await sb.from('apartments').select('id,name'); aps=aps||[];
+    if(forcedApt){const fa=aps.find(x=>x.id===forcedApt);impLog('📍 지정된 단지로 넣기: '+(fa?fa.name:forcedApt),'#7fb0ff');}
+    const catCache={},seenCache={};
+    async function resolveApt(cat){
+      if(forcedApt)return forcedApt;
+      if(catCache[cat]!==undefined)return catCache[cat];
+      const c=norm(cat); let a=aps.find(x=>norm(x.name)===c);
+      if(!a){const {data,error}=await sb.from('apartments').insert({name:cat}).select('id,name').single();if(error){impLog('단지 생성 실패('+cat+'): '+error.message,'#ff8a8a');catCache[cat]=null;return null;}a=data;aps.push(a);impLog('🏢 단지 새로 생성: '+cat);}
+      else impLog("🏢 매칭: '"+cat+"' → '"+a.name+"'");
+      catCache[cat]=a.id;return a.id;
+    }
+    async function seenTitles(aptId){ if(seenCache[aptId])return seenCache[aptId]; const {data}=await sb.from('field_updates').select('title').eq('apartment_id',aptId); const s=new Set((data||[]).map(x=>x.title));seenCache[aptId]=s;return s; }
+    const list=Array.from(files); impLog('📂 파일 '+list.length+'개 · 순서대로 처리','#7fb0ff');
+    let made=0,skip=0,fail=0,fileNo=0;
+    for(const f of list){
+      fileNo++; impLog(''); impLog('📄 ('+fileNo+'/'+list.length+') '+f.name+' 읽는 중…','#7fb0ff');
+      let rows;
+      try{ const buf=await f.arrayBuffer(); const wb=XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false}); }
+      catch(e){impLog('  → 읽기 실패: '+e.message+' (건너뜀)','#ff8a8a');fail++;continue;}
+      if(!rows||!rows.length){impLog('  → 데이터 없음 (건너뜀)','#f0c674');continue;}
+      const cols=Object.keys(rows[0]); const keyOf=(names)=>{for(const n of names){const c=cols.find(x=>x===n)||cols.find(x=>x.includes(n));if(c)return c;}return null;};
+      const kTitle=keyOf(['제목']),kBody=keyOf(['내용','본문']),kCat=keyOf(['카테고리','게시판','분류']),kTime=keyOf(['작성시각','작성일시','작성일','등록일']);
+      if(!kTitle||!kBody){impLog('  → 제목/내용 컬럼을 못 찾음 · 건너뜀','#ff8a8a');continue;}
+      impLog('  · '+rows.length+'건 처리…');
+      for(const r of rows){
+        const title=String(r[kTitle]||'').trim(); if(!title)continue;
+        const cat=String((kCat&&r[kCat])||'').trim()||'미분류';
+        let time=kTime?r[kTime]:null; if(time&&typeof time!=='string')time=String(time);
+        const imgs=imgsOf(r[kBody]);
+        const aptId=await resolveApt(cat); if(!aptId){fail++;continue;}
+        const seen=await seenTitles(aptId);
+        if(seen.has(title)){skip++;impLog('⏭️ 이미있음  '+title);continue;}
+        const row={apartment_id:aptId,title,content:null,photos:imgs}; if(time)row.created_at=time;
+        const {error}=await sb.from('field_updates').insert(row);
+        if(error){fail++;impLog('❌ 실패  '+title+' → '+error.message,'#ff8a8a');}
+        else{made++;seen.add(title);impLog('✅ 등록('+imgs.length+'장)  '+title,'#8ce0a0');}
+      }
+    }
+    impLog(''); impLog('════ 전체 완료 ════  등록 '+made+' · 이미있음 '+skip+' · 실패 '+fail,'#cfe0ff');
+    await loadAll();
+  }catch(e){impLog('오류: '+e.message,'#ff8a8a');}
+  finally{ if(btn){btn.textContent='가져오기 시작';btn.disabled=false;} }
+}
+
+/* ===== 데이터 도구: 아임웹 사진 이전 ===== */
+function migLog(msg,color){ const box=$('mig-log'); if(!box)return; box.style.display='block'; const d=document.createElement('div'); d.textContent=msg; if(color)d.style.color=color; box.appendChild(d); box.scrollTop=box.scrollHeight; }
+function isSupaUrl(u){ return typeof u==='string' && /supabase\.co\/storage/i.test(u); }
+function isImwebUrl(u){ return typeof u==='string' && /imweb/i.test(u) && !isSupaUrl(u); }
+let MIG_LAST_ERR=''; const migSleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function migFetchBlob(url){
+  for(let a=0;a<2;a++){
+    try{ const r=await fetch(url,{mode:'cors'}); if(r.ok){ const b=await r.blob(); if(b&&b.size>0)return b; } }catch(e){ MIG_LAST_ERR='다운로드: '+(e.message||e); }
+    try{ const b=await new Promise((res,rej)=>{ const img=new Image(); img.crossOrigin='anonymous'; img.onload=()=>{try{const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;c.getContext('2d').drawImage(img,0,0);c.toBlob(x=>x?res(x):rej(new Error('toBlob null')),'image/jpeg',0.9);}catch(e){rej(e);}}; img.onerror=()=>rej(new Error('img load fail')); img.src=url; }); if(b&&b.size>0)return b; }catch(e){ MIG_LAST_ERR='다운로드(img): '+(e.message||e); }
+    if(a===0)await migSleep(400);
+  }
+  return null;
+}
+async function migUpload(blob){
+  const t=blob.type||'image/jpeg';
+  const file=new File([blob],'imweb.'+((t.split('/')[1]||'jpg').replace('jpeg','jpg')),{type:t});
+  const comp=await compressImage(file); const ext=(comp.type.split('/')[1]||'jpg').replace('jpeg','jpg');
+  for(let a=0;a<3;a++){ const path='field/migrated/'+Date.now()+'_'+Math.round(Math.random()*1e9)+'.'+ext; const {error}=await sb.storage.from('field-photos').upload(path,comp,{upsert:false}); if(!error)return sb.storage.from('field-photos').getPublicUrl(path).data.publicUrl; MIG_LAST_ERR='업로드: '+(error.message||error); await migSleep(400*(a+1)); }
+  return null;
+}
+async function migStatus(){
+  $('mig-log').innerHTML=''; migLog('현황 확인 중…','#7fb0ff');
+  const {data,error}=await sb.from('field_updates').select('id,photos'); if(error){migLog('불러오기 실패: '+error.message,'#ff8a8a');return;}
+  const rows=data||[]; const withPhoto=rows.filter(r=>Array.isArray(r.photos)&&r.photos.length);
+  const remain=withPhoto.filter(r=>r.photos.some(isImwebUrl)); const remainImgs=remain.reduce((s,r)=>s+r.photos.filter(isImwebUrl).length,0);
+  migLog('──────────'); migLog('사진 있는 현장글: '+withPhoto.length+'개');
+  migLog('✅ 이전 완료: '+(withPhoto.length-remain.length)+'개','#8ce0a0');
+  migLog((remain.length?'⚠️ ':'')+'아직 아임웹: '+remain.length+'개 (사진 '+remainImgs+'장)',remain.length?'#f0c674':'#8ce0a0');
+  migLog(remain.length?'→ ② 전체 이전을 누르면 남은 것만 옮겨요.':'→ 모두 이전 완료! 아임웹을 닫아도 안전해요.',remain.length?'#cfe0ff':'#8ce0a0');
+}
+async function migCheck(){
+  $('mig-log').innerHTML=''; migLog('사진 주소 점검 중…','#7fb0ff');
+  const {data,error}=await sb.from('field_updates').select('photos'); if(error){migLog('실패: '+error.message,'#ff8a8a');return;}
+  let total=0,supa=0,imweb=0,other=0,dataUri=0; const others=[]; const uniqSupa=new Set();
+  (data||[]).forEach(r=>{ if(Array.isArray(r.photos))r.photos.forEach(u=>{ total++; if(typeof u!=='string'){other++;return;} if(/^data:/i.test(u))dataUri++; else if(isSupaUrl(u)){supa++;uniqSupa.add(u);} else if(/imweb/i.test(u)){imweb++;if(others.length<6)others.push(u);} else {other++;if(others.length<6)others.push(u);} }); });
+  migLog('──────────'); migLog('전체 사진 주소: '+total+'개');
+  migLog('✅ 우리 저장소: '+supa+'개 · 실제 파일(고유) '+uniqSupa.size+'개','#8ce0a0');
+  migLog((imweb?'⚠️ ':'')+'아임웹 원본 남음: '+imweb+'개',imweb?'#ff8a8a':'#cfe0ff');
+  migLog((other?'❓ ':'')+'기타 외부주소: '+other+'개'+(dataUri?(' · 그림데이터 '+dataUri):''),other?'#f0c674':'#cfe0ff');
+  if(others.length){migLog('· 예시:');others.forEach(u=>migLog('   '+String(u).slice(0,95)));}
+  if(!imweb&&!other)migLog('→ 모든 사진이 우리 저장소에 있어요. 아임웹 닫아도 안전 ✅','#8ce0a0');
+}
+async function migrateImwebPhotos(testOnly){
+  const tb=$('mig-test-btn'),rb=$('mig-run-btn'); if(tb)tb.disabled=true; if(rb)rb.disabled=true;
+  try{
+    const {data,error}=await sb.from('field_updates').select('id,title,photos').order('created_at',{ascending:true});
+    if(error){migLog('불러오기 실패: '+error.message,'#ff8a8a');return;}
+    const rows=(data||[]).filter(r=>Array.isArray(r.photos)&&r.photos.some(isImwebUrl));
+    const totalImgs=rows.reduce((s,r)=>s+r.photos.filter(isImwebUrl).length,0);
+    if(!rows.length){migLog('이전할 아임웹 사진이 없어요.','#8ce0a0');return;}
+    if(testOnly){
+      $('mig-log').innerHTML=''; const first=rows[0].photos.find(isImwebUrl);
+      migLog('테스트 대상 사진 1장:','#7fb0ff'); migLog(first); migLog('가져오는 중…');
+      const blob=await migFetchBlob(first);
+      if(blob){migLog('✅ 성공! 아임웹 사진을 가져올 수 있어요 ('+Math.round(blob.size/1024)+'KB).','#8ce0a0');migLog('→ 대상: 글 '+rows.length+'개 · 사진 '+totalImgs+'장. ② 전체 이전을 눌러도 돼요.','#8ce0a0');}
+      else{migLog('❌ 브라우저가 아임웹 사진을 직접 못 가져와요.','#ff8a8a');}
+      return;
+    }
+    $('mig-log').innerHTML=''; migLog('시작 · 글 '+rows.length+'개 · 아임웹 사진 '+totalImgs+'장','#7fb0ff'); MIG_LAST_ERR='';
+    const state=new Map(); const tasks=[];
+    for(const r of rows){ const arr=r.photos.slice(); const idxs=[]; arr.forEach((u,i)=>{if(isImwebUrl(u))idxs.push(i);}); state.set(r.id,{r,arr,pending:idxs.length,changed:false,fail:0}); idxs.forEach(i=>tasks.push({id:r.id,i})); }
+    let done=0,fail=0,ti=0; const total=tasks.length;
+    const tick=()=>{ const p=done+fail; if(p===total||p%20===0)migLog('… 진행 '+p+'/'+total+'  (완료 '+done+' · 실패 '+fail+')','#9db4de'); };
+    async function finishRow(st){ if(st.changed){ const {error:ue}=await sb.from('field_updates').update({photos:st.arr}).eq('id',st.r.id); if(ue)migLog('❌ 주소 갱신 실패: '+st.r.title+' → '+ue.message,'#ff8a8a'); } }
+    async function worker(){ while(ti<tasks.length){ const t=tasks[ti++]; const st=state.get(t.id); const blob=await migFetchBlob(st.arr[t.i]); let ok=false; if(blob){const nu=await migUpload(blob); if(nu){st.arr[t.i]=nu;st.changed=true;ok=true;done++;}} if(!ok){st.fail++;fail++;} st.pending--; if(st.pending===0)await finishRow(st); tick(); } }
+    const CONC=6; await Promise.all(Array.from({length:Math.min(CONC,total)||1},()=>worker()));
+    migLog(''); migLog('════ 완료 ════ 이전 '+done+'장 · 실패 '+fail+'장','#cfe0ff');
+    if(fail){ migLog('실패분은 아임웹 링크를 그대로 뒀어요(사진 안 사라짐).','#f0c674'); if(MIG_LAST_ERR)migLog('마지막 실패 사유: '+MIG_LAST_ERR,'#f0c674'); migLog('→ ② 전체 이전을 다시 누르면 실패분만 재시도해요.','#9db4de'); }
+    await loadAll();
+  }catch(e){migLog('오류: '+e.message,'#ff8a8a');}
+  finally{ if(tb)tb.disabled=false; if(rb)rb.disabled=false; }
+}
+async function migrateContracts(){
+  const btn=$('ctmig-btn'); const log=(m,c)=>{ const b=$('ctmig-log'); if(!b)return; b.style.display='block'; const d=document.createElement('div'); d.textContent=m; if(c)d.style.color=c; b.appendChild(d); b.scrollTop=b.scrollHeight; };
+  if(btn)btn.disabled=true; if($('ctmig-log'))$('ctmig-log').innerHTML='';
+  try{
+    const {data,error}=await sb.from('contracts').select('id,name,file_url');
+    if(error){log('불러오기 실패: '+error.message,'#ff8a8a');return;}
+    const rows=(data||[]).filter(c=>/^https?:\/\//i.test(c.file_url||'')&&/field-photos/.test(c.file_url));
+    if(!rows.length){log('옮길 공개 계약서가 없어요. (이미 비공개거나 계약서 없음) ✅','#8ce0a0');return;}
+    log('대상 계약서: '+rows.length+'건','#7fb0ff'); let done=0,fail=0;
+    for(const c of rows){
+      const m=/\/object\/public\/field-photos\/(.+)$/.exec(c.file_url); const oldPath=m?decodeURIComponent(m[1]):null;
+      if(!oldPath){fail++;log('❌ 경로 파악 실패: '+(c.name||c.id),'#ff8a8a');continue;}
+      try{
+        const res=await fetch(c.file_url); if(!res.ok)throw new Error('다운로드 실패('+res.status+')'); const blob=await res.blob();
+        const newPath=oldPath.replace(/^contracts\//,'');
+        const {error:ue}=await sb.storage.from('contracts').upload(newPath,blob,{upsert:true}); if(ue)throw new Error(ue.message);
+        const {error:de}=await sb.from('contracts').update({file_url:newPath}).eq('id',c.id); if(de)throw new Error(de.message);
+        try{ await sb.storage.from('field-photos').remove([oldPath]); }catch(_){}
+        done++; log('✅ '+(c.name||c.id),'#8ce0a0');
+      }catch(e){fail++;log('❌ '+(c.name||c.id)+' → '+e.message,'#ff8a8a');}
+    }
+    log('════ 완료 ════ 이전 '+done+' · 실패 '+fail,'#cfe0ff'); await loadAll();
+  }catch(e){log('오류: '+e.message,'#ff8a8a');}
+  finally{ if(btn)btn.disabled=false; }
 }
 </script>
 <script src="../js/stages.js"></script>

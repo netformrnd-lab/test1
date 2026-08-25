@@ -133,6 +133,25 @@ tbody tr:hover{background:#f8fafc}
 .thumb img{width:74px;height:74px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
 .thumb .rm{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .addph{width:74px;height:74px;border:2px dashed #c3ccdb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9aa3b6;font-size:22px;cursor:pointer}
+/* board (영업/로드맵) */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
+@media(max-width:1000px){.board{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.board{grid-template-columns:1fr}}
+.col{background:#f4f6fb;border:1px solid var(--line);border-radius:14px;padding:12px;min-height:80px}
+.col .ch{font-size:13px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:7px;margin-bottom:10px}
+.col .ch .cn{font-size:11px;font-weight:800;background:#fff;color:var(--mut2);border:1px solid var(--line);padding:1px 8px;border-radius:20px}
+.col .ch .cs{margin-left:auto;font-size:11px;font-weight:800;color:var(--blue)}
+.lead{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:9px;cursor:pointer}
+.lead:hover{border-color:var(--blue);box-shadow:0 6px 16px -10px rgba(20,40,90,.4)}
+.lead .ln{font-size:13.5px;font-weight:800;color:var(--ink)}
+.lead .lm{font-size:11.5px;color:var(--mut);font-weight:600;margin-top:3px}
+.lead .la{font-size:14px;font-weight:800;color:var(--green);margin-top:6px;font-variant-numeric:tabular-nums}
+.lead .lnx{font-size:11px;font-weight:700;color:var(--amber);margin-top:5px;background:var(--amber-soft);border-radius:6px;padding:3px 7px;display:inline-block}
+.rmitem{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;border:1px solid var(--line);border-top:none}
+.rmitem:first-child{border-top:1px solid var(--line);border-radius:10px 10px 0 0}
+.rmitem:last-child{border-radius:0 0 10px 10px}
+.stog{border:none;border-radius:20px;font-size:11px;font-weight:800;padding:4px 11px;cursor:pointer;white-space:nowrap}
+.stog.todo{background:#eef1f7;color:var(--mut2)}.stog.doing{background:var(--blue-soft);color:var(--blue)}.stog.done{background:var(--green-soft);color:var(--green)}
 </style>
 </head>
 <body>
@@ -204,8 +223,9 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-sales">
-      <div class="head"><div><h2>영업</h2><div class="desc">파이프라인 · 문의 → 미팅 → 견적 → 계약</div></div></div>
-      <div class="soon">🚧 영업(CRM) 기능은 <b>Phase B</b>에서 추가돼요. 지금은 준비 중입니다.</div>
+      <div class="head"><div><h2>영업</h2><div class="desc">파이프라인 · 문의 → 미팅 → 견적 → 계약 → 성사</div></div><button class="b blue" onclick="openSalesAdd()">➕ 영업 추가</button></div>
+      <div class="tiles" id="salesTiles"></div>
+      <div id="salesBoard"></div>
     </section>
 
     <section class="sec" id="s-projects">
@@ -253,8 +273,8 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-roadmap">
-      <div class="head"><div><h2>업무 로드맵</h2><div class="desc">준비 → 준공 단계별</div></div></div>
-      <div class="soon">🚧 로드맵 관리 기능은 <b>Phase B</b>에서 추가돼요.</div>
+      <div class="head"><div><h2>업무 로드맵</h2><div class="desc">준비 → 계약 → 착공 → 시공 → 준공 단계별 할 일</div></div><button class="b blue" onclick="openRoadmapAdd()">➕ 할 일 추가</button></div>
+      <div id="roadmapBody"></div>
     </section>
 
     <section class="sec" id="s-tools">
@@ -289,8 +309,8 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-docs">
-      <div class="head"><div><h2>자료실</h2><div class="desc">단계별 문서·양식</div></div></div>
-      <div class="soon">🚧 자료실 기능은 <b>Phase B</b>에서 추가돼요.</div>
+      <div class="head"><div><h2>자료실</h2><div class="desc">분류별 문서·양식 (계약양식·점검표·보고서양식 등)</div></div><button class="b blue" onclick="openDocAdd()">➕ 자료 추가</button></div>
+      <div id="docsBody"></div>
     </section>
   </main>
 </div>
@@ -307,6 +327,7 @@ const dispId=(email)=>{const e=(email||'');return e.endsWith('@aptsquare.app')?e
 const loginId=(m)=>m.username||dispId(m.email)||'';
 
 let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],APT_AUD={};
+let SALES=[],ROADMAP=[],DOCS=[],PHASEB_OK={sales:false,roadmap:false,docs:false};
 function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return a.auditor_id?[a.auditor_id]:[]; }
 function auditorName(id){ const m=MEMBERS.find(x=>x.id===id); return m?(m.name||m.email||'-'):'-'; }
 function siteAuditors(a){ const ids=aptAuditors(a); return ids.length?ids.map(auditorName).join(', '):'<span style="color:var(--mut)">미배정</span>'; }
@@ -351,12 +372,16 @@ async function loadAll(){
   SURVEYS=sv.data||[];CONTRACTS=ct.data||[];LEAFLETS=lf.data||[];CREDS=cr.data||[];MGRFORMS=mf.data||[];
   APT_AUD={}; try{ const {data:aa}=await sb.from('apartment_auditors').select('*'); (aa||[]).forEach(x=>{(APT_AUD[x.apartment_id]=APT_AUD[x.apartment_id]||[]).push(x.auditor_id);}); }catch(e){}
   try{ const {data:ch}=await sb.from('chat_messages').select('*').order('created_at',{ascending:false}).limit(400); CHAT=ch||[]; }catch(e){ CHAT=[]; }
+  try{ const {data:sl,error}=await sb.from('sales_leads').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); SALES=sl||[]; PHASEB_OK.sales=!error; }catch(e){ SALES=[]; PHASEB_OK.sales=false; }
+  try{ const {data:rm,error}=await sb.from('roadmap_items').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); ROADMAP=rm||[]; PHASEB_OK.roadmap=!error; }catch(e){ ROADMAP=[]; PHASEB_OK.roadmap=false; }
+  try{ const {data:dc,error}=await sb.from('doc_files').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); DOCS=dc||[]; PHASEB_OK.docs=!error; }catch(e){ DOCS=[]; PHASEB_OK.docs=false; }
   renderAll();
   startPoll();
 }
 function renderAll(){
   renderDash(); renderOrgs(); renderCalendar(); renderSchedules(); renderProjList(); renderHistory();
   renderPending(); renderMembers(); fillAptSelectsConsole(); commTab('notice',document.querySelector('#commTabs button')); promoTab('case',document.querySelector('#promoTabs button'));
+  renderSales(); renderRoadmap(); renderDocs();
   if(curProj){ const np=APTS.find(a=>a.id===curProj.id); if(np){curProj=np; if($('projDetail').style.display!=='none') renderProj();} }
   $('c-orgs').textContent=APTS.length; $('c-proj').textContent=APTS.length;
   const pend=MEMBERS.filter(x=>!x.approved).length; const pe=$('c-pending'); pe.textContent=pend; pe.style.display=pend?'':'none';
@@ -1228,6 +1253,188 @@ async function migrateContracts(){
     log('════ 완료 ════ 이전 '+done+' · 실패 '+fail,'#cfe0ff'); await loadAll();
   }catch(e){log('오류: '+e.message,'#ff8a8a');}
   finally{ if(btn)btn.disabled=false; }
+}
+
+/* ==================================================================== */
+/* =====================  Phase B — 영업·로드맵·자료실  ================ */
+/* ==================================================================== */
+function needSQL(section){ return `<div class="soon">🚧 이 기능을 쓰려면 <b>backend/migration-console-phaseb.sql</b> 을 Supabase → SQL Editor 에서 한 번 실행해 주세요. (${section} 테이블이 아직 없어요) 실행 후 새로고침하면 바로 사용할 수 있어요.</div>`; }
+function moneyKR(n){ n=+n||0; if(!n)return '-'; if(n>=1e8){const uk=Math.floor(n/1e8),man=Math.round((n%1e8)/1e4);return uk+'억'+(man?' '+man+'만':'');} if(n>=1e4)return Math.round(n/1e4).toLocaleString()+'만'; return n.toLocaleString(); }
+
+/* ===== 영업 (sales_leads) ===== */
+const SALES_STAGES=[['inquiry','문의'],['meeting','미팅'],['quote','견적'],['contract','계약']];
+const SALES_LABEL={inquiry:'문의',meeting:'미팅',quote:'견적',contract:'계약',won:'성사',lost:'실패'};
+function renderSales(){
+  const tl=$('salesTiles'), bd=$('salesBoard'); if(!bd)return;
+  if(!PHASEB_OK.sales){ tl.innerHTML=''; bd.innerHTML=needSQL('영업'); return; }
+  const active=SALES.filter(s=>['inquiry','meeting','quote','contract'].includes(s.stage));
+  const won=SALES.filter(s=>s.stage==='won'), lost=SALES.filter(s=>s.stage==='lost');
+  const pipeSum=active.reduce((a,b)=>a+(+b.amount||0),0), wonSum=won.reduce((a,b)=>a+(+b.amount||0),0);
+  tl.innerHTML=
+    tile('','진행 파이프라인',active.length+'<small>건</small>','문의~계약 단계')+
+    tile('good','예상 금액',moneyKR(pipeSum),'진행중 합계')+
+    tile('good','성사',won.length+'<small>건</small>',moneyKR(wonSum)+' 계약')+
+    tile(lost.length?'warn':'','실패',lost.length+'<small>건</small>','아쉽게 종료');
+  const card=s=>`<div class="lead" onclick="openSalesEdit('${s.id}')"><div class="ln">${esc(s.name)||'(이름 없음)'}</div><div class="lm">${esc(s.region)||''}${s.construction_type?' · '+esc(s.construction_type):''}${s.owner?' · 담당 '+esc(s.owner):''}</div>${s.amount?`<div class="la">${moneyKR(s.amount)}원</div>`:''}${s.next_action?`<div class="lnx">▶ ${esc(s.next_action)}${s.next_date?' ('+esc(s.next_date)+')':''}</div>`:''}</div>`;
+  let h='<div class="board">'+SALES_STAGES.map(([k,lbl])=>{
+    const list=active.filter(s=>s.stage===k); const sum=list.reduce((a,b)=>a+(+b.amount||0),0);
+    return `<div class="col"><div class="ch">${lbl}<span class="cn">${list.length}</span>${sum?`<span class="cs">${moneyKR(sum)}</span>`:''}</div>${list.map(card).join('')||'<div style="font-size:11.5px;color:var(--mut);text-align:center;padding:8px">비어 있음</div>'}</div>`;
+  }).join('')+'</div>';
+  if(won.length||lost.length){
+    h+=`<div class="grid2" style="margin-top:16px">
+      <div class="card"><h3>✅ 성사 <span class="r">${won.length}건 · ${moneyKR(wonSum)}원</span></h3>${won.length?`<table><tbody>${won.map(s=>`<tr style="cursor:pointer" onclick="openSalesEdit('${s.id}')"><td style="font-weight:700">${esc(s.name)}</td><td>${esc(s.region)||''}</td><td style="text-align:right;font-weight:800;color:var(--green)">${moneyKR(s.amount)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">아직 없어요</div>'}</div>
+      <div class="card"><h3>❌ 실패 <span class="r">${lost.length}건</span></h3>${lost.length?`<table><tbody>${lost.map(s=>`<tr style="cursor:pointer" onclick="openSalesEdit('${s.id}')"><td style="font-weight:700">${esc(s.name)}</td><td style="color:var(--mut)">${esc(s.memo)||''}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">없어요</div>'}</div></div>`;
+  }
+  bd.innerHTML=h;
+}
+function salesFormFields(s){ s=s||{};
+  const stageOpts=Object.entries(SALES_LABEL).map(([k,v])=>`<option value="${k}" ${s.stage===k?'selected':''}>${v}</option>`).join('');
+  return `
+    <div class="fld"><label>단지/고객명 *</label><input id="sl-name" value="${esc(s.name)||''}" placeholder="예: 서울 강동 ○○아파트"></div>
+    <div class="frow"><div class="fld"><label>지역</label><input id="sl-region" value="${esc(s.region)||''}"></div><div class="fld"><label>예상 공종</label><input id="sl-type" value="${esc(s.construction_type)||''}"></div></div>
+    <div class="frow"><div class="fld"><label>단계</label><select id="sl-stage">${stageOpts}</select></div><div class="fld"><label>예상/계약 금액 (원)</label><input id="sl-amount" type="number" value="${s.amount!=null?s.amount:''}" placeholder="예: 50000000"></div></div>
+    <div class="frow"><div class="fld"><label>담당자·연락처</label><input id="sl-contact" value="${esc(s.contact)||''}"></div><div class="fld"><label>영업 담당</label><input id="sl-owner" value="${esc(s.owner)||''}"></div></div>
+    <div class="frow"><div class="fld"><label>다음 할 일</label><input id="sl-next" value="${esc(s.next_action)||''}" placeholder="예: 견적서 발송"></div><div class="fld"><label>다음 일정</label><input id="sl-nextdate" type="date" value="${esc(s.next_date)||''}"></div></div>
+    <div class="fld"><label>메모</label><textarea id="sl-memo">${esc(s.memo)||''}</textarea></div>`;
+}
+function readSalesForm(){ return {name:$('sl-name').value.trim(),region:$('sl-region').value.trim()||null,construction_type:$('sl-type').value.trim()||null,stage:$('sl-stage').value,amount:$('sl-amount').value?parseInt($('sl-amount').value,10):null,contact:$('sl-contact').value.trim()||null,owner:$('sl-owner').value.trim()||null,next_action:$('sl-next').value.trim()||null,next_date:$('sl-nextdate').value||null,memo:$('sl-memo').value.trim()||null}; }
+function openSalesAdd(){
+  if(!PHASEB_OK.sales){alert('먼저 backend/migration-console-phaseb.sql 을 실행해 주세요');return;}
+  openModal(mHead('➕ 영업 추가')+salesFormFields({stage:'inquiry'})+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitSalesAdd()">추가</button></div>`);
+}
+async function submitSalesAdd(){
+  const d=readSalesForm(); if(!d.name){$('m-msg').textContent='단지/고객명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('sales_leads').insert(d);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+function openSalesEdit(id){
+  const s=SALES.find(x=>x.id===id); if(!s)return;
+  const canConvert=s.stage==='won'&&!s.apartment_id;
+  openModal(mHead('영업 상세·편집')+salesFormFields(s)+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b red" onclick="deleteSales('${s.id}')">삭제</button>${canConvert?`<button class="b green" onclick="convertLeadToApt('${s.id}')">🏢 단지로 등록</button>`:''}<span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitSalesEdit('${s.id}')">저장</button></div>`);
+}
+async function submitSalesEdit(id){
+  const d=readSalesForm(); if(!d.name){$('m-msg').textContent='단지/고객명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('sales_leads').update(d).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+async function deleteSales(id){
+  if(!confirm('이 영업 건을 삭제할까요?'))return;
+  const {error}=await sb.from('sales_leads').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  closeModal(); await loadAll();
+}
+async function convertLeadToApt(id){
+  const s=SALES.find(x=>x.id===id); if(!s)return;
+  if(!confirm(`'${s.name}' 을(를) 단지(고객사)로 등록할까요?\n공사관리에 새 단지가 생기고, 이 영업 건과 연결돼요.`))return;
+  const {data,error}=await sb.from('apartments').insert({name:s.name,region:s.region||null,construction_type:s.construction_type||null}).select('id').single();
+  if(error)return alert('단지 등록 실패: '+error.message);
+  await sb.from('sales_leads').update({apartment_id:data.id,stage:'won'}).eq('id',id);
+  closeModal(); await loadAll(); alert('단지로 등록했어요. 공사관리에서 확인하세요.');
+}
+
+/* ===== 업무 로드맵 (roadmap_items) ===== */
+const RM_PHASES=['준비','계약','착공','시공','준공','기타'];
+const RM_NEXT={todo:'doing',doing:'done',done:'todo'}, RM_LABEL={todo:'예정',doing:'진행',done:'완료'};
+function renderRoadmap(){
+  const box=$('roadmapBody'); if(!box)return;
+  if(!PHASEB_OK.roadmap){ box.innerHTML=needSQL('로드맵'); return; }
+  if(!ROADMAP.length){ box.innerHTML='<div class="empty">등록된 할 일이 없어요. 오른쪽 위 ‘할 일 추가’로 시작하세요.</div>'; return; }
+  const groups={}; ROADMAP.forEach(r=>{ const p=(r.phase||'기타'); (groups[p]=groups[p]||[]).push(r); });
+  const order=[...RM_PHASES.filter(p=>groups[p]),...Object.keys(groups).filter(p=>!RM_PHASES.includes(p))];
+  box.innerHTML=order.map(p=>{
+    const list=groups[p]; const done=list.filter(x=>x.status==='done').length;
+    return `<div class="card" style="padding:16px 18px"><h3>${esc(p)} <span class="r">${done}/${list.length} 완료</span></h3>
+      ${list.map(r=>`<div class="rmitem"><button class="stog ${r.status||'todo'}" onclick="cycleRoadmap('${r.id}')">${RM_LABEL[r.status||'todo']}</button><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;${r.status==='done'?'text-decoration:line-through;color:var(--mut)':''}">${esc(r.title)||'-'}</div><div style="font-size:11px;color:var(--mut)">${r.apartment_id?'🏢 '+esc(aptName(r.apartment_id)):'공통'}${r.due_date?' · 📅 '+esc(r.due_date):''}${r.memo?' · '+esc(r.memo):''}</div></div><button class="b line sm" onclick="openRoadmapEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteRoadmap('${r.id}')">삭제</button></div>`).join('')}</div>`;
+  }).join('');
+}
+function roadmapFields(r){ r=r||{};
+  const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  const phaseOpts=RM_PHASES.map(p=>`<option value="${p}" ${r.phase===p?'selected':''}>${p}</option>`).join('');
+  const statusOpts=Object.entries(RM_LABEL).map(([k,v])=>`<option value="${k}" ${r.status===k?'selected':''}>${v}</option>`).join('');
+  return `
+    <div class="fld"><label>할 일 제목 *</label><input id="rm-title" value="${esc(r.title)||''}" placeholder="예: 착공계 제출"></div>
+    <div class="frow"><div class="fld"><label>단계</label><select id="rm-phase">${phaseOpts}</select></div><div class="fld"><label>상태</label><select id="rm-status">${statusOpts}</select></div></div>
+    <div class="frow"><div class="fld"><label>단지 (선택, 없으면 공통)</label><select id="rm-apt"><option value="">공통</option>${sorted.map(a=>`<option value="${a.id}" ${r.apartment_id===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div><div class="fld"><label>마감일 (선택)</label><input id="rm-due" type="date" value="${esc(r.due_date)||''}"></div></div>
+    <div class="fld"><label>메모</label><input id="rm-memo" value="${esc(r.memo)||''}"></div>`;
+}
+function readRoadmap(){ return {title:$('rm-title').value.trim(),phase:$('rm-phase').value,status:$('rm-status').value,apartment_id:$('rm-apt').value||null,due_date:$('rm-due').value||null,memo:$('rm-memo').value.trim()||null}; }
+function openRoadmapAdd(){
+  if(!PHASEB_OK.roadmap){alert('먼저 backend/migration-console-phaseb.sql 을 실행해 주세요');return;}
+  openModal(mHead('➕ 할 일 추가')+roadmapFields({phase:'준비',status:'todo'})+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitRoadmapAdd()">추가</button></div>`);
+}
+async function submitRoadmapAdd(){
+  const d=readRoadmap(); if(!d.title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('roadmap_items').insert(d);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+function openRoadmapEdit(id){
+  const r=ROADMAP.find(x=>x.id===id); if(!r)return;
+  openModal(mHead('할 일 편집')+roadmapFields(r)+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b red" onclick="deleteRoadmap('${r.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitRoadmapEdit('${r.id}')">저장</button></div>`);
+}
+async function submitRoadmapEdit(id){
+  const d=readRoadmap(); if(!d.title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const {error}=await sb.from('roadmap_items').update(d).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
+}
+async function cycleRoadmap(id){
+  const r=ROADMAP.find(x=>x.id===id); if(!r)return; const next=RM_NEXT[r.status||'todo'];
+  const {error}=await sb.from('roadmap_items').update({status:next}).eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  r.status=next; renderRoadmap();
+}
+async function deleteRoadmap(id){
+  if(!confirm('이 할 일을 삭제할까요?'))return;
+  const {error}=await sb.from('roadmap_items').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  if($('modalBg').classList.contains('on'))closeModal(); await loadAll();
+}
+
+/* ===== 자료실 (doc_files) ===== */
+function renderDocs(){
+  const box=$('docsBody'); if(!box)return;
+  if(!PHASEB_OK.docs){ box.innerHTML=needSQL('자료실'); return; }
+  if(!DOCS.length){ box.innerHTML='<div class="empty">등록된 자료가 없어요. 오른쪽 위 ‘자료 추가’로 올려보세요.</div>'; return; }
+  const groups={}; DOCS.forEach(d=>{ const c=(d.category||'기타'); (groups[c]=groups[c]||[]).push(d); });
+  box.innerHTML=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ko')).map(cat=>
+    `<div class="card" style="padding:6px 20px"><h3 style="padding-top:12px">📂 ${esc(cat)} <span class="r">${groups[cat].length}개</span></h3><table><tbody>${groups[cat].map(d=>{const isPdf=/pdf/i.test(d.kind||'')||/\.pdf(\?|$)/i.test(d.file_url||'');const icon=d.kind==='link'?'🔗':(isPdf?'📄':(/image/i.test(d.kind||'')?'🖼️':'📎'));return `<tr><td style="font-weight:700">${icon} ${esc(d.title)||'(제목 없음)'}${d.memo?`<div style="font-size:11px;color:var(--mut);font-weight:600">${esc(d.memo)}</div>`:''}</td><td style="color:var(--mut);font-size:11px">${(d.created_at||'').slice(0,10)}</td><td style="text-align:right;white-space:nowrap">${d.file_url?`<a class="b line sm" href="${esc(d.file_url)}" target="_blank" rel="noopener">열기</a> `:''}<button class="b red sm" onclick="deleteDoc('${d.id}')">삭제</button></td></tr>`;}).join('')}</tbody></table></div>`
+  ).join('');
+}
+function openDocAdd(){
+  if(!PHASEB_OK.docs){alert('먼저 backend/migration-console-phaseb.sql 을 실행해 주세요');return;}
+  const cats=[...new Set(DOCS.map(d=>d.category).filter(Boolean))];
+  openModal(mHead('➕ 자료 추가')+`
+    <div class="fld"><label>분류</label><input id="dc-cat" list="dc-cats" placeholder="예: 계약양식 / 점검표 / 보고서양식"><datalist id="dc-cats">${cats.map(c=>`<option value="${esc(c)}"></option>`).join('')}</datalist></div>
+    <div class="fld"><label>자료명 *</label><input id="dc-title" placeholder="예: 표준 감리계약서 양식"></div>
+    <div class="fld"><label>파일 올리기 (PDF·이미지·문서)</label><input id="dc-file" type="file"></div>
+    <div class="fld"><label>또는 외부 링크 URL</label><input id="dc-link" placeholder="https://..."></div>
+    <div class="fld"><label>메모</label><input id="dc-memo"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitDocAdd()">추가</button></div>`);
+}
+async function submitDocAdd(){
+  const title=$('dc-title').value.trim(); if(!title){$('m-msg').textContent='자료명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const file=($('dc-file').files||[])[0]; const link=$('dc-link').value.trim();
+  if(!file&&!link){$('m-msg').textContent='파일을 올리거나 링크를 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const btn=$('m-submit'); if(btn){btn.disabled=true;btn.textContent='올리는 중…';}
+  let file_url=link||null, kind='link';
+  if(file){
+    file_url=await uploadTo('report-photos',file,'docs/');
+    if(!file_url){if(btn){btn.disabled=false;btn.textContent='추가';}return;}
+    kind=(file.type==='application/pdf'||/\.pdf$/i.test(file.name))?'pdf':(/^image\//.test(file.type)?'image':'file');
+  }
+  const {error}=await sb.from('doc_files').insert({category:$('dc-cat').value.trim()||'기타',title,file_url,kind,memo:$('dc-memo').value.trim()||null});
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';if(btn){btn.disabled=false;btn.textContent='추가';}return;}
+  closeModal(); await loadAll();
+}
+async function deleteDoc(id){
+  if(!confirm('이 자료를 삭제할까요?'))return;
+  const {error}=await sb.from('doc_files').delete().eq('id',id);
+  if(error)return alert('오류: '+error.message);
+  await loadAll();
 }
 </script>
 <script src="../js/stages.js"></script>

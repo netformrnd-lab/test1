@@ -244,6 +244,7 @@ tbody tr:hover{background:#f8fafc}
 
     <section class="sec" id="s-sales">
       <div class="head"><div><h2>영업</h2><div class="desc">파이프라인 · 문의 → 미팅 → 견적 → 계약 → 성사</div></div><button class="b blue" onclick="openSalesAdd()">➕ 영업 추가</button></div>
+      <div class="toolbar"><input class="inp" id="sales-q" placeholder="🔍 현장명·지역·연락처·담당·공종 검색" style="flex:1;min-width:240px;max-width:440px" oninput="renderSales()"><select class="inp" id="sales-owner" onchange="renderSales()"><option value="">담당 전체</option></select><button class="b line" id="sales-clear" onclick="clearSalesSearch()" style="display:none">✕ 초기화</button></div>
       <div class="tiles" id="salesTiles"></div>
       <div id="salesBoard"></div>
     </section>
@@ -1756,11 +1757,19 @@ function moneyKR(n){ n=+n||0; if(!n)return '-'; if(n>=1e8){const uk=Math.floor(n
 /* ===== 영업 (sales_leads) ===== */
 const SALES_STAGES=[['inquiry','문의'],['meeting','미팅'],['quote','견적'],['contract','계약']];
 const SALES_LABEL={inquiry:'문의',meeting:'미팅',quote:'견적',contract:'계약',won:'성사',lost:'실패'};
+function clearSalesSearch(){ const q=$('sales-q'); if(q)q.value=''; const o=$('sales-owner'); if(o)o.value=''; renderSales(); }
 function renderSales(){
   const tl=$('salesTiles'), bd=$('salesBoard'); if(!bd)return;
   if(!PHASEB_OK.sales){ tl.innerHTML=''; bd.innerHTML=needSQL('영업'); return; }
-  const active=SALES.filter(s=>['inquiry','meeting','quote','contract'].includes(s.stage));
-  const won=SALES.filter(s=>s.stage==='won'), lost=SALES.filter(s=>s.stage==='lost');
+  // 담당자 드롭다운 채우기(선택 유지)
+  const osel=$('sales-owner'); if(osel){ const cur=osel.value; const owners=[...new Set(SALES.map(s=>(s.owner||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko')); osel.innerHTML='<option value="">담당 전체</option>'+owners.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join(''); osel.value=cur; }
+  const q=(($('sales-q')||{}).value||'').trim().toLowerCase();
+  const of=(($('sales-owner')||{}).value||'').trim();
+  const cb=$('sales-clear'); if(cb)cb.style.display=(q||of)?'':'none';
+  const match=s=>{ if(of&&(s.owner||'').trim()!==of)return false; if(!q)return true; return ((s.name||'')+' '+(s.region||'')+' '+(s.contact||'')+' '+(s.owner||'')+' '+(s.construction_type||'')+' '+(s.memo||'')+' '+(SALES_LABEL[s.stage]||'')).toLowerCase().includes(q); };
+  const SRC=SALES.filter(match);
+  const active=SRC.filter(s=>['inquiry','meeting','quote','contract'].includes(s.stage));
+  const won=SRC.filter(s=>s.stage==='won'), lost=SRC.filter(s=>s.stage==='lost');
   const pipeSum=active.reduce((a,b)=>a+(+b.amount||0),0), wonSum=won.reduce((a,b)=>a+(+b.amount||0),0);
   tl.innerHTML=
     tile('','진행 파이프라인',active.length+'<small>건</small>','문의~계약 단계')+

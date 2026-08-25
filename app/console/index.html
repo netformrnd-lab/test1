@@ -317,6 +317,17 @@ tbody tr:hover{background:#f8fafc}
         <div class="log" id="inq-log" style="display:none"></div>
       </div>
       <div class="card">
+        <h3>🔗 구글시트 → 영업 문의 자동 연동</h3>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">구글시트에서 <b>파일 → 공유 → 웹에 게시 → (해당 시트) CSV</b> 로 만든 주소를 넣으면, 시트에 새 행이 기록될 때마다 영업 <b>‘문의’ 단계</b>에 자동 등록돼요. (구글이 몇 분 간격으로 갱신) 컬럼은 자동 인식(이름·연락처·단지·공사종류·지역·내용·날짜).</div>
+        <div class="toolbar">
+          <input id="gs-url" class="inp" placeholder="https://docs.google.com/.../pub?output=csv" style="flex:1;min-width:300px">
+          <button class="b line" onclick="saveGSheet()">주소 저장</button>
+          <button class="b blue" onclick="syncGSheet(true)">지금 동기화</button>
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--mut2);margin-top:8px;cursor:pointer"><input type="checkbox" id="gs-auto" onchange="toggleGAuto()" style="width:16px;height:16px"> 대시보드를 열 때 자동으로 동기화</label>
+        <div class="log" id="gs-log" style="display:none"></div>
+      </div>
+      <div class="card">
         <h3>🖼️ 아임웹 사진 → 우리 저장소로 이전</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">출시 전 1회. 현장기록의 아임웹 링크 사진을 우리 저장소(Supabase)로 옮겨요. 옮기면 아임웹을 닫아도 사진이 사라지지 않아요.</div>
         <div class="toolbar">
@@ -413,12 +424,12 @@ async function loadAll(){
   try{ const {data:ev}=await sb.from('app_events').select('apartment_id'); VIEWS={}; (ev||[]).forEach(e=>{ if(e.apartment_id)VIEWS[e.apartment_id]=(VIEWS[e.apartment_id]||0)+1; }); }catch(e){ VIEWS={}; }
   initSeen();
   renderAll();
-  startPoll(); startChatPoll(); startConsoleRealtime();
+  startPoll(); startChatPoll(); startConsoleRealtime(); maybeAutoSyncGSheet();
 }
 function renderAll(){
   renderDash(); renderOrgs(); renderCalendar(); renderSchedules(); renderProjList(); renderHistory();
   renderPending(); renderMembers(); fillAptSelectsConsole(); commTab(commTabCur); promoTab(promoTabCur);
-  renderSales(); renderRoadmap(); renderDocs();
+  renderSales(); renderRoadmap(); renderDocs(); gsInit();
   if(curProj){ const np=APTS.find(a=>a.id===curProj.id); if(np){curProj=np; if($('projDetail').style.display!=='none') renderProj();} }
   updateBadges();
 }
@@ -1499,6 +1510,70 @@ async function importInquiries(){
     await loadAll();
   }catch(e){ inqLog('오류: '+e.message,'#ff8a8a'); }
   finally{ if(btn){btn.disabled=false;btn.textContent='문의 가져오기';} if(fi)fi.value=''; }
+}
+
+/* ===== 데이터 도구: 구글시트 → 영업 문의 자동 연동 ===== */
+function gsLog(msg,color){ const box=$('gs-log'); if(!box)return; box.style.display='block'; const d=document.createElement('div'); d.textContent=msg; if(color)d.style.color=color; box.appendChild(d); box.scrollTop=box.scrollHeight; }
+function gsInit(){ const u=$('gs-url'); if(u)u.value=lsGet('aptsq_gsheet_url')||''; const a=$('gs-auto'); if(a)a.checked=lsGet('aptsq_gsheet_auto')==='1'; }
+function saveGSheet(){ const u=($('gs-url').value||'').trim(); lsSet('aptsq_gsheet_url',u); gsLog(u?'✅ 주소를 저장했어요. ‘지금 동기화’를 눌러 시험해보세요.':'주소를 비웠어요.','#8ce0a0'); }
+function toggleGAuto(){ lsSet('aptsq_gsheet_auto',$('gs-auto').checked?'1':'0'); }
+// 게시 URL 정규화: 일반 시트 링크를 넣어도 CSV로 시도
+function gsheetCsvUrl(u){
+  u=(u||'').trim(); if(!u)return '';
+  if(/output=csv|tqx=out:csv/.test(u)) return u;           // 이미 CSV
+  const m=u.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);   // 일반 링크 → gviz CSV
+  if(m){ const gid=(u.match(/[#&?]gid=(\d+)/)||[])[1]||'0'; return `https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&gid=${gid}`; }
+  return u;
+}
+function parseCSV(text){
+  const rows=[]; let f='',row=[],q=false;
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else { if(c==='"')q=true; else if(c===','){row.push(f);f='';} else if(c==='\n'){row.push(f);rows.push(row);row=[];f='';} else if(c==='\r'){} else f+=c; }
+  }
+  if(f.length||row.length){ row.push(f); rows.push(row); }
+  return rows;
+}
+function gsSig(x){ return (String(x.name||'')+'|'+String(x.contact||'')+'|'+String(x.memo||'').slice(0,24)).replace(/\s/g,'').toLowerCase(); }
+async function syncGSheet(manual){
+  if(!PHASEB_OK.sales){ if(manual)alert('영업 기능이 켜져 있어야 해요. migration-console-phaseb.sql 을 먼저 실행하세요.'); return; }
+  const raw=lsGet('aptsq_gsheet_url'); if(!raw){ if(manual)alert('먼저 구글시트 CSV 주소를 저장하세요.'); return; }
+  const url=gsheetCsvUrl(raw);
+  if(manual){ $('gs-log').innerHTML=''; gsLog('불러오는 중… '+url,'#7fb0ff'); }
+  let text;
+  try{ const r=await fetch(url,{cache:'no-store'}); if(!r.ok)throw new Error('HTTP '+r.status); text=await r.text(); }
+  catch(e){ if(manual)gsLog('❌ 불러오기 실패: '+e.message+'\n→ 시트를 ‘웹에 게시(CSV)’ 했는지, 주소가 맞는지 확인해주세요.','#ff8a8a'); return; }
+  const rows=parseCSV(text); if(rows.length<2){ if(manual)gsLog('데이터가 없어요(헤더만 있거나 빈 시트).','#f0c674'); return; }
+  const cols=rows[0].map(c=>(c||'').trim());
+  const keyOf=(names)=>{ for(const n of names){ let idx=cols.findIndex(x=>x===n); if(idx<0)idx=cols.findIndex(x=>x.includes(n)); if(idx>=0)return idx; } return -1; };
+  const iApt=keyOf(['단지','아파트','단지명','고객사','현장']), iPerson=keyOf(['이름','성함','작성자','고객명','신청자','담당자']),
+        iContact=keyOf(['연락처','휴대폰','전화','핸드폰','번호','연락']), iCtype=keyOf(['공사','공종','종류','품목']),
+        iRegion=keyOf(['지역','주소']), iMemo=keyOf(['내용','문의','상담','메시지','본문','요청','비고']),
+        iTime=keyOf(['타임','작성','신청','등록','접수','일시','날짜']);
+  const seen=new Set(SALES.map(gsSig));
+  let made=0,skip=0,fail=0;
+  const {data:{user}}=await sb.auth.getUser();
+  for(let r=1;r<rows.length;r++){ const row=rows[r]; if(!row||!row.join('').trim())continue;
+    const person=(iPerson>=0?row[iPerson]:'')||'', apt=(iApt>=0?row[iApt]:'')||'';
+    const name=(apt.trim()||person.trim()); if(!name){ continue; }
+    const contact=[person.trim()&&person.trim()!==name?person.trim():'',(iContact>=0?row[iContact]:'')||''].filter(x=>String(x).trim()).join(' ').trim()||null;
+    const lead={ name:name.slice(0,120), contact:contact?contact.slice(0,200):null,
+      construction_type:(iCtype>=0?(row[iCtype]||'').trim():'')||null, region:(iRegion>=0?(row[iRegion]||'').trim():'')||null,
+      memo:(iMemo>=0?(row[iMemo]||'').trim():'')||null, stage:'inquiry', next_action:'첫 연락', owner:'구글시트' };
+    const t=(iTime>=0?(row[iTime]||'').trim():''); if(t){ const d=new Date(t); if(!isNaN(d.getTime())){ lead.created_at=t; lead.stage_changed_at=t; } }
+    if(seen.has(gsSig(lead))){ skip++; continue; }
+    const {error}=await sb.from('sales_leads').insert(lead);
+    if(error){ fail++; if(manual)gsLog('❌ '+name+' → '+error.message,'#ff8a8a'); }
+    else { made++; seen.add(gsSig(lead)); if(manual)gsLog('✅ '+name+(contact?(' · '+contact):''),'#8ce0a0'); }
+  }
+  if(manual){ gsLog('════ 완료 ════ 신규 '+made+' · 기존 '+skip+' · 실패 '+fail,'#cfe0ff'); if(made)gsLog('→ 영업 ‘문의’ 칸에서 확인하세요.','#8ce0a0'); }
+  if(made) await loadAll();
+  else if(manual&&!made&&!fail) gsLog('새로 추가된 행이 없어요 (이미 다 등록됨).','#8ce0a0');
+}
+let GS_POLL=null;
+function maybeAutoSyncGSheet(){
+  if(lsGet('aptsq_gsheet_auto')==='1' && lsGet('aptsq_gsheet_url')){ syncGSheet(false); }
+  if(!GS_POLL) GS_POLL=setInterval(()=>{ if(lsGet('aptsq_gsheet_auto')==='1' && lsGet('aptsq_gsheet_url')) syncGSheet(false); }, 180000); // 3분마다
 }
 
 /* ===== 데이터 도구: 아임웹 사진 이전 ===== */

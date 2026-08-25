@@ -1205,7 +1205,7 @@ async function submitCredAdd(){
   }
   closeModal(); await loadAll();
 }
-async function toggleCred(id,on){ const {error}=await sb.from('credentials').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);} const c=CREDS.find(x=>x.id===id); if(c)c.active=on; }
+async function toggleCred(id,on){ const {error}=await sb.from('credentials').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);on=!on;} const c=CREDS.find(x=>x.id===id); if(c)c.active=on; promoTab('cred'); }
 async function delCred(id){ if(!confirm('이 인증서를 삭제할까요?'))return; const {error}=await sb.from('credentials').delete().eq('id',id); if(error)return alert('오류: '+error.message); await loadAll(); }
 
 /* ===== 리플렛(leaflets) ===== */
@@ -1229,7 +1229,7 @@ async function submitLeafletAdd(){
   }
   closeModal(); await loadAll();
 }
-async function toggleLeaflet(id,on){ const {error}=await sb.from('leaflets').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);} const l=LEAFLETS.find(x=>x.id===id); if(l)l.active=on; }
+async function toggleLeaflet(id,on){ const {error}=await sb.from('leaflets').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);on=!on;} const l=LEAFLETS.find(x=>x.id===id); if(l)l.active=on; promoTab('leaflet'); }
 async function delLeaflet(id){ if(!confirm('이 리플렛을 삭제할까요?'))return; const {error}=await sb.from('leaflets').delete().eq('id',id); if(error)return alert('오류: '+error.message); await loadAll(); }
 
 /* ===== 회원(members) 추가/편집/삭제 ===== */

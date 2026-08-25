@@ -674,7 +674,7 @@ function renderProj(){
   } else if(projTab==='report'){
     body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700">${esc(r.title)||'-'}</td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(projTab==='photo'){
-    body=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button></div>`+(flds.length?[...flds].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(f=>`<div class="card"><div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:14px;font-weight:800;color:var(--blue)">📅 ${(f.created_at||'').slice(0,10)}</span><span class="pill blue">📷 ${(Array.isArray(f.photos)?f.photos.length:0)}장</span>${f.dong?`<span class="pill gray">${esc(f.dong)}</span>`:''}<span style="flex:1"></span>${(Array.isArray(f.photos)&&f.photos.length)?`<button class="b line sm" onclick="downloadFieldPhotos('${f.id}',this)">⬇ 사진 ${f.photos.length}</button> `:''}<button class="b line sm" onclick="openFieldEdit('${f.id}')">편집</button> <button class="b red sm" onclick="deleteField('${f.id}')">삭제</button></div><div style="font-size:13px;font-weight:700">${esc(f.title)||'-'}</div>${f.content?`<div style="font-size:12.5px;color:var(--mut2);margin-top:5px;white-space:pre-wrap">${esc(f.content)}</div>`:''}${(Array.isArray(f.photos)&&f.photos.length)?`<div class="phwrap" style="margin-top:9px">${f.photos.slice(0,12).map(u=>`<img src="${esc(u)}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`).join('')}${f.photos.length>12?`<span style="align-self:center;color:var(--mut);font-size:12px">+${f.photos.length-12}</span>`:''}</div>`:''}</div>`).join(''):'<div class="card empty">등록된 현장기록이 없어요</div>');
+    body=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button>${flds.some(f=>Array.isArray(f.photos)&&f.photos.length)?`<button class="b line" onclick="makeFieldPPT('${p.id}',null,this)">📊 준공 PPT</button><button class="b line" onclick="downloadAptAllPhotos('${p.id}',this)">⬇ 전체 사진 ZIP</button>`:''}</div>`+(flds.length?[...flds].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(f=>`<div class="card"><div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:14px;font-weight:800;color:var(--blue)">📅 ${(f.created_at||'').slice(0,10)}</span><span class="pill blue">📷 ${(Array.isArray(f.photos)?f.photos.length:0)}장</span>${f.dong?`<span class="pill gray">${esc(f.dong)}</span>`:''}<span style="flex:1"></span>${(Array.isArray(f.photos)&&f.photos.length)?`<button class="b line sm" onclick="downloadFieldPhotos('${f.id}',this)">⬇ 사진 ${f.photos.length}</button> `:''}<button class="b line sm" onclick="openFieldEdit('${f.id}')">편집</button> <button class="b red sm" onclick="deleteField('${f.id}')">삭제</button></div><div style="font-size:13px;font-weight:700">${esc(f.title)||'-'}</div>${f.content?`<div style="font-size:12.5px;color:var(--mut2);margin-top:5px;white-space:pre-wrap">${esc(f.content)}</div>`:''}${(Array.isArray(f.photos)&&f.photos.length)?`<div class="phwrap" style="margin-top:9px">${f.photos.slice(0,12).map(u=>`<img src="${esc(u)}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`).join('')}${f.photos.length>12?`<span style="align-self:center;color:var(--mut);font-size:12px">+${f.photos.length-12}</span>`:''}</div>`:''}</div>`).join(''):'<div class="card empty">등록된 현장기록이 없어요</div>');
   }
   $('projDetail').innerHTML=`<div class="head"><div><h2>${esc(p.name)}</h2><div class="desc"><span class="link" onclick="backToProjList()">← 공사관리</span>${siteType(p)?' · '+esc(siteType(p)):''} · 감리 ${siteAuditors(p)}</div></div></div>${tabs}${body}`;
 }
@@ -1247,7 +1247,87 @@ async function downloadPhotosZip(urls,zipName,btn){
 }
 function downloadReportPhotos(id,btn){ const r=REPORTS.find(x=>x.id===id); if(!r)return; downloadPhotosZip(r.photos,safeFileName(aptName(r.apartment_id)+'_'+(r.title||'감리일지')),btn); }
 function downloadFieldPhotos(id,btn){ const f=FIELDS.find(x=>x.id===id); if(!f)return; downloadPhotosZip(f.photos,safeFileName(aptName(f.apartment_id)+'_'+(f.title||'현장')),btn); }
+function downloadAptAllPhotos(aptId,btn){ const urls=FIELDS.filter(f=>f.apartment_id===aptId).flatMap(f=>Array.isArray(f.photos)?f.photos:[]); downloadPhotosZip(urls,safeFileName(aptName(aptId)+'_전체사진'),btn); }
 function safeFileName(s){ return String(s||'사진').replace(/[\\/:*?"<>|\n\r\t]/g,'_').replace(/\s+/g,' ').trim().slice(0,50)||'사진'; }
+
+/* ===== 준공 PPT (pptxgenjs 지연 로드) ===== */
+function ensurePptx(){ if(window.PptxGenJS)return Promise.resolve(); if(window._pptxP)return window._pptxP; window._pptxP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}); return window._pptxP; }
+function blobToDataURL(b){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(null); r.readAsDataURL(b); }); }
+async function fetchBlob(url){ try{ const r=await fetch(url,{mode:'cors'}); if(!r.ok)return null; const b=await r.blob(); return (b&&b.size>0)?b:null; }catch(e){ return null; } }
+async function assetDataURL(url){ const b=await fetchBlob(url); return b?await blobToDataURL(b):null; }
+async function makeFieldPPT(id, opts, btn){
+  let recs=(FIELDS||[]).filter(f=>f.apartment_id===id);
+  if(opts&&opts.date)  recs=recs.filter(f=>(f.created_at||'').slice(0,10)===opts.date);
+  if(opts&&opts.title) recs=recs.filter(f=>(f.title||'').trim()===opts.title);
+  recs=recs.slice().sort((a,b)=>((a.created_at||'')<(b.created_at||'')?-1:1));
+  const withPhotos=recs.filter(f=>Array.isArray(f.photos)&&f.photos.length);
+  if(!withPhotos.length){ alert('사진이 있는 현장 기록이 없어요'); return; }
+  const total=withPhotos.reduce((n,f)=>n+f.photos.length,0);
+  const tag = opts&&opts.date ? ('('+opts.date.replace(/-/g,'.')+') ') : opts&&opts.title ? ('('+opts.title+') ') : '';
+  if(!confirm(`${aptName(id)} ${tag}준공사진첩 PPT를 만들까요?\n공정 ${withPhotos.length}단계 · 사진 ${total}장 (조금 걸려요)`)) return;
+  const apt=(APTS||[]).find(a=>a.id===id)||{};
+  const project=(apt.construction_type||'').trim() || (window.methodLabel&&window.methodLabel(apt.method)) || aptName(id);
+  const orig=btn?btn.textContent:''; if(btn) btn.disabled=true;
+  try{
+    await ensurePptx();
+    const logo=await assetDataURL('../assets/apartsquare-logo.png');
+    const P=new PptxGenJS(); P.defineLayout({name:'T',width:17.78,height:10}); P.layout='T';
+    const R=P.ShapeType, FT='Calibri', FL='맑은 고딕';
+    const NAVY='18326A',DNAVY='102752',ACCENT='4A90E2',DARK='222222',MUT='666666',PANEL='F8F9FA',LINE='E0E0E0';
+    const lastDate=(opts&&opts.date)?opts.date:(withPhotos.map(f=>(f.created_at||'').slice(0,10)).filter(Boolean).sort().pop()||'');
+    const dateStr=lastDate?lastDate.replace(/-/g,'.'):'';
+    const proj=(project+'').trim(); const covName=aptName(id)+' · '+proj;
+    const cover=P.addSlide(); cover.background={color:'FFFFFF'};
+    cover.addShape(R.rect,{x:11.69,y:0,w:6.08,h:10,fill:{color:PANEL}});
+    cover.addShape(R.rect,{x:11.28,y:0,w:1.08,h:10,fill:{color:NAVY}});
+    cover.addShape(R.rect,{x:15.0,y:0,w:2.78,h:0.47,fill:{color:NAVY}});
+    if(logo) cover.addImage({data:logo,x:13.35,y:4.2,w:3.4,h:0.79});
+    cover.addText('준공 확인 사진첩',{x:12.4,y:5.12,w:4.9,h:0.4,fontSize:15,color:MUT,fontFace:FL,align:'center',margin:0});
+    if(logo) cover.addImage({data:logo,x:0.78,y:0.67,w:2.44,h:0.57});
+    cover.addText('COMPLETION PHOTO RECORD',{x:0.78,y:2.61,w:9,h:0.39,fontSize:18,color:NAVY,fontFace:FL,charSpacing:2,margin:0});
+    cover.addText('준공 확인\n사진첩',{x:0.78,y:3.31,w:9.03,h:2.0,fontSize:54,bold:true,color:NAVY,fontFace:FT,margin:0});
+    cover.addShape(R.rect,{x:0.78,y:5.89,w:1.56,h:0.05,fill:{color:NAVY}});
+    cover.addText(covName,{x:0.78,y:6.28,w:9.17,h:0.5,fontSize:24,color:DARK,fontFace:FT,margin:0});
+    cover.addText(dateStr,{x:0.78,y:7.0,w:4.58,h:0.39,fontSize:17,color:MUT,fontFace:FL,margin:0});
+    cover.addText('사진으로 함께 확인하는 공사 기록',{x:12.25,y:8.58,w:4.58,h:0.39,fontSize:14,color:MUT,fontFace:FL,align:'center',margin:0});
+    const boxes=[[0.78,2.61],[9.06,2.61],[0.78,5.75],[9.06,5.75]]; const BW=7.94,BH=2.78;
+    let step=0, done=0, page=1;
+    for(const f of withPhotos){ step++; const photos=f.photos;
+      for(let c=0;c<photos.length;c+=4){ const chunk=photos.slice(c,c+4); page++;
+        const s=P.addSlide(); s.background={color:'FFFFFF'};
+        s.addShape(R.rect,{x:0.78,y:0.61,w:0.44,h:0.28,fill:{color:NAVY}});
+        s.addText('아파트스퀘어 준공 확인 사진첩',{x:1.44,y:0.6,w:6,h:0.4,fontSize:14,color:MUT,fontFace:FL,valign:'middle',margin:0});
+        if(logo) s.addImage({data:logo,x:14.72,y:0.58,w:2.28,h:0.53});
+        s.addShape(R.line,{x:0.78,y:1.44,w:16.22,h:0,line:{color:LINE,width:1}});
+        s.addText(step+'. '+(f.title||'현장'),{x:0.78,y:1.64,w:8.0,h:0.66,fontSize:22,bold:true,color:NAVY,fontFace:FT,valign:'bottom',margin:0});
+        s.addText(proj,{x:8.9,y:1.64,w:8.1,h:0.66,fontSize:24,bold:true,color:DARK,fontFace:FT,align:'right',valign:'bottom',margin:0});
+        for(let i=0;i<4;i++){ const x=boxes[i][0],y=boxes[i][1];
+          s.addShape(R.rect,{x,y,w:BW,h:BH,fill:{color:PANEL},line:{color:LINE,width:1}});
+          if(chunk[i]){ const b=await fetchBlob(chunk[i]); if(b){ const data=await blobToDataURL(b); if(data){ s.addImage({data,x,y,w:BW,h:BH,sizing:{type:'cover',w:BW,h:BH}}); done++; if(btn) btn.textContent=`만드는 중… ${done}/${total}`; } } }
+          else { s.addText('사진 '+String(i+1).padStart(2,'0'),{x,y:y+1.14,w:BW,h:0.5,fontSize:16,color:MUT,fontFace:FL,align:'center',margin:0}); }
+        }
+        s.addShape(R.line,{x:0.78,y:9.03,w:16.22,h:0,line:{color:LINE,width:1}});
+        s.addText('아파트스퀘어 준공 확인 사진첩',{x:0.78,y:9.24,w:6,h:0.32,fontSize:14,color:MUT,fontFace:FL,valign:'middle',margin:0});
+        s.addText(String(page).padStart(2,'0'),{x:16.31,y:9.2,w:0.69,h:0.36,fontSize:14,color:MUT,fontFace:FL,align:'right',valign:'middle',margin:0});
+      }
+    }
+    const fin=P.addSlide(); fin.background={color:'FFFFFF'};
+    fin.addShape(R.rect,{x:13.67,y:0,w:1.33,h:10,fill:{color:ACCENT}});
+    fin.addShape(R.rect,{x:14.67,y:0,w:3.11,h:10,fill:{color:NAVY}});
+    fin.addShape(R.rect,{x:14.67,y:0,w:3.11,h:0.33,fill:{color:DNAVY}});
+    fin.addShape(R.rect,{x:14.67,y:9.33,w:3.11,h:0.67,fill:{color:DNAVY}});
+    if(logo) fin.addImage({data:logo,x:0.78,y:0.67,w:2.44,h:0.57});
+    fin.addText('COMPLETION PHOTO RECORD',{x:0.78,y:3.08,w:9,h:0.39,fontSize:18,color:NAVY,fontFace:FL,charSpacing:2,margin:0});
+    fin.addText('함께 확인한\n공사 기록',{x:0.78,y:3.78,w:10.28,h:1.89,fontSize:52,bold:true,color:NAVY,fontFace:FT,margin:0});
+    fin.addShape(R.rect,{x:0.78,y:6.28,w:1.56,h:0.05,fill:{color:NAVY}});
+    fin.addText(covName,{x:0.78,y:6.69,w:10,h:0.5,fontSize:24,color:DARK,fontFace:FT,margin:0});
+    fin.addText(dateStr,{x:0.78,y:7.39,w:4.58,h:0.39,fontSize:17,color:MUT,fontFace:FL,margin:0});
+    fin.addText('APARTMENT SQUARE',{x:14.97,y:8.03,w:2.5,h:0.33,fontSize:13,color:'FFFFFF',fontFace:FL,align:'center',margin:0});
+    if(btn) btn.textContent='저장 중…';
+    await P.writeFile({fileName: safeFileName(aptName(id)+(tag?' '+tag.replace(/[()]/g,'').trim():'')+' 준공사진첩')+'.pptx'});
+  }catch(e){ alert('PPT 생성 오류: '+e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=orig||'📊 준공 PPT'; } }
+}
 
 /* ===== 인증·이력(credentials) ===== */
 function openCredAdd(){

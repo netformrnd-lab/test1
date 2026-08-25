@@ -1550,7 +1550,8 @@ async function syncGSheet(manual){
   if(manual) gsLog('시트 헤더 ('+cols.length+'개): '+cols.map((c,i)=>i+'='+(c||'(빈칸)')).join('  |  '),'#f0c674');
   const keyOf=(names)=>{ for(const n of names){ let idx=cols.findIndex(x=>x===n); if(idx<0)idx=cols.findIndex(x=>x.replace(/\s/g,'').includes(n)); if(idx>=0)return idx; } return -1; };
   // 현장명 우선(‘단지개요’ 세대수 칸에 안 걸리도록 ‘단지’ 단독 매칭은 제외)
-  const iApt=keyOf(['현장명','아파트명','단지명','현장','사업장','프로젝트','상호명','업체명','기관명','고객사']),
+  const iBrand=keyOf(['브랜드','brand','상표']),
+        iApt=keyOf(['현장명','아파트명','단지명','현장','사업장','프로젝트','상호명','업체명','기관명','고객사']),
         iPerson=keyOf(['고객성함','성함','성명','이름','작성자','고객명','신청자','문의자','대표자']),
         iType=keyOf(['고객유형','고객구분','직급','구분']),
         iContact=keyOf(['고객연락처','연락처','휴대폰','핸드폰','전화','번호']),
@@ -1564,11 +1565,13 @@ async function syncGSheet(manual){
         iOwner=keyOf(['담당자','영업담당','담당','매니저']),
         iStage=keyOf(['진행상태','진행사항','진행상황','진행','단계','상태','현황','스테이지','pipeline']),
         iTime=keyOf(['접수일시','접수날짜','타임','작성','신청','등록','접수','일시','날짜']);
-  if(manual) gsLog('컬럼 인식 → 현장명:'+(iApt>=0?cols[iApt]:'없음')+' · 성함:'+(iPerson>=0?cols[iPerson]:'없음')+' · 유형:'+(iType>=0?cols[iType]:'없음')+' · 연락처:'+(iContact>=0?cols[iContact]:'없음')+' · 담당:'+(iOwner>=0?cols[iOwner]:'없음')+' · 진행:'+(iStage>=0?cols[iStage]:'없음')+' · 공사:'+(iCtype>=0?cols[iCtype]:'없음')+' · 주소:'+(iRegion>=0?cols[iRegion]:'없음'),'#9db4de');
+  if(manual) gsLog('컬럼 인식 → 브랜드:'+(iBrand>=0?cols[iBrand]:'없음')+' · 현장명:'+(iApt>=0?cols[iApt]:'없음')+' · 성함:'+(iPerson>=0?cols[iPerson]:'없음')+' · 유형:'+(iType>=0?cols[iType]:'없음')+' · 연락처:'+(iContact>=0?cols[iContact]:'없음')+' · 담당:'+(iOwner>=0?cols[iOwner]:'없음')+' · 진행:'+(iStage>=0?cols[iStage]:'없음')+' · 공사:'+(iCtype>=0?cols[iCtype]:'없음')+' · 주소:'+(iRegion>=0?cols[iRegion]:'없음'),'#9db4de');
   const sigToLead={}; SALES.forEach(l=>{ sigToLead[gsSig(l)]=l; });
   const isNum=s=>/^[\d,\.\s]+$/.test(String(s||'').trim());
-  let made=0,moved=0,skip=0,fail=0;
+  let made=0,moved=0,skip=0,fail=0,other=0;
   for(let r=1;r<rows.length;r++){ const row=rows[r]; if(!row||!row.join('').trim())continue;
+    // 아파트스퀘어 브랜드 건만 (다른 브랜드는 건너뜀)
+    if(iBrand>=0){ const b=String(row[iBrand]||'').replace(/\s/g,''); if(b && !/아파트스퀘어|apartsquare/i.test(b)){ other++; continue; } }
     const gv=i=>i>=0?String(row[i]||'').trim():'';
     const person=gv(iPerson), apt=gv(iApt);
     let name=apt; if(!name||isNum(name)) name=person; if(!name||isNum(name)) name='';
@@ -1596,7 +1599,7 @@ async function syncGSheet(manual){
     if(error){ fail++; if(manual)gsLog('❌ '+name+' → '+error.message,'#ff8a8a'); }
     else { made++; sigToLead[gsSig(lead)]=lead; if(manual)gsLog('✅ 신규  '+name+' ['+(SALES_LABEL[stage]||stage)+']'+(contact?(' · '+contact):''),'#8ce0a0'); }
   }
-  if(manual){ gsLog('════ 완료 ════ 신규 '+made+' · 단계이동 '+moved+' · 유지 '+skip+' · 실패 '+fail,'#cfe0ff'); }
+  if(manual){ gsLog('════ 완료 ════ 신규 '+made+' · 단계이동 '+moved+' · 유지 '+skip+' · 실패 '+fail+(other?' · 타브랜드제외 '+other:''),'#cfe0ff'); }
   if(made||moved) await loadAll();
   else if(manual&&!fail) gsLog('변동 사항이 없어요 (이미 최신).','#8ce0a0');
 }

@@ -626,6 +626,33 @@ function renderProjList(){
   $('projRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nvisit=aptVisits(a.id);const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td>${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td>${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}</td><td>${nvisit}회</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join(''):'<tr><td colspan="9" class="empty">단지가 없어요</td></tr>';
 }
 let curProj=null,projTab='report';
+let photoView='card',photoCalYM=null,photoSelDate=null;
+function setPhotoView(v){ photoView=v; if(v==='cal')photoCalYM=null; renderProj(); }
+function photoCalMove(d){ if(!photoCalYM){const n=new Date();photoCalYM={y:n.getFullYear(),m:n.getMonth()};} let m=photoCalYM.m+d,y=photoCalYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} photoCalYM={y,m}; renderProj(); }
+function setPhotoDate(date){ photoSelDate=(photoSelDate===date?null:date); renderProj(); }
+function fieldCardHtml(f){
+  const ph=Array.isArray(f.photos)?f.photos.length:0;
+  return `<div class="card"><div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:14px;font-weight:800;color:var(--blue)">📅 ${(f.created_at||'').slice(0,10)}</span><span class="pill blue">📷 ${ph}장</span>${f.dong?`<span class="pill gray">${esc(f.dong)}</span>`:''}<span style="flex:1"></span>${ph?`<button class="b line sm" onclick="downloadFieldPhotos('${f.id}',this)">⬇ 사진 ${ph}</button> `:''}<button class="b line sm" onclick="openFieldEdit('${f.id}')">편집</button> <button class="b red sm" onclick="deleteField('${f.id}')">삭제</button></div><div style="font-size:13px;font-weight:700">${esc(f.title)||'-'}</div>${f.content?`<div style="font-size:12.5px;color:var(--mut2);margin-top:5px;white-space:pre-wrap">${esc(f.content)}</div>`:''}${ph?`<div class="phwrap" style="margin-top:9px">${f.photos.slice(0,12).map(u=>`<img src="${esc(u)}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`).join('')}${f.photos.length>12?`<span style="align-self:center;color:var(--mut);font-size:12px">+${f.photos.length-12}</span>`:''}</div>`:''}</div>`;
+}
+function photoCalendarHtml(aptId, flds){
+  const recs=flds.filter(f=>f.created_at);
+  if(!photoCalYM){ const latest=recs.map(f=>f.created_at).filter(Boolean).sort().pop(); const d=latest?new Date(latest):new Date(); photoCalYM={y:d.getFullYear(),m:d.getMonth()}; }
+  const {y,m}=photoCalYM;
+  const byDay={}; recs.forEach(f=>{ const d=new Date(f.created_at); if(d.getFullYear()===y&&d.getMonth()===m){ (byDay[d.getDate()]=byDay[d.getDate()]||[]).push(f); } });
+  const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate();
+  let h=`<div class="card"><h3><span><button class="b line sm" onclick="photoCalMove(-1)">←</button> ${y}년 ${m+1}월 <button class="b line sm" onclick="photoCalMove(1)">→</button></span><span class="r">📷 있는 날짜를 눌러보세요</span></h3><div class="cal">`;
+  ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
+  for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
+  for(let dd=1;dd<=days;dd++){ const list=byDay[dd]||[]; const nph=list.reduce((s,f)=>s+(Array.isArray(f.photos)?f.photos.length:0),0); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`; const sel=photoSelDate===date;
+    h+=`<div class="cell" style="${list.length?'cursor:pointer;':''}${sel?'background:var(--blue-soft);border-color:var(--blue);':(list.length?'border-color:#bcd3fb;':'')}" ${list.length?`onclick="setPhotoDate('${date}')"`:''}><div class="dn">${dd}</div>${list.length?`<div style="margin-top:5px;display:inline-flex;align-items:center;gap:3px;background:var(--blue);color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:800">📷 ${nph}</div>${list.length>1?`<div style="font-size:9px;color:var(--mut);margin-top:2px">${list.length}건</div>`:''}`:''}</div>`;
+  }
+  h+='</div></div>';
+  if(photoSelDate){ const list=recs.filter(f=>(f.created_at||'').slice(0,10)===photoSelDate).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+    h+=`<div style="display:flex;align-items:center;gap:10px;margin:14px 2px 8px"><span style="font-weight:800;font-size:15px">📅 ${photoSelDate} · ${list.length}건</span>${list.some(f=>Array.isArray(f.photos)&&f.photos.length)?`<button class="b line sm" onclick="makeFieldPPT('${aptId}',{date:'${photoSelDate}'},this)">📊 이 날짜 PPT</button>`:''}<span class="link" onclick="setPhotoDate('${photoSelDate}')" style="font-size:12px">닫기</span></div>`;
+    h+= list.length? list.map(fieldCardHtml).join('') : '<div class="card empty">이 날짜 기록이 없어요</div>';
+  } else { h+='<div class="empty" style="margin-top:12px">달력에서 <b>📷 사진이 있는 날짜</b>를 누르면 그 날 작업사진이 여기 펼쳐져요</div>'; }
+  return h;
+}
 function backToProjList(){$('projList').style.display='block';$('projDetail').style.display='none';curProj=null;}
 function showProjectsSection(){
   document.querySelectorAll('.sec').forEach(e=>e.classList.remove('on'));
@@ -633,7 +660,7 @@ function showProjectsSection(){
   document.querySelectorAll('[data-s]').forEach(a=>a.classList.toggle('on',a.dataset.s==='projects'));
 }
 function openProj(id){
-  curProj=APTS.find(a=>a.id===id); if(!curProj)return; projTab='overview';
+  curProj=APTS.find(a=>a.id===id); if(!curProj)return; projTab='overview'; photoSelDate=null; photoCalYM=null;
   showProjectsSection();                 // go() 대신 직접 전환(상세 리셋 방지)
   markAptRepsSeen(id); updateBadges(); renderProjList(); renderDash();  // 이 단지 감리일지 '읽음' 처리 → 배지·관제센터 즉시 정리
   $('projList').style.display='none'; $('projDetail').style.display='block';
@@ -674,7 +701,10 @@ function renderProj(){
   } else if(projTab==='report'){
     body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700">${esc(r.title)||'-'}</td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(projTab==='photo'){
-    body=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button>${flds.some(f=>Array.isArray(f.photos)&&f.photos.length)?`<button class="b line" onclick="makeFieldPPT('${p.id}',null,this)">📊 준공 PPT</button><button class="b line" onclick="downloadAptAllPhotos('${p.id}',this)">⬇ 전체 사진 ZIP</button>`:''}</div>`+(flds.length?[...flds].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(f=>`<div class="card"><div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:14px;font-weight:800;color:var(--blue)">📅 ${(f.created_at||'').slice(0,10)}</span><span class="pill blue">📷 ${(Array.isArray(f.photos)?f.photos.length:0)}장</span>${f.dong?`<span class="pill gray">${esc(f.dong)}</span>`:''}<span style="flex:1"></span>${(Array.isArray(f.photos)&&f.photos.length)?`<button class="b line sm" onclick="downloadFieldPhotos('${f.id}',this)">⬇ 사진 ${f.photos.length}</button> `:''}<button class="b line sm" onclick="openFieldEdit('${f.id}')">편집</button> <button class="b red sm" onclick="deleteField('${f.id}')">삭제</button></div><div style="font-size:13px;font-weight:700">${esc(f.title)||'-'}</div>${f.content?`<div style="font-size:12.5px;color:var(--mut2);margin-top:5px;white-space:pre-wrap">${esc(f.content)}</div>`:''}${(Array.isArray(f.photos)&&f.photos.length)?`<div class="phwrap" style="margin-top:9px">${f.photos.slice(0,12).map(u=>`<img src="${esc(u)}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`).join('')}${f.photos.length>12?`<span style="align-self:center;color:var(--mut);font-size:12px">+${f.photos.length-12}</span>`:''}</div>`:''}</div>`).join(''):'<div class="card empty">등록된 현장기록이 없어요</div>');
+    const hasPh=flds.some(f=>Array.isArray(f.photos)&&f.photos.length);
+    const toolbar=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button>${hasPh?`<button class="b line" onclick="makeFieldPPT('${p.id}',null,this)">📊 준공 PPT</button><button class="b line" onclick="downloadAptAllPhotos('${p.id}',this)">⬇ 전체 사진 ZIP</button>`:''}<span style="flex:1"></span><div class="seg" style="margin:0"><button class="${photoView==='card'?'on':''}" onclick="setPhotoView('card')">📇 카드</button><button class="${photoView==='cal'?'on':''}" onclick="setPhotoView('cal')">🗓️ 달력</button></div></div>`;
+    if(photoView==='cal'){ body=toolbar+photoCalendarHtml(p.id, flds); }
+    else { body=toolbar+(flds.length?[...flds].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(fieldCardHtml).join(''):'<div class="card empty">등록된 현장기록이 없어요</div>'); }
   }
   $('projDetail').innerHTML=`<div class="head"><div><h2>${esc(p.name)}</h2><div class="desc"><span class="link" onclick="backToProjList()">← 공사관리</span>${siteType(p)?' · '+esc(siteType(p)):''} · 감리 ${siteAuditors(p)}</div></div></div>${tabs}${body}`;
 }

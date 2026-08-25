@@ -144,6 +144,8 @@ tbody tr:hover{background:#f8fafc}
 @media(max-width:1000px){.board{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){.board{grid-template-columns:1fr}}
 .col{background:#f4f6fb;border:1px solid var(--line);border-radius:14px;padding:12px;min-height:80px;transition:.12s}
+.board .col{max-height:74vh;overflow-y:auto}
+.board .col .ch{position:sticky;top:-12px;background:#f4f6fb;margin:-12px -12px 8px;padding:14px 12px 8px;z-index:2}
 .col.dragover{border-color:var(--blue);background:#eaf1ff;box-shadow:inset 0 0 0 2px var(--blue)}
 .lead[draggable=true]{cursor:grab}.lead:active{cursor:grabbing}
 .col .ch{font-size:13px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:7px;margin-bottom:10px}
@@ -1623,9 +1625,11 @@ function stageFromText(t){
   if(/성사|수주|낙찰|성공|계약완료|계약체결|공사완료|시공완료|준공|win|won/.test(s)) return 'won';
   if(/계약/.test(s)) return 'contract';
   if(/견적|제안|proposal|quote/.test(s)) return 'quote';
+  // 담당자 배정(완료)·접수·신규 → 문의 (‘완료’ 글자에 성사로 새지 않게 여기서 처리)
+  if(/배정|접수|신규|리드|대기|미배정|inquiry|lead/.test(s)) return 'inquiry';
   // 전화응대·상담·방문·현장방문 → 미팅
   if(/미팅|상담|방문|통화|전화|응대|현장|meeting/.test(s)) return 'meeting';
-  if(/문의|신규|접수|리드|대기|inquiry|lead/.test(s)) return 'inquiry';
+  if(/문의/.test(s)) return 'inquiry';
   // 종결·완료·마감 (승/패 표시 없음) → 성사로 간주
   if(/종결|완료|마감|끝/.test(s)) return 'won';
   return 'inquiry';

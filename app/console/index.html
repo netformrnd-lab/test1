@@ -2091,7 +2091,7 @@ function renderDocs(){
   if(!DOCS.length){ box.innerHTML='<div class="empty">등록된 자료가 없어요. 오른쪽 위 ‘자료 추가’로 올려보세요.</div>'; return; }
   const groups={}; DOCS.forEach(d=>{ const c=(d.category||'기타'); (groups[c]=groups[c]||[]).push(d); });
   box.innerHTML=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ko')).map(cat=>
-    `<div class="card" style="padding:6px 20px"><h3 style="padding-top:12px">📂 ${esc(cat)} <span class="r">${groups[cat].length}개</span></h3><table><tbody>${groups[cat].map(d=>{const isPdf=/pdf/i.test(d.kind||'')||/\.pdf(\?|$)/i.test(d.file_url||'');const icon=d.kind==='link'?'🔗':(isPdf?'📄':(/image/i.test(d.kind||'')?'🖼️':'📎'));return `<tr><td style="font-weight:700">${icon} ${esc(d.title)||'(제목 없음)'}${d.memo?`<div style="font-size:11px;color:var(--mut);font-weight:600">${esc(d.memo)}</div>`:''}</td><td style="color:var(--mut);font-size:11px">${(d.created_at||'').slice(0,10)}</td><td style="text-align:right;white-space:nowrap">${d.file_url?`<a class="b line sm" href="${esc(d.file_url)}" target="_blank" rel="noopener">열기</a> `:''}<button class="b red sm" onclick="deleteDoc('${d.id}')">삭제</button></td></tr>`;}).join('')}</tbody></table></div>`
+    `<div class="card" style="padding:6px 20px"><h3 style="padding-top:12px">📂 ${esc(cat)} <span class="r">${groups[cat].length}개</span></h3><table><tbody>${groups[cat].map(d=>{const isPdf=/pdf/i.test(d.kind||'')||/\.pdf(\?|$)/i.test(d.file_url||'');const icon=d.kind==='link'?'🔗':(isPdf?'📄':(/image/i.test(d.kind||'')?'🖼️':'📎'));return `<tr><td style="font-weight:700">${icon} ${esc(d.title)||'(제목 없음)'}${d.memo?`<div style="font-size:11px;color:var(--mut);font-weight:600">${esc(d.memo)}</div>`:''}</td><td style="color:var(--mut);font-size:11px">${(d.created_at||'').slice(0,10)}</td><td style="text-align:right;white-space:nowrap">${d.file_url?`<a class="b line sm" href="${esc(d.file_url)}" target="_blank" rel="noopener">열기</a> `:''}<button class="b line sm" onclick="openDocEdit('${d.id}')">편집</button> <button class="b red sm" onclick="deleteDoc('${d.id}')">삭제</button></td></tr>`;}).join('')}</tbody></table></div>`
   ).join('');
 }
 function openDocAdd(){
@@ -2125,7 +2125,32 @@ async function deleteDoc(id){
   if(!confirm('이 자료를 삭제할까요?'))return;
   const {error}=await sb.from('doc_files').delete().eq('id',id);
   if(error)return alert('오류: '+error.message);
-  await loadAll();
+  if($('modalBg').classList.contains('on'))closeModal(); await loadAll();
+}
+function openDocEdit(id){
+  const d=DOCS.find(x=>x.id===id); if(!d)return;
+  const cats=[...new Set(DOCS.map(x=>x.category).filter(Boolean))];
+  openModal(mHead('✏️ 자료 편집')+`
+    <div class="fld"><label>분류</label><input id="dc-cat" list="dc-cats" value="${esc(d.category)||''}"><datalist id="dc-cats">${cats.map(c=>`<option value="${esc(c)}"></option>`).join('')}</datalist></div>
+    <div class="fld"><label>자료명 *</label><input id="dc-title" value="${esc(d.title)||''}"></div>
+    <div class="fld"><label>현재 파일/링크</label><div style="font-size:12.5px;padding:4px 0">${d.file_url?`<a class="link" href="${esc(d.file_url)}" target="_blank" rel="noopener">${d.kind==='link'?'🔗 링크 열기':'📎 파일 열기'}</a>`:'없음'}</div></div>
+    <div class="fld"><label>파일 교체 (선택)</label><input id="dc-file" type="file"></div>
+    <div class="fld"><label>또는 링크 교체 (선택)</label><input id="dc-link" placeholder="https://..."></div>
+    <div class="fld"><label>메모</label><input id="dc-memo" value="${esc(d.memo)||''}"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b red" onclick="deleteDoc('${d.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitDocEdit('${d.id}')">저장</button></div>`);
+}
+async function submitDocEdit(id){
+  const d=DOCS.find(x=>x.id===id); if(!d)return;
+  const title=$('dc-title').value.trim(); if(!title){$('m-msg').textContent='자료명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const btn=$('m-submit'); if(btn){btn.disabled=true;btn.textContent='저장 중…';}
+  let file_url=d.file_url, kind=d.kind;
+  const file=($('dc-file').files||[])[0]; const link=$('dc-link').value.trim();
+  if(file){ const u=await uploadTo('report-photos',file,'docs/'); if(!u){if(btn){btn.disabled=false;btn.textContent='저장';}return;} file_url=u; kind=(file.type==='application/pdf'||/\.pdf$/i.test(file.name))?'pdf':(/^image\//.test(file.type)?'image':'file'); }
+  else if(link){ file_url=link; kind='link'; }
+  const {error}=await sb.from('doc_files').update({category:$('dc-cat').value.trim()||'기타',title,file_url,kind,memo:$('dc-memo').value.trim()||null}).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';if(btn){btn.disabled=false;btn.textContent='저장';}return;}
+  closeModal(); await loadAll();
 }
 </script>
 <script src="../js/stages.js"></script>

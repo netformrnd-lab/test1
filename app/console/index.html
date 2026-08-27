@@ -1749,10 +1749,18 @@ async function syncGSheet(manual){
       memo:memo?memo.slice(0,2000):null, stage, next_action:'첫 연락', owner };
     const iso=kdate(gv(iTime)); if(iso) lead.created_at=iso;
     const ex=sigToLead[gsSig(lead)];
-    if(ex){ // 이미 있는 딜 — 시트의 진행사항에 맞춰 단계만 이동
-      if(iStage>=0 && ex.stage!==stage){
-        const {error}=await sb.from('sales_leads').update({stage, stage_changed_at:new Date().toISOString(), owner}).eq('id',ex.id);
-        if(error){ fail++; } else { moved++; ex.stage=stage; if(manual)gsLog('↔ 이동  '+name+' → '+(SALES_LABEL[stage]||stage),'#f0c674'); }
+    if(ex){ // 이미 있는 딜 — 시트 기준으로 단계 + 내용(코멘트·연락처 등) 갱신
+      const patch={};
+      if(iStage>=0 && ex.stage!==stage){ patch.stage=stage; patch.stage_changed_at=new Date().toISOString(); }
+      if(lead.memo && ex.memo!==lead.memo) patch.memo=lead.memo;           // 응대내용·특이사항 등 코멘트
+      if(lead.contact && ex.contact!==lead.contact) patch.contact=lead.contact;
+      if(lead.construction_type && ex.construction_type!==lead.construction_type) patch.construction_type=lead.construction_type;
+      if(lead.region && ex.region!==lead.region) patch.region=lead.region;
+      if(owner && owner!=='구글시트' && ex.owner!==owner) patch.owner=owner; // 시트에 담당자 있으면 반영
+      if(Object.keys(patch).length){
+        const {error}=await sb.from('sales_leads').update(patch).eq('id',ex.id);
+        if(error){ fail++; } else { moved++; Object.assign(ex,patch);
+          if(manual)gsLog('↔ 갱신  '+name+(patch.stage?(' → '+(SALES_LABEL[stage]||stage)):'')+(patch.memo?' · 내용 갱신':''),'#f0c674'); }
       } else skip++;
       continue;
     }
@@ -1761,7 +1769,7 @@ async function syncGSheet(manual){
     if(error){ fail++; if(manual)gsLog('❌ '+name+' → '+error.message,'#ff8a8a'); }
     else { made++; sigToLead[gsSig(lead)]=lead; if(manual)gsLog('✅ 신규  '+name+' ['+(SALES_LABEL[stage]||stage)+']'+(contact?(' · '+contact):''),'#8ce0a0'); }
   }
-  if(manual){ gsLog('════ 완료 ════ 신규 '+made+' · 단계이동 '+moved+' · 유지 '+skip+' · 실패 '+fail+(other?' · 타브랜드제외 '+other:''),'#cfe0ff'); }
+  if(manual){ gsLog('════ 완료 ════ 신규 '+made+' · 갱신 '+moved+' · 유지 '+skip+' · 실패 '+fail+(other?' · 타브랜드제외 '+other:''),'#cfe0ff'); }
   if(made||moved) await loadAll();
   else if(manual&&!fail) gsLog('변동 사항이 없어요 (이미 최신).','#8ce0a0');
 }

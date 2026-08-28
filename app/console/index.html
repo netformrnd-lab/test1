@@ -2023,6 +2023,7 @@ async function submitSalesEdit(id){
   const d=readSalesForm(); if(!d.name){$('m-msg').textContent='단지/고객명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
   const {error}=await sb.from('sales_leads').update(d).eq('id',id);
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  if(d.stage==='won' && !d.apartment_id){ await ensureAptForWon({id, ...d}); }
   closeModal(); await loadAll();
 }
 async function deleteSales(id){
@@ -2044,11 +2045,26 @@ function convertLeadToApt(id){
   });
 }
 const SALES_ORDER=['inquiry','meeting','quote','contract','won'];
+// 성사(won)되면 딜 정보로 단지를 자동 생성·연결 (이미 연결됐거나 이름 없으면 건너뜀)
+async function ensureAptForWon(s){
+  if(!s || s.stage!=='won' || s.apartment_id) return null;
+  const nm=(spCleanName(s.name)||s.name||'').trim(); if(!nm) return null;
+  const rec={ name:nm, region:s.region||null, construction_type:s.construction_type||null,
+    supervision_fee:(s.amount!=null?s.amount:null), status:'scheduled',
+    overview:[s.memo, s.contact?('담당·연락처: '+s.contact):'', s.owner?('영업 담당: '+s.owner):''].filter(Boolean).join('\n')||null };
+  const {data,error}=await sb.from('apartments').insert(rec).select('id').single();
+  if(error||!data) return null;
+  await sb.from('sales_leads').update({apartment_id:data.id}).eq('id',s.id);
+  s.apartment_id=data.id;
+  return data.id;
+}
 async function setSalesStage(id,stage){
   const s=SALES.find(x=>x.id===id); if(!s||s.stage===stage)return;
   const {error}=await sb.from('sales_leads').update({stage,stage_changed_at:new Date().toISOString()}).eq('id',id);
   if(error){alert('이동 실패: '+error.message);return;}
-  s.stage=stage; s.stage_changed_at=new Date().toISOString(); renderSales(); renderDash();
+  s.stage=stage; s.stage_changed_at=new Date().toISOString();
+  if(stage==='won' && !s.apartment_id){ const aid=await ensureAptForWon(s); if(aid){ await loadAll(); return; } }
+  renderSales(); renderDash();
 }
 async function moveSalesStage(ev,id,dir){
   ev.stopPropagation();

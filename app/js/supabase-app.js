@@ -1787,9 +1787,16 @@ function renderSchedList(scheds) {
       if (s.apartment_id) { const apt = AUD_APTS[s.apartment_id]; badge = '<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">👥 ' + (apt ? escH(apt.name) : '단지') + '</span>' }
       else badge = '<span style="font-size:9px;font-weight:800;color:#8b7a2f;background:#f6efd8;padding:2px 7px;border-radius:6px">🔒 개인</span>'
     }
-    return '<div style="border-left:3px solid ' + c + ';background:#f8faff;border-radius:0 10px 10px 0;padding:9px 11px;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px">' + (lab ? '<span style="font-size:9px;font-weight:800;color:' + c + ';background:' + c + '1a;padding:2px 7px;border-radius:6px">' + lab + '</span>' : '') + '<div style="font-size:11.5px;font-weight:800;color:#1c2440">' + escH(s.title) + '</div>' + (badge ? '<span style="margin-left:auto">' + badge + '</span>' : '') + '</div>' + (s.description ? '<div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">' + escH(s.description) + '</div>' : '') + '</div>'
+    const actions = (currentRole === 'auditor')
+      ? '<div style="display:flex;gap:6px;margin-top:7px">'
+        + '<button onclick="openSchedEdit(\'' + s.id + '\')" style="flex:1;background:#eef3ff;color:#2F6BF6;border:none;border-radius:8px;padding:6px 0;font-size:10.5px;font-weight:800;font-family:inherit;cursor:pointer">📅 날짜·내용 수정</button>'
+        + '<button onclick="deleteSchedApp(\'' + s.id + '\')" style="background:#fdecec;color:#d9453c;border:none;border-radius:8px;padding:6px 11px;font-size:10.5px;font-weight:800;font-family:inherit;cursor:pointer">🗑</button>'
+        + '</div>'
+      : ''
+    return '<div style="border-left:3px solid ' + c + ';background:#f8faff;border-radius:0 10px 10px 0;padding:9px 11px;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px">' + (lab ? '<span style="font-size:9px;font-weight:800;color:' + c + ';background:' + c + '1a;padding:2px 7px;border-radius:6px">' + lab + '</span>' : '') + '<div style="font-size:11.5px;font-weight:800;color:#1c2440">' + escH(s.title) + '</div>' + (badge ? '<span style="margin-left:auto">' + badge + '</span>' : '') + '</div>' + (s.description ? '<div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">' + escH(s.description) + '</div>' : '') + actions + '</div>'
   }).join('')
 }
+let editSchedId = null
 async function addSchedule() {
   const { data: { user } } = await sb.auth.getUser()
   const date = document.getElementById('sc-date').value
@@ -1802,12 +1809,47 @@ async function addSchedule() {
   const row = { date, title, description: desc || null, category: cat }
   if (aptId) { row.apartment_id = aptId; row.owner_id = null }   // 단지 일정 (입주민도 봄)
   else { row.owner_id = user.id; row.apartment_id = null }        // 개인 일정 (나만 봄)
-  const { error } = await sb.from('schedules').insert(row)
-  if (error) { alert('등록 실패: ' + error.message); return }
-  document.getElementById('sc-date').value = ''; document.getElementById('sc-title').value = ''; document.getElementById('sc-desc').value = ''
-  document.getElementById('sc-form').style.display = 'none'
+  if (editSchedId) {
+    const { error } = await sb.from('schedules').update(row).eq('id', editSchedId)
+    if (error) { alert('수정 실패: ' + error.message); return }
+  } else {
+    const { error } = await sb.from('schedules').insert(row)
+    if (error) { alert('등록 실패: ' + error.message); return }
+  }
+  cancelSchedEdit()
   loadSchedule()
 }
+// 수정 모드로 폼 열기 (감리사) — 방문 날짜 옮기기 등
+function openSchedEdit(id) {
+  const s = (SCHED_ALL || []).find(x => String(x.id) === String(id)); if (!s) return
+  editSchedId = s.id
+  const $g = i => document.getElementById(i)
+  if ($g('sc-date')) $g('sc-date').value = String(s.date || '').slice(0, 10)
+  if ($g('sc-title')) $g('sc-title').value = s.title || ''
+  if ($g('sc-desc')) $g('sc-desc').value = s.description || ''
+  if ($g('sc-cat')) $g('sc-cat').value = s.category || ''
+  populateSchedAptSelect()
+  if ($g('sc-apt')) $g('sc-apt').value = s.apartment_id || ''
+  const sv = $g('sc-save'); if (sv) sv.textContent = '✓ 수정 저장'
+  const f = $g('sc-form'); if (f) { f.style.display = 'block'; f.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
+}
+function cancelSchedEdit() {
+  editSchedId = null
+  const $g = i => document.getElementById(i)
+  ;['sc-date', 'sc-title', 'sc-desc'].forEach(i => { if ($g(i)) $g(i).value = '' })
+  const sv = $g('sc-save'); if (sv) sv.textContent = '등록'
+  const f = $g('sc-form'); if (f) f.style.display = 'none'
+}
+async function deleteSchedApp(id) {
+  if (!confirm('이 일정을 삭제할까요?')) return
+  const { error } = await sb.from('schedules').delete().eq('id', id)
+  if (error) { alert('삭제 실패: ' + error.message); return }
+  if (String(editSchedId) === String(id)) cancelSchedEdit()
+  loadSchedule()
+}
+window.openSchedEdit = openSchedEdit
+window.cancelSchedEdit = cancelSchedEdit
+window.deleteSchedApp = deleteSchedApp
 window.loadSchedule = loadSchedule
 
 // 아이디 → 내부 이메일 변환 (아임웹처럼 이메일 없이 아이디만으로 가입·로그인)
@@ -2045,7 +2087,7 @@ function wire() {
   // 감리일지 검색
   const rps = $('rep-search'); if (rps) rps.oninput = () => { repQuery = rps.value; renderReports() }
   // 공사 일정
-  const addBtn = $('sc-add-btn'); if (addBtn) addBtn.onclick = () => { const f = $('sc-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none' }
+  const addBtn = $('sc-add-btn'); if (addBtn) addBtn.onclick = () => { const f = $('sc-form'); if (f.style.display === 'none') { cancelSchedEdit(); f.style.display = 'block' } else { f.style.display = 'none' } }
   const scSave = $('sc-save'); if (scSave) scSave.onclick = addSchedule
   // 입주민 홈 · 빠른 메뉴
   const goSchedule = () => { showScreen('s14'); loadSchedule() }

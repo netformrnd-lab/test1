@@ -431,7 +431,9 @@ async function loadAll(){
   initSeen();
   renderAll();
   startPoll(); startChatPoll(); startConsoleRealtime(); maybeAutoSyncGSheet();
+  if(!WON_MATED){ WON_MATED=true; materializeWonApts(null); }  // 성사 딜 → 단지관리 자동 편입(세션 1회)
 }
+let WON_MATED=false;
 function renderAll(){
   renderDash(); renderOrgs(); renderCalendar(); renderProjList(); renderHistory();
   renderPending(); renderMembers(); fillAptSelectsConsole(); commTab(commTabCur); promoTab(promoTabCur);
@@ -659,12 +661,16 @@ function renderCalendar(){
   const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), todayStr=isoDate(now);
   const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
   const byDay={};
-  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({t,visit:isV,color:isV?null:meta[2]}); }});
-  computeVisits(y,m).forEach(v=>{ if(calPerson!=='전체'&&v.who!==calPerson)return; (byDay[v.dd]=byDay[v.dd]||[]).push({t:'방문 · '+v.name,who:v.who,visit:true,sub:v.sub,plan:true}); });
-  let h=''; ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
+  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({t,visit:isV,color:isV?null:meta[2],cat:isV?'방문':(s.category?meta[1]:'')}); }});
+  computeVisits(y,m).forEach(v=>{ if(calPerson!=='전체'&&v.who!==calPerson)return; (byDay[v.dd]=byDay[v.dd]||[]).push({t:'방문 · '+v.name,who:v.who,visit:true,sub:v.sub,plan:true,cat:'방문'}); });
+  // 색상 범례
+  let h='<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 12px;padding:8px 4px 12px;font-size:11px;color:var(--mut)">'+
+    '<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:var(--blue,#2f6bf6);display:inline-block"></i>방문</span>'+
+    CAL_CATS.map(c=>`<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:${c[2]};display:inline-block"></i>${c[1]}</span>`).join('')+'</div>';
+  ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    h+=`<div class="cell" style="${date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':''}"><div class="dn">${d}</div>${ev.slice(0,4).map(e=>`<div class="ev" style="${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${esc(e.who||'')}">${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`).join('')}${ev.length>4?`<div style="font-size:9px;color:var(--mut)">+${ev.length-4} 더</div>`:''}</div>`;
+    h+=`<div class="cell" style="${date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':''}"><div class="dn">${d}</div>${ev.slice(0,4).map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev" style="${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}${ev.length>4?`<div style="font-size:9px;color:var(--mut)">+${ev.length-4} 더</div>`:''}</div>`;
   }
   $('calGrid').innerHTML=h;
   renderAssignTable();
@@ -1869,6 +1875,8 @@ async function syncGSheet(manual){
   if(manual){ gsLog('════ 완료 ════ 신규 '+made+' · 갱신 '+moved+' · 유지 '+skip+' · 실패 '+fail+(other?' · 타브랜드제외 '+other:''),'#cfe0ff'); }
   if(made||moved) await loadAll();
   else if(manual&&!fail) gsLog('변동 사항이 없어요 (이미 최신).','#8ce0a0');
+  // 성사(won) 딜은 단지관리로 자동 편입 (시트에서 바로 성사로 들어온 건 포함)
+  await materializeWonApts(manual?gsLog:null);
 }
 // 한국식 날짜 문자열("2026. 1. 22. 오전 10:24:37" 등) → ISO. 못 읽으면 null(=DB 기본 now())
 function kdate(t){
@@ -2127,14 +2135,25 @@ const SALES_ORDER=['inquiry','meeting','quote','contract','won'];
 async function ensureAptForWon(s){
   if(!s || s.stage!=='won' || s.apartment_id) return null;
   const nm=(spCleanName(s.name)||s.name||'').trim(); if(!nm) return null;
+  // 같은 이름의 단지가 이미 있으면 새로 만들지 않고 그 단지에 연결(중복 방지)
+  const exist=APTS.find(a=>(a.name||'').trim()===nm);
+  if(exist){ await sb.from('sales_leads').update({apartment_id:exist.id}).eq('id',s.id); s.apartment_id=exist.id; return exist.id; }
   const rec={ name:nm, region:s.region||null, construction_type:s.construction_type||null,
     supervision_fee:(s.amount!=null?s.amount:null), status:'scheduled',
     overview:[s.memo, s.contact?('담당·연락처: '+s.contact):'', s.owner?('영업 담당: '+s.owner):''].filter(Boolean).join('\n')||null };
   const {data,error}=await sb.from('apartments').insert(rec).select('id').single();
-  if(error||!data) return null;
+  if(error||!data){ console.warn('단지 자동생성 실패:',error&&error.message); return null; }
   await sb.from('sales_leads').update({apartment_id:data.id}).eq('id',s.id);
   s.apartment_id=data.id;
   return data.id;
+}
+// 성사(won)인데 아직 단지관리로 안 넘어간 딜들을 한 번에 단지로 편입
+async function materializeWonApts(logFn){
+  const pend=SALES.filter(s=>s.stage==='won' && !s.apartment_id);
+  if(!pend.length) return 0;
+  let n=0; for(const s of pend){ const aid=await ensureAptForWon(s); if(aid)n++; }
+  if(n){ if(logFn)logFn('🏢 성사 '+n+'건을 단지관리(공사관리)로 자동 등록했어요.','#8ce0a0'); await loadAll(); }
+  return n;
 }
 async function setSalesStage(id,stage){
   const s=SALES.find(x=>x.id===id); if(!s||s.stage===stage)return;

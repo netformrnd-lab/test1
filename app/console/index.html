@@ -2106,6 +2106,9 @@ function renderSales(){
     <div style="display:flex;gap:6px;margin-top:6px" onclick="event.stopPropagation()">
       <button class="b line sm" style="flex:1" onclick="spQuote('${s.id}')">🧾 견적서</button>
       ${i>=2?`<button class="b line sm" style="flex:1" onclick="spContract('${s.id}')">📝 계약서</button>`:''}
+    </div>
+    <div style="margin-top:6px" onclick="event.stopPropagation()">
+      <button class="b line sm" style="width:100%" onclick="openSalesChecklist('${s.id}')">✅ 진행 체크리스트 ${(()=>{const q=salesChkCount(s);return `<b style="color:${q.done===q.total&&q.total?'var(--green)':'var(--mut)'}">${q.done}/${q.total}</b>`;})()}</button>
     </div></div>`; };
   let h='<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">💡 카드를 다른 칸으로 <b>끌어다 놓거나</b>, 카드의 ◀ ▶ 버튼으로 단계를 옮길 수 있어요.</div><div class="board">'+SALES_STAGES.map(([k,lbl])=>{
     const list=active.filter(s=>s.stage===k); const sum=list.reduce((a,b)=>a+(+b.amount||0),0);
@@ -2123,6 +2126,33 @@ function spCleanName(n){ return String(n||'').replace(/^\s*\[[^\]]*\]\s*/,'').tr
 function spDocUrl(base,s){ const p=new URLSearchParams(); p.set('site',spCleanName(s.name)); p.set('lead',s.id); if(s.region)p.set('addr',s.region); if(s.construction_type)p.set('work',s.construction_type); return base+'?'+p.toString(); }
 function spQuote(id){ const s=SALES.find(x=>x.id===id); if(!s)return; window.open(spDocUrl('../control/quote/',s),'_blank'); }
 function spContract(id){ const s=SALES.find(x=>x.id===id); if(!s)return; window.open(spDocUrl('../control/contract/',s),'_blank'); }
+// 영업 진행 체크리스트 (단계별 할 일)
+const SALES_CHECKLIST=[
+  ['📞 문의',['첫 연락 완료','고객 니즈·요구 파악','예산·시기 확인']],
+  ['🤝 미팅',['현장 방문·실측','관리소장·입대의 미팅','하자 진단·현장 사진 확보']],
+  ['🧾 견적',['견적서 작성','견적서 발송','견적 조건 협의']],
+  ['📝 계약',['계약 조건 확정','계약서 발송','계약 체결(날인)','계약금 수금']],
+];
+const SALES_CHK_ALL=SALES_CHECKLIST.reduce((a,g)=>a.concat(g[1]),[]);
+function salesChkCount(s){ const c=(s&&s.checklist&&typeof s.checklist==='object')?s.checklist:{}; const done=SALES_CHK_ALL.filter(k=>c[k]).length; return {done,total:SALES_CHK_ALL.length}; }
+function openSalesChecklist(id){ const s=SALES.find(x=>x.id===id); if(!s)return;
+  const c=(s.checklist&&typeof s.checklist==='object')?s.checklist:{};
+  const {done,total}=salesChkCount(s); const pct=total?Math.round(done/total*100):0;
+  const body=SALES_CHECKLIST.map(g=>`<div style="margin-top:12px"><div style="font-size:12px;font-weight:800;color:var(--mut);margin-bottom:6px">${g[0]}</div>${g[1].map(item=>`<label style="display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13px;font-weight:600;background:${c[item]?'#f0f7f1':'#fff'}"><input type="checkbox" ${c[item]?'checked':''} onchange="toggleSalesChk('${id}','${esc(item).replace(/'/g,"\\'")}',this.checked)" style="width:17px;height:17px;accent-color:var(--green)"><span style="${c[item]?'color:var(--green);text-decoration:line-through':''}">${esc(item)}</span></label>`).join('')}</div>`).join('');
+  openModal(mHead('✅ 진행 체크리스트 — '+esc(spCleanName(s.name)||s.name))+`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><div class="bar" style="flex:1"><i id="chk-bar" style="width:${pct}%;background:var(--green)"></i></div><b id="chk-pct" style="font-size:13px;color:var(--green)">${done}/${total}</b></div>
+    ${body}
+    <div class="modal-actions"><button class="b blue" onclick="closeModal()">닫기</button></div>`);
+}
+async function toggleSalesChk(id,item,on){ const s=SALES.find(x=>x.id===id); if(!s)return;
+  const c=(s.checklist&&typeof s.checklist==='object')?{...s.checklist}:{}; if(on)c[item]=true; else delete c[item];
+  s.checklist=c;
+  const {error}=await sb.from('sales_leads').update({checklist:c}).eq('id',id);
+  if(error){ alert('저장 실패: '+error.message+(/checklist/.test(error.message)?'\n(backend/migration-sales-checklist.sql 실행 필요)':'')); return; }
+  const {done,total}=salesChkCount(s); const pct=total?Math.round(done/total*100):0;
+  const bar=$('chk-bar'); if(bar)bar.style.width=pct+'%'; const pe=$('chk-pct'); if(pe)pe.textContent=done+'/'+total;
+  renderSales();
+}
 function salesFormFields(s){ s=s||{};
   const stageOpts=Object.entries(SALES_LABEL).map(([k,v])=>`<option value="${k}" ${s.stage===k?'selected':''}>${v}</option>`).join('');
   return `

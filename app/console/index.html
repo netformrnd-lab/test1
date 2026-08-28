@@ -2126,32 +2126,50 @@ function spCleanName(n){ return String(n||'').replace(/^\s*\[[^\]]*\]\s*/,'').tr
 function spDocUrl(base,s){ const p=new URLSearchParams(); p.set('site',spCleanName(s.name)); p.set('lead',s.id); if(s.region)p.set('addr',s.region); if(s.construction_type)p.set('work',s.construction_type); return base+'?'+p.toString(); }
 function spQuote(id){ const s=SALES.find(x=>x.id===id); if(!s)return; window.open(spDocUrl('../control/quote/',s),'_blank'); }
 function spContract(id){ const s=SALES.find(x=>x.id===id); if(!s)return; window.open(spDocUrl('../control/contract/',s),'_blank'); }
-// 영업 진행 체크리스트 (단계별 할 일)
-const SALES_CHECKLIST=[
-  ['📞 문의',['첫 연락 완료','고객 니즈·요구 파악','예산·시기 확인']],
-  ['🤝 미팅',['현장 방문·실측','관리소장·입대의 미팅','하자 진단·현장 사진 확보']],
-  ['🧾 견적',['견적서 작성','견적서 발송','견적 조건 협의']],
-  ['📝 계약',['계약 조건 확정','계약서 발송','계약 체결(날인)','계약금 수금']],
-];
-const SALES_CHK_ALL=SALES_CHECKLIST.reduce((a,g)=>a.concat(g[1]),[]);
-function salesChkCount(s){ const c=(s&&s.checklist&&typeof s.checklist==='object')?s.checklist:{}; const done=SALES_CHK_ALL.filter(k=>c[k]).length; return {done,total:SALES_CHK_ALL.length}; }
+// 영업 진행 체크리스트 (기본 할 일 — 딜마다 추가·삭제 가능)
+const SALES_TODO_DEFAULT=['문의 접수 및 요구사항 파악','현장 방문·실측 및 사진 촬영','관리소장·입주자대표 면담','견적서 작성·발송','견적 설명 및 가격 협의','계약 조건 확정·계약 체결'];
+const SALES_NOTE_KINDS=['일반 메모','⚠️ 주의','고객 요청','다음 담당자 인수인계'];
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+// 저장된 배열이 있으면 그걸, 없으면 기본 목록을 객체 배열로
+function salesChkItems(s){ const c=s&&s.checklist; if(Array.isArray(c)&&c.length) return c.map(x=>({t:x.t||'',done:!!x.done,at:x.at||null})); return SALES_TODO_DEFAULT.map(t=>({t,done:false,at:null})); }
+function salesNotes(s){ const n=s&&s.notes; return Array.isArray(n)?n:[]; }
+function salesChkCount(s){ const it=salesChkItems(s); return {done:it.filter(x=>x.done).length,total:it.length}; }
+async function salesSaveChk(id,items){ const s=SALES.find(x=>x.id===id); if(!s)return; s.checklist=items;
+  const {error}=await sb.from('sales_leads').update({checklist:items}).eq('id',id);
+  if(error){ alert('저장 실패: '+error.message+(/checklist|column/.test(error.message)?'\n(backend/migration-sales-checklist.sql 실행 필요)':'')); return; }
+  renderSales(); openSalesChecklist(id); }
+async function salesSaveNotes(id,notes){ const s=SALES.find(x=>x.id===id); if(!s)return; s.notes=notes;
+  const {error}=await sb.from('sales_leads').update({notes:notes}).eq('id',id);
+  if(error){ alert('저장 실패: '+error.message+(/notes|column/.test(error.message)?'\n(backend/migration-sales-checklist.sql 실행 필요)':'')); return; }
+  openSalesChecklist(id); }
+function toggleSalesChk(id,idx,on){ const s=SALES.find(x=>x.id===id); if(!s)return; const it=salesChkItems(s); if(!it[idx])return; it[idx].done=on; it[idx].at=on?todayISO():null; salesSaveChk(id,it); }
+function delSalesChk(id,idx){ const s=SALES.find(x=>x.id===id); if(!s)return; const it=salesChkItems(s); it.splice(idx,1); salesSaveChk(id,it); }
+function addSalesChk(id){ const inp=$('chk-todo'); const t=(inp&&inp.value||'').trim(); if(!t)return; const s=SALES.find(x=>x.id===id); if(!s)return; const it=salesChkItems(s); it.push({t,done:false,at:null}); salesSaveChk(id,it); }
+function addSalesNote(id){ const txt=$('chk-note'), kd=$('chk-note-kind'); const text=(txt&&txt.value||'').trim(); if(!text)return; const s=SALES.find(x=>x.id===id); if(!s)return; const n=salesNotes(s).slice(); n.unshift({text,kind:(kd&&kd.value)||SALES_NOTE_KINDS[0],at:todayISO()}); salesSaveNotes(id,n); }
+function delSalesNote(id,idx){ const s=SALES.find(x=>x.id===id); if(!s)return; const n=salesNotes(s).slice(); n.splice(idx,1); salesSaveNotes(id,n); }
 function openSalesChecklist(id){ const s=SALES.find(x=>x.id===id); if(!s)return;
-  const c=(s.checklist&&typeof s.checklist==='object')?s.checklist:{};
-  const {done,total}=salesChkCount(s); const pct=total?Math.round(done/total*100):0;
-  const body=SALES_CHECKLIST.map(g=>`<div style="margin-top:12px"><div style="font-size:12px;font-weight:800;color:var(--mut);margin-bottom:6px">${g[0]}</div>${g[1].map(item=>`<label style="display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13px;font-weight:600;background:${c[item]?'#f0f7f1':'#fff'}"><input type="checkbox" ${c[item]?'checked':''} onchange="toggleSalesChk('${id}','${esc(item).replace(/'/g,"\\'")}',this.checked)" style="width:17px;height:17px;accent-color:var(--green)"><span style="${c[item]?'color:var(--green);text-decoration:line-through':''}">${esc(item)}</span></label>`).join('')}</div>`).join('');
-  openModal(mHead('✅ 진행 체크리스트 — '+esc(spCleanName(s.name)||s.name))+`
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><div class="bar" style="flex:1"><i id="chk-bar" style="width:${pct}%;background:var(--green)"></i></div><b id="chk-pct" style="font-size:13px;color:var(--green)">${done}/${total}</b></div>
-    ${body}
+  const items=salesChkItems(s); const notes=salesNotes(s);
+  const done=items.filter(x=>x.done).length, total=items.length; const pct=total?Math.round(done/total*100):0;
+  const meta=`<div style="font-size:11.5px;color:var(--mut);font-weight:600;margin:-4px 0 12px">${SALES_LABEL[s.stage]||s.stage} · ${s.owner?'담당 '+esc(s.owner):'담당 미정'}${s.amount?' · '+moneyKR(s.amount)+'원':''}</div>`;
+  const rows=items.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:${x.done?'#f1f8f2':'#fff'}">
+      <input type="checkbox" ${x.done?'checked':''} onchange="toggleSalesChk('${id}',${i},this.checked)" style="width:19px;height:19px;accent-color:var(--green);flex:0 0 auto">
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#1c2440;${x.done?'text-decoration:line-through;color:var(--green)':''}">${esc(x.t)}</div><div style="font-size:11px;color:var(--mut);font-weight:600;margin-top:2px">${x.done?('✓ 완료 '+(x.at||'')):'아직 안 함'}</div></div>
+      <button class="b line sm" onclick="delSalesChk('${id}',${i})" title="삭제" style="border:none;color:var(--mut)">🗑</button>
+    </div>`).join('');
+  const noteRows=notes.length?notes.map((n,i)=>`<div style="border:1px solid var(--line);border-left:3px solid #e0a63a;border-radius:9px;padding:9px 11px;margin-bottom:7px;background:#fffdf6"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:800;color:#a9781f;background:#f6ecd4;padding:2px 7px;border-radius:6px">${esc(n.kind||'메모')}</span><span style="font-size:10.5px;color:var(--mut);font-weight:600">${esc(n.at||'')}</span><button class="b line sm" onclick="delSalesNote('${id}',${i})" style="margin-left:auto;border:none;color:var(--mut)">🗑</button></div><div style="font-size:12.5px;color:#333;font-weight:600;margin-top:5px;white-space:pre-wrap">${esc(n.text)}</div></div>`).join(''):'<div style="font-size:11.5px;color:var(--mut);font-weight:600;padding:2px">아직 등록된 특이사항이 없습니다.</div>';
+  openModal(mHead('📋 '+esc(spCleanName(s.name)||s.name))+meta+`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><b style="font-size:13.5px">✅ 진행 체크리스트</b><b style="font-size:12.5px;color:${done===total&&total?'var(--green)':'var(--blue)'}">${done} / ${total} 완료</b></div>
+    <div class="bar" style="margin-bottom:12px"><i style="width:${pct}%;background:var(--green)"></i></div>
+    ${rows}
+    <div style="display:flex;gap:7px;margin-top:4px"><input id="chk-todo" placeholder="+ 할 일 추가 (예: 계약서 초안 발송)" onkeydown="if(event.key==='Enter')addSalesChk('${id}')" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:12.5px;font-family:inherit;outline:none"><button class="b blue" onclick="addSalesChk('${id}')">추가</button></div>
+    <div style="height:1px;background:var(--line);margin:16px 0"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><b style="font-size:13.5px">📝 특이사항</b><b style="font-size:12px;color:var(--mut)">${notes.length}건</b></div>
+    <textarea id="chk-note" placeholder="현장·고객 특이사항 (예: 야간작업 불가, 소장 교체 예정 — 다음 담당자가 확인)" style="width:100%;min-height:70px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:12.5px;font-family:inherit;background:#fffdf6;outline:none;box-sizing:border-box"></textarea>
+    <div style="display:flex;gap:7px;margin-top:7px"><select id="chk-note-kind" style="padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-size:12.5px;font-family:inherit">${SALES_NOTE_KINDS.map(k=>`<option>${k}</option>`).join('')}</select><span style="flex:1"></span><button class="b blue" onclick="addSalesNote('${id}')">특이사항 저장</button></div>
+    <div style="margin-top:12px">${noteRows}</div>
+    <div style="height:1px;background:var(--line);margin:16px 0 12px"></div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--mut);font-weight:600">🔗 콘솔(앱) 데이터<span style="margin-left:auto">${s.apartment_id?('연결 단지: <b style="color:var(--blue)">'+esc(aptName(s.apartment_id))+'</b>'):'연결된 앱 현장 없음'}</span></div>
     <div class="modal-actions"><button class="b blue" onclick="closeModal()">닫기</button></div>`);
-}
-async function toggleSalesChk(id,item,on){ const s=SALES.find(x=>x.id===id); if(!s)return;
-  const c=(s.checklist&&typeof s.checklist==='object')?{...s.checklist}:{}; if(on)c[item]=true; else delete c[item];
-  s.checklist=c;
-  const {error}=await sb.from('sales_leads').update({checklist:c}).eq('id',id);
-  if(error){ alert('저장 실패: '+error.message+(/checklist/.test(error.message)?'\n(backend/migration-sales-checklist.sql 실행 필요)':'')); return; }
-  const {done,total}=salesChkCount(s); const pct=total?Math.round(done/total*100):0;
-  const bar=$('chk-bar'); if(bar)bar.style.width=pct+'%'; const pe=$('chk-pct'); if(pe)pe.textContent=done+'/'+total;
-  renderSales();
 }
 function salesFormFields(s){ s=s||{};
   const stageOpts=Object.entries(SALES_LABEL).map(([k,v])=>`<option value="${k}" ${s.stage===k?'selected':''}>${v}</option>`).join('');

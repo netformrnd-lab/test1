@@ -1952,6 +1952,10 @@ function renderSales(){
     <div style="display:flex;gap:6px;margin-top:9px" onclick="event.stopPropagation()">
       <button class="b line sm" style="flex:1" ${i<=0?'disabled style="flex:1;opacity:.35"':''} onclick="moveSalesStage(event,'${s.id}',-1)">◀ 이전</button>
       <button class="b blue sm" style="flex:1" ${i>=4?'disabled style="flex:1;opacity:.35"':''} onclick="moveSalesStage(event,'${s.id}',1)">${i===3?'성사 ▶':'다음 ▶'}</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px" onclick="event.stopPropagation()">
+      <button class="b line sm" style="flex:1" onclick="spQuote('${s.id}')">🧾 견적서</button>
+      ${i>=2?`<button class="b line sm" style="flex:1" onclick="spContract('${s.id}')">📝 계약서</button>`:''}
     </div></div>`; };
   let h='<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">💡 카드를 다른 칸으로 <b>끌어다 놓거나</b>, 카드의 ◀ ▶ 버튼으로 단계를 옮길 수 있어요.</div><div class="board">'+SALES_STAGES.map(([k,lbl])=>{
     const list=active.filter(s=>s.stage===k); const sum=list.reduce((a,b)=>a+(+b.amount||0),0);
@@ -1964,6 +1968,11 @@ function renderSales(){
   }
   bd.innerHTML=h;
 }
+// 영업 → 견적서·계약서 자동화 도구 열기 (그 단지 정보로 자동 채움)
+function spCleanName(n){ return String(n||'').replace(/^\s*\[[^\]]*\]\s*/,'').trim(); }
+function spDocUrl(base,s){ const p=new URLSearchParams(); p.set('site',spCleanName(s.name)); p.set('lead',s.id); if(s.region)p.set('addr',s.region); if(s.construction_type)p.set('work',s.construction_type); return base+'?'+p.toString(); }
+function spQuote(id){ const s=SALES.find(x=>x.id===id); if(!s)return; window.open(spDocUrl('../control/quote/',s),'_blank'); }
+function spContract(id){ const s=SALES.find(x=>x.id===id); if(!s)return; window.open(spDocUrl('../control/contract/',s),'_blank'); }
 function salesFormFields(s){ s=s||{};
   const stageOpts=Object.entries(SALES_LABEL).map(([k,v])=>`<option value="${k}" ${s.stage===k?'selected':''}>${v}</option>`).join('');
   return `
@@ -1989,7 +1998,7 @@ async function submitSalesAdd(){
 function openSalesEdit(id){
   const s=SALES.find(x=>x.id===id); if(!s)return;
   const canConvert=s.stage==='won'&&!s.apartment_id;
-  openModal(mHead('영업 상세·편집')+salesFormFields(s)+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b red" onclick="deleteSales('${s.id}')">삭제</button>${canConvert?`<button class="b green" onclick="convertLeadToApt('${s.id}')">🏢 단지로 등록</button>`:''}<span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitSalesEdit('${s.id}')">저장</button></div>`);
+  openModal(mHead('영업 상세·편집')+salesFormFields(s)+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b red" onclick="deleteSales('${s.id}')">삭제</button><button class="b line" onclick="spQuote('${s.id}')">🧾 견적서</button><button class="b line" onclick="spContract('${s.id}')">📝 계약서</button>${canConvert?`<button class="b green" onclick="convertLeadToApt('${s.id}')">🏢 단지로 등록</button>`:''}<span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitSalesEdit('${s.id}')">저장</button></div>`);
 }
 async function submitSalesEdit(id){
   const d=readSalesForm(); if(!d.name){$('m-msg').textContent='단지/고객명을 입력하세요';$('m-msg').style.color='var(--red)';return;}

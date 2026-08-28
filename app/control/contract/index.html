@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아파트스퀘어 감리 계약서 자동화</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --navy:#1b2438; --navy2:#2a3654; --ink:#222836; --muted:#7a828f; --line:#e3e6ec; --bg:#eef0f4; --paper:#fff;
+  --gold:#a8843f; --gold-l:#caa863; --gold-p:#efe6d2;
+  --ivory:#fdfcf8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Pretendard','Noto Sans KR',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+.app{max-width:1180px;margin:0 auto;padding:0 20px 60px}
+header.top{background:linear-gradient(120deg,#161e30,#243352);color:#fff;padding:20px;margin:0 -20px 22px;display:flex;align-items:center;gap:15px}
+header.top .mark{width:44px;height:44px;border:1.5px solid var(--gold-l);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--gold-l);font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;letter-spacing:1px}
+header.top h1{font-size:17px;font-weight:700;letter-spacing:.3px}
+header.top .sub{font-size:12px;color:#9fb0cc;margin-top:3px}
+nav.tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+nav.tabs button{border:1px solid var(--line);background:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--muted);font-weight:600}
+nav.tabs button.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.panel{display:none}.panel.active{display:block}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:18px}
+.card h2{font-size:15px;font-weight:700;margin-bottom:14px;color:var(--navy);border-left:3px solid var(--gold);padding-left:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px}
+input,select,textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:9px 10px;font-size:13.5px;font-family:inherit;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold)}
+.field{margin-bottom:4px}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+table.tbl th,table.tbl td{border:1px solid var(--line);padding:8px;text-align:center}
+table.tbl th{background:#f0f2f6;color:var(--navy);font-weight:700}
+table.tbl td input{border:1px solid transparent;text-align:center;padding:5px}
+table.tbl td input:focus{border-color:var(--gold)}
+.rt{text-align:right}
+.btn{border:none;border-radius:8px;padding:11px 22px;font-size:13.5px;font-weight:700;cursor:pointer}
+.btn.primary{background:var(--navy);color:#fff}
+.btn.gold{background:linear-gradient(135deg,#b8934a,#8f6f30);color:#fff}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--muted)}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.hint{font-size:11.5px;color:var(--muted);margin-top:5px}
+.alert{padding:12px 14px;border-radius:8px;font-size:13px;margin:12px 0;display:none}
+.alert.warn{background:#fdf3e7;border:1px solid #e7c78a;color:#8a5a12;display:block}
+.alert.err{background:#fbe9e9;border:1px solid #e0a3a3;color:#9a2b2b;display:block}
+.alert.ok{background:#eaf5ee;border:1px solid #a3ccb0;color:#1f6b3a;display:block}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.main{background:#e7edf7;color:var(--navy)}.badge.rev{background:#fdf1e3;color:#9a6a1a}
+.linkbtn{background:none;border:none;color:var(--navy);text-decoration:underline;cursor:pointer;font-size:12.5px;font-weight:600}
+.smallnote{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.6}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:stretch;margin-bottom:18px}
+.twocol .field{margin-bottom:10px}
+.twocol .grid .field{margin-bottom:10px}
+.card h2 .h2dd{font-weight:400;font-size:11.5px;color:var(--muted)}
+@media (max-width:940px){ .twocol{grid-template-columns:1fr} }
+.seg{display:flex;gap:8px}
+.seg button{flex:1;border:1px solid var(--line);background:#fff;padding:11px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--muted);font-weight:700}
+.seg button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+/* ==================== 계약서 (A4) ==================== */
+#previewWrap .paper{
+  background:var(--ivory);width:210mm;height:297mm;margin:0 auto 18px;
+  box-shadow:0 10px 40px rgba(20,28,48,.22);position:relative;
+  font-family:'Pretendard','Noto Sans KR',sans-serif;color:#252a33;overflow:hidden;
+}
+#previewWrap .paper *{box-sizing:border-box}
+.pgnum{position:absolute;bottom:7mm;left:0;right:0;text-align:center;font-size:10.5px;color:#8a7f6c;letter-spacing:2px;font-family:'Noto Sans KR'}
+/* 머리말·꼬리말 구분선 (원본 hwp 스타일) */
+.terms:before{content:"";position:absolute;top:10mm;left:21mm;right:21mm;height:1px;background:linear-gradient(90deg,var(--gold),#ddd2b4 25%,#ddd2b4 75%,var(--gold))}
+.terms:after,.c2:after{content:"";position:absolute;bottom:12.5mm;left:21mm;right:21mm;height:1px;background:linear-gradient(90deg,var(--gold),#ddd2b4 25%,#ddd2b4 75%,var(--gold))}
+
+/* --- 표지 --- */
+.cover{padding:0}
+.cover .frame{position:absolute;top:9mm;left:9mm;right:9mm;bottom:9mm;border:1px solid var(--gold);}
+.cover .frame:before{content:"";position:absolute;top:2.4mm;left:2.4mm;right:2.4mm;bottom:2.4mm;border:0.4mm solid var(--gold);opacity:.42}
+.cover .inner{position:absolute;top:9mm;left:9mm;right:9mm;bottom:9mm;display:flex;flex-direction:column;align-items:center;padding:32mm 20mm 24mm}
+.cover .kicker{margin-top:2mm;font-family:'Cormorant Garamond',serif;letter-spacing:11px;font-size:13px;color:#9a8043;text-transform:uppercase}
+.cover h1{font-size:50px;letter-spacing:24px;color:var(--navy);font-weight:700;margin:6mm 0 0 24px;font-family:'Pretendard',sans-serif}
+.cover .orn{display:flex;align-items:center;gap:5mm;margin:9mm 0}
+.cover .orn span{display:block;width:34mm;height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
+.cover .orn span.r{background:linear-gradient(90deg,var(--gold),transparent)}
+.cover .orn i{width:5px;height:5px;transform:rotate(45deg);background:var(--gold);display:block}
+.cover .proj{font-size:21px;color:#2b2b2b;font-weight:500;text-align:center;line-height:1.5;max-width:150mm;margin-top:1mm}
+.cover .client{font-size:17px;color:#3a3a3a;margin-top:7mm;letter-spacing:1px}
+.cover .client b{font-size:20px;font-weight:600;color:#231f1a}
+.cover .cdate{font-family:'Noto Sans KR';font-size:21px;color:#3a3a3a;font-weight:500;margin-top:auto;letter-spacing:3px}
+.cover .cfoot{margin-top:auto;width:100%;text-align:center}
+.cover .cfoot .clogo{height:13mm;object-fit:contain;display:block;margin:0 auto 4mm}
+.cover .cfoot .gr{width:70mm;height:1px;background:var(--gold);margin:0 auto 5mm}
+.cover .cfoot .co{font-size:19px;letter-spacing:5px;color:var(--navy);font-weight:600}
+
+/* --- 2페이지: 계약 개요 --- */
+.c2{padding:15mm 21mm 15mm;display:flex;flex-direction:column}
+.brandbar{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gold);padding-bottom:3mm;margin-bottom:5mm}
+.brandbar .br{font-family:'Noto Sans KR';font-size:10.5px;color:#9a927f;letter-spacing:1px}
+.mtitle{text-align:center;font-size:26px;letter-spacing:8px;font-weight:700;color:var(--navy);margin:2mm 0 8mm 8px}
+.ovr{font-family:'Noto Sans KR';font-size:14px;line-height:2.05;color:#22262e}
+.ovr .row{display:flex;margin:1.8mm 0}
+.ovr .k{width:44mm;font-weight:700;color:var(--navy);flex:0 0 auto;letter-spacing:.5px}
+.ovr .v{flex:1}
+.ovr .sub{display:flex;margin:.6mm 0 .6mm 10mm}
+.ovr .sk{width:38mm;font-weight:600;color:#3c4356;flex:0 0 auto}
+.ovr .note{margin-left:48mm;font-size:12px;color:#6b6455}
+.ovr .amt{font-weight:700;color:var(--navy)}
+.cdate2{text-align:center;font-family:'Noto Sans KR';font-size:15px;letter-spacing:2px;margin:auto 0 6mm;color:#2b2b2b}
+.pact{font-family:'Noto Sans KR';font-size:13px;line-height:1.9;text-align:center;margin-bottom:6mm}
+.sign-tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-family:'Noto Sans KR';margin-top:auto;margin-bottom:8mm}
+.sign-tbl th,.sign-tbl td{border:1px solid #b9ac8f;padding:11px 12px;vertical-align:middle}
+.sign-tbl th{background:var(--navy);color:#f3ead4;font-weight:600;letter-spacing:2px;padding:10px}
+.sign-tbl .lb{background:#f5efe2;font-weight:700;color:var(--navy);text-align:center;width:31mm;font-size:11.5px}
+.sign-tbl .nm{font-weight:600}
+.sign-tbl .sg{color:#8a7f6c;font-size:11px}
+
+/* --- 조문 페이지 (원본 hwp 여백: 좌 21 / 우 21 / 상 17 / 하 15mm) --- */
+.terms{padding:17mm 21mm 15mm}
+.terms .tbody{font-family:'Noto Sans KR'}
+.t-art{margin:0 0 3mm}
+.t-art .t-h{font-weight:700;color:var(--navy);font-size:13px;margin-bottom:1.2mm;display:flex;align-items:center;gap:6px}
+.t-art .t-h:before{content:"";width:3px;height:12px;background:var(--gold);display:inline-block;flex:0 0 auto}
+.t-p{font-size:12.5px;line-height:1.6;margin:.8mm 0 .8mm 3mm;color:#22262e}
+.t-i{font-size:12.5px;line-height:1.6;margin:.7mm 0 .7mm 6mm;padding-left:6mm;text-indent:-6mm;color:#22262e}
+.t-s{font-size:12.5px;line-height:1.58;margin:.5mm 0 .5mm 13mm;padding-left:6mm;text-indent:-6mm;color:#2c313c}
+.pay-tbl{width:86%;border-collapse:collapse;font-size:12px;margin:1.5mm 0 2mm 6mm;font-family:'Noto Sans KR'}
+.pay-tbl th,.pay-tbl td{border:1px solid #b9ac8f;padding:5px 8px;text-align:center}
+.pay-tbl th{background:#f5efe2;color:var(--navy);font-weight:700}
+.pay-tbl .rt{text-align:right}
+.pay-tbl .tt td{background:#faf3e2;font-weight:700;color:var(--navy)}
+
+/* 페이지 분배 측정용 (화면 밖, A4와 동일 규격) */
+.pv-measure{position:fixed;left:-9999px;top:0;width:210mm !important;height:auto !important;overflow:visible !important;box-shadow:none !important;background:var(--ivory);font-family:'Pretendard','Noto Sans KR',sans-serif;color:#252a33}
+.pv-measure *{box-sizing:border-box}
+
+/* ==================== 미리보기 오버레이 뷰어 ==================== */
+#pvModal{display:none;position:fixed;inset:0;z-index:1000;background:rgba(13,17,28,.82)}
+#pvModal.open{display:flex;flex-direction:column}
+.pv-top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;background:#141c2e;color:#fff;border-bottom:1px solid rgba(202,168,99,.35)}
+.pv-top .pv-title{font-size:14px;font-weight:700;letter-spacing:.5px}
+.pv-top .pv-title .pv-ind{font-weight:400;font-size:12px;color:#9fb0cc;margin-left:10px}
+.pv-actions{display:flex;gap:8px}
+.pv-scroll{flex:1 1 auto;overflow:auto;padding:18px 0 40px}
+#previewWrap{width:fit-content;margin:0 auto}
+
+/* ==================== 인쇄 (A4 페이지 고정) ==================== */
+@media print{
+  @page{size:A4;margin:0}
+  html,body{margin:0 !important;padding:0 !important;background:#fff !important}
+  .app{display:none !important}
+  .noprint{display:none !important}
+  #pvModal{display:block !important;position:static !important;background:none !important}
+  .pv-top{display:none !important}
+  .pv-scroll{overflow:visible !important;padding:0 !important}
+  #previewWrap{zoom:1 !important;width:auto !important;margin:0 !important}
+  #previewWrap .paper{box-shadow:none !important;margin:0 !important;width:210mm;height:297mm;overflow:hidden;break-after:page;page-break-after:always}
+  #previewWrap .paper:last-child{break-after:auto;page-break-after:auto}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="mark">SQ</div>
+    <div>
+      <h1>아파트스퀘어 · 감리 용역 계약서 자동화</h1>
+    </div>
+  </header>
+
+  <nav class="tabs noprint">
+    <button data-tab="write" class="active">계약서 작성</button>
+    <button data-tab="history">계약 이력</button>
+  </nav>
+
+  <!-- 계약서 작성 -->
+  <section class="panel active" id="tab-write">
+    <div class="twocol">
+      <div class="card" style="margin-bottom:0">
+        <h2>현장 정보 <span class="h2dd">— 어디서 무슨 공사</span></h2>
+        <div class="field"><label>아파트명 *</label><input id="f_apt" placeholder="예) 구리교문대우동양고속아파트"></div>
+        <div class="field"><label>대지위치 (도로명주소 · 중복 판단 기준) *</label><input id="f_addr" placeholder="예) 경기도 구리시 장자대로 37번길 20"></div>
+        <div class="field"><label>공사명 (중복 판단 기준) *</label><input id="f_work" placeholder="예) 아파트 외벽 및 내벽 균열보수 및 재도장공사"></div>
+        <div class="grid">
+          <div class="field"><label>공사규모</label><input id="f_scale" placeholder="예) 8개동 , 680세대"></div>
+          <div class="field"><label>공사기간 — 착공일 (미정이면 비움)</label><input id="f_start" type="date"></div>
+        </div>
+        <div class="grid">
+          <div class="field"><label>공사기간 — 준공일 (미정이면 비움)</label><input id="f_end" type="date"></div>
+          <div class="field"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <h2>계약 정보 <span class="h2dd">— 무엇을 얼마에</span></h2>
+        <div class="field"><label>계약 유형</label>
+          <div class="seg" id="ctypeSeg">
+            <button data-v="design" class="on">설계·감리</button>
+            <button data-v="supv">감리만</button>
+            <button data-v="dsgn">설계만</button>
+          </div>
+          <div class="hint">유형에 따라 계약서 제목·계약건명·조문이 자동으로 바뀌고, 조 번호·참조 번호도 재정렬됩니다. 설계만 선택 시 감리 관련 조항이 빠지고 감리구분은 사용하지 않습니다.</div>
+        </div>
+        <div class="grid">
+          <div class="field"><label>감리구분</label>
+            <select id="f_mode"><option>주1회 비상주감리용역</option><option>주2회 비상주감리용역</option><option>상주감리용역</option></select>
+          </div>
+          <div class="field"><label>계약일자 (표지·본문 날짜 · 미정이면 비움)</label><input id="f_date" type="date"></div>
+        </div>
+        <div class="field"><label>계약건명 (비우면 공사명·유형·감리구분으로 자동 생성)</label><input id="f_title" placeholder="자동) 공사명 + 설계·감리 용역건 [비상주감리]"></div>
+        <div class="field"><label>계약금액 (원 · 부가세 별도) *</label><input id="f_amount" inputmode="numeric" placeholder="예) 3,000,000" style="text-align:right;font-weight:700;color:var(--navy)"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>발주자 “갑” 정보</h2>
+      <div class="grid" style="margin-bottom:4px">
+        <div class="field"><label>상호 (비우면 "아파트명 입주자대표회의" 자동)</label><input id="f_gapCo" placeholder="자동) ○○아파트 입주자대표회의"></div>
+        <div class="field"><label>대표자 성명 (회장)</label><input id="f_gapName" placeholder="예) 김정민"></div>
+      </div>
+      <div class="grid3">
+        <div class="field"><label>사업자등록번호 / 주민등록번호</label><input id="f_gapReg" placeholder="예) 132-82-60863"></div>
+        <div class="field"><label>주소 (비우면 대지위치 자동)</label><input id="f_gapAddr" placeholder="자동) 대지위치와 동일"></div>
+        <div class="field"><label>전화 / Fax</label><input id="f_gapTel" placeholder="예) 031-000-0000"></div>
+      </div>
+      <div class="hint">수급자 “을”(스퀘어건축사사무소·조현식·376-88-03483)은 양식 그대로 고정 출력됩니다.</div>
+    </div>
+
+    <div class="card">
+      <h2>제3조 보수액 (지급 조건)</h2>
+      <table class="tbl" style="max-width:760px">
+        <thead><tr><th style="width:18%">구분</th><th style="width:16%">비율(%)</th><th style="width:26%">지급금액 (자동)</th><th>지급 시기</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:700">계약금</td><td><div style="display:flex;align-items:center;justify-content:center;gap:4px"><input id="f_downPct" type="number" min="0" max="100" value="50" style="width:70px;text-align:center;font-weight:700">%</div></td><td class="rt" id="v_down">0 원</td><td><input id="f_downDue" value="계약체결후 30일이내"></td></tr>
+          <tr><td style="font-weight:700">잔금</td><td class="rt" id="v_balPct">50%</td><td class="rt" id="v_bal">0 원</td><td><input id="f_balDue" value="감리용역 완료 후 30일이내"></td></tr>
+          <tr><td style="font-weight:700;background:#f7f4ec">계</td><td style="background:#f7f4ec"></td><td class="rt" id="v_total" style="background:#f7f4ec;font-weight:700">0 원</td><td style="background:#f7f4ec">부가가치세 별도</td></tr>
+        </tbody>
+      </table>
+      <div class="hint">계약금 비율만 입력하면 계약금·잔금이 계약금액에서 자동 계산됩니다. 지급 시기 문구는 직접 수정할 수 있습니다.</div>
+    </div>
+
+    <div id="dupAlert" class="alert"></div>
+
+    <div class="card noprint">
+      <h2>발행</h2>
+      <div class="btnrow">
+        <button class="btn primary" id="btnPreview">미리보기 생성</button>
+        <button class="btn gold" id="btnSave">이력 저장 + 발행</button>
+        <button class="btn ghost" id="btnPrint">PDF 출력 (인쇄 → PDF로 저장)</button>
+        <button class="btn ghost" id="btnHwp">한글용 문서 다운로드 (.docx)</button>
+        <button class="btn ghost" id="btnClear">입력 초기화</button>
+      </div>
+      <div class="smallnote">발행 시 현장(대지위치+공사명)이 이미 있으면 경고합니다. 수정사항이 있을 때만 "개정판(v2)"으로 발행되고, 수정사항이 없으면 기존 계약서를 재사용하도록 안내합니다.<br>
+      <b>한글용 문서(.docx)</b>: 한글(한컴오피스)에서 바로 열리는 문서로 내려받습니다. 한글에서 연 뒤 <b>다른 이름으로 저장 → 한글 문서(*.hwp)</b>로 저장하면 아파트와 hwp로 주고받을 수 있습니다.</div>
+    </div>
+  </section>
+
+  <!-- 계약 이력 -->
+  <section class="panel" id="tab-history">
+    <div class="card">
+      <h2>발행 이력 (현장 단위)</h2>
+      <input id="histSearch" placeholder="아파트명·주소·계약번호 검색" style="max-width:320px;margin-bottom:12px">
+      <table class="tbl">
+        <thead><tr><th>계약번호</th><th>현장(아파트 / 주소)</th><th>유형</th><th>구분</th><th>계약금액</th><th>계약일</th><th>불러오기</th></tr></thead>
+        <tbody id="histBody"></tbody>
+      </table>
+      <div id="histEmpty" class="smallnote">아직 발행된 계약서가 없습니다.</div>
+      <div class="btnrow" style="margin-top:14px">
+        <button class="btn ghost" id="btnExport">이력 내보내기 (JSON 백업)</button>
+        <label class="btn ghost" style="cursor:pointer">이력 불러오기(복원)<input type="file" id="importFile" accept=".json" style="display:none"></label>
+      </div>
+      <div class="smallnote">이력은 이 브라우저에 저장됩니다. 컴퓨터를 바꾸거나 백업하려면 JSON 내보내기를 사용하세요.</div>
+    </div>
+  </section>
+</div>
+
+<!-- 미리보기 오버레이 뷰어 -->
+<div id="pvModal">
+  <div class="pv-top">
+    <div class="pv-title">계약서 미리보기<span class="pv-ind" id="pvInd"></span></div>
+    <div class="pv-actions">
+      <button class="btn gold" id="pvPrint">PDF 출력 (인쇄 → PDF로 저장)</button>
+      <button class="btn ghost" id="pvClose">닫기 ✕</button>
+    </div>
+  </div>
+  <div class="pv-scroll" id="pvScroll"><div id="previewWrap"></div></div>
+</div>
+
+<script>
+const LOGO_DATA='data:image/png;base64,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';
+</script>
+<script>
+// ================= 고정 정보 =================
+const EUL = {co:"스퀘어건축사사무소", ceo:"조 현 식", reg:"376-88-03483", addr:"경기도 화성시 효행구 정남면 정남동로 35", tel:"1600 - 6069"};
+const LS_HIST="aptsqc_hist_v1";
+
+const won = n => (Math.round(n)).toLocaleString('ko-KR');
+const $ = s => document.querySelector(s);
+const parseNum = v => parseInt(String(v||'').replace(/[^0-9]/g,''),10)||0;
+function loadHist(){ try{return JSON.parse(localStorage.getItem(LS_HIST))||[];}catch(e){return [];} }
+function saveHist(h){ localStorage.setItem(LS_HIST, JSON.stringify(h)); }
+
+function numToKorean(num){
+  num=Math.round(num); if(num===0) return "영";
+  const d=["","일","이","삼","사","오","육","칠","팔","구"], sm=["","십","백","천"], big=["","만","억","조"];
+  let res="",groups=[],n=num; while(n>0){groups.push(n%10000);n=Math.floor(n/10000);}
+  for(let g=groups.length-1;g>=0;g--){ let gv=groups[g]; if(gv===0)continue; let gs="";
+    for(let i=3;i>=0;i--){ let dig=Math.floor(gv/Math.pow(10,i))%10; if(dig>0){gs+=d[dig]+sm[i];} } res+=gs+big[g]; }
+  return res;
+}
+
+// ================= 탭 =================
+document.querySelectorAll('nav.tabs button').forEach(b=>{ b.onclick=()=>{
+  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); $('#tab-'+b.dataset.tab).classList.add('active');
+  if(b.dataset.tab==='history') renderHist();
+};});
+
+// ================= 계약 유형 =================
+let ctype='design'; // 'design' = 설계·감리, 'supv' = 감리만
+document.querySelectorAll('#ctypeSeg button').forEach(b=>{ b.onclick=()=>{
+  document.querySelectorAll('#ctypeSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); ctype=b.dataset.v;
+  applyCtypeUI();
+  if($('#previewWrap').innerHTML.trim() && $('#pvModal').classList.contains('open')){ buildPreview(currentRec()); }
+};});
+const typeWord = t => t==='design' ? '설계·감리' : (t==='dsgn' ? '설계' : '감리');
+function applyCtypeUI(){
+  const dsgnOnly = ctype==='dsgn';
+  $('#f_mode').disabled = dsgnOnly;
+  $('#f_mode').style.opacity = dsgnOnly? .5 : 1;
+  const bal=$('#f_balDue');
+  if(dsgnOnly && bal.value.trim()==='감리용역 완료 후 30일이내') bal.value='설계용역 완료 후 30일이내';
+  if(!dsgnOnly && bal.value.trim()==='설계용역 완료 후 30일이내') bal.value='감리용역 완료 후 30일이내';
+}
+
+// ================= 보수액 계산 =================
+function calcPay(){
+  const amt=parseNum($('#f_amount').value);
+  let pct=parseFloat($('#f_downPct').value); if(isNaN(pct)||pct<0) pct=0; if(pct>100) pct=100;
+  const down=Math.round(amt*pct/100), bal=amt-down;
+  $('#v_down').textContent=won(down)+' 원'; $('#v_bal').textContent=won(bal)+' 원';
+  $('#v_balPct').textContent=(Math.round((100-pct)*10)/10)+'%'; $('#v_total').textContent=won(amt)+' 원';
+  return {amt,pct,down,bal};
+}
+$('#f_amount').addEventListener('input',()=>{ const d=$('#f_amount').value.replace(/[^0-9]/g,''); $('#f_amount').value=d?parseInt(d,10).toLocaleString('ko-KR'):''; calcPay(); });
+$('#f_downPct').addEventListener('input',calcPay);
+
+// ================= 중복 =================
+function siteKey(addr,work){ return (addr||'').replace(/\s+/g,'').toLowerCase()+'|'+(work||'').replace(/\s+/g,'').toLowerCase(); }
+function findSite(addr,work){ const k=siteKey(addr,work); return loadHist().filter(h=>h.siteKey===k); }
+function checkDup(){
+  const addr=$('#f_addr').value.trim(), work=$('#f_work').value.trim(), el=$('#dupAlert');
+  if(!addr||!work){ el.className='alert'; return {status:'ok'}; }
+  const existing=findSite(addr,work);
+  if(existing.length===0){ el.className='alert ok'; el.textContent='✔ 신규 현장입니다. v1으로 발행됩니다.'; return {status:'new'}; }
+  const last=existing[existing.length-1]; el.className='alert warn';
+  el.innerHTML=`⚠ 이미 이 현장에 계약서가 발행됐습니다 (${last.contractNo}, ${last.date||'날짜미정'}, ${won(last.amount)}원).<br><b>수정사항이 없으면 새로 발행하지 말고 기존 계약서를 재사용하세요.</b> 수정사항이 있으면 발행 시 개정판(v${last.ver+1})으로 저장됩니다.`;
+  return {status:'exists', last};
+}
+['f_addr','f_work'].forEach(id=>$('#'+id).addEventListener('input',checkDup));
+
+// ================= 날짜 포맷 =================
+function fmtDateK(d){ if(!d) return ''; const [y,m,dd]=d.split('-'); return `${y}년 ${+m}월 ${+dd}일`; }
+function fmtDateBlank(d){ return d ? fmtDateK(d) : '202&nbsp;&nbsp;년&nbsp;&nbsp;&nbsp;&nbsp;월&nbsp;&nbsp;&nbsp;&nbsp;일'; }
+function fmtPeriod(s,e){
+  const a=s?fmtDateK(s):'202&nbsp;&nbsp;년&nbsp;&nbsp;월&nbsp;&nbsp;일';
+  const b=e?fmtDateK(e):'202&nbsp;&nbsp;년&nbsp;&nbsp;월&nbsp;&nbsp;일';
+  return a+' ~ '+b;
+}
+
+// ================= 현재 입력값 수집 =================
+function autoTitle(work,t,mode){
+  if(t==='dsgn') return `${work} 설계 용역건`;
+  const tag=(mode||'').includes('비상주')?'[비상주감리]':'[상주감리]';
+  return `${work} ${typeWord(t)} 용역건 ${tag}`;
+}
+function currentRec(){
+  const addr=$('#f_addr').value.trim(), work=$('#f_work').value.trim(), apt=$('#f_apt').value.trim();
+  const existing=findSite(addr,work);
+  const code = existing.length? existing[existing.length-1].code : 'SQC-'+new Date().getFullYear()+'-미저장';
+  const ver = existing.length? existing[existing.length-1].ver+1 : 1;
+  const p=calcPay();
+  return {
+    contractNo: existing.length? code+'-v'+ver : code+'-v1', code, ver,
+    ctype, apt, addr, work,
+    title: $('#f_title').value.trim() || autoTitle(work, ctype, $('#f_mode').value),
+    mode:$('#f_mode').value, scale:$('#f_scale').value.trim(),
+    start:$('#f_start').value, end:$('#f_end').value,
+    amount:p.amt, downPct:p.pct, down:p.down, bal:p.bal,
+    downDue:$('#f_downDue').value.trim()||'계약체결후 30일이내', balDue:$('#f_balDue').value.trim()||'감리용역 완료 후 30일이내',
+    date:$('#f_date').value,
+    gapCo: $('#f_gapCo').value.trim() || (apt? apt+' 입주자대표회의':''),
+    gapName:$('#f_gapName').value.trim(), gapReg:$('#f_gapReg').value.trim(),
+    gapAddr: $('#f_gapAddr').value.trim() || addr, gapTel:$('#f_gapTel').value.trim()
+  };
+}
+
+// ================= 조문 데이터 =================
+// ref 토큰 {{ref:id}} 는 조 번호 확정 후 "제N조"로 치환된다.
+function getArticles(r){
+  const T=typeWord(r.ctype);
+  const hasD=r.ctype!=='supv', hasS=r.ctype!=='dsgn';   // hasD: 설계 포함, hasS: 감리 포함
+  const A=[];
+  A.push({id:'gen', title:'총칙', body:`<div class="t-p">본 계약은 “갑”의 현장에 시행될 “${r.work||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}”에 관련하여 “을”에게 ${hasD&&hasS?'설계 용역 및 감리업무를':(hasD?'설계 용역을':'감리업무를')} 의뢰함에 있어 효과적인 업무추진을 위해 필요한 제반사항을 규정함을 목적으로 한다.</div>`});
+  A.push({id:'period', title:'용역기간', body: (hasD&&hasS) ?
+    `<div class="t-i">1. 설계 용역기간은 계약일부터 시공사 선정 시까지로 한다.</div>
+     <div class="t-i">2. 감리 용역기간은 공사 착공일부터 공사 준공 승인일까지로 하되, 착공일로부터 6개월을 초과하지 아니한다. 다만 기간 만료 전 “갑”과 “을”의 서면 합의로 연장할 수 있다.</div>` :
+    hasS ?
+    `<div class="t-p">감리 용역기간은 공사 착공일부터 공사 준공 승인일까지로 하되, 착공일로부터 6개월을 초과하지 아니한다. 다만 기간 만료 전 “갑”과 “을”의 서면 합의로 연장할 수 있다.</div>` :
+    `<div class="t-p">설계 용역기간은 계약일부터 시공사 선정 시까지로 한다. 다만 기간 만료 전 “갑”과 “을”의 서면 합의로 연장할 수 있다.</div>`});
+  {
+    const payItems=[];
+    payItems.push(`보수공사 ${hasS?'감리비':'설계 용역비'} 지급 시기 및 지급금액은 다음과 같이 이행함을 원칙으로 하되, “갑”과 “을”이 협의하여 조정할 수 있다.`);
+    if(hasS) payItems.push('업무수행 중 업무 기준이 변경된 기간의 감리비용은 일비로 환산하여 공사 기간을 고려하여 정산한다.');
+    payItems.push(hasS
+      ? '“을”이 감리 완료 보고서를 제출한 날부터 14일 이내에 “갑”이 보완 요구 등 서면 이의를 제기하지 아니하면 감리용역은 완료된 것으로 보며, “갑”은 완료일부터 30일 이내에 잔금을 지급한다.'
+      : '“을”이 설계 용역 결과물(설계도서 등)을 제출한 날부터 14일 이내에 “갑”이 보완 요구 등 서면 이의를 제기하지 아니하면 설계용역은 완료된 것으로 보며, “갑”은 완료일부터 30일 이내에 잔금을 지급한다.');
+    const doneNo=payItems.length;
+    payItems.push(`“갑”이 정당한 사유 없이 제1항 또는 제${doneNo}항의 지급기일부터 30일이 경과하도록 대금을 지급하지 아니한 경우, “을”은 서면 최고 후 채권 보전을 위하여 필요한 법적 조치를 취할 수 있으며, 이에 소요되는 비용은 “갑”이 부담한다.`);
+    A.push({id:'pay', title:'보수액', body:`
+    <table class="pay-tbl">
+      <thead><tr><th style="width:30%">지급 시기</th><th style="width:30%">지급금액</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>계약금 (${r.downPct}%)</td><td class="rt">￦ ${won(r.down)}</td><td>${r.downDue}</td></tr>
+        <tr><td>잔&nbsp;&nbsp;금 (${Math.round((100-r.downPct)*10)/10}%)</td><td class="rt">￦ ${won(r.bal)}</td><td>${r.balDue}</td></tr>
+        <tr class="tt"><td>계</td><td class="rt">￦ ${won(r.amount)}</td><td>부가가치세 별도</td></tr>
+      </tbody>
+    </table>
+    ${payItems.map((t,i)=>`<div class="t-i">${i+1}. ${t}</div>`).join('')}`});
+  }
+  if(hasD) A.push({id:'design', title:'설계용역업무의 수행', body:`
+    <div class="t-i">1. “을”이 수행하는 설계 업무의 범위는 각 호와 같다.</div>
+    <div class="t-s">1) 법규 검토 및 도면작업</div>
+    <div class="t-s">2) 공사원가 계산서 작성 (수량산출서, 공사비 세부내역서, 집계표, 원가계산서)</div>
+    <div class="t-s">3) 공종별 공사설명서(시방서) 제공</div>
+    <div class="t-s">4) 입찰공고문 작성 업무 지원</div>
+    <div class="t-s">5) 현장설명회 관련 자료 작성 및 현장설명회 진행 지원</div>
+    <div class="t-s">6) 입찰서류 검토 지원 및 입찰업체 기술능력 평가 지원</div>`});
+  if(hasS) A.push({id:'supv', title:'감리용역업무의 수행', body:`
+    <div class="t-i">1. “을”이 수행하는 감리 업무의 범위는 각 호와 같다.</div>
+    <div class="t-s">1) 공사계약서 등 계약 관련 서류검토 및 제안</div>
+    <div class="t-s">2) 착공계 등 착공 관련 서류검토 및 의견서 지원</div>
+    <div class="t-s">3) 자재, 공사검수 및 감리일지 작성</div>
+    <div class="t-s">4) 기성검사 및 의견서 제출, 설계 변경에 대한 타당성 여부 검토</div>
+    <div class="t-s">5) 관계법령 및 시방서에 따른 공사가 진행되고 있는지 검토</div>
+    <div class="t-s">6) 재해예방 대책 및 안전관리 확인</div>
+    <div class="t-s">7) 공사 완료 후 준공검사 및 감리 완료 보고서 작성</div>
+    <div class="t-s">8) 그 밖에 이 계약의 업무 범위 내에서 입주자대표회의가 위임하는 업무</div>
+    <div class="t-i">2. 시방서·현장설명 자료·도급계약서 및 이 계약에 없는 추가 공사는 감리 범위에 포함되지 아니하고 “을”은 이에 대한 책임을 지지 아니하며, 별도 서면 합의가 있는 경우에만 감리를 수행한다.</div>
+    <div class="t-i">3. “을”은 계약서·시방서와 다른 시공 또는 중대한 하자를 발견한 경우 “갑”에게 통보하고 시공자에게 시정·재시공 또는 공사중지를 요청할 수 있으며, “갑”은 시공자가 이에 응하도록 협조한다.</div>
+    <div class="t-i">4. “을”은 감리에 적합한 기술인력을 지정하여 공사 기간 중 ${r.mode.includes('주2회')?'주 2회':'주 1회'} 이상 현장에 투입하고, 공정 착수가 사전 통지된 경우 각 공정별 최초 시행 시 입회하도록 한다. 정기 방문 시 복수의 공정·동을 통합 점검할 수 있다. 다만, 현장 방문 횟수 및 일정은 공사의 규모·공정 상황을 고려하여 “갑”과 “을”이 협의하여 조정할 수 있다.</div>`});
+  A.push({id:'data', title:'자료의 제공', body:`
+    <div class="t-i">1. “갑”은 ${hasS?'설계도서, 공사 도급계약서, 시공계획서·공정표 등':'기존 도면, 하자 현황, 관리 자료 등 현장 조사와 설계에'} 업무 수행에 필요한 자료를 “을”이 요청할 때 지체 없이 제공한다.</div>
+    <div class="t-i">2. 자료 미제공으로 인한 업무 지연·차질에 대하여 “을”은 책임을 지지 아니한다.</div>`});
+  if(hasS) A.push({id:'perform', title:'업무의 수행', body:`
+    <div class="t-i">1. “을”은 관계법령이 정하는 바에 의하여 공사가 설계도서의 내용대로 시공되는지의 여부를 확인하고 공사감리 업무를 수행한다.</div>
+    <div class="t-i">2. “을”은 당해 공사가 설계도서대로 시행되지 아니하거나 관계 법령 및 이 규정에 의한 명령이나 처분에 위반된 사항을 발견한 경우에는 이를 “갑”에게 통보한 후 공사시공자에게 이를 시정 또는 재시공하도록 요청한다.</div>
+    <div class="t-i">3. “을”은 제2항의 규정에 의한 요청에 대하여 공사시공자가 취한 조치의 결과를 확인한 후 이를 “갑”에게 통보한다.</div>
+    <div class="t-i">4. “을”은 공사시공자가 제2항의 규정에 의한 요청에 응하지 아니하는 경우에는 당해 공사를 중지하도록 요청할 수 있다.</div>
+    <div class="t-i">5. “을”은 공사시공자가 시정·재시공 또는 공사 중지 요청에 응하지 아니하는 경우에는 이를 “갑”에게 통보한다.</div>
+    <div class="t-i">6. “갑”은 공사시공자가 “을”의 시정·재시공 또는 공사중지 요청에 응하도록 협조한다.</div>`});
+  if(hasS) A.push({id:'guide', title:'현장지도확인', body:`
+    <div class="t-p">“을”은 다음 각 호의 경우에 대하여는 현장에서 확인지도를 실시한 후에 공사 진행을 하게 한다.</div>
+    <div class="t-i">1. 공사 착공시</div>
+    <div class="t-i">2. 기타 건축물의 규격 및 품질관리상 주요 부분의 공사 시</div>`});
+  if(hasS) A.push({id:'check', title:'주요 공정의 확인 점검', body:`
+    <div class="t-i">1. 주요 공정은 설계도서에 따른 시공 여부의 확인과 건축물의 품질 향상을 위하여 필요한 공정으로 건축물의 공사에 따라 “갑”과 “을”이 협의하여 정한다. (착공, 공정검사, 준공검사)</div>`});
+  if(hasS) A.push({id:'change', title:'공기 및 공법의 변경', body:`
+    <div class="t-i">1. “갑” 또는 공사시공자가 공기 및 공법을 변경할 때에는 7일 전까지 “을”에게 통보한다.</div>
+    <div class="t-i">2. “을”은 제1항의 규정에 의한 공법의 변경과 관련하여 공법의 안전성, 건축물의 품질 확보, 공사시공자의 기술력 확보 등에 대한 검토 의견을 제시할 수 있다.</div>`});
+  if(hasS) A.push({id:'report', title:'감리보고서 등', body:`
+    <div class="t-i">1. “을”은 “갑”에게 감리결과를 완료일에 통보하되, 공사를 완료한 때에는 감리완료보고서를 작성하여 “갑”에게 제출한다.</div>
+    <div class="t-i">2. “을”은 방문시 감리일지를 기록·유지한다.</div>`});
+  if(hasS) A.push({id:'assist', title:'감리보조자 등', body:`
+    <div class="t-i">1. “을”을 대리하여 감리보조자가 공사감리업무를 수행하는 경우에는 “을”이 하는 것으로 본다.</div>
+    <div class="t-i">2. “을”은 감리보조자의 변경이 있는 경우에는 변경 후 3일 이내에 “갑”과 공사시공자에게 통지한다.</div>
+    <div class="t-i">3. “을”은 공사감리업무에 참여하는 감리보조원의 신상명세, 자격 여부 등을 “갑”에게 제출한다.</div>`});
+  if(hasS) A.push({id:'material', title:'자재의 검사 등', body:`
+    <div class="t-i">1. “을”은 자재의 검사 및 품질시험을 “갑”과 협의하여 관련전문기관에 의뢰할 수 있으며, “갑”은 이에 소요되는 비용을 지불한다.</div>
+    <div class="t-i">2. “을”은 자재의 검사 및 품질시험의 결과를 확인·검토한다.</div>
+    <div class="t-i">3. “갑” 또는 공사시공자가 자재의 검사 및 품질시험을 의뢰하는 경우에는 “갑”은 그 일시, 장소, 시험목록을 시험일 7일전까지 “을”에게 통지한다.</div>`});
+  A.push({id:'assign', title:'계약의 양도 및 변경 등', body:`
+    <div class="t-i">1. “갑”과 “을”은 상대방의 승낙 없이는 이 계약상의 권리/의무를 제3자에게 양도, 대여, 담보제공 등 기타 처분행위를 할 수 없다.</div>
+    <div class="t-i">2. “갑”의 계획 변경, 관계법규의 개/폐, 천재지변 등 불가항력적인 사유의 발생, 기타 ${T} 업무를 수정하거나 계약기간을 연장할 상당한 이유가 있을 때에는 “갑”과 “을”은 서로 합의하여 계약의 내용을 변경할 수 있다. 다만 용역기간 연장은 {{ref:period}}에 따른다.</div>
+    <div class="t-i">3. “을”의 사업장 주소, 상호, 대표자 변경 등의 사업자 관련사항 변경 사항 발생시 본 계약 조건과 동일한 조건과 동일한 내용으로 “갑”과 “을”의 계약은 동일 효력으로 계약을 유지한다. 특별한 사유가 아닌 경우는 사업자 관련사항 변경전 계약이 유효한 것으로 간주한다.</div>`});
+  A.push({id:'gapterm', title:'“갑”의 계약 해제·해지', body:`
+    <div class="t-i">1. “갑”은 다음 각호의 경우 계약의 전부 또는 일부를 해제/해지할 수 있다.</div>
+    <div class="t-s">1) “을”이 관할 행정청으로부터 면허 또는 등록의 취소, 업무정지 등의 처분을 받은 경우</div>
+    <div class="t-s">2) “을”이 금융기관의 거래정지 처분, 어음 및 수표의 부도, 제3자에 의한 가압류, 가처분, 강제집행 또는 회생절차 개시 등으로 계약이행이 곤란한 경우</div>
+    <div class="t-s">3) “을”이 상대방의 승낙 없이 계약상의 권리 또는 의무를 양도한 경우</div>
+    <div class="t-s">4) 사망, 실종, 질병, 기타 사유로 계약 이행이 불가한 경우</div>
+    <div class="t-i">2. 천재지변 등 부득이한 사유로 계약이행이 곤란하게 된 경우에는 상대방과 협의하여 계약을 해제/해지 할 수 있다.</div>
+    <div class="t-i">3. “을”은 제1항 각호의 해제·해지 사유가 발생한 경우에는 “갑”에게 지체 없이 통지한다.</div>
+    <div class="t-i">4. “갑”은 제1항의 규정에 의하여 계약을 해제/해지하고자 할 때에는 그 뜻을 미리 “을”에게 14일 전까지 서면으로 통지한다.</div>`});
+  A.push({id:'eulterm', title:'“을”의 계약 해제·해지', body:`
+    <div class="t-i">1. “을”은 다음 각 호의 경우 계약의 전부 또는 일부를 해제·해지할 수 있다.</div>
+    <div class="t-s">1) “갑”, 관리주체, 입주자대표회의 구성원, 입주민 또는 그 밖의 관계자가 “을”의 귀책사유 없이 정상적인 ${hasS?'감리':'용역'} 업무의 수행을 방해하거나(현장 출입·점검·자료 확인·시정 요청의 방해 등) 정당한 협조 요청에 응하지 아니하여, 제2항에 따른 중지 후 14일 이내에 그 사유가 해소되지 아니한 때</div>
+    <div class="t-s">2) “갑”이 정당한 사유 없이 대금 지급을 지급기일부터 30일 이상 지연한 때</div>
+    <div class="t-s">3) “갑”이 필요한 자료를 제공하지 아니하여 업무 수행이 곤란한 때</div>
+    <div class="t-s">4) 사망, 실종 등으로 계약 이행이 불가능한 경우</div>
+    <div class="t-i">2. “을”은 제1항 제1호의 방해 행위가 있는 경우 “갑”에게 서면으로 시정을 요구할 수 있으며, 7일 이내에 시정되지 아니하면 ${hasS?'감리':'용역'} 업무의 전부 또는 일부를 중지할 수 있다. 방해로 정상적인 수행이 현저히 곤란한 경우에는 즉시 중지할 수 있다.</div>
+    <div class="t-i">3. 제2항의 중지 기간은 ${hasS?'감리':'용역'} 기간에 산입하지 아니하며, 중지로 인한 지연·손해에 대하여 “을”은 책임을 지지 아니한다. 방해로 “을”에게 발생한 손해의 배상 청구 및 민·형사상 책임은 이와 별도로 한다.</div>
+    <div class="t-i">4. 해제·해지하고자 할 때는 그 뜻을 7일 전까지 서면으로 통지한다.</div>`});
+  A.push({id:'damage', title:'손해배상', body:`
+    <div class="t-i">1. “갑”과 “을”은 상대방이 {{ref:assign}} 제2항의 규정에 의한 계약변경, {{ref:gapterm}} 및 {{ref:eulterm}}의 규정에 의한 계약의 해제·해지 또는 계약 위반으로 인하여 손해를 발생시킨 경우에는 상대방에게 손해배상을 청구할 수 있다.</div>`});
+  A.push({id:'immunity', title:'“을”의 면책사유', body:`
+    <div class="t-p">“을”은 다음 각 호의 경우에는 책임을 지지 아니한다.</div>
+    <div class="t-i">1. “갑”이 임의로 ${T} 업무에 대한 보수의 지불을 지연시켜 업무가 중단된 경우</div>
+    ${hasS?`<div class="t-i">2. 공사시공자의 공사 중단으로 인하여 손해가 발생한 경우</div>
+    <div class="t-i">3. 공사시공자가 {{ref:supv}} 및 {{ref:perform}}의 규정에 의한 “을”의 요청에 응하지 아니하고 임의로 공사를 계속 진행하여 손해가 발생된 경우</div>`:''}`});
+  A.push({id:'stop', title:'업무 중단시의 보수지불', body:`
+    <div class="t-i">1. “갑”의 귀책사유로 인하여 업무의 전부 또는 일부가 중단된 경우에는 “갑”은 “을”이 이미 수행한 업무에 대하여 중단된 시점까지의 보수를 지불한다.</div>
+    <div class="t-i">2. 중단된 시점까지 수행한 업무에 대한 보수는 보수기준에 의하여 산정한다.</div>
+    <div class="t-i">3. “을”의 귀책사유로 인하여 업무의 전부 또는 일부가 중단된 경우에는 “갑”이 “을”에게 이미 지불한 보수에 대하여 이를 정산/환불한다.</div>`});
+  A.push({id:'secret', title:'비밀보장', body:`
+    <div class="t-i">1. “갑”과 “을”은 업무수행 중 알게 된 상대방의 비밀을 제3자에게 누설하여서는 아니된다.</div>`});
+  A.push({id:'dispute', title:'분쟁조정', body:`
+    <div class="t-i">1. 이 계약과 관련하여 업무상 분쟁이 발생한 경우에는 관계기관의 유권해석이나 관례에 따라 “갑”과 “을”이 협의하여 정한다.</div>
+    <div class="t-i">2. “갑”과 “을”이 협의하여 정하지 못한 경우에는 건축법 제88조의 규정에 의한 건축분쟁조정위원회에 신청하여 이의 조정에 따른다.</div>
+    <div class="t-i">3. 건축분쟁조정위원회의 결정에 불복이 있는 경우에는 “갑”의 소재지 관할법원의 판결에 따른다.</div>`});
+  A.push({id:'notice', title:'통지방법', body:`
+    <div class="t-i">1. “갑”과 “을”은 계약업무와 관련된 사항을 통지할 때에는 서면으로 하는 것을 원칙으로 한다.</div>
+    <div class="t-i">2. 통지를 받은 날로부터 7일 이내에 회신이 없는 경우에는 통지내용을 승낙한 것으로 본다.</div>
+    <div class="t-i">3. 계약당사자의 주소나 연락방법의 변경시 지체없이 서면으로 통지하여야 한다.</div>`});
+
+  // 조 번호 확정 + 참조 치환
+  const numOf={}; A.forEach((a,i)=>numOf[a.id]=i+1);
+  return A.map((a,i)=>{
+    let html=`<div class="t-art"><div class="t-h">제${i+1}조 (${a.title})</div>${a.body}</div>`;
+    html=html.replace(/\{\{ref:([a-z]+)\}\}/g,(m,id)=> numOf[id]? '제'+numOf[id]+'조' : m);
+    return html;
+  });
+}
+
+// ================= 미리보기 생성 (자동 페이지 분배) =================
+function buildPreview(r){
+  const T=typeWord(r.ctype); const hasS=r.ctype!=='dsgn';
+  const docTitle=`${T} 용역 계약서`;
+
+  // --- 1페이지 표지 ---
+  const cover=`
+  <div class="paper cover">
+    <div class="frame"></div>
+    <div class="inner">
+      <div class="kicker">Contract</div>
+      <h1>계 약 서</h1>
+      <div class="orn"><span></span><i></i><span class="r"></span></div>
+      <div class="proj">공동주택 유지보수 ${T} 용역</div>
+      <div class="client"><b>${r.apt||''}</b></div>
+      <div class="cdate">${r.date?fmtDateK(r.date):''}</div>
+      <div class="cfoot"><img src="${LOGO_DATA}" alt="Aptsquare" class="clogo"><div class="gr"></div><div class="co">스퀘어건축사사무소 주식회사</div></div>
+    </div>
+  </div>`;
+
+  // --- 2페이지 계약 개요 + 서명 ---
+  const page2=`
+  <div class="paper c2">
+    <div class="brandbar"><img src="${LOGO_DATA}" alt="Aptsquare" style="height:8mm;object-fit:contain"><div class="br">${docTitle}</div></div>
+    <div class="mtitle">${docTitle}</div>
+    <div class="ovr">
+      <div class="row"><div class="k">1. 계 약 건 명 :</div><div class="v">${r.title||''}</div></div>
+      <div class="row"><div class="k">2. 아 파 트 명 :</div><div class="v">${r.apt||''}</div></div>
+      <div class="row"><div class="k">3. 대 지 위 치 :</div><div class="v">${r.addr||''}</div></div>
+      <div class="row"><div class="k">4. 공 사 개 요 :</div><div class="v"></div></div>
+      <div class="sub"><div class="sk">1) 공 사 규 모 :</div><div>${r.scale||''}</div></div>
+      <div class="sub"><div class="sk">2) 공 사 기 간 :</div><div>${fmtPeriod(r.start,r.end)}</div></div>
+      <div class="note">(준공일이 지정되어 있지 않은 경우 착공일로부터 6개월)</div>
+      ${hasS?`<div class="row"><div class="k">5. 감 리 구 분 :</div><div class="v">${r.mode||''}</div></div>`:''}
+      <div class="row"><div class="k">${hasS?'6':'5'}. 계 약 금 액 :</div><div class="v amt">일금 ${r.amount?numToKorean(r.amount):'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}원정 (₩ ${r.amount?won(r.amount):''}) : 부가세 별도</div></div>
+    </div>
+    <div class="cdate2">${fmtDateBlank(r.date)}</div>
+    <div class="pact">“갑”과 “을”은 상호 신의와 성실을 원칙으로 이 계약서에 의하여 공사 ${T}계약을 체결하고<br>각 1부씩 보관한다.</div>
+    <table class="sign-tbl">
+      <tr><th colspan="2" style="width:50%">발주자 “갑”</th><th colspan="2">수급자 “을”</th></tr>
+      <tr>
+        <td class="lb">상호 / 성 명</td><td><div>${r.gapCo||''}</div><div class="nm">${r.gapName||''} <span class="sg">(서명 또는 인)</span></div></td>
+        <td class="lb">상호 / 건축사</td><td><div>${EUL.co}</div><div class="nm">${EUL.ceo} <span class="sg">(서명 또는 인)</span></div></td>
+      </tr>
+      <tr>
+        <td class="lb">사업자등록번호<br>/주민등록번호</td><td>${r.gapReg||''}</td>
+        <td class="lb">사업자등록번호</td><td>${EUL.reg}</td>
+      </tr>
+      <tr>
+        <td class="lb">주&nbsp;&nbsp;&nbsp;&nbsp;소</td><td>${r.gapAddr||''}</td>
+        <td class="lb">주&nbsp;&nbsp;&nbsp;&nbsp;소</td><td>${EUL.addr}</td>
+      </tr>
+      <tr>
+        <td class="lb">전화 / Fax</td><td>${r.gapTel||''}</td>
+        <td class="lb">전화 / Fax</td><td>${EUL.tel}</td>
+      </tr>
+    </table>
+    <div class="pgnum">- 1 -</div>
+  </div>`;
+
+  // --- 3페이지~ 조문 (항 단위 자동 분배: 페이지를 끝까지 채우고, 조가 경계에서 이어짐) ---
+  const arts=getArticles(r);
+  // 오프스크린 측정 (실제 페이지와 동일 규격)
+  const meas=document.createElement('div');
+  meas.className='paper terms pv-measure';
+  meas.innerHTML='<div class="tbody"></div>';
+  document.body.appendChild(meas);
+  const mb=meas.querySelector('.tbody');
+  const LIMIT=990; // 297mm(1123px) - 상단 17mm - 하단 여백·페이지번호 여유
+  const pages=[]; const tpl=document.createElement('template');
+  const flush=()=>{ if(mb.innerHTML.trim()){ pages.push(mb.innerHTML); mb.innerHTML=''; } };
+  arts.forEach(html=>{
+    tpl.innerHTML=html.trim();
+    const units=[...tpl.content.firstElementChild.children].map(u=>u.cloneNode(true)); // t-h + 본문 블록
+    let artDiv=document.createElement('div'); artDiv.className='t-art';
+    mb.appendChild(artDiv);
+    for(let i=0;i<units.length;i++){
+      artDiv.appendChild(units[i]);
+      if(mb.offsetHeight>LIMIT){
+        artDiv.removeChild(units[i]);
+        if(artDiv.children.length<=1){
+          // 제목만 남는 상황이면 조 전체를 다음 페이지로 (제목 고아 방지)
+          mb.removeChild(artDiv); flush(); mb.appendChild(artDiv);
+        } else {
+          // 여기까지는 이 페이지에 두고, 나머지는 다음 페이지에 이어서
+          flush();
+          artDiv=document.createElement('div'); artDiv.className='t-art';
+          mb.appendChild(artDiv);
+        }
+        artDiv.appendChild(units[i]);
+      }
+    }
+  });
+  flush();
+  document.body.removeChild(meas);
+
+  const termPages=pages.map((blocks,i)=>`
+  <div class="paper terms">
+    <div class="tbody">${blocks}</div>
+    <div class="pgnum">- ${i+2} -</div>
+  </div>`).join('');
+
+  $('#previewWrap').innerHTML=cover+page2+termPages;
+}
+
+// ================= 발행/저장 =================
+$('#btnSave').onclick=()=>{
+  const addr=$('#f_addr').value.trim(), work=$('#f_work').value.trim(), apt=$('#f_apt').value.trim();
+  if(!apt||!addr||!work){ alert('아파트명·대지위치·공사명은 필수입니다.'); return; }
+  if(!parseNum($('#f_amount').value)){ alert('계약금액을 입력하세요.'); return; }
+  const existing=findSite(addr,work); const hist=loadHist();
+  let contractNo, ver=1, code, type='본계약', reason='';
+  if(existing.length>0){ const last=existing[existing.length-1];
+    reason=prompt('이 현장은 이미 계약서가 있습니다. 수정사항이 있어 개정 발행하려면 변경 사유를 입력하세요.\n(취소하면 발행하지 않습니다.)');
+    if(reason===null||reason.trim()===''){ alert('변경 사유가 없어 발행하지 않았습니다. 기존 계약서('+last.contractNo+')를 재사용하세요.'); return; }
+    ver=last.ver+1; code=last.code; contractNo=code+'-v'+ver; type='개정';
+  } else { const y=new Date().getFullYear(); code='SQC-'+y+'-'+String(hist.length+1).padStart(4,'0'); contractNo=code+'-v1'; }
+  const rec={...currentRec(), contractNo, code, ver, type, reason, siteKey:siteKey(addr,work), savedAt:new Date().toISOString()};
+  hist.push(rec); saveHist(hist); buildPreview(rec); openPreview();
+  alert('발행 완료: '+contractNo+(type==='개정'?'\n(개정판으로 저장됨)':'')); checkDup();
+};
+
+$('#btnPreview').onclick=()=>{ buildPreview(currentRec()); openPreview(); };
+$('#btnPrint').onclick=()=>{ if(!$('#previewWrap').innerHTML.trim()){ buildPreview(currentRec()); } openPreview(); setTimeout(()=>window.print(),350); };
+$('#btnClear').onclick=()=>{ if(confirm('입력을 초기화할까요?')){
+  document.querySelectorAll('#tab-write input').forEach(i=>{if(i.type!=='date'&&i.id!=='f_downPct'&&i.id!=='f_downDue'&&i.id!=='f_balDue')i.value='';});
+  $('#f_start').value='';$('#f_end').value='';$('#f_date').value='';
+  $('#f_downPct').value=50; $('#f_downDue').value='계약체결후 30일이내'; $('#f_balDue').value='감리용역 완료 후 30일이내';
+  calcPay(); $('#previewWrap').innerHTML=''; $('#dupAlert').className='alert'; closePreview();
+} };
+
+// ================= 한글용 문서(.docx) 생성 =================
+// 한글(한컴오피스)에서 바로 열리는 워드 호환 문서 — 한글에서 열어 hwp로 저장해 사용
+const X_ESC=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function crc32(buf){ let t=crc32.t; if(!t){ t=crc32.t=new Int32Array(256); for(let i=0;i<256;i++){ let c=i; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[i]=c; } }
+  let c=-1; for(let i=0;i<buf.length;i++) c=t[(c^buf[i])&0xFF]^(c>>>8); return (c^-1)>>>0; }
+function makeZip(files){
+  const enc=new TextEncoder(); const parts=[]; const central=[]; let offset=0;
+  const u16=v=>new Uint8Array([v&255,(v>>8)&255]);
+  const u32=v=>new Uint8Array([v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255]);
+  files.forEach(f=>{ const name=enc.encode(f.name); const data=(typeof f.data==='string')?enc.encode(f.data):f.data; const crc=crc32(data);
+    parts.push(u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(33),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),name,data);
+    central.push({name,crc,size:data.length,offset});
+    offset+=30+name.length+data.length; });
+  const cdStart=offset; let cdSize=0;
+  central.forEach(c=>{ parts.push(u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(33),u32(c.crc),u32(c.size),u32(c.size),u16(c.name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(c.offset),c.name); cdSize+=46+c.name.length; });
+  parts.push(u32(0x06054b50),u16(0),u16(0),u16(central.length),u16(central.length),u32(cdSize),u32(cdStart),u16(0));
+  return new Blob(parts,{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+function dxRun(t,o){ o=o||{};
+  return `<w:r><w:rPr><w:rFonts w:ascii="함초롬바탕" w:eastAsia="함초롬바탕" w:hAnsi="함초롬바탕"/>${o.b?'<w:b/>':''}${o.color?`<w:color w:val="${o.color}"/>`:''}<w:sz w:val="${o.sz||20}"/><w:szCs w:val="${o.sz||20}"/>${o.spacing?`<w:spacing w:val="${o.spacing}"/>`:''}</w:rPr><w:t xml:space="preserve">${X_ESC(t)}</w:t></w:r>`; }
+function dxP(runs,opt){ opt=opt||{};
+  if(typeof runs==='string') runs=[[runs,{}]];
+  const ppr=`<w:pPr>${opt.pageBreak?'<w:pageBreakBefore/>':''}${opt.align?`<w:jc w:val="${opt.align}"/>`:''}${(opt.left||opt.hanging)?`<w:ind w:left="${opt.left||0}"${opt.hanging?` w:hanging="${opt.hanging}"`:''}/>`:''}<w:spacing w:before="${opt.before||0}" w:after="${opt.after??40}" w:line="${opt.line||330}" w:lineRule="auto"/></w:pPr>`;
+  return `<w:p>${ppr}${runs.map(([t,o])=>dxRun(t,o)).join('')}</w:p>`; }
+function dxCell(paras,w,opt){ opt=opt||{};
+  const inner = paras.map(p=>dxP([[p,{b:opt.b,sz:opt.sz||19,color:opt.color}]],{align:opt.align||'center',after:0,line:300})).join('') || dxP('',{after:0});
+  return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${opt.span?`<w:gridSpan w:val="${opt.span}"/>`:''}${opt.shd?`<w:shd w:val="clear" w:color="auto" w:fill="${opt.shd}"/>`:''}<w:vAlign w:val="center"/></w:tcPr>${inner}</w:tc>`; }
+function dxTable(rowsXml,cols){
+  const grid=cols.map(w=>`<w:gridCol w:w="${w}"/>`).join('');
+  const bd=t=>`<w:${t} w:val="single" w:sz="4" w:space="0" w:color="8A7A55"/>`;
+  return `<w:tbl><w:tblPr><w:tblW w:w="${cols.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:tblBorders>${bd('top')}${bd('left')}${bd('bottom')}${bd('right')}${bd('insideH')}${bd('insideV')}</w:tblBorders><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${rowsXml}</w:tbl>`; }
+const dxRow=cells=>`<w:tr>${cells.join('')}</w:tr>`;
+function buildDocx(r){
+  const T=typeWord(r.ctype); const hasS=r.ctype!=='dsgn';
+  const docTitle=`${T} 용역 계약서`;
+  const NAVY='1B2438', GOLD='9A8043';
+  const B=[];
+  // ---- 표지 ----
+  B.push(dxP([['APART SQUARE',{sz:22,color:GOLD,spacing:60}]],{align:'center',before:600,after:120}));
+  for(let i=0;i<4;i++) B.push(dxP('',{align:'center'}));
+  B.push(dxP([['공동주택 유지보수',{b:1,sz:32,color:NAVY}]],{align:'center',after:160}));
+  B.push(dxP([[docTitle.replace(' 용역 계약서',' 계약서'),{b:1,sz:44,color:NAVY,spacing:120}]],{align:'center',after:200}));
+  for(let i=0;i<4;i++) B.push(dxP('',{align:'center'}));
+  B.push(dxP([[r.date?fmtDateK(r.date):'',{sz:24}]],{align:'center'}));
+  for(let i=0;i<7;i++) B.push(dxP('',{align:'center'}));
+  B.push(dxP([['스퀘어건축사사무소 주식회사',{b:1,sz:28,color:NAVY,spacing:60}]],{align:'center'}));
+  // ---- 계약 개요 ----
+  B.push(dxP([[docTitle,{b:1,sz:32,color:NAVY,spacing:80}]],{align:'center',pageBreak:1,after:280}));
+  const ovr=(k,v,vb)=>B.push(dxP([[k,{b:1,sz:22}],[v||'',{sz:22,b:vb}]],{line:400}));
+  ovr('1. 계 약 건 명 :  ',r.title);
+  ovr('2. 아 파 트 명 :  ',r.apt);
+  ovr('3. 대 지 위 치 :  ',r.addr);
+  ovr('4. 공 사 개 요 :  ','');
+  B.push(dxP([['1) 공 사 규 모 :  ',{b:1,sz:20}],[r.scale||'',{sz:20}]],{left:520,line:380}));
+  const period=(r.start?fmtDateK(r.start):'202  년   월   일')+' ~ '+(r.end?fmtDateK(r.end):'202  년   월   일');
+  B.push(dxP([['2) 공 사 기 간 :  ',{b:1,sz:20}],[period,{sz:20}]],{left:520,line:380}));
+  B.push(dxP([['(준공일이 지정되어 있지 않은 경우 착공일로부터 6개월)',{sz:18,color:'6B6455'}]],{left:1040,line:340}));
+  if(hasS) ovr('5. 감 리 구 분 :  ',r.mode);
+  ovr((hasS?'6':'5')+'. 계 약 금 액 :  ',`일금 ${r.amount?numToKorean(r.amount):'        '}원정 (₩ ${r.amount?won(r.amount):''}) : 부가세 별도`,1);
+  B.push(dxP([[r.date?fmtDateK(r.date):'202  년    월    일',{sz:24,spacing:40}]],{align:'center',before:240,after:160}));
+  B.push(dxP([[`“갑”과 “을”은 상호 신의와 성실을 원칙으로 이 계약서에 의하여 공사 ${T}계약을 체결하고 각 1부씩 보관한다.`,{sz:20}]],{align:'center',after:240}));
+  // 서명 테이블
+  const CW=[1500,3248,1500,3248];
+  const HD={shd:'1B2438',b:1,color:'FFFFFF',sz:20};
+  const LB={shd:'F5EFE2',b:1,sz:18};
+  const VL={align:'left',sz:19};
+  B.push(dxTable(
+    dxRow([dxCell(['발주자 “갑”'],CW[0]+CW[1],{...HD,span:2}), dxCell(['수급자 “을”'],CW[2]+CW[3],{...HD,span:2})])+
+    dxRow([dxCell(['상호 / 성 명'],CW[0],LB), dxCell([r.gapCo||'',(r.gapName||'')+' (서명 또는 인)'],CW[1],VL), dxCell(['상호 / 건축사'],CW[2],LB), dxCell([EUL.co,EUL.ceo+' (서명 또는 인)'],CW[3],VL)])+
+    dxRow([dxCell(['사업자등록번호','/주민등록번호'],CW[0],LB), dxCell([r.gapReg||''],CW[1],VL), dxCell(['사업자등록번호'],CW[2],LB), dxCell([EUL.reg],CW[3],VL)])+
+    dxRow([dxCell(['주  소'],CW[0],LB), dxCell([r.gapAddr||''],CW[1],VL), dxCell(['주  소'],CW[2],LB), dxCell([EUL.addr],CW[3],VL)])+
+    dxRow([dxCell(['전화 / Fax'],CW[0],LB), dxCell([r.gapTel||''],CW[1],VL), dxCell(['전화 / Fax'],CW[2],LB), dxCell([EUL.tel],CW[3],VL)]),
+    CW));
+  // ---- 조문 ----
+  const arts=getArticles(r); const tpl=document.createElement('template'); let first=true;
+  arts.forEach(html=>{
+    tpl.innerHTML=html.trim();
+    const art=tpl.content.firstElementChild;
+    [...art.children].forEach(el=>{
+      if(el.classList.contains('t-h')){ B.push(dxP([[el.textContent.trim(),{b:1,sz:21,color:NAVY}]],{before:160,after:60,pageBreak:first?1:0})); first=false; }
+      else if(el.classList.contains('t-p')) B.push(dxP([[el.textContent.trim(),{sz:20}]],{line:330}));
+      else if(el.classList.contains('t-i')) B.push(dxP([[el.textContent.trim(),{sz:20}]],{left:680,hanging:340,line:330}));
+      else if(el.classList.contains('t-s')) B.push(dxP([[el.textContent.trim(),{sz:20}]],{left:1180,hanging:340,line:330}));
+      else if(el.tagName==='TABLE'){
+        const trs=[...el.querySelectorAll('tr')]; const PW=[2800,2800,3896];
+        const rowsXml=trs.map((tr,ri)=>{
+          const cells=[...tr.children].map((td,ci)=>{
+            let o;
+            if(ri===0) o={shd:'F5EFE2',b:1,sz:19};
+            else if(ri===trs.length-1) o={shd:'FAF3E2',b:1,sz:19,align:ci===1?'right':'center'};
+            else o={sz:19,align:ci===1?'right':'center'};
+            return dxCell([td.textContent.trim()],PW[ci]||2800,o);
+          });
+          return dxRow(cells);
+        }).join('');
+        B.push(dxTable(rowsXml,PW));
+      }
+    });
+  });
+  const sectPr=`<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1208" w:bottom="1417" w:left="1202" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr>`;
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${B.join('')}${sectPr}</w:body></w:document>`;
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="함초롬바탕" w:eastAsia="함초롬바탕" w:hAnsi="함초롬바탕" w:cs="함초롬바탕"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="en-US" w:eastAsia="ko-KR"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="40" w:line="330" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>`;
+  const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`;
+  const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+  const drels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  return makeZip([
+    {name:'[Content_Types].xml',data:ct},
+    {name:'_rels/.rels',data:rels},
+    {name:'word/document.xml',data:doc},
+    {name:'word/_rels/document.xml.rels',data:drels},
+    {name:'word/styles.xml',data:styles}
+  ]);
+}
+$('#btnHwp').onclick=()=>{
+  const r=currentRec();
+  if(!r.apt||!r.addr||!r.work){ alert('아파트명·대지위치·공사명을 먼저 입력하세요.'); return; }
+  const blob=buildDocx(r);
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`${r.apt}_${typeWord(r.ctype).replace('·','')}계약서.docx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+};
+
+// ================= 미리보기 오버레이 뷰어 =================
+function fitPreview(){
+  const pw=$('#previewWrap'); const paper=pw.querySelector('.paper'); if(!paper){ pw.style.zoom=1; return; }
+  const topH=document.querySelector('.pv-top').offsetHeight||52;
+  const availH=window.innerHeight-topH-58, availW=document.documentElement.clientWidth-48;
+  const s=Math.min(availH/1123, availW/794, 1);
+  pw.style.zoom=(s>0.1?s:1);
+}
+function updatePvInd(){
+  const papers=[...document.querySelectorAll('#previewWrap .paper')]; const n=papers.length;
+  if(!n){ $('#pvInd').textContent=''; return; }
+  const scR=$('#pvScroll').getBoundingClientRect(); const midY=scR.top+scR.height/2;
+  let cur=1; papers.forEach((p,i)=>{ if(p.getBoundingClientRect().top<=midY) cur=i+1; });
+  $('#pvInd').textContent='　'+cur+' / '+n+' 페이지';
+}
+function openPreview(){ $('#pvModal').classList.add('open'); document.body.style.overflow='hidden'; fitPreview(); $('#pvScroll').scrollTop=0; updatePvInd(); }
+function closePreview(){ $('#pvModal').classList.remove('open'); document.body.style.overflow=''; }
+$('#pvClose').onclick=closePreview;
+$('#pvPrint').onclick=()=>{ setTimeout(()=>window.print(),100); };
+$('#pvScroll').addEventListener('scroll',updatePvInd);
+window.addEventListener('resize',()=>{ if($('#pvModal').classList.contains('open')){ fitPreview(); updatePvInd(); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePreview(); });
+
+// ================= 이력 =================
+function renderHist(){
+  const q=($('#histSearch').value||'').toLowerCase();
+  const hist=loadHist().filter(h=>!q||(h.apt+h.addr+h.contractNo).toLowerCase().includes(q));
+  const tb=$('#histBody'); tb.innerHTML=''; $('#histEmpty').style.display=hist.length?'none':'block';
+  hist.slice().reverse().forEach(h=>{ const tr=document.createElement('tr');
+    const badge = h.type==='개정'?`<span class="badge rev">개정 v${h.ver}</span>`:`<span class="badge main">본계약 v${h.ver}</span>`;
+    tr.innerHTML=`<td>${h.contractNo}</td><td style="text-align:left">${h.apt}<br><span style="color:#888;font-size:11px">${h.addr}</span></td><td>${h.ctype==='design'?'설계·감리':'감리'}</td><td>${badge}</td><td class="rt">${won(h.amount)}</td><td>${h.date||'-'}</td><td><button class="linkbtn loadH" data-no="${h.contractNo}">불러오기</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('.loadH').forEach(b=>b.onclick=()=>loadRecord(b.dataset.no));
+}
+$('#histSearch').oninput=renderHist;
+function loadRecord(no){
+  const rec=loadHist().find(h=>h.contractNo===no); if(!rec) return;
+  document.querySelector('nav.tabs button[data-tab="write"]').click();
+  ctype=rec.ctype||'design';
+  document.querySelectorAll('#ctypeSeg button').forEach(x=>x.classList.toggle('on', x.dataset.v===ctype));
+  applyCtypeUI();
+  $('#f_apt').value=rec.apt; $('#f_addr').value=rec.addr; $('#f_work').value=rec.work; $('#f_title').value=rec.title||'';
+  $('#f_mode').value=rec.mode; $('#f_scale').value=rec.scale||''; $('#f_start').value=rec.start||''; $('#f_end').value=rec.end||'';
+  $('#f_amount').value=rec.amount?Number(rec.amount).toLocaleString('ko-KR'):''; $('#f_date').value=rec.date||'';
+  $('#f_gapCo').value=rec.gapCo||''; $('#f_gapName').value=rec.gapName||''; $('#f_gapReg').value=rec.gapReg||'';
+  $('#f_gapAddr').value=rec.gapAddr||''; $('#f_gapTel').value=rec.gapTel||'';
+  $('#f_downPct').value=rec.downPct??50; $('#f_downDue').value=rec.downDue||'계약체결후 30일이내'; $('#f_balDue').value=rec.balDue||'감리용역 완료 후 30일이내';
+  calcPay(); checkDup(); buildPreview({...rec}); openPreview();
+}
+$('#btnExport').onclick=()=>{ const blob=new Blob([JSON.stringify(loadHist(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='아파트스퀘어_계약이력_'+new Date().toISOString().slice(0,10)+'.json'; a.click(); };
+$('#importFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ const d=JSON.parse(rd.result); if(Array.isArray(d)){ saveHist(d); renderHist(); alert('이력을 복원했습니다.'); } }catch(err){ alert('파일 형식 오류'); } }; rd.readAsText(f); };
+
+// ================= 초기화 =================
+$('#f_date').value=new Date().toISOString().slice(0,10);
+calcPay();
+</script>
+<script>
+/* 영업 파이프라인에서 넘어온 단지 정보 자동 채움 (site=단지명, addr=주소/지역, work=공종) */
+(function(){try{
+  var q=new URLSearchParams(location.search);
+  if(![].slice.call(q.keys()).length) return;
+  function set(id,v){var el=document.getElementById(id);if(el&&v){el.value=v;try{el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));}catch(e){}}}
+  function apply(){ set('f_apt',q.get('site')); set('f_addr',q.get('addr')); set('f_work',q.get('work')); }
+  window.addEventListener('load',function(){ setTimeout(apply,350); });
+}catch(e){}})();
+</script>
+</body>
+</html>

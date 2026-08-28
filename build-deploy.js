@@ -41,6 +41,14 @@ konsole = konsole.replace("</head>", NOCACHE + "\n</head>");
 konsole = konsole.replace('../js/stages.js"', '../js/stages.js?v=' + V + '"');
 fs.writeFileSync(OUT + "/console/index.html", konsole);
 
+// --- 견적서·계약서 자동화 도구 (control/quote, control/contract) ---
+for (const sub of ["control/quote", "control/contract"]) {
+  cp.execSync(`mkdir -p "${OUT}/${sub}"`);
+  let t = fs.readFileSync(APP + "/" + sub + "/index.html", "utf8");
+  t = t.replace("</head>", NOCACHE + "\n</head>");
+  fs.writeFileSync(OUT + "/" + sub + "/index.html", t);
+}
+
 // --- js files (copy verbatim) ---
 for (const f of ["app.js", "stages.js", "supabase-app.js"]) {
   fs.copyFileSync(APP + "/js/" + f, OUT + "/js/" + f);

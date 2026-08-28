@@ -713,14 +713,18 @@ async function materializeVisits(){
   const {y,m}=calYM||{y:new Date().getFullYear(),m:new Date().getMonth()};
   const visits=computeVisits(y,m);
   if(!visits.length){ alert('배치된(담당자·요일 지정된) 현장이 없어요. 방문 배치표에서 먼저 지정하세요.'); return; }
-  if(!confirm(`${y}년 ${m+1}월 방문 일정 ${visits.length}건을 생성할까요?\n· 같은 달 자동 방문은 새로 갱신돼요\n· 손으로 넣은 일정은 그대로 둡니다\n· 감리사 앱·입주민 앱에도 표시돼요`))return;
+  const todayStr=isoDate(new Date());
+  const future=visits.filter(v=>v.date>=todayStr);
+  if(!future.length){ alert('앞으로(오늘 이후) 만들 방문이 없어요. 지난 방문·다녀온 기록은 그대로 둡니다.'); return; }
+  if(!confirm(`${y}년 ${m+1}월 앞으로의 방문 ${future.length}건을 생성할까요?\n· 지난 방문과 ‘다녀옴’ 표시된 기록은 그대로 보존돼요\n· 아직 안 다녀온 앞날 예정만 새로 갱신돼요\n· 손으로 넣은 일정은 그대로 둡니다`))return;
   const days=new Date(y,m+1,0).getDate();
-  const from=`${y}-${String(m+1).padStart(2,'0')}-01`, to=`${y}-${String(m+1).padStart(2,'0')}-${String(days).padStart(2,'0')}`;
-  try{ await sb.from('schedules').delete().gte('date',from).lte('date',to).like('title',VISIT_MARK+'%'); }catch(e){}
-  const rows=visits.map(v=>({apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':'')}));
+  const to=`${y}-${String(m+1).padStart(2,'0')}-${String(days).padStart(2,'0')}`;
+  // 오늘 이후 · 아직 안 다녀온(done_at 없는) 자동 방문만 삭제 → 과거·다녀온 기록 보존
+  try{ await sb.from('schedules').delete().gte('date',todayStr).lte('date',to).like('title',VISIT_MARK+'%').is('done_at',null); }catch(e){}
+  const rows=future.map(v=>({apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':'')}));
   const {error}=await sb.from('schedules').insert(rows);
   if(error){ alert('생성 실패: '+error.message); return; }
-  await loadAll(); alert(rows.length+'건의 방문 일정을 생성했어요. 감리사·입주민 앱에도 표시됩니다.');
+  await loadAll(); alert(rows.length+'건의 예정 방문을 생성했어요. 감리사·입주민 앱에도 표시됩니다.');
 }
 
 /* ===== 공사관리 ===== */

@@ -684,13 +684,11 @@ const SURVEY_ITEMS = [
   { key: 'r_quality', label: '시공 품질', desc: '마감·품질이 만족스러웠나요?' }
 ]
 let SURVEY = null // { apt, overall, r_comm.., best, again, comment } — best/again은 자유 입력
-// 공사 완료 여부: status='done' 또는 공정 단계가 모두 끝남
+// 공사 완료 여부: 관리자가 단지 상태를 '완료(done)'로 명시했을 때만.
+// (진행단계 수만으로 자동 판단하면, 데이터가 조금만 앞서 있어도 '완료'로 잘못 떠서
+//  아직 공사 중인데 만족도 배너가 나오는 문제가 있어 status 기준으로 고정)
 function isConstructionDone(apt) {
-  if (!apt) return false
-  if (apt.status === 'done') return true
-  const stages = (window.methodStages && window.methodStages(apt.method)) || null
-  if (stages && (apt.progress_current || 0) >= stages.length) return true
-  return false
+  return !!(apt && apt.status === 'done')
 }
 function surveyKey(aptId) { return 'aptsq_survey_' + aptId }
 // 홈·현장현황 상단 만족도 배너 표시 여부
@@ -1810,18 +1808,20 @@ async function vpGenerate() {
   const apts = Object.values(AUD_APTS).filter(a => String(vpData(a).visitDay || '').split('·').filter(Boolean).length)
   if (!apts.length) { alert('먼저 담당 단지에 방문 요일을 지정하세요'); return }
   const total = new Date(y, m + 1, 0).getDate()
+  const todayStr = vpIso(new Date())
   const rows = []
   for (const a of apts) {
     const days = String(vpData(a).visitDay || '').split('·').filter(Boolean)
-    for (let dd = 1; dd <= total; dd++) { const dt = new Date(y, m, dd); const wd = VP_WKB[(dt.getDay() + 6) % 7]; if (days.includes(wd)) rows.push({ apartment_id: a.id, date: vpIso(dt), title: VP_MARK, description: '담당 ' + (MY_NAME || '감리사'), category: null }) }
+    for (let dd = 1; dd <= total; dd++) { const dt = new Date(y, m, dd); const wd = VP_WKB[(dt.getDay() + 6) % 7]; const ds = vpIso(dt); if (days.includes(wd) && ds >= todayStr) rows.push({ apartment_id: a.id, date: ds, title: VP_MARK, description: '담당 ' + (MY_NAME || '감리사'), category: null }) }
   }
-  if (!rows.length) { alert('이 달에는 해당 요일이 없어요'); return }
-  if (!confirm(y + '년 ' + (m + 1) + '월 방문 ' + rows.length + '건을 만들까요?\n(같은 달 자동 방문은 새로 갱신, 손으로 넣은 일정은 그대로)')) return
-  const from = y + '-' + String(m + 1).padStart(2, '0') + '-01', to = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(total).padStart(2, '0')
-  for (const a of apts) { try { await sb.from('schedules').delete().eq('apartment_id', a.id).gte('date', from).lte('date', to).like('title', VP_MARK + '%') } catch (e) {} }
+  if (!rows.length) { alert('앞으로(오늘 이후) 만들 방문이 없어요.\n지난 방문·다녀온 기록은 그대로 두고, 앞날 예정만 만들어요.'); return }
+  if (!confirm(y + '년 ' + (m + 1) + '월 앞으로의 방문 ' + rows.length + '건을 만들까요?\n· 지난 방문과 ‘다녀옴’ 표시한 기록은 그대로 보존돼요\n· 아직 안 다녀온 앞날 예정만 새로 갱신돼요')) return
+  // 오늘 이후 · 아직 안 다녀온(done_at 없는) 자동 방문만 삭제 → 과거·다녀온 기록 보존
+  const to = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(total).padStart(2, '0')
+  for (const a of apts) { try { await sb.from('schedules').delete().eq('apartment_id', a.id).gte('date', todayStr).lte('date', to).like('title', VP_MARK + '%').is('done_at', null) } catch (e) {} }
   const { error } = await sb.from('schedules').insert(rows)
   if (error) { alert('생성 실패: ' + error.message); return }
-  alert(rows.length + '건의 방문을 만들었어요. 달력에 표시됩니다.')
+  alert(rows.length + '건의 예정 방문을 만들었어요. 달력에 표시됩니다.')
   loadSchedule()
 }
 window.vpGenerate = vpGenerate
@@ -1839,7 +1839,7 @@ function renderCalendar(scheds) {
   const today = new Date()
   const isAud = currentRole === 'auditor'
   const cats = {}
-  scheds.forEach(s => { if (s.date) { const d = new Date(s.date); if (d.getFullYear() === y && d.getMonth() === m) { const dd = d.getDate(); (cats[dd] = cats[dd] || []).push(isAud ? catColor(s.category) : '#2F6BF6') } } })
+  scheds.forEach(s => { if (s.date) { const d = new Date(s.date); if (d.getFullYear() === y && d.getMonth() === m) { const dd = d.getDate(); const col = (isAud && s.done_at && s.apartment_id) ? '#16a34a' : (isAud ? catColor(s.category) : '#2F6BF6'); (cats[dd] = cats[dd] || []).push(col) } } })
   let cells = ''
   for (let i = 0; i < first; i++) cells += '<span></span>'
   for (let d = 1; d <= total; d++) {
@@ -1879,15 +1879,32 @@ function renderSchedList(scheds) {
       if (s.apartment_id) { const apt = AUD_APTS[s.apartment_id]; badge = '<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">👥 ' + (apt ? escH(apt.name) : '단지') + '</span>' }
       else badge = '<span style="font-size:9px;font-weight:800;color:#8b7a2f;background:#f6efd8;padding:2px 7px;border-radius:6px">🔒 개인</span>'
     }
-    const actions = (currentRole === 'auditor')
-      ? '<div style="display:flex;gap:6px;margin-top:7px">'
+    const isVisit = !!s.apartment_id   // 단지 방문(입주민도 보는 일정)
+    const md = s.done_at ? (s.done_at.slice(5, 7) + '/' + s.done_at.slice(8, 10)) : ''
+    // 다녀감 표시 — 모든 역할이 볼 수 있게 (언제 방문했는지)
+    const doneChip = (isVisit && s.done_at) ? '<span style="font-size:9px;font-weight:800;color:#16a34a;background:#e9f7ef;padding:2px 7px;border-radius:6px">✓ 다녀감 ' + md + '</span>' : ''
+    let actions = ''
+    if (currentRole === 'auditor') {
+      const doneBtn = isVisit
+        ? (s.done_at
+          ? '<button onclick="markVisited(\'' + s.id + '\',false)" style="width:100%;background:#eaf7ee;color:#1E7F4F;border:1px solid #bfe6cc;border-radius:8px;padding:7px 0;font-size:10.5px;font-weight:800;font-family:inherit;cursor:pointer">✓ ' + md + ' 다녀옴 · 취소하기</button>'
+          : '<button onclick="markVisited(\'' + s.id + '\',true)" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 0;font-size:11px;font-weight:800;font-family:inherit;cursor:pointer">✅ 오늘 다녀왔어요</button>')
+        : ''
+      actions = (doneBtn ? '<div style="margin-top:7px">' + doneBtn + '</div>' : '')
+        + '<div style="display:flex;gap:6px;margin-top:6px">'
         + '<button onclick="openSchedEdit(\'' + s.id + '\')" style="flex:1;background:#eef3ff;color:#2F6BF6;border:none;border-radius:8px;padding:6px 0;font-size:10.5px;font-weight:800;font-family:inherit;cursor:pointer">📅 날짜·내용 수정</button>'
         + '<button onclick="deleteSchedApp(\'' + s.id + '\')" style="background:#fdecec;color:#d9453c;border:none;border-radius:8px;padding:6px 11px;font-size:10.5px;font-weight:800;font-family:inherit;cursor:pointer">🗑</button>'
         + '</div>'
-      : ''
-    return '<div style="border-left:3px solid ' + c + ';background:#f8faff;border-radius:0 10px 10px 0;padding:9px 11px;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px">' + (lab ? '<span style="font-size:9px;font-weight:800;color:' + c + ';background:' + c + '1a;padding:2px 7px;border-radius:6px">' + lab + '</span>' : '') + '<div style="font-size:11.5px;font-weight:800;color:#1c2440">' + escH(s.title) + '</div>' + (badge ? '<span style="margin-left:auto">' + badge + '</span>' : '') + '</div>' + (s.description ? '<div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">' + escH(s.description) + '</div>' : '') + actions + '</div>'
+    }
+    return '<div style="border-left:3px solid ' + (s.done_at && isVisit ? '#16a34a' : c) + ';background:#f8faff;border-radius:0 10px 10px 0;padding:9px 11px;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + (lab ? '<span style="font-size:9px;font-weight:800;color:' + c + ';background:' + c + '1a;padding:2px 7px;border-radius:6px">' + lab + '</span>' : '') + '<div style="font-size:11.5px;font-weight:800;color:#1c2440">' + escH(s.title) + '</div>' + doneChip + (badge ? '<span style="margin-left:auto">' + badge + '</span>' : '') + '</div>' + (s.description ? '<div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">' + escH(s.description) + '</div>' : '') + actions + '</div>'
   }).join('')
 }
+async function markVisited(id, on) {
+  const { error } = await sb.from('schedules').update({ done_at: on ? new Date().toISOString() : null }).eq('id', id)
+  if (error) { alert('저장 실패: ' + error.message + '\n(backend/migration-visit-log.sql 실행이 필요해요)'); return }
+  loadSchedule()
+}
+window.markVisited = markVisited
 let editSchedId = null
 async function addSchedule() {
   const { data: { user } } = await sb.auth.getUser()

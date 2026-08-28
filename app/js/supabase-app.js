@@ -2813,7 +2813,7 @@ async function refreshCurrentScreen(force) {
     else if (id === 's11') { const { data } = await sb.from('notices').select('id').order('created_at', { ascending: false }).limit(80); if (force || sigChanged('s11', data)) loadResidentHome() }
     else if (id === 's26' && aid) { const { data } = await sb.from('field_updates').select('id').eq('apartment_id', aid); if (force || sigChanged('s26', data)) loadFieldUpdates() }
     else if (id === 's12' && aid) { const { data } = await sb.from('reports').select('id').eq('apartment_id', aid).eq('published', true); if (force || sigChanged('s12', data)) loadResidentReports() }
-    else if (id === 's14' && aid) { const { data } = await sb.from('schedules').select('id').eq('apartment_id', aid); if (force || sigChanged('s14', data)) loadSchedule() }
+    else if (id === 's14') { let q = sb.from('schedules').select('id'); if (aid) q = q.eq('apartment_id', aid); const { data } = await q; if (force || sigChanged('s14', data)) loadSchedule() }
     else if (id === 's07') { const { data } = await sb.from('apartments').select('id'); if (force || sigChanged('s07', data)) loadAuditorApts() }
   } catch (e) {}
 }

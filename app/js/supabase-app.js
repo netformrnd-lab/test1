@@ -1770,6 +1770,8 @@ function renderCalendar(scheds) {
     cells += '<span onclick="schedPickDay(\'' + dk + '\')" style="' + st + '">' + d + dots + '</span>'
   }
   const el = document.getElementById('s-days'); if (el) el.innerHTML = cells
+  const lg = document.getElementById('s-legend')
+  if (lg) lg.innerHTML = Object.keys(APP_CAT_LABEL).map(k => '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:7px;height:7px;border-radius:99px;background:' + APP_CAL_COLOR[k] + '"></span>' + APP_CAT_LABEL[k] + '</span>').join('')
 }
 function renderSchedList(scheds) {
   // 하단 상시 목록은 없앰 — 날짜를 누르면 그 날 일정만 보여줌

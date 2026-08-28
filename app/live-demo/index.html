@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>아파트스퀘어 · 실시간 연동 데모</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0c1222;--panel:#131c33;--line:#243357;--txt:#eaf0ff;--mut:#93a3c8;--blue:#4f8cff;--green:#28c76f;--amber:#ffb020}
+  html,body{height:100%}
+  body{background:linear-gradient(180deg,#0a0f1e,#0c1526);color:var(--txt);font-family:'Pretendard',-apple-system,sans-serif;overflow:hidden}
+  .top{height:64px;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);background:rgba(10,16,30,.7);backdrop-filter:blur(6px)}
+  .brand{font-size:17px;font-weight:900;letter-spacing:-.3px}
+  .brand small{display:block;font-size:11px;font-weight:600;color:var(--mut);margin-top:2px}
+  .flow{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;color:var(--mut);flex-wrap:wrap}
+  .flow b{color:var(--blue)}
+  .flow .arw{color:var(--green);font-weight:900}
+  .top .sp{flex:1}
+  .btn{border:1px solid var(--line);background:#1a2542;color:var(--txt);font-weight:800;font-size:12.5px;border-radius:10px;padding:9px 14px;cursor:pointer;font-family:inherit}
+  .btn:hover{background:#22315a}
+  .btn.b{background:var(--blue);border-color:var(--blue);color:#fff}
+  .stage{height:calc(100% - 64px);display:flex;gap:18px;padding:18px;overflow-x:auto;align-items:stretch}
+  .col{display:flex;flex-direction:column;min-width:0}
+  .col.dash{flex:1;min-width:520px}
+  .col.phone{width:392px;flex:0 0 392px}
+  .cap{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 2px}
+  .num{width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff;flex:0 0 24px}
+  .num.n1{background:var(--blue)} .num.n2{background:#7c5cff} .num.n3{background:var(--green)}
+  .cap .t{font-size:14px;font-weight:900}
+  .cap .d{font-size:11px;font-weight:600;color:var(--mut)}
+  .frame{flex:1;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#0b1120;box-shadow:0 18px 50px rgba(0,0,0,.45);position:relative}
+  .frame iframe{width:100%;height:100%;border:0;display:block;background:#fff}
+  /* 폰 목업 */
+  .phone .frame{border-radius:30px;border:8px solid #0a1020;background:#0a1020;box-shadow:0 24px 60px rgba(0,0,0,.55);padding:0}
+  .phone .frame::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:110px;height:22px;background:#0a1020;border-radius:0 0 16px 16px;z-index:5}
+  .phone .frame iframe{border-radius:22px}
+  .hint{font-size:10.5px;color:var(--mut);font-weight:600;margin-top:8px;text-align:center;line-height:1.5}
+  .hint b{color:var(--amber)}
+  .tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;margin-left:6px}
+  .tag.live{background:rgba(40,199,111,.16);color:#4be08b}
+  @media (max-width:1100px){ .flow{display:none} }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand">아파트스퀘어 <span class="tag live">● LIVE 연동</span><small>한 곳에서 바꾸면 세 화면이 실시간으로 같이 움직여요</small></div>
+    <div class="flow">
+      <b>관리자 대시보드</b><span class="arw">→</span> 감리일지 발행·방문 배치·일정 <span class="arw">→</span> <b>감리사 앱</b> <span class="arw">·</span> <b>입주민 앱</b>
+    </div>
+    <div class="sp"></div>
+    <button class="btn" onclick="reloadAll()">↻ 세 화면 새로고침</button>
+    <button class="btn b" onclick="toggleFlow()">데모 안내</button>
+  </div>
+
+  <div class="stage">
+    <div class="col dash">
+      <div class="cap"><div class="num n1">1</div><div><div class="t">관리자 대시보드</div><div class="d">여기서 수정 — 감리일지·방문 배치·일정·단지 정보</div></div></div>
+      <div class="frame"><iframe id="fr-dash" src="../console/?sess=demoadmin" title="대시보드"></iframe></div>
+    </div>
+
+    <div class="col phone">
+      <div class="cap"><div class="num n2">2</div><div><div class="t">감리사 앱</div><div class="d">담당 단지·방문·일지 작성</div></div></div>
+      <div class="frame"><iframe id="fr-aud" src="../?sess=demoaud" title="감리사 앱"></iframe></div>
+      <div class="hint">처음 한 번 <b>감리사 계정</b>으로 로그인</div>
+    </div>
+
+    <div class="col phone">
+      <div class="cap"><div class="num n3">3</div><div><div class="t">입주민 앱</div><div class="d">우리 단지 일정·일지·현황 보기</div></div></div>
+      <div class="frame"><iframe id="fr-res" src="../?sess=demores" title="입주민 앱"></iframe></div>
+      <div class="hint">처음 한 번 <b>입주민 계정</b>으로 로그인</div>
+    </div>
+  </div>
+
+<script>
+  function reloadAll(){ ['fr-dash','fr-aud','fr-res'].forEach(function(id){ var f=document.getElementById(id); if(f) f.src=f.src; }); }
+  var flowOn=true;
+  function toggleFlow(){
+    flowOn=!flowOn;
+    if(flowOn){ alert('발표 데모 사용법\n\n① 왼쪽=관리자 대시보드, 가운데=감리사 앱, 오른쪽=입주민 앱\n② 각 화면에 처음 한 번씩 로그인하세요 (좌:관리자 / 중:감리사 / 우:입주민)\n③ 왼쪽 대시보드에서 감리일지를 발행하거나 방문 배치를 바꾸면,\n    몇 초 안에 가운데·오른쪽 앱에 자동으로 나타나요 (실시간 연동)\n\n※ 세 화면은 서로 다른 계정으로 동시에 로그인돼요 (세션 분리).\n※ 안 보이면 오른쪽 위 ↻ 로 새로고침하세요.'); }
+  }
+  // 안내를 처음 한 번 자동으로
+  setTimeout(function(){ try{ if(!sessionStorage.getItem('demo_seen')){ sessionStorage.setItem('demo_seen','1'); toggleFlow(); } }catch(e){} }, 600);
+</script>
+</body>
+</html>

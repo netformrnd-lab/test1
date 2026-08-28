@@ -28,9 +28,12 @@ const aptAuthStorage = {
   },
   removeItem (k) { try { localStorage.removeItem(k); sessionStorage.removeItem(k) } catch (e) {} }
 }
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: aptAuthStorage }
-})
+// 발표용 데모: ?sess=aud / ?sess=res 처럼 붙이면 그 화면만 독립 로그인 세션을 써요
+// (한 발표 페이지 안에서 감리사·입주민을 동시에 다른 계정으로 로그인하기 위함. 일반 사용자는 영향 없음)
+const DEMO_SESS = (function () { try { return new URLSearchParams(location.search).get('sess') || '' } catch (e) { return '' } })()
+const _authOpts = { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: aptAuthStorage }
+if (DEMO_SESS) _authOpts.storageKey = 'sb-aptsq-demo-' + DEMO_SESS
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: _authOpts })
 window.sb = sb
 // 비밀번호 재설정 메일 링크로 들어온 경우 → 새 비밀번호 설정 화면
 let RECOVERING = false

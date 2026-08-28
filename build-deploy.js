@@ -79,6 +79,12 @@ let pres = fs.readFileSync(APP + "/present/index.html", "utf8");
 pres = pres.replace("</head>", NOCACHE + "\n</head>");
 fs.writeFileSync(OUT + "/present/index.html", pres);
 
+// --- 실시간 연동 데모 (live-demo/) — 대시보드+감리사앱+입주민앱 3분할 ---
+cp.execSync(`mkdir -p "${OUT}/live-demo"`);
+let ldemo = fs.readFileSync(APP + "/live-demo/index.html", "utf8");
+ldemo = ldemo.replace("</head>", NOCACHE + "\n</head>");
+fs.writeFileSync(OUT + "/live-demo/index.html", ldemo);
+
 // --- assets: 이미지만 (woff/woff2 폰트는 CDN 사용하므로 제외) ---
 let kept = 0, dropped = 0;
 for (const f of fs.readdirSync(APP + "/assets")) {

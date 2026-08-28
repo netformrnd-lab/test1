@@ -362,7 +362,8 @@ tbody tr:hover{background:#f8fafc}
 <script>
 const SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
 const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const DEMO_SESS=(function(){try{return new URLSearchParams(location.search).get('sess')||'';}catch(e){return '';}})();
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY, DEMO_SESS?{auth:{storageKey:'sb-aptsq-demo-'+DEMO_SESS}}:undefined);
 const $=(id)=>document.getElementById(id);
 const esc=(s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};

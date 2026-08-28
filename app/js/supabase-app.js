@@ -1675,6 +1675,7 @@ window.changeSchedMonth = function (delta) {
   if (delta === 'today') { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
   else { let m = schedYM.m + delta, y = schedYM.y; while (m < 0) { m += 12; y-- } while (m > 11) { m -= 12; y++ } schedYM = { y, m } }
   renderCalendar(SCHED_ALL)
+  const vp = document.getElementById('sc-vp'); if (vp && vp.style.display !== 'none') renderVisitPlan()
 }
 // 달력 좌우 스와이프로 월 넘기기
 function wireSchedSwipe() {
@@ -1700,6 +1701,8 @@ async function loadSchedule() {
   // 감리사용 '일정 추가' 버튼/폼을 먼저 숨겨 깜빡임 방지 (역할 확인 후 감리사면 다시 표시)
   const addBtn0 = document.getElementById('sc-add-btn'); if (addBtn0) addBtn0.style.display = 'none'
   const form0 = document.getElementById('sc-form'); if (form0) form0.style.display = 'none'
+  const vpb0 = document.getElementById('sc-vp-btn'); if (vpb0) vpb0.style.display = 'none'
+  const vpf0 = document.getElementById('sc-vp'); if (vpf0) vpf0.style.display = 'none'
   // 진입 즉시 '현재 달' 달력을 먼저 그림 — 정적 샘플(빈 7월 달력)이 잠깐 보이는 깜빡임 방지
   if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
   try { renderCalendar([]) } catch (e) {}
@@ -1729,7 +1732,15 @@ async function loadSchedule() {
     const { data } = await sb.from('schedules').select('*').order('date')
     scheds = data || []
   }
-  if (isAuditor) populateSchedAptSelect()
+  const vb = document.getElementById('sc-vp-btn'), vp = document.getElementById('sc-vp')
+  if (isAuditor) {
+    populateSchedAptSelect()
+    await loadVisitPlan(); renderVisitPlan()
+    if (vb) vb.style.display = ''
+  } else {
+    if (vb) vb.style.display = 'none'
+    if (vp) vp.style.display = 'none'
+  }
   SCHED_ALL = scheds
   renderCalendar(scheds)
   renderSchedList(scheds)
@@ -1742,6 +1753,78 @@ function populateSchedAptSelect() {
     apts.map(a => `<option value="${a.id}">${escH(a.name)} · 단지 일정 (입주민도 봄)</option>`).join('')
   sel.value = currentApt ? currentApt.id : ''
 }
+/* ===== 방문 배치 (감리사 앱) — control_sites 에 주기·요일 저장 → 내 담당 단지 방문 자동생성 ===== */
+const VP_CYCLE_DAYS = { '주1회': '수', '주2회': '화·목', '주3회': '월·수·금', '상주': '월·화·수·목·금' }
+const VP_WKB = ['월', '화', '수', '목', '금', '토', '일']
+const VP_MARK = '🔧 정기 방문'
+let CS_APP = {}   // apartment_id → control_sites.data
+function vpSlug(name) { return String(name || '').replace(/[\/#\.\[\]\$]/g, '_').slice(0, 300) }
+function vpData(a) { return CS_APP[a.id] || {} }
+function vpIso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+async function loadVisitPlan() {
+  CS_APP = {}
+  try {
+    const { data } = await sb.from('control_sites').select('data, apartment_id')
+    ;(data || []).forEach(x => { if (x.apartment_id) CS_APP[x.apartment_id] = x.data || {} })
+  } catch (e) { CS_APP = {} }
+}
+async function vpUpsert(a, patch) {
+  const slug = vpSlug(a.name)
+  const cur = CS_APP[a.id] || {}
+  const data = { ...cur, _name: a.name, ...patch, own: true, updatedAt: new Date().toISOString() }
+  CS_APP[a.id] = data
+  const { error } = await sb.from('control_sites').upsert({ slug, name: a.name, apartment_id: a.id, data, updated_at: new Date().toISOString() }, { onConflict: 'slug' })
+  if (error) { alert('저장 실패: ' + error.message + '\n(backend/migration-visit-plan-app.sql 실행이 필요해요)'); return false }
+  return true
+}
+function vpSetCycle(aptId, c) {
+  const a = AUD_APTS[aptId]; if (!a) return
+  const d = vpData(a); const patch = { cycle: c }; if (!d.visitDay && VP_CYCLE_DAYS[c]) patch.visitDay = VP_CYCLE_DAYS[c]
+  vpUpsert(a, patch).then(() => renderVisitPlan())
+}
+function vpToggleDay(aptId, w) {
+  const a = AUD_APTS[aptId]; if (!a) return
+  const d = vpData(a); let days = String(d.visitDay || '').split('·').filter(Boolean)
+  const i = days.indexOf(w); if (i >= 0) days.splice(i, 1); else days.push(w)
+  days.sort((x, y) => VP_WKB.indexOf(x) - VP_WKB.indexOf(y))
+  vpUpsert(a, { visitDay: days.join('·') }).then(() => renderVisitPlan())
+}
+function renderVisitPlan() {
+  const box = document.getElementById('sc-vp'); if (!box) return
+  const apts = Object.values(AUD_APTS)
+  if (!apts.length) { box.innerHTML = '<div style="font-size:11px;color:#9aa3b6;font-weight:600;text-align:center;padding:6px">담당 단지가 아직 없어요</div>'; return }
+  const CYB = ['주1회', '주2회', '주3회', '상주']
+  const rows = apts.map(a => {
+    const d = vpData(a); const days = String(d.visitDay || '').split('·').filter(Boolean)
+    const cyc = '<select onchange="vpSetCycle(\'' + a.id + '\',this.value)" style="font-size:11px;font-weight:700;padding:5px 6px;border-radius:8px;border:1px solid #e6eaf2;background:#fff;color:#1c2440">' + ['미확인'].concat(CYB).map(c => '<option ' + ((d.cycle || '미확인') === c ? 'selected' : '') + '>' + c + '</option>').join('') + '</select>'
+    const wd = VP_WKB.map(w => { const on = days.includes(w); return '<i onclick="vpToggleDay(\'' + a.id + '\',\'' + w + '\')" style="cursor:pointer;display:inline-flex;width:23px;height:23px;align-items:center;justify-content:center;margin:1px;border-radius:6px;font-size:10.5px;font-weight:800;font-style:normal;border:1px solid ' + (on ? '#2F6BF6' : '#e6eaf2') + ';background:' + (on ? '#2F6BF6' : '#fff') + ';color:' + (on ? '#fff' : '#9aa3b6') + '">' + w + '</i>' }).join('')
+    const stat = days.length ? '<span style="font-size:10px;font-weight:700;color:#1E7F4F">✓ ' + (d.cycle && d.cycle !== '미확인' ? d.cycle + ' · ' : '') + days.join('·') + '</span>' : '<span style="font-size:10px;font-weight:700;color:#b8710a">요일을 눌러 지정</span>'
+    return '<div style="background:#fff;border:1px solid #eef1f6;border-radius:10px;padding:9px 10px;margin-bottom:7px"><div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><div style="font-size:11.5px;font-weight:800;color:#1c2440;flex:1">' + escH(a.name) + '</div>' + cyc + '</div><div style="margin-bottom:5px">' + wd + '</div>' + stat + '</div>'
+  }).join('')
+  box.innerHTML = '<div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:7px">담당 단지별로 방문 주기·요일을 정하세요. 아래 버튼을 누르면 이 달 방문이 달력·입주민 앱에 떠요.</div>' + rows +
+    '<div id="sc-vp-gen" class="plus" style="height:38px;margin-top:4px;font-size:12px" onclick="vpGenerate()">📅 ' + schedYM.y + '년 ' + (schedYM.m + 1) + '월 방문 자동생성</div>'
+}
+window.vpSetCycle = vpSetCycle; window.vpToggleDay = vpToggleDay; window.renderVisitPlan = renderVisitPlan
+async function vpGenerate() {
+  const { y, m } = schedYM
+  const apts = Object.values(AUD_APTS).filter(a => String(vpData(a).visitDay || '').split('·').filter(Boolean).length)
+  if (!apts.length) { alert('먼저 담당 단지에 방문 요일을 지정하세요'); return }
+  const total = new Date(y, m + 1, 0).getDate()
+  const rows = []
+  for (const a of apts) {
+    const days = String(vpData(a).visitDay || '').split('·').filter(Boolean)
+    for (let dd = 1; dd <= total; dd++) { const dt = new Date(y, m, dd); const wd = VP_WKB[(dt.getDay() + 6) % 7]; if (days.includes(wd)) rows.push({ apartment_id: a.id, date: vpIso(dt), title: VP_MARK, description: '담당 ' + (MY_NAME || '감리사'), category: null }) }
+  }
+  if (!rows.length) { alert('이 달에는 해당 요일이 없어요'); return }
+  if (!confirm(y + '년 ' + (m + 1) + '월 방문 ' + rows.length + '건을 만들까요?\n(같은 달 자동 방문은 새로 갱신, 손으로 넣은 일정은 그대로)')) return
+  const from = y + '-' + String(m + 1).padStart(2, '0') + '-01', to = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(total).padStart(2, '0')
+  for (const a of apts) { try { await sb.from('schedules').delete().eq('apartment_id', a.id).gte('date', from).lte('date', to).like('title', VP_MARK + '%') } catch (e) {} }
+  const { error } = await sb.from('schedules').insert(rows)
+  if (error) { alert('생성 실패: ' + error.message); return }
+  alert(rows.length + '건의 방문을 만들었어요. 달력에 표시됩니다.')
+  loadSchedule()
+}
+window.vpGenerate = vpGenerate
 const APP_CAL_COLOR = { work: '#1E7F4F', asq: '#2a78d6', pt: '#5598e7', sales: '#256abf', bids: '#d9662f', seminar: '#0891b2', personal: '#8b5cf6', meeting: '#64748b', vacation: '#e0900a' }
 const APP_CAT_LABEL = { work: '공사일정', asq: '아스퀘', pt: 'PT', sales: '영업', bids: '현설', seminar: '세미나', personal: '개인', meeting: '회의', vacation: '휴가' }
 function catColor(k) { return APP_CAL_COLOR[k] || '#2F6BF6' }
@@ -2097,6 +2180,7 @@ function wire() {
   const rps = $('rep-search'); if (rps) rps.oninput = () => { repQuery = rps.value; renderReports() }
   // 공사 일정
   const addBtn = $('sc-add-btn'); if (addBtn) addBtn.onclick = () => { const f = $('sc-form'); if (f.style.display === 'none') { cancelSchedEdit(); f.style.display = 'block' } else { f.style.display = 'none' } }
+  const vpBtn = $('sc-vp-btn'); if (vpBtn) vpBtn.onclick = () => { const p = $('sc-vp'); if (p) { const show = p.style.display === 'none'; p.style.display = show ? 'block' : 'none'; if (show) renderVisitPlan() } }
   const scSave = $('sc-save'); if (scSave) scSave.onclick = addSchedule
   // 입주민 홈 · 빠른 메뉴
   const goSchedule = () => { showScreen('s14'); loadSchedule() }

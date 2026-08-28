@@ -631,8 +631,8 @@ function setCalPerson(p){ calPerson=p; renderCalendar(); }
 async function csSave(a,patch){
   const slug=csSlug(a.name); const cur=CSITES[slug]||{}; const data={...cur,_name:a.name,...patch,own:true,updatedAt:new Date().toISOString()};
   CSITES[slug]=data;
-  const {error}=await sb.from('control_sites').upsert({slug,name:a.name,data,updated_at:new Date().toISOString()},{onConflict:'slug'});
-  if(error) alert('배치 저장 실패: '+error.message+'\n(backend/migration-control-sites.sql 실행이 필요해요)');
+  const {error}=await sb.from('control_sites').upsert({slug,name:a.name,apartment_id:a.id,data,updated_at:new Date().toISOString()},{onConflict:'slug'});
+  if(error) alert('배치 저장 실패: '+error.message+'\n(backend/migration-control-sites.sql · migration-visit-plan-app.sql 실행이 필요해요)');
 }
 // 주기 선택 → 요일 자동 제안(아직 요일 안 정했을 때만)
 function asgSetCycle(aptId,c){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const patch={cycle:c}; if(!d.visitDay&&CYCLE_DAYS[c])patch.visitDay=CYCLE_DAYS[c]; csSave(a,patch).then(renderCalendar); }
@@ -643,6 +643,15 @@ function asgToggleDay(aptId,w){ const a=APTS.find(x=>x.id===aptId); if(!a)return
 function asgSetSub(aptId,name){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const wk=weekKeyOf(new Date());
   const subs=(d.subs&&typeof d.subs==='object')?{...d.subs}:{}; if(name)subs[wk]=name; else delete subs[wk];
   csSave(a,{subs}).then(renderCalendar); renderCalendar();
+}
+// 방문 배치표에서 담당 감리사 직접 배정 (단지의 auditor_id·apartment_auditors 갱신 → 앱에도 반영)
+async function asgSetAuditor(aptId,mid){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const rep=mid||null;
+  const {error}=await sb.from('apartments').update({auditor_id:rep}).eq('id',aptId);
+  if(error){ alert('감리사 배정 실패: '+error.message); return; }
+  a.auditor_id=rep;
+  try{ await sb.from('apartment_auditors').delete().eq('apartment_id',aptId); if(rep) await sb.from('apartment_auditors').insert([{apartment_id:aptId,auditor_id:rep}]); }catch(e){}
+  APT_AUD[aptId]=rep?[rep]:[];
+  renderCalendar(); renderOrgs(); renderProjList();
 }
 // 특정 달의 자동 방문 목록 계산 → [{aptId,name,date,who,sub}]  (담당자=우리 단지 배정 감리사, 요일=우리가 저장한 값)
 function computeVisits(y,m){
@@ -681,9 +690,12 @@ function renderAssignTable(){
   const sites=activeSites().slice().sort((p,q)=>(p.name||'').localeCompare(q.name||'','ko'));
   if(!sites.length){ box.innerHTML=''; return; }
   const mgrs=auditorNames(), wk=weekKeyOf(new Date()), CYB=['주1회','주2회','주3회','상주'];
+  const AUDS=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
   const rows=sites.map(a=>{ const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean);
     const mgr=siteMgrName(a);
-    const mgrCell=mgr?`<span style="display:inline-block;padding:3px 10px;border-radius:14px;font-size:11.5px;font-weight:800;background:var(--blue,#2f6bf6);color:#fff">${esc(mgr)}</span><br><span style="font-size:10px;color:var(--mut)">단지 배정 감리사</span>`:'<span style="color:#b8710a;font-size:11px;font-weight:700">담당 감리사 미배정<br><span style="font-weight:600;color:var(--mut)">단지 설정 ⚙️에서 지정</span></span>';
+    const mgrCell=mgrs.length
+      ? `<select onchange="asgSetAuditor('${a.id}',this.value)" style="font-size:12px;padding:5px 8px;border-radius:8px;font-weight:700;border:1.5px solid ${a.auditor_id?'var(--blue,#2f6bf6)':'#e6b04d'};color:${a.auditor_id?'var(--blue,#2f6bf6)':'#b8710a'};background:#fff"><option value="">- 담당 지정 -</option>${AUDS.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select>`
+      : '<span style="color:var(--mut);font-size:11px">회원에서 ‘감리사’를 먼저 등록하세요</span>';
     const cyc=`<select onchange="asgSetCycle('${a.id}',this.value)" style="font-size:12px;padding:4px 7px;border-radius:7px;border:1px solid var(--line)">${['미확인'].concat(CYB).map(c=>`<option ${(d.cycle||'미확인')===c?'selected':''}>${c}</option>`).join('')}</select>`;
     const wdBtns=WKB.map(w=>{const on=days.includes(w);return `<i onclick="asgToggleDay('${a.id}','${w}')" style="cursor:pointer;display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;margin:1px;border-radius:6px;font-size:11px;font-weight:700;font-style:normal;border:1px solid ${on?'var(--blue,#2f6bf6)':'var(--line)'};background:${on?'var(--blue,#2f6bf6)':'#fff'};color:${on?'#fff':'var(--mut)'}">${w}</i>`;}).join('');
     const curSub=(d.subs&&d.subs[wk])||'';

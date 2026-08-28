@@ -613,6 +613,8 @@ let calYM=null;
 const CYCLE_DAYS={'주1회':'수','주2회':'화·목','주3회':'월·수·금','상주':'월·화·수·목·금'};
 const WKB=['월','화','수','목','금','토','일'];
 const VISIT_MARK='🔧 정기 방문';
+const CAL_CATS=[['work','공사일정','#1E7F4F'],['asq','아스퀘','#2a78d6'],['pt','PT','#5598e7'],['sales','영업','#256abf'],['bids','현설','#d9662f'],['seminar','세미나','#0891b2'],['personal','개인','#8b5cf6'],['meeting','회의','#64748b'],['vacation','휴가','#e0900a']];
+function catMeta(k){ return CAL_CATS.find(c=>c[0]===k)||['','일정','#2F6BF6']; }
 function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function weekKeyOf(dt){ const n=new Date(dt); const off=(n.getDay()+6)%7; n.setHours(0,0,0,0); n.setDate(n.getDate()-off); return isoDate(n); }
 function csSlug(name){ return String(name||'').replace(/[\/#\.\[\]\$]/g,'_').slice(0,300); }
@@ -658,12 +660,12 @@ function renderCalendar(){
   const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), todayStr=isoDate(now);
   const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
   const byDay={};
-  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({t,visit:isV}); }});
+  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({t,visit:isV,color:isV?null:meta[2]}); }});
   computeVisits(y,m).forEach(v=>{ if(calPerson!=='전체'&&v.who!==calPerson)return; (byDay[v.dd]=byDay[v.dd]||[]).push({t:'방문 · '+v.name,who:v.who,visit:true,sub:v.sub,plan:true}); });
   let h=''; ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    h+=`<div class="cell" style="${date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':''}"><div class="dn">${d}</div>${ev.slice(0,4).map(e=>`<div class="ev" style="${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':''}" title="${esc(e.who||'')}">${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`).join('')}${ev.length>4?`<div style="font-size:9px;color:var(--mut)">+${ev.length-4} 더</div>`:''}</div>`;
+    h+=`<div class="cell" style="${date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':''}"><div class="dn">${d}</div>${ev.slice(0,4).map(e=>`<div class="ev" style="${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${esc(e.who||'')}">${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`).join('')}${ev.length>4?`<div style="font-size:9px;color:var(--mut)">+${ev.length-4} 더</div>`:''}</div>`;
   }
   $('calGrid').innerHTML=h;
   renderAssignTable();
@@ -1618,17 +1620,20 @@ function renderSchedules(){
 function openScheduleAdd(){
   const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   openModal(mHead('➕ 일정 추가')+`
-    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date"></div><div class="fld"><label>단지 *</label><select id="m-apt"><option value="">단지 선택</option>${sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div></div>
-    <div class="fld"><label>일정 내용 *</label><input id="m-title" placeholder="예: 옥상 방수 점검"></div>
+    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date"></div><div class="fld"><label>분류 *</label><select id="m-cat">${CAL_CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select></div></div>
+    <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 공사일정이면 선택, 개인·회의·휴가 등은 비워도 돼요</span></label><select id="m-apt"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label>일정 내용 *</label><input id="m-title" placeholder="예: 옥상 방수 점검 / PT / 세미나"></div>
     <div class="fld"><label>상세 (선택)</label><input id="m-desc"></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitScheduleAdd()">등록</button></div>`);
 }
 async function submitScheduleAdd(){
-  const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim();
-  if(!date||!aptId||!title){$('m-msg').textContent='날짜·단지·일정 내용을 모두 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const {error}=await sb.from('schedules').insert({date,apartment_id:aptId,title,description:$('m-desc').value.trim()||null,owner_id:null});
-  if(error){$('m-msg').textContent='등록 실패: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;
+  if(!date||!title){$('m-msg').textContent='날짜·일정 내용을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const row={date,title,description:$('m-desc').value.trim()||null,category};
+  if(aptId){ row.apartment_id=aptId; row.owner_id=null; } else { row.apartment_id=null; }
+  const {error}=await sb.from('schedules').insert(row);
+  if(error){$('m-msg').textContent='등록 실패: '+error.message+(/category/.test(error.message)?'\n(backend/migration-control-sites.sql 실행 필요)':'');$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();
 }
 async function deleteSchedule(id){

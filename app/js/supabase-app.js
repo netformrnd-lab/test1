@@ -1742,65 +1742,53 @@ function populateSchedAptSelect() {
     apts.map(a => `<option value="${a.id}">${escH(a.name)} · 단지 일정 (입주민도 봄)</option>`).join('')
   sel.value = currentApt ? currentApt.id : ''
 }
+const APP_CAL_COLOR = { work: '#1E7F4F', asq: '#2a78d6', pt: '#5598e7', sales: '#256abf', bids: '#d9662f', seminar: '#0891b2', personal: '#8b5cf6', meeting: '#64748b', vacation: '#e0900a' }
+const APP_CAT_LABEL = { work: '공사일정', asq: '아스퀘', pt: 'PT', sales: '영업', bids: '현설', seminar: '세미나', personal: '개인', meeting: '회의', vacation: '휴가' }
+function catColor(k) { return APP_CAL_COLOR[k] || '#2F6BF6' }
+let schedPicked = null
+function schedPickDay(dk) { schedPicked = (schedPicked === dk ? null : dk); renderCalendar(SCHED_ALL || []); renderSchedList(SCHED_ALL || []) }
+window.schedPickDay = schedPickDay
 function renderCalendar(scheds) {
   const { y, m } = schedYM
   const mo = document.getElementById('s-month'); if (mo) mo.textContent = y + '년 ' + (m + 1) + '월'
   const first = new Date(y, m, 1).getDay()
   const total = new Date(y, m + 1, 0).getDate()
   const today = new Date()
-  const mark = {}
-  scheds.forEach(s => { if (s.date) { const d = new Date(s.date); if (d.getFullYear() === y && d.getMonth() === m) mark[d.getDate()] = true } })
+  const cats = {}
+  scheds.forEach(s => { if (s.date) { const d = new Date(s.date); if (d.getFullYear() === y && d.getMonth() === m) { const dd = d.getDate(); (cats[dd] = cats[dd] || []).push(catColor(s.category)) } } })
   let cells = ''
   for (let i = 0; i < first; i++) cells += '<span></span>'
   for (let d = 1; d <= total; d++) {
     const isT = today.getFullYear() === y && today.getMonth() === m && today.getDate() === d
-    const dot = mark[d] ? '<span style="position:absolute;left:50%;transform:translateX(-50%);bottom:1px;width:4px;height:4px;border-radius:99px;background:#2F6BF6"></span>' : ''
-    const st = isT ? 'position:relative;padding:6px 0;background:#2F6BF6;color:#fff;border-radius:9px;font-weight:800' : 'position:relative;padding:6px 0'
-    cells += '<span style="' + st + '">' + d + dot + '</span>'
+    const dk = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0')
+    const isSel = schedPicked === dk
+    const cs = (cats[d] || []).slice(0, 4)
+    const dots = cs.length ? '<span style="position:absolute;left:0;right:0;bottom:1px;display:flex;justify-content:center;gap:2px">' + cs.map(c => '<span style="width:4px;height:4px;border-radius:99px;background:' + c + '"></span>').join('') + '</span>' : ''
+    const st = isSel ? 'position:relative;padding:6px 0;background:#111a33;color:#fff;border-radius:9px;font-weight:800;cursor:pointer'
+      : isT ? 'position:relative;padding:6px 0;background:#2F6BF6;color:#fff;border-radius:9px;font-weight:800;cursor:pointer'
+        : 'position:relative;padding:6px 0;cursor:pointer'
+    cells += '<span onclick="schedPickDay(\'' + dk + '\')" style="' + st + '">' + d + dots + '</span>'
   }
   const el = document.getElementById('s-days'); if (el) el.innerHTML = cells
 }
 function renderSchedList(scheds) {
+  // 하단 상시 목록은 없앰 — 날짜를 누르면 그 날 일정만 보여줌
   const el = document.getElementById('s-list'); if (!el) return
-  if (!scheds.length) { el.innerHTML = '<div style="padding:22px 10px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">등록된 일정이 없어요.<br>“＋ 일정 추가”로 방문 일정을 남겨보세요.</div>'; return }
+  if (!schedPicked) { el.innerHTML = '<div style="padding:12px 10px;text-align:center;color:#b3bccf;font-size:11px;font-weight:600">달력의 날짜를 누르면 그 날 일정이 여기 보여요</div>'; return }
   const wd = ['일', '월', '화', '수', '목', '금', '토']
-  const today = new Date(); today.setHours(0, 0, 0, 0); const todayMs = today.getTime(); const DAY = 86400000
-  // 각 일정에 '오늘 기준 상대일수(diff)' 계산
-  const items = scheds.map(s => {
-    const d = s.date ? new Date(s.date) : null
-    let diff = null
-    if (d) { const dO = new Date(d); dO.setHours(0, 0, 0, 0); diff = Math.round((dO.getTime() - todayMs) / DAY) }
-    return { s, d, diff }
-  })
-  // 다가오는(오늘 포함) 먼저 가까운 순, 지난 일정은 아래에 최근 순
-  const upcoming = items.filter(it => it.diff !== null && it.diff >= 0).sort((a, b) => a.diff - b.diff)
-  const past = items.filter(it => it.diff === null || it.diff < 0).sort((a, b) => (b.diff || 0) - (a.diff || 0))
-  const card = (it) => {
-    const s = it.s, d = it.d, diff = it.diff
-    const ds = d ? `${d.getMonth() + 1}/${d.getDate()} (${wd[d.getDay()]})` : ''
-    const isToday = diff === 0, isPast = diff !== null && diff < 0
-    // 상대 표시 배지 (오늘 / D-n / 지남)
-    let rel = ''
-    if (isToday) rel = '<span style="font-size:9.5px;font-weight:800;color:#fff;background:#e4544b;padding:2px 9px;border-radius:6px">오늘</span>'
-    else if (diff !== null && diff >= 1 && diff <= 30) rel = `<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">D-${diff}</span>`
-    else if (isPast) rel = '<span style="font-size:9px;font-weight:700;color:#9aa3b6;background:#eef1f7;padding:2px 7px;border-radius:6px">지남</span>'
-    // 감리사만: 개인/단지 배지
+  const day = (scheds || []).filter(s => String(s.date || '').slice(0, 10) === schedPicked)
+  const [Y, M, D] = schedPicked.split('-').map(Number)
+  const head = M + '/' + D + ' (' + wd[new Date(Y, M - 1, D).getDay()] + ')'
+  if (!day.length) { el.innerHTML = '<div style="padding:12px 10px;text-align:center;color:#9aa3b6;font-size:11.5px;font-weight:600">' + head + ' 일정이 없어요</div>'; return }
+  el.innerHTML = '<div style="font-size:11px;font-weight:800;color:#3a445e;margin:2px 2px 6px">' + head + '</div>' + day.map(s => {
+    const c = catColor(s.category), lab = APP_CAT_LABEL[s.category] || ''
     let badge = ''
     if (currentRole === 'auditor') {
-      if (s.apartment_id) { const apt = AUD_APTS[s.apartment_id]; badge = `<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">👥 ${apt ? escH(apt.name) : '단지'}</span>` }
-      else badge = `<span style="font-size:9px;font-weight:800;color:#8b7a2f;background:#f6efd8;padding:2px 7px;border-radius:6px">🔒 개인</span>`
+      if (s.apartment_id) { const apt = AUD_APTS[s.apartment_id]; badge = '<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">👥 ' + (apt ? escH(apt.name) : '단지') + '</span>' }
+      else badge = '<span style="font-size:9px;font-weight:800;color:#8b7a2f;background:#f6efd8;padding:2px 7px;border-radius:6px">🔒 개인</span>'
     }
-    const accent = isToday ? '#e4544b' : '#2F6BF6'
-    const bg = isToday ? '#fff5f4' : (isPast ? '#f7f8fa' : '#f8faff')
-    const titleColor = isPast ? '#9aa3b6' : '#1c2440'
-    return `<div style="border-left:3px solid ${accent};background:${bg};border-radius:0 10px 10px 0;padding:10px 11px${isToday ? ';box-shadow:0 6px 14px -10px rgba(228,84,75,.5)' : ''}"><div style="display:flex;align-items:center;gap:6px">${rel}<div style="font-size:11.5px;font-weight:800;color:${titleColor}">${escH(s.title)}</div>${badge ? '<span style="margin-left:auto">' + badge + '</span>' : ''}</div><div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">${ds}${s.description ? ' · ' + escH(s.description) : ''}</div></div>`
-  }
-  let html = upcoming.map(card).join('')
-  if (past.length) {
-    html += '<div style="display:flex;align-items:center;gap:8px;margin:14px 2px 2px"><span style="font-size:10px;font-weight:800;color:#aab2c4">지난 일정</span><span style="flex:1;height:1px;background:#eef1f7"></span></div>'
-    html += past.map(card).join('')
-  }
-  el.innerHTML = html
+    return '<div style="border-left:3px solid ' + c + ';background:#f8faff;border-radius:0 10px 10px 0;padding:9px 11px;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px">' + (lab ? '<span style="font-size:9px;font-weight:800;color:' + c + ';background:' + c + '1a;padding:2px 7px;border-radius:6px">' + lab + '</span>' : '') + '<div style="font-size:11.5px;font-weight:800;color:#1c2440">' + escH(s.title) + '</div>' + (badge ? '<span style="margin-left:auto">' + badge + '</span>' : '') + '</div>' + (s.description ? '<div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">' + escH(s.description) + '</div>' : '') + '</div>'
+  }).join('')
 }
 async function addSchedule() {
   const { data: { user } } = await sb.auth.getUser()
@@ -1810,7 +1798,8 @@ async function addSchedule() {
   if (!date || !title) { alert('날짜와 일정 내용을 입력하세요'); return }
   const sel = document.getElementById('sc-apt')
   const aptId = sel ? sel.value : ''
-  const row = { date, title, description: desc || null }
+  const cat = (document.getElementById('sc-cat') || {}).value || null
+  const row = { date, title, description: desc || null, category: cat }
   if (aptId) { row.apartment_id = aptId; row.owner_id = null }   // 단지 일정 (입주민도 봄)
   else { row.owner_id = user.id; row.apartment_id = null }        // 개인 일정 (나만 봄)
   const { error } = await sb.from('schedules').insert(row)

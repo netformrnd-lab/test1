@@ -17,4 +17,7 @@ drop policy if exists control_sites_admin on public.control_sites;
 create policy control_sites_admin on public.control_sites
   for all to authenticated using (is_admin()) with check (is_admin());
 
+-- 일정 분류(카테고리): 공사일정/아스퀘/PT/영업/현설/세미나/개인/회의/휴가
+alter table public.schedules add column if not exists category text;
+
 -- 완료! 'Success. No rows returned' 이면 정상입니다.

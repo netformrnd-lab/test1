@@ -237,7 +237,7 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-calendar">
-      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px"><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
+      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
       <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div></div>
       <div id="cal-alert"></div>
     </section>
@@ -595,6 +595,33 @@ function exportAllExcel(){
   if(PHASEB_OK.roadmap) add('로드맵', ROADMAP.map(r=>({단계:r.phase,할일:r.title,상태:RM_LABEL[r.status]||r.status,단지:r.apartment_id?aptName(r.apartment_id):'공통',마감일:r.due_date})));
   const today=new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb,'아파트스퀘어_전체데이터_'+today+'.xlsx');
+}
+// 일정 전용 엑셀 추출 (분류·방문·예정/다녀옴 포함) — 이번 달 또는 전체
+function exportSchedulesExcel(monthOnly){
+  if(typeof XLSX==='undefined'){alert('엑셀 모듈을 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.');return;}
+  let list=SCHEDULES.filter(s=>s.date).slice();
+  let scope='전체';
+  if(monthOnly){ const {y,m}=calYM||{y:new Date().getFullYear(),m:new Date().getMonth()}; list=list.filter(s=>{const d=new Date(s.date); return d.getFullYear()===y&&d.getMonth()===m;}); scope=`${y}-${String(m+1).padStart(2,'0')}`; }
+  list.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if(!list.length){ alert(monthOnly?'이 달 일정이 없어요.':'일정이 없어요.'); return; }
+  const rows=list.map(s=>{ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const meta=catMeta(s.category);
+    return {
+      날짜:(s.date||'').slice(0,10),
+      분류:isV?'방문':(s.category?meta[1]:''),
+      구분:s.apartment_id?'단지 일정':'개인 일정',
+      단지:s.apartment_id?aptName(s.apartment_id):'',
+      담당:s.owner_id?schOwnerName(s):(s.apartment_id?aptAuditors(APTS.find(a=>a.id===s.apartment_id)||{}).map(auditorName).join(', '):''),
+      일정:s.title||'',
+      상세:s.description||'',
+      방문여부:isV?'방문':'',
+      다녀옴:s.done_at?('O '+String(s.done_at).slice(0,10)):(isV?'예정':'')
+    };
+  });
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:12},{wch:9},{wch:10},{wch:22},{wch:12},{wch:24},{wch:24},{wch:8},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'일정');
+  XLSX.writeFile(wb,'아파트스퀘어_일정_'+scope+'.xlsx');
 }
 function tile(cls,k,v,sub){ return `<div class="tile ${cls}"><span class="edge"></span><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`; }
 

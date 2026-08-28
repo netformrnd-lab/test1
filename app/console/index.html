@@ -2066,10 +2066,10 @@ function renderSales(){
     const list=active.filter(s=>s.stage===k); const sum=list.reduce((a,b)=>a+(+b.amount||0),0);
     return `<div class="col" data-stage="${k}" ondragover="salesDragOver(event)" ondragleave="salesDragLeave(event)" ondrop="salesDrop(event,'${k}')"><div class="ch">${lbl}<span class="cn">${list.length}</span>${sum?`<span class="cs">${moneyKR(sum)}</span>`:''}</div>${list.map(card).join('')||'<div class="colempty" style="font-size:11.5px;color:var(--mut);text-align:center;padding:8px">여기로 끌어다 놓기</div>'}</div>`;
   }).join('')+'</div>';
-  if(won.length||lost.length){
-    h+=`<div class="grid2" style="margin-top:16px">
-      <div class="card"><h3>✅ 성사 <span class="r">${won.length}건 · ${moneyKR(wonSum)}원</span></h3>${won.length?`<table><tbody>${won.map(s=>`<tr style="cursor:pointer" onclick="openSalesEdit('${s.id}')"><td style="font-weight:700">${esc(s.name)}</td><td>${esc(s.region)||''}</td><td style="text-align:right;font-weight:800;color:var(--green)">${moneyKR(s.amount)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">아직 없어요</div>'}</div>
-      <div class="card"><h3>❌ 실패 <span class="r">${lost.length}건</span></h3>${lost.length?`<table><tbody>${lost.map(s=>`<tr style="cursor:pointer" onclick="openSalesEdit('${s.id}')"><td style="font-weight:700">${esc(s.name)}</td><td style="color:var(--mut)">${esc(s.memo)||''}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">없어요</div>'}</div></div>`;
+  // 성사(성공) 딜은 단지관리로 자동 편입되므로 하단엔 실패 탭만 (전체 폭)
+  if(lost.length){
+    h+=`<div class="card" style="margin-top:16px"><h3>❌ 실패 <span class="r">${lost.length}건</span></h3>
+      <table><thead><tr><th>단지/고객</th><th>지역</th><th>사유·메모</th></tr></thead><tbody>${lost.map(s=>`<tr style="cursor:pointer" onclick="openSalesEdit('${s.id}')"><td style="font-weight:700">${esc(s.name)}</td><td style="color:var(--mut);white-space:nowrap">${esc(s.region)||'-'}</td><td style="color:var(--mut)">${esc(s.memo)||''}</td></tr>`).join('')}</tbody></table></div>`;
   }
   bd.innerHTML=h;
 }

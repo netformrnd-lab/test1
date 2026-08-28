@@ -385,45 +385,6 @@ function aptName(id){ const a=APTS.find(x=>x.id===id); return a?a.name:'-'; }
 function siteType(a){ return (window.methodLabel&&window.methodLabel(a.method))||(a.construction_type&&String(a.construction_type).trim())||''; }
 function STG(m){ return (window.STAGE_SETS&&window.STAGE_SETS[m])||null; }
 function progressOf(a){ const st=STG(a.method); const tot=st?st.stages.length:(a.progress_total||0); const cur=a.progress_current||0; return {cur,tot,pct:tot?Math.round(cur/tot*100):0}; }
-// 🤖 AI 진척률(감리일지 자동 추정): 근거가 확실할 때만 숫자를 내고, 없으면 '판단 불가'
-// 근거 우선순위 ① 세부 공정단계명(정밀) ② 착공·공사중·준공 공정 ③ 준공·완료 키워드
-function aiProgress(a){
-  const st=STG(a.method); const stages=(st&&st.stages&&st.stages.length)?st.stages:null; const tot0=stages?stages.length:0;
-  const reps=REPORTS.filter(r=>r.apartment_id===a.id);
-  if(!reps.length) return {ok:false,reason:'감리일지가 아직 없어 추정할 수 없어요. 일지를 올리면 자동으로 계산돼요.'};
-  const doneRx=/(준공|완공|시공완료|공사완료|전체완료|최종점검)/;
-  const phaseRank={'착공':1,'공사중':2,'시공중':2,'준공':3};
-  let fineMax=-1, phase=0, doneHit=false, latestDate='';
-  reps.forEach(r=>{ const txt=((r.stage||'')+' '+(r.title||'')+' '+(r.content||'')).replace(/\s+/g,'');
-    if((r.created_at||'')>latestDate)latestDate=(r.created_at||'').slice(0,10);
-    if(doneRx.test(txt))doneHit=true;
-    Object.keys(phaseRank).forEach(k=>{ if(txt.indexOf(k)>=0 && phaseRank[k]>phase) phase=phaseRank[k]; });
-    if(stages) stages.forEach((sName,i)=>{ if(sName && txt.indexOf(sName.replace(/\s+/g,''))>=0 && i>fineMax) fineMax=i; });
-  });
-  // ① 세부 공정단계명이 일지에 있으면 정밀 추정 (신뢰도 높음)
-  if(stages && (doneHit || fineMax>=0)){
-    const cur=doneHit?tot0:Math.min(fineMax+1,tot0);
-    return {ok:true, cur, tot:tot0, pct:Math.round(cur/tot0*100), latest:cur>=tot0?'시공 완료':stages[Math.min(cur,tot0-1)], basis:reps.length, latestDate, conf:'높음', approx:false};
-  }
-  // ② 착공/공사중/준공 공정 기준 (실제 일지 데이터 → 신뢰 가능)
-  if(doneHit) phase=3;
-  if(phase>0){
-    if(stages){ const map={1:Math.max(1,Math.round(tot0*0.1)),2:Math.max(1,Math.round(tot0*0.5)),3:tot0}; const cur=map[phase];
-      return {ok:true, cur, tot:tot0, pct:Math.round(cur/tot0*100), latest:{1:'착공(초기)',2:'공사중(진행)',3:'준공(완료)'}[phase], basis:reps.length, latestDate, conf:phase===3?'높음':'보통', approx:true};
-    }
-    return {ok:true, cur:phase, tot:3, pct:Math.round(phase/3*100), latest:{1:'착공',2:'공사중',3:'준공'}[phase], basis:reps.length, latestDate, conf:phase===3?'높음':'보통', approx:true, threeStep:true};
-  }
-  // ③ 근거 없음 → 숫자 만들지 않음(정직하게 판단 불가)
-  return {ok:false, reason:'감리일지에서 공정(착공·공사중·준공)이나 세부 단계를 찾지 못했어요.\n일지 작성 시 공정을 선택하면 자동으로 계산돼요.'};
-}
-async function applyAiProgress(aptId){
-  const a=APTS.find(x=>x.id===aptId); if(!a)return; const est=aiProgress(a); if(!est.ok)return;
-  if(!confirm(`AI 추정 진척률 ${est.pct}% (${est.cur}/${est.tot}단계)를 이 단지의 진행률로 반영할까요?\n· 감리일지 ${est.basis}건 근거\n· 나중에 ⚙️ 단지 설정에서 수정할 수 있어요`))return;
-  const {error}=await sb.from('apartments').update({progress_current:est.cur,progress_total:est.tot}).eq('id',aptId);
-  if(error){ alert('반영 실패: '+error.message); return; }
-  a.progress_current=est.cur; a.progress_total=est.tot; if(curProj&&curProj.id===aptId){curProj.progress_current=est.cur;curProj.progress_total=est.tot;}
-  renderProj(); renderProjList(); renderDash();
-}
 const STATUS={in_progress:['공사중','blue'],done:['완료','gray'],scheduled:['점검예정','no']};
 
 /* ===== 로그인/게이트 ===== */
@@ -866,7 +827,6 @@ function renderProj(){
       <div class="kv"><span>공정</span><b>${pr.tot?`${pr.cur}/${pr.tot}단계 (${pr.pct}%)${stName?' · '+esc(stName):''}`:'<span style="color:var(--mut)">공법을 정하면 공정이 표시돼요 (⚙️ 단지 설정)</span>'}</b></div>
       ${pr.tot?`<div class="bar" style="margin-top:6px"><i style="width:${pr.pct}%"></i></div>`:''}
       <div style="font-size:11px;color:var(--mut);margin-top:10px">💡 담당 감리사·공법·공정·상태는 <b>⚙️ 단지 설정</b>에서 바꿔요.</div></div>
-      ${aiProgressCard(p,pr)}
       ${billingCard(p,cons)}</div>`+
       `<div class="card"><h3>📝 현장개요 <span class="r">이 현장의 핵심 요약 (관리자 메모)</span></h3>
         <textarea id="ov-text" placeholder="예: 106~110동 외벽 재도장. 2026.03 착공, 감리 주 1회 방문. 특이사항: 옥상 방수 추가 검토 중." style="width:100%;box-sizing:border-box;min-height:110px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none;resize:vertical;line-height:1.6">${esc(p.overview)||''}</textarea>
@@ -1105,19 +1065,6 @@ async function deleteSiteNote(id){
   SITE_NOTES=SITE_NOTES.filter(n=>n.id!==id); renderProj(); renderProjList(); renderOrgs(); renderDash();
 }
 /* ===== 계약·수금 ===== */
-function aiProgressCard(p,pr){
-  const est=aiProgress(p);
-  const head=`<h3>🤖 AI 진척률 <span class="r" style="font-size:11px;color:var(--mut)">감리일지 근거 자동 추정</span></h3>`;
-  if(!est.ok){ return `<div class="card">${head}<div class="empty" style="font-size:12.5px;white-space:pre-line;line-height:1.6">${est.reason}</div></div>`; }
-  const confColor=est.conf==='높음'?'var(--green)':'#b8710a';
-  const same=(!est.threeStep && pr.tot===est.tot && pr.cur===est.cur);
-  const diff = est.threeStep ? '' : (pr.tot? `현재 수동 입력 <b>${pr.pct===undefined?'':pr.pct}%</b> (${pr.cur}/${pr.tot})` : '아직 진행률 미입력');
-  return `<div class="card">${head}
-    <div style="display:flex;align-items:baseline;gap:10px;margin:2px 0 8px"><div style="font-size:30px;font-weight:900;color:var(--blue)">${est.pct}%</div><div style="font-size:12.5px;color:var(--mut2);font-weight:700">${est.cur}/${est.tot}단계 · 최근: ${esc(est.latest)}</div></div>
-    <div class="bar"><i style="width:${est.pct}%;background:linear-gradient(90deg,#2f6bf6,#4f8cff)"></i></div>
-    <div style="font-size:11.5px;color:var(--mut);margin-top:9px;line-height:1.6">📄 감리일지 <b>${est.basis}건</b> 근거${est.latestDate?` · 최근 ${esc(est.latestDate)}`:''} · 신뢰도 <b style="color:${confColor}">${esc(est.conf)}</b>${est.approx?'<br><span style="color:#b8710a">※ 착공·공사중·준공 공정 기준 추정이에요. 일지에 세부 공정단계까지 적으면 더 정확해져요.</span>':''}</div>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:11px"><span style="font-size:11.5px;color:var(--mut);flex:1">${same?'✓ 현재 진행률과 동일해요':(diff||'&nbsp;')}</span>${same?'':`<button class="b blue sm" onclick="applyAiProgress('${p.id}')">이 값으로 반영</button>`}</div></div>`;
-}
 function billingCard(p,cons){
   const ca=p.contract_amount, sf=p.supervision_fee, rc=p.received_amount;
   const out=(sf!=null)?(sf-(rc||0)):null;

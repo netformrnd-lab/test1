@@ -1754,8 +1754,9 @@ function renderCalendar(scheds) {
   const first = new Date(y, m, 1).getDay()
   const total = new Date(y, m + 1, 0).getDate()
   const today = new Date()
+  const isAud = currentRole === 'auditor'
   const cats = {}
-  scheds.forEach(s => { if (s.date) { const d = new Date(s.date); if (d.getFullYear() === y && d.getMonth() === m) { const dd = d.getDate(); (cats[dd] = cats[dd] || []).push(catColor(s.category)) } } })
+  scheds.forEach(s => { if (s.date) { const d = new Date(s.date); if (d.getFullYear() === y && d.getMonth() === m) { const dd = d.getDate(); (cats[dd] = cats[dd] || []).push(isAud ? catColor(s.category) : '#2F6BF6') } } })
   let cells = ''
   for (let i = 0; i < first; i++) cells += '<span></span>'
   for (let d = 1; d <= total; d++) {
@@ -1771,7 +1772,11 @@ function renderCalendar(scheds) {
   }
   const el = document.getElementById('s-days'); if (el) el.innerHTML = cells
   const lg = document.getElementById('s-legend')
-  if (lg) lg.innerHTML = Object.keys(APP_CAT_LABEL).map(k => '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:7px;height:7px;border-radius:99px;background:' + APP_CAL_COLOR[k] + '"></span>' + APP_CAT_LABEL[k] + '</span>').join('')
+  if (lg) {
+    // 분류 범례는 감리사만 — 입주민·관리주체는 기존 캘린더처럼 단순하게
+    if (isAud) { lg.style.display = 'flex'; lg.innerHTML = Object.keys(APP_CAT_LABEL).map(k => '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:7px;height:7px;border-radius:99px;background:' + APP_CAL_COLOR[k] + '"></span>' + APP_CAT_LABEL[k] + '</span>').join('') }
+    else { lg.style.display = 'none'; lg.innerHTML = '' }
+  }
 }
 function renderSchedList(scheds) {
   // 하단 상시 목록은 없앰 — 날짜를 누르면 그 날 일정만 보여줌
@@ -1782,8 +1787,10 @@ function renderSchedList(scheds) {
   const [Y, M, D] = schedPicked.split('-').map(Number)
   const head = M + '/' + D + ' (' + wd[new Date(Y, M - 1, D).getDay()] + ')'
   if (!day.length) { el.innerHTML = '<div style="padding:12px 10px;text-align:center;color:#9aa3b6;font-size:11.5px;font-weight:600">' + head + ' 일정이 없어요</div>'; return }
+  const isAud = currentRole === 'auditor'
   el.innerHTML = '<div style="font-size:11px;font-weight:800;color:#3a445e;margin:2px 2px 6px">' + head + '</div>' + day.map(s => {
-    const c = catColor(s.category), lab = APP_CAT_LABEL[s.category] || ''
+    // 입주민·관리주체: 분류 색/배지 없이 기존 캘린더처럼 (감리사만 분류 표시)
+    const c = isAud ? catColor(s.category) : '#2F6BF6', lab = isAud ? (APP_CAT_LABEL[s.category] || '') : ''
     let badge = ''
     if (currentRole === 'auditor') {
       if (s.apartment_id) { const apt = AUD_APTS[s.apartment_id]; badge = '<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">👥 ' + (apt ? escH(apt.name) : '단지') + '</span>' }

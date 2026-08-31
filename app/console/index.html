@@ -167,6 +167,14 @@ tbody tr:hover{background:#f8fafc}
 .rm-dsec li::before{content:'';position:absolute;left:3px;top:14px;width:5px;height:5px;border-radius:50%;background:#aab0ba}
 .rm-dnone{font-size:12.5px;color:var(--mut);padding:8px 0}
 .rm-nav{display:flex;align-items:center;gap:10px;padding:0 20px 18px}
+.rm-edit-btn{margin-left:auto;font-size:12px;font-weight:700;color:var(--blue,#2f6bf6);background:var(--accent-soft,#eaf1ff);border:1px solid #cde2fb;border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit}
+.rm-erow{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.rm-erow input{flex:1;min-width:0;font-family:inherit;font-size:12.5px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;outline:none;color:var(--ink,#141d31);background:#fff}
+.rm-erow input:focus{border-color:var(--blue,#2f6bf6)}
+.rm-erow button{flex:0 0 auto;border:none;background:#fdecec;color:#d9453c;border-radius:7px;padding:6px 9px;font-size:12px;cursor:pointer;font-family:inherit}
+.rm-addrow{width:100%;margin-top:4px;border:1px dashed var(--line);background:var(--surface2,#f7f9fc);color:var(--mut);border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.rm-addrow:hover{border-color:var(--blue,#2f6bf6);color:var(--blue,#2f6bf6)}
+.rm-name-in{font-size:16px;font-weight:800;padding:6px 10px;border:1px solid var(--line);border-radius:9px;font-family:inherit;outline:none;color:var(--ink,#141d31)}
 /* board (영업/로드맵) */
 .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
 @media(max-width:1000px){.board{grid-template-columns:repeat(2,1fr)}}
@@ -458,6 +466,7 @@ async function loadAll(){
   try{ const {data:ev}=await sb.from('app_events').select('apartment_id'); VIEWS={}; (ev||[]).forEach(e=>{ if(e.apartment_id)VIEWS[e.apartment_id]=(VIEWS[e.apartment_id]||0)+1; }); }catch(e){ VIEWS={}; }
   try{ const {data:cs,error}=await sb.from('control_sites').select('slug,name,data'); CSITES={}; (cs||[]).forEach(x=>{ CSITES[x.slug]=x.data||{}; }); PHASEB_OK.csites=!error; }catch(e){ CSITES={}; PHASEB_OK.csites=false; }
   initSeen();
+  await loadRoadmapManual();
   renderAll();
   startPoll(); startChatPoll(); startConsoleRealtime(); maybeAutoSyncGSheet();
   if(!WON_MATED){ WON_MATED=true; materializeWonApts(null); }  // 성사 딜 → 단지관리 자동 편입(세션 1회)
@@ -2340,34 +2349,64 @@ const RM_MANUAL=[
   work:['준공검사','시공사·단지 날짜·시간 협의','단지 상태 ‘완료’로 변경(입주민 만족도 배너 노출)'],
   docs:[], notes:['공사 완료 현장 PT는 요청 시 진행']}
 ];
-let rmSel=0;
-function selRm(i){ if(i<0||i>=RM_MANUAL.length)return; rmSel=i; renderRoadmap(); const b=$('rmSteps'); const el=b&&b.children[i*2]; if(el)el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}); }
+// 편집 가능한 작업본 (기본값 복사) — 로드 시 DB에 저장된 게 있으면 덮어씀
+let RM_DATA=RM_MANUAL.map(x=>({icon:x.icon,name:x.name,work:[...x.work],docs:[...x.docs],notes:[...x.notes]}));
+let rmSel=0, rmEdit=false;
+async function loadRoadmapManual(){
+  try{ const {data}=await sb.from('roadmap_manual').select('data').eq('id','main').maybeSingle();
+    if(data&&Array.isArray(data.data)&&data.data.length){ RM_DATA=data.data.map(x=>({icon:x.icon||'📌',name:x.name||'',work:x.work||[],docs:x.docs||[],notes:x.notes||[]})); }
+  }catch(e){}
+}
+function selRm(i){ if(rmEdit)return; if(i<0||i>=RM_DATA.length)return; rmSel=i; renderRoadmap(); const b=$('rmSteps'); const el=b&&b.children[i*2]; if(el)el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}); }
+function rmEditStart(){ rmEdit=true; renderRoadmap(); }
+function rmEditCancel(){ rmEdit=false; renderRoadmap(); }
+function rmErow(val){ return `<div class="rm-erow"><input value="${esc(val).replace(/"/g,'&quot;')}"><button onclick="this.parentNode.remove()" title="삭제">🗑</button></div>`; }
+function rmAddRow(col){ const box=$('rm-edit-'+col); if(!box)return; box.insertAdjacentHTML('beforeend', rmErow('')); const inps=box.querySelectorAll('input'); const last=inps[inps.length-1]; if(last)last.focus(); }
+async function rmSaveEdit(){
+  const readCol=col=>[...document.querySelectorAll('#rm-edit-'+col+' input')].map(i=>i.value.trim()).filter(Boolean);
+  const name=($('rm-name-in')||{}).value?.trim()||RM_DATA[rmSel].name;
+  RM_DATA[rmSel]={icon:RM_DATA[rmSel].icon,name,work:readCol('work'),docs:readCol('doc'),notes:readCol('note')};
+  const {error}=await sb.from('roadmap_manual').upsert({id:'main',data:RM_DATA,updated_at:new Date().toISOString()},{onConflict:'id'});
+  if(error){ alert('저장 실패: '+error.message+'\n(backend/migration-roadmap-manual.sql 실행이 필요해요)'); return; }
+  rmEdit=false; renderRoadmap();
+}
 function renderRoadmap(){
   const box=$('roadmapBody'); if(!box)return;
-  if(rmSel<0||rmSel>=RM_MANUAL.length)rmSel=0;
-  const steps=RM_MANUAL.map((x,i)=>`<button class="rm-step${i===rmSel?' on':''}" onclick="selRm(${i})"><span class="rm-stepn">${i+1}</span>${x.icon} ${esc(x.name)}</button>`).join('<span class="rm-arrow">›</span>');
-  const s=RM_MANUAL[rmSel];
+  if(rmSel<0||rmSel>=RM_DATA.length)rmSel=0;
+  const steps=RM_DATA.map((x,i)=>`<button class="rm-step${i===rmSel?' on':''}" onclick="selRm(${i})"><span class="rm-stepn">${i+1}</span>${esc(x.icon)} ${esc(x.name)}</button>`).join('<span class="rm-arrow">›</span>');
+  const s=RM_DATA[rmSel];
+  if(rmEdit){
+    const editCol=(col,icon,title,arr)=>`<div class="rm-dsec ${col==='doc'?'doc':col==='note'?'note':'act'}"><div class="rm-dsec-h">${icon} ${title}</div><div id="rm-edit-${col}">${arr.map(rmErow).join('')}</div><button class="rm-addrow" onclick="rmAddRow('${col}')">＋ 항목 추가</button></div>`;
+    box.innerHTML=`
+      <div class="rm-stepbar"><div class="rm-steps" id="rmSteps">${steps}</div></div>
+      <div class="rm-detail">
+        <div class="rm-detail-h"><span class="rm-detail-num">${rmSel+1}</span><span style="font-size:20px">${esc(s.icon)}</span><input id="rm-name-in" class="rm-name-in" value="${esc(s.name).replace(/"/g,'&quot;')}"><span class="rm-detail-hint">단계 이름·항목 편집</span></div>
+        <div class="rm-dcols">${editCol('work','🗂️','취해야 할 행동',s.work)}${editCol('doc','📄','서류',s.docs)}${editCol('note','⚠️','주의점',s.notes)}</div>
+        <div class="rm-nav"><button class="b line" onclick="rmEditCancel()">취소</button><span style="flex:1"></span><button class="b blue" onclick="rmSaveEdit()">💾 저장</button></div>
+      </div>`;
+    return;
+  }
   const sec=(cls,icon,title,arr)=>`<div class="rm-dsec ${cls}"><div class="rm-dsec-h">${icon} ${title}<span class="rm-dsec-n">${arr.length}</span></div>${arr.length?`<ul>${arr.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:'<div class="rm-dnone">해당 없음</div>'}</div>`;
   box.innerHTML=`
     <div class="rm-stepbar"><div class="rm-steps" id="rmSteps">${steps}</div>
       <div class="rm-printgrp"><button class="b line sm" onclick="printStage()">🖨️ 이 단계</button><button class="b line sm" onclick="printRoadmap()">🖨️ 전체</button></div></div>
     <div class="rm-detail">
-      <div class="rm-detail-h"><span class="rm-detail-num">${rmSel+1}</span><b>${esc(s.icon)} ${esc(s.name)}</b><span class="rm-detail-hint">이 단계에서 할 일</span></div>
+      <div class="rm-detail-h"><span class="rm-detail-num">${rmSel+1}</span><b>${esc(s.icon)} ${esc(s.name)}</b><button class="rm-edit-btn" onclick="rmEditStart()">✏️ 편집</button></div>
       <div class="rm-dcols">${sec('act','🗂️','취해야 할 행동',s.work)}${sec('doc','📄','서류',s.docs)}${sec('note','⚠️','주의점',s.notes)}</div>
-      <div class="rm-nav"><button class="b line" ${rmSel===0?'disabled':''} onclick="selRm(${rmSel-1})">‹ 이전</button><span style="flex:1"></span><span style="font-size:12px;color:var(--mut);font-weight:700">${rmSel+1} / ${RM_MANUAL.length}</span><span style="flex:1"></span><button class="b blue" ${rmSel===RM_MANUAL.length-1?'disabled':''} onclick="selRm(${rmSel+1})">다음 ›</button></div>
+      <div class="rm-nav"><button class="b line" ${rmSel===0?'disabled':''} onclick="selRm(${rmSel-1})">‹ 이전</button><span style="flex:1"></span><span style="font-size:12px;color:var(--mut);font-weight:700">${rmSel+1} / ${RM_DATA.length}</span><span style="flex:1"></span><button class="b blue" ${rmSel===RM_DATA.length-1?'disabled':''} onclick="selRm(${rmSel+1})">다음 ›</button></div>
     </div>`;
 }
 function rmOpenPrint(html){ const w=window.open('','_blank'); if(!w){alert('팝업이 차단되었어요 — 팝업 허용 후 다시 시도하세요');return;} w.document.open();w.document.write(html);w.document.close(); const go=()=>{try{w.focus();w.print();}catch(e){}}; w.onload=go;setTimeout(go,500); }
 function printStage(){
-  const s=RM_MANUAL[rmSel]; if(!s)return;
+  const s=RM_DATA[rmSel]; if(!s)return;
   const sec=(title,arr)=>`<div class="sec"><div class="sh">${title}<span>${arr.length}</span></div>${arr.length?'<ul>'+arr.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>':'<div class="none">해당 없음</div>'}</div>`;
   const css=`@page{size:A4 portrait;margin:15mm}*{box-sizing:border-box}body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:#1a1f29;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}.ph{display:flex;align-items:center;gap:11px;border-bottom:2.5px solid #1a1f29;padding-bottom:11px;margin-bottom:18px}.num{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:#1a1f29;color:#fff;font-size:15pt;font-weight:800}.ph h1{font-size:20pt;margin:0}.ph .brand{margin-left:auto;font-size:9pt;color:#666}.sec{border:1px solid #d5d8dd;border-radius:8px;padding:13px 17px;margin-bottom:13px}.sh{font-size:12.5pt;font-weight:800;margin-bottom:9px;display:flex;align-items:center;gap:6px}.sh span{margin-left:auto;font-size:9pt;color:#666;font-weight:700}ul{list-style:none;margin:0;padding:0}li{position:relative;padding:6px 0 6px 16px;font-size:11.5pt;line-height:1.4;border-bottom:1px dashed #e3e7ec}li:last-child{border-bottom:0}li::before{content:'';position:absolute;left:3px;top:12px;width:5px;height:5px;border-radius:50%;background:#8b93a0}.none{font-size:10pt;color:#888;padding:5px 0}`;
   rmOpenPrint('<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>'+esc(s.name)+' — 업무 매뉴얼</title><style>'+css+'</style></head><body><div class="ph"><span class="num">'+(rmSel+1)+'</span><h1>'+esc(s.icon+' '+s.name)+'</h1><span class="brand">아파트스퀘어 업무 매뉴얼</span></div>'+sec('🗂️ 취해야 할 행동',s.work)+sec('📄 서류',s.docs)+sec('⚠️ 주의점',s.notes)+'</body></html>');
 }
 function printRoadmap(){
   const grp=(lab,cls,arr)=>`<div class="grp"><div class="glab ${cls}">${lab}</div>${arr.length?'<ul>'+arr.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>':'<div class="none">없음</div>'}</div>`;
-  const cards=RM_MANUAL.map((s,i)=>`<div class="card"><div class="chd"><span class="cnum">${i+1}</span><span class="cnm">${esc(s.icon+' '+s.name)}</span></div>${grp('✅ 해야 할 일','',s.work)}${grp('📄 준비·제출 서류','doc',s.docs)}${grp('⚠️ 꼭 확인·주의','note',s.notes)}</div>`).join('');
-  const flow=RM_MANUAL.map((s,i)=>`<span class="fstep"><b>${i+1}</b> ${esc(s.name)}</span>`).join('<span class="farr">→</span>');
+  const cards=RM_DATA.map((s,i)=>`<div class="card"><div class="chd"><span class="cnum">${i+1}</span><span class="cnm">${esc(s.icon+' '+s.name)}</span></div>${grp('✅ 해야 할 일','',s.work)}${grp('📄 준비·제출 서류','doc',s.docs)}${grp('⚠️ 꼭 확인·주의','note',s.notes)}</div>`).join('');
+  const flow=RM_DATA.map((s,i)=>`<span class="fstep"><b>${i+1}</b> ${esc(s.name)}</span>`).join('<span class="farr">→</span>');
   const css=`@page{size:A4 portrait;margin:11mm}*{box-sizing:border-box}body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:#1a1f29;margin:0;font-size:9pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}.top{border-bottom:3px solid #2a78d6;padding-bottom:8px;margin-bottom:10px}.top h1{font-size:17pt;margin:0}.top p{font-size:9pt;color:#555;margin:4px 0 0}.flow{background:#f3f7fc;border:1px solid #d8e6f6;border-radius:7px;padding:8px 11px;margin-bottom:11px;line-height:1.9}.fstep{font-size:8.5pt;color:#33465e;white-space:nowrap}.fstep b{display:inline-block;min-width:14px;height:14px;line-height:14px;text-align:center;background:#2a78d6;color:#fff;border-radius:50%;font-size:7pt;margin-right:2px}.farr{color:#9bb0c9;font-weight:800;margin:0 5px}.cols{column-count:2;column-gap:8mm}.card{break-inside:avoid;-webkit-column-break-inside:avoid;border:1px solid #d0d5dd;border-radius:8px;padding:9px 12px;margin:0 0 9px}.chd{display:flex;align-items:center;gap:7px;border-bottom:1.5px solid #eceef1;padding-bottom:6px;margin-bottom:7px}.cnum{width:22px;height:22px;border-radius:50%;background:#2a78d6;color:#fff;font-size:10pt;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}.cnm{font-size:12pt;font-weight:800}.grp{margin:6px 0}.glab{font-size:9pt;font-weight:800;color:#2f3742;margin-bottom:3px}.glab.doc{color:#1d5fa8}.glab.note{color:#b5641b}.card ul{list-style:none;margin:0;padding:0}.card li{position:relative;padding:2.5px 0 2.5px 13px;font-size:9.5pt;line-height:1.38}.card li::before{content:'';position:absolute;left:3px;top:8px;width:4px;height:4px;border-radius:50%;background:#98a0ab}.none{font-size:9pt;color:#a2a8b0;padding-left:13px}`;
   rmOpenPrint('<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>아파트스퀘어 업무 매뉴얼</title><style>'+css+'</style></head><body><div class="top"><h1>🏢 아파트스퀘어 업무 매뉴얼</h1><p>문의부터 준공까지, <b>번호 순서대로</b> 진행하세요. 각 단계의 <b>해야 할 일 · 준비할 서류 · 주의할 점</b>을 정리했습니다.</p></div><div class="flow">'+flow+'</div><div class="cols">'+cards+'</div></body></html>');
 }

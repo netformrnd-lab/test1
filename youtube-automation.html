@@ -205,6 +205,7 @@
       <div class="sub">넷폼알앤디 · 파이프라인 설계 &amp; 제작 현황판</div>
     </div>
     <div class="spacer"></div>
+    <a class="btn solid" href="prompt-studio.html" style="text-decoration:none">프롬프트 스튜디오 →</a>
     <button class="btn" id="themeBtn">테마 전환</button>
     <button class="btn" id="resetBtn">현황판 초기화</button>
   </div>
@@ -217,7 +218,8 @@
     <h2>가능합니다. 단 “완전 무인”이 아니라 사람이 승인하는 게이트 2곳을 남긴 반자동이 정답입니다.</h2>
     <p>
       헤이젠과 마누스 <strong>둘 다 REST API와 웹훅을 제공</strong>하므로 대본 생성 → 영상 생성 → 업로드까지 코드로 이을 수 있습니다.
-      다만 지금 조합에는 <strong>인포그래픽 모션</strong>과 <strong>업로드 연결</strong>이 비어 있고, 유튜브는 2025년 7월부터
+      헤이젠 <strong>Video Agent</strong>가 프롬프트 하나로 씬 구성·모션 그래픽·B롤까지 만들어 주므로 별도 영상 편집 도구도 필요 없습니다.
+      남은 빈칸은 <strong>업로드 연결</strong> 하나뿐입니다. 다만 유튜브는 2025년 7월부터
       대량 생산·반복 콘텐츠를 수익화에서 걸러내고 있습니다. 그래서 <strong>대본 승인</strong>과 <strong>최종본 승인</strong> 두 지점만
       사람이 잡고, 나머지 5단계를 자동으로 돌리는 구조를 권장합니다. 편당 사람 손이 닿는 시간은 약 25분입니다.
     </p>
@@ -307,14 +309,14 @@
             <td><span class="tag auto">보유</span></td>
           </tr>
           <tr>
-            <td>아바타 · 내레이션</td><td>헤이젠</td>
+            <td>영상 생성</td><td>헤이젠 Video Agent</td>
             <td><span class="mono">X-Api-Key</span> 헤더 인증, <span class="mono">callback_url</span>로 완성 알림<div class="sm">폴링 대신 웹훅 사용 권장</div></td>
             <td><span class="tag auto">보유</span></td>
           </tr>
           <tr>
-            <td>인포그래픽 모션</td><td>Remotion</td>
-            <td>React 코드로 영상 렌더. 대본 JSON을 그대로 props로 주입<div class="sm">템플릿 한 번 만들면 이후 편당 0분</div></td>
-            <td><span class="tag gate">추가 필요</span></td>
+            <td>인포그래픽 모션 · B롤</td><td>헤이젠 Video Agent</td>
+            <td>마스터 프롬프트 하나로 스크립트·씬·모션 그래픽·B롤 자동 구성<div class="sm">렌더 후 AI Studio에서 요소 단위 수정 가능</div></td>
+            <td><span class="tag auto">보유</span></td>
           </tr>
           <tr>
             <td>썸네일</td><td>Canva</td>
@@ -360,7 +362,7 @@
         <div class="card phase">
           <div class="p">2단계</div><h3>영상 생성 자동</h3><div class="when">추가 4주</div>
           <ul>
-            <li>헤이젠 웹훅 + Remotion 템플릿 3종 제작</li>
+            <li>마스터 프롬프트 확정 후 헤이젠 API + 웹훅 연결</li>
             <li>썸네일 자동 3안 생성</li>
             <li>업로드는 승인 후 사람이 진행</li>
           </ul>
@@ -400,8 +402,8 @@
   var STAGES=[
     {n:'01',t:'주제 발굴',tool:'마누스가 검색 트렌드·경쟁 채널을 훑어 후보 10개',out:'주제 후보 + 근거',lvl:'auto'},
     {n:'02',t:'대본 · 구성',tool:'대본, 컷 구성표, 자막을 JSON으로 생성',out:'승인된 대본',lvl:'gate'},
-    {n:'03',t:'아바타 생성',tool:'헤이젠이 내레이션 파트를 영상으로 렌더',out:'아바타 mp4',lvl:'auto'},
-    {n:'04',t:'모션 · 조립',tool:'Remotion이 인포 그래픽과 아바타를 합쳐 렌더',out:'완성본 mp4',lvl:'auto'},
+    {n:'03',t:'영상 생성',tool:'마스터 프롬프트를 헤이젠에 전달해 렌더',out:'초안 영상',lvl:'auto'},
+    {n:'04',t:'모션 · B롤',tool:'Video Agent가 씬 구성·모션 그래픽·B롤까지 자동 생성',out:'완성본 mp4',lvl:'auto'},
     {n:'05',t:'썸네일',tool:'Canva 브랜드 템플릿으로 3안 자동 생성',out:'썸네일 3안',lvl:'auto'},
     {n:'06',t:'최종 검수',tool:'사실관계·발음·자막 오류를 사람이 확인',out:'게시 승인',lvl:'gate'},
     {n:'07',t:'업로드 · 측정',tool:'YouTube API 예약 공개 후 성과 수집',out:'게시 + 지표',lvl:'auto'}

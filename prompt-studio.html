@@ -1,0 +1,490 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>헤이젠 마스터 프롬프트 스튜디오</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard.min.css">
+<style>
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5; --line:#dfe4ea; --line-soft:#eaeef3;
+    --ink:#1b2430; --ink-2:#5b6676; --ink-3:#8b95a3;
+    --brand:#2f6df6; --brand-2:#0aa5c4; --brand-soft:rgba(47,109,246,.10);
+    --ok:#17936a; --ok-soft:rgba(23,147,106,.12);
+    --warn:#b4740a; --warn-soft:rgba(180,116,10,.13);
+    --code-bg:#f2f5f9;
+    --shadow:0 1px 2px rgba(27,36,48,.06),0 8px 24px -16px rgba(27,36,48,.28);
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#10151c; --surface:#171e27; --surface-2:#1f2833; --line:#2b3644; --line-soft:#232d3a;
+      --ink:#e7edf5; --ink-2:#a3b0c0; --ink-3:#71808f;
+      --brand:#6f9dff; --brand-2:#3fc7e3; --brand-soft:rgba(111,157,255,.14);
+      --ok:#3fc492; --ok-soft:rgba(63,196,146,.15);
+      --warn:#e0a343; --warn-soft:rgba(224,163,67,.16);
+      --code-bg:#121922;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -18px rgba(0,0,0,.9);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10151c; --surface:#171e27; --surface-2:#1f2833; --line:#2b3644; --line-soft:#232d3a;
+    --ink:#e7edf5; --ink-2:#a3b0c0; --ink-3:#71808f;
+    --brand:#6f9dff; --brand-2:#3fc7e3; --brand-soft:rgba(111,157,255,.14);
+    --ok:#3fc492; --ok-soft:rgba(63,196,146,.15);
+    --warn:#e0a343; --warn-soft:rgba(224,163,67,.16);
+    --code-bg:#121922;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -18px rgba(0,0,0,.9);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Pretendard','IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{margin:0;text-wrap:balance}
+  a{color:var(--brand)}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  header{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+  .hd{max-width:1340px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .mark{width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;
+    background:linear-gradient(140deg,var(--brand),var(--brand-2));color:#fff;font-weight:700;font-size:16px;box-shadow:var(--shadow)}
+  .hd h1{font-size:17px;font-weight:700;letter-spacing:-.3px}
+  .hd .sub{font-size:12px;color:var(--ink-3)}
+  .spacer{flex:1}
+  .btn{padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;text-decoration:none;display:inline-block}
+  .btn:hover{border-color:var(--brand);color:var(--brand)}
+  .btn.solid{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.solid:hover{filter:brightness(1.08);color:#fff}
+
+  .wrap{max-width:1340px;margin:0 auto;padding:22px 24px 72px}
+  .lead{color:var(--ink-2);max-width:78ch;margin:0 0 22px}
+  .lead b{color:var(--ink);font-weight:600}
+
+  .layout{display:grid;grid-template-columns:400px 1fr;gap:22px;align-items:start}
+  @media (max-width:1000px){.layout{grid-template-columns:1fr}}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .panel-hd{padding:14px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .panel-hd h2{font-size:14px;font-weight:700}
+  .panel-bd{padding:18px}
+
+  .form{position:sticky;top:78px}
+  @media (max-width:1000px){.form{position:static}}
+  .fg{margin-bottom:15px}
+  .fg:last-child{margin-bottom:0}
+  .fg label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
+  .fg .help{font-weight:400;color:var(--ink-3);font-size:11.5px}
+  input[type=text],textarea,select{
+    width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font:inherit;font-size:13px;resize:vertical;
+  }
+  textarea{line-height:1.6;min-height:74px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{
+    flex:1 1 auto;padding:7px 10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink-2);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:.15s;
+  }
+  .seg button[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+
+  .tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px}
+  .tabs button{
+    flex:1;padding:8px 10px;border:0;border-radius:7px;background:transparent;color:var(--ink-2);
+    font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:.15s;
+  }
+  .tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .step{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--brand);margin-bottom:3px}
+  .desc{font-size:12.5px;color:var(--ink-2);margin:0 0 12px;max-width:74ch}
+  pre{
+    margin:0;background:var(--code-bg);border:1px solid var(--line-soft);border-radius:11px;
+    padding:16px 18px;overflow-x:auto;max-height:620px;overflow-y:auto;
+    font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12.3px;line-height:1.72;color:var(--ink);white-space:pre-wrap;word-break:break-word;
+  }
+  .meta{display:flex;gap:14px;font-size:11.5px;color:var(--ink-3);margin-top:10px;font-variant-numeric:tabular-nums}
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);
+    background:var(--ok);color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;font-weight:600;
+    opacity:0;pointer-events:none;transition:.2s;z-index:50;
+  }
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .callout{
+    margin-top:24px;padding:16px 18px;border-radius:12px;background:var(--warn-soft);
+    border:1px solid transparent;font-size:13px;color:var(--ink);line-height:1.7;
+  }
+  .callout b{font-weight:700}
+</style>
+
+<header>
+  <div class="hd">
+    <div class="mark">P</div>
+    <div>
+      <h1>헤이젠 마스터 프롬프트 스튜디오</h1>
+      <div class="sub">넷폼알앤디 · 기획 → 프롬프트 → 영상</div>
+    </div>
+    <div class="spacer"></div>
+    <a class="btn" href="youtube-automation.html">← 자동화 현황판</a>
+    <button class="btn" id="themeBtn">테마 전환</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="lead">
+    왼쪽에 기획 조건을 넣으면 세 가지 산출물이 동시에 만들어집니다.
+    <b>①</b> 클로드·마누스에게 던질 기획 지시문, <b>②</b> 헤이젠 Video Agent에 그대로 붙여넣는 마스터 프롬프트,
+    <b>③</b> 나중에 API로 자동화할 때 쓸 제작 사양 JSON. 셋 다 같은 입력에서 나오므로,
+    수동으로 쓰다가 자동화로 넘어갈 때 기획 포맷을 다시 만들 필요가 없습니다.
+  </p>
+
+  <div class="layout">
+    <div class="panel form">
+      <div class="panel-hd"><h2>기획 조건</h2></div>
+      <div class="panel-bd">
+        <div class="fg">
+          <label for="topic">주제</label>
+          <input type="text" id="topic" value="포워더 견적서, 어디를 봐야 손해를 안 보나">
+        </div>
+        <div class="row2">
+          <div class="fg">
+            <label for="audience">시청 대상</label>
+            <select id="audience">
+              <option>수출입 실무 담당자</option>
+              <option>중소 제조사 대표</option>
+              <option>물류 신입 사원</option>
+              <option>일반 시청자</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label for="goal">시청 후 행동</label>
+            <select id="goal">
+              <option>견적 문의</option>
+              <option>채널 구독</option>
+              <option>자료 다운로드</option>
+              <option>사내 이해도 향상</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg">
+          <label>영상 길이 <span class="help">— 씬 구간이 자동으로 다시 계산됩니다</span></label>
+          <div class="seg" id="segLen"></div>
+        </div>
+        <div class="fg">
+          <label>톤</label>
+          <div class="seg" id="segTone"></div>
+        </div>
+        <div class="fg">
+          <label>아바타 운용 <span class="help">— 초당 과금 구간을 결정합니다</span></label>
+          <div class="seg" id="segAvatar"></div>
+        </div>
+        <div class="fg">
+          <label for="msgs">핵심 메시지 <span class="help">— 한 줄에 하나씩, 3개 권장</span></label>
+          <textarea id="msgs">견적서의 총액이 아니라 항목 구성을 먼저 본다
+THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
+운임 유효기간과 적용 환율을 반드시 확인한다</textarea>
+        </div>
+        <div class="fg">
+          <label for="facts">화면에 띄울 수치·근거 <span class="help">— 없으면 비워두세요. 지어내지 않게 막습니다</span></label>
+          <textarea id="facts">부대비용 누락으로 발생하는 추가 청구 평균 비중: 총 운임의 12~18%
+견적 유효기간 평균: 2주</textarea>
+        </div>
+        <div class="fg">
+          <label for="cta">마무리 문구</label>
+          <input type="text" id="cta" value="견적서 검토가 필요하시면 채널 소개란의 링크로 보내 주세요">
+        </div>
+        <div class="fg">
+          <label for="brand">사내 제작 규칙 <span class="help">— 가이드 문서 내용을 여기 붙여넣으면 프롬프트에 반영됩니다</span></label>
+          <textarea id="brand">브랜드 컬러는 파랑 계열로 통일
+자막은 항상 표시, 문장당 최대 20자
+경쟁사 실명 언급 금지</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd">
+        <div class="tabs" style="flex:1" role="tablist">
+          <button role="tab" aria-selected="true" data-tab="0">① 기획 지시문</button>
+          <button role="tab" aria-selected="false" data-tab="1">② 마스터 프롬프트</button>
+          <button role="tab" aria-selected="false" data-tab="2">③ 제작 사양 JSON</button>
+        </div>
+        <button class="btn solid" id="copyBtn">복사</button>
+      </div>
+      <div class="panel-bd">
+        <div class="step" id="outStep"></div>
+        <p class="desc" id="outDesc"></p>
+        <pre id="out"></pre>
+        <div class="meta"><span id="mChars"></span><span id="mLines"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>API가 부담되면 ②번만 써도 됩니다.</b>
+    이미 헤이젠 웹 플랜을 쓰고 계시면 마스터 프롬프트를 붙여넣는 방식은 추가 비용이 0원입니다.
+    API 지갑은 웹 플랜 크레딧과 별도로 충전되고, 생성된 초 단위로 빠져나갑니다.
+    그래서 <b>먼저 ②로 10편쯤 만들어 프롬프트를 다듬은 다음</b> 그 확정본을 API에 태우는 순서를 권합니다.
+    프롬프트가 흔들리는 상태에서 자동화부터 붙이면 실패한 렌더에 그대로 과금됩니다.
+  </div>
+</div>
+
+<div class="toast" id="toast">복사했습니다</div>
+
+<script>
+(function(){
+  var LS='ytprompt.v1';
+  try{ var t=localStorage.getItem(LS+'.theme'); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){}
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    if(!cur) cur=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+    var n=cur==='dark'?'light':'dark';
+    document.documentElement.setAttribute('data-theme',n);
+    try{ localStorage.setItem(LS+'.theme',n); }catch(e){}
+  });
+
+  var LENS=[60,90,120,180];
+  var TONES=[
+    {k:'전문적·차분',v:'전문적이고 차분한 설명체. 과장된 감탄사와 이모지를 쓰지 않는다.'},
+    {k:'친근·구어체',v:'옆에서 알려주듯 친근한 구어체. 어려운 용어는 한 번 풀어서 설명한다.'},
+    {k:'속도감·임팩트',v:'문장을 짧게 끊고 속도감 있게. 단정적인 어조로 핵심만 던진다.'}
+  ];
+  var AVAS=[
+    {k:'앞뒤만 등장',v:'오프닝과 클로징에만 아바타가 등장하고, 나머지 구간은 내레이션과 모션 그래픽으로 채운다.',ratio:.3},
+    {k:'전체 진행',v:'아바타가 영상 전체를 진행한다. 설명 구간에는 화면 한쪽에 작게 배치한다.',ratio:1},
+    {k:'등장 없음',v:'아바타를 화면에 노출하지 않는다. 내레이션 음성과 모션 그래픽만으로 구성한다.',ratio:0}
+  ];
+  var st={len:1,tone:0,ava:0,tab:0};
+
+  function seg(id,arr,key){
+    var el=document.getElementById(id);
+    el.innerHTML=arr.map(function(o,i){
+      return '<button type="button" data-i="'+i+'" aria-pressed="'+(st[key]===i)+'">'+(o.k||o)+(typeof o==='number'?'초':'')+'</button>';
+    }).join('');
+    el.onclick=function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      st[key]=+b.dataset.i; seg(id,arr,key); render();
+    };
+  }
+
+  function val(id){return document.getElementById(id).value.trim();}
+  function lines(id){return val(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);}
+
+  // 길이에 따라 씬 구간을 비율로 배분
+  function scenes(len){
+    var plan=[
+      {n:'훅',            w:.09, screen:'굵은 타이포 한 줄. 배경은 단색, 다른 요소 없음',       note:'질문형 한 문장으로 문제를 던진다'},
+      {n:'문제 정의',      w:.14, screen:'아이콘 3개가 순차로 등장하며 상황을 나열',            note:'시청자가 겪는 손해를 구체적으로 짚는다'},
+      {n:'본론 1',        w:.19, screen:'수치 카운트업 + 막대 그래프',                        note:'첫 번째 핵심 메시지'},
+      {n:'본론 2',        w:.19, screen:'좌우 비교 레이아웃. 잘못된 예 / 올바른 예',            note:'두 번째 핵심 메시지'},
+      {n:'본론 3',        w:.19, screen:'화살표로 이어지는 단계 다이어그램',                   note:'세 번째 핵심 메시지'},
+      {n:'요약 · 마무리',  w:.20, screen:'3줄 요약 리스트가 한 줄씩 쌓임',                     note:'요약 후 마무리 문구'}
+    ];
+    var t=0;
+    return plan.map(function(p){
+      var d=Math.round(len*p.w), s=t; t+=d;
+      return {name:p.n,from:s,to:Math.min(t,len),screen:p.screen,note:p.note};
+    });
+  }
+  function tc(s){var m=Math.floor(s/60),x=s%60;return m>0?(m+'분 '+x+'초'):(x+'초');}
+
+  function masterPrompt(){
+    var len=LENS[st.len], tone=TONES[st.tone], ava=AVAS[st.ava];
+    var msgs=lines('msgs'), facts=lines('facts'), brand=lines('brand');
+    var sc=scenes(len);
+    var body=[];
+    body.push('당신은 B2B 정보 영상의 연출가입니다. 아래 사양대로 유튜브 영상 한 편을 만들어 주세요.');
+    body.push('');
+    body.push('# 주제');
+    body.push(val('topic'));
+    body.push('');
+    body.push('# 영상 사양');
+    body.push('- 길이: '+len+'초 (±5초 허용)');
+    body.push('- 화면비: 16:9');
+    body.push('- 자막: 한국어, 전 구간 표시');
+    body.push('- 톤: '+tone.v);
+    body.push('');
+    body.push('# 시청자');
+    body.push('- 대상: '+val('audience'));
+    body.push('- 시청 후 기대 행동: '+val('goal'));
+    body.push('');
+    body.push('# 아바타 운용');
+    body.push('- '+ava.v);
+    body.push('');
+    body.push('# 씬 구성 (구간을 임의로 바꾸지 마세요)');
+    sc.forEach(function(s,i){
+      body.push((i+1)+'. '+s.name+' ['+s.from+'~'+s.to+'초]');
+      body.push('   내용: '+s.note);
+      body.push('   화면: '+s.screen);
+    });
+    body.push('');
+    body.push('# 반드시 다뤄야 할 내용');
+    if(msgs.length){ msgs.forEach(function(m,i){ body.push((i+1)+') '+m); }); }
+    else { body.push('(핵심 메시지를 입력하세요)'); }
+    body.push('');
+    body.push('# 화면에 표시할 수치');
+    if(facts.length){
+      facts.forEach(function(f){ body.push('- '+f); });
+      body.push('- 위 수치 외에 어떤 통계도 새로 만들어 넣지 마세요.');
+    } else {
+      body.push('- 제공된 수치가 없습니다. 구체적인 숫자나 통계를 화면에 넣지 마세요.');
+    }
+    body.push('');
+    body.push('# 마무리 문구');
+    body.push(val('cta'));
+    if(brand.length){
+      body.push('');
+      body.push('# 브랜드 규칙');
+      brand.forEach(function(b){ body.push('- '+b); });
+    }
+    body.push('');
+    body.push('# 금지 사항');
+    body.push('- 근거 없는 수치·통계 생성');
+    body.push('- 내레이션과 자막의 문장이 서로 다른 경우');
+    body.push('- 주제와 무관한 스톡 영상 사용');
+    body.push('- 특정 업체를 실명으로 비교하거나 평가하는 표현');
+    body.push('');
+    body.push('# 출력 순서');
+    body.push('먼저 씬별 내레이션 원고와 화면 지시를 표로 보여 주고, 확인을 받은 뒤 영상을 생성해 주세요.');
+    return body.join('\n');
+  }
+
+  function briefPrompt(){
+    var len=LENS[st.len];
+    return [
+      '당신은 유튜브 인포 영상의 기획 PD입니다.',
+      '아래 주제로 헤이젠 Video Agent에 넣을 "마스터 프롬프트"를 작성하세요.',
+      '영상을 직접 만들지 말고, 프롬프트 텍스트만 출력합니다.',
+      '',
+      '## 입력 조건',
+      '- 주제: '+val('topic'),
+      '- 대상: '+val('audience'),
+      '- 시청 후 기대 행동: '+val('goal'),
+      '- 길이: '+len+'초',
+      '- 톤: '+TONES[st.tone].k,
+      '- 아바타 운용: '+AVAS[st.ava].k,
+      '',
+      '## 작업 순서',
+      '1. 이 주제에 관한 최신 사실과 수치를 조사하고, 각 항목마다 출처 URL을 함께 기록한다.',
+      '   확인되지 않은 숫자는 절대 쓰지 않는다. 근거를 못 찾으면 "근거 없음"이라고 적는다.',
+      '2. 시청 이탈이 잦은 지점을 고려해 8~15초 단위로 씬을 끊고, 각 씬의 화면 연출을 정한다.',
+      '   설명이 길어지는 구간은 반드시 수치 그래프나 비교 레이아웃으로 시각화한다.',
+      '3. 핵심 메시지를 3개로 압축한다. 4개 이상이면 영상이 늘어진다.',
+      '4. 아래 형식 그대로 마스터 프롬프트를 출력한다.',
+      '',
+      '## 출력 형식',
+      '# 주제 / # 영상 사양 / # 시청자 / # 아바타 운용 / # 씬 구성 / # 반드시 다뤄야 할 내용',
+      '/ # 화면에 표시할 수치 / # 마무리 문구 / # 브랜드 규칙 / # 금지 사항 / # 출력 순서',
+      '각 씬은 "n. 씬이름 [시작~끝초]" 다음 줄에 내용과 화면 지시를 적는다.',
+      '',
+      '## 마지막에 덧붙일 것',
+      '- 조사에 사용한 출처 목록 (제목 + URL)',
+      '- 이 주제에서 사실 확인이 필요한 항목 체크리스트',
+      '',
+      '## 주의',
+      '수치를 지어내면 영상 전체를 폐기해야 합니다. 확실하지 않으면 숫자를 빼고 서술로 처리하세요.'
+    ].join('\n');
+  }
+
+  function specJson(){
+    var len=LENS[st.len];
+    return JSON.stringify({
+      version:'1.0',
+      topic:val('topic'),
+      audience:val('audience'),
+      goal:val('goal'),
+      duration_sec:len,
+      aspect_ratio:'16:9',
+      language:'ko',
+      captions:true,
+      tone:TONES[st.tone].k,
+      avatar:{mode:AVAS[st.ava].k,on_screen_ratio:AVAS[st.ava].ratio},
+      key_messages:lines('msgs'),
+      approved_figures:lines('facts'),
+      cta:val('cta'),
+      brand_rules:lines('brand'),
+      scenes:scenes(len).map(function(s){
+        return {name:s.name,from_sec:s.from,to_sec:s.to,intent:s.note,visual:s.screen};
+      }),
+      guardrails:[
+        'approved_figures 외 수치 사용 금지',
+        '내레이션과 자막 문장 일치',
+        '주제와 무관한 스톡 영상 금지',
+        '경쟁사 실명 언급 금지'
+      ],
+      billing_estimate:{
+        billed_seconds:Math.round(len*AVAS[st.ava].ratio),
+        note:'헤이젠은 생성된 초 단위로 과금됩니다. 실제 단가는 콘솔에서 확인하세요.'
+      }
+    },null,2);
+  }
+
+  var TABS=[
+    {step:'1단계 · 기획',   desc:'클로드나 마누스에 그대로 붙여넣으세요. AI가 리서치를 거쳐 아래 ②번 형태의 마스터 프롬프트를 만들어 돌려줍니다. 자동화하면 이 자리에 마누스 태스크 API가 들어갑니다.', fn:briefPrompt},
+    {step:'2단계 · 제작',   desc:'헤이젠 Video Agent 입력창에 붙여넣으면 씬 구성·모션 그래픽·B롤까지 한 번에 생성됩니다. API 없이 지금 당장 쓸 수 있는 경로입니다.', fn:masterPrompt},
+    {step:'3단계 · 자동화', desc:'같은 기획을 기계가 읽는 형태로 옮긴 것입니다. 1단계 AI가 이 JSON을 출력하게 만들면, 파이프라인이 그대로 받아 헤이젠 호출과 업로드 예약까지 이어갈 수 있습니다.', fn:specJson}
+  ];
+
+  function render(){
+    var t=TABS[st.tab], text=t.fn();
+    document.getElementById('outStep').textContent=t.step;
+    document.getElementById('outDesc').textContent=t.desc;
+    document.getElementById('out').textContent=text;
+    document.getElementById('mChars').textContent=text.length.toLocaleString('ko-KR')+'자';
+    document.getElementById('mLines').textContent=text.split('\n').length+'줄';
+    document.querySelectorAll('.tabs button').forEach(function(b){
+      b.setAttribute('aria-selected', String(+b.dataset.tab===st.tab));
+    });
+    save();
+  }
+
+  document.querySelector('.tabs').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    st.tab=+b.dataset.tab; render();
+  });
+
+  var toast=document.getElementById('toast'), tid;
+  function flash(m){
+    toast.textContent=m; toast.classList.add('on');
+    clearTimeout(tid); tid=setTimeout(function(){toast.classList.remove('on');},1600);
+  }
+  document.getElementById('copyBtn').addEventListener('click',function(){
+    var text=document.getElementById('out').textContent;
+    function fallback(){
+      var ta=document.createElement('textarea');
+      ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); flash('복사했습니다'); }
+      catch(e){ flash('복사할 수 없습니다. 직접 선택해 주세요'); }
+      document.body.removeChild(ta);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){flash('복사했습니다');},fallback);
+    } else fallback();
+  });
+
+  var FIELDS=['topic','audience','goal','msgs','facts','cta','brand'];
+  function save(){
+    try{
+      var d={st:st}; FIELDS.forEach(function(f){ d[f]=document.getElementById(f).value; });
+      localStorage.setItem(LS,JSON.stringify(d));
+    }catch(e){}
+  }
+  function load(){
+    try{
+      var d=JSON.parse(localStorage.getItem(LS)||'null'); if(!d) return;
+      FIELDS.forEach(function(f){ if(typeof d[f]==='string') document.getElementById(f).value=d[f]; });
+      if(d.st){ st.len=d.st.len|0; st.tone=d.st.tone|0; st.ava=d.st.ava|0; st.tab=d.st.tab|0; }
+    }catch(e){}
+  }
+
+  load();
+  seg('segLen',LENS,'len'); seg('segTone',TONES,'tone'); seg('segAvatar',AVAS,'ava');
+  FIELDS.forEach(function(f){ document.getElementById(f).addEventListener('input',render); });
+  render();
+})();
+</script>

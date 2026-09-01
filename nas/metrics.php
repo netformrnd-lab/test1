@@ -78,9 +78,32 @@ if ($action === 'probe') {
     $text = preg_replace('#<style\b[^>]*>.*?</style>#is', ' ', $text);
     $text = trim(preg_replace('/\s+/u', ' ', strip_tags($text)));
 
+    // 데이터를 어디에 두는 구조인지 단서가 되는 단어들을 세어봅니다
+    $keywords = ['localStorage','sessionStorage','indexedDB','supabase','firebase',
+                 'api.','/api','.json','fetch(','XMLHttpRequest'];
+    $found = [];
+    foreach ($keywords as $k) {
+        $c = substr_count($body, $k);
+        if ($c > 0) $found[$k] = $c . '회';
+    }
+
+    // 찾고 싶은 단어를 직접 지정할 수도 있습니다 (&find=단어)
+    $findResult = null;
+    $find = trim($_GET['find'] ?? '');
+    if ($find !== '') {
+        $pos = stripos($body, $find);
+        $findResult = $pos === false
+            ? '없음'
+            : ('있음 (' . substr_count(strtolower($body), strtolower($find)) . '회) · 주변: '
+               . mb_substr(preg_replace('/\s+/u', ' ',
+                   substr($body, max(0, $pos - 120), 320)), 0, 300, 'UTF-8'));
+    }
+
     jout([
         'ok'          => true,
         '가져온방법'  => $info['방법'],
+        '데이터단서'  => $found ?: '단서 없음',
+        '찾은단어'    => $findResult,
         'HTTP상태'    => $info['상태'],
         '형식'        => $info['형식'] ?? '',
         '전체크기'    => strlen($body) . ' bytes',

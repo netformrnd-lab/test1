@@ -9,6 +9,67 @@
  */
 header('Content-Type: application/json; charset=utf-8');
 
+/**
+ * 복구 모드: 브라우저에서 save.php?action=bootstrap 으로 열면
+ * 빠졌거나 오래된 파일들을 GitHub에서 직접 받아옵니다.
+ *
+ * 파일을 손으로 옮기지 않아도 되게 하려고 만들었습니다.
+ * 받아올 파일 목록이 아래에 고정되어 있어, 다른 파일은 건드리지 않습니다.
+ */
+if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
+    $BASE = 'https://raw.githubusercontent.com/netformrnd-lab/test1'
+          . '/refs/heads/claude/ja-brand-dashboard-nas-4lvyrk';
+
+    // 저장될 이름 => 저장소에서의 경로 => 정상 여부를 판단할 문구
+    $TARGETS = [
+        'brand.html' => ['brand.html',     '</html>'],
+        'load.php'   => ['nas/load.php',   '<?php'],
+        'files.php'  => ['nas/files.php',  '<?php'],
+        'deploy.sh'  => ['nas/deploy.sh',  'update_file'],
+    ];
+
+    $fetch = function ($url) {
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT        => 30,
+            ]);
+            $body = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            return ($body !== false && $code === 200) ? $body : false;
+        }
+        return @file_get_contents($url);
+    };
+
+    $result = [];
+    foreach ($TARGETS as $name => [$remote, $marker]) {
+        $body = $fetch($BASE . '/' . $remote);
+        if ($body === false || $body === '' || strpos($body, $marker) === false) {
+            $result[$name] = '실패 — 내려받지 못했거나 내용이 올바르지 않습니다';
+            continue;
+        }
+        $path = __DIR__ . '/' . $name;
+        if (file_exists($path) && file_get_contents($path) === $body) {
+            $result[$name] = '이미 최신';
+            continue;
+        }
+        $result[$name] = (file_put_contents($path, $body) !== false)
+            ? '설치 완료'
+            : '실패 — 파일을 쓸 수 없습니다 (폴더 권한 확인 필요)';
+    }
+
+    echo json_encode([
+        'ok'     => !in_array(false, array_map(fn($v) => strpos($v, '실패') === false, $result), true),
+        'mode'   => 'bootstrap',
+        '결과'   => $result,
+        '다음'   => '브랜드 허브 화면에서 Ctrl+F5 로 새로고침하세요',
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
 // 진단 모드: 브라우저에서 save.php?check=1 로 열면 현재 상태를 보여줍니다.
 if (isset($_GET['check'])) {
     $dir = __DIR__ . '/data';

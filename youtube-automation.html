@@ -1,0 +1,526 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>유튜브 인포 영상 자동화 라인</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard.min.css">
+<style>
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5; --line:#dfe4ea; --line-soft:#eaeef3;
+    --ink:#1b2430; --ink-2:#5b6676; --ink-3:#8b95a3;
+    --brand:#2f6df6; --brand-2:#0aa5c4; --brand-soft:rgba(47,109,246,.10);
+    --ok:#17936a; --ok-soft:rgba(23,147,106,.12);
+    --warn:#b4740a; --warn-soft:rgba(180,116,10,.13);
+    --stop:#cf3b3b; --stop-soft:rgba(207,59,59,.12);
+    --ai:#7a4ddb; --ai-soft:rgba(122,77,219,.12);
+    --shadow:0 1px 2px rgba(27,36,48,.06),0 8px 24px -16px rgba(27,36,48,.28);
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#10151c; --surface:#171e27; --surface-2:#1f2833; --line:#2b3644; --line-soft:#232d3a;
+      --ink:#e7edf5; --ink-2:#a3b0c0; --ink-3:#71808f;
+      --brand:#6f9dff; --brand-2:#3fc7e3; --brand-soft:rgba(111,157,255,.14);
+      --ok:#3fc492; --ok-soft:rgba(63,196,146,.15);
+      --warn:#e0a343; --warn-soft:rgba(224,163,67,.16);
+      --stop:#f0736f; --stop-soft:rgba(240,115,111,.16);
+      --ai:#a887f5; --ai-soft:rgba(168,135,245,.16);
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -18px rgba(0,0,0,.9);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10151c; --surface:#171e27; --surface-2:#1f2833; --line:#2b3644; --line-soft:#232d3a;
+    --ink:#e7edf5; --ink-2:#a3b0c0; --ink-3:#71808f;
+    --brand:#6f9dff; --brand-2:#3fc7e3; --brand-soft:rgba(111,157,255,.14);
+    --ok:#3fc492; --ok-soft:rgba(63,196,146,.15);
+    --warn:#e0a343; --warn-soft:rgba(224,163,67,.16);
+    --stop:#f0736f; --stop-soft:rgba(240,115,111,.16);
+    --ai:#a887f5; --ai-soft:rgba(168,135,245,.16);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -18px rgba(0,0,0,.9);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Pretendard','IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:14px; line-height:1.65; -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+  h1,h2,h3{text-wrap:balance;margin:0}
+  a{color:var(--brand)}
+  button{font:inherit}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  .wrap{max-width:1280px;margin:0 auto;padding:0 24px 72px}
+
+  /* header */
+  header{
+    position:sticky;top:0;z-index:20;background:var(--surface);
+    border-bottom:1px solid var(--line);
+  }
+  .hd{max-width:1280px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .mark{
+    width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;
+    background:linear-gradient(140deg,var(--brand),var(--brand-2));color:#fff;
+    font-weight:700;font-size:15px;letter-spacing:-.5px;box-shadow:var(--shadow);
+  }
+  .hd h1{font-size:17px;font-weight:700;letter-spacing:-.3px}
+  .hd .sub{font-size:12px;color:var(--ink-3);letter-spacing:.02em}
+  .spacer{flex:1}
+  .btn{
+    padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink-2);font-size:13px;font-weight:600;cursor:pointer;transition:.15s;
+  }
+  .btn:hover{border-color:var(--brand);color:var(--brand)}
+  .btn.solid{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.solid:hover{filter:brightness(1.08);color:#fff}
+  .btn.mini{padding:4px 9px;font-size:12px;border-radius:7px}
+
+  /* verdict */
+  .verdict{
+    margin-top:28px;padding:24px 26px;border-radius:16px;background:var(--surface);
+    border:1px solid var(--line);border-left:4px solid var(--brand);box-shadow:var(--shadow);
+  }
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brand)}
+  .verdict h2{font-size:22px;font-weight:700;letter-spacing:-.4px;margin:8px 0 10px}
+  .verdict p{margin:0;color:var(--ink-2);max-width:70ch}
+  .verdict strong{color:var(--ink);font-weight:600}
+
+  /* section */
+  section{margin-top:44px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .sec-head h2{font-size:16px;font-weight:700;letter-spacing:-.2px}
+  .sec-head .note{font-size:12.5px;color:var(--ink-3)}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+
+  /* kpi */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+  .kpi{padding:16px 18px}
+  .kpi .lbl{font-size:12px;color:var(--ink-3);font-weight:600}
+  .kpi .val{font-size:26px;font-weight:700;letter-spacing:-.8px;margin-top:4px}
+  .kpi .foot{font-size:12px;color:var(--ink-2);margin-top:2px}
+
+  /* pipeline */
+  .rail{display:flex;gap:0;overflow-x:auto;padding-bottom:6px}
+  .stage{
+    flex:1 0 178px;padding:16px 16px 18px;border-right:1px solid var(--line-soft);position:relative;
+  }
+  .stage:last-child{border-right:0}
+  .stage .n{font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:.1em}
+  .stage h3{font-size:14.5px;font-weight:700;margin:6px 0 8px;letter-spacing:-.2px}
+  .stage .tool{font-size:12.5px;color:var(--ink-2);min-height:38px}
+  .stage .out{font-size:12px;color:var(--ink-3);margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+  .tag{
+    display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
+    font-size:11px;font-weight:700;letter-spacing:.01em;
+  }
+  .tag.auto{background:var(--ok-soft);color:var(--ok)}
+  .tag.ai{background:var(--ai-soft);color:var(--ai)}
+  .tag.gate{background:var(--warn-soft);color:var(--warn)}
+  .gatebar{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--warn)}
+
+  /* two col */
+  .cols{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;align-items:start}
+  @media (max-width:900px){.cols{grid-template-columns:1fr}}
+
+  /* board */
+  .board{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
+  .col{flex:1 0 200px;background:var(--surface-2);border-radius:12px;padding:10px;border:1px solid var(--line-soft)}
+  .col-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding:0 2px}
+  .col-hd span{font-size:12.5px;font-weight:700}
+  .count{font-size:11px;font-weight:700;color:var(--ink-3);background:var(--surface);padding:1px 7px;border-radius:999px}
+  .item{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:8px;
+  }
+  .item .t{font-size:13px;font-weight:600;line-height:1.45}
+  .item .m{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+  .item-actions{display:flex;gap:5px;margin-top:8px}
+  .icon{
+    width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink-3);cursor:pointer;display:grid;place-items:center;font-size:12px;line-height:1;padding:0;
+  }
+  .icon:hover{border-color:var(--brand);color:var(--brand)}
+  .icon.del:hover{border-color:var(--stop);color:var(--stop)}
+  .empty{font-size:12px;color:var(--ink-3);text-align:center;padding:14px 0}
+  .addrow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  input[type=text],select{
+    padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink);font:inherit;font-size:13px;
+  }
+  input[type=text]{flex:1;min-width:180px}
+
+  /* calc */
+  .calc{padding:18px 20px}
+  .field{margin-bottom:14px}
+  .field label{display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+  .field label b{color:var(--ink);font-weight:700}
+  input[type=range]{width:100%;accent-color:var(--brand)}
+  select{width:100%}
+  .total{
+    margin-top:16px;padding:16px;border-radius:12px;background:var(--brand-soft);
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  }
+  .total div .k{font-size:11.5px;color:var(--ink-2);font-weight:600}
+  .total div .v{font-size:20px;font-weight:700;letter-spacing:-.5px;margin-top:2px}
+  .hint{font-size:11.5px;color:var(--ink-3);margin-top:10px;line-height:1.55}
+
+  /* table */
+  .tablewrap{overflow-x:auto;border-radius:14px}
+  table{border-collapse:collapse;width:100%;min-width:720px;font-size:13px;background:var(--surface)}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2)}
+  tr:last-child td{border-bottom:0}
+  td .sm{font-size:12px;color:var(--ink-3)}
+
+  /* checklist */
+  .checks{padding:6px 4px}
+  .chk{display:flex;gap:11px;padding:11px 16px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+  .chk:last-child{border-bottom:0}
+  .chk input{margin-top:3px;accent-color:var(--ok);width:16px;height:16px;flex:none}
+  .chk .body .t{font-size:13.5px;font-weight:600}
+  .chk .body .d{display:block;font-size:12.5px;color:var(--ink-2);margin-top:1px}
+  .chk .body .t{display:block}
+  .chk.done .body .t{color:var(--ink-3);text-decoration:line-through}
+
+  /* phases */
+  .phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .phase{padding:18px}
+  .phase .p{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--brand)}
+  .phase h3{font-size:15px;font-weight:700;margin:6px 0 4px}
+  .phase .when{font-size:12px;color:var(--ink-3);margin-bottom:10px}
+  .phase ul{margin:0;padding-left:17px;color:var(--ink-2);font-size:13px}
+  .phase li{margin-bottom:5px}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3)}
+</style>
+
+<header>
+  <div class="hd">
+    <div class="mark">YT</div>
+    <div>
+      <h1>유튜브 인포 영상 자동화 라인</h1>
+      <div class="sub">넷폼알앤디 · 파이프라인 설계 &amp; 제작 현황판</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" id="themeBtn">테마 전환</button>
+    <button class="btn" id="resetBtn">현황판 초기화</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="verdict">
+    <div class="eyebrow">결론</div>
+    <h2>가능합니다. 단 “완전 무인”이 아니라 사람이 승인하는 게이트 2곳을 남긴 반자동이 정답입니다.</h2>
+    <p>
+      헤이젠과 마누스 <strong>둘 다 REST API와 웹훅을 제공</strong>하므로 대본 생성 → 영상 생성 → 업로드까지 코드로 이을 수 있습니다.
+      다만 지금 조합에는 <strong>인포그래픽 모션</strong>과 <strong>업로드 연결</strong>이 비어 있고, 유튜브는 2025년 7월부터
+      대량 생산·반복 콘텐츠를 수익화에서 걸러내고 있습니다. 그래서 <strong>대본 승인</strong>과 <strong>최종본 승인</strong> 두 지점만
+      사람이 잡고, 나머지 5단계를 자동으로 돌리는 구조를 권장합니다. 편당 사람 손이 닿는 시간은 약 25분입니다.
+    </p>
+  </div>
+
+  <section>
+    <div class="sec-head"><h2>목표 지표</h2><span class="note">주 3편 · 90초 인포 영상 기준</span></div>
+    <div class="kpis">
+      <div class="card kpi"><div class="lbl">월 발행 목표</div><div class="val mono">12편</div><div class="foot">주 3편 × 4주</div></div>
+      <div class="card kpi"><div class="lbl">편당 사람 투입</div><div class="val mono">25분</div><div class="foot">수동 제작 대비 −87%</div></div>
+      <div class="card kpi"><div class="lbl">편당 예상 원가</div><div class="val mono" id="kpiUnit">—</div><div class="foot">아래 계산기와 연동</div></div>
+      <div class="card kpi"><div class="lbl">자동화 커버리지</div><div class="val mono">5 / 7</div><div class="foot">단계 기준, 게이트 2곳 제외</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>7단계 파이프라인</h2><span class="note">노란 세로선이 사람이 멈춰 세우는 게이트</span></div>
+    <div class="card"><div class="rail" id="rail"></div></div>
+  </section>
+
+  <section class="cols">
+    <div>
+      <div class="sec-head"><h2>제작 큐</h2><span class="note">화살표로 단계 이동 · 브라우저에 저장됩니다</span></div>
+      <div class="board" id="board"></div>
+      <div class="addrow">
+        <input type="text" id="newTitle" placeholder="새 영상 주제를 입력하세요" aria-label="새 영상 주제">
+        <select id="newCat" aria-label="분류">
+          <option>물류·무역</option><option>기술 해설</option><option>시장 동향</option><option>사내 교육</option>
+        </select>
+        <button class="btn solid" id="addBtn">큐에 추가</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-head"><h2>원가 계산기</h2><span class="note">헤이젠 공개 단가 기준</span></div>
+      <div class="card calc">
+        <div class="field">
+          <label>영상 길이 <b><span id="lenV" class="mono">90</span>초</b></label>
+          <input type="range" id="len" min="30" max="300" step="10" value="90">
+        </div>
+        <div class="field">
+          <label>월 발행 편수 <b><span id="cntV" class="mono">12</span>편</b></label>
+          <input type="range" id="cnt" min="4" max="60" step="1" value="12">
+        </div>
+        <div class="field">
+          <label>아바타 화면 비중 <b><span id="ratioV" class="mono">40</span>%</b></label>
+          <input type="range" id="ratio" min="0" max="100" step="5" value="40">
+        </div>
+        <div class="field">
+          <label>헤이젠 아바타 등급</label>
+          <select id="tier">
+            <option value="0.0167">스탠다드 — 초당 $0.0167</option>
+            <option value="0.0333" selected>고품질 — 초당 $0.0333</option>
+            <option value="0.0667">프리미엄 — 초당 $0.0667</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>편당 대본·리서치(마누스) <b><span id="scriptV" class="mono">$1.5</span></b></label>
+          <input type="range" id="script" min="0" max="6" step="0.5" value="1.5">
+        </div>
+        <div class="total">
+          <div><div class="k">월 예상 비용</div><div class="v mono" id="outMonth">—</div></div>
+          <div><div class="k">편당 원가</div><div class="v mono" id="outUnit">—</div></div>
+        </div>
+        <p class="hint">
+          환율 1,400원 적용. 썸네일·음원·렌더 서버는 편당 $0.5로 고정 반영했습니다.
+          헤이젠은 제출한 영상이 아니라 <b>실제 생성된 초</b>에 과금하므로, 아바타 비중을 낮추고 모션 그래픽 비중을 올리면 그만큼 내려갑니다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>도구 배치</h2><span class="note">비어 있는 두 칸이 지금 새로 붙여야 할 부분</span></div>
+    <div class="card tablewrap">
+      <table>
+        <thead><tr><th>단계</th><th>도구</th><th>연동 방식</th><th>현재 상태</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>주제 발굴 · 리서치</td><td>마누스</td>
+            <td>REST API로 태스크 생성 → 웹훅으로 결과 수신<div class="sm">결과 파일 다운로드까지 API 제공</div></td>
+            <td><span class="tag auto">보유</span></td>
+          </tr>
+          <tr>
+            <td>대본 · 컷 구성</td><td>마누스 / 클로드</td>
+            <td>같은 태스크 API. 대본은 JSON 스키마로 받아 컷 단위로 쪼갬</td>
+            <td><span class="tag auto">보유</span></td>
+          </tr>
+          <tr>
+            <td>아바타 · 내레이션</td><td>헤이젠</td>
+            <td><span class="mono">X-Api-Key</span> 헤더 인증, <span class="mono">callback_url</span>로 완성 알림<div class="sm">폴링 대신 웹훅 사용 권장</div></td>
+            <td><span class="tag auto">보유</span></td>
+          </tr>
+          <tr>
+            <td>인포그래픽 모션</td><td>Remotion</td>
+            <td>React 코드로 영상 렌더. 대본 JSON을 그대로 props로 주입<div class="sm">템플릿 한 번 만들면 이후 편당 0분</div></td>
+            <td><span class="tag gate">추가 필요</span></td>
+          </tr>
+          <tr>
+            <td>썸네일</td><td>Canva</td>
+            <td>브랜드 템플릿에 제목·수치만 바꿔 자동 생성, 3안 뽑아 선택</td>
+            <td><span class="tag ai">연결 가능</span></td>
+          </tr>
+          <tr>
+            <td>업로드 · 예약 공개</td><td>YouTube Data API v3</td>
+            <td>OAuth 리프레시 토큰 보관 → <span class="mono">videos.insert</span> + 예약 공개 시각 지정</td>
+            <td><span class="tag gate">추가 필요</span></td>
+          </tr>
+          <tr>
+            <td>성과 수집</td><td>YouTube Analytics API</td>
+            <td>일 1회 조회수·시청 지속률 수집 → 다음 주제 선정에 반영</td>
+            <td><span class="tag gate">추가 필요</span></td>
+          </tr>
+          <tr>
+            <td>전체 오케스트레이션</td><td>n8n 또는 GitHub Actions</td>
+            <td>단계별 큐 + 재시도 + 실패 알림. 이 대시보드는 상태만 표시</td>
+            <td><span class="tag gate">추가 필요</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cols">
+    <div>
+      <div class="sec-head"><h2>착수 전 확인 사항</h2><span class="note">체크 상태는 저장됩니다</span></div>
+      <div class="card checks" id="checks"></div>
+    </div>
+    <div>
+      <div class="sec-head"><h2>단계별 도입</h2></div>
+      <div class="phases" style="grid-template-columns:1fr">
+        <div class="card phase">
+          <div class="p">1단계</div><h3>대본까지만 자동</h3><div class="when">약 2주</div>
+          <ul>
+            <li>마누스 태스크 API로 주제 10개 + 대본 자동 생성</li>
+            <li>영상은 기존 방식대로 수동 제작</li>
+            <li>이 대시보드를 현황판으로 실사용</li>
+          </ul>
+        </div>
+        <div class="card phase">
+          <div class="p">2단계</div><h3>영상 생성 자동</h3><div class="when">추가 4주</div>
+          <ul>
+            <li>헤이젠 웹훅 + Remotion 템플릿 3종 제작</li>
+            <li>썸네일 자동 3안 생성</li>
+            <li>업로드는 승인 후 사람이 진행</li>
+          </ul>
+        </div>
+        <div class="card phase">
+          <div class="p">3단계</div><h3>업로드·측정까지</h3><div class="when">추가 8주</div>
+          <ul>
+            <li>YouTube API 예약 공개 자동화</li>
+            <li>성과 데이터가 다음 주제 선정으로 되돌아오는 루프</li>
+            <li>사람은 대본·최종본 승인 2곳만</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    단가와 쿼터는 공개 문서 기준이며 실제 값은 각 서비스 콘솔에서 확인이 필요합니다. 마지막 갱신 <span class="mono" id="stamp"></span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var LS_BOARD='ytpipe.board.v1', LS_CHECK='ytpipe.check.v1', LS_THEME='ytpipe.theme.v1';
+
+  /* ---------- theme ---------- */
+  try{ var t=localStorage.getItem(LS_THEME); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){}
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    if(!cur) cur = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    var next = cur==='dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme',next);
+    try{ localStorage.setItem(LS_THEME,next); }catch(e){}
+  });
+
+  /* ---------- pipeline rail ---------- */
+  var STAGES=[
+    {n:'01',t:'주제 발굴',tool:'마누스가 검색 트렌드·경쟁 채널을 훑어 후보 10개',out:'주제 후보 + 근거',lvl:'auto'},
+    {n:'02',t:'대본 · 구성',tool:'대본, 컷 구성표, 자막을 JSON으로 생성',out:'승인된 대본',lvl:'gate'},
+    {n:'03',t:'아바타 생성',tool:'헤이젠이 내레이션 파트를 영상으로 렌더',out:'아바타 mp4',lvl:'auto'},
+    {n:'04',t:'모션 · 조립',tool:'Remotion이 인포 그래픽과 아바타를 합쳐 렌더',out:'완성본 mp4',lvl:'auto'},
+    {n:'05',t:'썸네일',tool:'Canva 브랜드 템플릿으로 3안 자동 생성',out:'썸네일 3안',lvl:'auto'},
+    {n:'06',t:'최종 검수',tool:'사실관계·발음·자막 오류를 사람이 확인',out:'게시 승인',lvl:'gate'},
+    {n:'07',t:'업로드 · 측정',tool:'YouTube API 예약 공개 후 성과 수집',out:'게시 + 지표',lvl:'auto'}
+  ];
+  var LVL={auto:['auto','자동'],gate:['gate','사람 승인'],ai:['ai','AI']};
+  document.getElementById('rail').innerHTML = STAGES.map(function(s){
+    var l=LVL[s.lvl];
+    return '<div class="stage">'+(s.lvl==='gate'?'<div class="gatebar"></div>':'')+
+      '<div class="n mono">'+s.n+'</div><h3>'+s.t+'</h3>'+
+      '<span class="tag '+l[0]+'">'+l[1]+'</span>'+
+      '<div class="tool" style="margin-top:8px">'+s.tool+'</div>'+
+      '<div class="out">산출물 · '+s.out+'</div></div>';
+  }).join('');
+
+  /* ---------- board ---------- */
+  var COLS=['주제','대본','제작','검수','게시'];
+  var SEED=[
+    {id:1,t:'FCL과 LCL, 언제 무엇을 써야 하나',c:'물류·무역',s:3},
+    {id:2,t:'인코텀즈 2020 한 장 정리',c:'물류·무역',s:1},
+    {id:3,t:'해상운임은 왜 분기마다 흔들리나',c:'시장 동향',s:0},
+    {id:4,t:'포워더 견적서 읽는 법',c:'사내 교육',s:2},
+    {id:5,t:'통관 지연이 생기는 5가지 이유',c:'물류·무역',s:4}
+  ];
+  var items=load(LS_BOARD,SEED), seq=Math.max.apply(null,items.map(function(i){return i.id;}).concat([0]));
+
+  function load(k,d){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+  function save(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+  function renderBoard(){
+    document.getElementById('board').innerHTML = COLS.map(function(name,ci){
+      var list=items.filter(function(i){return i.s===ci;});
+      var cards = list.length ? list.map(function(i){
+        return '<div class="item"><div class="t">'+esc(i.t)+'</div><div class="m">'+esc(i.c)+'</div>'+
+          '<div class="item-actions">'+
+          '<button class="icon" data-move="-1" data-id="'+i.id+'" title="이전 단계"'+(ci===0?' disabled style="opacity:.35"':'')+'>←</button>'+
+          '<button class="icon" data-move="1" data-id="'+i.id+'" title="다음 단계"'+(ci===COLS.length-1?' disabled style="opacity:.35"':'')+'>→</button>'+
+          '<button class="icon del" data-del="'+i.id+'" title="삭제">×</button>'+
+          '</div></div>';
+      }).join('') : '<div class="empty">비어 있음</div>';
+      return '<div class="col"><div class="col-hd"><span>'+name+'</span><span class="count mono">'+list.length+'</span></div>'+cards+'</div>';
+    }).join('');
+  }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  document.getElementById('board').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.move){
+      var id=+b.dataset.id, d=+b.dataset.move;
+      items.forEach(function(i){ if(i.id===id) i.s=Math.min(COLS.length-1,Math.max(0,i.s+d)); });
+    } else if(b.dataset.del){
+      items=items.filter(function(i){return i.id!==+b.dataset.del;});
+    } else return;
+    save(LS_BOARD,items); renderBoard();
+  });
+
+  function addItem(){
+    var el=document.getElementById('newTitle'), v=el.value.trim();
+    if(!v){ el.focus(); return; }
+    items.push({id:++seq,t:v,c:document.getElementById('newCat').value,s:0});
+    el.value=''; save(LS_BOARD,items); renderBoard();
+  }
+  document.getElementById('addBtn').addEventListener('click',addItem);
+  document.getElementById('newTitle').addEventListener('keydown',function(e){ if(e.key==='Enter') addItem(); });
+
+  /* ---------- calculator ---------- */
+  var FX=1400, EXTRA=0.5;
+  function calc(){
+    var len=+document.getElementById('len').value,
+        cnt=+document.getElementById('cnt').value,
+        ratio=+document.getElementById('ratio').value,
+        tier=+document.getElementById('tier').value,
+        scr=+document.getElementById('script').value;
+    document.getElementById('lenV').textContent=len;
+    document.getElementById('cntV').textContent=cnt;
+    document.getElementById('ratioV').textContent=ratio;
+    document.getElementById('scriptV').textContent='$'+scr.toFixed(1);
+    var unitUsd = len*(ratio/100)*tier + scr + EXTRA;
+    var unitKrw = Math.round(unitUsd*FX), monthKrw = unitKrw*cnt;
+    document.getElementById('outMonth').textContent = monthKrw.toLocaleString('ko-KR')+'원';
+    document.getElementById('outUnit').textContent = unitKrw.toLocaleString('ko-KR')+'원';
+    document.getElementById('kpiUnit').textContent = unitKrw.toLocaleString('ko-KR')+'원';
+  }
+  ['len','cnt','ratio','tier','script'].forEach(function(id){
+    document.getElementById(id).addEventListener('input',calc);
+  });
+  calc();
+
+  /* ---------- checklist ---------- */
+  var CHECKS=[
+    ['수익화 정책 대비','편마다 자체 데이터나 현장 해설을 한 꼭지 이상 넣어, 반복 생산 콘텐츠로 분류되지 않게 합니다.'],
+    ['AI 생성 고지','업로드 시 합성 미디어 여부를 표시합니다. 누락하면 사후에 제재 대상이 됩니다.'],
+    ['아바타 초상권','커스텀 아바타는 본인 동의 영상이 있어야 학습·사용이 가능합니다.'],
+    ['음원·이미지 라이선스','상업 이용이 허용된 소스만 씁니다. 자동 파이프라인일수록 출처를 로그에 남겨야 합니다.'],
+    ['업로드 쿼터 확인','videos.insert 쿼터는 최근 완화됐지만 프로젝트마다 다릅니다. 콘솔에서 실제 한도를 먼저 확인하세요.'],
+    ['OAuth 토큰 관리','리프레시 토큰 만료 시 자동 재인증 경로를 미리 만들어 둡니다. 새벽 배치가 조용히 멈추는 가장 흔한 원인입니다.'],
+    ['실패 알림','단계별 재시도 2회 후에도 실패하면 슬랙이나 메일로 알립니다.'],
+    ['보관 정책','대본·영상 원본을 드라이브에 단계별로 저장해 재렌더가 가능하게 합니다.']
+  ];
+  var checked=load(LS_CHECK,{});
+  function renderChecks(){
+    document.getElementById('checks').innerHTML = CHECKS.map(function(c,i){
+      var on=!!checked[i];
+      return '<label class="chk'+(on?' done':'')+'"><input type="checkbox" data-i="'+i+'"'+(on?' checked':'')+'>'+
+        '<span class="body"><span class="t">'+c[0]+'</span><span class="d">'+c[1]+'</span></span></label>';
+    }).join('');
+  }
+  document.getElementById('checks').addEventListener('change',function(e){
+    if(e.target.type!=='checkbox') return;
+    checked[e.target.dataset.i]=e.target.checked; save(LS_CHECK,checked); renderChecks();
+  });
+
+  /* ---------- reset ---------- */
+  document.getElementById('resetBtn').addEventListener('click',function(){
+    if(!confirm('제작 큐와 체크 상태를 처음 상태로 되돌립니다. 계속할까요?')) return;
+    items=JSON.parse(JSON.stringify(SEED)); seq=5; checked={};
+    save(LS_BOARD,items); save(LS_CHECK,checked); renderBoard(); renderChecks();
+  });
+
+  document.getElementById('stamp').textContent = new Date().toLocaleDateString('ko-KR');
+  renderBoard(); renderChecks();
+})();
+</script>

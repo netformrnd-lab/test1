@@ -107,6 +107,14 @@
     font-size:12.3px;line-height:1.72;color:var(--ink);white-space:pre-wrap;word-break:break-word;
   }
   .meta{display:flex;gap:14px;font-size:11.5px;color:var(--ink-3);margin-top:10px;font-variant-numeric:tabular-nums}
+  .warn{
+    background:var(--warn-soft);border-radius:10px;padding:11px 13px;margin-bottom:15px;
+    font-size:12.3px;line-height:1.6;color:var(--ink);display:grid;gap:7px;
+  }
+  .fine{
+    background:var(--ok-soft);border-radius:10px;padding:11px 13px;margin-bottom:15px;
+    font-size:12.3px;color:var(--ok);font-weight:600;
+  }
   .toast{
     position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);
     background:var(--ok);color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;font-weight:600;
@@ -183,6 +191,31 @@
           <div class="seg" id="segAvatar"></div>
         </div>
         <div class="fg">
+          <label>화면 구성 <span class="help">— 레퍼런스 영상의 형식을 고르세요</span></label>
+          <div class="seg" id="segFmt"></div>
+        </div>
+        <div class="row2">
+          <div class="fg">
+            <label>자막</label>
+            <div class="seg" id="segCap"></div>
+          </div>
+          <div class="fg">
+            <label>수치 표현</label>
+            <div class="seg" id="segData"></div>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="fg">
+            <label>컷 전환</label>
+            <div class="seg" id="segPace"></div>
+          </div>
+          <div class="fg">
+            <label>배경음</label>
+            <div class="seg" id="segBgm"></div>
+          </div>
+        </div>
+        <div id="warnBox"></div>
+        <div class="fg">
           <label for="msgs">핵심 메시지 <span class="help">— 한 줄에 하나씩, 3개 권장</span></label>
           <textarea id="msgs">견적서의 총액이 아니라 항목 구성을 먼저 본다
 THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
@@ -258,7 +291,35 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
     {k:'전체 진행',v:'아바타가 영상 전체를 진행한다. 설명 구간에는 화면 한쪽에 작게 배치한다.',ratio:1},
     {k:'등장 없음',v:'아바타를 화면에 노출하지 않는다. 내레이션 음성과 모션 그래픽만으로 구성한다.',ratio:0}
   ];
-  var st={len:1,tone:0,ava:0,tab:0};
+  var FORMATS=[
+    {k:'아바타 토킹헤드',v:'아바타가 화면 중앙에서 설명하고, 옆이나 뒤에 보조 그래픽을 띄운다.',warn:''},
+    {k:'풀스크린 인포',v:'아바타 노출을 최소화하고 화면 전체를 그래픽과 타이포로 채운다.',warn:''},
+    {k:'B롤 다큐형',v:'실사 B롤 위에 내레이션을 얹고, 핵심 지점에만 큰 타이포를 띄운다.',warn:''},
+    {k:'화면녹화 해설',v:'실제 화면 녹화 위에 내레이션과 화살표·하이라이트를 얹는다.',
+     warn:'화면 녹화 영상은 헤이젠이 만들지 못합니다. 직접 녹화한 파일을 업로드해 해당 씬에 넣어야 합니다.'}
+  ];
+  var CAPS=[
+    {k:'단어별 강조',v:'자막을 단어 단위로 띄우고 핵심 단어에만 색을 넣는다.'},
+    {k:'문장 하단 고정',v:'자막을 화면 하단에 문장 단위로 고정 표시한다.'},
+    {k:'대형 키워드',v:'자막 대신 화면 가운데에 키워드를 크게 띄운다.'}
+  ];
+  var DATAV=[
+    {k:'숫자 카운트업',v:'핵심 수치를 0에서 올라가는 카운트업으로 강조한다.',warn:''},
+    {k:'그래프',v:'막대 또는 선 그래프로 수치를 비교해 보여준다.',
+     warn:'그래프의 눈금과 막대 비율이 실제 수치와 어긋나는 경우가 있습니다. 렌더 후 반드시 눈으로 검산하세요.'},
+    {k:'비교 표',v:'좌우 비교 표로 잘못된 예와 올바른 예를 나란히 보여준다.',warn:''},
+    {k:'수치 없음',v:'숫자 그래픽 없이 서술과 이미지로만 설명한다.',warn:''}
+  ];
+  var PACE=[
+    {k:'빠른 컷',v:'2~4초마다 화면을 전환한다.'},
+    {k:'보통',v:'5~8초 단위로 화면을 전환한다.'},
+    {k:'느린 설명형',v:'한 화면을 10초 이상 유지하며 차분히 설명한다.'}
+  ];
+  var BGM=[
+    {k:'배경음 있음',v:'잔잔한 배경음을 깔되 내레이션 음량을 가리지 않는다.'},
+    {k:'배경음 없음',v:'배경음 없이 내레이션 음성만 사용한다.'}
+  ];
+  var st={len:1,tone:0,ava:0,fmt:1,cap:0,data:0,pace:1,bgm:0,tab:0};
 
   function seg(id,arr,key){
     var el=document.getElementById(id);
@@ -315,6 +376,13 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
     body.push('# 아바타 운용');
     body.push('- '+ava.v);
     body.push('');
+    body.push('# 화면 연출 스타일');
+    body.push('- 화면 구성: '+FORMATS[st.fmt].v);
+    body.push('- 자막: '+CAPS[st.cap].v);
+    body.push('- 수치 표현: '+DATAV[st.data].v);
+    body.push('- 컷 전환: '+PACE[st.pace].v);
+    body.push('- 배경음: '+BGM[st.bgm].v);
+    body.push('');
     body.push('# 씬 구성 (구간을 임의로 바꾸지 마세요)');
     sc.forEach(function(s,i){
       body.push((i+1)+'. '+s.name+' ['+s.from+'~'+s.to+'초]');
@@ -367,6 +435,8 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
       '- 길이: '+len+'초',
       '- 톤: '+TONES[st.tone].k,
       '- 아바타 운용: '+AVAS[st.ava].k,
+      '- 화면 구성: '+FORMATS[st.fmt].k+' / 자막: '+CAPS[st.cap].k+' / 수치 표현: '+DATAV[st.data].k,
+      '- 컷 전환: '+PACE[st.pace].k+' / 배경음: '+BGM[st.bgm].k,
       '',
       '## 작업 순서',
       '1. 이 주제에 관한 최신 사실과 수치를 조사하고, 각 항목마다 출처 URL을 함께 기록한다.',
@@ -403,6 +473,15 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
       captions:true,
       tone:TONES[st.tone].k,
       avatar:{mode:AVAS[st.ava].k,on_screen_ratio:AVAS[st.ava].ratio},
+      style:{
+        format:FORMATS[st.fmt].k,
+        captions_style:CAPS[st.cap].k,
+        data_visual:DATAV[st.data].k,
+        cut_pace:PACE[st.pace].k,
+        background_music:BGM[st.bgm].k==='배경음 있음'
+      },
+      manual_assets_required:[FORMATS[st.fmt],DATAV[st.data]]
+        .filter(function(o){return o.warn;}).map(function(o){return o.warn;}),
       key_messages:lines('msgs'),
       approved_figures:lines('facts'),
       cta:val('cta'),
@@ -429,7 +508,15 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
     {step:'3단계 · 자동화', desc:'같은 기획을 기계가 읽는 형태로 옮긴 것입니다. 1단계 AI가 이 JSON을 출력하게 만들면, 파이프라인이 그대로 받아 헤이젠 호출과 업로드 예약까지 이어갈 수 있습니다.', fn:specJson}
   ];
 
+  function renderWarn(){
+    var ws=[FORMATS[st.fmt],DATAV[st.data]].filter(function(o){return o.warn;});
+    document.getElementById('warnBox').innerHTML = ws.length
+      ? '<div class="warn">'+ws.map(function(o){return '<div>'+o.warn+'</div>';}).join('')+'</div>'
+      : '<div class="fine">고른 조합은 헤이젠이 단독으로 만들 수 있습니다.</div>';
+  }
+
   function render(){
+    renderWarn();
     var t=TABS[st.tab], text=t.fn();
     document.getElementById('outStep').textContent=t.step;
     document.getElementById('outDesc').textContent=t.desc;
@@ -478,12 +565,16 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
     try{
       var d=JSON.parse(localStorage.getItem(LS)||'null'); if(!d) return;
       FIELDS.forEach(function(f){ if(typeof d[f]==='string') document.getElementById(f).value=d[f]; });
-      if(d.st){ st.len=d.st.len|0; st.tone=d.st.tone|0; st.ava=d.st.ava|0; st.tab=d.st.tab|0; }
+      if(d.st){ ['len','tone','ava','fmt','cap','data','pace','bgm','tab'].forEach(function(k){
+        if(typeof d.st[k]==='number') st[k]=d.st[k]|0;
+      }); }
     }catch(e){}
   }
 
   load();
   seg('segLen',LENS,'len'); seg('segTone',TONES,'tone'); seg('segAvatar',AVAS,'ava');
+  seg('segFmt',FORMATS,'fmt'); seg('segCap',CAPS,'cap'); seg('segData',DATAV,'data');
+  seg('segPace',PACE,'pace'); seg('segBgm',BGM,'bgm');
   FIELDS.forEach(function(f){ document.getElementById(f).addEventListener('input',render); });
   render();
 })();

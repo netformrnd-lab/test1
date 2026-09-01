@@ -79,6 +79,12 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg-prima
 .brand-item .bar{width:3px;height:17px;border-radius:2px;flex-shrink:0}
 .brand-item .em{font-size:15px}
 .brand-item .cnt{margin-left:auto;font-size:11px;font-weight:600;color:var(--text-muted)}
+.bwrap{position:relative}
+.bmove{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:none;gap:2px;
+  background:var(--bg-card);border-radius:7px;padding:1px}
+.bwrap:hover .bmove{display:flex}
+.bmove .btn{padding:2px 6px;font-size:11px}
+@media(max-width:900px){.bmove{display:none!important}}
 
 /* ---------- 본문 ---------- */
 .panel{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;
@@ -412,7 +418,8 @@ function defaultData(){
       newBrand('아파트스퀘어',  '🏢', '#8b5cf6', ''),
       newBrand('POUR 솔루션',  '⚙️', '#06b6d4', ''),
       newBrand('슈어포인트',    '📍', '#22c55e', ''),
-      newBrand('단지온',       '🏘️', '#f97316', '')
+      newBrand('단지온',       '🏘️', '#f97316', ''),
+      newBrand('넷폼',         '🧩', '#ec4899', '')
     ],
     savedAt: null
   };
@@ -540,14 +547,20 @@ function goHome(){
 }
 
 function renderSidebar(){
-  document.getElementById('brandList').innerHTML = data.brands.map(b => {
+  document.getElementById('brandList').innerHTML = data.brands.map((b, i) => {
     const n = ITEM_KEYS.reduce((a, k) => a + b[k].length, 0);
-    return '<button class="brand-item' + (b.id === currentBrandId && !searchQuery ? ' on' : '') + '" '
+    return '<div class="bwrap"><button class="brand-item'
+      + (b.id === currentBrandId && !searchQuery ? ' on' : '') + '" '
       + 'onclick="selectBrand(\'' + b.id + '\')">'
       + '<span class="bar" style="background:' + b.color + '"></span>'
       + '<span class="em">' + esc(b.icon || '🏷️') + '</span>'
       + '<span>' + esc(b.name) + '</span>'
-      + '<span class="cnt">' + n + '</span></button>';
+      + '<span class="cnt">' + n + '</span></button>'
+      + '<span class="bmove">'
+        + (i > 0 ? '<button class="btn sm" title="위로" onclick="moveBrand(\'' + b.id + '\',-1)">↑</button>' : '')
+        + (i < data.brands.length - 1
+            ? '<button class="btn sm" title="아래로" onclick="moveBrand(\'' + b.id + '\',1)">↓</button>' : '')
+      + '</span></div>';
   }).join('');
 }
 
@@ -978,6 +991,14 @@ function viewHistory(b){
     + block('그래서 다음은', it.next)
     + '</div>'
   ).join('') + '</div>';
+}
+
+function moveBrand(id, dir){
+  const i = data.brands.findIndex(b => b.id === id);
+  const j = i + dir;
+  if(i < 0 || j < 0 || j >= data.brands.length) return;
+  [data.brands[i], data.brands[j]] = [data.brands[j], data.brands[i]];
+  render(); markDirty();
 }
 
 function moveHistory(id, dir){

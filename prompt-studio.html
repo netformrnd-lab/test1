@@ -83,6 +83,14 @@
   .vlbl{font-size:11.5px;font-weight:700;color:var(--ink-3);width:28px;flex:none;letter-spacing:.06em}
   .varrow .chips,.varrow .seg{margin-top:0;flex:1;min-width:220px}
   .chips.tight button[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand);font-weight:600}
+  .assets{margin-top:16px;padding-top:15px;border-top:1px solid var(--line-soft)}
+  .assets label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:7px}
+  .assets .help{font-weight:400;color:var(--ink-3);font-size:11.5px}
+  .assets code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
+    background:var(--surface-2);padding:1px 5px;border-radius:4px}
+  #assets{min-height:64px}
+  .scenehint{font-size:11.5px;color:var(--ink-3);margin-top:7px;line-height:1.6}
+  .scenehint b{color:var(--ink-2);font-weight:600}
   .fixed{margin-top:16px;padding-top:15px;border-top:1px solid var(--line-soft);
     font-size:12.3px;color:var(--ink-3);line-height:1.8}
   .fixed b{color:var(--ink-2);font-weight:600}
@@ -206,6 +214,11 @@
       <div class="seg" id="segLen"></div>
     </div>
     <div class="note" id="lenNote"></div>
+    <div class="assets">
+      <label for="assets">이번 편에 쓸 사진 · 영상 <span class="help">— 선택. 헤이젠에 올린 파일명을 한 줄에 하나씩. <code>파일명 | 씬 | 설명</code></span></label>
+      <textarea id="assets" placeholder="공정표_2026.png | 기준 3 | 지급 시점과 공정 겹쳐 보기&#10;현장_외벽.jpg | 문제 제기&#10;앱_견적비교.png | 실제 적용"></textarea>
+      <div class="scenehint" id="sceneHint"></div>
+    </div>
     <div class="fixed" id="fixedNote"></div>
   </div>
 
@@ -360,7 +373,7 @@
     {k:'풀스크린 인포',v:'화면 전체를 차트·아이콘·타이포로 채우고 B롤은 전환 지점에만 쓴다.',warn:''},
     {k:'혼합형',v:'설명 구간은 차트와 타이포로, 문제 제기와 사례 구간은 실사 B롤로 처리한다.',warn:''},
     {k:'화면녹화 해설',v:'실제 앱 화면 녹화 위에 내레이션과 화살표·하이라이트를 얹는다.',
-     warn:'앱 화면 녹화는 헤이젠이 만들지 못합니다. 직접 녹화한 파일을 해당 씬에 넣어야 합니다.'}
+     warn:'앱 화면 녹화는 헤이젠이 만들지 못합니다. 직접 녹화해 헤이젠에 올린 뒤, 위 “이번 편에 쓸 사진·영상”에 파일명을 적어 씬을 지정하세요.'}
   ];
   var CAPS=[
     {k:'하단 자막 + 대형 인용',v:'하단에 기본 자막을 깔고, 핵심 문장은 화면 중앙에 크게 따로 띄운다.'},
@@ -440,6 +453,18 @@
   ];
 
   function val(id){return document.getElementById(id).value.trim();}
+  // "파일명 | 씬 | 설명" 형태를 느슨하게 해석
+  function parseAssets(){
+    return val('assets').split('\n').map(function(l){return l.trim();}).filter(Boolean).map(function(l){
+      var p=l.split('|').map(function(x){return x.trim();});
+      return {file:p[0]||'', scene:p[1]||'', desc:p[2]||''};
+    }).filter(function(a){return a.file;});
+  }
+  function assetsFor(name,list){
+    return list.filter(function(a){
+      return a.scene && (name.indexOf(a.scene)>=0 || a.scene.indexOf(name)>=0);
+    });
+  }
   function lns(id){return val(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);}
   function kw(){return val('kw')||'(키워드를 입력하세요)';}
 
@@ -497,6 +522,7 @@
 
   function masterPrompt(){
     var len=LENS[st.len], msgs=lns('msgs'), cases=lns('scene'), facts=lns('facts'), brand=lns('brand');
+    var assets=parseAssets();
     var sc=scenes(len,msgs,cases), chs=chapters(sc), plan=avatarPlan(len,sc);
     var ci=Math.min(st.chap,chs.length-1), ch=chs[ci], multi=chs.length>1;
     var base=ch[0].from, chLen=ch[ch.length-1].to-base;
@@ -562,10 +588,23 @@
     ch.forEach(function(s,i){
       var gi=sc.indexOf(s);
       var on=plan.idx.indexOf(gi)>=0?'  ← 아바타 등장':'';
+      var mine=assetsFor(s.name,assets);
+      if(mine.length) on+='  ← 업로드 소재: '+mine.map(function(a){return a.file;}).join(', ');
       b.push((i+1)+'. '+s.name+' ['+(s.from-base)+'~'+(s.to-base)+'초]'+on);
       b.push('   내용: '+s.note);
       b.push('   화면: '+s.screen);
     });
+    if(assets.length){
+      b.push('');
+      b.push('# 업로드 소재 사용');
+      b.push('아래 파일은 이미 업로드되어 있습니다. 지정한 씬에 그대로 쓰고, 스톡 영상이나 새로 생성한 이미지로 대체하지 마세요.');
+      assets.forEach(function(a){
+        b.push('- '+a.file+(a.scene?' → '+a.scene+' 씬':' → 적절한 씬에 배치')+(a.desc?'. '+a.desc:''));
+      });
+      b.push('- 소재에 사람이 나오면 그대로 씁니다. 다른 인물이나 아바타로 바꾸지 마세요.');
+      b.push('- 화면비가 맞지 않으면 잘라내기보다 여백을 두고 배치하세요. 중요한 정보가 잘리면 안 됩니다.');
+      b.push('- 소재 위에 글자를 올릴 때는 어두운 오버레이를 깔아 대비를 확보하세요.');
+    }
     b.push('');
     b.push('# 화면에 표시할 수치');
     if(facts.length){
@@ -595,6 +634,9 @@
     if(CASTS[st.cast].lines.length){
       b.push('- 서양인 모델, 영문 간판, 해외 주택 외관이 보이는 영상·이미지');
     }
+    if(assets.length){
+      b.push('- 업로드 소재가 지정된 씬을 스톡 영상이나 생성 이미지로 채우는 것');
+    }
     return b.join('\n');
   }
 
@@ -617,6 +659,10 @@
       '- 화면 구성: '+FORMATS[st.fmt].k+' · 자막: '+CAPS[st.cap].k+' · 수치: '+DATAV[st.data].k+' · 전환: '+PACE[st.pace].k,
       '- 아바타: '+avatarPlan(len,sc).line+(val('avatarId')?' / 지정 아바타: '+val('avatarId'):''),
       '- 등장인물·배경: '+(CASTS[st.cast].lines.length?CASTS[st.cast].lines.join(' '):'지정 없음'),
+      '- 업로드 소재: '+(parseAssets().length
+          ? parseAssets().map(function(a){return a.file+(a.scene?'('+a.scene+')':'');}).join(', ')+
+            ' — 이 파일들이 들어갈 자리를 씬 구성에 반영할 것'
+          : '없음. 모든 화면을 생성 소재로 채움'),
       '',
       '## 정보 구조 (이 순서를 지킬 것)',
       '문제 상황 → 질문 제시 → 핵심 기준 3개 → 실제 적용 장면 → 정리와 다음 행동',
@@ -676,6 +722,7 @@
               on_screen_seconds:plan.billed},
       key_criteria:msgs.length?msgs:'AI가 키워드에 맞춰 3개를 정함',
       application_scenes:cases.length?cases:'AI가 정함',
+      uploaded_assets:parseAssets(),
       approved_figures:lns('facts'),
       cta:val('cta'), brand_rules:lns('brand'),
       direction_principles:PRINCIPLES,
@@ -731,13 +778,25 @@
       (len%60===0?(len/60)+'분':Math.floor(len/60)+'분 '+(len%60)+'초')+'</b>'+
       (chs.length>1?' (<b>'+chs.length+'조각</b>)':'')+
       ' · 아바타 <b>'+(plan.billed?plan.idx.length+'회 '+plan.billed+'초':'없음')+'</b>'+
-      ' · 인물 <b>'+CASTS[st.cast].k+'</b><br>'+
+      ' · 인물 <b>'+CASTS[st.cast].k+'</b>'+
+      (assets.length?' · 업로드 소재 <b>'+assets.length+'개</b>':'')+'<br>'+
       '핵심 기준 3개와 적용 장면은 '+(msgs.length?'직접 지정한 값을 씁니다.':'프롬프트가 AI에게 직접 정하라고 지시합니다.')+
       (audMatch()?' 대상에 맞춰 어휘 수준도 함께 지정됩니다.':' 대상이 목록에 없어 어휘 수준은 AI 판단에 맡깁니다.');
 
     document.getElementById('audChips').innerHTML = AUDS.map(function(a,i){
       return '<button type="button" data-a="'+i+'" aria-pressed="'+(normAud(val('audience'))===normAud(a.k))+'">'+a.k+'</button>';
     }).join('');
+
+    var assets=parseAssets();
+    var unmatched=assets.filter(function(a){
+      return a.scene && !sc.some(function(x){return x.name.indexOf(a.scene)>=0||a.scene.indexOf(x.name)>=0;});
+    });
+    document.getElementById('sceneHint').innerHTML =
+      '씬 이름 · <b>'+sc.map(function(x){return x.name;}).join(' / ')+'</b>'+
+      (assets.length? '<br>'+assets.length+'개 지정됨'+
+        (unmatched.length? ' · <b>'+unmatched.map(function(a){return a.scene;}).join(', ')+
+          '</b> 은(는) 씬 이름과 맞지 않아 배치를 AI에 맡깁니다.' : ' · 모두 씬에 연결됨')
+        : '<br>비워두면 모든 화면을 헤이젠이 생성한 소재로 채웁니다.');
 
     document.getElementById('presetNote').textContent=PRESETS[st.preset].note;
     document.getElementById('lenNote').innerHTML = chs.length>1
@@ -821,7 +880,7 @@
     else fb();
   });
 
-  var FIELDS=['kw','audience','goal','palette','avatarId','msgs','scene','facts','cta','brand'];
+  var FIELDS=['kw','audience','goal','palette','avatarId','assets','msgs','scene','facts','cta','brand'];
   function save(){
     try{ var d={st:st}; FIELDS.forEach(function(f){ d[f]=document.getElementById(f).value; });
       localStorage.setItem(LS,JSON.stringify(d)); }catch(e){}

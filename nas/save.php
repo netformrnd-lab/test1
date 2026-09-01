@@ -28,7 +28,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
         'deploy.sh'  => ['nas/deploy.sh',  'update_file'],
     ];
 
-    $fetch = function ($url) {
+    // 내려받는 방법을 세 가지 순서로 시도합니다.
+    // NAS 설정에 따라 어떤 방법은 막혀 있을 수 있어서입니다.
+    $why = [];
+    $fetch = function ($url) use (&$why) {
+        // 1) curl 확장
         if (function_exists('curl_init')) {
             $ch = curl_init($url);
             curl_setopt_array($ch, [
@@ -38,10 +42,33 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
             ]);
             $body = curl_exec($ch);
             $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err  = curl_error($ch);
             curl_close($ch);
-            return ($body !== false && $code === 200) ? $body : false;
+            if ($body !== false && $code === 200) return $body;
+            $why['curl'] = $err !== '' ? $err : ('HTTP ' . $code);
+        } else {
+            $why['curl'] = 'curl 확장이 꺼져 있음';
         }
-        return @file_get_contents($url);
+
+        // 2) PHP 내장 (allow_url_fopen 이 켜져 있어야 합니다)
+        if (ini_get('allow_url_fopen')) {
+            $body = @file_get_contents($url);
+            if ($body !== false && $body !== '') return $body;
+            $why['file_get_contents'] = '내려받기 실패';
+        } else {
+            $why['file_get_contents'] = 'allow_url_fopen 이 꺼져 있음';
+        }
+
+        // 3) wget — deploy.sh 가 쓰는 방식이라 NAS에서 가장 확실합니다
+        if (function_exists('shell_exec')) {
+            $body = @shell_exec('wget -q -T 30 -O - ' . escapeshellarg($url) . ' 2>/dev/null');
+            if ($body !== null && $body !== '') return $body;
+            $why['wget'] = '실행했지만 내용을 받지 못함';
+        } else {
+            $why['wget'] = 'shell_exec 이 막혀 있음';
+        }
+
+        return false;
     };
 
     $result = [];
@@ -61,12 +88,17 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
             : '실패 — 파일을 쓸 수 없습니다 (폴더 권한 확인 필요)';
     }
 
-    echo json_encode([
-        'ok'     => !in_array(false, array_map(fn($v) => strpos($v, '실패') === false, $result), true),
-        'mode'   => 'bootstrap',
-        '결과'   => $result,
-        '다음'   => '브랜드 허브 화면에서 Ctrl+F5 로 새로고침하세요',
-    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $ok = !in_array(false, array_map(fn($v) => strpos($v, '실패') === false, $result), true);
+
+    $out = ['ok' => $ok, 'mode' => 'bootstrap', '결과' => $result];
+    if (!$ok) {
+        $out['실패원인'] = $why;
+        $out['해결방법'] = 'Web Station → 스크립트 언어 설정 → PHP → Default Profile → 편집 '
+                        . '→ 「확장」 탭에서 curl 을 켜고 저장하세요';
+    }
+    $out['다음'] = $ok ? '브랜드 허브 화면에서 Ctrl+F5 로 새로고침하세요' : '위 해결방법을 적용한 뒤 다시 열어주세요';
+
+    echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
 

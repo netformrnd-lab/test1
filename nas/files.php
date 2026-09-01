@@ -36,6 +36,65 @@ function php_limit_bytes() {
     return min(to_bytes(ini_get('upload_max_filesize')), to_bytes(ini_get('post_max_size')));
 }
 
+/** 폴더·파일 이름으로 쓸 수 없는 문자를 걸러냅니다 */
+function safe_name($s, $fallback = '기타') {
+    $s = str_replace(['\\', '/', "\0"], '_', (string)$s);
+    $s = preg_replace('/[\x00-\x1F<>:"|?*]/u', '_', $s);
+    $s = trim($s, " .\t");
+    if ($s === '') return $fallback;
+    if (mb_strlen($s, 'UTF-8') > 120) $s = mb_substr($s, 0, 120, 'UTF-8');
+    return $s;
+}
+
+/** 같은 이름이 있으면 "이름 (2).pdf" 처럼 번호를 붙입니다 */
+function unique_path($dir, $name) {
+    $ext  = pathinfo($name, PATHINFO_EXTENSION);
+    $base = pathinfo($name, PATHINFO_FILENAME);
+    $try  = $name;
+    $i    = 1;
+    while (file_exists($dir . '/' . $try)) {
+        $i++;
+        $try = $base . ' (' . $i . ')' . ($ext !== '' ? '.' . $ext : '');
+    }
+    return $try;
+}
+
+/** brand-data.json 에서 fileId 에 해당하는 자료 항목을 찾습니다 */
+function lookup_asset($manifest, $fileId) {
+    if (!file_exists($manifest)) return null;
+    $json = json_decode(file_get_contents($manifest), true);
+    if (!is_array($json) || !isset($json['brands'])) return null;
+    foreach ($json['brands'] as $b) {
+        if (!isset($b['assets']) || !is_array($b['assets'])) continue;
+        foreach ($b['assets'] as $a) {
+            if (isset($a['fileId']) && $a['fileId'] === $fileId) return $a;
+        }
+    }
+    return null;
+}
+
+/** fileId 에 해당하는 실제 파일 경로를 구합니다 (예전 방식도 함께 지원) */
+function resolve_path($fileDir, $manifest, $fileId) {
+    $a = lookup_asset($manifest, $fileId);
+
+    if ($a && !empty($a['filePath'])) {
+        $p = $fileDir . '/' . $a['filePath'];
+        $real = realpath($p);
+        $root = realpath($fileDir);
+        // files 폴더 밖으로 벗어나는 경로는 거부합니다
+        if ($real && $root && strpos($real, $root . DIRECTORY_SEPARATOR) === 0) {
+            return [$real, $a['fileName'] ?? basename($real)];
+        }
+        return [null, null];
+    }
+
+    // 예전에 올린 파일 (임의 이름 .bin)
+    $old = $fileDir . '/' . $fileId . '.bin';
+    if (is_file($old)) return [$old, ($a['fileName'] ?? ($fileId . '.bin'))];
+
+    return [null, null];
+}
+
 /** brand-data.json 에서 fileId 에 해당하는 원본 파일명을 찾습니다 */
 function lookup_name($manifest, $fileId) {
     if (!file_exists($manifest)) return null;
@@ -66,7 +125,10 @@ if ($action === 'check') {
             ? (is_writable($FILE_DIR) ? '예' : '아니오')
             : ((is_dir($DATA_DIR) ? is_writable($DATA_DIR) : is_writable(__DIR__))
                  ? '아직 없지만 만들 수 있음' : '상위 폴더에 쓸 수 없음'),
-        '보관파일수'        => is_dir($FILE_DIR) ? count(glob($FILE_DIR . '/*.bin')) : 0,
+        '보관파일수'        => is_dir($FILE_DIR)
+            ? count(array_filter((array)glob($FILE_DIR . '/*/*'), 'is_file'))
+              + count(array_filter((array)glob($FILE_DIR . '/*.bin'), 'is_file'))
+            : 0,
     ]);
 }
 
@@ -105,26 +167,31 @@ if ($action === 'upload') {
         jout(['ok' => false, 'error' => '파일이 너무 큽니다 (최대 200MB)'], 413);
     }
 
-    if (!is_dir($FILE_DIR) && !@mkdir($FILE_DIR, 0775, true) && !is_dir($FILE_DIR)) {
+    // 브랜드별 폴더에 원래 이름 그대로 저장합니다.
+    // 탐색기에서 열었을 때도 바로 알아볼 수 있어야 하기 때문입니다.
+    $brandDir = $FILE_DIR . '/' . safe_name($_POST['brand'] ?? '', '기타');
+
+    if (!is_dir($brandDir) && !@mkdir($brandDir, 0775, true) && !is_dir($brandDir)) {
         jout(['ok' => false, 'error' =>
-            "files 폴더를 만들 수 없습니다: $FILE_DIR / data폴더 쓰기가능="
+            "저장 폴더를 만들 수 없습니다: $brandDir / data폴더 쓰기가능="
             . (is_writable($DATA_DIR) ? '예' : '아니오')], 500);
     }
 
-    $fileId = bin2hex(random_bytes(16));
-    $dest = $FILE_DIR . '/' . $fileId . '.bin';
+    $fileName = unique_path($brandDir, safe_name($f['name'], 'file'));
+    $dest = $brandDir . '/' . $fileName;
 
     if (!move_uploaded_file($f['tmp_name'], $dest)) {
         jout(['ok' => false, 'error' =>
-            'NAS에 파일을 저장하지 못했습니다 / files폴더 쓰기가능='
-            . (is_writable($FILE_DIR) ? '예' : '아니오')], 500);
+            'NAS에 파일을 저장하지 못했습니다 / 폴더 쓰기가능='
+            . (is_writable($brandDir) ? '예' : '아니오')], 500);
     }
     @chmod($dest, 0664);
 
     jout([
         'ok'       => true,
-        'fileId'   => $fileId,
-        'fileName' => $f['name'],
+        'fileId'   => bin2hex(random_bytes(16)),
+        'fileName' => $fileName,
+        'filePath' => basename($brandDir) . '/' . $fileName,
         'fileSize' => $f['size'],
         'mime'     => $f['type'] ?: 'application/octet-stream',
     ]);
@@ -137,12 +204,12 @@ if ($action === 'download') {
         jout(['ok' => false, 'error' => '잘못된 파일 주소입니다'], 400);
     }
 
-    $path = $FILE_DIR . '/' . $id . '.bin';
-    if (!is_file($path)) {
-        jout(['ok' => false, 'error' => '파일을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다'], 404);
+    [$path, $name] = resolve_path($FILE_DIR, $MANIFEST, $id);
+    if (!$path) {
+        jout(['ok' => false, 'error' =>
+            '파일을 찾을 수 없습니다. 삭제되었거나 탐색기에서 이름이 바뀌었을 수 있습니다'], 404);
     }
-
-    $name = lookup_name($MANIFEST, $id) ?: ($id . '.bin');
+    $name = $name ?: basename($path);
     $name = str_replace(["\r", "\n", '"', '\\'], '', $name);   // 헤더 조작 방지
 
     // 한글 등 비ASCII 파일명을 위해 두 가지 형식을 함께 보냅니다.
@@ -174,8 +241,8 @@ if ($action === 'delete') {
         jout(['ok' => false, 'error' => '잘못된 파일 주소입니다'], 400);
     }
 
-    $path = $FILE_DIR . '/' . $id . '.bin';
-    if (is_file($path) && !@unlink($path)) {
+    [$path, ] = resolve_path($FILE_DIR, $MANIFEST, $id);
+    if ($path && is_file($path) && !@unlink($path)) {
         jout(['ok' => false, 'error' => '파일을 삭제하지 못했습니다 (권한 확인 필요)'], 500);
     }
     jout(['ok' => true]);

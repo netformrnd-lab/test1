@@ -600,7 +600,10 @@ function viewAssets(b){
           + '<div class="row" style="margin:0 0 4px;flex-wrap:nowrap;align-items:flex-start">'
             + (isFile ? '<span class="fileicon">' + fileIcon(it.fileName) + '</span>' : '')
             + '<div style="min-width:0"><div class="ct">' + esc(it.title) + '</div>'
-            + (isFile ? '<div class="fmeta">' + esc(it.fileName) + ' · ' + fmtSize(it.fileSize) + '</div>' : '')
+            + (isFile ? '<div class="fmeta">' + esc(it.fileName) + ' · ' + fmtSize(it.fileSize)
+                 + (it.filePath ? '<br><span style="opacity:.75">NAS: data\\files\\'
+                     + esc(it.filePath.replace(/\//g, '\\')) + '</span>' : '')
+                 + '</div>' : '')
             + '</div></div>'
           + (bits.length ? '<div class="row">' + bits.join('') + '</div>' : '')
           + (it.note ? '<div class="cd">' + esc(it.note) + '</div>' : '')
@@ -900,6 +903,7 @@ async function uploadFiles(fileList){
     const st = document.getElementById('upst_' + i);
     try{
       const fd = new FormData();
+      fd.append('brand', b.name);        // NAS에 브랜드 이름 폴더로 정리해서 저장합니다
       fd.append('file', files[i]);
       const res = await fetch('files.php?action=upload', { method:'POST', body: fd });
       const text = await res.text();
@@ -917,6 +921,7 @@ async function uploadFiles(fileList){
         note: '',
         fileId: out.fileId,
         fileName: out.fileName,
+        filePath: out.filePath || '',
         fileSize: out.fileSize,
         uploadedAt: new Date().toISOString()
       });

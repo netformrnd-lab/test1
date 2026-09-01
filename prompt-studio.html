@@ -231,7 +231,18 @@
         </div>
         <div class="fg"><label>등장 위치</label><div class="seg" id="segPlace"></div></div>
       </div>
+      <div class="fg">
+        <label for="avatarId">아바타 지정 <span class="help">— 헤이젠에서 고른 아바타 이름이나 ID. 비우면 헤이젠이 임의로 고릅니다</span></label>
+        <input type="text" id="avatarId" placeholder="예) Kyungsoo / avatar_id 값">
+      </div>
       <div class="note" id="avaNote"></div>
+
+      <div class="grouplabel">등장인물</div>
+      <div class="fg">
+        <label>인물·배경 국적 <span class="help">— 비워두면 서양인 모델이 나옵니다</span></label>
+        <div class="seg" id="segCast"></div>
+      </div>
+      <div class="note" id="castNote"></div>
 
       <div class="grouplabel">연출</div>
       <div class="fg"><label>화면 구성</label><div class="seg" id="segFmt"></div></div>
@@ -360,6 +371,21 @@
     {k:'보통',v:'설명을 읽을 여유를 주는 5~8초 단위로 전환한다.'},
     {k:'느린 설명형',v:'한 화면을 10초 이상 유지하며 차분히 설명한다.'}
   ];
+  var CASTS=[
+    {k:'한국인', lines:[
+      '아바타와 화면에 등장하는 모든 인물은 한국인으로 한다. 20~60대 한국인 남녀.',
+      'B롤과 스톡 영상에 나오는 인물도 한국인 또는 동아시아인만 쓴다. 서양인·백인·흑인 모델을 쓰지 않는다.',
+      '배경은 한국의 아파트 단지, 관리사무소, 단지 회의실, 한국 도시 풍경으로 한다. 북미·유럽식 단독주택이나 콘도미니엄 외관을 쓰지 않는다.',
+      '화면에 보이는 문서·표지판·앱 화면의 글자는 모두 한국어로 한다. 영문 더미 텍스트를 넣지 않는다.',
+      '복장은 한국 사무직과 관리사무소 기준으로 한다.'
+    ]},
+    {k:'동아시아', lines:[
+      '등장하는 모든 인물은 동아시아인으로 한다.',
+      'B롤과 스톡 영상의 인물도 동아시아인만 쓴다. 서양인 모델을 쓰지 않는다.',
+      '화면에 보이는 글자는 모두 한국어로 한다.'
+    ]},
+    {k:'지정 안 함', lines:[]}
+  ];
   var PRESETS=[
     {k:'혼합 70/30', apply:{fmt:2,cap:0,data:1,pace:1,tone:1},
      palette:'밝고 읽기 쉬운 정보형 화면을 기본으로, 도입과 결론 구간만 딥 네이비',
@@ -372,7 +398,7 @@
      note:'시네마틱 브랜드 다큐멘터리. 2~4초 하드컷에 인용문과 수치를 팝업으로 띄웁니다. 글리치 전환은 헤이젠이 못 하니 후편집이 필요합니다.'}
   ];
 
-  var st={preset:0,len:2,tone:1,ava:0,cuts:2,cutLen:6,place:0,fmt:2,cap:0,data:1,pace:1,tab:1,chap:0};
+  var st={preset:0,len:2,tone:1,ava:0,cuts:2,cutLen:6,place:0,cast:0,fmt:2,cap:0,data:1,pace:1,tab:1,chap:0};
 
   var PRINCIPLES=[
     '첫 10~20초는 고객이 실제로 겪는 장면이나 확인하고 싶은 한 문장으로 시작한다. 회사 연혁이나 기능 목록부터 나열하지 않는다.',
@@ -491,6 +517,13 @@
     b.push('- 수치 표현: '+DATAV[st.data].v);
     b.push('- 컷 전환: '+PACE[st.pace].v);
     b.push('- 아바타: '+plan.line);
+    if(val('avatarId') && AVAS[st.ava].mode!=='none')
+      b.push('- 사용할 아바타: '+val('avatarId')+' (다른 아바타로 바꾸지 마세요)');
+    if(CASTS[st.cast].lines.length){
+      b.push('');
+      b.push('# 등장인물과 배경');
+      CASTS[st.cast].lines.forEach(function(x){ b.push('- '+x); });
+    }
     b.push('');
     b.push('# 연출 원칙');
     PRINCIPLES.forEach(function(p){ b.push('- '+p); });
@@ -529,6 +562,9 @@
     b.push('- 주제와 무관한 스톡 영상 사용');
     b.push('- 특정 업체를 실명으로 비교하거나 평가하는 표현');
     b.push('- 결정을 대신 내려 주는 듯한 표현. 판단 근거를 정리해 주는 역할로만 서술');
+    if(CASTS[st.cast].lines.length){
+      b.push('- 서양인 모델, 영문 간판, 해외 주택 외관이 보이는 영상·이미지');
+    }
     return b.join('\n');
   }
 
@@ -548,7 +584,8 @@
       '- 길이: '+len+'초'+(chs.length>1?' ('+chs.length+'개 조각으로 나눠 생성)':''),
       '- 스타일: '+PRESETS[st.preset].k+' / 색: '+val('palette'),
       '- 화면 구성: '+FORMATS[st.fmt].k+' · 자막: '+CAPS[st.cap].k+' · 수치: '+DATAV[st.data].k+' · 전환: '+PACE[st.pace].k,
-      '- 아바타: '+avatarPlan(len,sc).line,
+      '- 아바타: '+avatarPlan(len,sc).line+(val('avatarId')?' / 지정 아바타: '+val('avatarId'):''),
+      '- 등장인물·배경: '+(CASTS[st.cast].lines.length?CASTS[st.cast].lines.join(' '):'지정 없음'),
       '',
       '## 정보 구조 (이 순서를 지킬 것)',
       '문제 상황 → 질문 제시 → 핵심 기준 3개 → 실제 적용 장면 → 정리와 다음 행동',
@@ -600,7 +637,8 @@
       palette:val('palette'), tone:TONES[st.tone].k,
       style:{preset:PRESETS[st.preset].k,format:FORMATS[st.fmt].k,captions_style:CAPS[st.cap].k,
              data_visual:DATAV[st.data].k,cut_pace:PACE[st.pace].k},
-      avatar:{mode:AVAS[st.ava].k,cut_in_count:plan.idx.length,
+      casting:{locale:CASTS[st.cast].k,rules:CASTS[st.cast].lines},
+      avatar:{mode:AVAS[st.ava].k,avatar_id:val('avatarId')||null,cut_in_count:plan.idx.length,
               cut_in_seconds:AVAS[st.ava].mode==='intermittent'?st.cutLen:null,
               scenes:plan.idx.map(function(i){return sc[i].name;}),
               on_screen_seconds:plan.billed},
@@ -642,6 +680,7 @@
   function syncSegs(){
     seg('segPreset',PRESETS,'preset',applyPreset); seg('segLen',LENS,'len');
     seg('segTone',TONES,'tone'); seg('segAvatar',AVAS,'ava'); seg('segPlace',PLACE,'place');
+    seg('segCast',CASTS,'cast');
     seg('segFmt',FORMATS,'fmt'); seg('segCap',CAPS,'cap');
     seg('segData',DATAV,'data'); seg('segPace',PACE,'pace');
   }
@@ -660,7 +699,7 @@
       (len%60===0?(len/60)+'분':Math.floor(len/60)+'분 '+(len%60)+'초')+'</b>'+
       (chs.length>1?' (<b>'+chs.length+'조각</b>)':'')+
       ' · 아바타 <b>'+(plan.billed?plan.idx.length+'회 '+plan.billed+'초':'없음')+'</b>'+
-      ' · 대상 <b>'+val('audience')+'</b><br>'+
+      ' · 인물 <b>'+CASTS[st.cast].k+'</b> · 대상 <b>'+val('audience')+'</b><br>'+
       '핵심 기준 3개와 적용 장면은 '+(msgs.length?'직접 지정한 값을 씁니다.':'프롬프트가 AI에게 직접 정하라고 지시합니다.');
 
     document.getElementById('presetNote').textContent=PRESETS[st.preset].note;
@@ -677,6 +716,10 @@
       '아바타 노출 <b>'+plan.billed+'초</b> / 전체 '+len+'초 (<b>'+pct+'%</b>). '+
       (plan.billed===0?'레퍼런스 두 편도 아바타 없이 내레이션으로만 진행합니다.'
                      :'헤이젠은 생성된 초 단위로 과금되므로 이 구간이 원가를 결정합니다.');
+
+    document.getElementById('castNote').innerHTML = CASTS[st.cast].lines.length
+      ? '인물·배경·화면 글자를 <b>'+CASTS[st.cast].k+'</b> 기준으로 못 박고, 금지 사항에 서양인 모델과 영문 간판을 추가합니다.'
+      : '국적을 지정하지 않으면 헤이젠이 서양인 모델과 해외 주택 이미지를 고르는 경우가 많습니다.';
 
     var ws=[FORMATS[st.fmt],DATAV[st.data]].filter(function(o){return o.warn;});
     document.getElementById('warnBox').innerHTML = ws.length
@@ -733,7 +776,7 @@
     else fb();
   });
 
-  var FIELDS=['kw','audience','goal','palette','msgs','scene','facts','cta','brand'];
+  var FIELDS=['kw','audience','goal','palette','avatarId','msgs','scene','facts','cta','brand'];
   function save(){
     try{ var d={st:st}; FIELDS.forEach(function(f){ d[f]=document.getElementById(f).value; });
       localStorage.setItem(LS,JSON.stringify(d)); }catch(e){}

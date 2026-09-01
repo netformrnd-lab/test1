@@ -220,6 +220,18 @@ mark{background:rgba(245,158,11,.35);color:inherit;border-radius:3px;padding:0 2
 .recent .rb{font-size:11.5px;color:var(--text-muted);margin-left:auto;white-space:nowrap}
 .hsec{font-size:14px;font-weight:800;margin:24px 0 11px}
 
+/* 문의 표 */
+.table-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;
+  max-height:62vh;background:var(--bg-secondary)}
+table.itable{width:100%;border-collapse:collapse;font-size:12.5px}
+table.itable th,table.itable td{padding:8px 12px;text-align:left;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+  max-width:320px;overflow:hidden;text-overflow:ellipsis}
+table.itable th{position:sticky;top:0;z-index:1;background:var(--bg-hover);
+  font-size:11.5px;font-weight:800;color:var(--text-secondary)}
+table.itable tr:last-child td{border-bottom:none}
+table.itable tr:hover td{background:var(--bg-hover)}
+
 /* 파일 업로드 영역 */
 .drop{border:2px dashed var(--border-light);border-radius:14px;padding:26px 20px;
   text-align:center;transition:.15s;margin-bottom:16px;background:var(--bg-secondary)}
@@ -495,7 +507,7 @@ const TYPES = {
   }
 };
 const ITEM_KEYS = ['automations','history','assets','tasks','links'];
-const TAB_KEYS  = ['automations','history','assets','tasks','links','prompt'];
+const TAB_KEYS  = ['automations','history','assets','tasks','links','inquiries','prompt'];
 
 let data = defaultData();
 let currentBrandId = null;
@@ -689,9 +701,11 @@ function renderBrand(){
     assets: b.assets.length,
     tasks: b.tasks.filter(t => t.status !== '완료').length,
     links: b.links.length,
+    inquiries: (inquiryCache.byBrand[b.name] || []).length,
     prompt: (b.masterPrompt || '').trim() ? 1 : 0
   };
   const tabDefs = [
+    ['inquiries','📞 문의'],
     ['automations','🤖 자동화 모음'],
     ['history','📜 히스토리'],
     ['tasks','✅ 할 일'],
@@ -723,6 +737,7 @@ function renderBrand(){
   if(currentTab === 'prompt') body.innerHTML = viewPrompt(b);
   else if(currentTab === 'history') body.innerHTML = viewHistory(b);
   else if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
+  else if(currentTab === 'inquiries') { body.innerHTML = viewInquiries(b); loadInquiries(); }
   else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
   else if(currentTab === 'links') body.innerHTML = viewLinks(b);
   else body.innerHTML = viewCards(b, currentTab);
@@ -961,6 +976,108 @@ function reloadPreview(id){
   const f = document.getElementById('pv_' + id);
   if(f) f.src = f.src;   // 같은 주소를 다시 넣어 새로 불러옵니다
   toast('↻ 미리보기를 새로 불러옵니다');
+}
+
+/* ========================= 문의 =========================
+   구글시트의 문의 기록을 n8n 등으로 NAS에 밀어 넣으면 여기에 표시됩니다.
+   시트를 외부에 공개하지 않아도 되고, 대시보드에는 읽기 전용으로 보입니다.
+   ======================================================== */
+const inquiryCache = { loaded:false, loading:false, updatedAt:null, total:0,
+                       columns:[], byBrand:{}, error:null };
+let inquiryQuery = '';
+
+async function loadInquiries(force){
+  if(STORAGE_MODE !== 'nas'){ inquiryCache.loaded = true; return; }
+  if(inquiryCache.loading || (inquiryCache.loaded && !force)) return;
+  inquiryCache.loading = true;
+  try{
+    const res = await fetch('inquiries.php?action=list&t=' + Date.now(), { cache:'no-store' });
+    const text = await res.text();
+    let out = null;
+    try { out = JSON.parse(text); } catch(e) {}
+    if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ')');
+    if(!out.ok) throw new Error(out.error || '불러오지 못했습니다');
+
+    const by = {};
+    const norm = v => String(v || '').replace(/\s/g, '');
+    (out.rows || []).forEach(r => {
+      const bn = r['브랜드'] || r['brand'] || r['Brand'] || r['브랜드명'] || '';
+      (by[norm(bn)] = by[norm(bn)] || []).push(r);
+    });
+    // 대시보드의 브랜드 이름 기준으로 다시 담습니다
+    inquiryCache.byBrand = {};
+    data.brands.forEach(b => { inquiryCache.byBrand[b.name] = by[norm(b.name)] || []; });
+
+    inquiryCache.columns   = out.columns || [];
+    inquiryCache.updatedAt = out.updatedAt;
+    inquiryCache.total     = out.total || 0;
+    inquiryCache.error     = null;
+  }catch(e){
+    inquiryCache.error = e.message;
+  }finally{
+    inquiryCache.loading = false;
+    inquiryCache.loaded  = true;
+    if(currentTab === 'inquiries' && !searchQuery) render();
+  }
+}
+
+function refreshInquiries(){ inquiryCache.loaded = false; loadInquiries(true); toast('↻ 문의 기록을 다시 불러옵니다'); }
+function onInquiryQuery(v){ inquiryQuery = v; if(currentTab === 'inquiries') render(); }
+
+function viewInquiries(b){
+  if(STORAGE_MODE !== 'nas'){
+    return '<div class="empty">🔒 문의 기록은 NAS 주소로 접속했을 때만 보입니다.<br>'
+      + 'http://192.168.0.37/brand/brand.html 로 접속해 주세요.</div>';
+  }
+  if(!inquiryCache.loaded) return '<div class="empty">불러오는 중…</div>';
+  if(inquiryCache.error)
+    return '<div class="empty">문의 기록을 불러오지 못했습니다.<br>'
+      + '<span class="path">' + esc(inquiryCache.error) + '</span></div>';
+
+  const rows = inquiryCache.byBrand[b.name] || [];
+  const when = inquiryCache.updatedAt
+    ? new Date(inquiryCache.updatedAt).toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })
+    : '아직 받은 적 없음';
+
+  const bar = '<div class="sec-bar">'
+    + '<span class="searchbox" style="flex:0 1 260px"><span class="ico">🔍</span>'
+      + '<input type="text" placeholder="이 브랜드 문의에서 검색" value="' + esc(inquiryQuery) + '" '
+      + 'oninput="onInquiryQuery(this.value)"></span>'
+    + '<button class="btn" onclick="refreshInquiries()">↻ 새로고침</button>'
+    + '<span class="hint">전체 ' + inquiryCache.total.toLocaleString('ko-KR') + '건 중 이 브랜드 '
+      + rows.length.toLocaleString('ko-KR') + '건 · 갱신 ' + esc(when) + '</span>'
+    + '</div>';
+
+  if(!inquiryCache.total){
+    return bar + '<div class="empty">아직 들어온 문의 기록이 없습니다.<br>'
+      + 'n8n에서 구글시트를 NAS로 보내도록 설정하면 여기에 표시됩니다.<br>'
+      + '<span class="path" style="display:inline-block;margin-top:8px">'
+      + 'POST http://192.168.0.37/brand/inquiries.php?action=push</span></div>';
+  }
+  if(!rows.length){
+    return bar + '<div class="empty">"' + esc(b.name) + '" 브랜드로 들어온 문의가 없습니다.<br>'
+      + '시트의 브랜드 열 값이 브랜드 이름과 같은지 확인해 주세요.</div>';
+  }
+
+  const q = inquiryQuery.trim().toLowerCase();
+  const shown = q
+    ? rows.filter(r => Object.values(r).join(' ').toLowerCase().includes(q))
+    : rows;
+
+  // 브랜드 열은 이미 이 브랜드로 걸러졌으니 표에서는 뺍니다
+  const cols = inquiryCache.columns.filter(c => !['브랜드','brand','Brand','브랜드명'].includes(c));
+
+  const head = '<tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>';
+  const body = shown.slice(0, 500).map(r =>
+    '<tr>' + cols.map(c => '<td>' + highlight(r[c] || '', inquiryQuery) + '</td>').join('') + '</tr>').join('');
+
+  return bar
+    + (q ? '<div class="fmeta" style="margin-bottom:8px">검색 결과 ' + shown.length + '건</div>' : '')
+    + '<div class="table-wrap"><table class="itable">' + head + body + '</table></div>'
+    + (shown.length > 500
+        ? '<div class="fmeta" style="margin-top:10px">화면에는 500건까지만 표시합니다 (전체 '
+          + shown.length.toLocaleString('ko-KR') + '건)</div>' : '')
+    + '<div class="fmeta" style="margin-top:10px">읽기 전용입니다. 내용을 고치려면 원본 구글시트에서 수정하세요.</div>';
 }
 
 function viewHistory(b){

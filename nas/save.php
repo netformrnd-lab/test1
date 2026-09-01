@@ -27,6 +27,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
         'files.php'  => ['nas/files.php',  '<?php'],
         'deploy.sh'  => ['nas/deploy.sh',  'update_file'],
         'metrics.php'=> ['nas/metrics.php','<?php'],
+        'inquiries.php' => ['nas/inquiries.php','<?php'],
+        'config.sample.php' => ['nas/config.sample.php','<?php'],
     ];
 
     // 내려받는 방법을 세 가지 순서로 시도합니다.

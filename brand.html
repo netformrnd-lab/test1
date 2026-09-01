@@ -38,6 +38,9 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg-prima
   font-size:13px;color:var(--text-muted)}
 .actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 
+.savestate{font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap}
+.savestate.ok{color:var(--green)}
+.savestate.err{color:var(--red)}
 .store-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
   padding:6px 12px;border-radius:999px;border:1px solid var(--border);white-space:nowrap}
 .store-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--yellow)}
@@ -254,12 +257,14 @@ mark{background:rgba(245,158,11,.35);color:inherit;border-radius:3px;padding:0 2
   </div>
   <span class="spacer"></span>
   <div class="actions">
+    <span class="savestate" id="saveState">✓ 저장됨</span>
     <span class="store-badge" id="storeBadge"><span class="dot"></span><span id="storeText">확인 중</span></span>
     <button class="btn" title="밝게/어둡게" onclick="toggleDark()">🌙</button>
     <button class="btn" title="파일로 내보내기 (백업)" onclick="exportJSON()">📤</button>
     <button class="btn" title="파일에서 가져오기 (복원)" onclick="document.getElementById('importFile').click()">📥</button>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importJSON(event)">
-    <button class="btn primary" title="NAS에 저장 (Ctrl+S)" onclick="saveAll()">💾 저장</button>
+    <button class="btn primary" title="지금 바로 저장 (Ctrl+S) — 평소에는 자동 저장됩니다"
+            onclick="saveAll()">💾 저장</button>
   </div>
 </div>
 
@@ -521,7 +526,7 @@ function goHome(){
 
 function renderSidebar(){
   document.getElementById('brandList').innerHTML = data.brands.map(b => {
-    const n = b.automations.length + b.history.length + b.assets.length;
+    const n = ITEM_KEYS.reduce((a, k) => a + b[k].length, 0);
     return '<button class="brand-item' + (b.id === currentBrandId && !searchQuery ? ' on' : '') + '" '
       + 'onclick="selectBrand(\'' + b.id + '\')">'
       + '<span class="bar" style="background:' + b.color + '"></span>'
@@ -560,6 +565,7 @@ function renderHome(){
       + '<span class="chip">🤖 ' + b.automations.length + '</span>'
       + '<span class="chip">📜 ' + b.history.length + '</span>'
       + '<span class="chip">📁 ' + b.assets.length + '</span>'
+      + (b.links.length ? '<span class="chip">🔗 ' + b.links.length + '</span>' : '')
       + (b.tasks.filter(t => t.status !== '완료').length
           ? '<span class="chip test">✅ ' + b.tasks.filter(t => t.status !== '완료').length + '</span>' : '')
       + ((b.masterPrompt || '').trim() ? '<span class="chip on">✨ 작성됨</span>'
@@ -874,9 +880,7 @@ function toggleTask(id){
   const t = currentBrand().tasks.find(x => x.id === id);
   t.status = t.status === '완료' ? '진행 중' : '완료';
   t.updatedAt = new Date().toISOString();
-  render();
-  toast(t.status === '완료' ? '✅ 완료 처리했습니다. [저장]을 눌러주세요'
-                            : '↩ 되돌렸습니다. [저장]을 눌러주세요');
+  render(); markDirty();
 }
 
 function viewLinks(b){
@@ -943,8 +947,7 @@ function moveHistory(id, dir){
   const j = i + dir;
   if(i < 0 || j < 0 || j >= b.history.length) return;
   [b.history[i], b.history[j]] = [b.history[j], b.history[i]];
-  render();
-  toast('↕ 순서를 바꿨습니다. [저장]을 눌러야 반영됩니다');
+  render(); markDirty();
 }
 
 function viewPrompt(b){
@@ -1075,18 +1078,17 @@ function submitBrand(){
     currentTab = 'automations';
   }
   closeModal('brandModal');
-  render();
-  toast('✅ 반영되었습니다. [저장]을 눌러야 보관됩니다');
+  render(); markDirty();
 }
 
 function deleteBrand(id){
   const b = brandById(id);
-  const n = b.automations.length + b.history.length + b.assets.length;
+  const n = ITEM_KEYS.reduce((a, k) => a + b[k].length, 0);
   if(!confirm('"' + b.name + '" 브랜드를 삭제할까요?\n\n안에 있는 ' + n + '개 항목과 마스터프롬프트도 함께 사라집니다.')) return;
   data.brands = data.brands.filter(x => x.id !== id);
   if(currentBrandId === id) currentBrandId = data.brands.length ? data.brands[0].id : null;
-  render();
-  toast('🗑️ 삭제했습니다. [저장]을 눌러야 반영됩니다');
+  render(); markDirty();
+  toast('🗑️ 브랜드를 삭제했습니다');
 }
 
 /* ========================= 항목 (자동화·히스토리·자료) ========================= */
@@ -1141,8 +1143,7 @@ function submitItem(){
   }
   editing = null;
   closeModal('itemModal');
-  render();
-  toast('✅ 반영되었습니다. [저장]을 눌러야 보관됩니다');
+  render(); markDirty();
 }
 
 function deleteItem(type, id){
@@ -1150,8 +1151,8 @@ function deleteItem(type, id){
   const it = b[type].find(x => x.id === id);
   if(!confirm('"' + it.title + '" 항목을 삭제할까요?')) return;
   b[type] = b[type].filter(x => x.id !== id);
-  render();
-  toast('🗑️ 삭제했습니다. [저장]을 눌러야 반영됩니다');
+  render(); markDirty();
+  toast('🗑️ 삭제했습니다');
 }
 
 /* ========================= 마스터프롬프트 ========================= */
@@ -1160,6 +1161,7 @@ function onPromptInput(v){
   b.masterPrompt = v;
   b.promptUpdatedAt = new Date().toISOString();
   document.getElementById('promptCount').textContent = v.length.toLocaleString('ko-KR') + '자';
+  markDirty();
 }
 
 let uploadReport = [];
@@ -1244,7 +1246,7 @@ async function uploadFiles(fileList){
   }
 
   uploadReport = report;
-  if(added) await saveAll();    // 파일은 이미 NAS에 있으므로 목록도 바로 저장합니다
+  if(added) await saveAll(true);  // 파일은 이미 NAS에 있으므로 목록도 바로 저장합니다
   render();
   bindDrop();
 
@@ -1277,7 +1279,8 @@ async function deleteAsset(id){
   }
   b.assets = b.assets.filter(x => x.id !== id);
   render(); bindDrop();
-  if(it.fileId) await saveAll(); else toast('🗑️ 삭제했습니다. [저장]을 눌러야 반영됩니다');
+  if(it.fileId) await saveAll(true); else markDirty();
+  toast('🗑️ 삭제했습니다');
 }
 
 async function copyPath(type, id){
@@ -1305,19 +1308,56 @@ async function copyPrompt(){
   }
 }
 
-/* ========================= 저장 / 불러오기 ========================= */
-async function saveAll(){
+/* ========================= 저장 / 불러오기 =========================
+   내용을 고치면 잠시 뒤 자동으로 저장됩니다.
+   [저장] 버튼은 지금 바로 저장하고 싶을 때 쓰시면 됩니다. (Ctrl+S 도 동일)
+   ================================================================== */
+let saveTimer = null;     // 자동 저장 예약
+let saving = false;       // 저장이 진행 중인지
+let saveAgain = false;    // 저장 중에 또 바뀌었는지
+
+function markDirty(){
+  setSaveState('dirty');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveAll(true), 1200);
+}
+
+function setSaveState(state){
+  const el = document.getElementById('saveState');
+  if(!el) return;
+  const map = {
+    dirty:  ['●', '수정됨 — 잠시 뒤 저장됩니다', ''],
+    saving: ['◌', '저장 중…', ''],
+    saved:  ['✓', '저장됨', 'ok'],
+    failed: ['⚠', '저장 실패', 'err']
+  };
+  const [ic, txt, cls] = map[state] || map.saved;
+  el.className = 'savestate ' + cls;
+  el.textContent = ic + ' ' + txt;
+}
+
+async function saveAll(silent){
+  if(saving){ saveAgain = true; return; }   // 겹쳐 저장하지 않습니다
+  clearTimeout(saveTimer);
+  saving = true;
+  setSaveState('saving');
+
   data.savedAt = new Date().toISOString();
   data.schema = SCHEMA;
   try{
     await storageSave(data);
     document.getElementById('errBar').classList.remove('show');
-    toast(STORAGE_MODE === 'nas' ? '✅ NAS에 저장되었습니다' : '✅ 저장되었습니다 (이 브라우저)');
+    setSaveState('saved');
+    if(!silent) toast(STORAGE_MODE === 'nas' ? '✅ NAS에 저장되었습니다' : '✅ 저장되었습니다 (이 브라우저)');
     updateSubtitle();
   }catch(e){
     localStorage.setItem(LS_KEY, JSON.stringify(data));   // 안전망
     setBadge('error', 'NAS 저장 실패 — 임시로 이 브라우저에 보관');
+    setSaveState('failed');
     showError(e.message);
+  }finally{
+    saving = false;
+    if(saveAgain){ saveAgain = false; markDirty(); }
   }
 }
 
@@ -1342,8 +1382,8 @@ function importJSON(ev){
       if(!confirm('현재 내용을 파일 내용으로 덮어씁니다. 계속할까요?')) return;
       data = normalize(parsed);
       currentBrandId = data.brands.length ? data.brands[0].id : null;
-      render();
-      toast('📥 불러왔습니다. [저장]을 눌러 보관하세요');
+      render(); markDirty();
+      toast('📥 불러왔습니다');
     }catch(e){ toast('⚠️ 파일을 읽을 수 없습니다: ' + e.message); }
   };
   reader.readAsText(file);
@@ -1397,6 +1437,10 @@ function toast(msg){
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.style.display = 'none', 2800);
 }
+
+window.addEventListener('beforeunload', e => {
+  if(saveTimer || saving){ e.preventDefault(); e.returnValue = ''; }
+});
 
 document.addEventListener('keydown', e => {
   if((e.ctrlKey || e.metaKey) && e.key === 's'){ e.preventDefault(); saveAll(); }

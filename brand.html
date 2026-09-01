@@ -229,6 +229,21 @@ mark{background:rgba(245,158,11,.35);color:inherit;border-radius:3px;padding:0 2
 .modal textarea{min-height:96px;resize:vertical;line-height:1.6}
 .modal input:focus,.modal select:focus,.modal textarea:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.modal{max-width:520px}
+
+/* AI 정리 영역 */
+.aibox{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:6px;
+  background:linear-gradient(180deg,rgba(139,92,246,.07),transparent)}
+.aibox .ah{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;margin-bottom:3px}
+.aibox .as{font-size:12px;color:var(--text-muted);margin-bottom:9px;line-height:1.5}
+.aibox textarea{min-height:110px}
+.aibox .arow{display:flex;gap:7px;align-items:center;margin-top:9px}
+.aibox .astat{font-size:12px;color:var(--text-muted)}
+.ainote{margin-top:9px;padding:9px 11px;border-radius:9px;font-size:12.5px;line-height:1.5;
+  background:rgba(245,158,11,.12);color:var(--text-primary)}
+.btn.ai{background:var(--purple);border-color:var(--purple);color:#fff}
+.btn.ai:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.5;cursor:default}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:none;
   background:var(--text-primary);color:var(--bg-card);padding:12px 22px;border-radius:999px;
@@ -309,6 +324,7 @@ mark{background:rgba(245,158,11,.35);color:inherit;border-radius:3px;padding:0 2
 <div class="modal-bg" id="itemModal" onclick="if(event.target===this)closeModal('itemModal')">
   <div class="modal">
     <h3 id="itemModalTitle">항목 추가</h3>
+    <div id="aiBox"></div>
     <div id="itemFields"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('itemModal')">취소</button>
@@ -976,7 +992,79 @@ function openItemModal(type, id){
       + 'value="' + esc(v) + '" placeholder="' + esc(f.ph || '') + '">';
   }).join('');
 
+  document.getElementById('aiBox').innerHTML =
+    (type === 'history' && STORAGE_MODE === 'nas') ? aiBoxHtml() : '';
+
   document.getElementById('itemModal').classList.add('open');
+}
+
+function aiBoxHtml(){
+  return '<div class="aibox">'
+    + '<div class="ah">✨ AI로 정리하기</div>'
+    + '<div class="as">생각나는 대로 적거나 자료를 붙여넣으세요. '
+      + '아래 칸들에 맞게 정리해 드립니다. 결과는 저장 전에 직접 고칠 수 있습니다.</div>'
+    + '<textarea id="aiRaw" placeholder="예)&#10;처음엔 그냥 낱개로 팔았음. 진입장벽 낮아서.&#10;근데 한 번 사고 다시 안 삼. 재구매가 거의 없었음&#10;그래서 구독으로 바꿔봤는데 3개월 지나니 60% 넘게 빠짐&#10;알고보니 개인이 아니라 단지에서 결정하는 구조였음&#10;지금은 단지랑 연간계약으로 가는 중, 2군데 진행"></textarea>'
+    + '<div class="arow">'
+      + '<button class="btn ai" id="aiBtn" onclick="runAI(\'new\')">✨ 정리하기</button>'
+      + '<button class="btn" id="aiPolishBtn" onclick="runAI(\'polish\')">아래 내용 다듬기</button>'
+      + '<span class="astat" id="aiStat"></span>'
+    + '</div>'
+    + '<div id="aiNote"></div>'
+    + '</div>';
+}
+
+async function runAI(mode){
+  const btn  = document.getElementById('aiBtn');
+  const btn2 = document.getElementById('aiPolishBtn');
+  const stat = document.getElementById('aiStat');
+  const note = document.getElementById('aiNote');
+  const b    = currentBrand();
+
+  let raw;
+  if(mode === 'polish'){
+    // 이미 입력된 칸들을 모아서 다듬습니다
+    raw = TYPES.history.fields.map(f => {
+      const v = (document.getElementById('f_' + f.key) || {}).value || '';
+      return v.trim() ? f.label + ': ' + v.trim() : '';
+    }).filter(Boolean).join('\n');
+    if(!raw){ toast('⚠️ 다듬을 내용이 없습니다. 칸을 먼저 채워주세요'); return; }
+  }else{
+    raw = (document.getElementById('aiRaw').value || '').trim();
+    if(!raw){ toast('⚠️ 정리할 메모를 먼저 적어주세요'); return; }
+  }
+
+  btn.disabled = btn2.disabled = true;
+  stat.textContent = 'AI가 정리하는 중… (10~30초)';
+  note.innerHTML = '';
+
+  try{
+    const res = await fetch('ai.php?action=journey', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ brand: b ? b.name : '', raw, mode })
+    });
+    const text = await res.text();
+    let out = null;
+    try { out = JSON.parse(text); } catch(e) {}
+    if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ') → '
+      + text.slice(0, 200).replace(/\s+/g, ' '));
+    if(!out.ok) throw new Error(out.error || '알 수 없는 오류');
+
+    const r = out.result;
+    ['title','status','period','why','result','next'].forEach(k => {
+      const el = document.getElementById('f_' + k);
+      if(el && r[k] !== undefined && r[k] !== '') el.value = r[k];
+    });
+
+    stat.textContent = '완료 · 토큰 ' + (out.usage['입력토큰'] + out.usage['출력토큰']).toLocaleString('ko-KR');
+    note.innerHTML = r.note
+      ? '<div class="ainote">⚠️ ' + esc(r.note) + '</div>'
+      : '<div class="ainote">✅ 아래 칸을 확인하고 필요하면 고친 뒤 저장하세요.</div>';
+  }catch(e){
+    stat.textContent = '';
+    note.innerHTML = '<div class="ainote">⚠️ ' + esc(e.message) + '</div>';
+  }finally{
+    btn.disabled = btn2.disabled = false;
+  }
 }
 
 function submitItem(){

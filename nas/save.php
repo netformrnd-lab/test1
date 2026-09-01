@@ -28,6 +28,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
         'deploy.sh'  => ['nas/deploy.sh',  'update_file'],
         'metrics.php'=> ['nas/metrics.php','<?php'],
         'inquiries.php' => ['nas/inquiries.php','<?php'],
+        'nasfiles.php'  => ['nas/nasfiles.php','<?php'],
+        'scan.sh'       => ['nas/scan.sh','ROOT='],
         'config.sample.php' => ['nas/config.sample.php','<?php'],
     ];
 

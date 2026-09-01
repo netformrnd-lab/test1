@@ -202,7 +202,7 @@
     <div class="mark">YT</div>
     <div>
       <h1>유튜브 인포 영상 자동화 라인</h1>
-      <div class="sub">넷폼알앤디 · 파이프라인 설계 &amp; 제작 현황판</div>
+      <div class="sub">아파트스퀘어 · 파이프라인 설계 &amp; 제작 현황판</div>
     </div>
     <div class="spacer"></div>
     <a class="btn solid" href="prompt-studio.html" style="text-decoration:none">프롬프트 스튜디오 →</a>
@@ -219,17 +219,18 @@
     <p>
       헤이젠과 마누스 <strong>둘 다 REST API와 웹훅을 제공</strong>하므로 대본 생성 → 영상 생성 → 업로드까지 코드로 이을 수 있습니다.
       헤이젠 <strong>Video Agent</strong>가 프롬프트 하나로 씬 구성·모션 그래픽·B롤까지 만들어 주므로 별도 영상 편집 도구도 필요 없습니다.
-      남은 빈칸은 <strong>업로드 연결</strong> 하나뿐입니다. 다만 유튜브는 2025년 7월부터
+      다만 레퍼런스가 8~11분이고 <strong>Video Agent 출력 상한은 3분</strong>이라, 한 편을 3분 이하 조각으로 나눠 만든 뒤 이어붙이는 공정이 들어갑니다.
+      남은 빈칸은 <strong>업로드 연결</strong> 하나입니다. 그리고 유튜브는 2025년 7월부터
       대량 생산·반복 콘텐츠를 수익화에서 걸러내고 있습니다. 그래서 <strong>대본 승인</strong>과 <strong>최종본 승인</strong> 두 지점만
       사람이 잡고, 나머지 5단계를 자동으로 돌리는 구조를 권장합니다. 편당 사람 손이 닿는 시간은 약 25분입니다.
     </p>
   </div>
 
   <section>
-    <div class="sec-head"><h2>목표 지표</h2><span class="note">주 3편 · 90초 인포 영상 기준</span></div>
+    <div class="sec-head"><h2>목표 지표</h2><span class="note">주 2편 · 5분 인포 영상 기준</span></div>
     <div class="kpis">
-      <div class="card kpi"><div class="lbl">월 발행 목표</div><div class="val mono">12편</div><div class="foot">주 3편 × 4주</div></div>
-      <div class="card kpi"><div class="lbl">편당 사람 투입</div><div class="val mono">25분</div><div class="foot">수동 제작 대비 −87%</div></div>
+      <div class="card kpi"><div class="lbl">월 발행 목표</div><div class="val mono">8편</div><div class="foot">주 2편 × 4주</div></div>
+      <div class="card kpi"><div class="lbl">편당 사람 투입</div><div class="val mono">45분</div><div class="foot">조각 이어붙이기 포함</div></div>
       <div class="card kpi"><div class="lbl">편당 예상 원가</div><div class="val mono" id="kpiUnit">—</div><div class="foot">아래 계산기와 연동</div></div>
       <div class="card kpi"><div class="lbl">자동화 커버리지</div><div class="val mono">5 / 7</div><div class="foot">단계 기준, 게이트 2곳 제외</div></div>
     </div>
@@ -247,7 +248,7 @@
       <div class="addrow">
         <input type="text" id="newTitle" placeholder="새 영상 주제를 입력하세요" aria-label="새 영상 주제">
         <select id="newCat" aria-label="분류">
-          <option>물류·무역</option><option>기술 해설</option><option>시장 동향</option><option>사내 교육</option>
+          <option>견적·공사</option><option>앱 사용법</option><option>시장 정보</option><option>입주민 교육</option>
         </select>
         <button class="btn solid" id="addBtn">큐에 추가</button>
       </div>
@@ -257,16 +258,16 @@
       <div class="sec-head"><h2>원가 계산기</h2><span class="note">헤이젠 공개 단가 기준</span></div>
       <div class="card calc">
         <div class="field">
-          <label>영상 길이 <b><span id="lenV" class="mono">90</span>초</b></label>
-          <input type="range" id="len" min="30" max="300" step="10" value="90">
+          <label>영상 길이 <b><span id="lenV" class="mono">300</span>초</b></label>
+          <input type="range" id="len" min="60" max="660" step="30" value="300">
         </div>
         <div class="field">
-          <label>월 발행 편수 <b><span id="cntV" class="mono">12</span>편</b></label>
-          <input type="range" id="cnt" min="4" max="60" step="1" value="12">
+          <label>월 발행 편수 <b><span id="cntV" class="mono">8</span>편</b></label>
+          <input type="range" id="cnt" min="2" max="40" step="1" value="8">
         </div>
         <div class="field">
-          <label>아바타 화면 비중 <b><span id="ratioV" class="mono">40</span>%</b></label>
-          <input type="range" id="ratio" min="0" max="100" step="5" value="40">
+          <label>아바타 화면 비중 <b><span id="ratioV" class="mono">10</span>%</b></label>
+          <input type="range" id="ratio" min="0" max="100" step="5" value="10">
         </div>
         <div class="field">
           <label>헤이젠 아바타 등급</label>
@@ -287,6 +288,7 @@
         <p class="hint">
           환율 1,400원 적용. 썸네일·음원·렌더 서버는 편당 $0.5로 고정 반영했습니다.
           헤이젠은 제출한 영상이 아니라 <b>실제 생성된 초</b>에 과금하므로, 아바타 비중을 낮추고 모션 그래픽 비중을 올리면 그만큼 내려갑니다.
+      레퍼런스 두 편은 아바타 없이 내레이션으로만 진행하므로, 비중을 10% 안팎으로 두는 편이 원본에 가깝습니다.
         </p>
       </div>
     </div>
@@ -315,7 +317,7 @@
           </tr>
           <tr>
             <td>인포그래픽 모션 · B롤</td><td>헤이젠 Video Agent</td>
-            <td>마스터 프롬프트 하나로 스크립트·씬·모션 그래픽·B롤 자동 구성<div class="sm">렌더 후 AI Studio에서 요소 단위 수정 가능</div></td>
+            <td>마스터 프롬프트 하나로 스크립트·씬·모션 그래픽·B롤 자동 구성<div class="sm">출력 상한 3분. 긴 영상은 조각으로 나눠 생성</div></td>
             <td><span class="tag auto">보유</span></td>
           </tr>
           <tr>
@@ -331,6 +333,11 @@
           <tr>
             <td>성과 수집</td><td>YouTube Analytics API</td>
             <td>일 1회 조회수·시청 지속률 수집 → 다음 주제 선정에 반영</td>
+            <td><span class="tag gate">추가 필요</span></td>
+          </tr>
+          <tr>
+            <td>조각 이어붙이기</td><td>영상 편집 도구</td>
+            <td>3분 이하 조각들을 한 편으로 결합하고 글리치 등 헤이젠이 못 하는 전환을 보강<div class="sm">레퍼런스 길이(8~11분)를 맞추려면 필수</div></td>
             <td><span class="tag gate">추가 필요</span></td>
           </tr>
           <tr>
@@ -403,7 +410,7 @@
     {n:'01',t:'주제 발굴',tool:'마누스가 검색 트렌드·경쟁 채널을 훑어 후보 10개',out:'주제 후보 + 근거',lvl:'auto'},
     {n:'02',t:'대본 · 구성',tool:'대본, 컷 구성표, 자막을 JSON으로 생성',out:'승인된 대본',lvl:'gate'},
     {n:'03',t:'영상 생성',tool:'마스터 프롬프트를 헤이젠에 전달해 렌더',out:'초안 영상',lvl:'auto'},
-    {n:'04',t:'모션 · B롤',tool:'Video Agent가 씬 구성·모션 그래픽·B롤까지 자동 생성',out:'완성본 mp4',lvl:'auto'},
+    {n:'04',t:'조각 생성 · 결합',tool:'3분 이하 조각을 각각 생성한 뒤 한 편으로 이어붙임',out:'완성본 mp4',lvl:'auto'},
     {n:'05',t:'썸네일',tool:'Canva 브랜드 템플릿으로 3안 자동 생성',out:'썸네일 3안',lvl:'auto'},
     {n:'06',t:'최종 검수',tool:'사실관계·발음·자막 오류를 사람이 확인',out:'게시 승인',lvl:'gate'},
     {n:'07',t:'업로드 · 측정',tool:'YouTube API 예약 공개 후 성과 수집',out:'게시 + 지표',lvl:'auto'}
@@ -421,11 +428,11 @@
   /* ---------- board ---------- */
   var COLS=['주제','대본','제작','검수','게시'];
   var SEED=[
-    {id:1,t:'FCL과 LCL, 언제 무엇을 써야 하나',c:'물류·무역',s:3},
-    {id:2,t:'인코텀즈 2020 한 장 정리',c:'물류·무역',s:1},
-    {id:3,t:'해상운임은 왜 분기마다 흔들리나',c:'시장 동향',s:0},
-    {id:4,t:'포워더 견적서 읽는 법',c:'사내 교육',s:2},
-    {id:5,t:'통관 지연이 생기는 5가지 이유',c:'물류·무역',s:4}
+    {id:1,t:'공사 제안서, 어떤 기준부터 확인해야 하나',c:'견적·공사',s:3},
+    {id:2,t:'공정표와 지급 시점, 왜 같이 봐야 하나',c:'견적·공사',s:1},
+    {id:3,t:'입찰 전에 단지가 정해 두면 좋은 것',c:'입주민 교육',s:0},
+    {id:4,t:'앱에서 견적 항목을 나란히 보는 법',c:'앱 사용법',s:2},
+    {id:5,t:'추가 공사비가 붙는 흔한 지점 3가지',c:'견적·공사',s:4}
   ];
   var items=load(LS_BOARD,SEED), seq=Math.max.apply(null,items.map(function(i){return i.id;}).concat([0]));
 

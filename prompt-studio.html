@@ -73,17 +73,19 @@
   .panel-hd h2{font-size:14px;font-weight:700}
   .panel-bd{padding:18px}
 
-  .form{position:sticky;top:78px}
-  @media (max-width:1000px){.form{position:static}}
+  .form{position:sticky;top:78px;max-height:calc(100vh - 100px);overflow-y:auto}
+  @media (max-width:1000px){.form{position:static;max-height:none}}
   .fg{margin-bottom:15px}
   .fg:last-child{margin-bottom:0}
   .fg label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
   .fg .help{font-weight:400;color:var(--ink-3);font-size:11.5px}
+  .fg label .num{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   input[type=text],textarea,select{
     width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--line);
     background:var(--surface);color:var(--ink);font:inherit;font-size:13px;resize:vertical;
   }
-  textarea{line-height:1.6;min-height:74px}
+  textarea{line-height:1.6;min-height:78px}
+  input[type=range]{width:100%;accent-color:var(--brand);margin:2px 0}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .seg{display:flex;gap:6px;flex-wrap:wrap}
   .seg button{
@@ -91,6 +93,8 @@
     background:var(--surface);color:var(--ink-2);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:.15s;
   }
   .seg button[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+  .divider{height:1px;background:var(--line-soft);margin:18px -18px 16px}
+  .grouplabel{font-size:11px;font-weight:700;letter-spacing:.11em;color:var(--ink-3);margin-bottom:11px}
 
   .tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px}
   .tabs button{
@@ -102,26 +106,25 @@
   .desc{font-size:12.5px;color:var(--ink-2);margin:0 0 12px;max-width:74ch}
   pre{
     margin:0;background:var(--code-bg);border:1px solid var(--line-soft);border-radius:11px;
-    padding:16px 18px;overflow-x:auto;max-height:620px;overflow-y:auto;
+    padding:16px 18px;overflow-x:auto;max-height:640px;overflow-y:auto;
     font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
     font-size:12.3px;line-height:1.72;color:var(--ink);white-space:pre-wrap;word-break:break-word;
   }
   .meta{display:flex;gap:14px;font-size:11.5px;color:var(--ink-3);margin-top:10px;font-variant-numeric:tabular-nums}
-  input[type=range]{width:100%;accent-color:var(--brand);margin:2px 0}
-  .fg label .num{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
-  .avanote{
-    background:var(--surface-2);border-radius:10px;padding:10px 13px;margin-bottom:15px;
-    font-size:12.3px;line-height:1.6;color:var(--ink-2);
+
+  .note,.warn,.fine{border-radius:10px;padding:11px 13px;margin-bottom:15px;font-size:12.3px;line-height:1.6}
+  .note{background:var(--surface-2);color:var(--ink-2)}
+  .note b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .warn{background:var(--warn-soft);color:var(--ink);display:grid;gap:7px}
+  .fine{background:var(--ok-soft);color:var(--ok);font-weight:600}
+
+  .chapbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+  .chapbar button{
+    padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink-2);font:inherit;font-size:12.3px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums;
   }
-  .avanote b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
-  .warn{
-    background:var(--warn-soft);border-radius:10px;padding:11px 13px;margin-bottom:15px;
-    font-size:12.3px;line-height:1.6;color:var(--ink);display:grid;gap:7px;
-  }
-  .fine{
-    background:var(--ok-soft);border-radius:10px;padding:11px 13px;margin-bottom:15px;
-    font-size:12.3px;color:var(--ok);font-weight:600;
-  }
+  .chapbar button[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+
   .toast{
     position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);
     background:var(--ok);color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;font-weight:600;
@@ -129,11 +132,19 @@
   }
   .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 
-  .callout{
-    margin-top:24px;padding:16px 18px;border-radius:12px;background:var(--warn-soft);
-    border:1px solid transparent;font-size:13px;color:var(--ink);line-height:1.7;
+  .refbox{
+    margin-top:24px;padding:18px 20px;border-radius:14px;background:var(--surface);
+    border:1px solid var(--line);box-shadow:var(--shadow);
   }
-  .callout b{font-weight:700}
+  .refbox h3{font-size:14px;font-weight:700;margin-bottom:12px}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:640px;font-size:12.8px}
+  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--ink-3);background:var(--surface-2)}
+  tr:last-child td{border-bottom:0}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .pill.y{background:var(--ok-soft);color:var(--ok)}
+  .pill.n{background:var(--warn-soft);color:var(--warn)}
 </style>
 
 <header>
@@ -141,7 +152,7 @@
     <div class="mark">P</div>
     <div>
       <h1>헤이젠 마스터 프롬프트 스튜디오</h1>
-      <div class="sub">넷폼알앤디 · 기획 → 프롬프트 → 영상</div>
+      <div class="sub">아파트스퀘어 · 기획 → 프롬프트 → 영상</div>
     </div>
     <div class="spacer"></div>
     <a class="btn" href="youtube-automation.html">← 자동화 현황판</a>
@@ -151,10 +162,9 @@
 
 <div class="wrap">
   <p class="lead">
-    왼쪽에 기획 조건을 넣으면 세 가지 산출물이 동시에 만들어집니다.
-    <b>①</b> 클로드·마누스에게 던질 기획 지시문, <b>②</b> 헤이젠 Video Agent에 그대로 붙여넣는 마스터 프롬프트,
-    <b>③</b> 나중에 API로 자동화할 때 쓸 제작 사양 JSON. 셋 다 같은 입력에서 나오므로,
-    수동으로 쓰다가 자동화로 넘어갈 때 기획 포맷을 다시 만들 필요가 없습니다.
+    레퍼런스 브리프의 정보 구조 — <b>문제 상황 → 핵심 기준 3개 → 실제 적용 장면 → 다음 행동</b> — 를 씬 골격으로 넣었습니다.
+    Video Agent 출력은 한 번에 3분까지라 그보다 긴 영상은 <b>챕터로 나눠 생성한 뒤 이어붙여야</b> 합니다.
+    길이를 3분 넘게 잡으면 챕터가 자동으로 갈리고, 챕터별 프롬프트가 따로 나옵니다.
   </p>
 
   <div class="layout">
@@ -162,50 +172,46 @@
       <div class="panel-hd"><h2>기획 조건</h2></div>
       <div class="panel-bd">
         <div class="fg">
+          <label>레퍼런스 스타일 <span class="help">— 고르면 아래 연출 항목이 한 번에 맞춰집니다</span></label>
+          <div class="seg" id="segPreset"></div>
+        </div>
+        <div class="note" id="presetNote"></div>
+
+        <div class="fg">
           <label for="topic">주제</label>
-          <input type="text" id="topic" value="포워더 견적서, 어디를 봐야 손해를 안 보나">
+          <input type="text" id="topic" value="공사 제안서, 어떤 기준부터 확인해야 하나">
         </div>
         <div class="row2">
           <div class="fg">
             <label for="audience">시청 대상</label>
-            <select id="audience">
-              <option>수출입 실무 담당자</option>
-              <option>중소 제조사 대표</option>
-              <option>물류 신입 사원</option>
-              <option>일반 시청자</option>
-            </select>
+            <input type="text" id="audience" value="아파트 입주자대표회의">
           </div>
           <div class="fg">
             <label for="goal">시청 후 행동</label>
-            <select id="goal">
-              <option>견적 문의</option>
-              <option>채널 구독</option>
-              <option>자료 다운로드</option>
-              <option>사내 이해도 향상</option>
-            </select>
+            <input type="text" id="goal" value="앱에서 우리 단지 자료 확인">
           </div>
         </div>
         <div class="fg">
-          <label>영상 길이 <span class="help">— 씬 구간이 자동으로 다시 계산됩니다</span></label>
+          <label>영상 길이 <span class="help">— 3분 초과 시 챕터로 분할됩니다</span></label>
           <div class="seg" id="segLen"></div>
         </div>
+        <div class="note" id="lenNote"></div>
+
+        <div class="divider"></div>
+        <div class="grouplabel">아바타</div>
         <div class="fg">
-          <label>톤</label>
-          <div class="seg" id="segTone"></div>
-        </div>
-        <div class="fg">
-          <label>아바타 운용 <span class="help">— 등장한 초만큼 과금됩니다</span></label>
+          <label>운용 방식 <span class="help">— 등장한 초만큼 과금됩니다</span></label>
           <div class="seg" id="segAvatar"></div>
         </div>
         <div id="avaOpts">
           <div class="row2">
             <div class="fg">
               <label>등장 횟수 <b class="num" id="cutsV">2</b>회</label>
-              <input type="range" id="cuts" min="1" max="6" step="1" value="2">
+              <input type="range" id="cuts" min="1" max="7" step="1" value="2">
             </div>
             <div class="fg">
-              <label>회당 길이 <b class="num" id="cutLenV">5</b>초</label>
-              <input type="range" id="cutLen" min="3" max="12" step="1" value="5">
+              <label>회당 길이 <b class="num" id="cutLenV">6</b>초</label>
+              <input type="range" id="cutLen" min="3" max="15" step="1" value="6">
             </div>
           </div>
           <div class="fg">
@@ -213,52 +219,56 @@
             <div class="seg" id="segPlace"></div>
           </div>
         </div>
-        <div class="avanote" id="avaNote"></div>
+        <div class="note" id="avaNote"></div>
+
+        <div class="divider"></div>
+        <div class="grouplabel">연출</div>
         <div class="fg">
-          <label>화면 구성 <span class="help">— 레퍼런스 영상의 형식을 고르세요</span></label>
+          <label>화면 구성</label>
           <div class="seg" id="segFmt"></div>
         </div>
         <div class="row2">
-          <div class="fg">
-            <label>자막</label>
-            <div class="seg" id="segCap"></div>
-          </div>
-          <div class="fg">
-            <label>수치 표현</label>
-            <div class="seg" id="segData"></div>
-          </div>
+          <div class="fg"><label>자막</label><div class="seg" id="segCap"></div></div>
+          <div class="fg"><label>수치 표현</label><div class="seg" id="segData"></div></div>
         </div>
         <div class="row2">
-          <div class="fg">
-            <label>컷 전환</label>
-            <div class="seg" id="segPace"></div>
-          </div>
-          <div class="fg">
-            <label>배경음</label>
-            <div class="seg" id="segBgm"></div>
-          </div>
+          <div class="fg"><label>컷 전환</label><div class="seg" id="segPace"></div></div>
+          <div class="fg"><label>톤</label><div class="seg" id="segTone"></div></div>
+        </div>
+        <div class="fg">
+          <label for="palette">색 지정</label>
+          <input type="text" id="palette" value="딥 네이비 바탕에 오렌지와 하늘색 포인트">
         </div>
         <div id="warnBox"></div>
+
+        <div class="divider"></div>
+        <div class="grouplabel">내용</div>
         <div class="fg">
-          <label for="msgs">핵심 메시지 <span class="help">— 한 줄에 하나씩, 3개 권장</span></label>
-          <textarea id="msgs">견적서의 총액이 아니라 항목 구성을 먼저 본다
-THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
-운임 유효기간과 적용 환율을 반드시 확인한다</textarea>
+          <label for="msgs">핵심 기준 3개 <span class="help">— 한 줄에 하나씩</span></label>
+          <textarea id="msgs">범위 — 어디까지 포함된 금액인지 먼저 나눈다
+근거 — 단가의 산출 근거가 붙어 있는지 본다
+일정 — 공정과 지급 시점이 맞물려 있는지 확인한다</textarea>
         </div>
         <div class="fg">
-          <label for="facts">화면에 띄울 수치·근거 <span class="help">— 없으면 비워두세요. 지어내지 않게 막습니다</span></label>
-          <textarea id="facts">부대비용 누락으로 발생하는 추가 청구 평균 비중: 총 운임의 12~18%
-견적 유효기간 평균: 2주</textarea>
+          <label for="scene">실제 적용 장면 <span class="help">— 기준이 현실에서 쓰이는 모습</span></label>
+          <textarea id="scene">견적 항목을 나란히 놓고 비교하는 앱 화면
+공정표와 지급 시점을 겹쳐 본 화면
+회의 전 확인할 내용을 한 장으로 정리한 자료</textarea>
+        </div>
+        <div class="fg">
+          <label for="facts">화면에 띄울 수치 <span class="help">— 확인된 값만. 비우면 숫자 사용이 금지됩니다</span></label>
+          <textarea id="facts" placeholder="예) 평균 검토 소요 시간: 3일 → 4시간"></textarea>
         </div>
         <div class="fg">
           <label for="cta">마무리 문구</label>
-          <input type="text" id="cta" value="견적서 검토가 필요하시면 채널 소개란의 링크로 보내 주세요">
+          <input type="text" id="cta" value="우리 단지 상황도 같은 기준으로 정리해 보실 수 있어요">
         </div>
         <div class="fg">
-          <label for="brand">사내 제작 규칙 <span class="help">— 가이드 문서 내용을 여기 붙여넣으면 프롬프트에 반영됩니다</span></label>
-          <textarea id="brand">브랜드 컬러는 파랑 계열로 통일
-자막은 항상 표시, 문장당 최대 20자
-경쟁사 실명 언급 금지</textarea>
+          <label for="brand">브랜드 규칙</label>
+          <textarea id="brand">브랜드 블루를 강조색으로 제한적으로 사용
+결정권은 언제나 단지에 있다는 태도를 유지
+자기 찬양형 수식어 금지, 사용 장면과 근거로 보여줄 것
+로고와 안내 문구는 마지막 구간에만 노출</textarea>
         </div>
       </div>
     </div>
@@ -275,18 +285,32 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
       <div class="panel-bd">
         <div class="step" id="outStep"></div>
         <p class="desc" id="outDesc"></p>
+        <div class="chapbar" id="chapBar"></div>
         <pre id="out"></pre>
         <div class="meta"><span id="mChars"></span><span id="mLines"></span></div>
       </div>
     </div>
   </div>
 
-  <div class="callout">
-    <b>API가 부담되면 ②번만 써도 됩니다.</b>
-    이미 헤이젠 웹 플랜을 쓰고 계시면 마스터 프롬프트를 붙여넣는 방식은 추가 비용이 0원입니다.
-    API 지갑은 웹 플랜 크레딧과 별도로 충전되고, 생성된 초 단위로 빠져나갑니다.
-    그래서 <b>먼저 ②로 10편쯤 만들어 프롬프트를 다듬은 다음</b> 그 확정본을 API에 태우는 순서를 권합니다.
-    프롬프트가 흔들리는 상태에서 자동화부터 붙이면 실패한 렌더에 그대로 과금됩니다.
+  <div class="refbox">
+    <h3>레퍼런스 두 편, 헤이젠으로 어디까지 되나</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>레퍼런스에서 관찰된 요소</th><th>헤이젠</th><th>대응</th></tr></thead>
+        <tbody>
+          <tr><td>딥 네이비 + 오렌지·하늘색 화면 톤</td><td><span class="pill y">가능</span></td><td>프롬프트의 색 지정란으로 전달</td></tr>
+          <tr><td>B-roll 위 내레이션, 생활 장면</td><td><span class="pill y">가능</span></td><td>씬별 B롤 키워드를 프롬프트에 명시</td></tr>
+          <tr><td>2D 차트·아이콘·일러스트</td><td><span class="pill y">가능</span></td><td>막대 성장·카운트업 모션 지원</td></tr>
+          <tr><td>챕터 전환의 전체 화면 타이틀</td><td><span class="pill y">가능</span></td><td>씬 구성에 타이틀 카드로 포함</td></tr>
+          <tr><td>하단 자막 + 중앙 대형 인용문</td><td><span class="pill y">가능</span></td><td>자막 스타일 선택으로 지정</td></tr>
+          <tr><td>차트 눈금과 실제 수치의 일치</td><td><span class="pill n">검산 필요</span></td><td>렌더 후 사람이 대조. 검수 게이트에서 확인</td></tr>
+          <tr><td>2~4초 하드컷의 일정한 리듬</td><td><span class="pill n">부분</span></td><td>컷 전환을 '빠른 컷'으로 지정해도 편차가 남음</td></tr>
+          <tr><td>글리치·와이프 전환</td><td><span class="pill n">불가</span></td><td>헤이젠 기본 전환에 없음. 필요하면 후편집</td></tr>
+          <tr><td>공식 영상·역사 자료 등 실제 아카이브</td><td><span class="pill n">불가</span></td><td>권리 확보한 소스를 직접 업로드해 삽입</td></tr>
+          <tr><td>8분 30초 / 11분 길이</td><td><span class="pill n">분할 필요</span></td><td>3분 이하 챕터로 나눠 생성 후 이어붙이기</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -294,8 +318,9 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
 
 <script>
 (function(){
-  var LS='ytprompt.v1';
-  try{ var t=localStorage.getItem(LS+'.theme'); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){}
+  var LS='ytprompt.v2', MAXCHUNK=180;
+
+  try{ var th=localStorage.getItem(LS+'.theme'); if(th) document.documentElement.setAttribute('data-theme',th); }catch(e){}
   document.getElementById('themeBtn').addEventListener('click',function(){
     var cur=document.documentElement.getAttribute('data-theme');
     if(!cur) cur=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
@@ -304,178 +329,210 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
     try{ localStorage.setItem(LS+'.theme',n); }catch(e){}
   });
 
-  var LENS=[60,90,120,180];
+  /* ---------- 옵션 ---------- */
+  var LENS=[90,180,300,510,660];
   var TONES=[
-    {k:'전문적·차분',v:'전문적이고 차분한 설명체. 과장된 감탄사와 이모지를 쓰지 않는다.'},
-    {k:'친근·구어체',v:'옆에서 알려주듯 친근한 구어체. 어려운 용어는 한 번 풀어서 설명한다.'},
-    {k:'속도감·임팩트',v:'문장을 짧게 끊고 속도감 있게. 단정적인 어조로 핵심만 던진다.'}
+    {k:'차분·전문',v:'전문적이되 대화하듯 이어지는 어조. 과장된 감탄사와 이모지를 쓰지 않는다.'},
+    {k:'친근·설명',v:'신뢰감 있고 친근한 데이터 브리핑 어조. 어려운 용어는 한 번 풀어서 설명한다.'},
+    {k:'영화적·긴장',v:'짧게 끊는 문장과 낮은 톤으로 긴장감을 만든다. 단정적으로 말한다.'}
   ];
-  var AVAS=[
-    {k:'간헐 등장',mode:'intermittent'},
-    {k:'전체 진행',mode:'full'},
-    {k:'등장 없음',mode:'none'}
-  ];
+  var AVAS=[{k:'간헐 등장',mode:'intermittent'},{k:'전체 진행',mode:'full'},{k:'등장 없음',mode:'none'}];
   var PLACE=[{k:'앞뒤 우선'},{k:'고르게 분산'}];
   var FORMATS=[
-    {k:'아바타 토킹헤드',v:'아바타가 화면 중앙에서 설명하고, 옆이나 뒤에 보조 그래픽을 띄운다.',warn:''},
-    {k:'풀스크린 인포',v:'아바타 노출을 최소화하고 화면 전체를 그래픽과 타이포로 채운다.',warn:''},
-    {k:'B롤 다큐형',v:'실사 B롤 위에 내레이션을 얹고, 핵심 지점에만 큰 타이포를 띄운다.',warn:''},
-    {k:'화면녹화 해설',v:'실제 화면 녹화 위에 내레이션과 화살표·하이라이트를 얹는다.',
-     warn:'화면 녹화 영상은 헤이젠이 만들지 못합니다. 직접 녹화한 파일을 업로드해 해당 씬에 넣어야 합니다.'}
+    {k:'B롤 다큐형',v:'실사 B롤과 생활 장면 위에 내레이션을 얹고, 핵심 지점에만 큰 타이포를 띄운다.',warn:''},
+    {k:'풀스크린 인포',v:'화면 전체를 차트·아이콘·타이포로 채우고 B롤은 전환 지점에만 쓴다.',warn:''},
+    {k:'혼합형',v:'설명 구간은 차트와 타이포로, 문제 제기와 사례 구간은 실사 B롤로 처리한다.',warn:''},
+    {k:'화면녹화 해설',v:'실제 앱 화면 녹화 위에 내레이션과 화살표·하이라이트를 얹는다.',
+     warn:'앱 화면 녹화는 헤이젠이 만들지 못합니다. 직접 녹화한 파일을 해당 씬에 넣어야 합니다.'}
   ];
   var CAPS=[
-    {k:'단어별 강조',v:'자막을 단어 단위로 띄우고 핵심 단어에만 색을 넣는다.'},
-    {k:'문장 하단 고정',v:'자막을 화면 하단에 문장 단위로 고정 표시한다.'},
-    {k:'대형 키워드',v:'자막 대신 화면 가운데에 키워드를 크게 띄운다.'}
+    {k:'하단 자막 + 대형 인용',v:'하단에 기본 자막을 깔고, 핵심 문장은 화면 중앙에 크게 따로 띄운다.'},
+    {k:'하단 고정',v:'자막을 화면 하단에 문장 단위로 고정 표시한다.'},
+    {k:'대형 키워드',v:'자막 대신 화면 가운데에 키워드만 크게 띄운다.'}
   ];
   var DATAV=[
-    {k:'숫자 카운트업',v:'핵심 수치를 0에서 올라가는 카운트업으로 강조한다.',warn:''},
-    {k:'그래프',v:'막대 또는 선 그래프로 수치를 비교해 보여준다.',
-     warn:'그래프의 눈금과 막대 비율이 실제 수치와 어긋나는 경우가 있습니다. 렌더 후 반드시 눈으로 검산하세요.'},
-    {k:'비교 표',v:'좌우 비교 표로 잘못된 예와 올바른 예를 나란히 보여준다.',warn:''},
+    {k:'카운트업',v:'핵심 수치를 0에서 올라가는 카운트업으로 짧게 강조한다.',warn:''},
+    {k:'차트',v:'막대가 자라는 모션으로 수치를 비교해 보여준다.',
+     warn:'차트의 눈금과 막대 비율이 실제 수치와 어긋나는 경우가 있습니다. 렌더 후 반드시 대조하세요.'},
+    {k:'비교 표',v:'좌우 비교 표로 확인해야 할 항목을 나란히 보여준다.',warn:''},
     {k:'수치 없음',v:'숫자 그래픽 없이 서술과 이미지로만 설명한다.',warn:''}
   ];
   var PACE=[
-    {k:'빠른 컷',v:'2~4초마다 화면을 전환한다.'},
-    {k:'보통',v:'5~8초 단위로 화면을 전환한다.'},
+    {k:'빠른 컷',v:'2~4초마다 화면을 교체해 리듬을 만든다.'},
+    {k:'보통',v:'설명을 읽을 여유를 주는 5~8초 단위로 전환한다.'},
     {k:'느린 설명형',v:'한 화면을 10초 이상 유지하며 차분히 설명한다.'}
   ];
-  var BGM=[
-    {k:'배경음 있음',v:'잔잔한 배경음을 깔되 내레이션 음량을 가리지 않는다.'},
-    {k:'배경음 없음',v:'배경음 없이 내레이션 음성만 사용한다.'}
+  var PRESETS=[
+    {k:'혼합 70/30', apply:{fmt:2,cap:0,data:1,pace:1,tone:1},
+     palette:'밝고 읽기 쉬운 정보형 화면을 기본으로, 도입과 결론 구간만 딥 네이비',
+     note:'브리프가 권장한 조합입니다. 정보형 70%에 시네마틱 서사 30%. 기본 화면은 밝게 두고 도입·전환·결론에만 어두운 화면을 씁니다.'},
+    {k:'직방TV형', apply:{fmt:1,cap:1,data:1,pace:1,tone:1},
+     palette:'딥 네이비 바탕에 오렌지와 하늘색 포인트',
+     note:'데이터 기반 인포테인먼트. 설명을 읽을 여유를 주는 템포에 차트와 아이콘 중심. 챕터마다 전체 화면 타이틀을 넣습니다.'},
+    {k:'지식한입형', apply:{fmt:0,cap:2,data:0,pace:0,tone:2},
+     palette:'블랙과 짙은 회색 기반에 골드·옐로 강조',
+     note:'시네마틱 브랜드 다큐멘터리. 2~4초 하드컷에 인용문과 수치를 팝업으로 띄웁니다. 글리치 전환은 헤이젠이 못 하니 후편집이 필요합니다.'}
   ];
-  var st={len:1,tone:0,ava:0,cuts:2,cutLen:5,place:0,fmt:1,cap:0,data:0,pace:1,bgm:0,tab:0};
 
-  function seg(id,arr,key){
-    var el=document.getElementById(id);
-    el.innerHTML=arr.map(function(o,i){
-      return '<button type="button" data-i="'+i+'" aria-pressed="'+(st[key]===i)+'">'+(o.k||o)+(typeof o==='number'?'초':'')+'</button>';
-    }).join('');
-    el.onclick=function(e){
-      var b=e.target.closest('button'); if(!b) return;
-      st[key]=+b.dataset.i; seg(id,arr,key); render();
-    };
-  }
+  var st={preset:0,len:2,tone:1,ava:0,cuts:2,cutLen:6,place:0,fmt:2,cap:0,data:1,pace:1,tab:1,chap:0};
 
-  function val(id){return document.getElementById(id).value.trim();}
-  function lines(id){return val(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);}
-
-  // 길이에 따라 씬 구간을 비율로 배분
-  function scenes(len){
+  /* ---------- 씬 골격 (브리프의 정보 구조) ---------- */
+  function scenes(len,msgs,cases){
     var plan=[
-      {n:'훅',            w:.09, screen:'굵은 타이포 한 줄. 배경은 단색, 다른 요소 없음',       note:'질문형 한 문장으로 문제를 던진다'},
-      {n:'문제 정의',      w:.14, screen:'아이콘 3개가 순차로 등장하며 상황을 나열',            note:'시청자가 겪는 손해를 구체적으로 짚는다'},
-      {n:'본론 1',        w:.19, screen:'수치 카운트업 + 막대 그래프',                        note:'첫 번째 핵심 메시지'},
-      {n:'본론 2',        w:.19, screen:'좌우 비교 레이아웃. 잘못된 예 / 올바른 예',            note:'두 번째 핵심 메시지'},
-      {n:'본론 3',        w:.19, screen:'화살표로 이어지는 단계 다이어그램',                   note:'세 번째 핵심 메시지'},
-      {n:'요약 · 마무리',  w:.20, screen:'3줄 요약 리스트가 한 줄씩 쌓임',                     note:'요약 후 마무리 문구'}
+      {n:'문제 제기', w:.11,
+       screen:'현장 이미지 위에 어두운 오버레이를 깔고 질문 한 문장만 크게',
+       note:function(){return '시청자가 이미 겪고 있는 막막한 장면을 언어화한다. 회사 소개로 시작하지 않는다.';}},
+      {n:'질문 제시', w:.07,
+       screen:'전체 화면 타이틀 카드. 이번 영상에서 다룰 질문 한 줄',
+       note:function(){return '다음 내용을 계속 봐야 하는 이유를 만든다.';}},
+      {n:'기준 1', w:.18,
+       screen:'큰 제목 → 짧은 설명 → 시각 근거 하나',
+       note:function(){return '핵심 기준 1: '+(msgs[0]||'(입력 필요)');}},
+      {n:'기준 2', w:.18,
+       screen:'큰 제목 → 짧은 설명 → 시각 근거 하나',
+       note:function(){return '핵심 기준 2: '+(msgs[1]||'(입력 필요)');}},
+      {n:'기준 3', w:.18,
+       screen:'큰 제목 → 짧은 설명 → 시각 근거 하나',
+       note:function(){return '핵심 기준 3: '+(msgs[2]||'(입력 필요)');}},
+      {n:'실제 적용', w:.16,
+       screen:'실제 사용 화면과 현장 이미지. 기준이 어떻게 쓰이는지 보여준다',
+       note:function(){return cases.length?cases.join(' / '):'기준이 현실에서 쓰이는 장면을 보여준다.';}},
+      {n:'정리 · 다음 행동', w:.12,
+       screen:'3줄 요약이 한 줄씩 쌓인 뒤 마지막에 안내 문구. 로고는 여기서만',
+       note:function(){return '요약 후 바로 실행할 수 있는 다음 행동을 안내한다.';}}
     ];
     var t=0;
     return plan.map(function(p){
       var d=Math.round(len*p.w), s=t; t+=d;
-      return {name:p.n,from:s,to:Math.min(t,len),screen:p.screen,note:p.note};
+      return {name:p.n,from:s,to:Math.min(t,len),dur:Math.min(t,len)-s,screen:p.screen,note:p.note()};
     });
   }
-  function tc(s){var m=Math.floor(s/60),x=s%60;return m>0?(m+'분 '+x+'초'):(x+'초');}
 
-  // 아바타가 어느 씬에 몇 초씩 등장할지 계산
+  function chapters(sc){
+    var out=[],cur=[],t=0;
+    sc.forEach(function(s){
+      if(cur.length && t+s.dur>MAXCHUNK){ out.push(cur); cur=[]; t=0; }
+      cur.push(s); t+=s.dur;
+    });
+    if(cur.length) out.push(cur);
+    return out;
+  }
+
   function avatarPlan(len,sc){
     var mode=AVAS[st.ava].mode;
-    if(mode==='none') return {mode:mode,idx:[],billed:0,
-      line:'아바타를 화면에 노출하지 않는다. 내레이션 음성과 모션 그래픽만으로 구성한다.'};
-    if(mode==='full') return {mode:mode,idx:sc.map(function(_,i){return i;}),billed:len,
+    if(mode==='none') return {idx:[],billed:0,
+      line:'아바타를 화면에 노출하지 않는다. 내레이션 음성과 화면 그래픽만으로 구성한다.'};
+    if(mode==='full') return {idx:sc.map(function(_,i){return i;}),billed:len,
       line:'아바타가 영상 전체를 진행한다. 설명 구간에는 화면 한쪽에 작게 배치한다.'};
-
     var n=Math.min(st.cuts,sc.length), idx=[], i;
-    if(st.place===0){
-      idx=[0,sc.length-1,2,4,1,3].slice(0,n);
-    } else {
-      for(i=0;i<n;i++){
-        var v=Math.round((i+0.5)*sc.length/n)-1;
-        idx.push(Math.max(0,Math.min(sc.length-1,v)));
-      }
-    }
+    if(st.place===0){ idx=[0,sc.length-1,3,5,1,4,2].slice(0,n); }
+    else { for(i=0;i<n;i++){ var v=Math.round((i+0.5)*sc.length/n)-1; idx.push(Math.max(0,Math.min(sc.length-1,v))); } }
     idx=idx.filter(function(v,j,a){return a.indexOf(v)===j;}).sort(function(a,b){return a-b;});
-    var names=idx.map(function(k){return sc[k].name;});
-    return {mode:mode,idx:idx,billed:idx.length*st.cutLen,
-      line:'아바타는 '+idx.length+'개 씬에만 '+st.cutLen+'초 내외로 짧게 등장한다 ('+names.join(', ')+
-           '). 나머지 구간은 아바타를 화면에서 완전히 빼고 내레이션과 모션 그래픽으로만 채운다. '+
-           '등장할 때마다 같은 위치·같은 크기로 나와야 하며, 등장과 퇴장은 컷 전환으로 처리한다.'};
+    return {idx:idx,billed:idx.length*st.cutLen,
+      line:'아바타는 '+idx.length+'개 씬에만 '+st.cutLen+'초 내외로 짧게 등장한다 ('+
+        idx.map(function(k){return sc[k].name;}).join(', ')+
+        '). 나머지 구간은 아바타를 화면에서 완전히 빼고 내레이션과 그래픽으로만 채운다. '+
+        '등장할 때마다 같은 위치·같은 크기로 나와야 하며, 등장과 퇴장은 컷 전환으로 처리한다.'};
   }
 
+  function val(id){return document.getElementById(id).value.trim();}
+  function lns(id){return val(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);}
+
+  /* ---------- 연출 원칙 (브리프의 공통 DNA) ---------- */
+  var PRINCIPLES=[
+    '첫 10~20초는 고객이 실제로 겪는 장면이나 확인하고 싶은 한 문장으로 시작한다. 회사 연혁이나 기능 목록부터 나열하지 않는다.',
+    '한 화면에는 이미지·수치·제목 중 하나만 주인공으로 둔다. 긴 문장과 그래프를 한 화면에 함께 넣지 않는다.',
+    '챕터가 바뀔 때는 전체 화면 타이틀을 넣어 다음 내용을 미리 알린다.',
+    'B롤은 말한 내용을 증명하거나 분위기를 전환할 때만 쓴다. 내용과 무관한 장식용 영상을 반복하지 않는다.',
+    '움직임은 핵심어·수치·차트가 등장할 때만 짧고 선명하게 준다. 장시간 자동으로 움직이는 화면을 만들지 않는다.',
+    '이미지나 영상 위에 글자를 올릴 때는 어두운 오버레이를 깔아 대비를 확보한다.',
+    '로고와 안내 문구는 정보가 정리된 뒤 다음 행동을 안내하는 마지막 구간에만 노출한다.'
+  ];
+
   function masterPrompt(){
-    var len=LENS[st.len], tone=TONES[st.tone];
-    var msgs=lines('msgs'), facts=lines('facts'), brand=lines('brand');
-    var sc=scenes(len), plan=avatarPlan(len,sc);
-    var body=[];
-    body.push('당신은 B2B 정보 영상의 연출가입니다. 아래 사양대로 유튜브 영상 한 편을 만들어 주세요.');
-    body.push('');
-    body.push('# 주제');
-    body.push(val('topic'));
-    body.push('');
-    body.push('# 영상 사양');
-    body.push('- 길이: '+len+'초 (±5초 허용)');
-    body.push('- 화면비: 16:9');
-    body.push('- 자막: 한국어, 전 구간 표시');
-    body.push('- 톤: '+tone.v);
-    body.push('');
-    body.push('# 시청자');
-    body.push('- 대상: '+val('audience'));
-    body.push('- 시청 후 기대 행동: '+val('goal'));
-    body.push('');
-    body.push('# 아바타 운용');
-    body.push('- '+plan.line);
-    body.push('');
-    body.push('# 화면 연출 스타일');
-    body.push('- 화면 구성: '+FORMATS[st.fmt].v);
-    body.push('- 자막: '+CAPS[st.cap].v);
-    body.push('- 수치 표현: '+DATAV[st.data].v);
-    body.push('- 컷 전환: '+PACE[st.pace].v);
-    body.push('- 배경음: '+BGM[st.bgm].v);
-    body.push('');
-    body.push('# 씬 구성 (구간을 임의로 바꾸지 마세요)');
-    sc.forEach(function(s,i){
-      var on = plan.idx.indexOf(i)>=0 ? '  ← 아바타 등장' : '';
-      body.push((i+1)+'. '+s.name+' ['+s.from+'~'+s.to+'초]'+on);
-      body.push('   내용: '+s.note);
-      body.push('   화면: '+s.screen);
+    var len=LENS[st.len], msgs=lns('msgs'), cases=lns('scene'), facts=lns('facts'), brand=lns('brand');
+    var sc=scenes(len,msgs,cases), chs=chapters(sc), plan=avatarPlan(len,sc);
+    var ci=Math.min(st.chap,chs.length-1), ch=chs[ci], multi=chs.length>1;
+    var base=ch[0].from, chLen=ch[ch.length-1].to-base;
+    var b=[];
+
+    b.push('당신은 정보형 브랜드 영상의 연출가입니다. 아래 사양대로 영상을 만들어 주세요.');
+    b.push('');
+    b.push('# 주제');
+    b.push(val('topic'));
+    if(multi){
+      b.push('');
+      b.push('# 이 프롬프트의 범위');
+      b.push('전체 '+len+'초 영상을 '+chs.length+'개로 나눠 만드는 중이며, 지금은 '+(ci+1)+'번째 조각입니다.');
+      b.push('이 조각만 '+chLen+'초로 만들어 주세요. 앞뒤 조각과 이어붙일 것이므로 인사말이나 마무리 멘트를 새로 넣지 마세요.');
+      if(ci>0) b.push('직전 조각은 "'+chs[ci-1][chs[ci-1].length-1].name+'"에서 끝났습니다. 이어지는 흐름으로 시작하세요.');
+      if(ci<chs.length-1) b.push('다음 조각으로 이어지므로 끝을 닫지 말고 다음 주제를 예고하며 마치세요.');
+    }
+    b.push('');
+    b.push('# 영상 사양');
+    b.push('- 길이: '+chLen+'초 (±5초 허용)');
+    b.push('- 화면비: 16:9');
+    b.push('- 자막: 한국어, 전 구간 표시');
+    b.push('- 색: '+val('palette'));
+    b.push('- 톤: '+TONES[st.tone].v);
+    b.push('');
+    b.push('# 시청자');
+    b.push('- 대상: '+val('audience'));
+    b.push('- 시청 후 기대 행동: '+val('goal'));
+    b.push('');
+    b.push('# 화면 연출');
+    b.push('- 구성: '+FORMATS[st.fmt].v);
+    b.push('- 자막: '+CAPS[st.cap].v);
+    b.push('- 수치 표현: '+DATAV[st.data].v);
+    b.push('- 컷 전환: '+PACE[st.pace].v);
+    b.push('- 아바타: '+plan.line);
+    b.push('');
+    b.push('# 연출 원칙');
+    PRINCIPLES.forEach(function(p){ b.push('- '+p); });
+    b.push('');
+    b.push('# 씬 구성 (구간을 임의로 바꾸지 마세요)');
+    ch.forEach(function(s,i){
+      var gi=sc.indexOf(s);
+      var on=plan.idx.indexOf(gi)>=0?'  ← 아바타 등장':'';
+      b.push((i+1)+'. '+s.name+' ['+(s.from-base)+'~'+(s.to-base)+'초]'+on);
+      b.push('   내용: '+s.note);
+      b.push('   화면: '+s.screen);
     });
-    body.push('');
-    body.push('# 반드시 다뤄야 할 내용');
-    if(msgs.length){ msgs.forEach(function(m,i){ body.push((i+1)+') '+m); }); }
-    else { body.push('(핵심 메시지를 입력하세요)'); }
-    body.push('');
-    body.push('# 화면에 표시할 수치');
+    b.push('');
+    b.push('# 화면에 표시할 수치');
     if(facts.length){
-      facts.forEach(function(f){ body.push('- '+f); });
-      body.push('- 위 수치 외에 어떤 통계도 새로 만들어 넣지 마세요.');
+      facts.forEach(function(f){ b.push('- '+f); });
+      b.push('- 위 수치 외에 어떤 숫자나 통계도 새로 만들어 넣지 마세요.');
     } else {
-      body.push('- 제공된 수치가 없습니다. 구체적인 숫자나 통계를 화면에 넣지 마세요.');
+      b.push('- 제공된 수치가 없습니다. 구체적인 숫자나 통계를 화면에 넣지 마세요.');
     }
-    body.push('');
-    body.push('# 마무리 문구');
-    body.push(val('cta'));
+    if(ci===chs.length-1){
+      b.push('');
+      b.push('# 마무리 문구');
+      b.push(val('cta'));
+    }
     if(brand.length){
-      body.push('');
-      body.push('# 브랜드 규칙');
-      brand.forEach(function(b){ body.push('- '+b); });
+      b.push('');
+      b.push('# 브랜드 규칙');
+      brand.forEach(function(x){ b.push('- '+x); });
     }
-    body.push('');
-    body.push('# 금지 사항');
-    body.push('- 근거 없는 수치·통계 생성');
-    body.push('- 내레이션과 자막의 문장이 서로 다른 경우');
-    body.push('- 주제와 무관한 스톡 영상 사용');
-    body.push('- 특정 업체를 실명으로 비교하거나 평가하는 표현');
-    body.push('');
-    body.push('# 출력 순서');
-    body.push('먼저 씬별 내레이션 원고와 화면 지시를 표로 보여 주고, 확인을 받은 뒤 영상을 생성해 주세요.');
-    return body.join('\n');
+    b.push('');
+    b.push('# 금지 사항');
+    b.push('- 근거 없는 수치·통계 생성');
+    b.push('- 내레이션과 자막의 문장이 서로 다른 경우');
+    b.push('- 주제와 무관한 스톡 영상 사용');
+    b.push('- 특정 업체를 실명으로 비교하거나 평가하는 표현');
+    b.push('- 결정을 대신 내려 주는 듯한 표현. 판단 근거를 정리해 주는 역할로만 서술');
+    b.push('');
+    b.push('# 출력 순서');
+    b.push('먼저 씬별 내레이션 원고와 화면 지시를 표로 보여 주고, 확인을 받은 뒤 영상을 생성해 주세요.');
+    return b.join('\n');
   }
 
   function briefPrompt(){
-    var len=LENS[st.len];
-    return [
-      '당신은 유튜브 인포 영상의 기획 PD입니다.',
+    var len=LENS[st.len], sc=scenes(len,lns('msgs'),lns('scene')), chs=chapters(sc);
+    var o=[
+      '당신은 정보형 유튜브 영상의 기획 PD입니다.',
       '아래 주제로 헤이젠 Video Agent에 넣을 "마스터 프롬프트"를 작성하세요.',
       '영상을 직접 만들지 말고, 프롬프트 텍스트만 출력합니다.',
       '',
@@ -483,139 +540,175 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
       '- 주제: '+val('topic'),
       '- 대상: '+val('audience'),
       '- 시청 후 기대 행동: '+val('goal'),
-      '- 길이: '+len+'초',
-      '- 톤: '+TONES[st.tone].k,
-      '- 아바타 운용: '+avatarPlan(len,scenes(len)).line,
-      '- 화면 구성: '+FORMATS[st.fmt].k+' / 자막: '+CAPS[st.cap].k+' / 수치 표현: '+DATAV[st.data].k,
-      '- 컷 전환: '+PACE[st.pace].k+' / 배경음: '+BGM[st.bgm].k,
+      '- 길이: '+len+'초'+(chs.length>1?' ('+chs.length+'개 조각으로 나눠 생성)':''),
+      '- 스타일: '+PRESETS[st.preset].k+' / 색: '+val('palette'),
+      '- 화면 구성: '+FORMATS[st.fmt].k+' · 자막: '+CAPS[st.cap].k+' · 수치: '+DATAV[st.data].k+' · 전환: '+PACE[st.pace].k,
+      '- 아바타: '+avatarPlan(len,sc).line,
+      '',
+      '## 정보 구조 (이 순서를 지킬 것)',
+      '문제 상황 → 질문 제시 → 핵심 기준 3개 → 실제 적용 장면 → 정리와 다음 행동',
       '',
       '## 작업 순서',
-      '1. 이 주제에 관한 최신 사실과 수치를 조사하고, 각 항목마다 출처 URL을 함께 기록한다.',
+      '1. 이 주제에 관한 사실과 수치를 조사하고, 항목마다 출처 URL을 함께 기록한다.',
       '   확인되지 않은 숫자는 절대 쓰지 않는다. 근거를 못 찾으면 "근거 없음"이라고 적는다.',
-      '2. 시청 이탈이 잦은 지점을 고려해 8~15초 단위로 씬을 끊고, 각 씬의 화면 연출을 정한다.',
-      '   설명이 길어지는 구간은 반드시 수치 그래프나 비교 레이아웃으로 시각화한다.',
-      '3. 핵심 메시지를 3개로 압축한다. 4개 이상이면 영상이 늘어진다.',
-      '4. 아래 형식 그대로 마스터 프롬프트를 출력한다.',
+      '2. 핵심 기준을 정확히 3개로 압축한다. 4개 이상이면 시청자가 기억하지 못한다.',
+      '3. 각 기준마다 "큰 제목 → 짧은 설명 → 시각 근거 하나" 구조로 화면을 정한다.',
+      '4. 첫 10~20초는 회사 소개가 아니라 고객이 겪는 장면과 질문으로 연다.'
+    ];
+    if(chs.length>1){
+      o.push('5. 전체를 '+chs.length+'개 조각으로 나누고, 조각마다 별도의 마스터 프롬프트를 출력한다.');
+      o.push('   각 조각은 '+MAXCHUNK+'초를 넘지 않으며, 이어붙일 것이므로 조각마다 인사말과 마무리 멘트를 반복하지 않는다.');
+    }
+    o=o.concat([
       '',
       '## 출력 형식',
-      '# 주제 / # 영상 사양 / # 시청자 / # 아바타 운용 / # 씬 구성 / # 반드시 다뤄야 할 내용',
+      '# 주제 / # 영상 사양 / # 시청자 / # 화면 연출 / # 연출 원칙 / # 씬 구성',
       '/ # 화면에 표시할 수치 / # 마무리 문구 / # 브랜드 규칙 / # 금지 사항 / # 출력 순서',
       '각 씬은 "n. 씬이름 [시작~끝초]" 다음 줄에 내용과 화면 지시를 적는다.',
       '',
       '## 마지막에 덧붙일 것',
       '- 조사에 사용한 출처 목록 (제목 + URL)',
-      '- 이 주제에서 사실 확인이 필요한 항목 체크리스트',
+      '- 사실 확인이 필요한 항목 체크리스트',
       '',
       '## 주의',
-      '수치를 지어내면 영상 전체를 폐기해야 합니다. 확실하지 않으면 숫자를 빼고 서술로 처리하세요.'
-    ].join('\n');
+      '수치를 지어내면 영상 전체를 폐기해야 합니다. 확실하지 않으면 숫자를 빼고 서술로 처리하세요.',
+      '결정을 대신 내려 주는 문장을 쓰지 마세요. 판단 근거를 정리해 주는 역할로만 씁니다.'
+    ]);
+    return o.join('\n');
   }
 
   function specJson(){
-    var len=LENS[st.len];
+    var len=LENS[st.len], msgs=lns('msgs'), cases=lns('scene');
+    var sc=scenes(len,msgs,cases), chs=chapters(sc), plan=avatarPlan(len,sc);
+    var manual=[FORMATS[st.fmt],DATAV[st.data]].filter(function(o){return o.warn;}).map(function(o){return o.warn;});
     return JSON.stringify({
-      version:'1.0',
+      version:'2.0',
       topic:val('topic'),
       audience:val('audience'),
       goal:val('goal'),
       duration_sec:len,
-      aspect_ratio:'16:9',
-      language:'ko',
-      captions:true,
+      chapters:chs.map(function(c,i){
+        return {index:i+1,duration_sec:c[c.length-1].to-c[0].from,scenes:c.map(function(s){return s.name;})};
+      }),
+      render_note:chs.length>1
+        ? 'Video Agent 출력 상한이 3분이므로 '+chs.length+'개로 나눠 생성한 뒤 이어붙입니다.'
+        : '한 번에 생성 가능한 길이입니다.',
+      aspect_ratio:'16:9', language:'ko', captions:true,
+      palette:val('palette'),
       tone:TONES[st.tone].k,
-      avatar:(function(){
-        var sc=scenes(len), plan=avatarPlan(len,sc);
-        return {
-          mode:AVAS[st.ava].k,
-          cut_in_count:plan.idx.length,
-          cut_in_seconds:AVAS[st.ava].mode==='intermittent'?st.cutLen:null,
-          scenes:plan.idx.map(function(i){return sc[i].name;}),
-          on_screen_seconds:plan.billed
-        };
-      })(),
-      style:{
-        format:FORMATS[st.fmt].k,
-        captions_style:CAPS[st.cap].k,
-        data_visual:DATAV[st.data].k,
-        cut_pace:PACE[st.pace].k,
-        background_music:BGM[st.bgm].k==='배경음 있음'
-      },
-      manual_assets_required:[FORMATS[st.fmt],DATAV[st.data]]
-        .filter(function(o){return o.warn;}).map(function(o){return o.warn;}),
-      key_messages:lines('msgs'),
-      approved_figures:lines('facts'),
+      style:{preset:PRESETS[st.preset].k,format:FORMATS[st.fmt].k,captions_style:CAPS[st.cap].k,
+             data_visual:DATAV[st.data].k,cut_pace:PACE[st.pace].k},
+      avatar:{mode:AVAS[st.ava].k,cut_in_count:plan.idx.length,
+              cut_in_seconds:AVAS[st.ava].mode==='intermittent'?st.cutLen:null,
+              scenes:plan.idx.map(function(i){return sc[i].name;}),
+              on_screen_seconds:plan.billed},
+      key_criteria:msgs,
+      application_scenes:cases,
+      approved_figures:lns('facts'),
       cta:val('cta'),
-      brand_rules:lines('brand'),
-      scenes:scenes(len).map(function(s){
+      brand_rules:lns('brand'),
+      direction_principles:PRINCIPLES,
+      scenes:sc.map(function(s){
         return {name:s.name,from_sec:s.from,to_sec:s.to,intent:s.note,visual:s.screen};
       }),
-      guardrails:[
-        'approved_figures 외 수치 사용 금지',
-        '내레이션과 자막 문장 일치',
-        '주제와 무관한 스톡 영상 금지',
-        '경쟁사 실명 언급 금지'
-      ],
-      billing_estimate:{
-        billed_seconds:avatarPlan(len,scenes(len)).billed,
-        note:'헤이젠은 생성된 초 단위로 과금됩니다. 실제 단가는 콘솔에서 확인하세요.'
-      }
+      guardrails:['approved_figures 외 수치 사용 금지','내레이션과 자막 문장 일치',
+                  '주제와 무관한 스톡 영상 금지','업체 실명 비교 금지','결정을 대신 내리는 표현 금지'],
+      manual_assets_required:manual,
+      billing_estimate:{billed_seconds:plan.billed,
+        note:'헤이젠은 생성된 초 단위로 과금됩니다. 실제 단가는 콘솔에서 확인하세요.'}
     },null,2);
   }
 
   var TABS=[
-    {step:'1단계 · 기획',   desc:'클로드나 마누스에 그대로 붙여넣으세요. AI가 리서치를 거쳐 아래 ②번 형태의 마스터 프롬프트를 만들어 돌려줍니다. 자동화하면 이 자리에 마누스 태스크 API가 들어갑니다.', fn:briefPrompt},
-    {step:'2단계 · 제작',   desc:'헤이젠 Video Agent 입력창에 붙여넣으면 씬 구성·모션 그래픽·B롤까지 한 번에 생성됩니다. API 없이 지금 당장 쓸 수 있는 경로입니다.', fn:masterPrompt},
-    {step:'3단계 · 자동화', desc:'같은 기획을 기계가 읽는 형태로 옮긴 것입니다. 1단계 AI가 이 JSON을 출력하게 만들면, 파이프라인이 그대로 받아 헤이젠 호출과 업로드 예약까지 이어갈 수 있습니다.', fn:specJson}
+    {step:'1단계 · 기획',   desc:'클로드나 마누스에 그대로 붙여넣으세요. 리서치를 거쳐 아래 ②번 형태의 마스터 프롬프트를 만들어 돌려줍니다.', fn:briefPrompt, chap:false},
+    {step:'2단계 · 제작',   desc:'헤이젠 Video Agent 입력창에 붙여넣으세요. 챕터가 갈린 경우 조각별로 따로 생성한 뒤 이어붙입니다.', fn:masterPrompt, chap:true},
+    {step:'3단계 · 자동화', desc:'같은 기획을 기계가 읽는 형태로 옮긴 것입니다. 챕터 분할과 사람이 준비할 소재까지 담겨 있습니다.', fn:specJson, chap:false}
   ];
 
-  function renderWarn(){
+  /* ---------- 렌더 ---------- */
+  function seg(id,arr,key,after){
+    var el=document.getElementById(id);
+    el.innerHTML=arr.map(function(o,i){
+      return '<button type="button" data-i="'+i+'" aria-pressed="'+(st[key]===i)+'">'+
+        (typeof o==='number'?(o<60?o+'초':(o/60===Math.round(o/60)?(o/60)+'분':Math.floor(o/60)+'분 '+(o%60)+'초')):o.k)+'</button>';
+    }).join('');
+    el.onclick=function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      st[key]=+b.dataset.i; if(after) after(); syncSegs(); render();
+    };
+  }
+  function syncSegs(){
+    seg('segPreset',PRESETS,'preset',applyPreset); seg('segLen',LENS,'len');
+    seg('segTone',TONES,'tone'); seg('segAvatar',AVAS,'ava'); seg('segPlace',PLACE,'place');
+    seg('segFmt',FORMATS,'fmt'); seg('segCap',CAPS,'cap');
+    seg('segData',DATAV,'data'); seg('segPace',PACE,'pace');
+  }
+  function applyPreset(){
+    var p=PRESETS[st.preset];
+    Object.keys(p.apply).forEach(function(k){ st[k]=p.apply[k]; });
+    document.getElementById('palette').value=p.palette;
+  }
+
+  function render(){
+    var len=LENS[st.len], msgs=lns('msgs'), cases=lns('scene');
+    var sc=scenes(len,msgs,cases), chs=chapters(sc), plan=avatarPlan(len,sc);
+
+    document.getElementById('presetNote').textContent=PRESETS[st.preset].note;
+
+    document.getElementById('lenNote').innerHTML = chs.length>1
+      ? '전체 <b>'+Math.floor(len/60)+'분 '+(len%60)+'초</b>. Video Agent 출력 상한이 3분이라 <b>'+chs.length+'개 조각</b>으로 나눠 생성한 뒤 이어붙여야 합니다.'
+      : '한 번에 생성 가능한 길이입니다.';
+
+    var inter=AVAS[st.ava].mode==='intermittent';
+    document.getElementById('avaOpts').hidden=!inter;
+    document.getElementById('cutsV').textContent=st.cuts;
+    document.getElementById('cutLenV').textContent=st.cutLen;
+    var pct=len?Math.round(plan.billed/len*100):0;
+    document.getElementById('avaNote').innerHTML=
+      '아바타 노출 <b>'+plan.billed+'초</b> / 전체 '+len+'초 (<b>'+pct+'%</b>). '+
+      (plan.billed===0?'아바타 과금 구간이 없습니다. 레퍼런스 두 편도 아바타 없이 내레이션으로만 진행합니다.'
+                     :'헤이젠은 생성된 초 단위로 과금되므로 이 구간이 원가를 결정합니다.');
+
     var ws=[FORMATS[st.fmt],DATAV[st.data]].filter(function(o){return o.warn;});
     document.getElementById('warnBox').innerHTML = ws.length
       ? '<div class="warn">'+ws.map(function(o){return '<div>'+o.warn+'</div>';}).join('')+'</div>'
       : '<div class="fine">고른 조합은 헤이젠이 단독으로 만들 수 있습니다.</div>';
-  }
 
-  function renderAvatar(){
-    var inter = AVAS[st.ava].mode==='intermittent';
-    document.getElementById('avaOpts').hidden = !inter;
-    document.getElementById('cutsV').textContent=st.cuts;
-    document.getElementById('cutLenV').textContent=st.cutLen;
-    var len=LENS[st.len], plan=avatarPlan(len,scenes(len));
-    var pct = len ? Math.round(plan.billed/len*100) : 0;
-    document.getElementById('avaNote').innerHTML =
-      '아바타 노출 <b>'+plan.billed+'초</b> / 전체 '+len+'초 (<b>'+pct+'%</b>). '+
-      (plan.billed===0 ? '아바타 과금 구간이 없습니다.'
-                       : '헤이젠은 생성된 초 단위로 과금되므로 이 구간이 원가를 결정합니다.');
-  }
+    var t=TABS[st.tab];
+    if(st.chap>chs.length-1) st.chap=chs.length-1;
+    var showChap = t.chap && chs.length>1;
+    document.getElementById('chapBar').innerHTML = showChap
+      ? chs.map(function(c,i){
+          return '<button type="button" data-c="'+i+'" aria-pressed="'+(st.chap===i)+'">조각 '+(i+1)+'/'+chs.length+
+            ' · '+(c[c.length-1].to-c[0].from)+'초</button>';
+        }).join('')
+      : '';
 
-  function render(){
-    renderAvatar();
-    renderWarn();
-    var t=TABS[st.tab], text=t.fn();
+    var text=t.fn();
     document.getElementById('outStep').textContent=t.step;
     document.getElementById('outDesc').textContent=t.desc;
     document.getElementById('out').textContent=text;
     document.getElementById('mChars').textContent=text.length.toLocaleString('ko-KR')+'자';
     document.getElementById('mLines').textContent=text.split('\n').length+'줄';
     document.querySelectorAll('.tabs button').forEach(function(b){
-      b.setAttribute('aria-selected', String(+b.dataset.tab===st.tab));
+      b.setAttribute('aria-selected',String(+b.dataset.tab===st.tab));
     });
     save();
   }
 
   document.querySelector('.tabs').addEventListener('click',function(e){
-    var b=e.target.closest('button'); if(!b) return;
-    st.tab=+b.dataset.tab; render();
+    var b=e.target.closest('button'); if(!b) return; st.tab=+b.dataset.tab; render();
+  });
+  document.getElementById('chapBar').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return; st.chap=+b.dataset.c; render();
   });
 
   var toast=document.getElementById('toast'), tid;
-  function flash(m){
-    toast.textContent=m; toast.classList.add('on');
-    clearTimeout(tid); tid=setTimeout(function(){toast.classList.remove('on');},1600);
-  }
+  function flash(m){ toast.textContent=m; toast.classList.add('on');
+    clearTimeout(tid); tid=setTimeout(function(){toast.classList.remove('on');},1600); }
   document.getElementById('copyBtn').addEventListener('click',function(){
     var text=document.getElementById('out').textContent;
-    function fallback(){
+    function fb(){
       var ta=document.createElement('textarea');
       ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
       document.body.appendChild(ta); ta.select();
@@ -623,37 +716,29 @@ THC·서류비 같은 부대비용이 빠진 견적은 나중에 붙는다
       catch(e){ flash('복사할 수 없습니다. 직접 선택해 주세요'); }
       document.body.removeChild(ta);
     }
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text).then(function(){flash('복사했습니다');},fallback);
-    } else fallback();
+    if(navigator.clipboard && navigator.clipboard.writeText)
+      navigator.clipboard.writeText(text).then(function(){flash('복사했습니다');},fb);
+    else fb();
   });
 
-  var FIELDS=['topic','audience','goal','msgs','facts','cta','brand'];
+  var FIELDS=['topic','audience','goal','palette','msgs','scene','facts','cta','brand'];
   function save(){
-    try{
-      var d={st:st}; FIELDS.forEach(function(f){ d[f]=document.getElementById(f).value; });
-      localStorage.setItem(LS,JSON.stringify(d));
-    }catch(e){}
+    try{ var d={st:st}; FIELDS.forEach(function(f){ d[f]=document.getElementById(f).value; });
+      localStorage.setItem(LS,JSON.stringify(d)); }catch(e){}
   }
   function load(){
     try{
       var d=JSON.parse(localStorage.getItem(LS)||'null'); if(!d) return;
       FIELDS.forEach(function(f){ if(typeof d[f]==='string') document.getElementById(f).value=d[f]; });
-      if(d.st){ ['len','tone','ava','cuts','cutLen','place','fmt','cap','data','pace','bgm','tab'].forEach(function(k){
-        if(typeof d.st[k]==='number') st[k]=d.st[k]|0;
-      }); }
+      if(d.st) Object.keys(st).forEach(function(k){ if(typeof d.st[k]==='number') st[k]=d.st[k]|0; });
     }catch(e){}
   }
 
-  load();
-  seg('segLen',LENS,'len'); seg('segTone',TONES,'tone'); seg('segAvatar',AVAS,'ava');
-  seg('segPlace',PLACE,'place');
-  seg('segFmt',FORMATS,'fmt'); seg('segCap',CAPS,'cap'); seg('segData',DATAV,'data');
+  load(); syncSegs();
   ['cuts','cutLen'].forEach(function(id){
     var el=document.getElementById(id); el.value=st[id];
     el.addEventListener('input',function(){ st[id]=+el.value; render(); });
   });
-  seg('segPace',PACE,'pace'); seg('segBgm',BGM,'bgm');
   FIELDS.forEach(function(f){ document.getElementById(f).addEventListener('input',render); });
   render();
 })();

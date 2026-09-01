@@ -112,6 +112,11 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg-prima
 .card .ca{position:absolute;top:12px;right:12px;display:flex;gap:3px;opacity:0;transition:.14s}
 .card:hover .ca{opacity:1}
 .card .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:9px}
+.card.done{opacity:.55}
+.card.done .ct{text-decoration:line-through}
+a.card.linkcard{display:block;text-decoration:none;color:inherit;border-left:3px solid var(--blue)}
+a.card.linkcard:hover{transform:translateY(-2px)}
+a.card.linkcard .go{color:var(--blue);font-size:12px}
 
 .chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;
   background:var(--bg-hover);color:var(--text-secondary)}
@@ -376,7 +381,8 @@ const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).
 
 function newBrand(name, icon, color, desc){
   return { id: uid('b'), name, icon, color, owner:'', desc: desc || '',
-           automations:[], history:[], assets:[], masterPrompt:'', promptUpdatedAt:null };
+           automations:[], history:[], assets:[], tasks:[], links:[],
+           masterPrompt:'', promptUpdatedAt:null };
 }
 
 function defaultData(){
@@ -435,9 +441,34 @@ const TYPES = {
       { key:'url',   label:'위치',  type:'text',     ph:'https:// 링크 또는 \\\\netformrnd\\공유폴더\\... 경로' },
       { key:'note',  label:'메모',  type:'textarea' }
     ]
+  },
+  tasks: {
+    label:'할 일', icon:'✅', tab:'할 일',
+    hint:'끝난 일은 아래로 내려갑니다',
+    empty:'등록된 할 일이 없습니다.',
+    fields:[
+      { key:'title',  label:'할 일',   type:'text',     required:true, ph:'예: 관리사무소용 영업자료 정비' },
+      { key:'status', label:'상태',    type:'select',   options:['예정','진행 중','완료','보류'] },
+      { key:'owner',  label:'담당자',  type:'text',     ph:'예: 김담당 매니저' },
+      { key:'due',    label:'기한',    type:'date' },
+      { key:'note',   label:'메모',    type:'textarea', ph:'배경이나 참고할 내용' }
+    ]
+  },
+  links: {
+    label:'바로가기', icon:'🔗', tab:'바로가기',
+    hint:'수치 대시보드·발행 기록처럼 자주 들어가는 곳을 모아둡니다',
+    empty:'등록된 바로가기가 없습니다.',
+    fields:[
+      { key:'title', label:'이름',  type:'text',   required:true, ph:'예: POUR공법 수치 대시보드' },
+      { key:'kind',  label:'분류',  type:'select',
+        options:['수치 대시보드','콘텐츠 발행 기록','관리자 페이지','광고/채널','기타'] },
+      { key:'url',   label:'주소',  type:'text',   required:true, ph:'https://...' },
+      { key:'desc',  label:'설명',  type:'textarea', ph:'무엇을 보는 곳인지, 언제 확인하는지' }
+    ]
   }
 };
-const TAB_KEYS = ['automations','history','assets','prompt'];
+const ITEM_KEYS = ['automations','history','assets','tasks','links'];
+const TAB_KEYS  = ['automations','history','assets','tasks','links','prompt'];
 
 let data = defaultData();
 let currentBrandId = null;
@@ -508,11 +539,13 @@ function renderHome(){
   const withPrompt = bs.filter(b => (b.masterPrompt || '').trim()).length;
   const files = bs.reduce((a, b) => a + b.assets.filter(x => x.fileId).length, 0);
 
+  const openTasks = bs.reduce((a, b) => a + b.tasks.filter(t => t.status !== '완료').length, 0);
   const stats = [
     { lab:'🏷️ 브랜드', val: bs.length, sub:'개' },
+    { lab:'✅ 할 일',  val: openTasks, sub: '남음 · 전체 ' + all('tasks') + '개' },
     { lab:'🤖 자동화', val: running, sub: '운영 중 · 전체 ' + all('automations') + '개' },
-    { lab:'📁 자료',   val: all('assets'), sub: '파일 ' + files + '개 포함' },
-    { lab:'✨ 마스터프롬프트', val: withPrompt + '/' + bs.length, sub:'작성 완료' }
+    { lab:'📁 자료',   val: all('assets'), sub: '파일 ' + files + '개 · 프롬프트 '
+        + withPrompt + '/' + bs.length }
   ].map(x => '<div class="stat"><div class="lab">' + x.lab + '</div>'
     + '<div class="val">' + x.val + '</div><div class="sub">' + x.sub + '</div></div>').join('');
 
@@ -527,9 +560,31 @@ function renderHome(){
       + '<span class="chip">🤖 ' + b.automations.length + '</span>'
       + '<span class="chip">📜 ' + b.history.length + '</span>'
       + '<span class="chip">📁 ' + b.assets.length + '</span>'
+      + (b.tasks.filter(t => t.status !== '완료').length
+          ? '<span class="chip test">✅ ' + b.tasks.filter(t => t.status !== '완료').length + '</span>' : '')
       + ((b.masterPrompt || '').trim() ? '<span class="chip on">✨ 작성됨</span>'
                                        : '<span class="chip">✨ 미작성</span>')
     + '</div></div>').join('');
+
+  // 기한이 지났거나 임박한 할 일
+  const today = new Date().toISOString().slice(0,10);
+  const urgent = [];
+  bs.forEach(b => b.tasks.forEach(t => {
+    if(t.status === '완료' || !t.due) return;
+    const days = Math.round((new Date(t.due) - new Date(today)) / 86400000);
+    if(days <= 3) urgent.push({ b, t, days });
+  }));
+  urgent.sort((x, y) => x.days - y.days);
+
+  const urgentHtml = urgent.length
+    ? '<div class="todo">' + urgent.slice(0, 8).map(u =>
+        '<div class="ti" onclick="gotoResult(\'' + u.b.id + '\',\'tasks\')">'
+        + '<span>' + (u.days < 0 ? '🔴' : '🟡') + '</span>'
+        + '<strong>' + esc(u.t.title) + '</strong>'
+        + '<span style="color:var(--text-muted)">' + esc(u.b.name) + '</span>'
+        + '<span class="rb">' + (u.days < 0 ? Math.abs(u.days) + '일 지남' : 'D-' + u.days) + '</span>'
+        + '</div>').join('') + '</div>'
+    : '';
 
   // 아직 비어 있는 곳을 짚어줍니다
   const todos = [];
@@ -556,7 +611,7 @@ function renderHome(){
 
   // 최근에 손댄 항목
   const recent = [];
-  bs.forEach(b => ['automations','history','assets'].forEach(t =>
+  bs.forEach(b => ITEM_KEYS.forEach(t =>
     b[t].forEach(it => {
       const when = it.updatedAt || it.uploadedAt;
       if(when) recent.push({ b, t, it, when });
@@ -581,6 +636,7 @@ function renderHome(){
       + '카드를 누르면 해당 브랜드로 이동합니다</div>'
     + '<div class="stats">' + stats + '</div>'
     + '<div class="hgrid">' + cards + '</div>'
+    + (urgentHtml ? '<div class="hsec">⏰ 기한이 임박한 할 일</div>' + urgentHtml : '')
     + (recentHtml ? '<div class="hsec">🕘 최근 업데이트</div>' + recentHtml : '')
     + '<div class="hsec">📝 아직 비어 있는 곳</div>' + todoHtml
     + '</div></div>';
@@ -597,11 +653,15 @@ function renderBrand(){
     automations: b.automations.length,
     history: b.history.length,
     assets: b.assets.length,
+    tasks: b.tasks.filter(t => t.status !== '완료').length,
+    links: b.links.length,
     prompt: (b.masterPrompt || '').trim() ? 1 : 0
   };
   const tabDefs = [
     ['automations','🤖 자동화 모음'],
     ['history','📜 히스토리'],
+    ['tasks','✅ 할 일'],
+    ['links','🔗 바로가기'],
     ['assets','📁 자료'],
     ['prompt','✨ 마스터프롬프트']
   ];
@@ -629,6 +689,8 @@ function renderBrand(){
   if(currentTab === 'prompt') body.innerHTML = viewPrompt(b);
   else if(currentTab === 'history') body.innerHTML = viewHistory(b);
   else if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
+  else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
+  else if(currentTab === 'links') body.innerHTML = viewLinks(b);
   else body.innerHTML = viewCards(b, currentTab);
 }
 
@@ -766,6 +828,85 @@ function statusChip(st){
   return st ? '<span class="chip ' + (map[st] || '') + '">' + esc(st) + '</span>' : '';
 }
 
+function viewTasks(b){
+  const list = b.tasks;
+  if(!list.length) return secBar('tasks') + '<div class="empty">' + TYPES.tasks.empty + '</div>';
+
+  const order = { '진행 중':0, '예정':1, '보류':2, '완료':3 };
+  const sorted = list.slice().sort((x, y) => {
+    const d = (order[x.status] ?? 1) - (order[y.status] ?? 1);
+    if(d) return d;
+    if(x.due && y.due) return x.due.localeCompare(y.due);
+    return x.due ? -1 : y.due ? 1 : 0;
+  });
+
+  const today = new Date().toISOString().slice(0,10);
+  const dueChip = t => {
+    if(!t.due || t.status === '완료') return '';
+    const days = Math.round((new Date(t.due) - new Date(today)) / 86400000);
+    const label = fmtDate(t.due);
+    if(days < 0)  return '<span class="chip off">지남 · ' + esc(label) + '</span>';
+    if(days <= 3) return '<span class="chip test">D-' + days + ' · ' + esc(label) + '</span>';
+    return '<span class="chip">' + esc(label) + '</span>';
+  };
+  const stChip = st => {
+    const m = { '진행 중':'test', '완료':'on', '보류':'', '예정':'' };
+    return '<span class="chip ' + (m[st] || '') + '">' + esc(st || '예정') + '</span>';
+  };
+
+  return secBar('tasks') + '<div class="cards">' + sorted.map(t =>
+    '<div class="card' + (t.status === '완료' ? ' done' : '') + '">'
+    + '<div class="ca">'
+      + (t.status !== '완료'
+          ? '<button class="btn sm" title="완료 처리" onclick="toggleTask(\'' + t.id + '\')">✓ 완료</button>'
+          : '<button class="btn sm" title="다시 진행" onclick="toggleTask(\'' + t.id + '\')">되돌리기</button>')
+      + '<button class="btn sm" onclick="openItemModal(\'tasks\',\'' + t.id + '\')">수정</button>'
+      + '<button class="btn sm danger" onclick="deleteItem(\'tasks\',\'' + t.id + '\')">삭제</button>'
+    + '</div>'
+    + '<div class="ct">' + esc(t.title) + '</div>'
+    + '<div class="row">' + stChip(t.status) + dueChip(t)
+      + (t.owner ? '<span class="chip">' + esc(t.owner) + '</span>' : '') + '</div>'
+    + (t.note ? '<div class="cd">' + esc(t.note) + '</div>' : '')
+    + '</div>').join('') + '</div>';
+}
+
+function toggleTask(id){
+  const t = currentBrand().tasks.find(x => x.id === id);
+  t.status = t.status === '완료' ? '진행 중' : '완료';
+  t.updatedAt = new Date().toISOString();
+  render();
+  toast(t.status === '완료' ? '✅ 완료 처리했습니다. [저장]을 눌러주세요'
+                            : '↩ 되돌렸습니다. [저장]을 눌러주세요');
+}
+
+function viewLinks(b){
+  const list = b.links;
+  if(!list.length) return secBar('links') + '<div class="empty">' + TYPES.links.empty + '</div>';
+
+  // 분류별로 묶고, 입력창의 분류 순서대로 보여줍니다
+  const order = TYPES.links.fields.find(f => f.key === 'kind').options;
+  const groups = {};
+  list.forEach(l => { (groups[l.kind || '기타'] = groups[l.kind || '기타'] || []).push(l); });
+  const ordered = Object.entries(groups).sort((a, b) => {
+    const ia = order.indexOf(a[0]), ib = order.indexOf(b[0]);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+
+  return secBar('links') + ordered.map(([kind, items]) =>
+    '<div style="margin-bottom:18px">'
+    + '<div class="hsec" style="margin:0 0 9px">' + esc(kind) + '</div>'
+    + '<div class="cards">' + items.map(l =>
+        '<a class="card linkcard" href="' + esc(l.url) + '" target="_blank" rel="noopener">'
+        + '<div class="ca" onclick="event.preventDefault();event.stopPropagation()">'
+          + '<button class="btn sm" onclick="openItemModal(\'links\',\'' + l.id + '\')">수정</button>'
+          + '<button class="btn sm danger" onclick="deleteItem(\'links\',\'' + l.id + '\')">삭제</button>'
+        + '</div>'
+        + '<div class="ct">' + esc(l.title) + ' <span class="go">↗</span></div>'
+        + (l.desc ? '<div class="cd">' + esc(l.desc) + '</div>' : '')
+        + '<div class="fmeta" style="margin-top:8px">' + esc(l.url.replace(/^https?:\/\//,'').slice(0,60)) + '</div>'
+        + '</a>').join('') + '</div></div>').join('');
+}
+
 function viewHistory(b){
   const list = b.history;
   if(!list.length) return secBar('history') + '<div class="empty">' + TYPES.history.empty + '</div>';
@@ -833,9 +974,10 @@ function renderSearch(){
 
   data.brands.forEach(b => {
     const hits = [];
-    ['automations','history','assets'].forEach(type => {
+    ITEM_KEYS.forEach(type => {
       b[type].forEach(it => {
-        const hay = [it.title, it.desc, it.note, it.body, it.tool, it.kind, it.tag, it.url]
+        const hay = [it.title, it.desc, it.note, it.body, it.tool, it.kind, it.tag, it.url,
+                     it.why, it.result, it.next, it.owner, it.status]
           .filter(Boolean).join(' ').toLowerCase();
         if(hay.includes(q)) hits.push({ type, it });
       });
@@ -866,7 +1008,7 @@ function renderSearch(){
             const tabKey = h.type === 'prompt' ? 'prompt' : h.type;
             const label = h.type === 'prompt' ? '✨ 마스터프롬프트'
                         : TYPES[h.type].icon + ' ' + TYPES[h.type].label;
-            const ctx = (h.it.desc || h.it.note || h.it.body || '').slice(0, 140);
+            const ctx = (h.it.desc || h.it.note || h.it.body || h.it.result || '').slice(0, 140);
             return '<div class="sr-item" onclick="gotoResult(\'' + g.b.id + '\',\'' + tabKey + '\')">'
               + '<div class="t">' + highlight(h.it.title, searchQuery) + '</div>'
               + '<div class="c">' + label + (ctx ? ' · ' + highlight(ctx, searchQuery) : '') + '</div>'
@@ -1219,7 +1361,7 @@ function normalize(raw){
     b.id = b.id || uid('b');
     b.icon = b.icon || '🏷️';
     b.color = b.color || '#3b82f6';
-    ['automations','history','assets'].forEach(k => {
+    ITEM_KEYS.forEach(k => {
       if(!Array.isArray(b[k])) b[k] = [];
       b[k].forEach(it => { it.id = it.id || uid('i'); });
     });

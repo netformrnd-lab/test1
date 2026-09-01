@@ -28,6 +28,43 @@ function human($b) {
 
 $ROOT_FILE = __DIR__ . '/data/nasroot.txt';
 
+/* 사람이 넣은 폴더 경로를 NAS 경로 모양으로 다듬습니다.
+   Y:\공유폴더\...        →  /공유폴더/...
+   \\netformrnd\공유폴더\... →  /공유폴더/...
+   /volume1/공유폴더/...  →  그대로                              */
+function normalize_nas_input($raw) {
+    $p = trim((string)$raw);
+    $p = str_replace('\\', '/', $p);
+    $p = preg_replace('#^//[^/]+/#', '/', $p);     // \\서버\공유폴더
+    $p = preg_replace('#^[A-Za-z]:/#', '/', $p);   // Y:\공유폴더
+    $p = preg_replace('#/+#', '/', $p);
+    $p = rtrim($p, '/');
+    if ($p === '' || $p[0] !== '/') return null;
+    return $p;
+}
+
+/* 다듬은 경로가 실제로 어느 볼륨에 있는지 찾아냅니다.
+   못 찾으면 어떤 경로들을 시도했는지 같이 돌려줍니다. */
+function resolve_nas_dir($p) {
+    $bare  = preg_replace('#^/volume\d+/#', '/', $p);
+    $cands = [$p];
+    $vols  = glob('/volume*', GLOB_ONLYDIR) ?: [];
+    sort($vols);
+    foreach ($vols as $v) $cands[] = $v . $bare;
+
+    $tried = [];
+    foreach ($cands as $c) {
+        $c = preg_replace('#/+#', '/', $c);
+        if (in_array($c, $tried, true)) continue;
+        $tried[] = $c;
+        if (is_dir($c)) {
+            $real = realpath($c);
+            return [$real !== false ? $real : $c, $tried];
+        }
+    }
+    return [null, $tried];
+}
+
 /** 훑은 폴더 안의 파일인지 확인합니다. 그 밖의 경로는 절대 열지 않습니다. */
 function safe_real_path($path, $rootFile) {
     if (!is_file($rootFile)) return null;
@@ -226,15 +263,33 @@ if ($action === 'browse') {
     ]);
 }
 
+/* ---------------- 폴더 경로 알아듣기 ---------------- */
+if ($action === 'resolve') {
+    $in = normalize_nas_input($_GET['path'] ?? '');
+    if ($in === null) {
+        jout(['ok' => false, 'error' => '폴더 경로를 알아보지 못했습니다. '
+            . '예) Y:\\넷폼알앤디 공유폴더\\... 또는 /volume1/넷폼알앤디 공유폴더/...'], 400);
+    }
+    [$dir, $tried] = resolve_nas_dir($in);
+    if ($dir === null) {
+        jout(['ok' => false, 'error' => '그런 폴더를 찾지 못했습니다', 'tried' => $tried], 404);
+    }
+    jout(['ok' => true, 'dir' => $dir]);
+}
+
 /* ---------------- 훑을 폴더 바꾸기 ---------------- */
 if ($action === 'setroot') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
     $in  = json_decode(file_get_contents('php://input'), true) ?: [];
-    $dir = rtrim(trim($in['dir'] ?? ''), '/');
-    if ($dir === '' || $dir[0] !== '/') {
-        jout(['ok' => false, 'error' => '/ 로 시작하는 폴더 경로를 넣어주세요'], 400);
+    $raw = normalize_nas_input($in['dir'] ?? '');
+    if ($raw === null) {
+        jout(['ok' => false, 'error' => '폴더 경로를 알아보지 못했습니다. '
+            . '예) Y:\\넷폼알앤디 공유폴더\\... 또는 /volume1/넷폼알앤디 공유폴더/...'], 400);
     }
-    if (!is_dir($dir)) jout(['ok' => false, 'error' => '그런 폴더가 없습니다: ' . $dir], 400);
+    [$dir, $tried] = resolve_nas_dir($raw);
+    if ($dir === null) {
+        jout(['ok' => false, 'error' => '그런 폴더를 찾지 못했습니다', 'tried' => $tried], 404);
+    }
     if (!is_dir(__DIR__ . '/data') && !@mkdir(__DIR__ . '/data', 0775, true)) {
         jout(['ok' => false, 'error' => 'data 폴더를 만들 수 없습니다'], 500);
     }

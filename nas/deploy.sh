@@ -75,6 +75,21 @@ update_file "metrics.php" "nas/metrics.php" "<?php"   || failed=1
 update_file "inquiries.php" "nas/inquiries.php" "<?php" || failed=1
 update_file "config.sample.php" "nas/config.sample.php" "<?php" || failed=1
 
+# 문의 기록 시트가 연결돼 있으면 함께 갱신합니다.
+# (연결이 없으면 아무 일도 하지 않고, 실패해도 파일 갱신에는 영향을 주지 않습니다)
+if [ -f "$TARGET/data/inquiries-source.json" ]; then
+    if wget -q -T 60 -O "$TMP/sync.out" "http://localhost/brand/inquiries.php?action=sync" 2>/dev/null; then
+        if grep -q '"ok":true' "$TMP/sync.out"; then
+            log "문의 기록 갱신 완료"
+        else
+            log "문의 기록 갱신 실패: $(head -c 200 "$TMP/sync.out")"
+        fi
+    else
+        log "문의 기록 갱신 실패: 요청을 보내지 못했습니다"
+    fi
+    rm -f "$TMP/sync.out"
+fi
+
 # 다음 실행 때 적용할 새 deploy.sh 를 미리 받아둡니다
 if wget -q -T 30 -O "$TMP/deploy.sh" "$BASE/nas/deploy.sh" 2>/dev/null; then
     if grep -q 'update_file' "$TMP/deploy.sh" && ! cmp -s "$TMP/deploy.sh" "$TARGET/deploy.sh"; then

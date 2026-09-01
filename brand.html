@@ -1077,6 +1077,11 @@ async function loadInquiries(force){
     }
   }catch(e){
     inquiryCache.error = e.message;
+    // 목록을 못 불러와도 연결 상태는 따로 확인해 둡니다
+    try{
+      const c = await (await fetch('inquiries.php?action=check', { cache:'no-store' })).json();
+      inquiryCache.sheetUrl = c['연결된시트'] || '연결 안 됨';
+    }catch(e2){ inquiryCache.sheetUrl = '연결 안 됨'; }
   }finally{
     inquiryCache.loading = false;
     inquiryCache.loaded  = true;
@@ -1170,9 +1175,6 @@ function viewInquiries(b){
       + 'http://192.168.0.37/brand/brand.html 로 접속해 주세요.</div>';
   }
   if(!inquiryCache.loaded) return '<div class="empty">불러오는 중…</div>';
-  if(inquiryCache.error)
-    return '<div class="empty">문의 기록을 불러오지 못했습니다.<br>'
-      + '<span class="path">' + esc(inquiryCache.error) + '</span></div>';
 
   const linked = inquiryCache.sheetUrl && inquiryCache.sheetUrl !== '연결 안 됨'
                  && inquiryCache.sheetUrl !== '확인 불가';
@@ -1199,6 +1201,22 @@ function viewInquiries(b){
     + (inquiryCache.syncError
         ? '<div class="ainote" style="margin-bottom:12px">⚠️ 자동 가져오기 실패: '
           + esc(inquiryCache.syncError) + '</div>' : '');
+
+  // 목록을 아예 못 불러온 경우에도 위 버튼들은 그대로 두어 조치할 수 있게 합니다
+  if(inquiryCache.error){
+    const notFound = /404/.test(inquiryCache.error);
+    return bar + '<div class="empty">'
+      + (notFound
+          ? '문의 기능 파일이 아직 NAS에 없습니다.<br><br>'
+            + '아래 주소를 브라우저에서 한 번 열면 자동으로 설치됩니다.<br>'
+            + '<span class="path" style="display:inline-block;margin-top:8px">'
+            + 'http://192.168.0.37/brand/save.php?action=bootstrap</span><br>'
+            + '<span style="display:inline-block;margin-top:8px;color:var(--text-muted)">'
+            + '설치 후 이 화면에서 Ctrl+F5 를 눌러주세요</span>'
+          : '문의 기록을 불러오지 못했습니다.<br>'
+            + '<span class="path">' + esc(inquiryCache.error) + '</span>')
+      + '</div>';
+  }
 
   if(!inquiryCache.total){
     return bar + '<div class="empty">아직 등록된 문의 기록이 없습니다.<br><br>'

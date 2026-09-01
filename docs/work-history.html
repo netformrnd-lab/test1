@@ -81,6 +81,16 @@ main{padding:20px 0 60px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .note{background:var(--amber-soft);border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.6;margin-top:16px}
 .note b{color:var(--amber)}
+/* 타임라인 */
+.tl{position:relative;margin-top:4px;padding-left:26px}
+.tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.tlrow{position:relative;padding:0 0 20px}
+.tlrow:last-child{padding-bottom:2px}
+.tlrow::before{content:'';position:absolute;left:-24px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--brand);border:2px solid var(--surface);box-shadow:0 0 0 3px var(--brand-soft)}
+.tlrow.big::before{background:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
+.tlrow .date{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--brand-ink)}
+.tlrow .tt{font-size:15px;font-weight:700;margin:2px 0 4px;letter-spacing:-.01em}
+.tlrow .dd{font-size:13px;color:var(--muted);line-height:1.6}
 footer{padding:26px 0 50px;color:var(--muted);font-size:12.5px}
 </style>
 <style>html,body{margin:0}img{max-width:100%}</style>
@@ -107,6 +117,22 @@ footer{padding:26px 0 50px;color:var(--muted);font-size:12.5px}
 </header>
 
 <main class="wrap">
+
+  <div class="grp">
+    <div class="grp-h"><span class="ic">🧭</span><h2>전체 개발 타임라인</h2><span class="cnt">2026.07.21 ~ 09.01</span></div>
+    <div class="dd" style="font-size:12.5px;color:var(--muted);margin:-4px 2px 16px">2026-01-12에 디자인 시안 파일 1개를 올려두었다가(이후 휴면), <b style="color:var(--ink2)">7월 21일부터 본격 개발을 시작</b>했어요. 약 6주간의 흐름이에요.</div>
+    <div class="tl">
+      <div class="tlrow big"><div class="date">2026-07-21</div><div class="tt">웹앱 재구축 + 백엔드 착수</div><div class="dd">디자인 시안을 실제 웹앱으로 재구축. Supabase로 로그인·데이터베이스 연결, 관리자·감리사 대시보드, 감리보고서 작성·사진 업로드.</div></div>
+      <div class="tlrow"><div class="date">2026-07-22</div><div class="tt">3종 사용자 앱 + 앱 스토어 래핑</div><div class="dd">입주민·관리소장 홈(진행현황·공정 단계), 지역 감리 현황, 우수사례, 30초 자가진단. 이메일 없이 아이디 로그인. <b style="color:var(--ink2)">Capacitor로 안드로이드·iOS 앱 래핑</b>, 현장현황 추가.</div></div>
+      <div class="tlrow"><div class="date">2026-07-23</div><div class="tt">현장 업무 통합</div><div class="dd">아임웹 게시판 엑셀 가져오기, 현장 점검 체크리스트를 앱에 통합, 감리일지 → 입주민 공개, 소장님 작성지(링크 제출→저장).</div></div>
+      <div class="tlrow"><div class="date">2026-07-24</div><div class="tt">소통·콘텐츠</div><div class="dd">공정별 촬영 가이드, 카카오톡·인앱 채팅(안읽음 배지), ‘이야기’ 탭(소개·블로그·유튜브), 계약서, 현장사진 동별 분류.</div></div>
+      <div class="tlrow"><div class="date">2026-07-26 ~ 30</div><div class="tt">만족도(NPS) + 대규모 안정화</div><div class="dd">공사 완료 후 만족도 조사 추가. 이 기간 집중적으로 기능 보강·다듬기(약 110개 커밋).</div></div>
+      <div class="tlrow"><div class="date">2026-08-10 ~ 24</div><div class="tt">정비 · 보안</div><div class="dd">계약서 탭 이동, 계약서 비공개 버킷 + 서명 URL로 보안 강화 등.</div></div>
+      <div class="tlrow big"><div class="date">2026-08-25</div><div class="tt">운영팀용 통합 관제센터 (큰 전환점)</div><div class="dd">운영팀 디자인의 통합 관리자 대시보드로 재구축, 어드민 기능 전체 포팅. <b style="color:var(--ink2)">Phase B — 영업(CRM) 파이프라인·업무 로드맵·자료실</b>. 계약·수금 통합, NPS, 문의폼·구글시트 → 영업 자동 연동.</div></div>
+      <div class="tlrow"><div class="date">2026-08-26 ~ 28</div><div class="tt">영업 자동화 + 방문 배치 캘린더</div><div class="dd">견적서·계약서 자동화, 영업 성사 → 공사관리 자동 이관, 방문 배치 캘린더, 일정 분류, 딜 체크리스트, 일정 엑셀.</div></div>
+      <div class="tlrow big"><div class="date">2026-08-31 ~ 09-01</div><div class="tt">이번 세션 — 세부 다듬기 (아래 상세)</div><div class="dd">방문을 우리 데이터 기준으로 정리(다녀왔어요·예정/실제 분리), 입주민 캘린더 단순화, AI 진척률 시도 후 제거, 3분할 실시간 데모, 시스템 지도, 업무 로드맵 매뉴얼 디자인+편집, 이 히스토리 문서.</div></div>
+    </div>
+  </div>
 
   <div class="grp">
     <div class="grp-h"><span class="ic">📅</span><h2>캘린더 · 방문</h2><span class="cnt">9건</span></div>

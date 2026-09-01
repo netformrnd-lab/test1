@@ -88,7 +88,36 @@
   .assets .help{font-weight:400;color:var(--ink-3);font-size:11.5px}
   .assets code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
     background:var(--surface-2);padding:1px 5px;border-radius:4px}
-  #assets{min-height:64px}
+  .drop{
+    border:1.5px dashed var(--line);border-radius:12px;padding:18px;display:flex;align-items:center;
+    justify-content:center;gap:12px;cursor:pointer;transition:.15s;background:var(--bg);
+    color:var(--ink-3);font-size:12.5px;text-align:center;line-height:1.5;
+  }
+  .drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-soft);color:var(--brand)}
+  .dropicon{font-size:20px;font-weight:300;line-height:1}
+  .dropsub{font-size:11.5px;opacity:.75}
+  .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;margin-top:10px}
+  .mcard{
+    display:flex;gap:11px;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--surface);
+  }
+  .mthumb{
+    width:64px;height:64px;flex:none;border-radius:8px;background:var(--surface-2);
+    display:grid;place-items:center;overflow:hidden;font-size:11px;color:var(--ink-3);font-weight:700;
+  }
+  .mthumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .mbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+  .mname{font-size:12.3px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mbody select,.mbody input{padding:5px 8px;border-radius:7px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font:inherit;font-size:11.8px;width:100%}
+  .mbody select{cursor:pointer}
+  .mdel{
+    width:22px;height:22px;flex:none;align-self:flex-start;border-radius:6px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink-3);cursor:pointer;display:grid;place-items:center;
+    font-size:12px;line-height:1;padding:0;
+  }
+  .mdel:hover{border-color:var(--warn);color:var(--warn)}
+  .mfoot{display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap}
+  .mfoot .btn{padding:5px 11px;font-size:12px}
   .scenehint{font-size:11.5px;color:var(--ink-3);margin-top:7px;line-height:1.6}
   .scenehint b{color:var(--ink-2);font-weight:600}
   .fixed{margin-top:16px;padding-top:15px;border-top:1px solid var(--line-soft);
@@ -215,8 +244,13 @@
     </div>
     <div class="note" id="lenNote"></div>
     <div class="assets">
-      <label for="assets">이번 편에 쓸 사진 · 영상 <span class="help">— 선택. 헤이젠에 올린 파일명을 한 줄에 하나씩. <code>파일명 | 씬 | 설명</code></span></label>
-      <textarea id="assets" placeholder="공정표_2026.png | 기준 3 | 지급 시점과 공정 겹쳐 보기&#10;현장_외벽.jpg | 문제 제기&#10;앱_견적비교.png | 실제 적용"></textarea>
+      <label>이번 편에 쓸 사진 · 영상 <span class="help">— 선택. 끌어다 놓으면 어느 씬에 넣을지 고를 수 있습니다</span></label>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="사진 추가">
+        <span class="dropicon" aria-hidden="true">＋</span>
+        <span class="droptxt">사진이나 영상을 여기로 끌어다 놓기<br><span class="dropsub">클릭해서 고를 수도 있습니다</span></span>
+      </div>
+      <input type="file" id="picker" accept="image/*,video/*" multiple hidden>
+      <div class="mgrid" id="mgrid"></div>
       <div class="scenehint" id="sceneHint"></div>
     </div>
     <div class="fixed" id="fixedNote"></div>
@@ -453,17 +487,65 @@
   ];
 
   function val(id){return document.getElementById(id).value.trim();}
-  // "파일명 | 씬 | 설명" 형태를 느슨하게 해석
+
+  var media=[], mseq=0;
   function parseAssets(){
-    return val('assets').split('\n').map(function(l){return l.trim();}).filter(Boolean).map(function(l){
-      var p=l.split('|').map(function(x){return x.trim();});
-      return {file:p[0]||'', scene:p[1]||'', desc:p[2]||''};
-    }).filter(function(a){return a.file;});
+    return media.map(function(m){return {file:m.file,scene:m.scene,desc:m.desc};})
+                .filter(function(a){return a.file;});
   }
-  function assetsFor(name,list){
-    return list.filter(function(a){
-      return a.scene && (name.indexOf(a.scene)>=0 || a.scene.indexOf(name)>=0);
+  function sceneNames(){ return scenes(LENS[st.len],[],[]).map(function(x){return x.name;}); }
+
+  function makeThumb(file,cb){
+    if(!/^image\//.test(file.type)){ cb(''); return; }
+    var img=new Image(), url=URL.createObjectURL(file);
+    img.onload=function(){
+      var max=160, r=Math.min(max/img.width,max/img.height,1);
+      var c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(img.width*r)); c.height=Math.max(1,Math.round(img.height*r));
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      var d=''; try{ d=c.toDataURL('image/jpeg',0.7); }catch(e){}
+      cb(d);
+    };
+    img.onerror=function(){ URL.revokeObjectURL(url); cb(''); };
+    img.src=url;
+  }
+  function addFiles(list){
+    var arr=Array.prototype.slice.call(list||[]); if(!arr.length) return;
+    var pending=arr.length;
+    arr.forEach(function(f){
+      makeThumb(f,function(t){
+        media.push({id:++mseq,file:f.name,scene:'',desc:'',thumb:t,
+                    kind:/^video\//.test(f.type)?'video':'image'});
+        if(--pending===0){ renderMedia(); render(); }
+      });
     });
+  }
+  function renderMedia(){
+    var names=sceneNames();
+    document.getElementById('mgrid').innerHTML = media.map(function(m){
+      var opts='<option value="">씬 미지정 (AI가 배치)</option>'+names.map(function(n){
+        return '<option'+(m.scene===n?' selected':'')+'>'+n+'</option>';
+      }).join('');
+      var th = m.thumb ? '<img src="'+m.thumb+'" alt="">' : (m.kind==='video'?'영상':'파일');
+      return '<div class="mcard" data-id="'+m.id+'">'+
+        '<div class="mthumb">'+th+'</div>'+
+        '<div class="mbody">'+
+          '<div class="mname" title="'+esc(m.file)+'">'+esc(m.file)+'</div>'+
+          '<select data-f="scene">'+opts+'</select>'+
+          '<input type="text" data-f="desc" placeholder="어떻게 쓸지 (선택)" value="'+esc(m.desc)+'">'+
+        '</div>'+
+        '<button class="mdel" data-del="'+m.id+'" title="빼기" aria-label="빼기">×</button>'+
+      '</div>';
+    }).join('') + (media.length
+      ? '<div class="mfoot"><button type="button" class="btn" id="addName">파일명으로 추가</button>'+
+        '<button type="button" class="btn" id="clearAll">전체 비우기</button></div>'
+      : '');
+  }
+  function esc(x){return String(x).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function assetsFor(name,list){
+    return list.filter(function(a){ return a.scene===name; });
   }
   function lns(id){return val(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);}
   function kw(){return val('kw')||'(키워드를 입력하세요)';}
@@ -788,15 +870,12 @@
     }).join('');
 
     var assets=parseAssets();
-    var unmatched=assets.filter(function(a){
-      return a.scene && !sc.some(function(x){return x.name.indexOf(a.scene)>=0||a.scene.indexOf(x.name)>=0;});
-    });
-    document.getElementById('sceneHint').innerHTML =
-      '씬 이름 · <b>'+sc.map(function(x){return x.name;}).join(' / ')+'</b>'+
-      (assets.length? '<br>'+assets.length+'개 지정됨'+
-        (unmatched.length? ' · <b>'+unmatched.map(function(a){return a.scene;}).join(', ')+
-          '</b> 은(는) 씬 이름과 맞지 않아 배치를 AI에 맡깁니다.' : ' · 모두 씬에 연결됨')
-        : '<br>비워두면 모든 화면을 헤이젠이 생성한 소재로 채웁니다.');
+    var unassigned=assets.filter(function(a){return !a.scene;}).length;
+    document.getElementById('sceneHint').innerHTML = assets.length
+      ? '<b>'+assets.length+'개</b> 추가됨'+
+        (unassigned? ' · 씬 미지정 <b>'+unassigned+'개</b>는 배치를 AI에 맡깁니다.' : ' · 모두 씬에 연결됨')+
+        '<br>파일은 이 브라우저에만 저장됩니다. <b>헤이젠에는 같은 파일을 직접 올려야</b> 프롬프트가 찾아 씁니다.'
+      : '비워두면 모든 화면을 헤이젠이 생성한 소재로 채웁니다.';
 
     document.getElementById('presetNote').textContent=PRESETS[st.preset].note;
     document.getElementById('lenNote').innerHTML = chs.length>1
@@ -862,6 +941,47 @@
     render();
   });
 
+  var drop=document.getElementById('drop'), picker=document.getElementById('picker');
+  drop.addEventListener('click',function(){ picker.click(); });
+  drop.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); picker.click(); }
+  });
+  picker.addEventListener('change',function(){ addFiles(picker.files); picker.value=''; });
+  ['dragenter','dragover'].forEach(function(ev){
+    drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop',function(e){ addFiles(e.dataTransfer && e.dataTransfer.files); });
+
+  var mgrid=document.getElementById('mgrid');
+  mgrid.addEventListener('change',function(e){
+    var card=e.target.closest('.mcard'); if(!card) return;
+    var m=media.filter(function(x){return x.id===+card.dataset.id;})[0]; if(!m) return;
+    if(e.target.dataset.f) m[e.target.dataset.f]=e.target.value;
+    render();
+  });
+  mgrid.addEventListener('input',function(e){
+    if(e.target.dataset.f!=='desc') return;
+    var card=e.target.closest('.mcard'); if(!card) return;
+    var m=media.filter(function(x){return x.id===+card.dataset.id;})[0];
+    if(m){ m.desc=e.target.value; render(); }
+  });
+  mgrid.addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.del){
+      media=media.filter(function(x){return x.id!==+b.dataset.del;});
+    } else if(b.id==='addName'){
+      var n=window.prompt('헤이젠에 올려 둔 파일명을 적어 주세요'); if(!n) return;
+      media.push({id:++mseq,file:n.trim(),scene:'',desc:'',thumb:'',kind:'image'});
+    } else if(b.id==='clearAll'){
+      if(!window.confirm('추가한 사진을 모두 뺍니다. 계속할까요?')) return;
+      media=[];
+    } else return;
+    renderMedia(); render();
+  });
+
   var toast=document.getElementById('toast'), tid;
   function flash(m){ toast.textContent=m; toast.classList.add('on');
     clearTimeout(tid); tid=setTimeout(function(){toast.classList.remove('on');},1600); }
@@ -880,23 +1000,37 @@
     else fb();
   });
 
-  var FIELDS=['kw','audience','goal','palette','avatarId','assets','msgs','scene','facts','cta','brand'];
+  var FIELDS=['kw','audience','goal','palette','avatarId','msgs','scene','facts','cta','brand'];
   function save(){
-    try{ var d={st:st}; FIELDS.forEach(function(f){ d[f]=document.getElementById(f).value; });
-      localStorage.setItem(LS,JSON.stringify(d)); }catch(e){}
+    try{
+      var d={st:st,media:media};
+      FIELDS.forEach(function(f){ d[f]=document.getElementById(f).value; });
+      try{ localStorage.setItem(LS,JSON.stringify(d)); }
+      catch(quota){
+        // 썸네일이 용량을 넘기면 썸네일만 버리고 매핑은 지킨다
+        d.media=media.map(function(m){
+          return {id:m.id,file:m.file,scene:m.scene,desc:m.desc,thumb:'',kind:m.kind};
+        });
+        localStorage.setItem(LS,JSON.stringify(d));
+      }
+    }catch(e){}
   }
   function load(){
     try{
       var d=JSON.parse(localStorage.getItem(LS)||'null'); if(!d) return false;
       FIELDS.forEach(function(f){ if(typeof d[f]==='string') document.getElementById(f).value=d[f]; });
       if(d.st) Object.keys(st).forEach(function(k){ if(typeof d.st[k]==='number') st[k]=d.st[k]|0; });
+      if(Array.isArray(d.media)){
+        media=d.media.filter(function(m){return m && m.file;});
+        media.forEach(function(m){ mseq=Math.max(mseq,m.id|0); });
+      }
       return true;
     }catch(e){ return false; }
   }
 
   var restored=load();
   if(!restored) applyPreset();
-  syncSegs();
+  syncSegs(); renderMedia();
   ['cuts','cutLen'].forEach(function(id){
     var el=document.getElementById(id); el.value=st[id];
     el.addEventListener('input',function(){ st[id]=+el.value; render(); });

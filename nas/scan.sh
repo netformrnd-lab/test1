@@ -55,6 +55,8 @@ if [ ! -s "$TMP" ]; then
 fi
 
 mv "$TMP" "$OUT"
+# 어느 폴더를 훑었는지 남깁니다. 다운로드할 때 이 폴더 안의 파일만 허용합니다.
+printf '%s' "$ROOT" > "$TARGET/data/nasroot.txt"
 COUNT=$(wc -l < "$OUT" | tr -d ' ')
 log "완료: ${COUNT}개 · $(( $(date +%s) - START ))초"
 

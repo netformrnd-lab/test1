@@ -450,7 +450,7 @@ const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).
 
 function newBrand(name, icon, color, desc){
   return { id: uid('b'), name, icon, color, owner:'', desc: desc || '',
-           automations:[], history:[], assets:[], tasks:[], links:[],
+           automations:[], history:[], assets:[], tasks:[], links:[], nasFolders:[],
            masterPrompt:'', promptUpdatedAt:null };
 }
 
@@ -809,6 +809,24 @@ async function copyNasPath(i){
   }catch(e){ prompt('아래 경로를 복사해 탐색기 주소창에 붙여넣으세요', win); }
 }
 
+function linkNasDir(i){
+  const f = nasState.res.results[i];
+  if(!data.brands.length){ toast('⚠️ 브랜드가 없습니다'); return; }
+  const names = data.brands.map((b, n) => (n + 1) + '. ' + b.name).join('\n');
+  const pick = prompt('이 폴더를 어느 브랜드에 연결할까요?\n\n' + names
+    + '\n\n폴더: ' + f.dir + '\n\n번호를 입력하세요', '1');
+  if(pick === null) return;
+  const idx = parseInt(pick, 10) - 1;
+  const b = data.brands[idx];
+  if(!b){ toast('⚠️ 번호가 올바르지 않습니다'); return; }
+
+  b.nasFolders = b.nasFolders || [];
+  if(b.nasFolders.some(x => x.path === f.dir)){ toast('이미 연결된 폴더입니다'); return; }
+  b.nasFolders.push({ id: uid('nf'), path: f.dir, label: f.dir.split('/').pop(), q: '' });
+  markDirty();
+  toast('📂 "' + b.name + '" 자료에 연결했습니다');
+}
+
 async function copyNasDir(i){
   const f = nasState.res.results[i];
   const win = toWinPath(f.dir);
@@ -879,8 +897,10 @@ function renderNas(){
           + '</div>'
           + '<div class="path" style="word-break:break-all">' + esc(f.dir) + '</div>'
           + '<div class="row" style="margin:2px 0 0">'
-            + '<button class="btn sm" onclick="copyNasPath(' + i + ')">📋 파일 경로</button>'
-            + '<button class="btn sm" onclick="copyNasDir(' + i + ')">📁 폴더 경로</button>'
+            + '<a class="btn sm" href="nasfiles.php?action=download&path='
+              + encodeURIComponent(f.path) + '">⬇ 다운로드</a>'
+            + '<button class="btn sm" onclick="linkNasDir(' + i + ')">＋ 브랜드에 연결</button>'
+            + '<button class="btn sm" onclick="copyNasPath(' + i + ')">📋 경로</button>'
           + '</div></div>').join('')
       + '</div>';
   }
@@ -1074,7 +1094,127 @@ function viewAssets(b){
       + '<button class="btn sm" style="align-self:flex-start" onclick="clearReport()">결과 닫기</button>'
       + '</div>'
     : '';
-  return dropZone + '<div class="upqueue" id="upQueue"></div>' + report + bar + cards;
+  return dropZone + '<div class="upqueue" id="upQueue"></div>' + report
+       + viewNasFolders(b) + bar + cards;
+}
+
+/* ========================= 브랜드에 연결한 NAS 폴더 =========================
+   파일을 복사하지 않고, 있는 자리에서 바로 내려받습니다.
+   ========================================================================== */
+const nasFolderCache = {};   // 폴더경로 → 파일 목록
+
+async function loadNasFolder(brandId, folderId, path, q){
+  const key = folderId;
+  nasFolderCache[key] = { loading:true };
+  try{
+    const url = 'nasfiles.php?action=under&dir=' + encodeURIComponent(path)
+              + (q ? '&q=' + encodeURIComponent(q) : '');
+    const out = await (await fetch(url, { cache:'no-store' })).json();
+    if(!out.ok) throw new Error(out.error || '목록을 불러오지 못했습니다');
+    nasFolderCache[key] = out;
+  }catch(e){
+    nasFolderCache[key] = { error: e.message };
+  }
+  if(currentTab === 'assets') { render(); bindDrop(); }
+}
+
+function viewNasFolders(b){
+  const list = b.nasFolders || [];
+  const head = '<div class="sec-bar" style="margin-top:6px">'
+    + '<button class="btn" onclick="addNasFolder()">📂 NAS 폴더 연결</button>'
+    + '<span class="hint">공유폴더를 이 브랜드에 연결하면, 옮기지 않고도 여기서 바로 내려받습니다</span>'
+    + '</div>';
+
+  if(!list.length) return head;
+
+  return head + list.map(f => {
+    const c = nasFolderCache[f.id];
+    if(!c) { setTimeout(() => loadNasFolder(b.id, f.id, f.path, f.q || ''), 10); }
+    let inner;
+    if(!c || c.loading) inner = '<div class="fmeta">불러오는 중…</div>';
+    else if(c.error) inner = '<div class="fmeta">⚠️ ' + esc(c.error) + '</div>';
+    else if(!c.results.length) inner = '<div class="fmeta">이 폴더에 파일이 없습니다.</div>';
+    else inner = c.results.map(x =>
+        '<div class="krow" style="align-items:center">'
+        + '<span class="fileicon" style="font-size:15px">' + fileIcon(x.name) + '</span>'
+        + '<span style="flex:1;min-width:0;white-space:normal;word-break:break-all">'
+          + '<b style="color:var(--text-primary)">' + esc(x.name) + '</b>'
+          + (x.sub ? '<span class="fmeta"> · ' + esc(x.sub) + '</span>' : '')
+        + '</span>'
+        + '<span class="fmeta" style="white-space:nowrap">' + esc(x.size) + ' · ' + esc(x.date) + '</span>'
+        + '<a class="btn sm" href="nasfiles.php?action=download&path='
+          + encodeURIComponent(x.path) + '">⬇</a>'
+        + '</div>').join('')
+      + (c.matched > c.shown
+          ? '<div class="fmeta" style="margin-top:8px">전체 ' + c.matched.toLocaleString('ko-KR')
+            + '개 중 ' + c.shown + '개 표시 · 아래 검색으로 좁혀보세요</div>' : '');
+
+    return '<div class="mbox" style="margin-bottom:12px">'
+      + '<div class="mh" style="align-items:center">'
+        + '📂 ' + esc(f.label || f.path.split('/').pop())
+        + '<span class="mhs">' + (c && c.matched !== undefined
+            ? c.matched.toLocaleString('ko-KR') + '개 · ' + esc(c.totalSize || '') : '') + '</span>'
+        + '<span style="margin-left:auto;display:flex;gap:5px">'
+          + '<button class="btn sm" onclick="filterNasFolder(\'' + b.id + '\',\'' + f.id + '\')">🔍 검색</button>'
+          + '<button class="btn sm" onclick="refreshNasFolder(\'' + b.id + '\',\'' + f.id + '\')">↻</button>'
+          + '<button class="btn sm danger" onclick="removeNasFolder(\'' + f.id + '\')">연결 해제</button>'
+        + '</span>'
+      + '</div>'
+      + '<div class="path" style="margin-bottom:8px">' + esc(f.path)
+        + (f.q ? ' · 검색: ' + esc(f.q) : '') + '</div>'
+      + inner + '</div>';
+  }).join('');
+}
+
+function addNasFolder(){
+  const b = currentBrand();
+  if(!b) return;
+  const path = prompt(
+    'NAS 폴더 경로를 넣어주세요.\n\n'
+    + '예) /volume1/넷폼알앤디 공유폴더/아파트스퀘어\n\n'
+    + '🗂️ NAS 자료 화면에서 파일을 찾은 뒤 [📁 폴더 경로]를 복사해 붙여넣으면 편합니다.\n'
+    + '(\\\\netformrnd\\... 형태로 붙여넣어도 알아서 바꿔드립니다)');
+  if(!path) return;
+
+  // 탐색기 형식으로 붙여넣어도 받아들입니다
+  let p = path.trim().replace(/\\/g, '/');
+  p = p.replace(/^\/\/[^/]+\//, '/volume1/');
+  p = p.replace(/\/+$/, '');
+  if(!p.startsWith('/')) { toast('⚠️ 경로가 올바르지 않습니다'); return; }
+
+  const label = prompt('이 폴더를 뭐라고 부를까요? (비우면 폴더 이름 사용)',
+                       p.split('/').pop()) || '';
+  b.nasFolders.push({ id: uid('nf'), path: p, label: label.trim(), q: '' });
+  render(); bindDrop(); markDirty();
+  toast('📂 폴더를 연결했습니다');
+}
+
+function removeNasFolder(id){
+  const b = currentBrand();
+  const f = b.nasFolders.find(x => x.id === id);
+  if(!confirm('"' + (f.label || f.path) + '" 연결을 해제할까요?\n\n'
+    + 'NAS의 실제 파일은 그대로 남습니다. 목록에서만 사라집니다.')) return;
+  b.nasFolders = b.nasFolders.filter(x => x.id !== id);
+  delete nasFolderCache[id];
+  render(); bindDrop(); markDirty();
+}
+
+function refreshNasFolder(brandId, id){
+  const f = currentBrand().nasFolders.find(x => x.id === id);
+  delete nasFolderCache[id];
+  loadNasFolder(brandId, id, f.path, f.q || '');
+  toast('↻ 다시 불러옵니다');
+}
+
+function filterNasFolder(brandId, id){
+  const b = currentBrand();
+  const f = b.nasFolders.find(x => x.id === id);
+  const q = prompt('이 폴더 안에서 찾을 이름을 넣어주세요. (비우면 전체)', f.q || '');
+  if(q === null) return;
+  f.q = q.trim();
+  delete nasFolderCache[id];
+  loadNasFolder(brandId, id, f.path, f.q);
+  markDirty();
 }
 
 function statusChip(st){
@@ -2131,6 +2271,7 @@ function normalize(raw){
     b.id = b.id || uid('b');
     b.icon = b.icon || '🏷️';
     b.color = b.color || '#3b82f6';
+    if(!Array.isArray(b.nasFolders)) b.nasFolders = [];
     ITEM_KEYS.forEach(k => {
       if(!Array.isArray(b[k])) b[k] = [];
       b[k].forEach(it => { it.id = it.id || uid('i'); });

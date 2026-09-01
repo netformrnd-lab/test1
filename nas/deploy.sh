@@ -71,6 +71,7 @@ update_file "brand.html" "brand.html"   "</html>"    || failed=1
 update_file "load.php"   "nas/load.php" "<?php"      || failed=1
 update_file "save.php"   "nas/save.php" "<?php"      || failed=1
 update_file "files.php"  "nas/files.php" "<?php"     || failed=1
+update_file "metrics.php" "nas/metrics.php" "<?php"   || failed=1
 
 # 다음 실행 때 적용할 새 deploy.sh 를 미리 받아둡니다
 if wget -q -T 30 -O "$TMP/deploy.sh" "$BASE/nas/deploy.sh" 2>/dev/null; then

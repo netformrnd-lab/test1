@@ -3,236 +3,249 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>넷폼알앤디 브랜드 대시보드</title>
+<title>넷폼알앤디 브랜드 허브</title>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard.min.css" rel="stylesheet">
-<!-- 차트 라이브러리. 인터넷이 막힌 사내망에서도 되도록 같은 폴더의 vendor 파일을 먼저 찾고,
-     없으면 인터넷(CDN)에서 받아옵니다. vendor 파일이 없으면 콘솔에 404가 뜨지만 정상입니다. -->
-<script src="vendor/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root{
-  --bg-primary:#f8fafc; --bg-secondary:#ffffff; --bg-card:#ffffff; --bg-card-hover:#f1f5f9;
+  --bg-primary:#f6f7f9; --bg-secondary:#ffffff; --bg-card:#ffffff; --bg-hover:#f1f5f9;
   --bg-input:#f8fafc; --border:#e2e8f0; --border-light:#cbd5e1;
   --text-primary:#1e293b; --text-secondary:#64748b; --text-muted:#94a3b8;
-  --accent-blue:#3b82f6; --accent-cyan:#06b6d4; --accent-green:#22c55e;
-  --accent-yellow:#f59e0b; --accent-red:#ef4444; --accent-purple:#8b5cf6;
-  --accent-pink:#ec4899; --accent-orange:#f97316;
+  --blue:#3b82f6; --green:#22c55e; --yellow:#f59e0b; --red:#ef4444;
+  --purple:#8b5cf6; --cyan:#06b6d4; --orange:#f97316;
   --shadow-sm:0 1px 2px rgba(0,0,0,.05); --shadow-md:0 4px 6px -1px rgba(0,0,0,.1);
   --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1);
 }
 body.dark-mode{
-  --bg-primary:#0f172a; --bg-secondary:#1e293b; --bg-card:#1e293b; --bg-card-hover:#334155;
+  --bg-primary:#0f172a; --bg-secondary:#1e293b; --bg-card:#1e293b; --bg-hover:#334155;
   --bg-input:#0f172a; --border:#334155; --border-light:#475569;
   --text-primary:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#64748b;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg-primary);
-  color:var(--text-primary);min-height:100vh;line-height:1.6;transition:background .2s,color .2s}
-.wrap{max-width:1400px;margin:0 auto;padding:24px 20px 80px}
+  color:var(--text-primary);min-height:100vh;line-height:1.6}
 
-/* 상단 바 */
-.topbar{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;
-  background:var(--bg-card);border:1px solid var(--border);border-radius:16px;
-  padding:20px 24px;box-shadow:var(--shadow-sm);margin-bottom:20px}
-.topbar h1{font-size:22px;font-weight:800;letter-spacing:-.02em}
-.topbar .sub{font-size:13px;color:var(--text-secondary);margin-top:2px}
-.top-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-
-/* 저장 위치 배지 */
-.store-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
-  padding:6px 12px;border-radius:999px;border:1px solid var(--border)}
-.store-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--accent-yellow)}
-.store-badge.nas .dot{background:var(--accent-green)}
-.store-badge.error .dot{background:var(--accent-red)}
-
-/* 버튼 */
-.btn{font-family:inherit;font-size:13px;font-weight:600;padding:9px 16px;border-radius:10px;
-  border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);
-  cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px}
-.btn:hover{background:var(--bg-card-hover);border-color:var(--border-light)}
-.btn.primary{background:var(--accent-blue);border-color:var(--accent-blue);color:#fff}
-.btn.primary:hover{filter:brightness(1.08)}
-.btn.danger{color:var(--accent-red);border-color:var(--border)}
-.btn.danger:hover{background:rgba(239,68,68,.1)}
-.btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
-
-/* 툴바 */
-.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:20px}
-.field{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);font-weight:600}
-select,input[type=text],input[type=number],input[type=month]{
-  font-family:inherit;font-size:13px;padding:8px 12px;border-radius:10px;
-  border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)}
-select:focus,input:focus{outline:2px solid var(--accent-blue);outline-offset:-1px}
+/* ---------- 상단 바 ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;gap:12px;
+  align-items:center;background:var(--bg-secondary);border-bottom:1px solid var(--border);
+  padding:14px 22px}
+.topbar h1{font-size:18px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.topbar .sub{font-size:12px;color:var(--text-muted);font-weight:500}
 .spacer{flex:1}
+.searchbox{position:relative;min-width:220px;flex:0 1 320px}
+.searchbox input{width:100%;padding:8px 12px 8px 32px;font-size:13px;border-radius:10px;
+  border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-family:inherit}
+.searchbox .ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);
+  font-size:13px;color:var(--text-muted)}
+.actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 
-/* 섹션 */
-.section{margin-bottom:28px}
-.section-title{font-size:15px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.section-title .hint{font-size:12px;font-weight:500;color:var(--text-muted)}
+.store-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  padding:6px 12px;border-radius:999px;border:1px solid var(--border);white-space:nowrap}
+.store-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--yellow)}
+.store-badge.nas .dot{background:var(--green)}
+.store-badge.error .dot{background:var(--red)}
 
-/* 요약 타일 */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
-.stat{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
-  padding:18px 20px;box-shadow:var(--shadow-sm)}
-.stat .label{font-size:12px;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px}
-.stat .value{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:6px}
-.stat .delta{font-size:12px;font-weight:600;margin-top:4px;color:var(--text-muted)}
-.delta.up{color:var(--accent-green)} .delta.down{color:var(--accent-red)}
+.btn{font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:10px;
+  border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);
+  cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{background:var(--bg-hover);border-color:var(--border-light)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--red)}
+.btn.danger:hover{background:rgba(239,68,68,.1)}
+.btn.sm{padding:4px 10px;font-size:12px;border-radius:8px}
 
-/* 브랜드 카드 */
-.brands{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
-.brand-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
-  padding:18px;box-shadow:var(--shadow-sm);transition:.15s;border-top:3px solid var(--accent-blue)}
-.brand-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
-.brand-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.brand-icon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
-  font-size:19px;background:var(--bg-card-hover);flex-shrink:0}
-.brand-name{font-size:15px;font-weight:800}
-.brand-owner{font-size:12px;color:var(--text-muted)}
-.brand-card .card-actions{margin-left:auto;display:flex;gap:4px;opacity:0;transition:.15s}
-.brand-card:hover .card-actions{opacity:1}
-.metric-row{display:flex;justify-content:space-between;align-items:baseline;
-  font-size:13px;padding:5px 0;border-bottom:1px dashed var(--border)}
-.metric-row:last-of-type{border-bottom:none}
-.metric-row .m-name{color:var(--text-secondary)}
-.metric-row .m-val{font-weight:700}
-.progress{margin-top:12px}
-.progress .p-top{display:flex;justify-content:space-between;font-size:11px;
-  font-weight:600;color:var(--text-secondary);margin-bottom:4px}
-.progress .bar{height:7px;border-radius:99px;background:var(--bg-card-hover);overflow:hidden}
-.progress .fill{height:100%;border-radius:99px;background:var(--accent-blue);transition:width .4s}
+/* ---------- 레이아웃 ---------- */
+.layout{display:grid;grid-template-columns:250px 1fr;gap:22px;
+  max-width:1500px;margin:0 auto;padding:22px}
+@media(max-width:900px){.layout{grid-template-columns:1fr;gap:16px}}
 
-/* 차트 */
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:900px){.charts{grid-template-columns:1fr}}
-.chart-box{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
-  padding:18px;box-shadow:var(--shadow-sm)}
-.chart-box h3{font-size:14px;font-weight:700;margin-bottom:12px}
-.chart-area{position:relative;height:280px}
+/* ---------- 사이드바 ---------- */
+.side{align-self:start;position:sticky;top:86px}
+@media(max-width:900px){.side{position:static}}
+.side-title{font-size:11px;font-weight:800;color:var(--text-muted);
+  letter-spacing:.06em;margin:0 0 10px 4px}
+.brand-list{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+@media(max-width:900px){.brand-list{flex-direction:row;overflow-x:auto;padding-bottom:6px}}
+.brand-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;
+  cursor:pointer;transition:.12s;border:1px solid transparent;background:transparent;
+  font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text-secondary);
+  text-align:left;width:100%;white-space:nowrap}
+.brand-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+.brand-item.on{background:var(--bg-card);border-color:var(--border);
+  color:var(--text-primary);box-shadow:var(--shadow-sm)}
+.brand-item .bar{width:3px;height:17px;border-radius:2px;flex-shrink:0}
+.brand-item .em{font-size:15px}
+.brand-item .cnt{margin-left:auto;font-size:11px;font-weight:600;color:var(--text-muted)}
 
-/* 입력 표 */
-.table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
-  box-shadow:var(--shadow-sm);overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
-th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
-th{font-size:12px;font-weight:700;color:var(--text-secondary);background:var(--bg-card-hover)}
-tr:last-child td{border-bottom:none}
-td input{width:110px;text-align:right}
-.cell-brand{font-weight:700}
+/* ---------- 본문 ---------- */
+.panel{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;
+  box-shadow:var(--shadow-sm);overflow:hidden}
+.bhead{padding:22px 24px;border-bottom:1px solid var(--border);display:flex;
+  align-items:flex-start;gap:14px;flex-wrap:wrap}
+.bhead .icon{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;
+  font-size:23px;background:var(--bg-hover);flex-shrink:0}
+.bhead h2{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.bhead .meta{font-size:13px;color:var(--text-secondary);margin-top:2px}
+.bhead .ba{margin-left:auto;display:flex;gap:6px}
 
-/* 모달 */
+.tabs{display:flex;gap:2px;padding:0 24px;border-bottom:1px solid var(--border);
+  overflow-x:auto;background:var(--bg-secondary)}
+.tab{padding:12px 16px;font-family:inherit;font-size:13.5px;font-weight:700;
+  background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);
+  cursor:pointer;white-space:nowrap;transition:.12s}
+.tab:hover{color:var(--text-primary)}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+.tab .n{font-size:11px;font-weight:600;opacity:.7;margin-left:3px}
+.tabbody{padding:22px 24px 28px}
+
+.sec-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.sec-bar .hint{font-size:12.5px;color:var(--text-muted)}
+
+/* ---------- 카드 목록 ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{border:1px solid var(--border);border-radius:12px;padding:15px 17px;
+  background:var(--bg-secondary);transition:.14s;position:relative}
+.card:hover{box-shadow:var(--shadow-md);border-color:var(--border-light)}
+.card .ct{font-size:14px;font-weight:700;margin-bottom:3px;padding-right:70px}
+.card .cd{font-size:12.5px;color:var(--text-secondary);white-space:pre-wrap;
+  word-break:break-word;margin-top:6px}
+.card .ca{position:absolute;top:12px;right:12px;display:flex;gap:3px;opacity:0;transition:.14s}
+.card:hover .ca{opacity:1}
+.card .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:9px}
+
+.chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;
+  background:var(--bg-hover);color:var(--text-secondary)}
+.chip.on{background:rgba(34,197,94,.15);color:#16a34a}
+.chip.test{background:rgba(245,158,11,.15);color:#d97706}
+.chip.off{background:rgba(239,68,68,.13);color:#dc2626}
+body.dark-mode .chip.on{color:#4ade80}
+body.dark-mode .chip.test{color:#fbbf24}
+body.dark-mode .chip.off{color:#f87171}
+.lnk{font-size:12px;font-weight:600;color:var(--blue);text-decoration:none;word-break:break-all}
+.lnk:hover{text-decoration:underline}
+.path{font-size:11.5px;color:var(--text-muted);font-family:ui-monospace,Consolas,monospace;
+  word-break:break-all}
+
+/* ---------- 히스토리 ---------- */
+.tl{position:relative;padding-left:26px}
+.tl::before{content:'';position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--border)}
+.tl-item{position:relative;padding:0 0 20px}
+.tl-item:last-child{padding-bottom:0}
+.tl-item::before{content:'';position:absolute;left:-23px;top:6px;width:10px;height:10px;
+  border-radius:50%;background:var(--blue);border:2px solid var(--bg-card)}
+.tl-date{font-size:11.5px;font-weight:700;color:var(--text-muted)}
+.tl-title{font-size:14px;font-weight:700;margin:1px 0 2px;padding-right:70px}
+.tl-body{font-size:12.5px;color:var(--text-secondary);white-space:pre-wrap;word-break:break-word}
+.tl-item .ca{position:absolute;top:0;right:0;display:flex;gap:3px;opacity:0;transition:.14s}
+.tl-item:hover .ca{opacity:1}
+
+/* ---------- 마스터프롬프트 ---------- */
+.pwrap{display:flex;flex-direction:column;gap:10px}
+.pmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-size:12px;color:var(--text-muted)}
+textarea.prompt{width:100%;min-height:400px;padding:16px;border-radius:12px;
+  border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);
+  font-family:ui-monospace,Consolas,'Pretendard',monospace;font-size:13px;line-height:1.7;
+  resize:vertical}
+textarea.prompt:focus{outline:2px solid var(--blue);outline-offset:-1px}
+
+/* ---------- 검색 결과 ---------- */
+.sr-group{margin-bottom:22px}
+.sr-head{font-size:13px;font-weight:800;margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.sr-item{padding:11px 14px;border:1px solid var(--border);border-radius:10px;
+  margin-bottom:7px;cursor:pointer;background:var(--bg-secondary);transition:.12s}
+.sr-item:hover{background:var(--bg-hover)}
+.sr-item .t{font-size:13.5px;font-weight:700}
+.sr-item .c{font-size:12px;color:var(--text-secondary);margin-top:2px}
+mark{background:rgba(245,158,11,.35);color:inherit;border-radius:3px;padding:0 2px}
+
+/* ---------- 공용 ---------- */
+.empty{text-align:center;padding:46px 20px;color:var(--text-muted);font-size:13.5px}
+.errbar{display:none;gap:12px;align-items:flex-start;margin:0 22px;padding:14px 18px;
+  border-radius:12px;border:1px solid var(--red);background:rgba(239,68,68,.08)}
+.errbar.show{display:flex}
+.errbar .etitle{font-weight:800;font-size:14px;margin-bottom:4px}
+.errbar .emsg{font-size:12.5px;line-height:1.5;word-break:break-all;
+  font-family:ui-monospace,Consolas,monospace;color:var(--text-secondary)}
+
 .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;
-  place-items:center;z-index:100;padding:20px}
+  place-items:center;z-index:100;padding:20px;overflow-y:auto}
 .modal-bg.open{display:grid}
-.modal{background:var(--bg-card);border-radius:16px;padding:24px;width:100%;max-width:420px;
-  box-shadow:var(--shadow-lg);border:1px solid var(--border)}
-.modal h3{font-size:17px;font-weight:800;margin-bottom:16px}
-.modal label{display:block;font-size:12px;font-weight:700;color:var(--text-secondary);
-  margin:12px 0 5px}
-.modal input,.modal select{width:100%}
+.modal{background:var(--bg-card);border-radius:16px;padding:24px;width:100%;max-width:480px;
+  box-shadow:var(--shadow-lg);border:1px solid var(--border);margin:auto}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:14px}
+.modal label{display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin:12px 0 5px}
+.modal input,.modal select,.modal textarea{width:100%;font-family:inherit;font-size:13px;
+  padding:9px 12px;border-radius:10px;border:1px solid var(--border);
+  background:var(--bg-input);color:var(--text-primary)}
+.modal textarea{min-height:96px;resize:vertical;line-height:1.6}
+.modal input:focus,.modal select:focus,.modal textarea:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
 
-/* 토스트 */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:none;
   background:var(--text-primary);color:var(--bg-card);padding:12px 22px;border-radius:999px;
   font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:200}
-.empty{text-align:center;padding:44px 20px;color:var(--text-muted);font-size:14px}
-
-/* 저장 실패 배너 — 토스트와 달리 사라지지 않습니다 */
-.errbar{display:none;gap:12px;align-items:flex-start;margin-bottom:16px;padding:14px 18px;
-  border-radius:12px;border:1px solid var(--accent-red);
-  background:rgba(239,68,68,.08);color:var(--text-primary)}
-.errbar.show{display:flex}
-.errbar .etitle{font-weight:800;font-size:14px;margin-bottom:4px}
-.errbar .emsg{font-size:13px;line-height:1.5;word-break:break-all;
-  font-family:ui-monospace,Consolas,monospace;color:var(--text-secondary)}
-.errbar .eclose{margin-left:auto;flex-shrink:0}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <div class="topbar">
-    <div>
-      <h1>🎨 브랜드 대시보드</h1>
-      <div class="sub" id="subtitle">브랜드별 성과를 한눈에</div>
-    </div>
-    <div class="top-actions">
-      <span class="store-badge" id="storeBadge"><span class="dot"></span><span id="storeText">확인 중</span></span>
-      <button class="btn" onclick="toggleDark()">🌙 테마</button>
-      <button class="btn" onclick="exportJSON()">📤 내보내기</button>
-      <button class="btn" onclick="document.getElementById('importFile').click()">📥 가져오기</button>
-      <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importJSON(event)">
-      <button class="btn primary" onclick="saveAll()">💾 저장</button>
-    </div>
+<div class="topbar">
+  <div>
+    <h1>🎨 브랜드 허브</h1>
+    <div class="sub" id="subtitle">넷폼알앤디</div>
   </div>
-
-  <div class="errbar" id="errBar">
-    <div>
-      <div class="etitle">⚠️ 저장하지 못했습니다</div>
-      <div class="emsg" id="errText"></div>
-      <div class="emsg" style="margin-top:6px;color:var(--text-muted)">
-        입력하신 내용은 이 브라우저에 임시 보관했습니다. 위 문구를 그대로 알려주세요.
-      </div>
-    </div>
-    <button class="btn sm eclose" onclick="document.getElementById('errBar').classList.remove('show')">닫기</button>
+  <div class="searchbox">
+    <span class="ico">🔍</span>
+    <input type="text" id="search" placeholder="모든 브랜드에서 검색 (자동화·히스토리·자료)"
+           oninput="onSearch(this.value)">
   </div>
-
-  <div class="toolbar">
-    <span class="field">📅 기준 월
-      <input type="month" id="monthPicker" onchange="onMonthChange()">
-    </span>
-    <span class="spacer"></span>
-    <button class="btn" onclick="openBrandModal()">＋ 브랜드 추가</button>
-    <button class="btn" onclick="openMetricModal()">＋ 지표 추가</button>
+  <span class="spacer"></span>
+  <div class="actions">
+    <span class="store-badge" id="storeBadge"><span class="dot"></span><span id="storeText">확인 중</span></span>
+    <button class="btn" title="밝게/어둡게" onclick="toggleDark()">🌙</button>
+    <button class="btn" title="파일로 내보내기 (백업)" onclick="exportJSON()">📤</button>
+    <button class="btn" title="파일에서 가져오기 (복원)" onclick="document.getElementById('importFile').click()">📥</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importJSON(event)">
+    <button class="btn primary" title="NAS에 저장 (Ctrl+S)" onclick="saveAll()">💾 저장</button>
   </div>
+</div>
 
-  <div class="section">
-    <div class="section-title">📊 이번 달 요약</div>
-    <div class="stats" id="stats"></div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">🏷️ 브랜드별 현황 <span class="hint">카드에 마우스를 올리면 수정·삭제 버튼이 나옵니다</span></div>
-    <div class="brands" id="brands"></div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">📈 추이 분석</div>
-    <div class="charts">
-      <div class="chart-box">
-        <h3>월별 추이 (최근 6개월)</h3>
-        <div class="chart-area"><canvas id="trendChart"></canvas></div>
-      </div>
-      <div class="chart-box">
-        <h3>브랜드 비교 (이번 달)</h3>
-        <div class="chart-area"><canvas id="compareChart"></canvas></div>
-      </div>
+<div class="errbar" id="errBar">
+  <div>
+    <div class="etitle">⚠️ 저장하지 못했습니다</div>
+    <div class="emsg" id="errText"></div>
+    <div class="emsg" style="margin-top:6px;color:var(--text-muted)">
+      입력하신 내용은 이 브라우저에 임시 보관했습니다. 위 문구를 그대로 알려주세요.
     </div>
   </div>
+  <button class="btn sm" style="margin-left:auto"
+          onclick="document.getElementById('errBar').classList.remove('show')">닫기</button>
+</div>
 
-  <div class="section">
-    <div class="section-title">✏️ 데이터 입력 <span class="hint">칸에 숫자를 입력하면 위 화면이 바로 바뀝니다. 다 입력한 뒤 [저장]을 누르세요</span></div>
-    <div class="table-wrap"><table id="entryTable"></table></div>
-  </div>
-
+<div class="layout">
+  <aside class="side">
+    <div class="side-title">브랜드</div>
+    <div class="brand-list" id="brandList"></div>
+    <button class="btn" style="width:100%" onclick="openBrandModal()">＋ 브랜드 추가</button>
+  </aside>
+  <main id="main"></main>
 </div>
 
 <!-- 브랜드 추가/수정 -->
 <div class="modal-bg" id="brandModal" onclick="if(event.target===this)closeModal('brandModal')">
   <div class="modal">
     <h3 id="brandModalTitle">브랜드 추가</h3>
-    <label>브랜드명</label><input type="text" id="bName" placeholder="예: 포어(POUR)">
-    <label>아이콘 (이모지 1개)</label><input type="text" id="bIcon" placeholder="예: 🧴" maxlength="4">
+    <label>브랜드명</label><input type="text" id="bName" placeholder="예: POUR공법">
+    <label>아이콘 (이모지)</label><input type="text" id="bIcon" placeholder="🏗️" maxlength="4">
     <label>담당자</label><input type="text" id="bOwner" placeholder="예: 김담당 매니저">
+    <label>한 줄 설명</label><input type="text" id="bDesc" placeholder="예: 아파트 방수 시공 공법 브랜드">
     <label>대표 색상</label>
     <select id="bColor">
       <option value="#3b82f6">파랑</option><option value="#8b5cf6">보라</option>
-      <option value="#22c55e">초록</option><option value="#f59e0b">노랑</option>
-      <option value="#ef4444">빨강</option><option value="#ec4899">핑크</option>
-      <option value="#06b6d4">청록</option><option value="#f97316">주황</option>
+      <option value="#06b6d4">청록</option><option value="#22c55e">초록</option>
+      <option value="#f97316">주황</option><option value="#ec4899">핑크</option>
+      <option value="#f59e0b">노랑</option><option value="#ef4444">빨강</option>
     </select>
-    <label>월 목표 (매출 기준, 숫자만)</label><input type="number" id="bTarget" placeholder="예: 5000">
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('brandModal')">취소</button>
       <button class="btn primary" onclick="submitBrand()">저장</button>
@@ -240,15 +253,14 @@ td input{width:110px;text-align:right}
   </div>
 </div>
 
-<!-- 지표 추가 -->
-<div class="modal-bg" id="metricModal" onclick="if(event.target===this)closeModal('metricModal')">
+<!-- 항목 추가/수정 (자동화·히스토리·자료 공용) -->
+<div class="modal-bg" id="itemModal" onclick="if(event.target===this)closeModal('itemModal')">
   <div class="modal">
-    <h3>지표 추가</h3>
-    <label>지표 이름</label><input type="text" id="mName" placeholder="예: 재구매율">
-    <label>단위</label><input type="text" id="mUnit" placeholder="예: %">
+    <h3 id="itemModalTitle">항목 추가</h3>
+    <div id="itemFields"></div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeModal('metricModal')">취소</button>
-      <button class="btn primary" onclick="submitMetric()">추가</button>
+      <button class="btn" onclick="closeModal('itemModal')">취소</button>
+      <button class="btn primary" onclick="submitItem()">저장</button>
     </div>
   </div>
 </div>
@@ -258,20 +270,17 @@ td input{width:110px;text-align:right}
 <script>
 /* =========================================================================
    저장 위치 — 자동으로 정해집니다. 손댈 필요 없습니다.
-
-   NAS 주소로 열었을 때  (http://192.168.0.37/...)  → NAS에 저장 (모두 공유)
-   파일을 더블클릭해서 열었을 때 (file:///C:/...)   → 이 브라우저에만 저장
-
-   ※ 특정 방식으로 강제하고 싶을 때만 아래를 'nas' 또는 'local'로 바꾸세요.
+   NAS 주소로 열면 (http://192.168.0.37/...) → NAS 저장 (모두 공유)
+   파일을 더블클릭해서 열면 (file:///C:/...)  → 이 브라우저에만 저장
    ========================================================================= */
 const STORAGE_MODE_SETTING = 'auto';
-
 const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   ? STORAGE_MODE_SETTING
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const LS_KEY = 'netform_brand_dashboard_v1';
+const LS_KEY  = 'netform_brand_hub_v2';
+const SCHEMA  = 2;
 
 async function storageLoad(){
   if(STORAGE_MODE === 'nas'){
@@ -284,16 +293,15 @@ async function storageLoad(){
   return raw ? JSON.parse(raw) : null;
 }
 
-async function storageSave(data){
+async function storageSave(payload){
   if(STORAGE_MODE === 'nas'){
     const res = await fetch(NAS_API.save, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(data)
+      body: JSON.stringify(payload)
     });
     const text = await res.text();
     let out = null;
     try { out = JSON.parse(text); } catch(e) { /* JSON이 아닌 응답 */ }
-
     if(out === null){
       throw new Error('서버가 예상 밖의 응답을 보냈습니다 (HTTP ' + res.status + ') → '
         + text.slice(0, 300).replace(/\s+/g, ' '));
@@ -303,213 +311,333 @@ async function storageSave(data){
     }
     return;
   }
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
+  localStorage.setItem(LS_KEY, JSON.stringify(payload));
 }
 
 function setBadge(state, text){
-  const el = document.getElementById('storeBadge');
-  el.className = 'store-badge' + (state ? ' ' + state : '');
+  document.getElementById('storeBadge').className = 'store-badge' + (state ? ' ' + state : '');
   document.getElementById('storeText').textContent = text;
 }
 
-/* ========================= 기본 데이터 ========================= */
-const DEFAULT_DATA = {
-  brands: [
-    { id:'b1', name:'브랜드 A', icon:'🧴', owner:'담당자 미지정', color:'#3b82f6', target:5000 },
-    { id:'b2', name:'브랜드 B', icon:'👕', owner:'담당자 미지정', color:'#8b5cf6', target:3000 }
-  ],
-  metrics: [
-    { id:'revenue',   name:'매출',        unit:'만원' },
-    { id:'orders',    name:'주문',        unit:'건'   },
-    { id:'adcost',    name:'광고비',      unit:'만원' },
-    { id:'followers', name:'SNS 팔로워',  unit:'명'   },
-    { id:'inquiry',   name:'문의',        unit:'건'   }
-  ],
-  entries: {},          // entries[brandId][ 'YYYY-MM' ][metricId] = 숫자
-  savedAt: null
-};
+/* ========================= 데이터 ========================= */
+const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 
-let data = JSON.parse(JSON.stringify(DEFAULT_DATA));
-let currentMonth = new Date().toISOString().slice(0,7);
-let editingBrandId = null;
-let trendChart = null, compareChart = null;
+function newBrand(name, icon, color, desc){
+  return { id: uid('b'), name, icon, color, owner:'', desc: desc || '',
+           automations:[], history:[], assets:[], masterPrompt:'', promptUpdatedAt:null };
+}
+
+function defaultData(){
+  return {
+    schema: SCHEMA,
+    brands: [
+      newBrand('POUR공법',     '🏗️', '#3b82f6', ''),
+      newBrand('아파트스퀘어',  '🏢', '#8b5cf6', ''),
+      newBrand('POUR 솔루션',  '⚙️', '#06b6d4', ''),
+      newBrand('슈어포인트',    '📍', '#22c55e', ''),
+      newBrand('단지온',       '🏘️', '#f97316', '')
+    ],
+    savedAt: null
+  };
+}
+
+/* 항목 종류 정의 — 여기에 필드를 추가하면 화면과 입력창에 자동 반영됩니다 */
+const TYPES = {
+  automations: {
+    label:'자동화', icon:'🤖', tab:'자동화 모음',
+    hint:'어떤 자동화가 돌고 있는지 기록합니다',
+    empty:'등록된 자동화가 없습니다.',
+    fields:[
+      { key:'title',  label:'이름',   type:'text',     required:true, ph:'예: 견적서 자동 생성' },
+      { key:'tool',   label:'도구',   type:'select',   options:['n8n','Make','Zapier','GPTs','Claude','스크립트','기타'] },
+      { key:'status', label:'상태',   type:'select',   options:['운영중','테스트중','중단'] },
+      { key:'url',    label:'링크',   type:'text',     ph:'https:// 또는 NAS 경로' },
+      { key:'desc',   label:'설명',   type:'textarea', ph:'무엇을 자동화하는지, 어떤 조건에서 도는지' }
+    ]
+  },
+  history: {
+    label:'히스토리', icon:'📜', tab:'브랜드 히스토리',
+    hint:'최근 일이 위로 옵니다',
+    empty:'기록된 히스토리가 없습니다.',
+    fields:[
+      { key:'date',  label:'날짜',  type:'date',     required:true },
+      { key:'title', label:'제목',  type:'text',     required:true, ph:'예: 브랜드 로고 리뉴얼' },
+      { key:'tag',   label:'분류',  type:'select',   options:['출시','리뉴얼','캠페인','계약','이슈','기타'] },
+      { key:'body',  label:'내용',  type:'textarea', ph:'무슨 일이 있었는지' }
+    ]
+  },
+  assets: {
+    label:'자료', icon:'📁', tab:'자료',
+    hint:'로고·제품자료·가이드 등의 위치를 모아둡니다',
+    empty:'등록된 자료가 없습니다.',
+    fields:[
+      { key:'title', label:'제목',  type:'text',     required:true, ph:'예: 제품 카탈로그 2026' },
+      { key:'kind',  label:'분류',  type:'select',   options:['로고/BI','제품자료','영업자료','가이드','계약/법무','기타'] },
+      { key:'url',   label:'위치',  type:'text',     ph:'https:// 또는 \\\\netformrnd\\공유폴더\\...' },
+      { key:'note',  label:'메모',  type:'textarea' }
+    ]
+  }
+};
+const TAB_KEYS = ['automations','history','assets','prompt'];
+
+let data = defaultData();
+let currentBrandId = null;
+let currentTab = 'automations';
+let searchQuery = '';
+let editing = null;   // { type, id } — 수정 중인 항목
 
 /* ========================= 유틸 ========================= */
-const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-const num = n => (Number(n) || 0).toLocaleString('ko-KR');
-
-function getVal(brandId, month, metricId){
-  return (((data.entries[brandId] || {})[month] || {})[metricId]) || 0;
-}
-function setVal(brandId, month, metricId, value){
-  data.entries[brandId] = data.entries[brandId] || {};
-  data.entries[brandId][month] = data.entries[brandId][month] || {};
-  data.entries[brandId][month][metricId] = Number(value) || 0;
-}
-function prevMonth(month, back){
-  const [y, m] = month.split('-').map(Number);
-  const d = new Date(y, m - 1 - (back || 1), 1);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0');
-}
-function sumMonth(month, metricId){
-  return data.brands.reduce((acc, b) => acc + getVal(b.id, month, metricId), 0);
-}
-function metricById(id){ return data.metrics.find(m => m.id === id); }
-
-/* ========================= 렌더링 ========================= */
-function renderAll(){
-  renderStats();
-  renderBrands();
-  renderTable();
-  renderCharts();
-}
-
-function renderStats(){
-  const prev = prevMonth(currentMonth, 1);
-  const revenue = sumMonth(currentMonth, 'revenue');
-  const revenuePrev = sumMonth(prev, 'revenue');
-  const orders = sumMonth(currentMonth, 'orders');
-  const adcost = sumMonth(currentMonth, 'adcost');
-  const roas = adcost > 0 ? (revenue / adcost * 100) : 0;
-  const target = data.brands.reduce((a,b) => a + (Number(b.target) || 0), 0);
-  const rate = target > 0 ? Math.round(revenue / target * 100) : 0;
-
-  const diff = revenuePrev > 0
-    ? Math.round((revenue - revenuePrev) / revenuePrev * 100)
-    : null;
-  const diffHtml = diff === null
-    ? '<div class="delta">전월 데이터 없음</div>'
-    : '<div class="delta ' + (diff >= 0 ? 'up' : 'down') + '">' +
-      (diff >= 0 ? '▲ ' : '▼ ') + Math.abs(diff) + '% (전월 대비)</div>';
-
-  document.getElementById('stats').innerHTML = [
-    { label:'💰 총 매출', value: num(revenue) + ' 만원', extra: diffHtml },
-    { label:'🎯 목표 달성률', value: rate + ' %',
-      extra:'<div class="delta">목표 ' + num(target) + ' 만원</div>' },
-    { label:'🛒 총 주문', value: num(orders) + ' 건',
-      extra:'<div class="delta">브랜드 ' + data.brands.length + '개 합계</div>' },
-    { label:'📣 ROAS', value: adcost > 0 ? Math.round(roas) + ' %' : '—',
-      extra:'<div class="delta">광고비 ' + num(adcost) + ' 만원</div>' }
-  ].map(s =>
-    '<div class="stat"><div class="label">' + s.label + '</div>' +
-    '<div class="value">' + s.value + '</div>' + s.extra + '</div>'
-  ).join('');
-}
-
-function renderBrands(){
-  const box = document.getElementById('brands');
-  if(!data.brands.length){
-    box.innerHTML = '<div class="empty">아직 브랜드가 없습니다. [＋ 브랜드 추가]를 눌러 시작하세요.</div>';
-    return;
-  }
-  box.innerHTML = data.brands.map(b => {
-    const revenue = getVal(b.id, currentMonth, 'revenue');
-    const target = Number(b.target) || 0;
-    const pct = target > 0 ? Math.min(Math.round(revenue / target * 100), 999) : 0;
-    const rows = data.metrics.map(m =>
-      '<div class="metric-row"><span class="m-name">' + m.name + '</span>' +
-      '<span class="m-val">' + num(getVal(b.id, currentMonth, m.id)) +
-      ' <span style="font-weight:500;color:var(--text-muted)">' + m.unit + '</span></span></div>'
-    ).join('');
-    return '<div class="brand-card" style="border-top-color:' + b.color + '">' +
-      '<div class="brand-head">' +
-        '<div class="brand-icon">' + (b.icon || '🏷️') + '</div>' +
-        '<div><div class="brand-name">' + esc(b.name) + '</div>' +
-        '<div class="brand-owner">' + esc(b.owner || '담당자 미지정') + '</div></div>' +
-        '<div class="card-actions">' +
-          '<button class="btn sm" onclick="openBrandModal(\'' + b.id + '\')">수정</button>' +
-          '<button class="btn sm danger" onclick="deleteBrand(\'' + b.id + '\')">삭제</button>' +
-        '</div>' +
-      '</div>' + rows +
-      '<div class="progress"><div class="p-top"><span>월 목표 달성률</span><span>' + pct + '%</span></div>' +
-      '<div class="bar"><div class="fill" style="width:' + Math.min(pct,100) + '%;background:' + b.color + '"></div></div></div>' +
-    '</div>';
-  }).join('');
-}
-
-function renderTable(){
-  const t = document.getElementById('entryTable');
-  if(!data.brands.length){ t.innerHTML = ''; return; }
-  const head = '<tr><th>브랜드</th>' +
-    data.metrics.map(m =>
-      '<th>' + m.name + ' (' + m.unit + ')' +
-      (['revenue','orders','adcost','followers','inquiry'].includes(m.id) ? '' :
-        ' <button class="btn sm danger" onclick="deleteMetric(\'' + m.id + '\')">×</button>') +
-      '</th>').join('') + '</tr>';
-  const body = data.brands.map(b =>
-    '<tr><td class="cell-brand">' + (b.icon || '') + ' ' + esc(b.name) + '</td>' +
-    data.metrics.map(m =>
-      '<td><input type="number" value="' + getVal(b.id, currentMonth, m.id) + '" ' +
-      'onchange="onCellChange(\'' + b.id + '\',\'' + m.id + '\',this.value)"></td>'
-    ).join('') + '</tr>'
-  ).join('');
-  t.innerHTML = head + body;
-}
-
-function renderCharts(){
-  if(typeof Chart === 'undefined'){
-    // 인터넷이 차단된 환경에서 차트 라이브러리를 못 받아온 경우
-    document.querySelectorAll('.chart-area').forEach(el => {
-      el.innerHTML = '<div class="empty">📉 차트 라이브러리를 불러오지 못했습니다.<br>' +
-        '설치 안내서의 <b>「인터넷 없는 사내망에서 차트 보이게 하기」</b> 항목을 참고하세요.<br>' +
-        '(표와 요약 숫자는 정상 동작합니다)</div>';
-    });
-    return;
-  }
-  const months = [5,4,3,2,1,0].map(i => prevMonth(currentMonth, i));
-  const labels = months.map(m => m.slice(5) + '월');
-
-  if(trendChart) trendChart.destroy();
-  trendChart = new Chart(document.getElementById('trendChart'), {
-    type:'line',
-    data:{ labels, datasets: data.brands.map(b => ({
-      label: b.name,
-      data: months.map(m => getVal(b.id, m, 'revenue')),
-      borderColor: b.color, backgroundColor: b.color + '22',
-      tension:.35, fill:true, pointRadius:3
-    }))},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, font:{ size:11 } } } },
-      scales:{ y:{ beginAtZero:true, ticks:{ callback:v => num(v) } } } }
-  });
-
-  if(compareChart) compareChart.destroy();
-  compareChart = new Chart(document.getElementById('compareChart'), {
-    type:'bar',
-    data:{ labels: data.brands.map(b => b.name),
-      datasets:[{ data: data.brands.map(b => getVal(b.id, currentMonth, 'revenue')),
-        backgroundColor: data.brands.map(b => b.color), borderRadius:8 }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:false } },
-      scales:{ y:{ beginAtZero:true, ticks:{ callback:v => num(v) } } } }
-  });
-}
-
 function esc(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g,
     c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-
-/* ========================= 이벤트 ========================= */
-function onCellChange(brandId, metricId, value){
-  setVal(brandId, currentMonth, metricId, value);
-  renderStats(); renderBrands(); renderCharts();
+function brandById(id){ return data.brands.find(b => b.id === id); }
+function currentBrand(){ return brandById(currentBrandId); }
+function isUrl(s){ return /^https?:\/\//i.test(String(s || '')); }
+function statusClass(s){
+  return s === '운영중' ? 'on' : s === '테스트중' ? 'test' : s === '중단' ? 'off' : '';
+}
+function fmtDate(d){
+  if(!d) return '';
+  const t = new Date(d);
+  return isNaN(t) ? String(d)
+    : t.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
+}
+function highlight(text, q){
+  const safe = esc(text);
+  if(!q) return safe;
+  const idx = safe.toLowerCase().indexOf(esc(q).toLowerCase());
+  if(idx < 0) return safe;
+  return safe.slice(0, idx) + '<mark>' + safe.slice(idx, idx + q.length) + '</mark>'
+       + safe.slice(idx + q.length);
 }
 
-function onMonthChange(){
-  currentMonth = document.getElementById('monthPicker').value || currentMonth;
-  renderAll();
+/* ========================= 렌더링 ========================= */
+function render(){
+  renderSidebar();
+  if(searchQuery.trim()) renderSearch();
+  else renderBrand();
 }
 
+function renderSidebar(){
+  document.getElementById('brandList').innerHTML = data.brands.map(b => {
+    const n = b.automations.length + b.history.length + b.assets.length;
+    return '<button class="brand-item' + (b.id === currentBrandId && !searchQuery ? ' on' : '') + '" '
+      + 'onclick="selectBrand(\'' + b.id + '\')">'
+      + '<span class="bar" style="background:' + b.color + '"></span>'
+      + '<span class="em">' + esc(b.icon || '🏷️') + '</span>'
+      + '<span>' + esc(b.name) + '</span>'
+      + '<span class="cnt">' + n + '</span></button>';
+  }).join('');
+}
+
+function renderBrand(){
+  const b = currentBrand();
+  const main = document.getElementById('main');
+  if(!b){
+    main.innerHTML = '<div class="panel"><div class="empty">'
+      + '왼쪽에서 브랜드를 선택하거나 새로 추가하세요.</div></div>';
+    return;
+  }
+  const counts = {
+    automations: b.automations.length,
+    history: b.history.length,
+    assets: b.assets.length,
+    prompt: (b.masterPrompt || '').trim() ? 1 : 0
+  };
+  const tabDefs = [
+    ['automations','🤖 자동화 모음'],
+    ['history','📜 히스토리'],
+    ['assets','📁 자료'],
+    ['prompt','✨ 마스터프롬프트']
+  ];
+
+  main.innerHTML =
+    '<div class="panel">'
+    + '<div class="bhead">'
+      + '<div class="icon">' + esc(b.icon || '🏷️') + '</div>'
+      + '<div><h2>' + esc(b.name) + '</h2>'
+        + '<div class="meta">' + esc(b.desc || '설명 없음')
+        + (b.owner ? ' · 담당 ' + esc(b.owner) : '') + '</div></div>'
+      + '<div class="ba">'
+        + '<button class="btn sm" onclick="openBrandModal(\'' + b.id + '\')">수정</button>'
+        + '<button class="btn sm danger" onclick="deleteBrand(\'' + b.id + '\')">삭제</button>'
+      + '</div>'
+    + '</div>'
+    + '<div class="tabs">' + tabDefs.map(([k, label]) =>
+        '<button class="tab' + (currentTab === k ? ' on' : '') + '" onclick="selectTab(\'' + k + '\')">'
+        + label + (counts[k] ? '<span class="n">' + counts[k] + '</span>' : '') + '</button>'
+      ).join('') + '</div>'
+    + '<div class="tabbody" id="tabbody"></div>'
+    + '</div>';
+
+  const body = document.getElementById('tabbody');
+  if(currentTab === 'prompt') body.innerHTML = viewPrompt(b);
+  else if(currentTab === 'history') body.innerHTML = viewHistory(b);
+  else body.innerHTML = viewCards(b, currentTab);
+}
+
+function secBar(type){
+  const t = TYPES[type];
+  return '<div class="sec-bar">'
+    + '<button class="btn primary" onclick="openItemModal(\'' + type + '\')">＋ ' + t.label + ' 추가</button>'
+    + '<span class="hint">' + t.hint + '</span></div>';
+}
+
+function viewCards(b, type){
+  const t = TYPES[type];
+  const list = b[type];
+  if(!list.length) return secBar(type) + '<div class="empty">' + t.empty + '</div>';
+
+  return secBar(type) + '<div class="cards">' + list.map(it => {
+    const bits = [];
+    if(type === 'automations'){
+      if(it.tool)   bits.push('<span class="chip">' + esc(it.tool) + '</span>');
+      if(it.status) bits.push('<span class="chip ' + statusClass(it.status) + '">' + esc(it.status) + '</span>');
+    }else{
+      if(it.kind) bits.push('<span class="chip">' + esc(it.kind) + '</span>');
+    }
+    if(it.url){
+      bits.push(isUrl(it.url)
+        ? '<a class="lnk" href="' + esc(it.url) + '" target="_blank" rel="noopener">바로가기 ↗</a>'
+        : '<span class="path">' + esc(it.url) + '</span>');
+    }
+    const text = it.desc || it.note || '';
+    return '<div class="card">'
+      + '<div class="ca">'
+        + '<button class="btn sm" onclick="openItemModal(\'' + type + '\',\'' + it.id + '\')">수정</button>'
+        + '<button class="btn sm danger" onclick="deleteItem(\'' + type + '\',\'' + it.id + '\')">삭제</button>'
+      + '</div>'
+      + '<div class="ct">' + esc(it.title) + '</div>'
+      + (bits.length ? '<div class="row">' + bits.join('') + '</div>' : '')
+      + (text ? '<div class="cd">' + esc(text) + '</div>' : '')
+      + '</div>';
+  }).join('') + '</div>';
+}
+
+function viewHistory(b){
+  const list = b.history.slice().sort((x, y) => String(y.date).localeCompare(String(x.date)));
+  if(!list.length) return secBar('history') + '<div class="empty">' + TYPES.history.empty + '</div>';
+
+  return secBar('history') + '<div class="tl">' + list.map(it =>
+    '<div class="tl-item">'
+    + '<div class="ca">'
+      + '<button class="btn sm" onclick="openItemModal(\'history\',\'' + it.id + '\')">수정</button>'
+      + '<button class="btn sm danger" onclick="deleteItem(\'history\',\'' + it.id + '\')">삭제</button>'
+    + '</div>'
+    + '<div class="tl-date">' + esc(fmtDate(it.date))
+      + (it.tag ? ' · ' + esc(it.tag) : '') + '</div>'
+    + '<div class="tl-title">' + esc(it.title) + '</div>'
+    + (it.body ? '<div class="tl-body">' + esc(it.body) + '</div>' : '')
+    + '</div>'
+  ).join('') + '</div>';
+}
+
+function viewPrompt(b){
+  const p = b.masterPrompt || '';
+  return '<div class="pwrap">'
+    + '<div class="sec-bar">'
+      + '<button class="btn primary" onclick="copyPrompt()">📋 복사</button>'
+      + '<span class="hint">AI에게 이 브랜드를 설명할 때 그대로 붙여넣는 기준 문서입니다</span>'
+    + '</div>'
+    + '<textarea class="prompt" id="promptBox" oninput="onPromptInput(this.value)" '
+      + 'placeholder="예)&#10;당신은 ' + esc(b.name) + ' 브랜드의 마케팅 담당자입니다.&#10;&#10;[브랜드 정의]&#10;- 무엇을 파는가:&#10;- 핵심 고객:&#10;- 경쟁사 대비 강점:&#10;&#10;[톤앤매너]&#10;- 말투:&#10;- 피해야 할 표현:&#10;&#10;[자주 쓰는 문구]">'
+      + esc(p) + '</textarea>'
+    + '<div class="pmeta">'
+      + '<span id="promptCount">' + p.length.toLocaleString('ko-KR') + '자</span>'
+      + (b.promptUpdatedAt
+          ? '<span>· 마지막 수정 ' + esc(new Date(b.promptUpdatedAt)
+              .toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })) + '</span>'
+          : '<span>· 아직 작성 전</span>')
+      + '<span style="margin-left:auto">수정 후 상단 [💾 저장]을 눌러야 보관됩니다</span>'
+    + '</div></div>';
+}
+
+/* ========================= 검색 ========================= */
+function renderSearch(){
+  const q = searchQuery.trim().toLowerCase();
+  const groups = [];
+
+  data.brands.forEach(b => {
+    const hits = [];
+    ['automations','history','assets'].forEach(type => {
+      b[type].forEach(it => {
+        const hay = [it.title, it.desc, it.note, it.body, it.tool, it.kind, it.tag, it.url]
+          .filter(Boolean).join(' ').toLowerCase();
+        if(hay.includes(q)) hits.push({ type, it });
+      });
+    });
+    if((b.masterPrompt || '').toLowerCase().includes(q)){
+      hits.push({ type:'prompt', it:{ title:'마스터프롬프트', body:b.masterPrompt } });
+    }
+    if(hits.length) groups.push({ b, hits });
+  });
+
+  const total = groups.reduce((a, g) => a + g.hits.length, 0);
+  const main = document.getElementById('main');
+
+  if(!total){
+    main.innerHTML = '<div class="panel"><div class="empty">'
+      + '"' + esc(searchQuery) + '" 에 대한 결과가 없습니다.</div></div>';
+    return;
+  }
+
+  main.innerHTML = '<div class="panel"><div class="tabbody">'
+    + '<div class="sec-bar"><strong>검색 결과 ' + total + '건</strong>'
+    + '<span class="hint">항목을 클릭하면 해당 브랜드로 이동합니다</span>'
+    + '<button class="btn sm" style="margin-left:auto" onclick="clearSearch()">검색 해제</button></div>'
+    + groups.map(g => '<div class="sr-group">'
+        + '<div class="sr-head"><span>' + esc(g.b.icon) + '</span>' + esc(g.b.name)
+        + '<span class="chip">' + g.hits.length + '</span></div>'
+        + g.hits.map(h => {
+            const tabKey = h.type === 'prompt' ? 'prompt' : h.type;
+            const label = h.type === 'prompt' ? '✨ 마스터프롬프트'
+                        : TYPES[h.type].icon + ' ' + TYPES[h.type].label;
+            const ctx = (h.it.desc || h.it.note || h.it.body || '').slice(0, 140);
+            return '<div class="sr-item" onclick="gotoResult(\'' + g.b.id + '\',\'' + tabKey + '\')">'
+              + '<div class="t">' + highlight(h.it.title, searchQuery) + '</div>'
+              + '<div class="c">' + label + (ctx ? ' · ' + highlight(ctx, searchQuery) : '') + '</div>'
+              + '</div>';
+          }).join('')
+        + '</div>').join('')
+    + '</div></div>';
+}
+
+function onSearch(v){ searchQuery = v; render(); }
+function clearSearch(){
+  searchQuery = '';
+  document.getElementById('search').value = '';
+  render();
+}
+function gotoResult(brandId, tab){
+  clearSearch();
+  currentBrandId = brandId;
+  currentTab = tab;
+  render();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+/* ========================= 브랜드 ========================= */
+function selectBrand(id){
+  clearSearchQuietly();
+  currentBrandId = id;
+  render();
+}
+function clearSearchQuietly(){
+  if(searchQuery){ searchQuery = ''; document.getElementById('search').value = ''; }
+}
+function selectTab(t){ currentTab = t; render(); }
+
+let editingBrandId = null;
 function openBrandModal(id){
   editingBrandId = id || null;
-  const b = id ? data.brands.find(x => x.id === id) : null;
+  const b = id ? brandById(id) : null;
   document.getElementById('brandModalTitle').textContent = b ? '브랜드 수정' : '브랜드 추가';
-  document.getElementById('bName').value   = b ? b.name : '';
-  document.getElementById('bIcon').value   = b ? (b.icon || '') : '';
-  document.getElementById('bOwner').value  = b ? (b.owner || '') : '';
-  document.getElementById('bColor').value  = b ? b.color : '#3b82f6';
-  document.getElementById('bTarget').value = b ? (b.target || '') : '';
+  document.getElementById('bName').value  = b ? b.name : '';
+  document.getElementById('bIcon').value  = b ? (b.icon || '') : '';
+  document.getElementById('bOwner').value = b ? (b.owner || '') : '';
+  document.getElementById('bDesc').value  = b ? (b.desc || '') : '';
+  document.getElementById('bColor').value = b ? b.color : '#3b82f6';
   document.getElementById('brandModal').classList.add('open');
 }
 
@@ -520,54 +648,119 @@ function submitBrand(){
     name,
     icon:  document.getElementById('bIcon').value.trim() || '🏷️',
     owner: document.getElementById('bOwner').value.trim(),
-    color: document.getElementById('bColor').value,
-    target: Number(document.getElementById('bTarget').value) || 0
+    desc:  document.getElementById('bDesc').value.trim(),
+    color: document.getElementById('bColor').value
   };
   if(editingBrandId){
-    Object.assign(data.brands.find(b => b.id === editingBrandId), payload);
+    Object.assign(brandById(editingBrandId), payload);
   }else{
-    data.brands.push(Object.assign({ id: uid('b') }, payload));
+    const b = Object.assign(newBrand(name, payload.icon, payload.color, payload.desc), payload);
+    data.brands.push(b);
+    currentBrandId = b.id;
+    currentTab = 'automations';
   }
-  closeModal('brandModal'); renderAll();
-  toast('✅ 브랜드가 반영되었습니다. [저장]을 눌러야 보관됩니다');
+  closeModal('brandModal');
+  render();
+  toast('✅ 반영되었습니다. [저장]을 눌러야 보관됩니다');
 }
 
 function deleteBrand(id){
-  const b = data.brands.find(x => x.id === id);
-  if(!confirm('"' + b.name + '" 브랜드와 입력된 모든 수치를 삭제할까요?')) return;
+  const b = brandById(id);
+  const n = b.automations.length + b.history.length + b.assets.length;
+  if(!confirm('"' + b.name + '" 브랜드를 삭제할까요?\n\n안에 있는 ' + n + '개 항목과 마스터프롬프트도 함께 사라집니다.')) return;
   data.brands = data.brands.filter(x => x.id !== id);
-  delete data.entries[id];
-  renderAll(); toast('🗑️ 삭제했습니다. [저장]을 눌러야 반영됩니다');
+  if(currentBrandId === id) currentBrandId = data.brands.length ? data.brands[0].id : null;
+  render();
+  toast('🗑️ 삭제했습니다. [저장]을 눌러야 반영됩니다');
 }
 
-function openMetricModal(){
-  document.getElementById('mName').value = '';
-  document.getElementById('mUnit').value = '';
-  document.getElementById('metricModal').classList.add('open');
+/* ========================= 항목 (자동화·히스토리·자료) ========================= */
+let itemType = null;
+function openItemModal(type, id){
+  const b = currentBrand();
+  if(!b) return;
+  itemType = type;
+  const t = TYPES[type];
+  const it = id ? b[type].find(x => x.id === id) : null;
+  editing = it ? { type, id } : null;
+
+  document.getElementById('itemModalTitle').textContent =
+    t.label + (it ? ' 수정' : ' 추가');
+
+  document.getElementById('itemFields').innerHTML = t.fields.map(f => {
+    const v = it ? (it[f.key] || '') : (f.type === 'date' ? new Date().toISOString().slice(0,10) : '');
+    const lab = '<label>' + f.label + (f.required ? ' *' : '') + '</label>';
+    if(f.type === 'select'){
+      return lab + '<select id="f_' + f.key + '">'
+        + f.options.map(o => '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>').join('')
+        + '</select>';
+    }
+    if(f.type === 'textarea'){
+      return lab + '<textarea id="f_' + f.key + '" placeholder="' + esc(f.ph || '') + '">'
+        + esc(v) + '</textarea>';
+    }
+    return lab + '<input type="' + (f.type === 'date' ? 'date' : 'text') + '" id="f_' + f.key + '" '
+      + 'value="' + esc(v) + '" placeholder="' + esc(f.ph || '') + '">';
+  }).join('');
+
+  document.getElementById('itemModal').classList.add('open');
 }
 
-function submitMetric(){
-  const name = document.getElementById('mName').value.trim();
-  if(!name){ toast('⚠️ 지표 이름을 입력해 주세요'); return; }
-  data.metrics.push({ id: uid('m'), name, unit: document.getElementById('mUnit').value.trim() || '' });
-  closeModal('metricModal'); renderAll();
-  toast('✅ 지표를 추가했습니다');
+function submitItem(){
+  const b = currentBrand();
+  const t = TYPES[itemType];
+  const payload = {};
+  for(const f of t.fields){
+    const v = document.getElementById('f_' + f.key).value.trim();
+    if(f.required && !v){ toast('⚠️ ' + f.label + '을(를) 입력해 주세요'); return; }
+    payload[f.key] = v;
+  }
+  if(editing){
+    Object.assign(b[itemType].find(x => x.id === editing.id), payload);
+  }else{
+    b[itemType].unshift(Object.assign({ id: uid('i') }, payload));
+  }
+  editing = null;
+  closeModal('itemModal');
+  render();
+  toast('✅ 반영되었습니다. [저장]을 눌러야 보관됩니다');
 }
 
-function deleteMetric(id){
-  const m = metricById(id);
-  if(!confirm('"' + m.name + '" 지표를 삭제할까요?')) return;
-  data.metrics = data.metrics.filter(x => x.id !== id);
-  Object.values(data.entries).forEach(byMonth =>
-    Object.values(byMonth).forEach(vals => delete vals[id]));
-  renderAll(); toast('🗑️ 지표를 삭제했습니다');
+function deleteItem(type, id){
+  const b = currentBrand();
+  const it = b[type].find(x => x.id === id);
+  if(!confirm('"' + it.title + '" 항목을 삭제할까요?')) return;
+  b[type] = b[type].filter(x => x.id !== id);
+  render();
+  toast('🗑️ 삭제했습니다. [저장]을 눌러야 반영됩니다');
 }
 
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+/* ========================= 마스터프롬프트 ========================= */
+function onPromptInput(v){
+  const b = currentBrand();
+  b.masterPrompt = v;
+  b.promptUpdatedAt = new Date().toISOString();
+  document.getElementById('promptCount').textContent = v.length.toLocaleString('ko-KR') + '자';
+}
+
+async function copyPrompt(){
+  const b = currentBrand();
+  const text = b.masterPrompt || '';
+  if(!text.trim()){ toast('⚠️ 아직 작성된 내용이 없습니다'); return; }
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('📋 복사했습니다 — AI 대화창에 붙여넣으세요');
+  }catch(e){
+    const box = document.getElementById('promptBox');
+    box.focus(); box.select();
+    toast('⚠️ 자동 복사가 막혀 있습니다. Ctrl+C를 눌러주세요');
+  }
+}
 
 /* ========================= 저장 / 불러오기 ========================= */
 async function saveAll(){
   data.savedAt = new Date().toISOString();
+  data.schema = SCHEMA;
   try{
     await storageSave(data);
     document.getElementById('errBar').classList.remove('show');
@@ -584,7 +777,7 @@ function exportJSON(){
   const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = '브랜드대시보드_' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = '브랜드허브_' + new Date().toISOString().slice(0,10) + '.json';
   a.click();
   URL.revokeObjectURL(a.href);
   toast('📤 파일로 내보냈습니다');
@@ -597,34 +790,57 @@ function importJSON(ev){
   reader.onload = () => {
     try{
       const parsed = JSON.parse(reader.result);
-      if(!parsed.brands || !parsed.metrics) throw new Error('형식이 맞지 않습니다');
-      if(!confirm('현재 화면의 데이터를 파일 내용으로 덮어씁니다. 계속할까요?')) return;
-      data = Object.assign(JSON.parse(JSON.stringify(DEFAULT_DATA)), parsed);
-      data.entries = data.entries || {};
-      renderAll(); toast('📥 불러왔습니다. [저장]을 눌러 보관하세요');
+      if(!Array.isArray(parsed.brands)) throw new Error('브랜드 목록이 없습니다');
+      if(!confirm('현재 내용을 파일 내용으로 덮어씁니다. 계속할까요?')) return;
+      data = normalize(parsed);
+      currentBrandId = data.brands.length ? data.brands[0].id : null;
+      render();
+      toast('📥 불러왔습니다. [저장]을 눌러 보관하세요');
     }catch(e){ toast('⚠️ 파일을 읽을 수 없습니다: ' + e.message); }
   };
   reader.readAsText(file);
   ev.target.value = '';
 }
 
+/* 예전 형식이나 필드가 빠진 데이터가 들어와도 깨지지 않게 정리합니다 */
+function normalize(raw){
+  if(!raw || !Array.isArray(raw.brands) || raw.schema !== SCHEMA){
+    const fresh = defaultData();
+    if(raw && Object.keys(raw).length) fresh._이전형식백업 = raw;  // 예전 데이터는 버리지 않음
+    return fresh;
+  }
+  raw.brands.forEach(b => {
+    b.id = b.id || uid('b');
+    b.icon = b.icon || '🏷️';
+    b.color = b.color || '#3b82f6';
+    ['automations','history','assets'].forEach(k => {
+      if(!Array.isArray(b[k])) b[k] = [];
+      b[k].forEach(it => { it.id = it.id || uid('i'); });
+    });
+    if(typeof b.masterPrompt !== 'string') b.masterPrompt = '';
+  });
+  return raw;
+}
+
 function updateSubtitle(){
   const when = data.savedAt
     ? new Date(data.savedAt).toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })
     : '아직 저장 안 됨';
-  document.getElementById('subtitle').textContent = '브랜드별 성과를 한눈에 · 마지막 저장: ' + when;
+  document.getElementById('subtitle').textContent = '넷폼알앤디 · 마지막 저장: ' + when;
 }
 
-function toggleDark(){
-  document.body.classList.toggle('dark-mode');
-  localStorage.setItem('brandDarkMode', document.body.classList.contains('dark-mode'));
-  renderCharts();
-}
+/* ========================= 공용 ========================= */
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
 function showError(msg){
   document.getElementById('errText').textContent = msg;
   document.getElementById('errBar').classList.add('show');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function toggleDark(){
+  document.body.classList.toggle('dark-mode');
+  localStorage.setItem('brandHubDark', document.body.classList.contains('dark-mode'));
 }
 
 function toast(msg){
@@ -634,25 +850,29 @@ function toast(msg){
   t._timer = setTimeout(() => t.style.display = 'none', 2800);
 }
 
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && e.key === 's'){ e.preventDefault(); saveAll(); }
+  if(e.key === 'Escape'){ closeModal('brandModal'); closeModal('itemModal'); }
+});
+
 /* ========================= 시작 ========================= */
 async function init(){
-  if(localStorage.getItem('brandDarkMode') === 'true') document.body.classList.add('dark-mode');
-  document.getElementById('monthPicker').value = currentMonth;
+  if(localStorage.getItem('brandHubDark') === 'true') document.body.classList.add('dark-mode');
 
   try{
     const loaded = await storageLoad();
-    if(loaded && loaded.brands) data = Object.assign(data, loaded);
+    if(loaded) data = normalize(loaded);
     setBadge(STORAGE_MODE === 'nas' ? 'nas' : '',
       STORAGE_MODE === 'nas' ? 'NAS 공유 저장' : '이 브라우저에만 저장');
   }catch(e){
     const raw = localStorage.getItem(LS_KEY);
-    if(raw) data = Object.assign(data, JSON.parse(raw));
+    if(raw) data = normalize(JSON.parse(raw));
     setBadge('error', 'NAS 연결 실패 — 이 브라우저 데이터 표시 중');
   }
 
-  data.entries = data.entries || {};
+  currentBrandId = data.brands.length ? data.brands[0].id : null;
   updateSubtitle();
-  renderAll();
+  render();
 }
 init();
 </script>

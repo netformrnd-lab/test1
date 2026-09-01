@@ -117,9 +117,23 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg-prima
 .card .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:9px}
 .card.done{opacity:.55}
 .card.done .ct{text-decoration:line-through}
-a.card.linkcard{display:block;text-decoration:none;color:inherit;border-left:3px solid var(--blue)}
-a.card.linkcard:hover{transform:translateY(-2px)}
-a.card.linkcard .go{color:var(--blue);font-size:12px}
+.card.linkcard{border-left:3px solid var(--blue)}
+.card.linkcard .ct{display:block;text-decoration:none;color:inherit}
+.card.linkcard .ct:hover{color:var(--blue)}
+.card.linkcard .go{color:var(--blue);font-size:12px}
+.card.linkcard.haspv{padding-top:13px}
+
+/* 미리보기 — 실제 페이지를 축소해서 보여줍니다 */
+.pvwrap{display:block;position:relative;width:100%;height:170px;margin-bottom:12px;
+  border:1px solid var(--border);border-radius:9px;overflow:hidden;
+  background:var(--bg-hover);text-decoration:none}
+.pvwrap::after{content:'클릭하면 새 탭에서 열립니다';position:absolute;left:0;right:0;bottom:0;
+  padding:5px 9px;font-size:11px;color:#fff;background:rgba(15,23,42,.72);
+  opacity:0;transition:.15s}
+.pvwrap:hover::after{opacity:1}
+.pv{width:1280px;height:800px;border:0;transform:scale(.29);transform-origin:0 0;
+  pointer-events:none;background:#fff}
+.pvmask{position:absolute;inset:0}   /* 미리보기 위를 덮어 클릭이 카드로 가게 합니다 */
 
 .chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;
   background:var(--bg-hover);color:var(--text-secondary)}
@@ -467,8 +481,9 @@ const TYPES = {
       { key:'title', label:'이름',  type:'text',   required:true, ph:'예: POUR공법 수치 대시보드' },
       { key:'kind',  label:'분류',  type:'select',
         options:['수치 대시보드','콘텐츠 발행 기록','관리자 페이지','광고/채널','기타'] },
-      { key:'url',   label:'주소',  type:'text',   required:true, ph:'https://...' },
-      { key:'desc',  label:'설명',  type:'textarea', ph:'무엇을 보는 곳인지, 언제 확인하는지' }
+      { key:'url',     label:'주소',      type:'text',   required:true, ph:'https://...' },
+      { key:'preview', label:'미리보기',  type:'select', options:['보기','안 보기'] },
+      { key:'desc',    label:'설명',      type:'textarea', ph:'무엇을 보는 곳인지, 언제 확인하는지' }
     ]
   }
 };
@@ -899,16 +914,40 @@ function viewLinks(b){
   return secBar('links') + ordered.map(([kind, items]) =>
     '<div style="margin-bottom:18px">'
     + '<div class="hsec" style="margin:0 0 9px">' + esc(kind) + '</div>'
-    + '<div class="cards">' + items.map(l =>
-        '<a class="card linkcard" href="' + esc(l.url) + '" target="_blank" rel="noopener">'
-        + '<div class="ca" onclick="event.preventDefault();event.stopPropagation()">'
+    + '<div class="cards">' + items.map(l => {
+        const show = l.preview !== '안 보기' && isUrl(l.url);
+        return '<div class="card linkcard' + (show ? ' haspv' : '') + '">'
+        + '<div class="ca">'
+          + (show ? '<button class="btn sm" title="미리보기 새로고침" '
+                    + 'onclick="reloadPreview(\'' + l.id + '\')">↻</button>' : '')
           + '<button class="btn sm" onclick="openItemModal(\'links\',\'' + l.id + '\')">수정</button>'
           + '<button class="btn sm danger" onclick="deleteItem(\'links\',\'' + l.id + '\')">삭제</button>'
         + '</div>'
-        + '<div class="ct">' + esc(l.title) + ' <span class="go">↗</span></div>'
+        + (show
+            ? '<a class="pvwrap" href="' + esc(l.url) + '" target="_blank" rel="noopener" '
+              + 'title="클릭하면 새 탭에서 열립니다">'
+              + '<iframe class="pv" id="pv_' + l.id + '" src="' + esc(l.url) + '" '
+                + 'loading="lazy" sandbox="allow-scripts allow-same-origin" '
+                + 'referrerpolicy="no-referrer" scrolling="no" tabindex="-1"></iframe>'
+              + '<span class="pvmask"></span></a>'
+            : '')
+        + '<a class="ct" href="' + esc(l.url) + '" target="_blank" rel="noopener">'
+          + esc(l.title) + ' <span class="go">↗</span></a>'
         + (l.desc ? '<div class="cd">' + esc(l.desc) + '</div>' : '')
-        + '<div class="fmeta" style="margin-top:8px">' + esc(l.url.replace(/^https?:\/\//,'').slice(0,60)) + '</div>'
-        + '</a>').join('') + '</div></div>').join('');
+        + '<div class="fmeta" style="margin-top:8px">'
+          + esc(l.url.replace(/^https?:\/\//,'').slice(0,60)) + '</div>'
+        + '</div>';
+      }).join('') + '</div></div>').join('')
+    + '<div class="fmeta" style="margin-top:14px">'
+      + '미리보기가 빈 화면으로 나오면 그 사이트가 외부 표시를 막아둔 것입니다. '
+      + '(네이버·구글 애널리틱스 등) 이때는 수정에서 미리보기를 「안 보기」로 바꿔주세요.'
+      + '</div>';
+}
+
+function reloadPreview(id){
+  const f = document.getElementById('pv_' + id);
+  if(f) f.src = f.src;   // 같은 주소를 다시 넣어 새로 불러옵니다
+  toast('↻ 미리보기를 새로 불러옵니다');
 }
 
 function viewHistory(b){

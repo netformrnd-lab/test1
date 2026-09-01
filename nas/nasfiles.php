@@ -52,6 +52,8 @@ if ($action === 'check') {
         '목록크기' => is_file($FILE) ? human(filesize($FILE)) : '-',
         '만든시각' => is_file($FILE) ? date('c', filemtime($FILE)) : null,
         '훑은폴더' => is_file($ROOT_FILE) ? trim(file_get_contents($ROOT_FILE)) : '기록 없음',
+        '다음에훑을폴더' => is_file(__DIR__ . '/data/scanroot.txt')
+            ? trim(file_get_contents(__DIR__ . '/data/scanroot.txt')) : '(기본값)',
     ]);
 }
 
@@ -155,6 +157,90 @@ if ($action === 'under') {
 
     jout(['ok' => true, 'matched' => $matched, 'shown' => count($hits),
           'totalSize' => human($bytes), 'results' => $hits]);
+}
+
+/* ---------------- 폴더 탐색 (탐색기처럼) ---------------- */
+if ($action === 'browse') {
+    if (!is_file($FILE)) jout(['ok' => false, 'error' => '파일 목록이 아직 없습니다'], 404);
+
+    $dir = rtrim(trim($_GET['dir'] ?? ''), '/');
+    if ($dir === '') {
+        $dir = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
+    }
+    if ($dir === '') jout(['ok' => false, 'error' => '폴더를 지정해 주세요'], 400);
+
+    $fp = fopen($FILE, 'r');
+    if (!$fp) jout(['ok' => false, 'error' => '목록을 열지 못했습니다'], 500);
+
+    $prefix   = $dir . '/';
+    $preLen   = strlen($prefix);
+    $folders  = [];   // 바로 아래 하위 폴더
+    $files    = [];   // 바로 아래 파일
+    $totalIn  = 0;    // 이 폴더 아래 전체 파일 수
+
+    while (($line = fgets($fp)) !== false) {
+        $p = explode("\t", rtrim($line, "\r\n"), 3);
+        if (count($p) < 3) continue;
+        [$date, $size, $path] = $p;
+        if (strncmp($path, $prefix, $preLen) !== 0) continue;
+
+        $totalIn++;
+        $rest = substr($path, $preLen);
+        $slash = strpos($rest, '/');
+
+        if ($slash === false) {
+            $files[] = [
+                'name' => $rest,
+                'path' => $path,
+                'date' => $date,
+                'size' => human((int)$size),
+                'ext'  => strtolower(pathinfo($rest, PATHINFO_EXTENSION)),
+            ];
+        } else {
+            $sub = substr($rest, 0, $slash);
+            if (!isset($folders[$sub])) $folders[$sub] = ['count' => 0, 'bytes' => 0];
+            $folders[$sub]['count']++;
+            $folders[$sub]['bytes'] += (int)$size;
+        }
+    }
+    fclose($fp);
+
+    $folderList = [];
+    foreach ($folders as $name => $v) {
+        $folderList[] = ['name' => $name, 'path' => $dir . '/' . $name,
+                         'count' => $v['count'], 'size' => human($v['bytes'])];
+    }
+    usort($folderList, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
+    usort($files, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
+
+    $root = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
+    jout([
+        'ok'      => true,
+        'dir'     => $dir,
+        'root'    => $root,
+        'parent'  => ($root !== '' && $dir !== $root) ? dirname($dir) : null,
+        'total'   => $totalIn,
+        'folders' => $folderList,
+        'files'   => array_slice($files, 0, 500),
+        'fileCount' => count($files),
+    ]);
+}
+
+/* ---------------- 훑을 폴더 바꾸기 ---------------- */
+if ($action === 'setroot') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
+    $in  = json_decode(file_get_contents('php://input'), true) ?: [];
+    $dir = rtrim(trim($in['dir'] ?? ''), '/');
+    if ($dir === '' || $dir[0] !== '/') {
+        jout(['ok' => false, 'error' => '/ 로 시작하는 폴더 경로를 넣어주세요'], 400);
+    }
+    if (!is_dir($dir)) jout(['ok' => false, 'error' => '그런 폴더가 없습니다: ' . $dir], 400);
+    if (!is_dir(__DIR__ . '/data') && !@mkdir(__DIR__ . '/data', 0775, true)) {
+        jout(['ok' => false, 'error' => 'data 폴더를 만들 수 없습니다'], 500);
+    }
+    file_put_contents(__DIR__ . '/data/scanroot.txt', $dir);
+    jout(['ok' => true, '훑을폴더' => $dir,
+          '다음' => '작업 스케줄러에서 scan.sh 를 다시 실행해 주세요']);
 }
 
 /* ---------------- 있는 자리에서 바로 내려받기 ---------------- */

@@ -9,8 +9,14 @@
 #   sh /volume1/web/brand/scan.sh
 #
 
-ROOT="${ROOT:-/volume1/넷폼알앤디 공유폴더}"
 TARGET="${TARGET:-/volume1/web/brand}"
+
+# 훑을 폴더: 대시보드에서 지정했으면 그 값을, 없으면 기본값을 씁니다.
+# (대시보드 → 🗂️ NAS 자료 → 훑을 폴더 바꾸기)
+if [ -z "$ROOT" ] && [ -f "$TARGET/data/scanroot.txt" ]; then
+    ROOT=$(cat "$TARGET/data/scanroot.txt")
+fi
+ROOT="${ROOT:-/volume1/넷폼알앤디 공유폴더}"
 OUT="$TARGET/data/nasfiles.tsv"
 TMP="$OUT.tmp"
 LOG="$TARGET/scan.log"

@@ -200,6 +200,48 @@ mark{background:rgba(245,158,11,.35);color:inherit;border-radius:3px;padding:0 2
 .recent .rb{font-size:11.5px;color:var(--text-muted);margin-left:auto;white-space:nowrap}
 .hsec{font-size:14px;font-weight:800;margin:24px 0 11px}
 
+/* 수치 */
+.delta{font-size:11.5px;font-weight:700}
+.delta.up{color:var(--green)} .delta.down{color:var(--red)}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.mbox{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--bg-secondary)}
+.mh{font-size:13px;font-weight:800;margin-bottom:10px;display:flex;align-items:baseline;gap:7px}
+.mhs{font-size:11.5px;font-weight:500;color:var(--text-muted)}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar-row{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.bar-row .bl{width:88px;flex-shrink:0;color:var(--text-secondary);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .bt{flex:1;height:8px;border-radius:99px;background:var(--bg-hover);overflow:hidden}
+.bar-row .bf{display:block;height:100%;border-radius:99px;background:var(--blue)}
+.bar-row .bv{width:44px;text-align:right;font-weight:700;flex-shrink:0}
+.klist{display:flex;flex-direction:column;gap:2px}
+.krow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
+  padding:4px 0;border-bottom:1px dashed var(--border);color:var(--text-secondary)}
+.krow:last-child{border-bottom:none}
+.krow strong{color:var(--text-primary)}
+
+/* 월별 추이 막대 */
+.trend{display:flex;gap:5px;align-items:flex-end;height:150px;padding:0 2px;
+  border-bottom:1px solid var(--border)}
+.tcol{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:2px;
+  height:100%;position:relative;min-width:0}
+.tcol .ts,.tcol .ti{width:8px;border-radius:3px 3px 0 0;min-height:2px}
+.tcol .ts{background:var(--blue);opacity:.55}
+.tcol .ti{background:var(--orange)}
+.tcol .tl{position:absolute;bottom:-19px;left:0;right:0;text-align:center;
+  font-size:10.5px;color:var(--text-muted)}
+.legend{display:flex;align-items:center;gap:6px;font-size:11.5px;
+  color:var(--text-secondary);margin-top:26px}
+.lg{display:inline-block;width:10px;height:10px;border-radius:3px}
+.lg.s{background:var(--blue);opacity:.55} .lg.i{background:var(--orange);margin-left:10px}
+
+/* 홈 카드 안의 수치 */
+.hcard .nums{display:flex;gap:14px;margin-top:10px;padding-top:10px;
+  border-top:1px dashed var(--border)}
+.hcard .nums .n{font-size:12px;color:var(--text-muted)}
+.hcard .nums .n b{display:block;font-size:17px;font-weight:800;color:var(--text-primary);
+  letter-spacing:-.02em}
+
 /* 파일 업로드 영역 */
 .drop{border:2px dashed var(--border-light);border-radius:14px;padding:26px 20px;
   text-align:center;transition:.15s;margin-bottom:16px;background:var(--bg-secondary)}
@@ -473,7 +515,7 @@ const TYPES = {
   }
 };
 const ITEM_KEYS = ['automations','history','assets','tasks','links'];
-const TAB_KEYS  = ['automations','history','assets','tasks','links','prompt'];
+const TAB_KEYS  = ['automations','history','assets','tasks','links','metrics','prompt'];
 
 let data = defaultData();
 let currentBrandId = null;
@@ -545,8 +587,13 @@ function renderHome(){
   const files = bs.reduce((a, b) => a + b.assets.filter(x => x.fileId).length, 0);
 
   const openTasks = bs.reduce((a, b) => a + b.tasks.filter(t => t.status !== '완료').length, 0);
+  const withMetrics = bs.filter(b => b.metrics);
+  const totalInq = withMetrics.reduce((a, b) => {
+    const s = metricSummary(b.metrics); return a + (s && s.year ? s.year.inquiries : 0);
+  }, 0);
   const stats = [
-    { lab:'🏷️ 브랜드', val: bs.length, sub:'개' },
+    { lab:'📮 올해 문의', val: totalInq.toLocaleString('ko-KR'),
+      sub: '건 · 수치 연결 ' + withMetrics.length + '/' + bs.length + '개 브랜드' },
     { lab:'✅ 할 일',  val: openTasks, sub: '남음 · 전체 ' + all('tasks') + '개' },
     { lab:'🤖 자동화', val: running, sub: '운영 중 · 전체 ' + all('automations') + '개' },
     { lab:'📁 자료',   val: all('assets'), sub: '파일 ' + files + '개 · 프롬프트 '
@@ -561,6 +608,18 @@ function renderHome(){
       + '<span class="nm">' + esc(b.name) + '</span></div>'
     + '<div class="ds">' + esc(b.desc || '설명이 아직 없습니다')
       + (b.owner ? ' · ' + esc(b.owner) : '') + '</div>'
+    + (function(){
+        const s = metricSummary(b.metrics);
+        if(!s) return '';
+        const lm = s.lastMonth || { inquiries:0, sessions:0, id:'' };
+        return '<div class="nums">'
+          + '<div class="n"><b>' + (s.year ? s.year.inquiries : 0) + '</b>올해 문의 '
+            + diffTag(s.inquiryDiff) + '</div>'
+          + '<div class="n"><b>' + (s.year ? s.year.sessions.toLocaleString('ko-KR') : 0) + '</b>올해 세션 '
+            + diffTag(s.sessionDiff) + '</div>'
+          + '<div class="n"><b>' + lm.inquiries + '</b>' + esc(lm.id) + ' 문의</div>'
+          + '</div>';
+      })()
     + '<div class="cnts">'
       + '<span class="chip">🤖 ' + b.automations.length + '</span>'
       + '<span class="chip">📜 ' + b.history.length + '</span>'
@@ -603,6 +662,8 @@ function renderHome(){
       todos.push(['📜', b, 'history', '여정 기록이 없습니다']);
     if(!b.assets.length)
       todos.push(['📁', b, 'assets', '등록된 자료가 없습니다']);
+    if(!b.metrics)
+      todos.push(['📊', b, 'metrics', '수치가 연결되지 않았습니다']);
   });
 
   const todoHtml = todos.length
@@ -659,11 +720,13 @@ function renderBrand(){
     automations: b.automations.length,
     history: b.history.length,
     assets: b.assets.length,
+    metrics: b.metrics ? 1 : 0,
     tasks: b.tasks.filter(t => t.status !== '완료').length,
     links: b.links.length,
     prompt: (b.masterPrompt || '').trim() ? 1 : 0
   };
   const tabDefs = [
+    ['metrics','📊 수치'],
     ['automations','🤖 자동화 모음'],
     ['history','📜 히스토리'],
     ['tasks','✅ 할 일'],
@@ -695,6 +758,7 @@ function renderBrand(){
   if(currentTab === 'prompt') body.innerHTML = viewPrompt(b);
   else if(currentTab === 'history') body.innerHTML = viewHistory(b);
   else if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
+  else if(currentTab === 'metrics') { body.innerHTML = viewMetrics(b); bindMetricsInput(); }
   else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
   else if(currentTab === 'links') body.innerHTML = viewLinks(b);
   else body.innerHTML = viewCards(b, currentTab);
@@ -832,6 +896,221 @@ function viewAssets(b){
 function statusChip(st){
   const map = { '진행 중':'test', '성공':'on', '실패':'off', '중단':'off', '보류':'' };
   return st ? '<span class="chip ' + (map[st] || '') + '">' + esc(st) + '</span>' : '';
+}
+
+/* ========================= 수치 =========================
+   외부 PM 워크스페이스에서 내보낸 백업 JSON을 읽어 요약해 둡니다.
+   원본 파일은 보관하지 않고 필요한 숫자만 추려서 저장합니다.
+   (비밀번호 같은 설정값은 저장하지 않습니다)
+   ======================================================== */
+function parseMetricsFile(raw){
+  if(!raw || raw._app !== 'aptsquare-pm')
+    throw new Error('알 수 없는 형식입니다. PM 워크스페이스의 [설정 · 백업]에서 내보낸 파일을 올려주세요.');
+
+  const num = v => Number(v) || 0;
+  const monthly = (raw.metrics_monthly || [])
+    .map(m => ({ id:m.id, year:m.year, month:m.month, sessions:num(m.sessions), inquiries:num(m.inquiries) }))
+    .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+    .slice(-24);
+  const yearly = (raw.metrics_yearly || [])
+    .map(y => ({ year:y.year, sessions:num(y.sessions), inquiries:num(y.inquiries) }))
+    .sort((a, b) => a.year - b.year);
+
+  const breakdown = {};
+  (raw.inquiry_breakdown || []).forEach(x => {
+    (breakdown[x.kind] = breakdown[x.kind] || []).push({ label:x.label, count:num(x.count) });
+  });
+
+  // 채널별 가장 최근 달의 수치만 추립니다
+  const kpis = (raw.channel_kpis || []).slice().sort((a, b) =>
+    (a.year - b.year) || (a.month - b.month));
+  const channels = (raw.channels || []).map(c => {
+    const last = kpis.filter(k => k.channelId === c.id).pop();
+    const flat = [];
+    if(last) Object.values(last.values || {}).forEach(grp =>
+      Object.entries(grp).forEach(([k, v]) => flat.push({
+        name: k.replace(/\s*\([^)]*\)\s*$/, ''), value: num(v)   // "(GA4)" 같은 출처 표기는 뗍니다
+      })));
+    return { name:c.name, tool:c.tool || '',
+             period: last ? last.year + '-' + String(last.month).padStart(2,'0') : '',
+             items: flat.slice(0, 5) };
+  }).filter(c => c.items.length);
+
+  const contents = {};
+  (raw.channel_contents || []).forEach(c => { contents[c.channelId] = (contents[c.channelId] || 0) + 1; });
+  const recent = (raw.channel_contents || [])
+    .slice().sort((a, b) => String(b.publishDate).localeCompare(String(a.publishDate)))
+    .slice(0, 5)
+    .map(c => ({ channel:c.channelId, date:c.publishDate, title:c.title, link:c.link || '' }));
+
+  const goal = (raw.goals || []).find(g => g.level === 'brand');
+
+  return {
+    source: raw._app,
+    exportedAt: raw._exportedAt || null,
+    importedAt: new Date().toISOString(),
+    goal: goal ? goal.text : '',
+    yearly, monthly, breakdown, channels,
+    contentCounts: contents, recentContents: recent
+  };
+}
+
+/* 홈과 수치 탭이 함께 쓰는 요약값
+   올해가 아직 진행 중이면 작년 전체와 비교하는 것은 맞지 않으므로,
+   작년 "같은 기간"까지만 더해서 비교합니다. */
+function metricSummary(m){
+  if(!m || !m.monthly || !m.monthly.length) return null;
+
+  const last = m.monthly[m.monthly.length - 1];
+  const curYear  = last.year;
+  const upToMon  = last.month;
+
+  const sum = (year, maxMonth) => m.monthly
+    .filter(x => x.year === year && x.month <= maxMonth)
+    .reduce((a, x) => ({ sessions: a.sessions + x.sessions,
+                         inquiries: a.inquiries + x.inquiries }),
+            { sessions:0, inquiries:0 });
+
+  const cur  = Object.assign({ year: curYear },     sum(curYear, upToMon));
+  const prevRaw = sum(curYear - 1, upToMon);
+  const hasPrev = m.monthly.some(x => x.year === curYear - 1);
+  const prev = hasPrev ? Object.assign({ year: curYear - 1 }, prevRaw) : null;
+
+  const rate = (a, b) => (b > 0 ? Math.round((a - b) / b * 100) : null);
+  return {
+    lastMonth: last,
+    year: cur, prevYear: prev,
+    upToMonth: upToMon,
+    partial: upToMon < 12,
+    inquiryDiff: prev ? rate(cur.inquiries, prev.inquiries) : null,
+    sessionDiff: prev ? rate(cur.sessions, prev.sessions) : null
+  };
+}
+
+function diffTag(v){
+  if(v === null || v === undefined) return '';
+  const up = v >= 0;
+  return '<span class="delta ' + (up ? 'up' : 'down') + '">'
+       + (up ? '▲' : '▼') + Math.abs(v) + '%</span>';
+}
+
+function bars(items, valueKey){
+  const max = Math.max(...items.map(x => x[valueKey] || 0), 1);
+  return '<div class="bars">' + items.map(x =>
+    '<div class="bar-row"><span class="bl">' + esc(x.label || x.name) + '</span>'
+    + '<span class="bt"><span class="bf" style="width:' + Math.round((x[valueKey] || 0) / max * 100) + '%"></span></span>'
+    + '<span class="bv">' + (x[valueKey] || 0).toLocaleString('ko-KR') + '</span></div>').join('') + '</div>';
+}
+
+function viewMetrics(b){
+  const upload = '<div class="sec-bar">'
+    + '<button class="btn primary" onclick="document.getElementById(\'metricsInput\').click()">'
+      + '📊 수치 파일 올리기</button>'
+    + '<input type="file" id="metricsInput" accept="application/json,.json" style="display:none">'
+    + (b.metrics ? '<button class="btn danger" onclick="clearMetrics()">연결 해제</button>' : '')
+    + '<span class="hint">PM 워크스페이스 → 설정 · 백업 → 내보내기 한 JSON 파일을 올려주세요</span>'
+    + '</div>';
+
+  if(!b.metrics){
+    return upload + '<div class="empty">아직 연결된 수치가 없습니다.<br>'
+      + '백업 파일을 올리면 이 브랜드의 숫자가 홈과 여기에 표시됩니다.</div>';
+  }
+
+  const m = b.metrics, s = metricSummary(m);
+  const lm = s.lastMonth || { id:'-', sessions:0, inquiries:0 };
+  const cur = s.year || { year:'-', sessions:0, inquiries:0 };
+
+  const span = s.partial ? '1~' + s.upToMonth + '월' : '연간';
+  const prevLab = s.prevYear ? '작년 ' + span + ' ' : '';
+  const tiles = [
+    { lab:'📮 올해 문의 (' + span + ')', val: cur.inquiries.toLocaleString('ko-KR') + ' 건',
+      sub: s.prevYear ? prevLab + s.prevYear.inquiries + '건 ' + diffTag(s.inquiryDiff)
+                      : '비교할 작년 데이터 없음' },
+    { lab:'👥 올해 세션 (' + span + ')', val: cur.sessions.toLocaleString('ko-KR'),
+      sub: s.prevYear ? prevLab + s.prevYear.sessions.toLocaleString('ko-KR') + ' ' + diffTag(s.sessionDiff)
+                      : '비교할 작년 데이터 없음' },
+    { lab:'📅 ' + lm.id, val: lm.inquiries + ' 건',
+      sub: '세션 ' + lm.sessions.toLocaleString('ko-KR') + ' · 가장 최근 달' },
+    { lab:'🎯 브랜드 목표', val: '—', sub: esc(m.goal || '설정 안 됨') }
+  ].map(x => '<div class="stat"><div class="lab">' + x.lab + '</div>'
+    + '<div class="val">' + x.val + '</div><div class="sub">' + x.sub + '</div></div>').join('');
+
+  // 월별 추이 (최근 12개월)
+  const mon = m.monthly.slice(-12);
+  const maxS = Math.max(...mon.map(x => x.sessions), 1);
+  const maxI = Math.max(...mon.map(x => x.inquiries), 1);
+  const trend = '<div class="trend">' + mon.map(x =>
+    '<div class="tcol" title="' + x.id + ' · 세션 ' + x.sessions + ' · 문의 ' + x.inquiries + '">'
+    + '<span class="ts" style="height:' + Math.round(x.sessions / maxS * 100) + '%"></span>'
+    + '<span class="ti" style="height:' + Math.round(x.inquiries / maxI * 100) + '%"></span>'
+    + '<span class="tl">' + x.month + '</span></div>').join('') + '</div>'
+    + '<div class="legend"><span class="lg s"></span>세션 <span class="lg i"></span>문의'
+    + '<span style="margin-left:auto;color:var(--text-muted)">최근 12개월</span></div>';
+
+  const kindLabel = { work:'공종별', customer:'고객 유형별', channel:'유입 경로별', status:'진행 상태별' };
+  const breakdown = Object.entries(m.breakdown || {}).map(([k, items]) =>
+    '<div class="mbox"><div class="mh">' + (kindLabel[k] || k) + '</div>'
+    + bars(items.slice().sort((a, b) => b.count - a.count), 'count') + '</div>').join('');
+
+  const channels = (m.channels || []).map(c =>
+    '<div class="mbox"><div class="mh">' + esc(c.name)
+    + '<span class="mhs">' + esc(c.tool) + (c.period ? ' · ' + esc(c.period) : '') + '</span></div>'
+    + '<div class="klist">' + c.items.map(i =>
+        '<div class="krow"><span>' + esc(i.name) + '</span><strong>'
+        + i.value.toLocaleString('ko-KR') + '</strong></div>').join('')
+    + '</div></div>').join('');
+
+  const cc = Object.entries(m.contentCounts || {}).sort((a, b) => b[1] - a[1]);
+  const contents = '<div class="mbox"><div class="mh">발행 내역'
+    + '<span class="mhs">전체 ' + cc.reduce((a, x) => a + x[1], 0) + '건</span></div>'
+    + '<div class="row" style="margin:0 0 10px">' + cc.map(([k, v]) =>
+        '<span class="chip">' + esc(k) + ' ' + v + '</span>').join('') + '</div>'
+    + (m.recentContents || []).map(r =>
+        '<div class="krow"><span>' + esc(r.date) + ' · ' + esc(r.channel) + '</span>'
+        + (r.link ? '<a class="lnk" href="' + esc(r.link) + '" target="_blank" rel="noopener">'
+                    + esc(r.title.slice(0, 30)) + ' ↗</a>'
+                  : '<span>' + esc(r.title.slice(0, 30)) + '</span>') + '</div>').join('')
+    + '</div>';
+
+  const when = m.exportedAt
+    ? new Date(m.exportedAt).toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })
+    : '알 수 없음';
+
+  return upload
+    + '<div class="stats">' + tiles + '</div>'
+    + '<div class="hsec">📈 월별 추이</div>' + trend
+    + '<div class="hsec">📮 문의 분해</div><div class="mgrid">' + breakdown + '</div>'
+    + '<div class="hsec">📡 채널별 최근 수치</div><div class="mgrid">' + channels + '</div>'
+    + '<div class="hsec">✍️ 콘텐츠</div>' + contents
+    + '<div class="fmeta" style="margin-top:14px">원본 내보낸 시각: ' + esc(when)
+    + ' · 새 백업 파일을 올리면 갱신됩니다</div>';
+}
+
+function bindMetricsInput(){
+  const inp = document.getElementById('metricsInput');
+  if(!inp || inp._bound) return;
+  inp._bound = true;
+  inp.addEventListener('change', () => {
+    const f = inp.files[0]; inp.value = '';
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try{
+        const parsed = parseMetricsFile(JSON.parse(r.result));
+        currentBrand().metrics = parsed;
+        render(); markDirty();
+        toast('📊 수치를 연결했습니다');
+      }catch(e){ showError('수치 파일을 읽지 못했습니다: ' + e.message); }
+    };
+    r.readAsText(f);
+  });
+}
+
+function clearMetrics(){
+  if(!confirm('연결된 수치를 지울까요?\n\n원본 파일은 그대로 있고, 대시보드의 숫자만 사라집니다.')) return;
+  delete currentBrand().metrics;
+  render(); markDirty();
+  toast('🗑️ 연결을 해제했습니다');
 }
 
 function viewTasks(b){

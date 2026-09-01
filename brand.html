@@ -136,6 +136,10 @@ body.dark-mode .chip.off{color:#f87171}
 .tl-date{font-size:11.5px;font-weight:700;color:var(--text-muted)}
 .tl-title{font-size:14px;font-weight:700;margin:1px 0 2px;padding-right:70px}
 .tl-body{font-size:12.5px;color:var(--text-secondary);white-space:pre-wrap;word-break:break-word}
+.jblock{margin-top:8px}
+.jlabel{font-size:11px;font-weight:800;color:var(--text-muted);letter-spacing:.03em}
+.jtext{font-size:13px;color:var(--text-secondary);white-space:pre-wrap;word-break:break-word;margin-top:1px}
+.tl-item .ca{gap:3px}
 .tl-item .ca{position:absolute;top:0;right:0;display:flex;gap:3px;opacity:0;transition:.14s}
 .tl-item:hover .ca{opacity:1}
 
@@ -161,6 +165,32 @@ mark{background:rgba(245,158,11,.35);color:inherit;border-radius:3px;padding:0 2
 
 /* ---------- 공용 ---------- */
 .empty{text-align:center;padding:46px 20px;color:var(--text-muted);font-size:13.5px}
+
+/* 홈 화면 */
+.home-item{margin-bottom:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px}
+.stat{border:1px solid var(--border);border-radius:13px;padding:15px 17px;background:var(--bg-secondary)}
+.stat .lab{font-size:12px;font-weight:600;color:var(--text-secondary)}
+.stat .val{font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
+.stat .sub{font-size:11.5px;color:var(--text-muted)}
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.hcard{border:1px solid var(--border);border-radius:13px;padding:16px 18px;cursor:pointer;
+  background:var(--bg-secondary);transition:.14s;border-top:3px solid var(--blue)}
+.hcard:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.hcard .top{display:flex;align-items:center;gap:10px}
+.hcard .em{font-size:21px}
+.hcard .nm{font-size:15px;font-weight:800}
+.hcard .ds{font-size:12.5px;color:var(--text-muted);margin-top:5px;min-height:19px}
+.hcard .cnts{display:flex;gap:5px;flex-wrap:wrap;margin-top:11px}
+.todo{border:1px solid var(--border);border-radius:13px;padding:15px 18px;background:var(--bg-secondary)}
+.todo .ti{display:flex;align-items:center;gap:9px;font-size:13px;padding:5px 0;cursor:pointer}
+.todo .ti:hover{color:var(--blue)}
+.recent .ri{display:flex;align-items:center;gap:9px;font-size:13px;padding:7px 0;
+  border-bottom:1px dashed var(--border);cursor:pointer}
+.recent .ri:last-child{border-bottom:none}
+.recent .ri:hover{color:var(--blue)}
+.recent .rb{font-size:11.5px;color:var(--text-muted);margin-left:auto;white-space:nowrap}
+.hsec{font-size:14px;font-weight:800;margin:24px 0 11px}
 
 /* 파일 업로드 영역 */
 .drop{border:2px dashed var(--border-light);border-radius:14px;padding:26px 20px;
@@ -242,6 +272,10 @@ mark{background:rgba(245,158,11,.35);color:inherit;border-radius:3px;padding:0 2
 
 <div class="layout">
   <aside class="side">
+    <button class="brand-item home-item" id="homeBtn" onclick="goHome()">
+      <span class="bar" style="background:var(--text-muted)"></span>
+      <span class="em">🏠</span><span>홈</span>
+    </button>
     <div class="side-title">브랜드</div>
     <div class="brand-list" id="brandList"></div>
     <button class="btn" style="width:100%" onclick="openBrandModal()">＋ 브랜드 추가</button>
@@ -374,14 +408,21 @@ const TYPES = {
     ]
   },
   history: {
-    label:'히스토리', icon:'📜', tab:'브랜드 히스토리',
-    hint:'최근 일이 위로 옵니다',
-    empty:'기록된 히스토리가 없습니다.',
+    label:'여정', icon:'📜', tab:'브랜드 히스토리',
+    hint:'무엇을 시도했고, 왜 했고, 어떻게 됐는지 — 위에서 아래로 시간 순입니다',
+    empty:'아직 기록된 여정이 없습니다. 첫 시도부터 적어보세요.',
     fields:[
-      { key:'date',  label:'날짜',  type:'date',     required:true },
-      { key:'title', label:'제목',  type:'text',     required:true, ph:'예: 브랜드 로고 리뉴얼' },
-      { key:'tag',   label:'분류',  type:'select',   options:['출시','리뉴얼','캠페인','계약','이슈','기타'] },
-      { key:'body',  label:'내용',  type:'textarea', ph:'무슨 일이 있었는지' }
+      { key:'title',  label:'무엇을 했나', type:'text',     required:true,
+        ph:'예: 정기구독 모델로 전환 시도' },
+      { key:'status', label:'결과',        type:'select',
+        options:['진행 중','성공','실패','중단','보류'] },
+      { key:'period', label:'시기 (선택)', type:'text',     ph:'예: 2024년 하반기 · 초기 · 작년 봄' },
+      { key:'why',    label:'왜 했나',     type:'textarea',
+        ph:'어떤 문제를 풀려고 했는지, 어떤 판단이었는지' },
+      { key:'result', label:'어떻게 됐나', type:'textarea',
+        ph:'실제로 어떤 일이 일어났는지. 숫자가 있으면 함께' },
+      { key:'next',   label:'그래서 다음은', type:'textarea',
+        ph:'여기서 배운 것, 그래서 지금은 무엇을 하고 있는지' }
     ]
   },
   assets: {
@@ -433,8 +474,18 @@ function highlight(text, q){
 /* ========================= 렌더링 ========================= */
 function render(){
   renderSidebar();
+  const home = document.getElementById('homeBtn');
+  if(home) home.classList.toggle('on', !currentBrandId && !searchQuery);
   if(searchQuery.trim()) renderSearch();
+  else if(!currentBrandId) renderHome();
   else renderBrand();
+}
+
+function goHome(){
+  clearSearchQuietly();
+  currentBrandId = null;
+  render();
+  window.scrollTo({ top:0, behavior:'smooth' });
 }
 
 function renderSidebar(){
@@ -449,12 +500,97 @@ function renderSidebar(){
   }).join('');
 }
 
+function renderHome(){
+  const bs = data.brands;
+  const all = t => bs.reduce((a, b) => a + b[t].length, 0);
+  const running = bs.reduce((a, b) =>
+    a + b.automations.filter(x => x.status === '운영중').length, 0);
+  const withPrompt = bs.filter(b => (b.masterPrompt || '').trim()).length;
+  const files = bs.reduce((a, b) => a + b.assets.filter(x => x.fileId).length, 0);
+
+  const stats = [
+    { lab:'🏷️ 브랜드', val: bs.length, sub:'개' },
+    { lab:'🤖 자동화', val: running, sub: '운영 중 · 전체 ' + all('automations') + '개' },
+    { lab:'📁 자료',   val: all('assets'), sub: '파일 ' + files + '개 포함' },
+    { lab:'✨ 마스터프롬프트', val: withPrompt + '/' + bs.length, sub:'작성 완료' }
+  ].map(x => '<div class="stat"><div class="lab">' + x.lab + '</div>'
+    + '<div class="val">' + x.val + '</div><div class="sub">' + x.sub + '</div></div>').join('');
+
+  const cards = bs.map(b =>
+    '<div class="hcard" style="border-top-color:' + b.color + '" '
+    + 'onclick="selectBrand(\'' + b.id + '\')">'
+    + '<div class="top"><span class="em">' + esc(b.icon) + '</span>'
+      + '<span class="nm">' + esc(b.name) + '</span></div>'
+    + '<div class="ds">' + esc(b.desc || '설명이 아직 없습니다')
+      + (b.owner ? ' · ' + esc(b.owner) : '') + '</div>'
+    + '<div class="cnts">'
+      + '<span class="chip">🤖 ' + b.automations.length + '</span>'
+      + '<span class="chip">📜 ' + b.history.length + '</span>'
+      + '<span class="chip">📁 ' + b.assets.length + '</span>'
+      + ((b.masterPrompt || '').trim() ? '<span class="chip on">✨ 작성됨</span>'
+                                       : '<span class="chip">✨ 미작성</span>')
+    + '</div></div>').join('');
+
+  // 아직 비어 있는 곳을 짚어줍니다
+  const todos = [];
+  bs.forEach(b => {
+    if(!(b.masterPrompt || '').trim())
+      todos.push(['✨', b, 'prompt', '마스터프롬프트가 비어 있습니다']);
+    if(!b.automations.length)
+      todos.push(['🤖', b, 'automations', '등록된 자동화가 없습니다']);
+    if(!b.history.length)
+      todos.push(['📜', b, 'history', '여정 기록이 없습니다']);
+    if(!b.assets.length)
+      todos.push(['📁', b, 'assets', '등록된 자료가 없습니다']);
+  });
+
+  const todoHtml = todos.length
+    ? '<div class="todo">' + todos.slice(0, 12).map(([ic, b, tab, msg]) =>
+        '<div class="ti" onclick="gotoResult(\'' + b.id + '\',\'' + tab + '\')">'
+        + '<span>' + ic + '</span><strong>' + esc(b.name) + '</strong>'
+        + '<span style="color:var(--text-muted)">' + msg + '</span></div>').join('')
+      + (todos.length > 12 ? '<div class="ti" style="color:var(--text-muted);cursor:default">'
+          + '외 ' + (todos.length - 12) + '건</div>' : '')
+      + '</div>'
+    : '<div class="todo" style="color:var(--text-muted)">모든 브랜드가 채워져 있습니다 👏</div>';
+
+  // 최근에 손댄 항목
+  const recent = [];
+  bs.forEach(b => ['automations','history','assets'].forEach(t =>
+    b[t].forEach(it => {
+      const when = it.updatedAt || it.uploadedAt;
+      if(when) recent.push({ b, t, it, when });
+    })));
+  recent.sort((x, y) => String(y.when).localeCompare(String(x.when)));
+
+  const recentHtml = recent.length
+    ? '<div class="todo recent">' + recent.slice(0, 8).map(r =>
+        '<div class="ri" onclick="gotoResult(\'' + r.b.id + '\',\'' + r.t + '\')">'
+        + '<span>' + TYPES[r.t].icon + '</span>'
+        + '<strong>' + esc(r.it.title) + '</strong>'
+        + '<span style="color:var(--text-muted)">' + esc(r.b.name) + '</span>'
+        + '<span class="rb">' + esc(new Date(r.when)
+            .toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' })) + '</span>'
+        + '</div>').join('') + '</div>'
+    : '';
+
+  document.getElementById('main').innerHTML =
+    '<div class="panel"><div class="tabbody">'
+    + '<h2 style="font-size:19px;font-weight:800;margin-bottom:4px">브랜드 현황</h2>'
+    + '<div style="font-size:13px;color:var(--text-muted);margin-bottom:18px">'
+      + '카드를 누르면 해당 브랜드로 이동합니다</div>'
+    + '<div class="stats">' + stats + '</div>'
+    + '<div class="hgrid">' + cards + '</div>'
+    + (recentHtml ? '<div class="hsec">🕘 최근 업데이트</div>' + recentHtml : '')
+    + '<div class="hsec">📝 아직 비어 있는 곳</div>' + todoHtml
+    + '</div></div>';
+}
+
 function renderBrand(){
   const b = currentBrand();
   const main = document.getElementById('main');
   if(!b){
-    main.innerHTML = '<div class="panel"><div class="empty">'
-      + '왼쪽에서 브랜드를 선택하거나 새로 추가하세요.</div></div>';
+    renderHome();
     return;
   }
   const counts = {
@@ -625,22 +761,49 @@ function viewAssets(b){
   return dropZone + '<div class="upqueue" id="upQueue"></div>' + report + bar + cards;
 }
 
+function statusChip(st){
+  const map = { '진행 중':'test', '성공':'on', '실패':'off', '중단':'off', '보류':'' };
+  return st ? '<span class="chip ' + (map[st] || '') + '">' + esc(st) + '</span>' : '';
+}
+
 function viewHistory(b){
-  const list = b.history.slice().sort((x, y) => String(y.date).localeCompare(String(x.date)));
+  const list = b.history;
   if(!list.length) return secBar('history') + '<div class="empty">' + TYPES.history.empty + '</div>';
 
-  return secBar('history') + '<div class="tl">' + list.map(it =>
+  const block = (label, text) => text
+    ? '<div class="jblock"><div class="jlabel">' + label + '</div>'
+      + '<div class="jtext">' + esc(text) + '</div></div>'
+    : '';
+
+  return secBar('history') + '<div class="tl">' + list.map((it, i) =>
     '<div class="tl-item">'
     + '<div class="ca">'
+      + (i > 0 ? '<button class="btn sm" title="위로" onclick="moveHistory(\'' + it.id + '\',-1)">↑</button>' : '')
+      + (i < list.length - 1 ? '<button class="btn sm" title="아래로" onclick="moveHistory(\'' + it.id + '\',1)">↓</button>' : '')
       + '<button class="btn sm" onclick="openItemModal(\'history\',\'' + it.id + '\')">수정</button>'
       + '<button class="btn sm danger" onclick="deleteItem(\'history\',\'' + it.id + '\')">삭제</button>'
     + '</div>'
-    + '<div class="tl-date">' + esc(fmtDate(it.date))
-      + (it.tag ? ' · ' + esc(it.tag) : '') + '</div>'
     + '<div class="tl-title">' + esc(it.title) + '</div>'
-    + (it.body ? '<div class="tl-body">' + esc(it.body) + '</div>' : '')
+    + '<div class="row" style="margin:2px 0 8px">'
+      + statusChip(it.status)
+      + (it.period ? '<span class="chip">' + esc(it.period) + '</span>' : '')
+      + (it.date ? '<span class="chip">' + esc(fmtDate(it.date)) + '</span>' : '')
+    + '</div>'
+    + block('왜 했나', it.why)
+    + block('어떻게 됐나', it.result || it.body)
+    + block('그래서 다음은', it.next)
     + '</div>'
   ).join('') + '</div>';
+}
+
+function moveHistory(id, dir){
+  const b = currentBrand();
+  const i = b.history.findIndex(x => x.id === id);
+  const j = i + dir;
+  if(i < 0 || j < 0 || j >= b.history.length) return;
+  [b.history[i], b.history[j]] = [b.history[j], b.history[i]];
+  render();
+  toast('↕ 순서를 바꿨습니다. [저장]을 눌러야 반영됩니다');
 }
 
 function viewPrompt(b){
@@ -826,9 +989,13 @@ function submitItem(){
     payload[f.key] = v;
   }
   if(editing){
-    Object.assign(b[itemType].find(x => x.id === editing.id), payload);
+    Object.assign(b[itemType].find(x => x.id === editing.id), payload,
+                  { updatedAt: new Date().toISOString() });
   }else{
-    b[itemType].unshift(Object.assign({ id: uid('i') }, payload));
+    const item = Object.assign({ id: uid('i'), updatedAt: new Date().toISOString() }, payload);
+    // 여정은 시간 순으로 읽어야 하므로 아래에 쌓고, 나머지는 최신이 위로 옵니다
+    if(itemType === 'history') b[itemType].push(item);
+    else b[itemType].unshift(item);
   }
   editing = null;
   closeModal('itemModal');
@@ -1109,7 +1276,7 @@ async function init(){
     setBadge('error', 'NAS 연결 실패 — 이 브라우저 데이터 표시 중');
   }
 
-  currentBrandId = data.brands.length ? data.brands[0].id : null;
+  currentBrandId = null;   // 처음에는 홈부터 보여줍니다
   updateSubtitle();
   render();
 }

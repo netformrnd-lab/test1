@@ -863,6 +863,29 @@ async function copyNasDir(i){
    scan.sh 가 만든 목록을 가지고, 탐색기처럼 폴더를 타고 들어갑니다.
    파일은 옮기지 않고 있는 자리에서 바로 내려받습니다.
    ============================================================== */
+/* 서버에 물어보고 JSON 을 받아옵니다.
+   PHP 파일이 아직 없으면 HTML(404 화면)이 오는데, 그걸 알아보고 안내합니다. */
+async function apiJson(url, opts){
+  const res  = await fetch(url, Object.assign({ cache:'no-store' }, opts || {}));
+  const text = await res.text();
+  let out = null;
+  try{ out = JSON.parse(text); }catch(e){}
+  if(out === null){
+    if(/^\s*</.test(text)){
+      throw new Error('NAS에 nasfiles.php 가 아직 없습니다.\n\n'
+        + '아래 주소를 브라우저 주소창에 한 번 넣어 주세요. (파일을 자동으로 받아옵니다)\n\n'
+        + location.href.split('?')[0].replace(/[^/]*$/, 'save.php?action=bootstrap'));
+    }
+    throw new Error('서버 응답 이상 (HTTP ' + res.status + ')');
+  }
+  if(!out.ok) throw out;
+  return out;
+}
+
+function apiErrText(e){
+  return (e && e.error) || (e && e.message) || '알 수 없는 오류';
+}
+
 const browseCache = {};   // 폴더경로 → {loading} | {error} | 서버응답
 const folderNav   = {};   // 화면키 → 지금 보고 있는 폴더
 
@@ -877,17 +900,11 @@ function redraw(){ render(); bindDrop(); }
 async function loadBrowse(dir){
   browseCache[dir] = { loading:true };
   try{
-    const url = 'nasfiles.php?action=browse&dir=' + encodeURIComponent(dir || '');
-    const res = await fetch(url, { cache:'no-store' });
-    const text = await res.text();
-    let out = null;
-    try { out = JSON.parse(text); } catch(e) {}
-    if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ')');
-    if(!out.ok) throw new Error(out.error || '폴더를 열지 못했습니다');
+    const out = await apiJson('nasfiles.php?action=browse&dir=' + encodeURIComponent(dir || ''));
     browseCache[dir] = out;
     if(out.dir && out.dir !== dir) browseCache[out.dir] = out;
   }catch(e){
-    browseCache[dir] = { error: e.message };
+    browseCache[dir] = { error: apiErrText(e) };
   }
   redraw();
 }
@@ -931,6 +948,90 @@ function crumbHtml(navKey, out, rootOverride){
         + jsq(acc) + '\')">' + esc(seg) + '</button>');
   });
   return '<div class="crumbs">' + bits.join('') + '</div>';
+}
+
+/* ================= 브랜드 ↔ 폴더 자동 연결 =================
+   폴더 이름과 브랜드 이름을 맞춰봐서, 손으로 지정하지 않아도
+   각 브랜드 자료 탭에 알맞은 NAS 폴더가 저절로 뜨게 합니다.
+   ============================================================ */
+let treeCache = null;   // null=아직 | {loading} | {error} | 서버응답
+
+async function loadTree(){
+  treeCache = { loading:true };
+  try{
+    treeCache = await apiJson('nasfiles.php?action=tree&depth=2');
+  }catch(e){
+    treeCache = { error: apiErrText(e) };
+  }
+  redraw();
+}
+
+/* 이름을 비교하기 좋게 다듬습니다.
+   "00. 브랜드 공유폴더" → "브랜드공유폴더", "POUR 솔루션" → "솔루션" */
+function normKey(s){
+  return String(s).toLowerCase()
+    .replace(/[#＃]/g, '')
+    .replace(/^[0-9]+[.\-_\s]*/, '')
+    .replace(/^[_\-.\s]+/, '')
+    .replace(/pour/g, '')
+    .replace(/[\s_\-.()\[\]·]/g, '');
+}
+
+function nameMatches(brandName, folderName){
+  const a = normKey(brandName), b = normKey(folderName);
+  if(a.length < 2 || b.length < 2) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+/* 이 브랜드에 해당하는 폴더들을 자동으로 골라냅니다.
+   - 얕은 폴더를 우선하고, 이미 고른 폴더의 하위는 다시 넣지 않습니다
+   - 손으로 연결했거나 숨긴 폴더는 뺍니다 */
+function autoFoldersFor(b){
+  const t = treeCache;
+  if(!t || !t.folders) return [];
+  const hidden = b.nasHidden || [];
+  const manual = (b.nasFolders || []).map(x => x.path);
+
+  const out = [];
+  t.folders
+    .filter(f => nameMatches(b.name, f.name))
+    .forEach(f => {
+      if(hidden.indexOf(f.path) >= 0) return;
+      if(manual.indexOf(f.path) >= 0) return;
+      if(out.some(o => f.path.indexOf(o.path + '/') === 0)) return;
+      out.push(f);
+    });
+  return out;
+}
+
+/* 어느 폴더가 어느 브랜드에도 안 붙었는지 */
+function unmatchedFolders(){
+  const t = treeCache;
+  if(!t || !t.folders) return [];
+  const taken = {};
+  data.brands.forEach(b => autoFoldersFor(b).forEach(f => { taken[f.path] = 1; }));
+  data.brands.forEach(b => (b.nasFolders || []).forEach(f => { taken[f.path] = 1; }));
+  return t.folders.filter(f => f.depth === 1 && !taken[f.path]);
+}
+
+function hideAutoFolder(path){
+  const b = currentBrand();
+  if(!b) return;
+  if(!confirm('이 폴더를 "' + b.name + '" 자료에서 숨길까요?\n\n'
+    + 'NAS의 실제 파일은 그대로 남습니다.\n\n' + path)) return;
+  b.nasHidden = b.nasHidden || [];
+  b.nasHidden.push(path);
+  markDirty();
+  redraw();
+}
+
+function unhideAll(){
+  const b = currentBrand();
+  if(!b || !(b.nasHidden || []).length) return;
+  b.nasHidden = [];
+  markDirty();
+  redraw();
+  toast('숨긴 폴더를 다시 보여줍니다');
 }
 
 /* 폴더 하나를 화면에 그립니다.
@@ -1030,17 +1131,14 @@ async function setScanRoot(){
   if(!v.trim()){ toast('⚠️ 폴더 경로를 넣어주세요'); return; }
 
   try{
-    const res = await fetch('nasfiles.php?action=setroot', {
+    const out = await apiJson('nasfiles.php?action=setroot', {
       method:'POST', headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ dir: v })
     });
-    const out = await res.json();
-    if(!out.ok) throw out;
     toast('✅ ' + out['훑을폴더'] + ' — 작업 스케줄러에서 scan.sh 를 실행해 주세요');
     nasCheck();
   }catch(e){
-    alert('폴더를 찾지 못했습니다.\n\n'
-      + (e.error || e.message || '알 수 없는 오류')
+    alert(apiErrText(e)
       + (e.tried ? '\n\n이런 경로들을 찾아봤습니다:\n' + e.tried.join('\n')
                  + '\n\n폴더 이름에 띄어쓰기나 점(.)이 있으면 그대로 넣어주세요.' : ''));
   }
@@ -1088,7 +1186,7 @@ function renderNas(){
 
   let body;
   if(mode === 'browse'){
-    body = folderBrowserHtml('nas', '', { link:true });
+    body = autoMatchPanel() + folderBrowserHtml('nas', '', { link:true });
   }else{
     const bar = '<div class="sec-bar">'
       + '<span class="searchbox" style="flex:1 1 320px"><span class="ico">🔍</span>'
@@ -1143,6 +1241,44 @@ function renderNas(){
     const el = document.getElementById('nasQ');
     if(el && nasState.focusSearch){ nasState.focusSearch = false; el.focus(); }
   }
+}
+
+/* 어느 폴더가 어느 브랜드로 자동 연결됐는지 한눈에 보여줍니다 */
+function autoMatchPanel(){
+  if(treeCache === null){ setTimeout(loadTree, 10); return ''; }
+  if(treeCache.loading) return '<div class="fmeta" style="margin-bottom:12px">브랜드 연결을 맞춰보는 중…</div>';
+  if(treeCache.error)   return '';
+
+  const rows = data.brands.map(b => {
+    const auto = autoFoldersFor(b);
+    const man  = (b.nasFolders || []);
+    const all  = auto.map(f => ({ name:f.name, count:f.count, auto:true }))
+      .concat(man.map(f => ({ name:(f.label || f.path.split('/').pop()), count:null, auto:false })));
+    return '<div class="krow" style="align-items:center">'
+      + '<span style="flex:1;min-width:0"><b style="color:var(--text-primary)">'
+        + esc(b.icon || '') + ' ' + esc(b.name) + '</b></span>'
+      + '<span style="flex:2;min-width:0;text-align:right">'
+        + (all.length
+            ? all.map(x => '<span class="chip' + (x.auto ? ' on' : '') + '" style="margin-left:4px">'
+                + (x.auto ? '🪄 ' : '📂 ') + esc(x.name)
+                + (x.count !== null ? ' · ' + x.count.toLocaleString('ko-KR') + '개' : '')
+                + '</span>').join('')
+            : '<span class="fmeta">맞는 폴더 없음</span>')
+      + '</span></div>';
+  }).join('');
+
+  const un = unmatchedFolders();
+  const unHtml = un.length
+    ? '<div class="fmeta" style="margin-top:10px">어느 브랜드에도 안 붙은 폴더 — '
+      + un.map(f => esc(f.name)).join(' · ') + '</div>'
+    : '';
+
+  return '<div class="mbox" style="margin-bottom:16px">'
+    + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
+      + '<span>🪄 브랜드 자동 연결</span>'
+      + '<span class="mhs">폴더 이름을 보고 저절로 맞춥니다 · 손댈 것 없습니다</span>'
+      + '<span style="margin-left:auto"><button class="btn sm" onclick="treeCache=null;render()">↻</button></span>'
+    + '</div>' + rows + unHtml + '</div>';
 }
 
 function setNasMode(m){
@@ -1364,15 +1500,44 @@ async function loadNasFolder(brandId, folderId, path, q){
 }
 
 function viewNasFolders(b){
-  const list = b.nasFolders || [];
+  if(treeCache === null) setTimeout(loadTree, 10);
+
+  const auto   = autoFoldersFor(b);
+  const list   = b.nasFolders || [];
+  const hidden = b.nasHidden || [];
+
+  let note;
+  if(treeCache && treeCache.loading)      note = 'NAS 폴더를 찾아보는 중…';
+  else if(treeCache && treeCache.error)   note = '⚠️ ' + treeCache.error.split('\n')[0];
+  else if(auto.length)                    note = '🪄 폴더 이름을 보고 자동으로 찾았습니다';
+  else if(hidden.length && !list.length)   note = '자동으로 찾은 폴더를 숨겨둔 상태입니다';
+  else if(!list.length)                   note = '이름이 맞는 NAS 폴더를 찾지 못했습니다. 아래 버튼으로 직접 연결해 주세요';
+  else                                    note = '';
+
   const head = '<div class="sec-bar" style="margin-top:6px">'
-    + '<button class="btn" onclick="addNasFolder()">📂 NAS 폴더 연결</button>'
-    + '<span class="hint">공유폴더를 이 브랜드에 연결하면, 옮기지 않고도 여기서 폴더째 열어보고 바로 내려받습니다</span>'
+    + '<button class="btn" onclick="addNasFolder()">📂 NAS 폴더 직접 연결</button>'
+    + (hidden.length
+        ? '<button class="btn sm" onclick="unhideAll()">숨긴 폴더 ' + hidden.length + '개 다시 보기</button>'
+        : '')
+    + '<span class="hint">' + esc(note) + '</span>'
     + '</div>';
 
-  if(!list.length) return head;
+  const autoHtml = auto.map(f =>
+    '<div class="mbox" style="margin-bottom:12px">'
+    + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
+      + '<span>🪄 ' + esc(f.name) + '</span>'
+      + '<span class="mhs">' + f.count.toLocaleString('ko-KR') + '개 · ' + esc(f.size) + '</span>'
+      + '<span style="margin-left:auto;display:flex;gap:5px">'
+        + '<button class="btn sm" onclick="hideAutoFolder(\'' + jsq(f.path) + '\')">숨기기</button>'
+      + '</span>'
+    + '</div>'
+    + '<div class="path" style="margin-bottom:8px">' + esc(f.path) + '</div>'
+    + folderBrowserHtml('auto:' + f.path, f.path, { crumbRoot: f.path })
+    + '</div>').join('');
 
-  return head + list.map(f => {
+  if(!list.length) return head + autoHtml;
+
+  return head + autoHtml + list.map(f => {
     let inner;
 
     if(!f.q){
@@ -1441,13 +1606,10 @@ async function addNasFolder(){
 
   let p;
   try{
-    const out = await (await fetch('nasfiles.php?action=resolve&path='
-      + encodeURIComponent(path), { cache:'no-store' })).json();
-    if(!out.ok) throw out;
+    const out = await apiJson('nasfiles.php?action=resolve&path=' + encodeURIComponent(path));
     p = out.dir;
   }catch(e){
-    alert('폴더를 찾지 못했습니다.\n\n'
-      + (e.error || e.message || '알 수 없는 오류')
+    alert(apiErrText(e)
       + (e.tried ? '\n\n이런 경로들을 찾아봤습니다:\n' + e.tried.join('\n') : ''));
     return;
   }

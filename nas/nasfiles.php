@@ -263,6 +263,62 @@ if ($action === 'browse') {
     ]);
 }
 
+/* ---------------- 폴더 나무 (브랜드 자동 연결용) ----------------
+   목록을 한 번만 훑어서 depth 단계까지의 폴더를 모두 뽑아옵니다.
+   ---------------------------------------------------------------- */
+if ($action === 'tree') {
+    if (!is_file($FILE)) jout(['ok' => false, 'error' => '파일 목록이 아직 없습니다'], 404);
+    $root = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
+    if ($root === '') jout(['ok' => false, 'error' => '훑은 폴더를 알 수 없습니다'], 404);
+
+    $depth = (int)($_GET['depth'] ?? 2);
+    if ($depth < 1) $depth = 1;
+    if ($depth > 4) $depth = 4;
+
+    $fp = fopen($FILE, 'r');
+    if (!$fp) jout(['ok' => false, 'error' => '목록을 열지 못했습니다'], 500);
+
+    $prefix = $root . '/';
+    $preLen = strlen($prefix);
+    $acc    = [];
+
+    while (($line = fgets($fp)) !== false) {
+        $p = explode("\t", rtrim($line, "\r\n"), 3);
+        if (count($p) < 3) continue;
+        [$date, $size, $path] = $p;
+        if (strncmp($path, $prefix, $preLen) !== 0) continue;
+
+        $segs = explode('/', substr($path, $preLen));
+        array_pop($segs);                       // 파일 이름은 뺍니다
+        $n = min(count($segs), $depth);
+        $cur = '';
+        for ($i = 0; $i < $n; $i++) {
+            $cur .= ($i ? '/' : '') . $segs[$i];
+            if (!isset($acc[$cur])) $acc[$cur] = [0, 0];
+            $acc[$cur][0]++;
+            $acc[$cur][1] += (int)$size;
+        }
+    }
+    fclose($fp);
+
+    $out = [];
+    foreach ($acc as $rel => $v) {
+        $out[] = [
+            'name'  => basename($rel),
+            'rel'   => $rel,
+            'path'  => $root . '/' . $rel,
+            'depth' => substr_count($rel, '/') + 1,
+            'count' => $v[0],
+            'size'  => human($v[1]),
+        ];
+    }
+    usort($out, function ($a, $b) {
+        if ($a['depth'] !== $b['depth']) return $a['depth'] - $b['depth'];
+        return strnatcasecmp($a['rel'], $b['rel']);
+    });
+    jout(['ok' => true, 'root' => $root, 'depth' => $depth, 'folders' => $out]);
+}
+
 /* ---------------- 폴더 경로 알아듣기 ---------------- */
 if ($action === 'resolve') {
     $in = normalize_nas_input($_GET['path'] ?? '');

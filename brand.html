@@ -39,6 +39,8 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg-prima
 .actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 
 .astat{font-size:12px;color:var(--text-muted)}
+.ainote{padding:9px 12px;border-radius:9px;font-size:12.5px;line-height:1.5;
+  background:rgba(245,158,11,.14);color:var(--text-primary)}
 .savestate{font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap}
 .savestate.ok{color:var(--green)}
 .savestate.err{color:var(--red)}
@@ -987,6 +989,51 @@ const inquiryCache = { loaded:false, loading:false, updatedAt:null, total:0,
                        columns:[], byBrand:{}, error:null };
 let inquiryQuery = '';
 
+const SYNC_INTERVAL_MIN = 5;   // 이 시간이 지났으면 탭을 열 때 알아서 다시 가져옵니다
+
+async function syncInquiries(manual){
+  if(STORAGE_MODE !== 'nas') return;
+  const stat = document.getElementById('csvStat');
+  if(stat) stat.textContent = '시트에서 가져오는 중…';
+  try{
+    const res = await fetch('inquiries.php?action=sync', { cache:'no-store' });
+    const t = await res.text();
+    let out = null;
+    try { out = JSON.parse(t); } catch(e) {}
+    if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ')');
+    if(!out.ok) throw new Error(out.error || '가져오지 못했습니다');
+    inquiryCache.loaded = false;
+    await loadInquiries(true);
+    if(manual) toast('↻ 시트에서 ' + out['가져온건수'] + '건을 가져왔습니다');
+  }catch(e){
+    if(manual) showError('시트를 가져오지 못했습니다: ' + e.message);
+    else inquiryCache.syncError = e.message;
+  }finally{
+    const st = document.getElementById('csvStat');
+    if(st) st.textContent = '';
+  }
+}
+
+async function setSheetUrl(){
+  const cur = inquiryCache.sheetUrl && inquiryCache.sheetUrl !== '연결 안 됨' ? inquiryCache.sheetUrl : '';
+  const url = prompt(
+    '구글시트 CSV 주소를 넣어주세요.\n\n'
+    + '시트에서 파일 → 공유 → 웹에 게시 → 형식을 「쉼표로 구분된 값(.csv)」 으로 선택하면\n'
+    + '나오는 주소입니다. 비우고 확인을 누르면 연결이 해제됩니다.', cur);
+  if(url === null) return;
+  try{
+    const res = await fetch('inquiries.php?action=setsource', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ url: url.trim() })
+    });
+    const out = await res.json();
+    if(!out.ok) throw new Error(out.error || '등록하지 못했습니다');
+    inquiryCache.sheetUrl = url.trim() || '연결 안 됨';
+    if(url.trim()){ await syncInquiries(true); }
+    else { toast('시트 연결을 해제했습니다'); inquiryCache.loaded = false; await loadInquiries(true); }
+  }catch(e){ showError('시트 주소를 등록하지 못했습니다: ' + e.message); }
+}
+
 async function loadInquiries(force){
   if(STORAGE_MODE !== 'nas'){ inquiryCache.loaded = true; return; }
   if(inquiryCache.loading || (inquiryCache.loaded && !force)) return;
@@ -1013,6 +1060,21 @@ async function loadInquiries(force){
     inquiryCache.updatedAt = out.updatedAt;
     inquiryCache.total     = out.total || 0;
     inquiryCache.error     = null;
+
+    // 연결된 시트 주소를 함께 확인합니다
+    try{
+      const c = await (await fetch('inquiries.php?action=check', { cache:'no-store' })).json();
+      inquiryCache.sheetUrl = c['연결된시트'] || '연결 안 됨';
+    }catch(e){ inquiryCache.sheetUrl = '확인 불가'; }
+
+    // 마지막으로 가져온 지 오래됐으면 조용히 다시 가져옵니다
+    const linked = inquiryCache.sheetUrl && inquiryCache.sheetUrl !== '연결 안 됨';
+    const old = !out.updatedAt ||
+      (Date.now() - new Date(out.updatedAt).getTime()) > SYNC_INTERVAL_MIN * 60000;
+    if(linked && old && !inquiryCache.autoSyncing){
+      inquiryCache.autoSyncing = true;
+      setTimeout(() => { syncInquiries(false).finally(() => { inquiryCache.autoSyncing = false; }); }, 50);
+    }
   }catch(e){
     inquiryCache.error = e.message;
   }finally{
@@ -1112,6 +1174,8 @@ function viewInquiries(b){
     return '<div class="empty">문의 기록을 불러오지 못했습니다.<br>'
       + '<span class="path">' + esc(inquiryCache.error) + '</span></div>';
 
+  const linked = inquiryCache.sheetUrl && inquiryCache.sheetUrl !== '연결 안 됨'
+                 && inquiryCache.sheetUrl !== '확인 불가';
   const rows = inquiryCache.byBrand[b.name] || [];
   const when = inquiryCache.updatedAt
     ? new Date(inquiryCache.updatedAt).toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })
@@ -1121,19 +1185,25 @@ function viewInquiries(b){
     + '<span class="searchbox" style="flex:0 1 260px"><span class="ico">🔍</span>'
       + '<input type="text" placeholder="이 브랜드 문의에서 검색" value="' + esc(inquiryQuery) + '" '
       + 'oninput="onInquiryQuery(this.value)"></span>'
-    + '<button class="btn" onclick="refreshInquiries()">↻ 새로고침</button>'
-    + '<button class="btn" onclick="document.getElementById(\'csvInput\').click()">'
-      + '📥 시트 CSV 올리기</button>'
+    + (linked
+        ? '<button class="btn primary" onclick="syncInquiries(true)">↻ 시트에서 가져오기</button>'
+        : '<button class="btn primary" onclick="setSheetUrl()">🔗 시트 연결</button>')
+    + '<button class="btn" onclick="document.getElementById(\'csvInput\').click()">📥 CSV 올리기</button>'
     + '<input type="file" id="csvInput" accept=".csv,text/csv" style="display:none">'
     + '<span class="astat" id="csvStat"></span>'
     + '<span class="hint">전체 ' + inquiryCache.total.toLocaleString('ko-KR') + '건 중 이 브랜드 '
-      + rows.length.toLocaleString('ko-KR') + '건 · 갱신 ' + esc(when) + '</span>'
-    + '</div>';
+      + rows.length.toLocaleString('ko-KR') + '건 · 갱신 ' + esc(when)
+      + (linked ? ' · 🔗 시트 연결됨' : '') + '</span>'
+    + (linked ? '<button class="btn sm" style="margin-left:auto" onclick="setSheetUrl()">시트 주소 변경</button>' : '')
+    + '</div>'
+    + (inquiryCache.syncError
+        ? '<div class="ainote" style="margin-bottom:12px">⚠️ 자동 가져오기 실패: '
+          + esc(inquiryCache.syncError) + '</div>' : '');
 
   if(!inquiryCache.total){
     return bar + '<div class="empty">아직 등록된 문의 기록이 없습니다.<br><br>'
-      + '구글시트에서 <b>파일 → 다운로드 → 쉼표로 구분된 값(.csv)</b> 으로 받은 뒤<br>'
-      + '위의 <b>[📥 시트 CSV 올리기]</b> 를 눌러 올려주세요.<br>'
+      + '<b>[🔗 시트 연결]</b> 을 눌러 구글시트 CSV 주소를 넣으면<br>'
+      + '이후로는 알아서 가져옵니다.<br>'
       + '<span style="display:inline-block;margin-top:10px;color:var(--text-muted)">'
       + '첫 줄에 「브랜드」 열이 있어야 브랜드별로 나뉩니다</span></div>';
   }

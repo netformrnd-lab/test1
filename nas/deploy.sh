@@ -28,6 +28,15 @@ fi
 
 mkdir -p "$TMP" || exit 1
 
+# 이 스크립트 자체의 새 버전이 받아져 있으면 먼저 교체하고, 새 버전으로 다시 실행합니다.
+# (실행 중인 파일을 바로 덮어쓰면 위험하므로 다음 실행 때 교체하는 방식입니다)
+if [ -f "$TARGET/deploy.sh.new" ]; then
+    if mv "$TARGET/deploy.sh.new" "$TARGET/deploy.sh"; then
+        log "갱신: deploy.sh — 새 버전으로 다시 실행합니다"
+        exec sh "$TARGET/deploy.sh"
+    fi
+fi
+
 # 파일명  원격경로  정상여부를_판단할_문구
 update_file() {
     name="$1"
@@ -61,6 +70,16 @@ failed=0
 update_file "brand.html" "brand.html"   "</html>"    || failed=1
 update_file "load.php"   "nas/load.php" "<?php"      || failed=1
 update_file "save.php"   "nas/save.php" "<?php"      || failed=1
+update_file "files.php"  "nas/files.php" "<?php"     || failed=1
+
+# 다음 실행 때 적용할 새 deploy.sh 를 미리 받아둡니다
+if wget -q -T 30 -O "$TMP/deploy.sh" "$BASE/nas/deploy.sh" 2>/dev/null; then
+    if grep -q 'update_file' "$TMP/deploy.sh" && ! cmp -s "$TMP/deploy.sh" "$TARGET/deploy.sh"; then
+        mv "$TMP/deploy.sh" "$TARGET/deploy.sh.new"
+        log "새 deploy.sh 준비됨 (다음 실행 때 적용)"
+    fi
+fi
+rm -f "$TMP/deploy.sh"
 
 rmdir "$TMP" 2>/dev/null
 

@@ -346,6 +346,7 @@
         <button role="tab" aria-selected="true" data-tab="1">② 마스터 프롬프트</button>
         <button role="tab" aria-selected="false" data-tab="2">③ 제작 사양 JSON</button>
       </div>
+      <button class="btn" id="copyRichBtn" hidden>사진 포함 복사</button>
       <button class="btn solid" id="copyBtn">복사</button>
     </div>
     <div class="panel-bd">
@@ -854,6 +855,7 @@
   function render(){
     var len=LENS[st.len], msgs=lns('msgs'), cases=lns('scene');
     var sc=scenes(len,msgs,cases), chs=chapters(sc), plan=avatarPlan(len,sc);
+    var assets=parseAssets();
 
     document.getElementById('fixedNote').innerHTML =
       '기본 적용 · <b>'+PRESETS[st.preset].k+'</b> 스타일 · <b>'+
@@ -869,7 +871,6 @@
       return '<button type="button" data-a="'+i+'" aria-pressed="'+(normAud(val('audience'))===normAud(a.k))+'">'+a.k+'</button>';
     }).join('');
 
-    var assets=parseAssets();
     var unassigned=assets.filter(function(a){return !a.scene;}).length;
     document.getElementById('sceneHint').innerHTML = assets.length
       ? '<b>'+assets.length+'개</b> 추가됨'+
@@ -909,6 +910,8 @@
             ' · '+(c[c.length-1].to-c[0].from)+'초</button>';
         }).join('')
       : '';
+
+    document.getElementById('copyRichBtn').hidden = media.length===0;
 
     var text=t.fn();
     document.getElementById('outStep').textContent=t.step;
@@ -982,9 +985,54 @@
     renderMedia(); render();
   });
 
+  function richHTML(text){
+    var rows=media.map(function(m){
+      return '<tr>'+
+        '<td style="padding:8px 12px 8px 0;vertical-align:top">'+
+          (m.thumb?'<img src="'+m.thumb+'" style="width:130px;border-radius:8px;display:block">'
+                  :'<div style="width:130px;height:80px;background:#eef1f5;border-radius:8px"></div>')+
+        '</td>'+
+        '<td style="padding:8px 0;vertical-align:top;font-family:sans-serif;font-size:13px;line-height:1.6">'+
+          '<b>'+esc(m.file)+'</b><br>'+
+          '<span style="color:#5b6676">'+esc(m.scene||'씬 미지정')+'</span>'+
+          (m.desc?'<br><span style="color:#8b95a3">'+esc(m.desc)+'</span>':'')+
+        '</td></tr>';
+    }).join('');
+    return '<div style="font-family:sans-serif">'+
+      (rows?'<p style="font-size:13px;font-weight:700;margin:0 0 8px">헤이젠에 먼저 올릴 파일 '+
+            media.length+'개</p><table style="border-collapse:collapse;margin-bottom:18px">'+rows+'</table>'+
+            '<hr style="border:0;border-top:1px solid #dfe4ea;margin:0 0 18px">':'')+
+      '<pre style="white-space:pre-wrap;font-family:monospace;font-size:12px;line-height:1.7;margin:0">'+
+        esc(text)+'</pre></div>';
+  }
+
   var toast=document.getElementById('toast'), tid;
   function flash(m){ toast.textContent=m; toast.classList.add('on');
     clearTimeout(tid); tid=setTimeout(function(){toast.classList.remove('on');},1600); }
+  document.getElementById('copyRichBtn').addEventListener('click',function(){
+    var text=document.getElementById('out').textContent, html=richHTML(text);
+    function fb(){
+      var host=document.createElement('div');
+      host.setAttribute('contenteditable','true');
+      host.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+      host.innerHTML=html;
+      document.body.appendChild(host);
+      var r=document.createRange(); r.selectNodeContents(host);
+      var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      try{ document.execCommand('copy'); flash('사진과 함께 복사했습니다'); }
+      catch(e){ flash('이 브라우저에서는 사진 포함 복사가 안 됩니다'); }
+      sel.removeAllRanges(); document.body.removeChild(host);
+    }
+    if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+      try{
+        navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([html],{type:'text/html'}),
+          'text/plain': new Blob([text],{type:'text/plain'})
+        })]).then(function(){ flash('사진과 함께 복사했습니다'); },fb);
+      }catch(e){ fb(); }
+    } else fb();
+  });
+
   document.getElementById('copyBtn').addEventListener('click',function(){
     var text=document.getElementById('out').textContent;
     function fb(){

@@ -38,6 +38,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg-prima
   font-size:13px;color:var(--text-muted)}
 .actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 
+.astat{font-size:12px;color:var(--text-muted)}
 .savestate{font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap}
 .savestate.ok{color:var(--green)}
 .savestate.err{color:var(--red)}
@@ -737,7 +738,7 @@ function renderBrand(){
   if(currentTab === 'prompt') body.innerHTML = viewPrompt(b);
   else if(currentTab === 'history') body.innerHTML = viewHistory(b);
   else if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
-  else if(currentTab === 'inquiries') { body.innerHTML = viewInquiries(b); loadInquiries(); }
+  else if(currentTab === 'inquiries') { body.innerHTML = viewInquiries(b); loadInquiries(); bindCsvInput(); }
   else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
   else if(currentTab === 'links') body.innerHTML = viewLinks(b);
   else body.innerHTML = viewCards(b, currentTab);
@@ -1024,6 +1025,83 @@ async function loadInquiries(force){
 function refreshInquiries(){ inquiryCache.loaded = false; loadInquiries(true); toast('↻ 문의 기록을 다시 불러옵니다'); }
 function onInquiryQuery(v){ inquiryQuery = v; if(currentTab === 'inquiries') render(); }
 
+/* 구글시트에서 내려받은 CSV를 읽습니다 (따옴표·줄바꿈 포함된 셀도 처리) */
+function parseCSV(text){
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);   // 엑셀 BOM 제거
+  const rows = [];
+  let row = [], cell = '', inQuote = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(inQuote){
+      if(c === '"'){
+        if(text[i + 1] === '"'){ cell += '"'; i++; }
+        else inQuote = false;
+      } else cell += c;
+    }else{
+      if(c === '"') inQuote = true;
+      else if(c === ',') { row.push(cell); cell = ''; }
+      else if(c === '\n'){ row.push(cell); rows.push(row); row = []; cell = ''; }
+      else if(c !== '\r') cell += c;
+    }
+  }
+  if(cell !== '' || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(v => String(v).trim() !== ''));
+}
+
+function csvToObjects(text){
+  const rows = parseCSV(text);
+  if(rows.length < 2) throw new Error('내용이 없습니다. 머리글 줄과 데이터가 있어야 합니다.');
+  const head = rows[0].map(h => String(h).trim());
+  if(!head.some(h => ['브랜드','brand','Brand','브랜드명'].includes(h)))
+    throw new Error('브랜드 열을 찾지 못했습니다. 첫 줄에 「브랜드」 열이 있어야 합니다. '
+      + '(찾은 열: ' + head.filter(Boolean).join(', ') + ')');
+  return rows.slice(1).map(r => {
+    const o = {};
+    head.forEach((h, i) => { if(h) o[h] = (r[i] || '').trim(); });
+    return o;
+  });
+}
+
+async function uploadInquiryCsv(file){
+  const stat = document.getElementById('csvStat');
+  const setStat = t => { if(stat) stat.textContent = t; };
+  setStat('읽는 중…');
+  try{
+    const text = await file.text();
+    const rows = csvToObjects(text);
+    setStat(rows.length + '건 보내는 중…');
+
+    const res = await fetch('inquiries.php?action=push', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ source:'csv-' + file.name.slice(0, 40), rows })
+    });
+    const t = await res.text();
+    let out = null;
+    try { out = JSON.parse(t); } catch(e) {}
+    if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ') → '
+      + t.slice(0, 200).replace(/\s+/g, ' '));
+    if(!out.ok) throw new Error(out.error || '보내지 못했습니다');
+
+    setStat('');
+    inquiryCache.loaded = false;
+    await loadInquiries(true);
+    toast('📞 문의 ' + out['받은건수'] + '건을 등록했습니다');
+  }catch(e){
+    setStat('');
+    showError('문의 파일을 읽지 못했습니다: ' + e.message);
+  }
+}
+
+function bindCsvInput(){
+  const inp = document.getElementById('csvInput');
+  if(!inp || inp._bound) return;
+  inp._bound = true;
+  inp.addEventListener('change', () => {
+    const f = inp.files[0]; inp.value = '';
+    if(f) uploadInquiryCsv(f);
+  });
+}
+
 function viewInquiries(b){
   if(STORAGE_MODE !== 'nas'){
     return '<div class="empty">🔒 문의 기록은 NAS 주소로 접속했을 때만 보입니다.<br>'
@@ -1044,15 +1122,20 @@ function viewInquiries(b){
       + '<input type="text" placeholder="이 브랜드 문의에서 검색" value="' + esc(inquiryQuery) + '" '
       + 'oninput="onInquiryQuery(this.value)"></span>'
     + '<button class="btn" onclick="refreshInquiries()">↻ 새로고침</button>'
+    + '<button class="btn" onclick="document.getElementById(\'csvInput\').click()">'
+      + '📥 시트 CSV 올리기</button>'
+    + '<input type="file" id="csvInput" accept=".csv,text/csv" style="display:none">'
+    + '<span class="astat" id="csvStat"></span>'
     + '<span class="hint">전체 ' + inquiryCache.total.toLocaleString('ko-KR') + '건 중 이 브랜드 '
       + rows.length.toLocaleString('ko-KR') + '건 · 갱신 ' + esc(when) + '</span>'
     + '</div>';
 
   if(!inquiryCache.total){
-    return bar + '<div class="empty">아직 들어온 문의 기록이 없습니다.<br>'
-      + 'n8n에서 구글시트를 NAS로 보내도록 설정하면 여기에 표시됩니다.<br>'
-      + '<span class="path" style="display:inline-block;margin-top:8px">'
-      + 'POST http://192.168.0.37/brand/inquiries.php?action=push</span></div>';
+    return bar + '<div class="empty">아직 등록된 문의 기록이 없습니다.<br><br>'
+      + '구글시트에서 <b>파일 → 다운로드 → 쉼표로 구분된 값(.csv)</b> 으로 받은 뒤<br>'
+      + '위의 <b>[📥 시트 CSV 올리기]</b> 를 눌러 올려주세요.<br>'
+      + '<span style="display:inline-block;margin-top:10px;color:var(--text-muted)">'
+      + '첫 줄에 「브랜드」 열이 있어야 브랜드별로 나뉩니다</span></div>';
   }
   if(!rows.length){
     return bar + '<div class="empty">"' + esc(b.name) + '" 브랜드로 들어온 문의가 없습니다.<br>'

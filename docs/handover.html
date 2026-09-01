@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>아파트스퀘어 인수인계</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+:root{
+  --ground:#eef1f6; --surface:#ffffff; --surface2:#f7f9fc;
+  --ink:#141d31; --ink2:#41506b; --muted:#5b667e;
+  --line:#e0e6f0; --line2:#eaeef5;
+  --brand:#2f6bf6; --brand-soft:#e8f0ff; --brand-ink:#1a4bc4;
+  --green:#1c8a58; --green-soft:#e4f4ea;
+  --amber:#b1720a; --amber-soft:#fbf1dd;
+  --violet:#6d4bd0; --violet-soft:#efe9fb;
+  --shadow:0 1px 2px rgba(20,29,49,.04),0 10px 26px rgba(20,29,49,.07);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0b1220; --surface:#111a2e; --surface2:#0e1628;
+  --ink:#e8eefc; --ink2:#c1cce0; --muted:#95a3c2;
+  --line:#243149; --line2:#1b2740;
+  --brand:#5b8cff; --brand-soft:#182742; --brand-ink:#bcd2ff;
+  --green:#4bd08b; --green-soft:#122a1e;
+  --amber:#e6ab4a; --amber-soft:#2a2213;
+  --violet:#a891f0; --violet-soft:#211b3d;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.4);
+}}
+:root[data-theme="dark"]{
+  --ground:#0b1220; --surface:#111a2e; --surface2:#0e1628;
+  --ink:#e8eefc; --ink2:#c1cce0; --muted:#95a3c2;
+  --line:#243149; --line2:#1b2740;
+  --brand:#5b8cff; --brand-soft:#182742; --brand-ink:#bcd2ff;
+  --green:#4bd08b; --green-soft:#122a1e;
+  --amber:#e6ab4a; --amber-soft:#2a2213;
+  --violet:#a891f0; --violet-soft:#211b3d;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:'IBM Plex Sans KR',system-ui,sans-serif;line-height:1.62;-webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto;padding:0 20px}
+.dev{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:500;color:var(--muted);background:var(--surface2);border:1px solid var(--line);padding:0 6px;border-radius:5px;white-space:nowrap}
+b.k{color:var(--ink2)}
+
+header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--surface),var(--surface2))}
+.hd{padding:44px 0 32px}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--brand);font-weight:500}
+h1{font-size:clamp(28px,5vw,42px);font-weight:700;line-height:1.1;margin:11px 0 10px;letter-spacing:-.02em}
+.lede{font-size:16px;color:var(--muted);max-width:64ch;margin:0}
+.metline{margin-top:18px;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16px}
+.metline b{color:var(--ink2)}
+
+main{padding:8px 0 60px}
+.grp{margin-top:38px}
+.grp-h{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.grp-h .ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--brand-soft);flex:0 0 auto}
+.grp-h h2{font-size:20px;font-weight:700;margin:0;letter-spacing:-.01em}
+.grp-h .cnt{margin-left:auto;font-size:12px;font-weight:600;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.sub{font-size:14px;color:var(--muted);margin:-4px 2px 18px;line-height:1.6}
+
+/* 역할 카드 */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+@media(max-width:760px){.cards{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 17px;box-shadow:var(--shadow)}
+.card .big{font-size:24px}
+.card h3{margin:6px 0 6px;font-size:15px;font-weight:700}
+.card p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.55}
+
+/* 스택 리스트 */
+.stack{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media(max-width:760px){.stack{grid-template-columns:1fr}}
+.srow{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 15px;box-shadow:var(--shadow)}
+.srow .st{font-size:13.5px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:7px}
+.srow .sd{font-size:12.5px;color:var(--muted);line-height:1.55}
+.srow .sd .dev{margin:1px 2px}
+
+/* 타임라인 */
+.tl{position:relative;margin-top:4px;padding-left:28px}
+.tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.tlrow{position:relative;padding:0 0 22px}
+.tlrow:last-child{padding-bottom:2px}
+.tlrow::before{content:'';position:absolute;left:-26px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--brand);border:2px solid var(--surface);box-shadow:0 0 0 3px var(--brand-soft)}
+.tlrow.big::before{background:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
+.tlrow .date{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--brand-ink)}
+.tlrow .tt{font-size:15.5px;font-weight:700;margin:2px 0 5px;letter-spacing:-.01em}
+.tlrow .dd{font-size:13.5px;color:var(--ink2);line-height:1.62}
+.tlrow .why{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.55}
+.tlrow .files{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px}
+
+/* 표/목록 */
+.stores{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(max-width:760px){.stores{grid-template-columns:1fr}}
+.store{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:11px 14px;box-shadow:var(--shadow)}
+.store .nm{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;color:var(--brand-ink)}
+.store .ds{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+
+.steps{counter-reset:st}
+.stepi{display:flex;gap:13px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin-bottom:9px;box-shadow:var(--shadow)}
+.stepi::before{counter-increment:st;content:counter(st);flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:var(--brand);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace}
+.stepi .body{flex:1;min-width:0}
+.stepi .t{font-size:14px;font-weight:700}
+.stepi .d{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.55}
+
+.note{background:var(--amber-soft);border-radius:12px;padding:15px 17px;font-size:13.5px;line-height:1.62;margin-top:16px}
+.note b{color:var(--amber)}
+.note.blue{background:var(--brand-soft)}
+.note.blue b{color:var(--brand-ink)}
+footer{padding:28px 0 54px;color:var(--muted);font-size:12.5px}
+</style>
+<style>html,body{margin:0}img{max-width:100%}</style>
+</head>
+<body>
+<header>
+  <div class="wrap hd">
+    <div class="eyebrow">APARTSQUARE · 인수인계 · HANDOVER</div>
+    <h1>아파트스퀘어는 이렇게 만들어졌어요</h1>
+    <p class="lede">무엇을 · 왜 · 어떻게 만들었는지를 순서대로 기록했어요. 다음 사람이 이 문서만 보고도 흐름을 이해하고 이어서 개발할 수 있도록 정리한 인수인계 파일이에요.</p>
+    <div class="metline">
+      <span>코드 <span class="dev">github.com/netformrnd-lab/test1</span></span>
+      <span>개발 기간 <b>2026-07-21 ~ 진행 중</b></span>
+      <span>커밋 <b>380+</b></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- 무엇을 -->
+  <div class="grp">
+    <div class="grp-h"><span class="ic">🏢</span><h2>무엇을 만들었나</h2></div>
+    <p class="sub">아파트 <b class="k">보수공사 감리(외벽 재도장·옥상 방수·지하주차장 에폭시 등)</b> 서비스 앱이에요. <b class="k">하나의 앱이 로그인한 역할에 따라</b> 다르게 보여요.</p>
+    <div class="cards">
+      <div class="card"><div class="big">🏠</div><h3>입주민 · 관리소장</h3><p>우리 단지 진행현황·공정 단계, 공개된 감리일지, 방문 일정, 만족도, 채팅. 로그인 전에는 소개·자가진단·상담으로 유입.</p></div>
+      <div class="card"><div class="big">🦺</div><h3>감리사</h3><p>담당 단지 관리, 현장 점검으로 감리일지 작성, 방문 배치·일정, 관리소장 점검표, 계약서·만족도 확인.</p></div>
+      <div class="card"><div class="big">📊</div><h3>관리자 (콘솔)</h3><p>영업 파이프라인, 공사관리, 회원, 캘린더·방문배치, 자료실, 업무 로드맵, 데이터 도구까지 전부 관리.</p></div>
+    </div>
+    <div class="note blue">🔗 <b>바깥 연결</b> — 홈페이지(아임웹) 문의 폼·구글시트가 <b>영업 파이프라인으로 자동 유입</b>되고, 웹앱은 <b>Capacitor로 안드로이드·iOS 앱</b>으로도 배포돼요.</div>
+  </div>
+
+  <!-- 어떻게 (스택) -->
+  <div class="grp">
+    <div class="grp-h"><span class="ic">🧱</span><h2>어떻게 만들었나 — 기술 구조</h2></div>
+    <p class="sub">특별한 프레임워크 없이 <b class="k">순수 HTML·CSS·JavaScript</b> + <b class="k">Supabase</b> 로 만들었어요. 서버 코드는 거의 없고, <b class="k">보안·권한은 데이터베이스(RLS)</b> 가 담당해요.</p>
+    <div class="stack">
+      <div class="srow"><div class="st">🖥️ 프론트엔드</div><div class="sd">프레임워크 없는 화면전환식 SPA(화면마다 <span class="dev">id</span>로 전환). 통합 앱 <span class="dev">app/index.html</span> + <span class="dev">app/js/supabase-app.js</span>, 관리자 <span class="dev">app/console/index.html</span>, 현장점검 <span class="dev">app/inspect/</span>, 견적·계약 <span class="dev">app/control/</span>.</div></div>
+      <div class="srow"><div class="st">🗄️ 백엔드 · Supabase</div><div class="sd">Postgres + 로그인(Auth) + 파일저장(Storage) + 실시간(Realtime). 공개키(publishable)는 코드에 넣어도 안전 — 실제 보안은 <span class="dev">RLS</span> 권한 규칙이 담당(<span class="dev">is_admin()</span> 함수로 관리자 판별).</div></div>
+      <div class="srow"><div class="st">🔑 역할 · 권한</div><div class="sd">회원마다 역할 <span class="dev">profiles.role</span> = admin·auditor·manager·resident. 역할에 따라 볼 수 있는 데이터가 자동으로 달라져요(입주민=우리 단지, 감리사=담당 단지, 관리자=전체).</div></div>
+      <div class="srow"><div class="st">🚀 배포</div><div class="sd">코드 = <span class="dev">build-deploy.js</span> 로 <span class="dev">dist-deploy</span> 만들어 <b class="k">Cloudflare</b> 업로드. 데이터 구조 변경 = <span class="dev">backend/*.sql</span> 을 Supabase에서 실행. 앱 = Capacitor로 스토어 배포.</div></div>
+    </div>
+  </div>
+
+  <!-- 타임라인 -->
+  <div class="grp">
+    <div class="grp-h"><span class="ic">🧭</span><h2>전체 개발 타임라인</h2><span class="cnt">2026.07.21 ~</span></div>
+    <p class="sub">2026-01-12에 디자인 시안 파일 1개만 올려두었다가(이후 휴면), <b class="k">7월 21일부터 본격 개발</b>을 시작했어요. 각 단계에서 무엇을·왜·어떻게 했는지예요.</p>
+    <div class="tl">
+
+      <div class="tlrow big"><div class="date">2026-07-21</div><div class="tt">뼈대 세우기 — 웹앱 + 백엔드</div>
+        <div class="dd">디자인 시안을 실제 웹앱으로 재구축하고 <b class="k">Supabase</b>를 연결했어요. 로그인·회원가입, 관리자·감리사 대시보드, 감리보고서 작성과 사진 업로드(Storage)까지.</div>
+        <div class="why">왜: 데이터를 안전하게 쌓고 역할별로 나눠 보여주려면 백엔드가 먼저 필요했어요. 서버를 따로 두지 않고 Supabase 하나로 로그인·DB·저장·권한을 다 해결하는 구조를 택했어요.</div>
+        <div class="files"><span class="dev">app/index.html</span><span class="dev">supabase-app.js</span><span class="dev">backend/schema.sql</span></div></div>
+
+      <div class="tlrow"><div class="date">2026-07-22</div><div class="tt">3종 사용자 앱 + 앱 스토어 래핑</div>
+        <div class="dd">입주민·관리소장 홈(진행현황·공정 단계 설명), 지역 감리 현황, 우수사례(before/after), 30초 자가진단 퀴즈. 이메일 없이 <b class="k">아이디로 로그인</b>, 관리자가 회원을 직접 추가. 현장현황(단지별 사진·글) 추가. <b class="k">Capacitor로 안드로이드·iOS 앱 래핑.</b></div>
+        <div class="why">왜: 어르신도 쓰는 서비스라 이메일 없는 아이디 로그인과 큰 글씨·단순한 흐름이 필요했고, 스토어 배포를 위해 웹을 그대로 앱으로 감쌌어요.</div></div>
+
+      <div class="tlrow"><div class="date">2026-07-23</div><div class="tt">현장 업무를 앱 안으로 통합</div>
+        <div class="dd">아임웹 게시판 엑셀 가져오기, <b class="k">현장 점검 체크리스트를 앱에 통합</b>(외부 협업툴 대신 단지별 저장), 감리보고서 → 감리일지로 정리, 감리일지 → 입주민 공개, 소장님 작성지(링크 전송 → 소장이 제출 → DB 저장).</div>
+        <div class="why">왜: 감리사가 현장에서 폰 하나로 점검·기록·공유까지 끝내게 하고, 흩어진 기록을 단지 기준으로 모으기 위해서예요.</div>
+        <div class="files"><span class="dev">app/inspect/</span><span class="dev">reports</span><span class="dev">manager_forms</span></div></div>
+
+      <div class="tlrow"><div class="date">2026-07-24</div><div class="tt">소통·콘텐츠 채널</div>
+        <div class="dd">공정별 촬영 예시 가이드, 카카오톡 채널·인앱 채팅(안읽음 배지), ‘이야기’ 탭(소개·블로그·유튜브), 계약서 화면(감리사/관리자), 현장사진 동별 분류.</div>
+        <div class="why">왜: 입주민과의 신뢰가 서비스 핵심이라, 진행상황을 보여주고 바로 문의·상담으로 이어지는 통로를 넓혔어요.</div></div>
+
+      <div class="tlrow"><div class="date">2026-07-26 ~ 30</div><div class="tt">만족도(NPS) + 대규모 안정화</div>
+        <div class="dd">공사 완료 후 만족도 조사 추가. 이 기간 집중적으로 버그 수정·가독성·모바일 키보드 대응 등 기능을 다듬었어요(약 110개 커밋).</div>
+        <div class="why">왜: 실사용·스토어 배포를 앞두고 완성도를 끌어올리는 단계였어요.</div>
+        <div class="files"><span class="dev">surveys</span></div></div>
+
+      <div class="tlrow"><div class="date">2026-08-10 ~ 24</div><div class="tt">정비 · 보안</div>
+        <div class="dd">계약서 탭을 현장관리로 이동, <b class="k">계약서를 비공개 버킷 + 서명 URL</b>로 전환해 보안을 강화했어요.</div>
+        <div class="why">왜: 계약서엔 민감 정보가 있어 아무나 URL로 열 수 없게 서명된 임시 링크로만 열리도록 바꿨어요.</div></div>
+
+      <div class="tlrow big"><div class="date">2026-08-25</div><div class="tt">운영팀용 통합 관제센터 (가장 큰 전환점)</div>
+        <div class="dd">운영팀 디자인의 <b class="k">통합 관리자 대시보드(콘솔)</b>로 재구축하고 기존 어드민 기능을 전부 옮겼어요. <b class="k">Phase B — 영업(CRM) 파이프라인 · 업무 로드맵 · 자료실</b>. 계약·수금 통합, NPS 가독성, 조회수 로깅. 홈페이지 문의폼·<b class="k">구글시트 → 영업 자동 연동</b>.</div>
+        <div class="why">왜: 서비스를 운영팀이 직접 굴릴 수 있도록, 영업부터 준공·정산까지 한 화면에서 관리하는 관제센터가 필요했어요.</div>
+        <div class="files"><span class="dev">app/console/</span><span class="dev">sales_leads</span><span class="dev">roadmap_items</span><span class="dev">cases·leaflets</span></div></div>
+
+      <div class="tlrow"><div class="date">2026-08-26 ~ 28</div><div class="tt">영업 자동화 + 방문 배치 캘린더</div>
+        <div class="dd">견적서·계약서 자동화(단지 정보 자동 채움), <b class="k">영업 성사 → 공사관리로 단지 자동 이관</b>, 방문 배치 캘린더(담당·주기·요일), 일정 분류 9종, 딜별 진행 체크리스트, 일정 엑셀.</div>
+        <div class="why">왜: 손으로 옮겨 적는 일을 없애고, 영업·현장·일정이 데이터로 자연스럽게 이어지게 했어요.</div>
+        <div class="files"><span class="dev">control_sites</span><span class="dev">schedules</span></div></div>
+
+      <div class="tlrow big"><div class="date">2026-08-31 ~ 진행 중</div><div class="tt">세부 다듬기 · 인수인계 정리</div>
+        <div class="dd">방문을 우리 데이터 기준으로 정리하고 <b class="k">예정 방문과 실제 다녀온 기록을 분리</b>(‘다녀왔어요’ 체크, 재생성해도 기록 보존), 입주민 캘린더 단순화, 3분할 실시간 데모, 시스템 지도, <b class="k">업무 로드맵을 단계별 매뉴얼 디자인으로 교체 + 편집 기능</b>, 그리고 이 인수인계 문서 작성.</div>
+        <div class="why">왜: 운영 이관을 앞두고 데이터 정합성을 맞추고, 다음 사람이 흐름을 알 수 있게 문서화하는 단계예요.</div>
+        <div class="files"><span class="dev">schedules.done_at</span><span class="dev">roadmap_manual</span><span class="dev">/live-demo/</span></div></div>
+
+    </div>
+  </div>
+
+  <!-- 데이터 구조 -->
+  <div class="grp">
+    <div class="grp-h"><span class="ic">🗃️</span><h2>핵심 데이터 (Supabase 표)</h2></div>
+    <p class="sub">모든 기록은 아래 표에 쌓여요. 사진·PDF 파일은 별도 저장소(버킷)에 들어가요.</p>
+    <div class="stores">
+      <div class="store"><div class="nm">apartments</div><div class="ds">단지(현장) — 이름·지역·세대수·공법·진행률·감리비·수금·담당 감리사</div></div>
+      <div class="store"><div class="nm">profiles</div><div class="ds">회원 — 역할·담당 단지·승인 여부</div></div>
+      <div class="store"><div class="nm">apartment_auditors</div><div class="ds">단지 ↔ 담당 감리사 연결</div></div>
+      <div class="store"><div class="nm">reports</div><div class="ds">감리일지 — 내용·공정·사진·공개 여부</div></div>
+      <div class="store"><div class="nm">field_updates</div><div class="ds">현장 사진·현황</div></div>
+      <div class="store"><div class="nm">schedules</div><div class="ds">일정·방문 — 분류·<span class="dev">done_at</span>(다녀옴)</div></div>
+      <div class="store"><div class="nm">control_sites</div><div class="ds">방문 배치 — 담당·주기·요일</div></div>
+      <div class="store"><div class="nm">sales_leads</div><div class="ds">영업 딜 — 단계·금액·체크리스트·특이사항</div></div>
+      <div class="store"><div class="nm">manager_forms</div><div class="ds">관리소장 점검표(제출본)</div></div>
+      <div class="store"><div class="nm">roadmap_manual</div><div class="ds">업무 로드맵(담당자 매뉴얼)</div></div>
+      <div class="store"><div class="nm">surveys · notices · chat_messages</div><div class="ds">만족도 · 공지 · 채팅</div></div>
+      <div class="store"><div class="nm">contracts · cases · credentials · leaflets</div><div class="ds">계약서 · 사례 · 인증 · 리플렛</div></div>
+    </div>
+  </div>
+
+  <!-- 앱 만드는 법 / 이어가는 법 -->
+  <div class="grp">
+    <div class="grp-h"><span class="ic">🛠️</span><h2>이어서 개발·배포하는 법</h2></div>
+    <p class="sub">다음 사람이 코드를 수정해 반영하려면 이 순서예요.</p>
+    <div class="steps">
+      <div class="stepi"><div class="body"><div class="t">코드 받기</div><div class="d">GitHub <span class="dev">netformrnd-lab/test1</span> 를 클론(또는 Claude Code에 주소를 주고 수정 요청).</div></div></div>
+      <div class="stepi"><div class="body"><div class="t">화면 찾기</div><div class="d">고칠 화면의 파일을 연다 — 앱 <span class="dev">app/index.html</span>·<span class="dev">app/js/supabase-app.js</span>, 관리자 <span class="dev">app/console/index.html</span>, 현장점검 <span class="dev">app/inspect/</span>.</div></div></div>
+      <div class="stepi"><div class="body"><div class="t">데이터 구조가 바뀌면 SQL 먼저</div><div class="d">새 컬럼·표·권한이 필요하면 <span class="dev">backend/*.sql</span> 을 Supabase → SQL Editor에서 실행. 재실행해도 안전하게 작성돼 있어요.</div></div></div>
+      <div class="stepi"><div class="body"><div class="t">빌드 → Cloudflare 업로드</div><div class="d"><span class="dev">node build-deploy.js</span> 로 <span class="dev">dist-deploy</span> 를 만들고 그 내용을 Cloudflare에 업로드하면 앱·콘솔이 한 번에 갱신돼요.</div></div></div>
+      <div class="stepi"><div class="body"><div class="t">앱(스토어) 갱신은 별도</div><div class="d">안드로이드·iOS 설치앱은 Capacitor로 다시 빌드해야 반영돼요(웹은 즉시).</div></div></div>
+    </div>
+    <div class="note">💡 <b>핵심 원칙</b> — ① 모든 화면은 <b>같은 Supabase 하나</b>를 공유해 실시간으로 이어져요. ② 보안은 코드가 아니라 <b>DB 권한(RLS)</b> 이 담당해요. ③ 배포는 <b>코드=Cloudflare, 데이터구조=SQL</b> 로 나뉘어요.</div>
+    <div class="note blue" style="margin-top:12px">📌 <b>지금 상태</b> — 위 작업은 모두 브랜치에 커밋·푸시 완료. 회의에서 <b>서비스 구성 변경 / 표기(동사·명사) 통일 / 문구 톤</b>이 정해지면 그 기준으로 일괄 다듬을 예정.</div>
+  </div>
+
+</main>
+<footer><div class="wrap">아파트스퀘어 인수인계 · 개발 흐름 + 구조 + 이어가는 법. 세부 코드·권한은 <span class="dev">app/</span>, <span class="dev">backend/*.sql</span> 참고.</div></footer>
+</body>
+</html>

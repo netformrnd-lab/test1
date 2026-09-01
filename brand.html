@@ -236,11 +236,18 @@ td input{width:110px;text-align:right}
 
 <script>
 /* =========================================================================
-   저장 위치 설정  ★ NAS 연결 시 여기 한 줄만 바꾸면 됩니다 ★
-   'local' = 지금 쓰는 브라우저에만 저장 (다른 PC에서는 안 보임)
-   'nas'   = NAS에 저장해서 모두가 같은 데이터를 봄
+   저장 위치 — 자동으로 정해집니다. 손댈 필요 없습니다.
+
+   NAS 주소로 열었을 때  (http://192.168.0.37/...)  → NAS에 저장 (모두 공유)
+   파일을 더블클릭해서 열었을 때 (file:///C:/...)   → 이 브라우저에만 저장
+
+   ※ 특정 방식으로 강제하고 싶을 때만 아래를 'nas' 또는 'local'로 바꾸세요.
    ========================================================================= */
-const STORAGE_MODE = 'local';
+const STORAGE_MODE_SETTING = 'auto';
+
+const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
+  ? STORAGE_MODE_SETTING
+  : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
 const LS_KEY = 'netform_brand_dashboard_v1';

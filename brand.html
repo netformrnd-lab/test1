@@ -2458,12 +2458,22 @@ function analyzeInquiries(rows){
   });
   if(bestLen < 12) textCol = null;      // 다들 짧으면 설명 열이 없는 것으로 봅니다
 
+  // 사람이 읽을 분류가 아닌 열은 뺍니다.
+  //  · 시트를 만든 프로그램이 붙인 열 (hasFiles, fileCount, id, timestamp …)
+  //  · 예/아니오, 숫자만 들어 있는 열
+  const hasHangul = c => /[가-힣]/.test(c);
+  const isBoolish = vals => vals.every(v =>
+    /^(true|false|y|n|yes|no|예|아니오|아니요|o|x|0|1)$/i.test(v));
+  const isNumeric = vals => vals.every(v => /^-?\d+(\.\d+)?$/.test(v));
+
   // 나머지 중 같은 값이 반복되는 짧은 열을 분류로 봅니다 (공종·유입·상태 등)
   const cats = [];
   cols.forEach(c => {
     if(skip.includes(c) || c === dateCol || c === textCol || isPrivate(c)) return;
+    if(!hasHangul(c)) return;                                   // 영문 열 이름은 프로그램용으로 봅니다
     const vals = rows.map(r => String(r[c] || '').trim()).filter(Boolean);
     if(vals.length < rows.length * 0.2) return;                 // 대부분 비어 있으면 제외
+    if(isBoolish(vals) || isNumeric(vals)) return;              // 예/아니오·숫자만 있는 열 제외
     const uniq = new Set(vals);
     const avgLen = vals.reduce((a, v) => a + v.length, 0) / vals.length;
     if(uniq.size >= 2 && uniq.size <= 20 && uniq.size < vals.length * 0.8 && avgLen <= 15){
@@ -2483,11 +2493,12 @@ function ym(v){
 function countBy(rows, col){
   const m = {};
   rows.forEach(r => {
-    const v = String(r[col] || '').trim() || '(비어 있음)';
+    const v = String(r[col] || '').trim() || '미입력';
     m[v] = (m[v] || 0) + 1;
   });
+  // 미입력은 분류가 아니므로 맨 뒤로 보냅니다
   return Object.entries(m).map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => (a.label === '미입력') - (b.label === '미입력') || b.count - a.count);
 }
 
 function inquirySummary(rows){

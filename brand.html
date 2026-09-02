@@ -299,6 +299,22 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .fcard .fc-nm{display:block;font-size:13px;font-weight:700;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fcard .fc-sub{display:block;font-size:11.5px;color:var(--text-muted);margin-top:2px}
+
+/* 접히는 폴더 목록 */
+.flist{border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  background:var(--bg-secondary)}
+.frow + .frow{border-top:1px solid var(--border)}
+.frow.on{background:var(--bg-card)}
+.fhead{width:100%;font-family:inherit;text-align:left;display:flex;align-items:center;gap:9px;
+  padding:11px 14px;border:0;background:transparent;color:var(--text-primary);cursor:pointer}
+.fhead:hover{background:var(--bg-hover)}
+.fhead .fh-ar{color:var(--text-muted);font-size:11px;width:10px;flex-shrink:0}
+.fhead .fh-ic{font-size:15px;flex-shrink:0}
+.fhead .fh-nm{font-size:13.5px;font-weight:700;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fhead .fh-ct{margin-left:auto;font-size:11.5px;color:var(--text-muted);
+  white-space:nowrap;flex-shrink:0}
+.fh-act{display:flex;align-items:center;gap:5px;padding:0 14px 10px 33px;flex-wrap:wrap}
 .errbar{display:none;gap:12px;align-items:flex-start;margin:0 22px;padding:14px 18px;
   border-radius:12px;border:1px solid var(--red);background:rgba(239,68,68,.08)}
 .errbar.show{display:flex}
@@ -890,6 +906,8 @@ function apiErrText(e){
 }
 
 const browseCache = {};   // 폴더경로 → {loading} | {error} | 서버응답
+const fileShow    = {};   // 화면키 → 지금 보여주는 파일 수
+const openFolder  = {};   // 브랜드id → 펼쳐 놓은 폴더 경로 (한 번에 하나만)
 const folderNav   = {};   // 화면키 → 지금 보고 있는 폴더
 
 /* 작은따옴표 onclick 안에 안전하게 넣기 위한 처리 */
@@ -912,8 +930,19 @@ async function loadBrowse(dir){
   redraw();
 }
 
+function moreFiles(navKey){
+  fileShow[navKey] = (fileShow[navKey] || 30) + 50;
+  redraw();
+}
+
+function toggleFolder(brandId, path){
+  openFolder[brandId] = (openFolder[brandId] === path) ? null : path;
+  redraw();
+}
+
 function gotoFolder(navKey, dir){
   folderNav[navKey] = dir;
+  fileShow[navKey] = 30;
   if(!browseCache[dir]) loadBrowse(dir); else redraw();
 }
 
@@ -1221,8 +1250,10 @@ function folderBrowserHtml(navKey, startDir, opts){
           + esc(f.size) + '</span></span></button>').join('') + '</div>'
     : '';
 
+  const shown = fileShow[navKey] || 30;
+  const slice = c.files.slice(0, shown);
   const files = c.files.length
-    ? '<div class="mbox">' + c.files.map(x =>
+    ? '<div class="mbox">' + slice.map(x =>
         '<div class="krow" style="align-items:center">'
         + '<span class="fileicon" style="font-size:15px">' + fileIcon(x.name) + '</span>'
         + '<span style="flex:1;min-width:0;white-space:normal;word-break:break-all">'
@@ -1232,10 +1263,14 @@ function folderBrowserHtml(navKey, startDir, opts){
         + '<a class="btn sm" href="nasfiles.php?action=download&path='
           + encodeURIComponent(x.path) + '">⬇</a>'
         + '</div>').join('')
+      + (c.files.length > slice.length
+          ? '<div style="margin-top:10px"><button class="btn sm" onclick="moreFiles(\'' + jsq(navKey)
+            + '\')">파일 더 보기 (' + slice.length.toLocaleString('ko-KR') + ' / '
+            + c.files.length.toLocaleString('ko-KR') + ')</button></div>' : '')
       + (c.fileCount > c.files.length
           ? '<div class="fmeta" style="margin-top:8px">이 폴더의 파일 '
             + c.fileCount.toLocaleString('ko-KR') + '개 중 ' + c.files.length
-            + '개만 표시했습니다 · 🔍 이름으로 찾기를 이용해 주세요</div>' : '')
+            + '개까지만 불러왔습니다 · 🔍 이름으로 찾기를 이용해 주세요</div>' : '')
       + '</div>'
     : (c.folders.length ? '' : '<div class="empty">이 폴더에는 파일이 없습니다.</div>');
 
@@ -1660,14 +1695,15 @@ function viewNasFolders(b){
   const auto   = autoFoldersFor(b);
   const list   = b.nasFolders || [];
   const hidden = b.nasHidden || [];
+  const open   = openFolder[b.id] || null;
+  const total  = auto.length + list.length;
 
   let note;
   if(treeCache && treeCache.loading)      note = 'NAS 폴더를 찾아보는 중…';
   else if(treeCache && treeCache.error)   note = '⚠️ ' + treeCache.error.split('\n')[0];
-  else if(auto.length)                    note = '🪄 폴더 이름을 보고 자동으로 찾았습니다';
-  else if(hidden.length && !list.length)   note = '자동으로 찾은 폴더를 숨겨둔 상태입니다';
-  else if(!list.length)                   note = '이름이 맞는 NAS 폴더를 찾지 못했습니다. 아래 버튼으로 직접 연결해 주세요';
-  else                                    note = '';
+  else if(total)                          note = '폴더 이름을 눌러서 펼쳐 보세요';
+  else if(hidden.length)                  note = '자동으로 찾은 폴더를 숨겨둔 상태입니다';
+  else                                    note = '이름이 맞는 NAS 폴더를 찾지 못했습니다. 아래 버튼으로 직접 연결해 주세요';
 
   const head = '<div class="sec-bar" style="margin-top:6px">'
     + '<button class="btn" onclick="addNasFolder()">📂 NAS 폴더 직접 연결</button>'
@@ -1677,65 +1713,75 @@ function viewNasFolders(b){
     + '<span class="hint">' + esc(note) + '</span>'
     + '</div>';
 
-  const autoHtml = auto.map(f =>
-    '<div class="mbox" style="margin-bottom:12px">'
-    + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
-      + '<span>🪄 ' + esc(f.name) + '</span>'
-      + '<span class="mhs">' + f.count.toLocaleString('ko-KR') + '개 · ' + esc(f.size) + '</span>'
-      + '<span style="margin-left:auto;display:flex;gap:5px">'
-        + '<button class="btn sm" onclick="hideAutoFolder(\'' + jsq(f.path) + '\')">숨기기</button>'
-      + '</span>'
-    + '</div>'
-    + '<div class="path" style="margin-bottom:8px">' + esc(f.path) + '</div>'
-    + folderBrowserHtml('auto:' + f.path, f.path, { crumbRoot: f.path })
-    + '</div>').join('');
+  if(!total) return head;
 
-  if(!list.length) return head + autoHtml;
-
-  return head + autoHtml + list.map(f => {
-    let inner;
-
-    if(!f.q){
-      // 검색어가 없으면 폴더를 타고 들어가며 봅니다
-      inner = folderBrowserHtml('nf:' + f.id, f.path, { crumbRoot: f.path });
-    }else{
-      const c = nasFolderCache[f.id];
-      if(!c) { setTimeout(() => loadNasFolder(b.id, f.id, f.path, f.q), 10); }
-      if(!c || c.loading) inner = '<div class="fmeta">불러오는 중…</div>';
-      else if(c.error) inner = '<div class="fmeta">⚠️ ' + esc(c.error) + '</div>';
-      else if(!c.results.length) inner = '<div class="fmeta">"' + esc(f.q) + '" 에 맞는 파일이 없습니다.</div>';
-      else inner = '<div class="mbox">' + c.results.map(x =>
-          '<div class="krow" style="align-items:center">'
-          + '<span class="fileicon" style="font-size:15px">' + fileIcon(x.name) + '</span>'
-          + '<span style="flex:1;min-width:0;white-space:normal;word-break:break-all">'
-            + '<b style="color:var(--text-primary)">' + esc(x.name) + '</b>'
-            + (x.sub ? '<span class="fmeta"> · ' + esc(x.sub) + '</span>' : '')
-          + '</span>'
-          + '<span class="fmeta" style="white-space:nowrap;margin:0">'
-            + esc(x.size) + ' · ' + esc(x.date) + '</span>'
-          + '<a class="btn sm" href="nasfiles.php?action=download&path='
-            + encodeURIComponent(x.path) + '">⬇</a>'
-          + '</div>').join('')
-        + (c.matched > c.shown
-            ? '<div class="fmeta" style="margin-top:8px">전체 ' + c.matched.toLocaleString('ko-KR')
-              + '개 중 ' + c.shown + '개 표시 · 검색어를 더 좁혀보세요</div>' : '')
-        + '</div>';
-    }
-
-    return '<div class="mbox" style="margin-bottom:12px">'
-      + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
-        + '<span>📂 ' + esc(f.label || f.path.split('/').pop()) + '</span>'
-        + '<span style="margin-left:auto;display:flex;gap:5px">'
-          + '<button class="btn sm" onclick="filterNasFolder(\'' + b.id + '\',\'' + f.id + '\')">'
-            + (f.q ? '🔍 검색 중: ' + esc(f.q) : '🔍 폴더 안에서 찾기') + '</button>'
-          + (f.q ? '<button class="btn sm" onclick="clearNasFolderFilter(\'' + b.id + '\',\''
-                   + f.id + '\')">✕ 검색 지우기</button>' : '')
-          + '<button class="btn sm danger" onclick="removeNasFolder(\'' + f.id + '\')">연결 해제</button>'
-        + '</span>'
-      + '</div>'
-      + '<div class="path" style="margin-bottom:8px">' + esc(f.path) + '</div>'
+  /* 접힌 줄 하나 */
+  const row = (o) => {
+    const isOpen = open === o.path;
+    const inner = isOpen
+      ? '<div style="padding:12px 14px;border-top:1px solid var(--border)">'
+        + (o.manual
+            ? (o.q ? viewNasFolderSearch(b, o) : folderBrowserHtml('nf:' + o.id, o.path, { crumbRoot:o.path }))
+            : folderBrowserHtml('auto:' + o.path, o.path, { crumbRoot:o.path }))
+        + '</div>'
+      : '';
+    return '<div class="frow' + (isOpen ? ' on' : '') + '">'
+      + '<button class="fhead" onclick="toggleFolder(\'' + jsq(b.id) + '\',\'' + jsq(o.path) + '\')">'
+        + '<span class="fh-ar">' + (isOpen ? '▾' : '▸') + '</span>'
+        + '<span class="fh-ic">' + (o.manual ? '📂' : '🪄') + '</span>'
+        + '<span class="fh-nm">' + esc(o.name) + '</span>'
+        + '<span class="fh-ct">' + (o.count !== null && o.count !== undefined
+            ? o.count.toLocaleString('ko-KR') + '개' + (o.size ? ' · ' + esc(o.size) : '') : '') + '</span>'
+      + '</button>'
+      + (isOpen
+          ? '<div class="fh-act">'
+            + '<span class="path" style="flex:1;min-width:0;word-break:break-all">' + esc(o.path) + '</span>'
+            + (o.manual
+                ? '<button class="btn sm" onclick="filterNasFolder(\'' + jsq(b.id) + '\',\'' + jsq(o.id) + '\')">'
+                  + (o.q ? '🔍 ' + esc(o.q) : '🔍 찾기') + '</button>'
+                  + (o.q ? '<button class="btn sm" onclick="clearNasFolderFilter(\'' + jsq(b.id) + '\',\''
+                           + jsq(o.id) + '\')">✕</button>' : '')
+                  + '<button class="btn sm danger" onclick="removeNasFolder(\'' + jsq(o.id) + '\')">연결 해제</button>'
+                : '<button class="btn sm" onclick="hideAutoFolder(\'' + jsq(o.path) + '\')">숨기기</button>')
+            + '</div>'
+          : '')
       + inner + '</div>';
-  }).join('');
+  };
+
+  const rows = auto.map(f => row({ name:f.name, path:f.path, count:f.count, size:f.size, manual:false }))
+    .concat(list.map(f => row({ name:(f.label || f.path.split('/').pop()), path:f.path,
+                               count:null, size:null, manual:true, id:f.id, q:f.q })))
+    .join('');
+
+  return head
+    + '<div class="fmeta" style="margin:0 0 8px">폴더 ' + total + '개'
+      + (open ? '' : ' · 눌러서 펼치기') + '</div>'
+    + '<div class="flist">' + rows + '</div>';
+}
+
+/* 폴더 안에서 이름으로 찾은 결과 (직접 연결한 폴더 전용) */
+function viewNasFolderSearch(b, o){
+  const c = nasFolderCache[o.id];
+  if(!c) { setTimeout(() => loadNasFolder(b.id, o.id, o.path, o.q), 10); }
+  if(!c || c.loading) return '<div class="fmeta">불러오는 중…</div>';
+  if(c.error) return '<div class="fmeta">⚠️ ' + esc(c.error) + '</div>';
+  if(!c.results.length) return '<div class="fmeta">"' + esc(o.q) + '" 에 맞는 파일이 없습니다.</div>';
+  return '<div class="mbox">' + c.results.map(x =>
+      '<div class="krow" style="align-items:center">'
+      + '<span class="fileicon" style="font-size:15px">' + fileIcon(x.name) + '</span>'
+      + '<span style="flex:1;min-width:0;white-space:normal;word-break:break-all">'
+        + '<b style="color:var(--text-primary)">' + esc(x.name) + '</b>'
+        + (x.sub ? '<span class="fmeta"> · ' + esc(x.sub) + '</span>' : '')
+      + '</span>'
+      + '<span class="fmeta" style="white-space:nowrap;margin:0">'
+        + esc(x.size) + ' · ' + esc(x.date) + '</span>'
+      + '<a class="btn sm" href="nasfiles.php?action=download&path='
+        + encodeURIComponent(x.path) + '">⬇</a>'
+      + '</div>').join('')
+    + (c.matched > c.shown
+        ? '<div class="fmeta" style="margin-top:8px">전체 ' + c.matched.toLocaleString('ko-KR')
+          + '개 중 ' + c.shown + '개 표시 · 검색어를 더 좁혀보세요</div>' : '')
+    + '</div>';
 }
 
 function clearNasFolderFilter(brandId, id){

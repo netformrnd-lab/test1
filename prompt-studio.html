@@ -263,6 +263,10 @@
       <span class="vlbl">길이</span>
       <div class="seg" id="segLen"></div>
     </div>
+    <div class="varrow">
+      <span class="vlbl">생성</span>
+      <div class="seg" id="segSplit"></div>
+    </div>
     <div class="note" id="lenNote"></div>
     <div class="assets">
       <label>사진 · 영상 자리 지정 <span class="help">— 선택. 헤이젠에 올린 파일을 여기에도 넣으면 어느 씬에 쓸지 프롬프트에 적힙니다</span></label>
@@ -596,7 +600,8 @@
      note:'시네마틱 브랜드 다큐멘터리. 2~4초 하드컷에 인용문과 수치를 팝업으로 띄웁니다. 글리치 전환은 헤이젠이 못 하니 후편집이 필요합니다.'}
   ];
 
-  var st={preset:0,len:2,tone:1,ava:0,cuts:2,cutLen:6,place:0,cast:0,trade:1,fmt:2,cap:0,data:1,pace:1,speech:0,tab:1,chap:0};
+  var SPLIT=[{k:'한 편으로'},{k:'조각으로 나누기'}];
+  var st={preset:0,len:2,split:0,tone:1,ava:0,cuts:2,cutLen:6,place:0,cast:0,trade:1,fmt:2,cap:0,data:1,pace:1,speech:0,tab:1,chap:0};
 
   var PRINCIPLES=[
     '첫 10~20초는 고객이 실제로 겪는 장면이나 확인하고 싶은 한 문장으로 시작한다. 회사 연혁이나 기능 목록부터 나열하지 않는다.',
@@ -728,6 +733,7 @@
   }
 
   function chapters(sc){
+    if(st.split===0) return [sc];
     var out=[],cur=[],t=0;
     sc.forEach(function(s){
       if(cur.length && t+s.dur>MAXCHUNK){ out.push(cur); cur=[]; t=0; }
@@ -782,11 +788,14 @@
     b.push('- 확정한 내용을 표로 먼저 보여 주고, 승인을 받은 뒤 영상을 생성하세요.');
     if(multi){
       b.push('');
-      b.push('# 이 프롬프트의 범위');
-      b.push('전체 '+len+'초 영상을 '+chs.length+'개로 나눠 만드는 중이며, 지금은 '+(ci+1)+'번째 조각입니다.');
-      b.push('이 조각만 '+chLen+'초로 만들어 주세요. 앞뒤 조각과 이어붙일 것이므로 인사말이나 마무리 멘트를 새로 넣지 마세요.');
-      if(ci>0) b.push('직전 조각은 "'+chs[ci-1][chs[ci-1].length-1].name+'"에서 끝났습니다. 이어지는 흐름으로 시작하세요.');
-      if(ci<chs.length-1) b.push('다음 조각으로 이어지므로 끝을 닫지 말고 다음 주제를 예고하며 마치세요.');
+      b.push('# 분할 생성 안내 (시청자에게 노출되지 않는 작업 지시)');
+      b.push('이것은 한 편의 영상을 나눠 만드는 작업 파일입니다. 시청자에게는 하나의 영상으로 보입니다.');
+      b.push('이번에 만들 분량은 '+chLen+'초입니다.');
+      b.push('- 편집으로 이어붙일 것이므로 인사말이나 마무리 멘트를 새로 넣지 마세요.');
+      if(ci>0) b.push('- 앞부분은 "'+chs[ci-1][chs[ci-1].length-1].name+'"에서 끝났습니다. 문장이 이어지듯 시작하세요.');
+      if(ci<chs.length-1) b.push('- 뒤로 이어지므로 끝을 닫지 말고 자연스럽게 다음 내용으로 넘어가세요.');
+      b.push('- 화면과 내레이션 어디에도 "1부", "2부", "다음 편", "이어서 보겠습니다" 같은 회차 표현을 넣지 마세요.');
+      b.push('- 제목이나 자막에 번호를 붙이지 마세요. 하나의 영상입니다.');
     }
     b.push('');
     b.push('# 영상 사양');
@@ -929,6 +938,7 @@
     b.push('- 결정을 대신 내려 주는 듯한 표현. 판단 근거를 정리해 주는 역할로만 서술');
     b.push('- 정해진 시간에 맞추려고 말을 빠르게 읽는 것. 넘치면 내용을 줄이세요');
     b.push('- 쉼 없이 문장을 이어 붙이는 것. 한 호흡에 두 문장을 몰아 읽지 마세요');
+    b.push('- 영상을 여러 편으로 나누려 하는 것. "1부", "2부", "다음 편에서"는 쓰지 않습니다');
     b.push('- 화면이 멈춘 채 내레이션만 이어지는 구간');
     b.push('- 정지 사진을 아무 움직임 없이 그대로 노출하는 것');
     b.push('- 말하는 사람만 오래 잡는 샷');
@@ -993,7 +1003,8 @@
     ];
     if(chs.length>1){
       o.push('5. 전체를 '+chs.length+'개 조각으로 나누고, 조각마다 별도의 마스터 프롬프트를 출력한다.');
-      o.push('   각 조각은 '+MAXCHUNK+'초를 넘지 않으며, 이어붙일 것이므로 인사말과 마무리 멘트를 반복하지 않는다.');
+      o.push('   편집으로 이어붙일 것이므로 인사말과 마무리 멘트를 반복하지 않고,');
+      o.push('   "1부", "2부" 같은 회차 표현은 어디에도 쓰지 않는다. 시청자에게는 하나의 영상이다.');
     }
     return o.concat([
       '',
@@ -1091,7 +1102,7 @@
   function syncSegs(){
     seg('segPreset',PRESETS,'preset',applyPreset); seg('segLen',LENS,'len');
     seg('segTone',TONES,'tone'); seg('segAvatar',AVAS,'ava'); seg('segPlace',PLACE,'place');
-    seg('segCast',CASTS,'cast'); seg('segTrade',TRADES,'trade');
+    seg('segCast',CASTS,'cast'); seg('segTrade',TRADES,'trade'); seg('segSplit',SPLIT,'split');
     seg('segFmt',FORMATS,'fmt'); seg('segCap',CAPS,'cap');
     seg('segData',DATAV,'data'); seg('segPace',PACE,'pace'); seg('segSpeech',SPEECH,'speech');
   }
@@ -1109,7 +1120,7 @@
     document.getElementById('fixedNote').innerHTML =
       '기본 적용 · <b>'+PRESETS[st.preset].k+'</b> 스타일 · <b>'+
       (len%60===0?(len/60)+'분':Math.floor(len/60)+'분 '+(len%60)+'초')+'</b>'+
-      (chs.length>1?' (<b>'+chs.length+'조각</b>)':'')+
+      (chs.length>1?' (<b>'+chs.length+'조각으로 나눠 생성</b>)':' <b>한 편</b>')+
       ' · 아바타 <b>'+(plan.billed?plan.idx.length+'회 '+plan.billed+'초':'없음')+'</b>'+
       ' · 장면 <b>'+totalCuts(sc)+'개</b> · 내레이션 <b>'+totalChars(sc).toLocaleString('ko-KR')+'자</b>'+
       (TRADES[st.trade].figures.length?' · 검증 수치 <b>'+TRADES[st.trade].figures.length+'개</b>':' · <b>수치 사용 금지</b>')+
@@ -1130,8 +1141,10 @@
 
     document.getElementById('presetNote').textContent=PRESETS[st.preset].note;
     document.getElementById('lenNote').innerHTML = chs.length>1
-      ? '전체 <b>'+Math.floor(len/60)+'분 '+(len%60)+'초</b>. Video Agent 출력 상한이 3분이라 <b>'+chs.length+'개 조각</b>으로 나눠 생성한 뒤 이어붙여야 합니다.'
-      : '한 번에 생성 가능한 길이입니다.';
+      ? '<b>'+chs.length+'개 조각</b>으로 나눠 만든 뒤 이어붙입니다. 조각마다 프롬프트가 따로 나옵니다.'
+      : (len>180
+         ? '한 편으로 만듭니다. 3분이 넘으면 헤이젠이 길이를 못 맞출 수 있으니, 결과가 짧게 나오면 조각으로 나눠 보세요.'
+         : '한 편으로 만듭니다.');
 
     var inter=AVAS[st.ava].mode==='intermittent';
     document.getElementById('avaOpts').hidden=!inter;

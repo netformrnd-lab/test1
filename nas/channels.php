@@ -404,19 +404,50 @@ if ($action === 'summary') {
         }
         $rows[] = $c;
     }
+    $lastFile = __DIR__ . '/data/feeds-last.txt';
+    $lastAt   = is_file($lastFile) ? (int)filemtime($lastFile) : 0;
     jout([
         'ok'       => true,
         '채널'     => $rows,
         '채널수'   => count($rows),
         '가장오래된확인' => $oldest ? date('c', $oldest) : null,
-        '자동확인'  => is_file(__DIR__ . '/data/feeds-last.txt')
-                        ? trim((string)@file_get_contents(__DIR__ . '/data/feeds-last.txt')) : null,
+        '마지막확인'    => $lastAt ? date('c', $lastAt) : null,
+        '지난초'        => $lastAt ? (time() - $lastAt) : null,
+        '자동확인'      => $lastAt ? date('c', $lastAt) : null,
+        '예약작업'      => is_file(__DIR__ . '/data/feeds-cron.txt') ? '등록됨' : '확인안됨',
     ]);
 }
 
 /* 등록된 채널을 전부 새로 받아옵니다. 작업 스케줄러(feeds.sh)가 주기적으로 부릅니다. */
 if ($action === 'refreshall') {
+    @mkdir(__DIR__ . '/data', 0775, true);
     if (!is_dir($CACHE_DIR)) @mkdir($CACHE_DIR, 0775, true);
+    $lastFile = __DIR__ . '/data/feeds-last.txt';
+
+    // maxage=1800 처럼 주면, 마지막으로 돌아본 지 그만큼 안 지났을 때는 그냥 넘어갑니다.
+    // 대시보드를 여러 명이 열어두어도 NAS 가 같은 일을 여러 번 하지 않게 하려는 것입니다.
+    $maxage = isset($_GET['maxage']) ? max(60, (int)$_GET['maxage']) : 0;
+    if ($maxage > 0 && is_file($lastFile)) {
+        $age = time() - (int)filemtime($lastFile);
+        if ($age < $maxage) {
+            jout(['ok' => true, 'mode' => 'refreshall', '건너뜀' => true,
+                  '이유' => $age . '초 전에 이미 확인했습니다',
+                  '마지막확인' => date('c', filemtime($lastFile))]);
+        }
+    }
+
+    // 두 사람이 동시에 눌러도 한 번만 나가도록 잠급니다.
+    $lockPath = __DIR__ . '/data/feeds.lock';
+    $lock = @fopen($lockPath, 'c');
+    if ($lock && !flock($lock, LOCK_EX | LOCK_NB)) {
+        fclose($lock);
+        jout(['ok' => true, 'mode' => 'refreshall', '건너뜀' => true,
+              '이유' => '지금 다른 곳에서 확인하는 중입니다']);
+    }
+
+    if (PHP_SAPI === 'cli' || isset($_GET['cron'])) {
+        @file_put_contents(__DIR__ . '/data/feeds-cron.txt', date('c'));
+    }
     $ok = 0; $fail = 0; $new = 0; $failed = [];
     foreach (all_channels() as $c) {
         $cf   = $CACHE_DIR . '/' . md5($c['feed']) . '.json';
@@ -444,9 +475,9 @@ if ($action === 'refreshall') {
         $ok++;
         if ($before !== '' && ($p['items'][0]['link'] ?? '') !== $before) $new++;
     }
-    @mkdir(__DIR__ . '/data', 0775, true);
-    @file_put_contents(__DIR__ . '/data/feeds-last.txt', date('c'));
-    jout(['ok' => true, 'mode' => 'refreshall', '확인한채널' => $ok,
+    @file_put_contents($lastFile, date('c'));
+    if ($lock) { flock($lock, LOCK_UN); fclose($lock); }
+    jout(['ok' => true, 'mode' => 'refreshall', '건너뜀' => false, '확인한채널' => $ok,
           '새글있던채널' => $new, '실패' => $fail, '실패내역' => $failed,
           '시각' => date('c')]);
 }

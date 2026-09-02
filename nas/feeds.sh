@@ -15,29 +15,52 @@
 #   명령   : sh /volume1/web/brand/feeds.sh
 # ───────────────────────────────────────────────────────────
 
-DIR=$(dirname "$0")
-cd "$DIR" || exit 1
+DIR=$(cd "$(dirname "$0")" && pwd)
 LOG="$DIR/feeds.log"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG"; }
 
-# 방법 1) 웹으로 부르기 — 웹 스테이션이 켜져 있으면 가장 확실합니다.
-#         주소가 다르면 아래 URL 만 고쳐주세요.
-URL="${URL:-http://localhost/brand/channels.php?action=refreshall}"
-OUT=$(wget -q -T 120 -O - "$URL" 2>/dev/null)
+# 제대로 된 응답인지 확인합니다.
+# 주소가 틀리면 웹 스테이션이 자기 안내 페이지를 200 으로 돌려주는데,
+# 그걸 성공으로 착각하면 "돌고는 있는데 아무것도 안 되는" 상태가 됩니다.
+is_ours() {
+    case "$1" in
+        *'"mode":"refreshall"'*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
-# 방법 2) 웹이 안 되면 명령줄 PHP 로 직접 실행합니다.
-if [ -z "$OUT" ]; then
-    PHP=$(command -v php 2>/dev/null)
-    [ -z "$PHP" ] && PHP=$(ls /usr/local/bin/php8* /usr/local/bin/php7* 2>/dev/null | tail -1)
-    if [ -n "$PHP" ]; then
-        OUT=$("$PHP" "$DIR/channels.php" action=refreshall 2>/dev/null)
+OUT=""
+
+# 방법 1) 명령줄 PHP — 주소를 몰라도 되니 가장 확실합니다.
+PHP=$(command -v php 2>/dev/null)
+[ -z "$PHP" ] && PHP=$(ls /usr/local/bin/php8* /usr/local/bin/php7* 2>/dev/null | tail -1)
+if [ -n "$PHP" ]; then
+    TRY=$("$PHP" "$DIR/channels.php" action=refreshall cron=1 2>/dev/null)
+    if is_ours "$TRY"; then OUT="$TRY"; else
+        log "명령줄 PHP 로는 안 됐습니다 (php=$PHP)"
     fi
 fi
 
+# 방법 2) 웹으로 부르기. 이 파일이 있는 폴더 이름으로 주소를 만들어 봅니다.
 if [ -z "$OUT" ]; then
-    log "실패: 채널을 확인하지 못했습니다 (URL=$URL)"
-    echo "채널을 확인하지 못했습니다. feeds.log 를 봐주세요."
+    BASENAME=$(basename "$DIR")
+    for U in \
+        ${URL:+"$URL"} \
+        "http://localhost/$BASENAME/channels.php?action=refreshall&cron=1" \
+        "http://127.0.0.1/$BASENAME/channels.php?action=refreshall&cron=1" \
+        "http://localhost/channels.php?action=refreshall&cron=1"
+    do
+        TRY=$(wget -q -T 120 -O - "$U" 2>/dev/null)
+        if is_ours "$TRY"; then OUT="$TRY"; log "웹으로 성공: $U"; break; fi
+        log "이 주소로는 안 됐습니다: $U"
+    done
+fi
+
+if [ -z "$OUT" ]; then
+    log "실패: 채널을 확인하지 못했습니다"
+    echo "채널을 확인하지 못했습니다. $LOG 를 봐주세요."
+    echo "웹 주소가 다르면 이 파일 위쪽의 URL= 에 직접 넣어주세요."
     exit 1
 fi
 

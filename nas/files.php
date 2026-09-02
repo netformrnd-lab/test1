@@ -207,6 +207,34 @@ if ($action === 'upload') {
 }
 
 /* ---------------- 다운로드 ---------------- */
+/* ---------------- 자동화 도구 실행하기 ----------------
+   생성기처럼 스크립트가 살아 있어야 동작하는 HTML 도구를 그대로 띄웁니다.
+   (읽기 전용 문서는 아래 view 를 씁니다 — 그쪽은 스크립트를 막습니다)
+   ---------------------------------------------------- */
+if ($action === 'run') {
+    $rel = trim($_GET['path'] ?? '');
+    if ($rel === '') jout(['ok' => false, 'error' => '도구 경로가 없습니다'], 400);
+
+    $rel  = str_replace('\\', '/', $rel);
+    $real = realpath($FILE_DIR . '/' . $rel);
+    $root = realpath($FILE_DIR);
+    if (!$real || !$root || strpos($real, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($real)) {
+        jout(['ok' => false, 'error' => '그런 도구가 없습니다: ' . $rel], 404);
+    }
+    $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
+    if ($ext !== 'html' && $ext !== 'htm') {
+        jout(['ok' => false, 'error' => 'HTML 도구만 실행할 수 있습니다 (' . $ext . ')'], 400);
+    }
+
+    header('Content-Type: text/html; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    header('Content-Length: ' . filesize($real));
+    header('Cache-Control: private, max-age=0');
+    while (ob_get_level()) ob_end_flush();
+    readfile($real);
+    exit;
+}
+
 /* ---------------- 문서 그대로 보여주기 (내려받지 않고) ----------------
    브랜드 기록부 같은 문서를 대시보드 안에서 바로 읽기 위한 것입니다.
    스크립트는 실행되지 않도록 막습니다.

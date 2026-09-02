@@ -279,113 +279,109 @@ if ($action === 'under') {
           'totalSize' => human($bytes), 'results' => $hits]);
 }
 
-/* ---------------- 폴더 탐색 (탐색기처럼) ---------------- */
+/* ---------------- 폴더 탐색 (탐색기처럼) ----------------
+   지금 보고 있는 폴더는 디스크를 그대로 읽습니다.
+   그래서 다른 사람이 방금 올린 파일도 새로고침하면 바로 보입니다.
+   (하위 폴더의 개수·용량만 미리 만들어 둔 목록에서 가져옵니다)
+   -------------------------------------------------------- */
 if ($action === 'browse') {
-    if (!is_file($FILE)) jout(['ok' => false, 'error' => '파일 목록이 아직 없습니다'], 404);
-
     $dir = rtrim(trim($_GET['dir'] ?? ''), '/');
     if ($dir === '') {
         $dir = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
     }
     if ($dir === '') jout(['ok' => false, 'error' => '폴더를 지정해 주세요'], 400);
 
-    $fp = fopen($FILE, 'r');
-    if (!$fp) jout(['ok' => false, 'error' => '목록을 열지 못했습니다'], 500);
+    $root = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
+    $real = @realpath($dir);
+    if (!$real) jout(['ok' => false, 'error' => '그런 폴더가 없습니다: ' . $dir], 404);
 
-    $prefix   = $dir . '/';
-    $preLen   = strlen($prefix);
-    $folders  = [];   // 바로 아래 하위 폴더
-    $files    = [];   // 바로 아래 파일
-    $totalIn  = 0;    // 이 폴더 아래 전체 파일 수
-
-    while (($line = fgets($fp)) !== false) {
-        $p = explode("\t", rtrim($line, "\r\n"), 3);
-        if (count($p) < 3) continue;
-        [$date, $size, $path] = $p;
-        if (strncmp($path, $prefix, $preLen) !== 0) continue;
-
-        $totalIn++;
-        $rest = substr($path, $preLen);
-        $slash = strpos($rest, '/');
-
-        if ($slash === false) {
-            $fx = strtolower(pathinfo($rest, PATHINFO_EXTENSION));
-            $files[] = [
-                'name' => $rest,
-                'path' => $path,
-                'date' => $date,
-                'size' => human((int)$size),
-                'ext'  => $fx,
-                'img'  => in_array($fx, ['jpg','jpeg','png','gif','webp','bmp'], true),
-            ];
-        } else {
-            $sub = substr($rest, 0, $slash);
-            if (!isset($folders[$sub])) $folders[$sub] = ['count' => 0, 'bytes' => 0];
-            $folders[$sub]['count']++;
-            $folders[$sub]['bytes'] += (int)$size;
-        }
+    // 훑은 폴더 밖은 열지 않습니다
+    $realRoot = $root !== '' ? @realpath($root) : false;
+    if (!$realRoot || ($real !== $realRoot && strpos($real, $realRoot . DIRECTORY_SEPARATOR) !== 0)) {
+        jout(['ok' => false, 'error' => '목록을 만든 폴더 안쪽만 볼 수 있습니다'], 403);
     }
-    fclose($fp);
 
-    $folderList = [];
-    foreach ($folders as $name => $v) {
-        $folderList[] = ['name' => $name, 'path' => $dir . '/' . $name,
-                         'count' => $v['count'], 'size' => human($v['bytes'])];
-    }
-    usort($folderList, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
-    usort($files, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
-
-    // 사진이 수만 장인 폴더도 볼 수 있게 나눠서 보냅니다
     $off = max(0, (int)($_GET['off'] ?? 0));
     $lim = (int)($_GET['lim'] ?? 500);
     if ($lim < 50)   $lim = 50;
     if ($lim > 2000) $lim = 2000;
 
-    $root = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
+    $skipNames = ['.', '..', '@eaDir', '#recycle', '#snapshot', '.DS_Store', 'Thumbs.db'];
+
+    $entries = @scandir($real);
+    if ($entries === false) jout(['ok' => false, 'error' => perm_help($real)], 403);
+
+    // 하위 폴더는 glob 으로 한 번에 (파일 하나하나 확인하지 않아 빠릅니다)
+    $dirNames = [];
+    foreach ((@glob($real . '/*', GLOB_ONLYDIR) ?: []) as $d) $dirNames[basename($d)] = true;
+
+    $fileNames = [];
+    foreach ($entries as $e) {
+        if (in_array($e, $skipNames, true)) continue;
+        if (isset($dirNames[$e])) continue;
+        if (strncmp($e, '~$', 2) === 0) continue;
+        $fileNames[] = $e;
+    }
+    usort($fileNames, 'strnatcasecmp');
+
+    // 화면에 보여줄 쪽만 크기·날짜를 읽습니다 (수만 장짜리 폴더 대비)
+    $files = [];
+    foreach (array_slice($fileNames, $off, $lim) as $e) {
+        $full = $real . '/' . $e;
+        $fx   = strtolower(pathinfo($e, PATHINFO_EXTENSION));
+        $files[] = [
+            'name' => $e,
+            'path' => $full,
+            'date' => date('Y-m-d', @filemtime($full) ?: 0),
+            'size' => human((int)@filesize($full)),
+            'ext'  => $fx,
+            'img'  => in_array($fx, ['jpg','jpeg','png','gif','webp','bmp'], true),
+        ];
+    }
+
+    // 하위 폴더의 개수·용량은 만들어 둔 목록에서 가져옵니다 (없으면 비워 둡니다)
+    $counts = [];
+    $totalIn = 0;
+    if (is_file($FILE) && ($fp = fopen($FILE, 'r'))) {
+        $prefix = $real . '/';
+        $preLen = strlen($prefix);
+        while (($line = fgets($fp)) !== false) {
+            $p = explode("\t", rtrim($line, "\r\n"), 3);
+            if (count($p) < 3) continue;
+            if (strncmp($p[2], $prefix, $preLen) !== 0) continue;
+            $totalIn++;
+            $rest  = substr($p[2], $preLen);
+            $slash = strpos($rest, '/');
+            if ($slash === false) continue;
+            $sub = substr($rest, 0, $slash);
+            if (!isset($counts[$sub])) $counts[$sub] = [0, 0];
+            $counts[$sub][0]++;
+            $counts[$sub][1] += (int)$p[1];
+        }
+        fclose($fp);
+    }
+
+    $folderList = [];
+    foreach (array_keys($dirNames) as $name) {
+        if (in_array($name, $skipNames, true)) continue;
+        $c = $counts[$name] ?? [0, 0];
+        $folderList[] = ['name' => $name, 'path' => $real . '/' . $name,
+                         'count' => $c[0], 'size' => human($c[1])];
+    }
+    usort($folderList, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
+
     jout([
         'ok'      => true,
-        'dir'     => $dir,
+        'dir'     => $real,
         'root'    => $root,
-        'parent'  => ($root !== '' && $dir !== $root) ? dirname($dir) : null,
-        'total'   => $totalIn,
-        'folders' => $off === 0 ? $folderList : [],   // 폴더는 첫 쪽에만 담습니다
-        'files'   => array_slice($files, $off, $lim),
+        'parent'  => ($realRoot && $real !== $realRoot) ? dirname($real) : null,
+        'total'   => max($totalIn, count($fileNames)),
+        'folders' => $off === 0 ? $folderList : [],
+        'files'   => $files,
         'off'     => $off,
-        'fileCount' => count($files),
+        'fileCount' => count($fileNames),
+        'live'    => true,
     ]);
-}
-
-
-/* ---- 목록 만들기(스캔)에 쓰는 파일들 ---- */
-$DATA   = __DIR__ . '/data';
-$OUT    = $FILE;
-$TMP    = $DATA . '/nasfiles.tsv.part';
-$QUEUE  = $DATA . '/scanqueue.txt';
-$STATE  = $DATA . '/scanstate.json';
-$ROOTF  = $ROOT_FILE;
-$SECONDS_PER_STEP = 3.0;
-$MAX_ERRORS       = 20;
-
-function load_state($f) {
-    if (!is_file($f)) return null;
-    $s = json_decode(file_get_contents($f), true);
-    return is_array($s) ? $s : null;
-}
-function save_state($f, $s) {
-    file_put_contents($f, json_encode($s, JSON_UNESCAPED_UNICODE));
-}
-function progress($st) {
-    return [
-        'ok' => true,
-        '진행' => $st['done'] ? '완료' : '진행 중',
-        'done' => (bool)$st['done'],
-        '훑을폴더' => $st['root'],
-        '찾은파일' => $st['files'],
-        '훑은폴더수' => $st['dirs'],
-        '지금폴더' => $st['current'],
-        '걸린시간' => round(microtime(true) - $st['started']) . '초',
-        '못읽은폴더' => $st['errors'],
-    ];
 }
 
 /* ---------------- 진짜 폴더 목록 보기 (목록 파일이 없어도 됨) ----------------

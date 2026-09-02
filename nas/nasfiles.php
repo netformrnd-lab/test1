@@ -238,6 +238,134 @@ if ($action === 'search') {
 }
 
 /* ---------------- 폴더 안의 파일 목록 ---------------- */
+/**
+ * 정해진 폴더 안에서만 파일을 찾습니다. (브랜드 자료 검색 · 전체 검색에 씁니다)
+ *
+ *   ?action=findin&q=제안서&roots=/volume1/a|/volume1/b&ext=pdf&limit=100
+ *
+ * roots 를 비워두면 훑기로 정한 폴더 전체에서 찾습니다.
+ * 만들어 둔 파일 목록(nasfiles.tsv)이 있으면 그걸 읽어 아주 빠르고,
+ * 없으면 폴더를 직접 훑습니다. (그 경우 시간·개수를 제한합니다)
+ */
+if ($action === 'findin') {
+    $q     = trim($_GET['q'] ?? '');
+    $ext   = strtolower(trim($_GET['ext'] ?? ''));
+    $limit = min(max((int)($_GET['limit'] ?? 60), 1), 300);
+    if ($q === '' && $ext === '') jout(['ok' => false, 'error' => '찾을 말을 입력해 주세요'], 400);
+
+    $terms = array_values(array_filter(preg_split('/\s+/u', mb_strtolower($q, 'UTF-8'))));
+
+    // 찾을 폴더들
+    $roots = [];
+    foreach (preg_split('/[|\n]/u', (string)($_GET['roots'] ?? '')) as $r) {
+        $r = trim($r);
+        if ($r === '') continue;
+        [$rr, ] = resolve_nas_dir(normalize_nas_input($r));   // [경로, 시도내역] 을 돌려줍니다
+        if ($rr && is_dir($rr)) $roots[] = rtrim($rr, '/');
+    }
+    $scanRoot = is_file($ROOT_FILE) ? rtrim(trim((string)@file_get_contents($ROOT_FILE)), '/') : '';
+    if (!$roots && $scanRoot !== '') $roots[] = $scanRoot;
+    if (!$roots) jout(['ok' => false, 'error' => '찾을 폴더가 없습니다. 먼저 브랜드에 NAS 폴더를 연결해 주세요.'], 400);
+
+    $imgExt = ['jpg','jpeg','png','gif','webp','bmp'];
+    $hits = []; $found = 0; $cut = false; $how = '';
+
+    $matches = function ($path) use ($terms, $ext) {
+        $low = mb_strtolower($path, 'UTF-8');
+        foreach ($terms as $t) if (strpos($low, $t) === false) return false;
+        if ($ext !== '' && strtolower(pathinfo($path, PATHINFO_EXTENSION)) !== $ext) return false;
+        return true;
+    };
+    $inRoots = function ($path) use ($roots) {
+        foreach ($roots as $r) {
+            if ($path === $r || strncmp($path, $r . '/', strlen($r) + 1) === 0) return true;
+        }
+        return false;
+    };
+
+    if (is_file($FILE) && filesize($FILE) > 0) {
+        // 1) 만들어 둔 목록에서 찾기 — 아주 빠릅니다
+        $how = '파일 목록';
+        $fp = @fopen($FILE, 'r');
+        if ($fp) {
+            while (($line = fgets($fp)) !== false) {
+                $line = rtrim($line, "\r\n");
+                if ($line === '') continue;
+                $p3 = explode("\t", $line, 3);
+                if (count($p3) < 3) continue;
+                [$date, $size, $path] = $p3;
+                if (!$inRoots($path) || !$matches($path)) continue;
+                $found++;
+                if (count($hits) < $limit) {
+                    $fx = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                    $hits[] = ['name' => basename($path), 'dir' => dirname($path), 'path' => $path,
+                               'date' => $date, 'size' => human((int)$size), 'ext' => $fx,
+                               'img' => in_array($fx, $imgExt, true)];
+                }
+            }
+            fclose($fp);
+        }
+    } else {
+        // 2) 목록이 없으면 폴더를 직접 훑습니다 (시간·개수 제한)
+        $how = '직접 훑기';
+        $started  = microtime(true);
+        $budget   = 6.0;        // 초
+        $maxSeen  = 60000;      // 살펴본 파일 수 상한
+        $seen     = 0;
+        $skip     = ['@eaDir','#recycle','#snapshot','.DS_Store','Thumbs.db'];
+
+        $walk = function ($dir) use (&$walk, &$hits, &$found, &$seen, &$cut, $matches,
+                                     $limit, $started, $budget, $maxSeen, $skip, $imgExt) {
+            if ($cut) return;
+            if (microtime(true) - $started > $budget || $seen > $maxSeen) { $cut = true; return; }
+            $es = @scandir($dir);
+            if ($es === false) return;
+            $dirs = [];
+            foreach ((@glob($dir . '/*', GLOB_ONLYDIR) ?: []) as $d) $dirs[basename($d)] = $d;
+            foreach ($es as $e) {
+                if ($e === '.' || $e === '..' || in_array($e, $skip, true)) continue;
+                if (strncmp($e, '~$', 2) === 0) continue;
+                if (isset($dirs[$e])) continue;
+                $seen++;
+                $full = $dir . '/' . $e;
+                if (!$matches($full)) continue;
+                $found++;
+                if (count($hits) < $limit) {
+                    $fx = strtolower(pathinfo($e, PATHINFO_EXTENSION));
+                    $hits[] = ['name' => $e, 'dir' => $dir, 'path' => $full,
+                               'date' => date('Y-m-d', @filemtime($full) ?: 0),
+                               'size' => human((int)@filesize($full)), 'ext' => $fx,
+                               'img' => in_array($fx, $imgExt, true)];
+                }
+            }
+            foreach ($dirs as $d) { $walk($d); if ($cut) return; }
+        };
+        foreach ($roots as $r) { $walk($r); if ($cut) break; }
+    }
+
+    // 파일 이름에 검색어가 있는 것을 먼저 보여줍니다.
+    // (폴더 이름만 맞아서 걸린 파일은 뒤로 보냅니다)
+    if ($terms) {
+        foreach ($hits as $i => $h) {
+            $nameLow = mb_strtolower($h['name'], 'UTF-8');
+            $score = 0;
+            foreach ($terms as $t) if (strpos($nameLow, $t) !== false) $score++;
+            $hits[$i]['_점수'] = $score;
+            $hits[$i]['_순서'] = $i;
+            $hits[$i]['이름일치'] = ($score === count($terms));
+        }
+        usort($hits, function ($a, $b) {
+            if ($a['_점수'] !== $b['_점수']) return $b['_점수'] - $a['_점수'];
+            return $a['_순서'] - $b['_순서'];
+        });
+        foreach ($hits as $i => $h) { unset($hits[$i]['_점수'], $hits[$i]['_순서']); }
+    }
+
+    jout(['ok' => true, '찾은수' => $found, '보여준수' => count($hits),
+          '더있음' => $found > count($hits), '중간에멈춤' => $cut, '방식' => $how,
+          '찾은폴더수' => count($roots), 'hits' => array_values($hits)]);
+}
+
 if ($action === 'under') {
     if (!is_file($FILE)) jout(['ok' => false, 'error' => '파일 목록이 아직 없습니다'], 404);
 

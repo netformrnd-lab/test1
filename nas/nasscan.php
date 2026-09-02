@@ -18,6 +18,52 @@ header('Content-Type: application/json; charset=utf-8');
 @set_time_limit(0);
 @ini_set('memory_limit', '256M');
 
+/* 경고문이 JSON 앞에 섞여 나오면 화면이 깨지므로, 출력을 붙잡아 둡니다.
+   치명적 오류가 나도 이유를 JSON 으로 돌려줍니다. */
+@ini_set('display_errors', '0');
+@ini_set('html_errors', '0');
+ob_start();
+register_shutdown_function(function () {
+    $e = error_get_last();
+    $fatal = $e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true);
+    if (!ob_get_level()) return;              // 이미 내보냈으면 그대로 둡니다
+    if ($fatal) {
+        ob_end_clean();
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        echo json_encode(['ok' => false, 'error' => '서버 오류: ' . $e['message']
+            . ' (' . basename($e['file']) . ' ' . $e['line'] . '줄)'], JSON_UNESCAPED_UNICODE);
+    } else {
+        ob_end_flush();
+    }
+});
+
+/* PHP 가 이 폴더를 읽도록 허용돼 있는지 봅니다 (open_basedir).
+   시놀로지 웹 스테이션 기본값이 웹 폴더로 묶여 있어 공유폴더를 못 읽습니다. */
+function basedir_error($path) {
+    $ob = @ini_get('open_basedir');
+    if ($ob === false || trim((string)$ob) === '') return null;
+
+    $cands = [$path];
+    $bare  = preg_replace('#^/volume\d+/#', '/', $path);
+    for ($i = 1; $i <= 8; $i++) $cands[] = '/volume' . $i . $bare;
+
+    foreach (explode(PATH_SEPARATOR, $ob) as $a) {
+        $a = rtrim(trim($a), '/');
+        if ($a === '') continue;
+        foreach ($cands as $c) {
+            if ($c === $a || strpos($c, $a . '/') === 0) return null;   // 허용됨
+        }
+    }
+    return "PHP 가 공유폴더를 읽지 못하도록 막혀 있습니다.\n\n"
+         . "DSM → 웹 스테이션 → 스크립트 언어 설정 → 쓰고 계신 PHP 프로필 → 편집 →\n"
+         . "\"open_basedir\" 칸에 아래 경로를 추가하고 저장해 주세요.\n\n"
+         . "    " . $path . "\n\n"
+         . "지금 허용된 경로: " . $ob;
+}
+
 $DATA   = __DIR__ . '/data';
 $OUT    = $DATA . '/nasfiles.tsv';
 $TMP    = $DATA . '/nasfiles.tsv.part';
@@ -124,6 +170,9 @@ if ($action === 'start') {
 
     $norm = normalize_nas_input($raw);
     if ($norm === null) jout(['ok' => false, 'error' => '폴더 경로를 알아보지 못했습니다: ' . $raw], 400);
+
+    $bd = basedir_error($norm);
+    if ($bd !== null) jout(['ok' => false, 'error' => $bd, 'open_basedir' => @ini_get('open_basedir')], 403);
 
     [$root, $tried] = resolve_nas_dir($norm);
     if ($root === null) {

@@ -871,12 +871,15 @@ async function apiJson(url, opts){
   let out = null;
   try{ out = JSON.parse(text); }catch(e){}
   if(out === null){
-    if(/^\s*</.test(text)){
-      throw new Error('NAS에 nasfiles.php 가 아직 없습니다.\n\n'
+    const file = String(url).split('?')[0];
+    const head = text.replace(/\s+/g, ' ').trim().slice(0, 300);
+    if(res.status === 404){
+      throw new Error('NAS에 ' + file + ' 이(가) 아직 없습니다.\n\n'
         + '아래 주소를 브라우저 주소창에 한 번 넣어 주세요. (파일을 자동으로 받아옵니다)\n\n'
         + location.href.split('?')[0].replace(/[^/]*$/, 'save.php?action=bootstrap'));
     }
-    throw new Error('서버 응답 이상 (HTTP ' + res.status + ')');
+    throw new Error(file + ' 이(가) 이상한 응답을 보냈습니다. (HTTP ' + res.status + ')\n\n'
+      + '받은 내용 앞부분:\n' + head);
   }
   if(!out.ok) throw out;
   return out;

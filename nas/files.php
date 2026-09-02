@@ -212,12 +212,33 @@ if ($action === 'upload') {
    스크립트는 실행되지 않도록 막습니다.
    ------------------------------------------------------------------- */
 if ($action === 'view') {
-    $id = $_GET['id'] ?? '';
-    if (!preg_match('/^[0-9a-f]{32}$/', $id)) {
-        jout(['ok' => false, 'error' => '잘못된 파일 주소입니다'], 400);
+    $path = null;
+    $name = null;
+
+    // 1) 파일 경로를 직접 받은 경우 (저장이 끝나기 전에도 바로 볼 수 있습니다)
+    $rel = trim($_GET['path'] ?? '');
+    if ($rel !== '') {
+        $rel  = str_replace('\\', '/', $rel);
+        $try  = $FILE_DIR . '/' . $rel;
+        $real = realpath($try);
+        $root = realpath($FILE_DIR);
+        // files 폴더 밖으로 벗어나는 경로는 거부합니다
+        if ($real && $root && strpos($real, $root . DIRECTORY_SEPARATOR) === 0 && is_file($real)) {
+            $path = $real;
+            $name = basename($real);
+        } else {
+            jout(['ok' => false, 'error' => '그런 문서가 없습니다: ' . $rel], 404);
+        }
+    } else {
+        // 2) 예전 방식 — 저장된 목록에서 찾습니다
+        $id = $_GET['id'] ?? '';
+        if (!preg_match('/^[0-9a-f]{32}$/', $id)) {
+            jout(['ok' => false, 'error' => '잘못된 파일 주소입니다'], 400);
+        }
+        [$path, $name] = resolve_path($FILE_DIR, $MANIFEST, $id);
+        if (!$path) jout(['ok' => false, 'error' =>
+            '아직 저장되지 않은 문서입니다. 잠시 뒤 새로고침해 주세요.'], 404);
     }
-    [$path, $name] = resolve_path($FILE_DIR, $MANIFEST, $id);
-    if (!$path) jout(['ok' => false, 'error' => '파일을 찾을 수 없습니다'], 404);
 
     $ext = strtolower(pathinfo($name ?: $path, PATHINFO_EXTENSION));
     $types = [

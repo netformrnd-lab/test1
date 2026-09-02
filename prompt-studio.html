@@ -526,6 +526,15 @@
   function lns(id){return val(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);}
   function kw(){return val('kw')||'(키워드를 입력하세요)';}
 
+  var SCENE_SEC=13;   // 장면 하나의 목표 길이
+  // 같은 챕터가 여러 장면으로 갈릴 때 화면이 반복되지 않도록 돌려 쓰는 변주
+  var SCREEN_VAR=[
+    '핵심 요소를 화면 가운데 크게',
+    '앞 장면에서 한 단계 확대하거나 다른 각도의 소재로 교체',
+    '항목을 나열하거나 좌우로 비교',
+    '수치나 그래프를 단독으로',
+    '실사 B롤 위에 짧은 자막'
+  ];
   function scenes(len,msgs,cases){
     var auto=msgs.length===0, autoCase=cases.length===0;
     var plan=[
@@ -544,11 +553,25 @@
       {n:'정리 · 다음 행동', w:.12, screen:'3줄 요약이 한 줄씩 쌓인 뒤 마지막에 안내 문구. 로고는 여기서만',
        note:'요약 후 바로 실행할 수 있는 다음 행동을 안내한다.'}
     ];
-    var t=0;
-    return plan.map(function(p){
-      var d=Math.round(len*p.w), s=t; t+=d;
-      return {name:p.n,from:s,to:Math.min(t,len),dur:Math.min(t,len)-s,screen:p.screen,note:p.note};
+    var t=0, out=[];
+    plan.forEach(function(p){
+      var d=Math.round(len*p.w), start=t; t+=d;
+      var end=Math.min(t,len), total=end-start;
+      var n=Math.max(1,Math.round(total/SCENE_SEC));
+      for(var i=0;i<n;i++){
+        var a=start+Math.round(total*i/n), c=start+Math.round(total*(i+1)/n);
+        out.push({
+          part:p.n,
+          name:p.n+(n>1?' ('+(i+1)+'/'+n+')':''),
+          from:a,to:c,dur:c-a,
+          screen:p.screen+(n>1?' — '+SCREEN_VAR[i%SCREEN_VAR.length]:''),
+          note:p.note+(n>1?(i===0?' 이 장면에서는 도입과 핵심 문장까지만.'
+                    :(i===n-1?' 앞 장면에 이어 근거와 예시로 마무리.'
+                             :' 앞 장면에 이어 근거를 하나 더.')):'')
+        });
+      }
     });
+    return out;
   }
 
   function chapters(sc){
@@ -616,7 +639,7 @@
     b.push('- 길이: '+chLen+'초 (±5초 허용)');
     b.push('- 화면비: 16:9');
     b.push('- 자막: 한국어, 전 구간 표시');
-    b.push('- 장면 하나가 20초를 넘지 않게 나눠 주세요.');
+    b.push('- 아래 장면 목록의 개수와 구간을 그대로 지킬 것');
     b.push('- 색: '+val('palette'));
     b.push('- 톤: '+TONES[st.tone].v);
     b.push('');
@@ -648,13 +671,15 @@
     b.push('# 연출 원칙');
     PRINCIPLES.forEach(function(p){ b.push('- '+p); });
     b.push('');
-    b.push('# 씬 구성 (구간을 임의로 바꾸지 마세요)');
+    b.push('# 장면 구성 — 아래 '+ch.length+'개 장면을 순서대로 하나씩 만들어 주세요');
+    b.push('장면을 합치거나 줄이지 마세요. 한 장면이 20초를 넘으면 안 됩니다.');
+    b.push('');
     ch.forEach(function(s,i){
       var gi=sc.indexOf(s);
       var on=plan.idx.indexOf(gi)>=0?'  ← 아바타 등장':'';
-      b.push((i+1)+'. '+s.name+' ['+(s.from-base)+'~'+(s.to-base)+'초]'+on);
-      b.push('   내용: '+s.note);
-      b.push('   화면: '+s.screen);
+      b.push('장면 '+(i+1)+' ['+(s.from-base)+'~'+(s.to-base)+'초] '+s.name+on);
+      b.push('  화면: '+s.screen);
+      b.push('  내용: '+s.note);
     });
     var tr=TRADES[st.trade];
     if(tr.grades.length){
@@ -702,6 +727,7 @@
     b.push('- 실제 단지명, 세대수, 설계 금액, 계약 금액을 화면이나 내레이션에 노출하는 것');
     b.push('- 특정 업체의 공법명이나 제품명을 언급하는 것');
     b.push('- 영상을 여러 편으로 나누려 하는 것. "1부", "2부", "다음 편에서"는 쓰지 않습니다');
+    b.push('- 여러 장면을 하나로 합치는 것. 목록에 적힌 장면 수를 그대로 지킵니다');
     if(CASTS[st.cast].lines.length){
       b.push('- 서양인 모델, 영문 간판, 해외 주택 외관이 보이는 영상·이미지');
     }
@@ -848,7 +874,7 @@
     document.getElementById('fixedNote').innerHTML =
       '기본 적용 · <b>'+PRESETS[st.preset].k+'</b> 스타일 · <b>'+
       (len%60===0?(len/60)+'분':Math.floor(len/60)+'분 '+(len%60)+'초')+'</b>'+
-      ' (장면당 <b>'+Math.round(len/AGENT_SCENES)+'초</b>)'+
+      ' · 장면 <b>'+sc.length+'개</b>'+
       (chs.length>1?' <b>'+chs.length+'조각</b>':'')+
       ' · 아바타 <b>'+(plan.billed?plan.idx.length+'회 '+plan.billed+'초':'없음')+'</b>'+
       ' · 인물 <b>'+CASTS[st.cast].k+'</b>'+
@@ -861,13 +887,9 @@
     }).join('');
 
     document.getElementById('presetNote').textContent=PRESETS[st.preset].note;
-    var perScene=Math.round(len/AGENT_SCENES);
     document.getElementById('lenNote').innerHTML =
-      '헤이젠은 길이와 상관없이 장면을 <b>'+AGENT_SCENES+'개쯤</b> 만듭니다. '+
-      '이 길이면 <b>장면당 약 '+perScene+'초</b>입니다.'+
-      (perScene>25
-        ? ' <b style="color:var(--warn)">한 장면이 너무 길어 화면이 멈춘 것처럼 보입니다.</b> 길이를 줄이세요.'
-        : (perScene>18 ? ' 조금 긴 편입니다.' : ' 적당합니다.'));
+      '프롬프트가 <b>'+sc.length+'개 장면</b>을 하나씩 나열합니다 (장면당 약 '+
+      Math.round(len/sc.length)+'초). 헤이젠은 장면 수를 지시로는 안 듣고, 목록으로 줘야 그대로 만듭니다.';
 
     var inter=AVAS[st.ava].mode==='intermittent';
     document.getElementById('avaOpts').hidden=!inter;

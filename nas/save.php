@@ -20,17 +20,21 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
     $BASE = 'https://raw.githubusercontent.com/netformrnd-lab/test1'
           . '/refs/heads/claude/ja-brand-dashboard-nas-4lvyrk';
 
-    // 저장될 이름 => 저장소에서의 경로 => 정상 여부를 판단할 문구
+    // 받아올 파일 목록입니다.
+    // manifest.txt 를 먼저 읽어오기 때문에, 새 파일이 생겨도
+    // 이 파일(save.php)을 고치지 않고 목록만 바꾸면 됩니다.
+    // 목록을 못 받아오면 아래 기본 목록을 씁니다.
     $TARGETS = [
         'brand.html' => ['brand.html',     '</html>'],
         'load.php'   => ['nas/load.php',   '<?php'],
+        'save.php'   => ['nas/save.php',   '<?php'],
         'files.php'  => ['nas/files.php',  '<?php'],
         'deploy.sh'  => ['nas/deploy.sh',  'update_file'],
         'metrics.php'=> ['nas/metrics.php','<?php'],
         'inquiries.php' => ['nas/inquiries.php','<?php'],
         'nasfiles.php'  => ['nas/nasfiles.php','<?php'],
-        'scan.sh'       => ['nas/scan.sh','ROOT='],
         'nasscan.php'   => ['nas/nasscan.php','<?php'],
+        'scan.sh'       => ['nas/scan.sh','ROOT='],
         'config.sample.php' => ['nas/config.sample.php','<?php'],
     ];
 
@@ -78,6 +82,21 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
     };
 
     $result = [];
+    // 목록 파일을 먼저 받아봅니다. 실패하면 위 기본 목록을 그대로 씁니다.
+    $mf = $fetch($BASE . '/nas/manifest.txt');
+    if (is_string($mf) && strpos($mf, "\t") !== false) {
+        $parsed = [];
+        foreach (preg_split('/\r?\n/', $mf) as $line) {
+            if ($line === '' || $line[0] === '#') continue;
+            $c = explode("\t", $line);
+            if (count($c) < 3) continue;
+            $name = trim($c[0]);
+            if ($name === '' || strpbrk($name, "/\\") !== false) continue;   // 폴더 이동 금지
+            $parsed[$name] = [trim($c[1]), trim($c[2])];
+        }
+        if (count($parsed) >= 5) $TARGETS = $parsed;
+    }
+
     foreach ($TARGETS as $name => [$remote, $marker]) {
         $body = $fetch($BASE . '/' . $remote);
         if ($body === false || $body === '' || strpos($body, $marker) === false) {

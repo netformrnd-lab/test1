@@ -67,16 +67,34 @@ update_file() {
 }
 
 failed=0
-update_file "brand.html" "brand.html"   "</html>"    || failed=1
-update_file "load.php"   "nas/load.php" "<?php"      || failed=1
-update_file "save.php"   "nas/save.php" "<?php"      || failed=1
-update_file "files.php"  "nas/files.php" "<?php"     || failed=1
-update_file "metrics.php" "nas/metrics.php" "<?php"   || failed=1
-update_file "inquiries.php" "nas/inquiries.php" "<?php" || failed=1
-update_file "nasfiles.php" "nas/nasfiles.php" "<?php" || failed=1
-update_file "scan.sh"      "nas/scan.sh"      "ROOT="  || failed=1
-update_file "nasscan.php" "nas/nasscan.php" "<?php"  || failed=1
-update_file "config.sample.php" "nas/config.sample.php" "<?php" || failed=1
+
+# 받아올 파일 목록을 manifest.txt 에서 읽습니다.
+# 새 파일이 생겨도 이 스크립트를 고칠 필요가 없습니다.
+# 목록을 못 받으면 아래 기본 목록을 씁니다.
+TAB=$(printf '\t')
+if wget -q -T 30 -O "$TMP/manifest.txt" "$BASE/nas/manifest.txt" 2>/dev/null &&
+   grep -q "$TAB" "$TMP/manifest.txt"; then
+    log "목록 파일 사용"
+    while IFS="$TAB" read -r name remote marker; do
+        case "$name" in ''|'#'*) continue;; esac
+        case "$name" in */*|*\\*) continue;; esac      # 폴더 이동 금지
+        [ -z "$remote" ] && continue
+        update_file "$name" "$remote" "$marker" || failed=1
+    done < "$TMP/manifest.txt"
+    rm -f "$TMP/manifest.txt"
+else
+    log "목록 파일을 못 받아 기본 목록을 씁니다"
+    update_file "brand.html" "brand.html"   "</html>"    || failed=1
+    update_file "load.php"   "nas/load.php" "<?php"      || failed=1
+    update_file "save.php"   "nas/save.php" "<?php"      || failed=1
+    update_file "files.php"  "nas/files.php" "<?php"     || failed=1
+    update_file "metrics.php" "nas/metrics.php" "<?php"   || failed=1
+    update_file "inquiries.php" "nas/inquiries.php" "<?php" || failed=1
+    update_file "nasfiles.php" "nas/nasfiles.php" "<?php" || failed=1
+    update_file "nasscan.php" "nas/nasscan.php" "<?php"  || failed=1
+    update_file "scan.sh"      "nas/scan.sh"      "ROOT="  || failed=1
+    update_file "config.sample.php" "nas/config.sample.php" "<?php" || failed=1
+fi
 
 # 문의 기록 시트가 연결돼 있으면 함께 갱신합니다.
 # (연결이 없으면 아무 일도 하지 않고, 실패해도 파일 갱신에는 영향을 주지 않습니다)

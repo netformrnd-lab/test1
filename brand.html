@@ -324,6 +324,28 @@ table.itable tr:hover td{background:var(--bg-hover)}
   background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 /* 기록부 문서를 대시보드 디자인으로 */
 .doc-title{font-size:22px;font-weight:800;margin:4px 0 14px;letter-spacing:-.3px}
+/* 여정 타임라인 */
+.jtl{position:relative;padding-left:30px}
+.jtl:before{content:'';position:absolute;left:11px;top:8px;bottom:8px;width:2px;
+  background:var(--border)}
+.jsec{position:relative;margin-bottom:10px;border:1px solid var(--border);
+  border-radius:12px;background:var(--bg-secondary)}
+.jsec.on{background:var(--bg-card);border-color:var(--border-light)}
+.jdot{position:absolute;left:-30px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--bg-card);border:2px solid var(--border);color:var(--text-muted);
+  font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:1}
+.jsec.on .jdot{background:var(--blue);border-color:var(--blue);color:#fff}
+.jhead{width:100%;font-family:inherit;text-align:left;display:block;
+  padding:13px 16px;border:0;background:transparent;cursor:pointer;border-radius:12px}
+.jhead:hover{background:var(--bg-hover)}
+.jh-top{display:flex;align-items:baseline;gap:10px}
+.jh-title{font-size:15px;font-weight:800;color:var(--text-primary);letter-spacing:-.2px}
+.jh-ar{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--text-muted);
+  white-space:nowrap;flex-shrink:0}
+.jh-lead{font-size:13px;line-height:1.65;color:var(--text-secondary);margin-top:6px}
+.jh-subs{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.jh-sub{font-size:11px;font-weight:600;color:var(--text-muted);
+  padding:2px 9px;border-radius:999px;border:1px solid var(--border)}
 .doc-toc{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;
   padding:12px 14px;border:1px solid var(--border);border-radius:12px;
   background:var(--bg-secondary)}
@@ -339,7 +361,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .doc-h2:hover{background:var(--bg-hover)}
 .doc-h2 .doc-ar{color:var(--text-muted);font-size:11px;width:10px;flex-shrink:0}
 .doc-h2 .doc-cnt{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--text-muted)}
-.doc-body{padding:2px 20px 18px 35px;border-top:1px solid var(--border)}
+.doc-body{padding:2px 20px 18px 20px;border-top:1px solid var(--border);
+  border-radius:0 0 12px 12px}
 .doc-body p{font-size:14px;line-height:1.85;color:var(--text-secondary);margin:0 0 13px}
 .doc-body .doc-p{font-size:14px;line-height:1.85;color:var(--text-secondary);margin:0 0 13px}
 .doc-body .doc-h3{font-size:14px;font-weight:800;color:var(--text-primary);
@@ -2591,7 +2614,9 @@ function cleanNode(node, out){
     if(tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'NOSCRIPT') return;
 
     if(DOC_OK_TAGS.indexOf(tag) < 0){          // 모르는 태그는 껍데기만 벗기고 속은 살립니다
+      out.push(' ');                            // 붙어버리지 않게 사이를 띄웁니다
       cleanNode(n, out);
+      out.push(' ');
       return;
     }
     if(tag === 'BR' || tag === 'HR'){ out.push('<' + tag.toLowerCase() + '>'); return; }
@@ -2634,12 +2659,12 @@ function parseRecordDoc(text){
       const t = el.tagName;
       if(t === 'H1'){ return; }
       if(t === 'H2'){
-        cur = { title: el.textContent.trim(), subs: [], parts: [] };
+        cur = { title: el.textContent.trim(), subs: [], parts: [], lead: '' };
         secs.push(cur);
         return;
       }
       if(t === 'H3'){
-        if(!cur){ cur = { title:'', subs:[], parts:[] }; secs.push(cur); }
+        if(!cur){ cur = { title:'', subs:[], parts:[], lead:'' }; secs.push(cur); }
         const s = el.textContent.trim();
         cur.subs.push(s);
         cur.parts.push('<h4 class="doc-h3">' + esc(s) + '</h4>');
@@ -2650,14 +2675,18 @@ function parseRecordDoc(text){
          && el.querySelector('h2, h3')){ walk(el); return; }
 
       if(!el.textContent.trim() && !el.querySelector('img,hr')) return;
-      if(!cur){ cur = { title:'', subs:[], parts:[] }; secs.push(cur); }
+      if(!cur){ cur = { title:'', subs:[], parts:[], lead:'' }; secs.push(cur); }
       cur.parts.push(wrapEl(el));
+      if(!cur.lead && t === 'P'){
+        const txt = el.textContent.replace(/\s+/g, ' ').trim();
+        if(txt.length > 12) cur.lead = txt;
+      }
     });
   };
   const wrapEl = (el) => {
     const o = [];
     cleanNode(el, o);
-    const inner = o.join('');
+    const inner = o.join('').replace(/[ \t]{2,}/g, ' ').replace(/> </g, '><');
     const t = el.tagName.toLowerCase();
     if(t === 'p')  return '<p>' + inner + '</p>';
     if(t === 'ul' || t === 'ol') return '<' + t + '>' + inner + '</' + t + '>';
@@ -2695,23 +2724,34 @@ function recordView(rec){
   if(c.error)   return '<div class="empty">⚠️ ' + esc(c.error) + '</div>';
   if(!c.secs.length) return '<div class="empty">문서에서 읽을 내용을 찾지 못했습니다.</div>';
 
-  const toc = '<div class="doc-toc">' + c.secs.map((sc, i) =>
-      '<button class="doc-tocb" onclick="jumpSection(' + i + ')">'
-      + esc(sc.title || '들어가며') + '</button>').join('') + '</div>';
+  const cut = (t, n) => t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t;
 
   const body = c.secs.map((sc, i) => {
-    const open = (secOpen[i] !== undefined) ? secOpen[i] : allSecOpen;
-    return '<div class="doc-sec" id="dsec' + i + '">'
-      + '<button class="doc-h2" onclick="toggleSection(' + i + ')">'
-        + '<span class="doc-ar">' + (open ? '▾' : '▸') + '</span>'
-        + '<span>' + esc(sc.title || '들어가며') + '</span>'
-        + (sc.subs.length ? '<span class="doc-cnt">' + sc.subs.length + '꼭지</span>' : '')
+    const open  = (secOpen[i] !== undefined) ? secOpen[i] : allSecOpen;
+    const title = sc.title || '들어가며';
+
+    return '<div class="jsec' + (open ? ' on' : '') + '" id="dsec' + i + '">'
+      + '<div class="jdot">' + (i + 1) + '</div>'
+      + '<button class="jhead" onclick="toggleSection(' + i + ')">'
+        + '<div class="jh-top">'
+          + '<span class="jh-title">' + esc(title) + '</span>'
+          + '<span class="jh-ar">' + (open ? '접기 ▾' : '펼치기 ▸') + '</span>'
+        + '</div>'
+        + (sc.lead && !open
+            ? '<div class="jh-lead">' + esc(cut(sc.lead, 120)) + '</div>' : '')
+        + (sc.subs.length && !open
+            ? '<div class="jh-subs">' + sc.subs.map(x =>
+                '<span class="jh-sub">' + esc(x) + '</span>').join('') + '</div>'
+            : '')
       + '</button>'
       + (open ? '<div class="doc-body">' + sc.parts.join('') + '</div>' : '')
       + '</div>';
   }).join('');
 
-  return '<div class="doc-title">' + esc(c.title) + '</div>' + toc + body;
+  return '<div class="doc-title">' + esc(c.title) + '</div>'
+    + '<div class="fmeta" style="margin:-8px 0 16px">'
+      + c.secs.length + '단계 · 제목을 누르면 그 대목이 펼쳐집니다</div>'
+    + '<div class="jtl">' + body + '</div>';
 }
 
 function jumpSection(i){

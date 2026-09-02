@@ -57,6 +57,25 @@ function basedir_error($path) {
          . "지금 허용된 경로: " . $ob;
 }
 
+/* 권한 문제일 때 어디를 어떻게 고쳐야 하는지 알려줍니다.
+   시놀로지는 권한 화면이 두 곳인데, 웹 서버 계정(http)은 한쪽에서만 보입니다. */
+function perm_help($dir) {
+    $who = 'http';
+    if (function_exists('posix_geteuid') && function_exists('posix_getpwuid')) {
+        $u = @posix_getpwuid(@posix_geteuid());
+        if (!empty($u['name'])) $who = $u['name'];
+    }
+    return "이 폴더를 읽을 권한이 없습니다: " . $dir . "\n\n"
+         . "웹 서버는 \"" . $who . "\" 계정으로 돌아갑니다. 이 계정에 읽기 권한이 필요합니다.\n"
+         . "시놀로지는 권한 화면이 두 곳인데, 이 계정은 아래 화면에서만 보입니다.\n\n"
+         . "DSM → 제어판 → 공유 폴더 → 그 폴더 선택 → [편집] → [권한] 탭\n"
+         . "  1. 화면 위 드롭다운을 \"로컬 사용자\" 에서 \"시스템 내부 사용자\" 로 바꿉니다\n"
+         . "  2. 목록에서 " . $who . " 를 찾아 \"읽기 전용\" 에 체크합니다\n"
+         . "  3. 저장을 누릅니다\n\n"
+         . "그래도 안 되면 File Station 에서 그 폴더 오른쪽 클릭 → 속성 → 권한 →\n"
+         . "[추가] → 사용자/그룹 " . $who . " → 읽기 → 적용 대상 \"이 폴더, 하위 폴더 및 파일\"";
+}
+
 $FILE = __DIR__ . '/data/nasfiles.tsv';
 
 function jout($arr, $code = 200) {
@@ -147,6 +166,14 @@ if ($action === 'check') {
             ? '없음 (제한 없이 읽을 수 있습니다)' : @ini_get('open_basedir'),
         '보이는볼륨'      => implode(', ', @glob('/volume*', GLOB_ONLYDIR) ?: []) ?: '(못 봄)',
         'nasscan설치됨'   => is_file(__DIR__ . '/nasscan.php') ? '예' : '아니오',
+        '웹서버계정'      => (function () {
+            if (function_exists('posix_geteuid') && function_exists('posix_getpwuid')) {
+                $u = @posix_getpwuid(@posix_geteuid());
+                if (!empty($u['name'])) return $u['name'];
+            }
+            $w = @shell_exec('whoami 2>/dev/null');
+            return $w ? trim($w) : '알 수 없음';
+        })(),
     ]);
 }
 
@@ -388,9 +415,7 @@ if ($action === 'listdirs') {
     $entries = @scandir($real);
     if ($entries === false) {
         jout(['ok' => false, 'error' =>
-            '이 폴더를 읽을 권한이 없습니다: ' . $real . "\n\n"
-            . 'File Station 에서 이 공유폴더를 오른쪽 클릭 → 속성 → 권한 에서 '
-            . '"http" 사용자에게 읽기 권한을 주고, "하위 폴더에 적용" 을 체크해 주세요.'], 403);
+perm_help($real)], 403);
     }
 
     $folders = [];
@@ -446,9 +471,7 @@ if ($action === 'scanstart') {
     // 웹서버 계정이 이 폴더를 읽을 수 있는지 먼저 확인합니다.
     if (@scandir($root) === false) {
         jout(['ok' => false, 'error' =>
-            '이 폴더를 읽을 권한이 없습니다: ' . $root . "\n\n"
-            . 'File Station 에서 이 공유폴더를 오른쪽 클릭 → 속성 → 권한 에서 '
-            . '"http" 사용자에게 읽기 권한을 주고, "하위 폴더에 적용" 을 체크해 주세요.',
+perm_help($root),
             '읽으려던폴더' => $root], 403);
     }
 

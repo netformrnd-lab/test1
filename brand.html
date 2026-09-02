@@ -1216,8 +1216,14 @@ function viewChannels(b){
     }else if(!f || f.loading){
       inner = '<div class="fmeta">불러오는 중…</div>';
     }else if(f.error){
-      inner = '<div class="fmeta">⚠️ ' + esc(f.error.split('\n')[0]) + ' '
-        + '<button class="btn sm" onclick="refreshFeed(\'' + jsq(c.feed) + '\')">다시</button></div>';
+      inner = '<div class="fmeta" style="white-space:pre-wrap;line-height:1.6">⚠️ '
+        + esc(f.error) + '</div>'
+        + '<div class="row" style="margin-top:8px">'
+          + '<button class="btn sm" onclick="refreshFeed(\'' + jsq(c.feed) + '\')">↻ 다시 시도</button>'
+          + '<a class="btn sm" href="channels.php?action=test&url=' + encodeURIComponent(c.feed)
+            + '" target="_blank" rel="noopener">🔧 왜 안 되는지 보기</a>'
+          + '<a class="btn sm" href="' + esc(c.feed) + '" target="_blank" rel="noopener">RSS 직접 열기 ↗</a>'
+        + '</div>';
     }else if(!f.items || !f.items.length){
       inner = '<div class="fmeta">올라온 글이 없습니다.</div>';
     }else{

@@ -66,14 +66,20 @@ function fetch_url($url, &$why = null) {
         $why[] = 'file_get_contents 실패';
     } else { $why[] = 'allow_url_fopen 이 꺼져 있습니다'; }
 
-    $tmp = tempnam(sys_get_temp_dir(), 'feed');
-    @exec('wget -q -T 20 -O ' . escapeshellarg($tmp) . ' ' . escapeshellarg($url) . ' 2>&1', $o, $rc);
-    if ($rc === 0 && is_file($tmp) && filesize($tmp) > 0) {
-        $b = file_get_contents($tmp); @unlink($tmp);
-        return $b;
+    // wget — 인증서가 오래된 NAS 를 위해 한 번 더 시도합니다
+    $ua = 'Mozilla/5.0 (compatible; BrandHub/1.0)';
+    foreach ([['', 'wget'], ['--no-check-certificate ', 'wget(인증서 검사 생략)']] as $v) {
+        $tmp = tempnam(sys_get_temp_dir(), 'feed');
+        $o = [];
+        @exec('wget -q -T 20 ' . $v[0] . '-U ' . escapeshellarg($ua)
+            . ' -O ' . escapeshellarg($tmp) . ' ' . escapeshellarg($url) . ' 2>&1', $o, $rc);
+        if ($rc === 0 && is_file($tmp) && filesize($tmp) > 0) {
+            $b = file_get_contents($tmp); @unlink($tmp);
+            return $b;
+        }
+        @unlink($tmp);
+        $why[] = $v[1] . ': 코드 ' . $rc . ($o ? ' — ' . implode(' ', array_slice($o, 0, 2)) : '');
     }
-    @unlink($tmp);
-    $why[] = 'wget 실패';
     return false;
 }
 
@@ -206,6 +212,23 @@ if ($action === 'check') {
           'simplexml' => function_exists('simplexml_load_string') ? '있음' : '없음']);
 }
 
+/* 특정 주소에 닿는지 하나씩 확인합니다 */
+if ($action === 'test') {
+    $url = trim($_GET['url'] ?? 'https://www.youtube.com/feeds/videos.xml?channel_id=UCBR8-60-B28hp2BmDPdntcQ');
+    $why = [];
+    $b = fetch_url($url, $why);
+    jout([
+        'ok'       => true,
+        '주소'     => $url,
+        '받았나'   => $b === false ? '아니오' : ('예 (' . strlen($b) . ' 바이트)'),
+        '앞부분'   => $b === false ? '' : substr(preg_replace('/\s+/', ' ', $b), 0, 200),
+        '시도내역' => $why,
+        'curl'     => function_exists('curl_init') ? '있음' : '없음',
+        'allow_url_fopen' => ini_get('allow_url_fopen') ? '켜짐' : '꺼짐',
+        'wget'     => trim(@shell_exec('command -v wget 2>/dev/null') ?: '') ?: '없음',
+    ]);
+}
+
 if ($action === 'probe') {
     $url = trim($_GET['url'] ?? '');
     if ($url === '') jout(['ok' => false, 'error' => '채널 주소를 넣어주세요'], 400);
@@ -243,7 +266,11 @@ if ($action === 'feed') {
             $c = json_decode(file_get_contents($cf), true);
             if (is_array($c)) { $c['캐시'] = '예 (새로 못 받음)'; jout($c); }
         }
-        jout(['ok' => false, 'error' => '채널을 읽지 못했습니다', '시도내역' => $why], 502);
+        jout(['ok' => false,
+              'error' => "채널을 읽지 못했습니다.\n\n"
+                . "NAS 가 이 주소에 닿지 못했습니다:\n" . $feed . "\n\n"
+                . "시도한 방법:\n \xc2\xb7 " . implode("\n \xc2\xb7 ", $why),
+              '시도내역' => $why, 'feed' => $feed], 502);
     }
     $p = parse_feed($body, $n);
     if (!$p) jout(['ok' => false, 'error' => 'RSS 형식이 아닙니다'], 422);

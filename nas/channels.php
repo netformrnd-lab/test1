@@ -66,19 +66,38 @@ function fetch_url($url, &$why = null) {
         $why[] = 'file_get_contents 실패';
     } else { $why[] = 'allow_url_fopen 이 꺼져 있습니다'; }
 
-    // wget — 인증서가 오래된 NAS 를 위해 한 번 더 시도합니다
-    $ua = 'Mozilla/5.0 (compatible; BrandHub/1.0)';
+    // wget — 브라우저처럼 보이는 이름으로, 인증서가 오래된 NAS 도 고려해 두 번 시도합니다
+    $uas = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+            . 'Chrome/124.0 Safari/537.36',
+        'Mozilla/5.0 (compatible; BrandHub/1.0)',
+    ];
     foreach ([['', 'wget'], ['--no-check-certificate ', 'wget(인증서 검사 생략)']] as $v) {
-        $tmp = tempnam(sys_get_temp_dir(), 'feed');
-        $o = [];
-        @exec('wget -q -T 20 ' . $v[0] . '-U ' . escapeshellarg($ua)
-            . ' -O ' . escapeshellarg($tmp) . ' ' . escapeshellarg($url) . ' 2>&1', $o, $rc);
-        if ($rc === 0 && is_file($tmp) && filesize($tmp) > 0) {
-            $b = file_get_contents($tmp); @unlink($tmp);
-            return $b;
+        foreach ($uas as $ui => $ua) {
+            $tmp = tempnam(sys_get_temp_dir(), 'feed');
+            $o = [];
+            // -S 를 붙여 서버가 준 상태줄(예: HTTP/1.1 404 Not Found)을 받아둡니다
+            @exec('wget -S -q -T 20 ' . $v[0] . '-U ' . escapeshellarg($ua)
+                . ' -O ' . escapeshellarg($tmp) . ' ' . escapeshellarg($url) . ' 2>&1', $o, $rc);
+            if ($rc === 0 && is_file($tmp) && filesize($tmp) > 0) {
+                $b = file_get_contents($tmp); @unlink($tmp);
+                return $b;
+            }
+            @unlink($tmp);
+
+            $status = '';
+            foreach ($o as $line) {
+                if (preg_match('#HTTP/[\d.]+\s+(\d{3})([^\r\n]*)#', $line, $m)) {
+                    $status = 'HTTP ' . $m[1] . trim($m[2]);
+                }
+            }
+            $meaning = [4 => '네트워크 오류 (주소를 찾지 못함)', 5 => 'SSL 인증서 오류',
+                        8 => '서버가 오류로 답함', 1 => '일반 오류', 3 => '파일 쓰기 오류'];
+            $why[] = $v[1] . ($ui ? '·다른 이름' : '') . ': 코드 ' . $rc
+                   . ($status ? ' → ' . $status : '')
+                   . (isset($meaning[$rc]) ? ' (' . $meaning[$rc] . ')' : '');
+            if ($rc !== 0 && $status !== '' && strpos($status, '404') === false) break 1;
         }
-        @unlink($tmp);
-        $why[] = $v[1] . ': 코드 ' . $rc . ($o ? ' — ' . implode(' ', array_slice($o, 0, 2)) : '');
     }
     return false;
 }
@@ -99,14 +118,28 @@ function guess_feed($url) {
     }
     // 유튜브 — 채널 ID 가 있으면 바로, @핸들이면 페이지에서 찾습니다
     if (strpos($host, 'youtube.com') !== false || strpos($host, 'youtu.be') !== false) {
-        if (preg_match('#/channel/(UC[\w-]+)#', $path, $m)) {
-            return ['kind' => '유튜브', 'feed' => 'https://www.youtube.com/feeds/videos.xml?channel_id=' . $m[1]];
-        }
+        $ids = [];
+        if (preg_match('#/channel/(UC[\w-]+)#', $path, $m)) $ids[] = $m[1];
+
+        // 채널 페이지에 적힌 값이 가장 확실합니다 (@핸들·사용자명·바뀐 주소 모두 여기서 나옵니다)
         $html = fetch_url($u);
-        if ($html !== false && preg_match('#"(?:channelId|externalId)"\s*:\s*"(UC[\w-]+)"#', $html, $m)) {
-            return ['kind' => '유튜브', 'feed' => 'https://www.youtube.com/feeds/videos.xml?channel_id=' . $m[1]];
+        if ($html !== false) {
+            if (preg_match('#<link[^>]+rel=["\']alternate["\'][^>]+href=["\']([^"\']*feeds/videos\.xml[^"\']*)["\']#i',
+                    $html, $m)) {
+                return ['kind' => '유튜브', 'feed' => html_entity_decode($m[1])];
+            }
+            if (preg_match('#"(?:channelId|externalId)"\s*:\s*"(UC[\w-]+)"#', $html, $m)) {
+                array_unshift($ids, $m[1]);
+            }
         }
-        return ['kind' => '유튜브', 'feed' => null];
+        foreach (array_unique($ids) as $id) {
+            $f = 'https://www.youtube.com/feeds/videos.xml?channel_id=' . $id;
+            $b = fetch_url($f);
+            if ($b !== false && preg_match('#<(rss|feed)[\s>]#i', $b)) {
+                return ['kind' => '유튜브', 'feed' => $f];
+            }
+        }
+        return ['kind' => '유튜브', 'feed' => $ids ? ('https://www.youtube.com/feeds/videos.xml?channel_id=' . $ids[0]) : null];
     }
     // 티스토리·워드프레스·브런치 등 흔한 규칙
     $base = rtrim($u, '/');

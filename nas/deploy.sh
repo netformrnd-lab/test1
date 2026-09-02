@@ -75,6 +75,7 @@ update_file "metrics.php" "nas/metrics.php" "<?php"   || failed=1
 update_file "inquiries.php" "nas/inquiries.php" "<?php" || failed=1
 update_file "nasfiles.php" "nas/nasfiles.php" "<?php" || failed=1
 update_file "scan.sh"      "nas/scan.sh"      "ROOT="  || failed=1
+update_file "nasscan.php" "nas/nasscan.php" "<?php"  || failed=1
 update_file "config.sample.php" "nas/config.sample.php" "<?php" || failed=1
 
 # 문의 기록 시트가 연결돼 있으면 함께 갱신합니다.

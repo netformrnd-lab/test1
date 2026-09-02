@@ -271,9 +271,12 @@ if ($action === 'tree') {
     $root = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
     if ($root === '') jout(['ok' => false, 'error' => '훑은 폴더를 알 수 없습니다'], 404);
 
-    $depth = (int)($_GET['depth'] ?? 2);
+    $depth = (int)($_GET['depth'] ?? 4);
     if ($depth < 1) $depth = 1;
-    if ($depth > 4) $depth = 4;
+    if ($depth > 6) $depth = 6;
+    $limit = (int)($_GET['limit'] ?? 5000);
+    if ($limit < 100)   $limit = 100;
+    if ($limit > 20000) $limit = 20000;
 
     $fp = fopen($FILE, 'r');
     if (!$fp) jout(['ok' => false, 'error' => '목록을 열지 못했습니다'], 500);
@@ -305,18 +308,22 @@ if ($action === 'tree') {
     foreach ($acc as $rel => $v) {
         $out[] = [
             'name'  => basename($rel),
-            'rel'   => $rel,
             'path'  => $root . '/' . $rel,
             'depth' => substr_count($rel, '/') + 1,
             'count' => $v[0],
             'size'  => human($v[1]),
         ];
     }
+    // 얕은 폴더를 앞에 둡니다. 너무 많으면 깊은 쪽부터 잘립니다.
     usort($out, function ($a, $b) {
         if ($a['depth'] !== $b['depth']) return $a['depth'] - $b['depth'];
-        return strnatcasecmp($a['rel'], $b['rel']);
+        return strnatcasecmp($a['path'], $b['path']);
     });
-    jout(['ok' => true, 'root' => $root, 'depth' => $depth, 'folders' => $out]);
+    $total = count($out);
+    if ($total > $limit) $out = array_slice($out, 0, $limit);
+
+    jout(['ok' => true, 'root' => $root, 'depth' => $depth,
+          'total' => $total, 'shown' => count($out), 'folders' => $out]);
 }
 
 /* ---------------- 폴더 경로 알아듣기 ---------------- */

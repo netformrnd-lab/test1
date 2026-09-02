@@ -1171,15 +1171,21 @@ function autoFoldersFor(b){
   const hidden = b.nasHidden || [];
   const manual = (b.nasFolders || []).map(x => x.path);
 
+  const hits = t.folders.filter(f => nameMatches(b.name, f.name)
+    && hidden.indexOf(f.path) < 0 && manual.indexOf(f.path) < 0);
+  if(!hits.length) return [];
+
+  // 같은 이름이 여러 단계에 흩어져 있으면, 가장 위쪽 단계만 씁니다.
+  // (POUR공법_시방서, POUR공법_카달로그 … 같은 하위 폴더가 수십 개 걸리는 것을 막습니다)
+  const minDepth = Math.min.apply(null, hits.map(f => f.depth));
+
   const out = [];
-  t.folders
-    .filter(f => nameMatches(b.name, f.name))
-    .forEach(f => {
-      if(hidden.indexOf(f.path) >= 0) return;
-      if(manual.indexOf(f.path) >= 0) return;
-      if(out.some(o => f.path.indexOf(o.path + '/') === 0)) return;
-      out.push(f);
-    });
+  hits.filter(f => f.depth === minDepth)
+      .sort((x, y) => (y.count || 0) - (x.count || 0))
+      .forEach(f => {
+        if(out.some(o => f.path.indexOf(o.path + '/') === 0)) return;
+        out.push(f);
+      });
   return out;
 }
 
@@ -1433,25 +1439,43 @@ function renderNas(){
   }
 }
 
-/* 어느 폴더가 어느 브랜드로 자동 연결됐는지 한눈에 보여줍니다 */
+/* 어느 폴더가 어느 브랜드로 자동 연결됐는지 보여줍니다.
+   기본은 접어두고, 눌렀을 때만 펼칩니다. */
+let matchOpen = false;
+
+function toggleMatchPanel(){ matchOpen = !matchOpen; render(); }
+
 function autoMatchPanel(){
   if(treeCache === null){ setTimeout(loadTree, 10); return ''; }
   if(treeCache.loading) return '<div class="fmeta" style="margin-bottom:12px">브랜드 연결을 맞춰보는 중…</div>';
   if(treeCache.error)   return '';
 
-  const rows = data.brands.map(b => {
-    const auto = autoFoldersFor(b);
-    const man  = (b.nasFolders || []);
-    const all  = auto.map(f => ({ name:f.name, count:f.count, auto:true }))
-      .concat(man.map(f => ({ name:(f.label || f.path.split('/').pop()), count:null, auto:false })));
-    return '<div class="krow" style="align-items:center">'
-      + '<span style="flex:1;min-width:0"><b style="color:var(--text-primary)">'
-        + esc(b.icon || '') + ' ' + esc(b.name) + '</b></span>'
-      + '<span style="flex:2;min-width:0;text-align:right">'
+  const per = data.brands.map(b => ({ b:b, auto:autoFoldersFor(b), man:(b.nasFolders || []) }));
+  const linked  = per.filter(x => x.auto.length + x.man.length > 0).length;
+  const missing = per.filter(x => x.auto.length + x.man.length === 0).map(x => x.b.name);
+
+  const head = '<button class="fhead" onclick="toggleMatchPanel()" '
+      + 'style="border-radius:12px">'
+    + '<span class="fh-ar">' + (matchOpen ? '▾' : '▸') + '</span>'
+    + '<span class="fh-ic">🪄</span>'
+    + '<span class="fh-nm">브랜드 자동 연결</span>'
+    + '<span class="fh-ct">' + linked + ' / ' + data.brands.length + ' 브랜드 연결됨'
+      + (missing.length ? ' · 없음: ' + esc(missing.join(', ')) : '') + '</span>'
+    + '</button>';
+
+  if(!matchOpen) return '<div class="flist" style="margin-bottom:16px">' + head + '</div>';
+
+  const rows = per.map(x => {
+    const all = x.auto.map(f => ({ name:f.name, count:f.count, auto:true }))
+      .concat(x.man.map(f => ({ name:(f.label || f.path.split('/').pop()), count:null, auto:false })));
+    return '<div class="krow" style="align-items:flex-start;padding:8px 14px">'
+      + '<span style="flex:0 0 130px"><b style="color:var(--text-primary)">'
+        + esc(x.b.icon || '') + ' ' + esc(x.b.name) + '</b></span>'
+      + '<span style="flex:1;min-width:0;text-align:right">'
         + (all.length
-            ? all.map(x => '<span class="chip' + (x.auto ? ' on' : '') + '" style="margin-left:4px">'
-                + (x.auto ? '🪄 ' : '📂 ') + esc(x.name)
-                + (x.count !== null ? ' · ' + x.count.toLocaleString('ko-KR') + '개' : '')
+            ? all.map(v => '<span class="chip' + (v.auto ? ' on' : '') + '" '
+                + 'style="margin:2px 0 2px 4px">' + (v.auto ? '🪄 ' : '📂 ') + esc(v.name)
+                + (v.count !== null ? ' · ' + v.count.toLocaleString('ko-KR') + '개' : '')
                 + '</span>').join('')
             : '<span class="fmeta">맞는 폴더 없음</span>')
       + '</span></div>';
@@ -1459,16 +1483,13 @@ function autoMatchPanel(){
 
   const un = unmatchedFolders();
   const unHtml = un.length
-    ? '<div class="fmeta" style="margin-top:10px">어느 브랜드에도 안 붙은 폴더 — '
-      + un.map(f => esc(f.name)).join(' · ') + '</div>'
+    ? '<div class="fmeta" style="padding:8px 14px 12px">어느 브랜드에도 안 붙은 폴더 '
+      + un.length + '개 — ' + esc(un.slice(0, 12).map(f => f.name).join(' · '))
+      + (un.length > 12 ? ' …' : '') + '</div>'
     : '';
 
-  return '<div class="mbox" style="margin-bottom:16px">'
-    + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
-      + '<span>🪄 브랜드 자동 연결</span>'
-      + '<span class="mhs">폴더 이름을 보고 저절로 맞춥니다 · 손댈 것 없습니다</span>'
-      + '<span style="margin-left:auto"><button class="btn sm" onclick="treeCache=null;render()">↻</button></span>'
-    + '</div>' + rows + unHtml + '</div>';
+  return '<div class="flist" style="margin-bottom:16px">' + head
+    + '<div style="border-top:1px solid var(--border)">' + rows + unHtml + '</div></div>';
 }
 
 function setNasMode(m){

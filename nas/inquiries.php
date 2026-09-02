@@ -151,15 +151,25 @@ function csv_to_rows($csv) {
 function save_rows($file, $dir, $rows, $source) {
     if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) return false;
     $payload = ['updatedAt' => date('c'), 'source' => substr($source, 0, 60), 'rows' => $rows];
-    $fp = @fopen($file, 'c+');
-    if (!$fp || !flock($fp, LOCK_EX)) { if ($fp) fclose($fp); return false; }
-    ftruncate($fp, 0); rewind($fp);
-    fwrite($fp, json_encode($payload, JSON_UNESCAPED_UNICODE));
-    fflush($fp); flock($fp, LOCK_UN); fclose($fp);
+    if (!atomic_put($file, json_encode($payload, JSON_UNESCAPED_UNICODE))) return false;
+
+    // 「언제 · 몇 건」 만 적은 작은 파일. 화면이 자주 물어봐도 부담이 없게 하려는 것입니다.
+    atomic_put($dir . '/inq-stamp.txt', $payload['updatedAt'] . "\t" . count($rows));
     return $payload;
 }
 
 $action = $_GET['action'] ?? '';
+
+/* 언제 · 몇 건인지만 알려줍니다 (실시간 확인용 — 몇 십 바이트) */
+if ($action === 'stamp') {
+    $st = $DATA_DIR . '/inq-stamp.txt';
+    if (is_file($st)) {
+        $p = explode("\t", (string)@file_get_contents($st));
+        jout(['ok' => true, 'updatedAt' => ($p[0] ?? null) ?: null, 'total' => (int)($p[1] ?? 0)]);
+    }
+    $all = load_all($FILE);            // 표시 파일이 아직 없으면 한 번만 본문을 봅니다
+    jout(['ok' => true, 'updatedAt' => $all['updatedAt'], 'total' => count($all['rows'])]);
+}
 
 /* ---------------- 상태 확인 ---------------- */
 if ($action === 'check') {
@@ -345,6 +355,28 @@ if ($action === 'sync') {
     $list = load_sources($SRC_FILE);
     if (!$list) jout(['ok' => false, 'error' => '연결된 시트가 없습니다. 먼저 시트 주소를 등록해 주세요.'], 400);
 
+    // maxage=180 처럼 주면, 그만큼 안 지났으면 그냥 넘어갑니다.
+    // 여러 명이 대시보드를 열어둬도 구글에는 한 번만 갔다 옵니다.
+    $maxage = isset($_GET['maxage']) ? max(30, (int)$_GET['maxage']) : 0;
+    if ($maxage > 0 && is_file($FILE)) {
+        $age = time() - (int)@filemtime($FILE);
+        if ($age < $maxage) {
+            jout(['ok' => true, '건너뜀' => true, '이유' => $age . '초 전에 이미 가져왔습니다',
+                  'updatedAt' => date('c', (int)@filemtime($FILE))]);
+        }
+    }
+    $lock = @fopen($DATA_DIR . '/inq.lock', 'c');
+    if ($lock && !flock($lock, LOCK_EX | LOCK_NB)) {
+        fclose($lock);
+        jout(['ok' => true, '건너뜀' => true, '이유' => '지금 다른 곳에서 가져오는 중입니다']);
+    }
+    // 잠금을 잡는 동안 다른 사람이 이미 받아왔을 수 있어 한 번 더 봅니다
+    if ($maxage > 0 && is_file($FILE) && time() - (int)@filemtime($FILE) < $maxage) {
+        if ($lock) { flock($lock, LOCK_UN); fclose($lock); }
+        jout(['ok' => true, '건너뜀' => true, '이유' => '방금 다른 곳에서 가져왔습니다',
+              'updatedAt' => date('c', (int)@filemtime($FILE))]);
+    }
+
     $all      = [];
     $perSheet = [];
     $fails    = [];
@@ -385,6 +417,7 @@ if ($action === 'sync') {
         $perSheet[$label] = count($rows);
     }
 
+    if ($lock) { flock($lock, LOCK_UN); fclose($lock); }
     if (!$all) {
         jout(['ok' => false,
               'error' => "시트를 하나도 가져오지 못했습니다.\n\n · " . implode("\n · ", $fails),
@@ -401,7 +434,7 @@ if ($action === 'sync') {
     foreach ($all as $r) { $b = brand_of($r) ?: '(브랜드 없음)'; $byBrand[$b] = ($byBrand[$b] ?? 0) + 1; }
     arsort($byBrand);
 
-    $out = ['ok' => true, '가져온건수' => count($all), '시트별' => $perSheet,
+    $out = ['ok' => true, '건너뜀' => false, '가져온건수' => count($all), '시트별' => $perSheet,
             '브랜드별' => $byBrand, '시각' => $saved['updatedAt']];
     if ($fails) $out['일부실패'] = $fails;
     jout($out);

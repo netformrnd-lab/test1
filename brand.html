@@ -788,7 +788,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260903-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260903-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3124,7 +3124,12 @@ function renderBrand(){
   if(currentTab === 'prompt') body.innerHTML = viewPrompt(b);
   else if(currentTab === 'history') body.innerHTML = viewHistory(b);
   else if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
-  else if(currentTab === 'inquiries') { body.innerHTML = viewInquiries(b); loadInquiries(); bindCsvInput(); }
+  else if(currentTab === 'inquiries') {
+    body.innerHTML = viewInquiries(b);
+    loadInquiries();
+    setTimeout(inquiryTick, 20);      // 탭을 열면 최신인지 한 번 확인합니다
+    bindCsvInput();
+  }
   else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
   else if(currentTab === 'links') body.innerHTML = viewLinks(b);
   else if(currentTab === 'channels') body.innerHTML = viewChannels(b);
@@ -3819,7 +3824,8 @@ const inquiryCache = { loaded:false, loading:false, updatedAt:null, total:0,
                        columns:[], byBrand:{}, error:null };
 let inquiryQuery = '';
 
-const SYNC_INTERVAL_MIN = 5;   // 이 시간이 지났으면 탭을 열 때 알아서 다시 가져옵니다
+const SYNC_INTERVAL_MIN = 1;   // NAS 가 구글시트에 물어보는 간격 (1분에 한 번)
+const INQ_CHECK_MS     = 30000; // 화면이 "바뀐 게 있나" 만 확인하는 간격 (38바이트)
 
 async function syncInquiries(manual){
   if(STORAGE_MODE !== 'nas') return;
@@ -4000,11 +4006,11 @@ async function loadInquiries(force){
       inquiryCache.sheetUrl = c['연결된시트'] || '연결 안 됨';
     }catch(e){ inquiryCache.sheetUrl = '확인 불가'; }
 
-    // 마지막으로 가져온 지 오래됐으면 조용히 다시 가져옵니다
+    // 오래됐으면 시트에서 다시 가져오게 합니다 (이후로는 inquiryTick 이 1분마다 챙깁니다)
     const linked = inquiryCache.sheetUrl && inquiryCache.sheetUrl !== '연결 안 됨';
-    const old = !out.updatedAt ||
+    const stale = !out.updatedAt ||
       (Date.now() - new Date(out.updatedAt).getTime()) > SYNC_INTERVAL_MIN * 60000;
-    if(linked && old && !inquiryCache.autoSyncing){
+    if(linked && stale && !inquiryCache.autoSyncing){
       inquiryCache.autoSyncing = true;
       setTimeout(() => { syncInquiries(false).finally(() => { inquiryCache.autoSyncing = false; }); }, 50);
     }
@@ -4023,6 +4029,37 @@ async function loadInquiries(force){
 }
 
 function refreshInquiries(){ inquiryCache.loaded = false; loadInquiries(true); toast('↻ 문의 기록을 다시 불러옵니다'); }
+
+/* ── 구글시트도 알아서 따라오게 ────────────────────────────────────────
+   1분마다 "언제 갱신됐는지" 만 물어봅니다 (38 바이트).
+   바뀌었으면 그때만 목록을 다시 받아 화면에 반영합니다.
+   그리고 NAS 에 받아둔 게 오래됐으면 시트에서 다시 가져오라고 시킵니다.
+   여러 명이 열어둬도 NAS 는 구글에 한 번만 갑니다 (maxage·잠금).
+   ------------------------------------------------------------------ */
+let inqBusy = false;
+async function inquiryTick(){
+  if(STORAGE_MODE !== 'nas' || inqBusy || !inquiryCache.loaded) return;
+  inqBusy = true;
+  try{
+    const st = await apiJson('inquiries.php?action=stamp&t=' + Date.now());
+    if(st && st.ok){
+      // NAS 가 가진 내용이 화면 것과 다르면 다시 받아옵니다
+      if(st.updatedAt && st.updatedAt !== inquiryCache.updatedAt){
+        inquiryCache.loaded = false;
+        await loadInquiries(true);
+        render();
+        toast('📮 새 문의 기록을 가져왔습니다');
+      }
+      // NAS 가 가진 것 자체가 오래됐으면 시트에서 새로 가져오게 합니다
+      const linked = inquiryCache.sheetUrl && inquiryCache.sheetUrl !== '연결 안 됨';
+      const age = st.updatedAt ? (Date.now() - new Date(st.updatedAt).getTime()) / 1000 : 1e9;
+      if(linked && age > SYNC_INTERVAL_MIN * 60){
+        await apiJson('inquiries.php?action=sync&maxage=' + (SYNC_INTERVAL_MIN * 60));
+      }
+    }
+  }catch(e){ /* 곁다리라 조용히 */ }
+  finally{ inqBusy = false; }
+}
 function onInquiryQuery(v){ inquiryQuery = v; if(currentTab === 'inquiries') render(); }
 
 /* 구글시트에서 내려받은 CSV를 읽습니다 (따옴표·줄바꿈 포함된 셀도 처리) */
@@ -4283,9 +4320,16 @@ function viewInquiries(b){
   const linked = inquiryCache.sheetUrl && inquiryCache.sheetUrl !== '연결 안 됨'
                  && inquiryCache.sheetUrl !== '확인 불가';
   const rows = inquiryCache.byBrand[b.name] || [];
-  const when = inquiryCache.updatedAt
-    ? new Date(inquiryCache.updatedAt).toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })
-    : '아직 받은 적 없음';
+  // 얼마나 최신인지 한눈에 보이게 "몇 분 전" 으로 적습니다
+  const when = (function(){
+    if(!inquiryCache.updatedAt) return '아직 받은 적 없음';
+    const d = new Date(inquiryCache.updatedAt);
+    if(isNaN(d.getTime())) return '알 수 없음';
+    const m = Math.floor((Date.now() - d.getTime()) / 60000);
+    if(m < 1) return '방금';
+    if(m < 60) return m + '분 전';
+    return d.toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' });
+  })();
 
   const bar = '<div class="sec-bar">'
     + '<span class="searchbox" style="flex:0 1 260px"><span class="ico">🔍</span>'
@@ -4300,8 +4344,8 @@ function viewInquiries(b){
     + '<input type="file" id="csvInput" accept=".csv,text/csv" style="display:none">'
     + '<span class="astat" id="csvStat"></span>'
     + '<span class="hint">전체 ' + inquiryCache.total.toLocaleString('ko-KR') + '건 중 이 브랜드 '
-      + rows.length.toLocaleString('ko-KR') + '건 · 갱신 ' + esc(when)
-      + (linked ? ' · 🔗 시트 연결됨' : '') + '</span>'
+      + rows.length.toLocaleString('ko-KR') + '건 · 시트에서 가져온 때: ' + esc(when)
+      + (linked ? ' · 🔗 자동으로 따라옵니다' : '') + '</span>'
     + '</div>'
     + (inquiryCache.syncError
         ? '<div class="ainote" style="margin-bottom:12px;white-space:pre-wrap">⚠️ 자동 가져오기 실패: '
@@ -5507,6 +5551,7 @@ async function init(){
     setInterval(loadChannelSummary, 5 * 60 * 1000);        // 열어둔 채로도 5분마다 갱신
     setInterval(() => checkVersion(false), 30 * 60 * 1000);
 
+    setInterval(inquiryTick, INQ_CHECK_MS);                 // 구글시트 갱신 확인 (1분마다)
     startLive();                                           // 실시간 반영 (2초마다 확인)
     pingPresence();                                        // 지금 누가 보고 있는지
     setInterval(pingPresence, 15000);

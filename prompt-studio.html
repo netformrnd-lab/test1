@@ -362,7 +362,8 @@
         <button role="tab" aria-selected="true" data-tab="1">② 마스터 프롬프트</button>
         <button role="tab" aria-selected="false" data-tab="2">③ 제작 사양 JSON</button>
       </div>
-      <button class="btn" id="copyRichBtn" hidden title="노션·워드·메일에 붙여넣을 때만 씁니다">문서용 복사 (사진 포함)</button>
+      <button class="btn" id="saveKitBtn" hidden>사진 저장</button>
+      <button class="btn" id="saveTxtBtn" hidden>프롬프트 저장</button>
       <button class="btn solid" id="copyBtn">복사</button>
     </div>
     <div class="panel-bd">
@@ -370,16 +371,18 @@
       <p class="desc" id="outDesc"></p>
       <div class="chapbar" id="chapBar"></div>
       <textarea id="out" readonly spellcheck="false" aria-label="생성된 프롬프트"></textarea>
-      <div class="outhint">칸을 누르면 전체가 선택됩니다. 그 상태에서 <b>Ctrl+C</b> (맥 <b>⌘+C</b>), 휴대폰은 길게 눌러 <b>복사</b>.</div>
+      <div class="outhint">
+        칸을 누르면 전체가 선택됩니다. 그 상태에서 <b>Ctrl+C</b> (맥 <b>⌘+C</b>), 휴대폰은 길게 눌러 <b>복사</b>.<br>
+        복사는 <b>글자만</b> 옮겨집니다. 사진은 <b>사진 저장</b>으로 내려받아 헤이젠에 직접 올리세요 — 씬 순서대로 번호가 붙습니다.
+      </div>
       <div class="meta">
         <span id="mChars"></span><span id="mLines"></span>
-        <button type="button" class="linkbtn" id="openRich" hidden>사진과 함께 보기</button>
+        <button type="button" class="linkbtn" id="openRich" hidden>사진 배치 미리보기</button>
       </div>
       <div class="richwrap" id="richWrap" hidden>
         <div class="richbar">
-          <span>붙여넣기용 미리보기 — 전체 선택 후 <b>Ctrl+C</b> (맥은 <b>⌘+C</b>)</span>
+          <span>사진 배치 미리보기 — 어느 씬에 무엇이 들어가는지 확인용입니다</span>
           <span class="spacer"></span>
-          <button type="button" class="btn" id="selectAll">전체 선택</button>
           <button type="button" class="btn" id="closeRich">닫기</button>
         </div>
         <div id="richView"></div>
@@ -557,7 +560,7 @@
     var pending=arr.length;
     arr.forEach(function(f){
       makeThumb(f,function(t){
-        media.push({id:++mseq,file:f.name,scene:'',desc:'',thumb:t,
+        media.push({id:++mseq,file:f.name,scene:'',desc:'',thumb:t,blob:f,
                     kind:/^video\//.test(f.type)?'video':'image'});
         if(--pending===0){ renderMedia(); render(); }
       });
@@ -968,7 +971,8 @@
         }).join('')
       : '';
 
-    document.getElementById('copyRichBtn').hidden = media.length===0;
+    document.getElementById('saveTxtBtn').hidden = !dl;
+    document.getElementById('saveKitBtn').hidden = !dl || media.length===0;
     document.getElementById('openRich').hidden = media.length===0;
     if(!media.length) document.getElementById('richWrap').hidden=true;
     else if(!document.getElementById('richWrap').hidden)
@@ -1068,6 +1072,58 @@
         esc(text)+'</pre></div>';
   }
 
+  // ---- 저장 (downloads) ----
+  var dl=null;
+  var saveKit=document.getElementById('saveKitBtn'), saveTxt=document.getElementById('saveTxtBtn');
+  if(window.claude && typeof window.claude.use==='function'){
+    window.claude.use('downloads').then(function(ns){ dl=ns; render(); },function(){ dl=null; });
+  }
+  function safeName(x){
+    return String(x).replace(/[\\/:*?"<>|]/g,'_').replace(/\s+/g,'_').slice(0,80);
+  }
+  // 씬 순서대로 정렬한 소재 목록
+  function orderedMedia(){
+    var parts=sceneNames(), out=[];
+    parts.forEach(function(pn){
+      media.forEach(function(m){ if(m.scene===pn) out.push(m); });
+    });
+    media.forEach(function(m){ if(!m.scene) out.push(m); });
+    return out;
+  }
+  function dlErr(e){
+    var c=(e&&e.code)||'unavailable';
+    if(c==='declined') return '취소했습니다';
+    if(c==='rejected_extension') return '이 형식은 저장할 수 없습니다';
+    if(c==='too_large') return '파일이 너무 큽니다 (16MB 초과)';
+    if(c==='rate_limited') return '잠시 뒤 다시 눌러 주세요';
+    return '저장할 수 없습니다';
+  }
+  saveTxt.addEventListener('click',function(){
+    if(!dl) return;
+    var kwName=safeName(kw()), t=TABS[st.tab];
+    var chs=chapters(scenes(LENS[st.len],lns('msgs'),lns('scene')));
+    var suffix=(t.chap && chs.length>1)?('_조각'+(st.chap+1)):'';
+    dl.save({filename:kwName+suffix+'.txt',data:outEl.value})
+      .then(function(){ flash('저장했습니다'); },
+            function(e){ flash(dlErr(e)); });
+  });
+  saveKit.addEventListener('click',function(){
+    if(!dl) return;
+    var list=orderedMedia().filter(function(m){return m.blob;});
+    if(!list.length){ flash('원본이 없습니다. 사진을 다시 추가해 주세요'); return; }
+    var i=0;
+    (function next(){
+      if(i>=list.length){ flash(list.length+'개 저장했습니다'); return; }
+      var m=list[i++], n=String(i).replace(/^(\d)$/,'0$1');
+      var ext=(m.file.match(/\.[a-z0-9]+$/i)||[''])[0];
+      var base=m.file.replace(/\.[a-z0-9]+$/i,'');
+      var name=n+'_'+safeName(m.scene||'미지정')+'_'+safeName(base)+ext;
+      dl.save({filename:name,data:m.blob}).then(next,function(e){
+        flash(dlErr(e)+' ('+m.file+')');
+      });
+    })();
+  });
+
   var toast=document.getElementById('toast'), tid;
   function flash(m){ toast.textContent=m; toast.classList.add('on');
     clearTimeout(tid); tid=setTimeout(function(){toast.classList.remove('on');},1600); }
@@ -1085,11 +1141,10 @@
     richWrap.scrollIntoView({block:'nearest'});
     if(select) selectNode(richView);
   }
-  document.getElementById('openRich').addEventListener('click',function(){ showRich(false); });
-  document.getElementById('closeRich').addEventListener('click',function(){ richWrap.hidden=true; });
-  document.getElementById('selectAll').addEventListener('click',function(){
-    if(selectNode(richView)) flash('선택했습니다. 이제 Ctrl+C 를 누르세요');
+  document.getElementById('openRich').addEventListener('click',function(){
+    if(richWrap.hidden) showRich(false); else richWrap.hidden=true;
   });
+  document.getElementById('closeRich').addEventListener('click',function(){ richWrap.hidden=true; });
 
   var outEl=document.getElementById('out');
   outEl.addEventListener('focus',function(){ selectOut(); });
@@ -1097,35 +1152,6 @@
   function selectOut(){
     try{ outEl.focus({preventScroll:true}); outEl.setSelectionRange(0,outEl.value.length); }catch(e){}
   }
-
-  document.getElementById('copyRichBtn').addEventListener('click',function(){
-    var text=outEl.value, html=richHTML(text);
-    function manual(){
-      showRich(true);
-      flash('브라우저가 복사를 막았습니다. 아래 영역에서 Ctrl+C');
-    }
-    function execFb(){
-      var host=document.createElement('div');
-      host.setAttribute('contenteditable','true');
-      host.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:.01;z-index:-1';
-      host.innerHTML=html;
-      document.body.appendChild(host);
-      host.focus();
-      var ok=false;
-      if(selectNode(host)){ try{ ok=document.execCommand('copy'); }catch(e){ ok=false; } }
-      try{ window.getSelection().removeAllRanges(); }catch(e){}
-      document.body.removeChild(host);
-      if(ok) flash('사진과 함께 복사했습니다'); else manual();
-    }
-    if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
-      try{
-        navigator.clipboard.write([new ClipboardItem({
-          'text/html': new Blob([html],{type:'text/html'}),
-          'text/plain': new Blob([text],{type:'text/plain'})
-        })]).then(function(){ flash('사진과 함께 복사했습니다'); },execFb);
-      }catch(e){ execFb(); }
-    } else execFb();
-  });
 
   document.getElementById('copyBtn').addEventListener('click',function(){
     // 화면에 있는 textarea를 그대로 선택해 복사한다. 실패해도 선택은 남는다.
@@ -1145,7 +1171,9 @@
   var FIELDS=['kw','audience','goal','palette','avatarId','msgs','scene','facts','cta','brand'];
   function save(){
     try{
-      var d={st:st,media:media};
+      var d={st:st,media:media.map(function(m){
+        return {id:m.id,file:m.file,scene:m.scene,desc:m.desc,thumb:m.thumb,kind:m.kind};
+      })};
       FIELDS.forEach(function(f){ d[f]=document.getElementById(f).value; });
       try{ localStorage.setItem(LS,JSON.stringify(d)); }
       catch(quota){

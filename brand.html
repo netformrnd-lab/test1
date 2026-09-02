@@ -3306,17 +3306,36 @@ function analyzeInquiries(rows){
   const cols = [];
   rows.forEach(r => Object.keys(r).forEach(k => { if(!cols.includes(k)) cols.push(k); }));
 
-  const looksDate = v => parseYMD(v) !== null && /\d{4}|\d{1,2}[-./]\d{1,2}/.test(String(v || ''));
-  const dateCol = cols.find(c => /날짜|일자|일시|date/i.test(c) && rows.some(r => looksDate(r[c])))
-               || cols.find(c => rows.filter(r => looksDate(r[c])).length > rows.length * 0.5);
+  const looksDate = v => parseYMD(v) !== null;
+
+  // 날짜 열이 여러 개일 수 있습니다 (접수날짜 / 접수시간 / 접수일시 …).
+  // 그중 "값이 가장 많이 채워진" 열을 씁니다.
+  // 최근 건만 한쪽 열이 비어 있으면, 그 열을 고를 경우 최신 기록을 놓치기 때문입니다.
+  const dateHits = {};
+  cols.forEach(c => { dateHits[c] = rows.reduce((a, r) => a + (looksDate(r[c]) ? 1 : 0), 0); });
+
+  const pickDateCol = (list) => {
+    let best = null, n = 0;
+    list.forEach(c => { if(dateHits[c] > n){ n = dateHits[c]; best = c; } });
+    return n > 0 ? best : null;
+  };
+  const named = cols.filter(c => /날짜|일자|일시|시각|등록|접수|date|time/i.test(c));
+  let dateCol = pickDateCol(named);
+  // 이름으로 고른 열이 절반도 안 채워져 있으면 전체에서 다시 고릅니다
+  if(!dateCol || dateHits[dateCol] < rows.length * 0.5){
+    const any = pickDateCol(cols);
+    if(any && dateHits[any] > (dateCol ? dateHits[dateCol] : 0)) dateCol = any;
+  }
 
   // 이름·연락처처럼 사람마다 다른 값은 집계에 쓰지 않습니다
   const isPrivate = c => /이름|성함|고객명|담당자|연락처|전화|휴대|번호|이메일|메일|주소/.test(c);
 
   // 먼저 설명 열(문의 내용 등)을 정합니다 — 가장 길게 적히는 열
   let textCol = null, bestLen = 0;
+  const dateish0 = c => /날짜|일자|일시|시각|시간|date|time/i.test(c)
+    || (rows.length && dateHits[c] >= rows.length * 0.3);
   cols.forEach(c => {
-    if(skip.includes(c) || c === dateCol || isPrivate(c)) return;
+    if(skip.includes(c) || c === dateCol || isPrivate(c) || dateish0(c)) return;
     const vals = rows.map(r => String(r[c] || '').trim()).filter(Boolean);
     if(!vals.length) return;
     const avg = vals.reduce((a, v) => a + v.length, 0) / vals.length;
@@ -3334,8 +3353,13 @@ function analyzeInquiries(rows){
 
   // 나머지 중 같은 값이 반복되는 짧은 열을 분류로 봅니다 (공종·유입·상태 등)
   const cats = [];
+  // 날짜·시간 열은 분류가 아닙니다 (접수날짜·접수시간·접수일시 …)
+  const isDateish = c => /날짜|일자|일시|시각|시간|date|time/i.test(c)
+    || (rows.length && dateHits[c] >= rows.length * 0.3);
+
   cols.forEach(c => {
     if(skip.includes(c) || c === dateCol || c === textCol || isPrivate(c)) return;
+    if(isDateish(c)) return;
     if(!hasHangul(c)) return;                                   // 영문 열 이름은 프로그램용으로 봅니다
     const vals = rows.map(r => String(r[c] || '').trim()).filter(Boolean);
     if(vals.length < rows.length * 0.2) return;                 // 대부분 비어 있으면 제외
@@ -3363,6 +3387,9 @@ function parseYMD(v){
   if(m) return new Date(+m[3], +m[1] - 1, +m[2]);
   m = s.match(/^(\d{4})(\d{2})(\d{2})$/);                        // 20260821
   if(m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  // 전화번호(010-1234-5678)나 "27개동, 1,786세대" 같은 값을 날짜로 오해하지 않도록
+  // 네 자리 연도가 들어 있는 값만 마지막으로 한 번 더 봅니다.
+  if(s.length > 40 || !/(^|\D)(19|20)\d{2}(\D|$)/.test(s)) return null;
   const t = Date.parse(s);
   return isNaN(t) ? null : new Date(t);
 }

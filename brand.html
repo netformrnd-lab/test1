@@ -623,7 +623,7 @@ const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).
 function newBrand(name, icon, color, desc){
   return { id: uid('b'), name, icon, color, owner:'', desc: desc || '',
            automations:[], history:[], assets:[], tasks:[], links:[], nasFolders:[],
-           record:null, tools:[],
+           record:null, tools:[], channels:[],
            masterPrompt:'', promptUpdatedAt:null };
 }
 
@@ -655,6 +655,12 @@ const TYPES = {
       { key:'url',    label:'링크',   type:'text',     ph:'https:// 또는 NAS 경로' },
       { key:'desc',   label:'설명',   type:'textarea', ph:'무엇을 자동화하는지, 어떤 조건에서 도는지' }
     ]
+  },
+  channels: {
+    label:'채널', icon:'📣', tab:'브랜드 채널',
+    hint:'블로그·카페·유튜브 주소를 모아두고 최근 올린 글을 봅니다',
+    empty:'등록된 채널이 없습니다.',
+    fields:[]
   },
   history: {
     label:'여정', icon:'📜', tab:'브랜드 히스토리',
@@ -712,7 +718,7 @@ const TYPES = {
   }
 };
 const ITEM_KEYS = ['automations','history','assets','tasks','links'];
-const TAB_KEYS  = ['automations','history','assets','tasks','links','inquiries','prompt'];
+const TAB_KEYS  = ['automations','history','assets','tasks','links','channels','inquiries','prompt'];
 
 let data = defaultData();
 let currentBrandId = null;
@@ -1095,6 +1101,153 @@ async function ensureFiles(navKey, need){
     c.files = c.files.concat(out.files || []);
   }catch(e){ /* 다음에 다시 시도합니다 */ }
   c.loadingMore = false;
+}
+
+/* ================= 브랜드 채널 =================
+   블로그·카페·유튜브 주소를 모아두고, 최근 올린 글을 함께 보여줍니다.
+   가져오는 일은 NAS 가 대신합니다 (사무실 브라우저는 밖으로 못 나갑니다).
+   ============================================== */
+const feedCache = {};   // RSS 주소 → {loading} | {error} | 응답
+
+const CH_ICON = { '네이버 블로그':'📗', '네이버 카페':'☕', '유튜브':'📺', '인스타그램':'📷',
+                  '티스토리':'📘', '브런치':'✍️', '페이스북':'👥', '웹사이트':'🌐' };
+
+async function loadFeed(url){
+  feedCache[url] = { loading:true };
+  try{
+    feedCache[url] = await apiJson('channels.php?action=feed&n=6&url=' + encodeURIComponent(url));
+  }catch(e){ feedCache[url] = { error: apiErrText(e) }; }
+  render();
+}
+
+function refreshFeed(url){
+  delete feedCache[url];
+  feedCache[url] = { loading:true };
+  render();
+  apiJson('channels.php?action=feed&n=6&fresh=1&url=' + encodeURIComponent(url))
+    .then(o => { feedCache[url] = o; render(); })
+    .catch(e => { feedCache[url] = { error: apiErrText(e) }; render(); });
+  toast('↻ 새로 받아옵니다');
+}
+
+async function addChannel(){
+  const b = currentBrand();
+  if(!b) return;
+  const url = prompt('채널 주소를 넣어주세요.\n\n'
+    + '예) https://blog.naver.com/아이디\n'
+    + '    https://www.youtube.com/@채널이름\n'
+    + '    https://cafe.naver.com/카페주소');
+  if(url === null) return;
+  if(!url.trim()){ toast('⚠️ 주소를 넣어주세요'); return; }
+
+  b.channels = b.channels || [];
+  toast('🔎 채널을 확인하는 중…');
+  let info = { kind:'웹사이트', feed:null };
+  try{
+    info = await apiJson('channels.php?action=probe&url=' + encodeURIComponent(url.trim()));
+  }catch(e){
+    if(!confirm('채널을 확인하지 못했습니다.\n\n' + apiErrText(e)
+      + '\n\n주소만 저장할까요? (최근 글은 안 보입니다)')) return;
+  }
+
+  const name = prompt('이 채널을 뭐라고 부를까요?',
+    info['채널이름'] || (info.kind || '채널')) || '';
+  b.channels.push({ id: uid('ch'), kind: info.kind || '웹사이트', name: name.trim(),
+                    url: url.trim(), feed: info.feed || '' });
+  markDirty();
+  render();
+  toast(info.feed ? '✅ 최근 글까지 가져올 수 있는 채널입니다'
+                  : '✅ 채널을 넣었습니다 (최근 글은 못 가져옵니다)');
+}
+
+function removeChannel(id){
+  const b = currentBrand();
+  const c = (b.channels || []).find(x => x.id === id);
+  if(!c) return;
+  if(!confirm('"' + (c.name || c.url) + '" 을 지울까요?')) return;
+  b.channels = b.channels.filter(x => x.id !== id);
+  markDirty(); render();
+}
+
+async function refindFeed(id){
+  const b = currentBrand();
+  const c = (b.channels || []).find(x => x.id === id);
+  if(!c) return;
+  toast('🔎 RSS 주소를 다시 찾는 중…');
+  try{
+    const info = await apiJson('channels.php?action=probe&url=' + encodeURIComponent(c.url));
+    c.feed = info.feed || '';
+    c.kind = info.kind || c.kind;
+    markDirty(); render();
+    toast(c.feed ? '✅ 찾았습니다' : '이 채널은 최근 글을 가져올 수 없습니다');
+  }catch(e){ alert(apiErrText(e)); }
+}
+
+function sinceText(iso){
+  if(!iso) return '';
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if(d < 0) return '오늘';
+  if(d === 0) return '오늘';
+  if(d === 1) return '어제';
+  if(d < 30) return d + '일 전';
+  if(d < 365) return Math.floor(d / 30) + '개월 전';
+  return Math.floor(d / 365) + '년 전';
+}
+
+function viewChannels(b){
+  const list = b.channels || [];
+  const bar = '<div class="sec-bar">'
+    + '<button class="btn primary" onclick="addChannel()">＋ 채널 추가</button>'
+    + '<span class="hint">블로그·유튜브는 최근 올린 글까지 가져옵니다. '
+      + '카페·인스타는 주소만 저장됩니다</span></div>';
+
+  if(!list.length) return bar + '<div class="empty">등록된 채널이 없습니다.<br>'
+    + '<span style="color:var(--text-muted)">블로그·카페·유튜브 주소를 넣어두면, '
+    + '최근 뭘 올렸는지 여기서 바로 보입니다.</span></div>';
+
+  const cards = list.map(c => {
+    const f = c.feed ? feedCache[c.feed] : null;
+    if(c.feed && !f) setTimeout(() => loadFeed(c.feed), 10);
+
+    let inner, badge = '';
+    if(!c.feed){
+      inner = '<div class="fmeta">이 채널은 최근 글을 가져올 수 없습니다. '
+        + '<button class="btn sm" onclick="refindFeed(\'' + jsq(c.id) + '\')">다시 찾아보기</button></div>';
+    }else if(!f || f.loading){
+      inner = '<div class="fmeta">불러오는 중…</div>';
+    }else if(f.error){
+      inner = '<div class="fmeta">⚠️ ' + esc(f.error.split('\n')[0]) + ' '
+        + '<button class="btn sm" onclick="refreshFeed(\'' + jsq(c.feed) + '\')">다시</button></div>';
+    }else if(!f.items || !f.items.length){
+      inner = '<div class="fmeta">올라온 글이 없습니다.</div>';
+    }else{
+      const last = f.items[0].iso;
+      const days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 86400000) : null;
+      badge = '<span class="chip' + (days === null ? '' : (days <= 14 ? ' on' : (days <= 45 ? ' test' : ' off')))
+        + '">최근 발행 ' + esc(sinceText(last)) + '</span>';
+      inner = f.items.map(it =>
+        '<div class="krow" style="align-items:baseline;gap:8px">'
+        + '<a class="lnk" style="flex:1;min-width:0;word-break:break-all" href="' + esc(it.link)
+          + '" target="_blank" rel="noopener">' + esc(it.title) + '</a>'
+        + '<span class="fmeta" style="white-space:nowrap;margin:0">'
+          + esc(sinceText(it.iso)) + '</span></div>').join('');
+    }
+
+    return '<div class="mbox" style="margin-bottom:12px">'
+      + '<div class="mh" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'
+        + '<span>' + (CH_ICON[c.kind] || '🌐') + ' ' + esc(c.name || c.kind) + '</span>'
+        + '<span class="mhs">' + esc(c.kind) + '</span>'
+        + badge
+        + '<span style="margin-left:auto;display:flex;gap:5px">'
+          + '<a class="btn sm" href="' + esc(c.url) + '" target="_blank" rel="noopener">채널 열기 ↗</a>'
+          + (c.feed ? '<button class="btn sm" onclick="refreshFeed(\'' + jsq(c.feed) + '\')">↻</button>' : '')
+          + '<button class="btn sm danger" onclick="removeChannel(\'' + jsq(c.id) + '\')">삭제</button>'
+        + '</span></div>'
+      + '<div class="path" style="margin-bottom:8px">' + esc(c.url) + '</div>'
+      + inner + '</div>';
+  }).join('');
+
+  return bar + cards;
 }
 
 /* ================= 문서 내용으로 찾기 =================
@@ -2209,6 +2362,7 @@ function renderBrand(){
     assets: b.assets.length,
     tasks: b.tasks.filter(t => t.status !== '완료').length,
     links: b.links.length,
+    channels: (b.channels || []).length,
     inquiries: (inquiryCache.byBrand[b.name] || []).length,
     prompt: (b.masterPrompt || '').trim() ? 1 : 0
   };
@@ -2218,6 +2372,7 @@ function renderBrand(){
     ['history','📜 히스토리'],
     ['tasks','✅ 할 일'],
     ['links','🔗 바로가기'],
+    ['channels','📣 채널'],
     ['assets','📁 자료'],
     ['prompt','✨ 마스터프롬프트']
   ];
@@ -2248,6 +2403,7 @@ function renderBrand(){
   else if(currentTab === 'inquiries') { body.innerHTML = viewInquiries(b); loadInquiries(); bindCsvInput(); }
   else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
   else if(currentTab === 'links') body.innerHTML = viewLinks(b);
+  else if(currentTab === 'channels') body.innerHTML = viewChannels(b);
   else if(currentTab === 'automations') body.innerHTML = viewTools(b) + viewCards(b, 'automations');
   else body.innerHTML = viewCards(b, currentTab);
 }

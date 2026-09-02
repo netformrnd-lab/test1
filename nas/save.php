@@ -35,6 +35,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
         'nasfiles.php'  => ['nas/nasfiles.php','<?php'],
         'nasscan.php'   => ['nas/nasscan.php','<?php'],
         'doctext.php'   => ['nas/doctext.php','<?php'],
+        'channels.php'  => ['nas/channels.php','<?php'],
         'scan.sh'       => ['nas/scan.sh','ROOT='],
         'config.sample.php' => ['nas/config.sample.php','<?php'],
     ];

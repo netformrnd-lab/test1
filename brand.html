@@ -580,7 +580,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260902-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260902-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3156,6 +3156,7 @@ async function saveSheets(list){
       body: JSON.stringify({ sources: list })
     });
     sheetPanel = { sources: list };
+    inquiryCache.sheetCount = list.length;
     render();
     await syncInquiries(true);
   }catch(e){ alert(apiErrText(e)); }
@@ -3248,10 +3249,19 @@ function sheetPanelView(){
 /* 예전 이름 — 이제 관리 화면을 엽니다 */
 function setSheetUrl(){ openSheets(); }
 
+async function loadSheetCount(){
+  try{
+    const out = await apiJson('inquiries.php?action=sources');
+    inquiryCache.sheetCount = (out.sources || []).length;
+  }catch(e){ inquiryCache.sheetCount = 0; }
+  render();
+}
+
 async function loadInquiries(force){
   if(STORAGE_MODE !== 'nas'){ inquiryCache.loaded = true; return; }
   if(inquiryCache.loading || (inquiryCache.loaded && !force)) return;
   inquiryCache.loading = true;
+  if(inquiryCache.sheetCount === undefined) setTimeout(loadSheetCount, 10);
   try{
     const res = await fetch('inquiries.php?action=list&t=' + Date.now(), { cache:'no-store' });
     const text = await res.text();
@@ -3574,14 +3584,15 @@ function viewInquiries(b){
       + 'oninput="onInquiryQuery(this.value)"></span>'
     + (linked
         ? '<button class="btn primary" onclick="syncInquiries(true)">↻ 시트에서 가져오기</button>'
-        : '<button class="btn primary" onclick="setSheetUrl()">🔗 시트 연결</button>')
+        : '<button class="btn primary" onclick="openSheets()">🔗 시트 연결</button>')
+    + '<button class="btn" onclick="openSheets()">🔗 시트 관리'
+      + (inquiryCache.sheetCount ? ' (' + inquiryCache.sheetCount + ')' : '') + '</button>'
     + '<button class="btn" onclick="document.getElementById(\'csvInput\').click()">📥 CSV 올리기</button>'
     + '<input type="file" id="csvInput" accept=".csv,text/csv" style="display:none">'
     + '<span class="astat" id="csvStat"></span>'
     + '<span class="hint">전체 ' + inquiryCache.total.toLocaleString('ko-KR') + '건 중 이 브랜드 '
       + rows.length.toLocaleString('ko-KR') + '건 · 갱신 ' + esc(when)
       + (linked ? ' · 🔗 시트 연결됨' : '') + '</span>'
-    + '<button class="btn sm" style="margin-left:auto" onclick="openSheets()">🔗 시트 관리</button>'
     + '</div>'
     + (inquiryCache.syncError
         ? '<div class="ainote" style="margin-bottom:12px;white-space:pre-wrap">⚠️ 자동 가져오기 실패: '

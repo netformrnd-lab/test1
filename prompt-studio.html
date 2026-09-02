@@ -107,6 +107,8 @@
   .mthumb img{width:100%;height:100%;object-fit:cover;display:block}
   .mbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
   .mname{font-size:12.3px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mchap{margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--brand-soft);
+    color:var(--brand);font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums}
   .mbody select,.mbody input{padding:5px 8px;border-radius:7px;border:1px solid var(--line);
     background:var(--surface);color:var(--ink);font:inherit;font-size:11.8px;width:100%}
   .mbody select{cursor:pointer}
@@ -175,6 +177,16 @@
   }
   .meta{display:flex;gap:14px;font-size:11.5px;color:var(--ink-3);margin-top:10px;font-variant-numeric:tabular-nums}
 
+  .linkbtn{background:none;border:0;padding:0;color:var(--brand);font:inherit;font-size:11.5px;
+    font-weight:600;cursor:pointer;text-decoration:underline}
+  .richwrap{margin-top:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .richbar{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface-2);
+    font-size:12px;color:var(--ink-2);flex-wrap:wrap}
+  .richbar b{color:var(--ink)}
+  .richbar .spacer{flex:1}
+  .richbar .btn{padding:5px 11px;font-size:12px}
+  #richView{padding:16px;max-height:520px;overflow:auto;background:var(--surface);user-select:text}
+  #richView img{border:1px solid var(--line)}
   .note,.warn,.fine{border-radius:10px;padding:11px 13px;margin:13px 0 0;font-size:12.3px;line-height:1.6}
   .note{background:var(--surface-2);color:var(--ink-2)}
   .note b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
@@ -354,7 +366,19 @@
       <p class="desc" id="outDesc"></p>
       <div class="chapbar" id="chapBar"></div>
       <pre id="out"></pre>
-      <div class="meta"><span id="mChars"></span><span id="mLines"></span></div>
+      <div class="meta">
+        <span id="mChars"></span><span id="mLines"></span>
+        <button type="button" class="linkbtn" id="openRich" hidden>사진과 함께 보기</button>
+      </div>
+      <div class="richwrap" id="richWrap" hidden>
+        <div class="richbar">
+          <span>붙여넣기용 미리보기 — 전체 선택 후 <b>Ctrl+C</b> (맥은 <b>⌘+C</b>)</span>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="selectAll">전체 선택</button>
+          <button type="button" class="btn" id="closeRich">닫기</button>
+        </div>
+        <div id="richView"></div>
+      </div>
     </div>
   </div>
 
@@ -494,7 +518,19 @@
     return media.map(function(m){return {file:m.file,scene:m.scene,desc:m.desc};})
                 .filter(function(a){return a.file;});
   }
-  function sceneNames(){ return scenes(LENS[st.len],[],[]).map(function(x){return x.name;}); }
+  function sceneNames(){
+    var seen={},out=[];
+    scenes(LENS[st.len],[],[]).forEach(function(x){ if(!seen[x.part]){seen[x.part]=1;out.push(x.part);} });
+    return out;
+  }
+  // 사진이 어느 조각에 들어가는지 (씬 미지정이면 null)
+  function chapterOf(sceneName){
+    var sc=scenes(LENS[st.len],lns('msgs'),lns('scene')), chs=chapters(sc);
+    for(var i=0;i<chs.length;i++)
+      for(var j=0;j<chs[i].length;j++)
+        if(chs[i][j].part===sceneName) return {index:i+1,total:chs.length};
+    return null;
+  }
 
   function makeThumb(file,cb){
     if(!/^image\//.test(file.type)){ cb(''); return; }
@@ -529,10 +565,12 @@
         return '<option'+(m.scene===n?' selected':'')+'>'+n+'</option>';
       }).join('');
       var th = m.thumb ? '<img src="'+m.thumb+'" alt="">' : (m.kind==='video'?'영상':'파일');
+      var chp = m.scene ? chapterOf(m.scene) : null;
+      var badge = chp && chp.total>1 ? '<span class="mchap">조각 '+chp.index+'/'+chp.total+'</span>' : '';
       return '<div class="mcard" data-id="'+m.id+'">'+
         '<div class="mthumb">'+th+'</div>'+
         '<div class="mbody">'+
-          '<div class="mname" title="'+esc(m.file)+'">'+esc(m.file)+'</div>'+
+          '<div class="mname" title="'+esc(m.file)+'">'+esc(m.file)+badge+'</div>'+
           '<select data-f="scene">'+opts+'</select>'+
           '<input type="text" data-f="desc" placeholder="어떻게 쓸지 (선택)" value="'+esc(m.desc)+'">'+
         '</div>'+
@@ -545,8 +583,8 @@
   }
   function esc(x){return String(x).replace(/[&<>"]/g,function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
-  function assetsFor(name,list){
-    return list.filter(function(a){ return a.scene===name; });
+  function assetsFor(sc,list){
+    return list.filter(function(a){ return a.scene===sc.part; });
   }
   function lns(id){return val(id).split('\n').map(function(s){return s.trim();}).filter(Boolean);}
   function kw(){return val('kw')||'(키워드를 입력하세요)';}
@@ -569,11 +607,23 @@
       {n:'정리 · 다음 행동', w:.12, screen:'3줄 요약이 한 줄씩 쌓인 뒤 마지막에 안내 문구. 로고는 여기서만',
        note:'요약 후 바로 실행할 수 있는 다음 행동을 안내한다.'}
     ];
-    var t=0;
-    return plan.map(function(p){
-      var d=Math.round(len*p.w), s=t; t+=d;
-      return {name:p.n,from:s,to:Math.min(t,len),dur:Math.min(t,len)-s,screen:p.screen,note:p.note};
+    var MAXSCENE=70, t=0, out=[];
+    plan.forEach(function(p){
+      var d=Math.round(len*p.w), start=t; t+=d;
+      var end=Math.min(t,len), total=end-start;
+      var n=Math.max(1,Math.ceil(total/MAXSCENE));
+      for(var i=0;i<n;i++){
+        var a=start+Math.round(total*i/n), b=start+Math.round(total*(i+1)/n);
+        out.push({
+          part:p.n,
+          name:n>1?(p.n+' ('+(i+1)+'/'+n+')'):p.n,
+          from:a,to:b,dur:b-a,screen:p.screen,
+          note:p.note+(n>1?(i===0?' 이 조각에서는 도입과 핵심 주장까지만 다룬다.'
+                                 :' 앞 조각에 이어 근거와 사례로 마무리한다.'):'')
+        });
+      }
     });
+    return out;
   }
 
   function chapters(sc){
@@ -671,17 +721,19 @@
     ch.forEach(function(s,i){
       var gi=sc.indexOf(s);
       var on=plan.idx.indexOf(gi)>=0?'  ← 아바타 등장':'';
-      var mine=assetsFor(s.name,assets);
+      var mine=assetsFor(s,assets);
       if(mine.length) on+='  ← 업로드 소재: '+mine.map(function(a){return a.file;}).join(', ');
       b.push((i+1)+'. '+s.name+' ['+(s.from-base)+'~'+(s.to-base)+'초]'+on);
       b.push('   내용: '+s.note);
       b.push('   화면: '+s.screen);
     });
-    if(assets.length){
+    var parts={}; ch.forEach(function(x){ parts[x.part]=1; });
+    var mineAll=assets.filter(function(a){ return !a.scene || parts[a.scene]; });
+    if(mineAll.length){
       b.push('');
       b.push('# 업로드 소재 사용');
       b.push('아래 파일은 이미 업로드되어 있습니다. 지정한 씬에 그대로 쓰고, 스톡 영상이나 새로 생성한 이미지로 대체하지 마세요.');
-      assets.forEach(function(a){
+      mineAll.forEach(function(a){
         b.push('- '+a.file+(a.scene?' → '+a.scene+' 씬':' → 적절한 씬에 배치')+(a.desc?'. '+a.desc:''));
       });
       b.push('- 소재에 사람이 나오면 그대로 씁니다. 다른 인물이나 아바타로 바꾸지 마세요.');
@@ -717,7 +769,7 @@
     if(CASTS[st.cast].lines.length){
       b.push('- 서양인 모델, 영문 간판, 해외 주택 외관이 보이는 영상·이미지');
     }
-    if(assets.length){
+    if(mineAll.length){
       b.push('- 업로드 소재가 지정된 씬을 스톡 영상이나 생성 이미지로 채우는 것');
     }
     return b.join('\n');
@@ -836,7 +888,7 @@
     }).join('');
     el.onclick=function(e){
       var b=e.target.closest('button'); if(!b) return;
-      st[key]=+b.dataset.i; if(after) after(); syncSegs(); render();
+      st[key]=+b.dataset.i; if(after) after(); syncSegs(); renderMedia(); render();
     };
   }
   function syncSegs(){
@@ -912,6 +964,10 @@
       : '';
 
     document.getElementById('copyRichBtn').hidden = media.length===0;
+    document.getElementById('openRich').hidden = media.length===0;
+    if(!media.length) document.getElementById('richWrap').hidden=true;
+    else if(!document.getElementById('richWrap').hidden)
+      document.getElementById('richView').innerHTML=richHTML(t.fn());
 
     var text=t.fn();
     document.getElementById('outStep').textContent=t.step;
@@ -963,6 +1019,7 @@
     var card=e.target.closest('.mcard'); if(!card) return;
     var m=media.filter(function(x){return x.id===+card.dataset.id;})[0]; if(!m) return;
     if(e.target.dataset.f) m[e.target.dataset.f]=e.target.value;
+    if(e.target.dataset.f==='scene') renderMedia();
     render();
   });
   mgrid.addEventListener('input',function(e){
@@ -1009,39 +1066,68 @@
   var toast=document.getElementById('toast'), tid;
   function flash(m){ toast.textContent=m; toast.classList.add('on');
     clearTimeout(tid); tid=setTimeout(function(){toast.classList.remove('on');},1600); }
+  function selectNode(el){
+    try{
+      var r=document.createRange(); r.selectNodeContents(el);
+      var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      return true;
+    }catch(e){ return false; }
+  }
+  var richWrap=document.getElementById('richWrap'), richView=document.getElementById('richView');
+  function showRich(select){
+    richView.innerHTML=richHTML(document.getElementById('out').textContent);
+    richWrap.hidden=false;
+    richWrap.scrollIntoView({block:'nearest'});
+    if(select) selectNode(richView);
+  }
+  document.getElementById('openRich').addEventListener('click',function(){ showRich(false); });
+  document.getElementById('closeRich').addEventListener('click',function(){ richWrap.hidden=true; });
+  document.getElementById('selectAll').addEventListener('click',function(){
+    if(selectNode(richView)) flash('선택했습니다. 이제 Ctrl+C 를 누르세요');
+  });
+
   document.getElementById('copyRichBtn').addEventListener('click',function(){
     var text=document.getElementById('out').textContent, html=richHTML(text);
-    function fb(){
+    function manual(){
+      showRich(true);
+      flash('브라우저가 복사를 막았습니다. 아래 영역에서 Ctrl+C');
+    }
+    function execFb(){
       var host=document.createElement('div');
       host.setAttribute('contenteditable','true');
-      host.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+      host.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:.01;z-index:-1';
       host.innerHTML=html;
       document.body.appendChild(host);
-      var r=document.createRange(); r.selectNodeContents(host);
-      var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
-      try{ document.execCommand('copy'); flash('사진과 함께 복사했습니다'); }
-      catch(e){ flash('이 브라우저에서는 사진 포함 복사가 안 됩니다'); }
-      sel.removeAllRanges(); document.body.removeChild(host);
+      host.focus();
+      var ok=false;
+      if(selectNode(host)){ try{ ok=document.execCommand('copy'); }catch(e){ ok=false; } }
+      try{ window.getSelection().removeAllRanges(); }catch(e){}
+      document.body.removeChild(host);
+      if(ok) flash('사진과 함께 복사했습니다'); else manual();
     }
     if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
       try{
         navigator.clipboard.write([new ClipboardItem({
           'text/html': new Blob([html],{type:'text/html'}),
           'text/plain': new Blob([text],{type:'text/plain'})
-        })]).then(function(){ flash('사진과 함께 복사했습니다'); },fb);
-      }catch(e){ fb(); }
-    } else fb();
+        })]).then(function(){ flash('사진과 함께 복사했습니다'); },execFb);
+      }catch(e){ execFb(); }
+    } else execFb();
   });
 
   document.getElementById('copyBtn').addEventListener('click',function(){
     var text=document.getElementById('out').textContent;
     function fb(){
       var ta=document.createElement('textarea');
-      ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
-      document.body.appendChild(ta); ta.select();
-      try{ document.execCommand('copy'); flash('복사했습니다'); }
-      catch(e){ flash('복사할 수 없습니다. 직접 선택해 주세요'); }
+      ta.value=text;
+      ta.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:.01;z-index:-1';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select(); ta.setSelectionRange(0,text.length);
+      var ok=false;
+      try{ ok=document.execCommand('copy'); }catch(e){ ok=false; }
       document.body.removeChild(ta);
+      if(ok) flash('복사했습니다');
+      else { selectNode(document.getElementById('out')); flash('브라우저가 복사를 막았습니다. 선택해 뒀으니 Ctrl+C'); }
     }
     if(navigator.clipboard && navigator.clipboard.writeText)
       navigator.clipboard.writeText(text).then(function(){flash('복사했습니다');},fb);

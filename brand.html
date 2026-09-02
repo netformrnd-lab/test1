@@ -975,7 +975,7 @@ async function startScan(){
   scanRun = { starting:true };
   render();
   try{
-    scanRun = await apiJson('nasscan.php?action=start&dir=' + encodeURIComponent(dir));
+    scanRun = await apiJson('nasfiles.php?action=scanstart&dir=' + encodeURIComponent(dir));
     render();
     scanLoop();
   }catch(e){
@@ -990,7 +990,7 @@ async function scanLoop(){
   while(scanRun && !scanRun.done){
     let out;
     try{
-      out = await apiJson('nasscan.php?action=step');
+      out = await apiJson('nasfiles.php?action=scanstep');
     }catch(e){
       scanRun = null; render();
       alert(apiErrText(e)
@@ -1019,7 +1019,7 @@ async function cancelScan(){
   if(!confirm('목록 만들기를 중단할까요?')) return;
   scanRun = null;
   render();
-  try{ await apiJson('nasscan.php?action=cancel'); }catch(e){}
+  try{ await apiJson('nasfiles.php?action=scancancel'); }catch(e){}
   toast('중단했습니다');
 }
 

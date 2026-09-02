@@ -659,6 +659,45 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .cnt.clashdot{display:inline-grid;place-items:center;min-width:17px;height:17px;
   border-radius:999px;background:var(--yellow);color:#fff;font-size:10px;font-weight:700;
   margin-left:auto}
+/* ── 문의 추이 그래프 ─────────────────────────────────────────────
+   색은 '해' 를 나타냅니다. 글자에는 색을 쓰지 않습니다.
+   밝은 화면에서 초록·노랑은 배경과 대비가 낮아, 표를 항상 함께 둡니다. */
+.vz-box{border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px;
+  background:var(--bg-secondary);margin-bottom:16px;
+  --sr1:#2a78d6; --sr2:#eb6834; --sr3:#1baf7a; --sr4:#eda100;
+  --vz-grid:#e6e4df; --vz-surface:#ffffff}
+body.dark-mode .vz-box{--sr1:#3987e5; --sr2:#d95926; --sr3:#199e70; --sr4:#c98500;
+  --vz-grid:#2b2d32; --vz-surface:#141518}
+.vz-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;
+  letter-spacing:-.018em;margin-bottom:10px}
+.vz-legend{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:6px}
+.vz-key{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  color:var(--text-secondary)}
+.vz-sw{width:14px;height:3px;border-radius:99px;flex-shrink:0}
+.vz-wrap{overflow-x:auto}
+.vz{display:block;width:100%;min-width:520px;height:auto}
+.vz-grid{stroke:var(--vz-grid);stroke-width:1}
+.vz-line{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.vz-dot{stroke:var(--vz-surface);stroke-width:2}
+.vz-tick{fill:var(--text-muted);font-size:11px;font-family:inherit}
+.vz-endlab{fill:var(--text-secondary);font-size:11px;font-weight:700;font-family:inherit}
+.vz-hot{fill:transparent}
+.vz-hot:hover{fill:var(--text-primary);fill-opacity:.045}
+.vz-tw{overflow-x:auto;margin-top:12px}
+table.ymtable{border-collapse:collapse;width:100%;font-size:12px;
+  font-variant-numeric:tabular-nums}
+table.ymtable th,table.ymtable td{padding:5px 8px;border-bottom:1px solid var(--border);
+  white-space:nowrap}
+table.ymtable thead th{font-size:11px;font-weight:700;color:var(--text-secondary);
+  background:var(--bg-input)}
+table.ymtable th.yr{font-weight:700;text-align:left}
+table.ymtable .num{text-align:right}
+table.ymtable .zero{color:var(--text-muted)}
+table.ymtable .tot{font-weight:700}
+table.ymtable tr:hover td{background:var(--bg-hover)}
+table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--border-light);
+  border-bottom:none;font-weight:700;color:var(--text-secondary)}
+
 .hitrow{display:flex;align-items:center;gap:12px;padding:10px 14px}
 .hitrow + .hitrow{border-top:1px solid var(--border)}
 .hitrow:hover{background:var(--bg-hover)}
@@ -798,7 +837,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260903-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260903-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4454,6 +4493,170 @@ function inquirySummary(rows){
 let inquiryShowTable = false;
 function toggleInquiryTable(){ inquiryShowTable = !inquiryShowTable; render(); }
 
+/* ═══════════════ 연도별 문의 추이 ═══════════════════════════════════
+   같은 달끼리 해마다 비교합니다. (작년 9월 vs 올해 9월)
+   꺾은선 + 점으로 그리고, 바로 아래 표에 숫자를 그대로 둡니다.
+   ─ 색은 해(연도)를 나타냅니다. 글자에는 색을 쓰지 않습니다.
+   ================================================================= */
+const YEAR_HUES = ['var(--sr1)', 'var(--sr2)', 'var(--sr3)', 'var(--sr4)'];
+
+/* 색은 '몇 번째 줄인지' 가 아니라 '그 해' 에 붙습니다.
+   그래야 해가 바뀌어도 2025년은 늘 같은 색이라 헷갈리지 않습니다.
+   (연속된 4개 해는 서로 다른 색이 됩니다) */
+function yearHue(y){ return YEAR_HUES[((y % 4) + 4) % 4]; }
+const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+let yearChartMax = 4;      // 한 번에 그릴 해의 수
+
+/* 연도 × 월 표를 만듭니다 */
+function yearMonthGrid(rows, dateCol){
+  const grid = {};                       // 연도 → [12개월]
+  let none = 0;
+  rows.forEach(r => {
+    const d = dateCol ? parseYMD(r[dateCol]) : null;
+    if(!d){ none++; return; }
+    const y = d.getFullYear();
+    if(!grid[y]) grid[y] = new Array(12).fill(0);
+    grid[y][d.getMonth()]++;
+  });
+  const years = Object.keys(grid).map(Number).sort((a, b) => b - a);   // 최근 연도부터
+  return { grid, years, none };
+}
+
+/* 그 해에 어느 달까지 그릴지.
+   올해는 '이번 달' 까지만 그립니다. 아직 오지 않은 달을 0건으로 그리면
+   문의가 뚝 끊긴 것처럼 보여서 잘못 읽게 됩니다. */
+function lastMonthOf(year, grid){
+  const now = new Date();
+  if(year > now.getFullYear()) return -1;
+  if(year === now.getFullYear()) return now.getMonth();
+  // 지난 해인데 뒷달이 통째로 비어 있으면 (그때부터 기록이 없는 것) 거기서 끊습니다
+  const arr = grid[year] || [];
+  let last = 11;
+  while(last > 0 && arr[last] === 0 && arr[last - 1] === 0) last--;
+  return last;
+}
+
+/* 꺾은선 그래프 (SVG 를 직접 그립니다 — 인터넷 없이도 뜹니다) */
+function inquiryYearChart(g, shownYears){
+  const W = 720, H = 260;
+  const PAD = { t: 16, r: 18, b: 30, l: 42 };
+  const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
+
+  const lastOf = {};
+  shownYears.forEach(y => { lastOf[y] = lastMonthOf(y, g.grid); });
+
+  let max = 0;
+  shownYears.forEach(y => g.grid[y].forEach((v, i) => {
+    if(i <= lastOf[y] && v > max) max = v;
+  }));
+  if(max < 4) max = 4;
+  const step = Math.max(1, Math.ceil(max / 4));
+  const top  = step * 4;                                    // 눈금이 딱 떨어지게
+
+  const x = i => PAD.l + (iw * i) / 11;
+  const y = v => PAD.t + ih - (ih * v) / top;
+
+  // 가로 눈금선 (연하게)
+  let grid = '';
+  for(let k = 0; k <= 4; k++){
+    const val = step * k, yy = y(val);
+    grid += '<line x1="' + PAD.l + '" y1="' + yy + '" x2="' + (W - PAD.r) + '" y2="' + yy
+      + '" class="vz-grid"/>'
+      + '<text x="' + (PAD.l - 8) + '" y="' + (yy + 4) + '" class="vz-tick" text-anchor="end">'
+      + val.toLocaleString('ko-KR') + '</text>';
+  }
+  for(let i = 0; i < 12; i++){
+    grid += '<text x="' + x(i) + '" y="' + (H - 10) + '" class="vz-tick" text-anchor="middle">'
+      + (i + 1) + '</text>';
+  }
+
+  // 선과 점
+  let marks = '';
+  shownYears.forEach(yr => {
+    const col = yearHue(yr);
+    const upto = lastOf[yr];
+    if(upto < 0) return;
+    const pts = g.grid[yr].slice(0, upto + 1).map((v, i) => [x(i), y(v)]);
+    if(pts.length > 1){
+      marks += '<polyline class="vz-line" stroke="' + col + '" points="'
+        + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') + '"/>';
+    }
+    pts.forEach(p => {
+      marks += '<circle class="vz-dot" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1)
+        + '" r="4.5" fill="' + col + '"/>';
+    });
+    // 선이 끝나는 자리에만 연도를 적습니다 (모든 점에 숫자를 달지 않습니다)
+    const last = pts[pts.length - 1];
+    const atRight = upto >= 10;
+    marks += '<text x="' + (last[0] + (atRight ? -6 : 8)) + '" y="' + (last[1] - 9)
+      + '" class="vz-endlab" text-anchor="' + (atRight ? 'end' : 'start') + '">'
+      + yr + (upto < 11 ? ' →' : '') + '</text>';
+  });
+
+  // 마우스를 올리면 그 달의 모든 해를 함께 보여줍니다
+  let hot = '';
+  for(let i = 0; i < 12; i++){
+    const tip = shownYears.map(yr => yr + '년 ' + (i + 1) + '월 · '
+      + (i <= lastOf[yr] ? g.grid[yr][i].toLocaleString('ko-KR') + '건'
+                         : '아직')).join('&#10;');
+    hot += '<rect class="vz-hot" x="' + (x(i) - iw / 22) + '" y="' + PAD.t
+      + '" width="' + (iw / 11) + '" height="' + ih + '"><title>' + esc(tip) + '</title></rect>';
+  }
+
+  return '<svg class="vz" viewBox="0 0 ' + W + ' ' + H + '" role="img" '
+    + 'aria-label="연도별 월 문의 건수 꺾은선 그래프">'
+    + grid + marks + hot + '</svg>';
+}
+
+function inquiryYearView(rows, dateCol){
+  if(!dateCol) return '';
+  const g = yearMonthGrid(rows, dateCol);
+  if(!g.years.length) return '';
+
+  const shown = g.years.slice(0, yearChartMax);
+  const legend = '<div class="vz-legend">'
+    + shown.map(yr => '<span class="vz-key"><span class="vz-sw" style="background:'
+        + yearHue(yr) + '"></span>' + yr + '년</span>').join('')
+    + (g.years.length > shown.length
+        ? '<span class="fmeta">· 최근 ' + shown.length + '개 해만 그립니다 (표에는 전부 있습니다)</span>'
+        : '')
+    + '</div>';
+
+  const head = '<tr><th>연도</th>'
+    + MONTHS_KO.map(m => '<th class="num">' + m + '</th>').join('')
+    + '<th class="num">합계</th></tr>';
+  const body = g.years.map(yr => {
+    const arr = g.grid[yr];
+    const upto = lastMonthOf(yr, g.grid);
+    const sum = arr.reduce((a, v) => a + v, 0);
+    return '<tr><th class="yr">' + yr + '</th>'
+      + arr.map((v, i) => {
+          if(i > upto) return '<td class="num zero" title="아직 오지 않은 달">–</td>';
+          return '<td class="num' + (v ? '' : ' zero') + '">'
+            + (v ? v.toLocaleString('ko-KR') : '0') + '</td>';
+        }).join('')
+      + '<td class="num tot">' + sum.toLocaleString('ko-KR') + '</td></tr>';
+  }).join('');
+  const colSum = new Array(12).fill(0);
+  g.years.forEach(yr => g.grid[yr].forEach((v, i) => { colSum[i] += v; }));
+  const foot = '<tr class="sumrow"><th>합계</th>'
+    + colSum.map(v => '<td class="num">' + (v ? v.toLocaleString('ko-KR') : '·') + '</td>').join('')
+    + '<td class="num tot">' + colSum.reduce((a, v) => a + v, 0).toLocaleString('ko-KR')
+    + '</td></tr>';
+
+  return '<div class="vz-box">'
+    + '<div class="vz-head">📈 해마다 몇 월에 문의가 많았나'
+      + '<span class="fmeta" style="margin-left:auto">가로축 = 월 · 점에 마우스를 올리면 숫자가 나옵니다</span>'
+    + '</div>'
+    + legend
+    + '<div class="vz-wrap">' + inquiryYearChart(g, shown) + '</div>'
+    + '<div class="vz-tw"><table class="ymtable">'
+      + '<thead>' + head + '</thead><tbody>' + body + foot + '</tbody></table></div>'
+    + (g.none ? '<div class="fmeta" style="margin-top:8px">날짜를 못 읽은 문의 '
+        + g.none.toLocaleString('ko-KR') + '건은 빠져 있습니다</div>' : '')
+    + '</div>';
+}
+
 function viewInquiries(b){
   if(STORAGE_MODE !== 'nas'){
     return '<div class="empty">🔒 문의 기록은 NAS 주소로 접속했을 때만 보입니다.<br>'
@@ -4602,6 +4805,7 @@ function viewInquiries(b){
   return bar
     + (q ? '<div class="fmeta" style="margin-bottom:10px">검색 결과 ' + shown.length + '건</div>' : '')
     + '<div class="stats">' + tiles + '</div>'
+    + inquiryYearView(shown, sum.dateCol)
     + breakdown
     + recentList
     + '<div class="hsec">📋 전체 목록'

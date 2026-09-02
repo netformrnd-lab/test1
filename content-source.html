@@ -1,0 +1,481 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공종별 콘텐츠 소스</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard.min.css">
+<style>
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5; --line:#dfe4ea; --line-soft:#eaeef3;
+    --ink:#1b2430; --ink-2:#5b6676; --ink-3:#8b95a3;
+    --brand:#2f6df6; --brand-2:#0aa5c4; --brand-soft:rgba(47,109,246,.10);
+    --ok:#17936a; --ok-soft:rgba(23,147,106,.12);
+    --warn:#b4740a; --warn-soft:rgba(180,116,10,.13);
+    --shadow:0 1px 2px rgba(27,36,48,.06),0 8px 24px -16px rgba(27,36,48,.28);
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#10151c; --surface:#171e27; --surface-2:#1f2833; --line:#2b3644; --line-soft:#232d3a;
+      --ink:#e7edf5; --ink-2:#a3b0c0; --ink-3:#71808f;
+      --brand:#6f9dff; --brand-2:#3fc7e3; --brand-soft:rgba(111,157,255,.14);
+      --ok:#3fc492; --ok-soft:rgba(63,196,146,.15);
+      --warn:#e0a343; --warn-soft:rgba(224,163,67,.16);
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -18px rgba(0,0,0,.9);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10151c; --surface:#171e27; --surface-2:#1f2833; --line:#2b3644; --line-soft:#232d3a;
+    --ink:#e7edf5; --ink-2:#a3b0c0; --ink-3:#71808f;
+    --brand:#6f9dff; --brand-2:#3fc7e3; --brand-soft:rgba(111,157,255,.14);
+    --ok:#3fc492; --ok-soft:rgba(63,196,146,.15);
+    --warn:#e0a343; --warn-soft:rgba(224,163,67,.16);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -18px rgba(0,0,0,.9);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Pretendard','IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:14.5px;line-height:1.75;-webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{margin:0;text-wrap:balance}
+  a{color:var(--brand)}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  header{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+  .hd{max-width:940px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .mark{width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;
+    background:linear-gradient(140deg,var(--brand),var(--brand-2));color:#fff;font-weight:700;font-size:15px;box-shadow:var(--shadow)}
+  .hd h1{font-size:17px;font-weight:700;letter-spacing:-.3px}
+  .hd .sub{font-size:12px;color:var(--ink-3)}
+  .spacer{flex:1}
+  .btn{padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;transition:.15s}
+  .btn:hover{border-color:var(--brand);color:var(--brand)}
+
+  .wrap{max-width:940px;margin:0 auto;padding:28px 24px 80px}
+
+  .intro{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:24px 26px;box-shadow:var(--shadow);border-left:4px solid var(--brand)}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brand)}
+  .intro h2{font-size:20px;font-weight:700;letter-spacing:-.3px;margin:8px 0 10px}
+  .intro p{margin:0 0 10px;color:var(--ink-2);max-width:68ch}
+  .intro p:last-child{margin-bottom:0}
+  .intro b{color:var(--ink);font-weight:600}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  @media (max-width:640px){.split{grid-template-columns:1fr}}
+  .split div{border-radius:11px;padding:13px 15px;font-size:13px;line-height:1.65}
+  .yes{background:var(--ok-soft)}
+  .no{background:var(--warn-soft)}
+  .split h4{font-size:12.5px;font-weight:700;margin-bottom:5px}
+  .yes h4{color:var(--ok)} .no h4{color:var(--warn)}
+  .split ul{margin:0;padding-left:16px;color:var(--ink-2)}
+  .split li{margin-bottom:3px}
+
+  section{margin-top:40px;background:var(--surface);border:1px solid var(--line);
+    border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .sec-hd{padding:20px 26px 0}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;
+    color:var(--brand);background:var(--brand-soft);padding:3px 10px;border-radius:999px}
+  .sec-hd h2{font-size:19px;font-weight:700;letter-spacing:-.3px;margin:9px 0 8px}
+  .why{color:var(--ink-2);margin:0;max-width:68ch}
+  .why b{color:var(--ink);font-weight:600}
+  .body{padding:20px 26px 24px}
+  h3{font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--ink-3);
+    text-transform:none;margin:24px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--line-soft)}
+  h3:first-child{margin-top:6px}
+
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:560px;font-size:13.3px}
+  th,td{padding:10px 13px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line-soft)}
+  th{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--ink-3);background:var(--surface-2);white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  td:first-child{font-weight:600;white-space:nowrap}
+  td.risk{color:var(--warn)}
+
+  ul.check{margin:0;padding:0;list-style:none}
+  ul.check li{position:relative;padding-left:22px;margin-bottom:9px;color:var(--ink-2)}
+  ul.check li::before{content:'';position:absolute;left:6px;top:10px;width:5px;height:5px;
+    border-radius:50%;background:var(--brand)}
+  ul.check li b{color:var(--ink);font-weight:600}
+
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chips button{padding:7px 13px;border-radius:999px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink-2);font:inherit;font-size:13px;cursor:pointer;transition:.15s}
+  .chips button:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+
+  .principles{margin-top:40px;background:var(--surface);border:1px solid var(--line);
+    border-radius:16px;padding:24px 26px;box-shadow:var(--shadow)}
+  .principles h2{font-size:17px;font-weight:700;margin-bottom:14px}
+  .principles ul.check li{margin-bottom:11px}
+
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);
+    background:var(--ok);color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;font-weight:600;
+    opacity:0;pointer-events:none;transition:.2s;z-index:50}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  footer{margin-top:40px;font-size:12px;color:var(--ink-3);line-height:1.7}
+</style>
+
+<header>
+  <div class="hd">
+    <div class="mark">C</div>
+    <div>
+      <h1>공종별 콘텐츠 소스</h1>
+      <div class="sub">아파트스퀘어 · 영상 주제와 근거</div>
+    </div>
+    <div class="spacer"></div>
+    <a class="btn" href="prompt-studio.html">프롬프트 스튜디오 →</a>
+    <button class="btn" id="themeBtn">테마 전환</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="intro">
+    <div class="eyebrow">읽는 법</div>
+    <h2>공법을 파는 자료를, 단지가 확인할 것으로 뒤집어 정리했습니다</h2>
+    <p>
+      받은 제안서 25건에서 <b>업계 공통 기술 지식만</b> 가져왔습니다.
+      하자가 왜 생기는지, 어디가 취약한지, 방치하면 무엇이 따라오는지 — 표준시방서와 현장에서 공통으로 통하는 내용입니다.
+    </p>
+    <p>
+      특정 업체의 공법 구성이나 제품 사양은 가져오지 않았습니다.
+      브랜드만 지우고 옮기면 남의 영업자료를 다시 쓰는 셈이고, 무엇보다
+      <b>감리사가 특정 공법을 결론으로 말하는 순간 중립성이 깨집니다.</b>
+      로드맵의 “결정을 대신 하지 않는다”와 정면으로 부딪히고요.
+    </p>
+    <div class="split">
+      <div class="yes">
+        <h4>가져온 것</h4>
+        <ul>
+          <li>하자 유형과 발생 원인</li>
+          <li>실제 누수·탈락이 시작되는 취약부</li>
+          <li>공법 계열별 일반 특성과 한계</li>
+          <li>단지가 물어봐야 할 확인 항목</li>
+        </ul>
+      </div>
+      <div class="no">
+        <h4>가져오지 않은 것</h4>
+        <ul>
+          <li>특정 업체 공법의 시공 순서와 구성</li>
+          <li>제품명·자재 사양·특허 내용</li>
+          <li>업체 실적·거래액·수치</li>
+          <li>“이 공법이 답”이라는 결론 구조</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-hd">
+      <span class="tag">외벽</span>
+      <h2>균열보수 · 재도장</h2>
+      <p class="why">
+        콘크리트는 온도에 따라 수축·팽창하므로 <b>균열을 완전히 막을 수 없습니다.</b>
+        문제는 균열 자체가 아니라 그 틈으로 빗물이 들어간 다음입니다.
+        중성화가 진행되고 철근이 부식되기 시작하면 도장 문제가 아니라 구조 문제가 됩니다.
+      </p>
+    </div>
+    <div class="body">
+      <h3>하자 유형</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>현상</th><th>원인</th><th>방치하면</th></tr></thead>
+        <tbody>
+          <tr><td>도장면 들뜸·박리</td><td>반복적인 수축팽창, 도막 접착력 저하</td><td class="risk">바탕면 손상, 재도장 주기 단축</td></tr>
+          <tr><td>층간 조인트 대균열</td><td>타설 끊어치기 부위·접합부</td><td class="risk">누수, 중성화, 철근 부식</td></tr>
+          <tr><td>균열 내 빗물 침투</td><td>미보수 균열의 모세관 흡수</td><td class="risk">철근 부식, 녹물, 콘크리트 박리</td></tr>
+          <tr><td>곡각지점·모서리 균열</td><td>퍼티·몰탈로는 거동 대응 불가</td><td class="risk">재균열, 콘크리트 탈락</td></tr>
+          <tr><td>창호 주변 사인장 균열</td><td>모서리 보강철근 배근 미흡, 실리콘 노후</td><td class="risk">누수, 결로, 곰팡이</td></tr>
+          <tr><td>열화·중성화 박락</td><td>화학적·물리적 요인에 의한 기능 저하</td><td class="risk">낙하 위험, 녹물 노출</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>단지가 확인할 것</h3>
+      <ul class="check">
+        <li><b>고압세척과 바인더(하도) 작업이 견적에 있나.</b> 바탕정리를 빼면 몇 년 안에 다시 들뜹니다. 견적을 낮추려 가장 먼저 빠지는 항목입니다.</li>
+        <li><b>쵸킹 여부를 진단서에 적었나.</b> 손으로 문질렀을 때 흰 가루가 묻어나면 바인더 작업이 필수입니다.</li>
+        <li><b>균열을 폭·깊이·거동 여부로 나눠 보수 방법을 다르게 잡았나</b>, 아니면 전부 같은 방법인가.</li>
+        <li><b>창호 주변과 곡각지점을 별도 항목으로 잡았나.</b> 여기가 재균열이 가장 잦은 곳입니다.</li>
+        <li><b>도장 횟수와 도막 두께가 시방서에 숫자로 있나.</b> “2회 도장”만으로는 검측 기준이 되지 않습니다.</li>
+      </ul>
+
+      <h3>영상 주제 후보 <span style="font-weight:400;color:var(--ink-3)">— 누르면 복사됩니다</span></h3>
+      <div class="chips">
+        <button>외벽 재도장, 지금 해야 하나</button>
+        <button>외벽에 묻어나는 흰 가루의 정체</button>
+        <button>재도장 견적에서 바탕정리가 빠지면</button>
+        <button>균열은 다 같은 균열이 아닙니다</button>
+        <button>외벽 녹물, 도장으로 덮으면 안 되는 이유</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-hd">
+      <span class="tag">옥상</span>
+      <h2>슬라브 방수</h2>
+      <p class="why">
+        옥상 방수층을 깨뜨리는 주범은 비가 아니라 <b>자외선과 계절 온도차</b>입니다.
+        방수층이 수축과 팽창을 반복하며 갈라지고, 그 틈으로 물이 들어갑니다.
+        그리고 누수는 넓은 바닥 한가운데가 아니라 <b>가장자리와 이음부에서</b> 시작됩니다.
+      </p>
+    </div>
+    <div class="body">
+      <h3>하자 유형</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>현상</th><th>원인</th><th>방치하면</th></tr></thead>
+        <tbody>
+          <tr><td>방수층·슬라브 균열</td><td>외기 영향, 콘크리트 수축팽창</td><td class="risk">건물 누수 → 세대 누수</td></tr>
+          <tr><td>드레인 주변 누수</td><td>배관 관통부 틈새, 구배 불량</td><td class="risk">물고임, 중성화, 결로·곰팡이·악취</td></tr>
+          <tr><td>콘크리트 중성화</td><td>관통 누수의 반복</td><td class="risk">균열 확대의 악순환</td></tr>
+          <tr><td>모서리·곡각지점 누수</td><td>균일한 방수층 형성이 어려움</td><td class="risk">가장 잦은 재발 지점</td></tr>
+          <tr><td>기타 구조물 이음부</td><td>거동이 잦아 실리콘·퍼티로 부족</td><td class="risk">벌어짐 → 재누수</td></tr>
+          <tr><td>파라펫·두겁 상단 균열</td><td>‘ㄷ’자 상단부 노출, 벽체 균열</td><td class="risk">백화, 콘크리트 탈락·낙하</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>공법 계열의 일반적 특성</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>계열</th><th>일반적 장점</th><th>일반적 한계</th></tr></thead>
+        <tbody>
+          <tr><td>도막계</td><td>이음매 없이 형성, 복잡한 형상 대응</td><td>도막 두께 관리가 품질을 좌우, 곡각부 균일 도포가 어려움</td></tr>
+          <tr><td>시트계</td><td>공장 생산이라 두께가 균일</td><td>접합부와 마감부가 취약부, 복잡한 옥상은 시공이 까다로움</td></tr>
+          <tr><td>복합·보강</td><td>취약부만 별도로 보강 가능</td><td>공정이 늘어 검측 지점이 늘어남</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>단지가 확인할 것</h3>
+      <ul class="check">
+        <li><b>드레인 주변, 파라펫 두겁, 곡각지점, 이음부가 별도 항목으로 잡혀 있나.</b> 실제 누수는 여기서 시작하는데 면적 단가로만 잡으면 이 부분이 사라집니다.</li>
+        <li><b>구배(물매) 개선이 포함돼 있나.</b> 물고임을 그대로 두고 방수만 새로 하면 같은 자리에서 재발합니다.</li>
+        <li><b>바탕면 함수율과 균열 조사 결과가 착공 전에 문서로 있나.</b></li>
+        <li><b>도막이면 두께, 시트면 접합 폭이 숫자로 정해져 있나.</b> 숫자가 없으면 검측할 수 없습니다.</li>
+        <li><b>하자보증의 범위 — 방수층만인지, 취약부 보강까지인지.</b> 기간보다 범위가 중요합니다.</li>
+      </ul>
+
+      <h3>영상 주제 후보 <span style="font-weight:400;color:var(--ink-3)">— 누르면 복사됩니다</span></h3>
+      <div class="chips">
+        <button>옥상 방수, 비 때문이 아닙니다</button>
+        <button>옥상 누수는 여기서 시작됩니다</button>
+        <button>물고임을 두고 방수만 다시 하면</button>
+        <button>도막이냐 시트냐, 무엇으로 갈리나</button>
+        <button>방수 하자보증, 어디까지 되나</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-hd">
+      <span class="tag">지붕</span>
+      <h2>아스팔트 슁글 · 금속지붕 / 칼라강판</h2>
+      <p class="why">
+        아스팔트 슁글은 원래 <b>저층 목조주택용 자재</b>입니다. 국내 고층 아파트에 적용되면서
+        강풍과 온도차에 의한 탈락·낙하 문제가 나타났습니다.
+        금속지붕과 칼라강판은 가볍고 내구성이 좋지만 열에 따른 신축이 크고,
+        표면 부식이 진행되면 맞물림이 풀립니다.
+        <b>공용부 마감재가 떨어져 2차 피해가 생기면 관리 주체 책임 문제로 이어집니다.</b>
+      </p>
+    </div>
+    <div class="body">
+      <h3>하자 유형</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>구분</th><th>현상</th><th>원인</th></tr></thead>
+        <tbody>
+          <tr><td>슁글</td><td>탈락·낙하, 누수</td><td>강풍·태풍에 의한 고정 상태 파손</td></tr>
+          <tr><td>슁글</td><td>후레싱 탈락</td><td>고정부 품질 저하, 이음부 균열</td></tr>
+          <tr><td>슁글</td><td>배수로·대피소 누수</td><td>트렌치·대피소 균열, 바탕면 손상</td></tr>
+          <tr><td>공통</td><td>수직-수평면 이음부 침투</td><td>실리콘 마감부가 수축팽창으로 벌어짐</td></tr>
+          <tr><td>금속</td><td>표면 부식·변질</td><td>노후로 누수층 소멸</td></tr>
+          <tr><td>금속</td><td>기와·강판 단차 벌어짐</td><td>열에 의한 신축, 맞물림 풀림</td></tr>
+          <tr><td>금속</td><td>서까래 기능 저하</td><td>지지 구조 노후</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>단지가 확인할 것</h3>
+      <ul class="check">
+        <li><b>고정 상태 점검을 어떤 방법으로 했나.</b> 아래에서 올려다본 육안 확인만으로는 들뜸과 풀림을 잡지 못합니다.</li>
+        <li><b>후레싱, 배수로, 대피소를 별도로 봤나.</b> 면적 위주 견적에서 빠지기 쉬운 지점입니다.</li>
+        <li><b>부분 보수로 될 상태인지 교체가 필요한 상태인지, 판단 근거가 문서에 있나.</b></li>
+        <li><b>낙하 위험 구간을 표시하고 통행 동선과 분리했나.</b></li>
+        <li><b>작업 중 낙하물 방지 계획과 안전 조치가 견적에 반영됐나.</b></li>
+      </ul>
+
+      <h3>영상 주제 후보 <span style="font-weight:400;color:var(--ink-3)">— 누르면 복사됩니다</span></h3>
+      <div class="chips">
+        <button>지붕 슁글이 떨어지는 진짜 이유</button>
+        <button>우리 아파트 지붕, 보수인가 교체인가</button>
+        <button>지붕 마감재 탈락, 누가 책임지나</button>
+        <button>옥상에서 놓치기 쉬운 후레싱</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-hd">
+      <span class="tag">지하주차장</span>
+      <h2>바닥 도장 · 천장 누수</h2>
+      <p class="why">
+        바닥 에폭시는 굳으면 단단하지만 <b>습기를 통과시키지 못합니다.</b>
+        지하는 습기가 필연적이라, 바탕면 수분이 빠져나가지 못하면 들뜸과 기포가 생깁니다.
+        천장 누수는 성격이 다릅니다. 대부분 <b>지상에서 내려옵니다</b> — 화단·놀이터·배수로 아래
+        비노출 방수층이 깨져 물이 관통합니다.
+      </p>
+    </div>
+    <div class="body">
+      <h3>하자 유형 · 바닥</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>현상</th><th>원인</th><th>방치하면</th></tr></thead>
+        <tbody>
+          <tr><td>바닥 균열</td><td>바탕 콘크리트 균열이 그대로 전이</td><td class="risk">도장면 갈라짐, 재시공</td></tr>
+          <tr><td>중성화·강도 저하</td><td>노출 콘크리트 열화, 차량 충격</td><td class="risk">깨짐, 탈락</td></tr>
+          <tr><td>들뜸·부풀음</td><td>바탕면 습기가 빠져나가지 못함</td><td class="risk">면 단위 박리, 전면 재시공</td></tr>
+          <tr><td>코너 슬립·소음·마모</td><td>차량 진입 시 마찰 집중</td><td class="risk">미끄럼 사고, 민원</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>하자 유형 · 천장과 벽체</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>현상</th><th>원인</th><th>방치하면</th></tr></thead>
+        <tbody>
+          <tr><td>천장 누수</td><td>지상 화단·놀이터·배수로 아래 비노출 방수층 파손</td><td class="risk">지하에서만 보면 원인을 못 찾음</td></tr>
+          <tr><td>기둥 이음부·모서리 누수</td><td>구조체 이음부의 거동</td><td class="risk">철근 부식</td></tr>
+          <tr><td>배관·배선 주변 누수</td><td>설비 이음부 문제 (콘크리트 문제 아님)</td><td class="risk">엉뚱한 곳을 보수하게 됨</td></tr>
+          <tr><td>골재 몰림·재료분리</td><td>타설 시 기둥 내 틈새 발생</td><td class="risk">콘크리트 박락, 누수</td></tr>
+          <tr><td>천장 슬라브 균열</td><td>차량 통행 진동, 수축팽창</td><td class="risk">균열 확대, 누수</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>단지가 확인할 것</h3>
+      <ul class="check">
+        <li><b>바닥 재시공 전에 바탕면 함수율을 측정했나.</b> 들뜸 하자의 상당 부분이 이것 하나로 설명됩니다.</li>
+        <li><b>습기 대응 방법이 견적에 있나</b>, 아니면 기존 위에 그대로 덧칠하는 구성인가.</li>
+        <li><b>천장 누수의 발생 지점을 지상 어느 구역에서 오는지 추적했나.</b> 지하에서만 보면 같은 자리를 반복 보수하게 됩니다.</li>
+        <li><b>콘크리트 문제인지 설비 배관 문제인지 구분했나.</b> 원인이 다르면 공사 주체도 비용 부담도 달라집니다.</li>
+        <li><b>주차 통제 계획과 양생 기간이 일정에 반영됐나.</b> 이 두 가지가 입주민 민원의 대부분입니다.</li>
+      </ul>
+
+      <h3>영상 주제 후보 <span style="font-weight:400;color:var(--ink-3)">— 누르면 복사됩니다</span></h3>
+      <div class="chips">
+        <button>지하주차장 바닥이 들뜨는 이유</button>
+        <button>천장 누수인데 지상을 봐야 하는 이유</button>
+        <button>에폭시 위에 다시 칠하면 되나</button>
+        <button>누수 원인이 콘크리트가 아닐 때</button>
+        <button>주차 통제, 며칠이면 끝나나</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-hd">
+      <span class="tag">단지 내 도로 · 보도</span>
+      <h2>아스콘 포장 · 보도블럭 / 경계석</h2>
+      <p class="why">
+        아스콘은 유제의 접착력이 떨어지며 균열이 생기고, 그 틈으로 물이 들어간 상태에서
+        반복 하중을 받으면 <b>포트홀로 커집니다.</b>
+        보도블럭과 경계석은 하부 지반이 고르지 않거나 고정이 부실하면 침하와 이탈로 이어집니다.
+        둘 다 미관 문제가 아니라 <b>보행자와 차량 안전 문제</b>로 직결됩니다.
+      </p>
+    </div>
+    <div class="body">
+      <h3>하자 유형 · 아스콘 포장</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>현상</th><th>원인</th><th>방치하면</th></tr></thead>
+        <tbody>
+          <tr><td>맨홀 주변 균열</td><td>단단한 맨홀과 강도가 낮은 주변 아스콘의 경계에 충격 집중</td><td class="risk">거북등 균열, 패임, 잡초</td></tr>
+          <tr><td>세로·가로·거북등 균열</td><td>접착력 저하, 온도 변화, 집중 하중</td><td class="risk">균열이 이어지며 면 단위로 확대</td></tr>
+          <tr><td>포트홀</td><td>균열 방치 + 수분 침투 + 반복 하중</td><td class="risk">차량 손상, 배상 문제</td></tr>
+          <tr><td>밀림·들뜸</td><td>층간 접착력 부족</td><td class="risk">같은 자리에서 하자 반복</td></tr>
+          <tr><td>미끄럼 저항 부족</td><td>노후 골재, 표면 오염물</td><td class="risk">우천·결빙 시 경사로 사고</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>하자 유형 · 보도블럭과 경계석</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>현상</th><th>원인</th><th>방치하면</th></tr></thead>
+        <tbody>
+          <tr><td>경계석 이탈·돌출</td><td>고정 부실</td><td class="risk">틈새 이물질 → 배수 불량 → 보행자 사고, 침수</td></tr>
+          <tr><td>보도블럭 파손·침하</td><td>하부 지반 불균일, 반복 하중, 수분 침투</td><td class="risk">단차 발생, 보행 걸림</td></tr>
+          <tr><td>들뜸</td><td>모래층 유실</td><td class="risk">밟을 때 흔들림, 재시공</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>단지가 확인할 것</h3>
+      <ul class="check">
+        <li><b>표면만 덧씌우는 구성인지, 기층까지 보는 구성인지.</b> 기층이 약한데 표면만 새로 깔면 같은 자리에서 다시 꺼집니다.</li>
+        <li><b>맨홀과 배수구 주변을 별도 항목으로 잡았나.</b> 균열이 가장 먼저 생기는 곳인데 면적 단가에 묻히기 쉽습니다.</li>
+        <li><b>보도블럭은 하부 지반 다짐이 견적에 있나.</b> 블록만 다시 깔면 재침하합니다.</li>
+        <li><b>경사로와 출입구의 미끄럼 저항을 따로 봤나.</b> 사고가 나는 지점은 정해져 있습니다.</li>
+        <li><b>공사 중 차량 동선과 보행 동선 확보 계획이 있나.</b> 단지 내 도로는 통행 차단이 곧 민원입니다.</li>
+      </ul>
+
+      <h3>영상 주제 후보 <span style="font-weight:400;color:var(--ink-3)">— 누르면 복사됩니다</span></h3>
+      <div class="chips">
+        <button>포트홀은 왜 같은 자리에 다시 생기나</button>
+        <button>맨홀 주변이 먼저 깨지는 이유</button>
+        <button>보도블럭만 다시 깔면 안 되는 이유</button>
+        <button>덧씌우기냐 걷어내기냐</button>
+        <button>단지 도로 공사, 며칠 통제되나</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="principles">
+    <h2>영상 만들 때 지킬 것</h2>
+    <ul class="check">
+      <li><b>공법 이름을 결론으로 쓰지 않습니다.</b> 같은 하자라도 단지 상태에 따라 답이 달라집니다. 감리는 선택지와 판단 기준을 보여 주는 쪽입니다.</li>
+      <li><b>견적서에서 빠지기 쉬운 항목을 반복해서 짚습니다.</b> 바탕정리, 취약부 보강, 구배 개선, 양생 기간 — 네 가지가 거의 모든 공종에서 반복됩니다.</li>
+      <li><b>수치는 확인된 것만 씁니다.</b> 내구연한이나 비용 범위는 단지마다 다릅니다. 근거 없이 숫자를 넣으면 그 영상 하나로 신뢰가 무너집니다.</li>
+      <li><b>업체를 실명으로 비교하지 않습니다.</b> 특정 업체를 평가하는 순간 감리의 중립성이 사라집니다.</li>
+      <li><b>“이건 미뤄도 됩니다”를 말할 수 있어야 합니다.</b> 로드맵의 진단 패키지가 파는 것이 그것입니다. 다 해야 한다고 말하는 순간 영업이 됩니다.</li>
+    </ul>
+  </div>
+
+  <footer>
+    제안서 25건에서 업계 공통 기술 지식만 추출해 감리 관점으로 재구성했습니다.
+    특정 업체의 공법 구성·제품 사양·실적 수치는 포함하지 않았습니다.
+    영상에 넣을 수치는 단지 진단 결과나 확인된 출처로 별도 확인이 필요합니다.
+  </footer>
+</div>
+
+<div class="toast" id="toast">복사했습니다</div>
+
+<script>
+(function(){
+  var LS='ytsource.theme';
+  try{ var t=localStorage.getItem(LS); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){}
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    if(!cur) cur=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+    var n=cur==='dark'?'light':'dark';
+    document.documentElement.setAttribute('data-theme',n);
+    try{ localStorage.setItem(LS,n); }catch(e){}
+  });
+
+  var toast=document.getElementById('toast'), tid;
+  function flash(m){ toast.textContent=m; toast.classList.add('on');
+    clearTimeout(tid); tid=setTimeout(function(){toast.classList.remove('on');},1600); }
+
+  document.querySelectorAll('.chips').forEach(function(box){
+    box.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      var text=b.textContent.trim();
+      var ta=document.createElement('textarea');
+      ta.value=text;
+      ta.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:.01;z-index:-1';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select(); ta.setSelectionRange(0,text.length);
+      var ok=false; try{ ok=document.execCommand('copy'); }catch(err){}
+      document.body.removeChild(ta);
+      if(ok){ flash('“'+text+'” 복사했습니다'); return; }
+      if(navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(text).then(function(){ flash('“'+text+'” 복사했습니다'); },
+          function(){ flash('복사할 수 없습니다. 직접 선택해 주세요'); });
+      else flash('복사할 수 없습니다. 직접 선택해 주세요');
+    });
+  });
+})();
+</script>

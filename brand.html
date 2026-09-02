@@ -469,6 +469,9 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .modal input:focus,.modal select:focus,.modal textarea:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
 
+.verbadge{font-family:ui-monospace,Consolas,monospace;font-size:11px;font-weight:700;
+  letter-spacing:.2px;padding:4px 9px;border-radius:7px;white-space:nowrap;
+  border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-muted)}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:none;
   background:var(--text-primary);color:var(--bg-card);padding:12px 22px;border-radius:999px;
   font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:200}
@@ -488,6 +491,7 @@ table.itable tr:hover td{background:var(--bg-hover)}
   </div>
   <span class="spacer"></span>
   <div class="actions">
+    <span class="verbadge" id="verBadge" title="지금 쓰고 있는 판 번호입니다. 새로고침해도 안 바뀌면 파일을 아직 못 받은 것입니다.">–</span>
     <span class="savestate" id="saveState">✓ 저장됨</span>
     <span class="store-badge" id="storeBadge"><span class="dot"></span><span id="storeText">확인 중</span></span>
     <button class="btn" title="밝게/어둡게" onclick="toggleDark()">🌙</button>
@@ -576,7 +580,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260902-6';   // 화면 왼쪽 위에 표시됩니다
+const APP_VER = 'v20260902-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -755,7 +759,13 @@ function highlight(text, q){
 /* ========================= 렌더링 ========================= */
 let view = 'home';   // home | nas | brand
 
+function paintVersion(){
+  const el = document.getElementById('verBadge');
+  if(el) el.textContent = APP_VER;
+}
+
 function render(){
+  paintVersion();
   renderSidebar();
   const home = document.getElementById('homeBtn');
   const nas  = document.getElementById('nasBtn');
@@ -4474,8 +4484,7 @@ function updateSubtitle(){
   const when = data.savedAt
     ? new Date(data.savedAt).toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })
     : '아직 저장 안 됨';
-  document.getElementById('subtitle').textContent =
-    '넷폼알앤디 ' + APP_VER + ' · 마지막 저장: ' + when;
+  document.getElementById('subtitle').textContent = '넷폼알앤디 · 마지막 저장: ' + when;
 }
 
 /* ========================= 공용 ========================= */

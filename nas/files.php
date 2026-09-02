@@ -68,6 +68,12 @@ function lookup_asset($manifest, $fileId) {
     $json = json_decode(file_get_contents($manifest), true);
     if (!is_array($json) || !isset($json['brands'])) return null;
     foreach ($json['brands'] as $b) {
+        // 브랜드 기록부 문서도 같이 찾습니다
+        if (isset($b['record']['id']) && $b['record']['id'] === $fileId) {
+            $r = $b['record'];
+            return ['fileId' => $r['id'], 'fileName' => $r['name'] ?? '',
+                    'filePath' => $r['filePath'] ?? ''];
+        }
         if (!isset($b['assets']) || !is_array($b['assets'])) continue;
         foreach ($b['assets'] as $a) {
             if (isset($a['fileId']) && $a['fileId'] === $fileId) return $a;
@@ -201,6 +207,41 @@ if ($action === 'upload') {
 }
 
 /* ---------------- 다운로드 ---------------- */
+/* ---------------- 문서 그대로 보여주기 (내려받지 않고) ----------------
+   브랜드 기록부 같은 문서를 대시보드 안에서 바로 읽기 위한 것입니다.
+   스크립트는 실행되지 않도록 막습니다.
+   ------------------------------------------------------------------- */
+if ($action === 'view') {
+    $id = $_GET['id'] ?? '';
+    if (!preg_match('/^[0-9a-f]{32}$/', $id)) {
+        jout(['ok' => false, 'error' => '잘못된 파일 주소입니다'], 400);
+    }
+    [$path, $name] = resolve_path($FILE_DIR, $MANIFEST, $id);
+    if (!$path) jout(['ok' => false, 'error' => '파일을 찾을 수 없습니다'], 404);
+
+    $ext = strtolower(pathinfo($name ?: $path, PATHINFO_EXTENSION));
+    $types = [
+        'html' => 'text/html; charset=utf-8',
+        'htm'  => 'text/html; charset=utf-8',
+        'txt'  => 'text/plain; charset=utf-8',
+        'md'   => 'text/plain; charset=utf-8',
+    ];
+    if (!isset($types[$ext])) {
+        jout(['ok' => false, 'error' =>
+            '이 형식은 화면에서 바로 볼 수 없습니다 (' . $ext . '). 내려받아 주세요.'], 400);
+    }
+
+    // 문서 안의 스크립트는 실행되지 않게 막습니다. 글꼴과 그림은 허용합니다.
+    header('Content-Type: ' . $types[$ext]);
+    header("Content-Security-Policy: script-src 'none'; object-src 'none'; base-uri 'none'");
+    header('X-Content-Type-Options: nosniff');
+    header('Content-Length: ' . filesize($path));
+    header('Cache-Control: private, max-age=0');
+    while (ob_get_level()) ob_end_flush();
+    readfile($path);
+    exit;
+}
+
 if ($action === 'download') {
     $id = $_GET['id'] ?? '';
     if (!preg_match('/^[0-9a-f]{32}$/', $id)) {

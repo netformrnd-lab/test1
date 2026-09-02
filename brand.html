@@ -318,6 +318,49 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .fhead .fh-ct{margin-left:auto;font-size:11.5px;color:var(--text-muted);
   white-space:nowrap;flex-shrink:0}
 .fh-act{display:flex;align-items:center;gap:5px;padding:0 14px 10px 33px;flex-wrap:wrap}
+
+/* 기록부 문서 */
+.docwrap{border:1px solid var(--border);border-radius:14px;overflow:hidden;
+  background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+/* 기록부 문서를 대시보드 디자인으로 */
+.doc-title{font-size:22px;font-weight:800;margin:4px 0 14px;letter-spacing:-.3px}
+.doc-toc{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;
+  padding:12px 14px;border:1px solid var(--border);border-radius:12px;
+  background:var(--bg-secondary)}
+.doc-tocb{font-family:inherit;font-size:12px;font-weight:600;padding:5px 11px;
+  border-radius:999px;border:1px solid var(--border);background:var(--bg-card);
+  color:var(--text-secondary);cursor:pointer}
+.doc-tocb:hover{background:var(--bg-hover);color:var(--text-primary)}
+.doc-sec{border:1px solid var(--border);border-radius:12px;margin-bottom:10px;
+  background:var(--bg-secondary);overflow:hidden}
+.doc-h2{width:100%;font-family:inherit;text-align:left;display:flex;align-items:center;gap:9px;
+  padding:13px 16px;border:0;background:transparent;color:var(--text-primary);
+  font-size:15px;font-weight:800;cursor:pointer}
+.doc-h2:hover{background:var(--bg-hover)}
+.doc-h2 .doc-ar{color:var(--text-muted);font-size:11px;width:10px;flex-shrink:0}
+.doc-h2 .doc-cnt{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--text-muted)}
+.doc-body{padding:2px 20px 18px 35px;border-top:1px solid var(--border)}
+.doc-body p{font-size:14px;line-height:1.85;color:var(--text-secondary);margin:0 0 13px}
+.doc-body .doc-p{font-size:14px;line-height:1.85;color:var(--text-secondary);margin:0 0 13px}
+.doc-body .doc-h3{font-size:14px;font-weight:800;color:var(--text-primary);
+  margin:22px 0 9px;padding-left:11px;border-left:3px solid var(--blue)}
+.doc-body ul,.doc-body ol{margin:0 0 13px;padding-left:20px}
+.doc-body li{font-size:14px;line-height:1.8;color:var(--text-secondary);margin-bottom:5px}
+.doc-body strong,.doc-body b{color:var(--text-primary);font-weight:700}
+.doc-body blockquote{margin:0 0 14px;padding:11px 16px;border-left:3px solid var(--border-light);
+  background:var(--bg-hover);border-radius:0 8px 8px 0;font-size:13.5px;line-height:1.8;
+  color:var(--text-secondary)}
+.doc-body hr{border:0;border-top:1px solid var(--border);margin:18px 0}
+.doc-body code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;
+  background:var(--bg-hover);padding:1px 5px;border-radius:5px}
+.doc-body pre{background:var(--bg-hover);padding:12px 14px;border-radius:10px;
+  overflow-x:auto;font-size:12.5px;line-height:1.7;margin:0 0 13px}
+.doc-body img{max-width:100%;border-radius:10px;margin:6px 0 14px}
+.doc-tw{overflow-x:auto;margin:0 0 14px}
+.doc-body table{border-collapse:collapse;width:100%;font-size:13px}
+.doc-body th,.doc-body td{border:1px solid var(--border);padding:8px 11px;
+  text-align:left;color:var(--text-secondary);vertical-align:top}
+.doc-body th{background:var(--bg-hover);color:var(--text-primary);font-weight:700}
 .errbar{display:none;gap:12px;align-items:flex-start;margin:0 22px;padding:14px 18px;
   border-radius:12px;border:1px solid var(--red);background:rgba(239,68,68,.08)}
 .errbar.show{display:flex}
@@ -493,6 +536,7 @@ const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).
 function newBrand(name, icon, color, desc){
   return { id: uid('b'), name, icon, color, owner:'', desc: desc || '',
            automations:[], history:[], assets:[], tasks:[], links:[], nasFolders:[],
+           record:null,
            masterPrompt:'', promptUpdatedAt:null };
 }
 
@@ -1543,7 +1587,7 @@ function renderBrand(){
   }
   const counts = {
     automations: b.automations.length,
-    history: b.history.length,
+    history: b.history.length + (b.record ? 1 : 0),
     assets: b.assets.length,
     tasks: b.tasks.filter(t => t.status !== '완료').length,
     links: b.links.length,
@@ -2457,32 +2501,271 @@ function viewInquiries(b){
 
 function viewHistory(b){
   const list = b.history;
-  if(!list.length) return secBar('history') + '<div class="empty">' + TYPES.history.empty + '</div>';
+  const rec  = b.record || null;
 
-  const block = (label, text) => text
-    ? '<div class="jblock"><div class="jlabel">' + label + '</div>'
-      + '<div class="jtext">' + esc(text) + '</div></div>'
+  /* 기록부 문서 — 브랜드 여정을 한 편의 문서로 올려두는 자리 */
+  const docBar = '<div class="sec-bar" style="margin-bottom:12px">'
+    + '<button class="btn primary" onclick="pickRecord()">'
+      + (rec ? '📄 문서 바꾸기' : '📄 기록부 문서 올리기') + '</button>'
+    + (rec
+        ? '<a class="btn" href="files.php?action=view&id=' + encodeURIComponent(rec.id)
+          + '" target="_blank" rel="noopener">↗ 새 탭에서 보기</a>'
+          + '<button class="btn" onclick="toggleAllSections()">'
+            + (allSecOpen ? '🔼 모두 접기' : '🔽 모두 펼치기') + '</button>'
+          + '<button class="btn sm danger" onclick="removeRecord()">문서 내리기</button>'
+          + '<span class="hint">' + esc(rec.name) + ' · ' + fmtSize(rec.size || 0) + '</span>'
+        : '<span class="hint">HTML 문서를 올리면 여기서 그대로 읽을 수 있습니다 '
+          + '(브랜드 자료 폴더에도 함께 보관됩니다)</span>')
+    + '</div>'
+    + '<input type="file" id="recInput" accept=".html,.htm,.md,.txt" '
+      + 'style="display:none" onchange="uploadRecord(this.files[0]); this.value=\'\'">';
+
+  const docView = rec ? recordView(rec) : '';
+
+  /* 짧게 남기는 여정 메모 — 문서와 별개로 계속 쓸 수 있습니다 */
+  const notes = list.length
+    ? '<div class="hsec" style="margin-top:22px">✍️ 짧게 남긴 메모</div>'
+      + '<div class="tl">' + list.map((it, i) =>
+        '<div class="tl-item">'
+        + '<div class="ca">'
+          + (i > 0 ? '<button class="btn sm" title="위로" onclick="moveHistory(\'' + it.id + '\',-1)">↑</button>' : '')
+          + (i < list.length - 1 ? '<button class="btn sm" title="아래로" onclick="moveHistory(\'' + it.id + '\',1)">↓</button>' : '')
+          + '<button class="btn sm" onclick="openItemModal(\'history\',\'' + it.id + '\')">수정</button>'
+          + '<button class="btn sm danger" onclick="deleteItem(\'history\',\'' + it.id + '\')">삭제</button>'
+        + '</div>'
+        + '<div class="tl-title">' + esc(it.title) + '</div>'
+        + '<div class="row" style="margin:2px 0 8px">'
+          + statusChip(it.status)
+          + (it.period ? '<span class="chip">' + esc(it.period) + '</span>' : '')
+        + '</div>'
+        + (it.why    ? '<div class="jblock"><div class="jlabel">왜 했나</div><div class="jtext">' + esc(it.why) + '</div></div>' : '')
+        + (it.result || it.body ? '<div class="jblock"><div class="jlabel">어떻게 됐나</div><div class="jtext">' + esc(it.result || it.body) + '</div></div>' : '')
+        + (it.next   ? '<div class="jblock"><div class="jlabel">그래서 다음은</div><div class="jtext">' + esc(it.next) + '</div></div>' : '')
+        + '</div>').join('') + '</div>'
     : '';
 
-  return secBar('history') + '<div class="tl">' + list.map((it, i) =>
-    '<div class="tl-item">'
-    + '<div class="ca">'
-      + (i > 0 ? '<button class="btn sm" title="위로" onclick="moveHistory(\'' + it.id + '\',-1)">↑</button>' : '')
-      + (i < list.length - 1 ? '<button class="btn sm" title="아래로" onclick="moveHistory(\'' + it.id + '\',1)">↓</button>' : '')
-      + '<button class="btn sm" onclick="openItemModal(\'history\',\'' + it.id + '\')">수정</button>'
-      + '<button class="btn sm danger" onclick="deleteItem(\'history\',\'' + it.id + '\')">삭제</button>'
-    + '</div>'
-    + '<div class="tl-title">' + esc(it.title) + '</div>'
-    + '<div class="row" style="margin:2px 0 8px">'
-      + statusChip(it.status)
-      + (it.period ? '<span class="chip">' + esc(it.period) + '</span>' : '')
-      + (it.date ? '<span class="chip">' + esc(fmtDate(it.date)) + '</span>' : '')
-    + '</div>'
-    + block('왜 했나', it.why)
-    + block('어떻게 됐나', it.result || it.body)
-    + block('그래서 다음은', it.next)
-    + '</div>'
-  ).join('') + '</div>';
+  const empty = (!rec && !list.length)
+    ? '<div class="empty">이 브랜드의 여정을 담은 <b>문서를 올려주세요.</b><br>'
+      + '<span style="color:var(--text-muted)">'
+      + '위 [📄 기록부 문서 올리기] 를 누르시면 됩니다. HTML 문서를 그대로 읽을 수 있습니다.<br>'
+      + '짧은 메모만 남기고 싶으시면 아래 [+ 여정 추가] 를 쓰세요.</span></div>'
+    : '';
+
+  return docBar + docView + empty + notes
+       + '<div style="margin-top:18px">' + secBar('history') + '</div>';
+}
+
+/* ---------- 기록부 문서를 대시보드 디자인으로 다시 그립니다 ----------
+   문서의 원래 색과 글꼴은 쓰지 않고, 글의 뼈대(제목·문단·목록·표)만
+   가져와 이 화면 스타일로 보여줍니다. 원본은 [새 탭에서 보기] 로 볼 수 있습니다.
+   ------------------------------------------------------------------ */
+const recordCache = {};      // 문서 id → {loading} | {error} | {title, secs}
+const secOpen     = {};      // 섹션 번호 → 펼침 여부
+let   allSecOpen  = false;   // 처음엔 접어둡니다
+
+function toggleAllSections(){
+  allSecOpen = !allSecOpen;
+  Object.keys(secOpen).forEach(k => { delete secOpen[k]; });
+  render();
+}
+function toggleSection(i){
+  secOpen[i] = (secOpen[i] !== undefined) ? !secOpen[i] : !allSecOpen;
+  render();
+}
+
+/* 남길 태그와 속성만 남기고 나머지는 버립니다 (색·글꼴·스크립트 제거) */
+const DOC_OK_TAGS = ['P','UL','OL','LI','STRONG','B','EM','I','CODE','PRE','BLOCKQUOTE',
+  'HR','TABLE','THEAD','TBODY','TR','TH','TD','BR','A','IMG','SMALL','MARK','H4','H5','DL','DT','DD'];
+
+function cleanNode(node, out){
+  node.childNodes.forEach(n => {
+    if(n.nodeType === 3){ out.push(esc(n.nodeValue)); return; }
+    if(n.nodeType !== 1) return;
+    const tag = n.tagName;
+    if(tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'NOSCRIPT') return;
+
+    if(DOC_OK_TAGS.indexOf(tag) < 0){          // 모르는 태그는 껍데기만 벗기고 속은 살립니다
+      cleanNode(n, out);
+      return;
+    }
+    if(tag === 'BR' || tag === 'HR'){ out.push('<' + tag.toLowerCase() + '>'); return; }
+    if(tag === 'IMG'){
+      const src = n.getAttribute('src') || '';
+      if(/^(https?:|data:image\/)/i.test(src))
+        out.push('<img src="' + esc(src) + '" alt="' + esc(n.getAttribute('alt') || '') + '">');
+      return;
+    }
+    let open = '<' + tag.toLowerCase();
+    if(tag === 'A'){
+      const href = n.getAttribute('href') || '';
+      if(/^(https?:|mailto:|#)/i.test(href))
+        open += ' href="' + esc(href) + '" target="_blank" rel="noopener"';
+    }
+    if(tag === 'TD' || tag === 'TH'){
+      ['colspan','rowspan'].forEach(a => {
+        const v = n.getAttribute(a);
+        if(v && /^\d+$/.test(v)) open += ' ' + a + '="' + v + '"';
+      });
+    }
+    out.push(open + '>');
+    cleanNode(n, out);
+    out.push('</' + tag.toLowerCase() + '>');
+  });
+}
+
+/* 문서를 h2 기준으로 잘라 섹션 목록을 만듭니다 */
+function parseRecordDoc(text){
+  const doc  = new DOMParser().parseFromString(text, 'text/html');
+  doc.querySelectorAll('script,style,link,noscript,nav,[class*="toc"]').forEach(e => e.remove());
+
+  const title = (doc.title || doc.querySelector('h1')?.textContent || '브랜드 기록부').trim();
+  const body  = doc.body || doc.documentElement;
+
+  const secs = [];
+  let cur = null;
+  const walk = (parent) => {
+    Array.from(parent.children).forEach(el => {
+      const t = el.tagName;
+      if(t === 'H1'){ return; }
+      if(t === 'H2'){
+        cur = { title: el.textContent.trim(), subs: [], parts: [] };
+        secs.push(cur);
+        return;
+      }
+      if(t === 'H3'){
+        if(!cur){ cur = { title:'', subs:[], parts:[] }; secs.push(cur); }
+        const s = el.textContent.trim();
+        cur.subs.push(s);
+        cur.parts.push('<h4 class="doc-h3">' + esc(s) + '</h4>');
+        return;
+      }
+      // 감싸고만 있는 상자는 안으로 들어갑니다
+      if((t === 'DIV' || t === 'SECTION' || t === 'ARTICLE' || t === 'MAIN' || t === 'HEADER')
+         && el.querySelector('h2, h3')){ walk(el); return; }
+
+      if(!el.textContent.trim() && !el.querySelector('img,hr')) return;
+      if(!cur){ cur = { title:'', subs:[], parts:[] }; secs.push(cur); }
+      cur.parts.push(wrapEl(el));
+    });
+  };
+  const wrapEl = (el) => {
+    const o = [];
+    cleanNode(el, o);
+    const inner = o.join('');
+    const t = el.tagName.toLowerCase();
+    if(t === 'p')  return '<p>' + inner + '</p>';
+    if(t === 'ul' || t === 'ol') return '<' + t + '>' + inner + '</' + t + '>';
+    if(t === 'table') return '<div class="doc-tw"><table>' + inner + '</table></div>';
+    if(t === 'blockquote') return '<blockquote>' + inner + '</blockquote>';
+    if(t === 'hr') return '<hr>';
+    return '<div class="doc-p">' + inner + '</div>';
+  };
+  walk(body);
+
+  return { title: title, secs: secs.filter(x => x.parts.length || x.title) };
+}
+
+async function loadRecord(id){
+  recordCache[id] = { loading:true };
+  try{
+    const res  = await fetch('files.php?action=view&id=' + encodeURIComponent(id), { cache:'no-store' });
+    const text = await res.text();
+    if(/^\s*\{/.test(text)){
+      const j = JSON.parse(text);
+      throw new Error(j.error || '문서를 불러오지 못했습니다');
+    }
+    recordCache[id] = parseRecordDoc(text);
+  }catch(e){
+    recordCache[id] = { error: e.message || String(e) };
+  }
+  render();
+}
+
+function recordView(rec){
+  const c = recordCache[rec.id];
+  if(!c){ setTimeout(() => loadRecord(rec.id), 10); return '<div class="fmeta">문서를 불러오는 중…</div>'; }
+  if(c.loading) return '<div class="fmeta">문서를 불러오는 중…</div>';
+  if(c.error)   return '<div class="empty">⚠️ ' + esc(c.error) + '</div>';
+  if(!c.secs.length) return '<div class="empty">문서에서 읽을 내용을 찾지 못했습니다.</div>';
+
+  const toc = '<div class="doc-toc">' + c.secs.map((sc, i) =>
+      '<button class="doc-tocb" onclick="jumpSection(' + i + ')">'
+      + esc(sc.title || '들어가며') + '</button>').join('') + '</div>';
+
+  const body = c.secs.map((sc, i) => {
+    const open = (secOpen[i] !== undefined) ? secOpen[i] : allSecOpen;
+    return '<div class="doc-sec" id="dsec' + i + '">'
+      + '<button class="doc-h2" onclick="toggleSection(' + i + ')">'
+        + '<span class="doc-ar">' + (open ? '▾' : '▸') + '</span>'
+        + '<span>' + esc(sc.title || '들어가며') + '</span>'
+        + (sc.subs.length ? '<span class="doc-cnt">' + sc.subs.length + '꼭지</span>' : '')
+      + '</button>'
+      + (open ? '<div class="doc-body">' + sc.parts.join('') + '</div>' : '')
+      + '</div>';
+  }).join('');
+
+  return '<div class="doc-title">' + esc(c.title) + '</div>' + toc + body;
+}
+
+function jumpSection(i){
+  if(secOpen[i] === false) delete secOpen[i];
+  if(!allSecOpen) secOpen[i] = true;
+  render();
+  const el = document.getElementById('dsec' + i);
+  if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function pickRecord(){
+  if(STORAGE_MODE !== 'nas'){
+    alert('문서 올리기는 NAS 주소로 접속했을 때만 됩니다.\n\n'
+      + 'http://192.168.0.37/brand/brand.html 로 열어주세요.');
+    return;
+  }
+  const el = document.getElementById('recInput');
+  if(el) el.click();
+}
+
+async function uploadRecord(file){
+  if(!file) return;
+  const b = currentBrand();
+  if(!b) return;
+  toast('📄 문서를 올리는 중…');
+  try{
+    const fd = new FormData();
+    fd.append('brand', b.name);
+    fd.append('file', file);
+    const res  = await fetch('files.php?action=upload', { method:'POST', body: fd });
+    const text = await res.text();
+    let out = null;
+    try{ out = JSON.parse(text); }catch(e){}
+    if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ') → '
+      + text.slice(0, 200).replace(/\s+/g, ' '));
+    if(!out.ok) throw new Error(out.error || '업로드 실패');
+
+    b.record = { id: out.fileId, name: out.fileName, size: out.fileSize,
+                 filePath: out.filePath || '', at: new Date().toISOString() };
+    // 자료 탭에서도 내려받을 수 있게 함께 넣어둡니다
+    b.assets.unshift({ id: uid('i'), title: out.fileName.replace(/\.[^.]+$/, ''),
+      kind: '기록부', url: '', note: '브랜드 기록부 문서',
+      fileId: out.fileId, fileName: out.fileName, filePath: out.filePath || '',
+      fileSize: out.fileSize, at: new Date().toISOString() });
+    delete recordCache[out.fileId];
+    markDirty();
+    render();
+    toast('✅ 기록부 문서를 올렸습니다');
+  }catch(e){
+    alert('문서를 올리지 못했습니다.\n\n' + (e.message || e));
+  }
+}
+
+function removeRecord(){
+  const b = currentBrand();
+  if(!b || !b.record) return;
+  if(!confirm('이 브랜드의 기록부 문서를 목록에서 내릴까요?\n\n'
+    + 'NAS의 실제 파일은 자료 폴더에 그대로 남습니다.')) return;
+  b.record = null;
+  markDirty();
+  render();
 }
 
 function moveBrand(id, dir){

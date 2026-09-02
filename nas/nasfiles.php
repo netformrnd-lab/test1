@@ -349,6 +349,63 @@ function progress($st) {
     ];
 }
 
+/* ---------------- 진짜 폴더 목록 보기 (목록 파일이 없어도 됨) ----------------
+   NAS 에 실제로 있는 폴더를 보여줍니다. 경로를 손으로 적지 않고
+   눌러서 고를 수 있게 하려고 만들었습니다. 폴더 이름만 읽습니다.
+   ------------------------------------------------------------------------- */
+if ($action === 'listdirs') {
+    $raw = trim($_GET['dir'] ?? '');
+    if ($raw === '') {
+        $vols = @glob('/volume*', GLOB_ONLYDIR) ?: [];
+        sort($vols);
+        $out = [];
+        foreach ($vols as $v) $out[] = ['name' => basename($v), 'path' => $v];
+        jout(['ok' => true, 'dir' => '', 'parent' => null, 'top' => true,
+              'folders' => $out,
+              'note' => $out ? null : 'PHP 가 볼륨을 보지 못합니다']);
+    }
+
+    $norm = normalize_nas_input($raw);
+    if ($norm === null) jout(['ok' => false, 'error' => '폴더 경로를 알아보지 못했습니다'], 400);
+
+    $bd = basedir_error($norm);
+    if ($bd !== null) jout(['ok' => false, 'error' => $bd], 403);
+
+    // 볼륨 밖은 보여주지 않습니다
+    if (!preg_match('#^/volume\d+#', $norm)) {
+        [$try, $tried] = resolve_nas_dir($norm);
+        if ($try === null) jout(['ok' => false, 'error' => '그런 폴더가 없습니다', 'tried' => $tried], 404);
+        $norm = $try;
+    }
+    $real = @realpath($norm);
+    if ($real === false || !preg_match('#^/volume\d+#', $real)) {
+        jout(['ok' => false, 'error' => '그런 폴더가 없습니다: ' . $norm], 404);
+    }
+
+    $entries = @scandir($real);
+    if ($entries === false) {
+        jout(['ok' => false, 'error' =>
+            '이 폴더를 읽을 권한이 없습니다: ' . $real . "\n\n"
+            . 'File Station 에서 이 공유폴더를 오른쪽 클릭 → 속성 → 권한 에서 '
+            . '"http" 사용자에게 읽기 권한을 주고, "하위 폴더에 적용" 을 체크해 주세요.'], 403);
+    }
+
+    $folders = [];
+    $fileCount = 0;
+    foreach ($entries as $e) {
+        if ($e === '.' || $e === '..') continue;
+        if ($e === '@eaDir' || $e === '#recycle' || $e === '#snapshot') continue;
+        $full = $real . '/' . $e;
+        if (@is_dir($full)) $folders[] = ['name' => $e, 'path' => $full];
+        else $fileCount++;
+    }
+    usort($folders, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
+
+    jout(['ok' => true, 'dir' => $real, 'top' => false,
+          'parent' => preg_match('#^/volume\d+$#', $real) ? '' : dirname($real),
+          'folders' => $folders, '이폴더의파일수' => $fileCount]);
+}
+
 /* ---------------- 목록 만들기 ---------------- */
 /* ---------------- 상태 ---------------- */
 if ($action === 'scanstatus') {

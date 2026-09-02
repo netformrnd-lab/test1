@@ -959,19 +959,64 @@ function crumbHtml(navKey, out, rootOverride){
    ================================================================= */
 let scanRun = null;   // null=안 함 | {진행중 상태}
 
-async function startScan(){
-  const now = (nasState.info && nasState.info['다음에훑을폴더']) || '';
-  const suggest = (now && now !== '(기본값)') ? now
-    : '/volume1/넷폼알앤디 공유폴더/마케팅 공유폴더 외장하드 백업/00. 브랜드 공유폴더';
+/* 훑을 폴더를 눌러서 고릅니다 (경로를 손으로 적지 않아도 됩니다) */
+let pick = null;   // null=안 열림 | {dir, loading, error, folders, parent, top}
 
-  const dir = prompt(
-    '어느 폴더를 훑을까요?\n\n'
-    + '탐색기 주소창에서 복사한 그대로 붙여넣으셔도 됩니다.\n'
-    + '예) Y:\\넷폼알앤디 공유폴더\\마케팅 공유폴더 외장하드 백업\\00. 브랜드 공유폴더\n\n'
-    + '파일을 옮기거나 고치지 않습니다. 어디에 무엇이 있는지만 읽습니다.', suggest);
-  if(dir === null) return;
-  if(!dir.trim()){ toast('⚠️ 폴더 경로를 넣어주세요'); return; }
+function openPicker(){
+  pick = { loading:true };
+  render();
+  loadPicker('');
+}
 
+function closePicker(){ pick = null; render(); }
+
+async function loadPicker(dir){
+  pick = { loading:true, dir:dir };
+  render();
+  try{
+    const out = await apiJson('nasfiles.php?action=listdirs'
+      + (dir ? '&dir=' + encodeURIComponent(dir) : ''));
+    pick = out;
+  }catch(e){
+    pick = { error: apiErrText(e), tried: e.tried, dir:dir };
+  }
+  render();
+}
+
+function pickerPanel(){
+  if(!pick) return '';
+  const back = pick.parent !== undefined && pick.parent !== null
+    ? '<button class="btn sm" onclick="loadPicker(\'' + jsq(pick.parent) + '\')">⬆ 위로</button>' : '';
+
+  let body;
+  if(pick.loading) body = '<div class="fmeta">불러오는 중…</div>';
+  else if(pick.error) body = '<div class="fmeta" style="white-space:pre-wrap">⚠️ ' + esc(pick.error)
+    + (pick.tried ? '\n\n찾아본 경로:\n' + esc(pick.tried.join('\n')) : '') + '</div>';
+  else if(!pick.folders.length) body = '<div class="fmeta">이 안에는 하위 폴더가 없습니다. '
+    + '여기를 훑으시려면 아래 버튼을 누르세요.</div>';
+  else body = '<div class="fgrid">' + pick.folders.map(f =>
+      '<button class="fcard" onclick="loadPicker(\'' + jsq(f.path) + '\')" title="' + esc(f.name) + '">'
+      + '<span class="fc-ico">📁</span><span class="fc-t">'
+      + '<span class="fc-nm">' + esc(f.name) + '</span></span></button>').join('') + '</div>';
+
+  const here = pick.dir
+    ? '<button class="btn primary" onclick="runScan(\'' + jsq(pick.dir) + '\')">'
+      + '✅ 여기를 훑기</button>' : '';
+
+  return '<div class="mbox" style="margin-bottom:16px">'
+    + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
+      + '<span>📂 훑을 폴더 고르기</span>'
+      + '<span class="mhs">폴더를 눌러 들어가고, 원하는 곳에서 [여기를 훑기]</span>'
+      + '<span style="margin-left:auto"><button class="btn sm" onclick="closePicker()">닫기</button></span>'
+    + '</div>'
+    + '<div class="sec-bar" style="margin:0 0 10px">' + back + here + '</div>'
+    + '<div class="path" style="margin-bottom:8px">'
+      + esc(pick.dir || '볼륨을 고르세요') + '</div>'
+    + body + '</div>';
+}
+
+async function runScan(dir){
+  pick = null;
   scanRun = { starting:true };
   render();
   try{
@@ -985,6 +1030,8 @@ async function startScan(){
       + (e.tried ? '\n\n이런 경로들을 찾아봤습니다:\n' + e.tried.join('\n') : ''));
   }
 }
+
+function startScan(){ openPicker(); }
 
 async function scanLoop(){
   while(scanRun && !scanRun.done){
@@ -1264,8 +1311,8 @@ function renderNas(){
         + '<button class="btn primary" onclick="startScan()">🔎 지금 파일 목록 만들기</button>'
         + '<button class="btn" onclick="nasCheck()">↻ 다시 확인</button>'
         + '<span class="hint">파일 목록이 아직 없습니다</span></div>'
-      + scanPanel()
-      + (scanRun ? '' :
+      + pickerPanel() + scanPanel()
+      + ((scanRun || pick) ? '' :
           '<div class="empty">아직 NAS를 훑어보지 않았습니다.<br><br>'
         + '<b style="color:var(--text-primary)">[🔎 지금 파일 목록 만들기]</b> 를 눌러주세요.<br>'
         + '어느 폴더를 훑을지 물어본 뒤, 진행 상황을 바로 보여드립니다.<br><br>'
@@ -1293,7 +1340,8 @@ function renderNas(){
 
   let body;
   if(mode === 'browse'){
-    body = scanPanel() + autoMatchPanel() + folderBrowserHtml('nas', '', { link:true });
+    body = pickerPanel() + scanPanel() + autoMatchPanel()
+           + folderBrowserHtml('nas', '', { link:true });
   }else{
     const bar = '<div class="sec-bar">'
       + '<span class="searchbox" style="flex:1 1 320px"><span class="ico">🔍</span>'

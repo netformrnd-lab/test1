@@ -392,6 +392,19 @@ table.itable tr:hover td{background:var(--bg-hover)}
   line-height:1;cursor:pointer;font-family:inherit}
 .pb-nav:hover{background:rgba(255,255,255,.28)}
 .pb-prev{left:18px} .pb-next{right:18px}
+
+/* 파일 정리 */
+.tidylist{border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  background:var(--bg-secondary)}
+.tidyrow{display:flex;align-items:flex-start;gap:12px;padding:11px 14px}
+.tidyrow + .tidyrow{border-top:1px solid var(--border)}
+.tidyrow.busy{opacity:.45}
+.tidy-th{width:88px;height:66px;object-fit:cover;border-radius:8px;flex-shrink:0;
+  background:var(--bg-hover);border:1px solid var(--border)}
+.tidy-ic{display:flex;align-items:center;justify-content:center;font-size:26px}
+.tidy-mid{flex:1;min-width:0}
+.tidy-nm{font-size:13.5px;font-weight:700;color:var(--text-primary);
+  word-break:break-all;line-height:1.4}
 .doc-toc{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;
   padding:12px 14px;border:1px solid var(--border);border-radius:12px;
   background:var(--bg-secondary)}
@@ -1079,6 +1092,201 @@ async function ensureFiles(navKey, need){
   c.loadingMore = false;
 }
 
+/* ================= 파일 정리 =================
+   한 폴더에 쌓인 파일을, 옆 폴더들로 하나씩 넣습니다.
+   사진이면 그림을 보면서 고를 수 있습니다.
+   ============================================= */
+const tidy = { from:null, to:null, files:null, targets:null,
+               loading:false, error:null, pick:null, done:[], busy:null };
+
+function openTidy(){
+  nasState.mode = 'tidy';
+  render();
+}
+
+function tidyPick(which){
+  tidy.pick = { which: which, loading:true };
+  render();
+  tidyPickLoad('');
+}
+function tidyPickClose(){ tidy.pick = null; render(); }
+
+async function tidyPickLoad(dir){
+  const which = tidy.pick ? tidy.pick.which : 'from';
+  tidy.pick = { which: which, loading:true, dir:dir };
+  render();
+  try{
+    const out = await apiJson('nasfiles.php?action=browse&lim=50'
+      + (dir ? '&dir=' + encodeURIComponent(dir) : ''));
+    tidy.pick = { which: which, dir: out.dir, parent: out.parent, folders: out.folders || [] };
+  }catch(e){
+    tidy.pick = { which: which, dir: dir, error: apiErrText(e) };
+  }
+  render();
+}
+
+function tidyChoose(dir){
+  const which = tidy.pick.which;
+  tidy.pick = null;
+  if(which === 'from'){ tidy.from = dir; tidy.files = null; }
+  else               { tidy.to   = dir; tidy.targets = null; }
+  render();
+  tidyLoad();
+}
+
+async function tidyLoad(){
+  if(tidy.loading) return;
+  tidy.loading = true; tidy.error = null; render();
+  try{
+    if(tidy.from && !tidy.files){
+      const a = await apiJson('nasfiles.php?action=browse&lim=500&dir=' + encodeURIComponent(tidy.from));
+      tidy.files = a.files || [];
+    }
+    if(tidy.to && !tidy.targets){
+      const b = await apiJson('nasfiles.php?action=browse&lim=50&dir=' + encodeURIComponent(tidy.to));
+      // 정리할 폴더 자신은 옮길 곳에서 뺍니다
+      tidy.targets = (b.folders || []).filter(f => f.path !== tidy.from);
+    }
+  }catch(e){ tidy.error = apiErrText(e); }
+  tidy.loading = false; render();
+}
+
+/* 파일 이름과 폴더 이름이 얼마나 겹치는지 봐서 알맞은 폴더를 먼저 보여줍니다 */
+function tidySuggest(fileName){
+  if(!tidy.targets) return [];
+  const n = normKey(fileName.replace(/\.[^.]+$/, ''));
+  const scored = tidy.targets.map(t => {
+    const k = normKey(t.name);
+    let score = 0;
+    if(k.length >= 2 && n.includes(k)) score = 100 + k.length;
+    else if(n.length >= 2 && k.includes(n)) score = 90 + n.length;
+    else {
+      for(let len = Math.min(k.length, 6); len >= 2; len--){
+        for(let i = 0; i + len <= k.length; i++){
+          if(n.includes(k.slice(i, i + len))){ score = 50 + len; break; }
+        }
+        if(score) break;
+      }
+    }
+    return { t:t, score:score };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+  return scored.slice(0, 3).map(x => x.t);
+}
+
+async function tidyMove(path, dest, name){
+  if(tidy.busy) return;
+  tidy.busy = path; render();
+  try{
+    await apiJson('nasfiles.php?action=movenas', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ src: path, dest: dest })
+    });
+    tidy.files = tidy.files.filter(f => f.path !== path);
+    tidy.done.unshift({ name: name, dest: dest.split('/').pop() });
+    tidy.targets = null;                        // 개수를 다시 세어옵니다
+    delete browseCache[tidy.from];
+    delete browseCache[tidy.to];
+    tidy.busy = null;
+    render();
+    tidyLoad();
+  }catch(e){
+    tidy.busy = null; render();
+    alert('옮기지 못했습니다.\n\n' + apiErrText(e));
+  }
+}
+
+function tidyView(){
+  const pathBar = (label, val, which) =>
+    '<div class="krow" style="align-items:center;padding:7px 0">'
+    + '<span style="flex:0 0 110px;font-weight:700;color:var(--text-primary)">' + label + '</span>'
+    + '<span class="path" style="flex:1;min-width:0;word-break:break-all">'
+      + esc(val || '아직 안 골랐습니다') + '</span>'
+    + '<button class="btn sm" onclick="tidyPick(\'' + which + '\')">'
+      + (val ? '바꾸기' : '고르기') + '</button></div>';
+
+  const head = '<div class="mbox" style="margin-bottom:14px">'
+    + '<div class="mh">🧹 어디에서 어디로</div>'
+    + pathBar('정리할 폴더', tidy.from, 'from')
+    + pathBar('옮길 곳', tidy.to, 'to')
+    + '<div class="fmeta" style="margin-top:6px">'
+      + '"옮길 곳" 안에 들어 있는 폴더들이 아래 버튼으로 나옵니다. 누르면 그리로 옮겨집니다.</div>'
+    + '</div>';
+
+  let picker = '';
+  if(tidy.pick){
+    let body;
+    if(tidy.pick.loading) body = '<div class="fmeta">불러오는 중…</div>';
+    else if(tidy.pick.error) body = '<div class="fmeta" style="white-space:pre-wrap">⚠️ '
+      + esc(tidy.pick.error) + '</div>';
+    else if(!tidy.pick.folders.length) body = '<div class="fmeta">하위 폴더가 없습니다. '
+      + '여기를 고르시려면 아래 버튼을 누르세요.</div>';
+    else body = '<div class="fgrid">' + tidy.pick.folders.map(f =>
+        '<button class="fcard" onclick="tidyPickLoad(\'' + jsq(f.path) + '\')">'
+        + '<span class="fc-ico">📁</span><span class="fc-t"><span class="fc-nm">'
+        + esc(f.name) + '</span></span></button>').join('') + '</div>';
+
+    picker = '<div class="mbox" style="margin-bottom:14px;border-color:var(--blue)">'
+      + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
+        + '<span>📂 ' + (tidy.pick.which === 'from' ? '정리할 폴더' : '옮길 곳') + ' 고르기</span>'
+        + '<span style="margin-left:auto"><button class="btn sm" onclick="tidyPickClose()">취소</button></span>'
+      + '</div>'
+      + '<div class="sec-bar" style="margin:0 0 10px">'
+        + (tidy.pick.parent ? '<button class="btn sm" onclick="tidyPickLoad(\'' + jsq(tidy.pick.parent)
+            + '\')">⬆ 위로</button>' : '')
+        + (tidy.pick.dir ? '<button class="btn primary" onclick="tidyChoose(\'' + jsq(tidy.pick.dir)
+            + '\')">✅ 이 폴더로</button>' : '')
+      + '</div>'
+      + '<div class="path" style="margin-bottom:8px">' + esc(tidy.pick.dir || '') + '</div>'
+      + body + '</div>';
+  }
+
+  if(!tidy.from || !tidy.to) return head + picker;
+  if(tidy.loading && !tidy.files) return head + picker + '<div class="fmeta">불러오는 중…</div>';
+  if(tidy.error) return head + picker + '<div class="empty">⚠️ ' + esc(tidy.error) + '</div>';
+
+  const doneBar = tidy.done.length
+    ? '<div class="fmeta" style="margin-bottom:10px">✅ 지금까지 ' + tidy.done.length + '개 옮김 — '
+      + esc(tidy.done.slice(0, 4).map(d => d.name + ' → ' + d.dest).join(' · '))
+      + (tidy.done.length > 4 ? ' …' : '') + '</div>'
+    : '';
+
+  if(!tidy.files || !tidy.files.length)
+    return head + picker + doneBar + '<div class="empty">이 폴더는 비었습니다. 정리가 끝났습니다 🎉</div>';
+
+  const rows = tidy.files.map(f => {
+    const sug  = tidySuggest(f.name);
+    const sugP = sug.map(t => t.path);
+    const rest = (tidy.targets || []).filter(t => sugP.indexOf(t.path) < 0);
+    const btn  = (t, star) => '<button class="btn sm' + (star ? ' primary' : '') + '" '
+      + 'onclick="tidyMove(\'' + jsq(f.path) + '\',\'' + jsq(t.path) + '\',\'' + jsq(f.name) + '\')">'
+      + (star ? '⭐ ' : '') + esc(t.name) + '</button>';
+
+    return '<div class="tidyrow' + (tidy.busy === f.path ? ' busy' : '') + '">'
+      + (f.img
+          ? '<img class="tidy-th" loading="lazy" src="nasfiles.php?action=thumb&w=200&path='
+            + encodeURIComponent(f.path) + '" alt="">'
+          : '<span class="tidy-th tidy-ic">' + fileIcon(f.name) + '</span>')
+      + '<div class="tidy-mid">'
+        + '<div class="tidy-nm">' + esc(f.name) + '</div>'
+        + '<div class="fmeta">' + esc(f.size) + ' · ' + esc(f.date) + '</div>'
+        + '<div class="row" style="margin-top:7px">'
+          + sug.map(t => btn(t, true)).join('')
+          + rest.map(t => btn(t, false)).join('')
+          + (!(tidy.targets || []).length
+              ? '<span class="fmeta">"옮길 곳" 안에 폴더가 없습니다</span>' : '')
+        + '</div>'
+      + '</div>'
+      + '<a class="btn sm" href="nasfiles.php?action=download&path='
+        + encodeURIComponent(f.path) + '">⬇</a>'
+      + '</div>';
+  }).join('');
+
+  return head + picker + doneBar
+    + '<div class="fmeta" style="margin-bottom:8px">남은 파일 ' + tidy.files.length
+      + '개 · ⭐ 는 이름이 비슷해서 먼저 추천한 폴더입니다</div>'
+    + '<div class="tidylist">' + rows + '</div>';
+}
+
 /* ---------- 사진 크게 보기 ---------- */
 let picView = null;   // {navKey, i}
 
@@ -1626,6 +1834,8 @@ function renderNas(){
       + ' onclick="setNasMode(\'browse\')">📁 폴더로 보기</button>'
     + '<button class="btn' + (mode === 'search' ? ' primary' : '') + '"'
       + ' onclick="setNasMode(\'search\')">🔍 이름으로 찾기</button>'
+    + '<button class="btn' + (mode === 'tidy' ? ' primary' : '') + '"'
+      + ' onclick="setNasMode(\'tidy\')">🧹 파일 정리</button>'
     + '<button class="btn" onclick="startScan()">🔎 목록 다시 만들기</button>'
     + '<button class="btn" onclick="setScanRoot()">⚙️ 훑을 폴더 바꾸기</button>'
     + '<span class="hint">'
@@ -1636,7 +1846,9 @@ function renderNas(){
     + '</div>';
 
   let body;
-  if(mode === 'browse'){
+  if(mode === 'tidy'){
+    body = tidyView();
+  }else if(mode === 'browse'){
     body = pickerPanel() + scanPanel() + autoMatchPanel()
            + folderBrowserHtml('nas', '', { link:true });
   }else{

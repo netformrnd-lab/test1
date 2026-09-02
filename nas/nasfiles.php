@@ -681,6 +681,65 @@ if ($action === 'setroot') {
           '다음' => '작업 스케줄러에서 scan.sh 를 다시 실행해 주세요']);
 }
 
+/* ---------------- 공유폴더 안에서 파일 옮기기 ----------------
+   흩어진 파일을 알맞은 폴더로 넣는 데 씁니다.
+   원본과 목적지 모두 훑은 폴더 안이어야 하고, 덮어쓰지 않습니다.
+   ------------------------------------------------------------- */
+if ($action === 'movenas') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
+    }
+    $in   = json_decode(file_get_contents('php://input'), true) ?: [];
+    $src  = trim($in['src'] ?? '');
+    $dest = rtrim(trim($in['dest'] ?? ''), '/');
+    if ($src === '' || $dest === '') jout(['ok' => false, 'error' => '옮길 파일과 폴더를 지정해 주세요'], 400);
+
+    if (!is_file($ROOT_FILE)) {
+        jout(['ok' => false, 'error' => '먼저 [🔎 목록 다시 만들기] 를 한 번 해주세요'], 400);
+    }
+    $nasRoot = @realpath(rtrim(trim(file_get_contents($ROOT_FILE)), '/'));
+    $srcReal = @realpath($src);
+    $dstReal = @realpath($dest);
+    $inRoot  = function ($p) use ($nasRoot) {
+        return $nasRoot && $p && ($p === $nasRoot || strpos($p, $nasRoot . DIRECTORY_SEPARATOR) === 0);
+    };
+
+    if (!$srcReal || !is_file($srcReal) || !$inRoot($srcReal)) {
+        jout(['ok' => false, 'error' => '옮길 파일을 찾지 못했습니다: ' . $src], 404);
+    }
+    if (!$dstReal || !is_dir($dstReal) || !$inRoot($dstReal)) {
+        jout(['ok' => false, 'error' => '그 폴더로는 옮길 수 없습니다. 공유폴더 안쪽만 됩니다.'], 403);
+    }
+    if (dirname($srcReal) === $dstReal) {
+        jout(['ok' => false, 'error' => '이미 그 폴더에 있습니다'], 400);
+    }
+    if (!is_writable($dstReal)) jout(['ok' => false, 'error' => perm_help($dstReal)], 403);
+    if (!is_writable(dirname($srcReal))) {
+        jout(['ok' => false, 'error' => "원래 폴더에서 파일을 뺄 권한이 없습니다:\n"
+            . dirname($srcReal) . "\n\n" . perm_help(dirname($srcReal))], 403);
+    }
+
+    // 같은 이름이 있으면 번호를 붙입니다 (덮어쓰지 않습니다)
+    $base = basename($srcReal);
+    $ext  = pathinfo($base, PATHINFO_EXTENSION);
+    $stem = pathinfo($base, PATHINFO_FILENAME);
+    $name = $base;
+    $i    = 1;
+    while (file_exists($dstReal . '/' . $name)) {
+        $i++;
+        $name = $stem . ' (' . $i . ')' . ($ext !== '' ? '.' . $ext : '');
+    }
+    $target = $dstReal . '/' . $name;
+
+    if (!@rename($srcReal, $target)) {
+        if (!@copy($srcReal, $target)) {
+            jout(['ok' => false, 'error' => '파일을 옮기지 못했습니다 (복사 실패)'], 500);
+        }
+        @unlink($srcReal);
+    }
+    jout(['ok' => true, '옮긴곳' => $target, '파일이름' => $name]);
+}
+
 /* ---------------- 사진 미리보기 ----------------
    폴더 안 사진을 눈으로 보고 고를 수 있게 작은 그림을 만들어 줍니다.
    만든 그림은 data/thumbs 에 담아두고 다음부터는 그대로 씁니다.

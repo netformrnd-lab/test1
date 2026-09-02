@@ -742,7 +742,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260902-12';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260902-13';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -884,6 +884,15 @@ const TYPES = {
   }
 };
 const ITEM_KEYS = ['automations','history','assets','tasks','links'];
+
+/* 자동화 개수 — 손으로 적은 것과 올려둔 도구 파일을 합쳐서 셉니다.
+   화면마다 다르게 세면 "등록했는데 숫자가 안 올라간다" 가 되므로 여기 하나만 씁니다. */
+function autoCount(b){ return b.automations.length + ((b.tools || []).length); }
+
+/* 이 브랜드에 등록된 것 전부 (왼쪽 목록에 보이는 숫자) */
+function itemCount(b){
+  return ITEM_KEYS.reduce((a, k) => a + b[k].length, 0) + ((b.tools || []).length);
+}
 const TAB_KEYS  = ['automations','history','assets','tasks','links','channels','inquiries','prompt'];
 
 let data = defaultData();
@@ -1002,7 +1011,7 @@ function goHome(){
 
 function renderSidebar(){
   document.getElementById('brandList').innerHTML = data.brands.map((b, i) => {
-    const n = ITEM_KEYS.reduce((a, k) => a + b[k].length, 0);
+    const n = itemCount(b);
     return '<div class="bwrap"><button class="brand-item'
       + (b.id === currentBrandId && !searchQuery ? ' on' : '') + '" '
       + 'onclick="selectBrand(\'' + b.id + '\')">'
@@ -1035,6 +1044,8 @@ function renderHome(){
   const all = t => bs.reduce((a, b) => a + b[t].length, 0);
   const running = bs.reduce((a, b) =>
     a + b.automations.filter(x => x.status === '운영중').length, 0);
+  const autoAll  = bs.reduce((a, b) => a + autoCount(b), 0);
+  const toolAll  = bs.reduce((a, b) => a + ((b.tools || []).length), 0);
   const withPrompt = bs.filter(b => (b.masterPrompt || '').trim()).length;
   const files = bs.reduce((a, b) => a + b.assets.filter(x => x.fileId).length, 0);
 
@@ -1045,8 +1056,9 @@ function renderHome(){
     { lab:'📮 문의', val: iqTotal.toLocaleString('ko-KR'),
       sub: iqTotal ? '건 · 이번 달 ' + iqMonth + '건' : '건 · 시트를 연결하면 표시됩니다' },
     { lab:'🏷️ 브랜드', val: bs.length, sub:'개' },
-    { lab:'✅ 할 일',  val: openTasks, sub: '남음 · 전체 ' + all('tasks') + '개' },
-    { lab:'🤖 자동화', val: running, sub: '운영 중 · 전체 ' + all('automations') + '개' },
+    { lab:'✅ 남은 할 일', val: openTasks, sub: '전체 ' + all('tasks') + '개 중' },
+    { lab:'🤖 자동화', val: autoAll,
+      sub: '개 · 운영 중 ' + running + (toolAll ? ' · 도구 ' + toolAll : '') },
     { lab:'📁 자료',   val: all('assets'), sub: '파일 ' + files + '개 · 프롬프트 '
         + withPrompt + '/' + bs.length }
   ].map(x => '<div class="stat"><div class="lab">' + x.lab + '</div>'
@@ -1071,7 +1083,7 @@ function renderHome(){
           + '</div>';
       })()
     + '<div class="cnts">'
-      + '<span class="chip">🤖 ' + b.automations.length + '</span>'
+      + '<span class="chip">🤖 ' + autoCount(b) + '</span>'
       + '<span class="chip">📜 ' + b.history.length + '</span>'
       + '<span class="chip">📁 ' + b.assets.length + '</span>'
       + (b.links.length ? '<span class="chip">🔗 ' + b.links.length + '</span>' : '')
@@ -2721,7 +2733,7 @@ function renderBrand(){
     return;
   }
   const counts = {
-    automations: b.automations.length + ((b.tools || []).length),
+    automations: autoCount(b),
     history: b.history.length + (b.record ? 1 : 0),
     assets: b.assets.length,
     tasks: b.tasks.filter(t => t.status !== '완료').length,

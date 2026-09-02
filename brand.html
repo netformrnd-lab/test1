@@ -101,13 +101,22 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
   background:var(--bg-secondary);box-shadow:var(--ring)}
 .searchbox .ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);
   font-size:12px;color:var(--text-muted);pointer-events:none}
-.actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.actions{display:flex;gap:8px;align-items:center;flex:1 1 auto;justify-content:flex-end;
+  min-width:0}
+.statusgrp{display:flex;gap:6px;align-items:center;justify-content:flex-end;
+  flex:1 1 auto;min-width:0;overflow:hidden}
+.btngrp{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+@media(max-width:900px){
+  .actions{flex-wrap:wrap}
+  .statusgrp{flex:1 1 100%;justify-content:flex-start}
+}
 
 .astat{font-size:12px;color:var(--text-muted)}
 .ainote{padding:11px 14px;border-radius:var(--r);font-size:12.5px;line-height:1.6;
   background:rgba(192,119,8,.10);border:1px solid rgba(192,119,8,.22);
   color:var(--text-primary)}
-.savestate{font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap}
+.savestate{font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap;
+  min-width:72px;text-align:right;flex:0 0 auto}
 .savestate.ok{color:var(--green)}
 .savestate.err{color:var(--red)}
 .store-badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
@@ -631,6 +640,16 @@ table.itable tr:hover td{background:var(--bg-hover)}
   padding:1.5px 5px;border-radius:4px;background:var(--red);color:#fff;vertical-align:1.5px}
 
 /* ---------- 알림 ---------- */
+.clashbar{border:1px solid rgba(192,119,8,.4);background:rgba(192,119,8,.07);
+  border-radius:var(--r-md);padding:14px 16px;margin-bottom:14px}
+.cb-top{font-size:13px;line-height:1.7;margin-bottom:10px}
+.cb-item{border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--bg-card);padding:10px 12px;margin-top:8px}
+.cb-h{display:flex;align-items:center;gap:8px;font-size:12.5px;flex-wrap:wrap}
+.cb-when{color:var(--text-muted);font-size:11.5px;margin-right:auto}
+.cb-body{font-size:12.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word;
+  margin-top:8px;padding:9px 11px;border-radius:var(--r-xs);background:var(--bg-input);
+  max-height:220px;overflow:auto;font-family:inherit}
 .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);display:none;
   background:var(--text-primary);color:var(--bg-card);padding:11px 20px;border-radius:999px;
   font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:200;
@@ -651,17 +670,23 @@ table.itable tr:hover td{background:var(--bg-hover)}
   </div>
   <span class="spacer"></span>
   <div class="actions">
-    <span class="verbadge" id="verBadge" title="지금 쓰고 있는 판 번호입니다. 눌러보면 새 판이 있는지 다시 확인합니다."
-          onclick="checkVersion(true)">–</span>
-    <span class="vernew" id="verNew" style="display:none"></span>
-    <span class="savestate" id="saveState">✓ 저장됨</span>
-    <span class="store-badge" id="storeBadge"><span class="dot"></span><span id="storeText">확인 중</span></span>
+    <!-- 왼쪽 묶음: 글자 길이가 바뀌는 것들. 남는 공간 안에서만 늘었다 줄었다 합니다 -->
+    <div class="statusgrp">
+      <span class="verbadge" id="verBadge" title="지금 쓰고 있는 판 번호입니다. 눌러보면 새 판이 있는지 다시 확인합니다."
+            onclick="checkVersion(true)">–</span>
+      <span class="vernew" id="verNew" style="display:none"></span>
+      <span class="savestate" id="saveState">✓ 저장됨</span>
+      <span class="store-badge" id="storeBadge"><span class="dot"></span><span id="storeText">확인 중</span></span>
+    </div>
+    <!-- 오른쪽 묶음: 단추. 왼쪽이 길어져도 자리가 움직이지 않습니다 -->
+    <div class="btngrp">
     <button class="btn" title="밝게/어둡게" onclick="toggleDark()">🌙</button>
     <button class="btn" title="파일로 내보내기 (백업)" onclick="exportJSON()">📤</button>
     <button class="btn" title="파일에서 가져오기 (복원)" onclick="document.getElementById('importFile').click()">📥</button>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importJSON(event)">
     <button class="btn primary" title="지금 바로 저장 (Ctrl+S) — 평소에는 자동 저장됩니다"
             onclick="saveAll()">💾 저장</button>
+    </div>
   </div>
 </div>
 
@@ -742,7 +767,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260902-15';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260902-17';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -995,7 +1020,66 @@ async function pullVersion(btn){
   }
 }
 
+/* ── 화면을 다시 그려도 하던 일이 끊기지 않게 ────────────────────────
+   여러 명이 같이 쓰다 보면 (다른 사람 저장 반영, 채널 새 글 확인 같은 일로)
+   내가 글을 쓰는 중에도 화면이 다시 그려질 수 있습니다.
+   그때 쓰던 글이 날아가거나 커서가 튀지 않도록,
+   다시 그리기 전에 '지금 상태' 를 적어 두었다가 그대로 되돌려 놓습니다. */
+
+function captureUI(){
+  const main = document.getElementById('main');
+  const el   = document.activeElement;
+  const snap = {
+    y: window.scrollY,
+    scrolls: [],
+    field: null
+  };
+  if(main){
+    // 표·목록 안에서 스크롤해 둔 위치
+    main.querySelectorAll('.table-wrap,.flist,.tidylist,.doc-body').forEach((n, i) => {
+      if(n.scrollTop) snap.scrolls.push([i, n.scrollTop]);
+    });
+    // 지금 글을 쓰고 있던 칸
+    if(el && main.contains(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)){
+      const all = Array.prototype.slice.call(main.querySelectorAll('input,textarea,select'));
+      snap.field = { id: el.id, idx: all.indexOf(el), value: el.value,
+                     s: el.selectionStart, e: el.selectionEnd, top: el.scrollTop };
+    }
+  }
+  return snap;
+}
+
+function restoreUI(snap){
+  if(!snap) return;
+  const main = document.getElementById('main');
+  if(main && snap.scrolls.length){
+    const nodes = main.querySelectorAll('.table-wrap,.flist,.tidylist,.doc-body');
+    snap.scrolls.forEach(([i, top]) => { if(nodes[i]) nodes[i].scrollTop = top; });
+  }
+  const f = snap.field;
+  if(f){
+    let el = f.id ? document.getElementById(f.id) : null;
+    if(!el && f.idx >= 0 && main){        // 이름표가 없으면 몇 번째 칸이었는지로 찾습니다
+      el = main.querySelectorAll('input,textarea,select')[f.idx] || null;
+    }
+    if(el){
+      if(el.value !== f.value) el.value = f.value;   // 쓰던 글 그대로
+      try{ el.focus({ preventScroll:true }); }catch(e){ el.focus(); }
+      try{ if(f.s !== null && f.s !== undefined) el.setSelectionRange(f.s, f.e); }catch(e){}
+      el.scrollTop = f.top;
+    }
+  }
+  if(Math.abs(window.scrollY - snap.y) > 2) window.scrollTo(0, snap.y);
+}
+
 function render(){
+  // 브랜드가 사라졌는데(다른 사람이 지웠다든지) 그 화면을 보고 있으면 홈으로
+  if(currentBrandId && !data.brands.some(b => b.id === currentBrandId)){
+    currentBrandId = null;
+    view = 'home';
+  }
+
+  const snap = captureUI();
   paintVersion();
   renderSidebar();
   const home = document.getElementById('homeBtn');
@@ -1006,6 +1090,7 @@ function render(){
   else if(view === 'nas') renderNas();
   else if(!currentBrandId) renderHome();
   else renderBrand();
+  restoreUI(snap);
 }
 
 function goNas(){
@@ -2793,6 +2878,57 @@ function openInBrowser(i){
   gotoFolder('nas', f.dir);
 }
 
+/* 같은 것을 다른 분과 동시에 고쳤을 때 뜨는 띠.
+   내 것을 그대로 두되, 상대가 쓴 내용을 볼 수 있게 남겨둡니다. */
+function clashBar(b){
+  const list = b._conflicts || [];
+  if(!list.length) return '';
+  return '<div class="clashbar">'
+    + '<div class="cb-top">⚠️ <b>같은 것을 다른 분과 같은 시간에 고쳤습니다.</b> '
+      + '지금 화면에는 <b>제가 쓴 내용</b>이 남아 있고, '
+      + '다른 분이 쓰신 내용은 아래에 그대로 보관해 두었습니다.</div>'
+    + list.map(c =>
+        '<div class="cb-item">'
+        + '<div class="cb-h"><b>' + esc(c['무엇']) + '</b>'
+          + '<span class="cb-when">' + esc(new Date(c['시각']).toLocaleString('ko-KR',
+              { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })) + '</span>'
+          + '<button class="btn sm" onclick="clashCopy(\'' + jsq(c.id) + '\')">📋 복사</button>'
+          + '<button class="btn sm danger" onclick="clashDrop(\'' + jsq(c.id) + '\')">확인함</button>'
+        + '</div>'
+        + '<pre class="cb-body">' + esc(clashText(c['상대내용'])) + '</pre>'
+        + '</div>').join('')
+    + '</div>';
+}
+
+function clashText(v){
+  if(typeof v === 'string') return v;
+  if(!v || typeof v !== 'object') return String(v);
+  return Object.keys(v).filter(k => k !== 'id' && k !== 'updatedAt')
+    .map(k => k + ': ' + (typeof v[k] === 'string' ? v[k] : JSON.stringify(v[k])))
+    .join('\n');
+}
+
+function clashFind(id){
+  const b = currentBrand();
+  return b && (b._conflicts || []).find(c => c.id === id);
+}
+
+function clashCopy(id){
+  const c = clashFind(id);
+  if(!c) return;
+  const t = clashText(c['상대내용']);
+  if(navigator.clipboard) navigator.clipboard.writeText(t).then(
+    () => toast('📋 복사했습니다'), () => toast('⚠️ 복사하지 못했습니다'));
+  else toast('⚠️ 이 브라우저는 복사를 지원하지 않습니다');
+}
+
+function clashDrop(id){
+  const b = currentBrand();
+  if(!b) return;
+  b._conflicts = (b._conflicts || []).filter(c => c.id !== id);
+  markDirty(); render();
+}
+
 function renderBrand(){
   const b = currentBrand();
   const main = document.getElementById('main');
@@ -2822,7 +2958,8 @@ function renderBrand(){
   ];
 
   main.innerHTML =
-    '<div class="panel">'
+    clashBar(b)
+    + '<div class="panel">'
     + '<div class="bhead">'
       + '<div class="icon">' + esc(b.icon || '🏷️') + '</div>'
       + '<div><h2>' + esc(b.name) + '</h2>'
@@ -4009,8 +4146,8 @@ function viewInquiries(b){
 
   const bar = '<div class="sec-bar">'
     + '<span class="searchbox" style="flex:0 1 260px"><span class="ico">🔍</span>'
-      + '<input type="text" placeholder="이 브랜드 문의에서 검색" value="' + esc(inquiryQuery) + '" '
-      + 'oninput="onInquiryQuery(this.value)"></span>'
+      + '<input type="text" id="iqQ" placeholder="이 브랜드 문의에서 검색" '
+      + 'value="' + esc(inquiryQuery) + '" oninput="onInquiryQuery(this.value)"></span>'
     + (linked
         ? '<button class="btn primary" onclick="syncInquiries(true)">↻ 시트에서 가져오기</button>'
         : '<button class="btn primary" onclick="openSheets()">🔗 시트 연결</button>')
@@ -4577,6 +4714,13 @@ function submitBrand(){
     color: document.getElementById('bColor').value
   };
   let added = false;
+  if(editingBrandId && !brandById(editingBrandId)){
+    closeModal('brandModal');
+    toast('⚠️ 그 사이 다른 분이 이 브랜드를 지웠습니다');
+    editingBrandId = null;
+    render();
+    return;
+  }
   if(editingBrandId){
     Object.assign(brandById(editingBrandId), payload);
   }else{
@@ -4595,6 +4739,7 @@ function submitBrand(){
 
 function deleteBrand(id){
   const b = brandById(id);
+  if(!b){ render(); return; }           // 이미 다른 분이 지웠습니다
   const n = ITEM_KEYS.reduce((a, k) => a + b[k].length, 0);
   if(!confirm('"' + b.name + '" 브랜드를 삭제할까요?\n\n안에 있는 ' + n + '개 항목과 마스터프롬프트도 함께 사라집니다.')) return;
   data.brands = data.brands.filter(x => x.id !== id);
@@ -4644,9 +4789,20 @@ function submitItem(){
     if(f.required && !v){ toast('⚠️ ' + f.label + '을(를) 입력해 주세요'); return; }
     payload[f.key] = v;
   }
+  const target = editing ? b[itemType].find(x => x.id === editing.id) : null;
+  if(editing && !target){
+    // 내가 수정창을 열어둔 사이에 다른 분이 이 항목을 지웠습니다.
+    // 쓴 내용이 사라지지 않게 새 항목으로 넣어드립니다.
+    b[itemType].unshift(Object.assign({ id: uid('i'),
+      updatedAt: new Date().toISOString() }, payload));
+    editing = null;
+    closeModal('itemModal');
+    render(); markDirty();
+    toast('다른 분이 이 항목을 지워서, 새 항목으로 넣었습니다');
+    return;
+  }
   if(editing){
-    Object.assign(b[itemType].find(x => x.id === editing.id), payload,
-                  { updatedAt: new Date().toISOString() });
+    Object.assign(target, payload, { updatedAt: new Date().toISOString() });
   }else{
     const item = Object.assign({ id: uid('i'), updatedAt: new Date().toISOString() }, payload);
     // 여정은 시간 순으로 읽어야 하므로 아래에 쌓고, 나머지는 최신이 위로 옵니다
@@ -4661,6 +4817,7 @@ function submitItem(){
 function deleteItem(type, id){
   const b = currentBrand();
   const it = b[type].find(x => x.id === id);
+  if(!it){ render(); return; }          // 이미 다른 분이 지웠습니다
   if(!confirm('"' + it.title + '" 항목을 삭제할까요?')) return;
   b[type] = b[type].filter(x => x.id !== id);
   deletedIds.add(id);
@@ -4851,24 +5008,45 @@ function markDirtyAll(){
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels']);
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
-let baseIds = new Set();         // 불러온 시점에 있던 항목들
+let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
+let revived  = 0;                // 되살린 개수 (알려주기 위해)
 
-/* 불러온(또는 방금 저장한) 시점의 항목 id 를 기억해 둡니다.
-   나중에 "서버엔 없고 내게만 있는 것" 이 나왔을 때,
-   내가 새로 만든 것인지 / 남이 지운 것인지 구별하려는 것입니다. */
+/* 내용이 바뀌었는지 빠르게 비교하기 위한 짧은 지문입니다 */
+function sigOf(o){
+  const t = JSON.stringify(o);
+  let h = 0;
+  for(let i = 0; i < t.length; i++){ h = (h * 31 + t.charCodeAt(i)) | 0; }
+  return t.length + ':' + h;
+}
+
+/* 불러온(또는 방금 저장한) 시점의 상태를 적어 둡니다.
+   "서버엔 없고 내게만 있는 것" 이 나왔을 때
+   내가 만든 것인지 / 내가 고친 것인지 / 남이 지운 것인지 구별하려는 것입니다. */
 function snapshotIds(d){
-  const set = new Set();
+  const m = new Map();
   (d && d.brands || []).forEach(b => {
-    set.add(b.id);
-    MERGE_LISTS.forEach(k => (b[k] || []).forEach(x => { if(x && x.id) set.add(x.id); }));
+    m.set(b.id, sigOf(Object.assign({}, b, { automations:0, history:0, assets:0,
+      tasks:0, links:0, tools:0, channels:0, _conflicts:0 })));
+    m.set(b.id + ':prompt', sigOf(b.masterPrompt || ''));
+    MERGE_LISTS.forEach(k => (b[k] || []).forEach(x => {
+      if(x && x.id) m.set(x.id, sigOf(x));
+    }));
   });
-  return set;
+  return m;
 }
 
 /* 서버엔 없고 내 화면에만 있는 것 → 남겨야 하나?
-   불러올 때 있었다면 그 사이 누군가 지운 것이므로 빼고,
-   불러온 뒤에 내가 만든 것이면 남깁니다. */
-function keepMine(id){ return !baseIds.has(id); }
+     · 불러온 뒤 내가 만든 것        → 남깁니다
+     · 내가 내용을 고친 것            → 남깁니다 (쓴 것을 버리지 않습니다)
+     · 손대지 않은 채 남이 지운 것   → 뺍니다                                */
+function keepMine(id, obj){
+  if(!baseIds.has(id)) return true;                     // 내가 새로 만든 것
+  if(obj && sigOf(obj) !== baseIds.get(id)){            // 내가 고친 것
+    revived++;
+    return true;
+  }
+  return false;                                         // 남이 지운 것
+}
 
 /* 브랜드 하나를 합칩니다.
    같은 브랜드를 둘이 동시에 고쳐도, 항목을 하나씩 대조해서 둘 다 남깁니다.
@@ -4876,8 +5054,30 @@ function keepMine(id){ return !baseIds.has(id); }
      · 내가 고친 것      → 내 것으로 바꿉니다
      · 내가 지운 것      → 뺍니다
      · 내가 새로 만든 것 → 넣습니다                                        */
+/* 같은 것을 둘이 동시에 고쳤을 때, 상대 내용을 버리지 않고 따로 챙겨둡니다.
+   (화면에 "같이 고친 것이 있습니다" 로 뜨고, 눌러서 확인·복사할 수 있습니다) */
+let clashed = 0;
+function stashClash(out, what, mineObj, srvObj){
+  out._conflicts = (out._conflicts || []).slice(0, 19);
+  out._conflicts.unshift({
+    id: uid('cf'), 무엇: what, 시각: new Date().toISOString(),
+    상대내용: srvObj, 내내용: mineObj
+  });
+  clashed++;
+}
+
 function mergeBrand(mineB, srvB){
   const out = Object.assign({}, srvB, mineB);
+  out._conflicts = (mineB._conflicts || srvB._conflicts || []).slice();
+
+  // 마스터프롬프트를 둘이 같은 시간에 고쳤으면, 상대 글도 챙겨둡니다
+  const baseSig = baseIds.get(mineB.id + ':prompt');
+  const mineP = mineB.masterPrompt || '', srvP = srvB.masterPrompt || '';
+  if(mineP !== srvP && baseSig !== undefined
+     && sigOf(srvP) !== baseSig && sigOf(mineP) !== baseSig){
+    stashClash(out, '마스터프롬프트', mineP, srvP);
+  }
+
   MERGE_LISTS.forEach(k => {
     const mineArr = Array.isArray(mineB[k]) ? mineB[k] : [];
     const srvArr  = Array.isArray(srvB[k])  ? srvB[k]  : [];
@@ -4887,11 +5087,21 @@ function mergeBrand(mineB, srvB){
     const res = [];
     srvArr.forEach(sv => {
       if(deletedIds.has(sv.id)) return;                 // 내가 지운 것
-      res.push(mineById.has(sv.id) ? mineById.get(sv.id) : sv);
+      const mi = mineById.get(sv.id);
+      if(mi){
+        // 둘 다 고쳤으면 내 것을 쓰되, 상대 것을 버리지 않고 챙겨둡니다
+        const base = baseIds.get(sv.id);
+        if(base !== undefined && sigOf(sv) !== base && sigOf(mi) !== base
+           && sigOf(sv) !== sigOf(mi)){
+          stashClash(out, (TYPES[k] ? TYPES[k].label : k) + ' — ' + (mi.title || mi.name || ''),
+                     mi, sv);
+        }
+      }
+      res.push(mi || sv);
     });
     mineArr.forEach((m, i) => {
       if(srvIds.has(m.id)) return;
-      if(!keepMine(m.id)) return;        // 그 사이 다른 사람이 지운 것 → 되살리지 않습니다
+      if(!keepMine(m.id, m)) return;     // 손 안 댄 채 남이 지운 것 → 되살리지 않습니다
       if(i === 0) res.unshift(m); else res.push(m);   // 내가 새로 만든 것
     });
     out[k] = res;
@@ -4913,7 +5123,11 @@ function mergeWithServer(server){
     // 내가 안 건드린 브랜드의 내용은 서버 것을 씁니다.
     brands = mine.brands.map(b => {
       const sv = srvById(b.id);
-      if(!sv) return keepMine(b.id) ? b : null;           // 없으면: 내가 만든 것만 남깁니다
+      if(!sv){                                            // 서버에 없는 브랜드
+        const shallow = Object.assign({}, b, { automations:0, history:0, assets:0,
+          tasks:0, links:0, tools:0, channels:0, _conflicts:0 });
+        return keepMine(b.id, shallow) ? b : null;
+      }
       return dirtyBrands.has(b.id) ? mergeBrand(b, sv) : sv;
     }).filter(Boolean);
   }else{
@@ -4923,7 +5137,9 @@ function mergeWithServer(server){
       return (m && dirtyBrands.has(sv.id)) ? mergeBrand(m, sv) : sv;
     });
     mine.brands.forEach(m => {
-      if(dirtyBrands.has(m.id) && keepMine(m.id) && !brands.some(x => x.id === m.id))
+      const shallow = Object.assign({}, m, { automations:0, history:0, assets:0,
+        tasks:0, links:0, tools:0, channels:0, _conflicts:0 });
+      if(dirtyBrands.has(m.id) && keepMine(m.id, shallow) && !brands.some(x => x.id === m.id))
         brands.push(m);
     });
   }
@@ -4937,14 +5153,15 @@ function setSaveState(state){
   const el = document.getElementById('saveState');
   if(!el) return;
   const map = {
-    dirty:  ['●', '수정됨 — 잠시 뒤 저장됩니다', ''],
-    saving: ['◌', '저장 중…', ''],
-    saved:  ['✓', '저장됨', 'ok'],
-    failed: ['⚠', '저장 실패', 'err']
+    dirty:  ['●', '수정됨', '',    '잠시 뒤 자동으로 저장됩니다'],
+    saving: ['◌', '저장 중…', '',  '저장하고 있습니다'],
+    saved:  ['✓', '저장됨', 'ok',  'NAS에 저장되어 있습니다'],
+    failed: ['⚠', '저장 실패', 'err', '아래 빨간 띠의 내용을 확인해 주세요']
   };
-  const [ic, txt, cls] = map[state] || map.saved;
+  const [ic, txt, cls, tip] = map[state] || map.saved;
   el.className = 'savestate ' + cls;
   el.textContent = ic + ' ' + txt;
+  el.title = tip || '';
 }
 
 async function saveAll(silent){
@@ -4977,11 +5194,14 @@ async function saveAll(silent){
       }catch(e){
         if(!e.conflict || ++tries > 3) throw e;
         // 다른 사람이 먼저 저장했습니다 → 그 내용 위에 내 것만 얹어서 다시 시도
+        revived = 0; clashed = 0;
         data = normalize(mergeWithServer(e.server));
         data._rev = e.rev;
         baseIds = snapshotIds(e.server);   // 서버 것이 새 기준입니다
         data.savedAt = new Date().toISOString();
-        if(!silent) toast('다른 분이 저장한 내용과 합치는 중…');
+        if(clashed) toast('⚠️ 같은 것을 다른 분과 동시에 고쳤습니다 — 아래 띠에서 확인하세요');
+        else if(revived) toast('다른 분이 지운 항목이지만, 고치신 내용이 있어 살려뒀습니다');
+        else if(!silent) toast('다른 분이 저장한 내용과 합치는 중…');
       }
     }
     dirtyBrands.clear();
@@ -5030,7 +5250,7 @@ function importJSON(ev){
       data = normalize(parsed);
       data._rev = keepRev;
       // 파일로 되돌리는 것은 '전부 내 것으로' 라는 뜻이므로 전체를 바뀐 것으로 표시합니다
-      baseIds = new Set();
+      baseIds = new Map();
       data.brands.forEach(b => dirtyBrands.add(b.id));
       currentBrandId = data.brands.length ? data.brands[0].id : null;
       render(); markDirtyAll();

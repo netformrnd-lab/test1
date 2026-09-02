@@ -91,8 +91,8 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
   display:flex;align-items:center;gap:8px}
 .topbar .sub{font-size:11.5px;color:var(--text-muted);font-weight:500;
   letter-spacing:-.005em;margin-top:1px}
-.spacer{flex:1}
-.searchbox{position:relative;min-width:220px;flex:0 1 340px}
+.spacer{flex:0 0 0;width:0}
+.searchbox{position:relative;min-width:140px;flex:0 1 340px}
 .searchbox input{width:100%;padding:9px 13px 9px 34px;font-size:13px;
   border-radius:var(--r);border:1px solid var(--border);background:var(--bg-input);
   color:var(--text-primary);font-family:inherit;transition:.16s var(--ease)}
@@ -101,14 +101,18 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
   background:var(--bg-secondary);box-shadow:var(--ring)}
 .searchbox .ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);
   font-size:12px;color:var(--text-muted);pointer-events:none}
-.actions{display:flex;gap:8px;align-items:center;flex:1 1 auto;justify-content:flex-end;
+.actions{display:flex;gap:8px;align-items:center;flex:1 1 0;justify-content:flex-end;
   min-width:0}
 .statusgrp{display:flex;gap:6px;align-items:center;justify-content:flex-end;
-  flex:1 1 auto;min-width:0;overflow:hidden}
+  flex:1 1 0;min-width:0;overflow:hidden}
+.statusgrp > *{min-width:0}
 .btngrp{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+@media(max-width:1280px){ .presence .pnames{display:none} }
+@media(max-width:1100px){ .savestate{min-width:0} .verbadge{display:none} }
 @media(max-width:900px){
   .actions{flex-wrap:wrap}
   .statusgrp{flex:1 1 100%;justify-content:flex-start}
+  .presence .pnames{display:inline}
 }
 
 .astat{font-size:12px;color:var(--text-muted)}
@@ -119,6 +123,18 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
   min-width:72px;text-align:right;flex:0 0 auto}
 .savestate.ok{color:var(--green)}
 .savestate.err{color:var(--red)}
+.presence{display:inline-flex;align-items:center;gap:6px;max-width:250px;font-size:12px;font-weight:600;
+  padding:5px 11px;border-radius:999px;border:1px solid var(--border);
+  background:var(--bg-secondary);color:var(--text-secondary);white-space:nowrap;
+  cursor:pointer;min-width:0;overflow:hidden}
+.presence:hover{border-color:var(--border-light)}
+.presence .pdot{width:7px;height:7px;border-radius:50%;background:var(--green);
+  flex-shrink:0;box-shadow:0 0 0 3px rgba(18,161,80,.16);
+  animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.presence .pnames{color:var(--text-muted);font-weight:500;max-width:190px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.presence .pset{color:var(--blue);font-weight:700;flex-shrink:0}
 .store-badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
   padding:5px 12px;border-radius:999px;border:1px solid var(--border);
   background:var(--bg-secondary);white-space:nowrap;color:var(--text-secondary)}
@@ -679,6 +695,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
             onclick="checkVersion(true)">–</span>
       <span class="vernew" id="verNew" style="display:none"></span>
       <span class="savestate" id="saveState">✓ 저장됨</span>
+      <span class="presence" id="presenceBox" style="display:none"
+            title="지금 대시보드를 보고 있는 사람" onclick="setMyName()"></span>
       <span class="store-badge" id="storeBadge"><span class="dot"></span><span id="storeText">확인 중</span></span>
     </div>
     <!-- 오른쪽 묶음: 단추. 왼쪽이 길어져도 자리가 움직이지 않습니다 -->
@@ -770,11 +788,129 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260902-18';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260903-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
 let saveBlocked = false;   // 불러오기가 실패하면 켜집니다 (덮어쓰기 방지)
+
+/* ── 실시간 ────────────────────────────────────────────────────────────
+   새로고침하지 않아도 다른 분이 고친 내용이 몇 초 안에 화면에 반영됩니다.
+
+   방식: 2초마다 "판 번호만" 물어봅니다(load.php?rev=1 — 몇 십 바이트).
+         번호가 달라졌을 때만 전체 내용을 받아옵니다.
+         그래서 자주 물어봐도 NAS 가 힘들지 않습니다.
+   ------------------------------------------------------------------ */
+const LIVE_MS      = 2000;    // 화면을 보고 있을 때
+const LIVE_MS_IDLE = 15000;   // 다른 창을 보고 있을 때
+let liveTimer = null, liveBusy = false, lastSeenRev = null, liveOn = false, liveErr = '';
+
+function myName(){
+  try{ return localStorage.getItem('brandHubUser') || ''; }catch(e){ return ''; }
+}
+function myId(){
+  try{
+    let v = localStorage.getItem('brandHubId');
+    if(!v){ v = 'u' + Math.random().toString(36).slice(2, 10); localStorage.setItem('brandHubId', v); }
+    return v;
+  }catch(e){ return 'u0'; }
+}
+function setMyName(){
+  const cur = myName();
+  const v = prompt('이름을 넣어주세요.\n\n같이 보고 있는 분들에게 "누가 보고 있는지" 로 표시됩니다.', cur);
+  if(v === null) return;
+  try{ localStorage.setItem('brandHubUser', v.trim().slice(0, 20)); }catch(e){}
+  pingPresence();
+  paintPresence();
+}
+
+/* 판 번호가 바뀌었는지만 확인하고, 바뀌었으면 받아서 화면에 반영합니다 */
+async function liveTick(){
+  if(STORAGE_MODE !== 'nas' || liveBusy || saving || saveBlocked) return;
+  liveBusy = true;
+  try{
+    const r = await apiJson(NAS_API.load + '?rev=1&t=' + Date.now());
+    if(r && r.ok){
+      liveOn = true;
+      const rev = r.rev | 0;
+      if(rev !== (data._rev | 0)) await pullLive(r['고친사람'] || '');
+      lastSeenRev = rev;
+    }
+  }catch(e){
+    liveOn = false;
+    liveErr = (e && e.message) ? e.message : String(e);
+  }
+  finally{ liveBusy = false; }
+}
+
+/* 서버의 새 내용을 받아, 내가 고치던 것은 지키면서 화면에 반영합니다 */
+async function pullLive(by){
+  // storageLoad 를 씁니다. (load.php 는 데이터를 그대로 돌려주므로
+  //  ok 표시를 확인하는 apiJson 으로 읽으면 안 됩니다)
+  const srv = await storageLoad();
+  if(!srv || !Array.isArray(srv.brands)) return;
+
+  const hasMine = dirtyBrands.size > 0 || dirtyGlobal;
+  if(hasMine){
+    // 아직 저장 안 한 내 수정이 있으면, 저장할 때와 같은 방식으로 합칩니다
+    revived = 0; clashed = 0;
+    data = normalize(mergeWithServer(srv));
+  }else{
+    data = normalize(srv);
+  }
+  data._rev = srv._rev | 0;
+  baseIds   = snapshotIds(srv);
+  updateSubtitle();
+  render();
+
+  const who = (by && by !== myName()) ? by + '님이 ' : '';
+  if(by !== myName()) toast('🔄 ' + who + '방금 고친 내용을 가져왔습니다');
+}
+
+function startLive(){
+  if(STORAGE_MODE !== 'nas') return;
+  const arm = () => {
+    clearInterval(liveTimer);
+    liveTimer = setInterval(liveTick, document.hidden ? LIVE_MS_IDLE : LIVE_MS);
+  };
+  arm();
+  document.addEventListener('visibilitychange', () => { arm(); if(!document.hidden) liveTick(); });
+  window.addEventListener('focus', liveTick);
+  liveTick();
+}
+
+/* ── 지금 누가 보고 있는지 ─────────────────────────────────────────── */
+let presence = [];
+async function pingPresence(){
+  if(STORAGE_MODE !== 'nas') return;
+  try{
+    const b = currentBrand();
+    const where = searchQuery ? '검색' : (view === 'nas' ? 'NAS 자료'
+                : (b ? b.name : '홈'));
+    const r = await apiJson('presence.php?action=ping'
+      + '&id=' + encodeURIComponent(myId())
+      + '&name=' + encodeURIComponent(myName())
+      + '&where=' + encodeURIComponent(where));
+    if(r && r.ok){ presence = r['사람'] || []; paintPresence(); }
+  }catch(e){ /* 곁다리 기능이라 조용히 넘어갑니다 */ }
+}
+
+function paintPresence(){
+  const el = document.getElementById('presenceBox');
+  if(!el) return;
+  if(!presence.length){ el.style.display = 'none'; return; }
+  el.style.display = '';
+  const others = presence.filter(p => !p['나인가']);
+  // 이름이 길어져도 위쪽 띠가 밀리지 않게 두 명까지만 적습니다
+  const names = others.slice(0, 2).map(p => p['이름']).join(', ')
+    + (others.length > 2 ? ' 외 ' + (others.length - 2) + '명' : '');
+  el.innerHTML = '<span class="pdot"></span>'
+    + '<span>' + presence.length + '명</span>'
+    + '<span class="pnames">' + (others.length ? esc(names) : '나만 보는 중') + '</span>'
+    + (myName() ? '' : '<span class="pset">이름 설정</span>');
+  el.title = presence.map(p => (p['나인가'] ? '나' : p['이름'])
+    + (p['보는곳'] ? ' — ' + p['보는곳'] : '')).join('\n');
+}
 
 async function storageLoad(){
   if(STORAGE_MODE === 'nas'){
@@ -5200,7 +5336,8 @@ async function saveAll(silent){
     let tries = 0, mergedOnce = false;
     for(;;){
       try{
-        const payload = Object.assign({}, data, { _baseRev: data._rev || 0 });
+        const payload = Object.assign({}, data,
+          { _baseRev: data._rev || 0, _lastBy: myName() });
         await storageSave(payload);
         break;
       }catch(e){
@@ -5296,8 +5433,9 @@ function normalize(raw){
 }
 
 function updateSubtitle(){
-  const when = data.savedAt
-    ? new Date(data.savedAt).toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })
+  const d = data.savedAt ? new Date(data.savedAt) : null;
+  const when = (d && !isNaN(d.getTime()))
+    ? d.toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })
     : '아직 저장 안 됨';
   document.getElementById('subtitle').textContent = '넷폼알앤디 · 마지막 저장: ' + when;
 }
@@ -5368,6 +5506,10 @@ async function init(){
     loadChannelSummary();                                  // 채널 새 글 (받아둔 것 읽기)
     setInterval(loadChannelSummary, 5 * 60 * 1000);        // 열어둔 채로도 5분마다 갱신
     setInterval(() => checkVersion(false), 30 * 60 * 1000);
+
+    startLive();                                           // 실시간 반영 (2초마다 확인)
+    pingPresence();                                        // 지금 누가 보고 있는지
+    setInterval(pingPresence, 15000);
   }
 }
 init();

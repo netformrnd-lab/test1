@@ -12,6 +12,30 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
 $file = __DIR__ . '/data/brand-data.json';
 
+/**
+ * ?rev=1 — 지금 판 번호만 알려줍니다. (실시간 반영에 씁니다)
+ *
+ * 다른 사람 화면이 몇 초마다 이걸 물어보고, 번호가 달라졌을 때만
+ * 전체 내용을 받아갑니다. 그래서 자주 물어봐도 NAS 가 힘들지 않습니다.
+ */
+if (isset($_GET['rev'])) {
+    $revFile = __DIR__ . '/data/rev.txt';
+    $rev = 0; $at = null; $by = '';
+    if (is_file($revFile)) {
+        $parts = explode("\t", (string)@file_get_contents($revFile));
+        $rev = (int)($parts[0] ?? 0);
+        $at  = $parts[1] ?? null;
+        $by  = $parts[2] ?? '';
+    } elseif (is_file($file)) {
+        // rev.txt 가 아직 없으면(예전 판) 한 번만 본문에서 읽습니다
+        $d = json_decode((string)@file_get_contents($file), true);
+        $rev = is_array($d) && isset($d['_rev']) ? (int)$d['_rev'] : 0;
+    }
+    echo json_encode(['ok' => true, 'rev' => $rev, '시각' => $at, '고친사람' => $by],
+        JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // 아직 저장된 데이터가 없으면 빈 값을 돌려줍니다 (첫 사용 시 정상입니다)
 if (!file_exists($file)) {
     echo 'null';

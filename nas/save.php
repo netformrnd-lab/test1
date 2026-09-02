@@ -139,6 +139,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
         'nasscan.php'   => ['nas/nasscan.php','<?php'],
         'doctext.php'   => ['nas/doctext.php','<?php'],
         'channels.php'  => ['nas/channels.php','<?php'],
+        'presence.php'  => ['nas/presence.php','<?php'],
         'scan.sh'       => ['nas/scan.sh','ROOT='],
         'feeds.sh'      => ['nas/feeds.sh','URL='],
         'config.sample.php' => ['nas/config.sample.php','<?php'],
@@ -315,6 +316,20 @@ if ($wrote === false || $wrote !== strlen($json) || !@rename($tmp, $file)) {
     exit;
 }
 @chmod($file, 0664);
+
+// 판 번호만 따로 작은 파일에 적어둡니다.
+// 다른 사람 화면이 "바뀐 게 있나?" 를 물을 때 이 파일만 읽으면 되어서
+// 큰 데이터를 매번 읽지 않아도 됩니다.
+$rev = $dir . '/rev.txt';
+$rt  = $rev . '.tmp' . getmypid();
+if (@file_put_contents($rt, $data['_rev'] . "\t" . date('c') . "\t"
+        . (isset($data['_lastBy']) ? (string)$data['_lastBy'] : '')) !== false) {
+    @rename($rt, $rev);
+    @chmod($rev, 0664);
+} else {
+    @unlink($rt);
+}
+
 if ($lk) { flock($lk, LOCK_UN); fclose($lk); }
 
 echo json_encode(['ok' => true, 'savedAt' => date('c'), 'rev' => $data['_rev']]);

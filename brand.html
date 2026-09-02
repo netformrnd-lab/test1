@@ -3306,7 +3306,7 @@ function analyzeInquiries(rows){
   const cols = [];
   rows.forEach(r => Object.keys(r).forEach(k => { if(!cols.includes(k)) cols.push(k); }));
 
-  const looksDate = v => /^\d{4}[-./]\s?\d{1,2}[-./]\s?\d{1,2}/.test(String(v || '').trim());
+  const looksDate = v => parseYMD(v) !== null && /\d{4}|\d{1,2}[-./]\d{1,2}/.test(String(v || ''));
   const dateCol = cols.find(c => /날짜|일자|일시|date/i.test(c) && rows.some(r => looksDate(r[c])))
                || cols.find(c => rows.filter(r => looksDate(r[c])).length > rows.length * 0.5);
 
@@ -3351,9 +3351,36 @@ function analyzeInquiries(rows){
   return { cols, dateCol, cats: cats.map(x => x.col).slice(0, 6), textCol };
 }
 
+/* 문의 날짜를 진짜 날짜로 읽습니다.
+   "2026. 8. 7" 처럼 0을 안 붙인 날짜가 섞이면 글자로 비교할 때
+   8월 7일이 8월 21일보다 최신으로 잡혀서, 반드시 숫자로 바꿔 비교합니다. */
+function parseYMD(v){
+  const s = String(v || '').trim();
+  if(!s) return null;
+  let m = s.match(/^(\d{4})\s*[-./년]\s*(\d{1,2})\s*[-./월]\s*(\d{1,2})/);
+  if(m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/);          // 8/21/2026
+  if(m) return new Date(+m[3], +m[1] - 1, +m[2]);
+  m = s.match(/^(\d{4})(\d{2})(\d{2})$/);                        // 20260821
+  if(m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  const t = Date.parse(s);
+  return isNaN(t) ? null : new Date(t);
+}
+
+function dateNum(v){
+  const d = parseYMD(v);
+  return d ? d.getTime() : -Infinity;
+}
+
+function fmtYMD(v){
+  const d = parseYMD(v);
+  if(!d) return String(v || '');
+  return d.getFullYear() + '. ' + (d.getMonth() + 1) + '. ' + d.getDate();
+}
+
 function ym(v){
-  const m = String(v || '').match(/^(\d{4})[-./]\s?(\d{1,2})/);
-  return m ? m[1] + '-' + String(m[2]).padStart(2, '0') : '';
+  const d = parseYMD(v);
+  return d ? d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') : '';
 }
 
 function countBy(rows, col){
@@ -3376,12 +3403,9 @@ function inquirySummary(rows){
 
   // 이번 달이 아직 진행 중이면, 지난달도 "같은 날짜까지만" 세어야 비교가 맞습니다
   const today = now.getDate();
-  const dayOf = v => {
-    const m = String(v || '').match(/^\d{4}[-./]\s?\d{1,2}[-./]\s?(\d{1,2})/);
-    return m ? Number(m[1]) : 0;
-  };
+  const dayOf = v => { const d = parseYMD(v); return d ? d.getDate() : 0; };
 
-  let thisMonth = 0, lastMonth = 0, lastMonthFull = 0, latest = '';
+  let thisMonth = 0, lastMonth = 0, lastMonthFull = 0, latest = '', latestNum = -Infinity;
   if(a.dateCol){
     rows.forEach(r => {
       const k = ym(r[a.dateCol]);
@@ -3390,8 +3414,8 @@ function inquirySummary(rows){
         lastMonthFull++;
         if(dayOf(r[a.dateCol]) <= today) lastMonth++;
       }
-      const d = String(r[a.dateCol] || '').trim();
-      if(d && d > latest) latest = d;
+      const t = dateNum(r[a.dateCol]);
+      if(t > latestNum){ latestNum = t; latest = fmtYMD(r[a.dateCol]); }
     });
   }
   return Object.assign(a, { thisMonth, lastMonth, lastMonthFull, latest, thisYM, prevYM, today });
@@ -3496,8 +3520,7 @@ function viewInquiries(b){
 
   // 최근 문의 목록
   const recent = sum.dateCol
-    ? shown.slice().sort((x, y) =>
-        String(y[sum.dateCol] || '').localeCompare(String(x[sum.dateCol] || ''))).slice(0, 8)
+    ? shown.slice().sort((x, y) => dateNum(y[sum.dateCol]) - dateNum(x[sum.dateCol])).slice(0, 8)
     : shown.slice(0, 8);
   const recentList = '<div class="hsec">🕘 최근 문의</div><div class="mbox">'
     + (recent.length ? recent.map(r => {
@@ -3511,7 +3534,7 @@ function viewInquiries(b){
         }
         return '<div class="krow" style="flex-direction:column;align-items:stretch;gap:4px">'
           + '<div style="white-space:normal;color:var(--text-primary)">'
-            + (sum.dateCol ? '<b>' + highlight(r[sum.dateCol] || '', inquiryQuery) + '</b>'
+            + (sum.dateCol ? '<b>' + highlight(fmtYMD(r[sum.dateCol]), inquiryQuery) + '</b>'
                              + (text ? ' · ' : '') : '')
             + highlight(text.slice(0, 90), inquiryQuery)
           + '</div>'

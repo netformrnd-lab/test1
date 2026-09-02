@@ -74,9 +74,19 @@ function load_sources($f) {
     return [];
 }
 
+
+/** 파일을 통째로 바꿔치기합니다. 반쯤 쓰인 내용이 읽히지 않게 하려는 것입니다. */
+function atomic_put($path, $text) {
+    $tmp = $path . '.tmp' . getmypid();
+    if (@file_put_contents($tmp, $text) === false) { @unlink($tmp); return false; }
+    if (!@rename($tmp, $path)) { @unlink($tmp); return false; }
+    @chmod($path, 0664);
+    return true;
+}
+
 function save_sources($f, $list) {
-    return @file_put_contents($f, json_encode(
-        ['sources' => array_values($list), 'setAt' => date('c')], JSON_UNESCAPED_UNICODE)) !== false;
+    return atomic_put($f, json_encode(
+        ['sources' => array_values($list), 'setAt' => date('c')], JSON_UNESCAPED_UNICODE));
 }
 
 /* 예전 코드가 부르던 이름 — 첫 번째 시트를 돌려줍니다 */

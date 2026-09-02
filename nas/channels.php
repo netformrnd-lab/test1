@@ -36,6 +36,16 @@ register_shutdown_function(function () {
     } else { ob_end_flush(); }
 });
 
+
+/** 파일을 통째로 바꿔치기합니다. 반쯤 쓰인 내용이 읽히지 않게 하려는 것입니다. */
+function atomic_put($path, $text) {
+    $tmp = $path . '.tmp' . getmypid();
+    if (@file_put_contents($tmp, $text) === false) { @unlink($tmp); return false; }
+    if (!@rename($tmp, $path)) { @unlink($tmp); return false; }
+    @chmod($path, 0664);
+    return true;
+}
+
 $CACHE_DIR = __DIR__ . '/data/feedcache';
 $CACHE_TTL = 1800;          // 30분
 
@@ -469,7 +479,7 @@ if ($action === 'refreshall') {
             $failed[] = ['채널' => $c['브랜드'] . ' · ' . $c['이름'], '시도내역' => ['RSS 형식이 아닙니다']];
             continue;
         }
-        @file_put_contents($cf, json_encode(
+        atomic_put($cf, json_encode(
             ['ok' => true, 'title' => $p['title'], 'items' => $p['items'],
              '받은시각' => date('c'), '캐시' => '아니오'], JSON_UNESCAPED_UNICODE));
         $ok++;
@@ -517,7 +527,7 @@ if ($action === 'feed') {
 
     $out = ['ok' => true, 'title' => $p['title'], 'items' => $p['items'],
             '받은시각' => date('c'), '캐시' => '아니오'];
-    @file_put_contents($cf, json_encode($out, JSON_UNESCAPED_UNICODE));
+    atomic_put($cf, json_encode($out, JSON_UNESCAPED_UNICODE));
     jout($out);
 }
 

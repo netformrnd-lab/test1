@@ -742,16 +742,21 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260902-14';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260902-15';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
+
+let saveBlocked = false;   // 불러오기가 실패하면 켜집니다 (덮어쓰기 방지)
 
 async function storageLoad(){
   if(STORAGE_MODE === 'nas'){
     const res = await fetch(NAS_API.load + '?t=' + Date.now(), { cache:'no-store' });
     if(!res.ok) throw new Error('NAS 응답 오류 (' + res.status + ')');
     const text = await res.text();
-    return text.trim() ? JSON.parse(text) : null;
+    if(!text.trim()) return null;              // 처음 쓰는 경우
+    const j = JSON.parse(text);
+    if(j && j._error) throw new Error(j._error + '\n\n' + (j._안내 || ''));
+    return j;
   }
   const raw = localStorage.getItem(LS_KEY);
   return raw ? JSON.parse(raw) : null;
@@ -770,9 +775,18 @@ async function storageSave(payload){
       throw new Error('서버가 예상 밖의 응답을 보냈습니다 (HTTP ' + res.status + ') → '
         + text.slice(0, 300).replace(/\s+/g, ' '));
     }
+    if(out.conflict){
+      // 내가 불러온 뒤에 다른 사람이 저장했습니다. 오류가 아니라 합쳐야 하는 상황입니다.
+      const e = new Error('다른 사람이 먼저 저장했습니다');
+      e.conflict = true;
+      e.server   = out.data;
+      e.rev      = out.rev;
+      throw e;
+    }
     if(!res.ok || !out.ok){
       throw new Error('(HTTP ' + res.status + ') ' + (out.error || '알 수 없는 오류'));
     }
+    if(typeof out.rev === 'number') data._rev = out.rev;
     return;
   }
   localStorage.setItem(LS_KEY, JSON.stringify(payload));
@@ -1556,6 +1570,7 @@ function removeChannel(id){
   if(!c) return;
   if(!confirm('"' + (c.name || c.url) + '" 을 지울까요?')) return;
   b.channels = b.channels.filter(x => x.id !== id);
+  deletedIds.add(id);
   markDirty(); render();
 }
 
@@ -3059,6 +3074,7 @@ function removeTool(id){
   if(!confirm('"' + t.name + '" 을 목록에서 지울까요?\n\n'
     + 'NAS의 실제 파일은 자료 폴더에 그대로 남습니다.')) return;
   b.tools = b.tools.filter(x => x.id !== id);
+  deletedIds.add(id);
   if(runningTool === id) runningTool = null;
   markDirty();
   render();
@@ -4426,7 +4442,7 @@ function moveBrand(id, dir){
   const j = i + dir;
   if(i < 0 || j < 0 || j >= data.brands.length) return;
   [data.brands[i], data.brands[j]] = [data.brands[j], data.brands[i]];
-  render(); markDirty();
+  render(); markDirtyAll();          // 목록 순서가 바뀌었습니다
 }
 
 function moveHistory(id, dir){
@@ -4560,6 +4576,7 @@ function submitBrand(){
     desc:  document.getElementById('bDesc').value.trim(),
     color: document.getElementById('bColor').value
   };
+  let added = false;
   if(editingBrandId){
     Object.assign(brandById(editingBrandId), payload);
   }else{
@@ -4568,9 +4585,12 @@ function submitBrand(){
     view = 'brand';
     currentBrandId = b.id;
     currentTab = 'inquiries';
+    added = true;
   }
   closeModal('brandModal');
-  render(); markDirty();
+  render();
+  if(added) markDirtyAll();          // 브랜드가 새로 생겼습니다
+  else markDirty(editingBrandId);
 }
 
 function deleteBrand(id){
@@ -4579,7 +4599,7 @@ function deleteBrand(id){
   if(!confirm('"' + b.name + '" 브랜드를 삭제할까요?\n\n안에 있는 ' + n + '개 항목과 마스터프롬프트도 함께 사라집니다.')) return;
   data.brands = data.brands.filter(x => x.id !== id);
   if(currentBrandId === id) currentBrandId = data.brands.length ? data.brands[0].id : null;
-  render(); markDirty();
+  render(); markDirtyAll();          // 브랜드가 사라졌습니다
   toast('🗑️ 브랜드를 삭제했습니다');
 }
 
@@ -4643,6 +4663,7 @@ function deleteItem(type, id){
   const it = b[type].find(x => x.id === id);
   if(!confirm('"' + it.title + '" 항목을 삭제할까요?')) return;
   b[type] = b[type].filter(x => x.id !== id);
+  deletedIds.add(id);
   render(); markDirty();
   toast('🗑️ 삭제했습니다');
 }
@@ -4809,10 +4830,107 @@ let saveTimer = null;     // 자동 저장 예약
 let saving = false;       // 저장이 진행 중인지
 let saveAgain = false;    // 저장 중에 또 바뀌었는지
 
-function markDirty(){
+/* 여러 명이 같이 쓰기 때문에, 내가 무엇을 고쳤는지 기억해 둡니다.
+   다른 사람이 먼저 저장했을 때 '내가 고친 것만' 얹어서 합치기 위해서입니다. */
+const dirtyBrands = new Set();   // 내가 내용을 고친 브랜드
+let dirtyGlobal = false;         // 브랜드를 더하거나 지우거나 순서를 바꿨는지
+
+function markDirty(brandId){
+  const id = brandId || currentBrandId;
+  if(id) dirtyBrands.add(id);
   setSaveState('dirty');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => saveAll(true), 1200);
+}
+
+/* 브랜드 목록 자체가 바뀐 경우 (추가·삭제·순서) */
+function markDirtyAll(){
+  dirtyGlobal = true;
+  markDirty();
+}
+
+const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels']);
+const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
+let baseIds = new Set();         // 불러온 시점에 있던 항목들
+
+/* 불러온(또는 방금 저장한) 시점의 항목 id 를 기억해 둡니다.
+   나중에 "서버엔 없고 내게만 있는 것" 이 나왔을 때,
+   내가 새로 만든 것인지 / 남이 지운 것인지 구별하려는 것입니다. */
+function snapshotIds(d){
+  const set = new Set();
+  (d && d.brands || []).forEach(b => {
+    set.add(b.id);
+    MERGE_LISTS.forEach(k => (b[k] || []).forEach(x => { if(x && x.id) set.add(x.id); }));
+  });
+  return set;
+}
+
+/* 서버엔 없고 내 화면에만 있는 것 → 남겨야 하나?
+   불러올 때 있었다면 그 사이 누군가 지운 것이므로 빼고,
+   불러온 뒤에 내가 만든 것이면 남깁니다. */
+function keepMine(id){ return !baseIds.has(id); }
+
+/* 브랜드 하나를 합칩니다.
+   같은 브랜드를 둘이 동시에 고쳐도, 항목을 하나씩 대조해서 둘 다 남깁니다.
+     · 서버에만 있는 것  → 그대로 둡니다 (다른 사람이 방금 넣은 것)
+     · 내가 고친 것      → 내 것으로 바꿉니다
+     · 내가 지운 것      → 뺍니다
+     · 내가 새로 만든 것 → 넣습니다                                        */
+function mergeBrand(mineB, srvB){
+  const out = Object.assign({}, srvB, mineB);
+  MERGE_LISTS.forEach(k => {
+    const mineArr = Array.isArray(mineB[k]) ? mineB[k] : [];
+    const srvArr  = Array.isArray(srvB[k])  ? srvB[k]  : [];
+    const mineById = new Map(mineArr.map(x => [x.id, x]));
+    const srvIds   = new Set(srvArr.map(x => x.id));
+
+    const res = [];
+    srvArr.forEach(sv => {
+      if(deletedIds.has(sv.id)) return;                 // 내가 지운 것
+      res.push(mineById.has(sv.id) ? mineById.get(sv.id) : sv);
+    });
+    mineArr.forEach((m, i) => {
+      if(srvIds.has(m.id)) return;
+      if(!keepMine(m.id)) return;        // 그 사이 다른 사람이 지운 것 → 되살리지 않습니다
+      if(i === 0) res.unshift(m); else res.push(m);   // 내가 새로 만든 것
+    });
+    out[k] = res;
+  });
+  return out;
+}
+
+/* 서버에 있는 내용 위에 '내가 고친 것' 만 얹습니다.
+   서로 다른 브랜드를 만졌으면 둘 다 그대로 남습니다. */
+function mergeWithServer(server){
+  if(!server || !Array.isArray(server.brands)) return data;
+  const mine = data;
+  const byId = id => mine.brands.find(x => x.id === id);
+
+  const srvById = id => server.brands.find(x => x.id === id);
+  let brands;
+  if(dirtyGlobal){
+    // 목록 구성(있고 없고, 순서)은 내 화면을 따르고,
+    // 내가 안 건드린 브랜드의 내용은 서버 것을 씁니다.
+    brands = mine.brands.map(b => {
+      const sv = srvById(b.id);
+      if(!sv) return keepMine(b.id) ? b : null;           // 없으면: 내가 만든 것만 남깁니다
+      return dirtyBrands.has(b.id) ? mergeBrand(b, sv) : sv;
+    }).filter(Boolean);
+  }else{
+    // 목록은 서버 것을 따르고, 내가 고친 브랜드만 항목 단위로 합칩니다.
+    brands = server.brands.map(sv => {
+      const m = byId(sv.id);
+      return (m && dirtyBrands.has(sv.id)) ? mergeBrand(m, sv) : sv;
+    });
+    mine.brands.forEach(m => {
+      if(dirtyBrands.has(m.id) && keepMine(m.id) && !brands.some(x => x.id === m.id))
+        brands.push(m);
+    });
+  }
+
+  const merged = Object.assign({}, server, mine, { brands: brands });
+  merged._rev = server._rev;
+  return merged;
 }
 
 function setSaveState(state){
@@ -4832,17 +4950,49 @@ function setSaveState(state){
 async function saveAll(silent){
   if(saving){ saveAgain = true; return; }   // 겹쳐 저장하지 않습니다
   clearTimeout(saveTimer);
+
+  // 불러오기가 실패했으면 NAS 에 쓰지 않습니다.
+  // 잘못하면 다른 사람들 자료를 빈 값으로 덮어쓰게 됩니다.
+  if(saveBlocked){
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+    setSaveState('failed');
+    showError('NAS에서 자료를 불러오지 못한 상태입니다.\n\n'
+      + '이대로 저장하면 다른 분들 자료를 덮어쓸 수 있어 저장하지 않았습니다.\n'
+      + '고친 내용은 이 브라우저에 임시 보관했습니다. 새로고침(F5) 해 주세요.');
+    return;
+  }
+
   saving = true;
   setSaveState('saving');
-
   data.savedAt = new Date().toISOString();
   data.schema = SCHEMA;
+
   try{
-    await storageSave(data);
+    let tries = 0;
+    for(;;){
+      try{
+        const payload = Object.assign({}, data, { _baseRev: data._rev || 0 });
+        await storageSave(payload);
+        break;
+      }catch(e){
+        if(!e.conflict || ++tries > 3) throw e;
+        // 다른 사람이 먼저 저장했습니다 → 그 내용 위에 내 것만 얹어서 다시 시도
+        data = normalize(mergeWithServer(e.server));
+        data._rev = e.rev;
+        baseIds = snapshotIds(e.server);   // 서버 것이 새 기준입니다
+        data.savedAt = new Date().toISOString();
+        if(!silent) toast('다른 분이 저장한 내용과 합치는 중…');
+      }
+    }
+    dirtyBrands.clear();
+    deletedIds.clear();
+    dirtyGlobal = false;
+    baseIds = snapshotIds(data);      // 지금 내용을 새 기준으로
     document.getElementById('errBar').classList.remove('show');
     setSaveState('saved');
     if(!silent) toast(STORAGE_MODE === 'nas' ? '✅ NAS에 저장되었습니다' : '✅ 저장되었습니다 (이 브라우저)');
     updateSubtitle();
+    render();
   }catch(e){
     localStorage.setItem(LS_KEY, JSON.stringify(data));   // 안전망
     setBadge('error', 'NAS 저장 실패 — 임시로 이 브라우저에 보관');
@@ -4855,7 +5005,9 @@ async function saveAll(silent){
 }
 
 function exportJSON(){
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const copy = Object.assign({}, data);
+  delete copy._rev;                       // 내부에서만 쓰는 판 번호는 뺍니다
+  const blob = new Blob([JSON.stringify(copy, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = '브랜드허브_' + new Date().toISOString().slice(0,10) + '.json';
@@ -4872,10 +5024,16 @@ function importJSON(ev){
     try{
       const parsed = JSON.parse(reader.result);
       if(!Array.isArray(parsed.brands)) throw new Error('브랜드 목록이 없습니다');
-      if(!confirm('현재 내용을 파일 내용으로 덮어씁니다. 계속할까요?')) return;
+      if(!confirm('현재 내용을 파일 내용으로 덮어씁니다.\n\n'
+        + '다른 분이 그 사이에 넣은 내용도 함께 사라질 수 있습니다. 계속할까요?')) return;
+      const keepRev = data._rev || 0;         // 판 번호는 지금 것을 유지합니다
       data = normalize(parsed);
+      data._rev = keepRev;
+      // 파일로 되돌리는 것은 '전부 내 것으로' 라는 뜻이므로 전체를 바뀐 것으로 표시합니다
+      baseIds = new Set();
+      data.brands.forEach(b => dirtyBrands.add(b.id));
       currentBrandId = data.brands.length ? data.brands[0].id : null;
-      render(); markDirty();
+      render(); markDirtyAll();
       toast('📥 불러왔습니다');
     }catch(e){ toast('⚠️ 파일을 읽을 수 없습니다: ' + e.message); }
   };
@@ -4890,6 +5048,7 @@ function normalize(raw){
     if(raw && Object.keys(raw).length) fresh._이전형식백업 = raw;  // 예전 데이터는 버리지 않음
     return fresh;
   }
+  if(typeof raw._rev !== 'number') raw._rev = 0;
   raw.brands.forEach(b => {
     b.id = b.id || uid('b');
     b.icon = b.icon || '🏷️';
@@ -4948,12 +5107,23 @@ async function init(){
   try{
     const loaded = await storageLoad();
     if(loaded) data = normalize(loaded);
+    baseIds = snapshotIds(data);
     setBadge(STORAGE_MODE === 'nas' ? 'nas' : '',
       STORAGE_MODE === 'nas' ? 'NAS 공유 저장' : '이 브라우저에만 저장');
   }catch(e){
     const raw = localStorage.getItem(LS_KEY);
     if(raw) data = normalize(JSON.parse(raw));
-    setBadge('error', 'NAS 연결 실패 — 이 브라우저 데이터 표시 중');
+    if(STORAGE_MODE === 'nas'){
+      // 불러오기에 실패한 채로 저장하면 다른 분들 자료를 날립니다. 저장을 막습니다.
+      saveBlocked = true;
+      setBadge('error', 'NAS에서 못 불러왔습니다 — 저장하지 않습니다');
+      showError('NAS에서 자료를 불러오지 못했습니다.\n\n' + (e.message || e)
+        + '\n\n지금 고치신 내용은 NAS에 저장되지 않습니다. '
+        + '(다른 분들 자료를 덮어쓰지 않으려는 안전장치입니다)\n'
+        + '새로고침(F5) 해서 다시 불러와 주세요.');
+    }else{
+      setBadge('error', 'NAS 연결 실패 — 이 브라우저 데이터 표시 중');
+    }
   }
 
   currentBrandId = null;   // 처음에는 홈부터 보여줍니다

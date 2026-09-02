@@ -49,17 +49,26 @@ function safe_name($s, $fallback = '기타') {
     return $s;
 }
 
-/** 같은 이름이 있으면 "이름 (2).pdf" 처럼 번호를 붙입니다 */
+/**
+ * 같은 이름이 있으면 "이름 (2).pdf" 처럼 번호를 붙입니다.
+ *
+ * 두 사람이 같은 이름을 같은 순간에 올릴 수도 있어서,
+ * "없더라" 를 보고 쓰는 게 아니라 '내가 먼저 만들기'(x 모드)로 자리를 잡습니다.
+ * 그래야 한쪽이 다른 쪽 파일을 덮어쓰지 않습니다.
+ */
 function unique_path($dir, $name) {
     $ext  = pathinfo($name, PATHINFO_EXTENSION);
     $base = pathinfo($name, PATHINFO_FILENAME);
     $try  = $name;
-    $i    = 1;
-    while (file_exists($dir . '/' . $try)) {
-        $i++;
-        $try = $base . ' (' . $i . ')' . ($ext !== '' ? '.' . $ext : '');
+    for ($i = 1; $i < 500; $i++) {
+        if ($i > 1) {
+            $try = $base . ' (' . $i . ')' . ($ext !== '' ? '.' . $ext : '');
+        }
+        $h = @fopen($dir . '/' . $try, 'x');      // 이미 있으면 실패합니다
+        if ($h) { fclose($h); return $try; }
     }
-    return $try;
+    return $base . '-' . substr(md5(uniqid('', true)), 0, 6)
+         . ($ext !== '' ? '.' . $ext : '');
 }
 
 /** brand-data.json 에서 fileId 에 해당하는 자료 항목을 찾습니다 */
@@ -193,6 +202,7 @@ if ($action === 'upload') {
     $dest = $brandDir . '/' . $fileName;
 
     if (!move_uploaded_file($f['tmp_name'], $dest)) {
+        @unlink($dest);      // 자리만 잡아둔 빈 파일을 치웁니다
         jout(['ok' => false, 'error' =>
             'NAS에 파일을 저장하지 못했습니다 / 폴더 쓰기가능='
             . (is_writable($brandDir) ? '예' : '아니오')], 500);
@@ -267,6 +277,7 @@ if ($action === 'movetonas') {
 
     if (!@rename($src, $target)) {                 // 볼륨이 다르면 rename 이 안 됩니다
         if (!@copy($src, $target)) {
+            @unlink($target);   // 자리만 잡아둔 빈 파일을 치웁니다
             jout(['ok' => false, 'error' => '파일을 옮기지 못했습니다 (복사 실패)'], 500);
         }
         @unlink($src);

@@ -246,33 +246,75 @@ if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
 
 $file = $dir . '/brand-data.json';
 
+/**
+ * 여러 명이 같이 쓰기 때문에 두 가지를 지킵니다.
+ *
+ * 1) 덮어쓰기 방지
+ *    불러올 때 받은 판 번호(_rev)를 같이 보내주면, 그 사이에 다른 사람이
+ *    저장했는지 확인합니다. 바뀌었으면 저장하지 않고 서버에 있는 내용을
+ *    돌려줍니다. 화면에서 내 것과 합친 뒤 다시 저장합니다.
+ *
+ * 2) 반쯤 쓰인 파일이 읽히지 않게
+ *    옆에 임시 파일로 다 쓴 다음 이름만 바꿔치기합니다(rename).
+ *    그래서 읽는 쪽은 언제나 '이전 것' 아니면 '새 것' 중 하나만 봅니다.
+ */
+$lockFile = $dir . '/save.lock';
+$lk = @fopen($lockFile, 'c');
+if ($lk) { flock($lk, LOCK_EX); }          // 저장은 한 번에 한 명씩
+
+$curRev = 0;
+if (file_exists($file)) {
+    $cur = json_decode((string)@file_get_contents($file), true);
+    if (is_array($cur) && isset($cur['_rev'])) $curRev = (int)$cur['_rev'];
+}
+
+// 화면에서 보내온 '내가 불러올 때의 판 번호'
+$baseRev = isset($data['_baseRev']) ? (int)$data['_baseRev'] : null;
+unset($data['_baseRev']);
+
+if ($baseRev !== null && $baseRev !== $curRev) {
+    if ($lk) { flock($lk, LOCK_UN); fclose($lk); }
+    echo json_encode([
+        'ok'       => false,
+        'conflict' => true,
+        'rev'      => $curRev,
+        'error'    => '그 사이에 다른 사람이 저장했습니다',
+        'data'     => file_exists($file)
+                        ? json_decode((string)@file_get_contents($file), true) : null,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // 하루 1회 백업
 $backup = $dir . '/backup-' . date('Y-m-d') . '.json';
 if (file_exists($file) && !file_exists($backup)) {
     @copy($file, $backup);
 }
 
-$fp = @fopen($file, 'c+');
-if (!$fp) {
-    http_response_code(200);   // 오류도 200 으로 (웹 스테이션이 내용을 바꿔치기 함)
+$data['_rev'] = $curRev + 1;
+$json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+if ($json === false) {
+    if ($lk) { flock($lk, LOCK_UN); fclose($lk); }
+    http_response_code(200);
+    echo json_encode(['ok' => false, 'error' => '데이터를 저장 형식으로 바꾸지 못했습니다'],
+        JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// 임시 파일에 다 쓴 다음 이름만 바꿉니다 (읽는 쪽이 반쪽짜리를 보지 않게)
+$tmp = $file . '.tmp' . getmypid();
+$wrote = @file_put_contents($tmp, $json);
+if ($wrote === false || $wrote !== strlen($json) || !@rename($tmp, $file)) {
+    @unlink($tmp);
+    if ($lk) { flock($lk, LOCK_UN); fclose($lk); }
+    http_response_code(200);
     echo json_encode(['ok' => false, 'error' =>
-        "파일을 열 수 없습니다: $file / data폴더 쓰기가능="
+        "파일을 저장하지 못했습니다: $file / data폴더 쓰기가능="
         . (is_writable($dir) ? '예' : '아니오')
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }
-if (!flock($fp, LOCK_EX)) {
-    fclose($fp);
-    http_response_code(200);   // 오류도 200 으로 (웹 스테이션이 내용을 바꿔치기 함)
-    echo json_encode(['ok' => false, 'error' => '다른 사람이 저장 중입니다. 잠시 후 다시 시도해 주세요'], JSON_UNESCAPED_UNICODE);
-    exit;
-}
+@chmod($file, 0664);
+if ($lk) { flock($lk, LOCK_UN); fclose($lk); }
 
-ftruncate($fp, 0);
-rewind($fp);
-fwrite($fp, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-fflush($fp);
-flock($fp, LOCK_UN);
-fclose($fp);
-
-echo json_encode(['ok' => true, 'savedAt' => date('c')]);
+echo json_encode(['ok' => true, 'savedAt' => date('c'), 'rev' => $data['_rev']]);

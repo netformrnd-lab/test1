@@ -640,6 +640,9 @@ table.itable tr:hover td{background:var(--bg-hover)}
   padding:1.5px 5px;border-radius:4px;background:var(--red);color:#fff;vertical-align:1.5px}
 
 /* ---------- 알림 ---------- */
+.cnt.clashdot{display:inline-grid;place-items:center;min-width:17px;height:17px;
+  border-radius:999px;background:var(--yellow);color:#fff;font-size:10px;font-weight:700;
+  margin-left:auto}
 .clashbar{border:1px solid rgba(192,119,8,.4);background:rgba(192,119,8,.07);
   border-radius:var(--r-md);padding:14px 16px;margin-bottom:14px}
 .cb-top{font-size:13px;line-height:1.7;margin-bottom:10px}
@@ -767,7 +770,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260902-17';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260902-18';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1117,6 +1120,8 @@ function renderSidebar(){
       + '<span class="bar" style="background:' + b.color + '"></span>'
       + '<span class="em">' + esc(b.icon || '🏷️') + '</span>'
       + '<span>' + esc(b.name) + '</span>'
+      + ((b._conflicts || []).length
+          ? '<span class="cnt clashdot" title="다른 분과 같이 고친 것이 있습니다">⚠</span>' : '')
       + (function(){ const k = brandNewCount(b);
            return k ? '<span class="cnt newdot" title="채널에 안 본 글 ' + k + '개">'
                       + k + '</span>' : ''; })()
@@ -1192,6 +1197,8 @@ function renderHome(){
                                        : '<span class="chip">✨ 미작성</span>')
       + (function(){ const k = brandNewCount(b);
            return k ? '<span class="chip new">🆕 새 글 ' + k + '</span>' : ''; })()
+      + ((b._conflicts || []).length
+          ? '<span class="chip test">⚠️ 같이 고친 것 ' + b._conflicts.length + '</span>' : '')
     + '</div></div>').join('');
 
   // 기한이 지났거나 임박한 할 일
@@ -5058,11 +5065,16 @@ function keepMine(id, obj){
    (화면에 "같이 고친 것이 있습니다" 로 뜨고, 눌러서 확인·복사할 수 있습니다) */
 let clashed = 0;
 function stashClash(out, what, mineObj, srvObj){
-  out._conflicts = (out._conflicts || []).slice(0, 19);
-  out._conflicts.unshift({
-    id: uid('cf'), 무엇: what, 시각: new Date().toISOString(),
-    상대내용: srvObj, 내내용: mineObj
-  });
+  const list = (out._conflicts || []).slice(0, 19);
+  const sig  = sigOf(srvObj);
+  // 저장이 여러 번 겹치면 같은 내용이 두 번 쌓일 수 있어 한 번만 남깁니다
+  if(list.some(c => c['무엇'] === what && sigOf(c['상대내용']) === sig)){
+    out._conflicts = list;
+    return;
+  }
+  list.unshift({ id: uid('cf'), 무엇: what, 시각: new Date().toISOString(),
+                 상대내용: srvObj, 내내용: mineObj });
+  out._conflicts = list;
   clashed++;
 }
 
@@ -5185,7 +5197,7 @@ async function saveAll(silent){
   data.schema = SCHEMA;
 
   try{
-    let tries = 0;
+    let tries = 0, mergedOnce = false;
     for(;;){
       try{
         const payload = Object.assign({}, data, { _baseRev: data._rev || 0 });
@@ -5194,7 +5206,7 @@ async function saveAll(silent){
       }catch(e){
         if(!e.conflict || ++tries > 3) throw e;
         // 다른 사람이 먼저 저장했습니다 → 그 내용 위에 내 것만 얹어서 다시 시도
-        revived = 0; clashed = 0;
+        revived = 0; clashed = 0; mergedOnce = true;
         data = normalize(mergeWithServer(e.server));
         data._rev = e.rev;
         baseIds = snapshotIds(e.server);   // 서버 것이 새 기준입니다
@@ -5212,7 +5224,7 @@ async function saveAll(silent){
     setSaveState('saved');
     if(!silent) toast(STORAGE_MODE === 'nas' ? '✅ NAS에 저장되었습니다' : '✅ 저장되었습니다 (이 브라우저)');
     updateSubtitle();
-    render();
+    if(mergedOnce) render();      // 합쳐졌을 때만 다시 그립니다 (평소엔 화면을 건드리지 않음)
   }catch(e){
     localStorage.setItem(LS_KEY, JSON.stringify(data));   // 안전망
     setBadge('error', 'NAS 저장 실패 — 임시로 이 브라우저에 보관');

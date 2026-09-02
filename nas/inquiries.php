@@ -47,10 +47,42 @@ function load_all($file) {
 
 $SRC_FILE = $DATA_DIR . '/inquiries-source.json';
 
-function load_source($f) {
-    if (!is_file($f)) return null;
+/* 예전에는 시트를 하나만 담았습니다.
+   지금은 여러 개를 담고, 시트마다 브랜드를 못박을 수 있습니다.
+   예전 파일도 그대로 읽히도록 모양을 맞춰 돌려줍니다. */
+function load_sources($f) {
+    if (!is_file($f)) return [];
     $j = json_decode(file_get_contents($f), true);
-    return is_array($j) && !empty($j['url']) ? $j : null;
+    if (!is_array($j)) return [];
+
+    if (!empty($j['sources']) && is_array($j['sources'])) {   // 새 모양
+        $out = [];
+        foreach ($j['sources'] as $s) {
+            if (empty($s['url'])) continue;
+            $out[] = [
+                'id'    => $s['id']    ?? substr(md5($s['url']), 0, 8),
+                'name'  => $s['name']  ?? '',
+                'url'   => $s['url'],
+                'brand' => trim($s['brand'] ?? ''),      // 비우면 시트의 브랜드 열을 씁니다
+            ];
+        }
+        return $out;
+    }
+    if (!empty($j['url'])) {                                  // 예전 모양 (한 개)
+        return [['id' => substr(md5($j['url']), 0, 8), 'name' => '', 'url' => $j['url'], 'brand' => '']];
+    }
+    return [];
+}
+
+function save_sources($f, $list) {
+    return @file_put_contents($f, json_encode(
+        ['sources' => array_values($list), 'setAt' => date('c')], JSON_UNESCAPED_UNICODE)) !== false;
+}
+
+/* 예전 코드가 부르던 이름 — 첫 번째 시트를 돌려줍니다 */
+function load_source($f) {
+    $l = load_sources($f);
+    return $l ? $l[0] : null;
 }
 
 /** curl → file_get_contents → wget 순으로 가져옵니다 */
@@ -134,7 +166,15 @@ if ($action === 'check') {
         '브랜드별'   => $byBrand,
         '마지막갱신' => $all['updatedAt'],
         '보낸곳'     => $all['source'],
-        '연결된시트' => ($src = load_source($SRC_FILE)) ? $src['url'] : '연결 안 됨',
+        '연결된시트수' => count(load_sources($SRC_FILE)),
+        '연결된시트' => (function () use ($SRC_FILE) {
+            $l = load_sources($SRC_FILE);
+            if (!$l) return '연결 안 됨';
+            return array_map(function ($s) {
+                return ($s['name'] !== '' ? $s['name'] . ' — ' : '')
+                     . ($s['brand'] !== '' ? '[' . $s['brand'] . '] ' : '') . $s['url'];
+            }, $l);
+        })(),
         'data폴더_쓰기가능' => is_dir($DATA_DIR)
             ? (is_writable($DATA_DIR) ? '예' : '아니오')
             : (is_writable(__DIR__) ? '아직 없지만 만들 수 있음' : '상위 폴더에 쓸 수 없음'),
@@ -229,12 +269,42 @@ if ($action === 'list') {
 /* ---------------- 시트 주소 등록 / 해제 ---------------- */
 if ($action === 'setsource') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
-    $in  = json_decode(file_get_contents('php://input'), true) ?: [];
-    $url = trim($in['url'] ?? '');
+    $in   = json_decode(file_get_contents('php://input'), true) ?: [];
+    $list = load_sources($SRC_FILE);
 
-    if ($url === '') {                       // 빈 값이면 연결 해제
+    // 목록을 통째로 주면 그대로 저장합니다
+    if (isset($in['sources']) && is_array($in['sources'])) {
+        $clean = [];
+        foreach ($in['sources'] as $s) {
+            $u = trim($s['url'] ?? '');
+            if ($u === '') continue;
+            if (!preg_match('#^https://#i', $u)) {
+                jout(['ok' => false, 'error' => 'https:// 로 시작하는 주소만 연결할 수 있습니다: ' . $u], 400);
+            }
+            $clean[] = ['id' => $s['id'] ?? substr(md5($u . microtime()), 0, 8),
+                        'name' => trim($s['name'] ?? ''), 'url' => $u,
+                        'brand' => trim($s['brand'] ?? '')];
+        }
+        if (!is_dir($DATA_DIR) && !@mkdir($DATA_DIR, 0775, true) && !is_dir($DATA_DIR)) {
+            jout(['ok' => false, 'error' => 'data 폴더를 만들 수 없습니다 (권한 확인 필요)'], 500);
+        }
+        if (!save_sources($SRC_FILE, $clean)) jout(['ok' => false, 'error' => '저장하지 못했습니다'], 500);
+        jout(['ok' => true, '연결된시트수' => count($clean), 'sources' => $clean]);
+    }
+
+    // 하나 지우기
+    $del = trim($in['remove'] ?? '');
+    if ($del !== '') {
+        $list = array_values(array_filter($list, function ($s) use ($del) { return $s['id'] !== $del; }));
+        save_sources($SRC_FILE, $list);
+        jout(['ok' => true, '연결된시트수' => count($list), 'sources' => $list]);
+    }
+
+    // 하나 더하기 (빈 주소면 전부 해제 — 예전 방식과 같게)
+    $url = trim($in['url'] ?? '');
+    if ($url === '') {
         @unlink($SRC_FILE);
-        jout(['ok' => true, '연결' => '해제됨']);
+        jout(['ok' => true, '연결' => '해제됨', '연결된시트수' => 0]);
     }
     if (!preg_match('#^https://#i', $url)) {
         jout(['ok' => false, 'error' => 'https:// 로 시작하는 주소만 연결할 수 있습니다'], 400);
@@ -242,48 +312,89 @@ if ($action === 'setsource') {
     if (!is_dir($DATA_DIR) && !@mkdir($DATA_DIR, 0775, true) && !is_dir($DATA_DIR)) {
         jout(['ok' => false, 'error' => 'data 폴더를 만들 수 없습니다 (권한 확인 필요)'], 500);
     }
-    file_put_contents($SRC_FILE, json_encode(['url' => $url, 'setAt' => date('c')], JSON_UNESCAPED_UNICODE));
-    jout(['ok' => true, '연결' => $url]);
+    foreach ($list as $s) {
+        if ($s['url'] === $url) jout(['ok' => false, 'error' => '이미 연결된 시트입니다'], 400);
+    }
+    $list[] = ['id' => substr(md5($url . microtime()), 0, 8),
+               'name' => trim($in['name'] ?? ''), 'url' => $url,
+               'brand' => trim($in['brand'] ?? '')];
+    if (!save_sources($SRC_FILE, $list)) jout(['ok' => false, 'error' => '저장하지 못했습니다'], 500);
+    jout(['ok' => true, '연결된시트수' => count($list), 'sources' => $list]);
 }
 
-/* ---------------- 시트에서 지금 가져오기 ---------------- */
+/* ---------------- 연결된 시트 목록 ---------------- */
+if ($action === 'sources') {
+    jout(['ok' => true, 'sources' => load_sources($SRC_FILE)]);
+}
+
+/* ---------------- 시트에서 지금 가져오기 ----------------
+   연결된 시트를 모두 읽어 하나로 합칩니다.
+   브랜드를 못박아 둔 시트는 그 브랜드로 채웁니다 (브랜드 열이 없어도 됩니다).
+   ------------------------------------------------------- */
 if ($action === 'sync') {
-    $src = load_source($SRC_FILE);
-    if (!$src) jout(['ok' => false, 'error' => '연결된 시트가 없습니다. 먼저 시트 주소를 등록해 주세요.'], 400);
+    $list = load_sources($SRC_FILE);
+    if (!$list) jout(['ok' => false, 'error' => '연결된 시트가 없습니다. 먼저 시트 주소를 등록해 주세요.'], 400);
 
-    $how = null;
-    $csv = fetch_csv($src['url'], $how);
-    if ($csv === false) {
-        jout(['ok' => false, 'error' =>
-            '시트를 가져오지 못했습니다. 주소가 맞는지, NAS가 인터넷에 나갈 수 있는지 확인해 주세요.'], 502);
-    }
-    if (stripos(ltrim($csv), '<!DOCTYPE') === 0 || stripos(ltrim($csv), '<html') === 0) {
-        jout(['ok' => false, 'error' =>
-            'CSV가 아니라 웹페이지가 왔습니다. 시트를 「웹에 게시」하고 형식을 CSV로 선택했는지 확인해 주세요.'], 502);
+    $all      = [];
+    $perSheet = [];
+    $fails    = [];
+
+    foreach ($list as $src) {
+        $label = $src['name'] !== '' ? $src['name'] : ($src['brand'] !== '' ? $src['brand'] : $src['url']);
+        $how = null;
+        $csv = fetch_csv($src['url'], $how);
+
+        if ($csv === false) {
+            $fails[] = $label . ': 가져오지 못했습니다 (주소와 인터넷 연결 확인)';
+            continue;
+        }
+        if (stripos(ltrim($csv), '<!DOCTYPE') === 0 || stripos(ltrim($csv), '<html') === 0) {
+            $fails[] = $label . ': CSV가 아니라 웹페이지가 왔습니다 (「웹에 게시」 → 형식 CSV 확인)';
+            continue;
+        }
+
+        [$head, $rows] = csv_to_rows($csv);
+        if (!$head) { $fails[] = $label . ': 내용이 비어 있습니다'; continue; }
+
+        $hasBrand = false;
+        foreach (['브랜드','brand','Brand','브랜드명'] as $k) if (in_array($k, $head, true)) $hasBrand = true;
+
+        // 브랜드를 못박지 않았는데 브랜드 열도 없으면 어느 브랜드인지 알 수 없습니다
+        if (!$hasBrand && $src['brand'] === '') {
+            $fails[] = $label . ': 브랜드 열이 없습니다. 시트에 「브랜드」 열을 넣거나, '
+                     . '이 시트를 브랜드 하나에 못박아 주세요. (찾은 열: '
+                     . implode(', ', array_slice(array_filter($head), 0, 8)) . ')';
+            continue;
+        }
+
+        foreach ($rows as $r) {
+            if ($src['brand'] !== '' && brand_of($r) === '') $r['브랜드'] = $src['brand'];
+            $r['_시트'] = $label;
+            $all[] = $r;
+        }
+        $perSheet[$label] = count($rows);
     }
 
-    [$head, $rows] = csv_to_rows($csv);
-    if (!$head) jout(['ok' => false, 'error' => '내용이 비어 있습니다'], 502);
-
-    $hasBrand = false;
-    foreach (['브랜드','brand','Brand','브랜드명'] as $k) if (in_array($k, $head, true)) $hasBrand = true;
-    if (!$hasBrand) {
-        jout(['ok' => false, 'error' =>
-            '브랜드 열을 찾지 못했습니다. 첫 줄에 「브랜드」 열이 있어야 합니다. '
-            . '(찾은 열: ' . implode(', ', array_filter($head)) . ')'], 400);
+    if (!$all) {
+        jout(['ok' => false,
+              'error' => "시트를 하나도 가져오지 못했습니다.\n\n · " . implode("\n · ", $fails),
+              '실패' => $fails], 502);
     }
-    if (count($rows) > $MAX_ROWS) {
-        jout(['ok' => false, 'error' => '시트가 너무 큽니다 (최대 ' . $MAX_ROWS . '건)'], 413);
+    if (count($all) > $MAX_ROWS) {
+        jout(['ok' => false, 'error' => '합친 건수가 너무 많습니다 (최대 ' . $MAX_ROWS . '건)'], 413);
     }
 
-    $saved = save_rows($FILE, $DATA_DIR, $rows, 'sheet');
+    $saved = save_rows($FILE, $DATA_DIR, $all, 'sheet');
     if (!$saved) jout(['ok' => false, 'error' => '저장하지 못했습니다 (권한 확인 필요)'], 500);
 
     $byBrand = [];
-    foreach ($rows as $r) { $b = brand_of($r) ?: '(브랜드 없음)'; $byBrand[$b] = ($byBrand[$b] ?? 0) + 1; }
+    foreach ($all as $r) { $b = brand_of($r) ?: '(브랜드 없음)'; $byBrand[$b] = ($byBrand[$b] ?? 0) + 1; }
+    arsort($byBrand);
 
-    jout(['ok' => true, '가져온건수' => count($rows), '브랜드별' => $byBrand,
-          '방법' => $how, '시각' => $saved['updatedAt']]);
+    $out = ['ok' => true, '가져온건수' => count($all), '시트별' => $perSheet,
+            '브랜드별' => $byBrand, '시각' => $saved['updatedAt']];
+    if ($fails) $out['일부실패'] = $fails;
+    jout($out);
 }
 
 jout(['ok' => false, 'error' => '알 수 없는 요청입니다'], 400);

@@ -3125,25 +3125,118 @@ async function syncInquiries(manual){
   }
 }
 
-async function setSheetUrl(){
-  const cur = inquiryCache.sheetUrl && inquiryCache.sheetUrl !== '연결 안 됨' ? inquiryCache.sheetUrl : '';
+/* ---------- 연결된 시트 관리 (브랜드마다 다른 시트를 붙일 수 있습니다) ---------- */
+let sheetPanel = null;   // null=닫힘 | {loading} | {sources:[...]}
+
+async function openSheets(){
+  sheetPanel = { loading:true };
+  render();
+  try{
+    const out = await apiJson('inquiries.php?action=sources');
+    sheetPanel = { sources: out.sources || [] };
+  }catch(e){ sheetPanel = { error: apiErrText(e) }; }
+  render();
+}
+function closeSheets(){ sheetPanel = null; render(); }
+
+async function saveSheets(list){
+  try{
+    await apiJson('inquiries.php?action=setsource', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ sources: list })
+    });
+    sheetPanel = { sources: list };
+    render();
+    await syncInquiries(true);
+  }catch(e){ alert(apiErrText(e)); }
+}
+
+async function addSheet(){
   const url = prompt(
     '구글시트 CSV 주소를 넣어주세요.\n\n'
-    + '시트에서 파일 → 공유 → 웹에 게시 → 형식을 「쉼표로 구분된 값(.csv)」 으로 선택하면\n'
-    + '나오는 주소입니다. 비우고 확인을 누르면 연결이 해제됩니다.', cur);
-  if(url === null) return;
-  try{
-    const res = await fetch('inquiries.php?action=setsource', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ url: url.trim() })
-    });
-    const out = await res.json();
-    if(!out.ok) throw new Error(out.error || '등록하지 못했습니다');
-    inquiryCache.sheetUrl = url.trim() || '연결 안 됨';
-    if(url.trim()){ await syncInquiries(true); }
-    else { toast('시트 연결을 해제했습니다'); inquiryCache.loaded = false; await loadInquiries(true); }
-  }catch(e){ showError('시트 주소를 등록하지 못했습니다: ' + e.message); }
+    + '시트에서 파일 → 공유 → 웹에 게시 →\n'
+    + '형식을 「쉼표로 구분된 값(.csv)」 으로 고르면 나오는 주소입니다.');
+  if(url === null || !url.trim()) return;
+
+  const name = prompt('이 시트를 뭐라고 부를까요? (예: 슈어포인트 문의)', '') || '';
+  const names = data.brands.map((b, i) => (i + 1) + '. ' + b.name).join('\n');
+  const pick = prompt(
+    '이 시트는 어느 브랜드 것인가요?\n\n'
+    + '시트에 「브랜드」 열이 있으면 0을 넣으세요 (열을 보고 알아서 나눕니다).\n'
+    + '한 브랜드 전용 시트면 번호를 넣으세요.\n\n0. 시트의 브랜드 열 사용\n' + names, '0');
+  if(pick === null) return;
+
+  let brand = '';
+  const n = parseInt(pick, 10);
+  if(n > 0){
+    const b = data.brands[n - 1];
+    if(!b){ toast('⚠️ 번호가 올바르지 않습니다'); return; }
+    brand = b.name;
+  }
+
+  const list = (sheetPanel && sheetPanel.sources ? sheetPanel.sources.slice() : []);
+  list.push({ name: name.trim(), url: url.trim(), brand: brand });
+  await saveSheets(list);
 }
+
+async function removeSheet(id){
+  const list = (sheetPanel.sources || []).filter(x => x.id !== id);
+  if(!confirm('이 시트 연결을 지울까요?\n\n구글시트 원본은 그대로 있습니다.')) return;
+  await saveSheets(list);
+}
+
+async function editSheetBrand(id){
+  const list = (sheetPanel.sources || []).slice();
+  const s = list.find(x => x.id === id);
+  if(!s) return;
+  const names = data.brands.map((b, i) => (i + 1) + '. ' + b.name).join('\n');
+  const pick = prompt('이 시트는 어느 브랜드 것인가요?\n\n0. 시트의 브랜드 열 사용\n' + names,
+    s.brand ? String(data.brands.findIndex(b => b.name === s.brand) + 1) : '0');
+  if(pick === null) return;
+  const n = parseInt(pick, 10);
+  s.brand = n > 0 && data.brands[n - 1] ? data.brands[n - 1].name : '';
+  await saveSheets(list);
+}
+
+function sheetPanelView(){
+  if(!sheetPanel) return '';
+  let body;
+  if(sheetPanel.loading) body = '<div class="fmeta">불러오는 중…</div>';
+  else if(sheetPanel.error) body = '<div class="fmeta" style="white-space:pre-wrap">⚠️ '
+    + esc(sheetPanel.error) + '</div>';
+  else if(!sheetPanel.sources.length) body = '<div class="fmeta">연결된 시트가 없습니다. '
+    + '아래 [＋ 시트 연결] 로 추가해 주세요.</div>';
+  else body = '<div class="mbox" style="background:var(--bg-card)">'
+    + sheetPanel.sources.map(x =>
+        '<div class="krow" style="align-items:flex-start">'
+        + '<span style="flex:1;min-width:0">'
+          + '<b style="color:var(--text-primary)">' + esc(x.name || '이름 없음') + '</b> '
+          + (x.brand
+              ? '<span class="chip on">' + esc(x.brand) + ' 전용</span>'
+              : '<span class="chip">시트의 브랜드 열 사용</span>')
+          + '<div class="path" style="word-break:break-all">' + esc(x.url) + '</div>'
+        + '</span>'
+        + '<button class="btn sm" onclick="editSheetBrand(\'' + jsq(x.id) + '\')">브랜드</button>'
+        + '<button class="btn sm danger" onclick="removeSheet(\'' + jsq(x.id) + '\')">연결 해제</button>'
+        + '</div>').join('')
+    + '</div>';
+
+  return '<div class="mbox" style="margin-bottom:14px;border-color:var(--blue)">'
+    + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
+      + '<span>🔗 연결된 구글시트</span>'
+      + '<span class="mhs">브랜드마다 다른 시트를 붙일 수 있습니다</span>'
+      + '<span style="margin-left:auto"><button class="btn sm" onclick="closeSheets()">닫기</button></span>'
+    + '</div>'
+    + body
+    + '<div class="sec-bar" style="margin:10px 0 0">'
+      + '<button class="btn primary" onclick="addSheet()">＋ 시트 연결</button>'
+      + '<button class="btn" onclick="syncInquiries(true)">↻ 지금 가져오기</button>'
+      + '<span class="hint">시트에 「브랜드」 열이 없으면, 그 시트를 브랜드 하나에 못박으면 됩니다</span>'
+    + '</div></div>';
+}
+
+/* 예전 이름 — 이제 관리 화면을 엽니다 */
+function setSheetUrl(){ openSheets(); }
 
 async function loadInquiries(force){
   if(STORAGE_MODE !== 'nas'){ inquiryCache.loaded = true; return; }
@@ -3478,11 +3571,12 @@ function viewInquiries(b){
     + '<span class="hint">전체 ' + inquiryCache.total.toLocaleString('ko-KR') + '건 중 이 브랜드 '
       + rows.length.toLocaleString('ko-KR') + '건 · 갱신 ' + esc(when)
       + (linked ? ' · 🔗 시트 연결됨' : '') + '</span>'
-    + (linked ? '<button class="btn sm" style="margin-left:auto" onclick="setSheetUrl()">시트 주소 변경</button>' : '')
+    + '<button class="btn sm" style="margin-left:auto" onclick="openSheets()">🔗 시트 관리</button>'
     + '</div>'
     + (inquiryCache.syncError
-        ? '<div class="ainote" style="margin-bottom:12px">⚠️ 자동 가져오기 실패: '
-          + esc(inquiryCache.syncError) + '</div>' : '');
+        ? '<div class="ainote" style="margin-bottom:12px;white-space:pre-wrap">⚠️ 자동 가져오기 실패: '
+          + esc(inquiryCache.syncError) + '</div>' : '')
+    + sheetPanelView();
 
   // 목록을 아예 못 불러온 경우에도 위 버튼들은 그대로 두어 조치할 수 있게 합니다
   if(inquiryCache.error){

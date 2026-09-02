@@ -309,12 +309,14 @@ if ($action === 'browse') {
         $slash = strpos($rest, '/');
 
         if ($slash === false) {
+            $fx = strtolower(pathinfo($rest, PATHINFO_EXTENSION));
             $files[] = [
                 'name' => $rest,
                 'path' => $path,
                 'date' => $date,
                 'size' => human((int)$size),
-                'ext'  => strtolower(pathinfo($rest, PATHINFO_EXTENSION)),
+                'ext'  => $fx,
+                'img'  => in_array($fx, ['jpg','jpeg','png','gif','webp','bmp'], true),
             ];
         } else {
             $sub = substr($rest, 0, $slash);
@@ -333,6 +335,12 @@ if ($action === 'browse') {
     usort($folderList, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
     usort($files, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
 
+    // 사진이 수만 장인 폴더도 볼 수 있게 나눠서 보냅니다
+    $off = max(0, (int)($_GET['off'] ?? 0));
+    $lim = (int)($_GET['lim'] ?? 500);
+    if ($lim < 50)   $lim = 50;
+    if ($lim > 2000) $lim = 2000;
+
     $root = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
     jout([
         'ok'      => true,
@@ -340,8 +348,9 @@ if ($action === 'browse') {
         'root'    => $root,
         'parent'  => ($root !== '' && $dir !== $root) ? dirname($dir) : null,
         'total'   => $totalIn,
-        'folders' => $folderList,
-        'files'   => array_slice($files, 0, 500),
+        'folders' => $off === 0 ? $folderList : [],   // 폴더는 첫 쪽에만 담습니다
+        'files'   => array_slice($files, $off, $lim),
+        'off'     => $off,
         'fileCount' => count($files),
     ]);
 }
@@ -674,6 +683,105 @@ if ($action === 'setroot') {
     file_put_contents(__DIR__ . '/data/scanroot.txt', $dir);
     jout(['ok' => true, '훑을폴더' => $dir,
           '다음' => '작업 스케줄러에서 scan.sh 를 다시 실행해 주세요']);
+}
+
+/* ---------------- 사진 미리보기 ----------------
+   폴더 안 사진을 눈으로 보고 고를 수 있게 작은 그림을 만들어 줍니다.
+   만든 그림은 data/thumbs 에 담아두고 다음부터는 그대로 씁니다.
+   원본은 절대 건드리지 않습니다.
+   ---------------------------------------------- */
+$IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+
+/* 원본 사진을 그대로 보여줍니다 (크게 볼 때) */
+if ($action === 'image') {
+    $real = safe_real_path($_GET['path'] ?? '', $ROOT_FILE);
+    if (!$real) jout(['ok' => false, 'error' => '볼 수 없는 파일입니다'], 403);
+
+    $ext  = strtolower(pathinfo($real, PATHINFO_EXTENSION));
+    $mime = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
+             'gif' => 'image/gif', 'webp' => 'image/webp', 'bmp' => 'image/bmp'];
+    if (!isset($mime[$ext])) jout(['ok' => false, 'error' => '사진 파일이 아닙니다'], 400);
+
+    header('Content-Type: ' . $mime[$ext]);
+    header('Content-Length: ' . filesize($real));
+    header('Cache-Control: private, max-age=86400');
+    header('X-Content-Type-Options: nosniff');
+    while (ob_get_level()) ob_end_flush();
+    readfile($real);
+    exit;
+}
+
+/* 작은 그림 */
+if ($action === 'thumb') {
+    $real = safe_real_path($_GET['path'] ?? '', $ROOT_FILE);
+    if (!$real) jout(['ok' => false, 'error' => '볼 수 없는 파일입니다'], 403);
+
+    $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
+    if (!in_array($ext, $IMG_EXT, true)) jout(['ok' => false, 'error' => '사진 파일이 아닙니다'], 400);
+
+    $w = (int)($_GET['w'] ?? 320);
+    if ($w < 80)  $w = 80;
+    if ($w > 900) $w = 900;
+
+    $thumbDir = __DIR__ . '/data/thumbs';
+    if (!is_dir($thumbDir)) @mkdir($thumbDir, 0775, true);
+    $key   = md5($real . '|' . filemtime($real) . '|' . filesize($real) . '|' . $w);
+    $cache = $thumbDir . '/' . $key . '.jpg';
+
+    if (is_file($cache)) {
+        header('Content-Type: image/jpeg');
+        header('Content-Length: ' . filesize($cache));
+        header('Cache-Control: private, max-age=604800');
+        while (ob_get_level()) ob_end_flush();
+        readfile($cache);
+        exit;
+    }
+
+    if (!extension_loaded('gd')) {
+        // 그림을 줄이는 기능이 없으면 원본을 그대로 보냅니다 (느릴 수 있습니다)
+        header('Location: nasfiles.php?action=image&path=' . rawurlencode($_GET['path'] ?? ''));
+        exit;
+    }
+    if (filesize($real) > 40 * 1024 * 1024) {
+        jout(['ok' => false, 'error' => '사진이 너무 큽니다 (40MB 초과)'], 413);
+    }
+    @ini_set('memory_limit', '512M');
+
+    $img = null;
+    if ($ext === 'jpg' || $ext === 'jpeg') $img = @imagecreatefromjpeg($real);
+    elseif ($ext === 'png')  $img = @imagecreatefrompng($real);
+    elseif ($ext === 'gif')  $img = @imagecreatefromgif($real);
+    elseif ($ext === 'webp' && function_exists('imagecreatefromwebp')) $img = @imagecreatefromwebp($real);
+    elseif ($ext === 'bmp'  && function_exists('imagecreatefrombmp'))  $img = @imagecreatefrombmp($real);
+    if (!$img) jout(['ok' => false, 'error' => '사진을 열지 못했습니다'], 500);
+
+    // 휴대폰 사진이 눕지 않도록 방향을 바로잡습니다
+    if (($ext === 'jpg' || $ext === 'jpeg') && function_exists('exif_read_data')) {
+        $ex = @exif_read_data($real);
+        $or = $ex['Orientation'] ?? 0;
+        if ($or == 3) $img = imagerotate($img, 180, 0);
+        elseif ($or == 6) $img = imagerotate($img, -90, 0);
+        elseif ($or == 8) $img = imagerotate($img, 90, 0);
+    }
+
+    $ow = imagesx($img);
+    $oh = imagesy($img);
+    $nw = min($w, $ow);
+    $nh = (int)round($oh * ($nw / $ow));
+    if ($nh < 1) $nh = 1;
+
+    $out = imagecreatetruecolor($nw, $nh);
+    imagefill($out, 0, 0, imagecolorallocate($out, 255, 255, 255));
+    imagecopyresampled($out, $img, 0, 0, 0, 0, $nw, $nh, $ow, $oh);
+    imagedestroy($img);
+
+    @imagejpeg($out, $cache, 82);
+    header('Content-Type: image/jpeg');
+    header('Cache-Control: private, max-age=604800');
+    while (ob_get_level()) ob_end_flush();
+    imagejpeg($out, null, 82);
+    imagedestroy($out);
+    exit;
 }
 
 /* ---------------- 있는 자리에서 바로 내려받기 ---------------- */

@@ -308,6 +308,10 @@ table.itable tr:hover td{background:var(--bg-hover)}
   background:var(--bg-secondary)}
 .frow + .frow{border-top:1px solid var(--border)}
 .frow.on{background:var(--bg-card)}
+.frow.dragover{background:rgba(59,130,246,.15);outline:2px dashed var(--blue);
+  outline-offset:-2px}
+.card[draggable="true"]{cursor:grab}
+.card[draggable="true"]:active{cursor:grabbing}
 .fhead{width:100%;font-family:inherit;text-align:left;display:flex;align-items:center;gap:9px;
   padding:11px 14px;border:0;background:transparent;color:var(--text-primary);cursor:pointer}
 .fhead:hover{background:var(--bg-hover)}
@@ -1714,6 +1718,118 @@ function viewCards(b, type){
   }).join('') + '</div>';
 }
 
+/* ============== 대시보드 파일을 NAS 공유폴더로 옮기기 ==============
+   올린 파일을 실제 공유폴더 안으로 넣습니다.
+   폴더를 눌러 고르거나, 파일을 끌어다 폴더 위에 놓으면 됩니다.
+   ================================================================ */
+let movePick = null;   // {assetId, dir, loading, error, folders, parent}
+
+function startMove(assetId){
+  const b = currentBrand();
+  const a = (b.assets || []).find(x => x.id === assetId);
+  if(!a || !a.filePath){ toast('⚠️ 옮길 수 있는 파일이 아닙니다'); return; }
+  movePick = { assetId: assetId, loading:true };
+  render();
+  loadMovePick('');
+}
+
+function cancelMove(){ movePick = null; render(); }
+
+async function loadMovePick(dir){
+  const keep = movePick ? movePick.assetId : null;
+  movePick = { assetId: keep, loading:true, dir:dir };
+  render();
+  try{
+    const out = await apiJson('nasfiles.php?action=browse'
+      + (dir ? '&dir=' + encodeURIComponent(dir) : ''));
+    movePick = { assetId: keep, dir: out.dir, parent: out.parent,
+                 root: out.root, folders: out.folders || [] };
+  }catch(e){
+    movePick = { assetId: keep, dir: dir, error: apiErrText(e) };
+  }
+  render();
+}
+
+async function doMove(dest){
+  const b = currentBrand();
+  const a = (b.assets || []).find(x => x.id === movePick.assetId);
+  if(!a) { movePick = null; render(); return; }
+  const name = a.fileName || a.title;
+  movePick = null;
+  render();
+  toast('📦 "' + name + '" 옮기는 중…');
+  try{
+    const out = await apiJson('files.php?action=movetonas', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ path: a.filePath, dest: dest })
+    });
+    a.nasPath  = out['옮긴곳'];
+    a.fileName = out['파일이름'] || a.fileName;
+    a.filePath = '';                       // 이제 대시보드 폴더에는 없습니다
+    await saveAll(true);
+    render(); bindDrop();
+    toast('✅ NAS 폴더로 옮겼습니다');
+  }catch(e){
+    alert('옮기지 못했습니다.\n\n' + apiErrText(e));
+    render(); bindDrop();
+  }
+}
+
+function movePanel(){
+  if(!movePick) return '';
+  const b = currentBrand();
+  const a = (b.assets || []).find(x => x.id === movePick.assetId);
+
+  let body;
+  if(movePick.loading) body = '<div class="fmeta">불러오는 중…</div>';
+  else if(movePick.error) body = '<div class="fmeta" style="white-space:pre-wrap">⚠️ '
+    + esc(movePick.error) + '</div>';
+  else if(!movePick.folders.length) body = '<div class="fmeta">이 안에는 하위 폴더가 없습니다. '
+    + '여기에 넣으시려면 아래 버튼을 누르세요.</div>';
+  else body = '<div class="fgrid">' + movePick.folders.map(f =>
+      '<button class="fcard" onclick="loadMovePick(\'' + jsq(f.path) + '\')">'
+      + '<span class="fc-ico">📁</span><span class="fc-t">'
+      + '<span class="fc-nm">' + esc(f.name) + '</span>'
+      + '<span class="fc-sub">' + f.count.toLocaleString('ko-KR') + '개</span>'
+      + '</span></button>').join('') + '</div>';
+
+  return '<div class="mbox" style="margin-bottom:14px;border-color:var(--blue)">'
+    + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
+      + '<span>📦 어느 폴더로 옮길까요?</span>'
+      + '<span class="mhs">' + esc(a ? (a.fileName || a.title) : '') + '</span>'
+      + '<span style="margin-left:auto"><button class="btn sm" onclick="cancelMove()">취소</button></span>'
+    + '</div>'
+    + '<div class="sec-bar" style="margin:0 0 10px">'
+      + (movePick.parent
+          ? '<button class="btn sm" onclick="loadMovePick(\'' + jsq(movePick.parent) + '\')">⬆ 위로</button>' : '')
+      + (movePick.dir
+          ? '<button class="btn primary" onclick="doMove(\'' + jsq(movePick.dir) + '\')">✅ 여기에 넣기</button>' : '')
+    + '</div>'
+    + '<div class="path" style="margin-bottom:8px">' + esc(movePick.dir || '') + '</div>'
+    + body + '</div>';
+}
+
+/* 끌어다 놓기 — 파일을 폴더 줄 위에 놓으면 그리로 옮깁니다 */
+function dragAsset(ev, assetId){
+  ev.dataTransfer.setData('text/plain', 'asset:' + assetId);
+  ev.dataTransfer.effectAllowed = 'move';
+}
+function allowDropAsset(ev){
+  const t = ev.dataTransfer.getData('text/plain');
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  ev.currentTarget.classList.add('dragover');
+}
+function leaveDropAsset(ev){ ev.currentTarget.classList.remove('dragover'); }
+async function dropOnFolder(ev, dir){
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('dragover');
+  const d = ev.dataTransfer.getData('text/plain');
+  if(!d.startsWith('asset:')) return;
+  movePick = { assetId: d.slice(6) };
+  doMove(dir);
+}
+
 /* ================= 자동화 도구 (실행되는 HTML 파일) =================
    생성기처럼 눌러서 쓰는 도구를 올려두고 바로 실행합니다.
    읽기용 문서(기록부)와 달리 스크립트가 그대로 살아 있어야 합니다.
@@ -1750,6 +1866,7 @@ async function uploadTools(fileList){
     try{
       const fd = new FormData();
       fd.append('brand', b.name);
+      fd.append('sub', '도구');
       fd.append('file', f);
       const res  = await fetch('files.php?action=upload', { method:'POST', body: fd });
       const text = await res.text();
@@ -1892,9 +2009,14 @@ function viewAssets(b){
     ? '<div class="empty">등록된 자료가 없습니다. 파일을 끌어다 놓아 보세요.</div>'
     : '<div class="cards">' + list.map(it => {
         const isFile = !!it.fileId;
+        const canMove = isFile && !!it.filePath;      // 대시보드 폴더에 있는 파일만 옮길 수 있습니다
         const bits = [];
         if(it.kind) bits.push('<span class="chip">' + esc(it.kind) + '</span>');
-        if(isFile){
+        if(it.nasPath){
+          bits.push('<span class="chip on">📁 NAS 폴더로 옮김</span>'
+            + '<a class="lnk" href="nasfiles.php?action=download&path='
+            + encodeURIComponent(it.nasPath) + '">⬇ 다운로드</a>');
+        }else if(isFile){
           bits.push('<a class="lnk" href="files.php?action=download&id=' + esc(it.fileId) + '">⬇ 다운로드</a>');
         }else if(it.url){
           bits.push(isUrl(it.url)
@@ -1902,8 +2024,12 @@ function viewAssets(b){
             : '<span class="path">' + esc(it.url) + '</span>'
               + '<button class="btn sm" onclick="copyPath(\'assets\',\'' + it.id + '\')">📋 경로 복사</button>');
         }
-        return '<div class="card' + (isFile ? ' filecard' : '') + '">'
+        return '<div class="card' + (isFile ? ' filecard' : '') + '"'
+          + (canMove ? ' draggable="true" ondragstart="dragAsset(event,\'' + it.id + '\')"' : '') + '>'
           + '<div class="ca">'
+            + (canMove
+                ? '<button class="btn sm" title="NAS 공유폴더 안으로 옮깁니다" '
+                  + 'onclick="startMove(\'' + it.id + '\')">📦 NAS로</button>' : '')
             + '<button class="btn sm" onclick="openItemModal(\'assets\',\'' + it.id + '\')">수정</button>'
             + '<button class="btn sm danger" onclick="deleteAsset(\'' + it.id + '\')">삭제</button>'
           + '</div>'
@@ -1911,8 +2037,10 @@ function viewAssets(b){
             + (isFile ? '<span class="fileicon">' + fileIcon(it.fileName) + '</span>' : '')
             + '<div style="min-width:0"><div class="ct">' + esc(it.title) + '</div>'
             + (isFile ? '<div class="fmeta">' + esc(it.fileName) + ' · ' + fmtSize(it.fileSize)
-                 + (it.filePath ? '<br><span style="opacity:.75">NAS: data\\files\\'
-                     + esc(it.filePath.replace(/\//g, '\\')) + '</span>' : '')
+                 + (it.nasPath
+                     ? '<br><span style="opacity:.75">' + esc(toWinPath(it.nasPath)) + '</span>'
+                     : (it.filePath ? '<br><span style="opacity:.75">NAS: data\\files\\'
+                         + esc(it.filePath.replace(/\//g, '\\')) + '</span>' : ''))
                  + '</div>' : '')
             + '</div></div>'
           + (bits.length ? '<div class="row">' + bits.join('') + '</div>' : '')
@@ -1933,7 +2061,7 @@ function viewAssets(b){
       + '</div>'
     : '';
   return dropZone + '<div class="upqueue" id="upQueue"></div>' + report
-       + viewNasFolders(b) + bar + cards;
+       + movePanel() + viewNasFolders(b) + bar + cards;
 }
 
 /* ========================= 브랜드에 연결한 NAS 폴더 =========================
@@ -1968,7 +2096,7 @@ function viewNasFolders(b){
   let note;
   if(treeCache && treeCache.loading)      note = 'NAS 폴더를 찾아보는 중…';
   else if(treeCache && treeCache.error)   note = '⚠️ ' + treeCache.error.split('\n')[0];
-  else if(total)                          note = '폴더 이름을 눌러서 펼쳐 보세요';
+  else if(total)                          note = '폴더 이름을 눌러서 펼쳐 보세요 · 아래 파일을 끌어다 폴더 위에 놓으면 그리로 옮겨집니다';
   else if(hidden.length)                  note = '자동으로 찾은 폴더를 숨겨둔 상태입니다';
   else                                    note = '이름이 맞는 NAS 폴더를 찾지 못했습니다. 아래 버튼으로 직접 연결해 주세요';
 
@@ -1992,7 +2120,9 @@ function viewNasFolders(b){
             : folderBrowserHtml('auto:' + o.path, o.path, { crumbRoot:o.path }))
         + '</div>'
       : '';
-    return '<div class="frow' + (isOpen ? ' on' : '') + '">'
+    return '<div class="frow' + (isOpen ? ' on' : '') + '"'
+      + ' ondragover="allowDropAsset(event)" ondragleave="leaveDropAsset(event)"'
+      + ' ondrop="dropOnFolder(event,\'' + jsq(o.path) + '\')">'
       + '<button class="fhead" onclick="toggleFolder(\'' + jsq(b.id) + '\',\'' + jsq(o.path) + '\')">'
         + '<span class="fh-ar">' + (isOpen ? '▾' : '▸') + '</span>'
         + '<span class="fh-ic">' + (o.manual ? '📂' : '🪄') + '</span>'
@@ -2941,6 +3071,7 @@ async function uploadRecord(file){
   try{
     const fd = new FormData();
     fd.append('brand', b.name);
+    fd.append('sub', '기록부');
     fd.append('file', file);
     const res  = await fetch('files.php?action=upload', { method:'POST', body: fd });
     const text = await res.text();
@@ -3262,6 +3393,7 @@ async function uploadFiles(fileList){
     try{
       const fd = new FormData();
       fd.append('brand', b.name);        // NAS에 브랜드 이름 폴더로 정리해서 저장합니다
+      fd.append('sub', '자료');
       fd.append('file', files[i]);
       const res = await fetch('files.php?action=upload', { method:'POST', body: fd });
       const text = await res.text();

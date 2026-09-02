@@ -176,9 +176,12 @@ if ($action === 'upload') {
         jout(['ok' => false, 'error' => '파일이 너무 큽니다 (최대 200MB)'], 413);
     }
 
-    // 브랜드별 폴더에 원래 이름 그대로 저장합니다.
+    // 브랜드 폴더 > 종류 폴더 로 나눠 저장합니다.
     // 탐색기에서 열었을 때도 바로 알아볼 수 있어야 하기 때문입니다.
-    $brandDir = $FILE_DIR . '/' . safe_name($_POST['brand'] ?? '', '기타');
+    //   자료 / 기록부 / 자동화도구
+    $subs = ['자료' => '자료', '기록부' => '기록부', '도구' => '자동화도구'];
+    $sub  = $subs[trim($_POST['sub'] ?? '')] ?? '자료';
+    $brandDir = $FILE_DIR . '/' . safe_name($_POST['brand'] ?? '', '기타') . '/' . $sub;
 
     if (!is_dir($brandDir) && !@mkdir($brandDir, 0775, true) && !is_dir($brandDir)) {
         jout(['ok' => false, 'error' =>
@@ -200,13 +203,80 @@ if ($action === 'upload') {
         'ok'       => true,
         'fileId'   => bin2hex(random_bytes(16)),
         'fileName' => $fileName,
-        'filePath' => basename($brandDir) . '/' . $fileName,
+        'filePath' => basename(dirname($brandDir)) . '/' . basename($brandDir) . '/' . $fileName,
         'fileSize' => $f['size'],
         'mime'     => $f['type'] ?: 'application/octet-stream',
     ]);
 }
 
 /* ---------------- 다운로드 ---------------- */
+/* ---------------- NAS 공유폴더로 옮기기 ----------------
+   대시보드에 올린 파일을 실제 공유폴더 안으로 옮깁니다.
+   훑은 폴더(nasroot.txt) 안쪽으로만 옮길 수 있고, 덮어쓰지 않습니다.
+   ------------------------------------------------------ */
+if ($action === 'movetonas') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
+    }
+    $in   = json_decode(file_get_contents('php://input'), true) ?: [];
+    $rel  = str_replace('\\', '/', trim($in['path'] ?? ''));
+    $dest = rtrim(str_replace('\\', '/', trim($in['dest'] ?? '')), '/');
+    if ($rel === '' || $dest === '') jout(['ok' => false, 'error' => '옮길 파일과 폴더를 지정해 주세요'], 400);
+
+    // 1) 원본은 반드시 data/files 안에 있어야 합니다
+    $src  = realpath($FILE_DIR . '/' . $rel);
+    $root = realpath($FILE_DIR);
+    if (!$src || !$root || strpos($src, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($src)) {
+        jout(['ok' => false, 'error' => '옮길 파일을 찾지 못했습니다: ' . $rel], 404);
+    }
+
+    // 2) 목적지는 반드시 훑은 공유폴더 안이어야 합니다
+    $rootFile = $DATA_DIR . '/nasroot.txt';
+    if (!is_file($rootFile)) {
+        jout(['ok' => false, 'error' =>
+            '먼저 NAS 자료에서 [🔎 지금 파일 목록 만들기] 를 한 번 해주세요. '
+            . '어느 공유폴더를 쓰는지 알아야 옮길 수 있습니다.'], 400);
+    }
+    $nasRoot = realpath(rtrim(trim(file_get_contents($rootFile)), '/'));
+    $destReal = realpath($dest);
+    if (!$nasRoot || !$destReal || !is_dir($destReal)
+        || ($destReal !== $nasRoot && strpos($destReal, $nasRoot . DIRECTORY_SEPARATOR) !== 0)) {
+        jout(['ok' => false, 'error' => '그 폴더로는 옮길 수 없습니다. '
+            . '목록을 만든 공유폴더 안쪽만 됩니다.', '옮기려던곳' => $dest], 403);
+    }
+
+    // 3) 쓰기 권한 확인
+    if (!is_writable($destReal)) {
+        $who = 'http';
+        if (function_exists('posix_geteuid') && function_exists('posix_getpwuid')) {
+            $u = @posix_getpwuid(@posix_geteuid());
+            if (!empty($u['name'])) $who = $u['name'];
+        }
+        jout(['ok' => false, 'error' =>
+            "이 폴더에 파일을 넣을 권한이 없습니다:\n" . $destReal . "\n\n"
+            . "웹 서버는 \"" . $who . "\" 계정으로 돌아갑니다. 지금은 읽기만 되고 쓰기가 안 됩니다.\n\n"
+            . "DSM → 제어판 → 공유 폴더 → 그 폴더 → [편집] → [권한] 탭\n"
+            . "  1. 위 드롭다운을 \"시스템 내부 사용자\" 로 바꿉니다\n"
+            . "  2. " . $who . " 를 찾아 \"읽기/쓰기\" 에 체크합니다\n"
+            . "  3. 저장"], 403);
+    }
+
+    // 4) 같은 이름이 있으면 번호를 붙입니다 (덮어쓰지 않습니다)
+    $name   = unique_path($destReal, basename($src));
+    $target = $destReal . '/' . $name;
+
+    if (!@rename($src, $target)) {                 // 볼륨이 다르면 rename 이 안 됩니다
+        if (!@copy($src, $target)) {
+            jout(['ok' => false, 'error' => '파일을 옮기지 못했습니다 (복사 실패)'], 500);
+        }
+        @unlink($src);
+    }
+    @chmod($target, 0664);
+
+    jout(['ok' => true, '옮긴곳' => $target, '파일이름' => $name,
+          '다음' => '다음번 목록 만들기 때 NAS 폴더 목록에도 나타납니다']);
+}
+
 /* ---------------- 자동화 도구 실행하기 ----------------
    생성기처럼 스크립트가 살아 있어야 동작하는 HTML 도구를 그대로 띄웁니다.
    (읽기 전용 문서는 아래 view 를 씁니다 — 그쪽은 스크립트를 막습니다)

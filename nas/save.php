@@ -9,16 +9,119 @@
  */
 header('Content-Type: application/json; charset=utf-8');
 
+/** 인터넷에서 파일 하나를 받아옵니다. NAS 마다 막힌 방법이 달라 세 가지를 차례로 시도합니다. */
+function bh_fetch($url, &$why = null) {
+    if (!is_array($why)) $why = [];
+    // 1) curl 확장
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT        => 30,
+        ]);
+        $body = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+        if ($body !== false && $code === 200) return $body;
+        $why['curl'] = $err !== '' ? $err : ('HTTP ' . $code);
+    } else {
+        $why['curl'] = 'curl 확장이 꺼져 있음';
+    }
+
+    // 2) PHP 내장 (allow_url_fopen 이 켜져 있어야 합니다)
+    if (ini_get('allow_url_fopen')) {
+        $body = @file_get_contents($url);
+        if ($body !== false && $body !== '') return $body;
+        $why['file_get_contents'] = '내려받기 실패';
+    } else {
+        $why['file_get_contents'] = 'allow_url_fopen 이 꺼져 있음';
+    }
+
+    // 3) wget — deploy.sh 가 쓰는 방식이라 NAS에서 가장 확실합니다
+    if (function_exists('shell_exec')) {
+        $body = @shell_exec('wget -q -T 30 -O - ' . escapeshellarg($url) . ' 2>/dev/null');
+        if ($body !== null && $body !== '') return $body;
+        $why['wget'] = '실행했지만 내용을 받지 못함';
+    } else {
+        $why['wget'] = 'shell_exec 이 막혀 있음';
+    }
+
+    return false;
+}
+
+
+/** GitHub 에 올라가 있는 원본 위치입니다. */
+function bh_base() {
+    return 'https://raw.githubusercontent.com/netformrnd-lab/test1'
+         . '/refs/heads/claude/ja-brand-dashboard-nas-4lvyrk';
+}
+
+/**
+ * 새 판이 나왔는지 알려줍니다. (save.php?action=version)
+ * 지금 NAS 에 있는 brand.html 의 판 번호와, GitHub 에 있는 판 번호를 비교합니다.
+ * GitHub 을 매번 부르면 느리니 10분 동안은 앞서 확인한 값을 다시 씁니다. force=1 이면 바로 다시 봅니다.
+ */
+if (isset($_GET['action']) && $_GET['action'] === 'version') {
+    $ver = function ($text) {
+        return (is_string($text) && preg_match(
+            "/APP_VER\\s*=\\s*['\"]([^'\"]{1,40})['\"]/", $text, $m)) ? $m[1] : '';
+    };
+
+    $local = '';
+    $lp = __DIR__ . '/brand.html';
+    if (is_file($lp)) {
+        $fp = @fopen($lp, 'rb');
+        if ($fp) {                       // 판 번호는 앞부분에 있어서 조금만 읽으면 됩니다
+            $local = $ver(fread($fp, 200000));
+            fclose($fp);
+        }
+    }
+
+    $cacheFile = __DIR__ . '/data/version-check.json';
+    $force = isset($_GET['force']);
+    $remote = ''; $when = 0;
+    if (!$force && is_file($cacheFile)) {
+        $c = json_decode((string)@file_get_contents($cacheFile), true);
+        if (is_array($c) && isset($c['최신'], $c['확인시각'])
+            && (time() - (int)$c['확인시각']) < 600) {
+            $remote = (string)$c['최신'];
+            $when   = (int)$c['확인시각'];
+        }
+    }
+    if ($remote === '') {
+        $why = [];
+        $body = bh_fetch(bh_base() . '/brand.html', $why);
+        $remote = $ver($body);
+        if ($remote !== '') {
+            $when = time();
+            @mkdir(__DIR__ . '/data', 0775, true);
+            @file_put_contents($cacheFile,
+                json_encode(['최신' => $remote, '확인시각' => $when], JSON_UNESCAPED_UNICODE));
+        }
+    }
+
+    echo json_encode([
+        'ok'        => true,
+        'mode'      => 'version',
+        '지금'      => $local ?: '(알 수 없음)',
+        '최신'      => $remote ?: '(확인 못함)',
+        '새판있음'  => ($local !== '' && $remote !== '' && $local !== $remote),
+        '확인시각'  => $when ? date('c', $when) : null,
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
 /**
  * 복구 모드: 브라우저에서 save.php?action=bootstrap 으로 열면
  * 빠졌거나 오래된 파일들을 GitHub에서 직접 받아옵니다.
  *
  * 파일을 손으로 옮기지 않아도 되게 하려고 만들었습니다.
- * 받아올 파일 목록이 아래에 고정되어 있어, 다른 파일은 건드리지 않습니다.
+ * 받아올 파일 목록이 manifest.txt 로 정해져 있어, 다른 파일은 건드리지 않습니다.
  */
 if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
-    $BASE = 'https://raw.githubusercontent.com/netformrnd-lab/test1'
-          . '/refs/heads/claude/ja-brand-dashboard-nas-4lvyrk';
+    $BASE = bh_base();
 
     // 받아올 파일 목록입니다.
     // manifest.txt 를 먼저 읽어오기 때문에, 새 파일이 생겨도
@@ -43,49 +146,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
     // 내려받는 방법을 세 가지 순서로 시도합니다.
     // NAS 설정에 따라 어떤 방법은 막혀 있을 수 있어서입니다.
     $why = [];
-    $fetch = function ($url) use (&$why) {
-        // 1) curl 확장
-        if (function_exists('curl_init')) {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_TIMEOUT        => 30,
-            ]);
-            $body = curl_exec($ch);
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $err  = curl_error($ch);
-            curl_close($ch);
-            if ($body !== false && $code === 200) return $body;
-            $why['curl'] = $err !== '' ? $err : ('HTTP ' . $code);
-        } else {
-            $why['curl'] = 'curl 확장이 꺼져 있음';
-        }
-
-        // 2) PHP 내장 (allow_url_fopen 이 켜져 있어야 합니다)
-        if (ini_get('allow_url_fopen')) {
-            $body = @file_get_contents($url);
-            if ($body !== false && $body !== '') return $body;
-            $why['file_get_contents'] = '내려받기 실패';
-        } else {
-            $why['file_get_contents'] = 'allow_url_fopen 이 꺼져 있음';
-        }
-
-        // 3) wget — deploy.sh 가 쓰는 방식이라 NAS에서 가장 확실합니다
-        if (function_exists('shell_exec')) {
-            $body = @shell_exec('wget -q -T 30 -O - ' . escapeshellarg($url) . ' 2>/dev/null');
-            if ($body !== null && $body !== '') return $body;
-            $why['wget'] = '실행했지만 내용을 받지 못함';
-        } else {
-            $why['wget'] = 'shell_exec 이 막혀 있음';
-        }
-
-        return false;
-    };
 
     $result = [];
     // 목록 파일을 먼저 받아봅니다. 실패하면 위 기본 목록을 그대로 씁니다.
-    $mf = $fetch($BASE . '/nas/manifest.txt');
+    $mf = bh_fetch($BASE . '/nas/manifest.txt', $why);
     if (is_string($mf) && strpos($mf, "\t") !== false) {
         $parsed = [];
         foreach (preg_split('/\r?\n/', $mf) as $line) {
@@ -100,7 +164,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
     }
 
     foreach ($TARGETS as $name => [$remote, $marker]) {
-        $body = $fetch($BASE . '/' . $remote);
+        $body = bh_fetch($BASE . '/' . $remote, $why);
         if ($body === false || $body === '' || strpos($body, $marker) === false) {
             $result[$name] = '실패 — 내려받지 못했거나 내용이 올바르지 않습니다';
             continue;

@@ -76,8 +76,9 @@ function fetch_url($url, &$why = null) {
         foreach ($uas as $ui => $ua) {
             $tmp = tempnam(sys_get_temp_dir(), 'feed');
             $o = [];
-            // -S 를 붙여 서버가 준 상태줄(예: HTTP/1.1 404 Not Found)을 받아둡니다
-            @exec('wget -S -q -T 20 ' . $v[0] . '-U ' . escapeshellarg($ua)
+            // -S 는 서버가 준 상태줄(예: 404 Not Found)을 보여줍니다.
+            // -q(조용히) 를 같이 쓰면 그 줄까지 사라지므로 절대 붙이면 안 됩니다.
+            @exec('wget -S -T 20 ' . $v[0] . '-U ' . escapeshellarg($ua)
                 . ' -O ' . escapeshellarg($tmp) . ' ' . escapeshellarg($url) . ' 2>&1', $o, $rc);
             if ($rc === 0 && is_file($tmp) && filesize($tmp) > 0) {
                 $b = file_get_contents($tmp); @unlink($tmp);
@@ -85,12 +86,18 @@ function fetch_url($url, &$why = null) {
             }
             @unlink($tmp);
 
+            // wget 이 상태를 알려주는 방식이 여러 가지라 모두 살펴봅니다
             $status = '';
             foreach ($o as $line) {
                 if (preg_match('#HTTP/[\d.]+\s+(\d{3})([^\r\n]*)#', $line, $m)) {
-                    $status = 'HTTP ' . $m[1] . trim($m[2]);
+                    $status = 'HTTP ' . $m[1] . ' ' . trim($m[2]);
+                } elseif (preg_match('#awaiting response\.\.\.\s*(\d{3})([^\r\n]*)#', $line, $m)) {
+                    $status = 'HTTP ' . $m[1] . ' ' . trim($m[2]);
+                } elseif (preg_match('#ERROR\s+(\d{3}):([^\r\n]*)#', $line, $m)) {
+                    $status = 'HTTP ' . $m[1] . ' ' . trim($m[2], " .\t");
                 }
             }
+            $status = trim($status);
             $meaning = [4 => '네트워크 오류 (주소를 찾지 못함)', 5 => 'SSL 인증서 오류',
                         8 => '서버가 오류로 답함', 1 => '일반 오류', 3 => '파일 쓰기 오류'];
             $why[] = $v[1] . ($ui ? '·다른 이름' : '') . ': 코드 ' . $rc
@@ -109,6 +116,13 @@ function guess_feed($url) {
     $host = strtolower(parse_url($u, PHP_URL_HOST) ?: '');
     $path = parse_url($u, PHP_URL_PATH) ?: '';
     $q    = parse_url($u, PHP_URL_QUERY) ?: '';
+
+    // RSS 주소를 그대로 붙여넣은 경우에는 찾을 것 없이 바로 씁니다.
+    // (자동으로 못 찾는 채널은 RSS 주소를 직접 넣으면 됩니다)
+    if (preg_match('#feeds/videos\.xml#i', $u)
+        || preg_match('#(\.xml|/rss|/feed)(\?|$)#i', $u)) {
+        return ['kind' => guess_kind($host), 'feed' => $u];
+    }
 
     // 네이버 블로그 — blog.naver.com/아이디
     if (strpos($host, 'blog.naver.com') !== false) {

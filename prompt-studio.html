@@ -365,7 +365,8 @@
     try{ localStorage.setItem(LS+'.theme',n); }catch(e){}
   });
 
-  var LENS=[90,180,300,510,660];
+  var LENS=[60,90,120,180,300];
+  var AGENT_SCENES=6;  // 헤이젠이 길이와 무관하게 만드는 장면 수 (실측 5~6개)
   var TONES=[
     {k:'차분·전문',v:'전문적이되 대화하듯 이어지는 어조. 과장된 감탄사와 이모지를 쓰지 않는다.'},
     {k:'친근·설명',v:'신뢰감 있고 친근한 데이터 브리핑 어조. 어려운 용어는 한 번 풀어서 설명한다.'},
@@ -509,7 +510,7 @@
      note:'시네마틱 브랜드 다큐멘터리. 2~4초 하드컷에 인용문과 수치를 팝업으로 띄웁니다. 글리치 전환은 헤이젠이 못 하니 후편집이 필요합니다.'}
   ];
 
-  var st={preset:0,len:2,tone:1,ava:0,cuts:2,cutLen:6,place:0,cast:0,trade:1,fmt:2,cap:0,data:1,pace:1,tab:1,chap:0};
+  var st={preset:0,len:1,tone:1,ava:0,cuts:2,cutLen:6,place:0,cast:0,trade:1,fmt:2,cap:0,data:1,pace:1,tab:1,chap:0};
 
   var PRINCIPLES=[
     '첫 10~20초는 고객이 실제로 겪는 장면이나 확인하고 싶은 한 문장으로 시작한다. 회사 연혁이나 기능 목록부터 나열하지 않는다.',
@@ -615,6 +616,7 @@
     b.push('- 길이: '+chLen+'초 (±5초 허용)');
     b.push('- 화면비: 16:9');
     b.push('- 자막: 한국어, 전 구간 표시');
+    b.push('- 장면 하나가 20초를 넘지 않게 나눠 주세요.');
     b.push('- 색: '+val('palette'));
     b.push('- 톤: '+TONES[st.tone].v);
     b.push('');
@@ -846,7 +848,8 @@
     document.getElementById('fixedNote').innerHTML =
       '기본 적용 · <b>'+PRESETS[st.preset].k+'</b> 스타일 · <b>'+
       (len%60===0?(len/60)+'분':Math.floor(len/60)+'분 '+(len%60)+'초')+'</b>'+
-      (chs.length>1?' (<b>'+chs.length+'조각</b>)':'')+
+      ' (장면당 <b>'+Math.round(len/AGENT_SCENES)+'초</b>)'+
+      (chs.length>1?' <b>'+chs.length+'조각</b>':'')+
       ' · 아바타 <b>'+(plan.billed?plan.idx.length+'회 '+plan.billed+'초':'없음')+'</b>'+
       ' · 인물 <b>'+CASTS[st.cast].k+'</b>'+
       (TRADES[st.trade].figures.length?' · 검증 수치 <b>'+TRADES[st.trade].figures.length+'개</b>':' · <b>수치 사용 금지</b>')+'<br>'+
@@ -858,9 +861,13 @@
     }).join('');
 
     document.getElementById('presetNote').textContent=PRESETS[st.preset].note;
-    document.getElementById('lenNote').innerHTML = chs.length>1
-      ? '전체 <b>'+Math.floor(len/60)+'분 '+(len%60)+'초</b>. Video Agent 출력 상한이 3분이라 <b>'+chs.length+'개 조각</b>으로 나눠 생성한 뒤 이어붙여야 합니다.'
-      : '한 번에 생성 가능한 길이입니다.';
+    var perScene=Math.round(len/AGENT_SCENES);
+    document.getElementById('lenNote').innerHTML =
+      '헤이젠은 길이와 상관없이 장면을 <b>'+AGENT_SCENES+'개쯤</b> 만듭니다. '+
+      '이 길이면 <b>장면당 약 '+perScene+'초</b>입니다.'+
+      (perScene>25
+        ? ' <b style="color:var(--warn)">한 장면이 너무 길어 화면이 멈춘 것처럼 보입니다.</b> 길이를 줄이세요.'
+        : (perScene>18 ? ' 조금 긴 편입니다.' : ' 적당합니다.'));
 
     var inter=AVAS[st.ava].mode==='intermittent';
     document.getElementById('avaOpts').hidden=!inter;

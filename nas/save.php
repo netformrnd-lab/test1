@@ -146,28 +146,28 @@ if (isset($_GET['check'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
+    http_response_code(200);   // 오류도 200 으로 (웹 스테이션이 내용을 바꿔치기 함)
     echo json_encode(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 $raw = file_get_contents('php://input');
 if ($raw === false || $raw === '') {
-    http_response_code(400);
+    http_response_code(200);   // 오류도 200 으로 (웹 스테이션이 내용을 바꿔치기 함)
     echo json_encode(['ok' => false, 'error' => '전달된 데이터가 없습니다'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 $data = json_decode($raw, true);
 if ($data === null) {
-    http_response_code(400);
+    http_response_code(200);   // 오류도 200 으로 (웹 스테이션이 내용을 바꿔치기 함)
     echo json_encode(['ok' => false, 'error' => '데이터 형식이 올바르지 않습니다'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 $dir = __DIR__ . '/data';
 if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
-    http_response_code(500);
+    http_response_code(200);   // 오류도 200 으로 (웹 스테이션이 내용을 바꿔치기 함)
     echo json_encode(['ok' => false, 'error' =>
         "data 폴더를 만들 수 없습니다: $dir / 상위폴더 쓰기가능="
         . (is_writable(__DIR__) ? '예' : '아니오')
@@ -187,7 +187,7 @@ if (file_exists($file) && !file_exists($backup)) {
 
 $fp = @fopen($file, 'c+');
 if (!$fp) {
-    http_response_code(500);
+    http_response_code(200);   // 오류도 200 으로 (웹 스테이션이 내용을 바꿔치기 함)
     echo json_encode(['ok' => false, 'error' =>
         "파일을 열 수 없습니다: $file / data폴더 쓰기가능="
         . (is_writable($dir) ? '예' : '아니오')
@@ -196,7 +196,7 @@ if (!$fp) {
 }
 if (!flock($fp, LOCK_EX)) {
     fclose($fp);
-    http_response_code(500);
+    http_response_code(200);   // 오류도 200 으로 (웹 스테이션이 내용을 바꿔치기 함)
     echo json_encode(['ok' => false, 'error' => '다른 사람이 저장 중입니다. 잠시 후 다시 시도해 주세요'], JSON_UNESCAPED_UNICODE);
     exit;
 }

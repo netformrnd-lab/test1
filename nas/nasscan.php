@@ -30,7 +30,7 @@ register_shutdown_function(function () {
     if ($fatal) {
         ob_end_clean();
         if (!headers_sent()) {
-            http_response_code(500);
+            http_response_code(200);
             header('Content-Type: application/json; charset=utf-8');
         }
         echo json_encode(['ok' => false, 'error' => '서버 오류: ' . $e['message']
@@ -75,7 +75,10 @@ $SECONDS_PER_STEP = 3.0;   // 한 번에 일하는 시간
 $MAX_ERRORS       = 20;
 
 function jout($a, $code = 200) {
-    http_response_code($code);
+    // 웹 스테이션이 200 이 아닌 응답의 내용을 자기 오류 페이지로 바꿔치기 하므로,
+    // 항상 200 으로 보내고 실패 여부는 JSON 안의 ok 로만 알립니다.
+    http_response_code(200);
+    if ($code !== 200 && is_array($a) && !isset($a['status'])) $a['status'] = $code;
     echo json_encode($a, JSON_UNESCAPED_UNICODE);
     exit;
 }

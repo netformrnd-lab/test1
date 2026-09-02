@@ -15,7 +15,10 @@
 header('Content-Type: application/json; charset=utf-8');
 
 function jout($arr, $code = 200) {
-    http_response_code($code);
+    // 웹 스테이션이 200 이 아닌 응답의 내용을 자기 오류 페이지로 바꿔치기 하므로,
+    // 항상 200 으로 보내고 실패 여부는 JSON 안의 ok 로만 알립니다.
+    http_response_code(200);
+    if ($code !== 200 && is_array($arr) && !isset($arr['status'])) $arr['status'] = $code;
     echo json_encode($arr, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }

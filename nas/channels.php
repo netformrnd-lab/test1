@@ -9,7 +9,17 @@
  *   ?action=probe&url=...      채널 주소에서 RSS 주소 찾기
  *   ?action=feed&url=...&n=6   최근 글 가져오기
  *   ?action=check              상태 확인
+ *   ?action=ytcheck&url=...    유튜브가 왜 안 되는지 한 번에 판정
+ *   ?action=summary            받아둔 최근 글을 한 번에 (인터넷에 안 나갑니다 — 빠릅니다)
+ *   ?action=refreshall         등록된 채널을 전부 새로 받아옵니다 (feeds.sh 가 주기적으로 부릅니다)
  */
+
+// 작업 스케줄러에서 명령줄로도 부를 수 있게 합니다.
+//   php channels.php action=refreshall
+if (PHP_SAPI === 'cli') {
+    parse_str(implode('&', array_slice($argv, 1)), $cliQ);
+    $_GET = array_merge($_GET, $cliQ);
+}
 
 header('Content-Type: application/json; charset=utf-8');
 @ini_set('display_errors', '0');
@@ -276,6 +286,66 @@ if ($action === 'test') {
     ]);
 }
 
+/* 유튜브만 안 될 때, 어디서 막히는지 한 번에 판정합니다 */
+if ($action === 'ytcheck') {
+    $mine = trim($_GET['url'] ?? '');
+    $id   = '';
+    if (preg_match('#(UC[\w-]{20,24})#', $mine, $m)) $id = $m[1];
+
+    $tests = [
+        ['이름' => '1. 유튜브 접속 자체',
+         '주소' => 'https://www.youtube.com/',
+         '기대' => '되어야 정상'],
+        ['이름' => '2. 유튜브 공식 채널 RSS (반드시 되는 주소)',
+         '주소' => 'https://www.youtube.com/feeds/videos.xml?channel_id=UCBR8-60-B28hp2BmDPdntcQ',
+         '기대' => '되어야 정상'],
+    ];
+    if ($mine !== '') $tests[] = ['이름' => '3. 넣으신 채널 페이지', '주소' => $mine, '기대' => '되면 좋음'];
+    if ($id !== '')   $tests[] = ['이름' => '4. 넣으신 채널의 RSS',
+        '주소' => 'https://www.youtube.com/feeds/videos.xml?channel_id=' . $id, '기대' => '되어야 정상'];
+
+    $res = [];
+    foreach ($tests as $t) {
+        $why = [];
+        $b = fetch_url($t['주소'], $why);
+        $t['결과'] = $b === false ? '실패' : ('성공 (' . strlen($b) . ' 바이트)');
+        if ($b === false) $t['시도내역'] = $why;
+        $res[] = $t;
+    }
+
+    // 결과를 보고 사람 말로 정리해 줍니다
+    $good = function ($r) { return strpos($r['결과'], '성공') === 0; };
+    $home = $good($res[0]);
+    $ref  = $good($res[1]);
+    $mineOk = isset($res[3]) ? $good($res[3]) : null;
+
+    if (!$home && !$ref) {
+        $판정 = '유튜브 자체에 못 닿습니다. NAS 가 유튜브로 나가는 길이 막혀 있습니다 '
+              . '(공유기·DNS·보안 설정). 네이버 블로그는 되는데 유튜브만 안 되면 이 경우입니다.';
+        $할일 = 'DSM → 제어판 → 네트워크 → 일반 에서 DNS 서버를 8.8.8.8 로 바꿔보시고, '
+              . '공유기나 회사 방화벽에서 유튜브가 막혀 있는지 확인해 주세요.';
+    } elseif (!$ref) {
+        $판정 = '유튜브 홈은 열리는데 RSS 주소만 막힙니다. 중간에서 걸러내고 있을 가능성이 큽니다.';
+        $할일 = 'DSM 의 Safe Access(안전 접속) 같은 필터나 공유기 광고차단 기능을 꺼보세요.';
+    } elseif ($mineOk === false) {
+        $판정 = '유튜브는 잘 되는데 이 채널의 RSS 만 없습니다(404). '
+              . '채널 주소는 맞지만 채널 ID 가 다른 경우입니다.';
+        $할일 = '유튜브 채널 페이지에서 마우스 오른쪽 → 페이지 소스 보기 → Ctrl+F 로 '
+              . '"channelId" 를 찾으면 진짜 ID 가 나옵니다. '
+              . '또는 채널의 동영상 하나를 열고 채널 이름을 눌러 들어간 주소를 넣어보세요.';
+    } elseif ($mineOk === true) {
+        $판정 = '지금은 잘 됩니다. 아까는 일시적으로 막혔던 것 같습니다.';
+        $할일 = '채널 탭에서 [↻ 전부 새로 받기] 를 눌러보세요.';
+    } else {
+        $판정 = '유튜브는 잘 됩니다. 채널 주소를 함께 넣어주시면 더 정확히 봅니다.';
+        $할일 = '주소 뒤에 &url=채널주소 를 붙여 다시 열어보세요.';
+    }
+
+    jout(['ok' => true, 'mode' => 'ytcheck',
+          '📋 판정' => $판정, '✅ 해볼 일' => $할일,
+          '찾은채널ID' => $id ?: '(없음)', '검사내역' => $res]);
+}
+
 if ($action === 'probe') {
     $url = trim($_GET['url'] ?? '');
     if ($url === '') jout(['ok' => false, 'error' => '채널 주소를 넣어주세요'], 400);
@@ -293,6 +363,92 @@ if ($action === 'probe') {
     $p = parse_feed($body, 3);
     jout(['ok' => true, 'kind' => $g['kind'], 'feed' => $g['feed'],
           '채널이름' => $p['title'] ?? '', '미리보기' => $p['items'] ?? []]);
+}
+
+/* 대시보드에 등록된 채널 목록을 읽어옵니다 (브랜드 데이터에서) */
+function all_channels() {
+    $f = __DIR__ . '/data/brand-data.json';
+    if (!is_file($f)) return [];
+    $d = json_decode((string)@file_get_contents($f), true);
+    if (!is_array($d) || empty($d['brands'])) return [];
+    $out = [];
+    foreach ($d['brands'] as $b) {
+        foreach (($b['channels'] ?? []) as $c) {
+            if (empty($c['feed'])) continue;
+            $out[] = [
+                '브랜드'   => (string)($b['name'] ?? ''),
+                '브랜드id' => (string)($b['id'] ?? ''),
+                '이름'     => (string)($c['name'] ?? ''),
+                'kind'     => (string)($c['kind'] ?? '웹사이트'),
+                'url'      => (string)($c['url'] ?? ''),
+                'feed'     => (string)$c['feed'],
+            ];
+        }
+    }
+    return $out;
+}
+
+/* 받아둔 것만 보여줍니다. 인터넷에 나가지 않아서 눈 깜짝할 사이에 끝납니다. */
+if ($action === 'summary') {
+    $rows = [];
+    $oldest = null;
+    foreach (all_channels() as $c) {
+        $cf = $CACHE_DIR . '/' . md5($c['feed']) . '.json';
+        $c['items'] = [];
+        $c['받은시각'] = null;
+        if (is_file($cf)) {
+            $j = json_decode((string)@file_get_contents($cf), true);
+            if (is_array($j) && !empty($j['items'])) $c['items'] = array_slice($j['items'], 0, 5);
+            $c['받은시각'] = date('c', filemtime($cf));
+            $oldest = ($oldest === null) ? filemtime($cf) : min($oldest, filemtime($cf));
+        }
+        $rows[] = $c;
+    }
+    jout([
+        'ok'       => true,
+        '채널'     => $rows,
+        '채널수'   => count($rows),
+        '가장오래된확인' => $oldest ? date('c', $oldest) : null,
+        '자동확인'  => is_file(__DIR__ . '/data/feeds-last.txt')
+                        ? trim((string)@file_get_contents(__DIR__ . '/data/feeds-last.txt')) : null,
+    ]);
+}
+
+/* 등록된 채널을 전부 새로 받아옵니다. 작업 스케줄러(feeds.sh)가 주기적으로 부릅니다. */
+if ($action === 'refreshall') {
+    if (!is_dir($CACHE_DIR)) @mkdir($CACHE_DIR, 0775, true);
+    $ok = 0; $fail = 0; $new = 0; $failed = [];
+    foreach (all_channels() as $c) {
+        $cf   = $CACHE_DIR . '/' . md5($c['feed']) . '.json';
+        $before = '';
+        if (is_file($cf)) {
+            $j = json_decode((string)@file_get_contents($cf), true);
+            $before = $j['items'][0]['link'] ?? '';
+        }
+        $why  = [];
+        $body = fetch_url($c['feed'], $why);
+        if ($body === false) {
+            $fail++;
+            $failed[] = ['채널' => $c['브랜드'] . ' · ' . $c['이름'], '시도내역' => $why];
+            continue;
+        }
+        $p = parse_feed($body, 10);
+        if (!$p) {
+            $fail++;
+            $failed[] = ['채널' => $c['브랜드'] . ' · ' . $c['이름'], '시도내역' => ['RSS 형식이 아닙니다']];
+            continue;
+        }
+        @file_put_contents($cf, json_encode(
+            ['ok' => true, 'title' => $p['title'], 'items' => $p['items'],
+             '받은시각' => date('c'), '캐시' => '아니오'], JSON_UNESCAPED_UNICODE));
+        $ok++;
+        if ($before !== '' && ($p['items'][0]['link'] ?? '') !== $before) $new++;
+    }
+    @mkdir(__DIR__ . '/data', 0775, true);
+    @file_put_contents(__DIR__ . '/data/feeds-last.txt', date('c'));
+    jout(['ok' => true, 'mode' => 'refreshall', '확인한채널' => $ok,
+          '새글있던채널' => $new, '실패' => $fail, '실패내역' => $failed,
+          '시각' => date('c')]);
 }
 
 if ($action === 'feed') {
@@ -313,10 +469,16 @@ if ($action === 'feed') {
             $c = json_decode(file_get_contents($cf), true);
             if (is_array($c)) { $c['캐시'] = '예 (새로 못 받음)'; jout($c); }
         }
+        $tip = '';
+        if (strpos($feed, 'youtube.com') !== false) {
+            $tip = "\n\n404 는 '그 채널 ID 로는 RSS 가 없다', "
+                 . "그 밖의 오류는 '유튜브까지 못 갔다' 는 뜻입니다.\n"
+                 . "어느 쪽인지는 [🔧 유튜브 진단] 을 눌러 확인하세요.";
+        }
         jout(['ok' => false,
               'error' => "채널을 읽지 못했습니다.\n\n"
                 . "NAS 가 이 주소에 닿지 못했습니다:\n" . $feed . "\n\n"
-                . "시도한 방법:\n \xc2\xb7 " . implode("\n \xc2\xb7 ", $why),
+                . "시도한 방법:\n \xc2\xb7 " . implode("\n \xc2\xb7 ", $why) . $tip,
               '시도내역' => $why, 'feed' => $feed], 502);
     }
     $p = parse_feed($body, $n);

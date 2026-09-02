@@ -478,6 +478,10 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .vernew button{font-family:inherit;font-size:11px;font-weight:700;padding:3px 10px;
   border:0;border-radius:999px;background:var(--blue);color:#fff;cursor:pointer}
 .vernew button:disabled{opacity:.6;cursor:default}
+.chip.new{background:rgba(239,68,68,.13);border-color:var(--red,#ef4444);color:var(--red,#ef4444)}
+.cnt.newdot{background:rgba(239,68,68,.15);color:var(--red,#ef4444);font-weight:800}
+.newtag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.4px;
+  padding:1px 5px;border-radius:4px;background:var(--red,#ef4444);color:#fff;vertical-align:1px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:none;
   background:var(--text-primary);color:var(--bg-card);padding:12px 22px;border-radius:999px;
   font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:200}
@@ -588,7 +592,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260902-10';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260902-11';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -855,6 +859,9 @@ function renderSidebar(){
       + '<span class="bar" style="background:' + b.color + '"></span>'
       + '<span class="em">' + esc(b.icon || '🏷️') + '</span>'
       + '<span>' + esc(b.name) + '</span>'
+      + (function(){ const k = brandNewCount(b);
+           return k ? '<span class="cnt newdot" title="채널에 안 본 글 ' + k + '개">'
+                      + k + '</span>' : ''; })()
       + '<span class="cnt">' + n + '</span></button>'
       + '<span class="bmove">'
         + (i > 0 ? '<button class="btn sm" title="위로" onclick="moveBrand(\'' + b.id + '\',-1)">↑</button>' : '')
@@ -922,6 +929,8 @@ function renderHome(){
           ? '<span class="chip test">✅ ' + b.tasks.filter(t => t.status !== '완료').length + '</span>' : '')
       + ((b.masterPrompt || '').trim() ? '<span class="chip on">✨ 작성됨</span>'
                                        : '<span class="chip">✨ 미작성</span>')
+      + (function(){ const k = brandNewCount(b);
+           return k ? '<span class="chip new">🆕 새 글 ' + k + '</span>' : ''; })()
     + '</div></div>').join('');
 
   // 기한이 지났거나 임박한 할 일
@@ -987,6 +996,28 @@ function renderHome(){
         + '</div>').join('') + '</div>'
     : '';
 
+  // 채널에 새로 올라온 글 (NAS 가 미리 받아둔 것)
+  const posts = [];
+  chState.rows.forEach(r => {
+    const brand = bs.find(x => x.name === r['브랜드']);
+    const mark  = chSeen()[r.feed];
+    (r.items || []).forEach(it => {
+      if(!it.link) return;
+      posts.push({ r, it, brand, isNew: chNewer(chKey(it), mark) });
+    });
+  });
+  posts.sort((x, y) => String(y.it.iso || '').localeCompare(String(x.it.iso || '')));
+
+  const postHtml = posts.length
+    ? '<div class="todo recent">' + posts.slice(0, 8).map(p =>
+        '<div class="ri" onclick="window.open(\'' + jsq(p.it.link) + '\',\'_blank\',\'noopener\')">'
+        + '<span>' + (CH_ICON[p.r.kind] || '🌐') + '</span>'
+        + '<strong>' + (p.isNew ? '<span class="newtag">NEW</span> ' : '') + esc(p.it.title) + '</strong>'
+        + '<span style="color:var(--text-muted)">' + esc(p.r['브랜드'] || p.r['이름']) + '</span>'
+        + '<span class="rb">' + esc(sinceText(p.it.iso)) + '</span>'
+        + '</div>').join('') + '</div>'
+    : '';
+
   document.getElementById('main').innerHTML =
     '<div class="panel"><div class="tabbody">'
     + '<h2 style="font-size:19px;font-weight:800;margin-bottom:4px">브랜드 현황</h2>'
@@ -995,6 +1026,7 @@ function renderHome(){
     + '<div class="stats">' + stats + '</div>'
     + '<div class="hgrid">' + cards + '</div>'
     + (urgentHtml ? '<div class="hsec">⏰ 기한이 임박한 할 일</div>' + urgentHtml : '')
+    + (postHtml ? '<div class="hsec">📣 채널에 올라온 글</div>' + postHtml : '')
     + (recentHtml ? '<div class="hsec">🕘 최근 업데이트</div>' + recentHtml : '')
     + '<div class="hsec">📝 아직 비어 있는 곳</div>' + todoHtml
     + '</div></div>';
@@ -1173,6 +1205,103 @@ async function ensureFiles(navKey, need){
    ============================================== */
 const feedCache = {};   // RSS 주소 → {loading} | {error} | 응답
 
+/* NAS 가 미리 받아둔 채널 글 모음입니다.
+   feeds.sh 를 작업 스케줄러에 걸어두면 NAS 가 30분마다 돌아보고,
+   대시보드는 그걸 그냥 읽기만 해서 열자마자 바로 보입니다. */
+const chState = { rows: [], at: null, autoAt: null, loaded: false };
+
+const CH_SEEN_KEY = 'brandHubChSeen';   // 어디까지 봤는지 (이 브라우저에만 저장)
+
+function chSeen(){
+  try{ return JSON.parse(localStorage.getItem(CH_SEEN_KEY) || '{}'); }
+  catch(e){ return {}; }
+}
+function chSeenSave(o){
+  try{ localStorage.setItem(CH_SEEN_KEY, JSON.stringify(o)); }catch(e){}
+}
+
+/* 아직 안 본 글이 몇 개인지 셉니다.
+   처음 보는 채널은 지금 것을 '이미 본 것'으로 쳐서, 빨간 표시가 쏟아지지 않게 합니다. */
+function chKey(it){ return (it && (it.iso || it.link)) || ''; }
+
+/* 이 글이 '마지막으로 본 것' 보다 새 글인지 봅니다.
+   날짜가 있으면 날짜로, 없으면 주소가 달라졌는지로 판단합니다. */
+function chNewer(key, mark){
+  if(!key || !mark) return false;
+  const a = Date.parse(key), b = Date.parse(mark);
+  if(!isNaN(a) && !isNaN(b)) return a > b;
+  return key !== mark;
+}
+
+function chUnseen(feed, items){
+  if(!feed || !items || !items.length) return 0;
+  const seen = chSeen();
+  const mark = seen[feed];
+  if(!mark){
+    seen[feed] = chKey(items[0]);
+    chSeenSave(seen);
+    return 0;
+  }
+  let n = 0;
+  for(const it of items){
+    if(chNewer(chKey(it), mark)) n++;
+    else break;
+  }
+  return n;
+}
+
+function chRowsOf(brandName){
+  return chState.rows.filter(r => r['브랜드'] === brandName);
+}
+
+function brandNewCount(b){
+  return chRowsOf(b.name).reduce((a, r) => a + chUnseen(r.feed, r.items), 0);
+}
+
+function markChannelsSeen(b){
+  const seen = chSeen();
+  let changed = false;
+  chRowsOf(b.name).forEach(r => {
+    if(!r.items || !r.items.length) return;
+    const key = chKey(r.items[0]);
+    if(key && seen[r.feed] !== key){ seen[r.feed] = key; changed = true; }
+  });
+  if(changed){ chSeenSave(seen); setTimeout(render, 0); }
+}
+
+/* NAS 가 받아둔 것을 읽어옵니다. 인터넷에 나가지 않아 빠릅니다. */
+async function loadChannelSummary(){
+  if(STORAGE_MODE !== 'nas') return;
+  try{
+    const j = await apiJson('channels.php?action=summary');
+    if(!j || !j.ok) return;
+    chState.rows   = j['채널'] || [];
+    chState.at     = j['가장오래된확인'] || null;
+    chState.autoAt = j['자동확인'] || null;
+    chState.loaded = true;
+    // 채널 탭이 기다리지 않도록 미리 채워둡니다
+    chState.rows.forEach(r => {
+      if(r.feed && r.items && r.items.length && !feedCache[r.feed])
+        feedCache[r.feed] = { ok:true, title:r['이름'], items:r.items };
+    });
+    render();
+  }catch(e){ /* 조용히 넘어갑니다 — 채널은 곁다리 기능입니다 */ }
+}
+
+/* 지금 당장 전부 새로 받아옵니다 (NAS 가 인터넷에 나갔다 옵니다 — 조금 걸립니다) */
+async function refreshAllChannels(btn){
+  if(btn){ btn.disabled = true; btn.textContent = '받는 중…'; }
+  toast('📡 채널을 전부 돌아보는 중입니다…');
+  try{
+    const j = await apiJson('channels.php?action=refreshall');
+    Object.keys(feedCache).forEach(k => delete feedCache[k]);
+    await loadChannelSummary();
+    if(j['실패']) toast('확인 ' + j['확인한채널'] + '곳 · 실패 ' + j['실패'] + '곳');
+    else toast('✅ ' + j['확인한채널'] + '곳을 새로 받았습니다');
+  }catch(e){ alert(apiErrText(e)); }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = '↻ 전부 새로 받기'; } }
+}
+
 const CH_ICON = { '네이버 블로그':'📗', '네이버 카페':'☕', '유튜브':'📺', '인스타그램':'📷',
                   '티스토리':'📘', '브런치':'✍️', '페이스북':'👥', '웹사이트':'🌐' };
 
@@ -1260,10 +1389,18 @@ function sinceText(iso){
 
 function viewChannels(b){
   const list = b.channels || [];
+  setTimeout(() => markChannelsSeen(b), 400);   // 열어봤으니 '읽음' 처리
+
+  const when = chState.autoAt
+    ? 'NAS가 마지막으로 돌아본 때: ' + esc(sinceText(chState.autoAt))
+      + ' (' + esc(new Date(chState.autoAt).toLocaleString('ko-KR',
+          { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })) + ')'
+    : 'NAS 자동 확인이 아직 꺼져 있습니다';
+
   const bar = '<div class="sec-bar">'
     + '<button class="btn primary" onclick="addChannel()">＋ 채널 추가</button>'
-    + '<span class="hint">블로그·유튜브는 최근 올린 글까지 가져옵니다. '
-      + '카페·인스타는 주소만 저장됩니다</span></div>';
+    + '<button class="btn" onclick="refreshAllChannels(this)">↻ 전부 새로 받기</button>'
+    + '<span class="hint">' + when + '</span></div>';
 
   if(!list.length) return bar + '<div class="empty">등록된 채널이 없습니다.<br>'
     + '<span style="color:var(--text-muted)">블로그·카페·유튜브 주소를 넣어두면, '
@@ -1284,8 +1421,11 @@ function viewChannels(b){
         + esc(f.error) + '</div>'
         + '<div class="row" style="margin-top:8px">'
           + '<button class="btn sm" onclick="refreshFeed(\'' + jsq(c.feed) + '\')">↻ 다시 시도</button>'
-          + '<a class="btn sm" href="channels.php?action=test&url=' + encodeURIComponent(c.feed)
-            + '" target="_blank" rel="noopener">🔧 왜 안 되는지 보기</a>'
+          + (String(c.url).indexOf('youtube') >= 0 || String(c.feed).indexOf('youtube') >= 0
+              ? '<a class="btn sm" href="channels.php?action=ytcheck&url=' + encodeURIComponent(c.url)
+                + '" target="_blank" rel="noopener">🔧 유튜브 진단</a>'
+              : '<a class="btn sm" href="channels.php?action=test&url=' + encodeURIComponent(c.feed)
+                + '" target="_blank" rel="noopener">🔧 왜 안 되는지 보기</a>')
           + '<a class="btn sm" href="' + esc(c.feed) + '" target="_blank" rel="noopener">RSS 직접 열기 ↗</a>'
         + '</div>';
     }else if(!f.items || !f.items.length){
@@ -1295,10 +1435,15 @@ function viewChannels(b){
       const days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 86400000) : null;
       badge = '<span class="chip' + (days === null ? '' : (days <= 14 ? ' on' : (days <= 45 ? ' test' : ' off')))
         + '">최근 발행 ' + esc(sinceText(last)) + '</span>';
+      const nNew = chUnseen(c.feed, f.items);
+      if(nNew) badge += '<span class="chip new">🆕 새 글 ' + nNew + '</span>';
+      const mark = chSeen()[c.feed];
       inner = f.items.map(it =>
         '<div class="krow" style="align-items:baseline;gap:8px">'
         + '<a class="lnk" style="flex:1;min-width:0;word-break:break-all" href="' + esc(it.link)
-          + '" target="_blank" rel="noopener">' + esc(it.title) + '</a>'
+          + '" target="_blank" rel="noopener">'
+          + (chNewer(chKey(it), mark) ? '<span class="newtag">NEW</span> ' : '')
+          + esc(it.title) + '</a>'
         + '<span class="fmeta" style="white-space:nowrap;margin:0">'
           + esc(sinceText(it.iso)) + '</span></div>').join('');
     }
@@ -4601,7 +4746,13 @@ async function init(){
   updateSubtitle();
   render();
   loadInquiries();         // 홈에도 문의 수치를 띄우기 위해 미리 불러옵니다
-  if(STORAGE_MODE === 'nas'){ nasCheck(); checkVersion(false); }
+  if(STORAGE_MODE === 'nas'){
+    nasCheck();
+    checkVersion(false);
+    loadChannelSummary();                                  // 채널 새 글 (받아둔 것 읽기)
+    setInterval(loadChannelSummary, 5 * 60 * 1000);        // 열어둔 채로도 5분마다 갱신
+    setInterval(() => checkVersion(false), 30 * 60 * 1000);
+  }
 }
 init();
 </script>

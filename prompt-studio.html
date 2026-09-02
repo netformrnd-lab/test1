@@ -260,10 +260,10 @@
     </div>
     <div class="note" id="lenNote"></div>
     <div class="assets">
-      <label>이번 편에 쓸 사진 · 영상 <span class="help">— 선택. 끌어다 놓으면 어느 씬에 넣을지 고를 수 있습니다</span></label>
+      <label>사진 · 영상 자리 지정 <span class="help">— 선택. 헤이젠에 올린 파일을 여기에도 넣으면 어느 씬에 쓸지 프롬프트에 적힙니다</span></label>
       <div class="drop" id="drop" tabindex="0" role="button" aria-label="사진 추가">
         <span class="dropicon" aria-hidden="true">＋</span>
-        <span class="droptxt">사진이나 영상을 여기로 끌어다 놓기<br><span class="dropsub">클릭해서 고를 수도 있습니다</span></span>
+        <span class="droptxt">헤이젠에 올린 사진·영상을 여기로 끌어다 놓기<br><span class="dropsub">파일은 전송되지 않고, 이름과 자리만 프롬프트에 들어갑니다</span></span>
       </div>
       <input type="file" id="picker" accept="image/*,video/*" multiple hidden>
       <div class="mgrid" id="mgrid"></div>
@@ -362,7 +362,6 @@
         <button role="tab" aria-selected="true" data-tab="1">② 마스터 프롬프트</button>
         <button role="tab" aria-selected="false" data-tab="2">③ 제작 사양 JSON</button>
       </div>
-      <button class="btn" id="saveKitBtn" hidden>사진 저장</button>
       <button class="btn" id="saveTxtBtn" hidden>프롬프트 저장</button>
       <button class="btn solid" id="copyBtn">복사</button>
     </div>
@@ -373,7 +372,7 @@
       <textarea id="out" readonly spellcheck="false" aria-label="생성된 프롬프트"></textarea>
       <div class="outhint">
         칸을 누르면 전체가 선택됩니다. 그 상태에서 <b>Ctrl+C</b> (맥 <b>⌘+C</b>), 휴대폰은 길게 눌러 <b>복사</b>.<br>
-        복사는 <b>글자만</b> 옮겨집니다. 사진은 <b>사진 저장</b>으로 내려받아 헤이젠에 직접 올리세요 — 씬 순서대로 번호가 붙습니다.
+        사진은 헤이젠에 직접 올리시고, 여기서는 <b>어느 씬에 쓸지</b>만 지정하면 됩니다.
       </div>
       <div class="meta">
         <span id="mChars"></span><span id="mLines"></span>
@@ -560,7 +559,7 @@
     var pending=arr.length;
     arr.forEach(function(f){
       makeThumb(f,function(t){
-        media.push({id:++mseq,file:f.name,scene:'',desc:'',thumb:t,blob:f,
+        media.push({id:++mseq,file:f.name,scene:'',desc:'',thumb:t,
                     kind:/^video\//.test(f.type)?'video':'image'});
         if(--pending===0){ renderMedia(); render(); }
       });
@@ -935,7 +934,7 @@
     document.getElementById('sceneHint').innerHTML = assets.length
       ? '<b>'+assets.length+'개</b> 추가됨'+
         (unassigned? ' · 씬 미지정 <b>'+unassigned+'개</b>는 배치를 AI에 맡깁니다.' : ' · 모두 씬에 연결됨')+
-        '<br>파일은 이 브라우저에만 저장됩니다. <b>헤이젠에는 같은 파일을 직접 올려야</b> 프롬프트가 찾아 씁니다.'
+        '<br>헤이젠에 올린 이름과 같아야 프롬프트가 그 파일을 찾아 씁니다.'
       : '비워두면 모든 화면을 헤이젠이 생성한 소재로 채웁니다.';
 
     document.getElementById('presetNote').textContent=PRESETS[st.preset].note;
@@ -972,7 +971,6 @@
       : '';
 
     document.getElementById('saveTxtBtn').hidden = !dl;
-    document.getElementById('saveKitBtn').hidden = !dl || media.length===0;
     document.getElementById('openRich').hidden = media.length===0;
     if(!media.length) document.getElementById('richWrap').hidden=true;
     else if(!document.getElementById('richWrap').hidden)
@@ -1074,21 +1072,12 @@
 
   // ---- 저장 (downloads) ----
   var dl=null;
-  var saveKit=document.getElementById('saveKitBtn'), saveTxt=document.getElementById('saveTxtBtn');
+  var saveTxt=document.getElementById('saveTxtBtn');
   if(window.claude && typeof window.claude.use==='function'){
     window.claude.use('downloads').then(function(ns){ dl=ns; render(); },function(){ dl=null; });
   }
   function safeName(x){
     return String(x).replace(/[\\/:*?"<>|]/g,'_').replace(/\s+/g,'_').slice(0,80);
-  }
-  // 씬 순서대로 정렬한 소재 목록
-  function orderedMedia(){
-    var parts=sceneNames(), out=[];
-    parts.forEach(function(pn){
-      media.forEach(function(m){ if(m.scene===pn) out.push(m); });
-    });
-    media.forEach(function(m){ if(!m.scene) out.push(m); });
-    return out;
   }
   function dlErr(e){
     var c=(e&&e.code)||'unavailable';
@@ -1107,23 +1096,6 @@
       .then(function(){ flash('저장했습니다'); },
             function(e){ flash(dlErr(e)); });
   });
-  saveKit.addEventListener('click',function(){
-    if(!dl) return;
-    var list=orderedMedia().filter(function(m){return m.blob;});
-    if(!list.length){ flash('원본이 없습니다. 사진을 다시 추가해 주세요'); return; }
-    var i=0;
-    (function next(){
-      if(i>=list.length){ flash(list.length+'개 저장했습니다'); return; }
-      var m=list[i++], n=String(i).replace(/^(\d)$/,'0$1');
-      var ext=(m.file.match(/\.[a-z0-9]+$/i)||[''])[0];
-      var base=m.file.replace(/\.[a-z0-9]+$/i,'');
-      var name=n+'_'+safeName(m.scene||'미지정')+'_'+safeName(base)+ext;
-      dl.save({filename:name,data:m.blob}).then(next,function(e){
-        flash(dlErr(e)+' ('+m.file+')');
-      });
-    })();
-  });
-
   var toast=document.getElementById('toast'), tid;
   function flash(m){ toast.textContent=m; toast.classList.add('on');
     clearTimeout(tid); tid=setTimeout(function(){toast.classList.remove('on');},1600); }

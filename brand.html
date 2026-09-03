@@ -46,6 +46,7 @@ body.dark-mode{
   --text-primary:#eceef1; --text-secondary:#a6aab2; --text-muted:#6d717a;
   --blue:#8a97fb; --blue-soft:rgba(138,151,251,.14);
   --green:#3ecf7d; --yellow:#e0a33c; --red:#f06767;
+  --purple:#a48cf0; --cyan:#3fb6cf; --orange:#f0873c;
   --ink:#eceef1; --ink-hover:#ffffff;
   --shadow-sm:0 1px 2px rgba(0,0,0,.4);
   --shadow-md:0 2px 4px rgba(0,0,0,.4),0 10px 24px -10px rgba(0,0,0,.7);
@@ -105,14 +106,24 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
   min-width:0}
 .statusgrp{display:flex;gap:6px;align-items:center;justify-content:flex-end;
   flex:1 1 0;min-width:0;overflow:hidden}
-.statusgrp > *{min-width:0}
+.statusgrp > *{flex:0 0 auto;white-space:nowrap;min-width:0}
 .btngrp{display:flex;gap:6px;align-items:center;flex:0 0 auto}
 @media(max-width:1280px){ .presence .pnames{display:none} }
 @media(max-width:1100px){ .savestate{min-width:0} .verbadge{display:none} }
-@media(max-width:900px){
-  .actions{flex-wrap:wrap}
-  .statusgrp{flex:1 1 100%;justify-content:flex-start}
+/* 새 판 알림이 떠서 자리가 모자랄 때는 판 번호부터 숨깁니다 */
+.topbar.tight .verbadge{display:none}
+.topbar.tight2 .savestate{display:none}
+@media(max-width:1000px){
+  /* 자리가 좁아지면 오른쪽 묶음을 통째로 아랫줄로 내립니다.
+     (좁혀서 글자가 겹치는 것보다 줄을 바꾸는 편이 낫습니다)              */
+  .actions{flex:1 1 100%;flex-wrap:wrap;justify-content:flex-end}
+  .statusgrp{flex:1 1 auto;justify-content:flex-start;flex-wrap:wrap;overflow:visible}
+  .topbar.tight2 .savestate{display:block}
   .presence .pnames{display:inline}
+}
+@media(max-width:620px){
+  .searchbox{flex:1 1 100%}
+  .statusgrp{flex:1 1 100%}
 }
 
 .astat{font-size:12px;color:var(--text-muted)}
@@ -671,6 +682,23 @@ body.dark-mode .vz-box{--sr1:#3987e5; --sr2:#d95926; --sr3:#199e70; --sr4:#c9850
 .vz-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;
   letter-spacing:-.018em;margin-bottom:10px}
 .vz-legend{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:6px}
+.vz-ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px}
+.vz-keys{display:flex;flex-wrap:wrap;gap:6px}
+.vz-spacer{flex:1 1 0;min-width:0}
+.vz-btn{font-family:inherit;padding:4px 10px;border-radius:999px;cursor:pointer;
+  border:1px solid var(--border);background:var(--bg-card);transition:.14s var(--ease)}
+.vz-btn:hover{border-color:var(--border-light)}
+.vz-btn.off{opacity:.5;text-decoration:line-through}
+.vz-seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--r-sm);
+  overflow:hidden;background:var(--bg-card)}
+.vz-seg button{font-family:inherit;font-size:12px;font-weight:600;padding:5px 12px;border:0;
+  background:transparent;color:var(--text-secondary);cursor:pointer}
+.vz-seg button + button{border-left:1px solid var(--border)}
+.vz-seg button.on{background:var(--text-primary);color:var(--bg-card)}
+.vz-sel{font-family:inherit;font-size:12px;padding:5px 9px;border-radius:var(--r-sm);
+  border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);
+  max-width:200px}
+table.ymtable tr.dim{opacity:.45}
 .vz-key{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
   color:var(--text-secondary)}
 .vz-sw{width:14px;height:3px;border-radius:99px;flex-shrink:0}
@@ -697,6 +725,42 @@ table.ymtable .tot{font-weight:700}
 table.ymtable tr:hover td{background:var(--bg-hover)}
 table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--border-light);
   border-bottom:none;font-weight:700;color:var(--text-secondary)}
+
+/* ---------- 달력 ---------- */
+.mt-foot{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
+  border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;
+  background:var(--border)}
+.cal-h{background:var(--bg-input);padding:7px 8px;font-size:11.5px;font-weight:700;
+  letter-spacing:-.01em;color:var(--text-secondary);text-align:center}
+.cal-c{background:var(--bg-card);min-height:98px;padding:6px 6px 8px;
+  display:flex;flex-direction:column;gap:3px;cursor:default;
+  transition:background .13s var(--ease)}
+.cal-c:hover{background:var(--bg-hover)}
+.cal-c.out{background:var(--bg-secondary);cursor:default}
+.cal-c.out:hover{background:var(--bg-secondary)}
+.cal-d{align-self:flex-start;font-size:12px;font-weight:700;color:var(--text-secondary);
+  font-variant-numeric:tabular-nums;line-height:1.2;margin-bottom:1px}
+.cal-h.sun,.cal-c.sun .cal-d{color:var(--red)}
+.cal-h.sat,.cal-c.sat .cal-d{color:var(--blue)}
+.cal-c.today{box-shadow:inset 0 0 0 2px var(--blue)}
+.cal-c.today .cal-d{display:inline-flex;align-items:center;justify-content:center;
+  min-width:19px;height:19px;padding:0 4px;border-radius:999px;
+  background:var(--blue);color:#fff}
+.cal-e{display:flex;align-items:center;gap:5px;min-width:0;width:100%;
+  font-family:inherit;text-align:left;font-size:11.5px;line-height:1.35;
+  padding:2px 6px;border-radius:5px;border:0;cursor:pointer;
+  background:var(--bg-input);
+  background:color-mix(in srgb,var(--ec) 13%,transparent);
+  color:var(--text-primary);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-e:hover{background:color-mix(in srgb,var(--ec) 24%,transparent)}
+.cal-dot{width:7px;height:7px;border-radius:99px;flex-shrink:0;background:var(--ec)}
+@media(max-width:900px){
+  .cal-c{min-height:76px;padding:5px 4px 6px}
+  .cal-e{font-size:11px;padding:1px 4px}
+}
 
 /* 고칠 수 있는 표 */
 table.itable.editable td{max-width:260px}
@@ -832,6 +896,21 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
     <div class="side-title">브랜드</div>
     <div class="brand-list" id="brandList"></div>
     <button class="btn" style="width:100%" onclick="openBrandModal()">＋ 브랜드 추가</button>
+
+    <!-- 브랜드와 상관없이 팀이 같이 쓰는 것들 -->
+    <div class="side-title" style="margin-top:18px">업무</div>
+    <div class="brand-list">
+      <button class="brand-item home-item" id="meetBtn" onclick="goView('meetings')">
+        <span class="bar" style="background:var(--cyan)"></span>
+        <span class="em">🗣️</span><span>회의록</span>
+        <span class="cnt" id="meetCnt"></span>
+      </button>
+      <button class="brand-item home-item" id="calBtn" onclick="goView('calendar')">
+        <span class="bar" style="background:var(--orange)"></span>
+        <span class="em">📅</span><span>달력</span>
+        <span class="cnt" id="calCnt"></span>
+      </button>
+    </div>
   </aside>
   <main id="main"></main>
 </div>
@@ -884,7 +963,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260903-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260903-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -949,7 +1028,7 @@ async function pullLive(by){
   const hasMine = dirtyBrands.size > 0 || dirtyGlobal;
   if(hasMine){
     // 아직 저장 안 한 내 수정이 있으면, 저장할 때와 같은 방식으로 합칩니다
-    revived = 0; clashed = 0;
+    revived = 0; clashed = 0; clashedTop = 0;
     data = normalize(mergeWithServer(srv));
   }else{
     data = normalize(srv);
@@ -1063,7 +1142,7 @@ const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).
 function newBrand(name, icon, color, desc){
   return { id: uid('b'), name, icon, color, owner:'', desc: desc || '',
            automations:[], history:[], assets:[], tasks:[], links:[], nasFolders:[],
-           record:null, tools:[], channels:[], meetings:[],
+           record:null, tools:[], channels:[],
            masterPrompt:'', promptUpdatedAt:null };
 }
 
@@ -1092,6 +1171,8 @@ const TYPES = {
       { key:'title',     label:'회의 제목', type:'text', required:true,
         ph:'예: 9월 콘텐츠 방향 회의' },
       { key:'date',      label:'날짜',      type:'date' },
+      { key:'brand',     label:'브랜드 (선택)', type:'text',
+        ph:'어느 브랜드 회의인지. 여러 브랜드면 비워두세요' },
       { key:'attendees', label:'참석자',    type:'text', ph:'예: 김마케, 이디자인, 박기획' },
       { key:'body',      label:'회의 내용', type:'textarea',
         ph:'들은 대로 편하게 적으세요. 문장이 안 다듬어져도 괜찮습니다.\n'
@@ -1171,7 +1252,7 @@ const TYPES = {
     ]
   }
 };
-const ITEM_KEYS = ['automations','history','meetings','assets','tasks','links'];
+const ITEM_KEYS = ['automations','history','assets','tasks','links'];
 
 /* 자동화 개수 — 손으로 적은 것과 올려둔 도구 파일을 합쳐서 셉니다.
    화면마다 다르게 세면 "등록했는데 숫자가 안 올라간다" 가 되므로 여기 하나만 씁니다. */
@@ -1181,7 +1262,7 @@ function autoCount(b){ return b.automations.length + ((b.tools || []).length); }
 function itemCount(b){
   return ITEM_KEYS.reduce((a, k) => a + b[k].length, 0) + ((b.tools || []).length);
 }
-const TAB_KEYS  = ['automations','history','meetings','assets','tasks','links','channels','inquiries','prompt'];
+const TAB_KEYS  = ['automations','history','assets','tasks','links','channels','inquiries','prompt'];
 
 let data = defaultData();
 let currentBrandId = null;
@@ -1221,7 +1302,21 @@ let view = 'home';   // home | nas | brand
 function paintVersion(){
   const el = document.getElementById('verBadge');
   if(el) el.textContent = APP_VER;
+  fitTopbar();
 }
+
+/* 위쪽 줄이 넘칠 때: 덜 중요한 것부터 조용히 숨깁니다.
+   ("새 판 받기" 알림이 떠도 단추들이 밀리거나 겹치지 않게)                */
+function fitTopbar(){
+  const bar = document.querySelector('.topbar');
+  const grp = document.querySelector('.statusgrp');
+  if(!bar || !grp) return;
+  bar.classList.remove('tight', 'tight2');
+  if(grp.scrollWidth <= grp.clientWidth + 1) return;
+  bar.classList.add('tight');
+  if(grp.scrollWidth > grp.clientWidth + 1) bar.classList.add('tight2');
+}
+window.addEventListener('resize', fitTopbar);
 
 /* ---- 새 판 알림 ---------------------------------------------------------
    NAS 에 있는 brand.html 의 판 번호와 GitHub 에 올라간 판 번호를 비교합니다.
@@ -1247,7 +1342,7 @@ async function checkVersion(force){
   }catch(e){
     box.style.display = 'none';
     if(force) toast('확인하지 못했습니다');
-  }finally{ verBusy = false; }
+  }finally{ verBusy = false; fitTopbar(); }
 }
 
 async function pullVersion(btn){
@@ -1333,13 +1428,32 @@ function render(){
   renderSidebar();
   const home = document.getElementById('homeBtn');
   const nas  = document.getElementById('nasBtn');
-  if(home) home.classList.toggle('on', view === 'home' && !searchQuery);
+  if(home) home.classList.toggle('on', view === 'home' && !searchQuery && !currentBrandId);
   if(nas)  nas.classList.toggle('on',  view === 'nas'  && !searchQuery);
+  [['meetBtn','meetings'],['calBtn','calendar']].forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('on', view === v && !searchQuery);
+  });
+  const mc = document.getElementById('meetCnt');
+  if(mc) mc.textContent = (data.meetings || []).length || '';
+  const cc = document.getElementById('calCnt');
+  if(cc) cc.textContent = (data.events || []).length || '';
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
+  else if(view === 'meetings') renderMeetings();
+  else if(view === 'calendar') renderCalendar();
   else if(!currentBrandId) renderHome();
   else renderBrand();
   restoreUI(snap);
+}
+
+/* 브랜드와 상관없는 화면(회의록·달력)으로 갑니다 */
+function goView(v){
+  clearSearchQuietly();
+  view = v;
+  currentBrandId = null;
+  render();
+  window.scrollTo({ top:0, behavior:'smooth' });
 }
 
 function goNas(){
@@ -3201,7 +3315,6 @@ function renderBrand(){
   const counts = {
     automations: autoCount(b),
     history: b.history.length + (b.record ? 1 : 0),
-    meetings: b.meetings.length,
     assets: b.assets.length,
     tasks: b.tasks.filter(t => t.status !== '완료').length,
     links: b.links.length,
@@ -3213,7 +3326,6 @@ function renderBrand(){
     ['inquiries','📞 문의'],
     ['automations','🤖 자동화 모음'],
     ['history','📜 히스토리'],
-    ['meetings','🗣️ 회의록'],
     ['tasks','✅ 할 일'],
     ['links','🔗 바로가기'],
     ['channels','📣 채널'],
@@ -3244,7 +3356,6 @@ function renderBrand(){
   const body = document.getElementById('tabbody');
   if(currentTab === 'prompt') body.innerHTML = viewPrompt(b);
   else if(currentTab === 'history') body.innerHTML = viewHistory(b);
-  else if(currentTab === 'meetings') body.innerHTML = viewMeetings(b);
   else if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
   else if(currentTab === 'inquiries') {
     body.innerHTML = viewInquiries(b);
@@ -4698,45 +4809,75 @@ const YEAR_HUES = ['var(--sr1)', 'var(--sr2)', 'var(--sr3)', 'var(--sr4)'];
    (연속된 4개 해는 서로 다른 색이 됩니다) */
 function yearHue(y){ return YEAR_HUES[((y % 4) + 4) % 4]; }
 const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const QUARTER_KO = ['1분기','2분기','3분기','4분기'];
 let yearChartMax = 4;      // 한 번에 그릴 해의 수
 
-/* 연도 × 월 표를 만듭니다 */
-function yearMonthGrid(rows, dateCol){
-  const grid = {};                       // 연도 → [12개월]
+/* 그래프를 어떻게 볼지 — 화면에서 바꿀 수 있습니다 */
+const chartOpt = {
+  off: {},        // 꺼둔 해 { 2024: true }
+  unit: '월',     // 월 | 분기
+  cat: '',        // 나눠볼 분류 열 (예: 문의유형)
+  val: ''         // 그 분류의 값 (빈 값이면 전체)
+};
+
+function chartToggleYear(y){
+  chartOpt.off[y] = !chartOpt.off[y];
+  render();
+}
+function chartSetUnit(u){ chartOpt.unit = u; render(); }
+function chartSetCat(v){
+  const i = v.indexOf('\u241F');                 // "열\u241F값" 으로 넘어옵니다
+  chartOpt.cat = i < 0 ? '' : v.slice(0, i);
+  chartOpt.val = i < 0 ? '' : v.slice(i + 1);
+  render();
+}
+function chartReset(){
+  chartOpt.off = {}; chartOpt.unit = '월'; chartOpt.cat = ''; chartOpt.val = '';
+  render();
+}
+
+/* 연도 × (월 또는 분기) 표를 만듭니다 */
+function yearMonthGrid(rows, dateCol, unit){
+  const n = unit === '분기' ? 4 : 12;
+  const grid = {};                       // 연도 → [12개월] 또는 [4분기]
   let none = 0;
   rows.forEach(r => {
     const d = dateCol ? parseYMD(r[dateCol]) : null;
     if(!d){ none++; return; }
     const y = d.getFullYear();
-    if(!grid[y]) grid[y] = new Array(12).fill(0);
-    grid[y][d.getMonth()]++;
+    if(!grid[y]) grid[y] = new Array(n).fill(0);
+    grid[y][unit === '분기' ? Math.floor(d.getMonth() / 3) : d.getMonth()]++;
   });
   const years = Object.keys(grid).map(Number).sort((a, b) => b - a);   // 최근 연도부터
-  return { grid, years, none };
+  return { grid, years, none, n };
 }
 
 /* 그 해에 어느 달까지 그릴지.
    올해는 '이번 달' 까지만 그립니다. 아직 오지 않은 달을 0건으로 그리면
    문의가 뚝 끊긴 것처럼 보여서 잘못 읽게 됩니다. */
-function lastMonthOf(year, grid){
+function lastMonthOf(year, grid, unit){
   const now = new Date();
+  const n = unit === '분기' ? 4 : 12;
   if(year > now.getFullYear()) return -1;
-  if(year === now.getFullYear()) return now.getMonth();
-  // 지난 해인데 뒷달이 통째로 비어 있으면 (그때부터 기록이 없는 것) 거기서 끊습니다
+  if(year === now.getFullYear()){
+    return unit === '분기' ? Math.floor(now.getMonth() / 3) : now.getMonth();
+  }
+  // 지난 해인데 뒷쪽이 통째로 비어 있으면 (그때부터 기록이 없는 것) 거기서 끊습니다
   const arr = grid[year] || [];
-  let last = 11;
+  let last = n - 1;
   while(last > 0 && arr[last] === 0 && arr[last - 1] === 0) last--;
   return last;
 }
 
 /* 꺾은선 그래프 (SVG 를 직접 그립니다 — 인터넷 없이도 뜹니다) */
 function inquiryYearChart(g, shownYears){
+  const N = g.n || 12;
   const W = 720, H = 260;
   const PAD = { t: 16, r: 18, b: 30, l: 42 };
   const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
 
   const lastOf = {};
-  shownYears.forEach(y => { lastOf[y] = lastMonthOf(y, g.grid); });
+  shownYears.forEach(y => { lastOf[y] = lastMonthOf(y, g.grid, chartOpt.unit); });
 
   let max = 0;
   shownYears.forEach(y => g.grid[y].forEach((v, i) => {
@@ -4746,7 +4887,7 @@ function inquiryYearChart(g, shownYears){
   const step = Math.max(1, Math.ceil(max / 4));
   const top  = step * 4;                                    // 눈금이 딱 떨어지게
 
-  const x = i => PAD.l + (iw * i) / 11;
+  const x = i => N === 1 ? PAD.l + iw / 2 : PAD.l + (iw * i) / (N - 1);
   const y = v => PAD.t + ih - (ih * v) / top;
 
   // 가로 눈금선 (연하게)
@@ -4758,9 +4899,9 @@ function inquiryYearChart(g, shownYears){
       + '<text x="' + (PAD.l - 8) + '" y="' + (yy + 4) + '" class="vz-tick" text-anchor="end">'
       + val.toLocaleString('ko-KR') + '</text>';
   }
-  for(let i = 0; i < 12; i++){
+  for(let i = 0; i < N; i++){
     grid += '<text x="' + x(i) + '" y="' + (H - 10) + '" class="vz-tick" text-anchor="middle">'
-      + (i + 1) + '</text>';
+      + (chartOpt.unit === '분기' ? (i + 1) + 'Q' : (i + 1)) + '</text>';
   }
 
   // 선과 점
@@ -4780,20 +4921,22 @@ function inquiryYearChart(g, shownYears){
     });
     // 선이 끝나는 자리에만 연도를 적습니다 (모든 점에 숫자를 달지 않습니다)
     const last = pts[pts.length - 1];
-    const atRight = upto >= 10;
+    const atRight = upto >= N - 2;
     marks += '<text x="' + (last[0] + (atRight ? -6 : 8)) + '" y="' + (last[1] - 9)
       + '" class="vz-endlab" text-anchor="' + (atRight ? 'end' : 'start') + '">'
-      + yr + (upto < 11 ? ' →' : '') + '</text>';
+      + yr + (upto < N - 1 ? ' →' : '') + '</text>';
   });
 
   // 마우스를 올리면 그 달의 모든 해를 함께 보여줍니다
   let hot = '';
-  for(let i = 0; i < 12; i++){
-    const tip = shownYears.map(yr => yr + '년 ' + (i + 1) + '월 · '
+  const band = N > 1 ? iw / (N - 1) : iw;
+  for(let i = 0; i < N; i++){
+    const lab = chartOpt.unit === '분기' ? QUARTER_KO[i] : (i + 1) + '월';
+    const tip = shownYears.map(yr => yr + '년 ' + lab + ' · '
       + (i <= lastOf[yr] ? g.grid[yr][i].toLocaleString('ko-KR') + '건'
                          : '아직')).join('&#10;');
-    hot += '<rect class="vz-hot" x="' + (x(i) - iw / 22) + '" y="' + PAD.t
-      + '" width="' + (iw / 11) + '" height="' + ih + '"><title>' + esc(tip) + '</title></rect>';
+    hot += '<rect class="vz-hot" x="' + (x(i) - band / 2) + '" y="' + PAD.t
+      + '" width="' + band + '" height="' + ih + '"><title>' + esc(tip) + '</title></rect>';
   }
 
   return '<svg class="vz" viewBox="0 0 ' + W + ' ' + H + '" role="img" '
@@ -4801,48 +4944,111 @@ function inquiryYearChart(g, shownYears){
     + grid + marks + hot + '</svg>';
 }
 
-function inquiryYearView(rows, dateCol){
+function inquiryYearView(rows, dateCol, sum){
   if(!dateCol) return '';
-  const g = yearMonthGrid(rows, dateCol);
+
+  // 분류로 좁혀 보기 (예: 문의유형 = 하자점검 만)
+  let use = rows;
+  if(chartOpt.cat && chartOpt.val){
+    use = rows.filter(r => String(r[chartOpt.cat] || '').trim() === chartOpt.val);
+  }
+
+  const unit = chartOpt.unit;
+  const g = yearMonthGrid(use, dateCol, unit);
   if(!g.years.length) return '';
 
-  const shown = g.years.slice(0, yearChartMax);
-  const legend = '<div class="vz-legend">'
-    + shown.map(yr => '<span class="vz-key"><span class="vz-sw" style="background:'
-        + yearHue(yr) + '"></span>' + yr + '년</span>').join('')
-    + (g.years.length > shown.length
-        ? '<span class="fmeta">· 최근 ' + shown.length + '개 해만 그립니다 (표에는 전부 있습니다)</span>'
-        : '')
+  const N     = g.n;
+  const LABS  = unit === '분기' ? QUARTER_KO : MONTHS_KO;
+  const cand  = g.years.slice(0, yearChartMax);            // 그릴 수 있는 해
+  const shown = cand.filter(y => !chartOpt.off[y]);        // 실제로 켠 해
+
+  // ── 조작 줄 ───────────────────────────────────────────────
+  // 연도는 눌러서 껐다 켤 수 있습니다. 꺼도 다른 해의 색은 그대로입니다.
+  const yearBtns = cand.map(yr => {
+    const on = !chartOpt.off[yr];
+    return '<button class="vz-key vz-btn' + (on ? '' : ' off') + '" '
+      + 'onclick="chartToggleYear(' + yr + ')" '
+      + 'title="' + (on ? '눌러서 숨기기' : '눌러서 보이기') + '">'
+      + '<span class="vz-sw" style="background:' + (on ? yearHue(yr) : 'var(--text-muted)') + '"></span>'
+      + yr + '년</button>';
+  }).join('');
+
+  // 나눠볼 수 있는 분류 (문의유형 등) — 값이 몇 가지뿐인 열만 고릅니다
+  const cats = (sum && sum.cats) ? sum.cats : [];
+  let catSel = '';
+  if(cats.length){
+    let opts = '<option value="">전체</option>';
+    cats.forEach(c => {
+      const vals = {};
+      rows.forEach(r => { const v = String(r[c] || '').trim(); if(v) vals[v] = (vals[v] || 0) + 1; });
+      const list = Object.keys(vals).sort((a, b) => vals[b] - vals[a]).slice(0, 12);
+      if(!list.length) return;
+      opts += '<optgroup label="' + esc(c) + '">'
+        + list.map(v => '<option value="' + esc(c + '\u241F' + v) + '"'
+            + (chartOpt.cat === c && chartOpt.val === v ? ' selected' : '') + '>'
+            + esc(v) + ' (' + vals[v] + ')</option>').join('')
+        + '</optgroup>';
+    });
+    catSel = '<select class="vz-sel" onchange="chartSetCat(this.value)">' + opts + '</select>';
+  }
+
+  const controls = '<div class="vz-ctrl">'
+    + '<span class="vz-keys">' + yearBtns + '</span>'
+    + '<span class="vz-spacer"></span>'
+    + '<span class="vz-seg">'
+      + ['월','분기'].map(u => '<button class="' + (unit === u ? 'on' : '') + '" '
+          + 'onclick="chartSetUnit(\'' + u + '\')">' + u + '별</button>').join('')
+    + '</span>'
+    + catSel
+    + ((Object.keys(chartOpt.off).some(k => chartOpt.off[k]) || chartOpt.cat || unit !== '월')
+        ? '<button class="btn sm" onclick="chartReset()">처음으로</button>' : '')
     + '</div>';
 
+  if(!shown.length){
+    return '<div class="vz-box">'
+      + '<div class="vz-head">📈 해마다 언제 문의가 많았나</div>'
+      + controls
+      + '<div class="empty" style="padding:28px">볼 해를 하나 이상 켜주세요.</div></div>';
+  }
+
+  // ── 표 (그래프와 같은 숫자) ────────────────────────────────
   const head = '<tr><th>연도</th>'
-    + MONTHS_KO.map(m => '<th class="num">' + m + '</th>').join('')
+    + LABS.map(m => '<th class="num">' + m + '</th>').join('')
     + '<th class="num">합계</th></tr>';
   const body = g.years.map(yr => {
     const arr = g.grid[yr];
-    const upto = lastMonthOf(yr, g.grid);
-    const sum = arr.reduce((a, v) => a + v, 0);
-    return '<tr><th class="yr">' + yr + '</th>'
+    const upto = lastMonthOf(yr, g.grid, unit);
+    const total = arr.reduce((a, v) => a + v, 0);
+    const dim = chartOpt.off[yr] || cand.indexOf(yr) < 0;
+    return '<tr' + (dim ? ' class="dim"' : '') + '><th class="yr">' + yr + '</th>'
       + arr.map((v, i) => {
-          if(i > upto) return '<td class="num zero" title="아직 오지 않은 달">–</td>';
+          if(i > upto) return '<td class="num zero" title="아직 오지 않은 때">–</td>';
           return '<td class="num' + (v ? '' : ' zero') + '">'
             + (v ? v.toLocaleString('ko-KR') : '0') + '</td>';
         }).join('')
-      + '<td class="num tot">' + sum.toLocaleString('ko-KR') + '</td></tr>';
+      + '<td class="num tot">' + total.toLocaleString('ko-KR') + '</td></tr>';
   }).join('');
-  const colSum = new Array(12).fill(0);
+  const colSum = new Array(N).fill(0);
   g.years.forEach(yr => g.grid[yr].forEach((v, i) => { colSum[i] += v; }));
   const foot = '<tr class="sumrow"><th>합계</th>'
     + colSum.map(v => '<td class="num">' + (v ? v.toLocaleString('ko-KR') : '·') + '</td>').join('')
     + '<td class="num tot">' + colSum.reduce((a, v) => a + v, 0).toLocaleString('ko-KR')
     + '</td></tr>';
 
+  const what = chartOpt.cat && chartOpt.val
+    ? esc(chartOpt.cat) + ' = ' + esc(chartOpt.val) + ' 만'
+    : '전체 문의';
+
   return '<div class="vz-box">'
-    + '<div class="vz-head">📈 해마다 몇 월에 문의가 많았나'
-      + '<span class="fmeta" style="margin-left:auto">가로축 = 월 · 점에 마우스를 올리면 숫자가 나옵니다</span>'
+    + '<div class="vz-head">📈 해마다 언제 문의가 많았나'
+      + '<span class="fmeta" style="margin-left:auto">' + what
+      + ' · 가로축 = ' + unit + ' · 점에 마우스를 올리면 숫자가 나옵니다</span>'
     + '</div>'
-    + legend
+    + controls
     + '<div class="vz-wrap">' + inquiryYearChart(g, shown) + '</div>'
+    + (g.years.length > cand.length
+        ? '<div class="fmeta" style="margin-top:6px">최근 ' + cand.length
+          + '개 해만 그립니다 (표에는 전부 있습니다)</div>' : '')
     + '<div class="vz-tw"><table class="ymtable">'
       + '<thead>' + head + '</thead><tbody>' + body + foot + '</tbody></table></div>'
     + (g.none ? '<div class="fmeta" style="margin-top:8px">날짜를 못 읽은 문의 '
@@ -5025,7 +5231,7 @@ function viewInquiries(b){
   return bar
     + (q ? '<div class="fmeta" style="margin-bottom:10px">검색 결과 ' + shown.length + '건</div>' : '')
     + '<div class="stats">' + tiles + '</div>'
-    + inquiryYearView(shown, sum.dateCol)
+    + inquiryYearView(shown, sum.dateCol, sum)
     + breakdown
     + recentList
     + '<div class="hsec">📋 전체 목록'
@@ -5076,8 +5282,7 @@ async function aiSetKey(){
 
 /* 회의 하나를 AI 에게 정리해 달라고 합니다 */
 async function aiSummarize(id){
-  const b = currentBrand();
-  const m = (b.meetings || []).find(x => x.id === id);
+  const m = (data.meetings || []).find(x => x.id === id);
   if(!m) return;
   if(!String(m.body || '').trim()){ toast('⚠️ 회의 내용이 비어 있습니다'); return; }
 
@@ -5085,7 +5290,7 @@ async function aiSummarize(id){
   try{
     const res = await fetch('ai.php?action=summarize', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ notes: m.body, title: m.title || '', brand: b.name })
+      body: JSON.stringify({ notes: m.body, title: m.title || '', brand: m.brand || '' })
     });
     const out = JSON.parse(await res.text());
     if(!out.ok) throw new Error(out.error || '정리하지 못했습니다');
@@ -5107,10 +5312,12 @@ async function aiSummarize(id){
 
 /* AI 가 뽑아준 할 일을 「할 일」 탭으로 옮깁니다 */
 function aiTodoToTask(mid, i){
-  const b = currentBrand();
-  const m = (b.meetings || []).find(x => x.id === mid);
+  const m = (data.meetings || []).find(x => x.id === mid);
   const t = m && m.ai && m.ai.할일 && m.ai.할일[i];
   if(!t) return;
+  // 회의에 브랜드가 적혀 있으면 그 브랜드의 할 일로, 없으면 첫 브랜드로
+  const b = data.brands.find(x => x.name === m.brand) || data.brands[0];
+  if(!b){ toast('⚠️ 브랜드가 없습니다'); return; }
   b.tasks.unshift({
     id: uid('i'), title: String(t['내용'] || '').slice(0, 120),
     status: '할일', due: /^\d{4}-\d{2}-\d{2}$/.test(String(t['기한'] || '')) ? t['기한'] : '',
@@ -5118,12 +5325,12 @@ function aiTodoToTask(mid, i){
     updatedAt: new Date().toISOString()
   });
   m.ai.할일[i]._옮김 = true;
-  markDirty(); render();
-  toast('✅ 할 일로 옮겼습니다');
+  markDirty(b.id);
+  render();
+  toast('✅ ' + b.name + ' 할 일로 옮겼습니다');
 }
 
-function viewMeetings(b){
-  const list = b.meetings || [];
+function viewMeetings(list){
   const keyBar = '<div class="sec-bar">'
     + '<button class="btn primary" onclick="openItemModal(\'meetings\')">＋ 회의 기록</button>'
     + (aiState.ready === false
@@ -5148,6 +5355,7 @@ function viewMeetings(b){
       + '<div class="mt-head">'
         + '<span class="mt-title">' + esc(m.title || '(제목 없음)') + '</span>'
         + (m.date ? '<span class="chip">' + esc(fmtYMD(m.date)) + '</span>' : '')
+        + (m.brand ? '<span class="chip on">' + esc(m.brand) + '</span>' : '')
         + (m.attendees ? '<span class="fmeta">👥 ' + esc(m.attendees) + '</span>' : '')
         + '<span class="mt-act">'
           + '<button class="btn sm" onclick="openItemModal(\'meetings\',\'' + jsq(m.id) + '\')">수정</button>'
@@ -5161,7 +5369,7 @@ function viewMeetings(b){
         + '<div class="mt-body">' + esc(m.body || '(비어 있음)') + '</div>'
       + '</details>'
 
-      + '<div class="row" style="margin-top:10px">'
+      + '<div class="mt-foot">'
         + '<button class="btn' + (ai ? '' : ' primary') + '" ' + (busy ? 'disabled' : '')
           + ' onclick="aiSummarize(\'' + jsq(m.id) + '\')">'
           + (busy ? '⏳ 정리하는 중… (10~30초)' : (ai ? '↻ 다시 정리' : '✨ AI로 정리')) + '</button>'
@@ -5172,6 +5380,154 @@ function viewMeetings(b){
   }).join('');
 
   return keyBar + cards;
+}
+
+/* 회의록 화면 (브랜드와 상관없이 팀 전체) */
+let meetFilter = '';
+function setMeetFilter(v){ meetFilter = v; render(); }
+
+function renderMeetings(){
+  const all = data.meetings || [];
+  const list = meetFilter ? all.filter(m => (m.brand || '') === meetFilter) : all;
+  const brands = [];
+  all.forEach(m => { if(m.brand && brands.indexOf(m.brand) < 0) brands.push(m.brand); });
+
+  const filter = brands.length
+    ? '<div class="sec-bar" style="margin-bottom:12px">'
+      + '<span class="fmeta">브랜드로 보기</span>'
+      + '<button class="btn sm' + (meetFilter ? '' : ' primary') + '" '
+        + 'onclick="setMeetFilter(\'\')">전체 ' + all.length + '</button>'
+      + brands.map(b => '<button class="btn sm' + (meetFilter === b ? ' primary' : '') + '" '
+          + 'onclick="setMeetFilter(\'' + jsq(b) + '\')">' + esc(b) + ' '
+          + all.filter(m => m.brand === b).length + '</button>').join('')
+      + '</div>'
+    : '';
+
+  document.getElementById('main').innerHTML =
+    '<div class="panel"><div class="tabbody">'
+    + '<h2 class="page-h">🗣️ 회의록</h2>'
+    + '<div class="page-sub">회의에서 들은 대로 적어두면 AI가 요약·결정사항·할 일로 정리해 줍니다</div>'
+    + filter
+    + viewMeetings(list)
+    + '</div></div>';
+}
+
+/* ═══════════════ 달력 ═════════════════════════════════════════════
+   우리 팀 일정(마감·발행·촬영 …)을 적어둡니다.
+   하이웍스 휴가·결재는 아직 연결하지 않았습니다 (아래 안내 참고).
+   ================================================================= */
+let calYM = null;   // 보고 있는 달 { y, m }
+
+function calNow(){
+  if(!calYM){ const d = new Date(); calYM = { y: d.getFullYear(), m: d.getMonth() }; }
+  return calYM;
+}
+function calMove(d){
+  const c = calNow();
+  const t = new Date(c.y, c.m + d, 1);
+  calYM = { y: t.getFullYear(), m: t.getMonth() };
+  render();
+}
+function calToday(){ calYM = null; render(); }
+
+const EVENT_KINDS = ['마감', '발행', '촬영', '미팅', '기타'];
+const EVENT_HUE   = { '마감':'var(--red)', '발행':'var(--blue)', '촬영':'var(--purple)',
+                      '미팅':'var(--cyan)', '기타':'var(--text-muted)',
+                      '할 일':'var(--green)' };   // 브랜드 할 일 기한
+
+function addEvent(dateStr){
+  const title = prompt('일정 이름을 적어주세요.\n\n예: 9월 블로그 4편 마감', '');
+  if(title === null || !title.trim()) return;
+  const kind = prompt('종류를 적어주세요.\n\n' + EVENT_KINDS.join(' · '), '마감');
+  if(kind === null) return;
+  const brand = prompt('어느 브랜드 일정인가요? (없으면 비워두세요)',
+    (currentBrand() && currentBrand().name) || '');
+  if(brand === null) return;
+  data.events = data.events || [];
+  data.events.unshift({
+    id: uid('ev'), title: title.trim().slice(0, 80),
+    date: dateStr, kind: (kind || '기타').trim().slice(0, 10),
+    brand: (brand || '').trim(), updatedAt: new Date().toISOString()
+  });
+  markDirty(); render();
+  toast('📅 일정을 넣었습니다');
+}
+
+function removeEvent(id){
+  const e = (data.events || []).find(x => x.id === id);
+  if(!e) return;
+  if(!confirm('"' + e.title + '" 일정을 지울까요?')) return;
+  data.events = data.events.filter(x => x.id !== id);
+  deletedIds.add(id);
+  markDirty(); render();
+}
+
+function renderCalendar(){
+  const c = calNow();
+  const first = new Date(c.y, c.m, 1);
+  const days  = new Date(c.y, c.m + 1, 0).getDate();
+  const lead  = first.getDay();                       // 1일이 무슨 요일인지
+  const todayS = new Date().toISOString().slice(0, 10);
+
+  // 그 달의 일정을 날짜별로 모읍니다 (직접 넣은 일정 + 브랜드 할 일 기한)
+  const byDay = {};
+  const put = (d, o) => { (byDay[d] = byDay[d] || []).push(o); };
+  (data.events || []).forEach(e => { if(e.date) put(e.date, {
+    id:e.id, t:e.title, kind:e.kind || '기타', brand:e.brand, own:true }); });
+  data.brands.forEach(b => (b.tasks || []).forEach(t => {
+    if(t.due && t.status !== '완료') put(t.due, {
+      id:t.id, t:t.title, kind:'할 일', brand:b.name, bid:b.id, own:false });
+  }));
+
+  const cells = [];
+  for(let i = 0; i < lead; i++) cells.push('<div class="cal-c out"></div>');
+  for(let d = 1; d <= days; d++){
+    const ds = c.y + '-' + String(c.m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    const list = byDay[ds] || [];
+    const dow = new Date(c.y, c.m, d).getDay();
+    cells.push('<div class="cal-c' + (ds === todayS ? ' today' : '')
+      + (dow === 0 ? ' sun' : (dow === 6 ? ' sat' : '')) + '" '
+      + 'ondblclick="addEvent(\'' + ds + '\')" title="빈 곳을 두 번 누르면 일정을 넣습니다">'
+      + '<div class="cal-d">' + d + '</div>'
+      + list.map(o => '<div class="cal-e" style="--ec:' + (EVENT_HUE[o.kind] || 'var(--text-muted)') + '" '
+          + 'title="' + esc((o.brand ? o.brand + ' · ' : '') + o.kind + ' · ' + o.t) + '" '
+          + (o.own ? 'onclick="removeEvent(\'' + jsq(o.id) + '\')"'
+                   : 'onclick="gotoResult(\'' + jsq(o.bid) + '\',\'tasks\')"') + '>'
+          + '<span class="cal-dot"></span>' + esc(o.t) + '</div>').join('')
+      + '</div>');
+  }
+  while(cells.length % 7) cells.push('<div class="cal-c out"></div>');
+
+  const legend = EVENT_KINDS.concat(['할 일']).map(k =>
+    '<span class="vz-key"><span class="cal-dot" style="--ec:'
+    + (EVENT_HUE[k] || 'var(--text-muted)') + '"></span>' + k + '</span>').join('');
+
+  document.getElementById('main').innerHTML =
+    '<div class="panel"><div class="tabbody">'
+    + '<h2 class="page-h">📅 달력</h2>'
+    + '<div class="page-sub">마감·발행 같은 팀 일정을 적어둡니다. '
+      + '브랜드 할 일의 기한도 함께 보입니다</div>'
+    + '<div class="sec-bar">'
+      + '<button class="btn" onclick="calMove(-1)">‹ 이전 달</button>'
+      + '<strong style="font-size:15px;min-width:120px;text-align:center">'
+        + c.y + '년 ' + (c.m + 1) + '월</strong>'
+      + '<button class="btn" onclick="calMove(1)">다음 달 ›</button>'
+      + '<button class="btn" onclick="calToday()">오늘</button>'
+      + '<button class="btn primary" onclick="addEvent(\'' + todayS + '\')">＋ 일정 넣기</button>'
+      + '<span class="hint">빈 칸을 두 번 누르면 그 날짜로 넣습니다</span>'
+    + '</div>'
+    + '<div class="vz-legend" style="margin-bottom:10px">' + legend + '</div>'
+    + '<div class="cal">'
+      + ['일','월','화','수','목','금','토'].map((w, i) =>
+          '<div class="cal-h' + (i === 0 ? ' sun' : (i === 6 ? ' sat' : '')) + '">' + w + '</div>').join('')
+      + cells.join('')
+    + '</div>'
+    + '<div class="ainote" style="margin-top:14px">'
+      + '🔗 <b>하이웍스 휴가·전자결재는 아직 연결하지 않았습니다.</b> '
+      + '읽어오기만 하면 하이웍스 쪽은 아무것도 바뀌지 않아 안전한데, '
+      + '캘린더를 읽는 방법(API 또는 ICS 주소)을 아직 확인하지 못했습니다.'
+      + '</div>'
+    + '</div></div>';
 }
 
 function aiPanel(m, ai){
@@ -5720,12 +6076,24 @@ function deleteBrand(id){
 
 /* ========================= 항목 (자동화·히스토리·자료) ========================= */
 let itemType = null;
-function openItemModal(type, id){
+
+/* 이 종류의 항목이 어디에 담겨 있는지.
+   회의록·달력 일정은 브랜드 밖(팀 전체)에 있습니다. */
+function listOf(type){
+  if(TOP_LISTS.indexOf(type) >= 0){
+    if(!Array.isArray(data[type])) data[type] = [];
+    return data[type];
+  }
   const b = currentBrand();
-  if(!b) return;
+  return b ? b[type] : null;
+}
+
+function openItemModal(type, id){
+  const arr = listOf(type);
+  if(!arr) return;
   itemType = type;
   const t = TYPES[type];
-  const it = id ? b[type].find(x => x.id === id) : null;
+  const it = id ? arr.find(x => x.id === id) : null;
   editing = it ? { type, id } : null;
 
   document.getElementById('itemModalTitle').textContent =
@@ -5751,7 +6119,8 @@ function openItemModal(type, id){
 }
 
 function submitItem(){
-  const b = currentBrand();
+  const arr = listOf(itemType);
+  if(!arr) return;
   const t = TYPES[itemType];
   const payload = {};
   for(const f of t.fields){
@@ -5759,11 +6128,11 @@ function submitItem(){
     if(f.required && !v){ toast('⚠️ ' + f.label + '을(를) 입력해 주세요'); return; }
     payload[f.key] = v;
   }
-  const target = editing ? b[itemType].find(x => x.id === editing.id) : null;
+  const target = editing ? arr.find(x => x.id === editing.id) : null;
   if(editing && !target){
     // 내가 수정창을 열어둔 사이에 다른 분이 이 항목을 지웠습니다.
     // 쓴 내용이 사라지지 않게 새 항목으로 넣어드립니다.
-    b[itemType].unshift(Object.assign({ id: uid('i'),
+    arr.unshift(Object.assign({ id: uid('i'),
       updatedAt: new Date().toISOString() }, payload));
     editing = null;
     closeModal('itemModal');
@@ -5776,8 +6145,8 @@ function submitItem(){
   }else{
     const item = Object.assign({ id: uid('i'), updatedAt: new Date().toISOString() }, payload);
     // 여정은 시간 순으로 읽어야 하므로 아래에 쌓고, 나머지는 최신이 위로 옵니다
-    if(itemType === 'history') b[itemType].push(item);
-    else b[itemType].unshift(item);
+    if(itemType === 'history') arr.push(item);
+    else arr.unshift(item);
   }
   editing = null;
   closeModal('itemModal');
@@ -5785,11 +6154,14 @@ function submitItem(){
 }
 
 function deleteItem(type, id){
-  const b = currentBrand();
-  const it = b[type].find(x => x.id === id);
+  const arr = listOf(type);
+  if(!arr) return;
+  const it = arr.find(x => x.id === id);
   if(!it){ render(); return; }          // 이미 다른 분이 지웠습니다
   if(!confirm('"' + it.title + '" 항목을 삭제할까요?')) return;
-  b[type] = b[type].filter(x => x.id !== id);
+  const left = arr.filter(x => x.id !== id);
+  if(TOP_LISTS.indexOf(type) >= 0) data[type] = left;
+  else currentBrand()[type] = left;
   deletedIds.add(id);
   render(); markDirty();
   toast('🗑️ 삭제했습니다');
@@ -5977,6 +6349,7 @@ function markDirtyAll(){
 }
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels']);
+const TOP_LISTS   = ['meetings', 'events'];   // 브랜드 밖에 있는 목록
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
 let revived  = 0;                // 되살린 개수 (알려주기 위해)
@@ -5994,6 +6367,9 @@ function sigOf(o){
    내가 만든 것인지 / 내가 고친 것인지 / 남이 지운 것인지 구별하려는 것입니다. */
 function snapshotIds(d){
   const m = new Map();
+  TOP_LISTS.forEach(k => ((d && d[k]) || []).forEach(x => {
+    if(x && x.id) m.set(x.id, sigOf(x));
+  }));
   (d && d.brands || []).forEach(b => {
     m.set(b.id, sigOf(Object.assign({}, b, { automations:0, history:0, assets:0,
       tasks:0, links:0, tools:0, channels:0, _conflicts:0 })));
@@ -6027,6 +6403,7 @@ function keepMine(id, obj){
 /* 같은 것을 둘이 동시에 고쳤을 때, 상대 내용을 버리지 않고 따로 챙겨둡니다.
    (화면에 "같이 고친 것이 있습니다" 로 뜨고, 눌러서 확인·복사할 수 있습니다) */
 let clashed = 0;
+let clashedTop = 0;   // 회의록·일정이 겹친 횟수 (따로 알려줍니다)
 function stashClash(out, what, mineObj, srvObj){
   const list = (out._conflicts || []).slice(0, 19);
   const sig  = sigOf(srvObj);
@@ -6120,6 +6497,43 @@ function mergeWithServer(server){
   }
 
   const merged = Object.assign({}, server, mine, { brands: brands });
+
+  // 회의록·달력 일정은 브랜드 밖에 있어 따로 합칩니다 (같은 규칙)
+  TOP_LISTS.forEach(k => {
+    const mineArr = Array.isArray(mine[k]) ? mine[k] : [];
+    const srvArr  = Array.isArray(server[k]) ? server[k] : [];
+    const mineById = new Map(mineArr.map(x => [x.id, x]));
+    const srvIds   = new Set(srvArr.map(x => x.id));
+    const res = [];
+    const extra = [];
+    srvArr.forEach(sv => {
+      if(deletedIds.has(sv.id)) return;
+      const mi = mineById.get(sv.id);
+      // 같은 회의록·일정을 둘이 같은 시간에 고쳤으면, 내 것을 쓰되
+      // 상대가 쓴 것도 버리지 않고 별도 항목으로 남겨둡니다
+      if(mi){
+        const base = baseIds.get(sv.id);
+        if(base !== undefined && sigOf(sv) !== base && sigOf(mi) !== base
+           && sigOf(sv) !== sigOf(mi)){
+          extra.push(Object.assign({}, sv, {
+            id: uid('i'),
+            title: (sv.title || '(제목 없음)') + ' — 같은 시간에 다른 사람이 고친 것'
+          }));
+          clashedTop++;
+        }
+      }
+      res.push(mi || sv);
+    });
+    extra.forEach(x => res.push(x));
+    const put = new Set(res.map(x => x.id));
+    mineArr.forEach((m, i) => {
+      if(srvIds.has(m.id) || put.has(m.id) || !keepMine(m.id, m)) return;
+      put.add(m.id);
+      if(i === 0) res.unshift(m); else res.push(m);
+    });
+    merged[k] = res;
+  });
+
   merged._rev = server._rev;
   return merged;
 }
@@ -6170,12 +6584,14 @@ async function saveAll(silent){
       }catch(e){
         if(!e.conflict || ++tries > 3) throw e;
         // 다른 사람이 먼저 저장했습니다 → 그 내용 위에 내 것만 얹어서 다시 시도
-        revived = 0; clashed = 0; mergedOnce = true;
+        revived = 0; clashed = 0; clashedTop = 0; mergedOnce = true;
         data = normalize(mergeWithServer(e.server));
         data._rev = e.rev;
         baseIds = snapshotIds(e.server);   // 서버 것이 새 기준입니다
         data.savedAt = new Date().toISOString();
         if(clashed) toast('⚠️ 같은 것을 다른 분과 동시에 고쳤습니다 — 아래 띠에서 확인하세요');
+        else if(clashedTop) toast('⚠️ 같은 회의록·일정을 다른 분과 동시에 고쳤습니다 '
+                                  + '— 상대가 쓴 것도 바로 아래에 따로 남겨뒀습니다');
         else if(revived) toast('다른 분이 지운 항목이지만, 고치신 내용이 있어 살려뒀습니다');
         else if(!silent) toast('다른 분이 저장한 내용과 합치는 중…');
       }
@@ -6245,17 +6661,38 @@ function normalize(raw){
     return fresh;
   }
   if(typeof raw._rev !== 'number') raw._rev = 0;
+  if(!Array.isArray(raw.meetings)) raw.meetings = [];   // 회의록 (브랜드 공통)
+  if(!Array.isArray(raw.events))   raw.events   = [];   // 달력 일정 (브랜드 공통)
   raw.brands.forEach(b => {
     b.id = b.id || uid('b');
     b.icon = b.icon || '🏷️';
     b.color = b.color || '#3b82f6';
     if(!Array.isArray(b.nasFolders)) b.nasFolders = [];
-    if(!Array.isArray(b.meetings))   b.meetings   = [];
+    // 예전 판에서 브랜드 안에 적어둔 회의록은 「업무 → 회의록」으로 옮깁니다
+    if(Array.isArray(b.meetings) && b.meetings.length){
+      b.meetings.forEach(m => {
+        if(!raw.meetings.some(x => x.id === m.id)){
+          raw.meetings.push(Object.assign({}, m, { brand: m.brand || b.name }));
+        }
+      });
+    }
+    delete b.meetings;
     ITEM_KEYS.forEach(k => {
       if(!Array.isArray(b[k])) b[k] = [];
       b[k].forEach(it => { it.id = it.id || uid('i'); });
     });
     if(typeof b.masterPrompt !== 'string') b.masterPrompt = '';
+  });
+
+  // 같은 id 가 두 번 들어간 것이 있으면 하나만 남깁니다.
+  // (합치는 과정이 꼬여 같은 회의록·일정이 두 줄로 보이는 일을 막습니다)
+  ['meetings', 'events'].forEach(k => {
+    const seen = new Set();
+    raw[k] = raw[k].filter(x => {
+      if(!x || !x.id) return false;
+      if(seen.has(x.id)) return false;
+      seen.add(x.id); return true;
+    });
   });
   return raw;
 }

@@ -148,6 +148,102 @@ if ($action === 'setkey') {
     jout(['ok' => true, '키등록됨' => true, '안내' => '키를 NAS 에만 저장했습니다']);
 }
 
+/* ---------------- 브랜드북 → 마스터프롬프트 ---------------- */
+if ($action === 'prompt') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    if ($key === '') {
+        jout(['ok' => false, 'error' =>
+            'AI 키가 아직 없습니다. [🔑 AI 키 넣기] 로 한 번만 넣어주세요.'], 400);
+    }
+
+    $b     = json_decode((string)file_get_contents('php://input'), true);
+    $book  = trim((string)($b['book'] ?? ''));
+    $brand = trim((string)($b['brand'] ?? ''));
+    if ($book === '') jout(['ok' => false, 'error' => '브랜드북 내용이 비어 있습니다'], 400);
+
+    $cut = false;
+    if (function_exists('mb_strlen') && mb_strlen($book, 'UTF-8') > $MAX_INPUT) {
+        $book = mb_substr($book, 0, $MAX_INPUT, 'UTF-8');
+        $cut = true;
+    }
+
+    $sys = "당신은 브랜드 마케팅 실무자를 돕는 사람입니다.\n"
+         . "받은 브랜드북을 읽고, 다른 AI 에게 그대로 붙여넣어 쓸 수 있는\n"
+         . "「마스터프롬프트」를 한국어로 써 주세요.\n\n"
+         . "형식 (이 제목들을 그대로 쓰세요):\n"
+         . "당신은 [브랜드]의 마케팅 담당자입니다. 로 시작하는 한 문단\n\n"
+         . "[브랜드 정의]\n"
+         . "[핵심 고객]\n"
+         . "[우리가 지키는 약속]\n"
+         . "[톤앤매너]\n"
+         . "[자주 쓰는 표현 / 쓰지 않는 표현]\n"
+         . "[경쟁사와 다른 점]\n"
+         . "[하지 않는 것]\n"
+         . "[글을 쓸 때 지킬 것]\n\n"
+         . "규칙:\n"
+         . "- 브랜드북에 없는 사실을 지어내지 마세요. 내용이 없는 항목은\n"
+         . "  제목만 남기고 「(브랜드북에 아직 없음 — 채워주세요)」 라고 적으세요.\n"
+         . "- 설명하지 말고, 바로 붙여넣어 쓸 수 있는 지시문으로 쓰세요.\n"
+         . "- 「[글을 쓸 때 지킬 것]」 에는 브랜드북에서 읽어낸 원칙을\n"
+         . "  실제로 지킬 수 있는 문장 5~8개로 정리하세요.\n"
+         . "- 마크다운 기호(**, ##)는 쓰지 마세요. 그냥 글로 쓰세요.\n"
+         . "- 답에는 마스터프롬프트만 쓰세요. 인사말이나 설명을 붙이지 마세요.";
+
+    $user = ($brand !== '' ? "브랜드: $brand\n\n" : '') . "--- 브랜드북 ---\n" . $book;
+
+    $payload = json_encode([
+        'model'      => $MODEL,
+        'max_tokens' => $MAX_TOKENS,
+        'system'     => $sys,
+        'thinking'   => ['type' => 'adaptive'],
+        'messages'   => [['role' => 'user', 'content' => $user]],
+    ], JSON_UNESCAPED_UNICODE);
+
+    [$code, $raw] = ai_post('https://api.anthropic.com/v1/messages', [
+        'Content-Type: application/json',
+        'x-api-key: ' . $key,
+        'anthropic-version: 2023-06-01',
+    ], $payload, $why);
+
+    if ($raw === false) {
+        jout(['ok' => false, 'error' =>
+            "AI 에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $why)
+            . "\n\nNAS 가 인터넷에 나갈 수 있는지 확인해 주세요."], 502);
+    }
+    $j = json_decode($raw, true);
+    if ($code === 401 || $code === 403) {
+        jout(['ok' => false, 'error' => "AI 키가 거부됐습니다 (HTTP $code). 키를 다시 넣어주세요."], 401);
+    }
+    if ($code === 429) {
+        jout(['ok' => false, 'error' => '잠시 뒤에 다시 시도해 주세요 (요청이 몰렸습니다).'], 429);
+    }
+    if (!is_array($j) || isset($j['error'])) {
+        $msg = is_array($j) && isset($j['error']['message']) ? $j['error']['message']
+             : substr((string)$raw, 0, 300);
+        jout(['ok' => false, 'error' => "AI 가 오류를 돌려줬습니다 (HTTP $code)\n\n" . $msg], 502);
+    }
+    if (($j['stop_reason'] ?? '') === 'refusal') {
+        jout(['ok' => false, 'error' => 'AI 가 이 내용은 쓸 수 없다고 답했습니다.'], 400);
+    }
+
+    $text = '';
+    foreach (($j['content'] ?? []) as $blk) {
+        if (($blk['type'] ?? '') === 'text') $text .= $blk['text'];
+    }
+    $text = trim($text);
+    if ($text === '') jout(['ok' => false, 'error' => 'AI 가 빈 답을 보냈습니다. 다시 시도해 주세요.'], 502);
+
+    @file_put_contents($LOG_FILE, json_encode([
+        'count' => (int)((json_decode((string)@file_get_contents($LOG_FILE), true)['count'] ?? 0)) + 1,
+        'at'    => date('c'),
+    ], JSON_UNESCAPED_UNICODE));
+
+    $usage = $j['usage'] ?? [];
+    jout(['ok' => true, '프롬프트' => $text, '잘림' => $cut, '만든때' => date('c'),
+          '쓴글자' => (int)($usage['input_tokens'] ?? 0),
+          '만든글자' => (int)($usage['output_tokens'] ?? 0)]);
+}
+
 if ($action === 'summarize') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
     if ($key === '') {

@@ -164,6 +164,10 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
 .btn:hover{background:var(--bg-hover);border-color:var(--border-light)}
 .btn:active{transform:translateY(.5px)}
 .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff;box-shadow:var(--shadow-sm)}
+.btn.warn{background:var(--yellow);border-color:var(--yellow);color:#fff;font-weight:700}
+.btn.warn:hover{filter:brightness(1.06)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:disabled:hover{background:var(--bg-card);border-color:var(--border);transform:none}
 .btn.primary:hover{background:var(--ink-hover);border-color:var(--ink-hover)}
 .btn.danger{color:var(--red)}
 .btn.danger:hover{background:rgba(217,59,59,.09);border-color:rgba(217,59,59,.35)}
@@ -408,7 +412,9 @@ mark{background:rgba(192,119,8,.26);color:inherit;border-radius:3px;padding:0 2p
 .bar-row .bt{flex:1;height:6px;border-radius:99px;background:var(--bg-sunken);overflow:hidden}
 .bar-row .bf{display:block;height:100%;border-radius:99px;background:var(--blue);
   transition:width .4s var(--ease)}
-.bar-row .bv{width:42px;text-align:right;font-weight:700;flex-shrink:0}
+.bar-row .bv{width:42px;text-align:right;font-weight:700;flex-shrink:0;white-space:nowrap}
+/* 금액처럼 긴 값이 오면 자리를 더 줍니다 */
+.vz-box .bar-row .bv{width:auto;min-width:96px}
 .krow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
   padding:7px 0;border-bottom:1px solid var(--border);color:var(--text-secondary)}
 .krow:last-child{border-bottom:none}
@@ -733,6 +739,25 @@ table.ymtable .zero{color:var(--text-muted)}
 table.ymtable .tot{font-weight:700}
 table.ymtable tr:hover td{background:var(--bg-hover)}
 /* 눌러서 고칠 수 있는 숫자 칸 */
+/* ---------- 브랜드북 ---------- */
+.booklist{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.bsec{border:1px solid var(--border);border-radius:var(--r-md);padding:13px 15px;
+  background:var(--bg-secondary);transition:.15s var(--ease)}
+.bsec.on{background:var(--bg-card);border-color:var(--border-light)}
+.bsec label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;
+  letter-spacing:-.014em;margin-bottom:8px;color:var(--text-primary);cursor:text}
+.bsec .bem{font-size:15px}
+.bsec textarea{width:100%;box-sizing:border-box;min-height:104px;resize:vertical;
+  font-family:inherit;font-size:13px;line-height:1.75;padding:9px 11px;
+  border-radius:var(--r-sm);border:1px solid var(--border);
+  background:var(--bg-input);color:var(--text-primary)}
+.bsec textarea:focus{outline:none;border-color:var(--border-light);box-shadow:var(--ring);
+  background:var(--bg-card)}
+.bsec textarea::placeholder{color:var(--text-muted);line-height:1.6}
+
+table.costtable td,table.costtable th{white-space:normal;vertical-align:top;padding:8px 10px}
+table.costtable td:first-child{min-width:200px}
+table.costtable .fmeta{font-size:11px;margin-top:2px}
 table.ymtable td.ed2{cursor:text}
 table.ymtable td.ed2:hover{background:var(--blue-soft);box-shadow:inset 0 0 0 1px var(--blue)}
 table.ymtable td.fx{background:rgba(192,119,8,.09);font-weight:700}
@@ -891,6 +916,9 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
     </div>
     <!-- 오른쪽 묶음: 단추. 왼쪽이 길어져도 자리가 움직이지 않습니다 -->
     <div class="btngrp">
+    <button class="btn" id="undoBtn" title="되돌리기 (Ctrl+Z)" onclick="undoStep()">↩︎</button>
+    <button class="btn" id="redoBtn" title="다시 하기 (Ctrl+Shift+Z)" onclick="redoStep()">↪︎</button>
+    <button class="btn" id="autoBtn" onclick="toggleAutoSave()">💾자동</button>
     <button class="btn" title="밝게/어둡게" onclick="toggleDark()">🌙</button>
     <button class="btn" title="파일로 내보내기 (백업)" onclick="exportJSON()">📤</button>
     <button class="btn" title="파일에서 가져오기 (복원)" onclick="document.getElementById('importFile').click()">📥</button>
@@ -995,7 +1023,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260903-11';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260903-12';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1235,6 +1263,25 @@ const TYPES = {
            + 'AI가 요약·결정사항·할 일로 정리해 줍니다.' }
     ]
   },
+  costs: {
+    label:'비용', icon:'💳', tab:'마케팅 비용',
+    hint:'광고비·구독료처럼 나가는 돈을 적어둡니다',
+    empty:'등록된 비용이 없습니다. 광고비·구독료부터 적어보세요.',
+    fields:[
+      { key:'title',  label:'항목',  type:'text', required:true,
+        ph:'예: 네이버 파워링크 · Canva 구독' },
+      { key:'kind',   label:'종류',  type:'select',
+        options:['광고비','구독료','외주비','제작비','행사비','기타'] },
+      { key:'amount', label:'금액',  type:'text', required:true, ph:'예: 500000 (숫자만)' },
+      { key:'cur',    label:'통화',  type:'select', options:['원','달러'] },
+      { key:'cycle',  label:'주기',  type:'select', options:['매월','매년','1회'] },
+      { key:'start',  label:'시작일', type:'date' },
+      { key:'end',    label:'끝난 날 (해지했으면)', type:'date', noDefault:true },
+      { key:'payer',  label:'결제 수단', type:'text', ph:'예: 법인카드 1234 · 계좌이체' },
+      { key:'owner',  label:'담당',  type:'text', ph:'누가 관리하나요' },
+      { key:'desc',   label:'메모',  type:'textarea', ph:'무엇에 쓰는 돈인지' }
+    ]
+  },
   automations: {
     label:'자동화', icon:'🤖', tab:'자동화 모음',
     hint:'어떤 자동화가 돌고 있는지 기록합니다',
@@ -1308,7 +1355,7 @@ const TYPES = {
     ]
   }
 };
-const ITEM_KEYS = ['automations','history','assets','tasks','links'];
+const ITEM_KEYS = ['automations','history','assets','tasks','links','costs'];
 
 /* 자동화 개수 — 손으로 적은 것과 올려둔 도구 파일을 합쳐서 셉니다.
    화면마다 다르게 세면 "등록했는데 숫자가 안 올라간다" 가 되므로 여기 하나만 씁니다. */
@@ -1318,7 +1365,7 @@ function autoCount(b){ return b.automations.length + ((b.tools || []).length); }
 function itemCount(b){
   return ITEM_KEYS.reduce((a, k) => a + b[k].length, 0) + ((b.tools || []).length);
 }
-const TAB_KEYS  = ['automations','history','assets','tasks','links','channels','inquiries','prompt'];
+const TAB_KEYS  = ['inquiries','costs','automations','history','tasks','links','channels','assets','book','prompt'];
 
 let data = defaultData();
 let currentBrandId = null;
@@ -1371,6 +1418,24 @@ function paintVersion(){
 
 /* 위쪽 줄이 넘칠 때: 덜 중요한 것부터 조용히 숨깁니다.
    ("새 판 받기" 알림이 떠도 단추들이 밀리거나 겹치지 않게)                */
+/* 되돌리기 단추와 저장 방식 표시를 지금 상태에 맞춥니다 */
+function paintTools(){
+  const u = document.getElementById('undoBtn');
+  if(u){ u.disabled = !undoStack.length;
+         u.title = undoStack.length ? '되돌리기 (Ctrl+Z) · ' + undoStack.length + '걸음 남음'
+                                    : '되돌릴 것이 없습니다'; }
+  const r = document.getElementById('redoBtn');
+  if(r){ r.disabled = !redoStack.length; }
+  const a = document.getElementById('autoBtn');
+  if(a){
+    a.textContent = autoSave ? '💾자동' : '✋수동';
+    a.classList.toggle('warn', !autoSave);
+    a.title = autoSave
+      ? '지금은 자동 저장입니다. 고치면 바로 팀원들에게 보입니다.\n눌러서 [손으로 저장] 으로 바꿉니다.'
+      : '지금은 손으로 저장합니다. [💾 저장] 을 눌러야 팀원들에게 보입니다.\n눌러서 [자동 저장] 으로 바꿉니다.';
+  }
+}
+
 function fitTopbar(){
   const bar = document.querySelector('.topbar');
   const grp = document.querySelector('.statusgrp');
@@ -1489,6 +1554,7 @@ function render(){
 
   const snap = captureUI();
   paintVersion();
+  paintTools();
   renderSidebar();
   const home = document.getElementById('homeBtn');
   const nas  = document.getElementById('nasBtn');
@@ -1583,6 +1649,11 @@ function renderHome(){
   const stats = [
     { lab:'📮 문의', val: iqTotal.toLocaleString('ko-KR'),
       sub: iqTotal ? '건 · 이번 달 ' + iqMonth + '건' : '건 · 시트를 연결하면 표시됩니다' },
+    { lab:'💳 한 달 비용',
+      val: won(bs.reduce((a, b) => a + (b.costs || []).reduce((x, c) => x + costPerMonth(c), 0), 0))
+             .replace('원',''),
+      sub: '원 · 올해 ' + won(bs.reduce((a, b) =>
+             a + (b.costs || []).reduce((x, c) => x + costThisYear(c), 0), 0)) },
     { lab:'🏷️ 브랜드', val: bs.length, sub:'개' },
     { lab:'✅ 남은 할 일', val: openTasks, sub: '전체 ' + all('tasks') + '개 중' },
     { lab:'🤖 자동화', val: autoAll,
@@ -1599,6 +1670,10 @@ function renderHome(){
       + '<span class="nm">' + esc(b.name) + '</span></div>'
     + '<div class="ds">' + esc(b.desc || '설명이 아직 없습니다')
       + (b.owner ? ' · ' + esc(b.owner) : '') + '</div>'
+    + (function(){
+        const m = (b.costs || []).reduce((x, c) => x + costPerMonth(c), 0);
+        return m ? '<div class="fmeta" style="margin-top:4px">💳 한 달 ' + won(m) + '</div>' : '';
+      })()
     + (function(){
         const q = inquiryStats(b.name);
         if(!q) return '';
@@ -3448,6 +3523,8 @@ function renderBrand(){
     ['links','🔗 바로가기'],
     ['channels','📣 채널'],
     ['assets','📁 자료'],
+    ['costs','💳 마케팅 비용'],
+    ['book','📕 브랜드북'],
     ['prompt','✨ 마스터프롬프트']
   ];
 
@@ -3481,6 +3558,8 @@ function renderBrand(){
     setTimeout(inquiryTick, 20);      // 탭을 열면 최신인지 한 번 확인합니다
     bindCsvInput();
   }
+  else if(currentTab === 'costs') body.innerHTML = viewCosts(b);
+  else if(currentTab === 'book') body.innerHTML = viewBook(b);
   else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
   else if(currentTab === 'links') body.innerHTML = viewLinks(b);
   else if(currentTab === 'channels') body.innerHTML = viewChannels(b);
@@ -4240,6 +4319,163 @@ function toggleTask(id){
   t.status = t.status === '완료' ? '진행 중' : '완료';
   t.updatedAt = new Date().toISOString();
   render(); markDirty(b.id);
+}
+
+/* ═══════════════ 마케팅 비용 ═════════════════════════════════════
+   광고비·구독료처럼 나가는 돈을 적어두고, 한 달에 얼마인지 봅니다.
+   ================================================================= */
+const COST_HUE = { '광고비':'var(--red)', '구독료':'var(--blue)', '외주비':'var(--purple)',
+                   '제작비':'var(--cyan)', '행사비':'var(--orange)', '기타':'var(--text-muted)' };
+
+/* 달러로 적은 것을 원으로 바꾸기 위한 환율. 화면에서 바꿉니다. */
+function fxRate(){
+  const v = Number((data.settings && data.settings.fx) || 0);
+  return v > 0 ? v : 1350;
+}
+function setFx(){
+  const v = prompt('달러를 원으로 바꿀 때 쓸 환율을 적어주세요.\n\n'
+    + '(구독료를 달러로 적어둔 것만 이 환율로 바뀝니다)', String(fxRate()));
+  if(v === null) return;
+  const n = Number(String(v).replace(/[,\s원]/g, ''));
+  if(!isFinite(n) || n <= 0){ toast('⚠️ 숫자로 적어주세요'); return; }
+  data.settings = data.settings || {};
+  data.settings.fx = n;
+  markDirty(); render();
+  toast('💱 환율을 ' + n.toLocaleString('ko-KR') + '원으로 맞췄습니다');
+}
+
+/* 적어둔 금액을 원 단위 숫자로 바꿉니다 (쉼표·원·$ 다 받아줍니다) */
+function costWon(c){
+  const n = Number(String(c.amount == null ? '' : c.amount).replace(/[^0-9.\-]/g, ''));
+  if(!isFinite(n)) return 0;
+  return (c.cur === '달러') ? Math.round(n * fxRate()) : Math.round(n);
+}
+/* 아직 나가고 있는 돈인가 (끝난 날이 지났으면 아닙니다) */
+function costLive(c){
+  if(c.end && c.end < todayStr()) return false;
+  return true;
+}
+/* 한 달에 얼마인 셈인가 — 매년은 12로 나누고, 1회성은 0 */
+function costPerMonth(c){
+  if(!costLive(c)) return 0;
+  const w = costWon(c);
+  if(c.cycle === '매년') return Math.round(w / 12);
+  if(c.cycle === '1회')  return 0;
+  return w;                                   // 매월 (기본)
+}
+/* 올해 실제로 나간(나갈) 돈 */
+function costThisYear(c){
+  const y = new Date().getFullYear();
+  const w = costWon(c);
+  const from = c.start ? new Date(c.start + 'T00:00:00') : null;
+  const to   = c.end   ? new Date(c.end   + 'T00:00:00') : null;
+  if(c.cycle === '1회'){
+    if(!c.start) return 0;
+    return (from && from.getFullYear() === y) ? w : 0;
+  }
+  // 올해 안에서 몇 달이나 걸쳐 있나
+  const s = (from && from.getFullYear() === y) ? from.getMonth() : (from && from.getFullYear() > y ? 12 : 0);
+  const e = (to && to.getFullYear() === y) ? to.getMonth() : (to && to.getFullYear() < y ? -1 : 11);
+  const months = Math.max(0, e - s + 1);
+  return (c.cycle === '매년') ? Math.round(w / 12) * months : w * months;
+}
+function won(n){ return (n || 0).toLocaleString('ko-KR') + '원'; }
+
+function viewCosts(b){
+  const list = b.costs || [];
+  const bar = '<div class="sec-bar">'
+    + '<button class="btn primary" onclick="openItemModal(\'costs\')">＋ 비용 등록</button>'
+    + '<button class="btn sm" onclick="setFx()" title="달러로 적은 것을 원으로 바꿀 때 쓰는 값">'
+      + '💱 환율 ' + fxRate().toLocaleString('ko-KR') + '원</button>'
+    + '<span class="hint">광고비·구독료처럼 나가는 돈을 적어두면 '
+      + '한 달에 얼마인지 바로 보입니다</span>'
+    + '</div>';
+
+  if(!list.length) return bar + '<div class="empty">' + TYPES.costs.empty + '</div>';
+
+  const live   = list.filter(costLive);
+  const perMon = live.reduce((a, c) => a + costPerMonth(c), 0);
+  const year   = list.reduce((a, c) => a + costThisYear(c), 0);
+  const once   = live.filter(c => c.cycle === '1회').reduce((a, c) => a + costWon(c), 0);
+
+  // 종류별로 얼마나 나가나 (한 달 기준)
+  const byKind = {};
+  live.forEach(c => { const k = c.kind || '기타';
+    byKind[k] = (byKind[k] || 0) + costPerMonth(c); });
+  const kinds = Object.keys(byKind).filter(k => byKind[k] > 0)
+                      .sort((x, y) => byKind[y] - byKind[x]);
+  const kindMax = kinds.length ? byKind[kinds[0]] : 1;
+
+  const tiles = '<div class="stats">'
+    + '<div class="stat"><div class="lb">💳 한 달에</div><div class="val">' + won(perMon) + '</div>'
+      + '<div class="sub">지금 쓰고 있는 것 ' + live.length + '건 기준</div></div>'
+    + '<div class="stat"><div class="lb">📅 올해 누적</div><div class="val">' + won(year) + '</div>'
+      + '<div class="sub">' + new Date().getFullYear() + '년에 나가는 돈 (1회성 포함)</div></div>'
+    + '<div class="stat"><div class="lb">🧾 1회성</div><div class="val">' + won(once) + '</div>'
+      + '<div class="sub">한 번만 나가는 것 (달마다 계산엔 안 넣습니다)</div></div>'
+    + '</div>';
+
+  const kindBars = kinds.length
+    ? '<div class="vz-box" style="margin-bottom:14px">'
+      + '<div class="vz-head">💳 한 달에 어디로 나가나</div>'
+      + kinds.map(k => '<div class="bar-row">'
+          + '<span class="bl" style="width:66px"><span class="vz-sw" style="background:' + (COST_HUE[k] || 'var(--text-muted)')
+            + ';display:inline-block;margin-right:6px"></span>' + esc(k) + '</span>'
+          + '<span class="bt"><span class="bf" style="width:'
+            + Math.round(byKind[k] / kindMax * 100) + '%;background:'
+            + (COST_HUE[k] || 'var(--text-muted)') + '"></span></span>'
+          + '<span class="bv">' + won(byKind[k]) + '</span></div>').join('')
+      + '</div>'
+    : '';
+
+  const sorted = list.slice().sort((x, y) => {
+    const lx = costLive(x) ? 0 : 1, ly = costLive(y) ? 0 : 1;
+    if(lx !== ly) return lx - ly;                       // 쓰고 있는 것 먼저
+    return costPerMonth(y) - costPerMonth(x) || costWon(y) - costWon(x);
+  });
+
+  const rows = sorted.map(c => {
+    const off = !costLive(c);
+    const pm  = costPerMonth(c);
+    return '<tr' + (off ? ' class="dim"' : '') + '>'
+      + '<td><span class="vz-sw" style="background:' + (COST_HUE[c.kind] || 'var(--text-muted)')
+        + ';display:inline-block;margin-right:7px"></span>'
+        + '<b>' + esc(c.title || '(이름 없음)') + '</b>'
+        + (off ? '<span class="chip off" style="margin-left:6px">해지</span>' : '')
+        + (c.desc ? '<div class="fmeta" style="margin-top:3px">' + esc(c.desc) + '</div>' : '')
+        + '</td>'
+      + '<td>' + esc(c.kind || '기타') + '</td>'
+      + '<td class="num">' + won(costWon(c))
+        + (c.cur === '달러'
+            ? '<div class="fmeta">$' + esc(String(c.amount || '')) + '</div>' : '')
+        + '</td>'
+      + '<td>' + esc(c.cycle || '매월') + '</td>'
+      + '<td class="num">' + (pm ? won(pm) : '<span class="zero">–</span>') + '</td>'
+      + '<td class="num">' + won(costThisYear(c)) + '</td>'
+      + '<td>' + esc(c.payer || '') + (c.owner ? '<div class="fmeta">' + esc(c.owner) + '</div>' : '') + '</td>'
+      + '<td>' + (c.start ? esc(fmtDate(c.start)) : '')
+        + (c.end ? '<div class="fmeta">~ ' + esc(fmtDate(c.end)) + '</div>' : '') + '</td>'
+      + '<td style="white-space:nowrap">'
+        + '<button class="btn sm" onclick="openItemModal(\'costs\',\'' + jsq(c.id) + '\')">수정</button> '
+        + '<button class="btn sm danger" onclick="deleteItem(\'costs\',\'' + jsq(c.id) + '\')">삭제</button>'
+        + '</td></tr>';
+  }).join('');
+
+  const table = '<div class="vz-tw"><table class="ymtable costtable">'
+    + '<thead><tr><th>항목</th><th>종류</th><th class="num">금액</th><th>주기</th>'
+      + '<th class="num">한 달에</th><th class="num">올해</th><th>결제·담당</th><th>기간</th><th></th></tr></thead>'
+    + '<tbody>' + rows
+    + '<tr class="sumrow"><th>합계</th><td></td><td></td><td></td>'
+      + '<td class="num tot">' + won(perMon) + '</td>'
+      + '<td class="num tot">' + won(year) + '</td><td></td><td></td><td></td></tr>'
+    + '</tbody></table></div>';
+
+  return bar + tiles + kindBars + table
+    + '<div class="fmeta" style="margin-top:8px">'
+      + '「한 달에」 는 매년 결제하는 것을 12로 나눠 더한 값입니다. '
+      + '1회성은 달마다 계산에 넣지 않고 「올해 누적」 에만 들어갑니다. '
+      + '달러로 적은 것은 환율 ' + fxRate().toLocaleString('ko-KR') + '원으로 바꿔 셉니다.'
+    + '</div>';
 }
 
 function viewLinks(b){
@@ -6205,11 +6441,147 @@ function moveHistory(id, dir){
   render(); markDirty();
 }
 
+/* ═══════════════ 브랜드북 ════════════════════════════════════════
+   철학·스토리처럼 「이 브랜드가 무엇인가」 를 적어두는 곳입니다.
+   다 적고 [✨ 마스터프롬프트 만들기] 를 누르면 AI 가 이 내용으로
+   마스터프롬프트를 써 줍니다. 브랜드북이 원본, 프롬프트가 결과물입니다.
+   ================================================================= */
+const BOOK_SECTIONS = [
+  { key:'why',     icon:'🎯', label:'왜 만들었나 (철학)',
+    ph:'이 브랜드가 세상에 왜 있어야 하는지. 창업자가 풀고 싶었던 문제.' },
+  { key:'story',   icon:'📖', label:'스토리',
+    ph:'어떻게 시작했고 무슨 일이 있었는지. 사람들이 기억할 이야기.' },
+  { key:'who',     icon:'👤', label:'누구를 위한 것인가',
+    ph:'핵심 고객은 누구인지. 그 사람이 겪는 어려움과 바라는 것.' },
+  { key:'what',    icon:'📦', label:'무엇을 파는가',
+    ph:'제품·서비스를 한 문단으로. 어떻게 다른지.' },
+  { key:'value',   icon:'💎', label:'약속 (핵심 가치)',
+    ph:'고객에게 반드시 지키는 것 3가지쯤.' },
+  { key:'tone',    icon:'🗣️', label:'말투 (톤앤매너)',
+    ph:'어떤 말투로 이야기하는지. 쓰는 말 / 쓰지 않는 말.' },
+  { key:'words',   icon:'✍️', label:'자주 쓰는 표현',
+    ph:'브랜드가 늘 쓰는 문구·단어. 반대로 절대 안 쓰는 표현.' },
+  { key:'rival',   icon:'⚔️', label:'경쟁사와 다른 점',
+    ph:'비슷해 보이는 곳들과 무엇이 다른지.' },
+  { key:'nogo',    icon:'🚫', label:'하지 않는 것',
+    ph:'돈이 돼도 하지 않는 것. 브랜드가 지키는 선.' }
+];
+
+function bookOf(b){ if(!b.book || typeof b.book !== 'object') b.book = {}; return b.book; }
+function bookFilled(b){ const k = bookOf(b);
+  return BOOK_SECTIONS.filter(s => String(k[s.key] || '').trim()).length; }
+
+function onBookInput(key, v){
+  const b = currentBrand(); if(!b) return;
+  bookOf(b)[key] = v;
+  b.bookUpdatedAt = new Date().toISOString();
+  const c = document.getElementById('bookCount');
+  if(c) c.textContent = bookChars(b).toLocaleString('ko-KR') + '자 · '
+      + bookFilled(b) + '/' + BOOK_SECTIONS.length + '칸';
+  // 다시 그리지 않고 칸 표시만 바꿉니다 (글 치는 중에 화면이 흔들리지 않게)
+  const box = document.getElementById('bk_' + key);
+  if(box && box.parentElement) box.parentElement.classList.toggle('on', !!String(v).trim());
+  const pb = document.querySelector('.pwrap .bar-row .bf');
+  if(pb) pb.style.width = Math.round(bookFilled(b) / BOOK_SECTIONS.length * 100) + '%';
+  markDirty(b.id);
+}
+function bookChars(b){ const k = bookOf(b);
+  return BOOK_SECTIONS.reduce((a, s) => a + String(k[s.key] || '').length, 0); }
+
+/* 브랜드북을 AI 에게 줄 하나의 글로 묶습니다 */
+function bookAsText(b){
+  const k = bookOf(b);
+  const parts = ['브랜드 이름: ' + (b.name || ''),
+                 b.desc ? '한 줄 소개: ' + b.desc : ''];
+  BOOK_SECTIONS.forEach(s => {
+    const v = String(k[s.key] || '').trim();
+    if(v) parts.push('[' + s.label + ']\n' + v);
+  });
+  return parts.filter(Boolean).join('\n\n');
+}
+
+async function bookToPrompt(){
+  const b = currentBrand(); if(!b) return;
+  if(bookFilled(b) < 2){
+    alert('브랜드북을 조금 더 채워주세요.\n\n'
+      + '적어도 2칸은 있어야 AI 가 쓸 거리가 생깁니다.\n'
+      + '「왜 만들었나」 와 「누구를 위한 것인가」 부터 적어보세요.');
+    return;
+  }
+  if(b.masterPrompt && b.masterPrompt.trim()){
+    if(!confirm('지금 마스터프롬프트에 적힌 내용이 있습니다.\n\n'
+      + 'AI 가 새로 쓴 것으로 바꿀까요?\n'
+      + '(바꿔도 Ctrl+Z 로 되돌릴 수 있습니다)')) return;
+  }
+  aiState.busy = 'book:' + b.id; render();
+  try{
+    const out = await apiJson('ai.php?action=prompt', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ brand: b.name, book: bookAsText(b) })
+    });
+    b.masterPrompt = String(out['프롬프트'] || '').trim();
+    b.promptUpdatedAt = new Date().toISOString();
+    b.promptFrom = '브랜드북 · ' + new Date().toISOString();
+    markDirty(b.id);
+    currentTab = 'prompt';
+    render();
+    toast('✨ 브랜드북으로 마스터프롬프트를 만들었습니다');
+  }catch(e){
+    alert('만들지 못했습니다.\n\n' + apiErrText(e));
+  }finally{ aiState.busy = null; render(); }
+}
+
+function viewBook(b){
+  const k = bookOf(b);
+  const filled = bookFilled(b);
+  const busy = aiState.busy === 'book:' + b.id;
+  const pct = Math.round(filled / BOOK_SECTIONS.length * 100);
+
+  const bar = '<div class="sec-bar">'
+    + '<button class="btn primary" ' + (busy ? 'disabled' : '')
+      + ' onclick="bookToPrompt()">'
+      + (busy ? '⏳ 만드는 중… (10~30초)' : '✨ 이 내용으로 마스터프롬프트 만들기') + '</button>'
+    + (aiState.ready === false
+        ? '<button class="btn" onclick="aiSetKey()">🔑 AI 키 넣기</button>' : '')
+    + '<span class="hint">브랜드북이 원본입니다. 여기를 채우면 AI 가 '
+      + '마스터프롬프트를 대신 써 줍니다</span>'
+    + '</div>';
+
+  const prog = '<div class="bar-row" style="margin:4px 0 16px">'
+    + '<span class="bl">채운 정도</span>'
+    + '<span class="bt"><span class="bf" style="width:' + pct + '%"></span></span>'
+    + '<span class="bv" id="bookCount">' + bookChars(b).toLocaleString('ko-KR') + '자 · '
+      + filled + '/' + BOOK_SECTIONS.length + '칸</span></div>';
+
+  const secs = BOOK_SECTIONS.map(s => {
+    const v = k[s.key] || '';
+    return '<div class="bsec' + (String(v).trim() ? ' on' : '') + '">'
+      + '<label for="bk_' + s.key + '"><span class="bem">' + s.icon + '</span>'
+        + esc(s.label) + '</label>'
+      + '<textarea id="bk_' + s.key + '" placeholder="' + esc(s.ph) + '" '
+        + 'oninput="onBookInput(\'' + s.key + '\', this.value)">' + esc(v) + '</textarea>'
+      + '</div>';
+  }).join('');
+
+  return '<div class="pwrap">' + bar + prog
+    + '<div class="booklist">' + secs + '</div>'
+    + '<div class="pmeta" style="margin-top:14px">'
+      + (b.bookUpdatedAt
+          ? '마지막 수정 ' + esc(new Date(b.bookUpdatedAt)
+              .toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' }))
+          : '아직 작성 전')
+      + '<span style="margin-left:auto">비워둔 칸은 AI 에게 넘기지 않습니다</span>'
+    + '</div></div>';
+}
+
 function viewPrompt(b){
   const p = b.masterPrompt || '';
   return '<div class="pwrap">'
     + '<div class="sec-bar">'
       + '<button class="btn primary" onclick="copyPrompt()">📋 복사</button>'
+      + '<button class="btn" onclick="selectTab(\'book\')">📕 브랜드북 열기</button>'
+      + (bookFilled(b) >= 2
+          ? '<button class="btn" onclick="bookToPrompt()">✨ 브랜드북으로 다시 만들기</button>' : '')
       + '<span class="hint">AI에게 이 브랜드를 설명할 때 그대로 붙여넣는 기준 문서입니다</span>'
     + '</div>'
     + '<textarea class="prompt" id="promptBox" oninput="onPromptInput(this.value)" '
@@ -6217,6 +6589,7 @@ function viewPrompt(b){
       + esc(p) + '</textarea>'
     + '<div class="pmeta">'
       + '<span id="promptCount">' + p.length.toLocaleString('ko-KR') + '자</span>'
+      + (b.promptFrom ? '<span>· 📕 브랜드북으로 만든 것</span>' : '')
       + (b.promptUpdatedAt
           ? '<span>· 마지막 수정 ' + esc(new Date(b.promptUpdatedAt)
               .toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })) + '</span>'
@@ -6697,12 +7070,89 @@ let saveAgain = false;    // 저장 중에 또 바뀌었는지
 const dirtyBrands = new Set();   // 내가 내용을 고친 브랜드
 let dirtyGlobal = false;         // 브랜드를 더하거나 지우거나 순서를 바꿨는지
 
+/* ═══════════════ 되돌리기 (Ctrl+Z) ═══════════════════════════════
+   고치기 직전의 모습을 차곡차곡 쌓아둡니다.
+   실수로 지웠어도 Ctrl+Z 한 번이면 돌아옵니다.
+   빠르게 이어지는 변경(글자 치기 등)은 한 덩어리로 묶습니다.
+   ================================================================= */
+const UNDO_MAX  = 30;                  // 몇 걸음까지 되돌릴 수 있나
+const UNDO_CAP  = 4 * 1024 * 1024;     // 자료가 이보다 크면 쌓지 않습니다
+let undoStack = [], redoStack = [];
+let baseSnap = null, snapTimer = null;
+
+function refreshSnap(){
+  try{
+    const j = JSON.stringify(data);
+    baseSnap = j.length > UNDO_CAP ? null : j;
+  }catch(e){ baseSnap = null; }
+}
+let undoing = false;          // 되돌리는 중에는 새 걸음을 쌓지 않습니다
+
+function pushUndo(){
+  if(undoing) return;         // (안 그러면 되돌리기가 스스로를 덮어씁니다)
+  if(baseSnap === null){ refreshSnap(); return; }
+  // 직전 상태를 쌓습니다 (markDirty 는 고친 뒤에 불리므로 baseSnap 이 '고치기 전' 입니다)
+  if(undoStack[undoStack.length - 1] !== baseSnap){
+    undoStack.push(baseSnap);
+    if(undoStack.length > UNDO_MAX) undoStack.shift();
+    redoStack.length = 0;
+  }
+  clearTimeout(snapTimer);
+  snapTimer = setTimeout(refreshSnap, 500);   // 잠잠해지면 새 기준으로
+}
+
+/* 되돌린 뒤에도 판번호는 지금 것을 씁니다 (다른 분 저장을 덮지 않게) */
+function applySnap(json){
+  const rev = data._rev;
+  const saved = data.savedAt;
+  undoing = true;
+  try{
+    data = normalize(JSON.parse(json));
+    data._rev = rev;
+    data.savedAt = saved;
+    clearTimeout(snapTimer);
+    refreshSnap();
+    markDirtyAll();
+  }finally{ undoing = false; }
+  render();
+}
+
+function undoStep(){
+  if(!undoStack.length){ toast('되돌릴 것이 없습니다'); return; }
+  try{ redoStack.push(JSON.stringify(data)); }catch(e){}
+  applySnap(undoStack.pop());
+  toast('↩︎ 되돌렸습니다 (' + undoStack.length + '걸음 더 가능)');
+}
+function redoStep(){
+  if(!redoStack.length){ toast('다시 할 것이 없습니다'); return; }
+  try{ undoStack.push(JSON.stringify(data)); }catch(e){}
+  applySnap(redoStack.pop());
+  toast('↪︎ 다시 했습니다 (' + redoStack.length + '번 더 가능)');
+}
+
+/* ═══════════════ 저장 방식 ═══════════════════════════════════════
+   자동: 고치면 1.2초 뒤 알아서 저장합니다 (팀원들에게 바로 보입니다)
+   수동: [저장] 을 눌러야 저장합니다 (실수한 것이 바로 안 퍼집니다)
+   ================================================================= */
+let autoSave = true;
+try{ autoSave = localStorage.getItem('brandHubAutoSave') !== 'off'; }catch(e){}
+
+function toggleAutoSave(){
+  autoSave = !autoSave;
+  try{ localStorage.setItem('brandHubAutoSave', autoSave ? 'on' : 'off'); }catch(e){}
+  if(autoSave && dirtyBrands.size) saveAll(true);
+  render();
+  toast(autoSave ? '💾 자동 저장으로 바꿨습니다'
+                 : '✋ 이제 [저장] 을 눌러야 저장됩니다');
+}
+
 function markDirty(brandId){
+  pushUndo();
   const id = brandId || currentBrandId;
   if(id) dirtyBrands.add(id);
-  setSaveState('dirty');
+  setSaveState(autoSave ? 'dirty' : 'hold');
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveAll(true), 1200);
+  if(autoSave) saveTimer = setTimeout(() => saveAll(true), 1200);
 }
 
 /* 브랜드 목록 자체가 바뀐 경우 (추가·삭제·순서) */
@@ -6930,6 +7380,7 @@ function setSaveState(state){
   if(!el) return;
   const map = {
     dirty:  ['●', '수정됨', '',    '잠시 뒤 자동으로 저장됩니다'],
+    hold:   ['✋', '저장 안 함', 'err', '[💾 저장] 을 눌러야 팀원들에게 보입니다'],
     saving: ['◌', '저장 중…', '',  '저장하고 있습니다'],
     saved:  ['✓', '저장됨', 'ok',  'NAS에 저장되어 있습니다'],
     failed: ['⚠', '저장 실패', 'err', '아래 빨간 띠의 내용을 확인해 주세요']
@@ -7122,6 +7573,18 @@ window.addEventListener('beforeunload', e => {
 document.addEventListener('keydown', e => {
   if((e.ctrlKey || e.metaKey) && e.key === 's'){ e.preventDefault(); saveAll(); }
   if(e.key === 'Escape'){ closeModal('brandModal'); closeModal('itemModal'); }
+
+  // 글자를 치고 있는 중이면 브라우저의 원래 되돌리기가 먼저입니다
+  const el = document.activeElement;
+  const typing = el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+  if(typing) return;
+  if((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')){
+    e.preventDefault();
+    if(e.shiftKey) redoStep(); else undoStep();
+  }
+  if((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')){
+    e.preventDefault(); redoStep();
+  }
 });
 
 /* ========================= 시작 ========================= */

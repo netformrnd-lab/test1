@@ -158,7 +158,146 @@ function save_rows($file, $dir, $rows, $source) {
     return $payload;
 }
 
+$EDIT_FILE = $DATA_DIR . '/inquiry-edits.json';
+
+/** 대시보드에서만 쓰는 칸들 (구글시트에는 없습니다) */
+$OWN_COLS = ['처리상태', '담당자', '메모'];
+
+function load_edits($f, $ownCols) {
+    $j = is_file($f) ? json_decode((string)@file_get_contents($f), true) : null;
+    if (!is_array($j)) $j = [];
+    if (!isset($j['cols']) || !is_array($j['cols'])) $j['cols'] = $ownCols;
+    if (!isset($j['rows']) || !is_array($j['rows'])) $j['rows'] = [];
+    return $j;
+}
+
+function save_edits($f, $j) {
+    $j['savedAt'] = date('c');
+    return atomic_put($f, json_encode($j, JSON_UNESCAPED_UNICODE));
+}
+
+/**
+ * 한 줄을 알아보는 이름표를 만듭니다.
+ * 시트를 다시 가져와도 같은 줄에 같은 이름표가 붙어야
+ * 적어둔 메모가 그 줄에 그대로 남습니다.
+ *
+ * 「번호」 같은 열이 있으면 그걸 쓰고, 없으면 줄 내용으로 만듭니다.
+ * (그래서 시트에서 그 줄의 내용을 고치면 이름표가 바뀝니다 — 안내에 적어두었습니다)
+ */
+function row_key($row, $keyCol, $ownCols) {
+    if ($keyCol !== '' && isset($row[$keyCol]) && trim((string)$row[$keyCol]) !== '') {
+        return 'k:' . substr(md5(trim((string)$row[$keyCol])), 0, 16);
+    }
+    $parts = [];
+    foreach ($row as $k => $v) {
+        if ($k === '' || $k[0] === '_') continue;
+        if (in_array($k, $ownCols, true)) continue;
+        $parts[] = $k . '=' . trim((string)$v);
+    }
+    sort($parts);
+    return 'h:' . substr(md5(implode('|', $parts)), 0, 16);
+}
+
+/** 「번호」처럼 줄마다 다른 값이 들어있는 열을 찾습니다 */
+function find_key_col($rows) {
+    if (!$rows) return '';
+    $cands = [];
+    foreach (array_keys($rows[0]) as $c) {
+        if ($c === '' || $c[0] === '_') continue;
+        if (preg_match('/(번호|no$|^id$|아이디|접수번호|문의번호)/iu', $c)) $cands[] = $c;
+    }
+    foreach ($cands as $c) {
+        $seen = []; $ok = true;
+        foreach ($rows as $r) {
+            $v = trim((string)($r[$c] ?? ''));
+            if ($v === '' || isset($seen[$v])) { $ok = false; break; }
+            $seen[$v] = 1;
+        }
+        if ($ok) return $c;
+    }
+    return '';
+}
+
 $action = $_GET['action'] ?? '';
+
+/**
+ * 한 칸을 고칩니다. (POST)
+ *   {"key":"h:...", "col":"메모", "value":"전화드림"}
+ *   {"edits":[{...},{...}]}                     여러 칸을 한 번에
+ *
+ * 원본 구글시트는 건드리지 않습니다. 고친 값만 여기 따로 쌓아두었다가
+ * 시트를 다시 가져올 때마다 그 위에 얹습니다. 그래서 덮어써지지 않습니다.
+ */
+if ($action === 'edit') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    }
+    $body = json_decode((string)file_get_contents('php://input'), true);
+    if (!is_array($body)) jout(['ok' => false, 'error' => '내용을 읽지 못했습니다'], 400);
+
+    $list = isset($body['edits']) && is_array($body['edits']) ? $body['edits'] : [$body];
+    if (count($list) > 200) jout(['ok' => false, 'error' => '한 번에 200칸까지만 됩니다'], 413);
+
+    $lock = @fopen($DATA_DIR . '/inq-edit.lock', 'c');
+    if ($lock) flock($lock, LOCK_EX);            // 두 명이 같이 고쳐도 섞이지 않게
+
+    $ed = load_edits($EDIT_FILE, $OWN_COLS);
+    $n = 0;
+    foreach ($list as $e) {
+        $key = trim((string)($e['key'] ?? ''));
+        $col = trim((string)($e['col'] ?? ''));
+        if ($key === '' || $col === '' || $col[0] === '_') continue;
+        if (!preg_match('/^[kh]:[0-9a-f]{16}$/', $key)) continue;
+        $val = (string)($e['value'] ?? '');
+        if (function_exists('mb_substr')) $val = mb_substr($val, 0, 500, 'UTF-8');
+
+        if (!isset($ed['rows'][$key])) $ed['rows'][$key] = [];
+        if ($val === '' && array_key_exists($col, $ed['rows'][$key])) {
+            unset($ed['rows'][$key][$col]);      // 비우면 원래 값으로 되돌아갑니다
+            if (!$ed['rows'][$key]) unset($ed['rows'][$key]);
+        } else {
+            $ed['rows'][$key][$col] = $val;
+        }
+        $n++;
+    }
+    if (count($ed['rows']) > 20000) {
+        if ($lock) { flock($lock, LOCK_UN); fclose($lock); }
+        jout(['ok' => false, 'error' => '고친 줄이 너무 많습니다 (2만 줄 한도)'], 413);
+    }
+
+    $ok = save_edits($EDIT_FILE, $ed);
+    if ($lock) { flock($lock, LOCK_UN); fclose($lock); }
+    if (!$ok) jout(['ok' => false, 'error' => '저장하지 못했습니다 (data 폴더 권한 확인)'], 500);
+
+    // 다른 분 화면에도 바로 반영되도록 갱신 시각을 올려둡니다.
+    // 고친 사람 화면은 이미 최신이므로, 이 시각을 돌려주어 다시 안 받아도 되게 합니다.
+    $at = date('c');
+    atomic_put($DATA_DIR . '/inq-stamp.txt', $at . "\t" . count(load_all($FILE)['rows']));
+    jout(['ok' => true, '고친칸' => $n, '고친줄' => count($ed['rows']), 'updatedAt' => $at]);
+}
+
+/* 대시보드에서만 쓰는 칸을 더하거나 뺍니다 (POST {"cols":[...]}) */
+if ($action === 'editcols') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $body = json_decode((string)file_get_contents('php://input'), true);
+    $cols = (is_array($body) && isset($body['cols']) && is_array($body['cols'])) ? $body['cols'] : null;
+    if ($cols === null) jout(['ok' => false, 'error' => '칸 목록이 없습니다'], 400);
+
+    $clean = [];
+    foreach ($cols as $c) {
+        $c = trim(preg_replace('/[\x00-\x1f<>"\\]+/u', '', (string)$c));
+        if ($c === '' || $c[0] === '_') continue;
+        if (function_exists('mb_substr')) $c = mb_substr($c, 0, 20, 'UTF-8');
+        if (!in_array($c, $clean, true)) $clean[] = $c;
+        if (count($clean) >= 8) break;
+    }
+    $ed = load_edits($EDIT_FILE, $OWN_COLS);
+    $ed['cols'] = $clean;
+    if (!save_edits($EDIT_FILE, $ed)) jout(['ok' => false, 'error' => '저장하지 못했습니다'], 500);
+    $at = date('c');
+    atomic_put($DATA_DIR . '/inq-stamp.txt', $at . "\t" . count(load_all($FILE)['rows']));
+    jout(['ok' => true, '내칸' => $clean, 'updatedAt' => $at]);
+}
 
 /* 언제 · 몇 건인지만 알려줍니다 (실시간 확인용 — 몇 십 바이트) */
 if ($action === 'stamp') {
@@ -263,6 +402,31 @@ if ($action === 'list') {
     $all   = load_all($FILE);
     $brand = trim($_GET['brand'] ?? '');
 
+    // 대시보드에서 고친 내용을 각 줄에 얹습니다.
+    // 원본(구글시트)은 그대로 두고, 고친 값만 따로 보관했다가 여기서 덮습니다.
+    $ed     = load_edits($EDIT_FILE, $OWN_COLS);
+    $keyCol = find_key_col($all['rows']);
+    foreach ($all['rows'] as $i => $r) {
+        $key = row_key($r, $keyCol, $ed['cols']);
+        $all['rows'][$i]['_key'] = $key;
+        $changed = [];
+        if (isset($ed['rows'][$key]) && is_array($ed['rows'][$key])) {
+            foreach ($ed['rows'][$key] as $c => $v) {
+                if ($c === '' || $c[0] === '_') continue;
+                if (!in_array($c, $ed['cols'], true) && !array_key_exists($c, $r)) continue;
+                if (!in_array($c, $ed['cols'], true)) {
+                    $all['rows'][$i]['_원래'][$c] = (string)($r[$c] ?? '');
+                    $changed[] = $c;
+                }
+                $all['rows'][$i][$c] = $v;
+            }
+        }
+        foreach ($ed['cols'] as $c) {
+            if (!isset($all['rows'][$i][$c])) $all['rows'][$i][$c] = '';
+        }
+        if ($changed) $all['rows'][$i]['_고침'] = $changed;
+    }
+
     $rows = $all['rows'];
     if ($brand !== '') {
         $rows = array_values(array_filter($rows, function ($r) use ($brand) {
@@ -282,6 +446,8 @@ if ($action === 'list') {
         'source'    => $all['source'],
         'total'     => count($all['rows']),
         'columns'   => $cols,
+        '내칸'      => $ed['cols'],
+        '이름표열'  => $keyCol,
         'rows'      => $rows,
     ]);
 }

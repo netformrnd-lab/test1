@@ -287,6 +287,14 @@
         <textarea id="facts" placeholder="예) 평균 검토 소요 시간: 3일 → 4시간"></textarea>
       </div>
       <div class="fg">
+        <label for="app">앱 소개 <span class="help">— 마지막 구간에 항상 들어갑니다</span></label>
+        <textarea id="app">단지 자료를 한곳에서 확인하는 아파트스퀘어 앱
+견적 항목을 나란히 놓고 비교
+공정 진행률과 현장 사진을 실시간으로
+감리 지적사항과 시정 결과를 기록으로
+회의에 올릴 자료를 한 화면에 정리</textarea>
+      </div>
+      <div class="fg">
         <label for="cta">마무리 문구</label>
         <input type="text" id="cta" value="우리 단지 상황도 같은 기준으로 정리해 보실 수 있어요">
       </div>
@@ -550,8 +558,10 @@
        note:auto?'핵심 기준 3을 여기서 설명한다.':'핵심 기준 3: '+(msgs[2]||msgs[msgs.length-1])},
       {n:'실제 적용', w:.16, screen:'실제 사용 화면과 현장 이미지. 기준이 어떻게 쓰이는지 보여준다',
        note:autoCase?'앞의 세 기준이 실제 단지 상황에서 어떻게 쓰이는지 구체적인 장면으로 보여준다.':cases.join(' / ')},
-      {n:'정리 · 다음 행동', w:.12, screen:'3줄 요약이 한 줄씩 쌓인 뒤 마지막에 안내 문구. 로고는 여기서만',
-       note:'요약 후 바로 실행할 수 있는 다음 행동을 안내한다.'}
+      {n:'정리 · 다음 행동', w:.12,
+       screen:'앞부분은 3줄 요약, 뒷부분은 앱 화면을 실제로 보여준다. 로고와 안내 문구는 여기서만',
+       note:'앞의 기준을 3줄로 요약한 뒤, 아파트스퀘어 앱에서 무엇을 확인할 수 있는지 화면으로 보여준다. '+
+            (lns('app').join(' / ')||'')}
     ];
     var t=0, out=[];
     plan.forEach(function(p){
@@ -640,6 +650,10 @@
     b.push('- 화면비: 16:9');
     b.push('- 자막: 한국어, 전 구간 표시');
     b.push('- 아래 장면 목록의 개수와 구간을 그대로 지킬 것');
+    b.push('- 모든 장면은 화면 전체를 채웁니다. 영상이나 이미지를 화면 일부에만 놓고');
+    b.push('  나머지를 단색 배경으로 비우지 마세요. 위아래 여백이 생기면 안 됩니다.');
+    b.push('- 제목과 자막은 소재 위에 오버레이로 올립니다. 소재를 밀어내고 따로 자리를 잡지 마세요.');
+    b.push('- 화면을 나눠야 할 때는 좌우 분할까지만. 아래쪽 절반을 빈 배경으로 두지 마세요.');
     b.push('- 색: '+val('palette'));
     b.push('- 톤: '+TONES[st.tone].v);
     b.push('');
@@ -707,6 +721,14 @@
       b.push('- 위에 적힌 값 외에 어떤 숫자나 통계도 새로 만들어 넣지 마세요.');
     }
     if(ci===chs.length-1){
+      var ap=lns('app');
+      if(ap.length){
+        b.push('');
+        b.push('# 마지막 구간의 앱 소개 (반드시 포함)');
+        b.push('마지막 챕터의 뒷부분에서 앱 화면을 실제로 보여 주며 아래 내용을 전달합니다.');
+        ap.forEach(function(x){ b.push('- '+x); });
+        b.push('- 기능을 나열하지 말고, 화면에서 무엇을 확인할 수 있는지 보여 주세요.');
+      }
       b.push('');
       b.push('# 마무리 문구');
       b.push(val('cta'));
@@ -728,6 +750,7 @@
     b.push('- 특정 업체의 공법명이나 제품명을 언급하는 것');
     b.push('- 영상을 여러 편으로 나누려 하는 것. "1부", "2부", "다음 편에서"는 쓰지 않습니다');
     b.push('- 여러 장면을 하나로 합치는 것. 목록에 적힌 장면 수를 그대로 지킵니다');
+    b.push('- 화면 아래쪽이나 옆을 단색으로 비워 두는 레이아웃');
     if(CASTS[st.cast].lines.length){
       b.push('- 서양인 모델, 영문 간판, 해외 주택 외관이 보이는 영상·이미지');
     }
@@ -795,7 +818,7 @@
     return JSON.stringify({
       version:'3.0',
       keyword:kw(),
-      company:lns('company'), trade:TRADES[st.trade].k,
+      company:lns('company'), app_intro:lns('app'), trade:TRADES[st.trade].k,
       verified_figures:TRADES[st.trade].figures,
       grade_matrix:TRADES[st.trade].grades.map(function(g){
         return {condition:g[0],level:g[1],method:g[2]};
@@ -973,7 +996,7 @@
     flash('선택해 뒀습니다. Ctrl+C (맥 ⌘C) 를 누르세요');
   });
 
-  var FIELDS=['kw','audience','goal','palette','avatarId','company','msgs','scene','facts','cta','brand'];
+  var FIELDS=['kw','audience','goal','palette','avatarId','company','app','msgs','scene','facts','cta','brand'];
   function save(){
     try{ var d={st:st}; FIELDS.forEach(function(f){ d[f]=document.getElementById(f).value; });
       localStorage.setItem(LS,JSON.stringify(d)); }catch(e){}

@@ -140,6 +140,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'bootstrap') {
         'doctext.php'   => ['nas/doctext.php','<?php'],
         'channels.php'  => ['nas/channels.php','<?php'],
         'presence.php'  => ['nas/presence.php','<?php'],
+        'ai.php'        => ['nas/ai.php','<?php'],
         'scan.sh'       => ['nas/scan.sh','ROOT='],
         'feeds.sh'      => ['nas/feeds.sh','URL='],
         'config.sample.php' => ['nas/config.sample.php','<?php'],

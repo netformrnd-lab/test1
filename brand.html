@@ -713,6 +713,38 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   padding:5px 7px;border:1px solid var(--blue);border-radius:var(--r-xs);
   background:var(--bg-input);color:var(--text-primary);outline:none}
 
+/* ── 회의록 ─────────────────────────────────────────────────── */
+.mtbox{border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px;
+  background:var(--bg-secondary);margin-bottom:12px}
+.mt-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px}
+.mt-title{font-size:15px;font-weight:750;letter-spacing:-.024em}
+.mt-act{margin-left:auto;display:flex;gap:5px}
+.mt-raw{margin-top:10px}
+.mt-raw summary{font-size:12px;color:var(--text-muted);cursor:pointer;font-weight:600;
+  padding:4px 0;list-style:none}
+.mt-raw summary::-webkit-details-marker{display:none}
+.mt-raw summary::before{content:'▸ ';color:var(--text-muted)}
+.mt-raw[open] summary::before{content:'▾ '}
+.mt-body{font-size:13px;line-height:1.75;color:var(--text-secondary);white-space:pre-wrap;
+  word-break:break-word;padding:11px 13px;border-radius:var(--r-sm);
+  background:var(--bg-input);border:1px solid var(--border);margin-top:6px;
+  max-height:340px;overflow:auto}
+.aibox{border:1px solid var(--border);border-left:2px solid var(--blue);
+  border-radius:var(--r-sm);background:var(--bg-input);padding:13px 15px}
+.ai-sec + .ai-sec{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.ai-sec.warn{background:rgba(192,119,8,.08);margin:12px -15px -13px;padding:12px 15px 13px;
+  border-top:1px solid rgba(192,119,8,.28);border-radius:0 0 var(--r-sm) var(--r-sm)}
+.ai-h{font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.05em;
+  margin-bottom:5px}
+.ai-p{font-size:13.5px;line-height:1.8;color:var(--text-primary);white-space:pre-wrap}
+.ai-ul{margin:0;padding-left:18px}
+.ai-ul li{font-size:13.5px;line-height:1.8;color:var(--text-primary);margin-bottom:3px}
+.ai-todos{display:flex;flex-direction:column;gap:6px}
+.ai-todo{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px;
+  padding:7px 10px;border-radius:var(--r-xs);background:var(--bg-card);
+  border:1px solid var(--border)}
+.ai-td{font-weight:600;color:var(--text-primary)}
+
 .hitrow{display:flex;align-items:center;gap:12px;padding:10px 14px}
 .hitrow + .hitrow{border-top:1px solid var(--border)}
 .hitrow:hover{background:var(--bg-hover)}
@@ -852,7 +884,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260903-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260903-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1031,7 +1063,7 @@ const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).
 function newBrand(name, icon, color, desc){
   return { id: uid('b'), name, icon, color, owner:'', desc: desc || '',
            automations:[], history:[], assets:[], tasks:[], links:[], nasFolders:[],
-           record:null, tools:[], channels:[],
+           record:null, tools:[], channels:[], meetings:[],
            masterPrompt:'', promptUpdatedAt:null };
 }
 
@@ -1052,6 +1084,20 @@ function defaultData(){
 
 /* 항목 종류 정의 — 여기에 필드를 추가하면 화면과 입력창에 자동 반영됩니다 */
 const TYPES = {
+  meetings: {
+    label:'회의', icon:'🗣️', tab:'회의록',
+    hint:'회의에서 나온 이야기를 적어두면, AI가 요약·결정사항·할 일로 정리해 줍니다',
+    empty:'아직 회의 기록이 없습니다. 첫 회의부터 적어보세요.',
+    fields:[
+      { key:'title',     label:'회의 제목', type:'text', required:true,
+        ph:'예: 9월 콘텐츠 방향 회의' },
+      { key:'date',      label:'날짜',      type:'date' },
+      { key:'attendees', label:'참석자',    type:'text', ph:'예: 김마케, 이디자인, 박기획' },
+      { key:'body',      label:'회의 내용', type:'textarea',
+        ph:'들은 대로 편하게 적으세요. 문장이 안 다듬어져도 괜찮습니다.\n'
+           + 'AI가 요약·결정사항·할 일로 정리해 줍니다.' }
+    ]
+  },
   automations: {
     label:'자동화', icon:'🤖', tab:'자동화 모음',
     hint:'어떤 자동화가 돌고 있는지 기록합니다',
@@ -1125,7 +1171,7 @@ const TYPES = {
     ]
   }
 };
-const ITEM_KEYS = ['automations','history','assets','tasks','links'];
+const ITEM_KEYS = ['automations','history','meetings','assets','tasks','links'];
 
 /* 자동화 개수 — 손으로 적은 것과 올려둔 도구 파일을 합쳐서 셉니다.
    화면마다 다르게 세면 "등록했는데 숫자가 안 올라간다" 가 되므로 여기 하나만 씁니다. */
@@ -1135,7 +1181,7 @@ function autoCount(b){ return b.automations.length + ((b.tools || []).length); }
 function itemCount(b){
   return ITEM_KEYS.reduce((a, k) => a + b[k].length, 0) + ((b.tools || []).length);
 }
-const TAB_KEYS  = ['automations','history','assets','tasks','links','channels','inquiries','prompt'];
+const TAB_KEYS  = ['automations','history','meetings','assets','tasks','links','channels','inquiries','prompt'];
 
 let data = defaultData();
 let currentBrandId = null;
@@ -3155,6 +3201,7 @@ function renderBrand(){
   const counts = {
     automations: autoCount(b),
     history: b.history.length + (b.record ? 1 : 0),
+    meetings: b.meetings.length,
     assets: b.assets.length,
     tasks: b.tasks.filter(t => t.status !== '완료').length,
     links: b.links.length,
@@ -3166,6 +3213,7 @@ function renderBrand(){
     ['inquiries','📞 문의'],
     ['automations','🤖 자동화 모음'],
     ['history','📜 히스토리'],
+    ['meetings','🗣️ 회의록'],
     ['tasks','✅ 할 일'],
     ['links','🔗 바로가기'],
     ['channels','📣 채널'],
@@ -3196,6 +3244,7 @@ function renderBrand(){
   const body = document.getElementById('tabbody');
   if(currentTab === 'prompt') body.innerHTML = viewPrompt(b);
   else if(currentTab === 'history') body.innerHTML = viewHistory(b);
+  else if(currentTab === 'meetings') body.innerHTML = viewMeetings(b);
   else if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
   else if(currentTab === 'inquiries') {
     body.innerHTML = viewInquiries(b);
@@ -4988,6 +5037,171 @@ function viewInquiries(b){
       + '원본 구글시트는 그대로입니다.</div>';
 }
 
+/* ═══════════════ 회의록 ═══════════════════════════════════════════
+   회의에서 나온 이야기를 그대로 적어두면, AI 가 읽고
+   요약 · 결정사항 · 할 일로 정리해 줍니다.
+
+   AI 를 부르는 건 NAS 입니다. 사무실 브라우저는 밖으로 못 나가고,
+   키를 브라우저에 두면 대시보드를 여는 누구나 볼 수 있어서입니다.
+   ================================================================= */
+const aiState = { ready:null, busy:null, error:null };
+
+async function aiCheck(){
+  if(STORAGE_MODE !== 'nas') return;
+  try{
+    const r = await apiJson('ai.php?action=check');
+    aiState.ready = !!(r && r['키등록됨']);
+    aiState.info  = r;
+  }catch(e){ aiState.ready = false; aiState.error = apiErrText(e); }
+  render();
+}
+
+async function aiSetKey(){
+  const v = prompt('Anthropic API 키를 넣어주세요.\n\n'
+    + '· console.anthropic.com 에서 만든 「sk-ant-」 로 시작하는 키입니다.\n'
+    + '· 키는 NAS 에만 저장되고, 화면으로 다시 보이지 않습니다.\n'
+    + '· 비워두고 확인을 누르면 저장된 키를 지웁니다.', '');
+  if(v === null) return;
+  try{
+    const res = await fetch('ai.php?action=setkey', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ key: v.trim() })
+    });
+    const out = JSON.parse(await res.text());
+    if(!out.ok) throw new Error(out.error || '저장하지 못했습니다');
+    toast(out['키등록됨'] ? '✅ AI 키를 저장했습니다' : '키를 지웠습니다');
+    await aiCheck();
+  }catch(e){ showError('키를 저장하지 못했습니다.\n\n' + (e.message || e)); }
+}
+
+/* 회의 하나를 AI 에게 정리해 달라고 합니다 */
+async function aiSummarize(id){
+  const b = currentBrand();
+  const m = (b.meetings || []).find(x => x.id === id);
+  if(!m) return;
+  if(!String(m.body || '').trim()){ toast('⚠️ 회의 내용이 비어 있습니다'); return; }
+
+  aiState.busy = id; aiState.error = null; render();
+  try{
+    const res = await fetch('ai.php?action=summarize', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ notes: m.body, title: m.title || '', brand: b.name })
+    });
+    const out = JSON.parse(await res.text());
+    if(!out.ok) throw new Error(out.error || '정리하지 못했습니다');
+
+    m.ai = {
+      요약: out['요약'] || '', 결정사항: out['결정사항'] || [],
+      할일: out['할일'] || [], 다음회의: out['다음회의'] || '',
+      확인필요: out['확인필요'] || [], 잘림: !!out['잘림'],
+      만든때: new Date().toISOString()
+    };
+    m.updatedAt = new Date().toISOString();
+    markDirty();
+    toast('✅ 정리했습니다' + (out['잘림'] ? ' (내용이 길어 앞부분만 봤습니다)' : ''));
+  }catch(e){
+    aiState.error = e.message || String(e);
+    showError('AI 정리에 실패했습니다.\n\n' + aiState.error);
+  }finally{ aiState.busy = null; render(); }
+}
+
+/* AI 가 뽑아준 할 일을 「할 일」 탭으로 옮깁니다 */
+function aiTodoToTask(mid, i){
+  const b = currentBrand();
+  const m = (b.meetings || []).find(x => x.id === mid);
+  const t = m && m.ai && m.ai.할일 && m.ai.할일[i];
+  if(!t) return;
+  b.tasks.unshift({
+    id: uid('i'), title: String(t['내용'] || '').slice(0, 120),
+    status: '할일', due: /^\d{4}-\d{2}-\d{2}$/.test(String(t['기한'] || '')) ? t['기한'] : '',
+    desc: '회의에서 나온 할 일 · ' + (m.title || '') + (t['담당'] ? ' · 담당 ' + t['담당'] : ''),
+    updatedAt: new Date().toISOString()
+  });
+  m.ai.할일[i]._옮김 = true;
+  markDirty(); render();
+  toast('✅ 할 일로 옮겼습니다');
+}
+
+function viewMeetings(b){
+  const list = b.meetings || [];
+  const keyBar = '<div class="sec-bar">'
+    + '<button class="btn primary" onclick="openItemModal(\'meetings\')">＋ 회의 기록</button>'
+    + (aiState.ready === false
+        ? '<button class="btn" onclick="aiSetKey()">🔑 AI 키 넣기</button>'
+          + '<span class="hint">키를 넣으면 회의 내용을 AI가 요약해 줍니다</span>'
+        : '<button class="btn" onclick="aiSetKey()">🔑 AI 키 바꾸기</button>'
+          + '<span class="hint">회의 내용을 적고 [AI로 정리] 를 누르면 '
+          + '요약·결정사항·할 일로 나눠줍니다</span>')
+    + '</div>';
+
+  if(!list.length) return keyBar + '<div class="empty">' + TYPES.meetings.empty + '<br>'
+    + '<span style="color:var(--text-muted)">들은 대로 편하게 적어두면 됩니다. '
+    + '정리는 AI가 합니다.</span></div>';
+
+  const sorted = list.slice().sort((x, y) =>
+    String(y.date || y.updatedAt || '').localeCompare(String(x.date || x.updatedAt || '')));
+
+  const cards = sorted.map(m => {
+    const ai = m.ai;
+    const busy = aiState.busy === m.id;
+    return '<div class="mtbox">'
+      + '<div class="mt-head">'
+        + '<span class="mt-title">' + esc(m.title || '(제목 없음)') + '</span>'
+        + (m.date ? '<span class="chip">' + esc(fmtYMD(m.date)) + '</span>' : '')
+        + (m.attendees ? '<span class="fmeta">👥 ' + esc(m.attendees) + '</span>' : '')
+        + '<span class="mt-act">'
+          + '<button class="btn sm" onclick="openItemModal(\'meetings\',\'' + jsq(m.id) + '\')">수정</button>'
+          + '<button class="btn sm danger" onclick="deleteItem(\'meetings\',\'' + jsq(m.id) + '\')">삭제</button>'
+        + '</span></div>'
+
+      + (ai ? aiPanel(m, ai) : '')
+
+      + '<details class="mt-raw"' + (ai ? '' : ' open') + '>'
+        + '<summary>회의 내용 원문' + (ai ? ' (접힘)' : '') + '</summary>'
+        + '<div class="mt-body">' + esc(m.body || '(비어 있음)') + '</div>'
+      + '</details>'
+
+      + '<div class="row" style="margin-top:10px">'
+        + '<button class="btn' + (ai ? '' : ' primary') + '" ' + (busy ? 'disabled' : '')
+          + ' onclick="aiSummarize(\'' + jsq(m.id) + '\')">'
+          + (busy ? '⏳ 정리하는 중… (10~30초)' : (ai ? '↻ 다시 정리' : '✨ AI로 정리')) + '</button>'
+        + (ai && ai.만든때
+            ? '<span class="fmeta">' + esc(sinceText(ai.만든때)) + ' 정리함</span>' : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  return keyBar + cards;
+}
+
+function aiPanel(m, ai){
+  const li = arr => (arr || []).map(x => '<li>' + esc(String(x)) + '</li>').join('');
+  return '<div class="aibox">'
+    + (ai.잘림 ? '<div class="fmeta" style="margin-bottom:8px">⚠️ 내용이 길어 앞부분만 보고 정리했습니다</div>' : '')
+    + (ai.요약 ? '<div class="ai-sec"><div class="ai-h">요약</div>'
+        + '<div class="ai-p">' + esc(ai.요약) + '</div></div>' : '')
+    + ((ai.결정사항 || []).length ? '<div class="ai-sec"><div class="ai-h">결정된 것</div>'
+        + '<ul class="ai-ul">' + li(ai.결정사항) + '</ul></div>' : '')
+    + ((ai.할일 || []).length ? '<div class="ai-sec"><div class="ai-h">할 일</div>'
+        + '<div class="ai-todos">' + ai.할일.map((t, i) =>
+            '<div class="ai-todo">'
+            + '<span class="ai-td">' + esc(String(t['내용'] || '')) + '</span>'
+            + (t['담당'] ? '<span class="chip">' + esc(t['담당']) + '</span>' : '')
+            + (t['기한'] ? '<span class="chip test">' + esc(t['기한']) + '</span>' : '')
+            + (t._옮김
+                ? '<span class="chip on" style="margin-left:auto">✓ 할 일로 옮김</span>'
+                : '<button class="btn sm" style="margin-left:auto" onclick="aiTodoToTask(\''
+                  + jsq(m.id) + '\',' + i + ')">→ 할 일로</button>')
+            + '</div>').join('') + '</div></div>' : '')
+    + (ai.다음회의 ? '<div class="ai-sec"><div class="ai-h">다음에 다룰 것</div>'
+        + '<div class="ai-p">' + esc(ai.다음회의) + '</div></div>' : '')
+    + ((ai.확인필요 || []).length ? '<div class="ai-sec warn"><div class="ai-h">사람이 확인해야 할 것</div>'
+        + '<ul class="ai-ul">' + li(ai.확인필요) + '</ul>'
+        + '<div class="fmeta" style="margin-top:6px">메모만으로는 분명하지 않아 AI가 짚어둔 것입니다</div>'
+        + '</div>' : '')
+    + '</div>';
+}
+
 function viewHistory(b){
   const list = b.history;
   const rec  = b.record || null;
@@ -6036,6 +6250,7 @@ function normalize(raw){
     b.icon = b.icon || '🏷️';
     b.color = b.color || '#3b82f6';
     if(!Array.isArray(b.nasFolders)) b.nasFolders = [];
+    if(!Array.isArray(b.meetings))   b.meetings   = [];
     ITEM_KEYS.forEach(k => {
       if(!Array.isArray(b[k])) b[k] = [];
       b[k].forEach(it => { it.id = it.id || uid('i'); });
@@ -6121,6 +6336,7 @@ async function init(){
     setInterval(() => checkVersion(false), 30 * 60 * 1000);
 
     setInterval(inquiryTick, INQ_CHECK_MS);                 // 구글시트 갱신 확인 (1분마다)
+    aiCheck();                                             // AI 키가 들어 있는지
     startLive();                                           // 실시간 반영 (2초마다 확인)
     pingPresence();                                        // 지금 누가 보고 있는지
     setInterval(pingPresence, 15000);

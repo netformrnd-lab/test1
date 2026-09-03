@@ -95,6 +95,7 @@ else
     update_file "doctext.php" "nas/doctext.php" "<?php"  || failed=1
     update_file "channels.php" "nas/channels.php" "<?php" || failed=1
     update_file "presence.php" "nas/presence.php" "<?php" || failed=1
+    update_file "ai.php"       "nas/ai.php"       "<?php" || failed=1
     update_file "scan.sh"      "nas/scan.sh"      "ROOT="  || failed=1
     update_file "feeds.sh"     "nas/feeds.sh"     "URL="   || failed=1
     update_file "config.sample.php" "nas/config.sample.php" "<?php" || failed=1

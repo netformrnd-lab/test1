@@ -723,6 +723,21 @@ table.ymtable .num{text-align:right}
 table.ymtable .zero{color:var(--text-muted)}
 table.ymtable .tot{font-weight:700}
 table.ymtable tr:hover td{background:var(--bg-hover)}
+/* 눌러서 고칠 수 있는 숫자 칸 */
+table.ymtable td.ed2{cursor:text}
+table.ymtable td.ed2:hover{background:var(--blue-soft);box-shadow:inset 0 0 0 1px var(--blue)}
+table.ymtable td.fx{background:rgba(192,119,8,.09);font-weight:700}
+table.ymtable tr:hover td.fx{background:rgba(192,119,8,.14)}
+table.ymtable td.fx.zero{color:var(--text-primary)}
+table.ymtable .fxmark{margin-left:4px;font-size:9px;color:var(--yellow);vertical-align:1px}
+table.ymtable td.ed2.on{position:relative;background:var(--bg-card)}
+table.ymtable .edshadow{visibility:hidden}
+table.ymtable td.ed2.on input{position:absolute;z-index:3;top:2px;right:3px;
+  width:56px;box-sizing:border-box;
+  font-family:inherit;font-size:12px;font-variant-numeric:tabular-nums;text-align:right;
+  padding:2px 5px;border-radius:4px;border:1px solid var(--blue);
+  background:var(--bg-card);color:var(--text-primary);box-shadow:var(--shadow-sm)}
+table.ymtable td.ed2.on input:focus{outline:none;box-shadow:var(--ring)}
 table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--border-light);
   border-bottom:none;font-weight:700;color:var(--text-secondary)}
 
@@ -971,7 +986,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260903-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260903-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4848,6 +4863,19 @@ const YEAR_HUES = ['var(--sr1)', 'var(--sr2)', 'var(--sr3)', 'var(--sr4)'];
    그래야 해가 바뀌어도 2025년은 늘 같은 색이라 헷갈리지 않습니다.
    (연속된 4개 해는 서로 다른 색이 됩니다) */
 function yearHue(y){ return YEAR_HUES[((y % 4) + 4) % 4]; }
+
+/* 화면에 같이 그리는 해들의 색을 정합니다.
+   되도록 yearHue 그대로 쓰되(그래야 해마다 색이 안 바뀝니다),
+   4살 차이로 색이 겹치면(2022 와 2026) 남는 색으로 비켜 줍니다. */
+function yearHueMap(years){
+  const used = {}, out = {};
+  years.forEach(y => {
+    let c = yearHue(y);
+    if(used[c]){ c = YEAR_HUES.find(h => !used[h]) || c; }
+    used[c] = true; out[y] = c;
+  });
+  return out;
+}
 const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const QUARTER_KO = ['1분기','2분기','3분기','4분기'];
 let yearChartMax = 4;      // 한 번에 그릴 해의 수
@@ -4860,15 +4888,84 @@ const chartOpt = {
   val: ''         // 그 분류의 값 (빈 값이면 전체)
 };
 
+/* 고친 숫자 — 브랜드마다 { '2024-1': 12 } 꼴로 담아둡니다.
+   구글시트에 없는 옛날 자료를 채워 넣거나, 틀린 숫자를 바로잡을 때 씁니다.
+   시트 원래 숫자는 건드리지 않고, 화면에 보일 때만 덮어씁니다.        */
+let chartCell = null;      // 지금 고치고 있는 칸 { y, i }
+
+function chartFixMap(b){
+  if(b && !b.chartFix) b.chartFix = {};
+  return (b && b.chartFix) || {};
+}
+function chartFixCount(b){ return Object.keys(chartFixMap(b)).length; }
+
+/* 이번 달보다 뒤인가 (아직 오지 않은 달은 고칠 수 없습니다) */
+function isFuture(y, i){
+  const n = new Date();
+  return y > n.getFullYear() || (y === n.getFullYear() && i > n.getMonth());
+}
+
+function startChartCell(y, i){
+  const b = currentBrand();
+  if(!b || isFuture(y, i)) return;
+  chartCell = { y: y, i: i };
+  render();
+  const el = document.getElementById('chartEd');
+  if(el){ el.focus(); el.select(); }
+}
+
+function chartCellKeydown(e){
+  if(e.key === 'Enter'){ e.preventDefault(); e.target.blur(); }
+  else if(e.key === 'Escape'){ e.preventDefault(); chartCell = null; render(); }
+}
+
+/* 빈 칸으로 두면 고친 것을 지우고 시트 숫자로 되돌아갑니다 */
+function commitChartCell(raw){
+  const cell = chartCell;
+  chartCell = null;
+  const b = currentBrand();
+  if(!cell || !b){ render(); return; }
+
+  const key = cell.y + '-' + (cell.i + 1);
+  const fix = chartFixMap(b);
+  const txt = String(raw == null ? '' : raw).replace(/[\s,]/g, '');
+
+  if(txt === ''){
+    if(fix[key] != null){ delete fix[key]; markDirty(); }
+    render();
+    return;
+  }
+  const n = Number(txt);
+  if(!isFinite(n) || n < 0 || n !== Math.floor(n)){
+    render();
+    toast('⚠️ 0 이상의 정수만 넣을 수 있습니다');
+    return;
+  }
+  if(fix[key] !== n){ fix[key] = n; markDirty(); }
+  render();
+}
+
+function chartFixClear(){
+  const b = currentBrand();
+  if(!b) return;
+  const n = chartFixCount(b);
+  if(!n) return;
+  if(!confirm('고쳐둔 숫자 ' + n + '칸을 모두 시트 숫자로 되돌릴까요?')) return;
+  b.chartFix = {};
+  markDirty(); render();
+  toast('↩︎ 시트 숫자로 되돌렸습니다');
+}
+
 function chartToggleYear(y){
   chartOpt.off[y] = !chartOpt.off[y];
   render();
 }
-function chartSetUnit(u){ chartOpt.unit = u; render(); }
+function chartSetUnit(u){ chartOpt.unit = u; chartCell = null; render(); }
 function chartSetCat(v){
   const i = v.indexOf('\u241F');                 // "열\u241F값" 으로 넘어옵니다
   chartOpt.cat = i < 0 ? '' : v.slice(0, i);
   chartOpt.val = i < 0 ? '' : v.slice(i + 1);
+  chartCell = null;
   render();
 }
 function chartReset(){
@@ -4876,26 +4973,60 @@ function chartReset(){
   render();
 }
 
-/* 연도 × (월 또는 분기) 표를 만듭니다 */
-function yearMonthGrid(rows, dateCol, unit){
-  const n = unit === '분기' ? 4 : 12;
-  const grid = {};                       // 연도 → [12개월] 또는 [4분기]
+/* 연도 × (월 또는 분기) 표를 만듭니다.
+   언제나 12달로 먼저 세고, 고친 숫자를 덮어쓴 뒤, 분기면 그때 묶습니다.
+   그래야 월별로 고친 것이 분기별 화면에도 그대로 반영됩니다.
+   fix 를 주지 않으면(검색 중이거나 분류로 좁혔을 때) 원래 숫자만 씁니다.  */
+function yearMonthGrid(rows, dateCol, unit, fix){
+  const m = {};                          // 연도 → [12개월]
   let none = 0;
   rows.forEach(r => {
     const d = dateCol ? parseYMD(r[dateCol]) : null;
     if(!d){ none++; return; }
     const y = d.getFullYear();
-    if(!grid[y]) grid[y] = new Array(n).fill(0);
-    grid[y][unit === '분기' ? Math.floor(d.getMonth() / 3) : d.getMonth()]++;
+    if(!m[y]) m[y] = new Array(12).fill(0);
+    m[y][d.getMonth()]++;
   });
+
+  const raw = {};                        // 고치기 전 숫자 (원래 값을 알려주려고 남깁니다)
+  Object.keys(m).forEach(y => { raw[y] = m[y].slice(); });
+
+  const fixed = {};                      // 연도 → { 달번호: true }
+  if(fix){
+    Object.keys(fix).forEach(k => {
+      const p = k.split('-');
+      const y = Number(p[0]), i = Number(p[1]) - 1;
+      if(!isFinite(y) || !(i >= 0 && i < 12)) return;
+      if(!m[y]){ m[y] = new Array(12).fill(0); raw[y] = new Array(12).fill(0); }
+      m[y][i] = fix[k];
+      (fixed[y] = fixed[y] || {})[i] = true;
+    });
+  }
+
+  const n = unit === '분기' ? 4 : 12;
+  let grid = m, rawU = raw, fixedU = fixed;
+  if(unit === '분기'){
+    // 분기로 묶을 때는 원래 숫자와 '고친 표시' 도 같은 눈금으로 맞춥니다.
+    // (안 그러면 2분기 칸이 2월의 원래 숫자를 보여주는 식으로 어긋납니다)
+    grid = {}; rawU = {}; fixedU = {};
+    Object.keys(m).forEach(y => {
+      grid[y] = [0, 0, 0, 0];
+      rawU[y] = [0, 0, 0, 0];
+      m[y].forEach((v, i) => { grid[y][Math.floor(i / 3)] += v; });
+      raw[y].forEach((v, i) => { rawU[y][Math.floor(i / 3)] += v; });
+      Object.keys(fixed[y] || {}).forEach(i => {
+        (fixedU[y] = fixedU[y] || {})[Math.floor(Number(i) / 3)] = true;
+      });
+    });
+  }
   const years = Object.keys(grid).map(Number).sort((a, b) => b - a);   // 최근 연도부터
-  return { grid, years, none, n };
+  return { grid, years, none, n, months: m, raw: rawU, fixed: fixedU, fixedM: fixed };
 }
 
 /* 그 해에 어느 달까지 그릴지.
    올해는 '이번 달' 까지만 그립니다. 아직 오지 않은 달을 0건으로 그리면
    문의가 뚝 끊긴 것처럼 보여서 잘못 읽게 됩니다. */
-function lastMonthOf(year, grid, unit){
+function lastMonthOf(year, g, unit){
   const now = new Date();
   const n = unit === '분기' ? 4 : 12;
   if(year > now.getFullYear()) return -1;
@@ -4903,25 +5034,48 @@ function lastMonthOf(year, grid, unit){
     return unit === '분기' ? Math.floor(now.getMonth() / 3) : now.getMonth();
   }
   // 지난 해인데 뒷쪽이 통째로 비어 있으면 (그때부터 기록이 없는 것) 거기서 끊습니다
-  const arr = grid[year] || [];
+  const arr = (g.grid && g.grid[year]) || [];
   let last = n - 1;
   while(last > 0 && arr[last] === 0 && arr[last - 1] === 0) last--;
+
+  // 손으로 숫자를 넣어둔 달이 그보다 뒤에 있으면 거기까지 보여줍니다
+  const fx = (g.fixedM && g.fixedM[year]) || {};
+  Object.keys(fx).forEach(i => {
+    const at = unit === '분기' ? Math.floor(Number(i) / 3) : Number(i);
+    if(at > last) last = at;
+  });
   return last;
 }
 
+/* 그 해에 어느 달부터 그릴지.
+   앞쪽이 통째로 비어 있으면 (그때는 아직 기록이 없던 것) 거기서부터 시작합니다.
+   9월부터 손으로 채워 넣은 해를 1~8월 0건으로 그리면 없던 일이 생깁니다. */
+function firstMonthOf(year, g, unit){
+  const arr = (g.grid && g.grid[year]) || [];
+  const fx  = (g.fixedM && g.fixedM[year]) || {};
+  const has = i => arr[i] > 0
+    || Object.keys(fx).some(k => (unit === '분기' ? Math.floor(Number(k) / 3) : Number(k)) === i);
+  for(let i = 0; i < arr.length; i++){ if(has(i)) return i; }
+  return 0;
+}
+
 /* 꺾은선 그래프 (SVG 를 직접 그립니다 — 인터넷 없이도 뜹니다) */
-function inquiryYearChart(g, shownYears){
+function inquiryYearChart(g, shownYears, cand4){
   const N = g.n || 12;
   const W = 720, H = 260;
   const PAD = { t: 16, r: 18, b: 30, l: 42 };
   const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
 
-  const lastOf = {};
-  shownYears.forEach(y => { lastOf[y] = lastMonthOf(y, g.grid, chartOpt.unit); });
+  const hue = yearHueMap(cand4 || shownYears);
+  const lastOf = {}, firstOf = {};
+  shownYears.forEach(y => {
+    lastOf[y]  = lastMonthOf(y, g, chartOpt.unit);
+    firstOf[y] = firstMonthOf(y, g, chartOpt.unit);
+  });
 
   let max = 0;
   shownYears.forEach(y => g.grid[y].forEach((v, i) => {
-    if(i <= lastOf[y] && v > max) max = v;
+    if(i >= firstOf[y] && i <= lastOf[y] && v > max) max = v;
   }));
   if(max < 4) max = 4;
   const step = Math.max(1, Math.ceil(max / 4));
@@ -4947,10 +5101,11 @@ function inquiryYearChart(g, shownYears){
   // 선과 점
   let marks = '';
   shownYears.forEach(yr => {
-    const col = yearHue(yr);
+    const col = hue[yr] || yearHue(yr);
     const upto = lastOf[yr];
-    if(upto < 0) return;
-    const pts = g.grid[yr].slice(0, upto + 1).map((v, i) => [x(i), y(v)]);
+    const from = firstOf[yr];
+    if(upto < 0 || from > upto) return;
+    const pts = g.grid[yr].slice(from, upto + 1).map((v, k) => [x(from + k), y(v)]);
     if(pts.length > 1){
       marks += '<polyline class="vz-line" stroke="' + col + '" points="'
         + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') + '"/>';
@@ -4973,8 +5128,9 @@ function inquiryYearChart(g, shownYears){
   for(let i = 0; i < N; i++){
     const lab = chartOpt.unit === '분기' ? QUARTER_KO[i] : (i + 1) + '월';
     const tip = shownYears.map(yr => yr + '년 ' + lab + ' · '
-      + (i <= lastOf[yr] ? g.grid[yr][i].toLocaleString('ko-KR') + '건'
-                         : '아직')).join('&#10;');
+      + (i < firstOf[yr] ? '기록 없음'
+          : (i <= lastOf[yr] ? g.grid[yr][i].toLocaleString('ko-KR') + '건'
+                             : '아직'))).join('&#10;');
     hot += '<rect class="vz-hot" x="' + (x(i) - band / 2) + '" y="' + PAD.t
       + '" width="' + band + '" height="' + ih + '"><title>' + esc(tip) + '</title></rect>';
   }
@@ -4984,7 +5140,47 @@ function inquiryYearChart(g, shownYears){
     + grid + marks + hot + '</svg>';
 }
 
-function inquiryYearView(rows, dateCol, sum){
+/* 표의 숫자 한 칸. 고칠 수 있으면 눌러서 바로 숫자를 넣습니다. */
+function ymCell(g, yr, i, v, from, upto, unit, canFix){
+  // 월별일 때만, 그리고 아직 오지 않은 달이 아닐 때만 고칠 수 있습니다
+  const editable = canFix && unit === '월' && !isFuture(yr, i);
+  const isFix    = !!(g.fixed[yr] && g.fixed[yr][i]);
+  const origN    = (g.raw[yr] || [])[i] || 0;
+
+  if(chartCell && chartCell.y === yr && chartCell.i === i){
+    // 원래 숫자를 안 보이게 남겨 칸 너비를 지킵니다.
+    // (입력칸이 자리를 넓히면 표 전체가 옆으로 밀립니다)
+    return '<td class="num ed2 on"><span class="edshadow">'
+      + (v ? v.toLocaleString('ko-KR') : '0') + '</span>'
+      + '<input id="chartEd" type="text" inputmode="numeric" size="4" '
+      + 'value="' + esc(isFix ? String(v) : '') + '" '
+      + 'placeholder="' + origN + '" '
+      + 'onkeydown="chartCellKeydown(event)" onblur="commitChartCell(this.value)"></td>';
+  }
+
+  if((i > upto || i < from) && !isFix){
+    const why = i < from ? '아직 기록이 없던 때' : '아직 오지 않은 때';
+    return '<td class="num zero' + (editable ? ' ed2' : '') + '"'
+      + ' title="' + why + (editable ? '입니다 — 눌러서 숫자를 넣을 수 있습니다' : '') + '"'
+      + (editable ? ' onclick="startChartCell(' + yr + ',' + i + ')"' : '')
+      + '>–</td>';
+  }
+
+  const tip = isFix
+    ? '손으로 고친 숫자입니다 (시트 숫자: ' + origN.toLocaleString('ko-KR') + '건)'
+      + ' — 비우면 되돌아갑니다'
+    : (editable ? '눌러서 숫자를 고칠 수 있습니다' : '');
+
+  return '<td class="num' + (v ? '' : ' zero') + (isFix ? ' fx' : '')
+    + (editable ? ' ed2' : '') + '"'
+    + (tip ? ' title="' + esc(tip) + '"' : '')
+    + (editable ? ' onclick="startChartCell(' + yr + ',' + i + ')"' : '') + '>'
+    + (v ? v.toLocaleString('ko-KR') : '0')
+    + (isFix ? '<span class="fxmark" aria-label="고침">✎</span>' : '')
+    + '</td>';
+}
+
+function inquiryYearView(rows, dateCol, sum, b, searching){
   if(!dateCol) return '';
 
   // 분류로 좁혀 보기 (예: 문의유형 = 하자점검 만)
@@ -4993,8 +5189,14 @@ function inquiryYearView(rows, dateCol, sum){
     use = rows.filter(r => String(r[chartOpt.cat] || '').trim() === chartOpt.val);
   }
 
+  // 손으로 고친 숫자는 '이 브랜드 전체' 에 대한 값입니다.
+  // 그래서 분류로 좁혔거나 찾는 중일 때는 덮어쓰지 않고 원래 숫자만 봅니다.
+  const narrowed = !!(chartOpt.cat && chartOpt.val) || !!searching;
+  const canFix   = !!b && !narrowed;
+  const fix      = canFix ? chartFixMap(b) : null;
+
   const unit = chartOpt.unit;
-  const g = yearMonthGrid(use, dateCol, unit);
+  const g = yearMonthGrid(use, dateCol, unit, fix);
   if(!g.years.length) return '';
 
   const N     = g.n;
@@ -5004,12 +5206,13 @@ function inquiryYearView(rows, dateCol, sum){
 
   // ── 조작 줄 ───────────────────────────────────────────────
   // 연도는 눌러서 껐다 켤 수 있습니다. 꺼도 다른 해의 색은 그대로입니다.
+  const hueMap = yearHueMap(cand);
   const yearBtns = cand.map(yr => {
     const on = !chartOpt.off[yr];
     return '<button class="vz-key vz-btn' + (on ? '' : ' off') + '" '
       + 'onclick="chartToggleYear(' + yr + ')" '
       + 'title="' + (on ? '눌러서 숨기기' : '눌러서 보이기') + '">'
-      + '<span class="vz-sw" style="background:' + (on ? yearHue(yr) : 'var(--text-muted)') + '"></span>'
+      + '<span class="vz-sw" style="background:' + (on ? (hueMap[yr] || yearHue(yr)) : 'var(--text-muted)') + '"></span>'
       + yr + '년</button>';
   }).join('');
 
@@ -5042,6 +5245,10 @@ function inquiryYearView(rows, dateCol, sum){
     + catSel
     + ((Object.keys(chartOpt.off).some(k => chartOpt.off[k]) || chartOpt.cat || unit !== '월')
         ? '<button class="btn sm" onclick="chartReset()">처음으로</button>' : '')
+    + (canFix && chartFixCount(b)
+        ? '<button class="btn sm" onclick="chartFixClear()" '
+          + 'title="손으로 고친 숫자를 모두 시트 숫자로 되돌립니다">'
+          + '↩︎ 고친 숫자 되돌리기 (' + chartFixCount(b) + ')</button>' : '')
     + '</div>';
 
   if(!shown.length){
@@ -5057,15 +5264,12 @@ function inquiryYearView(rows, dateCol, sum){
     + '<th class="num">합계</th></tr>';
   const body = g.years.map(yr => {
     const arr = g.grid[yr];
-    const upto = lastMonthOf(yr, g.grid, unit);
-    const total = arr.reduce((a, v) => a + v, 0);
+    const upto = lastMonthOf(yr, g, unit);
+    const from = firstMonthOf(yr, g, unit);
+    const total = arr.reduce((a, v, i) => (i >= from && i <= upto) ? a + v : a, 0);
     const dim = chartOpt.off[yr] || cand.indexOf(yr) < 0;
     return '<tr' + (dim ? ' class="dim"' : '') + '><th class="yr">' + yr + '</th>'
-      + arr.map((v, i) => {
-          if(i > upto) return '<td class="num zero" title="아직 오지 않은 때">–</td>';
-          return '<td class="num' + (v ? '' : ' zero') + '">'
-            + (v ? v.toLocaleString('ko-KR') : '0') + '</td>';
-        }).join('')
+      + arr.map((v, i) => ymCell(g, yr, i, v, from, upto, unit, canFix)).join('')
       + '<td class="num tot">' + total.toLocaleString('ko-KR') + '</td></tr>';
   }).join('');
   const colSum = new Array(N).fill(0);
@@ -5085,12 +5289,22 @@ function inquiryYearView(rows, dateCol, sum){
       + ' · 가로축 = ' + unit + ' · 점에 마우스를 올리면 숫자가 나옵니다</span>'
     + '</div>'
     + controls
-    + '<div class="vz-wrap">' + inquiryYearChart(g, shown) + '</div>'
+    + '<div class="vz-wrap">' + inquiryYearChart(g, shown, cand) + '</div>'
     + (g.years.length > cand.length
         ? '<div class="fmeta" style="margin-top:6px">최근 ' + cand.length
           + '개 해만 그립니다 (표에는 전부 있습니다)</div>' : '')
     + '<div class="vz-tw"><table class="ymtable">'
       + '<thead>' + head + '</thead><tbody>' + body + foot + '</tbody></table></div>'
+    + '<div class="fmeta" style="margin-top:8px">'
+      + (canFix && unit === '월'
+          ? '✎ 표의 숫자를 눌러 고칠 수 있습니다. 시트에 없는 옛날 자료를 채워 넣거나 '
+            + '틀린 숫자를 바로잡을 때 쓰세요. <b>구글시트는 바뀌지 않고</b>, '
+            + '이 화면에만 덮어씁니다. 칸을 비우면 시트 숫자로 돌아갑니다.'
+          : (canFix
+              ? '숫자를 고치려면 <b>월별</b>로 바꿔주세요 (분기는 월을 더한 값입니다)'
+              : '분류로 좁혔거나 찾는 중일 때는 시트 숫자만 보여줍니다 '
+                + '(고친 숫자는 브랜드 전체 기준이라 섞이면 헷갈립니다)'))
+      + '</div>'
     + (g.none ? '<div class="fmeta" style="margin-top:8px">날짜를 못 읽은 문의 '
         + g.none.toLocaleString('ko-KR') + '건은 빠져 있습니다</div>' : '')
     + '</div>';
@@ -5271,7 +5485,7 @@ function viewInquiries(b){
   return bar
     + (q ? '<div class="fmeta" style="margin-bottom:10px">검색 결과 ' + shown.length + '건</div>' : '')
     + '<div class="stats">' + tiles + '</div>'
-    + inquiryYearView(shown, sum.dateCol, sum)
+    + inquiryYearView(shown, sum.dateCol, sum, b, !!q)
     + breakdown
     + recentList
     + '<div class="hsec">📋 전체 목록'
@@ -6066,12 +6280,13 @@ function selectBrand(id){
   view = 'brand';
   currentBrandId = id;
   currentTab = 'inquiries';   // 브랜드를 고르면 문의부터 보여줍니다
+  cellEdit = null; chartCell = null;
   render();
 }
 function clearSearchQuietly(){
   if(searchQuery){ searchQuery = ''; document.getElementById('search').value = ''; }
 }
-function selectTab(t){ currentTab = t; render(); }
+function selectTab(t){ currentTab = t; cellEdit = null; chartCell = null; render(); }
 
 let editingBrandId = null;
 function openBrandModal(id){
@@ -6457,6 +6672,7 @@ function snapshotIds(d){
     m.set(b.id, sigOf(Object.assign({}, b, { automations:0, history:0, assets:0,
       tasks:0, links:0, tools:0, channels:0, _conflicts:0 })));
     m.set(b.id + ':prompt', sigOf(b.masterPrompt || ''));
+    m.set(b.id + ':chartfix', JSON.stringify(b.chartFix || {}));   // 지문이 아니라 원본
     MERGE_LISTS.forEach(k => (b[k] || []).forEach(x => {
       if(x && x.id) m.set(x.id, sigOf(x));
     }));
@@ -6501,6 +6717,25 @@ function stashClash(out, what, mineObj, srvObj){
   clashed++;
 }
 
+/* 고친 문의 숫자 합치기 (달 칸 하나하나가 독립입니다)
+     · 내가 바꾼 칸(넣었든 지웠든) → 내 것
+     · 내가 안 건드린 칸           → 상대 것                              */
+function mergeChartFix(mineB, srvB){
+  const mine = mineB.chartFix || {};
+  const srv  = srvB.chartFix  || {};
+  let base = {};
+  try{ base = JSON.parse(baseIds.get(mineB.id + ':chartfix') || '{}'); }catch(e){}
+
+  const out = Object.assign({}, srv);
+  Object.keys(mine).forEach(k => {
+    if(mine[k] !== base[k]) out[k] = mine[k];        // 내가 넣거나 바꾼 칸
+  });
+  Object.keys(base).forEach(k => {
+    if(!(k in mine)) delete out[k];                  // 내가 지운 칸
+  });
+  return out;
+}
+
 function mergeBrand(mineB, srvB){
   const out = Object.assign({}, srvB, mineB);
   out._conflicts = (mineB._conflicts || srvB._conflicts || []).slice();
@@ -6512,6 +6747,10 @@ function mergeBrand(mineB, srvB){
      && sigOf(srvP) !== baseSig && sigOf(mineP) !== baseSig){
     stashClash(out, '마스터프롬프트', mineP, srvP);
   }
+
+  // 고친 문의 숫자는 칸 단위로 합칩니다.
+  // 내가 손댄 칸은 내 값, 손대지 않은 칸은 상대 값 — 서로 다른 달을 고쳤으면 둘 다 남습니다.
+  out.chartFix = mergeChartFix(mineB, srvB);
 
   MERGE_LISTS.forEach(k => {
     const mineArr = Array.isArray(mineB[k]) ? mineB[k] : [];
@@ -6765,6 +7004,8 @@ function normalize(raw){
       b[k].forEach(it => { it.id = it.id || uid('i'); });
     });
     if(typeof b.masterPrompt !== 'string') b.masterPrompt = '';
+    if(!b.chartFix || typeof b.chartFix !== 'object' || Array.isArray(b.chartFix))
+      b.chartFix = {};
   });
 
   // 같은 id 가 두 번 들어간 것이 있으면 하나만 남깁니다.

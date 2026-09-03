@@ -285,7 +285,14 @@ if ($action === 'editcols') {
 
     $clean = [];
     foreach ($cols as $c) {
-        $c = trim(preg_replace('/[\x00-\x1f<>"\\]+/u', '', (string)$c));
+        // 깨진 글자가 섞이면 /u 정규식이 통째로 실패(null)해서 칸 이름이 사라집니다
+        $c = (string)$c;
+        if (function_exists('mb_check_encoding') && !mb_check_encoding($c, 'UTF-8')) {
+            $conv = @mb_convert_encoding($c, 'UTF-8', 'UTF-8');
+            if ($conv !== false) $c = $conv;
+        }
+        $r = preg_replace('/[\x00-\x1f<>"\\]+/u', '', $c);
+        $c = trim($r === null ? $c : $r);
         if ($c === '' || $c[0] === '_') continue;
         if (function_exists('mb_substr')) $c = mb_substr($c, 0, 20, 'UTF-8');
         if (!in_array($c, $clean, true)) $clean[] = $c;

@@ -995,7 +995,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260903-10';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260903-11';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1822,6 +1822,16 @@ async function apiJson(url, opts){
         + '아래 주소를 브라우저 주소창에 한 번 넣어 주세요. (파일을 자동으로 받아옵니다)\n\n'
         + location.href.split('?')[0].replace(/[^/]*$/, 'save.php?action=bootstrap'));
     }
+    // 웹 스테이션(nginx)이 자기 오류 화면을 대신 보낸 경우입니다.
+    // PHP 가 끝나기 전에 잘렸다는 뜻이라, 대개 시간이 오래 걸려서입니다.
+    const nginxPage = /^<!DOCTYPE html>|<html/i.test(text.trim());
+    if(nginxPage && (res.status === 500 || res.status === 502 || res.status === 504)){
+      throw new Error(file + ' 이(가) 도중에 끊겼습니다. (HTTP ' + res.status + ')\n\n'
+        + '작업이 오래 걸려서 웹 서버가 먼저 끊은 것으로 보입니다.\n'
+        + '(NAS 가 보낸 오류 화면이라 자세한 내용이 없습니다)\n\n'
+        + '· 잠시 뒤 다시 눌러보세요. 그래도 같으면\n'
+        + '· [🩺 이 NAS 점검] 을 눌러 무엇이 되는지 확인해 주세요.');
+    }
     throw new Error(file + ' 이(가) 이상한 응답을 보냈습니다. (HTTP ' + res.status + ')\n\n'
       + '받은 내용 앞부분:\n' + head);
   }
@@ -2214,7 +2224,7 @@ function viewChannels(b){
    파일 이름이 아니라 문서 안에 적힌 글자로 찾습니다.
    ====================================================== */
 const doc = { info:null, sample:null, run:null, q:'', res:null,
-              loading:false, error:null, unread:null, busy:false };
+              loading:false, error:null, unread:null, busy:false, self:null };
 
 async function docCheck(){
   try{ doc.info = await apiJson('doctext.php?action=check'); }
@@ -2222,8 +2232,16 @@ async function docCheck(){
   render();
 }
 
+/* 이 NAS 가 무엇을 할 수 있는지 봅니다 (문제 생겼을 때) */
+async function docSelfTest(){
+  doc.busy = true; doc.self = null; doc.error = null; render();
+  try{ doc.self = await apiJson('doctext.php?action=selftest'); }
+  catch(e){ doc.error = apiErrText(e); }
+  doc.busy = false; render();
+}
+
 async function docSample(){
-  doc.busy = true; doc.sample = null; doc.error = null; render();
+  doc.busy = true; doc.sample = null; doc.self = null; doc.error = null; render();
   try{
     doc.sample = await apiJson('doctext.php?action=sample&n=30');
   }catch(e){ doc.error = apiErrText(e); }
@@ -2270,7 +2288,10 @@ async function docSearch(){
   const el = document.getElementById('docQ');
   doc.q = el ? el.value.trim() : doc.q;
   if(!doc.q){ toast('⚠️ 찾을 말을 입력해 주세요'); return; }
-  doc.loading = true; doc.error = null; doc.unread = null; render();
+  doc.loading = true; doc.error = null; doc.unread = null;
+  doc.sample = null; doc.self = null;   // 결과가 화면 아래로 밀리지 않게 접습니다
+  if(doc.run && doc.run.done) doc.run = null;
+  render();
   try{
     doc.res = await apiJson('doctext.php?action=search&q=' + encodeURIComponent(doc.q));
   }catch(e){ doc.error = apiErrText(e); doc.res = null; }
@@ -2299,6 +2320,8 @@ function docView(){
       + (ready ? '' : ' disabled') + '></span>'
     + '<button class="btn primary" onclick="docSearch()"' + (ready ? '' : ' disabled') + '>찾기</button>'
     + '<button class="btn" onclick="docSample()">🧪 얼마나 읽히나 재보기</button>'
+    + '<button class="btn sm" onclick="docSelfTest()" '
+      + 'title="이 NAS 가 어떤 형식을 읽을 수 있는지 확인합니다">🩺 이 NAS 점검</button>'
     + '<button class="btn" onclick="docStart()">'
       + (ready ? '↻ 글자 목록 다시 만들기' : '📖 글자 목록 만들기') + '</button>'
     + (ready ? '<button class="btn sm" onclick="docUnread()">못 읽은 문서 보기</button>' : '')
@@ -2337,6 +2360,36 @@ function docView(){
     }
   }
 
+  /* 이 NAS 점검 결과 */
+  let selfPanel = '';
+  if(doc.self){
+    const t = doc.self;
+    const row = (k, v, warn) => '<div class="krow"><span>' + esc(k) + '</span>'
+      + '<b style="color:var(--' + (warn ? 'red' : 'text-primary') + ')">' + esc(String(v)) + '</b></div>';
+    const bad = v => /없음|막힘/.test(String(v));
+    selfPanel = '<div class="mbox" style="margin-bottom:14px">'
+      + '<div class="mh" style="display:flex;align-items:center;gap:6px"><span>🩺 이 NAS 점검</span>'
+        + '<span class="mhs">' + esc(t['걸린시간'] || '') + '</span>'
+        + '<span style="margin-left:auto"><button class="btn sm" onclick="doc.self=null;render()">닫기</button></span>'
+      + '</div>'
+      + ['PHP','zip기능','mbstring','zlib','메모리한도','파일목록','문서후보수','글자목록']
+          .map(k => row(k, t[k], bad(t[k]))).join('')
+      + (t['형식별시험'] && t['형식별시험'].length
+          ? '<div class="fmeta" style="margin:10px 0 4px">형식마다 하나씩 실제로 읽어본 결과</div>'
+            + t['형식별시험'].map(x =>
+                '<div class="krow"><span>' + esc(x['형식']) + ' · ' + esc(x['파일']) + '</span>'
+                + '<b style="color:var(--' + (x['상태'] === '읽음' ? 'green' : 'red') + ')">'
+                + esc(x['상태']) + ' <span style="opacity:.6">' + esc(x['걸린시간']) + '</span></b></div>').join('')
+          : '')
+      + '<div class="ainote" style="margin-top:10px">'
+        + (bad(t['zip기능'])
+            ? '⚠️ <b>zip 기능이 꺼져 있습니다.</b> 워드·엑셀·PPT 를 읽을 수 없습니다. '
+              + 'DSM → 웹 스테이션 → PHP 설정에서 <b>zip</b> 을 켜주세요.'
+            : '읽지 못하는 형식이 있으면 위 목록에서 빨간 글씨를 확인해 주세요. '
+              + '스캔한 PDF(사진으로 된 것)는 글자층이 없어 원래 읽히지 않습니다.')
+      + '</div></div>';
+  }
+
   /* 얼마나 읽히나 */
   let samplePanel = '';
   if(doc.busy && !doc.sample && !doc.unread) samplePanel = '<div class="fmeta">재보는 중…</div>';
@@ -2347,6 +2400,7 @@ function docView(){
         + '<span>🧪 얼마나 읽히나</span>'
         + '<span class="mhs">' + sp['뽑아본수'] + '개를 뽑아 읽어봤습니다 (전체 '
           + sp['대상문서수'].toLocaleString('ko-KR') + '개)</span>'
+        + (sp['시간초과'] ? '<span class="chip test">시간이 다 돼 일부만</span>' : '')
         + '<span style="margin-left:auto"><button class="btn sm" onclick="doc.sample=null;render()">닫기</button></span>'
       + '</div>'
       + '<div class="bar-row"><span class="bl">읽힌 비율</span>'
@@ -2421,7 +2475,7 @@ function docView(){
   else body = '<div class="empty">문서 안에 적힌 말로 찾아보세요.<br>'
     + '<span style="color:var(--text-muted)">예) 옥상방수 단가 · 설계감리 · 동아건설 · 32,000</span></div>';
 
-  return bar + runPanel + samplePanel + body;
+  return bar + runPanel + selfPanel + samplePanel + body;
 }
 
 /* ================= 파일 정리 =================

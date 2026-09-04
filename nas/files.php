@@ -106,6 +106,19 @@ function norm_name($s) {
     return preg_replace('/[\s_\-()\[\].]+/u', '', $s);
 }
 
+/* 브랜드 폴더 안의 종류 폴더.
+   번호를 붙여 탐색기에서 늘 같은 순서로 보이게 합니다.               */
+const SUBDIRS = [
+    '자료'   => '01_자료',
+    '기록부' => '02_브랜드기록부',
+    '도구'   => '03_자동화도구',
+];
+/* 예전에 쓰던 이름 → 지금 이름 (정리할 때 옮깁니다) */
+const OLDSUBS = [
+    '자료' => '01_자료', '기록부' => '02_브랜드기록부', '자동화도구' => '03_자동화도구',
+    '02_기록부' => '02_브랜드기록부',
+];
+
 $FILE_DIR  = upload_root($UPROOT_FILE) ?: ($DATA_DIR . '/files');
 /* 예전에 data/files 에 올린 파일도 계속 열려야 합니다 */
 $FILE_DIRS = array_values(array_unique(array_filter([$FILE_DIR, $DATA_DIR . '/files'], 'is_dir')));
@@ -208,7 +221,33 @@ function resolve_path($fileDirs, $manifest, $fileId) {
         $old = $fileDir . '/' . $fileId . '.bin';
         if (is_file($old)) return [$old, ($a['fileName'] ?? ($fileId . '.bin'))];
     }
+
+    // 폴더를 정리하면서 자리가 바뀌었을 수 있습니다.
+    // 그럴 때는 파일 이름으로 한 번 더 찾아봅니다 (스스로 낫는 장치).
+    $want = $a['fileName'] ?? '';
+    if ($want !== '') {
+        foreach ($fileDirs as $fileDir) {
+            $hit = find_by_name($fileDir, $want, 3);
+            if ($hit) return [$hit, $want];
+        }
+    }
     return [null, null];
+}
+
+/* 이름이 같은 파일을 몇 단계 아래까지 찾아봅니다 */
+function find_by_name($dir, $name, $depth) {
+    if ($depth < 0 || !is_dir($dir)) return null;
+    $direct = $dir . '/' . $name;
+    if (is_file($direct)) return realpath($direct);
+    foreach ((array)@scandir($dir) as $e) {
+        if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+        $p = $dir . '/' . $e;
+        if (is_dir($p)) {
+            $hit = find_by_name($p, $name, $depth - 1);
+            if ($hit) return $hit;
+        }
+    }
+    return null;
 }
 
 /** brand-data.json 에서 fileId 에 해당하는 원본 파일명을 찾습니다 */
@@ -272,11 +311,37 @@ if ($action === 'uploadroot') {
         $inside = $cnt($localDir);
     }
 
+    // 정리할 것이 있는지 훑어봅니다 (널려 있는 파일 · 연도 폴더 · 옛 폴더 이름)
+    $untidy = 0;
+    if ($set !== null && is_dir($FILE_DIR)) {
+        $subsNow = array_values(SUBDIRS);
+        foreach ((array)@scandir($FILE_DIR) as $brand) {
+            if ($brand === '.' || $brand === '..' || $brand === '@eaDir') continue;
+            if (substr($brand, 0, 1) === '_' || substr($brand, 0, 1) === '.') continue;
+            $bd = $FILE_DIR . '/' . $brand;
+            if (!is_dir($bd)) continue;
+            foreach ((array)@scandir($bd) as $e) {
+                if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+                $p2 = $bd . '/' . $e;
+                if (is_file($p2)) { $untidy++; continue; }          // 브랜드 폴더에 널린 파일
+                if (isset(OLDSUBS[$e]) && !in_array($e, $subsNow, true)) { $untidy++; continue; }
+                if (in_array($e, $subsNow, true)) {
+                    foreach ((array)@scandir($p2) as $f) {           // 종류 폴더 안의 하위 폴더(연도)
+                        if ($f === '.' || $f === '..' || $f === '@eaDir') continue;
+                        if (is_dir($p2 . '/' . $f)) { $untidy++; break; }
+                    }
+                }
+            }
+            if ($untidy > 200) break;
+        }
+    }
+
     jout([
         'ok'        => true,
         '지금폴더'   => $FILE_DIR,
         '공유폴더로' => $set !== null,
         '안에쌓인수' => $inside,
+        '정리필요'   => $untidy,
         '적어둔값'   => $raw,
         '문제'      => ($raw !== '' && $set === null)
             ? (is_dir($raw) ? '그 폴더에 쓸 권한이 없습니다 (http 사용자에게 쓰기 권한을 주세요)'
@@ -320,6 +385,132 @@ if ($action === 'pickdirs') {
     usort($rows, function ($x, $y) { return strnatcasecmp($x['이름'], $y['이름']); });
     jout(['ok' => true, '지금' => $at, '위' => (dirname($at) !== $at ? dirname($at) : null),
           '폴더' => $rows, '여기쓸수있음' => is_writable($at)]);
+}
+
+/* 파일 하나가 어느 종류 폴더에 들어가야 하는지 이름으로 짐작합니다.
+   (분류 안 된 채 브랜드 폴더에 널려 있던 예전 파일들을 위해서입니다) */
+function guess_sub($name) {
+    $n = mb_strtolower((string)$name, 'UTF-8');
+    if (strpos($n, 'brand_record') !== false || strpos($n, '기록부') !== false
+        || strpos($n, 'record') !== false) return SUBDIRS['기록부'];
+    foreach (['생성기', '자동화', 'generator', 'gpts', '봇', 'bot', '도구', 'tool'] as $k) {
+        if (strpos($n, $k) !== false) return SUBDIRS['도구'];
+    }
+    return SUBDIRS['자료'];
+}
+
+/* 빈 폴더를 치웁니다 (아래부터 위로) */
+function drop_empty($dir, $keep) {
+    if (!is_dir($dir)) return;
+    // 안쪽부터 먼저 치우고, 그 다음에 자기를 봅니다
+    foreach ((array)@scandir($dir) as $e) {
+        if ($e === '.' || $e === '..') continue;
+        if (is_dir($dir . '/' . $e)) drop_empty($dir . '/' . $e, $keep);
+    }
+    if ($dir === $keep) return;                     // 브랜드 폴더 자체는 남깁니다
+    $left = array_diff((array)@scandir($dir), ['.', '..', '@eaDir']);
+    if (!count($left)) { @rmdir($dir); clearstatcache(true, $dir); }
+}
+
+/* 폴더가 어떻게 생겼는지 적어둡니다 (탐색기에서 열어보는 사람을 위해) */
+function write_guide($root) {
+    $txt = "브랜드 마케팅팀 폴더 안내\r\n"
+         . "==========================\r\n\r\n"
+         . "이 폴더는 브랜드 대시보드가 자동으로 정리합니다.\r\n\r\n"
+         . "  브랜드 이름 (아파트스퀘어, POUR공법 …)\r\n"
+         . "    01_자료           카탈로그·제안서·이미지 등 올린 파일\r\n"
+         . "    02_브랜드기록부   브랜드 기록부 파일\r\n"
+         . "    03_자동화도구     블로그·카페 생성기 같은 도구 파일\r\n\r\n"
+         . "파일 이름 앞에 날짜가 붙어 있어(2026-09-04_…),\r\n"
+         . "이름순으로 정렬하면 시간 순으로 늘어섭니다.\r\n\r\n"
+         . "여기서 파일을 옮기거나 이름을 바꾸면 대시보드에서 찾지 못합니다.\r\n"
+         . "대시보드에서 지우면 이 폴더에서도 사라집니다.\r\n\r\n"
+         . "마지막 정리: " . date('Y-m-d H:i') . "\r\n";
+    @file_put_contents($root . '/_폴더 안내.txt', $txt);
+}
+
+/* ---------------- 폴더 예쁘게 정리하기 ----------------
+   · 예전 폴더 이름(자료 / 기록부 / 자동화도구)을 지금 이름으로
+   · 연도 폴더(2026) 안의 파일을 종류 폴더로 끌어올리기
+   · 브랜드 폴더에 그냥 널려 있던 파일을 종류 폴더로
+   · 날짜가 없는 파일 이름 앞에 날짜 붙이기
+   · 빈 폴더 치우기
+   옮긴 자리는 대시보드가 알 수 있게 「옛경로 → 새경로」 로 돌려줍니다.
+   ------------------------------------------------------ */
+if ($action === 'tidy') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $root = $FILE_DIR;
+    if (!is_dir($root)) jout(['ok' => false, 'error' => '저장 폴더가 없습니다'], 404);
+
+    $map = [];          // 옛 상대경로 → 새 상대경로
+    $moved = 0; $failed = [];
+    $subsNow = array_values(SUBDIRS);
+    $deadline = microtime(true) + 25;
+
+    $place = function ($src, $brandDir, $sub, $rel) use (&$map, &$moved, &$failed, $root) {
+        $name = basename($src);
+        // 날짜가 없으면 파일이 만들어진 날을 앞에 붙입니다
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}_/', $name)) {
+            $t = @filemtime($src) ?: time();
+            $name = date('Y-m-d', $t) . '_' . $name;
+        }
+        $dstDir = $brandDir . '/' . $sub;
+        if (!is_dir($dstDir) && !@mkdir($dstDir, 0775, true) && !is_dir($dstDir)) {
+            $failed[] = $rel . ' (폴더를 만들지 못함)'; return;
+        }
+        $final = $dstDir . '/' . $name;
+        if ($final === $src) return;                       // 이미 제자리
+        $name  = unique_path($dstDir, $name);
+        $final = $dstDir . '/' . $name;
+        if (!@rename($src, $final)) { $failed[] = $rel . ' (옮기지 못함)'; return; }
+        @chmod($final, 0664);
+        $map[$rel] = substr($final, strlen($root) + 1);
+        $moved++;
+    };
+
+    foreach ((array)@scandir($root) as $brand) {
+        if ($brand === '.' || $brand === '..' || $brand === '@eaDir') continue;
+        if (substr($brand, 0, 1) === '_' || substr($brand, 0, 1) === '.') continue;
+        $brandDir = $root . '/' . $brand;
+        if (!is_dir($brandDir)) continue;
+        if (microtime(true) > $deadline) break;
+
+        foreach ((array)@scandir($brandDir) as $e) {
+            if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+            if (microtime(true) > $deadline) break;
+            $path = $brandDir . '/' . $e;
+            $rel  = $brand . '/' . $e;
+
+            // ① 브랜드 폴더에 그냥 있던 파일 → 이름 보고 종류 폴더로
+            if (is_file($path)) { $place($path, $brandDir, guess_sub($e), $rel); continue; }
+            if (!is_dir($path)) continue;
+
+            // ② 폴더 이름 정리 (자료 → 01_자료 …)
+            $sub = in_array($e, $subsNow, true) ? $e : (OLDSUBS[$e] ?? null);
+            if ($sub === null) continue;                   // 우리가 만든 폴더가 아니면 그대로 둡니다
+
+            // ③ 그 안의 파일을 (연도 폴더까지 들어가서) 끌어올립니다
+            $walk = function ($d, $r) use (&$walk, $place, $brandDir, $sub, $deadline) {
+                foreach ((array)@scandir($d) as $f) {
+                    if ($f === '.' || $f === '..' || $f === '@eaDir') continue;
+                    if (microtime(true) > $deadline) return;
+                    $fp = $d . '/' . $f;
+                    if (is_dir($fp)) { $walk($fp, $r . '/' . $f); continue; }
+                    if (is_file($fp)) $place($fp, $brandDir, $sub, $r . '/' . $f);
+                }
+            };
+            $walk($path, $rel);
+        }
+        drop_empty($brandDir, $brandDir);
+    }
+
+    write_guide($root);
+
+    jout(['ok' => true, '옮긴수' => $moved, '자리바뀜' => $map,
+          '못한것' => array_slice($failed, 0, 20),
+          '더있음' => microtime(true) > $deadline,
+          '안내' => $moved ? ($moved . '개 파일을 제자리로 옮겼습니다')
+                          : '이미 잘 정리돼 있습니다']);
 }
 
 /* 대시보드 안(data/files)에 쌓여 있던 파일을 공유폴더로 옮깁니다 */
@@ -447,13 +638,12 @@ if ($action === 'upload') {
         jout(['ok' => false, 'error' => '파일이 너무 큽니다 (최대 200MB)'], 413);
     }
 
-    // 브랜드 폴더 > 종류 폴더 > 연도 로 나눠 저장합니다.
-    // 탐색기에서 열었을 때 바로 알아볼 수 있게 번호를 붙여 순서를 고정합니다.
-    //   아파트스퀘어 / 01_자료 / 2026 / 2026-09-03_카탈로그.pdf
-    $subs = ['자료' => '01_자료', '기록부' => '02_기록부', '도구' => '03_자동화도구'];
-    $sub  = $subs[trim($_POST['sub'] ?? '')] ?? '01_자료';
-    $year = date('Y');
-    $brandDir = $FILE_DIR . '/' . safe_name($_POST['brand'] ?? '', '_공통') . '/' . $sub . '/' . $year;
+    // 브랜드 폴더 > 종류 폴더. 그 안에 파일이 바로 보이게 둡니다.
+    //   아파트스퀘어 / 01_자료 / 2026-09-03_카탈로그.pdf
+    // 연도 폴더는 두지 않습니다. 파일 이름 앞에 날짜가 붙어 있어
+    // 이름순으로만 정렬해도 시간 순으로 늘어섭니다.
+    $sub = SUBDIRS[trim($_POST['sub'] ?? '')] ?? SUBDIRS['자료'];
+    $brandDir = $FILE_DIR . '/' . safe_name($_POST['brand'] ?? '', '_공통') . '/' . $sub;
 
     if (!is_dir($brandDir) && !@mkdir($brandDir, 0775, true) && !is_dir($brandDir)) {
         jout(['ok' => false, 'error' =>

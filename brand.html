@@ -1009,6 +1009,10 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   </div>
 </div>
 
+<!-- 파일 고르는 칸은 화면을 다시 그려도 사라지면 안 됩니다.
+     (고르는 창이 열려 있는 동안 다시 그려지면 고른 파일이 조용히 없어집니다) -->
+<input type="file" id="fileInput" multiple style="display:none">
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -3998,6 +4002,66 @@ function assetFindPanel(b){
       + r.hits.map(nasHitRow).join('') + '</div>';
 }
 
+/* ═══════════════ 올린 파일을 둘 폴더 ═════════════════════════════
+   기본은 대시보드 안(data/files)이지만, 공유폴더를 지정하면
+   그쪽에 「브랜드 / 종류 / 연도」 로 정리해서 저장합니다.
+   ================================================================= */
+const upRoot = { info:null, busy:false };
+
+async function loadUpRoot(force){
+  if(upRoot.info && !force) return;
+  if(STORAGE_MODE !== 'nas') return;
+  try{ upRoot.info = await apiJson('files.php?action=uploadroot'); }
+  catch(e){ upRoot.info = { error: apiErrText(e) }; }
+  render();
+}
+
+function upRootBar(){
+  if(STORAGE_MODE !== 'nas') return '';
+  const i = upRoot.info;
+  if(i === null){ setTimeout(() => loadUpRoot(), 10); return ''; }
+  if(i.error) return '';
+  if(i['문제']){
+    return '<div class="ainote" style="margin-bottom:12px;border-color:var(--red)">'
+      + '⚠️ <b>정해둔 저장 폴더를 쓸 수 없습니다.</b> ' + esc(i['문제'])
+      + '<div class="path" style="margin-top:6px">' + esc(i['적어둔값']) + '</div>'
+      + '지금은 대시보드 안에 저장하고 있습니다. '
+      + '<button class="btn sm" onclick="openUpRoot()">고치기</button></div>';
+  }
+  if(!i['공유폴더로']) return '';
+  return '<div class="fmeta" style="margin-bottom:10px">'
+    + '📂 올린 파일은 <b style="color:var(--text-primary)">' + esc(i['지금폴더']) + '</b> 안에 '
+    + '「브랜드 / 종류 / 연도」 로 정리돼 저장됩니다</div>';
+}
+
+async function openUpRoot(){
+  await loadUpRoot(true);
+  const i = upRoot.info || {};
+  const cur = i['적어둔값'] || '';
+  const v = prompt(
+    '올린 파일을 어느 폴더에 저장할까요?\n\n'
+    + '윈도우에서 보는 주소를 그대로 붙여넣어도 됩니다.\n'
+    + '  예) Y:\\넷폼알앤디 공유폴더\\마케팅 공유폴더 외장하드 백업\\브랜드 마케팅팀\n\n'
+    + '이렇게 정리해서 저장합니다:\n'
+    + '  브랜드 마케팅팀 / 아파트스퀘어 / 01_자료 / 2026 / 2026-09-03_카탈로그.pdf\n\n'
+    + '비워두면 예전처럼 대시보드 안(data/files)에 저장합니다.\n'
+    + (i['훑는폴더'] ? '\n(지금 NAS 자료에서 훑는 폴더: ' + i['훑는폴더'] + ')' : ''),
+    cur);
+  if(v === null) return;
+  upRoot.busy = true; render();
+  try{
+    const out = await apiJson('files.php?action=setuploadroot', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ path: v.trim() })
+    });
+    upRoot.info = null;
+    await loadUpRoot(true);
+    toast('📂 ' + (out['안내'] || '바꿨습니다'));
+  }catch(e){
+    alert('저장 폴더를 바꾸지 못했습니다.\n\n' + apiErrText(e));
+  }finally{ upRoot.busy = false; render(); }
+}
+
 function viewAssets(b){
   const dropZone = STORAGE_MODE === 'nas'
     ? '<div class="drop" id="dropZone" onclick="document.getElementById(\'fileInput\').click()">'
@@ -4006,7 +4070,6 @@ function viewAssets(b){
       + '<div class="s">또는 클릭해서 파일 선택 · 여러 개 한 번에 가능합니다</div>'
       + '<div class="warn">올린 파일은 NAS에 저장되고, 아래 목록에서 누구나 내려받을 수 있습니다</div>'
       + '</div>'
-      + '<input type="file" id="fileInput" multiple style="display:none">'
     : '<div class="drop" style="cursor:default">'
       + '<div class="big">🔒</div>'
       + '<div class="t">파일 업로드는 NAS 주소로 접속했을 때만 됩니다</div>'
@@ -4015,8 +4078,12 @@ function viewAssets(b){
 
   const bar = '<div class="sec-bar">'
     + '<button class="btn" onclick="openItemModal(\'assets\')">＋ 링크·경로로 등록</button>'
+    + (STORAGE_MODE === 'nas'
+        ? '<button class="btn sm" onclick="openUpRoot()" '
+          + 'title="올린 파일이 어느 폴더에 저장되는지 보고 바꿉니다">📂 저장 폴더</button>' : '')
     + '<span class="hint">파일은 위에 끌어다 놓고, 외부 링크나 NAS 경로는 이 버튼으로 등록하세요</span>'
-    + '</div>';
+    + '</div>'
+    + upRootBar();
   const findBar = assetFindPanel(b);
 
   const list = b.assets;
@@ -6947,8 +7014,10 @@ async function uploadFiles(fileList){
   const files = Array.from(fileList);
   if(!files.length) return;
 
+  // 자료 탭이 아닌 곳에서 올릴 수도 있어 없으면 그냥 넘어갑니다.
+  // (예전에는 여기서 멈춰서, 파일이 조용히 안 올라갔습니다)
   const q = document.getElementById('upQueue');
-  q.innerHTML = files.map((f, i) =>
+  if(q) q.innerHTML = files.map((f, i) =>
     '<div class="upitem" id="up_' + i + '">'
     + '<span class="fileicon">' + fileIcon(f.name) + '</span>'
     + '<span class="nm">' + esc(f.name) + '</span>'
@@ -6995,7 +7064,10 @@ async function uploadFiles(fileList){
   }
 
   uploadReport = report;
-  if(added) await saveAll(true);  // 파일은 이미 NAS에 있으므로 목록도 바로 저장합니다
+  if(added){
+    markDirty(b.id);
+    await saveAll(true);          // 파일은 이미 NAS 에 있으므로 목록도 바로 저장합니다
+  }
   render();
   bindDrop();
 

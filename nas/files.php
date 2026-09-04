@@ -9,7 +9,59 @@
  */
 
 $DATA_DIR = __DIR__ . '/data';
-$FILE_DIR = $DATA_DIR . '/files';
+/* 올린 파일을 둘 곳.
+   data/uploadroot.txt 에 적혀 있으면 그 폴더(= 공유폴더 안)로 보냅니다.
+   비어 있으면 예전처럼 data/files 에 둡니다.                          */
+$UPROOT_FILE = $DATA_DIR . '/uploadroot.txt';
+
+function upload_root($f) {
+    if (!is_file($f)) return null;
+    $p = rtrim(trim((string)@file_get_contents($f)), '/');
+    if ($p === '' || !is_dir($p) || !is_writable($p)) return null;
+    return $p;
+}
+
+/* 윈도우에서 보는 주소를 NAS 안의 실제 폴더로 바꿔 찾아봅니다.
+     Y:\넷폼알앤디 공유폴더\마케팅…\브랜드 마케팅팀
+     \\netformrnd\넷폼알앤디 공유폴더\…
+   드라이브 문자만으로는 어느 볼륨인지 알 수 없어서, 뒤쪽 폴더 이름을
+   하나씩 줄여가며 실제로 있는 곳을 찾습니다.                            */
+function find_nas_dir($input, $scanRoot) {
+    $p = str_replace('\\', '/', trim((string)$input));
+    if ($p === '') return null;
+    if (is_dir($p)) return rtrim($p, '/');                 // 이미 리눅스 경로
+
+    $p = preg_replace('#^//[^/]+/#', '/', $p);             // \\서버\공유
+    $p = preg_replace('#^[A-Za-z]:/#', '/', $p);           // Y:\
+    $p = preg_replace('#/+#', '/', $p);
+    $p = trim($p, '/');
+    if ($p === '') return null;
+
+    $bases = [];
+    if ($scanRoot) {
+        $bases[] = rtrim($scanRoot, '/');
+        $bases[] = dirname(rtrim($scanRoot, '/'));         // 공유폴더의 한 단계 위
+    }
+    for ($i = 1; $i <= 8; $i++) $bases[] = '/volume' . $i;
+    $bases[] = '/volumeUSB1/usbshare1';
+    $bases = array_values(array_unique(array_filter($bases)));
+
+    $parts = explode('/', $p);
+    // 앞쪽을 하나씩 떼면서 (드라이브가 어디에 붙었는지 모르므로) 찾아봅니다
+    for ($skip = 0; $skip < count($parts); $skip++) {
+        $tail = implode('/', array_slice($parts, $skip));
+        if ($tail === '') continue;
+        foreach ($bases as $b) {
+            $try = $b . '/' . $tail;
+            if (is_dir($try)) return rtrim($try, '/');
+        }
+    }
+    return null;
+}
+
+$FILE_DIR  = upload_root($UPROOT_FILE) ?: ($DATA_DIR . '/files');
+/* 예전에 data/files 에 올린 파일도 계속 열려야 합니다 */
+$FILE_DIRS = array_values(array_unique(array_filter([$FILE_DIR, $DATA_DIR . '/files'], 'is_dir')));
 $MANIFEST = $DATA_DIR . '/brand-data.json';
 $MAX_BYTES = 200 * 1024 * 1024;   // 200MB (PHP 설정이 더 낮으면 그쪽이 우선 적용됩니다)
 
@@ -92,24 +144,23 @@ function lookup_asset($manifest, $fileId) {
 }
 
 /** fileId 에 해당하는 실제 파일 경로를 구합니다 (예전 방식도 함께 지원) */
-function resolve_path($fileDir, $manifest, $fileId) {
+function resolve_path($fileDirs, $manifest, $fileId) {
+    if (!is_array($fileDirs)) $fileDirs = [$fileDirs];
     $a = lookup_asset($manifest, $fileId);
 
-    if ($a && !empty($a['filePath'])) {
-        $p = $fileDir . '/' . $a['filePath'];
-        $real = realpath($p);
-        $root = realpath($fileDir);
-        // files 폴더 밖으로 벗어나는 경로는 거부합니다
-        if ($real && $root && strpos($real, $root . DIRECTORY_SEPARATOR) === 0) {
-            return [$real, $a['fileName'] ?? basename($real)];
+    foreach ($fileDirs as $fileDir) {
+        if ($a && !empty($a['filePath'])) {
+            $real = realpath($fileDir . '/' . $a['filePath']);
+            $root = realpath($fileDir);
+            // 정해둔 폴더 밖으로 벗어나는 경로는 거부합니다
+            if ($real && $root && strpos($real, $root . DIRECTORY_SEPARATOR) === 0) {
+                return [$real, $a['fileName'] ?? basename($real)];
+            }
         }
-        return [null, null];
+        // 예전에 올린 파일 (임의 이름 .bin)
+        $old = $fileDir . '/' . $fileId . '.bin';
+        if (is_file($old)) return [$old, ($a['fileName'] ?? ($fileId . '.bin'))];
     }
-
-    // 예전에 올린 파일 (임의 이름 .bin)
-    $old = $fileDir . '/' . $fileId . '.bin';
-    if (is_file($old)) return [$old, ($a['fileName'] ?? ($fileId . '.bin'))];
-
     return [null, null];
 }
 
@@ -151,6 +202,67 @@ if ($action === 'check') {
 }
 
 /* ---------------- 업로드 ---------------- */
+/* ---------------- 올린 파일을 둘 폴더 ---------------- */
+if ($action === 'uploadroot') {
+    $set  = upload_root($UPROOT_FILE);
+    $raw  = is_file($UPROOT_FILE) ? trim((string)@file_get_contents($UPROOT_FILE)) : '';
+    $rootF = $DATA_DIR . '/nasroot.txt';
+    jout([
+        'ok'        => true,
+        '지금폴더'   => $FILE_DIR,
+        '공유폴더로' => $set !== null,
+        '적어둔값'   => $raw,
+        '문제'      => ($raw !== '' && $set === null)
+            ? (is_dir($raw) ? '그 폴더에 쓸 권한이 없습니다 (http 사용자에게 쓰기 권한을 주세요)'
+                            : '그 폴더를 찾지 못했습니다')
+            : null,
+        '훑는폴더'   => is_file($rootF) ? trim((string)@file_get_contents($rootF)) : '',
+    ]);
+}
+
+if ($action === 'setuploadroot') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $body = json_decode((string)file_get_contents('php://input'), true);
+    $want = trim((string)($body['path'] ?? ''));
+
+    if ($want === '') {                              // 비우면 예전 자리로 되돌립니다
+        @unlink($UPROOT_FILE);
+        jout(['ok' => true, '지금폴더' => $DATA_DIR . '/files', '공유폴더로' => false,
+              '안내' => '대시보드 안(data/files)에 저장하도록 되돌렸습니다']);
+    }
+
+    $rootF = $DATA_DIR . '/nasroot.txt';
+    $scan  = is_file($rootF) ? rtrim(trim((string)@file_get_contents($rootF)), '/') : '';
+    $found = find_nas_dir($want, $scan);
+
+    if ($found === null) {
+        jout(['ok' => false, 'error' =>
+            "그 폴더를 NAS 안에서 찾지 못했습니다.\n\n적어주신 값: " . $want
+            . "\n\n윈도우 주소(Y:\\…)를 NAS 안 경로로 바꿔 찾아봤지만 없었습니다.\n"
+            . "탐색기에서 폴더 이름이 정확한지 보시고, 그래도 안 되면\n"
+            . "DSM 의 File Station 에서 그 폴더를 열어 「속성」의 경로를 그대로 넣어주세요.\n"
+            . "(예: /volume1/넷폼알앤디 공유폴더/…/브랜드 마케팅팀)"], 404);
+    }
+    if (!is_writable($found)) {
+        jout(['ok' => false, 'error' =>
+            "폴더는 찾았는데 쓸 권한이 없습니다.\n\n찾은 곳: " . $found
+            . "\n\nDSM → 제어판 → 공유 폴더 → 그 폴더 → 권한에서\n"
+            . "「http」 사용자에게 읽기/쓰기를 주세요."], 403);
+    }
+    // 진짜로 쓸 수 있는지 한 번 해봅니다
+    $probe = $found . '/.대시보드쓰기시험';
+    if (@file_put_contents($probe, 'ok') === false) {
+        jout(['ok' => false, 'error' => "폴더에 실제로 쓰지 못했습니다: " . $found], 403);
+    }
+    @unlink($probe);
+
+    if (@file_put_contents($UPROOT_FILE, $found) === false) {
+        jout(['ok' => false, 'error' => 'data 폴더에 설정을 저장하지 못했습니다'], 500);
+    }
+    jout(['ok' => true, '지금폴더' => $found, '공유폴더로' => true,
+          '안내' => '앞으로 올리는 파일은 이 폴더에 저장됩니다']);
+}
+
 if ($action === 'upload') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
@@ -185,12 +297,13 @@ if ($action === 'upload') {
         jout(['ok' => false, 'error' => '파일이 너무 큽니다 (최대 200MB)'], 413);
     }
 
-    // 브랜드 폴더 > 종류 폴더 로 나눠 저장합니다.
-    // 탐색기에서 열었을 때도 바로 알아볼 수 있어야 하기 때문입니다.
-    //   자료 / 기록부 / 자동화도구
-    $subs = ['자료' => '자료', '기록부' => '기록부', '도구' => '자동화도구'];
-    $sub  = $subs[trim($_POST['sub'] ?? '')] ?? '자료';
-    $brandDir = $FILE_DIR . '/' . safe_name($_POST['brand'] ?? '', '기타') . '/' . $sub;
+    // 브랜드 폴더 > 종류 폴더 > 연도 로 나눠 저장합니다.
+    // 탐색기에서 열었을 때 바로 알아볼 수 있게 번호를 붙여 순서를 고정합니다.
+    //   아파트스퀘어 / 01_자료 / 2026 / 2026-09-03_카탈로그.pdf
+    $subs = ['자료' => '01_자료', '기록부' => '02_기록부', '도구' => '03_자동화도구'];
+    $sub  = $subs[trim($_POST['sub'] ?? '')] ?? '01_자료';
+    $year = date('Y');
+    $brandDir = $FILE_DIR . '/' . safe_name($_POST['brand'] ?? '', '_공통') . '/' . $sub . '/' . $year;
 
     if (!is_dir($brandDir) && !@mkdir($brandDir, 0775, true) && !is_dir($brandDir)) {
         jout(['ok' => false, 'error' =>
@@ -198,7 +311,10 @@ if ($action === 'upload') {
             . (is_writable($DATA_DIR) ? '예' : '아니오')], 500);
     }
 
-    $fileName = unique_path($brandDir, safe_name($f['name'], 'file'));
+    // 날짜를 앞에 붙여 탐색기에서 시간 순으로 정렬되게 합니다
+    $orig = safe_name($f['name'], 'file');
+    $stamped = preg_match('/^\d{4}-\d{2}-\d{2}_/', $orig) ? $orig : (date('Y-m-d') . '_' . $orig);
+    $fileName = unique_path($brandDir, $stamped);
     $dest = $brandDir . '/' . $fileName;
 
     if (!move_uploaded_file($f['tmp_name'], $dest)) {
@@ -213,7 +329,8 @@ if ($action === 'upload') {
         'ok'       => true,
         'fileId'   => bin2hex(random_bytes(16)),
         'fileName' => $fileName,
-        'filePath' => basename(dirname($brandDir)) . '/' . basename($brandDir) . '/' . $fileName,
+        'filePath' => substr($brandDir, strlen($FILE_DIR) + 1) . '/' . $fileName,
+        '둔곳'     => $brandDir,
         'fileSize' => $f['size'],
         'mime'     => $f['type'] ?: 'application/octet-stream',
     ]);
@@ -344,7 +461,7 @@ if ($action === 'view') {
         if (!preg_match('/^[0-9a-f]{32}$/', $id)) {
             jout(['ok' => false, 'error' => '잘못된 파일 주소입니다'], 400);
         }
-        [$path, $name] = resolve_path($FILE_DIR, $MANIFEST, $id);
+        [$path, $name] = resolve_path($FILE_DIRS, $MANIFEST, $id);
         if (!$path) jout(['ok' => false, 'error' =>
             '아직 저장되지 않은 문서입니다. 잠시 뒤 새로고침해 주세요.'], 404);
     }
@@ -378,7 +495,7 @@ if ($action === 'download') {
         jout(['ok' => false, 'error' => '잘못된 파일 주소입니다'], 400);
     }
 
-    [$path, $name] = resolve_path($FILE_DIR, $MANIFEST, $id);
+    [$path, $name] = resolve_path($FILE_DIRS, $MANIFEST, $id);
     if (!$path) {
         jout(['ok' => false, 'error' =>
             '파일을 찾을 수 없습니다. 삭제되었거나 탐색기에서 이름이 바뀌었을 수 있습니다'], 404);
@@ -415,7 +532,7 @@ if ($action === 'delete') {
         jout(['ok' => false, 'error' => '잘못된 파일 주소입니다'], 400);
     }
 
-    [$path, ] = resolve_path($FILE_DIR, $MANIFEST, $id);
+    [$path, ] = resolve_path($FILE_DIRS, $MANIFEST, $id);
     if ($path && is_file($path) && !@unlink($path)) {
         jout(['ok' => false, 'error' => '파일을 삭제하지 못했습니다 (권한 확인 필요)'], 500);
     }

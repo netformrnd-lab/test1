@@ -1071,7 +1071,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260905-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260905-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1676,7 +1676,7 @@ function render(){
   const sc = document.getElementById('costCnt');
   if(sc) sc.textContent = data.brands.reduce((a, b) => a + (b.costs || []).length, 0) || '';
   const up = document.getElementById('usersLayer');
-  if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel();
+  if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel() + pastePanel();
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
   else if(view === 'meetings') renderMeetings();
@@ -6536,6 +6536,108 @@ async function aiSummarize(id){
   }finally{ aiState.busy = null; render(); }
 }
 
+/* ═══════════════ AI 없이 하기 (복사 → 붙여넣기) ═══════════════════
+   API 는 프로그램이 AI 에게 말을 거는 통로라서 돈이 듭니다.
+   대신 사람이 다리를 놓으면 공짜입니다 — 쓰고 계신 챗GPT 창을 그대로 씁니다.
+     ① [📋 물어볼 문장 복사] → 챗GPT 창에 붙여넣기
+     ② 받은 답을 [📥 답 붙여넣기] 에 그대로 붙이면 대시보드가 나눠 담습니다
+   ================================================================= */
+const MEET_ASK =
+  '아래 회의 메모를 정리해 주세요. **JSON 하나만** 답하세요. 다른 말은 붙이지 마세요.\n\n'
+  + '{\n'
+  + '  "요약": "3~5문장",\n'
+  + '  "결정사항": ["정해진 것만"],\n'
+  + '  "할일": [{"내용":"", "담당":"", "기한":"YYYY-MM-DD 또는 빈칸"}],\n'
+  + '  "다음회의": "",\n'
+  + '  "확인필요": ["메모만으로는 알 수 없어 사람이 확인해야 할 것"]\n'
+  + '}\n\n'
+  + '규칙: 메모에 없는 내용은 지어내지 마세요. 담당·기한은 적혀 있을 때만 채우세요.\n'
+  + '존댓말로 짧고 담백하게 쓰세요.\n';
+
+async function copyMeetAsk(id){
+  const m = (data.meetings || []).find(x => x.id === id);
+  if(!m) return;
+  if(!String(m.body || '').trim()){ toast('⚠️ 회의 내용이 비어 있습니다'); return; }
+  const text = MEET_ASK
+    + '\n--- 회의 메모 ---\n'
+    + (m.brand ? '브랜드: ' + m.brand + '\n' : '')
+    + (m.title ? '회의 제목: ' + m.title + '\n' : '')
+    + (m.date  ? '날짜: ' + m.date + '\n' : '')
+    + '\n' + m.body;
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('📋 복사했습니다 — 챗GPT 창에 붙여넣고, 받은 답을 [📥 답 붙여넣기] 에 넣으세요');
+  }catch(e){ alert('복사가 막혀 있습니다. 아래 내용을 직접 복사해 주세요.\n\n' + text); }
+}
+
+/* 붙여넣기 창 */
+const pasteBox = { open:false, id:'', text:'', err:'' };
+function openPaste(id){ pasteBox.open = true; pasteBox.id = id; pasteBox.text = ''; pasteBox.err = ''; render();
+  setTimeout(() => { const el = document.getElementById('pasteArea'); if(el) el.focus(); }, 60); }
+function closePaste(){ pasteBox.open = false; render(); }
+function onPasteInput(v){ pasteBox.text = v; }
+
+/* 붙여넣은 글에서 JSON 을 찾아냅니다. 앞뒤에 딴 말이 붙어 있어도 됩니다. */
+function readAiAnswer(raw){
+  const t = String(raw || '').trim();
+  if(!t) return null;
+  let j = null;
+  try{ j = JSON.parse(t); }catch(e){}
+  if(!j){
+    const m = t.match(/\{[\s\S]*\}/);          // 앞뒤 설명이 붙은 경우
+    if(m){ try{ j = JSON.parse(m[0]); }catch(e){} }
+  }
+  if(j && typeof j === 'object'){
+    const arr = v => Array.isArray(v) ? v : (v ? [v] : []);
+    return {
+      요약: String(j['요약'] || j.summary || '').trim(),
+      결정사항: arr(j['결정사항'] || j.decisions).map(x => String(x)),
+      할일: arr(j['할일'] || j.todos).map(x => (typeof x === 'object' && x)
+        ? { 내용:String(x['내용'] || x.title || ''), 담당:String(x['담당'] || ''), 기한:String(x['기한'] || '') }
+        : { 내용:String(x), 담당:'', 기한:'' }),
+      다음회의: String(j['다음회의'] || '').trim(),
+      확인필요: arr(j['확인필요'] || j.checks).map(x => String(x))
+    };
+  }
+  // JSON 이 아니면 글 그대로 요약 칸에 담습니다 (버리지 않습니다)
+  return { 요약: t, 결정사항: [], 할일: [], 다음회의: '', 확인필요: [] };
+}
+
+function savePaste(){
+  const m = (data.meetings || []).find(x => x.id === pasteBox.id);
+  if(!m){ closePaste(); return; }
+  const got = readAiAnswer(pasteBox.text);
+  if(!got || (!got.요약 && !got.결정사항.length && !got.할일.length)){
+    pasteBox.err = '읽을 내용이 없습니다. 챗GPT 가 준 답을 그대로 붙여넣어 주세요.';
+    render(); return;
+  }
+  m.ai = Object.assign(got, { 잘림:false, 만든때: new Date().toISOString(), 손으로:true });
+  m.updatedAt = new Date().toISOString();
+  markDirty();
+  pasteBox.open = false;
+  render();
+  toast('✅ 붙여넣은 내용으로 정리했습니다');
+}
+
+function pastePanel(){
+  if(!pasteBox.open) return '';
+  const m = (data.meetings || []).find(x => x.id === pasteBox.id);
+  return '<div class="modal-bg open" onclick="if(event.target===this)closePaste()">'
+    + '<div class="modal" style="max-width:760px">'
+    + '<h3>📥 챗GPT 가 준 답 붙여넣기</h3>'
+    + '<div class="fmeta" style="margin-bottom:8px">'
+      + esc(m ? (m.title || '회의') : '') + ' · 받은 답을 <b>그대로</b> 붙여넣으세요. '
+      + '앞뒤에 다른 말이 있어도 알아서 골라냅니다.</div>'
+    + (pasteBox.err ? '<div class="ainote" style="border-color:var(--red)">' + esc(pasteBox.err) + '</div>' : '')
+    + '<textarea id="pasteArea" style="min-height:280px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px" '
+      + 'placeholder=\'{ "요약": "…", "결정사항": ["…"], "할일": [{"내용":"…"}] }\' '
+      + 'oninput="onPasteInput(this.value)"></textarea>'
+    + '<div class="modal-actions">'
+      + '<button class="btn" onclick="closePaste()">취소</button>'
+      + '<button class="btn primary" onclick="savePaste()">이 내용으로 정리하기</button>'
+    + '</div></div></div>';
+}
+
 /* AI 가 뽑아준 할 일을 「할 일」 탭으로 옮깁니다 */
 function aiTodoToTask(mid, i){
   const m = (data.meetings || []).find(x => x.id === mid);
@@ -6561,7 +6663,9 @@ function viewMeetings(list){
     + '<button class="btn primary" onclick="openItemModal(\'meetings\')">＋ 회의 기록</button>'
     + (aiState.ready === false
         ? '<button class="btn" onclick="aiSetKey()">🔑 AI 키 넣기</button>'
-          + '<span class="hint">키를 넣으면 회의 내용을 AI가 요약해 줍니다</span>'
+          + '<span class="hint">키를 넣으면 [✨ AI로 정리] 가 한 번에 해 줍니다. '
+          + '키가 없어도 <b>[📋 물어볼 문장 복사] → 챗GPT 창 → [📥 답 붙여넣기]</b> 로 '
+          + '똑같이 쓰실 수 있습니다 (돈 안 듭니다)</span>'
         : '<button class="btn" onclick="aiSetKey()">🔑 AI 키 바꾸기</button>'
           + (aiState.netFail
               ? '<button class="btn" onclick="openNetCheck()">🩺 AI 점검</button>' : '')
@@ -6601,6 +6705,12 @@ function viewMeetings(list){
         + '<button class="btn' + (ai ? '' : ' primary') + '" ' + (busy ? 'disabled' : '')
           + ' onclick="aiSummarize(\'' + jsq(m.id) + '\')">'
           + (busy ? '⏳ 정리하는 중… (10~30초)' : (ai ? '↻ 다시 정리' : '✨ AI로 정리')) + '</button>'
+        + '<button class="btn sm" onclick="copyMeetAsk(\'' + jsq(m.id) + '\')" '
+          + 'title="챗GPT 창에 붙여넣을 문장으로 복사합니다 (AI 키 없이도 됩니다)">'
+          + '📋 물어볼 문장 복사</button>'
+        + '<button class="btn sm" onclick="openPaste(\'' + jsq(m.id) + '\')" '
+          + 'title="챗GPT 가 준 답을 붙여넣으면 요약·결정사항·할 일로 나눠 담습니다">'
+          + '📥 답 붙여넣기</button>'
         + (ai && ai.만든때
             ? '<span class="fmeta">' + esc(sinceText(ai.만든때)) + ' 정리함</span>' : '')
       + '</div>'

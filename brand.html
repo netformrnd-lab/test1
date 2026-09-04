@@ -1050,7 +1050,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260904-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260904-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1648,7 +1648,7 @@ function render(){
   const cc = document.getElementById('calCnt');
   if(cc) cc.textContent = (data.events || []).length || '';
   const up = document.getElementById('usersLayer');
-  if(up) up.innerHTML = usersPanel();
+  if(up) up.innerHTML = usersPanel() + pickPanel();
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
   else if(view === 'meetings') renderMeetings();
@@ -4097,22 +4097,152 @@ async function loadUpRoot(force){
   render();
 }
 
+const WANT_ROOT = 'Y:\\넷폼알앤디 공유폴더\\마케팅 공유폴더 외장하드 백업\\브랜드 마케팅팀';
+
 function upRootBar(){
   if(STORAGE_MODE !== 'nas') return '';
   const i = upRoot.info;
   if(i === null){ setTimeout(() => loadUpRoot(), 10); return ''; }
   if(i.error) return '';
+
   if(i['문제']){
     return '<div class="ainote" style="margin-bottom:12px;border-color:var(--red)">'
       + '⚠️ <b>정해둔 저장 폴더를 쓸 수 없습니다.</b> ' + esc(i['문제'])
       + '<div class="path" style="margin-top:6px">' + esc(i['적어둔값']) + '</div>'
       + '지금은 대시보드 안에 저장하고 있습니다. '
-      + '<button class="btn sm" onclick="openUpRoot()">고치기</button></div>';
+      + '<button class="btn sm" onclick="pickRoot()">📁 폴더 골라서 정하기</button></div>';
   }
-  if(!i['공유폴더로']) return '';
-  return '<div class="fmeta" style="margin-bottom:10px">'
-    + '📂 올린 파일은 <b style="color:var(--text-primary)">' + esc(i['지금폴더']) + '</b> 안에 '
-    + '「브랜드 / 종류 / 연도」 로 정리돼 저장됩니다</div>';
+
+  if(!i['공유폴더로']){
+    // 아직 대시보드 안에 쌓이고 있습니다 — 눈에 띄게 알려줍니다
+    const n = i['안에쌓인수'] || 0;
+    return '<div class="ainote" style="margin-bottom:12px;border-color:var(--yellow)">'
+      + '📂 <b>올린 파일이 공유폴더가 아니라 대시보드 안에 쌓이고 있습니다.</b>'
+      + '<div class="path" style="margin:6px 0">' + esc(i['지금폴더']) + '</div>'
+      + '공유폴더로 바꾸면 탐색기에서 바로 열어볼 수 있습니다.'
+      + (n ? ' 지금까지 올린 <b>' + n.toLocaleString('ko-KR') + '개</b>도 함께 옮겨드립니다.' : '')
+      + '<div class="sec-bar" style="margin-top:10px">'
+        + '<button class="btn primary" onclick="useWantRoot()">'
+          + '📂 마케팅 공유폴더로 바꾸기</button>'
+        + '<button class="btn" onclick="pickRoot()">📁 폴더 골라서 정하기</button>'
+        + '<button class="btn sm" onclick="openUpRoot()">주소 직접 넣기</button>'
+      + '</div>'
+      + '<div class="fmeta" style="margin-top:8px">바꿀 곳: ' + esc(WANT_ROOT) + '</div>'
+      + '</div>';
+  }
+
+  return '<div class="ainote" style="margin-bottom:12px">'
+    + '📂 올린 파일은 <b>' + esc(i['지금폴더']) + '</b> 안에 '
+    + '「브랜드 / 종류 / 연도」 로 정리돼 저장됩니다'
+    + ((i['안에쌓인수'] || 0)
+        ? '<div class="sec-bar" style="margin-top:8px">'
+          + '<button class="btn sm primary" onclick="moveOldFiles()">'
+          + '📦 예전에 올린 ' + i['안에쌓인수'].toLocaleString('ko-KR') + '개도 옮기기</button>'
+          + '<span class="hint">대시보드 안에 남아 있는 파일을 공유폴더로 옮깁니다</span></div>'
+        : '')
+    + '<div class="sec-bar" style="margin-top:8px">'
+      + '<button class="btn sm" onclick="pickRoot()">📁 다른 폴더로 바꾸기</button></div>'
+    + '</div>';
+}
+
+/* 한 번에 그 폴더로 */
+async function useWantRoot(){ await setUpRoot(WANT_ROOT); }
+
+/* 카드에 적을 앞 경로 (지금 어디에 저장되는지 그대로 보여줍니다) */
+function upRootLabel(){
+  const i = upRoot.info;
+  if(i && i['공유폴더로'] && i['지금폴더']) return toWinPath(i['지금폴더']) + '\\';
+  return 'data\\files\\';
+}
+
+async function setUpRoot(path){
+  upRoot.busy = true; render();
+  try{
+    const out = await apiJson('files.php?action=setuploadroot', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ path: path })
+    });
+    upRoot.info = null;
+    await loadUpRoot(true);
+    toast('📂 ' + (out['안내'] || '바꿨습니다'));
+    if((upRoot.info || {})['안에쌓인수']){
+      if(confirm('바꿨습니다.\n\n지금까지 대시보드 안에 올려둔 파일 '
+        + upRoot.info['안에쌓인수'] + '개도 공유폴더로 옮길까요?')) await moveOldFiles();
+    }
+    return true;
+  }catch(e){
+    const m = (e && e.error) || e.message || '';
+    const tried = (e && e['찾아본곳']) || [];
+    alert('저장 폴더를 바꾸지 못했습니다.\n\n' + m
+      + (tried.length ? '\n\n찾아본 곳(일부):\n · ' + tried.slice(0, 6).join('\n · ') : ''));
+    if(e && e['고르기권함']) pickRoot();
+    return false;
+  }finally{ upRoot.busy = false; render(); }
+}
+
+async function moveOldFiles(){
+  toast('📦 옮기는 중…');
+  try{
+    const o = await apiJson('files.php?action=movefiles', { method:'POST' });
+    upRoot.info = null; await loadUpRoot(true);
+    alert('📦 ' + (o['안내'] || '') 
+      + (o['더있음'] ? '\n\n아직 남은 것이 있습니다. 한 번 더 눌러주세요.' : '')
+      + ((o['못옮긴것'] || []).length
+          ? '\n\n못 옮긴 것:\n · ' + o['못옮긴것'].slice(0, 8).join('\n · ') : ''));
+  }catch(e){ alert('옮기지 못했습니다.\n\n' + apiErrText(e)); }
+}
+
+/* ---- 폴더를 눈으로 골라 정하기 ---- */
+const dirPick = { at:'', rows:null, up:null, here:false, busy:false, open:false };
+
+async function pickRoot(at){
+  dirPick.open = true; dirPick.busy = true; dirPick.rows = null; render();
+  try{
+    const o = await apiJson('files.php?action=pickdirs'
+      + (at ? '&at=' + encodeURIComponent(at) : ''));
+    dirPick.at = o['지금'] || ''; dirPick.rows = o['폴더'] || [];
+    dirPick.up = o['위'] || null; dirPick.here = !!o['여기쓸수있음'];
+  }catch(e){ dirPick.rows = []; alert(apiErrText(e)); }
+  finally{ dirPick.busy = false; render(); }
+}
+function closePick(){ dirPick.open = false; render(); }
+async function pickHere(){
+  if(!dirPick.at) return;
+  const ok = await setUpRoot(dirPick.at);
+  if(ok) closePick();
+}
+
+function pickPanel(){
+  if(!dirPick.open) return '';
+  const rows = dirPick.rows === null
+    ? '<div class="fmeta">불러오는 중…</div>'
+    : (!dirPick.rows.length
+        ? '<div class="empty">이 안에 폴더가 없습니다</div>'
+        : '<div class="flist">' + dirPick.rows.map(r =>
+            '<button class="fhead" onclick="pickRoot(\'' + jsq(r['경로']) + '\')">'
+            + '<span class="fh-ic">📁</span>'
+            + '<span class="fh-nm">' + esc(r['이름']) + '</span>'
+            + '<span class="fh-ct">' + (r['쓸수있음'] ? '' : '🔒 쓰기 권한 없음') + '</span>'
+            + '</button>').join('') + '</div>');
+
+  return '<div class="modal-bg open" onclick="if(event.target===this)closePick()">'
+    + '<div class="modal" style="max-width:720px">'
+    + '<h3>📁 저장할 폴더 고르기</h3>'
+    + '<div class="page-sub">폴더를 눌러 안으로 들어가고, 원하는 곳에서 '
+      + '<b>[여기로 정하기]</b> 를 누르세요.</div>'
+    + '<div class="sec-bar">'
+      + (dirPick.up ? '<button class="btn" onclick="pickRoot(\'' + jsq(dirPick.up) + '\')">↑ 위로</button>' : '')
+      + '<button class="btn" onclick="pickRoot()">처음으로</button>'
+      + (dirPick.at
+          ? '<button class="btn primary" ' + (dirPick.here ? '' : 'disabled')
+            + ' onclick="pickHere()">✅ 여기로 정하기</button>'
+            + (dirPick.here ? '' : '<span class="hint">이 폴더에는 쓸 권한이 없습니다</span>')
+          : '')
+    + '</div>'
+    + (dirPick.at ? '<div class="path" style="margin-bottom:10px">' + esc(dirPick.at) + '</div>' : '')
+    + rows
+    + '<div class="modal-actions"><button class="btn" onclick="closePick()">닫기</button></div>'
+    + '</div></div>';
 }
 
 async function openUpRoot(){
@@ -4127,20 +4257,9 @@ async function openUpRoot(){
     + '  브랜드 마케팅팀 / 아파트스퀘어 / 01_자료 / 2026 / 2026-09-03_카탈로그.pdf\n\n'
     + '비워두면 예전처럼 대시보드 안(data/files)에 저장합니다.\n'
     + (i['훑는폴더'] ? '\n(지금 NAS 자료에서 훑는 폴더: ' + i['훑는폴더'] + ')' : ''),
-    cur);
+    cur || WANT_ROOT);
   if(v === null) return;
-  upRoot.busy = true; render();
-  try{
-    const out = await apiJson('files.php?action=setuploadroot', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ path: v.trim() })
-    });
-    upRoot.info = null;
-    await loadUpRoot(true);
-    toast('📂 ' + (out['안내'] || '바꿨습니다'));
-  }catch(e){
-    alert('저장 폴더를 바꾸지 못했습니다.\n\n' + apiErrText(e));
-  }finally{ upRoot.busy = false; render(); }
+  await setUpRoot(v.trim());
 }
 
 function viewAssets(b){
@@ -4163,8 +4282,7 @@ function viewAssets(b){
         ? '<button class="btn sm" onclick="openUpRoot()" '
           + 'title="올린 파일이 어느 폴더에 저장되는지 보고 바꿉니다">📂 저장 폴더</button>' : '')
     + '<span class="hint">파일은 위에 끌어다 놓고, 외부 링크나 NAS 경로는 이 버튼으로 등록하세요</span>'
-    + '</div>'
-    + upRootBar();
+    + '</div>';
   const findBar = assetFindPanel(b);
 
   const list = b.assets;
@@ -4202,8 +4320,8 @@ function viewAssets(b){
             + (isFile ? '<div class="fmeta">' + esc(it.fileName) + ' · ' + fmtSize(it.fileSize)
                  + (it.nasPath
                      ? '<br><span style="opacity:.75">' + esc(toWinPath(it.nasPath)) + '</span>'
-                     : (it.filePath ? '<br><span style="opacity:.75">NAS: data\\files\\'
-                         + esc(it.filePath.replace(/\//g, '\\')) + '</span>' : ''))
+                     : (it.filePath ? '<br><span style="opacity:.75">'
+                         + esc(upRootLabel() + it.filePath.replace(/\//g, '\\')) + '</span>' : ''))
                  + '</div>' : '')
             + '</div></div>'
           + (bits.length ? '<div class="row">' + bits.join('') + '</div>' : '')
@@ -4223,7 +4341,7 @@ function viewAssets(b){
       + '<button class="btn sm" style="align-self:flex-start" onclick="clearReport()">결과 닫기</button>'
       + '</div>'
     : '';
-  return findBar + dropZone + '<div class="upqueue" id="upQueue"></div>' + report
+  return upRootBar() + findBar + dropZone + '<div class="upqueue" id="upQueue"></div>' + report
        + movePanel() + viewNasFolders(b) + bar + cards;
 }
 

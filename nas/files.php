@@ -29,7 +29,33 @@ function upload_root($f) {
      \\netformrnd\넷폼알앤디 공유폴더\…
    드라이브 문자만으로는 어느 볼륨인지 알 수 없어서, 뒤쪽 폴더 이름을
    하나씩 줄여가며 실제로 있는 곳을 찾습니다.                            */
-function find_nas_dir($input, $scanRoot) {
+/* 어디부터 찾아볼지 — NAS 볼륨과 지금 훑고 있는 공유폴더 */
+function nas_bases($scanRoot) {
+    $bases = [];
+    if ($scanRoot) {
+        $r = rtrim($scanRoot, '/');
+        $bases[] = $r;
+        $bases[] = dirname($r);                            // 공유폴더의 한 단계 위
+        $bases[] = dirname(dirname($r));                   // 볼륨
+    }
+    for ($i = 1; $i <= 8; $i++) $bases[] = '/volume' . $i;
+    foreach (['/volumeUSB1/usbshare1', '/volumeUSB2/usbshare2', '/volumeSATA1/satashare1',
+              '/var/services/homes/..', '/'] as $x) $bases[] = $x;
+    // 실제로 있는 것만, 중복 없이
+    $out = [];
+    foreach ($bases as $b) {
+        $b = rtrim((string)$b, '/');
+        if ($b === '' || $b === '.') continue;
+        if (!is_dir($b)) continue;
+        if (!in_array($b, $out, true)) $out[] = $b;
+    }
+    return $out;
+}
+
+/* 윈도우 주소를 NAS 안의 실제 폴더로 바꿉니다.
+   찾지 못하면 무엇을 시도했는지 $tried 에 담아 알려줍니다.               */
+function find_nas_dir($input, $scanRoot, &$tried = null) {
+    $tried = [];
     $p = str_replace('\\', '/', trim((string)$input));
     if ($p === '') return null;
     if (is_dir($p)) return rtrim($p, '/');                 // 이미 리눅스 경로
@@ -40,26 +66,44 @@ function find_nas_dir($input, $scanRoot) {
     $p = trim($p, '/');
     if ($p === '') return null;
 
-    $bases = [];
-    if ($scanRoot) {
-        $bases[] = rtrim($scanRoot, '/');
-        $bases[] = dirname(rtrim($scanRoot, '/'));         // 공유폴더의 한 단계 위
-    }
-    for ($i = 1; $i <= 8; $i++) $bases[] = '/volume' . $i;
-    $bases[] = '/volumeUSB1/usbshare1';
-    $bases = array_values(array_unique(array_filter($bases)));
-
+    $bases = nas_bases($scanRoot);
     $parts = explode('/', $p);
+
     // 앞쪽을 하나씩 떼면서 (드라이브가 어디에 붙었는지 모르므로) 찾아봅니다
     for ($skip = 0; $skip < count($parts); $skip++) {
         $tail = implode('/', array_slice($parts, $skip));
         if ($tail === '') continue;
         foreach ($bases as $b) {
             $try = $b . '/' . $tail;
+            if (count($tried) < 40) $tried[] = $try;
             if (is_dir($try)) return rtrim($try, '/');
         }
     }
+
+    // 그래도 못 찾으면, 이름이 조금 다를 수 있으니 한 칸씩 내려가며 비슷한 이름을 찾습니다
+    // (띄어쓰기·괄호가 달라서 못 찾는 경우가 많습니다)
+    foreach ($bases as $b) {
+        $cur = $b; $ok = true;
+        foreach ($parts as $want) {
+            $hit = null;
+            foreach ((array)@scandir($cur) as $e) {
+                if ($e === '.' || $e === '..') continue;
+                if (!is_dir($cur . '/' . $e)) continue;
+                if (norm_name($e) === norm_name($want)) { $hit = $e; break; }
+            }
+            if ($hit === null) { $ok = false; break; }
+            $cur .= '/' . $hit;
+        }
+        if ($ok && is_dir($cur)) return rtrim($cur, '/');
+    }
     return null;
+}
+
+/* 띄어쓰기·특수문자를 무시하고 이름을 견줍니다 */
+function norm_name($s) {
+    $s = (string)$s;
+    if (function_exists('mb_strtolower')) $s = mb_strtolower($s, 'UTF-8');
+    return preg_replace('/[\s_\-()\[\].]+/u', '', $s);
 }
 
 $FILE_DIR  = upload_root($UPROOT_FILE) ?: ($DATA_DIR . '/files');
@@ -210,10 +254,29 @@ if ($action === 'uploadroot') {
     $set  = upload_root($UPROOT_FILE);
     $raw  = is_file($UPROOT_FILE) ? trim((string)@file_get_contents($UPROOT_FILE)) : '';
     $rootF = $DATA_DIR . '/nasroot.txt';
+    // 대시보드 안에 쌓여 있는 파일 수 (옮길 것이 있는지 알려주려고)
+    $inside = 0;
+    $localDir = $DATA_DIR . '/files';
+    if (is_dir($localDir)) {
+        $it = @scandir($localDir);
+        $cnt = function ($d) use (&$cnt) {
+            $n = 0;
+            foreach ((array)@scandir($d) as $e) {
+                if ($e === '.' || $e === '..') continue;
+                $f = $d . '/' . $e;
+                if (is_dir($f)) $n += $cnt($f); elseif (is_file($f)) $n++;
+                if ($n > 5000) return $n;
+            }
+            return $n;
+        };
+        $inside = $cnt($localDir);
+    }
+
     jout([
         'ok'        => true,
         '지금폴더'   => $FILE_DIR,
         '공유폴더로' => $set !== null,
+        '안에쌓인수' => $inside,
         '적어둔값'   => $raw,
         '문제'      => ($raw !== '' && $set === null)
             ? (is_dir($raw) ? '그 폴더에 쓸 권한이 없습니다 (http 사용자에게 쓰기 권한을 주세요)'
@@ -221,6 +284,90 @@ if ($action === 'uploadroot') {
             : null,
         '훑는폴더'   => is_file($rootF) ? trim((string)@file_get_contents($rootF)) : '',
     ]);
+}
+
+/* 폴더를 눈으로 골라 찾을 수 있게, 한 단계씩 보여줍니다 */
+if ($action === 'pickdirs') {
+    $rootF = $DATA_DIR . '/nasroot.txt';
+    $scan  = is_file($rootF) ? rtrim(trim((string)@file_get_contents($rootF)), '/') : '';
+    $at    = trim((string)($_GET['at'] ?? ''));
+
+    if ($at === '') {
+        // 맨 처음: NAS 안에서 고를 만한 곳들을 보여줍니다
+        $rows = [];
+        foreach (nas_bases($scan) as $b) {
+            if ($b === '/') continue;
+            $rows[] = ['경로' => $b, '이름' => basename($b) ?: $b,
+                       '쓸수있음' => is_writable($b)];
+        }
+        jout(['ok' => true, '지금' => '', '위' => null, '폴더' => $rows,
+              '훑는폴더' => $scan]);
+    }
+
+    $at = rtrim(str_replace('\\', '/', $at), '/');
+    if (!is_dir($at)) jout(['ok' => false, 'error' => '그런 폴더가 없습니다: ' . $at], 404);
+
+    $rows = [];
+    foreach ((array)@scandir($at) as $e) {
+        if ($e === '.' || $e === '..') continue;
+        if ($e === '@eaDir' || $e === '#recycle' || $e === '#snapshot') continue;
+        if (substr($e, 0, 1) === '.') continue;
+        $full = $at . '/' . $e;
+        if (!is_dir($full) || is_link($full)) continue;
+        $rows[] = ['경로' => $full, '이름' => $e, '쓸수있음' => is_writable($full)];
+        if (count($rows) >= 300) break;
+    }
+    usort($rows, function ($x, $y) { return strnatcasecmp($x['이름'], $y['이름']); });
+    jout(['ok' => true, '지금' => $at, '위' => (dirname($at) !== $at ? dirname($at) : null),
+          '폴더' => $rows, '여기쓸수있음' => is_writable($at)]);
+}
+
+/* 대시보드 안(data/files)에 쌓여 있던 파일을 공유폴더로 옮깁니다 */
+if ($action === 'movefiles') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $from = $DATA_DIR . '/files';
+    $to   = upload_root($UPROOT_FILE);
+    if ($to === null) {
+        jout(['ok' => false, 'error' => '먼저 저장 폴더를 공유폴더로 정해주세요'], 400);
+    }
+    if (!is_dir($from)) jout(['ok' => true, '옮긴수' => 0, '안내' => '옮길 파일이 없습니다']);
+
+    $moved = []; $failed = []; $n = 0;
+    $deadline = microtime(true) + 20;                 // 오래 붙잡지 않습니다
+    $walk = function ($dir, $rel) use (&$walk, $from, $to, &$moved, &$failed, &$n, $deadline) {
+        foreach ((array)@scandir($dir) as $e) {
+            if ($e === '.' || $e === '..') continue;
+            if (microtime(true) > $deadline) return;
+            $src = $dir . '/' . $e;
+            $r   = $rel === '' ? $e : $rel . '/' . $e;
+            if (is_dir($src)) { $walk($src, $r); continue; }
+            if (!is_file($src)) continue;
+            $dstDir = $to . '/' . dirname($r);
+            if (!is_dir($dstDir) && !@mkdir($dstDir, 0775, true) && !is_dir($dstDir)) {
+                $failed[] = $r . ' (폴더를 만들지 못함)'; continue;
+            }
+            $name = unique_path($dstDir, basename($r));
+            if (@rename($src, $dstDir . '/' . $name)) {
+                @chmod($dstDir . '/' . $name, 0664);
+                $moved[] = dirname($r) . '/' . $name; $n++;
+            } elseif (@copy($src, $dstDir . '/' . $name)) {   // 볼륨이 다르면 복사 후 삭제
+                @chmod($dstDir . '/' . $name, 0664);
+                @unlink($src);
+                $moved[] = dirname($r) . '/' . $name; $n++;
+            } else {
+                $failed[] = $r . ' (옮기지 못함)';
+            }
+        }
+    };
+    $walk($from, '');
+
+    jout(['ok' => true, '옮긴수' => $n, '옮긴것' => array_slice($moved, 0, 200),
+          '못옮긴것' => array_slice($failed, 0, 40),
+          '더있음' => microtime(true) > $deadline,
+          '안내' => $n
+            ? ($n . '개 파일을 공유폴더로 옮겼습니다'
+               . (count($failed) ? ' (' . count($failed) . '개는 실패)' : ''))
+            : '옮길 파일이 없습니다']);
 }
 
 if ($action === 'setuploadroot') {
@@ -236,15 +383,15 @@ if ($action === 'setuploadroot') {
 
     $rootF = $DATA_DIR . '/nasroot.txt';
     $scan  = is_file($rootF) ? rtrim(trim((string)@file_get_contents($rootF)), '/') : '';
-    $found = find_nas_dir($want, $scan);
+    $tried = [];
+    $found = find_nas_dir($want, $scan, $tried);
 
     if ($found === null) {
         jout(['ok' => false, 'error' =>
             "그 폴더를 NAS 안에서 찾지 못했습니다.\n\n적어주신 값: " . $want
-            . "\n\n윈도우 주소(Y:\\…)를 NAS 안 경로로 바꿔 찾아봤지만 없었습니다.\n"
-            . "탐색기에서 폴더 이름이 정확한지 보시고, 그래도 안 되면\n"
-            . "DSM 의 File Station 에서 그 폴더를 열어 「속성」의 경로를 그대로 넣어주세요.\n"
-            . "(예: /volume1/넷폼알앤디 공유폴더/…/브랜드 마케팅팀)"], 404);
+            . "\n\n[📁 폴더 골라서 정하기] 로 눈으로 찾아 고르시는 게 가장 확실합니다.",
+            '찾아본곳' => array_slice($tried, 0, 12),
+            '고르기권함' => true], 404);
     }
     if (!is_writable($found)) {
         jout(['ok' => false, 'error' =>

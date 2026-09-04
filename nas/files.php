@@ -250,6 +250,25 @@ function resolve_path($fileDirs, $manifest, $fileId) {
     return [null, null];
 }
 
+/* 폴더 안에 있는 파일 이름을 한 번에 모읍니다 (있나 없나만 볼 때 씁니다) */
+function name_index($dirs, $depth = 4, $max = 20000) {
+    $out = [];
+    $walk = function ($d, $lv) use (&$walk, &$out, $depth, $max) {
+        if ($lv > $depth || count($out) >= $max || !is_dir($d)) return;
+        foreach ((array)@scandir($d) as $e) {
+            if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+            $p = $d . '/' . $e;
+            if (is_dir($p)) $walk($p, $lv + 1);
+            elseif (is_file($p)) {
+                $out[$e] = true;
+                if (count($out) >= $max) return;
+            }
+        }
+    };
+    foreach ((array)$dirs as $d) $walk($d, 0);
+    return $out;
+}
+
 /* 이름이 같은 파일을 몇 단계 아래까지 찾아봅니다 */
 function find_by_name($dir, $name, $depth) {
     if ($depth < 0 || !is_dir($dir)) return null;
@@ -455,7 +474,9 @@ function write_guide($root, $useYear = true) {
          . $tree
          . "파일 이름 앞에 날짜가 붙어 있어(2026-09-04_…),\r\n"
          . "이름순으로 정렬하면 시간 순으로 늘어섭니다.\r\n\r\n"
-         . "여기서 파일을 옮기거나 이름을 바꾸면 대시보드에서 찾지 못합니다.\r\n"
+         . "여기서 파일을 지우면 대시보드 목록에는 「파일 없음」 으로 표시됩니다.\r\n"
+         . "(자료 탭에서 [목록에서도 지우기] 를 누르면 목록도 정리됩니다)\r\n"
+         . "이름을 바꾸면 대시보드에서 찾지 못할 수 있습니다.\r\n"
          . "대시보드에서 지우면 이 폴더에서도 사라집니다.\r\n\r\n"
          . "마지막 정리: " . date('Y-m-d H:i') . "\r\n";
     @file_put_contents($root . '/_폴더 안내.txt', $txt);
@@ -906,6 +927,88 @@ if ($action === 'download') {
 
     readfile($path);
     exit;
+}
+
+/* ---------------- 탐색기에서 지워진 파일 찾기 ----------------
+   대시보드 목록에는 있는데 공유폴더에 실제 파일이 없는 것을 골라냅니다.
+   폴더 자체를 읽을 수 없으면(네트워크 끊김 등) 아무것도 「없어졌다」고
+   하지 않습니다. 잠깐 끊긴 것을 지워진 것으로 오해하면 안 되니까요.
+   ------------------------------------------------------------ */
+if ($action === 'gone') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    if (!is_dir($FILE_DIR) || !is_readable($FILE_DIR)) {
+        jout(['ok' => false, 'error' => '저장 폴더를 읽을 수 없어 확인하지 못했습니다'], 503);
+    }
+    // 공유폴더를 정해뒀는데 지금 못 쓰는 상태(연결 끊김 등)라면 확인하지 않습니다.
+    // 그대로 두면 공유폴더의 파일이 전부 「없어졌다」로 보입니다.
+    $rawRoot = is_file($UPROOT_FILE) ? trim((string)@file_get_contents($UPROOT_FILE)) : '';
+    if ($rawRoot !== '' && upload_root($UPROOT_FILE) === null) {
+        jout(['ok' => false, 'error' => '정해둔 저장 폴더에 지금 닿을 수 없어 확인하지 못했습니다'], 503);
+    }
+
+    $body = json_decode((string)file_get_contents('php://input'), true);
+    $ids  = [];
+    foreach ((array)($body['ids'] ?? []) as $x) {
+        if (is_string($x) && preg_match('/^[0-9a-f]{32}$/', $x)) $ids[] = $x;
+    }
+    $ids = array_slice(array_values(array_unique($ids)), 0, 800);
+
+    // 방금 올려서 아직 목록에 저장되기 전인 파일도 있습니다.
+    // 화면이 알고 있는 이름·자리를 함께 받아 「없어졌다」 오해를 막습니다.
+    $hint = [];
+    foreach ((array)($body['hint'] ?? []) as $k => $v) {
+        if (!is_string($k) || !preg_match('/^[0-9a-f]{32}$/', $k) || !is_array($v)) continue;
+        $hint[$k] = ['fileName' => (string)($v['n'] ?? ''), 'filePath' => (string)($v['p'] ?? '')];
+    }
+
+    // 목록은 한 번만 읽습니다 (파일마다 다시 읽으면 느립니다)
+    $idx  = [];
+    $json = is_file($MANIFEST) ? json_decode((string)@file_get_contents($MANIFEST), true) : null;
+    if (is_array($json) && isset($json['brands'])) {
+        foreach ($json['brands'] as $b) {
+            if (!empty($b['record']['id'])) {
+                $idx[$b['record']['id']] = ['fileName' => (string)($b['record']['name'] ?? ''),
+                                            'filePath' => (string)($b['record']['filePath'] ?? '')];
+            }
+            foreach ((array)($b['assets'] ?? []) as $a) {
+                if (!empty($a['fileId'])) {
+                    $idx[$a['fileId']] = ['fileName' => (string)($a['fileName'] ?? ''),
+                                          'filePath' => (string)($a['filePath'] ?? '')];
+                }
+            }
+        }
+    }
+
+    $names = null;                       // 이름 목록은 정말 필요할 때 한 번만 만듭니다
+    $gone = []; $checked = 0;
+    $deadline = microtime(true) + 8;
+    foreach ($ids as $id) {
+        if (microtime(true) > $deadline) break;
+        $checked++;
+        $a = $idx[$id] ?? ($hint[$id] ?? null);
+        if ($a && ($a['filePath'] ?? '') === '' && !empty($hint[$id]['filePath'])) {
+            $a['filePath'] = $hint[$id]['filePath'];
+        }
+        if ($a && ($a['fileName'] ?? '') === '' && !empty($hint[$id]['fileName'])) {
+            $a['fileName'] = $hint[$id]['fileName'];
+        }
+        $rel = $a ? str_replace('\\', '/', $a['filePath']) : '';
+        if ($rel !== '' && (strpos($rel, '..') !== false || substr($rel, 0, 1) === '/')) $rel = '';
+        $found = false;
+        foreach ($FILE_DIRS as $d) {
+            if ($rel !== '' && is_file($d . '/' . $rel)) { $found = true; break; }
+            if (is_file($d . '/' . $id . '.bin')) { $found = true; break; }   // 예전 방식
+        }
+        // 탐색기에서 폴더만 옮긴 것일 수도 있으니 이름으로 한 번 더 봅니다
+        if (!$found && $a && $a['fileName'] !== '') {
+            if ($names === null) $names = name_index($FILE_DIRS);
+            if (isset($names[$a['fileName']])) $found = true;
+        }
+        if (!$found) $gone[] = $id;
+    }
+
+    jout(['ok' => true, '없어진' => $gone, '확인수' => $checked,
+          '더있음' => $checked < count($ids)]);
 }
 
 /* ---------------- 삭제 ---------------- */

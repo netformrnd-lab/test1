@@ -763,6 +763,9 @@ body.locked .layout{grid-template-columns:minmax(0,1fr);padding:0}
 .treebox{margin:10px 0 4px;padding:11px 14px;border-radius:var(--r-sm);
   background:var(--bg-card);border:1px solid var(--border);
   font-size:12px;line-height:1.85;font-variant-numeric:tabular-nums}
+.card.gonecard{opacity:.72;border-style:dashed}
+.card.gonecard .ct{text-decoration:line-through;text-decoration-color:var(--text-muted)}
+.chip.warn{background:rgba(192,119,8,.12);color:var(--yellow);border-color:var(--yellow)}
 .treebox .tl{padding-left:18px}
 .treebox .tl2{padding-left:36px}
 .treebox .tl3{padding-left:54px;color:var(--text-muted)}
@@ -1059,7 +1062,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260904-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260904-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4106,6 +4109,58 @@ async function loadUpRoot(force){
   render();
 }
 
+/* ---------- 탐색기에서 지워진 파일 ----------
+   대시보드에서 지우면 공유폴더의 파일도 함께 지웁니다.
+   반대로 탐색기에서 지운 것은 대시보드가 알 수 없으므로,
+   자료 탭을 열 때 한 번 물어보고 「파일 없음」 으로 표시해 줍니다.
+   폴더를 못 읽는 동안(네트워크 끊김 등)에는 아무 표시도 하지 않습니다. */
+const gone = { ids: new Set(), brand: '', at: 0, busy: false };
+
+async function checkGone(b, force){
+  if(STORAGE_MODE !== 'nas' || !b) return;
+  const files = (b.assets || []).filter(a => a.fileId);
+  const ids = files.map(a => a.fileId);
+  const hint = {};
+  files.forEach(a => { hint[a.fileId] = { n: a.fileName || '', p: a.filePath || '' }; });
+  if(!ids.length){
+    if(gone.brand !== b.id){ gone.brand = b.id; gone.ids = new Set(); }
+    return;
+  }
+  const fresh = gone.brand === b.id && Date.now() - gone.at < 60000;
+  if(gone.busy || (fresh && !force)) return;
+  gone.busy = true;
+  try{
+    const out = await apiJson('files.php?action=gone', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ids, hint })
+    });
+    gone.brand = b.id; gone.at = Date.now();
+    gone.ids = new Set(out['없어진'] || []);
+    render();
+  }catch(e){
+    // 못 물어봤으면 아무 표시도 하지 않습니다 (있는 파일을 없다고 하면 안 됩니다)
+    gone.brand = b.id; gone.at = Date.now(); gone.ids = new Set();
+  }finally{ gone.busy = false; }
+}
+
+/* 없어진 파일들을 목록에서도 지웁니다 (Ctrl+Z 로 되돌릴 수 있습니다) */
+async function dropGone(){
+  const b = currentBrand(); if(!b) return;
+  const list = (b.assets || []).filter(a => a.fileId && gone.ids.has(a.fileId));
+  if(!list.length) return;
+  if(!confirm('탐색기에서 지워진 파일 ' + list.length + '개를 목록에서도 지울까요?\n\n'
+    + list.slice(0, 8).map(a => '  · ' + (a.fileName || a.title)).join('\n')
+    + (list.length > 8 ? '\n  … 외 ' + (list.length - 8) + '개' : '')
+    + '\n\n실수였다면 Ctrl+Z 로 되돌릴 수 있습니다.')) return;
+  const ids = new Set(list.map(a => a.id));
+  b.assets = b.assets.filter(a => !ids.has(a.id));
+  gone.ids = new Set();
+  markDirty(b.id);                       // Ctrl+Z 로 되돌릴 수 있게 한 걸음 남깁니다
+  render(); bindDrop();
+  await saveAll(true);
+  toast('🧹 ' + list.length + '개를 목록에서 지웠습니다');
+}
+
 const WANT_ROOT = 'Y:\\넷폼알앤디 공유폴더\\마케팅 공유폴더 외장하드 백업\\브랜드 마케팅팀';
 
 function upRootBar(){
@@ -4370,17 +4425,32 @@ function viewAssets(b){
   const findBar = assetFindPanel(b);
 
   const list = b.assets;
+  if(STORAGE_MODE === 'nas') setTimeout(() => checkGone(b), 10);
+  const goneN = list.filter(a => a.fileId && gone.ids.has(a.fileId)).length;
+  const goneBar = goneN
+    ? '<div class="ainote" style="margin:10px 0;border-color:var(--yellow)">'
+      + '🚫 <b>탐색기에서 지워진 파일이 ' + goneN + '개 있습니다.</b> '
+      + '목록에는 남아 있지만 내려받을 수 없습니다.'
+      + '<div class="sec-bar" style="margin-top:8px">'
+        + '<button class="btn sm primary" onclick="dropGone()">🧹 목록에서도 지우기</button>'
+        + '<button class="btn sm" onclick="checkGone(currentBrand(), true)">🔄 다시 확인</button>'
+        + '<span class="hint">공유폴더에 파일을 다시 넣어두면 [다시 확인] 으로 되살아납니다</span>'
+      + '</div></div>'
+    : '';
   const cards = !list.length
     ? '<div class="empty">등록된 자료가 없습니다. 파일을 끌어다 놓아 보세요.</div>'
     : '<div class="cards">' + list.map(it => {
         const isFile = !!it.fileId;
-        const canMove = isFile && !!it.filePath;      // 대시보드 폴더에 있는 파일만 옮길 수 있습니다
+        const isGone = isFile && gone.ids.has(it.fileId);
+        const canMove = isFile && !!it.filePath && !isGone;   // 대시보드 폴더에 있는 파일만 옮길 수 있습니다
         const bits = [];
         if(it.kind) bits.push('<span class="chip">' + esc(it.kind) + '</span>');
         if(it.nasPath){
           bits.push('<span class="chip on">📁 NAS 폴더로 옮김</span>'
             + '<a class="lnk" href="nasfiles.php?action=download&path='
             + encodeURIComponent(it.nasPath) + '">⬇ 다운로드</a>');
+        }else if(isFile && isGone){
+          bits.push('<span class="chip warn">🚫 파일 없음 (탐색기에서 지워짐)</span>');
         }else if(isFile){
           bits.push('<a class="lnk" href="files.php?action=download&id=' + esc(it.fileId) + '">⬇ 다운로드</a>');
         }else if(it.url){
@@ -4389,7 +4459,7 @@ function viewAssets(b){
             : '<span class="path">' + esc(it.url) + '</span>'
               + '<button class="btn sm" onclick="copyPath(\'assets\',\'' + it.id + '\')">📋 경로 복사</button>');
         }
-        return '<div class="card' + (isFile ? ' filecard' : '') + '"'
+        return '<div class="card' + (isFile ? ' filecard' : '') + (isGone ? ' gonecard' : '') + '"'
           + (canMove ? ' draggable="true" ondragstart="dragAsset(event,\'' + it.id + '\')"' : '') + '>'
           + '<div class="ca">'
             + (canMove
@@ -4426,7 +4496,7 @@ function viewAssets(b){
       + '</div>'
     : '';
   return upRootBar() + findBar + dropZone + '<div class="upqueue" id="upQueue"></div>' + report
-       + movePanel() + viewNasFolders(b) + bar + cards;
+       + movePanel() + viewNasFolders(b) + bar + goneBar + cards;
 }
 
 /* ========================= 브랜드에 연결한 NAS 폴더 =========================
@@ -7382,6 +7452,7 @@ async function deleteAsset(id){
     }
   }
   b.assets = b.assets.filter(x => x.id !== id);
+  if(it.fileId) gone.ids.delete(it.fileId);
   render(); bindDrop();
   if(it.fileId) await saveAll(true); else markDirty();
   toast('🗑️ 삭제했습니다');
@@ -8224,6 +8295,7 @@ async function init(){
 
   currentBrandId = null;   // 처음에는 홈부터 보여줍니다
   updateSubtitle();
+  refreshSnap();           // 첫 번째 고침도 Ctrl+Z 로 되돌릴 수 있게 기준을 잡아둡니다
   render();
   loadInquiries();         // 홈에도 문의 수치를 띄우기 위해 미리 불러옵니다
   if(STORAGE_MODE === 'nas'){

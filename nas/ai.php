@@ -36,7 +36,8 @@ register_shutdown_function(function () {
 
 $DATA_DIR = __DIR__ . '/data';
 $KEY_FILE = $DATA_DIR . '/ai-key.php';
-$LOG_FILE = $DATA_DIR . '/ai-usage.json';
+$LOG_FILE   = $DATA_DIR . '/ai-usage.json';
+$MODEL_FILE = $DATA_DIR . '/ai-model.txt';      // OpenAI 는 계정이 쓸 수 있는 모델을 골라 적어둡니다
 
 $MODEL      = 'claude-opus-5';
 $MAX_TOKENS = 8000;
@@ -87,7 +88,16 @@ function bh_wget($url, $headers, $postFile, $sec, &$code, &$note) {
             || stripos($e, 'invalid option')      !== false
             || stripos($e, 'illegal option')      !== false
             || stripos($e, 'unknown option')      !== false;
-        if (!$old) { $note = trim(strtok($e, "\n")) ?: '받지 못함'; break; }
+        if (!$old) {
+            // 실패한 까닭만 골라냅니다 (진행 표시 줄은 버립니다)
+            foreach (preg_split('/\r?\n/', $e) as $ln) {
+                if (preg_match('/(error|failed|unable|refused|timed out|resolve)/i', $ln)) {
+                    $note = trim($ln); break;
+                }
+            }
+            if ($note === '') $note = '받지 못함';
+            break;
+        }
     }
     @unlink($outF); @unlink($errF);
 
@@ -96,15 +106,16 @@ function bh_wget($url, $headers, $postFile, $sec, &$code, &$note) {
     return $body;
 }
 
-/** 인터넷으로 물어봅니다. NAS 마다 막힌 방법이 달라 세 가지를 차례로 씁니다. */
+/** 인터넷으로 물어봅니다. NAS 마다 막힌 방법이 달라 세 가지를 차례로 씁니다.
+ *  $body 가 null 이면 그냥 받아오기(GET) 입니다. */
 function ai_post($url, $headers, $body, &$why) {
     $why = [];
 
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $body, CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => $body !== null,
+            CURLOPT_POSTFIELDS => $body === null ? null : $body, CURLOPT_HTTPHEADER => $headers,
             CURLOPT_TIMEOUT => 180, CURLOPT_CONNECTTIMEOUT => 10,
         ]);
         $out  = curl_exec($ch);
@@ -116,10 +127,11 @@ function ai_post($url, $headers, $body, &$why) {
     } else { $why[] = 'curl 확장이 꺼져 있습니다'; }
 
     if (ini_get('allow_url_fopen')) {
-        $ctx = stream_context_create(['http' => [
-            'method' => 'POST', 'header' => implode("\r\n", $headers),
-            'content' => $body, 'timeout' => 180, 'ignore_errors' => true,
-        ]]);
+        $opt = ['method' => $body === null ? 'GET' : 'POST',
+                'header' => implode("\r\n", $headers),
+                'timeout' => 180, 'ignore_errors' => true];
+        if ($body !== null) $opt['content'] = $body;
+        $ctx = stream_context_create(['http' => $opt]);
         $out = @file_get_contents($url, false, $ctx);
         if ($out !== false) {
             $code = 0;
@@ -132,17 +144,125 @@ function ai_post($url, $headers, $body, &$why) {
     } else { $why[] = 'allow_url_fopen 이 꺼져 있습니다'; }
 
     if (function_exists('shell_exec')) {
-        $tmpB = tempnam(sys_get_temp_dir(), 'aib');
-        file_put_contents($tmpB, $body);
+        $tmpB = null;
+        if ($body !== null) {
+            $tmpB = tempnam(sys_get_temp_dir(), 'aib');
+            file_put_contents($tmpB, $body);
+        }
         $code = 0; $note = '';
         $out = bh_wget($url, $headers, $tmpB, 180, $code, $note);
-        @unlink($tmpB);
+        if ($tmpB !== null) @unlink($tmpB);
         // 401·400 같은 오류 응답도 그대로 돌려줍니다. 그래야 진짜 이유가 보입니다.
         if ($out !== false) return [$code ?: 200, $out];
         $why[] = 'wget: ' . ($note ?: '받지 못했습니다');
     } else { $why[] = 'shell_exec 이 막혀 있습니다'; }
 
     return [0, false];
+}
+
+/* ═══════════════ 어느 회사 AI 를 쓰나 ═══════════════════════════════
+   키 모양만 보고 알아서 갈라 씁니다.
+     sk-ant-…  → Anthropic (클로드)
+     sk-…      → OpenAI (챗GPT)
+   회사마다 부르는 방법이 조금 달라서, 여기서만 다르게 만들어 보냅니다.
+   ================================================================= */
+function ai_vendor($key) {
+    if (strpos($key, 'sk-ant-') === 0) return 'anthropic';
+    if (strpos($key, 'sk-') === 0)     return 'openai';
+    return '';
+}
+function ai_vendor_name($v) {
+    return $v === 'openai' ? 'OpenAI (챗GPT)' : ($v === 'anthropic' ? 'Anthropic (클로드)' : '(모름)');
+}
+
+/** OpenAI 는 모델 이름이 자주 바뀝니다. 계정이 실제로 쓸 수 있는 것 중에서 고릅니다. */
+function openai_model($key, $modelFile, $force = false) {
+    if (!$force && is_file($modelFile)) {
+        $m = trim((string)@file_get_contents($modelFile));
+        if ($m !== '') return $m;
+    }
+    $prefer = ['gpt-5.1', 'gpt-5', 'gpt-4.1', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4o-mini'];
+    $why = [];
+    [$code, $raw] = ai_post('https://api.openai.com/v1/models',
+        ['Authorization: Bearer ' . $key], null, $why);
+    $pick = '';
+    if ($raw !== false && $code === 200) {
+        $j = json_decode($raw, true);
+        $ids = [];
+        foreach (($j['data'] ?? []) as $d) if (!empty($d['id'])) $ids[$d['id']] = true;
+        foreach ($prefer as $want) if (isset($ids[$want])) { $pick = $want; break; }
+        if ($pick === '') {                       // 그래도 없으면 gpt- 로 시작하는 것 중 하나
+            foreach (array_keys($ids) as $id) {
+                if (strpos($id, 'gpt-') === 0 && strpos($id, 'instruct') === false) { $pick = $id; break; }
+            }
+        }
+    }
+    if ($pick === '') $pick = 'gpt-4o';            // 못 물어봤으면 무난한 것으로
+    @file_put_contents($modelFile, $pick);
+    return $pick;
+}
+
+/** 회사에 맞게 물어보고, 글자만 뽑아 돌려줍니다.
+ *  돌려주는 값: [응답코드, 원문, 뽑은글자|false, 쓴모델] */
+function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
+    $v = ai_vendor($key);
+
+    if ($v === 'openai') {
+        $model = openai_model($key, $modelFile);
+        $mk = function ($model, $tokenKey) use ($sys, $user, $maxTokens) {
+            return json_encode([
+                'model' => $model,
+                'messages' => [
+                    ['role' => 'system', 'content' => $sys],
+                    ['role' => 'user',   'content' => $user],
+                ],
+                $tokenKey => $maxTokens,
+            ], JSON_UNESCAPED_UNICODE);
+        };
+        $head = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
+        $url  = 'https://api.openai.com/v1/chat/completions';
+
+        // 요즘 모델은 max_completion_tokens, 옛 모델은 max_tokens 를 씁니다.
+        // 첫 번째로 안 되면 반대쪽으로 한 번 더 해봅니다.
+        [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why);
+        $j = $raw === false ? null : json_decode($raw, true);
+        $emsg = strtolower((string)($j['error']['message'] ?? ''));
+        if ($raw !== false && $code !== 200 && strpos($emsg, 'max_completion_tokens') !== false) {
+            [$code, $raw] = ai_post($url, $head, $mk($model, 'max_tokens'), $why);
+            $j = $raw === false ? null : json_decode($raw, true);
+            $emsg = strtolower((string)($j['error']['message'] ?? ''));
+        }
+        // 모델 이름이 안 맞으면 계정이 쓸 수 있는 것으로 다시 골라 한 번 더
+        if ($raw !== false && $code !== 200
+            && (strpos($emsg, 'model') !== false && (strpos($emsg, 'not exist') !== false
+                || strpos($emsg, 'not found') !== false || strpos($emsg, 'access') !== false))) {
+            $model = openai_model($key, $modelFile, true);
+            [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why);
+            $j = $raw === false ? null : json_decode($raw, true);
+        }
+        if ($raw === false) return [$code, false, false, $model];
+        $text = trim((string)($j['choices'][0]['message']['content'] ?? ''));
+        return [$code, $raw, $text === '' ? false : $text, $model];
+    }
+
+    // Anthropic (클로드)
+    $model = 'claude-opus-5';
+    $payload = json_encode([
+        'model' => $model, 'max_tokens' => $maxTokens, 'system' => $sys,
+        'thinking' => ['type' => 'adaptive'],
+        'messages' => [['role' => 'user', 'content' => $user]],
+    ], JSON_UNESCAPED_UNICODE);
+    [$code, $raw] = ai_post('https://api.anthropic.com/v1/messages', [
+        'Content-Type: application/json', 'x-api-key: ' . $key,
+        'anthropic-version: 2023-06-01',
+    ], $payload, $why);
+    if ($raw === false) return [$code, false, false, $model];
+    $j = json_decode($raw, true);
+    if (($j['stop_reason'] ?? '') === 'refusal') return [$code, $raw, false, $model];
+    $text = '';
+    foreach (($j['content'] ?? []) as $blk) if (($blk['type'] ?? '') === 'text') $text .= $blk['text'];
+    $text = trim($text);
+    return [$code, $raw, $text === '' ? false : $text, $model];
 }
 
 /** AI 가 돌려준 영어 오류를, 무엇을 해야 하는지 알 수 있는 말로 바꿉니다 */
@@ -243,29 +363,37 @@ function net_ok($r) {
 if ($action === 'net') {
     @set_time_limit(90);
 
+    $v     = ai_vendor($key);
+    $host  = ($v === 'openai') ? 'api.openai.com' : 'api.anthropic.com';
+    $mUrl  = ($v === 'openai') ? 'https://api.openai.com/v1/models'
+                               : 'https://api.anthropic.com/v1/models';
+    $vName = $key === '' ? 'Anthropic (클로드) · 키를 넣으면 챗GPT 도 됩니다' : ai_vendor_name($v);
+
     $wget  = function_exists('shell_exec') ? trim((string)@shell_exec('command -v wget 2>/dev/null')) : '';
-    $dns   = @gethostbyname('api.anthropic.com');
-    $dnsOk = ($dns !== 'api.anthropic.com' && filter_var($dns, FILTER_VALIDATE_IP));
+    $dns   = @gethostbyname($host);
+    $dnsOk = ($dns !== $host && filter_var($dns, FILTER_VALIDATE_IP));
 
     // 키 없이 부르면 401 이 옵니다. 401 이 왔다는 것 자체가 「닿았다」 는 뜻입니다.
-    $anth = net_try('https://api.anthropic.com/v1/models');
+    $anth = net_try($mUrl);
     $gh   = net_try('https://raw.githubusercontent.com/netformrnd-lab/test1/refs/heads/claude/ja-brand-dashboard-nas-4lvyrk/nas/manifest.txt');
     $anthOk = net_ok($anth);
     $ghOk   = net_ok($gh);
 
-    // 키가 있으면 그 키가 살아 있는지도 봅니다 (글자는 만들지 않아 돈이 들지 않습니다)
+    // 키가 있으면 그 키가 살아 있는지도 봅니다 (글자를 만들지 않아 돈이 들지 않습니다)
     $keyCheck = null; $keyOk = null;
     if ($key !== '' && $anthOk) {
-        $r = net_try('https://api.anthropic.com/v1/models',
-                     8, ['x-api-key: ' . $key, 'anthropic-version: 2023-06-01']);
+        $head = ($v === 'openai')
+            ? ['Authorization: Bearer ' . $key]
+            : ['x-api-key: ' . $key, 'anthropic-version: 2023-06-01'];
+        $r = net_try($mUrl, 8, $head);
         $c = net_code($r);
         $keyOk = ($c === 200);
-        $keyCheck = $c === 200 ? '정상 (키가 받아들여집니다)'
-                  : ($c === 401 ? '거부됨 (401) — 키가 틀렸거나 만료됐습니다'
-                  : ($c ? ('HTTP ' . $c) : '확인하지 못했습니다'));
+        if ($c === 200)                      $keyCheck = '정상 (키가 받아들여집니다)';
+        elseif ($c === 401 || $c === 403)    $keyCheck = '거부됨 (' . $c . ') — 키가 틀렸거나 만료됐습니다';
+        elseif ($c)                          $keyCheck = 'HTTP ' . $c;
+        else                                 $keyCheck = '확인하지 못했습니다';
     }
 
-    // 지금 쓸 수 있는 길이 하나라도 있나
     $ways = [];
     if (function_exists('curl_init')) $ways[] = 'curl';
     if (ini_get('allow_url_fopen') && extension_loaded('openssl')) $ways[] = 'file_get_contents';
@@ -285,17 +413,18 @@ if ($action === 'net') {
                 . 'DNS 서버를 8.8.8.8 로 넣어보세요.';
     }
     if ($dnsOk && !$anthOk && $ghOk) {
-        $todo[] = '다른 사이트는 되는데 api.anthropic.com 만 닿지 않습니다. '
-                . '방화벽·보안 정책에서 api.anthropic.com (443) 을 열어주세요.';
+        $todo[] = '다른 사이트는 되는데 ' . $host . ' 만 닿지 않습니다. '
+                . '방화벽·보안 정책에서 ' . $host . ' (443) 을 열어주세요.';
     }
     if ($dnsOk && !$anthOk && !$ghOk) {
         $todo[] = 'NAS 가 인터넷으로 아예 못 나갑니다. DSM → 제어판 → 네트워크 에서 '
                 . '게이트웨이·DNS 를 확인하고, 회사 방화벽에서 NAS 의 바깥 접속이 막혀 있는지 '
                 . '살펴보세요.';
     }
-    if ($anthOk && $key === '')  $todo[] = '길은 열려 있습니다. [🔑 AI 키 넣기] 로 키만 넣으면 됩니다.';
-    if ($keyOk === false)        $todo[] = 'AI 키가 받아들여지지 않습니다. console.anthropic.com 에서 '
-                                         . '새 키를 만들어 [🔑 AI 키 넣기] 로 다시 넣어주세요.';
+    if ($anthOk && $key === '')  $todo[] = '길은 열려 있습니다. [🔑 AI 키 넣기] 로 키만 넣으면 됩니다. '
+                                         . '(챗GPT sk-… / 클로드 sk-ant-… 둘 다 됩니다)';
+    if ($keyOk === false)        $todo[] = 'AI 키가 받아들여지지 않습니다. 새 키를 만들어 '
+                                         . '[🔑 AI 키 넣기] 로 다시 넣어주세요.';
     if ($anthOk && $keyOk === true) $todo[] = '길도 열려 있고 키도 정상입니다. 다시 한 번 해보세요.';
 
     $one = !$anthOk
@@ -307,8 +436,9 @@ if ($action === 'net') {
     jout([
         'ok' => true,
         '한줄'   => $one,
-        '닿나'   => ['AI 서버(api.anthropic.com)' => $anthOk ? '예' : '아니오',
-                     '다른 사이트(github)'         => $ghOk   ? '예' : '아니오'],
+        '어느 AI' => $vName,
+        '닿나'   => ['AI 서버(' . $host . ')' => $anthOk ? '예' : '아니오',
+                     '다른 사이트(github)'     => $ghOk   ? '예' : '아니오'],
         '주소찾기(DNS)' => $dnsOk ? ('예 · ' . $dns) : '아니오 — 이름을 못 찾습니다',
         '나가는 방법'   => [
             'curl 확장'        => function_exists('curl_init') ? '켜짐' : '꺼짐',
@@ -332,11 +462,16 @@ if ($action === 'net') {
 
 if ($action === 'check') {
     $u = is_file($LOG_FILE) ? json_decode((string)@file_get_contents($LOG_FILE), true) : null;
+    $v = ai_vendor($key);
     jout([
         'ok'        => true,
         '키등록됨'  => $key !== '',
         '키앞자리'  => $key !== '' ? substr($key, 0, 7) . '…' : '',   // 확인용, 전체는 절대 안 보냅니다
-        '모델'      => $MODEL,
+        '어느 AI'   => $key === '' ? '(키 없음)' : ai_vendor_name($v),
+        '모델'      => $key === '' ? ''
+                        : ($v === 'openai'
+                            ? (is_file($MODEL_FILE) ? trim((string)@file_get_contents($MODEL_FILE)) : '(고르는 중)')
+                            : 'claude-opus-5'),
         '쓴횟수'    => is_array($u) ? (int)($u['count'] ?? 0) : 0,
         '마지막'    => is_array($u) ? ($u['at'] ?? null) : null,
         '폴더쓰기'  => is_writable($DATA_DIR) ? '가능' : '불가',
@@ -350,12 +485,16 @@ if ($action === 'setkey') {
 
     if ($k === '') {                                   // 빈 값이면 지웁니다
         if (is_file($KEY_FILE)) @unlink($KEY_FILE);
+        @unlink($MODEL_FILE);
         jout(['ok' => true, '키등록됨' => false, '안내' => '키를 지웠습니다']);
     }
-    if (!preg_match('/^sk-ant-[A-Za-z0-9_\-]{20,200}$/', $k)) {
+    // 챗GPT(OpenAI) 키와 클로드(Anthropic) 키를 둘 다 받습니다
+    if (!preg_match('/^sk-[A-Za-z0-9_\-]{20,250}$/', $k)) {
         jout(['ok' => false, 'error' =>
-            'Anthropic 키 모양이 아닙니다. console.anthropic.com 에서 만든 '
-            . '"sk-ant-" 로 시작하는 키를 넣어주세요.'], 400);
+            '키 모양이 아닙니다.\n\n'
+            . '· 챗GPT: platform.openai.com 에서 만든 "sk-…" 키\n'
+            . '· 클로드: console.anthropic.com 에서 만든 "sk-ant-…" 키\n\n'
+            . '둘 중 아무거나 넣으시면 그에 맞춰 씁니다.'], 400);
     }
     if (!is_dir($DATA_DIR) && !@mkdir($DATA_DIR, 0775, true) && !is_dir($DATA_DIR)) {
         jout(['ok' => false, 'error' => 'data 폴더를 만들지 못했습니다'], 500);
@@ -368,7 +507,9 @@ if ($action === 'setkey') {
         jout(['ok' => false, 'error' => '키를 저장하지 못했습니다 (data 폴더 권한 확인)'], 500);
     }
     @chmod($KEY_FILE, 0640);
-    jout(['ok' => true, '키등록됨' => true, '안내' => '키를 NAS 에만 저장했습니다']);
+    @unlink($MODEL_FILE);                       // 회사가 바뀌었을 수 있으니 모델은 다시 고릅니다
+    jout(['ok' => true, '키등록됨' => true, '어느 AI' => ai_vendor_name(ai_vendor($k)),
+          '안내' => ai_vendor_name(ai_vendor($k)) . ' 키를 NAS 에만 저장했습니다']);
 }
 
 /* ---------------- 브랜드북 → 마스터프롬프트 ---------------- */
@@ -414,19 +555,8 @@ if ($action === 'prompt') {
 
     $user = ($brand !== '' ? "브랜드: $brand\n\n" : '') . "--- 브랜드북 ---\n" . $book;
 
-    $payload = json_encode([
-        'model'      => $MODEL,
-        'max_tokens' => $MAX_TOKENS,
-        'system'     => $sys,
-        'thinking'   => ['type' => 'adaptive'],
-        'messages'   => [['role' => 'user', 'content' => $user]],
-    ], JSON_UNESCAPED_UNICODE);
-
-    [$code, $raw] = ai_post('https://api.anthropic.com/v1/messages', [
-        'Content-Type: application/json',
-        'x-api-key: ' . $key,
-        'anthropic-version: 2023-06-01',
-    ], $payload, $why);
+    $why = [];
+    [$code, $raw, $text, $usedModel] = ai_ask($key, $sys, $user, $MAX_TOKENS, $MODEL_FILE, $why);
 
     if ($raw === false) {
         jout(['ok' => false, 'error' =>
@@ -448,13 +578,9 @@ if ($action === 'prompt') {
     if (($j['stop_reason'] ?? '') === 'refusal') {
         jout(['ok' => false, 'error' => 'AI 가 이 내용은 쓸 수 없다고 답했습니다.'], 400);
     }
-
-    $text = '';
-    foreach (($j['content'] ?? []) as $blk) {
-        if (($blk['type'] ?? '') === 'text') $text .= $blk['text'];
+    if ($text === false || $text === '') {
+        jout(['ok' => false, 'error' => 'AI 가 빈 답을 보냈습니다. 다시 시도해 주세요.'], 502);
     }
-    $text = trim($text);
-    if ($text === '') jout(['ok' => false, 'error' => 'AI 가 빈 답을 보냈습니다. 다시 시도해 주세요.'], 502);
 
     @file_put_contents($LOG_FILE, json_encode([
         'count' => (int)((json_decode((string)@file_get_contents($LOG_FILE), true)['count'] ?? 0)) + 1,
@@ -504,19 +630,8 @@ if ($action === 'summarize') {
           . ($title !== '' ? "회의 제목: $title\n" : '')
           . "\n--- 회의 메모 ---\n" . $notes;
 
-    $payload = json_encode([
-        'model'      => $MODEL,
-        'max_tokens' => $MAX_TOKENS,
-        'system'     => $sys,
-        'thinking'   => ['type' => 'adaptive'],
-        'messages'   => [['role' => 'user', 'content' => $user]],
-    ], JSON_UNESCAPED_UNICODE);
-
-    [$code, $raw] = ai_post('https://api.anthropic.com/v1/messages', [
-        'Content-Type: application/json',
-        'x-api-key: ' . $key,
-        'anthropic-version: 2023-06-01',
-    ], $payload, $why);
+    $why = [];
+    [$code, $raw, $text, $usedModel] = ai_ask($key, $sys, $user, $MAX_TOKENS, $MODEL_FILE, $why);
 
     if ($raw === false) {
         jout(['ok' => false, 'error' =>
@@ -542,12 +657,7 @@ if ($action === 'summarize') {
         jout(['ok' => false, 'error' => 'AI 가 이 내용은 정리할 수 없다고 답했습니다.'], 400);
     }
 
-    // 답에서 글자 블록만 모읍니다 (생각 블록은 건너뜁니다)
-    $text = '';
-    foreach (($j['content'] ?? []) as $blk) {
-        if (($blk['type'] ?? '') === 'text') $text .= $blk['text'];
-    }
-    $text = trim($text);
+    if ($text === false) $text = '';
 
     // JSON 으로 답하라고 했지만, 앞뒤에 다른 말이 붙는 경우도 대비합니다
     $parsed = json_decode($text, true);

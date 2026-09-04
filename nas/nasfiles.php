@@ -150,7 +150,135 @@ function safe_real_path($path, $rootFile) {
     return $real;
 }
 
+/* ═══════════════ 폴더 만들기 · 옮기기 · 올리기 ═══════════════════════
+   탐색기에서 하던 일을 대시보드 안에서도 할 수 있게 합니다.
+   훑는 폴더(scanroot) 안쪽에서만 됩니다. 그 밖은 손대지 않습니다.
+   ================================================================= */
+
+/** 훑는 폴더 안의 「폴더」 인지 확인합니다 (파일이 아니라) */
+function safe_real_dir($path, $rootFile) {
+    if (!is_file($rootFile)) return null;
+    $root = rtrim(trim((string)@file_get_contents($rootFile)), '/');
+    if ($root === '') return null;
+    $real     = realpath($path);
+    $realRoot = realpath($root);
+    if ($real === false || $realRoot === false) return null;
+    if ($real !== $realRoot && strpos($real, $realRoot . DIRECTORY_SEPARATOR) !== 0) return null;
+    if (!is_dir($real)) return null;
+    return $real;
+}
+
+/** 폴더·파일 이름으로 쓸 수 있는지 */
+function name_ok($name) {
+    $name = trim((string)$name);
+    if ($name === '' || $name === '.' || $name === '..') return null;
+    if (preg_match('#[/\\\\:*?"<>|]#', $name)) return null;      // 윈도우에서 못 쓰는 글자
+    if (preg_match('/[\x00-\x1f]/', $name)) return null;
+    if (substr($name, 0, 1) === '.') return null;                // 숨김 파일은 만들지 않습니다
+    if (function_exists('mb_strlen') ? mb_strlen($name, 'UTF-8') > 120 : strlen($name) > 200) return null;
+    return $name;
+}
+
+/** 같은 이름이 있으면 「이름 (2)」 로 비켜 갑니다 */
+function free_name($dir, $name) {
+    if (!file_exists($dir . '/' . $name)) return $name;
+    $ext  = '';
+    $base = $name;
+    $dot  = strrpos($name, '.');
+    if ($dot !== false && $dot > 0) { $ext = substr($name, $dot); $base = substr($name, 0, $dot); }
+    for ($i = 2; $i < 300; $i++) {
+        $try = $base . ' (' . $i . ')' . $ext;
+        if (!file_exists($dir . '/' . $try)) return $try;
+    }
+    return $base . '-' . substr(md5(uniqid('', true)), 0, 6) . $ext;
+}
+
 $action = $_GET['action'] ?? '';
+
+if ($action === 'mkdir') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $b    = json_decode((string)file_get_contents('php://input'), true);
+    $dir  = safe_real_dir((string)($b['dir'] ?? ''), $ROOT_FILE);
+    $name = name_ok($b['name'] ?? '');
+    if ($dir === null)  jout(['ok' => false, 'error' => '연결한 NAS 폴더 안쪽에서만 만들 수 있습니다'], 403);
+    if ($name === null) jout(['ok' => false, 'error' =>
+        '폴더 이름에 쓸 수 없는 글자가 있습니다 ( \\ / : * ? " < > | 는 못 씁니다)'], 400);
+    if (!is_writable($dir)) jout(['ok' => false, 'error' => perm_help($dir)], 403);
+
+    $name = free_name($dir, $name);
+    if (!@mkdir($dir . '/' . $name, 0775)) {
+        jout(['ok' => false, 'error' => '폴더를 만들지 못했습니다. ' . perm_help($dir)], 500);
+    }
+    @chmod($dir . '/' . $name, 0775);
+    jout(['ok' => true, '이름' => $name, '경로' => $dir . '/' . $name,
+          '안내' => '「' . $name . '」 폴더를 만들었습니다']);
+}
+
+if ($action === 'movehere') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $b    = json_decode((string)file_get_contents('php://input'), true);
+    $to   = safe_real_dir((string)($b['to'] ?? ''), $ROOT_FILE);
+    if ($to === null) jout(['ok' => false, 'error' => '연결한 NAS 폴더 안쪽으로만 옮길 수 있습니다'], 403);
+
+    $fromRaw = (string)($b['from'] ?? '');
+    $from    = safe_real_path($fromRaw, $ROOT_FILE);          // 파일
+    $isDir   = false;
+    if ($from === null) {
+        $from  = safe_real_dir($fromRaw, $ROOT_FILE);         // 폴더도 옮길 수 있습니다
+        $isDir = $from !== null;
+    }
+    if ($from === null) jout(['ok' => false, 'error' => '옮길 것을 찾지 못했습니다 (폴더 안쪽만 됩니다)'], 404);
+
+    if ($isDir) {
+        if ($from === $to) jout(['ok' => false, 'error' => '같은 자리입니다'], 400);
+        if (strpos($to . DIRECTORY_SEPARATOR, $from . DIRECTORY_SEPARATOR) === 0) {
+            jout(['ok' => false, 'error' => '폴더를 자기 안쪽으로는 옮길 수 없습니다'], 400);
+        }
+    }
+    if (dirname($from) === $to) jout(['ok' => true, '안내' => '이미 그 폴더에 있습니다', '경로' => $from]);
+    if (!is_writable($to))          jout(['ok' => false, 'error' => perm_help($to)], 403);
+    if (!is_writable(dirname($from))) jout(['ok' => false, 'error' => perm_help(dirname($from))], 403);
+
+    $name = free_name($to, basename($from));
+    if (!@rename($from, $to . '/' . $name)) {
+        jout(['ok' => false, 'error' => '옮기지 못했습니다. ' . perm_help($to)], 500);
+    }
+    jout(['ok' => true, '이름' => $name, '경로' => $to . '/' . $name,
+          '안내' => '「' . $name . '」 을(를) 옮겼습니다']);
+}
+
+if ($action === 'upload') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $dir = safe_real_dir((string)($_POST['dir'] ?? ''), $ROOT_FILE);
+    if ($dir === null) jout(['ok' => false, 'error' => '연결한 NAS 폴더 안쪽에만 올릴 수 있습니다'], 403);
+    if (!is_writable($dir)) jout(['ok' => false, 'error' => perm_help($dir)], 403);
+    if (!isset($_FILES['file'])) jout(['ok' => false, 'error' => '파일이 오지 않았습니다'], 400);
+
+    $f = $_FILES['file'];
+    if (($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        $why = [UPLOAD_ERR_INI_SIZE => '서버가 정한 크기를 넘었습니다 (php 설정 upload_max_filesize)',
+                UPLOAD_ERR_FORM_SIZE => '크기를 넘었습니다',
+                UPLOAD_ERR_PARTIAL   => '전송이 중간에 끊겼습니다',
+                UPLOAD_ERR_NO_FILE   => '파일이 없습니다',
+                UPLOAD_ERR_NO_TMP_DIR=> '서버에 임시 폴더가 없습니다',
+                UPLOAD_ERR_CANT_WRITE=> '서버가 임시 파일을 쓰지 못했습니다'];
+        jout(['ok' => false, 'error' => $why[$f['error']] ?? ('올리지 못했습니다 (' . $f['error'] . ')')], 400);
+    }
+    if ((int)$f['size'] > 200 * 1024 * 1024) {
+        jout(['ok' => false, 'error' => '파일이 너무 큽니다 (최대 200MB)'], 413);
+    }
+    $name = name_ok(basename((string)$f['name']));
+    if ($name === null) $name = 'file-' . date('Ymd-His');
+    $name = free_name($dir, $name);
+
+    if (!@move_uploaded_file($f['tmp_name'], $dir . '/' . $name)) {
+        jout(['ok' => false, 'error' => '저장하지 못했습니다. ' . perm_help($dir)], 500);
+    }
+    @chmod($dir . '/' . $name, 0664);
+    jout(['ok' => true, '이름' => $name, '경로' => $dir . '/' . $name,
+          '크기' => human((int)$f['size']), '안내' => '「' . $name . '」 을(를) 올렸습니다']);
+}
+
 
 if ($action === 'check') {
     jout([

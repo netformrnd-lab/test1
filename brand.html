@@ -468,6 +468,11 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .crumbsep{color:var(--text-muted);font-size:11px}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:9px;
   margin-bottom:14px}
+/* 끌어다 놓는 중인 폴더 칸 */
+.fcard.dragover{border-color:var(--accent);background:var(--accent-soft,rgba(59,130,246,.12));
+  box-shadow:0 0 0 3px rgba(59,130,246,.16)}
+.krow[draggable="true"]{cursor:grab}
+.krow[draggable="true"]:active{cursor:grabbing}
 .fcard{font-family:inherit;text-align:left;display:flex;align-items:center;gap:11px;
   padding:11px 13px;border-radius:var(--r);border:1px solid var(--border);
   background:var(--bg-card);color:var(--text-primary);cursor:pointer;min-width:0;
@@ -1056,6 +1061,7 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 <input type="file" id="fileInput" multiple style="display:none">
 
 <div id="usersLayer"></div>
+<input type="file" id="nasUpInput" multiple style="display:none" onchange="onNasUpload(this)">
 
 <div class="toast" id="toast"></div>
 
@@ -1071,7 +1077,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260905-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260905-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -2950,6 +2956,117 @@ function reloadFolder(navKey, startDir){
   toast('↻ 다시 불러옵니다');
 }
 
+/* ═══════════════ NAS 폴더에서 직접 정리하기 ═══════════════════════
+   탐색기를 열지 않고도 여기서 폴더를 만들고, 파일을 올리고, 옮깁니다.
+   연결한 NAS 폴더 안쪽에서만 됩니다.
+   ================================================================= */
+
+/* 새 폴더 만들기 */
+async function nasMkdir(navKey, startDir){
+  const dir = currentDirOf(navKey, startDir);
+  if(!dir){ toast('⚠️ 폴더를 먼저 열어주세요'); return; }
+  const name = prompt('여기에 만들 폴더 이름을 적어주세요.\n\n' + dir, '');
+  if(name === null || !name.trim()) return;
+  try{
+    const out = await apiJson('nasfiles.php?action=mkdir', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ dir, name: name.trim() })
+    });
+    delete browseCache[dir]; await loadBrowse(dir);
+    toast('📁 ' + (out['안내'] || '만들었습니다'));
+  }catch(e){ alert('폴더를 만들지 못했습니다.\n\n' + apiErrText(e)); }
+}
+
+/* 이 폴더에 파일 올리기 */
+function nasUpload(navKey, startDir){
+  const dir = currentDirOf(navKey, startDir);
+  if(!dir){ toast('⚠️ 폴더를 먼저 열어주세요'); return; }
+  const el = document.getElementById('nasUpInput');
+  if(!el) return;
+  el.dataset.dir = dir;
+  el.dataset.nav = navKey;
+  el.dataset.start = startDir || '';
+  el.value = '';
+  el.click();
+}
+
+async function onNasUpload(input){
+  const dir = input.dataset.dir || '';
+  const files = [...(input.files || [])];
+  input.value = '';
+  if(!dir || !files.length) return;
+  let done = 0; const failed = [];
+  toast('⬆ ' + files.length + '개 올리는 중…');
+  for(const f of files){
+    const fd = new FormData();
+    fd.append('dir', dir);
+    fd.append('file', f, f.name);
+    try{
+      const r = await fetch('nasfiles.php?action=upload', { method:'POST', body: fd });
+      const o = JSON.parse(await r.text());
+      if(!o.ok) throw new Error(o.error || '올리지 못했습니다');
+      done++;
+    }catch(e){ failed.push(f.name + ' — ' + (e.message || e)); }
+  }
+  delete browseCache[dir]; await loadBrowse(dir);
+  if(!failed.length) toast('✅ ' + done + '개를 NAS 폴더에 올렸습니다');
+  else alert(done + '개 올렸고 ' + failed.length + '개는 실패했습니다.\n\n' + failed.join('\n'));
+}
+
+/* NAS 안에서 파일·폴더 옮기기 — 끌어다 놓기 */
+let nasDrag = null;                                  // 지금 끌고 있는 NAS 경로
+
+function dragNasItem(ev, path){
+  nasDrag = path;
+  try{ ev.dataTransfer.setData('text/plain', path); }catch(e){}
+  ev.dataTransfer.effectAllowed = 'move';
+}
+function allowDropNas(ev){
+  if(!nasDrag) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  ev.currentTarget.classList.add('dragover');
+}
+function leaveDropNas(ev){ ev.currentTarget.classList.remove('dragover'); }
+
+async function dropNasInto(ev, toDir, navKey, startDir){
+  ev.preventDefault(); ev.stopPropagation();
+  ev.currentTarget.classList.remove('dragover');
+  const from = nasDrag || (ev.dataTransfer ? ev.dataTransfer.getData('text/plain') : '');
+  nasDrag = null;
+  if(!from || !toDir) return;
+  await nasMoveTo(from, toDir, navKey, startDir);
+}
+
+async function nasMoveTo(from, to, navKey, startDir){
+  try{
+    const out = await apiJson('nasfiles.php?action=movehere', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ from, to })
+    });
+    const here = currentDirOf(navKey, startDir);
+    delete browseCache[here]; delete browseCache[to];
+    await loadBrowse(here);
+    toast('📦 ' + (out['안내'] || '옮겼습니다'));
+  }catch(e){ alert('옮기지 못했습니다.\n\n' + apiErrText(e)); }
+}
+
+/* 단추로 옮기기 — 어디로 보낼지 골라줍니다 */
+async function nasMovePick(path, navKey, startDir){
+  const here = currentDirOf(navKey, startDir);
+  const c = browseCache[here];
+  const opts = [];
+  if(c && c.parent) opts.push({ p:c.parent, label:'⬆ 상위 폴더' });
+  ((c && c.folders) || []).forEach(f => { if(f.path !== path) opts.push({ p:f.path, label:'📁 ' + f.name }); });
+  if(!opts.length){ toast('⚠️ 여기에는 옮길 만한 폴더가 없습니다'); return; }
+  const pick = prompt('「' + path.split('/').pop() + '」 을(를) 어디로 옮길까요?\n\n'
+    + opts.map((o, i) => '  ' + (i + 1) + ' = ' + o.label).join('\n'), '1');
+  if(pick === null) return;
+  const o = opts[Number(pick.trim()) - 1];
+  if(!o){ toast('⚠️ 번호를 골라주세요'); return; }
+  await nasMoveTo(path, o.p, navKey, startDir);
+}
+
 function currentDirOf(navKey, startDir){
   const dir = folderNav[navKey] !== undefined ? folderNav[navKey] : (startDir || '');
   const c = browseCache[dir];
@@ -3237,6 +3354,10 @@ function folderBrowserHtml(navKey, startDir, opts){
       + jsq(startDir || '') + '\')">↻ 새로고침</button>'
     + '<button class="btn sm" onclick="copyDirPath(\'' + jsq(navKey) + '\',\''
       + jsq(startDir || '') + '\')">📋 폴더 경로</button>'
+    + '<button class="btn sm" onclick="nasMkdir(\'' + jsq(navKey) + '\',\''
+      + jsq(startDir || '') + '\')" title="이 폴더 안에 새 폴더를 만듭니다">＋ 새 폴더</button>'
+    + '<button class="btn sm" onclick="nasUpload(\'' + jsq(navKey) + '\',\''
+      + jsq(startDir || '') + '\')" title="이 폴더에 파일을 올립니다">⬆ 여기에 올리기</button>'
     + (opts.link
         ? '<button class="btn sm" onclick="linkCurrentDir(\'' + jsq(navKey) + '\',\''
           + jsq(startDir || '') + '\')">＋ 브랜드에 연결</button>' : '')
@@ -3247,7 +3368,11 @@ function folderBrowserHtml(navKey, startDir, opts){
   const folders = c.folders.length
     ? '<div class="fgrid">' + c.folders.map(f =>
         '<button class="fcard" onclick="gotoFolder(\'' + jsq(navKey) + '\',\''
-          + jsq(f.path) + '\')" title="' + esc(f.name) + '">'
+          + jsq(f.path) + '\')" title="' + esc(f.name) + ' — 파일을 끌어다 놓으면 이 폴더로 옮겨집니다"'
+        + ' draggable="true" ondragstart="dragNasItem(event,\'' + jsq(f.path) + '\')"'
+        + ' ondragover="allowDropNas(event)" ondragleave="leaveDropNas(event)"'
+        + ' ondrop="dropNasInto(event,\'' + jsq(f.path) + '\',\'' + jsq(navKey) + '\',\''
+          + jsq(startDir || '') + '\')">'
         + '<span class="fc-ico">📁</span><span class="fc-t">'
         + '<span class="fc-nm">' + esc(f.name) + '</span>'
         + '<span class="fc-sub">' + f.count.toLocaleString('ko-KR') + '개 · '
@@ -3298,12 +3423,16 @@ function folderBrowserHtml(navKey, startDir, opts){
 
   const files = (others.length && fOpen)
     ? '<div class="mbox" style="margin-top:8px">' + slice.map(x =>
-        '<div class="krow" style="align-items:center">'
+        '<div class="krow" style="align-items:center" draggable="true" '
+        + 'ondragstart="dragNasItem(event,\'' + jsq(x.path) + '\')" '
+        + 'title="끌어다 위 폴더에 놓으면 옮겨집니다">'
         + '<span class="fileicon" style="font-size:15px">' + fileIcon(x.name) + '</span>'
         + '<span style="flex:1;min-width:0;white-space:normal;word-break:break-all">'
           + '<b style="color:var(--text-primary)">' + esc(x.name) + '</b></span>'
         + '<span class="fmeta" style="white-space:nowrap;margin:0">'
           + esc(x.size) + ' · ' + esc(x.date) + '</span>'
+        + '<button class="btn sm" onclick="nasMovePick(\'' + jsq(x.path) + '\',\''
+          + jsq(navKey) + '\',\'' + jsq(startDir || '') + '\')" title="다른 폴더로 옮기기">📦</button>'
         + '<a class="btn sm" href="nasfiles.php?action=download&path='
           + encodeURIComponent(x.path) + '">⬇</a>'
         + '</div>').join('')
@@ -4550,7 +4679,7 @@ function viewNasFolders(b){
   let note;
   if(treeCache && treeCache.loading)      note = 'NAS 폴더를 찾아보는 중…';
   else if(treeCache && treeCache.error)   note = '⚠️ ' + treeCache.error.split('\n')[0];
-  else if(total)                          note = '폴더 이름을 눌러서 펼쳐 보세요 · 아래 파일을 끌어다 폴더 위에 놓으면 그리로 옮겨집니다';
+  else if(total)                          note = '폴더를 펼치면 그 안에서 새 폴더를 만들고, 파일을 올리고, 끌어다 옮길 수 있습니다';
   else if(hidden.length)                  note = '자동으로 찾은 폴더를 숨겨둔 상태입니다';
   else                                    note = '이름이 맞는 NAS 폴더를 찾지 못했습니다. 아래 버튼으로 직접 연결해 주세요';
 

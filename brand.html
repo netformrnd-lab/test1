@@ -764,7 +764,8 @@ body.locked .layout{grid-template-columns:minmax(0,1fr);padding:0}
   background:var(--bg-card);border:1px solid var(--border);
   font-size:12px;line-height:1.85;font-variant-numeric:tabular-nums}
 .treebox .tl{padding-left:18px}
-.treebox .tl2{padding-left:36px;color:var(--text-muted)}
+.treebox .tl2{padding-left:36px}
+.treebox .tl3{padding-left:54px;color:var(--text-muted)}
 .treebox span{color:var(--text-muted);font-size:11px;margin-left:4px}
 
 /* ---------- 브랜드북 ---------- */
@@ -1058,7 +1059,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260904-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260904-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4144,15 +4145,19 @@ function upRootBar(){
     + '<div class="treebox">'
       + '<div>📁 <b>아파트스퀘어</b></div>'
       + '<div class="tl">📁 <b>01_자료</b></div>'
-      + '<div class="tl2">📄 2026-09-04_9월 카탈로그.pdf</div>'
-      + '<div class="tl2">📄 2026-08-20_제안서 최종.pdf</div>'
+      + (i['연도폴더']
+          ? '<div class="tl2">📁 <b>2026</b></div>'
+            + '<div class="tl3">📄 2026-09-04_9월 카탈로그.pdf</div>'
+            + '<div class="tl3">📄 2026-08-20_제안서 최종.pdf</div>'
+            + '<div class="tl2">📁 2025</div>'
+          : '<div class="tl2">📄 2026-09-04_9월 카탈로그.pdf</div>'
+            + '<div class="tl2">📄 2026-08-20_제안서 최종.pdf</div>')
       + '<div class="tl">📁 <b>02_브랜드기록부</b></div>'
       + '<div class="tl">📁 <b>03_자동화도구</b></div>'
       + '<div>📁 <b>POUR공법</b></div>'
       + '<div class="tl">📁 01_자료 · 02_브랜드기록부 · 03_자동화도구</div>'
     + '</div>'
-    + '<div class="fmeta">폴더에 들어가면 파일이 바로 보입니다. '
-      + '이름 앞에 날짜가 붙어 있어 이름순 정렬이 곧 시간순입니다.</div>'
+    + '<div class="fmeta">이름 앞에 날짜가 붙어 있어 이름순 정렬이 곧 시간순입니다.</div>'
     + '<div class="sec-bar" style="margin-top:8px">'
       + ((i['안에쌓인수'] || 0)
           ? '<button class="btn sm primary" onclick="moveOldFiles()">'
@@ -4161,11 +4166,14 @@ function upRootBar(){
       + '<button class="btn sm' + (i['정리필요'] ? ' primary' : '') + '" '
         + 'onclick="tidyFolders()">🧹 폴더 정리하기'
         + (i['정리필요'] ? ' (' + i['정리필요'] + '곳)' : '') + '</button>'
+      + '<button class="btn sm" onclick="toggleYear()" '
+        + 'title="연도 폴더를 쓸지 정합니다. 바꾸면 지금 있는 파일도 정리해 드립니다.">'
+        + (i['연도폴더'] ? '📅 연도 폴더 쓰는 중' : '📅 연도 폴더 안 씀') + '</button>'
       + '<button class="btn sm" onclick="pickRoot()">📁 다른 폴더로 바꾸기</button>'
       + '<span class="hint">'
         + (i['정리필요']
-            ? '분류 안 된 파일이나 빈 폴더가 있습니다. 눌러서 제자리로 모으세요'
-            : '정리하면 흩어진 파일을 종류 폴더로 모으고 빈 폴더를 치웁니다')
+            ? '자리가 안 맞는 곳이 있습니다. 눌러서 제자리로 모으세요'
+            : '정리하면 흩어진 파일을 제자리로 모으고 빈 폴더를 치웁니다')
         + '</span>'
     + '</div>'
     + '</div>';
@@ -4230,6 +4238,29 @@ async function tidyFolders(quiet){
     if(!quiet) alert('정리하지 못했습니다.\n\n' + apiErrText(e));
     return null;
   }
+}
+
+/* 연도 폴더를 쓸지 바꾸고, 지금 있는 파일도 그 모양으로 정리합니다 */
+async function toggleYear(){
+  const now = !!((upRoot.info || {})['연도폴더']);
+  const next = !now;
+  if(!confirm(next
+      ? '연도 폴더를 쓸까요?\n\n'
+        + '  01_자료 / 2026 / 2026-09-04_카탈로그.pdf\n\n'
+        + '지금 있는 파일도 연도별로 옮겨드립니다.'
+      : '연도 폴더를 없앨까요?\n\n'
+        + '  01_자료 / 2026-09-04_카탈로그.pdf\n\n'
+        + '폴더에 들어가면 파일이 바로 보입니다.\n'
+        + '지금 있는 연도 폴더는 풀어서 위로 올립니다.')) return;
+  try{
+    await apiJson('files.php?action=setyear', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ year: next })
+    });
+    await tidyFolders(true);                    // 지금 있는 파일도 새 모양으로
+    upRoot.info = null; await loadUpRoot(true);
+    toast('📅 ' + (next ? '연도 폴더를 씁니다' : '연도 폴더를 없앴습니다'));
+  }catch(e){ alert('바꾸지 못했습니다.\n\n' + apiErrText(e)); }
 }
 
 async function moveOldFiles(){

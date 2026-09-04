@@ -119,6 +119,22 @@ const OLDSUBS = [
     '02_기록부' => '02_브랜드기록부',
 ];
 
+/* 연도 폴더를 쓸지 (기본: 씁니다) */
+$UPOPT_FILE = $DATA_DIR . '/uploadopt.json';
+function use_year($f) {
+    if (!is_file($f)) return true;                       // 기본값
+    $j = json_decode((string)@file_get_contents($f), true);
+    return !is_array($j) || !isset($j['year']) ? true : (bool)$j['year'];
+}
+$USE_YEAR = use_year($UPOPT_FILE);
+
+/* 파일 하나가 들어갈 자리 — <브랜드>/<종류>[/<연도>] */
+function dest_dir($root, $brand, $sub, $useYear, $when = null) {
+    $d = $root . '/' . $brand . '/' . $sub;
+    if ($useYear) $d .= '/' . date('Y', $when ?: time());
+    return $d;
+}
+
 $FILE_DIR  = upload_root($UPROOT_FILE) ?: ($DATA_DIR . '/files');
 /* 예전에 data/files 에 올린 파일도 계속 열려야 합니다 */
 $FILE_DIRS = array_values(array_unique(array_filter([$FILE_DIR, $DATA_DIR . '/files'], 'is_dir')));
@@ -325,11 +341,16 @@ if ($action === 'uploadroot') {
                 $p2 = $bd . '/' . $e;
                 if (is_file($p2)) { $untidy++; continue; }          // 브랜드 폴더에 널린 파일
                 if (isset(OLDSUBS[$e]) && !in_array($e, $subsNow, true)) { $untidy++; continue; }
-                if (in_array($e, $subsNow, true)) {
-                    foreach ((array)@scandir($p2) as $f) {           // 종류 폴더 안의 하위 폴더(연도)
-                        if ($f === '.' || $f === '..' || $f === '@eaDir') continue;
-                        if (is_dir($p2 . '/' . $f)) { $untidy++; break; }
-                    }
+                if (!in_array($e, $subsNow, true)) continue;
+                // 종류 폴더 안이 지금 설정과 다른 모양이면 정리 대상입니다
+                foreach ((array)@scandir($p2) as $f) {
+                    if ($f === '.' || $f === '..' || $f === '@eaDir') continue;
+                    $sp = $p2 . '/' . $f;
+                    $isDir  = is_dir($sp);
+                    $isYear = $isDir && preg_match('/^\d{4}$/', $f);
+                    if ($USE_YEAR && is_file($sp))            { $untidy++; break; }   // 연도 폴더 밖의 파일
+                    if ($USE_YEAR && $isDir && !$isYear)      { $untidy++; break; }   // 연도가 아닌 폴더
+                    if (!$USE_YEAR && $isDir)                 { $untidy++; break; }   // 남아 있는 연도 폴더
                 }
             }
             if ($untidy > 200) break;
@@ -342,6 +363,7 @@ if ($action === 'uploadroot') {
         '공유폴더로' => $set !== null,
         '안에쌓인수' => $inside,
         '정리필요'   => $untidy,
+        '연도폴더'   => $USE_YEAR,
         '적어둔값'   => $raw,
         '문제'      => ($raw !== '' && $set === null)
             ? (is_dir($raw) ? '그 폴더에 쓸 권한이 없습니다 (http 사용자에게 쓰기 권한을 주세요)'
@@ -413,14 +435,24 @@ function drop_empty($dir, $keep) {
 }
 
 /* 폴더가 어떻게 생겼는지 적어둡니다 (탐색기에서 열어보는 사람을 위해) */
-function write_guide($root) {
+function write_guide($root, $useYear = true) {
+    $tree = $useYear
+        ? "  브랜드 이름 (아파트스퀘어, POUR공법 …)\r\n"
+        . "    01_자료           카탈로그·제안서·이미지 등 올린 파일\r\n"
+        . "      2026            올린 해마다 폴더가 하나씩 생깁니다\r\n"
+        . "      2025\r\n"
+        . "    02_브랜드기록부   브랜드 기록부 파일\r\n"
+        . "      2026\r\n"
+        . "    03_자동화도구     블로그·카페 생성기 같은 도구 파일\r\n"
+        . "      2026\r\n\r\n"
+        : "  브랜드 이름 (아파트스퀘어, POUR공법 …)\r\n"
+        . "    01_자료           카탈로그·제안서·이미지 등 올린 파일\r\n"
+        . "    02_브랜드기록부   브랜드 기록부 파일\r\n"
+        . "    03_자동화도구     블로그·카페 생성기 같은 도구 파일\r\n\r\n";
     $txt = "브랜드 마케팅팀 폴더 안내\r\n"
          . "==========================\r\n\r\n"
          . "이 폴더는 브랜드 대시보드가 자동으로 정리합니다.\r\n\r\n"
-         . "  브랜드 이름 (아파트스퀘어, POUR공법 …)\r\n"
-         . "    01_자료           카탈로그·제안서·이미지 등 올린 파일\r\n"
-         . "    02_브랜드기록부   브랜드 기록부 파일\r\n"
-         . "    03_자동화도구     블로그·카페 생성기 같은 도구 파일\r\n\r\n"
+         . $tree
          . "파일 이름 앞에 날짜가 붙어 있어(2026-09-04_…),\r\n"
          . "이름순으로 정렬하면 시간 순으로 늘어섭니다.\r\n\r\n"
          . "여기서 파일을 옮기거나 이름을 바꾸면 대시보드에서 찾지 못합니다.\r\n"
@@ -447,14 +479,18 @@ if ($action === 'tidy') {
     $subsNow = array_values(SUBDIRS);
     $deadline = microtime(true) + 25;
 
-    $place = function ($src, $brandDir, $sub, $rel) use (&$map, &$moved, &$failed, $root) {
+    $useYear = $USE_YEAR;
+    $place = function ($src, $brandDir, $sub, $rel) use (&$map, &$moved, &$failed, $root, $useYear) {
         $name = basename($src);
+        $t = @filemtime($src) ?: time();
         // 날짜가 없으면 파일이 만들어진 날을 앞에 붙입니다
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}_/', $name)) {
-            $t = @filemtime($src) ?: time();
+        if (preg_match('/^(\d{4})-\d{2}-\d{2}_/', $name, $m)) {
+            $year = $m[1];                                 // 이름에 적힌 해를 씁니다
+        } else {
             $name = date('Y-m-d', $t) . '_' . $name;
+            $year = date('Y', $t);
         }
-        $dstDir = $brandDir . '/' . $sub;
+        $dstDir = $brandDir . '/' . $sub . ($useYear ? '/' . $year : '');
         if (!is_dir($dstDir) && !@mkdir($dstDir, 0775, true) && !is_dir($dstDir)) {
             $failed[] = $rel . ' (폴더를 만들지 못함)'; return;
         }
@@ -504,7 +540,7 @@ if ($action === 'tidy') {
         drop_empty($brandDir, $brandDir);
     }
 
-    write_guide($root);
+    write_guide($root, $USE_YEAR);
 
     jout(['ok' => true, '옮긴수' => $moved, '자리바뀜' => $map,
           '못한것' => array_slice($failed, 0, 20),
@@ -559,6 +595,19 @@ if ($action === 'movefiles') {
             ? ($n . '개 파일을 공유폴더로 옮겼습니다'
                . (count($failed) ? ' (' . count($failed) . '개는 실패)' : ''))
             : '옮길 파일이 없습니다']);
+}
+
+/* 연도 폴더를 쓸지 정합니다 */
+if ($action === 'setyear') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $b = json_decode((string)file_get_contents('php://input'), true);
+    $on = !empty($b['year']);
+    if (@file_put_contents($UPOPT_FILE, json_encode(['year' => $on])) === false) {
+        jout(['ok' => false, 'error' => '설정을 저장하지 못했습니다 (data 폴더 권한)'], 500);
+    }
+    jout(['ok' => true, '연도폴더' => $on,
+          '안내' => $on ? '연도 폴더를 씁니다'
+                        : '연도 폴더를 쓰지 않습니다']);
 }
 
 if ($action === 'setuploadroot') {
@@ -638,12 +687,11 @@ if ($action === 'upload') {
         jout(['ok' => false, 'error' => '파일이 너무 큽니다 (최대 200MB)'], 413);
     }
 
-    // 브랜드 폴더 > 종류 폴더. 그 안에 파일이 바로 보이게 둡니다.
-    //   아파트스퀘어 / 01_자료 / 2026-09-03_카탈로그.pdf
-    // 연도 폴더는 두지 않습니다. 파일 이름 앞에 날짜가 붙어 있어
-    // 이름순으로만 정렬해도 시간 순으로 늘어섭니다.
+    // 브랜드 폴더 > 종류 폴더 > 연도 폴더
+    //   아파트스퀘어 / 01_자료 / 2026 / 2026-09-03_카탈로그.pdf
+    // 연도 폴더는 [📅 연도 폴더] 로 끄고 켤 수 있습니다.
     $sub = SUBDIRS[trim($_POST['sub'] ?? '')] ?? SUBDIRS['자료'];
-    $brandDir = $FILE_DIR . '/' . safe_name($_POST['brand'] ?? '', '_공통') . '/' . $sub;
+    $brandDir = dest_dir($FILE_DIR, safe_name($_POST['brand'] ?? '', '_공통'), $sub, $USE_YEAR);
 
     if (!is_dir($brandDir) && !@mkdir($brandDir, 0775, true) && !is_dir($brandDir)) {
         jout(['ok' => false, 'error' =>

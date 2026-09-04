@@ -55,6 +55,47 @@ function load_key($f) {
     return is_string($v) ? trim($v) : '';
 }
 
+/** wget 으로 한 번 부릅니다.
+ *  -q -O 만 쓰면 서버가 401·400 을 주었을 때 아무것도 안 남아서
+ *  「받지 못했습니다」 로만 보입니다. 실제 이유(키 거부 등)를 알 수 있게
+ *  응답 코드와 본문을 함께 받아옵니다.
+ *  옛 wget(--content-on-error 를 모르는 판)이면 예전 방식으로 한 번 더 합니다. */
+function bh_wget($url, $headers, $postFile, $sec, &$code, &$note) {
+    $code = 0; $note = '';
+    if (!function_exists('shell_exec')) { $note = 'shell_exec 이 막혀 있음'; return false; }
+
+    $outF = tempnam(sys_get_temp_dir(), 'wo');
+    $errF = tempnam(sys_get_temp_dir(), 'we');
+    $mk = function ($extra) use ($url, $headers, $postFile, $sec, $outF, $errF) {
+        $c = 'wget' . $extra . ' -T ' . (int)$sec . ' -t 1 -O ' . escapeshellarg($outF);
+        foreach ($headers as $h) $c .= ' --header=' . escapeshellarg($h);
+        if ($postFile !== null) $c .= ' --post-file=' . escapeshellarg($postFile);
+        return $c . ' ' . escapeshellarg($url) . ' 2>' . escapeshellarg($errF);
+    };
+
+    $body = false;
+    foreach ([' -S --content-on-error', ' -q'] as $extra) {
+        @file_put_contents($outF, '');
+        @file_put_contents($errF, '');
+        @shell_exec($mk($extra));
+        $e = (string)@file_get_contents($errF);
+        if (preg_match_all('#HTTP/[\d.]+\s+(\d{3})#', $e, $m)) $code = (int)end($m[1]);
+        $b = (string)@file_get_contents($outF);
+        if ($b !== '' || $code > 0) { $body = $b; break; }
+        // 옵션을 못 알아들은 경우에만 예전 방식으로 다시 해봅니다
+        $old = stripos($e, 'unrecognized option') !== false
+            || stripos($e, 'invalid option')      !== false
+            || stripos($e, 'illegal option')      !== false
+            || stripos($e, 'unknown option')      !== false;
+        if (!$old) { $note = trim(strtok($e, "\n")) ?: '받지 못함'; break; }
+    }
+    @unlink($outF); @unlink($errF);
+
+    if ($body === false) { if ($note === '') $note = '받지 못함'; return false; }
+    if ($body === '' && $code === 0) { $note = '받지 못함'; return false; }
+    return $body;
+}
+
 /** 인터넷으로 물어봅니다. NAS 마다 막힌 방법이 달라 세 가지를 차례로 씁니다. */
 function ai_post($url, $headers, $body, &$why) {
     $why = [];
@@ -92,17 +133,13 @@ function ai_post($url, $headers, $body, &$why) {
 
     if (function_exists('shell_exec')) {
         $tmpB = tempnam(sys_get_temp_dir(), 'aib');
-        $tmpO = tempnam(sys_get_temp_dir(), 'aio');
         file_put_contents($tmpB, $body);
-        $cmd = 'wget -q -T 180 -O ' . escapeshellarg($tmpO)
-             . ' --post-file=' . escapeshellarg($tmpB);
-        foreach ($headers as $h) $cmd .= ' --header=' . escapeshellarg($h);
-        $cmd .= ' ' . escapeshellarg($url) . ' 2>/dev/null';
-        @shell_exec($cmd);
-        $out = @file_get_contents($tmpO);
-        @unlink($tmpB); @unlink($tmpO);
-        if (is_string($out) && $out !== '') return [200, $out];
-        $why[] = 'wget 으로도 받지 못했습니다';
+        $code = 0; $note = '';
+        $out = bh_wget($url, $headers, $tmpB, 180, $code, $note);
+        @unlink($tmpB);
+        // 401·400 같은 오류 응답도 그대로 돌려줍니다. 그래야 진짜 이유가 보입니다.
+        if ($out !== false) return [$code ?: 200, $out];
+        $why[] = 'wget: ' . ($note ?: '받지 못했습니다');
     } else { $why[] = 'shell_exec 이 막혀 있습니다'; }
 
     return [0, false];
@@ -115,15 +152,16 @@ $key    = load_key($KEY_FILE);
    NAS 가 밖으로 나가는 길이 막히면 AI 가 안 됩니다.
    어디가 막혔는지 하나씩 짚어 알려줍니다. (?action=net)
    ================================================================= */
-function net_try($url, $sec = 6) {
+function net_try($url, $sec = 8, $headers = []) {
     $out = [];
 
     // 1) curl
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_NOBODY => false,
-            CURLOPT_TIMEOUT => $sec, CURLOPT_CONNECTTIMEOUT => $sec, CURLOPT_FOLLOWLOCATION => true]);
-        $body = curl_exec($ch);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $sec, CURLOPT_CONNECTTIMEOUT => $sec,
+            CURLOPT_FOLLOWLOCATION => true, CURLOPT_HTTPHEADER => $headers]);
+        curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
         curl_close($ch);
@@ -132,33 +170,40 @@ function net_try($url, $sec = 6) {
         $out['curl'] = '확장이 꺼져 있음';
     }
 
-    // 2) PHP 내장
-    if (ini_get('allow_url_fopen')) {
-        $ctx = stream_context_create(['http' => ['timeout' => $sec, 'ignore_errors' => true]]);
+    // 2) PHP 내장 (https 로 나가려면 openssl 이 켜져 있어야 합니다)
+    if (!ini_get('allow_url_fopen')) {
+        $out['file_get_contents'] = 'allow_url_fopen 이 꺼져 있음';
+    } elseif (strpos($url, 'https://') === 0 && !extension_loaded('openssl')) {
+        $out['file_get_contents'] = 'openssl 이 꺼져 있어 https 로 못 나감';
+    } else {
+        $ctx = stream_context_create(['http' => ['timeout' => $sec, 'ignore_errors' => true,
+            'header' => implode("\r\n", $headers)]]);
         $body = @file_get_contents($url, false, $ctx);
         $code = 0;
         foreach (($http_response_header ?? []) as $h) {
             if (preg_match('#^HTTP/[\d.]+\s+(\d{3})#', $h, $m)) $code = (int)$m[1];
         }
-        $out['file_get_contents'] = $body !== false ? ('HTTP ' . ($code ?: '200')) : '실패';
-    } else {
-        $out['file_get_contents'] = 'allow_url_fopen 이 꺼져 있음';
+        $out['file_get_contents'] = ($body !== false || $code > 0) ? ('HTTP ' . ($code ?: 200)) : '실패';
     }
 
-    // 3) wget
-    if (function_exists('shell_exec')) {
-        $tmp = tempnam(sys_get_temp_dir(), 'net');
-        @shell_exec('wget -q -T ' . (int)$sec . ' -O ' . escapeshellarg($tmp) . ' '
-                  . escapeshellarg($url) . ' 2>/dev/null');
-        $got = @filesize($tmp);
-        @unlink($tmp);
-        $out['wget'] = ($got > 0) ? '받아옴' : '받지 못함';
-    } else {
-        $out['wget'] = 'shell_exec 이 막혀 있음';
-    }
+    // 3) wget — 오류 응답(401 등)도 「닿은 것」 입니다
+    $code = 0; $note = '';
+    $body = bh_wget($url, $headers, null, $sec, $code, $note);
+    $out['wget'] = $code > 0 ? ('HTTP ' . $code)
+                 : (($body !== false && $body !== '') ? '받아옴' : ($note ?: '받지 못함'));
+
     return $out;
 }
 
+/** 응답 코드만 뽑아냅니다 (없으면 0) */
+function net_code($r) {
+    foreach ($r as $v) {
+        if (preg_match('/^HTTP (\d{3})$/', $v, $m)) return (int)$m[1];
+    }
+    return 0;
+}
+
+/** 서버까지 닿았나 — 401·404 처럼 오류를 돌려줘도 「닿은 것」 입니다 */
 function net_ok($r) {
     foreach ($r as $v) {
         if (strpos($v, 'HTTP ') === 0 || $v === '받아옴') return true;
@@ -167,57 +212,86 @@ function net_ok($r) {
 }
 
 if ($action === 'net') {
-    @set_time_limit(60);
+    @set_time_limit(90);
 
-    $wget = function_exists('shell_exec') ? trim((string)@shell_exec('command -v wget 2>/dev/null')) : '';
-    $dns  = @gethostbyname('api.anthropic.com');
+    $wget  = function_exists('shell_exec') ? trim((string)@shell_exec('command -v wget 2>/dev/null')) : '';
+    $dns   = @gethostbyname('api.anthropic.com');
     $dnsOk = ($dns !== 'api.anthropic.com' && filter_var($dns, FILTER_VALIDATE_IP));
 
-    $anth = net_try('https://api.anthropic.com/v1/models');       // 키 없이도 401 이면 「닿았다」
+    // 키 없이 부르면 401 이 옵니다. 401 이 왔다는 것 자체가 「닿았다」 는 뜻입니다.
+    $anth = net_try('https://api.anthropic.com/v1/models');
     $gh   = net_try('https://raw.githubusercontent.com/netformrnd-lab/test1/refs/heads/claude/ja-brand-dashboard-nas-4lvyrk/nas/manifest.txt');
-
     $anthOk = net_ok($anth);
     $ghOk   = net_ok($gh);
 
-    // 무엇을 하면 되는지 골라 줍니다
+    // 키가 있으면 그 키가 살아 있는지도 봅니다 (글자는 만들지 않아 돈이 들지 않습니다)
+    $keyCheck = null; $keyOk = null;
+    if ($key !== '' && $anthOk) {
+        $r = net_try('https://api.anthropic.com/v1/models',
+                     8, ['x-api-key: ' . $key, 'anthropic-version: 2023-06-01']);
+        $c = net_code($r);
+        $keyOk = ($c === 200);
+        $keyCheck = $c === 200 ? '정상 (키가 받아들여집니다)'
+                  : ($c === 401 ? '거부됨 (401) — 키가 틀렸거나 만료됐습니다'
+                  : ($c ? ('HTTP ' . $c) : '확인하지 못했습니다'));
+    }
+
+    // 지금 쓸 수 있는 길이 하나라도 있나
+    $ways = [];
+    if (function_exists('curl_init')) $ways[] = 'curl';
+    if (ini_get('allow_url_fopen') && extension_loaded('openssl')) $ways[] = 'file_get_contents';
+    if ($wget !== '') $ways[] = 'wget';
+
     $todo = [];
-    if (!function_exists('curl_init')) {
+    if (!function_exists('curl_init') || !extension_loaded('openssl')) {
+        $miss = [];
+        if (!function_exists('curl_init'))    $miss[] = 'curl';
+        if (!extension_loaded('openssl'))     $miss[] = 'openssl';
         $todo[] = 'DSM → 웹 스테이션 → PHP 프로필 → 우리 프로필 [편집] → 「확장」 에서 '
-                . 'curl 을 켜고 저장하세요. 이것만으로 되는 경우가 가장 많습니다.';
+                . implode(' 과 ', $miss) . ' 을(를) 켜고 저장하세요. '
+                . '(openssl 이 꺼져 있으면 PHP 가 https 주소로 아예 나가지 못합니다)';
     }
     if (!$dnsOk) {
         $todo[] = 'NAS 가 주소를 찾지 못합니다(DNS). DSM → 제어판 → 네트워크 → 「일반」 에서 '
                 . 'DNS 서버를 8.8.8.8 로 넣어보세요.';
     }
     if ($dnsOk && !$anthOk && $ghOk) {
-        $todo[] = '인터넷은 되는데 api.anthropic.com 만 막혔습니다. 방화벽·보안 정책에서 '
-                . 'api.anthropic.com (443) 을 열어주세요.';
+        $todo[] = '다른 사이트는 되는데 api.anthropic.com 만 닿지 않습니다. '
+                . '방화벽·보안 정책에서 api.anthropic.com (443) 을 열어주세요.';
     }
     if ($dnsOk && !$anthOk && !$ghOk) {
         $todo[] = 'NAS 가 인터넷으로 아예 못 나갑니다. DSM → 제어판 → 네트워크 에서 '
                 . '게이트웨이·DNS 를 확인하고, 회사 방화벽에서 NAS 의 바깥 접속이 막혀 있는지 '
                 . '살펴보세요.';
     }
-    if ($anthOk && $key === '') $todo[] = '길은 열려 있습니다. [🔑 AI 키 넣기] 로 키만 넣으면 됩니다.';
-    if ($anthOk && $key !== '') $todo[] = '지금은 길이 열려 있습니다. 다시 한 번 해보세요.';
+    if ($anthOk && $key === '')  $todo[] = '길은 열려 있습니다. [🔑 AI 키 넣기] 로 키만 넣으면 됩니다.';
+    if ($keyOk === false)        $todo[] = 'AI 키가 받아들여지지 않습니다. console.anthropic.com 에서 '
+                                         . '새 키를 만들어 [🔑 AI 키 넣기] 로 다시 넣어주세요.';
+    if ($anthOk && $keyOk === true) $todo[] = '길도 열려 있고 키도 정상입니다. 다시 한 번 해보세요.';
+
+    $one = !$anthOk
+        ? ($ghOk ? '⚠️ 인터넷은 되는데 AI 서버에는 닿지 못합니다'
+                 : '❌ NAS 가 인터넷으로 나가지 못합니다')
+        : ($keyOk === false ? '⚠️ AI 서버까지는 닿지만 키가 거부됩니다'
+                            : '✅ AI 서버까지 닿습니다');
 
     jout([
         'ok' => true,
-        '한줄'   => $anthOk ? '✅ AI 서버까지 닿습니다'
-                            : ($ghOk ? '⚠️ 인터넷은 되는데 AI 서버만 막혀 있습니다'
-                                     : '❌ NAS 가 인터넷으로 나가지 못합니다'),
+        '한줄'   => $one,
         '닿나'   => ['AI 서버(api.anthropic.com)' => $anthOk ? '예' : '아니오',
                      '다른 사이트(github)'         => $ghOk   ? '예' : '아니오'],
         '주소찾기(DNS)' => $dnsOk ? ('예 · ' . $dns) : '아니오 — 이름을 못 찾습니다',
         '나가는 방법'   => [
             'curl 확장'        => function_exists('curl_init') ? '켜짐' : '꺼짐',
             'allow_url_fopen'  => ini_get('allow_url_fopen') ? '켜짐' : '꺼짐',
-            'openssl(https)'   => extension_loaded('openssl') ? '켜짐' : '꺼짐',
+            'openssl(https)'   => extension_loaded('openssl') ? '켜짐' : '꺼짐 — PHP 가 https 로 못 나감',
             'shell_exec'       => function_exists('shell_exec') ? '가능' : '막힘',
             'wget'             => $wget !== '' ? $wget : '없음',
+            '지금 쓸 수 있는 길' => $ways ? implode(' · ', $ways) : '없음',
         ],
         'AI 서버에 해본 것'   => $anth,
         '다른 사이트에 해본 것' => $gh,
+        '키 확인' => $key === '' ? '키가 아직 없습니다' : ($keyCheck ?: '서버에 닿지 못해 확인하지 못했습니다'),
         '프록시설정' => [
             'http_proxy'  => getenv('http_proxy') ?: '(없음)',
             'https_proxy' => getenv('https_proxy') ?: '(없음)',

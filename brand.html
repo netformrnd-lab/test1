@@ -1071,7 +1071,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260904-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260904-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -8588,8 +8588,9 @@ function netPanel(){
             + '</ul></div>'
           + rowsOf('닿나', d['닿나'])
           + rowsOf('나가는 방법 (PHP)', d['나가는 방법'])
-          + '<div class="vz-head" style="margin-top:12px">주소찾기(DNS)</div>'
-          + '<div class="fmeta">' + esc(String(d['주소찾기(DNS)'] || '')) + '</div>'
+          + '<div class="vz-head" style="margin-top:12px">주소찾기(DNS) · 키</div>'
+          + '<div class="fmeta">' + esc(String(d['주소찾기(DNS)'] || ''))
+            + '<br>🔑 ' + esc(String(d['키 확인'] || '')) + '</div>'
           + rowsOf('AI 서버에 해본 것', d['AI 서버에 해본 것'])
           + rowsOf('다른 사이트에 해본 것', d['다른 사이트에 해본 것'])
         : '');

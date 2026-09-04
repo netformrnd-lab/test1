@@ -1071,7 +1071,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260905-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260905-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6465,7 +6465,7 @@ function viewInquiries(b){
    AI 를 부르는 건 NAS 입니다. 사무실 브라우저는 밖으로 못 나가고,
    키를 브라우저에 두면 대시보드를 여는 누구나 볼 수 있어서입니다.
    ================================================================= */
-const aiState = { ready:null, busy:null, error:null, netFail:false };
+const aiState = { ready:null, busy:null, error:null, netFail:false, wait:null };
 
 async function aiCheck(){
   if(STORAGE_MODE !== 'nas') return;
@@ -6478,17 +6478,29 @@ async function aiCheck(){
 }
 
 async function aiSetKey(){
-  const v = prompt('AI 키를 넣어주세요. 챗GPT · 클로드 둘 다 됩니다.\n\n'
-    + '· 챗GPT: platform.openai.com → API keys 에서 만든 「sk-…」 키\n'
-    + '· 클로드: console.anthropic.com 에서 만든 「sk-ant-…」 키\n'
-    + '  (넣으신 키를 보고 알아서 그 회사 AI 를 씁니다)\n\n'
+  const v = prompt('AI 키를 넣어주세요.\n\n'
+    + '· 챗GPT: platform.openai.com → API keys 의 「sk-…」 키\n'
+    + '· 클로드: console.anthropic.com 의 「sk-ant-…」 키\n'
+    + '· 마누스: 마누스 앱 → API 설정에서 만든 키\n\n'
     + '· 키는 NAS 에만 저장되고, 화면으로 다시 보이지 않습니다.\n'
     + '· 비워두고 확인을 누르면 저장된 키를 지웁니다.', '');
   if(v === null) return;
+  const k = v.trim();
+  let vendor = '';
+  if(k && !/^sk-/.test(k)){
+    // sk- 로 시작하지 않으면 어느 회사인지 물어봅니다 (마누스는 키 모양이 정해져 있지 않습니다)
+    const pick = prompt('어느 AI 의 키인가요? 번호를 넣어주세요.\n\n'
+      + '  1 = 마누스 (Manus)\n'
+      + '  2 = 챗GPT (OpenAI)\n'
+      + '  3 = 클로드 (Anthropic)', '1');
+    if(pick === null) return;
+    vendor = { '1':'manus', '2':'openai', '3':'anthropic' }[pick.trim()] || '';
+    if(!vendor){ toast('⚠️ 1·2·3 중에서 골라주세요'); return; }
+  }
   try{
     const res = await fetch('ai.php?action=setkey', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ key: v.trim() })
+      body: JSON.stringify({ key: k, vendor })
     });
     const out = JSON.parse(await res.text());
     if(!out.ok) throw new Error(out.error || '저장하지 못했습니다');
@@ -6497,6 +6509,24 @@ async function aiSetKey(){
       : '키를 지웠습니다');
     await aiCheck();
   }catch(e){ showError('키를 저장하지 못했습니다.\n\n' + (e.message || e)); }
+}
+
+/* 마누스처럼 오래 걸리는 AI 는 「작업 시작 → 끝났나 확인」 두 걸음입니다.
+   PHP 가 몇 분씩 붙잡고 있으면 NAS 가 요청을 끊어버려서, 화면이 물어봅니다. */
+async function waitTask(taskId, kind, onTick){
+  const started = Date.now();
+  const LIMIT = 6 * 60 * 1000;                 // 6분까지 기다립니다
+  let n = 0;
+  while(Date.now() - started < LIMIT){
+    await new Promise(r => setTimeout(r, n === 0 ? 3000 : 4000));
+    n++;
+    const out = await apiJson('ai.php?action=taskcheck&kind=' + encodeURIComponent(kind)
+      + '&id=' + encodeURIComponent(taskId));
+    if(out['상태'] === '끝') return out;
+    if(onTick) onTick(Math.round((Date.now() - started) / 1000));
+  }
+  throw new Error('마누스가 6분 안에 끝내지 못했습니다.\n'
+    + '마누스 앱에서 그 작업이 어떻게 됐는지 확인해 보세요.');
 }
 
 /* 회의 하나를 AI 에게 정리해 달라고 합니다 */
@@ -6511,8 +6541,14 @@ async function aiSummarize(id){
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ notes: m.body, title: m.title || '', brand: m.brand || '' })
     });
-    const out = JSON.parse(await res.text());
+    let out = JSON.parse(await res.text());
     if(!out.ok) throw new Error(out.error || '정리하지 못했습니다');
+
+    // 마누스는 작업이 끝날 때까지 기다립니다 (화면에 몇 초 지났는지 보여줍니다)
+    if(out['진행중']){
+      aiState.wait = 0; render();
+      out = await waitTask(out['작업번호'], 'summarize', sec => { aiState.wait = sec; render(); });
+    }
 
     m.ai = {
       요약: out['요약'] || '', 결정사항: out['결정사항'] || [],
@@ -6533,7 +6569,7 @@ async function aiSummarize(id){
     }else{
       showError('AI 정리에 실패했습니다.\n\n' + aiState.error);
     }
-  }finally{ aiState.busy = null; render(); }
+  }finally{ aiState.busy = null; aiState.wait = null; render(); }
 }
 
 /* ═══════════════ AI 없이 하기 (복사 → 붙여넣기) ═══════════════════
@@ -6704,7 +6740,10 @@ function viewMeetings(list){
       + '<div class="mt-foot">'
         + '<button class="btn' + (ai ? '' : ' primary') + '" ' + (busy ? 'disabled' : '')
           + ' onclick="aiSummarize(\'' + jsq(m.id) + '\')">'
-          + (busy ? '⏳ 정리하는 중… (10~30초)' : (ai ? '↻ 다시 정리' : '✨ AI로 정리')) + '</button>'
+          + (busy
+              ? ('⏳ 정리하는 중… ' + (aiState.wait != null
+                  ? '(' + aiState.wait + '초 지남 · 마누스는 1~3분 걸립니다)' : '(10~30초)'))
+              : (ai ? '↻ 다시 정리' : '✨ AI로 정리')) + '</button>'
         + '<button class="btn sm" onclick="copyMeetAsk(\'' + jsq(m.id) + '\')" '
           + 'title="챗GPT 창에 붙여넣을 문장으로 복사합니다 (AI 키 없이도 됩니다)">'
           + '📋 물어볼 문장 복사</button>'
@@ -7298,10 +7337,14 @@ async function bookToPrompt(){
   }
   aiState.busy = 'book:' + b.id; render();
   try{
-    const out = await apiJson('ai.php?action=prompt', {
+    let out = await apiJson('ai.php?action=prompt', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ brand: b.name, book: bookAsText(b) })
     });
+    if(out['진행중']){                    // 마누스 — 끝날 때까지 기다립니다
+      aiState.wait = 0; render();
+      out = await waitTask(out['작업번호'], 'prompt', sec => { aiState.wait = sec; render(); });
+    }
     b.masterPrompt = String(out['프롬프트'] || '').trim();
     b.promptUpdatedAt = new Date().toISOString();
     b.promptFrom = '브랜드북 · ' + new Date().toISOString();
@@ -7328,7 +7371,7 @@ async function bookToPrompt(){
     }else{
       alert('만들지 못했습니다.\n\n' + msg);
     }
-  }finally{ aiState.busy = null; render(); }
+  }finally{ aiState.busy = null; aiState.wait = null; render(); }
 }
 
 function viewBook(b){
@@ -7340,7 +7383,10 @@ function viewBook(b){
   const bar = '<div class="sec-bar">'
     + '<button class="btn primary" ' + (busy ? 'disabled' : '')
       + ' onclick="bookToPrompt()">'
-      + (busy ? '⏳ 만드는 중… (10~30초)' : '✨ 이 내용으로 마스터프롬프트 만들기') + '</button>'
+      + (busy
+          ? ('⏳ 만드는 중… ' + (aiState.wait != null
+              ? '(' + aiState.wait + '초 지남 · 마누스는 1~3분 걸립니다)' : '(10~30초)'))
+          : '✨ 이 내용으로 마스터프롬프트 만들기') + '</button>'
     + (aiState.ready === false
         ? '<button class="btn" onclick="aiSetKey()">🔑 AI 키 넣기</button>' : '')
     + '<button class="btn" onclick="copyBook()" '

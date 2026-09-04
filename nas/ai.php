@@ -4,6 +4,7 @@
  *
  *   ?action=check                 준비됐는지 확인
  *   ?action=net                   왜 AI 에 못 붙는지 점검 (네트워크)
+ *   ?action=taskcheck             오래 걸리는 작업(마누스)이 끝났는지 확인
  *   ?action=setkey  (POST)        API 키 저장 (한 번만)
  *   ?action=summarize (POST)      회의 내용을 요약
  *
@@ -37,7 +38,9 @@ register_shutdown_function(function () {
 $DATA_DIR = __DIR__ . '/data';
 $KEY_FILE = $DATA_DIR . '/ai-key.php';
 $LOG_FILE   = $DATA_DIR . '/ai-usage.json';
-$MODEL_FILE = $DATA_DIR . '/ai-model.txt';      // OpenAI 는 계정이 쓸 수 있는 모델을 골라 적어둡니다
+$MODEL_FILE  = $DATA_DIR . '/ai-model.txt';     // OpenAI 는 계정이 쓸 수 있는 모델을 골라 적어둡니다
+$VENDOR_FILE = $DATA_DIR . '/ai-vendor.txt';    // 어느 회사 AI 인지 (키 모양으로 알 수 없는 곳도 있습니다)
+$TASK_DIR    = $DATA_DIR . '/ai-tasks';         // 마누스처럼 오래 걸리는 작업의 진행 상황
 
 $MODEL      = 'claude-opus-5';
 $MAX_TOKENS = 8000;
@@ -113,11 +116,15 @@ function ai_post($url, $headers, $body, &$why) {
 
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => $body !== null,
-            CURLOPT_POSTFIELDS => $body === null ? null : $body, CURLOPT_HTTPHEADER => $headers,
+        // ⚠️ CURLOPT_POSTFIELDS 는 값이 null 이어도 POST 로 바꿔버립니다.
+        //    받아오기(GET)일 때는 아예 넣지 않아야 합니다.
+        $opt = [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => $headers,
             CURLOPT_TIMEOUT => 180, CURLOPT_CONNECTTIMEOUT => 10,
-        ]);
+        ];
+        if ($body !== null) { $opt[CURLOPT_POST] = true; $opt[CURLOPT_POSTFIELDS] = $body; }
+        else                { $opt[CURLOPT_HTTPGET] = true; }
+        curl_setopt_array($ch, $opt);
         $out  = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
@@ -167,12 +174,99 @@ function ai_post($url, $headers, $body, &$why) {
    회사마다 부르는 방법이 조금 달라서, 여기서만 다르게 만들어 보냅니다.
    ================================================================= */
 function ai_vendor($key) {
+    // 적어둔 값이 있으면 그것을 씁니다 (마누스는 키 모양으로 알 수 없습니다)
+    $f = __DIR__ . '/data/ai-vendor.txt';
+    if (is_file($f)) {
+        $v = trim((string)@file_get_contents($f));
+        if (in_array($v, ['openai', 'anthropic', 'manus'], true)) return $v;
+    }
     if (strpos($key, 'sk-ant-') === 0) return 'anthropic';
     if (strpos($key, 'sk-') === 0)     return 'openai';
     return '';
 }
 function ai_vendor_name($v) {
-    return $v === 'openai' ? 'OpenAI (챗GPT)' : ($v === 'anthropic' ? 'Anthropic (클로드)' : '(모름)');
+    if ($v === 'openai')    return 'OpenAI (챗GPT)';
+    if ($v === 'anthropic') return 'Anthropic (클로드)';
+    if ($v === 'manus')     return 'Manus (마누스)';
+    return '(모름)';
+}
+
+/* ═══════════════ 마누스 ═══════════════════════════════════════════
+   마누스는 「물어보면 바로 답」 이 아니라 「일을 시키고 끝나면 받아오는」
+   방식입니다. 그래서 두 걸음으로 나눕니다.
+     ① 작업 시작 → 작업번호를 받아 화면에 돌려줍니다
+     ② 화면이 몇 초마다 「끝났나요?」 물어봅니다
+   PHP 가 몇 분씩 붙잡고 있으면 NAS 가 요청을 끊어버리기 때문입니다.
+   ================================================================= */
+const MANUS_API = 'https://api.manus.ai/v1/tasks';
+
+function manus_head($key) {
+    // v2 는 x-manus-api-key, 예전 판은 API_KEY 를 씁니다. 둘 다 보냅니다.
+    return ['Content-Type: application/json',
+            'x-manus-api-key: ' . $key,
+            'API_KEY: ' . $key];
+}
+
+/** 작업을 시작합니다 — [응답코드, 원문, 작업번호|''] */
+function manus_start($key, $prompt) {
+    $why = [];
+    $body = json_encode(['prompt' => $prompt], JSON_UNESCAPED_UNICODE);
+    [$code, $raw] = ai_post(MANUS_API, manus_head($key), $body, $why);
+    if ($raw === false) return [$code, false, '', $why];
+    $j = json_decode($raw, true);
+    $id = '';
+    foreach (['task_id', 'taskId', 'id'] as $k) {
+        if (!empty($j[$k]) && is_string($j[$k])) { $id = $j[$k]; break; }
+    }
+    if ($id === '' && !empty($j['data']) && is_array($j['data'])) {
+        foreach (['task_id', 'taskId', 'id'] as $k) {
+            if (!empty($j['data'][$k])) { $id = (string)$j['data'][$k]; break; }
+        }
+    }
+    return [$code, $raw, $id, $why];
+}
+
+/** 마누스 답에서 글자만 뽑아냅니다 (모양이 조금씩 달라도 되게) */
+function manus_text($j) {
+    $out = '';
+    $walk = function ($node) use (&$walk, &$out) {
+        if (is_string($node)) return;
+        if (!is_array($node)) return;
+        // { type:"output_text"|"text", text:"…" }
+        if (isset($node['text']) && is_string($node['text'])
+            && (!isset($node['type']) || strpos((string)$node['type'], 'text') !== false)) {
+            $out .= ($out === '' ? '' : "\n") . $node['text'];
+        }
+        if (isset($node['content']) && is_string($node['content'])) {
+            $out .= ($out === '' ? '' : "\n") . $node['content'];
+        }
+        foreach ($node as $v) if (is_array($v)) $walk($v);
+    };
+    // 조수(assistant)가 한 말만 있으면 그것부터
+    $pref = [];
+    foreach ((array)($j['output'] ?? $j['messages'] ?? []) as $m) {
+        if (is_array($m) && (($m['role'] ?? '') === 'assistant')) $pref[] = $m;
+    }
+    $walk($pref ?: $j);
+    return trim($out);
+}
+
+/** 끝났는지 물어봅니다 — [상태, 글, 응답코드, 원문] */
+function manus_poll($key, $id) {
+    $why = [];
+    [$code, $raw] = ai_post(MANUS_API . '/' . rawurlencode($id), manus_head($key), null, $why);
+    if ($raw === false) return ['모름', '', $code, false];
+    $j = json_decode($raw, true);
+    $st = strtolower((string)($j['status'] ?? $j['state'] ?? ($j['data']['status'] ?? '')));
+    $text = manus_text(is_array($j) ? $j : []);
+    if ($st === 'completed' || $st === 'succeeded' || $st === 'success' || $st === 'finished') {
+        return ['끝', $text, $code, $raw];
+    }
+    if ($st === 'failed' || $st === 'error' || $st === 'cancelled' || $st === 'canceled') {
+        return ['실패', $text, $code, $raw];
+    }
+    if ($st === '' && $text !== '') return ['끝', $text, $code, $raw];   // 상태가 없어도 글이 왔으면
+    return ['하는 중', $text, $code, $raw];
 }
 
 /** OpenAI 는 모델 이름이 자주 바뀝니다. 계정이 실제로 쓸 수 있는 것 중에서 고릅니다. */
@@ -414,10 +508,10 @@ function net_ok($r) {
 if ($action === 'net') {
     @set_time_limit(90);
 
-    $v     = ai_vendor($key);
-    $host  = ($v === 'openai') ? 'api.openai.com' : 'api.anthropic.com';
-    $mUrl  = ($v === 'openai') ? 'https://api.openai.com/v1/models'
-                               : 'https://api.anthropic.com/v1/models';
+    $v = ai_vendor($key);
+    if ($v === 'manus')       { $host = 'api.manus.ai';      $mUrl = MANUS_API; }
+    elseif ($v === 'openai')  { $host = 'api.openai.com';    $mUrl = 'https://api.openai.com/v1/models'; }
+    else                      { $host = 'api.anthropic.com'; $mUrl = 'https://api.anthropic.com/v1/models'; }
     $vName = $key === '' ? 'Anthropic (클로드) · 키를 넣으면 챗GPT 도 됩니다' : ai_vendor_name($v);
 
     $wget  = function_exists('shell_exec') ? trim((string)@shell_exec('command -v wget 2>/dev/null')) : '';
@@ -433,9 +527,10 @@ if ($action === 'net') {
     // 키가 있으면 그 키가 살아 있는지도 봅니다 (글자를 만들지 않아 돈이 들지 않습니다)
     $keyCheck = null; $keyOk = null;
     if ($key !== '' && $anthOk) {
-        $head = ($v === 'openai')
-            ? ['Authorization: Bearer ' . $key]
-            : ['x-api-key: ' . $key, 'anthropic-version: 2023-06-01'];
+        $head = ($v === 'manus') ? manus_head($key)
+              : (($v === 'openai')
+                    ? ['Authorization: Bearer ' . $key]
+                    : ['x-api-key: ' . $key, 'anthropic-version: 2023-06-01']);
         $r = net_try($mUrl, 8, $head);
         $c = net_code($r);
         $keyOk = ($c === 200);
@@ -448,7 +543,10 @@ if ($action === 'net') {
     // 진짜로 한 번 물어봅니다 — 이게 제일 확실합니다.
     // 「안녕」 한 마디라 값은 0 에 가깝고, 실패하면 AI 가 준 말을 그대로 보여줍니다.
     $real = null; $realOk = null;
-    if ($key !== '' && $anthOk) {
+    if ($v === 'manus') {
+        $real = '마누스는 물어보기만 해도 작업 하나가 시작되고 크레딧을 써서, '
+              . '점검에서는 실제로 물어보지 않습니다. [✨ AI로 정리] 로 확인해 주세요.';
+    } elseif ($key !== '' && $anthOk) {
         $why2 = [];
         [$rc, $rraw, $rtext, $rmodel] = ai_ask($key, '한 단어로만 답하세요.', '안녕', 16, $MODEL_FILE, $why2);
         if ($rraw === false) {
@@ -563,15 +661,28 @@ if ($action === 'setkey') {
     if ($k === '') {                                   // 빈 값이면 지웁니다
         if (is_file($KEY_FILE)) @unlink($KEY_FILE);
         @unlink($MODEL_FILE);
+        @unlink($VENDOR_FILE);
         jout(['ok' => true, '키등록됨' => false, '안내' => '키를 지웠습니다']);
     }
-    // 챗GPT(OpenAI) 키와 클로드(Anthropic) 키를 둘 다 받습니다
-    if (!preg_match('/^sk-[A-Za-z0-9_\-]{20,250}$/', $k)) {
+    // 어느 회사 키인지 (화면에서 골라 보냅니다. 안 보내면 키 모양으로 짐작합니다)
+    $vend = strtolower(trim((string)($b['vendor'] ?? '')));
+    if (!in_array($vend, ['openai', 'anthropic', 'manus'], true)) {
+        $vend = (strpos($k, 'sk-ant-') === 0) ? 'anthropic'
+              : ((strpos($k, 'sk-') === 0) ? 'openai' : '');
+    }
+    if ($vend === '') {
         jout(['ok' => false, 'error' =>
-            '키 모양이 아닙니다.\n\n'
-            . '· 챗GPT: platform.openai.com 에서 만든 "sk-…" 키\n'
-            . '· 클로드: console.anthropic.com 에서 만든 "sk-ant-…" 키\n\n'
-            . '둘 중 아무거나 넣으시면 그에 맞춰 씁니다.'], 400);
+            '어느 AI 의 키인지 알 수 없습니다.\n\n'
+            . '· 챗GPT: platform.openai.com 의 "sk-…" 키\n'
+            . '· 클로드: console.anthropic.com 의 "sk-ant-…" 키\n'
+            . '· 마누스: 마누스 앱 → API 설정에서 만든 키\n\n'
+            . '마누스 키라면 화면에서 「마누스」 를 골라 주세요.'], 400);
+    }
+    if ($vend !== 'manus' && !preg_match('/^sk-[A-Za-z0-9_\-]{20,250}$/', $k)) {
+        jout(['ok' => false, 'error' => '키 모양이 아닙니다. "sk-" 로 시작하는 키를 넣어주세요.'], 400);
+    }
+    if ($vend === 'manus' && !preg_match('/^[A-Za-z0-9._\-]{16,300}$/', $k)) {
+        jout(['ok' => false, 'error' => '마누스 키 모양이 아닙니다. 앱에서 만든 키를 그대로 넣어주세요.'], 400);
     }
     if (!is_dir($DATA_DIR) && !@mkdir($DATA_DIR, 0775, true) && !is_dir($DATA_DIR)) {
         jout(['ok' => false, 'error' => 'data 폴더를 만들지 못했습니다'], 500);
@@ -585,8 +696,65 @@ if ($action === 'setkey') {
     }
     @chmod($KEY_FILE, 0640);
     @unlink($MODEL_FILE);                       // 회사가 바뀌었을 수 있으니 모델은 다시 고릅니다
-    jout(['ok' => true, '키등록됨' => true, '어느 AI' => ai_vendor_name(ai_vendor($k)),
-          '안내' => ai_vendor_name(ai_vendor($k)) . ' 키를 NAS 에만 저장했습니다']);
+    @file_put_contents($VENDOR_FILE, $vend);
+    jout(['ok' => true, '키등록됨' => true, '어느 AI' => ai_vendor_name($vend),
+          '안내' => ai_vendor_name($vend) . ' 키를 NAS 에만 저장했습니다']);
+}
+
+/* ---------------- 오래 걸리는 작업 확인하기 (마누스) ----------------
+   화면이 몇 초마다 「끝났나요?」 하고 물어봅니다.
+   끝났으면 그 자리에서 글을 다듬어(회의 요약이면 JSON 으로) 돌려줍니다.
+   ------------------------------------------------------------------ */
+if ($action === 'taskcheck') {
+    if ($key === '') jout(['ok' => false, 'error' => 'AI 키가 없습니다'], 400);
+    $tid  = trim((string)($_GET['id'] ?? ''));
+    $kind = ($_GET['kind'] ?? 'prompt') === 'summarize' ? 'summarize' : 'prompt';
+    if ($tid === '' || !preg_match('/^[A-Za-z0-9._\-]{4,200}$/', $tid)) {
+        jout(['ok' => false, 'error' => '작업번호가 이상합니다'], 400);
+    }
+
+    [$st, $text, $c, $raw] = manus_poll($key, $tid);
+
+    if ($raw === false) {
+        jout(['ok' => true, '상태' => '하는 중', '안내' => '아직 확인하지 못했습니다. 잠시 뒤 다시 봅니다.']);
+    }
+    if ($c === 401 || $c === 403) {
+        jout(['ok' => false, 'error' => 'AI 키가 거부됐습니다 (HTTP ' . $c . ')'], 401);
+    }
+    if ($st === '실패') {
+        jout(['ok' => false, 'error' => ai_friendly($c, ($text !== '' ? $text : ai_errmsg($raw)), 'manus')], 502);
+    }
+    if ($st !== '끝') {
+        jout(['ok' => true, '상태' => '하는 중']);
+    }
+
+    if (trim($text) === '') {
+        jout(['ok' => false, 'error' => "마누스가 빈 답을 보냈습니다.\n\n받은 것 앞부분:\n"
+            . mb_strcut((string)$raw, 0, 400)], 502);
+    }
+
+    @file_put_contents($LOG_FILE, json_encode([
+        'count' => (int)((json_decode((string)@file_get_contents($LOG_FILE), true)['count'] ?? 0)) + 1,
+        'at'    => date('c'),
+    ], JSON_UNESCAPED_UNICODE));
+
+    if ($kind === 'prompt') {
+        jout(['ok' => true, '상태' => '끝', '프롬프트' => trim($text), '만든때' => date('c')]);
+    }
+
+    // 회의 요약 — JSON 으로 답하라고 했지만 앞뒤에 다른 말이 붙을 수 있습니다
+    $parsed = json_decode(trim($text), true);
+    if (!is_array($parsed) && preg_match('/\{.*\}/s', $text, $m)) $parsed = json_decode($m[0], true);
+    if (!is_array($parsed)) {
+        jout(['ok' => true, '상태' => '끝', '요약' => trim($text), '결정사항' => [], '할일' => [],
+              '다음회의' => '', '확인필요' => [], '형식' => '글']);
+    }
+    jout(['ok' => true, '상태' => '끝',
+          '요약'     => (string)($parsed['요약'] ?? ''),
+          '결정사항' => (array)($parsed['결정사항'] ?? []),
+          '할일'     => (array)($parsed['할일'] ?? []),
+          '다음회의' => (string)($parsed['다음회의'] ?? ''),
+          '확인필요' => (array)($parsed['확인필요'] ?? [])]);
 }
 
 /* ---------------- 브랜드북 → 마스터프롬프트 ---------------- */
@@ -631,6 +799,20 @@ if ($action === 'prompt') {
          . "- 답에는 마스터프롬프트만 쓰세요. 인사말이나 설명을 붙이지 마세요.";
 
     $user = ($brand !== '' ? "브랜드: $brand\n\n" : '') . "--- 브랜드북 ---\n" . $book;
+
+    // 마누스는 오래 걸립니다 — 작업만 시작하고 화면이 물어보게 합니다
+    if (ai_vendor($key) === 'manus') {
+        [$c, $r, $tid, $w] = manus_start($key, $sys . "\n\n" . $user);
+        if ($r === false) {
+            jout(['ok' => false, 'error' =>
+                "마누스에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)], 502);
+        }
+        if ($tid === '') {
+            jout(['ok' => false, 'error' => ai_friendly($c, ai_errmsg($r), 'manus')], 502);
+        }
+        jout(['ok' => true, '진행중' => true, '작업번호' => $tid, '무엇' => 'prompt',
+              '안내' => '마누스가 작업을 시작했습니다']);
+    }
 
     $why = [];
     [$code, $raw, $text, $usedModel] = ai_ask($key, $sys, $user, $MAX_TOKENS, $MODEL_FILE, $why);
@@ -707,6 +889,19 @@ if ($action === 'summarize') {
     $user = ($brand !== '' ? "브랜드: $brand\n" : '')
           . ($title !== '' ? "회의 제목: $title\n" : '')
           . "\n--- 회의 메모 ---\n" . $notes;
+
+    if (ai_vendor($key) === 'manus') {
+        [$c, $r, $tid, $w] = manus_start($key, $sys . "\n\n" . $user);
+        if ($r === false) {
+            jout(['ok' => false, 'error' =>
+                "마누스에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)], 502);
+        }
+        if ($tid === '') {
+            jout(['ok' => false, 'error' => ai_friendly($c, ai_errmsg($r), 'manus')], 502);
+        }
+        jout(['ok' => true, '진행중' => true, '작업번호' => $tid, '무엇' => 'summarize',
+              '안내' => '마누스가 작업을 시작했습니다']);
+    }
 
     $why = [];
     [$code, $raw, $text, $usedModel] = ai_ask($key, $sys, $user, $MAX_TOKENS, $MODEL_FILE, $why);

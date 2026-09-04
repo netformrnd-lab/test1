@@ -12,6 +12,21 @@
 if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
 header('Content-Type: application/json; charset=utf-8');
 
+/* guard.php 가 아직 안 올라온 예전 상태에서도 돌아가게 하는 대비책입니다.
+   (배포 중 파일이 하나씩 올라오는 동안에도 저장이 끊기지 않도록) */
+if (!function_exists('bh_read_raw')) {
+    function bh_read_raw($p) { return is_file($p) ? (string)@file_get_contents($p) : ''; }
+    function bh_write_raw($p, $json) {
+        $t = $p . '.tmp' . getmypid();
+        $n = @file_put_contents($t, $json);
+        if ($n === false || $n !== strlen($json) || !@rename($t, $p)) { @unlink($t); return false; }
+        @chmod($p, 0664);
+        return true;
+    }
+    function bh_data_file($dir) { return $dir . '/brand-data.json'; }
+}
+
+
 /** 인터넷에서 파일 하나를 받아옵니다. NAS 마다 막힌 방법이 달라 세 가지를 차례로 시도합니다. */
 function bh_fetch($url, &$why = null) {
     if (!is_array($why)) $why = [];
@@ -249,7 +264,8 @@ if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
     exit;
 }
 
-$file = $dir . '/brand-data.json';
+/* 자료 파일 — 주소로 그냥 열리지 않게 .php 로 둡니다 (guard.php 참고) */
+$file = bh_data_file($dir);
 
 /**
  * 여러 명이 같이 쓰기 때문에 두 가지를 지킵니다.
@@ -269,7 +285,7 @@ if ($lk) { flock($lk, LOCK_EX); }          // 저장은 한 번에 한 명씩
 
 $curRev = 0;
 if (file_exists($file)) {
-    $cur = json_decode((string)@file_get_contents($file), true);
+    $cur = json_decode(bh_read_raw($file), true);
     if (is_array($cur) && isset($cur['_rev'])) $curRev = (int)$cur['_rev'];
 }
 
@@ -285,13 +301,49 @@ if ($baseRev !== null && $baseRev !== $curRev) {
         'rev'      => $curRev,
         'error'    => '그 사이에 다른 사람이 저장했습니다',
         'data'     => file_exists($file)
-                        ? json_decode((string)@file_get_contents($file), true) : null,
+                        ? (function_exists('guard_hide_tasks')
+                             ? guard_hide_tasks(json_decode(bh_read_raw($file), true))
+                             : json_decode(bh_read_raw($file), true))
+                        : null,
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-// 하루 1회 백업
-$backup = $dir . '/backup-' . date('Y-m-d') . '.json';
+/* ---- 안 보이는 할 일은 그대로 지켜줍니다 ------------------------
+   팀원 화면에는 다른 사람의 할 일이 아예 오지 않습니다(load.php).
+   그래서 팀원이 저장하면 그 할 일들이 사라진 것처럼 보입니다.
+   저장하기 직전에 서버에 있던 것을 다시 붙여 넣습니다.           */
+$__me = function_exists('guard_user') ? guard_user() : null;
+if ($__me && empty($__me['open']) && empty($__me['admin']) && file_exists($file)) {
+    $prev = json_decode(bh_read_raw($file), true);
+    if (is_array($prev) && !empty($prev['brands']) && is_array($prev['brands'])
+        && isset($data['brands']) && is_array($data['brands'])) {
+        $mine = (string)($__me['id'] ?? '');
+        $hidden = [];                       // 브랜드id => 안 보이던 할 일들
+        foreach ($prev['brands'] as $pb) {
+            $bid = (string)($pb['id'] ?? '');
+            if ($bid === '' || empty($pb['tasks']) || !is_array($pb['tasks'])) continue;
+            foreach ($pb['tasks'] as $t) {
+                $u = isset($t['uid']) ? (string)$t['uid'] : '';
+                if ($u !== '' && $u !== $mine) $hidden[$bid][] = $t;
+            }
+        }
+        foreach ($data['brands'] as &$nb) {
+            $bid = (string)($nb['id'] ?? '');
+            if ($bid === '' || empty($hidden[$bid])) continue;
+            if (!isset($nb['tasks']) || !is_array($nb['tasks'])) $nb['tasks'] = [];
+            $have = [];
+            foreach ($nb['tasks'] as $t) if (isset($t['id'])) $have[(string)$t['id']] = true;
+            foreach ($hidden[$bid] as $t) {
+                if (!isset($have[(string)($t['id'] ?? '')])) $nb['tasks'][] = $t;
+            }
+        }
+        unset($nb);
+    }
+}
+
+// 하루 1회 백업 (백업도 주소로 열리지 않게 .php 로 둡니다)
+$backup = $dir . '/backup-' . date('Y-m-d') . '.php';
 if (file_exists($file) && !file_exists($backup)) {
     @copy($file, $backup);
 }
@@ -307,10 +359,7 @@ if ($json === false) {
 }
 
 // 임시 파일에 다 쓴 다음 이름만 바꿉니다 (읽는 쪽이 반쪽짜리를 보지 않게)
-$tmp = $file . '.tmp' . getmypid();
-$wrote = @file_put_contents($tmp, $json);
-if ($wrote === false || $wrote !== strlen($json) || !@rename($tmp, $file)) {
-    @unlink($tmp);
+if (!bh_write_raw($file, $json)) {
     if ($lk) { flock($lk, LOCK_UN); fclose($lk); }
     http_response_code(200);
     echo json_encode(['ok' => false, 'error' =>

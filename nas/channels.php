@@ -380,9 +380,11 @@ if ($action === 'probe') {
 
 /* 대시보드에 등록된 채널 목록을 읽어옵니다 (브랜드 데이터에서) */
 function all_channels() {
-    $f = __DIR__ . '/data/brand-data.json';
+    $f = function_exists('bh_data_file') ? bh_data_file(__DIR__ . '/data')
+                                         : __DIR__ . '/data/brand-data.json';
     if (!is_file($f)) return [];
-    $d = json_decode((string)@file_get_contents($f), true);
+    $d = json_decode(function_exists('bh_read_raw')
+        ? bh_read_raw($f) : (string)@file_get_contents($f), true);
     if (!is_array($d) || empty($d['brands'])) return [];
     $out = [];
     foreach ($d['brands'] as $b) {

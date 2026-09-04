@@ -1001,6 +1001,11 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="em">📅</span><span>달력</span>
         <span class="cnt" id="calCnt"></span>
       </button>
+      <button class="brand-item home-item" id="costBtn" onclick="goView('costs')">
+        <span class="bar" style="background:var(--red)"></span>
+        <span class="em">💳</span><span>마케팅 비용</span>
+        <span class="cnt" id="costCnt"></span>
+      </button>
     </div>
   </aside>
   <main id="main"></main>
@@ -1062,7 +1067,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260904-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260904-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1380,7 +1385,12 @@ const TYPES = {
     fields:[
       { key:'title',  label:'할 일',   type:'text',     required:true, ph:'예: 관리사무소용 영업자료 정비' },
       { key:'status', label:'상태',    type:'select',   options:['예정','진행 중','완료','보류'] },
-      { key:'owner',  label:'담당자',  type:'text',     ph:'예: 김담당 매니저' },
+      // 계정을 쓸 때는 「맡은 사람」 을 고릅니다. 그 사람과 관리자만 봅니다.
+      { key:'uid',    label:'맡은 사람 (이 사람만 봅니다)', type:'select',
+        options: taskPeople, when: () => authOn(),
+        def: () => { const m = authMe(); return m ? m.id : ''; } },
+      { key:'owner',  label:'담당자',  type:'text',     ph:'예: 김담당 매니저',
+        when: () => !authOn() },
       { key:'due',    label:'기한',    type:'date' },
       { key:'note',   label:'메모',    type:'textarea', ph:'배경이나 참고할 내용' }
     ]
@@ -1409,7 +1419,7 @@ function autoCount(b){ return (b.automations || []).length + ((b.tools || []).le
 function itemCount(b){
   return ITEM_KEYS.reduce((a, k) => a + ((b[k] || []).length), 0) + ((b.tools || []).length);
 }
-const TAB_KEYS  = ['inquiries','costs','automations','history','tasks','links','channels','assets','book','prompt'];
+const TAB_KEYS  = ['inquiries','automations','history','tasks','links','channels','assets','book','prompt'];
 
 let data = defaultData();      // init() 에서 normalize 를 한 번 더 거칩니다
 let currentBrandId = null;
@@ -1651,7 +1661,7 @@ function render(){
   const nas  = document.getElementById('nasBtn');
   if(home) home.classList.toggle('on', view === 'home' && !searchQuery && !currentBrandId);
   if(nas)  nas.classList.toggle('on',  view === 'nas'  && !searchQuery);
-  [['meetBtn','meetings'],['calBtn','calendar']].forEach(([id, v]) => {
+  [['meetBtn','meetings'],['calBtn','calendar'],['costBtn','costs']].forEach(([id, v]) => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('on', view === v && !searchQuery);
   });
@@ -1659,12 +1669,15 @@ function render(){
   if(mc) mc.textContent = (data.meetings || []).length || '';
   const cc = document.getElementById('calCnt');
   if(cc) cc.textContent = (data.events || []).length || '';
+  const sc = document.getElementById('costCnt');
+  if(sc) sc.textContent = data.brands.reduce((a, b) => a + (b.costs || []).length, 0) || '';
   const up = document.getElementById('usersLayer');
   if(up) up.innerHTML = usersPanel() + pickPanel();
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
   else if(view === 'meetings') renderMeetings();
   else if(view === 'calendar') renderCalendar();
+  else if(view === 'costs') renderCosts();
   else if(!currentBrandId) renderHome();
   else renderBrand();
   restoreUI(snap);
@@ -3620,7 +3633,6 @@ function renderBrand(){
     ['links','🔗 바로가기'],
     ['channels','📣 채널'],
     ['assets','📁 자료'],
-    ['costs','💳 마케팅 비용'],
     ['book','📕 브랜드북'],
     ['prompt','✨ 마스터프롬프트']
   ];
@@ -3655,7 +3667,9 @@ function renderBrand(){
     setTimeout(inquiryTick, 20);      // 탭을 열면 최신인지 한 번 확인합니다
     bindCsvInput();
   }
-  else if(currentTab === 'costs') body.innerHTML = viewCosts(b);
+  else if(currentTab === 'costs'){          // 예전 주소로 들어온 경우 — 업무로 보냅니다
+    goView('costs'); return;
+  }
   else if(currentTab === 'book') body.innerHTML = viewBook(b);
   else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
   else if(currentTab === 'links') body.innerHTML = viewLinks(b);
@@ -4690,9 +4704,84 @@ function statusChip(st){
   return st ? '<span class="chip ' + (map[st] || '') + '">' + esc(st) + '</span>' : '';
 }
 
+/* ═══════════════ 할 일은 맡은 사람 것 ═══════════════════════════
+   계정을 쓰면 할 일은 「맡은 사람」 것이 됩니다.
+   팀원 화면에는 자기 것(과 공용)만 옵니다 — 화면에서 숨기는 게 아니라
+   서버(load.php)가 아예 보내지 않습니다. 관리자는 모두 봅니다.
+   ================================================================= */
+const people = { list:null, at:0, busy:false };
+
+/* 사람 목록 (관리자만 받아올 수 있습니다. 팀원은 자기 자신만 씁니다) */
+async function loadPeople(force){
+  if(!authOn() || !isAdmin()) return;
+  if(people.busy || (people.list && !force && Date.now() - people.at < 60000)) return;
+  people.busy = true;
+  try{
+    const out = await apiJson('auth.php?action=users');
+    people.list = out['사람'] || [];
+    people.at = Date.now();
+    render();
+  }catch(e){ /* 못 받아와도 화면은 그대로 씁니다 */ }
+  finally{ people.busy = false; }
+}
+
+/* 창에서 고를 사람 목록 */
+function taskPeople(){
+  const me = authMe();
+  const opts = [{ value:'', label:'— 공용 (모두 봅니다) —' }];
+  if(isAdmin() && people.list){
+    people.list.forEach(u => {
+      if(!u['쓸수있음']) return;                      // 퇴사 처리된 사람은 빼고
+      opts.push({ value:u.id, label:u['이름'] + (me && u.id === me.id ? ' (나)' : '') });
+    });
+  }else if(me){
+    opts.push({ value:me.id, label:me['이름'] + ' (나)' });
+  }
+  return opts;
+}
+
+/* 아이디로 이름 찾기 */
+function peopleName(id){
+  if(!id) return '';
+  const me = authMe();
+  if(me && me.id === id) return me['이름'];
+  const u = (people.list || []).find(x => x.id === id);
+  return u ? u['이름'] : id;
+}
+
+/* 관리자 화면에서 「누구 것만 볼까」 */
+let taskWho = '';        // '' = 전체
+
+function taskWhoBar(b){
+  if(!authOn() || !isAdmin()) return '';
+  setTimeout(() => loadPeople(), 10);
+  const list = b.tasks || [];
+  const cnt = {};
+  list.forEach(t => { const k = t.uid || ''; cnt[k] = (cnt[k] || 0) + 1; });
+  const keys = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x]);
+  if(!keys.length) return '';
+  const chip = (v, label, n) =>
+    '<button class="btn sm' + (taskWho === v ? ' primary' : '') + '" '
+    + 'onclick="setTaskWho(\'' + jsq(v) + '\')">' + esc(label)
+    + (n != null ? ' <b>' + n + '</b>' : '') + '</button>';
+  return '<div class="sec-bar" style="margin:-2px 0 10px">'
+    + '<span class="hint" style="margin:0 2px 0 0">👥 누구 것</span>'
+    + chip('', '전체', list.length)
+    + keys.map(k => chip(k || '__pub', k ? (peopleName(k) || k) : '공용', cnt[k])).join('')
+    + '<span class="hint">팀원은 자기 할 일만 보입니다 (관리자는 모두 보입니다)</span>'
+    + '</div>';
+}
+function setTaskWho(v){ taskWho = (v === '__pub') ? '__pub' : v; render(); }
+
 function viewTasks(b){
-  const list = b.tasks;
-  if(!list.length) return secBar('tasks') + '<div class="empty">' + TYPES.tasks.empty + '</div>';
+  const whoBar = taskWhoBar(b);
+  const all = b.tasks || [];
+  const list = !taskWho ? all
+    : all.filter(t => taskWho === '__pub' ? !t.uid : t.uid === taskWho);
+  if(!list.length){
+    return secBar('tasks') + whoBar + '<div class="empty">'
+      + (all.length ? '고른 사람의 할 일이 없습니다.' : TYPES.tasks.empty) + '</div>';
+  }
 
   const order = { '진행 중':0, '예정':1, '보류':2, '완료':3 };
   const sorted = list.slice().sort((x, y) => {
@@ -4716,7 +4805,15 @@ function viewTasks(b){
     return '<span class="chip ' + (m[st] || '') + '">' + esc(st || '예정') + '</span>';
   };
 
-  return secBar('tasks') + '<div class="cards">' + sorted.map(t =>
+  const whoChip = t => {
+    if(!authOn()) return t.owner ? '<span class="chip">' + esc(t.owner) + '</span>' : '';
+    const me = authMe();
+    if(!t.uid) return '<span class="chip">공용</span>';
+    return '<span class="chip' + (me && t.uid === me.id ? ' on' : '') + '">👤 '
+      + esc(peopleName(t.uid) || t.owner || t.uid) + '</span>';
+  };
+
+  return secBar('tasks') + whoBar + '<div class="cards">' + sorted.map(t =>
     '<div class="card' + (t.status === '완료' ? ' done' : '') + '">'
     + '<div class="ca">'
       + (t.status !== '완료'
@@ -4726,8 +4823,7 @@ function viewTasks(b){
       + '<button class="btn sm danger" onclick="deleteItem(\'tasks\',\'' + t.id + '\')">삭제</button>'
     + '</div>'
     + '<div class="ct">' + esc(t.title) + '</div>'
-    + '<div class="row">' + stChip(t.status) + dueChip(t)
-      + (t.owner ? '<span class="chip">' + esc(t.owner) + '</span>' : '') + '</div>'
+    + '<div class="row">' + stChip(t.status) + dueChip(t) + whoChip(t) + '</div>'
     + (t.note ? '<div class="cd">' + esc(t.note) + '</div>' : '')
     + '</div>').join('') + '</div>';
 }
@@ -4801,10 +4897,147 @@ function costThisYear(c){
 }
 function won(n){ return (n || 0).toLocaleString('ko-KR') + '원'; }
 
+/* ═══════════════ 업무 → 마케팅 비용 ═══════════════════════════════
+   브랜드마다 한 달에 얼마 나가는지 한 화면에서 봅니다.
+   브랜드를 고르면 그 브랜드의 항목을 그대로 고칠 수 있습니다.
+   ================================================================= */
+let costBrand = '';       // '' = 전체
+
+function setCostBrand(id){ costBrand = id; render(); window.scrollTo({ top:0, behavior:'smooth' }); }
+
+/* 브랜드 하나의 셈 */
+function brandCost(b){
+  const list = b.costs || [];
+  const live = list.filter(costLive);
+  return {
+    b, n: list.length, live: live.length,
+    month: live.reduce((a, c) => a + costPerMonth(c), 0),
+    year:  list.reduce((a, c) => a + costThisYear(c), 0),
+    once:  live.filter(c => c.cycle === '1회').reduce((a, c) => a + costWon(c), 0)
+  };
+}
+
+function renderCosts(){
+  const rows = data.brands.map(brandCost);
+  const tot = rows.reduce((a, r) => ({
+    n: a.n + r.n, month: a.month + r.month, year: a.year + r.year, once: a.once + r.once
+  }), { n:0, month:0, year:0, once:0 });
+
+  const head = '<h2 class="page-h">💳 마케팅 비용</h2>'
+    + '<div class="page-sub">광고비·구독료처럼 나가는 돈을 브랜드마다 적어두고, '
+      + '어디에 얼마가 들어가는지 한눈에 봅니다</div>';
+
+  const pick = '<div class="sec-bar" style="margin-bottom:12px">'
+    + '<span class="fmeta">브랜드로 보기</span>'
+    + '<button class="btn sm' + (costBrand ? '' : ' primary') + '" '
+      + 'onclick="setCostBrand(\'\')">전체 ' + tot.n + '</button>'
+    + rows.map(r => '<button class="btn sm' + (costBrand === r.b.id ? ' primary' : '') + '" '
+        + 'onclick="setCostBrand(\'' + jsq(r.b.id) + '\')">' + esc(r.b.icon || '🏷️') + ' '
+        + esc(r.b.name) + (r.n ? ' <b>' + r.n + '</b>' : '') + '</button>').join('')
+    + '<button class="btn sm" onclick="setFx()" title="달러로 적은 것을 원으로 바꿀 때 쓰는 값">'
+      + '💱 환율 ' + fxRate().toLocaleString('ko-KR') + '원</button>'
+    + '</div>';
+
+  const box = h => '<div class="panel"><div class="tabbody">' + head + pick + h + '</div></div>';
+
+  // 브랜드 하나만 보기 — 예전 브랜드 탭과 같은 화면입니다
+  if(costBrand){
+    const b = data.brands.find(x => x.id === costBrand);
+    if(!b){ costBrand = ''; renderCosts(); return; }
+    document.getElementById('main').innerHTML = box(
+      '<div class="bhead" style="margin-bottom:12px">'
+      + '<div class="icon">' + esc(b.icon || '🏷️') + '</div>'
+      + '<div><h2>' + esc(b.name) + '</h2>'
+        + '<div class="meta">' + esc(b.desc || '') + '</div></div>'
+      + '</div>'
+      + viewCosts(b));
+    return;
+  }
+
+  // 전체 보기
+  const tiles = '<div class="stats">'
+    + '<div class="stat"><div class="lb">💳 한 달에</div><div class="val">' + won(tot.month) + '</div>'
+      + '<div class="sub">브랜드 ' + rows.filter(r => r.month > 0).length + '곳에서 나가는 돈</div></div>'
+    + '<div class="stat"><div class="lb">📅 올해 누적</div><div class="val">' + won(tot.year) + '</div>'
+      + '<div class="sub">' + new Date().getFullYear() + '년에 나가는 돈 (1회성 포함)</div></div>'
+    + '<div class="stat"><div class="lb">🧾 1회성</div><div class="val">' + won(tot.once) + '</div>'
+      + '<div class="sub">한 번만 나가는 것 (달마다 계산엔 안 넣습니다)</div></div>'
+    + '</div>';
+
+  const withCost = rows.filter(r => r.n).sort((x, y) => y.month - x.month || y.year - x.year);
+  if(!withCost.length){
+    document.getElementById('main').innerHTML = box(tiles
+      + '<div class="empty">아직 적어둔 비용이 없습니다.<br>'
+      + '위에서 브랜드를 고르면 그 브랜드의 광고비·구독료를 넣을 수 있습니다.</div>');
+    return;
+  }
+
+  const max = Math.max(1, withCost[0].month);
+  const bars = '<div class="vz-box" style="margin-bottom:14px">'
+    + '<div class="vz-head">💳 브랜드마다 한 달에 얼마</div>'
+    + withCost.map(r => '<div class="bar-row" style="cursor:pointer" '
+        + 'onclick="setCostBrand(\'' + jsq(r.b.id) + '\')">'
+        + '<span class="bl" style="width:104px">' + esc(r.b.icon || '🏷️') + ' ' + esc(r.b.name) + '</span>'
+        + '<span class="bt"><span class="bf" style="width:'
+          + Math.round(r.month / max * 100) + '%;background:' + (r.b.color || 'var(--accent)') + '"></span></span>'
+        + '<span class="bv">' + won(r.month) + '</span></div>').join('')
+    + '</div>';
+
+  // 종류별로도 봅니다 (팀 전체)
+  const byKind = {};
+  data.brands.forEach(b => (b.costs || []).filter(costLive).forEach(c => {
+    const k = c.kind || '기타';
+    byKind[k] = (byKind[k] || 0) + costPerMonth(c);
+  }));
+  const kinds = Object.keys(byKind).filter(k => byKind[k] > 0).sort((x, y) => byKind[y] - byKind[x]);
+  const kindMax = kinds.length ? byKind[kinds[0]] : 1;
+  const kindBars = kinds.length
+    ? '<div class="vz-box" style="margin-bottom:14px">'
+      + '<div class="vz-head">🏷️ 어떤 종류로 나가나 (한 달 기준)</div>'
+      + kinds.map(k => '<div class="bar-row">'
+          + '<span class="bl" style="width:66px"><span class="vz-sw" style="background:'
+            + (COST_HUE[k] || 'var(--text-muted)') + ';display:inline-block;margin-right:6px"></span>'
+            + esc(k) + '</span>'
+          + '<span class="bt"><span class="bf" style="width:' + Math.round(byKind[k] / kindMax * 100)
+            + '%;background:' + (COST_HUE[k] || 'var(--text-muted)') + '"></span></span>'
+          + '<span class="bv">' + won(byKind[k]) + '</span></div>').join('')
+      + '</div>'
+    : '';
+
+  const table = '<div class="vz-tw"><table class="ymtable costtable">'
+    + '<thead><tr><th>브랜드</th><th class="num">건수</th><th class="num">한 달에</th>'
+      + '<th class="num">올해</th><th class="num">1회성</th><th></th></tr></thead><tbody>'
+    + withCost.map(r => '<tr>'
+        + '<td><span class="vz-sw" style="background:' + (r.b.color || 'var(--accent)')
+          + ';display:inline-block;margin-right:7px"></span><b>' + esc(r.b.name) + '</b>'
+          + (r.live < r.n ? '<span class="fmeta"> · 쓰는 중 ' + r.live + ' / ' + r.n + '건</span>' : '')
+          + '</td>'
+        + '<td class="num">' + r.n + '</td>'
+        + '<td class="num">' + (r.month ? won(r.month) : '<span class="zero">–</span>') + '</td>'
+        + '<td class="num">' + won(r.year) + '</td>'
+        + '<td class="num">' + (r.once ? won(r.once) : '<span class="zero">–</span>') + '</td>'
+        + '<td><button class="btn sm" onclick="setCostBrand(\'' + jsq(r.b.id) + '\')">'
+          + '자세히 · 고치기</button></td></tr>').join('')
+    + '<tr class="sumrow"><th>합계</th><td class="num">' + tot.n + '</td>'
+      + '<td class="num tot">' + won(tot.month) + '</td>'
+      + '<td class="num tot">' + won(tot.year) + '</td>'
+      + '<td class="num">' + won(tot.once) + '</td><td></td></tr>'
+    + '</tbody></table></div>';
+
+  document.getElementById('main').innerHTML = box(tiles + bars + kindBars + table
+    + '<div class="fmeta" style="margin-top:8px">'
+      + '「한 달에」 는 매년 결제하는 것을 12로 나눠 더한 값입니다. '
+      + '1회성은 달마다 계산에 넣지 않고 「올해 누적」 에만 들어갑니다. '
+      + '달러로 적은 것은 환율 ' + fxRate().toLocaleString('ko-KR') + '원으로 바꿔 셉니다.'
+    + '</div>');
+}
+
 function viewCosts(b){
   const list = b.costs || [];
+  const bid = b.id;
   const bar = '<div class="sec-bar">'
-    + '<button class="btn primary" onclick="openItemModal(\'costs\')">＋ 비용 등록</button>'
+    + '<button class="btn primary" onclick="openItemModal(\'costs\',null,null,\'' + jsq(bid) + '\')">'
+      + '＋ 비용 등록</button>'
     + '<button class="btn sm" onclick="setFx()" title="달러로 적은 것을 원으로 바꿀 때 쓰는 값">'
       + '💱 환율 ' + fxRate().toLocaleString('ko-KR') + '원</button>'
     + '<span class="hint">광고비·구독료처럼 나가는 돈을 적어두면 '
@@ -4876,8 +5109,10 @@ function viewCosts(b){
       + '<td>' + (c.start ? esc(fmtDate(c.start)) : '')
         + (c.end ? '<div class="fmeta">~ ' + esc(fmtDate(c.end)) + '</div>' : '') + '</td>'
       + '<td style="white-space:nowrap">'
-        + '<button class="btn sm" onclick="openItemModal(\'costs\',\'' + jsq(c.id) + '\')">수정</button> '
-        + '<button class="btn sm danger" onclick="deleteItem(\'costs\',\'' + jsq(c.id) + '\')">삭제</button>'
+        + '<button class="btn sm" onclick="openItemModal(\'costs\',\'' + jsq(c.id)
+          + '\',null,\'' + jsq(bid) + '\')">수정</button> '
+        + '<button class="btn sm danger" onclick="deleteItem(\'costs\',\'' + jsq(c.id)
+          + '\',\'' + jsq(bid) + '\')">삭제</button>'
         + '</td></tr>';
   }).join('');
 
@@ -7125,6 +7360,11 @@ function clearSearch(){
 }
 function gotoResult(brandId, tab){
   clearSearch();
+  if(tab === 'costs'){                      // 비용은 업무 쪽에 있습니다
+    view = 'costs'; currentBrandId = null; costBrand = brandId;
+    render(); window.scrollTo({ top:0, behavior:'smooth' });
+    return;
+  }
   view = 'brand';
   currentBrandId = brandId;
   currentTab = tab;
@@ -7209,19 +7449,29 @@ let itemType = null;
 
 /* 이 종류의 항목이 어디에 담겨 있는지.
    회의록·달력 일정은 브랜드 밖(팀 전체)에 있습니다. */
-function listOf(type){
+/* 어느 목록을 고칠 것인가.
+   브랜드 밖 화면(업무 → 마케팅 비용)에서는 브랜드를 직접 알려줍니다. */
+function listOf(type, brandId){
   if(TOP_LISTS.indexOf(type) >= 0){
     if(!Array.isArray(data[type])) data[type] = [];
     return data[type];
   }
-  const b = currentBrand();
-  return b ? b[type] : null;
+  const b = brandId ? data.brands.find(x => x.id === brandId) : currentBrand();
+  if(!b) return null;
+  if(!Array.isArray(b[type])) b[type] = [];
+  return b[type];
 }
 
-function openItemModal(type, id, preset){
-  const arr = listOf(type);
+/* 지금 상황에서 실제로 보여줄 칸들 (계정을 쓸 때만 나오는 칸이 있습니다) */
+function itemFields(t){ return t.fields.filter(f => !f.when || f.when()); }
+
+let itemBrandId = '';     // 브랜드 밖 화면에서 고칠 때 어느 브랜드인지
+
+function openItemModal(type, id, preset, brandId){
+  const arr = listOf(type, brandId);
   if(!arr) return;
   itemType = type;
+  itemBrandId = brandId || '';
   const t = TYPES[type];
   const it = id ? arr.find(x => x.id === id) : null;
   editing = it ? { type, id } : null;
@@ -7229,21 +7479,24 @@ function openItemModal(type, id, preset){
   document.getElementById('itemModalTitle').textContent =
     t.label + (it ? ' 수정' : ' 추가');
 
-  document.getElementById('itemFields').innerHTML = t.fields.map(f => {
+  document.getElementById('itemFields').innerHTML = itemFields(t).map(f => {
     // 값을 정하는 순서: 고치는 항목 → 눌러서 넘겨준 값(preset) → 기본값
     let v = it ? (it[f.key] || '') : '';
     if(!it && preset && preset[f.key] != null) v = preset[f.key];
+    else if(!it && !v && f.def) v = f.def();
     else if(!it && !v && f.type === 'date' && !f.noDefault) v = todayStr();
 
     const lab = '<label>' + f.label + (f.required ? ' *' : '') + '</label>';
     if(f.type === 'select'){
-      let opts = typeof f.options === 'function' ? f.options() : f.options;
+      // 고를 것은 '글자' 또는 {value, label} 둘 다 받습니다
+      let opts = (typeof f.options === 'function' ? f.options() : f.options)
+        .map(o => (o && typeof o === 'object') ? o : { value:o, label:o });
       // 지금 값이 목록에 없으면(브랜드 이름이 바뀌었다든지) 그 값도 넣어 둡니다.
       // 안 그러면 창을 열었다 저장하는 것만으로 값이 조용히 바뀝니다.
-      if(v && opts.indexOf(v) < 0) opts = [v].concat(opts);
+      if(v && !opts.some(o => o.value === v)) opts = [{ value:v, label:v }].concat(opts);
       return lab + '<select id="f_' + f.key + '">'
-        + opts.map(o => '<option' + (o === v ? ' selected' : '') + ' value="' + esc(o) + '">'
-            + (o === '' ? '— 없음 —' : esc(o)) + '</option>').join('')
+        + opts.map(o => '<option' + (o.value === v ? ' selected' : '') + ' value="' + esc(o.value) + '">'
+            + (o.label === '' ? '— 없음 —' : esc(o.label)) + '</option>').join('')
         + '</select>';
     }
     if(f.type === 'textarea'){
@@ -7270,14 +7523,20 @@ function openItemModal(type, id, preset){
 }
 
 function submitItem(){
-  const arr = listOf(itemType);
+  const arr = listOf(itemType, itemBrandId);
   if(!arr) return;
   const t = TYPES[itemType];
   const payload = {};
-  for(const f of t.fields){
-    const v = document.getElementById('f_' + f.key).value.trim();
+  for(const f of itemFields(t)){
+    const el = document.getElementById('f_' + f.key);
+    if(!el) continue;
+    const v = el.value.trim();
     if(f.required && !v){ toast('⚠️ ' + f.label + '을(를) 입력해 주세요'); return; }
     payload[f.key] = v;
+  }
+  // 할 일은 맡은 사람 이름도 같이 적어둡니다 (계정을 안 쓰게 되어도 남게)
+  if(itemType === 'tasks' && authOn()){
+    payload.owner = payload.uid ? (peopleName(payload.uid) || payload.owner || '') : '';
   }
   // 끝나는 날이 시작보다 앞이면 잘못 고른 것입니다
   if(payload.until && payload.date && payload.until < payload.date){
@@ -7306,20 +7565,20 @@ function submitItem(){
   }
   editing = null;
   closeModal('itemModal');
-  render(); markDirty();
+  render(); markDirty(itemBrandId || undefined);
 }
 
-function deleteItem(type, id){
-  const arr = listOf(type);
+function deleteItem(type, id, brandId){
+  const arr = listOf(type, brandId);
   if(!arr) return;
   const it = arr.find(x => x.id === id);
   if(!it){ render(); return; }          // 이미 다른 분이 지웠습니다
   if(!confirm('"' + it.title + '" 항목을 삭제할까요?')) return;
   const left = arr.filter(x => x.id !== id);
   if(TOP_LISTS.indexOf(type) >= 0) data[type] = left;
-  else currentBrand()[type] = left;
+  else (brandId ? data.brands.find(x => x.id === brandId) : currentBrand())[type] = left;
   deletedIds.add(id);
-  render(); markDirty();
+  render(); markDirty(brandId || undefined);
   toast('🗑️ 삭제했습니다');
 }
 

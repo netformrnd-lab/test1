@@ -138,7 +138,8 @@ function dest_dir($root, $brand, $sub, $useYear, $when = null) {
 $FILE_DIR  = upload_root($UPROOT_FILE) ?: ($DATA_DIR . '/files');
 /* 예전에 data/files 에 올린 파일도 계속 열려야 합니다 */
 $FILE_DIRS = array_values(array_unique(array_filter([$FILE_DIR, $DATA_DIR . '/files'], 'is_dir')));
-$MANIFEST = $DATA_DIR . '/brand-data.json';
+$MANIFEST = function_exists('bh_data_file') ? bh_data_file($DATA_DIR)
+                                            : $DATA_DIR . '/brand-data.json';
 $MAX_BYTES = 200 * 1024 * 1024;   // 200MB (PHP 설정이 더 낮으면 그쪽이 우선 적용됩니다)
 
 function jout($arr, $code = 200) {
@@ -202,7 +203,8 @@ function unique_path($dir, $name) {
 /** brand-data.json 에서 fileId 에 해당하는 자료 항목을 찾습니다 */
 function lookup_asset($manifest, $fileId) {
     if (!file_exists($manifest)) return null;
-    $json = json_decode(file_get_contents($manifest), true);
+    $json = json_decode(function_exists('bh_read_raw')
+        ? bh_read_raw($manifest) : (string)@file_get_contents($manifest), true);
     if (!is_array($json) || !isset($json['brands'])) return null;
     foreach ($json['brands'] as $b) {
         // 브랜드 기록부 문서도 같이 찾습니다
@@ -288,7 +290,8 @@ function find_by_name($dir, $name, $depth) {
 /** brand-data.json 에서 fileId 에 해당하는 원본 파일명을 찾습니다 */
 function lookup_name($manifest, $fileId) {
     if (!file_exists($manifest)) return null;
-    $json = json_decode(file_get_contents($manifest), true);
+    $json = json_decode(function_exists('bh_read_raw')
+        ? bh_read_raw($manifest) : (string)@file_get_contents($manifest), true);
     if (!is_array($json) || !isset($json['brands'])) return null;
     foreach ($json['brands'] as $b) {
         if (!isset($b['assets']) || !is_array($b['assets'])) continue;
@@ -963,7 +966,7 @@ if ($action === 'gone') {
 
     // 목록은 한 번만 읽습니다 (파일마다 다시 읽으면 느립니다)
     $idx  = [];
-    $json = is_file($MANIFEST) ? json_decode((string)@file_get_contents($MANIFEST), true) : null;
+    $json = is_file($MANIFEST) ? json_decode(bh_read_raw($MANIFEST), true) : null;
     if (is_array($json) && isset($json['brands'])) {
         foreach ($json['brands'] as $b) {
             if (!empty($b['record']['id'])) {

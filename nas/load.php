@@ -13,7 +13,24 @@ if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // �
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
-$file = __DIR__ . '/data/brand-data.json';
+/* guard.php 가 아직 안 올라온 예전 상태에서도 돌아가게 하는 대비책입니다.
+   (배포 중 파일이 하나씩 올라오는 동안에도 저장이 끊기지 않도록) */
+if (!function_exists('bh_read_raw')) {
+    function bh_read_raw($p) { return is_file($p) ? (string)@file_get_contents($p) : ''; }
+    function bh_write_raw($p, $json) {
+        $t = $p . '.tmp' . getmypid();
+        $n = @file_put_contents($t, $json);
+        if ($n === false || $n !== strlen($json) || !@rename($t, $p)) { @unlink($t); return false; }
+        @chmod($p, 0664);
+        return true;
+    }
+    function bh_data_file($dir) { return $dir . '/brand-data.json'; }
+}
+
+
+/* 자료 파일 — 주소로 그냥 열리지 않게 .php 로 둡니다 (guard.php 참고).
+   예전 판에서 쓰던 .json 이 있으면 처음 한 번에 옮겨옵니다. */
+$file = bh_data_file(__DIR__ . '/data');
 
 /**
  * ?rev=1 — 지금 판 번호만 알려줍니다. (실시간 반영에 씁니다)
@@ -31,7 +48,7 @@ if (isset($_GET['rev'])) {
         $by  = $parts[2] ?? '';
     } elseif (is_file($file)) {
         // rev.txt 가 아직 없으면(예전 판) 한 번만 본문에서 읽습니다
-        $d = json_decode((string)@file_get_contents($file), true);
+        $d = json_decode(bh_read_raw($file), true);
         $rev = is_array($d) && isset($d['_rev']) ? (int)$d['_rev'] : 0;
     }
     echo json_encode(['ok' => true, 'rev' => $rev, '시각' => $at, '고친사람' => $by],
@@ -48,7 +65,7 @@ if (!file_exists($file)) {
 // 읽은 내용이 온전한지 확인합니다. 저장이 겹쳐 이상하면 잠깐 뒤 다시 읽습니다.
 $body = false;
 for ($i = 0; $i < 4; $i++) {
-    $t = @file_get_contents($file);
+    $t = bh_read_raw($file);
     if (is_string($t) && $t !== '' && json_decode($t) !== null) { $body = $t; break; }
     usleep(120000);   // 0.12초
 }
@@ -61,9 +78,18 @@ if ($body === false) {
         '_error' => '저장된 데이터를 읽지 못했습니다. 파일이 손상됐을 수 있습니다.',
         '_file'  => $file,
         '_크기'  => (int)@filesize($file),
-        '_안내'  => 'data 폴더의 backup-날짜.json 으로 되돌릴 수 있습니다.',
+        '_안내'  => 'data 폴더의 backup-날짜.php 로 되돌릴 수 있습니다.',
     ], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+/* 할 일은 맡은 사람만 봅니다 (팀원에게는 남의 할 일을 아예 보내지 않습니다) */
+if (function_exists('guard_hide_tasks')) {
+    $d = json_decode($body, true);
+    if (is_array($d)) {
+        $out = json_encode(guard_hide_tasks($d), JSON_UNESCAPED_UNICODE);
+        if ($out !== false) $body = $out;
+    }
 }
 
 echo $body;

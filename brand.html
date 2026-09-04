@@ -1071,7 +1071,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260905-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260905-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7345,7 +7345,10 @@ async function bookToPrompt(){
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ brand: b.name, book: bookAsText(b) })
     });
+    let cut = false;
     if(out['진행중']){                    // 마누스 — 끝날 때까지 기다립니다
+      cut = !!out['잘림'];
+      if(cut) toast('✂️ 브랜드북이 길어 앞부분만 보냈습니다 (마누스는 한 번에 받는 길이가 짧습니다)');
       aiState.wait = 0; render();
       out = await waitTask(out['작업번호'], 'prompt', sec => { aiState.wait = sec; render(); });
     }
@@ -7362,7 +7365,9 @@ async function bookToPrompt(){
       const el = document.getElementById('promptSec');
       if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
     }, 60);
-    toast('✨ 브랜드북으로 마스터프롬프트를 만들었습니다');
+    toast(out['잘림'] || cut
+      ? '✨ 만들었습니다 — 다만 브랜드북이 길어 앞부분만 보냈습니다 (전체로 하려면 [📋 브랜드북 복사])'
+      : '✨ 브랜드북으로 마스터프롬프트를 만들었습니다');
   }catch(e){
     const msg = apiErrText(e);
     aiState.netFail = true;             // 한 번이라도 실패하면 [🩺 AI 점검] 을 남겨둡니다

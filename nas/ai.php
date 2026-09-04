@@ -212,9 +212,23 @@ function manus_head($key, $which = 0) {
             'API_KEY: ' . $key];
 }
 
+/* 마누스는 한 번에 받는 글 길이에 한도가 있습니다 (5000 토큰).
+   한글은 글자 수와 토큰 수가 비슷해서, 글자 수로 넉넉하게 어림잡습니다. */
+const MANUS_LIMIT = 4200;        // 안전하게 잡은 글자 수
+
+function manus_fit($text, $limit = MANUS_LIMIT, &$cut = false) {
+    $n = function_exists('mb_strlen') ? mb_strlen($text, 'UTF-8') : strlen($text);
+    if ($n <= $limit) { $cut = false; return $text; }
+    $cut = true;
+    $keep = function_exists('mb_substr') ? mb_substr($text, 0, $limit - 60, 'UTF-8')
+                                         : substr($text, 0, $limit - 60);
+    return $keep . "\n\n…(길어서 여기까지만 보냈습니다)";
+}
+
 /** 작업을 시작합니다 — [응답코드, 원문, 작업번호|''] */
-function manus_start($key, $prompt) {
+function manus_start($key, $prompt, &$cut = false, $limit = MANUS_LIMIT) {
     $why = [];
+    $prompt = manus_fit($prompt, $limit, $cut);
     $body = json_encode(['prompt' => $prompt], JSON_UNESCAPED_UNICODE);
     [$code, $raw] = ai_post(MANUS_API, manus_head($key, manus_head_pref()), $body, $why);
     // 키를 싣는 자리가 다를 수 있습니다 — 거절당하면 다른 방법으로 한 번 더
@@ -223,6 +237,18 @@ function manus_start($key, $prompt) {
         if ($raw2 !== false && $code2 !== 401 && $code2 !== 403) {
             @file_put_contents(__DIR__ . '/data/ai-manus-head.txt', '1');   // 되는 방법을 적어둡니다
             $code = $code2; $raw = $raw2;
+        }
+    }
+    // 「너무 길다」 고 하면 그 한도에 맞춰 한 번 더 줄여서 보냅니다
+    if ($raw !== false && $code >= 400) {
+        $msg = ai_errmsg($raw);
+        if (preg_match('/at most\s+(\d+)\s+estimated tokens/i', (string)$msg, $m)) {
+            $newLimit = max(800, (int)round((int)$m[1] * 0.75));
+            if ($newLimit < $limit) {
+                $prompt2 = manus_fit($prompt, $newLimit, $cut);
+                $body2 = json_encode(['prompt' => $prompt2], JSON_UNESCAPED_UNICODE);
+                [$code, $raw] = ai_post(MANUS_API, manus_head($key, manus_head_pref()), $body2, $why);
+            }
         }
     }
     if ($raw === false) return [$code, false, '', $why];
@@ -853,7 +879,12 @@ if ($action === 'prompt') {
 
     // 마누스는 오래 걸립니다 — 작업만 시작하고 화면이 물어보게 합니다
     if (ai_vendor($key) === 'manus') {
-        [$c, $r, $tid, $w] = manus_start($key, $sys . "\n\n" . $user);
+        // 마누스는 한 번에 받는 글이 짧아서 지시문도 줄여 보냅니다
+        $short = "아래 브랜드북을 읽고, 이 브랜드의 글을 쓸 때 쓸 마스터프롬프트를 "
+               . "한국어로 써 주세요. 없는 내용은 지어내지 말고 「브랜드북에 아직 없음」 "
+               . "이라고 적어주세요. 설명 없이 프롬프트만 답하세요.";
+        $cut2 = false;
+        [$c, $r, $tid, $w] = manus_start($key, $short . "\n\n" . $user, $cut2);
         if ($r === false) {
             jout(['ok' => false, 'error' =>
                 "마누스에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)], 502);
@@ -863,7 +894,9 @@ if ($action === 'prompt') {
                 . "\n\n(마누스가 보낸 것 앞부분: " . mb_strcut((string)$r, 0, 200) . ')'], 502);
         }
         jout(['ok' => true, '진행중' => true, '작업번호' => $tid, '무엇' => 'prompt',
-              '안내' => '마누스가 작업을 시작했습니다']);
+              '잘림' => $cut || $cut2,
+              '안내' => '마누스가 작업을 시작했습니다'
+                . (($cut || $cut2) ? ' (마누스가 한 번에 받는 길이를 넘어서 앞부분만 보냈습니다)' : '')]);
     }
 
     $why = [];
@@ -943,7 +976,12 @@ if ($action === 'summarize') {
           . "\n--- 회의 메모 ---\n" . $notes;
 
     if (ai_vendor($key) === 'manus') {
-        [$c, $r, $tid, $w] = manus_start($key, $sys . "\n\n" . $user);
+        $short = "아래 회의 메모를 정리해 주세요. JSON 하나만 답하고 다른 말은 붙이지 마세요.\n"
+               . '{"요약":"3~5문장","결정사항":[],"할일":[{"내용":"","담당":"","기한":""}],'
+               . '"다음회의":"","확인필요":[]}' . "\n"
+               . "메모에 없는 내용은 지어내지 마세요.";
+        $cut2 = false;
+        [$c, $r, $tid, $w] = manus_start($key, $short . "\n\n" . $user, $cut2);
         if ($r === false) {
             jout(['ok' => false, 'error' =>
                 "마누스에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)], 502);
@@ -953,7 +991,9 @@ if ($action === 'summarize') {
                 . "\n\n(마누스가 보낸 것 앞부분: " . mb_strcut((string)$r, 0, 200) . ')'], 502);
         }
         jout(['ok' => true, '진행중' => true, '작업번호' => $tid, '무엇' => 'summarize',
-              '안내' => '마누스가 작업을 시작했습니다']);
+              '잘림' => $cut || $cut2,
+              '안내' => '마누스가 작업을 시작했습니다'
+                . (($cut || $cut2) ? ' (길어서 앞부분만 보냈습니다)' : '')]);
     }
 
     $why = [];

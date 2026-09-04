@@ -136,17 +136,38 @@ function resolve_nas_dir($p) {
     return [null, $tried];
 }
 
-/** 훑은 폴더 안의 파일인지 확인합니다. 그 밖의 경로는 절대 열지 않습니다. */
-function safe_real_path($path, $rootFile) {
-    if (!is_file($rootFile)) return null;
-    $root = rtrim(trim(file_get_contents($rootFile)), '/');
-    if ($root === '') return null;
+/** 우리가 손대도 되는 폴더들 —
+ *   ① 훑는 폴더 (data/nasroot.txt)      : NAS 자료에서 보는 공유폴더
+ *   ② 올린 파일 폴더 (data/uploadroot.txt): 브랜드 마케팅팀 폴더
+ *  이 두 곳 안쪽만 열고, 만들고, 옮깁니다. 그 밖은 절대 손대지 않습니다. */
+function roots_all() {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    $out = [];
+    foreach (['/data/nasroot.txt', '/data/uploadroot.txt'] as $rel) {
+        $f = __DIR__ . $rel;
+        if (!is_file($f)) continue;
+        $r = rtrim(trim((string)@file_get_contents($f)), '/');
+        if ($r === '') continue;
+        $rr = realpath($r);
+        if ($rr !== false) $out[] = $rr;
+    }
+    return $cache = $out;
+}
 
-    $real     = realpath($path);
-    $realRoot = realpath($root);
-    if ($real === false || $realRoot === false) return null;
-    if (strpos($real, $realRoot . DIRECTORY_SEPARATOR) !== 0) return null;   // 폴더 밖이면 거부
-    if (!is_file($real)) return null;
+/** 이 경로가 허락된 폴더 안쪽인가 */
+function under_roots($real) {
+    if ($real === false || $real === null) return false;
+    foreach (roots_all() as $r) {
+        if ($real === $r || strpos($real, $r . DIRECTORY_SEPARATOR) === 0) return true;
+    }
+    return false;
+}
+
+/** 허락된 폴더 안의 파일인지 확인합니다. 그 밖의 경로는 절대 열지 않습니다. */
+function safe_real_path($path, $rootFile = null) {
+    $real = realpath($path);
+    if ($real === false || !under_roots($real) || !is_file($real)) return null;
     return $real;
 }
 
@@ -156,15 +177,9 @@ function safe_real_path($path, $rootFile) {
    ================================================================= */
 
 /** 훑는 폴더 안의 「폴더」 인지 확인합니다 (파일이 아니라) */
-function safe_real_dir($path, $rootFile) {
-    if (!is_file($rootFile)) return null;
-    $root = rtrim(trim((string)@file_get_contents($rootFile)), '/');
-    if ($root === '') return null;
-    $real     = realpath($path);
-    $realRoot = realpath($root);
-    if ($real === false || $realRoot === false) return null;
-    if ($real !== $realRoot && strpos($real, $realRoot . DIRECTORY_SEPARATOR) !== 0) return null;
-    if (!is_dir($real)) return null;
+function safe_real_dir($path, $rootFile = null) {
+    $real = realpath($path);
+    if ($real === false || !under_roots($real) || !is_dir($real)) return null;
     return $real;
 }
 
@@ -200,7 +215,7 @@ if ($action === 'mkdir') {
     $b    = json_decode((string)file_get_contents('php://input'), true);
     $dir  = safe_real_dir((string)($b['dir'] ?? ''), $ROOT_FILE);
     $name = name_ok($b['name'] ?? '');
-    if ($dir === null)  jout(['ok' => false, 'error' => '연결한 NAS 폴더 안쪽에서만 만들 수 있습니다'], 403);
+    if ($dir === null)  jout(['ok' => false, 'error' => '여기서 만들 수 있는 곳이 아닙니다 (NAS 훑는 폴더나 브랜드 공유폴더 안쪽만 됩니다)'], 403);
     if ($name === null) jout(['ok' => false, 'error' =>
         '폴더 이름에 쓸 수 없는 글자가 있습니다 ( \\ / : * ? " < > | 는 못 씁니다)'], 400);
     if (!is_writable($dir)) jout(['ok' => false, 'error' => perm_help($dir)], 403);
@@ -218,7 +233,7 @@ if ($action === 'movehere') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
     $b    = json_decode((string)file_get_contents('php://input'), true);
     $to   = safe_real_dir((string)($b['to'] ?? ''), $ROOT_FILE);
-    if ($to === null) jout(['ok' => false, 'error' => '연결한 NAS 폴더 안쪽으로만 옮길 수 있습니다'], 403);
+    if ($to === null) jout(['ok' => false, 'error' => '여기로는 옮길 수 없습니다 (NAS 훑는 폴더나 브랜드 공유폴더 안쪽만 됩니다)'], 403);
 
     $fromRaw = (string)($b['from'] ?? '');
     $from    = safe_real_path($fromRaw, $ROOT_FILE);          // 파일
@@ -227,7 +242,7 @@ if ($action === 'movehere') {
         $from  = safe_real_dir($fromRaw, $ROOT_FILE);         // 폴더도 옮길 수 있습니다
         $isDir = $from !== null;
     }
-    if ($from === null) jout(['ok' => false, 'error' => '옮길 것을 찾지 못했습니다 (폴더 안쪽만 됩니다)'], 404);
+    if ($from === null) jout(['ok' => false, 'error' => '옮길 것을 찾지 못했습니다 (NAS 훑는 폴더나 브랜드 공유폴더 안쪽만 됩니다)'], 404);
 
     if ($isDir) {
         if ($from === $to) jout(['ok' => false, 'error' => '같은 자리입니다'], 400);
@@ -250,7 +265,7 @@ if ($action === 'movehere') {
 if ($action === 'upload') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
     $dir = safe_real_dir((string)($_POST['dir'] ?? ''), $ROOT_FILE);
-    if ($dir === null) jout(['ok' => false, 'error' => '연결한 NAS 폴더 안쪽에만 올릴 수 있습니다'], 403);
+    if ($dir === null) jout(['ok' => false, 'error' => '여기에는 올릴 수 없습니다 (NAS 훑는 폴더나 브랜드 공유폴더 안쪽만 됩니다)'], 403);
     if (!is_writable($dir)) jout(['ok' => false, 'error' => perm_help($dir)], 403);
     if (!isset($_FILES['file'])) jout(['ok' => false, 'error' => '파일이 오지 않았습니다'], 400);
 
@@ -554,10 +569,10 @@ if ($action === 'browse') {
     $real = @realpath($dir);
     if (!$real) jout(['ok' => false, 'error' => '그런 폴더가 없습니다: ' . $dir], 404);
 
-    // 훑은 폴더 밖은 열지 않습니다
-    $realRoot = $root !== '' ? @realpath($root) : false;
-    if (!$realRoot || ($real !== $realRoot && strpos($real, $realRoot . DIRECTORY_SEPARATOR) !== 0)) {
-        jout(['ok' => false, 'error' => '목록을 만든 폴더 안쪽만 볼 수 있습니다'], 403);
+    // 허락된 폴더(훑는 폴더 · 올린 파일 폴더) 밖은 열지 않습니다
+    if (!under_roots($real)) {
+        jout(['ok' => false, 'error' =>
+            '여기서 볼 수 있는 곳이 아닙니다 (NAS 훑는 폴더나 공유 저장 폴더 안쪽만 됩니다)'], 403);
     }
 
     $off = max(0, (int)($_GET['off'] ?? 0));
@@ -620,10 +635,31 @@ if ($action === 'browse') {
         fclose($fp);
     }
 
+    // 훑어둔 목록에 없는 곳(브랜드 공유폴더 등)은 그 자리에서 세어 봅니다.
+    // 아주 큰 폴더에서 화면이 느려지지 않게 시간과 개수를 제한합니다.
+    $liveCount = function ($dir) {
+        $n = 0; $sz = 0;
+        $deadline = microtime(true) + 1.2;
+        $walk = function ($d, $lv) use (&$walk, &$n, &$sz, $deadline) {
+            if ($lv > 6 || $n > 20000 || microtime(true) > $deadline) return;
+            foreach ((array)@scandir($d) as $e) {
+                if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+                $pp = $d . '/' . $e;
+                if (is_dir($pp)) $walk($pp, $lv + 1);
+                elseif (is_file($pp)) { $n++; $sz += (int)@filesize($pp); }
+                if ($n > 20000 || microtime(true) > $deadline) return;
+            }
+        };
+        $walk($dir, 0);
+        return [$n, $sz];
+    };
+
     $folderList = [];
     foreach (array_keys($dirNames) as $name) {
         if (in_array($name, $skipNames, true)) continue;
-        $c = $counts[$name] ?? [0, 0];
+        $c = $counts[$name] ?? null;
+        if ($c === null && $totalIn === 0) $c = $liveCount($real . '/' . $name);
+        if ($c === null) $c = [0, 0];
         $folderList[] = ['name' => $name, 'path' => $real . '/' . $name,
                          'count' => $c[0], 'size' => human($c[1])];
     }
@@ -633,7 +669,13 @@ if ($action === 'browse') {
         'ok'      => true,
         'dir'     => $real,
         'root'    => $root,
-        'parent'  => ($realRoot && $real !== $realRoot) ? dirname($real) : null,
+        'parent'  => (function () use ($real) {          // 뿌리보다 위로는 못 올라갑니다
+                          foreach (roots_all() as $r) if ($real === $r) return null;   // 여기가 뿌리
+                          foreach (roots_all() as $r) {
+                              if (strpos($real, $r . DIRECTORY_SEPARATOR) === 0) return dirname($real);
+                          }
+                          return null;
+                      })(),
         'total'   => max($totalIn, count($fileNames)),
         'folders' => $off === 0 ? $folderList : [],
         'files'   => $files,

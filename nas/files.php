@@ -634,6 +634,25 @@ if ($action === 'setyear') {
                         : '연도 폴더를 쓰지 않습니다']);
 }
 
+/* 이 브랜드의 공유폴더 자리를 알려줍니다 (화면에서 폴더를 열어 보기 위해) */
+if ($action === 'branddir') {
+    $name = safe_name($_GET['brand'] ?? '', '');
+    if ($name === '') jout(['ok' => false, 'error' => '브랜드 이름이 없습니다'], 400);
+    if (!is_dir($FILE_DIR)) jout(['ok' => false, 'error' => '저장 폴더가 없습니다'], 404);
+
+    $dir  = $FILE_DIR . '/' . $name;
+    $make = !empty($_GET['make']);
+    if (!is_dir($dir) && $make) {
+        if (!@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            jout(['ok' => false, 'error' => '브랜드 폴더를 만들지 못했습니다 (권한 확인)'], 500);
+        }
+        // 종류 폴더도 함께 만들어 둡니다 (빈 폴더는 정리할 때 알아서 치웁니다)
+        foreach (SUBDIRS as $sub) @mkdir($dir . '/' . $sub, 0775, true);
+    }
+    jout(['ok' => true, '경로' => $dir, '있음' => is_dir($dir),
+          '이름' => $name, '뿌리' => $FILE_DIR, '연도폴더' => $USE_YEAR]);
+}
+
 if ($action === 'setuploadroot') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
     $body = json_decode((string)file_get_contents('php://input'), true);

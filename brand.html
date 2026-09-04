@@ -1077,7 +1077,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260905-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260905-10';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4549,6 +4549,71 @@ async function openUpRoot(){
   await setUpRoot(v.trim());
 }
 
+/* ═══════════════ 브랜드 공유폴더 열어보기 ═══════════════════════════
+   올린 파일이 실제로 쌓이는 폴더를, NAS 자료와 똑같이 열어봅니다.
+   여기서도 새 폴더·올리기·끌어다 옮기기가 됩니다.
+   ================================================================= */
+const brandDir = {};        // 브랜드id → { path, 있음, error }
+let shareOpen = {};         // 브랜드id → 펼쳤나
+
+async function loadBrandDir(b, make){
+  if(STORAGE_MODE !== 'nas' || !b) return;
+  if(brandDir[b.id] && brandDir[b.id].busy) return;
+  brandDir[b.id] = { busy:true };
+  try{
+    const out = await apiJson('files.php?action=branddir&brand=' + encodeURIComponent(b.name)
+      + (make ? '&make=1' : ''));
+    brandDir[b.id] = { path: out['경로'], 있음: out['있음'], 뿌리: out['뿌리'] };
+  }catch(e){ brandDir[b.id] = { error: apiErrText(e) }; }
+  render();
+}
+
+function toggleShare(bid){
+  shareOpen[bid] = !shareOpen[bid];
+  render();
+  if(shareOpen[bid]) setTimeout(bindDrop, 30);
+}
+
+async function makeBrandDir(bid){
+  const b = data.brands.find(x => x.id === bid); if(!b) return;
+  await loadBrandDir(b, true);
+  const d = brandDir[bid] || {};
+  if(d.path){ delete browseCache[d.path]; loadBrowse(d.path); }
+  toast('📂 브랜드 폴더를 만들었습니다');
+}
+
+/* 자료 탭 아래에 붙는 「이 브랜드 공유폴더」 */
+function shareBrowser(b){
+  if(STORAGE_MODE !== 'nas') return '';
+  const i = upRoot.info;
+  if(!i || i.error || !i['공유폴더로']) return '';          // 공유폴더로 저장할 때만 보여줍니다
+
+  const d = brandDir[b.id];
+  if(d === undefined){ setTimeout(() => loadBrandDir(b), 10); }
+
+  const open = !!shareOpen[b.id];
+  const head = '<button class="fhead" style="border:1px solid var(--border);border-radius:10px;'
+    + 'background:var(--bg-secondary);margin-top:14px" onclick="toggleShare(\'' + jsq(b.id) + '\')">'
+    + '<span class="fh-ar">' + (open ? '▾' : '▸') + '</span>'
+    + '<span class="fh-ic">📂</span>'
+    + '<span class="fh-nm">이 브랜드 공유폴더 열어보기</span>'
+    + '<span class="fh-ct">폴더 만들기 · 올리기 · 옮기기</span>'
+    + '</button>';
+
+  if(!open) return head;
+
+  let body;
+  if(!d || d.busy)      body = '<div class="fmeta">폴더를 찾는 중…</div>';
+  else if(d.error)      body = '<div class="fmeta">⚠️ ' + esc(d.error) + '</div>';
+  else if(!d['있음'])   body = '<div class="empty">아직 이 브랜드 폴더가 없습니다.<br>'
+    + '<span class="path">' + esc(d.path || '') + '</span><br>'
+    + '<button class="btn sm primary" style="margin-top:10px" onclick="makeBrandDir(\'' + jsq(b.id) + '\')">'
+    + '📂 지금 만들기</button></div>';
+  else body = folderBrowserHtml('share:' + b.id, d.path, { crumbRoot: d.path });
+
+  return head + '<div class="mbox" style="margin-top:8px;padding:12px 14px">' + body + '</div>';
+}
+
 function viewAssets(b){
   const dropZone = STORAGE_MODE === 'nas'
     ? '<div class="drop" id="dropZone" onclick="document.getElementById(\'fileInput\').click()">'
@@ -4644,7 +4709,7 @@ function viewAssets(b){
       + '</div>'
     : '';
   return upRootBar() + findBar + dropZone + '<div class="upqueue" id="upQueue"></div>' + report
-       + movePanel() + viewNasFolders(b) + bar + goneBar + cards;
+       + movePanel() + viewNasFolders(b) + shareBrowser(b) + bar + goneBar + cards;
 }
 
 /* ========================= 브랜드에 연결한 NAS 폴더 =========================

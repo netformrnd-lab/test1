@@ -209,7 +209,7 @@ function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
 
     if ($v === 'openai') {
         $model = openai_model($key, $modelFile);
-        $mk = function ($model, $tokenKey) use ($sys, $user, $maxTokens) {
+        $mk = function ($model, $tokenKey) use ($sys, $user, &$maxTokens) {
             return json_encode([
                 'model' => $model,
                 'messages' => [
@@ -240,6 +240,15 @@ function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
             [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why);
             $j = $raw === false ? null : json_decode($raw, true);
         }
+        // 진짜로 몰린 것이면 잠깐 쉬었다가 한 번만 다시 물어봅니다
+        //  (잔액 문제로 온 429 는 다시 해도 소용없으니 그대로 돌려줍니다)
+        if ($raw !== false && $code === 429 && !ai_is_quota(ai_errmsg($raw))) {
+            sleep(6);
+            // 분당 한도에 걸린 것이면 답 길이를 줄여 부담을 낮춥니다
+            $maxTokens = min($maxTokens, 4000);
+            [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why);
+            $j = $raw === false ? null : json_decode($raw, true);
+        }
         if ($raw === false) return [$code, false, false, $model];
         $text = trim((string)($j['choices'][0]['message']['content'] ?? ''));
         return [$code, $raw, $text === '' ? false : $text, $model];
@@ -252,10 +261,14 @@ function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
         'thinking' => ['type' => 'adaptive'],
         'messages' => [['role' => 'user', 'content' => $user]],
     ], JSON_UNESCAPED_UNICODE);
-    [$code, $raw] = ai_post('https://api.anthropic.com/v1/messages', [
-        'Content-Type: application/json', 'x-api-key: ' . $key,
-        'anthropic-version: 2023-06-01',
-    ], $payload, $why);
+    $head = ['Content-Type: application/json', 'x-api-key: ' . $key,
+             'anthropic-version: 2023-06-01'];
+    $url  = 'https://api.anthropic.com/v1/messages';
+    [$code, $raw] = ai_post($url, $head, $payload, $why);
+    if ($raw !== false && $code === 429 && !ai_is_quota(ai_errmsg($raw))) {
+        sleep(6);
+        [$code, $raw] = ai_post($url, $head, $payload, $why);
+    }
     if ($raw === false) return [$code, false, false, $model];
     $j = json_decode($raw, true);
     if (($j['stop_reason'] ?? '') === 'refusal') return [$code, $raw, false, $model];
@@ -265,33 +278,71 @@ function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
     return [$code, $raw, $text === '' ? false : $text, $model];
 }
 
-/** AI 가 돌려준 영어 오류를, 무엇을 해야 하는지 알 수 있는 말로 바꿉니다 */
-function ai_friendly($code, $msg) {
-    $m = strtolower((string)$msg);
+/** AI 가 돌려준 영어 오류를, 무엇을 해야 하는지 알 수 있는 말로 바꿉니다.
+ *  회사에 따라 충전하는 곳이 다르므로 키 종류도 같이 봅니다. */
+function ai_friendly($code, $msg, $vendor = '') {
+    $m   = strtolower((string)$msg);
+    $gpt = ($vendor === 'openai');
+    $where = $gpt
+        ? "platform.openai.com → 왼쪽 [Settings → Billing] 에서 결제 수단·크레딧을 확인해 주세요."
+        : "console.anthropic.com → [Plans & Billing] 에서 크레딧을 충전해 주세요.";
+    $sub = $gpt
+        ? "(챗GPT Plus 구독료와 API 는 지갑이 다릅니다. 구독 중이어도 API 크레딧이 따로 필요합니다)"
+        : "(클로드 구독료와 API 는 지갑이 다릅니다. 쓴 만큼만 나가는 선불입니다)";
 
+    // 돈 문제 — OpenAI 는 이것도 429 로 보냅니다 (insufficient_quota)
     if (strpos($m, 'credit balance') !== false || strpos($m, 'insufficient') !== false
-        || strpos($m, 'billing') !== false) {
+        || strpos($m, 'quota') !== false || strpos($m, 'billing') !== false
+        || strpos($m, 'payment') !== false) {
         return "💳 AI 잔액이 떨어졌습니다.\n\n"
-             . "대시보드 문제가 아니라 Anthropic 계정에 남은 크레딧이 없는 것입니다.\n"
-             . "console.anthropic.com 에 들어가서 [Plans & Billing] → 크레딧을 충전하면\n"
-             . "바로 다시 됩니다. (쓴 만큼만 나가는 선불 방식이고, 클로드 구독료와는 별개입니다)\n\n"
+             . "대시보드 문제가 아니라 AI 회사 계정에 남은 크레딧이 없는 것입니다.\n"
+             . $where . " 충전하면 바로 다시 됩니다.\n" . $sub . "\n\n"
              . "받은 말 그대로: " . $msg;
     }
-    if (strpos($m, 'rate limit') !== false || strpos($m, 'rate_limit') !== false) {
-        return "잠시 뒤에 다시 해주세요. 짧은 사이에 너무 여러 번 물어봤습니다.\n\n받은 말: " . $msg;
+    if (strpos($m, 'rate limit') !== false || strpos($m, 'rate_limit') !== false
+        || strpos($m, 'too many requests') !== false || ($code === 429 && $m === '')) {
+        return "⏳ 짧은 사이에 너무 여러 번 물어봤습니다.\n\n"
+             . "1~2분 뒤에 다시 눌러주세요. 계속 이러면 계정의 분당 한도가 낮은 것이라\n"
+             . ($gpt ? "platform.openai.com → Settings → Limits" : "console.anthropic.com → Limits")
+             . " 에서 한도를 확인해 보세요.\n\n"
+             . ($msg !== '' ? ("받은 말 그대로: " . $msg) : '');
     }
     if (strpos($m, 'overloaded') !== false) {
         return "AI 서버가 지금 몰려 있습니다. 1~2분 뒤에 다시 해주세요.\n\n받은 말: " . $msg;
     }
-    if (strpos($m, 'model') !== false && (strpos($m, 'not_found') !== false
-        || strpos($m, 'not found') !== false)) {
-        return "이 키로는 지금 모델을 쓸 수 없습니다.\n"
-             . "Anthropic 계정에서 모델 사용 권한을 확인해 주세요.\n\n받은 말: " . $msg;
+    if (strpos($m, 'context length') !== false || strpos($m, 'too long') !== false
+        || strpos($m, 'maximum context') !== false) {
+        return "내용이 너무 깁니다. 브랜드북(또는 회의록)을 조금 줄여서 다시 해주세요.\n\n"
+             . "받은 말: " . $msg;
     }
-    if (strpos($m, 'authentication') !== false || strpos($m, 'invalid x-api-key') !== false) {
+    if (strpos($m, 'model') !== false && (strpos($m, 'not_found') !== false
+        || strpos($m, 'not found') !== false || strpos($m, 'does not exist') !== false)) {
+        return "이 키로는 지금 모델을 쓸 수 없습니다.\n"
+             . "계정에서 모델 사용 권한을 확인해 주세요.\n\n받은 말: " . $msg;
+    }
+    if (strpos($m, 'authentication') !== false || strpos($m, 'invalid x-api-key') !== false
+        || strpos($m, 'incorrect api key') !== false) {
         return "AI 키가 받아들여지지 않습니다. [🔑 AI 키 넣기] 로 새 키를 넣어주세요.\n\n받은 말: " . $msg;
     }
     return "AI 가 오류를 돌려줬습니다 (HTTP $code)\n\n" . $msg;
+}
+
+/** 429 가 「돈이 없어서」 인지 「너무 자주 불러서」 인지 */
+function ai_is_quota($msg) {
+    $m = strtolower((string)$msg);
+    return strpos($m, 'quota') !== false || strpos($m, 'billing') !== false
+        || strpos($m, 'credit') !== false || strpos($m, 'insufficient') !== false
+        || strpos($m, 'payment') !== false;
+}
+
+/** 응답에서 오류 문구만 꺼냅니다 */
+function ai_errmsg($raw) {
+    $j = is_string($raw) ? json_decode($raw, true) : null;
+    if (is_array($j) && isset($j['error'])) {
+        if (is_array($j['error'])) return (string)($j['error']['message'] ?? json_encode($j['error'], JSON_UNESCAPED_UNICODE));
+        return (string)$j['error'];
+    }
+    return is_string($raw) ? trim(substr($raw, 0, 300)) : '';
 }
 
 $action = $_GET['action'] ?? 'check';
@@ -568,12 +619,13 @@ if ($action === 'prompt') {
         jout(['ok' => false, 'error' => "AI 키가 거부됐습니다 (HTTP $code). 키를 다시 넣어주세요."], 401);
     }
     if ($code === 429) {
-        jout(['ok' => false, 'error' => '잠시 뒤에 다시 시도해 주세요 (요청이 몰렸습니다).'], 429);
+        // OpenAI 는 잔액이 없을 때도 429 를 보냅니다. 무엇 때문인지 보고 알려줍니다.
+        jout(['ok' => false, 'error' => ai_friendly(429, ai_errmsg($raw), ai_vendor($key))], 429);
     }
     if (!is_array($j) || isset($j['error'])) {
         $msg = is_array($j) && isset($j['error']['message']) ? $j['error']['message']
              : substr((string)$raw, 0, 300);
-        jout(['ok' => false, 'error' => ai_friendly($code, $msg)], 502);
+        jout(['ok' => false, 'error' => ai_friendly($code, $msg, ai_vendor($key))], 502);
     }
     if (($j['stop_reason'] ?? '') === 'refusal') {
         jout(['ok' => false, 'error' => 'AI 가 이 내용은 쓸 수 없다고 답했습니다.'], 400);
@@ -646,12 +698,13 @@ if ($action === 'summarize') {
             . '회사 네트워크가 중간에서 막고 있을 수도 있습니다.'], 401);
     }
     if ($code === 429) {
-        jout(['ok' => false, 'error' => '잠시 뒤에 다시 시도해 주세요 (요청이 몰렸습니다).'], 429);
+        // OpenAI 는 잔액이 없을 때도 429 를 보냅니다. 무엇 때문인지 보고 알려줍니다.
+        jout(['ok' => false, 'error' => ai_friendly(429, ai_errmsg($raw), ai_vendor($key))], 429);
     }
     if (!is_array($j) || isset($j['error'])) {
         $msg = is_array($j) && isset($j['error']['message']) ? $j['error']['message']
              : substr((string)$raw, 0, 300);
-        jout(['ok' => false, 'error' => ai_friendly($code, $msg)], 502);
+        jout(['ok' => false, 'error' => ai_friendly($code, $msg, ai_vendor($key))], 502);
     }
     if (($j['stop_reason'] ?? '') === 'refusal') {
         jout(['ok' => false, 'error' => 'AI 가 이 내용은 정리할 수 없다고 답했습니다.'], 400);

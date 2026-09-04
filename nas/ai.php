@@ -3,6 +3,7 @@
  * AI 요약 — 회의록을 정리해 줍니다
  *
  *   ?action=check                 준비됐는지 확인
+ *   ?action=net                   왜 AI 에 못 붙는지 점검 (네트워크)
  *   ?action=setkey  (POST)        API 키 저장 (한 번만)
  *   ?action=summarize (POST)      회의 내용을 요약
  *
@@ -109,6 +110,122 @@ function ai_post($url, $headers, $body, &$why) {
 
 $action = $_GET['action'] ?? 'check';
 $key    = load_key($KEY_FILE);
+
+/* ═══════════════ 왜 AI 에 못 붙나 (점검) ═══════════════════════════
+   NAS 가 밖으로 나가는 길이 막히면 AI 가 안 됩니다.
+   어디가 막혔는지 하나씩 짚어 알려줍니다. (?action=net)
+   ================================================================= */
+function net_try($url, $sec = 6) {
+    $out = [];
+
+    // 1) curl
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_NOBODY => false,
+            CURLOPT_TIMEOUT => $sec, CURLOPT_CONNECTTIMEOUT => $sec, CURLOPT_FOLLOWLOCATION => true]);
+        $body = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+        $out['curl'] = $code > 0 ? ('HTTP ' . $code) : ('실패: ' . ($err ?: '알 수 없음'));
+    } else {
+        $out['curl'] = '확장이 꺼져 있음';
+    }
+
+    // 2) PHP 내장
+    if (ini_get('allow_url_fopen')) {
+        $ctx = stream_context_create(['http' => ['timeout' => $sec, 'ignore_errors' => true]]);
+        $body = @file_get_contents($url, false, $ctx);
+        $code = 0;
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('#^HTTP/[\d.]+\s+(\d{3})#', $h, $m)) $code = (int)$m[1];
+        }
+        $out['file_get_contents'] = $body !== false ? ('HTTP ' . ($code ?: '200')) : '실패';
+    } else {
+        $out['file_get_contents'] = 'allow_url_fopen 이 꺼져 있음';
+    }
+
+    // 3) wget
+    if (function_exists('shell_exec')) {
+        $tmp = tempnam(sys_get_temp_dir(), 'net');
+        @shell_exec('wget -q -T ' . (int)$sec . ' -O ' . escapeshellarg($tmp) . ' '
+                  . escapeshellarg($url) . ' 2>/dev/null');
+        $got = @filesize($tmp);
+        @unlink($tmp);
+        $out['wget'] = ($got > 0) ? '받아옴' : '받지 못함';
+    } else {
+        $out['wget'] = 'shell_exec 이 막혀 있음';
+    }
+    return $out;
+}
+
+function net_ok($r) {
+    foreach ($r as $v) {
+        if (strpos($v, 'HTTP ') === 0 || $v === '받아옴') return true;
+    }
+    return false;
+}
+
+if ($action === 'net') {
+    @set_time_limit(60);
+
+    $wget = function_exists('shell_exec') ? trim((string)@shell_exec('command -v wget 2>/dev/null')) : '';
+    $dns  = @gethostbyname('api.anthropic.com');
+    $dnsOk = ($dns !== 'api.anthropic.com' && filter_var($dns, FILTER_VALIDATE_IP));
+
+    $anth = net_try('https://api.anthropic.com/v1/models');       // 키 없이도 401 이면 「닿았다」
+    $gh   = net_try('https://raw.githubusercontent.com/netformrnd-lab/test1/refs/heads/claude/ja-brand-dashboard-nas-4lvyrk/nas/manifest.txt');
+
+    $anthOk = net_ok($anth);
+    $ghOk   = net_ok($gh);
+
+    // 무엇을 하면 되는지 골라 줍니다
+    $todo = [];
+    if (!function_exists('curl_init')) {
+        $todo[] = 'DSM → 웹 스테이션 → PHP 프로필 → 우리 프로필 [편집] → 「확장」 에서 '
+                . 'curl 을 켜고 저장하세요. 이것만으로 되는 경우가 가장 많습니다.';
+    }
+    if (!$dnsOk) {
+        $todo[] = 'NAS 가 주소를 찾지 못합니다(DNS). DSM → 제어판 → 네트워크 → 「일반」 에서 '
+                . 'DNS 서버를 8.8.8.8 로 넣어보세요.';
+    }
+    if ($dnsOk && !$anthOk && $ghOk) {
+        $todo[] = '인터넷은 되는데 api.anthropic.com 만 막혔습니다. 방화벽·보안 정책에서 '
+                . 'api.anthropic.com (443) 을 열어주세요.';
+    }
+    if ($dnsOk && !$anthOk && !$ghOk) {
+        $todo[] = 'NAS 가 인터넷으로 아예 못 나갑니다. DSM → 제어판 → 네트워크 에서 '
+                . '게이트웨이·DNS 를 확인하고, 회사 방화벽에서 NAS 의 바깥 접속이 막혀 있는지 '
+                . '살펴보세요.';
+    }
+    if ($anthOk && $key === '') $todo[] = '길은 열려 있습니다. [🔑 AI 키 넣기] 로 키만 넣으면 됩니다.';
+    if ($anthOk && $key !== '') $todo[] = '지금은 길이 열려 있습니다. 다시 한 번 해보세요.';
+
+    jout([
+        'ok' => true,
+        '한줄'   => $anthOk ? '✅ AI 서버까지 닿습니다'
+                            : ($ghOk ? '⚠️ 인터넷은 되는데 AI 서버만 막혀 있습니다'
+                                     : '❌ NAS 가 인터넷으로 나가지 못합니다'),
+        '닿나'   => ['AI 서버(api.anthropic.com)' => $anthOk ? '예' : '아니오',
+                     '다른 사이트(github)'         => $ghOk   ? '예' : '아니오'],
+        '주소찾기(DNS)' => $dnsOk ? ('예 · ' . $dns) : '아니오 — 이름을 못 찾습니다',
+        '나가는 방법'   => [
+            'curl 확장'        => function_exists('curl_init') ? '켜짐' : '꺼짐',
+            'allow_url_fopen'  => ini_get('allow_url_fopen') ? '켜짐' : '꺼짐',
+            'openssl(https)'   => extension_loaded('openssl') ? '켜짐' : '꺼짐',
+            'shell_exec'       => function_exists('shell_exec') ? '가능' : '막힘',
+            'wget'             => $wget !== '' ? $wget : '없음',
+        ],
+        'AI 서버에 해본 것'   => $anth,
+        '다른 사이트에 해본 것' => $gh,
+        '프록시설정' => [
+            'http_proxy'  => getenv('http_proxy') ?: '(없음)',
+            'https_proxy' => getenv('https_proxy') ?: '(없음)',
+        ],
+        '키등록됨' => $key !== '',
+        '이렇게 해보세요' => $todo ?: ['특별히 손볼 곳이 보이지 않습니다.'],
+    ]);
+}
 
 if ($action === 'check') {
     $u = is_file($LOG_FILE) ? json_decode((string)@file_get_contents($LOG_FILE), true) : null;

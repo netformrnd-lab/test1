@@ -1071,7 +1071,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260904-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260904-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1676,7 +1676,7 @@ function render(){
   const sc = document.getElementById('costCnt');
   if(sc) sc.textContent = data.brands.reduce((a, b) => a + (b.costs || []).length, 0) || '';
   const up = document.getElementById('usersLayer');
-  if(up) up.innerHTML = usersPanel() + pickPanel();
+  if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel();
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
   else if(view === 'meetings') renderMeetings();
@@ -6465,7 +6465,7 @@ function viewInquiries(b){
    AI 를 부르는 건 NAS 입니다. 사무실 브라우저는 밖으로 못 나가고,
    키를 브라우저에 두면 대시보드를 여는 누구나 볼 수 있어서입니다.
    ================================================================= */
-const aiState = { ready:null, busy:null, error:null };
+const aiState = { ready:null, busy:null, error:null, netFail:false };
 
 async function aiCheck(){
   if(STORAGE_MODE !== 'nas') return;
@@ -6521,7 +6521,14 @@ async function aiSummarize(id){
     toast('✅ 정리했습니다' + (out['잘림'] ? ' (내용이 길어 앞부분만 봤습니다)' : ''));
   }catch(e){
     aiState.error = e.message || String(e);
-    showError('AI 정리에 실패했습니다.\n\n' + aiState.error);
+    if(/연결하지 못|curl|wget|file_get_contents|시도한 방법/.test(aiState.error)){
+      aiState.netFail = true;
+      showError('AI 정리에 실패했습니다.\n\nNAS 가 인터넷으로 나가지 못하고 있습니다.\n'
+        + '어디가 막혔는지 바로 확인해 드리겠습니다.');
+      openNetCheck();
+    }else{
+      showError('AI 정리에 실패했습니다.\n\n' + aiState.error);
+    }
   }finally{ aiState.busy = null; render(); }
 }
 
@@ -7194,7 +7201,17 @@ async function bookToPrompt(){
     }, 60);
     toast('✨ 브랜드북으로 마스터프롬프트를 만들었습니다');
   }catch(e){
-    alert('만들지 못했습니다.\n\n' + apiErrText(e));
+    const msg = apiErrText(e);
+    // 밖으로 못 나가는 경우가 대부분이라, 바로 점검 화면을 열어 드립니다
+    if(/연결하지 못|curl|wget|file_get_contents|시도한 방법/.test(msg)){
+      aiState.netFail = true;
+      alert('만들지 못했습니다.\n\nNAS 가 인터넷으로 나가지 못하고 있습니다.\n'
+        + '어디가 막혔는지 바로 확인해 드리겠습니다.\n\n'
+        + '(그동안에는 [📋 브랜드북 복사] 로 밖에서 만들어 붙여넣으셔도 됩니다)');
+      openNetCheck();
+    }else{
+      alert('만들지 못했습니다.\n\n' + msg);
+    }
   }finally{ aiState.busy = null; render(); }
 }
 
@@ -7210,6 +7227,11 @@ function viewBook(b){
       + (busy ? '⏳ 만드는 중… (10~30초)' : '✨ 이 내용으로 마스터프롬프트 만들기') + '</button>'
     + (aiState.ready === false
         ? '<button class="btn" onclick="aiSetKey()">🔑 AI 키 넣기</button>' : '')
+    + '<button class="btn" onclick="copyBook()" '
+      + 'title="AI 가 막혀 있을 때 — 복사해서 클로드·챗GPT 에 붙여넣고 받은 글을 아래에 넣으세요">'
+      + '📋 브랜드북 복사</button>'
+    + (aiState.netFail
+        ? '<button class="btn" onclick="openNetCheck()">🩺 AI 연결 점검</button>' : '')
     + '<span class="hint">브랜드북이 원본입니다. 여기를 채우면 AI 가 '
       + '마스터프롬프트를 대신 써 줍니다</span>'
     + '</div>';
@@ -8528,6 +8550,72 @@ function usersPanel(){
       + '비밀번호를 초기화해도 마찬가지입니다.</div>'
     + '<div class="modal-actions"><button class="btn" onclick="closeUsers()">닫기</button></div>'
     + '</div></div>';
+}
+
+/* ═══════════════ AI 에 왜 못 붙나 (점검) ═══════════════════════════
+   NAS 가 밖으로 못 나가면 AI 가 안 됩니다. 어디가 막혔는지 물어보고
+   무엇을 하면 되는지까지 화면에 적어줍니다.
+   ================================================================= */
+const netCheck = { open:false, busy:false, data:null, error:'' };
+
+async function openNetCheck(){
+  netCheck.open = true; netCheck.busy = true; netCheck.data = null; netCheck.error = '';
+  render();
+  try{ netCheck.data = await apiJson('ai.php?action=net'); }
+  catch(e){ netCheck.error = apiErrText(e); }
+  finally{ netCheck.busy = false; render(); }
+}
+function closeNetCheck(){ netCheck.open = false; render(); }
+
+function netPanel(){
+  if(!netCheck.open) return '';
+  const d = netCheck.data;
+  const rowsOf = (title, obj) => '<div class="vz-head" style="margin-top:12px">' + esc(title) + '</div>'
+    + '<div class="vz-tw"><table class="ymtable"><tbody>'
+    + Object.keys(obj || {}).map(k => '<tr><td style="width:44%"><b>' + esc(k) + '</b></td>'
+        + '<td>' + esc(String(obj[k])) + '</td></tr>').join('')
+    + '</tbody></table></div>';
+
+  const body = netCheck.busy
+    ? '<div class="fmeta">NAS 가 밖으로 나가볼 수 있는지 확인하는 중… (10초쯤 걸립니다)</div>'
+    : netCheck.error
+      ? '<div class="ainote" style="border-color:var(--red)">확인하지 못했습니다.<br>'
+        + esc(netCheck.error) + '</div>'
+      : (d ? '<div class="ainote" style="font-size:15px;font-weight:700">' + esc(d['한줄'] || '') + '</div>'
+          + '<div class="ainote" style="margin-top:10px">'
+            + '<b>이렇게 해보세요</b><ul style="margin:6px 0 0 18px;padding:0">'
+            + (d['이렇게 해보세요'] || []).map(t => '<li>' + esc(t) + '</li>').join('')
+            + '</ul></div>'
+          + rowsOf('닿나', d['닿나'])
+          + rowsOf('나가는 방법 (PHP)', d['나가는 방법'])
+          + '<div class="vz-head" style="margin-top:12px">주소찾기(DNS)</div>'
+          + '<div class="fmeta">' + esc(String(d['주소찾기(DNS)'] || '')) + '</div>'
+          + rowsOf('AI 서버에 해본 것', d['AI 서버에 해본 것'])
+          + rowsOf('다른 사이트에 해본 것', d['다른 사이트에 해본 것'])
+        : '');
+
+  return '<div class="modal-bg open" onclick="if(event.target===this)closeNetCheck()">'
+    + '<div class="modal" style="max-width:760px">'
+    + '<h3>🩺 AI 연결 점검</h3>'
+    + body
+    + '<div class="modal-actions">'
+      + '<button class="btn" onclick="openNetCheck()">다시 확인</button>'
+      + '<button class="btn primary" onclick="closeNetCheck()">닫기</button>'
+    + '</div></div></div>';
+}
+
+/* 브랜드북을 글자로 복사합니다 — AI 가 막혀 있을 때 밖에서 쓰시라고 */
+async function copyBook(){
+  const b = currentBrand(); if(!b) return;
+  if(bookFilled(b) < 1){ toast('⚠️ 브랜드북을 먼저 채워주세요'); return; }
+  const text = '아래는 「' + b.name + '」 브랜드북입니다.\n'
+    + '이 내용을 바탕으로, 이 브랜드의 글을 쓸 때 쓸 마스터프롬프트를 한국어로 써 주세요.\n'
+    + '없는 내용은 지어내지 말고 「브랜드북에 아직 없음」 이라고 적어주세요.\n\n'
+    + bookAsText(b);
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('📋 복사했습니다 — 클로드·챗GPT 대화창에 붙여넣고, 받은 글을 아래 프롬프트 칸에 넣으세요');
+  }catch(e){ alert('복사가 막혀 있습니다. 아래 내용을 직접 복사해 주세요.\n\n' + text); }
 }
 
 /* ========================= 시작 ========================= */

@@ -314,6 +314,10 @@ body.dark-mode .chip.off{color:#f79191}
 
 /* ---------- 마스터프롬프트 ---------- */
 .pwrap{display:flex;flex-direction:column;gap:11px}
+/* 브랜드북 아래에 붙는 마스터프롬프트 칸 */
+.promptsec{margin-top:20px;padding-top:18px;border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:11px}
+.promptsec .sech{margin:0;font-size:15px;font-weight:800}
 .pmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   font-size:12px;color:var(--text-muted)}
 textarea.prompt{width:100%;min-height:400px;padding:18px;border-radius:var(--r-md);
@@ -1067,7 +1071,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260904-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260904-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3623,7 +3627,7 @@ function renderBrand(){
     links: b.links.length,
     channels: (b.channels || []).length,
     inquiries: (inquiryCache.byBrand[b.name] || []).length,
-    prompt: (b.masterPrompt || '').trim() ? 1 : 0
+    book: bookFilled(b) + ((b.masterPrompt || '').trim() ? 1 : 0)
   };
   const tabDefs = [
     ['inquiries','📞 문의'],
@@ -3633,8 +3637,7 @@ function renderBrand(){
     ['links','🔗 바로가기'],
     ['channels','📣 채널'],
     ['assets','📁 자료'],
-    ['book','📕 브랜드북'],
-    ['prompt','✨ 마스터프롬프트']
+    ['book','📕 브랜드북 · 프롬프트']
   ];
 
   main.innerHTML =
@@ -3658,7 +3661,9 @@ function renderBrand(){
     + '</div>';
 
   const body = document.getElementById('tabbody');
-  if(currentTab === 'prompt') body.innerHTML = viewPrompt(b);
+  if(currentTab === 'prompt'){        // 예전에 보던 탭 — 브랜드북 안으로 들어왔습니다
+    currentTab = 'book'; body.innerHTML = viewBook(b);
+  }
   else if(currentTab === 'history') body.innerHTML = viewHistory(b);
   else if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
   else if(currentTab === 'inquiries') {
@@ -7178,8 +7183,15 @@ async function bookToPrompt(){
     b.promptUpdatedAt = new Date().toISOString();
     b.promptFrom = '브랜드북 · ' + new Date().toISOString();
     markDirty(b.id);
-    currentTab = 'prompt';
+    currentTab = 'book';
     render();
+    setTimeout(() => {
+      // 프롬프트 칸에 커서가 있었으면 화면이 옛 글을 되살려 두기 때문에 새로 씁니다
+      const box = document.getElementById('promptBox');
+      if(box && box.value !== b.masterPrompt) box.value = b.masterPrompt;
+      const el = document.getElementById('promptSec');
+      if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+    }, 60);
     toast('✨ 브랜드북으로 마스터프롬프트를 만들었습니다');
   }catch(e){
     alert('만들지 못했습니다.\n\n' + apiErrText(e));
@@ -7226,18 +7238,22 @@ function viewBook(b){
               .toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' }))
           : '아직 작성 전')
       + '<span style="margin-left:auto">비워둔 칸은 AI 에게 넘기지 않습니다</span>'
-    + '</div></div>';
+    + '</div>'
+    + viewPrompt(b)                    // 마스터프롬프트는 브랜드북 바로 아래에 붙습니다
+    + '</div>';
 }
 
+/* 마스터프롬프트 — 브랜드북 화면 아래쪽 칸 */
 function viewPrompt(b){
   const p = b.masterPrompt || '';
-  return '<div class="pwrap">'
+  return '<div class="promptsec" id="promptSec">'
+    + '<h3 class="sech">✨ 마스터프롬프트</h3>'
     + '<div class="sec-bar">'
       + '<button class="btn primary" onclick="copyPrompt()">📋 복사</button>'
-      + '<button class="btn" onclick="selectTab(\'book\')">📕 브랜드북 열기</button>'
-      + (bookFilled(b) >= 2
+      + (bookFilled(b) >= 2 && p.trim()
           ? '<button class="btn" onclick="bookToPrompt()">✨ 브랜드북으로 다시 만들기</button>' : '')
-      + '<span class="hint">AI에게 이 브랜드를 설명할 때 그대로 붙여넣는 기준 문서입니다</span>'
+      + '<span class="hint">AI에게 이 브랜드를 설명할 때 그대로 붙여넣는 기준 문서입니다. '
+        + '직접 고쳐도 됩니다</span>'
     + '</div>'
     + '<textarea class="prompt" id="promptBox" oninput="onPromptInput(this.value)" '
       + 'placeholder="예)&#10;당신은 ' + esc(b.name) + ' 브랜드의 마케팅 담당자입니다.&#10;&#10;[브랜드 정의]&#10;- 무엇을 파는가:&#10;- 핵심 고객:&#10;- 경쟁사 대비 강점:&#10;&#10;[톤앤매너]&#10;- 말투:&#10;- 피해야 할 표현:&#10;&#10;[자주 쓰는 문구]">'

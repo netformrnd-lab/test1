@@ -145,6 +145,35 @@ function ai_post($url, $headers, $body, &$why) {
     return [0, false];
 }
 
+/** AI 가 돌려준 영어 오류를, 무엇을 해야 하는지 알 수 있는 말로 바꿉니다 */
+function ai_friendly($code, $msg) {
+    $m = strtolower((string)$msg);
+
+    if (strpos($m, 'credit balance') !== false || strpos($m, 'insufficient') !== false
+        || strpos($m, 'billing') !== false) {
+        return "💳 AI 잔액이 떨어졌습니다.\n\n"
+             . "대시보드 문제가 아니라 Anthropic 계정에 남은 크레딧이 없는 것입니다.\n"
+             . "console.anthropic.com 에 들어가서 [Plans & Billing] → 크레딧을 충전하면\n"
+             . "바로 다시 됩니다. (쓴 만큼만 나가는 선불 방식이고, 클로드 구독료와는 별개입니다)\n\n"
+             . "받은 말 그대로: " . $msg;
+    }
+    if (strpos($m, 'rate limit') !== false || strpos($m, 'rate_limit') !== false) {
+        return "잠시 뒤에 다시 해주세요. 짧은 사이에 너무 여러 번 물어봤습니다.\n\n받은 말: " . $msg;
+    }
+    if (strpos($m, 'overloaded') !== false) {
+        return "AI 서버가 지금 몰려 있습니다. 1~2분 뒤에 다시 해주세요.\n\n받은 말: " . $msg;
+    }
+    if (strpos($m, 'model') !== false && (strpos($m, 'not_found') !== false
+        || strpos($m, 'not found') !== false)) {
+        return "이 키로는 지금 모델을 쓸 수 없습니다.\n"
+             . "Anthropic 계정에서 모델 사용 권한을 확인해 주세요.\n\n받은 말: " . $msg;
+    }
+    if (strpos($m, 'authentication') !== false || strpos($m, 'invalid x-api-key') !== false) {
+        return "AI 키가 받아들여지지 않습니다. [🔑 AI 키 넣기] 로 새 키를 넣어주세요.\n\n받은 말: " . $msg;
+    }
+    return "AI 가 오류를 돌려줬습니다 (HTTP $code)\n\n" . $msg;
+}
+
 $action = $_GET['action'] ?? 'check';
 $key    = load_key($KEY_FILE);
 
@@ -414,7 +443,7 @@ if ($action === 'prompt') {
     if (!is_array($j) || isset($j['error'])) {
         $msg = is_array($j) && isset($j['error']['message']) ? $j['error']['message']
              : substr((string)$raw, 0, 300);
-        jout(['ok' => false, 'error' => "AI 가 오류를 돌려줬습니다 (HTTP $code)\n\n" . $msg], 502);
+        jout(['ok' => false, 'error' => ai_friendly($code, $msg)], 502);
     }
     if (($j['stop_reason'] ?? '') === 'refusal') {
         jout(['ok' => false, 'error' => 'AI 가 이 내용은 쓸 수 없다고 답했습니다.'], 400);
@@ -507,7 +536,7 @@ if ($action === 'summarize') {
     if (!is_array($j) || isset($j['error'])) {
         $msg = is_array($j) && isset($j['error']['message']) ? $j['error']['message']
              : substr((string)$raw, 0, 300);
-        jout(['ok' => false, 'error' => "AI 가 오류를 돌려줬습니다 (HTTP $code)\n\n" . $msg], 502);
+        jout(['ok' => false, 'error' => ai_friendly($code, $msg)], 502);
     }
     if (($j['stop_reason'] ?? '') === 'refusal') {
         jout(['ok' => false, 'error' => 'AI 가 이 내용은 정리할 수 없다고 답했습니다.'], 400);

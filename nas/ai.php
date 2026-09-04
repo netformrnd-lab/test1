@@ -452,6 +452,20 @@ function ai_is_quota($msg) {
         || strpos($m, 'payment') !== false;
 }
 
+/** 키가 거부됐을 때 — 「어디에」 물어봤는지 밝혀줍니다.
+ *  엉뚱한 회사에 물어보고 있는 경우가 가장 흔하기 때문입니다. */
+function ai_key_refused($code, $key) {
+    $v = ai_vendor($key);
+    $host = ($v === 'manus') ? 'api.manus.ai'
+          : (($v === 'openai') ? 'api.openai.com' : 'api.anthropic.com');
+    return "AI 키가 거부됐습니다 (HTTP $code).\n\n"
+         . "지금 대시보드는 이 키를 「" . ai_vendor_name($v) . "」 의 키로 알고 있어서\n"
+         . $host . " 에 물어봤습니다.\n\n"
+         . "· 다른 회사(예: 마누스) 키라면 [🔑 AI 키 바꾸기] 에서 키를 다시 넣고\n"
+         . "  「어느 AI 인가요?」 에서 맞는 번호를 골라주세요.\n"
+         . "· 회사가 맞다면 키가 틀렸거나 만료된 것입니다. 새 키를 만들어 넣어주세요.";
+}
+
 /** 응답에서 오류 문구만 꺼냅니다 */
 function ai_errmsg($raw) {
     $j = is_string($raw) ? json_decode($raw, true) : null;
@@ -862,7 +876,7 @@ if ($action === 'prompt') {
     }
     $j = json_decode($raw, true);
     if ($code === 401 || $code === 403) {
-        jout(['ok' => false, 'error' => "AI 키가 거부됐습니다 (HTTP $code). 키를 다시 넣어주세요."], 401);
+        jout(['ok' => false, 'error' => ai_key_refused($code, $key)], 401);
     }
     if ($code === 429) {
         // OpenAI 는 잔액이 없을 때도 429 를 보냅니다. 무엇 때문인지 보고 알려줍니다.
@@ -953,9 +967,7 @@ if ($action === 'summarize') {
 
     $j = json_decode($raw, true);
     if ($code === 401 || $code === 403) {
-        jout(['ok' => false, 'error' =>
-            "AI 키가 거부됐습니다 (HTTP $code). 키를 다시 넣어주세요.\n"
-            . '회사 네트워크가 중간에서 막고 있을 수도 있습니다.'], 401);
+        jout(['ok' => false, 'error' => ai_key_refused($code, $key)], 401);
     }
     if ($code === 429) {
         // OpenAI 는 잔액이 없을 때도 429 를 보냅니다. 무엇 때문인지 보고 알려줍니다.

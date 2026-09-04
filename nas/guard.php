@@ -169,6 +169,169 @@ function guard_hide_tasks($d) {
     return $d;
 }
 
+/* ═══════════════ 휴지통 ═══════════════════════════════════════════
+   지운 것을 바로 없애지 않고 뿌리 폴더의 「_휴지통」 으로 옮깁니다.
+   원래 자리를 적어두기 때문에 [↩︎ 되돌리기] 한 번이면 제자리로 갑니다.
+   완전히 없애는 것은 사람이 따로 눌러야만 됩니다.
+   ================================================================= */
+
+/** 우리가 손대도 되는 뿌리 폴더들 (NAS 훑는 폴더 · 브랜드 공유폴더) */
+function bh_roots() {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    $out = [];
+    foreach (['/data/nasroot.txt', '/data/uploadroot.txt'] as $rel) {
+        $f = __DIR__ . $rel;
+        if (!is_file($f)) continue;
+        $r = rtrim(trim((string)@file_get_contents($f)), '/');
+        if ($r === '') continue;
+        $rr = realpath($r);
+        if ($rr !== false) $out[] = $rr;
+    }
+    return $cache = $out;
+}
+
+function bh_under_roots($real) {
+    if ($real === false || $real === null || $real === '') return false;
+    foreach (bh_roots() as $r) {
+        if ($real === $r || strpos($real, $r . DIRECTORY_SEPARATOR) === 0) return true;
+    }
+    return false;
+}
+
+/** 이 경로를 품고 있는 뿌리 (가장 안쪽 뿌리) */
+function bh_root_of($real) {
+    $best = null;
+    foreach (bh_roots() as $r) {
+        if ($real === $r || strpos($real, $r . DIRECTORY_SEPARATOR) === 0) {
+            if ($best === null || strlen($r) > strlen($best)) $best = $r;
+        }
+    }
+    return $best;
+}
+
+function bh_trash_log() { return __DIR__ . '/data/trash.php'; }
+
+function bh_trash_list() {
+    $raw = function_exists('bh_read_raw') ? bh_read_raw(bh_trash_log()) : '';
+    $j = $raw === '' ? null : json_decode($raw, true);
+    return is_array($j) ? $j : [];
+}
+
+function bh_trash_write($list) {
+    $json = json_encode(array_values($list), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if ($json === false) return false;
+    return function_exists('bh_write_raw') ? bh_write_raw(bh_trash_log(), $json) : false;
+}
+
+/** 휴지통으로 보냅니다 — [true, 적어둔것] 또는 [false, 까닭] */
+function bh_trash($path, $who = '') {
+    $real = realpath($path);
+    if ($real === false || !bh_under_roots($real)) {
+        return [false, '여기 있는 것만 지울 수 있습니다 (NAS 훑는 폴더나 브랜드 공유폴더 안쪽)'];
+    }
+    $root = bh_root_of($real);
+    if ($root === null || $real === $root) return [false, '뿌리 폴더 자체는 지울 수 없습니다'];
+    if (basename($real) === '_휴지통' || strpos($real, '/_휴지통/') !== false) {
+        return [false, '휴지통 안의 것은 여기서 지우지 않습니다'];
+    }
+    $isDir = is_dir($real);
+    if (!$isDir && !is_file($real)) return [false, '그런 파일이 없습니다'];
+
+    $bin = $root . '/_휴지통';
+    if (!is_dir($bin) && !@mkdir($bin, 0775, true) && !is_dir($bin)) {
+        return [false, '휴지통 폴더를 만들지 못했습니다 (쓰기 권한을 확인해 주세요)'];
+    }
+    $id   = date('Ymd-His') . '-' . substr(md5(uniqid('', true)), 0, 6);
+    $to   = $bin . '/' . $id . '__' . basename($real);
+    if (!@rename($real, $to)) {
+        return [false, '휴지통으로 옮기지 못했습니다 (쓰기 권한을 확인해 주세요)'];
+    }
+
+    $n = 0; $sz = 0;
+    if ($isDir) {
+        $walk = function ($d, $lv) use (&$walk, &$n, &$sz) {
+            if ($lv > 8 || $n > 50000) return;
+            foreach ((array)@scandir($d) as $e) {
+                if ($e === '.' || $e === '..') continue;
+                $p = $d . '/' . $e;
+                if (is_dir($p)) $walk($p, $lv + 1);
+                elseif (is_file($p)) { $n++; $sz += (int)@filesize($p); }
+            }
+        };
+        $walk($to, 0);
+    } else { $n = 1; $sz = (int)@filesize($to); }
+
+    $entry = ['id' => $id, '이름' => basename($real), '원래자리' => $real, '휴지통자리' => $to,
+              '폴더' => $isDir, '개수' => $n, '바이트' => $sz,
+              '지운때' => date('c'), '지운사람' => (string)$who];
+    $list = bh_trash_list();
+    array_unshift($list, $entry);
+    if (count($list) > 2000) $list = array_slice($list, 0, 2000);
+    bh_trash_write($list);
+    return [true, $entry];
+}
+
+/** 되돌립니다 — [true, 돌아간자리] 또는 [false, 까닭] */
+function bh_untrash($id) {
+    $list = bh_trash_list();
+    $idx  = null;
+    foreach ($list as $i => $e) if (($e['id'] ?? '') === $id) { $idx = $i; break; }
+    if ($idx === null) return [false, '그런 기록이 없습니다'];
+    $e = $list[$idx];
+
+    $from = realpath($e['휴지통자리'] ?? '');
+    if ($from === false || !bh_under_roots($from)) return [false, '휴지통에서 찾지 못했습니다'];
+
+    $back = (string)($e['원래자리'] ?? '');
+    $dir  = dirname($back);
+    if (!bh_under_roots($dir) && !bh_under_roots($back)) return [false, '되돌릴 자리가 우리 폴더 밖입니다'];
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        return [false, '되돌릴 폴더를 다시 만들지 못했습니다'];
+    }
+    $name = basename($back);
+    if (file_exists($dir . '/' . $name)) {          // 그 사이 같은 이름이 생겼으면 비켜 갑니다
+        $ext = ''; $base = $name;
+        $dot = strrpos($name, '.');
+        if ($dot !== false && $dot > 0) { $ext = substr($name, $dot); $base = substr($name, 0, $dot); }
+        for ($i = 2; $i < 300; $i++) {
+            if (!file_exists($dir . '/' . $base . ' (' . $i . ')' . $ext)) {
+                $name = $base . ' (' . $i . ')' . $ext; break;
+            }
+        }
+    }
+    if (!@rename($from, $dir . '/' . $name)) return [false, '되돌리지 못했습니다 (쓰기 권한 확인)'];
+
+    array_splice($list, $idx, 1);
+    bh_trash_write($list);
+    return [true, $dir . '/' . $name];
+}
+
+/** 완전히 없앱니다 (되돌릴 수 없습니다) */
+function bh_trash_purge($id) {
+    $list = bh_trash_list();
+    $idx  = null;
+    foreach ($list as $i => $e) if (($e['id'] ?? '') === $id) { $idx = $i; break; }
+    if ($idx === null) return [false, '그런 기록이 없습니다'];
+    $p = realpath($list[$idx]['휴지통자리'] ?? '');
+    if ($p !== false && bh_under_roots($p) && strpos($p, '/_휴지통/') !== false) {
+        if (is_dir($p)) {
+            $rm = function ($d) use (&$rm) {
+                foreach ((array)@scandir($d) as $e) {
+                    if ($e === '.' || $e === '..') continue;
+                    $q = $d . '/' . $e;
+                    if (is_dir($q)) $rm($q); else @unlink($q);
+                }
+                @rmdir($d);
+            };
+            $rm($p);
+        } else { @unlink($p); }
+    }
+    array_splice($list, $idx, 1);
+    bh_trash_write($list);
+    return [true, '완전히 지웠습니다'];
+}
+
 /* ---- 통과 검사 ---------------------------------------------------- */
 $__guard_me = guard_user();
 if ($__guard_me === null) {

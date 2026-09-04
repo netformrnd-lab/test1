@@ -259,6 +259,7 @@ function name_index($dirs, $depth = 4, $max = 20000) {
         if ($lv > $depth || count($out) >= $max || !is_dir($d)) return;
         foreach ((array)@scandir($d) as $e) {
             if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+            if (substr($e, 0, 1) === '_') continue;      // _휴지통 안은 「있는 것」 으로 세지 않습니다
             $p = $d . '/' . $e;
             if (is_dir($p)) $walk($p, $lv + 1);
             elseif (is_file($p)) {
@@ -278,6 +279,7 @@ function find_by_name($dir, $name, $depth) {
     if (is_file($direct)) return realpath($direct);
     foreach ((array)@scandir($dir) as $e) {
         if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+        if (substr($e, 0, 1) === '_') continue;          // 휴지통 안에서는 찾지 않습니다
         $p = $dir . '/' . $e;
         if (is_dir($p)) {
             $hit = find_by_name($p, $name, $depth - 1);
@@ -1046,8 +1048,17 @@ if ($action === 'delete') {
     }
 
     [$path, ] = resolve_path($FILE_DIRS, $MANIFEST, $id);
-    if ($path && is_file($path) && !@unlink($path)) {
-        jout(['ok' => false, 'error' => '파일을 삭제하지 못했습니다 (권한 확인 필요)'], 500);
+    if ($path && is_file($path)) {
+        // 바로 없애지 않고 휴지통으로 보냅니다 (되돌릴 수 있게)
+        if (function_exists('bh_trash')) {
+            [$ok, $r] = bh_trash($path, function_exists('guard_name') ? guard_name() : '');
+            if ($ok) jout(['ok' => true, '휴지통' => true, '되돌리기' => $r['id'],
+                           '안내' => '휴지통으로 보냈습니다 (되돌릴 수 있습니다)']);
+            // 휴지통이 안 되면(뿌리 밖 등) 예전처럼 지웁니다
+        }
+        if (!@unlink($path)) {
+            jout(['ok' => false, 'error' => '파일을 삭제하지 못했습니다 (권한 확인 필요)'], 500);
+        }
     }
     jout(['ok' => true]);
 }

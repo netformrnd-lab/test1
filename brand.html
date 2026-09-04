@@ -468,6 +468,10 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .crumbsep{color:var(--text-muted);font-size:11px}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:9px;
   margin-bottom:14px}
+.fwrap{position:relative;display:flex}
+.fwrap .fcard{flex:1;min-width:0}
+.fwrap .fdel{position:absolute;top:6px;right:6px;opacity:0;transition:opacity .12s}
+.fwrap:hover .fdel,.fwrap:focus-within .fdel{opacity:1}
 /* 끌어다 놓는 중인 폴더 칸 */
 .fcard.dragover{border-color:var(--accent);background:var(--accent-soft,rgba(59,130,246,.12));
   box-shadow:0 0 0 3px rgba(59,130,246,.16)}
@@ -1077,7 +1081,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260905-10';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260905-11';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1682,7 +1686,7 @@ function render(){
   const sc = document.getElementById('costCnt');
   if(sc) sc.textContent = data.brands.reduce((a, b) => a + (b.costs || []).length, 0) || '';
   const up = document.getElementById('usersLayer');
-  if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel() + pastePanel();
+  if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel() + pastePanel() + trashPanel();
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
   else if(view === 'meetings') renderMeetings();
@@ -3051,6 +3055,105 @@ async function nasMoveTo(from, to, navKey, startDir){
   }catch(e){ alert('옮기지 못했습니다.\n\n' + apiErrText(e)); }
 }
 
+/* ═══════════════ 휴지통 ═══════════════════════════════════════════
+   지우면 없애지 않고 「_휴지통」 으로 옮깁니다. 언제든 되돌릴 수 있고,
+   완전히 없애는 것은 휴지통에서 따로 눌러야만 됩니다.
+   ================================================================= */
+const trash = { open:false, busy:false, list:null, error:'' };
+
+async function nasTrash(path, navKey, startDir, isDir, count){
+  const name = String(path).split('/').pop();
+  const what = isDir
+    ? '폴더 「' + name + '」' + (count ? ' (안에 ' + count.toLocaleString('ko-KR') + '개)' : '')
+    : '「' + name + '」';
+  if(!confirm(what + ' 을(를) 지울까요?\n\n'
+    + '바로 없애지 않고 휴지통(_휴지통)으로 보냅니다.\n'
+    + '[🗑 휴지통] 에서 언제든 되돌릴 수 있습니다.')) return;
+  try{
+    const out = await apiJson('nasfiles.php?action=trash', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ path })
+    });
+    const here = currentDirOf(navKey, startDir);
+    delete browseCache[here]; await loadBrowse(here);
+    trash.list = null;
+    toast('🗑 ' + (out['안내'] || '휴지통으로 보냈습니다') + ' — 되돌리려면 [🗑 휴지통]');
+  }catch(e){ alert('지우지 못했습니다.\n\n' + apiErrText(e)); }
+}
+
+async function openTrash(){
+  trash.open = true; trash.busy = true; trash.error = ''; render();
+  try{
+    const out = await apiJson('nasfiles.php?action=trashlist');
+    trash.list = out['목록'] || [];
+  }catch(e){ trash.error = apiErrText(e); trash.list = []; }
+  finally{ trash.busy = false; render(); }
+}
+function closeTrash(){ trash.open = false; render(); }
+
+async function untrash(id){
+  try{
+    const out = await apiJson('nasfiles.php?action=untrash', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id })
+    });
+    Object.keys(browseCache).forEach(k => delete browseCache[k]);
+    await openTrash();
+    toast('↩︎ ' + (out['안내'] || '되돌렸습니다'));
+  }catch(e){ alert('되돌리지 못했습니다.\n\n' + apiErrText(e)); }
+}
+
+async function purgeTrash(id, name){
+  if(!confirm('「' + name + '」 을(를) 완전히 지울까요?\n\n이건 되돌릴 수 없습니다.')) return;
+  try{
+    await apiJson('nasfiles.php?action=trashpurge', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id })
+    });
+    await openTrash();
+    toast('🗑 완전히 지웠습니다');
+  }catch(e){ alert('지우지 못했습니다.\n\n' + apiErrText(e)); }
+}
+
+function trashPanel(){
+  if(!trash.open) return '';
+  const rows = trash.busy
+    ? '<div class="fmeta">불러오는 중…</div>'
+    : trash.error
+      ? '<div class="ainote" style="border-color:var(--red)">' + esc(trash.error) + '</div>'
+      : (!trash.list || !trash.list.length)
+        ? '<div class="empty">휴지통이 비어 있습니다.</div>'
+        : '<div class="vz-tw"><table class="ymtable"><thead><tr>'
+          + '<th>이름</th><th>원래 자리</th><th>지운 때</th><th></th></tr></thead><tbody>'
+          + trash.list.map(e => '<tr' + (e['있음'] ? '' : ' class="dim"') + '>'
+              + '<td><b>' + (e['폴더'] ? '📁 ' : '📄 ') + esc(e['이름']) + '</b>'
+                + '<div class="fmeta">' + esc(e['크기'] || '')
+                + (e['폴더'] ? ' · ' + (e['개수'] || 0).toLocaleString('ko-KR') + '개' : '')
+                + (e['지운사람'] ? ' · ' + esc(e['지운사람']) : '') + '</div></td>'
+              + '<td><span class="path" style="word-break:break-all">'
+                + esc(String(e['원래자리'] || '').split('/').slice(-3).join('/')) + '</span></td>'
+              + '<td style="white-space:nowrap">'
+                + esc(String(e['지운때'] || '').replace('T', ' ').slice(0, 16)) + '</td>'
+              + '<td style="white-space:nowrap">'
+                + (e['있음']
+                    ? '<button class="btn sm primary" onclick="untrash(\'' + jsq(e.id) + '\')">'
+                      + '↩︎ 되돌리기</button> '
+                      + '<button class="btn sm danger" onclick="purgeTrash(\'' + jsq(e.id) + '\',\''
+                      + jsq(e['이름']) + '\')">완전히 지우기</button>'
+                    : '<span class="chip off">사라짐</span>')
+              + '</td></tr>').join('')
+          + '</tbody></table></div>';
+
+  return '<div class="modal-bg open" onclick="if(event.target===this)closeTrash()">'
+    + '<div class="modal" style="max-width:900px">'
+    + '<h3>🗑 휴지통</h3>'
+    + '<div class="fmeta" style="margin-bottom:8px">지운 것은 각 폴더의 '
+      + '<b>_휴지통</b> 안에 그대로 있습니다. [↩︎ 되돌리기] 를 누르면 원래 자리로 돌아갑니다.</div>'
+    + rows
+    + '<div class="modal-actions">'
+      + '<button class="btn" onclick="openTrash()">↻ 다시 보기</button>'
+      + '<button class="btn primary" onclick="closeTrash()">닫기</button>'
+    + '</div></div></div>';
+}
+
 /* 단추로 옮기기 — 어디로 보낼지 골라줍니다 */
 async function nasMovePick(path, navKey, startDir){
   const here = currentDirOf(navKey, startDir);
@@ -3358,6 +3461,8 @@ function folderBrowserHtml(navKey, startDir, opts){
       + jsq(startDir || '') + '\')" title="이 폴더 안에 새 폴더를 만듭니다">＋ 새 폴더</button>'
     + '<button class="btn sm" onclick="nasUpload(\'' + jsq(navKey) + '\',\''
       + jsq(startDir || '') + '\')" title="이 폴더에 파일을 올립니다">⬆ 여기에 올리기</button>'
+    + '<button class="btn sm" onclick="openTrash()" '
+      + 'title="지운 것을 보고 되돌립니다">🗑 휴지통</button>'
     + (opts.link
         ? '<button class="btn sm" onclick="linkCurrentDir(\'' + jsq(navKey) + '\',\''
           + jsq(startDir || '') + '\')">＋ 브랜드에 연결</button>' : '')
@@ -3367,7 +3472,8 @@ function folderBrowserHtml(navKey, startDir, opts){
 
   const folders = c.folders.length
     ? '<div class="fgrid">' + c.folders.map(f =>
-        '<button class="fcard" onclick="gotoFolder(\'' + jsq(navKey) + '\',\''
+        '<div class="fwrap">'
+        + '<button class="fcard" onclick="gotoFolder(\'' + jsq(navKey) + '\',\''
           + jsq(f.path) + '\')" title="' + esc(f.name) + ' — 파일을 끌어다 놓으면 이 폴더로 옮겨집니다"'
         + ' draggable="true" ondragstart="dragNasItem(event,\'' + jsq(f.path) + '\')"'
         + ' ondragover="allowDropNas(event)" ondragleave="leaveDropNas(event)"'
@@ -3376,7 +3482,10 @@ function folderBrowserHtml(navKey, startDir, opts){
         + '<span class="fc-ico">📁</span><span class="fc-t">'
         + '<span class="fc-nm">' + esc(f.name) + '</span>'
         + '<span class="fc-sub">' + f.count.toLocaleString('ko-KR') + '개 · '
-          + esc(f.size) + '</span></span></button>').join('') + '</div>'
+          + esc(f.size) + '</span></span></button>'
+        + '<button class="btn sm danger fdel" onclick="nasTrash(\'' + jsq(f.path) + '\',\''
+          + jsq(navKey) + '\',\'' + jsq(startDir || '') + '\',true,' + (f.count || 0) + ')" '
+          + 'title="이 폴더를 휴지통으로 보냅니다">🗑</button></div>').join('') + '</div>'
     : '';
 
   // 사진과 그 밖의 파일을 나눕니다 — 사진은 눈으로 보고 고르게 합니다
@@ -3435,6 +3544,9 @@ function folderBrowserHtml(navKey, startDir, opts){
           + jsq(navKey) + '\',\'' + jsq(startDir || '') + '\')" title="다른 폴더로 옮기기">📦</button>'
         + '<a class="btn sm" href="nasfiles.php?action=download&path='
           + encodeURIComponent(x.path) + '">⬇</a>'
+        + '<button class="btn sm danger" onclick="nasTrash(\'' + jsq(x.path) + '\',\''
+          + jsq(navKey) + '\',\'' + jsq(startDir || '') + '\',false)" '
+          + 'title="휴지통으로 보냅니다 (되돌릴 수 있습니다)">🗑</button>'
         + '</div>').join('')
       + ((others.length > slice.length || c.files.length < c.fileCount)
           ? '<div style="margin-top:10px"><button class="btn sm" onclick="moreFiles(\'' + jsq(navKey)
@@ -8099,7 +8211,9 @@ async function deleteAsset(id){
   const b = currentBrand();
   const it = b.assets.find(x => x.id === id);
   const warn = it.fileId
-    ? '"' + it.title + '" 자료와 NAS에 올린 파일을 함께 삭제합니다.\n되돌릴 수 없습니다. 계속할까요?'
+    ? '"' + it.title + '" 을(를) 목록에서 지웁니다.\n\n'
+      + '올린 파일은 없애지 않고 휴지통(_휴지통)으로 보냅니다.\n'
+      + '자료 탭의 [📂 이 브랜드 공유폴더] → [🗑 휴지통] 에서 되돌릴 수 있습니다.'
     : '"' + it.title + '" 항목을 삭제할까요?';
   if(!confirm(warn)) return;
 
@@ -8118,9 +8232,10 @@ async function deleteAsset(id){
   }
   b.assets = b.assets.filter(x => x.id !== id);
   if(it.fileId) gone.ids.delete(it.fileId);
+  trash.list = null;
   render(); bindDrop();
   if(it.fileId) await saveAll(true); else markDirty();
-  toast('🗑️ 삭제했습니다');
+  toast(it.fileId ? '🗑️ 지웠습니다 — 파일은 휴지통에 있습니다' : '🗑️ 삭제했습니다');
 }
 
 async function copyPath(type, id){

@@ -141,6 +141,7 @@ function resolve_nas_dir($p) {
  *   ② 올린 파일 폴더 (data/uploadroot.txt): 브랜드 마케팅팀 폴더
  *  이 두 곳 안쪽만 열고, 만들고, 옮깁니다. 그 밖은 절대 손대지 않습니다. */
 function roots_all() {
+    if (function_exists('bh_roots')) return bh_roots();      // guard.php 와 같은 기준
     static $cache = null;
     if ($cache !== null) return $cache;
     $out = [];
@@ -209,6 +210,48 @@ function free_name($dir, $name) {
 }
 
 $action = $_GET['action'] ?? '';
+
+/* ---------------- 휴지통 ----------------
+   지우면 없애지 않고 뿌리 폴더의 「_휴지통」 으로 옮깁니다.
+   [↩︎ 되돌리기] 로 원래 자리에 다시 놓을 수 있습니다.
+   ---------------------------------------- */
+if ($action === 'trash') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    if (!function_exists('bh_trash')) jout(['ok' => false, 'error' => '휴지통 기능이 아직 올라오지 않았습니다'], 500);
+    $b = json_decode((string)file_get_contents('php://input'), true);
+    [$ok, $r] = bh_trash((string)($b['path'] ?? ''), function_exists('guard_name') ? guard_name() : '');
+    if (!$ok) jout(['ok' => false, 'error' => $r], 400);
+    jout(['ok' => true, '보낸것' => $r,
+          '안내' => '「' . $r['이름'] . '」 을(를) 휴지통으로 보냈습니다']);
+}
+
+if ($action === 'trashlist') {
+    if (!function_exists('bh_trash_list')) jout(['ok' => true, '목록' => []]);
+    $list = [];
+    foreach (bh_trash_list() as $e) {
+        $e['있음'] = file_exists((string)($e['휴지통자리'] ?? ''));
+        $e['크기'] = human((int)($e['바이트'] ?? 0));
+        unset($e['바이트']);
+        $list[] = $e;
+    }
+    jout(['ok' => true, '목록' => array_slice($list, 0, 300), '전체' => count($list)]);
+}
+
+if ($action === 'untrash') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $b = json_decode((string)file_get_contents('php://input'), true);
+    [$ok, $r] = bh_untrash((string)($b['id'] ?? ''));
+    if (!$ok) jout(['ok' => false, 'error' => $r], 400);
+    jout(['ok' => true, '자리' => $r, '안내' => '제자리로 되돌렸습니다']);
+}
+
+if ($action === 'trashpurge') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $b = json_decode((string)file_get_contents('php://input'), true);
+    [$ok, $r] = bh_trash_purge((string)($b['id'] ?? ''));
+    if (!$ok) jout(['ok' => false, 'error' => $r], 400);
+    jout(['ok' => true, '안내' => $r]);
+}
 
 if ($action === 'mkdir') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);

@@ -200,8 +200,13 @@ function ai_vendor_name($v) {
    ================================================================= */
 const MANUS_API = 'https://api.manus.ai/v1/tasks';
 
-function manus_head($key) {
-    // v2 는 x-manus-api-key, 예전 판은 API_KEY 를 씁니다. 둘 다 보냅니다.
+function manus_head($key, $which = 0) {
+    // 회사마다 키를 싣는 자리가 다릅니다. 거절당하면 다음 방법으로 한 번 더 해봅니다.
+    //  0) v2 방식 (x-manus-api-key) + 예전 판(API_KEY) 을 함께
+    //  1) 흔한 방식 (Authorization: Bearer)
+    if ($which === 1) {
+        return ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
+    }
     return ['Content-Type: application/json',
             'x-manus-api-key: ' . $key,
             'API_KEY: ' . $key];
@@ -211,7 +216,15 @@ function manus_head($key) {
 function manus_start($key, $prompt) {
     $why = [];
     $body = json_encode(['prompt' => $prompt], JSON_UNESCAPED_UNICODE);
-    [$code, $raw] = ai_post(MANUS_API, manus_head($key), $body, $why);
+    [$code, $raw] = ai_post(MANUS_API, manus_head($key, manus_head_pref()), $body, $why);
+    // 키를 싣는 자리가 다를 수 있습니다 — 거절당하면 다른 방법으로 한 번 더
+    if ($raw !== false && ($code === 401 || $code === 403)) {
+        [$code2, $raw2] = ai_post(MANUS_API, manus_head($key, manus_head_pref() ? 0 : 1), $body, $why);
+        if ($raw2 !== false && $code2 !== 401 && $code2 !== 403) {
+            @file_put_contents(__DIR__ . '/data/ai-manus-head.txt', '1');   // 되는 방법을 적어둡니다
+            $code = $code2; $raw = $raw2;
+        }
+    }
     if ($raw === false) return [$code, false, '', $why];
     $j = json_decode($raw, true);
     $id = '';
@@ -252,9 +265,19 @@ function manus_text($j) {
 }
 
 /** 끝났는지 물어봅니다 — [상태, 글, 응답코드, 원문] */
+function manus_head_pref() {
+    $f = __DIR__ . '/data/ai-manus-head.txt';
+    return (is_file($f) && trim((string)@file_get_contents($f)) === '1') ? 1 : 0;
+}
+
 function manus_poll($key, $id) {
     $why = [];
-    [$code, $raw] = ai_post(MANUS_API . '/' . rawurlencode($id), manus_head($key), null, $why);
+    $url = MANUS_API . '/' . rawurlencode($id);
+    [$code, $raw] = ai_post($url, manus_head($key, manus_head_pref()), null, $why);
+    if ($raw !== false && ($code === 401 || $code === 403)) {
+        [$c2, $r2] = ai_post($url, manus_head($key, manus_head_pref() ? 0 : 1), null, $why);
+        if ($r2 !== false && $c2 !== 401 && $c2 !== 403) { $code = $c2; $raw = $r2; }
+    }
     if ($raw === false) return ['모름', '', $code, false];
     $j = json_decode($raw, true);
     $st = strtolower((string)($j['status'] ?? $j['state'] ?? ($j['data']['status'] ?? '')));
@@ -526,11 +549,15 @@ if ($action === 'net') {
 
     // 키가 있으면 그 키가 살아 있는지도 봅니다 (글자를 만들지 않아 돈이 들지 않습니다)
     $keyCheck = null; $keyOk = null;
-    if ($key !== '' && $anthOk) {
-        $head = ($v === 'manus') ? manus_head($key)
-              : (($v === 'openai')
+    if ($v === 'manus') {
+        // 마누스는 「작업 만들기」 말고 키만 확인하는 길이 없습니다.
+        // 목록을 받아보는 것으로 판단하면 멀쩡한 키를 거부됐다고 말하게 됩니다.
+        $keyCheck = '마누스는 키만 따로 확인할 방법이 없습니다 '
+                  . '([✨ AI로 정리] 를 눌러 실제로 되는지 보세요)';
+    } elseif ($key !== '' && $anthOk) {
+        $head = ($v === 'openai')
                     ? ['Authorization: Bearer ' . $key]
-                    : ['x-api-key: ' . $key, 'anthropic-version: 2023-06-01']);
+                    : ['x-api-key: ' . $key, 'anthropic-version: 2023-06-01'];
         $r = net_try($mUrl, 8, $head);
         $c = net_code($r);
         $keyOk = ($c === 200);
@@ -681,8 +708,18 @@ if ($action === 'setkey') {
     if ($vend !== 'manus' && !preg_match('/^sk-[A-Za-z0-9_\-]{20,250}$/', $k)) {
         jout(['ok' => false, 'error' => '키 모양이 아닙니다. "sk-" 로 시작하는 키를 넣어주세요.'], 400);
     }
-    if ($vend === 'manus' && !preg_match('/^[A-Za-z0-9._\-]{16,300}$/', $k)) {
-        jout(['ok' => false, 'error' => '마누스 키 모양이 아닙니다. 앱에서 만든 키를 그대로 넣어주세요.'], 400);
+    if ($vend === 'manus') {
+        // 마누스 키는 정해진 모양이 없어서 길이만 봅니다.
+        // 우리가 괜히 막아서 못 쓰게 되는 일이 없도록 넉넉하게 받습니다.
+        if (preg_match('/\s/', $k)) {
+            jout(['ok' => false, 'error' =>
+                '키에 빈칸이나 줄바꿈이 섞여 있습니다. 앞뒤 공백 없이 붙여넣어 주세요.'], 400);
+        }
+        if (strlen($k) < 8) {
+            jout(['ok' => false, 'error' =>
+                '키가 너무 짧습니다 (' . strlen($k) . '글자). 마누스 앱에서 만든 키를 '
+                . '전체 복사해서 넣어주세요.'], 400);
+        }
     }
     if (!is_dir($DATA_DIR) && !@mkdir($DATA_DIR, 0775, true) && !is_dir($DATA_DIR)) {
         jout(['ok' => false, 'error' => 'data 폴더를 만들지 못했습니다'], 500);
@@ -808,7 +845,8 @@ if ($action === 'prompt') {
                 "마누스에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)], 502);
         }
         if ($tid === '') {
-            jout(['ok' => false, 'error' => ai_friendly($c, ai_errmsg($r), 'manus')], 502);
+            jout(['ok' => false, 'error' => ai_friendly($c, ai_errmsg($r), 'manus')
+                . "\n\n(마누스가 보낸 것 앞부분: " . mb_strcut((string)$r, 0, 200) . ')'], 502);
         }
         jout(['ok' => true, '진행중' => true, '작업번호' => $tid, '무엇' => 'prompt',
               '안내' => '마누스가 작업을 시작했습니다']);
@@ -897,7 +935,8 @@ if ($action === 'summarize') {
                 "마누스에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)], 502);
         }
         if ($tid === '') {
-            jout(['ok' => false, 'error' => ai_friendly($c, ai_errmsg($r), 'manus')], 502);
+            jout(['ok' => false, 'error' => ai_friendly($c, ai_errmsg($r), 'manus')
+                . "\n\n(마누스가 보낸 것 앞부분: " . mb_strcut((string)$r, 0, 200) . ')'], 502);
         }
         jout(['ok' => true, '진행중' => true, '작업번호' => $tid, '무엇' => 'summarize',
               '안내' => '마누스가 작업을 시작했습니다']);

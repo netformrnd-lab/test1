@@ -445,6 +445,24 @@ if ($action === 'net') {
         else                                 $keyCheck = '확인하지 못했습니다';
     }
 
+    // 진짜로 한 번 물어봅니다 — 이게 제일 확실합니다.
+    // 「안녕」 한 마디라 값은 0 에 가깝고, 실패하면 AI 가 준 말을 그대로 보여줍니다.
+    $real = null; $realOk = null;
+    if ($key !== '' && $anthOk) {
+        $why2 = [];
+        [$rc, $rraw, $rtext, $rmodel] = ai_ask($key, '한 단어로만 답하세요.', '안녕', 16, $MODEL_FILE, $why2);
+        if ($rraw === false) {
+            $real = '물어보지 못했습니다 — ' . implode(' / ', $why2);
+            $realOk = false;
+        } elseif ($rc === 200 && $rtext !== false) {
+            $real = '✅ 됩니다 (모델 ' . $rmodel . ' · 답: ' . mb_substr(trim($rtext), 0, 20) . ')';
+            $realOk = true;
+        } else {
+            $real = '❌ HTTP ' . $rc . ' · ' . ai_errmsg($rraw);
+            $realOk = false;
+        }
+    }
+
     $ways = [];
     if (function_exists('curl_init')) $ways[] = 'curl';
     if (ini_get('allow_url_fopen') && extension_loaded('openssl')) $ways[] = 'file_get_contents';
@@ -476,13 +494,20 @@ if ($action === 'net') {
                                          . '(챗GPT sk-… / 클로드 sk-ant-… 둘 다 됩니다)';
     if ($keyOk === false)        $todo[] = 'AI 키가 받아들여지지 않습니다. 새 키를 만들어 '
                                          . '[🔑 AI 키 넣기] 로 다시 넣어주세요.';
-    if ($anthOk && $keyOk === true) $todo[] = '길도 열려 있고 키도 정상입니다. 다시 한 번 해보세요.';
+    if ($realOk === true)        $todo[] = '지금 이 자리에서 물어보니 정상으로 답했습니다. '
+                                         . '아까 실패했다면 그 사이 한도에 걸렸던 것이니 다시 해보세요.';
+    if ($realOk === false && $real !== null) {
+        $todo[] = '실제로 물어봤을 때 이렇게 나왔습니다 → ' . $real;
+        $todo[] = ai_friendly(0, $real, $v);
+    }
 
     $one = !$anthOk
         ? ($ghOk ? '⚠️ 인터넷은 되는데 AI 서버에는 닿지 못합니다'
                  : '❌ NAS 가 인터넷으로 나가지 못합니다')
-        : ($keyOk === false ? '⚠️ AI 서버까지는 닿지만 키가 거부됩니다'
-                            : '✅ AI 서버까지 닿습니다');
+        : ($realOk === true  ? '✅ 지금 물어보니 정상으로 답했습니다'
+        : ($realOk === false ? '⚠️ 서버까지는 닿는데 AI 가 거절했습니다 (아래 「실제로 물어보기」 를 보세요)'
+        : ($keyOk === false  ? '⚠️ AI 서버까지는 닿지만 키가 거부됩니다'
+                             : '✅ AI 서버까지 닿습니다')));
 
     jout([
         'ok' => true,
@@ -502,6 +527,7 @@ if ($action === 'net') {
         'AI 서버에 해본 것'   => $anth,
         '다른 사이트에 해본 것' => $gh,
         '키 확인' => $key === '' ? '키가 아직 없습니다' : ($keyCheck ?: '서버에 닿지 못해 확인하지 못했습니다'),
+        '실제로 물어보기' => $key === '' ? '키가 아직 없습니다' : ($real ?: '서버에 닿지 못해 해보지 못했습니다'),
         '프록시설정' => [
             'http_proxy'  => getenv('http_proxy') ?: '(없음)',
             'https_proxy' => getenv('https_proxy') ?: '(없음)',

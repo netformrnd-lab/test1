@@ -1071,7 +1071,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260905-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260905-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6525,8 +6525,8 @@ async function aiSummarize(id){
     toast('✅ 정리했습니다' + (out['잘림'] ? ' (내용이 길어 앞부분만 봤습니다)' : ''));
   }catch(e){
     aiState.error = e.message || String(e);
+    aiState.netFail = true;
     if(/연결하지 못|curl|wget|file_get_contents|시도한 방법/.test(aiState.error)){
-      aiState.netFail = true;
       showError('AI 정리에 실패했습니다.\n\nNAS 가 인터넷으로 나가지 못하고 있습니다.\n'
         + '어디가 막혔는지 바로 확인해 드리겠습니다.');
       openNetCheck();
@@ -6563,6 +6563,8 @@ function viewMeetings(list){
         ? '<button class="btn" onclick="aiSetKey()">🔑 AI 키 넣기</button>'
           + '<span class="hint">키를 넣으면 회의 내용을 AI가 요약해 줍니다</span>'
         : '<button class="btn" onclick="aiSetKey()">🔑 AI 키 바꾸기</button>'
+          + (aiState.netFail
+              ? '<button class="btn" onclick="openNetCheck()">🩺 AI 점검</button>' : '')
           + '<span class="hint">회의 내용을 적고 [AI로 정리] 를 누르면 '
           + '요약·결정사항·할 일로 나눠줍니다</span>')
     + '</div>';
@@ -7206,9 +7208,9 @@ async function bookToPrompt(){
     toast('✨ 브랜드북으로 마스터프롬프트를 만들었습니다');
   }catch(e){
     const msg = apiErrText(e);
-    // 밖으로 못 나가는 경우가 대부분이라, 바로 점검 화면을 열어 드립니다
+    aiState.netFail = true;             // 한 번이라도 실패하면 [🩺 AI 점검] 을 남겨둡니다
+    // 밖으로 못 나가는 경우면 바로 점검 화면을 열어 드립니다
     if(/연결하지 못|curl|wget|file_get_contents|시도한 방법/.test(msg)){
-      aiState.netFail = true;
       alert('만들지 못했습니다.\n\nNAS 가 인터넷으로 나가지 못하고 있습니다.\n'
         + '어디가 막혔는지 바로 확인해 드리겠습니다.\n\n'
         + '(그동안에는 [📋 브랜드북 복사] 로 밖에서 만들어 붙여넣으셔도 됩니다)');
@@ -7235,7 +7237,8 @@ function viewBook(b){
       + 'title="AI 가 막혀 있을 때 — 복사해서 클로드·챗GPT 에 붙여넣고 받은 글을 아래에 넣으세요">'
       + '📋 브랜드북 복사</button>'
     + (aiState.netFail
-        ? '<button class="btn" onclick="openNetCheck()">🩺 AI 연결 점검</button>' : '')
+        ? '<button class="btn" onclick="openNetCheck()" '
+          + 'title="실제로 한 번 물어보고, 안 되면 무엇 때문인지 알려줍니다">🩺 AI 점검</button>' : '')
     + '<span class="hint">브랜드북이 원본입니다. 여기를 채우면 AI 가 '
       + '마스터프롬프트를 대신 써 줍니다</span>'
     + '</div>';
@@ -8595,6 +8598,9 @@ function netPanel(){
             + '</ul></div>'
           + rowsOf('닿나', d['닿나'])
           + rowsOf('나가는 방법 (PHP)', d['나가는 방법'])
+          + '<div class="vz-head" style="margin-top:12px">실제로 한 번 물어본 결과</div>'
+          + '<div class="ainote" style="margin:4px 0 0">'
+            + esc(String(d['실제로 물어보기'] || '')) + '</div>'
           + '<div class="vz-head" style="margin-top:12px">주소찾기(DNS) · 키</div>'
           + '<div class="fmeta">' + esc(String(d['주소찾기(DNS)'] || ''))
             + '<br>🔑 ' + esc(String(d['키 확인'] || '')) + '</div>'

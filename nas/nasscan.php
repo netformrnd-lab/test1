@@ -14,6 +14,9 @@
  * 파일을 옮기거나 고치지 않습니다. 읽기만 합니다.
  */
 
+/* 로그인한 사람만 통과합니다 (계정을 안 만들었으면 예전처럼 누구나) */
+if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
+
 header('Content-Type: application/json; charset=utf-8');
 @set_time_limit(0);
 @ini_set('memory_limit', '256M');

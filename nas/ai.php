@@ -14,6 +14,9 @@
  * 내용이 보이지 않고 실행만 되어 빈 화면이 나옵니다.
  * 어떤 응답에도 키를 되돌려주지 않습니다.
  */
+
+/* 로그인한 사람만 통과합니다 (계정을 안 만들었으면 예전처럼 누구나) */
+if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 @ini_set('display_errors', '0');

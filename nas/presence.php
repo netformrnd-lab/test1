@@ -11,6 +11,9 @@
  * 이름과 보고 있는 화면 말고는 아무것도 저장하지 않습니다.
  * 5분 넘게 소식이 없으면 자동으로 지워집니다.
  */
+
+/* 로그인한 사람만 통과합니다 (계정을 안 만들었으면 예전처럼 누구나) */
+if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
 if (PHP_SAPI === 'cli') {
     parse_str(implode('&', array_slice($argv, 1)), $cliQ);
     $_GET = array_merge($_GET, $cliQ);

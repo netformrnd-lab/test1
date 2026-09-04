@@ -7,6 +7,9 @@
  * 여러 명이 같이 쓰기 때문에, 다른 사람이 저장하는 중에 읽어도
  * 반쪽짜리 내용이 나가지 않도록 확인하고 돌려줍니다.
  */
+
+/* 로그인한 사람만 통과합니다 (계정을 안 만들었으면 예전처럼 누구나) */
+if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 

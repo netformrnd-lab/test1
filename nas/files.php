@@ -8,6 +8,9 @@
  * 원본 파일명은 brand-data.json 에 기록되고, 내려받을 때 다시 붙여줍니다.
  */
 
+/* 로그인한 사람만 통과합니다 (계정을 안 만들었으면 예전처럼 누구나) */
+if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
+
 $DATA_DIR = __DIR__ . '/data';
 /* 올린 파일을 둘 곳.
    data/uploadroot.txt 에 적혀 있으면 그 폴더(= 공유폴더 안)로 보냅니다.

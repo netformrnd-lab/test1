@@ -739,6 +739,26 @@ table.ymtable .zero{color:var(--text-muted)}
 table.ymtable .tot{font-weight:700}
 table.ymtable tr:hover td{background:var(--bg-hover)}
 /* 눌러서 고칠 수 있는 숫자 칸 */
+/* ---------- 로그인 ---------- */
+body.locked .topbar,body.locked .side{display:none}
+body.locked .layout{grid-template-columns:minmax(0,1fr);padding:0}
+.lgwrap{display:flex;align-items:center;justify-content:center;min-height:88vh;padding:20px}
+.lgbox{width:100%;max-width:380px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:32px 30px;box-shadow:var(--shadow-lg)}
+.lg-h{font-size:21px;font-weight:750;letter-spacing:-.03em;margin-bottom:6px}
+.lg-s{font-size:12.5px;color:var(--text-muted);line-height:1.7;margin-bottom:20px}
+.lgbox label{display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);
+  margin:12px 0 5px;letter-spacing:-.01em}
+.lgbox input{width:100%;box-sizing:border-box;padding:10px 12px;font-size:14px;
+  font-family:inherit;border-radius:var(--r-sm);border:1px solid var(--border);
+  background:var(--bg-input);color:var(--text-primary)}
+.lgbox input:focus{outline:none;border-color:var(--border-light);box-shadow:var(--ring);
+  background:var(--bg-card)}
+.lg-go{width:100%;margin-top:20px;padding:11px;font-size:14px;justify-content:center}
+.lg-note{font-size:11.5px;color:var(--text-muted);margin-top:14px;line-height:1.65;text-align:center}
+.lg-err{background:var(--red);color:#fff;font-size:12.5px;font-weight:600;line-height:1.6;
+  padding:10px 13px;border-radius:var(--r-sm);margin-top:14px}
+
 /* ---------- 브랜드북 ---------- */
 .booklist{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
 .bsec{border:1px solid var(--border);border-radius:var(--r-md);padding:13px 15px;
@@ -916,6 +936,7 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
     </div>
     <!-- 오른쪽 묶음: 단추. 왼쪽이 길어져도 자리가 움직이지 않습니다 -->
     <div class="btngrp">
+    <button class="btn" id="userBtn" style="display:none" onclick="userMenu()">👤</button>
     <button class="btn" id="undoBtn" title="되돌리기 (Ctrl+Z)" onclick="undoStep()">↩︎</button>
     <button class="btn" id="redoBtn" title="다시 하기 (Ctrl+Shift+Z)" onclick="redoStep()">↪︎</button>
     <button class="btn" id="autoBtn" onclick="toggleAutoSave()">💾자동</button>
@@ -1013,6 +1034,8 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
      (고르는 창이 열려 있는 동안 다시 그려지면 고른 파일이 조용히 없어집니다) -->
 <input type="file" id="fileInput" multiple style="display:none">
 
+<div id="usersLayer"></div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1027,7 +1050,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260903-12';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260904-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1045,6 +1068,8 @@ const LIVE_MS_IDLE = 15000;   // 다른 창을 보고 있을 때
 let liveTimer = null, liveBusy = false, lastSeenRev = null, liveOn = false, liveErr = '';
 
 function myName(){
+  const m = (typeof authMe === 'function') ? authMe() : null;
+  if(m) return m['이름'] || m.id;          // 로그인했으면 그 이름이 곧 내 이름입니다
   try{ return localStorage.getItem('brandHubUser') || ''; }catch(e){ return ''; }
 }
 function myId(){
@@ -1204,10 +1229,13 @@ function setBadge(state, text){
 const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 
 function newBrand(name, icon, color, desc){
-  return { id: uid('b'), name, icon, color, owner:'', desc: desc || '',
-           automations:[], history:[], assets:[], tasks:[], links:[], nasFolders:[],
-           record:null, tools:[], channels:[],
-           masterPrompt:'', promptUpdatedAt:null };
+  const b = { id: uid('b'), name, icon, color, owner:'', desc: desc || '',
+              nasFolders:[], record:null, tools:[], channels:[],
+              masterPrompt:'', promptUpdatedAt:null, book:{}, chartFix:{} };
+  // 목록은 한 곳(ITEM_KEYS)에서 만듭니다.
+  // 예전처럼 손으로 적어두면 새 목록을 넣을 때 빠뜨려서 화면이 깨집니다.
+  ITEM_KEYS.forEach(k => { b[k] = []; });
+  return b;
 }
 
 function defaultData(){
@@ -1363,15 +1391,15 @@ const ITEM_KEYS = ['automations','history','assets','tasks','links','costs'];
 
 /* 자동화 개수 — 손으로 적은 것과 올려둔 도구 파일을 합쳐서 셉니다.
    화면마다 다르게 세면 "등록했는데 숫자가 안 올라간다" 가 되므로 여기 하나만 씁니다. */
-function autoCount(b){ return b.automations.length + ((b.tools || []).length); }
+function autoCount(b){ return (b.automations || []).length + ((b.tools || []).length); }
 
 /* 이 브랜드에 등록된 것 전부 (왼쪽 목록에 보이는 숫자) */
 function itemCount(b){
-  return ITEM_KEYS.reduce((a, k) => a + b[k].length, 0) + ((b.tools || []).length);
+  return ITEM_KEYS.reduce((a, k) => a + ((b[k] || []).length), 0) + ((b.tools || []).length);
 }
 const TAB_KEYS  = ['inquiries','costs','automations','history','tasks','links','channels','assets','book','prompt'];
 
-let data = defaultData();
+let data = defaultData();      // init() 에서 normalize 를 한 번 더 거칩니다
 let currentBrandId = null;
 let currentTab = 'automations';
 let searchQuery = '';
@@ -1423,7 +1451,42 @@ function paintVersion(){
 /* 위쪽 줄이 넘칠 때: 덜 중요한 것부터 조용히 숨깁니다.
    ("새 판 받기" 알림이 떠도 단추들이 밀리거나 겹치지 않게)                */
 /* 되돌리기 단추와 저장 방식 표시를 지금 상태에 맞춥니다 */
+let showSetup = false;
+function userMenu(){
+  const m = authMe();
+  if(!m){
+    if(!confirm('아직 계정을 만들지 않아 누구나 들어올 수 있습니다.\n\n'
+      + '관리자를 하나 만들면 그때부터 로그인해야 들어올 수 있고,\n'
+      + '퇴사자를 그 자리에서 막을 수 있습니다.\n\n지금 만들까요?')) return;
+    showSetup = true; auth.err = '';
+    document.body.classList.add('locked');
+    document.getElementById('main').innerHTML = authScreen();
+    const f = document.getElementById('suId'); if(f) f.focus();
+    return;
+  }
+  const opts = ['1. 비밀번호 바꾸기', '2. 로그아웃']
+    .concat(isAdmin() ? ['3. 사람 관리 (관리자)'] : []);
+  const v = prompt(m['이름'] + ' (' + m.id + ') · ' + m['권한'] + '\n\n'
+    + '무엇을 할까요? 번호를 넣어주세요.\n\n' + opts.join('\n'), '');
+  if(v === null) return;
+  const n = String(v).trim()[0];
+  if(n === '1') changePw();
+  else if(n === '2') doLogout();
+  else if(n === '3' && isAdmin()) openUsers();
+}
+
 function paintTools(){
+  const ub = document.getElementById('userBtn');
+  if(ub){
+    const m = authMe();
+    ub.style.display = (STORAGE_MODE === 'nas') ? '' : 'none';
+    ub.textContent = m ? '👤' + (m['이름'] || m.id).slice(0, 4) : '👤 계정';
+    ub.title = m ? (m['이름'] + ' (' + m.id + ') · ' + m['권한']
+                    + '\n눌러서 비밀번호 바꾸기 · 로그아웃'
+                    + (isAdmin() ? ' · 사람 관리' : ''))
+                 : '아직 계정이 없습니다. 눌러서 만들 수 있습니다.';
+    ub.classList.toggle('warn', !m && STORAGE_MODE === 'nas');
+  }
   const u = document.getElementById('undoBtn');
   if(u){ u.disabled = !undoStack.length;
          u.title = undoStack.length ? '되돌리기 (Ctrl+Z) · ' + undoStack.length + '걸음 남음'
@@ -1557,6 +1620,18 @@ function render(){
   }
 
   const snap = captureUI();
+
+  // 로그인이 필요한 상태면 로그인 화면만 그립니다
+  if(STORAGE_MODE === 'nas' && ((authOn() && !(auth.state && auth.state['로그인됨'])) || showSetup)){
+    document.body.classList.add('locked');
+    document.getElementById('main').innerHTML = authScreen();
+    const lay = document.getElementById('usersLayer');
+    if(lay) lay.innerHTML = '';
+    restoreUI(snap);
+    return;
+  }
+  document.body.classList.remove('locked');
+
   paintVersion();
   paintTools();
   renderSidebar();
@@ -1572,6 +1647,8 @@ function render(){
   if(mc) mc.textContent = (data.meetings || []).length || '';
   const cc = document.getElementById('calCnt');
   if(cc) cc.textContent = (data.events || []).length || '';
+  const up = document.getElementById('usersLayer');
+  if(up) up.innerHTML = usersPanel();
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
   else if(view === 'meetings') renderMeetings();
@@ -1914,7 +1991,11 @@ async function apiJson(url, opts){
     throw new Error(file + ' 이(가) 이상한 응답을 보냈습니다. (HTTP ' + res.status + ')\n\n'
       + '받은 내용 앞부분:\n' + head);
   }
-  if(!out.ok) throw out;
+  if(!out.ok){
+    // 로그인이 끊겼거나(만료) 관리자가 계정을 막았습니다
+    if(out['로그인필요']){ authKicked(); throw new Error('로그인이 필요합니다. 다시 들어와 주세요.'); }
+    throw out;
+  }
   return out;
 }
 
@@ -7659,10 +7740,264 @@ document.addEventListener('keydown', e => {
   }
 });
 
+/* ═══════════════ 로그인 ══════════════════════════════════════════
+   계정을 하나도 안 만들면 예전처럼 누구나 씁니다.
+   계정을 만들면 그때부터 로그인한 사람만 들어올 수 있고,
+   퇴사자는 [사용 중지] 하면 열어둔 화면까지 그 자리에서 끊깁니다.
+   ================================================================= */
+const auth = { state:null, busy:false, err:'', users:null, showUsers:false };
+
+async function authState(){
+  try{
+    const r = await fetch('auth.php?action=state', { cache:'no-store' });
+    auth.state = JSON.parse(await r.text());
+  }catch(e){ auth.state = { ok:false, error:'로그인 상태를 확인하지 못했습니다' }; }
+  return auth.state;
+}
+function authOn(){ return !!(auth.state && auth.state['계정있음']); }
+function authMe(){ return (auth.state && auth.state['나']) || null; }
+function isAdmin(){ const m = authMe(); return !!(m && m['권한'] === '관리자'); }
+
+/* 어느 요청에서든 「로그인 필요」 가 오면 로그인 화면으로 보냅니다 */
+function authKicked(){
+  if(auth.state) auth.state['로그인됨'] = false, auth.state['나'] = null;
+  stopLive();
+  render();
+}
+
+async function authPost(action, body){
+  const r = await fetch('auth.php?action=' + action, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    cache:'no-store', body: JSON.stringify(body || {})
+  });
+  const t = await r.text();
+  let o = null;
+  try{ o = JSON.parse(t); }catch(e){}
+  if(o === null) throw new Error('서버가 이상한 답을 보냈습니다 (HTTP ' + r.status + ')');
+  if(!o.ok) throw new Error(o.error || '실패했습니다');
+  return o;
+}
+
+async function doLogin(){
+  const id = (document.getElementById('lgId') || {}).value || '';
+  const pw = (document.getElementById('lgPw') || {}).value || '';
+  if(!id.trim() || !pw){ auth.err = '아이디와 비밀번호를 넣어주세요'; render(); return; }
+  auth.busy = true; auth.err = ''; render();
+  try{
+    await authPost('login', { id: id.trim(), pw: pw });
+    await authState();
+    auth.busy = false;
+    location.reload();                       // 자료를 처음부터 다시 불러옵니다
+  }catch(e){ auth.err = e.message; auth.busy = false; render();
+    const f = document.getElementById('lgPw'); if(f){ f.value = ''; f.focus(); } }
+}
+
+async function doSetup(){
+  const id = (document.getElementById('suId') || {}).value || '';
+  const nm = (document.getElementById('suName') || {}).value || '';
+  const pw = (document.getElementById('suPw') || {}).value || '';
+  const p2 = (document.getElementById('suPw2') || {}).value || '';
+  if(pw !== p2){ auth.err = '비밀번호 두 개가 서로 다릅니다'; render(); return; }
+  auth.busy = true; auth.err = ''; render();
+  try{
+    await authPost('setup', { id: id.trim(), name: nm.trim(), pw: pw });
+    location.reload();
+  }catch(e){ auth.err = e.message; auth.busy = false; render(); }
+}
+
+async function doLogout(){
+  if(!confirm('로그아웃할까요?')) return;
+  try{ await authPost('logout'); }catch(e){}
+  location.reload();
+}
+
+async function changePw(){
+  const old = prompt('지금 쓰는 비밀번호를 넣어주세요.');
+  if(old === null) return;
+  const nw = prompt('새 비밀번호를 넣어주세요.\n\n8글자 이상, 숫자만은 안 됩니다.');
+  if(nw === null) return;
+  const n2 = prompt('한 번 더 넣어주세요.');
+  if(n2 === null) return;
+  if(nw !== n2){ alert('두 번 넣은 것이 서로 다릅니다.'); return; }
+  try{
+    const o = await authPost('passwd', { old: old, new: nw });
+    alert(o['안내'] || '바꿨습니다.');
+  }catch(e){ alert(e.message); }
+}
+
+/* ---- 사람 관리 (관리자) ---- */
+async function loadUsers(){
+  try{
+    const r = await fetch('auth.php?action=users', { cache:'no-store' });
+    const o = JSON.parse(await r.text());
+    auth.users = o.ok ? o['사람'] : null;
+    if(!o.ok) alert(o.error);
+  }catch(e){ auth.users = null; }
+  render();
+}
+function openUsers(){ auth.showUsers = true; auth.users = null; loadUsers(); }
+function closeUsers(){ auth.showUsers = false; render(); }
+
+async function addUser(){
+  const id = prompt('새 사람의 아이디를 지어주세요.\n\n영문·숫자 2~32글자 (예: kim.mk)');
+  if(id === null || !id.trim()) return;
+  const nm = prompt('이름을 넣어주세요. (화면에 보일 이름)', id.trim());
+  if(nm === null) return;
+  const pw = prompt('처음 쓸 비밀번호를 정해주세요.\n\n'
+    + '8글자 이상, 숫자만은 안 됩니다.\n본인에게 알려주고 바꾸게 하세요.');
+  if(pw === null) return;
+  const admin = confirm('이 사람을 관리자로 할까요?\n\n'
+    + '관리자는 사람을 넣고 빼고, 퇴사 처리를 할 수 있습니다.\n'
+    + '[취소] 를 누르면 일반 팀원이 됩니다.');
+  try{
+    const o = await authPost('adduser', { id:id.trim(), name:nm.trim(), pw:pw, admin:admin });
+    toast('✅ ' + (o['안내'] || '넣었습니다'));
+    loadUsers();
+  }catch(e){ alert(e.message); }
+}
+
+async function setUser(id, patch, ask){
+  if(ask && !confirm(ask)) return;
+  try{
+    const o = await authPost('setuser', Object.assign({ id: id }, patch));
+    toast('✅ ' + (o['안내'] || '바꿨습니다'));
+    loadUsers();
+  }catch(e){ alert(e.message); }
+}
+async function resetPw(id){
+  const pw = prompt(id + ' 의 비밀번호를 새로 정합니다.\n\n'
+    + '8글자 이상, 숫자만은 안 됩니다.\n본인에게 알려주고 바꾸게 하세요.');
+  if(pw === null || !pw) return;
+  setUser(id, { pw: pw });
+}
+async function delUser(id){
+  if(!confirm('"' + id + '" 계정을 아예 지울까요?\n\n'
+    + '되돌릴 수 없습니다.\n'
+    + '퇴사자라면 지우기보다 [사용 중지] 를 권합니다 '
+    + '(누가 무엇을 했는지 기록이 남습니다).')) return;
+  try{
+    const o = await authPost('deluser', { id: id });
+    toast('🗑️ ' + (o['안내'] || '지웠습니다'));
+    loadUsers();
+  }catch(e){ alert(e.message); }
+}
+
+/* ---- 화면 ---- */
+function authScreen(){
+  const st = auth.state || {};
+  const warn = st.https === false
+    ? '<div class="ainote" style="margin-top:14px">🔒 지금은 사무실 안(http)에서만 쓰는 주소입니다. '
+      + '비밀번호가 사내망을 그대로 지나갑니다. 바깥에서도 접속하시려면 '
+      + '먼저 Web Station 에서 https 를 켜주세요.</div>' : '';
+  const err = auth.err
+    ? '<div class="lg-err">⚠️ ' + esc(auth.err).replace(/\n/g, '<br>') + '</div>' : '';
+
+  if(!st['계정있음']){
+    return '<div class="lgwrap"><div class="lgbox">'
+      + '<div class="lg-h">🎨 브랜드 허브</div>'
+      + '<div class="lg-s">아직 계정이 없습니다. <b>관리자 한 명</b>을 먼저 만들어 주세요.<br>'
+        + '만들고 나면 그때부터 로그인해야 들어올 수 있습니다.</div>'
+      + err
+      + '<label>아이디</label><input id="suId" placeholder="영문·숫자 (예: kim.mk)" autocomplete="username">'
+      + '<label>이름</label><input id="suName" placeholder="화면에 보일 이름">'
+      + '<label>비밀번호</label><input id="suPw" type="password" placeholder="8글자 이상" autocomplete="new-password">'
+      + '<label>비밀번호 확인</label><input id="suPw2" type="password" autocomplete="new-password" '
+        + 'onkeydown="if(event.key===\'Enter\')doSetup()">'
+      + '<button class="btn primary lg-go" ' + (auth.busy ? 'disabled' : '')
+        + ' onclick="doSetup()">' + (auth.busy ? '만드는 중…' : '관리자 만들기') + '</button>'
+      + '<div class="lg-note">이 계정으로 나중에 팀원을 넣고, 퇴사자를 막을 수 있습니다.<br>'
+        + '<button class="btn sm" style="margin-top:8px" '
+        + 'onclick="showSetup=false;document.body.classList.remove(\'locked\');render()">'
+        + '나중에 하기</button></div>'
+      + warn
+      + '</div></div>';
+  }
+
+  return '<div class="lgwrap"><div class="lgbox">'
+    + '<div class="lg-h">🎨 브랜드 허브</div>'
+    + '<div class="lg-s">넷폼알앤디 브랜드 마케팅팀</div>'
+    + err
+    + '<label>아이디</label><input id="lgId" autocomplete="username" '
+      + 'onkeydown="if(event.key===\'Enter\')document.getElementById(\'lgPw\').focus()">'
+    + '<label>비밀번호</label><input id="lgPw" type="password" autocomplete="current-password" '
+      + 'onkeydown="if(event.key===\'Enter\')doLogin()">'
+    + '<button class="btn primary lg-go" ' + (auth.busy ? 'disabled' : '')
+      + ' onclick="doLogin()">' + (auth.busy ? '들어가는 중…' : '들어가기') + '</button>'
+    + '<div class="lg-note">비밀번호를 잊으셨으면 관리자에게 초기화를 부탁하세요.</div>'
+    + warn
+    + '</div></div>';
+}
+
+function usersPanel(){
+  if(!auth.showUsers) return '';
+  const list = auth.users;
+  const rows = list === null
+    ? '<div class="fmeta">불러오는 중…</div>'
+    : '<div class="vz-tw"><table class="ymtable"><thead><tr>'
+      + '<th>아이디</th><th>이름</th><th>권한</th><th>상태</th><th>마지막 들어온 때</th><th></th>'
+      + '</tr></thead><tbody>'
+      + list.map(u => {
+          const me = authMe() && authMe().id === u.id;
+          return '<tr' + (u['쓸수있음'] ? '' : ' class="dim"') + '>'
+            + '<td><b>' + esc(u.id) + '</b>' + (me ? ' <span class="chip on">나</span>' : '') + '</td>'
+            + '<td>' + esc(u['이름']) + '</td>'
+            + '<td>' + (u['권한'] === '관리자'
+                ? '<span class="chip test">관리자</span>' : '팀원') + '</td>'
+            + '<td>' + (u['쓸수있음']
+                ? '<span class="chip">쓰는 중</span>'
+                : '<span class="chip off">중지됨</span>') + '</td>'
+            + '<td>' + (u['마지막들어온때']
+                ? esc(new Date(u['마지막들어온때']).toLocaleString('ko-KR',
+                    { dateStyle:'medium', timeStyle:'short' })) : '<span class="zero">–</span>') + '</td>'
+            + '<td style="white-space:nowrap">'
+              + (u['쓸수있음']
+                  ? '<button class="btn sm danger" onclick="setUser(\'' + jsq(u.id) + '\',{active:false},'
+                    + '\'' + jsq(u.id) + ' 을(를) 사용 중지할까요?\\n\\n'
+                    + '지금 열어둔 화면도 바로 끊깁니다.\\n'
+                    + '퇴사자에게 쓰는 기능입니다.\')">🚫 사용 중지</button> '
+                  : '<button class="btn sm" onclick="setUser(\'' + jsq(u.id) + '\',{active:true},'
+                    + '\'' + jsq(u.id) + ' 을(를) 다시 쓸 수 있게 할까요?\')">되살리기</button> ')
+              + '<button class="btn sm" onclick="resetPw(\'' + jsq(u.id) + '\')">비번 초기화</button> '
+              + (u['권한'] === '관리자'
+                  ? '<button class="btn sm" onclick="setUser(\'' + jsq(u.id) + '\',{admin:false},'
+                    + '\'관리자에서 내릴까요?\')">팀원으로</button> '
+                  : '<button class="btn sm" onclick="setUser(\'' + jsq(u.id) + '\',{admin:true},'
+                    + '\'관리자로 올릴까요? 사람을 넣고 뺄 수 있게 됩니다.\')">관리자로</button> ')
+              + (me ? '' : '<button class="btn sm danger" onclick="delUser(\'' + jsq(u.id) + '\')">지우기</button>')
+            + '</td></tr>';
+        }).join('')
+      + '</tbody></table></div>';
+
+  return '<div class="modal-bg open" onclick="if(event.target===this)closeUsers()">'
+    + '<div class="modal" style="max-width:900px">'
+    + '<h3>👥 사람 관리</h3>'
+    + '<div class="sec-bar"><button class="btn primary" onclick="addUser()">＋ 사람 추가</button>'
+      + '<span class="hint">퇴사자는 <b>[🚫 사용 중지]</b> 를 누르면 그 자리에서 못 들어옵니다. '
+      + '지우지 않으셔도 됩니다</span></div>'
+    + rows
+    + '<div class="ainote" style="margin-top:12px">'
+      + '중지하면 그 사람이 <b>지금 열어둔 화면까지 바로 끊깁니다.</b> '
+      + '비밀번호를 초기화해도 마찬가지입니다.</div>'
+    + '<div class="modal-actions"><button class="btn" onclick="closeUsers()">닫기</button></div>'
+    + '</div></div>';
+}
+
 /* ========================= 시작 ========================= */
 async function init(){
   if(localStorage.getItem('brandHubDark') === 'true') document.body.classList.add('dark-mode');
 
+  // 로그인부터 확인합니다. 안 되어 있으면 자료를 아예 불러오지 않습니다.
+  if(STORAGE_MODE === 'nas'){
+    await authState();
+    if(authOn() && !auth.state['로그인됨']){
+      render();                                  // 로그인 화면
+      const f = document.getElementById('lgId');
+      if(f) f.focus();
+      return;
+    }
+  }
+
+  data = normalize(data);        // 기본 자료도 같은 모양으로 맞춰둡니다
   try{
     const loaded = await storageLoad();
     if(loaded) data = normalize(loaded);

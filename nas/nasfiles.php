@@ -9,6 +9,9 @@
  *   ?action=search&q=검색어    파일 찾기
  */
 
+/* 로그인한 사람만 통과합니다 (계정을 안 만들었으면 예전처럼 누구나) */
+if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
+
 header('Content-Type: application/json; charset=utf-8');
 
 /* 경고문이 JSON 앞에 섞여 나오면 화면이 깨지므로, 출력을 붙잡아 둡니다.

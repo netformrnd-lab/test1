@@ -16,6 +16,9 @@
  * 원본 파일은 읽기만 하며 고치지 않습니다.
  */
 
+/* 로그인한 사람만 통과합니다 (계정을 안 만들었으면 예전처럼 누구나) */
+if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
+
 header('Content-Type: application/json; charset=utf-8');
 @ini_set('display_errors', '0');
 @ini_set('html_errors', '0');

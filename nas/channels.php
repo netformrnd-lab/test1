@@ -14,6 +14,9 @@
  *   ?action=refreshall         등록된 채널을 전부 새로 받아옵니다 (feeds.sh 가 주기적으로 부릅니다)
  */
 
+/* 로그인한 사람만 통과합니다 (계정을 안 만들었으면 예전처럼 누구나) */
+if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
+
 // 작업 스케줄러에서 명령줄로도 부를 수 있게 합니다.
 //   php channels.php action=refreshall
 if (PHP_SAPI === 'cli') {

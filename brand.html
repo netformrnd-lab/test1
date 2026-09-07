@@ -1042,6 +1042,11 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="em">✍️</span><span>블로그 발행</span>
         <span class="cnt" id="blogCnt"></span>
       </button>
+      <button class="brand-item home-item" id="trashBtn" onclick="goView('trash')">
+        <span class="bar" style="background:var(--text-muted)"></span>
+        <span class="em">🗑</span><span>휴지통</span>
+        <span class="cnt" id="trashCnt"></span>
+      </button>
     </div>
   </aside>
   <main id="main"></main>
@@ -1104,7 +1109,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260907-12';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260907-13';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1699,7 +1704,7 @@ function render(){
   if(home) home.classList.toggle('on', view === 'home' && !searchQuery && !currentBrandId);
   if(nas)  nas.classList.toggle('on',  view === 'nas'  && !searchQuery);
   [['meetBtn','meetings'],['calBtn','calendar'],['costBtn','costs'],
-   ['blogBtn','blog']].forEach(([id, v]) => {
+   ['blogBtn','blog'],['trashBtn','trash']].forEach(([id, v]) => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('on', view === v && !searchQuery);
   });
@@ -1711,6 +1716,8 @@ function render(){
   if(sc) sc.textContent = data.brands.reduce((a, b) => a + (b.costs || []).length, 0) || '';
   const bc = document.getElementById('blogCnt');
   if(bc) bc.textContent = blog.loaded ? (blog.rows.length || '') : '';
+  const tc = document.getElementById('trashCnt');
+  if(tc) tc.textContent = (data.trash || []).length || '';
   const up = document.getElementById('usersLayer');
   if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel() + pastePanel()
                       + trashPanel() + teamPickPanel();
@@ -1720,6 +1727,7 @@ function render(){
   else if(view === 'calendar') renderCalendar();
   else if(view === 'costs') renderCosts();
   else if(view === 'blog') renderBlog();
+  else if(view === 'trash') renderTrash();
   else if(!currentBrandId) renderHome();
   else renderBrand();
   restoreUI(snap);
@@ -2321,10 +2329,13 @@ function removeChannel(id){
   const b = currentBrand();
   const c = (b.channels || []).find(x => x.id === id);
   if(!c) return;
-  if(!confirm('"' + (c.name || c.url) + '" 을 지울까요?')) return;
+  if(!confirm('"' + (c.name || c.url) + '" 을 지울까요?\n\n'
+    + '휴지통으로 갑니다 — 업무 → 🗑 휴지통 에서 되돌릴 수 있습니다.')) return;
+  trashPut('채널', c.name || c.url, c, { kind:'item', type:'channels', brandId: b.id });
   b.channels = b.channels.filter(x => x.id !== id);
   deletedIds.add(id);
-  markDirty(); render();
+  markDirtyAll(); render();
+  toast('🗑️ 휴지통으로 보냈습니다');
 }
 
 async function refindFeed(id){
@@ -4175,12 +4186,15 @@ function removeTool(id){
   const t = (b.tools || []).find(x => x.id === id);
   if(!t) return;
   if(!confirm('"' + t.name + '" 을 목록에서 지울까요?\n\n'
-    + 'NAS의 실제 파일은 자료 폴더에 그대로 남습니다.')) return;
+    + 'NAS의 실제 파일은 자료 폴더에 그대로 남습니다.\n'
+    + '목록에서는 휴지통으로 가니 되돌릴 수 있습니다.')) return;
+  trashPut('자동화 도구', t.label || t.name, t, { kind:'item', type:'tools', brandId: b.id });
   b.tools = b.tools.filter(x => x.id !== id);
   deletedIds.add(id);
   if(runningTool === id) runningTool = null;
-  markDirty();
+  markDirtyAll();
   render();
+  toast('🗑️ 휴지통으로 보냈습니다');
 }
 
 function renameTool(id){
@@ -4444,9 +4458,11 @@ async function dropGone(){
     + (list.length > 8 ? '\n  … 외 ' + (list.length - 8) + '개' : '')
     + '\n\n실수였다면 Ctrl+Z 로 되돌릴 수 있습니다.')) return;
   const ids = new Set(list.map(a => a.id));
+  list.forEach(a => trashPut('자료', a.title || a.fileName || '(이름 없음)', a,
+                             { kind:'item', type:'assets', brandId: b.id }));
   b.assets = b.assets.filter(a => !ids.has(a.id));
   gone.ids = new Set();
-  markDirty(b.id);                       // Ctrl+Z 로 되돌릴 수 있게 한 걸음 남깁니다
+  markDirtyAll();                        // 휴지통도 같이 저장되어야 합니다
   render(); bindDrop();
   await saveAll(true);
   toast('🧹 ' + list.length + '개를 목록에서 지웠습니다');
@@ -5483,6 +5499,100 @@ function viewCosts(b){
       + '1회성은 달마다 계산에 넣지 않고 「올해 누적」 에만 들어갑니다. '
       + '달러로 적은 것은 환율 ' + fxRate().toLocaleString('ko-KR') + '원으로 바꿔 셉니다.'
     + '</div>';
+}
+
+/* ═══════════════ 🗑 휴지통 화면 ═════════════════════════════════
+   지운 것을 한자리에서 봅니다.
+     · 위쪽 — 대시보드에서 지운 것 (브랜드·자료·할 일·회의록·일정 …)
+     · 아래 — NAS 폴더에서 지운 파일 (각 뿌리 폴더의 _휴지통 안)
+   ================================================================= */
+function renderTrash(){
+  if(!trash.list && !trash.busy && !trash.error) setTimeout(loadNasTrash, 10);
+
+  const box = trashBox();
+  const head = '<h2 class="page-h">🗑 휴지통</h2>'
+    + '<div class="page-sub">지운 것은 여기로 옵니다. '
+      + TRASH_DAYS + '일이 지나면 저절로 비워집니다</div>';
+
+  const mine = box.length
+    ? '<div class="vz-tw"><table class="ymtable"><thead><tr>'
+      + '<th>이름</th><th>무엇</th><th>지운 때</th><th>지운 사람</th><th></th>'
+      + '</tr></thead><tbody>'
+      + box.map(t => '<tr>'
+          + '<td><b>' + esc(t.이름) + '</b></td>'
+          + '<td>' + esc(trashLabel(t)) + '</td>'
+          + '<td style="white-space:nowrap">' + esc(sinceText(t.지운때)) + '</td>'
+          + '<td>' + esc(t.지운사람 || '') + '</td>'
+          + '<td style="white-space:nowrap">'
+            + '<button class="btn sm primary" onclick="trashRestore(\'' + jsq(t.id) + '\')">'
+              + '↩︎ 되돌리기</button> '
+            + '<button class="btn sm danger" onclick="trashDrop(\'' + jsq(t.id) + '\')">'
+              + '완전히 지우기</button>'
+          + '</td></tr>').join('')
+      + '</tbody></table></div>'
+    : '<div class="empty">대시보드에서 지운 것이 없습니다.</div>';
+
+  const nas = trash.busy
+    ? '<div class="fmeta">NAS 휴지통을 불러오는 중…</div>'
+    : trash.error
+      ? '<div class="gonecard">⚠️ NAS 휴지통을 불러오지 못했습니다.<br>'
+        + '<span class="fmeta">' + esc(trash.error) + '</span></div>'
+      : (!trash.list || !trash.list.length)
+        ? '<div class="empty">NAS 폴더에서 지운 파일이 없습니다.</div>'
+        : '<div class="vz-tw"><table class="ymtable"><thead><tr>'
+          + '<th>이름</th><th>원래 자리</th><th>지운 때</th><th></th></tr></thead><tbody>'
+          + trash.list.map(e => '<tr' + (e['있음'] ? '' : ' class="dim"') + '>'
+              + '<td><b>' + (e['폴더'] ? '📁 ' : '📄 ') + esc(e['이름']) + '</b>'
+                + '<div class="fmeta">' + esc(e['크기'] || '')
+                + (e['폴더'] ? ' · ' + (e['개수'] || 0).toLocaleString('ko-KR') + '개' : '')
+                + (e['지운사람'] ? ' · ' + esc(e['지운사람']) : '') + '</div></td>'
+              + '<td><span class="path" style="word-break:break-all">'
+                + esc(String(e['원래자리'] || '').split('/').slice(-3).join('/')) + '</span></td>'
+              + '<td style="white-space:nowrap">'
+                + esc(String(e['지운때'] || '').replace('T', ' ').slice(0, 16)) + '</td>'
+              + '<td style="white-space:nowrap">'
+                + (e['있음']
+                    ? '<button class="btn sm primary" onclick="untrash(\'' + jsq(e.id) + '\')">'
+                      + '↩︎ 되돌리기</button> '
+                      + '<button class="btn sm danger" onclick="purgeTrash(\'' + jsq(e.id) + '\',\''
+                      + jsq(e['이름']) + '\')">완전히 지우기</button>'
+                    : '<span class="chip off">사라짐</span>')
+              + '</td></tr>').join('')
+          + '</tbody></table></div>';
+
+  document.getElementById('main').innerHTML =
+    '<div class="panel"><div class="tabbody">'
+    + head
+    + '<div class="sec-bar" style="margin-bottom:12px">'
+      + '<span class="fmeta">대시보드에서 지운 것 ' + box.length + '개</span>'
+      + (box.length ? '<button class="btn sm danger" onclick="trashEmpty()">'
+          + '휴지통 비우기</button>' : '')
+      + '<button class="btn sm" onclick="loadNasTrash()">↻ NAS 휴지통 다시 보기</button>'
+    + '</div>'
+    + '<div class="hsec">🖥 대시보드에서 지운 것</div>'
+    + mine
+    + '<div class="hsec" style="margin-top:22px">🗂 NAS 폴더에서 지운 파일</div>'
+    + '<div class="fmeta" style="margin-bottom:8px">각 뿌리 폴더의 '
+      + '<b>_휴지통</b> 안에 그대로 있습니다.</div>'
+    + nas
+    + '<div class="ainote" style="margin-top:16px">'
+      + '↩︎ <b>되돌리기</b> 를 누르면 있던 자리로 그대로 돌아갑니다. '
+      + '「완전히 지우기」 만 되돌릴 수 없습니다. '
+      + '휴지통은 <b>팀 전체가 같이</b> 봅니다.'
+      + '</div>'
+    + '</div></div>';
+}
+
+/* NAS 휴지통 목록만 따로 받아옵니다 (창이 아니라 화면에서도 씁니다) */
+async function loadNasTrash(){
+  if(STORAGE_MODE !== 'nas'){ trash.list = []; render(); return; }
+  trash.busy = true; trash.error = ''; render();
+  try{
+    const out = await apiJson('nasfiles.php?action=trashlist');
+    trash.list = out['목록'] || [];
+  }catch(e){ trash.error = apiErrText(e); trash.list = []; }
+  trash.busy = false;
+  render();
 }
 
 /* ═══════════════ 블로그 발행 ═══════════════════════════════════════
@@ -8790,11 +8900,15 @@ function deleteBrand(id){
   const b = brandById(id);
   if(!b){ render(); return; }           // 이미 다른 분이 지웠습니다
   const n = ITEM_KEYS.reduce((a, k) => a + b[k].length, 0);
-  if(!confirm('"' + b.name + '" 브랜드를 삭제할까요?\n\n안에 있는 ' + n + '개 항목과 마스터프롬프트도 함께 사라집니다.')) return;
+  if(!confirm('"' + b.name + '" 브랜드를 삭제할까요?\n\n'
+    + '안에 있는 ' + n + '개 항목과 마스터프롬프트도 함께 들어갑니다.\n'
+    + '휴지통으로 가니 업무 → 🗑 휴지통 에서 통째로 되돌릴 수 있습니다.')) return;
+  trashPut('브랜드', b.name, b, { kind:'brand' });
   data.brands = data.brands.filter(x => x.id !== id);
+  deletedIds.add(id);
   if(currentBrandId === id) currentBrandId = data.brands.length ? data.brands[0].id : null;
   render(); markDirtyAll();          // 브랜드가 사라졌습니다
-  toast('🗑️ 브랜드를 삭제했습니다');
+  toast('🗑️ 브랜드를 휴지통으로 보냈습니다');
 }
 
 /* ========================= 항목 (자동화·히스토리·자료) ========================= */
@@ -8921,18 +9035,122 @@ function submitItem(){
   render(); markDirty(itemBrandId || undefined);
 }
 
+/* ═══════════════ 휴지통 (대시보드에서 지운 것) ═══════════════════
+   실수로 지우는 일이 제일 무섭습니다. 그래서 브랜드·자료·할 일·회의록·
+   일정·채널·도구 — 무엇을 지우든 **한 번은 휴지통을 거칩니다.**
+   되돌리면 있던 자리로 그대로 돌아갑니다.
+
+   · 30일이 지나거나 200개가 넘으면 오래된 것부터 저절로 비워집니다
+   · 휴지통은 브랜드 자료에 같이 저장되어 **팀 전체가 같이** 봅니다
+   · NAS 폴더에서 지운 파일은 예전부터 NAS 휴지통으로 갑니다 (따로 있습니다)
+   ================================================================= */
+const TRASH_DAYS = 30;
+const TRASH_MAX  = 200;
+
+function trashBox(){
+  if(!Array.isArray(data.trash)) data.trash = [];
+  return data.trash;
+}
+
+/* 오래된 것과 넘치는 것을 치웁니다 (지울 때마다 한 번씩) */
+function trashTidy(){
+  const box = trashBox();
+  const cut = Date.now() - TRASH_DAYS * 86400000;
+  let out = box.filter(t => {
+    const at = new Date(t.지운때 || 0).getTime();
+    return !at || at > cut;
+  });
+  if(out.length > TRASH_MAX) out = out.slice(0, TRASH_MAX);
+  if(out.length !== box.length) data.trash = out;
+}
+
+/* 지운 것을 담아둡니다 */
+function trashPut(kind, label, payload, where){
+  const box = trashBox();
+  box.unshift({
+    id: uid('t'),
+    종류: kind,                    // '브랜드' · '자료' · '할 일' …
+    이름: String(label || '(이름 없음)'),
+    지운때: new Date().toISOString(),
+    지운사람: myName(),
+    담긴곳: where,                 // {kind:'brand'} | {kind:'item', type, brandId}
+    내용: payload
+  });
+  trashTidy();
+}
+
+function trashLabel(t){
+  const b = t.담긴곳 && t.담긴곳.brandId
+    ? (data.brands.find(x => x.id === t.담긴곳.brandId) || {}).name : '';
+  return (b ? b + ' · ' : '') + t.종류;
+}
+
+/* 되돌리기 — 있던 자리로 그대로 넣습니다 */
+function trashRestore(tid){
+  const box = trashBox();
+  const t = box.find(x => x.id === tid);
+  if(!t){ render(); return; }
+  const w = t.담긴곳 || {};
+
+  if(w.kind === 'brand'){
+    if(data.brands.some(x => x.id === t.내용.id)){
+      toast('⚠️ 같은 브랜드가 이미 있습니다'); return;
+    }
+    data.brands.push(t.내용);
+    deletedIds.delete(t.내용.id);
+  }else{
+    const arr = listOf(w.type, w.brandId);
+    if(!arr){
+      alert('되돌릴 자리를 찾지 못했습니다.\n\n'
+        + '그 브랜드가 지워졌을 수 있습니다. 브랜드를 먼저 되돌려 주세요.');
+      return;
+    }
+    if(arr.some(x => x.id === t.내용.id)){ toast('⚠️ 이미 있습니다'); return; }
+    arr.unshift(t.내용);
+    deletedIds.delete(t.내용.id);      // 합칠 때 다시 지워지지 않게
+  }
+  data.trash = box.filter(x => x.id !== tid);
+  markDirtyAll();
+  render();
+  toast('↩︎ 「' + t.이름 + '」 을(를) 되돌렸습니다');
+}
+
+/* 휴지통에서도 없애기 (이건 진짜 끝입니다) */
+function trashDrop(tid){
+  const t = trashBox().find(x => x.id === tid);
+  if(!t) return;
+  if(!confirm('「' + t.이름 + '」 을(를) 휴지통에서도 없앨까요?\n\n'
+    + '이건 되돌릴 수 없습니다.')) return;
+  data.trash = trashBox().filter(x => x.id !== tid);
+  markDirtyAll(); render();
+  toast('🗑️ 완전히 지웠습니다');
+}
+
+function trashEmpty(){
+  const n = trashBox().length;
+  if(!n) return;
+  if(!confirm('휴지통에 있는 ' + n + '개를 모두 없앨까요?\n\n이건 되돌릴 수 없습니다.')) return;
+  data.trash = [];
+  markDirtyAll(); render();
+  toast('🗑️ 휴지통을 비웠습니다');
+}
+
 function deleteItem(type, id, brandId){
   const arr = listOf(type, brandId);
   if(!arr) return;
   const it = arr.find(x => x.id === id);
   if(!it){ render(); return; }          // 이미 다른 분이 지웠습니다
-  if(!confirm('"' + it.title + '" 항목을 삭제할까요?')) return;
+  if(!confirm('"' + it.title + '" 항목을 삭제할까요?\n\n'
+    + '휴지통으로 갑니다 — 업무 → 🗑 휴지통 에서 되돌릴 수 있습니다.')) return;
+  const bid = brandId || (TOP_LISTS.indexOf(type) >= 0 ? '' : currentBrandId);
+  trashPut((TYPES[type] && TYPES[type].label) || type, it.title, it,
+           { kind:'item', type: type, brandId: bid });
   const left = arr.filter(x => x.id !== id);
   if(TOP_LISTS.indexOf(type) >= 0) data[type] = left;
   else (brandId ? data.brands.find(x => x.id === brandId) : currentBrand())[type] = left;
   deletedIds.add(id);
-  render(); markDirty(brandId || undefined);
-  toast('🗑️ 삭제했습니다');
+  render(); markDirtyAll();            // 휴지통도 같이 저장되어야 합니다
+  toast('🗑️ 휴지통으로 보냈습니다');
 }
 
 /* ========================= 마스터프롬프트 ========================= */
@@ -9207,7 +9425,7 @@ function markDirtyAll(){
 }
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels']);
-const TOP_LISTS   = ['meetings', 'events'];   // 브랜드 밖에 있는 목록
+const TOP_LISTS   = ['meetings', 'events', 'trash'];   // 브랜드 밖에 있는 목록
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
 let revived  = 0;                // 되살린 개수 (알려주기 위해)
@@ -9546,6 +9764,7 @@ function normalize(raw){
   if(typeof raw._rev !== 'number') raw._rev = 0;
   if(!Array.isArray(raw.meetings)) raw.meetings = [];   // 회의록 (브랜드 공통)
   if(!Array.isArray(raw.events))   raw.events   = [];   // 달력 일정 (브랜드 공통)
+  if(!Array.isArray(raw.trash))    raw.trash    = [];   // 휴지통 (지운 것)
   raw.brands.forEach(b => {
     b.id = b.id || uid('b');
     b.icon = b.icon || '🏷️';

@@ -106,6 +106,57 @@ function rt($db, $path, &$why, $sec) {
     return $j === null ? [] : $j;          // null 은 「그 자리에 아무것도 없음」 입니다
 }
 
+/* ── 휴가 종류 가려내기 (원본 화면의 isHalf / isHalfHalf / isHalfAM 그대로) ──
+   하이웍스는 type_name 에 그냥 「휴가」 라고만 적어 보내는 경우가 많습니다.
+   진짜 종류는 vacation_type_title(예: 오전반차) · type(hours) · hours 에 있습니다.
+   ─────────────────────────────────────────────────────────────────────── */
+function v_is_half($v) {
+    $t  = (string)($v['vacation_type_title'] ?? '');
+    $tn = (string)($v['type_name'] ?? '');
+    if (mb_strpos($t, '반차') !== false || mb_strpos($t, '반일') !== false) return true;
+    if (mb_strpos($tn, '반차') !== false || mb_strpos($tn, '반반차') !== false) return true;
+    if (($v['type'] ?? '') === 'hours') return true;      // 시간 단위로 쓴 것
+    return false;
+}
+function v_is_quarter($v) {
+    if (!v_is_half($v)) return false;
+    if (mb_strpos((string)($v['type_name'] ?? ''), '반반차') !== false) return true;
+    return ($v['type'] ?? '') === 'hours'
+        && !empty($v['hours']) && (float)$v['hours'] <= 2;
+}
+/** 오전인가 오후인가 ('' 이면 알 수 없음) */
+function v_half_when($v) {
+    if (!v_is_half($v)) return '';
+    $t = (string)($v['vacation_type_title'] ?? '');
+    if (mb_strpos($t, '오전') !== false) return '오전';
+    if (mb_strpos($t, '오후') !== false) return '오후';
+    $st = (string)($v['start_time'] ?? '');
+    $et = (string)($v['end_time'] ?? '');
+    if ($et !== '' && $et <= '12:00:00') return '오전';
+    if ($st !== '' && $st >= '12:00:00') return '오후';
+    if ($st !== '' && $et !== '') {                        // 걸쳐 있으면 한가운데로 봅니다
+        $mins = function ($x) { return (int)substr($x, 0, 2) * 60 + (int)substr($x, 3, 2); };
+        return (($mins($st) + $mins($et)) / 2) < 720 ? '오전' : '오후';
+    }
+    if ($st !== '') return $st < '12:00:00' ? '오전' : '오후';
+    return '';
+}
+/** 화면에 쓸 종류 이름 */
+function v_kind($v) {
+    if (v_is_quarter($v)) return '반반차';
+    if (v_is_half($v))    return '반차';
+    return '연차';
+}
+/** 몇 시에 나오고 들어가는지 (알면) */
+function v_detail($v, $kind, $when) {
+    if ($kind === '연차') return '';
+    $st = substr((string)($v['start_time'] ?? ''), 0, 5);
+    $et = substr((string)($v['end_time'] ?? ''), 0, 5);
+    if ($when === '오전') return $et !== '' ? $et . ' 출근' : '오전';
+    if ($when === '오후') return $st !== '' ? $st . ' 퇴근' : '오후';
+    return '';
+}
+
 /** 개인일정 제목에서 어떤 외근인지 골라냅니다 (원본 화면과 같은 규칙) */
 function per_type($t) {
     foreach (['세미나','미팅','영업','계약'] as $k) if (mb_strpos($t, $k) !== false) return $k;
@@ -145,8 +196,15 @@ function fetch_month($c, $ym, &$why) {
     $byDay = [];
     foreach ((array)$vac as $v) {
         if (!is_array($v) || empty($v['date'])) continue;
-        $byDay[$v['date']][] = ['이름' => (string)($v['user_name'] ?? ''),
-                                '종류' => (string)($v['type_name'] ?? '휴가')];
+        $kind = v_kind($v);
+        $when = v_half_when($v);
+        $byDay[$v['date']][] = [
+            '이름' => (string)($v['user_name'] ?? ''),
+            '종류' => $kind,
+            '때'   => $when,                       // 오전 / 오후 (반차일 때)
+            '상세' => v_detail($v, $kind, $when),  // 예: 13:00 퇴근
+            '원본' => (string)($v['vacation_type_title'] ?? ($v['type_name'] ?? '')),
+        ];
     }
     // sq_vc 쪽 연차도 합칩니다 (취소된 것은 빼고, 이 달 것만)
     foreach ((array)$sq as $u) {
@@ -157,7 +215,11 @@ function fetch_month($c, $ym, &$why) {
             if (($info['status'] ?? '') === 'cancelled') continue;
             $t = (string)($info['type'] ?? '');
             $kind = strpos($t, 'half') === 0 ? '반차' : (strpos($t, 'quarter') === 0 ? '반반차' : '연차');
-            $byDay[$date][] = ['이름' => (string)($u['name'] ?? ''), '종류' => $kind];
+            $when = '';
+            if (substr($t, -3) === '_am' || strpos($t, 'am') !== false) $when = '오전';
+            elseif (substr($t, -3) === '_pm' || strpos($t, 'pm') !== false) $when = '오후';
+            $byDay[$date][] = ['이름' => (string)($u['name'] ?? ''), '종류' => $kind,
+                               '때' => $when, '상세' => $when, '원본' => $t];
         }
     }
 

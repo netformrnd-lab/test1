@@ -867,6 +867,7 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 .cal-w .cal-dot:not(:empty){background:transparent;color:var(--ec);font-size:11px}
 .cal-w .wl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cal-w .wv{font-weight:700;color:var(--ec)}
+.cal-w .wq{margin-left:3px;font-size:10px;opacity:.85}
 .cal-c.holi{background:color-mix(in srgb,var(--red) 7%,var(--bg-card))}
 .cal-c.holi .cal-d{color:var(--red)}
 .cal-holi{font-size:10.5px;color:var(--red);font-weight:700;margin:-1px 0 1px}
@@ -1103,7 +1104,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260907-11';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260907-12';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7879,11 +7880,18 @@ function teamPickPanel(){
 function wcalCell(ds){
   let h = '';
   if(wcal.보임.휴가) (wcal.휴가[ds] || []).filter(v => wcalIsMine(v.이름)).forEach(v => {
+    // 반차는 오전인지 오후인지가 제일 중요합니다 (그 사람이 언제 자리에 있나)
+    const when = v.종류 === '연차' ? '' : (v['때'] || '');
+    const tip  = v.이름 + ' · ' + v.종류 + (when ? ' (' + when + ')' : '')
+               + (v['상세'] && v['상세'] !== when ? ' · ' + v['상세'] : '')
+               + (v['원본'] ? '\n하이웍스: ' + v['원본'] : '')
+               + '\n(근무현황 캘린더)';
     h += '<div class="cal-w" style="--ec:' + (WCAL_HUE[v.종류] || 'var(--purple)') + '" '
-       + 'title="' + esc(v.이름 + ' · ' + v.종류 + ' (근무현황 캘린더)') + '">'
+       + 'title="' + esc(tip) + '">'
        + '<span class="cal-dot">' + vacMark(v.종류) + '</span>'
-       + '<span class="wl">' + esc(v.이름) + ' <b class="wv">' + esc(v.종류)
-       + '</b></span></div>';
+       + '<span class="wl">' + esc(v.이름) + ' <b class="wv">' + esc(v.종류) + '</b>'
+       + (when ? '<span class="wq">' + esc(when) + '</span>' : '')
+       + '</span></div>';
   });
   if(wcal.보임.외근) (wcal.외근[ds] || []).filter(o => wcalIsMine(o.이름)).forEach(o => {
     const tip = o.이름 + ' · ' + o.종류 + (o.시간 ? ' ' + o.시간 : '')

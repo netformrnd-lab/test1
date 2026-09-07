@@ -19,7 +19,26 @@ if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // �
 header('Content-Type: application/json; charset=utf-8');
 
 $DATA_DIR = __DIR__ . '/data';
-$FILE     = $DATA_DIR . '/inquiries.json';
+
+/* ⚠️ 문의 자료에는 고객 이름·연락처가 들어 있습니다.
+   예전에는 data/inquiries.json 이라 주소만 알면 로그인 없이 그대로 열렸습니다.
+   사무실 안에서만 쓸 때는 넘어갔지만, 바깥에서 접속하게 되면 큰일입니다.
+   그래서 brand-data 와 같은 방식으로 .php 로 옮기고 첫 줄에 방패를 답니다. */
+function inq_secure($plain, $shielded) {
+    if (function_exists('bh_secure')) return bh_secure($plain, $shielded);
+    return is_file($shielded) ? $shielded : $plain;      // guard.php 가 아직 없을 때
+}
+/* 가려둔 파일은 첫 줄을 건너뛰고 읽습니다 */
+function inq_read($p) {
+    if (function_exists('bh_read_raw')) return bh_read_raw($p);
+    return is_file($p) ? (string)@file_get_contents($p) : '';
+}
+function inq_write($p, $text) {
+    if (substr($p, -4) === '.php' && function_exists('bh_write_raw')) return bh_write_raw($p, $text);
+    return atomic_put($p, $text);
+}
+
+$FILE     = inq_secure($DATA_DIR . '/inquiries.json', $DATA_DIR . '/inq-data.php');
 $MAX_ROWS = 20000;
 
 function jout($arr, $code = 200) {
@@ -43,19 +62,21 @@ function brand_of($row) {
 }
 
 function load_all($file) {
-    if (!is_file($file)) return ['updatedAt' => null, 'source' => null, 'rows' => []];
-    $j = json_decode(file_get_contents($file), true);
+    $raw = inq_read($file);
+    $j = $raw === '' ? null : json_decode($raw, true);
     return is_array($j) ? $j : ['updatedAt' => null, 'source' => null, 'rows' => []];
 }
 
-$SRC_FILE = $DATA_DIR . '/inquiries-source.json';
+/* 시트 주소는 그 자체가 열쇠입니다 — 주소를 아는 사람은 시트를 그대로 봅니다.
+   그래서 이 파일도 가려둡니다. */
+$SRC_FILE = inq_secure($DATA_DIR . '/inquiries-source.json', $DATA_DIR . '/inq-src.php');
 
 /* 예전에는 시트를 하나만 담았습니다.
    지금은 여러 개를 담고, 시트마다 브랜드를 못박을 수 있습니다.
    예전 파일도 그대로 읽히도록 모양을 맞춰 돌려줍니다. */
 function load_sources($f) {
-    if (!is_file($f)) return [];
-    $j = json_decode(file_get_contents($f), true);
+    $raw = inq_read($f);
+    $j = $raw === '' ? null : json_decode($raw, true);
     if (!is_array($j)) return [];
 
     if (!empty($j['sources']) && is_array($j['sources'])) {   // 새 모양
@@ -88,7 +109,7 @@ function atomic_put($path, $text) {
 }
 
 function save_sources($f, $list) {
-    return atomic_put($f, json_encode(
+    return inq_write($f, json_encode(
         ['sources' => array_values($list), 'setAt' => date('c')], JSON_UNESCAPED_UNICODE));
 }
 
@@ -154,20 +175,21 @@ function csv_to_rows($csv) {
 function save_rows($file, $dir, $rows, $source) {
     if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) return false;
     $payload = ['updatedAt' => date('c'), 'source' => substr($source, 0, 60), 'rows' => $rows];
-    if (!atomic_put($file, json_encode($payload, JSON_UNESCAPED_UNICODE))) return false;
+    if (!inq_write($file, json_encode($payload, JSON_UNESCAPED_UNICODE))) return false;
 
     // 「언제 · 몇 건」 만 적은 작은 파일. 화면이 자주 물어봐도 부담이 없게 하려는 것입니다.
     atomic_put($dir . '/inq-stamp.txt', $payload['updatedAt'] . "\t" . count($rows));
     return $payload;
 }
 
-$EDIT_FILE = $DATA_DIR . '/inquiry-edits.json';
+$EDIT_FILE = inq_secure($DATA_DIR . '/inquiry-edits.json', $DATA_DIR . '/inq-edits.php');
 
 /** 대시보드에서만 쓰는 칸들 (구글시트에는 없습니다) */
 $OWN_COLS = ['처리상태', '담당자', '메모'];
 
 function load_edits($f, $ownCols) {
-    $j = is_file($f) ? json_decode((string)@file_get_contents($f), true) : null;
+    $raw = inq_read($f);
+    $j = $raw === '' ? null : json_decode($raw, true);
     if (!is_array($j)) $j = [];
     if (!isset($j['cols']) || !is_array($j['cols'])) $j['cols'] = $ownCols;
     if (!isset($j['rows']) || !is_array($j['rows'])) $j['rows'] = [];
@@ -176,7 +198,7 @@ function load_edits($f, $ownCols) {
 
 function save_edits($f, $j) {
     $j['savedAt'] = date('c');
-    return atomic_put($f, json_encode($j, JSON_UNESCAPED_UNICODE));
+    return inq_write($f, json_encode($j, JSON_UNESCAPED_UNICODE));
 }
 
 /**
@@ -392,14 +414,11 @@ if ($action === 'push') {
         'rows'      => $clean,
     ];
 
-    $fp = @fopen($FILE, 'c+');
-    if (!$fp || !flock($fp, LOCK_EX)) {
-        if ($fp) fclose($fp);
+    // 임시 파일에 다 쓰고 이름을 바꿉니다 — 도중에 끊겨도 반쪽짜리가 남지 않습니다
+    if (!inq_write($FILE, json_encode($payload, JSON_UNESCAPED_UNICODE))) {
         jout(['ok' => false, 'error' => '파일을 쓰지 못했습니다 (권한 확인 필요)'], 500);
     }
-    ftruncate($fp, 0); rewind($fp);
-    fwrite($fp, json_encode($payload, JSON_UNESCAPED_UNICODE));
-    fflush($fp); flock($fp, LOCK_UN); fclose($fp);
+    atomic_put($DATA_DIR . '/inq-stamp.txt', $payload['updatedAt'] . "\t" . count($clean));
 
     $byBrand = [];
     foreach ($clean as $r) { $b = brand_of($r) ?: '(브랜드 없음)'; $byBrand[$b] = ($byBrand[$b] ?? 0) + 1; }

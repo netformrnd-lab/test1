@@ -151,6 +151,38 @@ function bh_migrate($dir) {
 /** 지금 쓸 자료 파일 (필요하면 옮기고 나서) */
 function bh_data_file($dir) { return bh_migrate($dir); }
 
+/**
+ * 아무 자료 파일이나 「주소로 열리지 않게」 옮겨줍니다.
+ *
+ *   $plain    지금까지 쓰던 이름 (예: data/inquiries.json)
+ *   $shielded 가려둘 이름       (예: data/inq-data.php)
+ *
+ * 한 번만 옮기고, 그 뒤로는 가려둔 파일만 씁니다.
+ * 옮기지 못하면(권한 등) 예전 파일을 그대로 씁니다 — 자료를 잃지 않는 쪽으로.
+ * 사무실 안에서만 쓸 때는 큰일이 아니지만, 바깥에서 접속하게 되면
+ * 이 파일들이 로그인 없이 그대로 보이기 때문에 반드시 가려야 합니다.
+ */
+function bh_secure($plain, $shielded) {
+    static $done = [];
+    $k = $plain . '|' . $shielded;
+    if (isset($done[$k])) return $done[$k];
+
+    if (is_file($shielded)) {
+        if (is_file($plain)) @unlink($plain);          // 옛 파일이 남아 있으면 치웁니다
+        return $done[$k] = $shielded;
+    }
+    if (!is_file($plain)) return $done[$k] = $shielded;   // 아직 아무것도 없습니다
+
+    $raw = bh_strip((string)@file_get_contents($plain));
+    if ($raw === '') return $done[$k] = $plain;
+    if (!bh_write_raw($shielded, $raw) || bh_read_raw($shielded) !== $raw) {
+        @unlink($shielded);
+        return $done[$k] = $plain;                     // 못 옮기면 예전 것을 그대로
+    }
+    @unlink($plain);
+    return $done[$k] = $shielded;
+}
+
 /** 할 일은 맡은 사람만 봅니다 — 팀원에게 보낼 자료에서 남의 할 일을 뺍니다.
  *  관리자와, 계정을 아직 안 쓰는 경우에는 그대로 둡니다. */
 function guard_hide_tasks($d) {

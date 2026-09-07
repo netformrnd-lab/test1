@@ -21,6 +21,16 @@
  *    반드시 Web Station 에서 https 를 켜고 쓰세요.
  */
 
+/* https 로 들어왔으면 쿠키에 secure 를 답니다 — 그래야 브라우저가
+   실수로라도 암호화 안 된 길로 쿠키를 보내지 않습니다.
+   (바깥에서 접속할 때를 대비한 것입니다. 사무실 http 에서는 그대로 동작합니다) */
+function auth_is_https() {
+    if (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') return true;
+    if (($_SERVER['SERVER_PORT'] ?? '') == 443) return true;
+    $p = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));   // 리버스 프록시 뒤
+    return $p === 'https';
+}
+
 header('Content-Type: application/json; charset=utf-8');
 @ini_set('display_errors', '0');
 
@@ -203,7 +213,8 @@ if ($action === 'setup') {
     }
     $sid = sess_new($SESSDIR, $id, $SESS_DAYS);
     if ($sid) setcookie($COOKIE, $sid, ['expires' => time() + $SESS_DAYS * 86400,
-        'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
+        'path' => '/', 'httponly' => true, 'samesite' => 'Lax',
+        'secure' => auth_is_https()]);
     jout(['ok' => true, '나' => pub_user($users[0])]);
 }
 
@@ -255,7 +266,8 @@ if ($action === 'login') {
     $sid = sess_new($SESSDIR, $id, $SESS_DAYS);
     if (!$sid) jout(['ok' => false, 'error' => '로그인 정보를 저장하지 못했습니다 (data 폴더 권한)'], 500);
     setcookie($COOKIE, $sid, ['expires' => time() + $SESS_DAYS * 86400,
-        'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
+        'path' => '/', 'httponly' => true, 'samesite' => 'Lax',
+        'secure' => auth_is_https()]);
     jout(['ok' => true, '나' => pub_user($users[$idx])]);
 }
 
@@ -290,7 +302,8 @@ if ($action === 'passwd') {
     sess_kill_user($SESSDIR, $me['id']);
     $sid = sess_new($SESSDIR, $me['id'], $SESS_DAYS);
     if ($sid) setcookie($COOKIE, $sid, ['expires' => time() + $SESS_DAYS * 86400,
-        'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
+        'path' => '/', 'httponly' => true, 'samesite' => 'Lax',
+        'secure' => auth_is_https()]);
     jout(['ok' => true, '안내' => '바꿨습니다. 다른 컴퓨터에서 열어둔 것은 모두 로그아웃됐습니다.']);
 }
 

@@ -237,8 +237,13 @@ function ai_ready($key) {
 }
 
 function ai_local_conf() {
-    $f = __DIR__ . '/data/ai-local.json';
-    $j = is_file($f) ? json_decode((string)@file_get_contents($f), true) : null;
+    // 여기에는 사내 AI 주소와 (있다면) 열쇠가 들어갑니다 — 주소로 열리면 안 됩니다
+    $f = function_exists('bh_secure')
+        ? bh_secure(__DIR__ . '/data/ai-local.json', __DIR__ . '/data/ai-local.php')
+        : __DIR__ . '/data/ai-local.json';
+    $raw = function_exists('bh_read_raw') ? bh_read_raw($f)
+         : (is_file($f) ? (string)@file_get_contents($f) : '');
+    $j = $raw === '' ? null : json_decode($raw, true);
     if (!is_array($j)) $j = [];
     // 우리 것은 밖으로 나가는 게 아니라 사내망이라, 클라우드보다 오래 기다려 줍니다.
     // 그래픽카드 없는 사무실 PC 는 회의록 한 건에 1~3분이 걸리기도 합니다.
@@ -1033,10 +1038,14 @@ if ($action === 'setkey') {
         $secs = (int)($b['secs'] ?? 240);
         if ($secs < 20)  $secs = 20;                   // 너무 짧으면 늘 끊깁니다
         if ($secs > 900) $secs = 900;
-        @file_put_contents($DATA_DIR . '/ai-local.json',
-            json_encode(['url' => $url, 'model' => $model, 'key' => $k, 'secs' => $secs],
-                        JSON_UNESCAPED_UNICODE));
-        @chmod($DATA_DIR . '/ai-local.json', 0640);
+        $lf = function_exists('bh_secure')
+            ? bh_secure($DATA_DIR . '/ai-local.json', $DATA_DIR . '/ai-local.php')
+            : $DATA_DIR . '/ai-local.json';
+        $body = json_encode(['url' => $url, 'model' => $model, 'key' => $k, 'secs' => $secs],
+                            JSON_UNESCAPED_UNICODE);
+        if (function_exists('bh_write_raw')) bh_write_raw($lf, $body);
+        else @file_put_contents($lf, $body);
+        @chmod($lf, 0640);
         @file_put_contents($VENDOR_FILE, 'local');
         // 키가 있으면 같이 저장, 없으면 빈 키 파일을 둡니다 (로컬은 키가 없어도 됩니다)
         $php = "<?php\n// 이 파일은 대시보드가 만든 것입니다.\nreturn " . var_export($k, true) . ";\n";
@@ -1053,6 +1062,7 @@ if ($action === 'setkey') {
         @unlink($MODEL_FILE);
         @unlink($VENDOR_FILE);
         @unlink($DATA_DIR . '/ai-local.json');
+        @unlink($DATA_DIR . '/ai-local.php');
         jout(['ok' => true, '키등록됨' => false, '안내' => '키를 지웠습니다']);
     }
     // 어느 회사 키인지 (화면에서 골라 보냅니다. 안 보내면 키 모양으로 짐작합니다)

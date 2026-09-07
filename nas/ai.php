@@ -458,6 +458,223 @@ ai_budget(microtime(true));          // 이 요청에 쓸 수 있는 시간을 �
 $action = $_GET['action'] ?? 'check';
 $key    = load_key($KEY_FILE);
 
+/** OpenAI 는 모델 이름이 자주 바뀝니다. 계정이 실제로 쓸 수 있는 것 중에서 고릅니다. */
+function openai_model($key, $modelFile, $force = false) {
+    if (!$force && is_file($modelFile)) {
+        $m = trim((string)@file_get_contents($modelFile));
+        if ($m !== '') return $m;
+    }
+    $prefer = ['gpt-5.1', 'gpt-5', 'gpt-4.1', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4o-mini'];
+    $why = [];
+    [$code, $raw] = ai_post('https://api.openai.com/v1/models',
+        ['Authorization: Bearer ' . $key], null, $why, min(12, max(5, (int)ai_budget())));
+    $pick = '';
+    if ($raw !== false && $code === 200) {
+        $j = json_decode($raw, true);
+        $ids = [];
+        foreach (($j['data'] ?? []) as $d) if (!empty($d['id'])) $ids[$d['id']] = true;
+        foreach ($prefer as $want) if (isset($ids[$want])) { $pick = $want; break; }
+        if ($pick === '') {                       // 그래도 없으면 gpt- 로 시작하는 것 중 하나
+            foreach (array_keys($ids) as $id) {
+                if (strpos($id, 'gpt-') === 0 && strpos($id, 'instruct') === false) { $pick = $id; break; }
+            }
+        }
+    }
+    if ($pick === '') $pick = 'gpt-4o';            // 못 물어봤으면 무난한 것으로
+    @file_put_contents($modelFile, $pick);
+    return $pick;
+}
+
+/** 물어볼 때 쓸 수 있는 시간 — 남은 예산 안에서 넉넉히 잡습니다.
+ *  (오래 끌면 웹 스테이션이 먼저 끊어 「도중에 끊겼습니다」 가 됩니다) */
+function ai_secs($most = 40) {
+    return min($most, max(8, (int)ai_budget()));
+}
+
+/** 회사에 맞게 물어보고, 글자만 뽑아 돌려줍니다.
+ *  돌려주는 값: [응답코드, 원문, 뽑은글자|false, 쓴모델] */
+function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
+    $v = ai_vendor($key);
+
+    // ── 우리 것 (NAS·사무실 PC 에 올린 AI) — OpenAI 와 같은 모양으로 물어봅니다
+    if ($v === 'local') {
+        $c = ai_local_conf();
+        $url = ai_local_url($c['url']);
+        if ($url === '') return [0, false, false, ''];
+        $model = $c['model'] !== '' ? $c['model'] : 'local';
+        $head  = ['Content-Type: application/json'];
+        if ($c['key'] !== '') $head[] = 'Authorization: Bearer ' . $c['key'];
+        $body = json_encode([
+            'model' => $model,
+            'messages' => [
+                ['role' => 'system', 'content' => $sys],
+                ['role' => 'user',   'content' => $user],
+            ],
+            'max_tokens' => $maxTokens,
+            'stream' => false,
+        ], JSON_UNESCAPED_UNICODE);
+        [$code, $raw] = ai_post($url, $head, $body, $why, ai_secs());
+        if ($raw === false) return [$code, false, false, $model];
+        $j = json_decode($raw, true);
+        $text = trim((string)($j['choices'][0]['message']['content']
+                           ?? $j['message']['content']        // Ollama 예전 모양
+                           ?? $j['response'] ?? ''));
+        return [$code, $raw, $text === '' ? false : $text, $model];
+    }
+
+    // ── 챗GPT (OpenAI)
+    if ($v === 'openai') {
+        $model = openai_model($key, $modelFile);
+        $mk = function ($model, $tokenKey) use ($sys, $user, &$maxTokens) {
+            return json_encode([
+                'model' => $model,
+                'messages' => [
+                    ['role' => 'system', 'content' => $sys],
+                    ['role' => 'user',   'content' => $user],
+                ],
+                $tokenKey => $maxTokens,
+            ], JSON_UNESCAPED_UNICODE);
+        };
+        $head = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
+        $url  = 'https://api.openai.com/v1/chat/completions';
+
+        // 요즘 모델은 max_completion_tokens, 옛 모델은 max_tokens 를 씁니다.
+        // 첫 번째로 안 되면 반대쪽으로 한 번 더 해봅니다.
+        [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why, ai_secs());
+        $j = $raw === false ? null : json_decode($raw, true);
+        $emsg = strtolower((string)($j['error']['message'] ?? ''));
+        if ($raw !== false && $code !== 200 && strpos($emsg, 'max_completion_tokens') !== false
+            && ai_budget() > 10) {
+            [$code, $raw] = ai_post($url, $head, $mk($model, 'max_tokens'), $why, ai_secs());
+            $j = $raw === false ? null : json_decode($raw, true);
+            $emsg = strtolower((string)($j['error']['message'] ?? ''));
+        }
+        // 모델 이름이 안 맞으면 계정이 쓸 수 있는 것으로 다시 골라 한 번 더
+        if ($raw !== false && $code !== 200 && ai_budget() > 12
+            && (strpos($emsg, 'model') !== false && (strpos($emsg, 'not exist') !== false
+                || strpos($emsg, 'not found') !== false || strpos($emsg, 'access') !== false))) {
+            $model = openai_model($key, $modelFile, true);
+            [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why, ai_secs());
+            $j = $raw === false ? null : json_decode($raw, true);
+        }
+        // 진짜로 몰린 것이면 잠깐 쉬었다가 한 번만 다시 물어봅니다
+        //  (잔액 문제로 온 429 는 다시 해도 소용없으니 그대로 돌려줍니다)
+        if ($raw !== false && $code === 429 && !ai_is_quota(ai_errmsg($raw)) && ai_budget() > 20) {
+            sleep(6);
+            $maxTokens = min($maxTokens, 4000);   // 분당 한도면 답 길이를 줄여 부담을 낮춥니다
+            [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why, ai_secs());
+            $j = $raw === false ? null : json_decode($raw, true);
+        }
+        if ($raw === false) return [$code, false, false, $model];
+        $text = trim((string)($j['choices'][0]['message']['content'] ?? ''));
+        return [$code, $raw, $text === '' ? false : $text, $model];
+    }
+
+    // ── 클로드 (Anthropic)
+    $model = 'claude-opus-5';
+    $payload = json_encode([
+        'model' => $model, 'max_tokens' => $maxTokens, 'system' => $sys,
+        'thinking' => ['type' => 'adaptive'],
+        'messages' => [['role' => 'user', 'content' => $user]],
+    ], JSON_UNESCAPED_UNICODE);
+    $head = ['Content-Type: application/json', 'x-api-key: ' . $key,
+             'anthropic-version: 2023-06-01'];
+    $url  = 'https://api.anthropic.com/v1/messages';
+    [$code, $raw] = ai_post($url, $head, $payload, $why, ai_secs());
+    if ($raw !== false && $code === 429 && !ai_is_quota(ai_errmsg($raw)) && ai_budget() > 20) {
+        sleep(6);
+        [$code, $raw] = ai_post($url, $head, $payload, $why, ai_secs());
+    }
+    if ($raw === false) return [$code, false, false, $model];
+    $j = json_decode($raw, true);
+    if (($j['stop_reason'] ?? '') === 'refusal') return [$code, $raw, false, $model];
+    $text = '';
+    foreach (($j['content'] ?? []) as $blk) if (($blk['type'] ?? '') === 'text') $text .= $blk['text'];
+    $text = trim($text);
+    return [$code, $raw, $text === '' ? false : $text, $model];
+}
+
+/** AI 가 돌려준 영어 오류를, 무엇을 해야 하는지 알 수 있는 말로 바꿉니다.
+ *  회사에 따라 충전하는 곳이 다르므로 키 종류도 같이 봅니다. */
+function ai_friendly($code, $msg, $vendor = '') {
+    $m   = strtolower((string)$msg);
+    $gpt = ($vendor === 'openai');
+    $where = $gpt
+        ? "platform.openai.com → 왼쪽 [Settings → Billing] 에서 결제 수단·크레딧을 확인해 주세요."
+        : "console.anthropic.com → [Plans & Billing] 에서 크레딧을 충전해 주세요.";
+    $sub = $gpt
+        ? "(챗GPT Plus 구독료와 API 는 지갑이 다릅니다. 구독 중이어도 API 크레딧이 따로 필요합니다)"
+        : "(클로드 구독료와 API 는 지갑이 다릅니다. 쓴 만큼만 나가는 선불입니다)";
+
+    // 돈 문제 — OpenAI 는 이것도 429 로 보냅니다 (insufficient_quota)
+    if (strpos($m, 'credit balance') !== false || strpos($m, 'insufficient') !== false
+        || strpos($m, 'quota') !== false || strpos($m, 'billing') !== false
+        || strpos($m, 'payment') !== false) {
+        return "💳 AI 잔액이 떨어졌습니다.\n\n"
+             . "대시보드 문제가 아니라 AI 회사 계정에 남은 크레딧이 없는 것입니다.\n"
+             . $where . " 충전하면 바로 다시 됩니다.\n" . $sub . "\n\n"
+             . "받은 말 그대로: " . $msg;
+    }
+    if (strpos($m, 'rate limit') !== false || strpos($m, 'rate_limit') !== false
+        || strpos($m, 'too many requests') !== false || ($code === 429 && $m === '')) {
+        return "⏳ 짧은 사이에 너무 여러 번 물어봤습니다.\n\n"
+             . "1~2분 뒤에 다시 눌러주세요. 계속 이러면 계정의 분당 한도가 낮은 것이라\n"
+             . ($gpt ? "platform.openai.com → Settings → Limits" : "console.anthropic.com → Limits")
+             . " 에서 한도를 확인해 보세요.\n\n"
+             . ($msg !== '' ? ("받은 말 그대로: " . $msg) : '');
+    }
+    if (strpos($m, 'overloaded') !== false) {
+        return "AI 서버가 지금 몰려 있습니다. 1~2분 뒤에 다시 해주세요.\n\n받은 말: " . $msg;
+    }
+    if (strpos($m, 'context length') !== false || strpos($m, 'too long') !== false
+        || strpos($m, 'maximum context') !== false) {
+        return "내용이 너무 깁니다. 브랜드북(또는 회의록)을 조금 줄여서 다시 해주세요.\n\n"
+             . "받은 말: " . $msg;
+    }
+    if (strpos($m, 'model') !== false && (strpos($m, 'not_found') !== false
+        || strpos($m, 'not found') !== false || strpos($m, 'does not exist') !== false)) {
+        return "이 키로는 지금 모델을 쓸 수 없습니다.\n"
+             . "계정에서 모델 사용 권한을 확인해 주세요.\n\n받은 말: " . $msg;
+    }
+    if (strpos($m, 'authentication') !== false || strpos($m, 'invalid x-api-key') !== false
+        || strpos($m, 'incorrect api key') !== false) {
+        return "AI 키가 받아들여지지 않습니다. [🔑 AI 키 넣기] 로 새 키를 넣어주세요.\n\n받은 말: " . $msg;
+    }
+    return "AI 가 오류를 돌려줬습니다 (HTTP $code)\n\n" . $msg;
+}
+
+/** 429 가 「돈이 없어서」 인지 「너무 자주 불러서」 인지 */
+function ai_is_quota($msg) {
+    $m = strtolower((string)$msg);
+    return strpos($m, 'quota') !== false || strpos($m, 'billing') !== false
+        || strpos($m, 'credit') !== false || strpos($m, 'insufficient') !== false
+        || strpos($m, 'payment') !== false;
+}
+
+/** 키가 거부됐을 때 — 「어디에」 물어봤는지 밝혀줍니다.
+ *  엉뚱한 회사에 물어보고 있는 경우가 가장 흔하기 때문입니다. */
+function ai_key_refused($code, $key) {
+    $v = ai_vendor($key);
+    $host = ($v === 'manus') ? 'api.manus.ai'
+          : (($v === 'openai') ? 'api.openai.com' : 'api.anthropic.com');
+    return "AI 키가 거부됐습니다 (HTTP $code).\n\n"
+         . "지금 대시보드는 이 키를 「" . ai_vendor_name($v) . "」 의 키로 알고 있어서\n"
+         . $host . " 에 물어봤습니다.\n\n"
+         . "· 다른 회사(예: 마누스) 키라면 [🔑 AI 키 바꾸기] 에서 키를 다시 넣고\n"
+         . "  「어느 AI 인가요?」 에서 맞는 번호를 골라주세요.\n"
+         . "· 회사가 맞다면 키가 틀렸거나 만료된 것입니다. 새 키를 만들어 넣어주세요.";
+}
+
+/** 응답에서 오류 문구만 꺼냅니다 */
+function ai_errmsg($raw) {
+    $j = is_string($raw) ? json_decode($raw, true) : null;
+    if (is_array($j) && isset($j['error'])) {
+        if (is_array($j['error'])) return (string)($j['error']['message'] ?? json_encode($j['error'], JSON_UNESCAPED_UNICODE));
+        return (string)$j['error'];
+    }
+    return is_string($raw) ? trim(substr($raw, 0, 300)) : '';
+}
+
 /* ═══════════════ 왜 AI 에 못 붙나 (점검) ═══════════════════════════
    NAS 가 밖으로 나가는 길이 막히면 AI 가 안 됩니다.
    어디가 막혔는지 하나씩 짚어 알려줍니다. (?action=net)
@@ -1001,8 +1218,9 @@ if ($action === 'prompt') {
 
     $usage = $j['usage'] ?? [];
     jout(['ok' => true, '프롬프트' => $text, '잘림' => $cut, '만든때' => date('c'),
-          '쓴글자' => (int)($usage['input_tokens'] ?? 0),
-          '만든글자' => (int)($usage['output_tokens'] ?? 0)]);
+          // 회사마다 이름이 다릅니다 (클로드 input_tokens / 챗GPT prompt_tokens)
+          '쓴글자' => (int)($usage['input_tokens']  ?? $usage['prompt_tokens']     ?? 0),
+          '만든글자' => (int)($usage['output_tokens'] ?? $usage['completion_tokens'] ?? 0)]);
 }
 
 if ($action === 'summarize') {
@@ -1121,8 +1339,8 @@ if ($action === 'summarize') {
         '확인필요'  => is_array($parsed['확인필요'] ?? null) ? $parsed['확인필요'] : [],
         '형식'      => 'json',
         '잘림'      => $cut,
-        '쓴글자'    => (int)($usage['input_tokens'] ?? 0),
-        '만든글자'  => (int)($usage['output_tokens'] ?? 0),
+        '쓴글자'    => (int)($usage['input_tokens']  ?? $usage['prompt_tokens']     ?? 0),
+        '만든글자'  => (int)($usage['output_tokens'] ?? $usage['completion_tokens'] ?? 0),
     ]);
 }
 

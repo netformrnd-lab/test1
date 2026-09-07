@@ -112,8 +112,13 @@ function bh_wget($url, $headers, $postFile, $sec, &$code, &$note) {
 
 /** 인터넷으로 물어봅니다. NAS 마다 막힌 방법이 달라 세 가지를 차례로 씁니다.
  *  $body 가 null 이면 그냥 받아오기(GET) 입니다. */
-function ai_post($url, $headers, $body, &$why) {
+function ai_post($url, $headers, $body, &$why, $sec = 90) {
     $why = [];
+    $sec = max(5, (int)$sec);
+    // 세 가지 방법을 차례로 쓰는데, 셋을 다 기다리면 시간이 세 배가 됩니다.
+    // 그래서 「전체로 이만큼」 을 정해두고 남은 만큼만 기다립니다.
+    $deadline = microtime(true) + $sec;
+    $left = function () use ($deadline) { return (int)max(0, ceil($deadline - microtime(true))); };
 
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
@@ -121,7 +126,7 @@ function ai_post($url, $headers, $body, &$why) {
         //    받아오기(GET)일 때는 아예 넣지 않아야 합니다.
         $opt = [
             CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_TIMEOUT => 180, CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => max(3, $left()), CURLOPT_CONNECTTIMEOUT => min(10, max(3, $left())),
         ];
         if ($body !== null) { $opt[CURLOPT_POST] = true; $opt[CURLOPT_POSTFIELDS] = $body; }
         else                { $opt[CURLOPT_HTTPGET] = true; }
@@ -134,10 +139,10 @@ function ai_post($url, $headers, $body, &$why) {
         $why[] = 'curl: ' . ($err ?: '실패');
     } else { $why[] = 'curl 확장이 꺼져 있습니다'; }
 
-    if (ini_get('allow_url_fopen')) {
+    if (ini_get('allow_url_fopen') && $left() > 2) {
         $opt = ['method' => $body === null ? 'GET' : 'POST',
                 'header' => implode("\r\n", $headers),
-                'timeout' => 180, 'ignore_errors' => true];
+                'timeout' => max(3, $left()), 'ignore_errors' => true];
         if ($body !== null) $opt['content'] = $body;
         $ctx = stream_context_create(['http' => $opt]);
         $out = @file_get_contents($url, false, $ctx);
@@ -151,19 +156,20 @@ function ai_post($url, $headers, $body, &$why) {
         $why[] = 'file_get_contents 실패';
     } else { $why[] = 'allow_url_fopen 이 꺼져 있습니다'; }
 
-    if (function_exists('shell_exec')) {
+    if (function_exists('shell_exec') && $left() > 2) {
         $tmpB = null;
         if ($body !== null) {
             $tmpB = tempnam(sys_get_temp_dir(), 'aib');
             file_put_contents($tmpB, $body);
         }
         $code = 0; $note = '';
-        $out = bh_wget($url, $headers, $tmpB, 180, $code, $note);
+        $out = bh_wget($url, $headers, $tmpB, max(3, $left()), $code, $note);
         if ($tmpB !== null) @unlink($tmpB);
         // 401·400 같은 오류 응답도 그대로 돌려줍니다. 그래야 진짜 이유가 보입니다.
         if ($out !== false) return [$code ?: 200, $out];
         $why[] = 'wget: ' . ($note ?: '받지 못했습니다');
-    } else { $why[] = 'shell_exec 이 막혀 있습니다'; }
+    } elseif (!function_exists('shell_exec')) { $why[] = 'shell_exec 이 막혀 있습니다'; }
+      else { $why[] = 'wget 을 해볼 시간이 남지 않았습니다'; }
 
     return [0, false];
 }
@@ -252,6 +258,16 @@ function manus_head($key, $which = 0) {
 }
 
 /** 키를 싣는 자리 중 되는 쪽 ('1' = Authorization: Bearer) */
+/* 웹 스테이션(php-fpm)은 오래 걸리는 요청을 스스로 끊어버리고,
+   그 자리에 시놀로지 오류 화면을 내보냅니다. 그러면 무엇 때문인지 알 수가
+   없으므로, 우리가 먼저 시간을 재서 「제때 답하지 않았습니다」 라고
+   제대로 알려줍니다. */
+function ai_budget($startedAt = null) {
+    static $t0 = null;
+    if ($t0 === null) $t0 = $startedAt ?: microtime(true);
+    return max(0, 45 - (microtime(true) - $t0));      // 45초 안에 끝냅니다
+}
+
 function manus_head_pref() {
     $f = __DIR__ . '/data/ai-manus-head.txt';
     return (is_file($f) && trim((string)@file_get_contents($f)) === '1') ? 1 : 0;
@@ -284,11 +300,14 @@ function manus_start($key, $prompt, &$cut = false, $limit = MANUS_LIMIT) {
 
     $code = 0; $raw = false; $ver = manus_ver();
     foreach ($tries as [$v, $url]) {
-        [$code, $raw] = ai_post($url, $head, $body, $why);
+        $left = ai_budget();
+        if ($left < 8) { $why[] = '시간이 모자라 더 해보지 못했습니다'; break; }
+        [$code, $raw] = ai_post($url, $head, $body, $why, min(25, (int)$left));
         if ($raw === false) continue;
         // 키를 싣는 자리가 다를 수 있습니다 — 거절당하면 다른 방법으로 한 번 더
         if ($code === 401 || $code === 403) {
-            [$c2, $r2] = ai_post($url, manus_head($key, manus_head_pref() ? 0 : 1), $body, $why);
+            [$c2, $r2] = ai_post($url, manus_head($key, manus_head_pref() ? 0 : 1), $body, $why,
+                                 min(20, max(8, (int)ai_budget())));
             if ($r2 !== false && $c2 !== 401 && $c2 !== 403) {
                 @file_put_contents(__DIR__ . '/data/ai-manus-head.txt', manus_head_pref() ? '0' : '1');
                 $code = $c2; $raw = $r2;
@@ -307,7 +326,7 @@ function manus_start($key, $prompt, &$cut = false, $limit = MANUS_LIMIT) {
                 $prompt2 = manus_fit($prompt, $newLimit, $cut);
                 $body2   = json_encode(['prompt' => $prompt2], JSON_UNESCAPED_UNICODE);
                 $url2    = $ver === 1 ? MANUS_API : MANUS_BASE . '/v2/task.create';
-                [$code, $raw] = ai_post($url2, $head, $body2, $why);
+                [$code, $raw] = ai_post($url2, $head, $body2, $why, min(25, max(8, (int)ai_budget())));
             }
         }
     }
@@ -394,9 +413,9 @@ function manus_poll($key, $id) {
 
     $code = 0; $raw = false;
     foreach ($urls as $url) {
-        [$code, $raw] = ai_post($url, $head, null, $why);
+        [$code, $raw] = ai_post($url, $head, null, $why, 15);
         if ($raw !== false && ($code === 401 || $code === 403)) {
-            [$c2, $r2] = ai_post($url, manus_head($key, manus_head_pref() ? 0 : 1), null, $why);
+            [$c2, $r2] = ai_post($url, manus_head($key, manus_head_pref() ? 0 : 1), null, $why, 15);
             if ($r2 !== false && $c2 !== 401 && $c2 !== 403) { $code = $c2; $raw = $r2; }
         }
         if ($raw !== false && $code >= 200 && $code < 300) break;
@@ -432,6 +451,9 @@ function manus_poll($key, $id) {
     }
     return ['하는 중', $text, $code, $raw, $files];
 }
+
+ai_budget(microtime(true));          // 이 요청에 쓸 수 있는 시간을 재기 시작합니다
+@set_time_limit(120);
 
 $action = $_GET['action'] ?? 'check';
 $key    = load_key($KEY_FILE);
@@ -630,11 +652,17 @@ if ($action === 'net') {
     $docker = (is_dir('/var/packages/Docker') || is_dir('/var/packages/ContainerManager')
                || is_file('/usr/local/bin/docker') || is_file('/usr/bin/docker'));
     $x86    = (stripos($arch, 'x86_64') !== false || stripos($arch, 'amd64') !== false);
-    if (!$x86)              $canRun = '어렵습니다 — ARM 계열이라 대부분의 AI 프로그램이 안 돕니다';
-    elseif ($mem && $mem < 6) $canRun = '어렵습니다 — 메모리가 ' . $mem . 'GB 라 작은 모델도 버겁습니다';
-    elseif (!$docker)       $canRun = '가능할 수도 — 사양은 되는데 Container Manager(도커)가 안 보입니다';
-    elseif ($mem >= 12)     $canRun = '됩니다 — 도커로 올려서 쓸 만합니다 (느리지만 돌아갑니다)';
-    else                    $canRun = '작은 모델이면 됩니다 — 메모리 ' . $mem . 'GB 라 3~4B 정도까지';
+    $slow = (stripos($cpuName, 'celeron') !== false || stripos($cpuName, 'atom') !== false
+             || stripos($cpuName, 'pentium') !== false || stripos($cpuName, 'realtek') !== false);
+    if (!$x86)                $canRun = '어렵습니다 — ARM 계열이라 대부분의 AI 프로그램이 안 돕니다';
+    elseif ($mem && $mem < 8) $canRun = '권하지 않습니다 — 메모리 ' . $mem . 'GB 는 모델을 올리면 '
+                                      . 'NAS 본래 일(파일 공유·백업)까지 느려집니다';
+    elseif ($slow)            $canRun = '권하지 않습니다 — ' . $cpuName . ' 급 CPU 로는 한 문단 쓰는 데 '
+                                      . '몇 분씩 걸립니다. 사무실 PC 쪽을 권합니다';
+    elseif (!$docker)         $canRun = '가능할 수도 — 사양은 되는데 Container Manager(도커)가 '
+                                      . '설치돼 있지 않습니다 (패키지 센터에서 설치해야 합니다)';
+    elseif ($mem >= 12)       $canRun = '됩니다 — 도커로 올려서 쓸 만합니다 (느리지만 돌아갑니다)';
+    else                      $canRun = '작은 모델이면 됩니다 — 메모리 ' . $mem . 'GB 라 3~4B 정도까지';
 
     jout([
         'ok' => true,
@@ -923,7 +951,10 @@ if ($action === 'prompt') {
         [$c, $r, $tid, $w] = manus_start($key, $short . "\n\n" . $user, $cut2);
         if ($r === false) {
             jout(['ok' => false, 'error' =>
-                "마누스에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)], 502);
+                "마누스에 작업을 맡기지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)
+                . "\n\n· NAS 가 https 로 나가는 길이 wget 하나뿐이면 느립니다.\n"
+                . "  DSM → 웹 스테이션 → PHP 프로필 → 확장에서 curl 과 openssl 을 켜면\n"
+                . "  훨씬 빠르고 안정적입니다. ([🩺 AI 점검] 참고)"], 502);
         }
         if ($tid === '') {
             jout(['ok' => false, 'error' => ai_friendly($c, ai_errmsg($r), 'manus')
@@ -1022,7 +1053,10 @@ if ($action === 'summarize') {
         [$c, $r, $tid, $w] = manus_start($key, $short . "\n\n" . $user, $cut2);
         if ($r === false) {
             jout(['ok' => false, 'error' =>
-                "마누스에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)], 502);
+                "마누스에 작업을 맡기지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $w)
+                . "\n\n· NAS 가 https 로 나가는 길이 wget 하나뿐이면 느립니다.\n"
+                . "  DSM → 웹 스테이션 → PHP 프로필 → 확장에서 curl 과 openssl 을 켜면\n"
+                . "  훨씬 빠르고 안정적입니다. ([🩺 AI 점검] 참고)"], 502);
         }
         if ($tid === '') {
             jout(['ok' => false, 'error' => ai_friendly($c, ai_errmsg($r), 'manus')

@@ -866,6 +866,9 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 .cal-c.holi{background:color-mix(in srgb,var(--red) 7%,var(--bg-card))}
 .cal-c.holi .cal-d{color:var(--red)}
 .cal-holi{font-size:10.5px;color:var(--red);font-weight:700;margin:-1px 0 1px}
+.tp-grid{display:flex;flex-wrap:wrap;gap:7px;max-height:230px;overflow:auto;
+  padding:10px;border:1px solid var(--border);border-radius:var(--r-md);
+  background:var(--bg-secondary)}
 .cal-cont{color:var(--ec);font-weight:700;margin-right:2px;flex-shrink:0}
 @media(max-width:900px){
   .cal-c{min-height:76px;padding:5px 4px 6px}
@@ -1096,7 +1099,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260907-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260907-10';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1704,7 +1707,8 @@ function render(){
   const bc = document.getElementById('blogCnt');
   if(bc) bc.textContent = blog.loaded ? (blog.rows.length || '') : '';
   const up = document.getElementById('usersLayer');
-  if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel() + pastePanel() + trashPanel();
+  if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel() + pastePanel()
+                      + trashPanel() + teamPickPanel();
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
   else if(view === 'meetings') renderMeetings();
@@ -7667,15 +7671,165 @@ const WCAL_HUE = { '연차':'var(--purple)', '반차':'var(--purple)', '반반�
                    '하자점검':'var(--red)', '계약':'var(--yellow)', '개인':'var(--text-muted)',
                    '외근':'var(--orange)' };
 
+/* ── 우리 팀만 보기 ─────────────────────────────────────────────
+   근무현황 캘린더에는 회사 전체 사람이 들어 있습니다. 마케팅팀만 보고 싶을
+   때가 많아, 이름 명단을 정해두고 그 사람들만 거릅니다.
+   명단은 브랜드 자료에 같이 저장되어 **팀 전체가 같은 명단**을 씁니다.
+   ─────────────────────────────────────────────────────────── */
+function wcalTeam(){
+  const v = (data.settings && data.settings.wcalTeam);
+  return Array.isArray(v) ? v : [];
+}
+function wcalOnly(){ return !!(data.settings && data.settings.wcalOnly); }
+function wcalNorm(s){ return String(s == null ? '' : s).replace(/\s/g, ''); }
+
+/* 이 사람을 보여줄까 (「우리 팀만」 이 꺼져 있으면 모두 보여줍니다) */
+function wcalIsMine(name){
+  if(!wcalOnly()) return true;
+  const t = wcalTeam();
+  if(!t.length) return true;              // 명단이 비면 거르지 않습니다
+  const n = wcalNorm(name);
+  return t.some(x => wcalNorm(x) === n);
+}
+
+/* 이번 달 자료에 나온 이름 모두 (명단 고를 때 씁니다) */
+function wcalSeenNames(){
+  const set = new Set();
+  Object.values(wcal.휴가).forEach(a => a.forEach(v => { if(v.이름) set.add(v.이름); }));
+  Object.values(wcal.외근).forEach(a => a.forEach(o => { if(o.이름) set.add(o.이름); }));
+  wcalTeam().forEach(n => set.add(n));      // 이번 달에 안 나온 팀원도 남겨둡니다
+  return [...set].sort((a, b) => a.localeCompare(b, 'ko'));
+}
+
+/* 「우리 팀만」 을 켜서 지금 안 보이는 사람 수 */
+function wcalHiddenCount(){
+  if(!wcalOnly() || !wcalTeam().length) return 0;
+  let n = 0;
+  Object.values(wcal.휴가).forEach(a => a.forEach(v => { if(!wcalIsMine(v.이름)) n++; }));
+  Object.values(wcal.외근).forEach(a => a.forEach(o => { if(!wcalIsMine(o.이름)) n++; }));
+  return n;
+}
+
+function wcalSet(k, v){
+  data.settings = data.settings || {};
+  data.settings[k] = v;
+  markDirtyAll();
+  render();
+}
+function wcalOnlyToggle(){
+  const next = !wcalOnly();
+  wcalSet('wcalOnly', next);
+  if(next && !wcalTeam().length) openWcalTeam();     // 명단이 비었으면 바로 고르게
+}
+
+/* ── 명단 고르는 창 ─────────────────────────────────────────── */
+const teamPick = { open:false, sel:null, add:'' };
+
+function openWcalTeam(){
+  teamPick.open = true;
+  teamPick.sel = new Set(wcalTeam().map(wcalNorm));
+  teamPick.add = '';
+  render();
+}
+function closeWcalTeam(){ teamPick.open = false; render(); }
+function teamPickToggle(name){
+  const n = wcalNorm(name);
+  if(teamPick.sel.has(n)) teamPick.sel.delete(n); else teamPick.sel.add(n);
+  render();
+}
+function teamPickAll(){ wcalSeenNames().forEach(n => teamPick.sel.add(wcalNorm(n))); render(); }
+function teamPickNone(){ teamPick.sel.clear(); render(); }
+function teamPickInput(v){ teamPick.add = v; }
+function teamPickAdd(){
+  const v = String(teamPick.add || '').trim();
+  if(!v) return;
+  // 쉼표로 여러 명을 한 번에 넣을 수 있습니다
+  v.split(/[,\n]/).map(x => x.trim()).filter(Boolean).forEach(nm => {
+    teamPick.sel.add(wcalNorm(nm));
+    const cur = wcalTeam();
+    if(!cur.some(x => wcalNorm(x) === wcalNorm(nm))){
+      data.settings = data.settings || {};
+      data.settings.wcalTeam = cur.concat([nm]);
+    }
+  });
+  teamPick.add = '';
+  render();
+}
+/* 계정에 있는 사람을 그대로 명단으로 (관리자만 계정 목록을 볼 수 있습니다) */
+function teamPickFromAccounts(){
+  const names = (people.list || []).map(u => u.name).filter(Boolean);
+  if(!names.length){ toast('⚠️ 계정 목록을 가져오지 못했습니다 (관리자만 됩니다)'); return; }
+  data.settings = data.settings || {};
+  const cur = wcalTeam();
+  names.forEach(nm => { if(!cur.some(x => wcalNorm(x) === wcalNorm(nm))) cur.push(nm); });
+  data.settings.wcalTeam = cur;
+  names.forEach(nm => teamPick.sel.add(wcalNorm(nm)));
+  render();
+}
+function saveWcalTeam(){
+  // 고른 것만 남깁니다 (이름의 원래 표기는 그대로 지킵니다)
+  const seen = wcalSeenNames();
+  const keep = seen.filter(n => teamPick.sel.has(wcalNorm(n)));
+  data.settings = data.settings || {};
+  data.settings.wcalTeam = keep;
+  if(keep.length && !wcalOnly()) data.settings.wcalOnly = true;
+  markDirtyAll();
+  teamPick.open = false;
+  render();
+  toast('👥 우리 팀 ' + keep.length + '명으로 맞췄습니다');
+}
+
+function teamPickPanel(){
+  if(!teamPick.open) return '';
+  const names = wcalSeenNames();
+  const rows = names.length
+    ? '<div class="tp-grid">' + names.map(n => {
+        const on = teamPick.sel.has(wcalNorm(n));
+        return '<button class="btn sm' + (on ? ' primary' : '') + '" '
+          + 'onclick="teamPickToggle(\'' + jsq(n) + '\')">'
+          + (on ? '✓ ' : '') + esc(n) + '</button>';
+      }).join('') + '</div>'
+    : '<div class="empty">이번 달 자료에 이름이 없습니다.<br>'
+      + '아래에 직접 적어 넣으세요.</div>';
+
+  return '<div class="modal-bg open" onclick="if(event.target===this)closeWcalTeam()">'
+    + '<div class="modal" style="max-width:620px">'
+    + '<h3>👥 우리 팀 고르기</h3>'
+    + '<div class="fmeta" style="margin-bottom:10px">'
+      + '고른 사람의 <b>휴가·외근만</b> 달력에 보입니다. 공휴일은 그대로 다 보입니다.<br>'
+      + '이 명단은 <b>팀 전체가 같이</b> 씁니다 (한 사람이 바꾸면 모두에게 반영됩니다).</div>'
+    + '<div class="sec-bar" style="margin-bottom:10px">'
+      + '<button class="btn sm" onclick="teamPickAll()">전체 고르기</button>'
+      + '<button class="btn sm" onclick="teamPickNone()">모두 지우기</button>'
+      + ((people.list && people.list.length)
+          ? '<button class="btn sm" onclick="teamPickFromAccounts()">'
+            + '🔑 계정에 있는 사람 가져오기</button>' : '')
+      + '<span class="fmeta">' + teamPick.sel.size + '명 고름</span>'
+    + '</div>'
+    + rows
+    + '<label style="margin-top:12px">명단에 없는 사람 직접 넣기</label>'
+    + '<div class="sec-bar">'
+      + '<input type="text" id="teamAdd" style="flex:1;min-width:180px" '
+        + 'placeholder="예: 류동환, 김소라 (쉼표로 여러 명)" '
+        + 'value="' + esc(teamPick.add) + '" oninput="teamPickInput(this.value)" '
+        + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();teamPickAdd();}">'
+      + '<button class="btn sm" onclick="teamPickAdd()">＋ 넣기</button>'
+    + '</div>'
+    + '<div class="modal-actions">'
+      + '<button class="btn" onclick="closeWcalTeam()">취소</button>'
+      + '<button class="btn primary" onclick="saveWcalTeam()">이 사람들만 보기</button>'
+    + '</div></div></div>';
+}
+
 /* 하루치 근무현황을 칸 안에 그립니다 */
 function wcalCell(ds){
   let h = '';
-  if(wcal.보임.휴가) (wcal.휴가[ds] || []).forEach(v => {
+  if(wcal.보임.휴가) (wcal.휴가[ds] || []).filter(v => wcalIsMine(v.이름)).forEach(v => {
     h += '<div class="cal-w" style="--ec:' + (WCAL_HUE[v.종류] || 'var(--purple)') + '" '
        + 'title="' + esc(v.이름 + ' · ' + v.종류 + ' (근무현황 캘린더)') + '">'
        + '<span class="cal-dot"></span>' + esc(v.이름) + ' ' + esc(v.종류) + '</div>';
   });
-  if(wcal.보임.외근) (wcal.외근[ds] || []).forEach(o => {
+  if(wcal.보임.외근) (wcal.외근[ds] || []).filter(o => wcalIsMine(o.이름)).forEach(o => {
     const tip = o.이름 + ' · ' + o.종류 + (o.시간 ? ' ' + o.시간 : '')
               + (o.장소 ? '\n' + o.장소 : '') + '\n(근무현황 캘린더)';
     h += '<div class="cal-w" style="--ec:' + (WCAL_HUE[o.종류] || 'var(--orange)') + '" '
@@ -7694,17 +7848,25 @@ function wcalBar(){
   }
   const chip = (k, em) => '<button class="btn sm' + (wcal.보임[k] ? ' primary' : '') + '" '
     + 'onclick="wcalToggle(\'' + k + '\')">' + em + ' ' + k + '</button>';
-  const nVac = Object.values(wcal.휴가).reduce((a, x) => a + x.length, 0);
-  const nOut = Object.values(wcal.외근).reduce((a, x) => a + x.length, 0);
+  const cnt = o => Object.values(o).reduce((a, x) => a + x.filter(y => wcalIsMine(y.이름)).length, 0);
+  const nVac = cnt(wcal.휴가), nOut = cnt(wcal.외근);
+  const hid  = wcalHiddenCount();
+  const team = wcalTeam();
 
   return '<div class="sec-bar" style="margin-bottom:10px">'
     + '<span class="fmeta">👷 근무현황</span>'
     + chip('휴가', '🏖') + chip('외근', '🚗') + chip('공휴일', '🎌')
+    + '<button class="btn sm' + (wcalOnly() ? ' primary' : '') + '" '
+      + 'onclick="wcalOnlyToggle()" '
+      + 'title="고른 사람의 휴가·외근만 보여줍니다">👥 우리 팀만'
+      + (wcalOnly() && team.length ? ' ' + team.length : '') + '</button>'
+    + '<button class="btn sm" onclick="openWcalTeam()" title="명단을 고칩니다">✎ 명단</button>'
     + '<button class="btn sm" onclick="loadWorkCal(true)"' + (wcal.busy ? ' disabled' : '') + '>'
       + (wcal.busy ? '받는 중…' : '↻ 새로 받기') + '</button>'
     + (wcal.site ? '<a class="btn sm" href="' + esc(wcal.site) + '" target="_blank" '
         + 'rel="noopener">👷 근무현황 캘린더 열기 ↗</a>' : '')
     + '<span class="hint">휴가 ' + nVac + ' · 외근 ' + nOut
+      + (hid ? ' · <b>' + hid + '건 숨김</b>' : '')
       + (wcalWhen() ? ' · ' + esc(wcalWhen()) : '')
       + (wcalSyncText() ? ' · ' + esc(wcalSyncText()) : '')
       + ' · 60초마다 저절로 새로 봅니다</span>'

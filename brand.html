@@ -1081,7 +1081,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260905-11';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260905-12';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6783,6 +6783,59 @@ async function aiCheck(){
   render();
 }
 
+/* ═══════════════ 우리 것 붙이기 (NAS·사무실 PC 에 올린 AI) ═════════
+   Ollama·LM Studio 처럼 「챗GPT 와 같은 모양」 으로 답하는 것이면 됩니다.
+   인터넷에 나가지 않고 돈도 들지 않습니다.
+   ================================================================= */
+async function aiSetLocal(){
+  const now = (aiState.info || {})['우리것주소'] || '';
+  const url = prompt('우리 AI 가 있는 주소를 적어주세요.\n\n'
+    + '· NAS 안(도커)에 올렸다면:  http://localhost:11434\n'
+    + '· 사무실 PC 에 올렸다면:    http://192.168.0.50:11434\n'
+    + '  (LM Studio 는 보통 :1234)\n\n'
+    + '인터넷에 나가지 않고, 돈도 들지 않습니다.', now || 'http://localhost:11434');
+  if(url === null || !url.trim()) return;
+
+  toast('🔎 그 주소를 확인하는 중…');
+  let models = [];
+  try{
+    const out = await apiJson('ai.php?action=localmodels&url=' + encodeURIComponent(url.trim()));
+    models = out['모델들'] || [];
+  }catch(e){
+    if(!confirm('그 주소에 닿지 못했습니다.\n\n' + apiErrText(e)
+      + '\n\n그래도 이 주소로 저장할까요?')) return;
+  }
+
+  let model = '';
+  if(models.length){
+    const pick = prompt('어떤 모델을 쓸까요? 번호를 넣어주세요.\n\n'
+      + models.slice(0, 20).map((m, i) => '  ' + (i + 1) + ' = ' + m).join('\n'), '1');
+    if(pick === null) return;
+    model = models[Number(pick.trim()) - 1] || models[0];
+  }else{
+    const m = prompt('쓸 모델 이름을 적어주세요.\n\n'
+      + '예) qwen2.5:7b · gemma3:4b · llama3.1:8b\n'
+      + '(비워두면 그 서버의 기본값을 씁니다)', '');
+    if(m === null) return;
+    model = m.trim();
+  }
+
+  const key = prompt('열쇠(키)가 필요한 서버인가요?\n\n'
+    + 'Ollama·LM Studio 는 보통 필요 없습니다. 그냥 비워두고 확인을 누르세요.', '');
+  if(key === null) return;
+
+  try{
+    const res = await fetch('ai.php?action=setkey', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ vendor:'local', url: url.trim(), model, key: key.trim() })
+    });
+    const out = JSON.parse(await res.text());
+    if(!out.ok) throw new Error(out.error || '저장하지 못했습니다');
+    toast('🖥 ' + (out['안내'] || '우리 것을 쓰도록 맞췄습니다'));
+    await aiCheck();
+  }catch(e){ showError('맞추지 못했습니다.\n\n' + (e.message || e)); }
+}
+
 async function aiSetKey(){
   const v = prompt('AI 키를 넣어주세요.\n\n'
     + '· 챗GPT: platform.openai.com → API keys 의 「sk-…」 키\n'
@@ -7008,10 +7061,15 @@ function viewMeetings(list){
     + '<button class="btn primary" onclick="openItemModal(\'meetings\')">＋ 회의 기록</button>'
     + (aiState.ready === false
         ? '<button class="btn" onclick="aiSetKey()">🔑 AI 키 넣기</button>'
+          + '<button class="btn" onclick="aiSetLocal()" '
+            + 'title="NAS 나 사무실 PC 에 올린 AI 를 씁니다 (돈이 들지 않습니다)">'
+            + '🖥 우리 것 쓰기</button>'
           + '<span class="hint">키를 넣으면 [✨ AI로 정리] 가 한 번에 해 줍니다. '
           + '키가 없어도 <b>[📋 물어볼 문장 복사] → 챗GPT 창 → [📥 답 붙여넣기]</b> 로 '
           + '똑같이 쓰실 수 있습니다 (돈 안 듭니다)</span>'
         : '<button class="btn" onclick="aiSetKey()">🔑 AI 키 바꾸기</button>'
+          + '<button class="btn sm" onclick="aiSetLocal()" '
+            + 'title="NAS 나 사무실 PC 에 올린 AI 를 씁니다">🖥 우리 것</button>'
           + '<span class="chip on">🤖 ' + esc(((aiState.info || {})['어느 AI']) || 'AI') + '</span>'
           + (aiState.netFail
               ? '<button class="btn" onclick="openNetCheck()">🩺 AI 점검</button>' : '')
@@ -9074,6 +9132,7 @@ function netPanel(){
             + '</ul></div>'
           + rowsOf('닿나', d['닿나'])
           + rowsOf('나가는 방법 (PHP)', d['나가는 방법'])
+          + (d['이 NAS 에 AI 심기'] ? rowsOf('이 NAS 에 AI 심기', d['이 NAS 에 AI 심기']) : '')
           + '<div class="vz-head" style="margin-top:12px">실제로 한 번 물어본 결과</div>'
           + '<div class="ainote" style="margin:4px 0 0">'
             + esc(String(d['실제로 물어보기'] || '')) + '</div>'

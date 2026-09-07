@@ -5,6 +5,7 @@
  *   ?action=check                 준비됐는지 확인
  *   ?action=net                   왜 AI 에 못 붙는지 점검 (네트워크)
  *   ?action=taskcheck             오래 걸리는 작업(마누스)이 끝났는지 확인
+ *   ?action=localmodels           우리 것(NAS·사내 PC)에 올라간 모델 목록
  *   ?action=setkey  (POST)        API 키 저장 (한 번만)
  *   ?action=summarize (POST)      회의 내용을 요약
  *
@@ -178,7 +179,7 @@ function ai_vendor($key) {
     $f = __DIR__ . '/data/ai-vendor.txt';
     if (is_file($f)) {
         $v = trim((string)@file_get_contents($f));
-        if (in_array($v, ['openai', 'anthropic', 'manus'], true)) return $v;
+        if (in_array($v, ['openai', 'anthropic', 'manus', 'local'], true)) return $v;
     }
     if (strpos($key, 'sk-ant-') === 0) return 'anthropic';
     if (strpos($key, 'sk-') === 0)     return 'openai';
@@ -188,7 +189,37 @@ function ai_vendor_name($v) {
     if ($v === 'openai')    return 'OpenAI (챗GPT)';
     if ($v === 'anthropic') return 'Anthropic (클로드)';
     if ($v === 'manus')     return 'Manus (마누스)';
+    if ($v === 'local')     return '우리 것 (NAS·사내 PC)';
     return '(모름)';
+}
+
+/* ═══════════════ 우리 것 (NAS 나 사무실 PC 에 올린 AI) ═══════════════
+   Ollama·LM Studio 처럼 「OpenAI 와 같은 모양」 으로 답하는 것을 부릅니다.
+   주소와 모델 이름만 적어두면 됩니다. 인터넷에 나가지 않고, 돈도 안 듭니다.
+   ================================================================= */
+/** 지금 AI 를 쓸 수 있는 상태인가 (로컬은 키가 없어도 됩니다) */
+function ai_ready($key) {
+    if ($key !== '') return true;
+    return ai_vendor($key) === 'local' && ai_local_conf()['url'] !== '';
+}
+
+function ai_local_conf() {
+    $f = __DIR__ . '/data/ai-local.json';
+    $j = is_file($f) ? json_decode((string)@file_get_contents($f), true) : null;
+    if (!is_array($j)) $j = [];
+    return ['url'   => rtrim((string)($j['url'] ?? ''), '/'),
+            'model' => (string)($j['model'] ?? ''),
+            'key'   => (string)($j['key'] ?? '')];
+}
+
+/** 적어둔 주소를 부를 수 있는 모양으로 다듬습니다 */
+function ai_local_url($base, $what = 'chat') {
+    $u = rtrim((string)$base, '/');
+    if ($u === '') return '';
+    if (substr($u, -20) === '/v1/chat/completions') $u = substr($u, 0, -20);
+    if (substr($u, -10) === '/v1/models') $u = substr($u, 0, -10);
+    if (substr($u, -3) !== '/v1') $u .= '/v1';
+    return $u . ($what === 'models' ? '/models' : '/chat/completions');
 }
 
 /* ═══════════════ 마누스 ═══════════════════════════════════════════
@@ -349,6 +380,31 @@ function openai_model($key, $modelFile, $force = false) {
  *  돌려주는 값: [응답코드, 원문, 뽑은글자|false, 쓴모델] */
 function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
     $v = ai_vendor($key);
+
+    if ($v === 'local') {
+        $c = ai_local_conf();
+        $url = ai_local_url($c['url']);
+        if ($url === '') return [0, false, false, ''];
+        $model = $c['model'] !== '' ? $c['model'] : 'local';
+        $head  = ['Content-Type: application/json'];
+        if ($c['key'] !== '') $head[] = 'Authorization: Bearer ' . $c['key'];
+        $body = json_encode([
+            'model' => $model,
+            'messages' => [
+                ['role' => 'system', 'content' => $sys],
+                ['role' => 'user',   'content' => $user],
+            ],
+            'max_tokens' => $maxTokens,
+            'stream' => false,
+        ], JSON_UNESCAPED_UNICODE);
+        [$code, $raw] = ai_post($url, $head, $body, $why);
+        if ($raw === false) return [$code, false, false, $model];
+        $j = json_decode($raw, true);
+        $text = trim((string)($j['choices'][0]['message']['content']
+                           ?? $j['message']['content']        // Ollama 예전 모양
+                           ?? $j['response'] ?? ''));
+        return [$code, $raw, $text === '' ? false : $text, $model];
+    }
 
     if ($v === 'openai') {
         $model = openai_model($key, $modelFile);
@@ -572,10 +628,17 @@ if ($action === 'net') {
     @set_time_limit(90);
 
     $v = ai_vendor($key);
-    if ($v === 'manus')       { $host = 'api.manus.ai';      $mUrl = MANUS_API; }
+    if ($v === 'local') {
+        $lc   = ai_local_conf();
+        $host = parse_url($lc['url'], PHP_URL_HOST) ?: '(주소 없음)';
+        $mUrl = ai_local_url($lc['url'], 'models');
+    }
+    elseif ($v === 'manus')   { $host = 'api.manus.ai';      $mUrl = MANUS_API; }
     elseif ($v === 'openai')  { $host = 'api.openai.com';    $mUrl = 'https://api.openai.com/v1/models'; }
     else                      { $host = 'api.anthropic.com'; $mUrl = 'https://api.anthropic.com/v1/models'; }
-    $vName = $key === '' ? 'Anthropic (클로드) · 키를 넣으면 챗GPT 도 됩니다' : ai_vendor_name($v);
+    $vName = ($key === '' && $v === '')
+        ? '아직 정하지 않음 (키를 넣거나 [🖥 우리 것 쓰기] 로 정하세요)'
+        : ai_vendor_name($v);
 
     $wget  = function_exists('shell_exec') ? trim((string)@shell_exec('command -v wget 2>/dev/null')) : '';
     $dns   = @gethostbyname($host);
@@ -589,7 +652,9 @@ if ($action === 'net') {
 
     // 키가 있으면 그 키가 살아 있는지도 봅니다 (글자를 만들지 않아 돈이 들지 않습니다)
     $keyCheck = null; $keyOk = null;
-    if ($v === 'manus') {
+    if ($v === 'local') {
+        $keyCheck = '우리 것은 키가 없어도 됩니다 (주소만 맞으면 됩니다)';
+    } elseif ($v === 'manus') {
         // 마누스는 「작업 만들기」 말고 키만 확인하는 길이 없습니다.
         // 목록을 받아보는 것으로 판단하면 멀쩡한 키를 거부됐다고 말하게 됩니다.
         $keyCheck = '마누스는 키만 따로 확인할 방법이 없습니다 '
@@ -613,7 +678,7 @@ if ($action === 'net') {
     if ($v === 'manus') {
         $real = '마누스는 물어보기만 해도 작업 하나가 시작되고 크레딧을 써서, '
               . '점검에서는 실제로 물어보지 않습니다. [✨ AI로 정리] 로 확인해 주세요.';
-    } elseif ($key !== '' && $anthOk) {
+    } elseif (($key !== '' || $v === 'local') && $anthOk) {
         $why2 = [];
         [$rc, $rraw, $rtext, $rmodel] = ai_ask($key, '한 단어로만 답하세요.', '안녕', 16, $MODEL_FILE, $why2);
         if ($rraw === false) {
@@ -674,10 +739,39 @@ if ($action === 'net') {
         : ($keyOk === false  ? '⚠️ AI 서버까지는 닿지만 키가 거부됩니다'
                              : '✅ AI 서버까지 닿습니다')));
 
+    // 이 NAS 에 AI 를 심을 만한지 (사양 · 도커)
+    $cpuName = ''; $cores = 0; $mem = 0;
+    if (is_readable('/proc/cpuinfo')) {
+        $ci = (string)@file_get_contents('/proc/cpuinfo');
+        if (preg_match('/model name\s*:\s*(.+)/', $ci, $m)) $cpuName = trim($m[1]);
+        $cores = max(1, substr_count($ci, 'processor'));
+        if ($cpuName === '' && preg_match('/Hardware\s*:\s*(.+)/', $ci, $m)) $cpuName = trim($m[1]);
+    }
+    if (is_readable('/proc/meminfo')) {
+        $mi = (string)@file_get_contents('/proc/meminfo');
+        if (preg_match('/MemTotal:\s*(\d+) kB/', $mi, $m)) $mem = (int)round($m[1] / 1048576);
+    }
+    $arch   = php_uname('m');
+    $docker = (is_dir('/var/packages/Docker') || is_dir('/var/packages/ContainerManager')
+               || is_file('/usr/local/bin/docker') || is_file('/usr/bin/docker'));
+    $x86    = (stripos($arch, 'x86_64') !== false || stripos($arch, 'amd64') !== false);
+    if (!$x86)              $canRun = '어렵습니다 — ARM 계열이라 대부분의 AI 프로그램이 안 돕니다';
+    elseif ($mem && $mem < 6) $canRun = '어렵습니다 — 메모리가 ' . $mem . 'GB 라 작은 모델도 버겁습니다';
+    elseif (!$docker)       $canRun = '가능할 수도 — 사양은 되는데 Container Manager(도커)가 안 보입니다';
+    elseif ($mem >= 12)     $canRun = '됩니다 — 도커로 올려서 쓸 만합니다 (느리지만 돌아갑니다)';
+    else                    $canRun = '작은 모델이면 됩니다 — 메모리 ' . $mem . 'GB 라 3~4B 정도까지';
+
     jout([
         'ok' => true,
         '한줄'   => $one,
         '어느 AI' => $vName,
+        '이 NAS 에 AI 심기' => [
+            'CPU'    => $cpuName !== '' ? ($cpuName . ' · ' . $cores . '코어') : $arch,
+            '메모리' => $mem ? ($mem . ' GB') : '(모름)',
+            '구조'   => $arch,
+            '도커'   => $docker ? '있음 (Container Manager)' : '없음',
+            '될까요' => $canRun,
+        ],
         '닿나'   => ['AI 서버(' . $host . ')' => $anthOk ? '예' : '아니오',
                      '다른 사이트(github)'     => $ghOk   ? '예' : '아니오'],
         '주소찾기(DNS)' => $dnsOk ? ('예 · ' . $dns) : '아니오 — 이름을 못 찾습니다',
@@ -691,8 +785,10 @@ if ($action === 'net') {
         ],
         'AI 서버에 해본 것'   => $anth,
         '다른 사이트에 해본 것' => $gh,
-        '키 확인' => $key === '' ? '키가 아직 없습니다' : ($keyCheck ?: '서버에 닿지 못해 확인하지 못했습니다'),
-        '실제로 물어보기' => $key === '' ? '키가 아직 없습니다' : ($real ?: '서버에 닿지 못해 해보지 못했습니다'),
+        '키 확인' => ($key === '' && $v !== 'local') ? '키가 아직 없습니다'
+                        : ($keyCheck ?: '서버에 닿지 못해 확인하지 못했습니다'),
+        '실제로 물어보기' => ($key === '' && $v !== 'local') ? '키가 아직 없습니다'
+                        : ($real ?: '서버에 닿지 못해 해보지 못했습니다'),
         '프록시설정' => [
             'http_proxy'  => getenv('http_proxy') ?: '(없음)',
             'https_proxy' => getenv('https_proxy') ?: '(없음)',
@@ -707,13 +803,15 @@ if ($action === 'check') {
     $v = ai_vendor($key);
     jout([
         'ok'        => true,
-        '키등록됨'  => $key !== '',
+        '키등록됨'  => ai_ready($key),
         '키앞자리'  => $key !== '' ? substr($key, 0, 7) . '…' : '',   // 확인용, 전체는 절대 안 보냅니다
-        '어느 AI'   => $key === '' ? '(키 없음)' : ai_vendor_name($v),
-        '모델'      => $key === '' ? ''
+        '어느 AI'   => ($key === '' && $v !== 'local') ? '(키 없음)' : ai_vendor_name($v),
+        '우리것주소' => $v === 'local' ? ai_local_conf()['url'] : '',
+        '모델'      => $v === 'local' ? (ai_local_conf()['model'] ?: '(그 서버의 기본 모델)')
+                        : ($key === '' ? ''
                         : ($v === 'openai'
                             ? (is_file($MODEL_FILE) ? trim((string)@file_get_contents($MODEL_FILE)) : '(고르는 중)')
-                            : 'claude-opus-5'),
+                            : 'claude-opus-5')),
         '쓴횟수'    => is_array($u) ? (int)($u['count'] ?? 0) : 0,
         '마지막'    => is_array($u) ? ($u['at'] ?? null) : null,
         '폴더쓰기'  => is_writable($DATA_DIR) ? '가능' : '불가',
@@ -725,15 +823,40 @@ if ($action === 'setkey') {
     $b = json_decode((string)file_get_contents('php://input'), true);
     $k = trim((string)($b['key'] ?? ''));
 
+    // 우리 것(로컬)은 키 없이 주소·모델만으로도 씁니다
+    if (strtolower(trim((string)($b['vendor'] ?? ''))) === 'local') {
+        $url   = trim((string)($b['url'] ?? ''));
+        $model = trim((string)($b['model'] ?? ''));
+        if ($url === '' || !preg_match('#^https?://#i', $url)) {
+            jout(['ok' => false, 'error' =>
+                '주소를 http:// 또는 https:// 로 적어주세요.\n예) http://192.168.0.50:11434'], 400);
+        }
+        if (!is_dir($DATA_DIR) && !@mkdir($DATA_DIR, 0775, true) && !is_dir($DATA_DIR)) {
+            jout(['ok' => false, 'error' => 'data 폴더를 만들지 못했습니다'], 500);
+        }
+        @file_put_contents($DATA_DIR . '/ai-local.json',
+            json_encode(['url' => $url, 'model' => $model, 'key' => $k], JSON_UNESCAPED_UNICODE));
+        @chmod($DATA_DIR . '/ai-local.json', 0640);
+        @file_put_contents($VENDOR_FILE, 'local');
+        // 키가 있으면 같이 저장, 없으면 빈 키 파일을 둡니다 (로컬은 키가 없어도 됩니다)
+        $php = "<?php\n// 이 파일은 대시보드가 만든 것입니다.\nreturn " . var_export($k, true) . ";\n";
+        @file_put_contents($KEY_FILE, $php);
+        @chmod($KEY_FILE, 0640);
+        jout(['ok' => true, '키등록됨' => true, '어느 AI' => ai_vendor_name('local'),
+              '주소' => $url, '모델' => $model,
+              '안내' => '우리 것(' . $url . ') 을 쓰도록 맞췄습니다']);
+    }
+
     if ($k === '') {                                   // 빈 값이면 지웁니다
         if (is_file($KEY_FILE)) @unlink($KEY_FILE);
         @unlink($MODEL_FILE);
         @unlink($VENDOR_FILE);
+        @unlink($DATA_DIR . '/ai-local.json');
         jout(['ok' => true, '키등록됨' => false, '안내' => '키를 지웠습니다']);
     }
     // 어느 회사 키인지 (화면에서 골라 보냅니다. 안 보내면 키 모양으로 짐작합니다)
     $vend = strtolower(trim((string)($b['vendor'] ?? '')));
-    if (!in_array($vend, ['openai', 'anthropic', 'manus'], true)) {
+    if (!in_array($vend, ['openai', 'anthropic', 'manus', 'local'], true)) {
         $vend = (strpos($k, 'sk-ant-') === 0) ? 'anthropic'
               : ((strpos($k, 'sk-') === 0) ? 'openai' : '');
     }
@@ -834,12 +957,39 @@ if ($action === 'taskcheck') {
           '확인필요' => (array)($parsed['확인필요'] ?? [])]);
 }
 
+/* 우리 것(로컬)에 어떤 모델이 올라가 있는지 물어봅니다 */
+if ($action === 'localmodels') {
+    $url = trim((string)($_GET['url'] ?? ''));
+    if ($url === '') { $c = ai_local_conf(); $url = $c['url']; }
+    if ($url === '' || !preg_match('#^https?://#i', $url)) {
+        jout(['ok' => false, 'error' => '주소를 http:// 로 적어주세요'], 400);
+    }
+    $why = [];
+    [$code, $raw] = ai_post(ai_local_url($url, 'models'), ['Content-Type: application/json'], null, $why);
+    if ($raw === false) {
+        jout(['ok' => false, 'error' =>
+            "그 주소에 닿지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $why)
+            . "\n\n· 주소와 포트를 확인해 주세요 (예: http://192.168.0.50:11434)\n"
+            . '· 그 컴퓨터가 켜져 있고 프로그램이 돌고 있어야 합니다'], 502);
+    }
+    $j = json_decode($raw, true);
+    $ids = [];
+    foreach (($j['data'] ?? $j['models'] ?? []) as $d) {
+        $id = is_array($d) ? ($d['id'] ?? $d['name'] ?? '') : (string)$d;
+        if ($id !== '') $ids[] = $id;
+    }
+    jout(['ok' => true, '모델들' => $ids, '응답코드' => $code,
+          '안내' => $ids ? (count($ids) . '개를 찾았습니다') : '모델 목록이 비어 있습니다']);
+}
+
 /* ---------------- 브랜드북 → 마스터프롬프트 ---------------- */
 if ($action === 'prompt') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
-    if ($key === '') {
+    if (!ai_ready($key)) {
         jout(['ok' => false, 'error' =>
-            'AI 키가 아직 없습니다. [🔑 AI 키 넣기] 로 한 번만 넣어주세요.'], 400);
+            'AI 를 아직 정하지 않았습니다.\n\n'
+            . '[🔑 AI 키 넣기] 로 키를 넣거나, [🖥 우리 것 쓰기] 로 '
+            . 'NAS·사무실 PC 에 올린 AI 주소를 알려주세요.'], 400);
     }
 
     $b     = json_decode((string)file_get_contents('php://input'), true);
@@ -940,9 +1090,11 @@ if ($action === 'prompt') {
 
 if ($action === 'summarize') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
-    if ($key === '') {
+    if (!ai_ready($key)) {
         jout(['ok' => false, 'error' =>
-            'AI 키가 아직 없습니다. 회의록 화면의 [🔑 AI 키 넣기] 로 한 번만 넣어주세요.'], 400);
+            'AI 를 아직 정하지 않았습니다.\n\n'
+            . '회의록 화면의 [🔑 AI 키 넣기] 로 키를 넣거나, [🖥 우리 것 쓰기] 로 '
+            . 'NAS·사무실 PC 에 올린 AI 주소를 알려주세요.'], 400);
     }
 
     $b     = json_decode((string)file_get_contents('php://input'), true);

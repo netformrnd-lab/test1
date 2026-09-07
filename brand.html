@@ -1086,7 +1086,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260907-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260907-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7240,9 +7240,11 @@ async function aiSummarize(id){
 
 /* ═══════════════ AI 없이 하기 (복사 → 붙여넣기) ═══════════════════
    API 는 프로그램이 AI 에게 말을 거는 통로라서 돈이 듭니다.
-   대신 사람이 다리를 놓으면 공짜입니다 — 쓰고 계신 챗GPT 창을 그대로 씁니다.
-     ① [📋 물어볼 문장 복사] → 챗GPT 창에 붙여넣기
-     ② 받은 답을 [📥 답 붙여넣기] 에 그대로 붙이면 대시보드가 나눠 담습니다
+   대신 사람이 다리를 놓으면 공짜입니다 — 쓰고 계신 클로드·챗GPT 창을 그대로 씁니다.
+   claude.ai 안에서는 키가 없어도 답해 주기 때문입니다 (구독 사용량으로 처리).
+     ① [🆓 클로드 창에서 하기] — 문장을 복사하고 클로드 창을 열어줍니다
+     ② 클로드 창에 Ctrl+V → 받은 답을 복사
+     ③ 돌아와서 [📥 답 붙여넣기] 에 붙이면 대시보드가 요약·결정사항·할 일로 나눠 담습니다
    ================================================================= */
 const MEET_ASK =
   '아래 회의 메모를 정리해 주세요. **JSON 하나만** 답하세요. 다른 말은 붙이지 마세요.\n\n'
@@ -7256,20 +7258,52 @@ const MEET_ASK =
   + '규칙: 메모에 없는 내용은 지어내지 마세요. 담당·기한은 적혀 있을 때만 채우세요.\n'
   + '존댓말로 짧고 담백하게 쓰세요.\n';
 
-async function copyMeetAsk(id){
-  const m = (data.meetings || []).find(x => x.id === id);
-  if(!m) return;
-  if(!String(m.body || '').trim()){ toast('⚠️ 회의 내용이 비어 있습니다'); return; }
-  const text = MEET_ASK
+function meetAskText(m){
+  return MEET_ASK
     + '\n--- 회의 메모 ---\n'
     + (m.brand ? '브랜드: ' + m.brand + '\n' : '')
     + (m.title ? '회의 제목: ' + m.title + '\n' : '')
     + (m.date  ? '날짜: ' + m.date + '\n' : '')
     + '\n' + m.body;
+}
+
+async function copyMeetAsk(id){
+  const m = (data.meetings || []).find(x => x.id === id);
+  if(!m) return;
+  if(!String(m.body || '').trim()){ toast('⚠️ 회의 내용이 비어 있습니다'); return; }
+  const text = meetAskText(m);
   try{
     await navigator.clipboard.writeText(text);
-    toast('📋 복사했습니다 — 챗GPT 창에 붙여넣고, 받은 답을 [📥 답 붙여넣기] 에 넣으세요');
+    toast('📋 복사했습니다 — AI 창에 붙여넣고, 받은 답을 [📥 답 붙여넣기] 에 넣으세요');
   }catch(e){ alert('복사가 막혀 있습니다. 아래 내용을 직접 복사해 주세요.\n\n' + text); }
+}
+
+/* ── 쓰고 계신 구독 그대로 쓰기 ────────────────────────────────
+   claude.ai 안에서는 키가 없어도 클로드가 답합니다 (구독 사용량으로).
+   그래서 ① 문장 복사 ② 클로드 창 열기 ③ 붙여넣을 자리 띄우기 를
+   한 번에 해줍니다. 돌아와서 Ctrl+V 한 번이면 끝입니다.
+   ※ 창 열기는 누른 그 순간에 해야 브라우저가 막지 않습니다.       */
+const CHAT_URL = 'https://claude.ai/new';
+
+async function chatHandoff(text, after){
+  window.open(CHAT_URL, '_blank', 'noopener');
+  let copied = false;
+  try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){}
+  if(after) after(copied);
+  if(copied){
+    toast('📋 복사했습니다 — 클로드 창에 Ctrl+V 로 붙여넣고, 받은 답을 가져오세요');
+  }else{
+    alert('클로드 창을 열었습니다.\n\n복사가 막혀 있어 문장을 아래에 띄웁니다. '
+      + '이것을 클로드 창에 붙여넣으세요.\n\n' + text);
+  }
+}
+
+/* 회의록 — 클로드 창으로 보내고, 답 붙여넣을 자리까지 열어둡니다 */
+async function askViaChat(id){
+  const m = (data.meetings || []).find(x => x.id === id);
+  if(!m) return;
+  if(!String(m.body || '').trim()){ toast('⚠️ 회의 내용이 비어 있습니다'); return; }
+  await chatHandoff(meetAskText(m), () => openPaste(id));
 }
 
 /* 붙여넣기 창 */
@@ -7310,7 +7344,7 @@ function savePaste(){
   if(!m){ closePaste(); return; }
   const got = readAiAnswer(pasteBox.text);
   if(!got || (!got.요약 && !got.결정사항.length && !got.할일.length)){
-    pasteBox.err = '읽을 내용이 없습니다. 챗GPT 가 준 답을 그대로 붙여넣어 주세요.';
+    pasteBox.err = '읽을 내용이 없습니다. AI 가 준 답을 그대로 붙여넣어 주세요.';
     render(); return;
   }
   m.ai = Object.assign(got, { 잘림:false, 만든때: new Date().toISOString(), 손으로:true });
@@ -7326,7 +7360,7 @@ function pastePanel(){
   const m = (data.meetings || []).find(x => x.id === pasteBox.id);
   return '<div class="modal-bg open" onclick="if(event.target===this)closePaste()">'
     + '<div class="modal" style="max-width:760px">'
-    + '<h3>📥 챗GPT 가 준 답 붙여넣기</h3>'
+    + '<h3>📥 AI 가 준 답 붙여넣기</h3>'
     + '<div class="fmeta" style="margin-bottom:8px">'
       + esc(m ? (m.title || '회의') : '') + ' · 받은 답을 <b>그대로</b> 붙여넣으세요. '
       + '앞뒤에 다른 말이 있어도 알아서 골라냅니다.</div>'
@@ -7369,7 +7403,7 @@ function viewMeetings(list){
             + 'title="NAS 나 사무실 PC 에 올린 AI 를 씁니다 (돈이 들지 않습니다)">'
             + '🖥 우리 것 쓰기</button>'
           + '<span class="hint">키를 넣으면 [✨ AI로 정리] 가 한 번에 해 줍니다. '
-          + '키가 없어도 <b>[📋 물어볼 문장 복사] → 챗GPT 창 → [📥 답 붙여넣기]</b> 로 '
+          + '키가 없어도 <b>[🆓 클로드 창에서 하기] → 붙여넣기 → [📥 답 붙여넣기]</b> 로 '
           + '똑같이 쓰실 수 있습니다 (돈 안 듭니다)</span>'
         : '<button class="btn" onclick="aiSetKey()">🔑 AI 키 바꾸기</button>'
           + '<button class="btn sm" onclick="aiSetLocal()" '
@@ -7416,11 +7450,15 @@ function viewMeetings(list){
               ? ('⏳ 정리하는 중… ' + (aiState.wait != null
                   ? '(' + aiState.wait + '초 지남 · 마누스는 1~3분 걸립니다)' : '(10~30초)'))
               : (ai ? '↻ 다시 정리' : '✨ AI로 정리')) + '</button>'
+        + '<button class="btn sm" onclick="askViaChat(\'' + jsq(m.id) + '\')" '
+          + 'title="문장을 복사하고 클로드 창을 엽니다. 키도 크레딧도 필요 없습니다 '
+            + '(쓰고 계신 구독으로 처리됩니다)">'
+          + '🆓 클로드 창에서 하기</button>'
         + '<button class="btn sm" onclick="copyMeetAsk(\'' + jsq(m.id) + '\')" '
-          + 'title="챗GPT 창에 붙여넣을 문장으로 복사합니다 (AI 키 없이도 됩니다)">'
-          + '📋 물어볼 문장 복사</button>'
+          + 'title="물어볼 문장만 복사합니다 (창은 열지 않습니다)">'
+          + '📋 문장만 복사</button>'
         + '<button class="btn sm" onclick="openPaste(\'' + jsq(m.id) + '\')" '
-          + 'title="챗GPT 가 준 답을 붙여넣으면 요약·결정사항·할 일로 나눠 담습니다">'
+          + 'title="AI 가 준 답을 붙여넣으면 요약·결정사항·할 일로 나눠 담습니다">'
           + '📥 답 붙여넣기</button>'
         + (ai && ai.만든때
             ? '<span class="fmeta">' + esc(sinceText(ai.만든때)) + ' 정리함</span>' : '')
@@ -8053,7 +8091,7 @@ async function bookToPrompt(){
       if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
     }, 60);
     toast(out['잘림'] || cut
-      ? '✨ 만들었습니다 — 다만 브랜드북이 길어 앞부분만 보냈습니다 (전체로 하려면 [📋 브랜드북 복사])'
+      ? '✨ 만들었습니다 — 다만 브랜드북이 길어 앞부분만 보냈습니다 (전체로 하려면 [🆓 클로드 창에서 하기])'
       : '✨ 브랜드북으로 마스터프롬프트를 만들었습니다');
   }catch(e){
     const msg = apiErrText(e);
@@ -8062,7 +8100,7 @@ async function bookToPrompt(){
     if(/연결하지 못|curl|wget|file_get_contents|시도한 방법/.test(msg)){
       alert('만들지 못했습니다.\n\nNAS 가 인터넷으로 나가지 못하고 있습니다.\n'
         + '어디가 막혔는지 바로 확인해 드리겠습니다.\n\n'
-        + '(그동안에는 [📋 브랜드북 복사] 로 밖에서 만들어 붙여넣으셔도 됩니다)');
+        + '(그동안에는 [🆓 클로드 창에서 하기] 로 돈 안 들이고 하실 수 있습니다)');
       openNetCheck();
     }else{
       alert('만들지 못했습니다.\n\n' + msg);
@@ -8087,9 +8125,13 @@ function viewBook(b){
         ? '<button class="btn" onclick="aiSetKey()">🔑 AI 키 넣기</button>'
         : '<span class="chip on" title="지금 쓰는 AI">🤖 '
           + esc(((aiState.info || {})['어느 AI']) || 'AI') + '</span>')
-    + '<button class="btn" onclick="copyBook()" '
-      + 'title="AI 가 막혀 있을 때 — 복사해서 클로드·챗GPT 에 붙여넣고 받은 글을 아래에 넣으세요">'
-      + '📋 브랜드북 복사</button>'
+    + '<button class="btn" onclick="bookViaChat()" '
+      + 'title="브랜드북을 복사하고 클로드 창을 엽니다. 키도 크레딧도 필요 없습니다 '
+        + '(쓰고 계신 구독으로 처리됩니다)">'
+      + '🆓 클로드 창에서 하기</button>'
+    + '<button class="btn sm" onclick="copyBook()" '
+      + 'title="브랜드북만 복사합니다 (창은 열지 않습니다)">'
+      + '📋 문장만 복사</button>'
     + (aiState.netFail
         ? '<button class="btn" onclick="openNetCheck()" '
           + 'title="실제로 한 번 물어보고, 안 되면 무엇 때문인지 알려줍니다">🩺 AI 점검</button>' : '')
@@ -9477,17 +9519,35 @@ function netPanel(){
 }
 
 /* 브랜드북을 글자로 복사합니다 — AI 가 막혀 있을 때 밖에서 쓰시라고 */
-async function copyBook(){
-  const b = currentBrand(); if(!b) return;
-  if(bookFilled(b) < 1){ toast('⚠️ 브랜드북을 먼저 채워주세요'); return; }
-  const text = '아래는 「' + b.name + '」 브랜드북입니다.\n'
+function bookAskText(b){
+  return '아래는 「' + b.name + '」 브랜드북입니다.\n'
     + '이 내용을 바탕으로, 이 브랜드의 글을 쓸 때 쓸 마스터프롬프트를 한국어로 써 주세요.\n'
     + '없는 내용은 지어내지 말고 「브랜드북에 아직 없음」 이라고 적어주세요.\n\n'
     + bookAsText(b);
+}
+
+async function copyBook(){
+  const b = currentBrand(); if(!b) return;
+  if(bookFilled(b) < 1){ toast('⚠️ 브랜드북을 먼저 채워주세요'); return; }
+  const text = bookAskText(b);
   try{
     await navigator.clipboard.writeText(text);
-    toast('📋 복사했습니다 — 클로드·챗GPT 대화창에 붙여넣고, 받은 글을 아래 프롬프트 칸에 넣으세요');
+    toast('📋 복사했습니다 — AI 대화창에 붙여넣고, 받은 글을 아래 프롬프트 칸에 넣으세요');
   }catch(e){ alert('복사가 막혀 있습니다. 아래 내용을 직접 복사해 주세요.\n\n' + text); }
+}
+
+/* 브랜드북 — 클로드 창으로 보내고, 프롬프트 칸으로 내려다 놓습니다 */
+async function bookViaChat(){
+  const b = currentBrand(); if(!b) return;
+  if(bookFilled(b) < 1){ toast('⚠️ 브랜드북을 먼저 채워주세요'); return; }
+  await chatHandoff(bookAskText(b), () => {
+    setTimeout(() => {
+      const el = document.getElementById('promptSec');
+      if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+      const box = document.getElementById('promptBox');
+      if(box) box.focus();
+    }, 80);
+  });
 }
 
 /* ========================= 시작 ========================= */

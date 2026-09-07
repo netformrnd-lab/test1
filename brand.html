@@ -1019,6 +1019,11 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="em">💳</span><span>마케팅 비용</span>
         <span class="cnt" id="costCnt"></span>
       </button>
+      <button class="brand-item home-item" id="blogBtn" onclick="goView('blog')">
+        <span class="bar" style="background:var(--green)"></span>
+        <span class="em">✍️</span><span>블로그 발행</span>
+        <span class="cnt" id="blogCnt"></span>
+      </button>
     </div>
   </aside>
   <main id="main"></main>
@@ -1081,7 +1086,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260907-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260907-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1675,7 +1680,8 @@ function render(){
   const nas  = document.getElementById('nasBtn');
   if(home) home.classList.toggle('on', view === 'home' && !searchQuery && !currentBrandId);
   if(nas)  nas.classList.toggle('on',  view === 'nas'  && !searchQuery);
-  [['meetBtn','meetings'],['calBtn','calendar'],['costBtn','costs']].forEach(([id, v]) => {
+  [['meetBtn','meetings'],['calBtn','calendar'],['costBtn','costs'],
+   ['blogBtn','blog']].forEach(([id, v]) => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('on', view === v && !searchQuery);
   });
@@ -1685,6 +1691,8 @@ function render(){
   if(cc) cc.textContent = (data.events || []).length || '';
   const sc = document.getElementById('costCnt');
   if(sc) sc.textContent = data.brands.reduce((a, b) => a + (b.costs || []).length, 0) || '';
+  const bc = document.getElementById('blogCnt');
+  if(bc) bc.textContent = blog.loaded ? (blog.rows.length || '') : '';
   const up = document.getElementById('usersLayer');
   if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel() + pastePanel() + trashPanel();
   if(searchQuery.trim()) renderSearch();
@@ -1692,6 +1700,7 @@ function render(){
   else if(view === 'meetings') renderMeetings();
   else if(view === 'calendar') renderCalendar();
   else if(view === 'costs') renderCosts();
+  else if(view === 'blog') renderBlog();
   else if(!currentBrandId) renderHome();
   else renderBrand();
   restoreUI(snap);
@@ -3868,7 +3877,8 @@ function renderBrand(){
     links: b.links.length,
     channels: (b.channels || []).length,
     inquiries: (inquiryCache.byBrand[b.name] || []).length,
-    book: bookFilled(b) + ((b.masterPrompt || '').trim() ? 1 : 0)
+    book: bookFilled(b) + ((b.masterPrompt || '').trim() ? 1 : 0),
+    blog: blog.loaded ? blogOf(b).length : 0
   };
   const tabDefs = [
     ['inquiries','📞 문의'],
@@ -3878,6 +3888,7 @@ function renderBrand(){
     ['links','🔗 바로가기'],
     ['channels','📣 채널'],
     ['assets','📁 자료'],
+    ['blog','✍️ 블로그'],
     ['book','📕 브랜드북 · 프롬프트']
   ];
 
@@ -3916,6 +3927,7 @@ function renderBrand(){
   else if(currentTab === 'costs'){          // 예전 주소로 들어온 경우 — 업무로 보냅니다
     goView('costs'); return;
   }
+  else if(currentTab === 'blog') body.innerHTML = viewBlogBrand(b);
   else if(currentTab === 'book') body.innerHTML = viewBook(b);
   else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
   else if(currentTab === 'links') body.innerHTML = viewLinks(b);
@@ -5442,6 +5454,288 @@ function viewCosts(b){
       + '1회성은 달마다 계산에 넣지 않고 「올해 누적」 에만 들어갑니다. '
       + '달러로 적은 것은 환율 ' + fxRate().toLocaleString('ko-KR') + '원으로 바꿔 셉니다.'
     + '</div>';
+}
+
+/* ═══════════════ 블로그 발행 ═══════════════════════════════════════
+   따로 쓰던 「블로그 포스팅 대시보드」에 쌓아 온 발행 기록을 여기로 끌어옵니다.
+   글을 새로 넣고 고치는 것은 원래 도구에서 그대로 하시고,
+   여기서는 어떤 브랜드로 몇 건이 나갔는지 한자리에서 봅니다.
+
+   받아오는 길: 화면 → NAS 의 blog.php → (인터넷) 원본 → data/blog-posts.json
+   사무실 브라우저가 밖으로 못 나가도 되게, NAS 가 대신 받아 담아 둡니다.
+   ================================================================= */
+const blog = { busy:false, loaded:false, off:false, error:'', warn:'',
+               rows:[], byBrand:{}, byMonth:{}, at:null, site:'',
+               brand:'', month:'' };
+
+/* 브랜드 이름은 띄어쓰기·대소문자가 달라도 같은 것으로 봅니다 */
+function blogNorm(s){ return String(s == null ? '' : s).replace(/\s/g, '').toLowerCase(); }
+
+/* 이 브랜드로 나간 글만 */
+function blogOf(b){
+  const key = blogNorm(b && b.name);
+  if(!key) return [];
+  return blog.rows.filter(r => blogNorm(r.brand) === key);
+}
+
+/* 이번 달에 나간 건수 */
+function blogMonthCount(rows, ym){
+  const m = ym || todayStr().slice(0, 7);
+  return (rows || []).filter(r => String(r.publishedAt || '').slice(0, 7) === m).length;
+}
+
+/* 지난 달 (YYYY-MM) */
+function lastYm(){
+  const d = new Date();
+  d.setDate(1); d.setMonth(d.getMonth() - 1);
+  return todayStr(d).slice(0, 7);
+}
+
+async function loadBlog(force){
+  if(blog.busy) return;
+  blog.busy = true;
+  blog.error = '';
+  if(force) blog.warn = '';
+  render();
+  try{
+    const out = await apiJson('blog.php?action=' + (force ? 'refresh' : 'list')
+      + '&t=' + Date.now());
+    blog.rows    = out['글'] || [];
+    blog.byBrand = out['브랜드별'] || {};
+    blog.byMonth = out['달별'] || {};
+    blog.at      = out['받아온때'] || null;
+    blog.site    = out['주소'] || '';
+    blog.warn    = out['문제'] || '';
+    blog.off     = !!out['끔'];
+    blog.loaded  = true;
+  }catch(e){ blog.error = apiErrText(e); }
+  blog.busy = false;
+  render();
+}
+
+/* 화면을 열 때 아직 안 받아왔으면 한 번 받아옵니다 (누르면 다시 받습니다).
+   그리는 도중에 부르는 자리라, 바로 받지 않고 그리기가 끝난 뒤에 받습니다. */
+function blogEnsure(){
+  if(blog.loaded || blog.busy || blog.error) return;
+  blog.busy = true;                       // 「받아오는 중」 이 먼저 보이게
+  setTimeout(() => { blog.busy = false; loadBlog(false); }, 0);
+}
+
+function setBlogBrand(v){ blog.brand = v; render(); }
+function setBlogMonth(v){ blog.month = (blog.month === v ? '' : v); render(); }
+function blogClear(){ blog.brand = ''; blog.month = ''; render(); }
+
+/* 받아온 때를 「3분 전」 처럼 */
+function blogWhen(){
+  if(!blog.at) return '아직 받아온 적 없음';
+  const t = new Date(blog.at);
+  if(isNaN(t)) return String(blog.at);
+  const m = Math.floor((Date.now() - t.getTime()) / 60000);
+  if(m < 1)   return '방금 받아옴';
+  if(m < 60)  return m + '분 전에 받아옴';
+  if(m < 1440) return Math.floor(m / 60) + '시간 전에 받아옴';
+  return t.toLocaleDateString('ko-KR') + ' 에 받아옴';
+}
+
+/* 맨 위 줄 — 새로 받아오기 · 원래 도구 열기 */
+function blogBar(){
+  return '<div class="sec-bar" style="margin-bottom:12px">'
+    + '<button class="btn primary" onclick="loadBlog(true)"'
+      + (blog.busy ? ' disabled' : '') + '>'
+      + (blog.busy ? '받아오는 중…' : '↻ 새로 받아오기') + '</button>'
+    + (blog.site
+        ? '<a class="btn" href="' + esc(blog.site) + '" target="_blank" rel="noopener">'
+          + '✍️ 글 등록하러 가기 ↗</a>'
+        : '')
+    + '<span class="hint">' + esc(blogWhen())
+      + ' · 글을 넣고 고치는 것은 원래 도구에서 합니다</span>'
+    + '</div>';
+}
+
+/* 못 받아왔을 때 보여줄 안내 */
+function blogWarnBox(){
+  if(blog.error){
+    return '<div class="gonecard">⚠️ 블로그 기록을 불러오지 못했습니다.<br>'
+      + '<span class="fmeta">' + esc(blog.error) + '</span></div>';
+  }
+  if(blog.warn){
+    return '<div class="gonecard">⚠️ 새로 받아오지 못해 예전에 받아둔 것을 보여줍니다.<br>'
+      + '<span class="fmeta">' + esc(blog.warn) + '</span></div>';
+  }
+  return '';
+}
+
+/* 글 목록 표 */
+function blogTable(rows, showBrand){
+  if(!rows.length){
+    return '<div class="empty">해당하는 글이 없습니다.</div>';
+  }
+  const cap  = 300;
+  const show = rows.slice(0, cap);
+  const cell = v => esc(v || '') || '<span class="zero">–</span>';
+  return '<div class="vz-tw"><table class="ymtable"><thead><tr>'
+    + '<th>발행일</th>'
+    + (showBrand ? '<th>브랜드</th>' : '')
+    + '<th>제목</th><th>작성자</th><th>주제</th><th>키워드</th><th>업무</th>'
+    + '</tr></thead><tbody>'
+    + show.map(r => '<tr>'
+        + '<td>' + cell(r.publishedAt) + '</td>'
+        + (showBrand ? '<td>' + cell(r.brand) + '</td>' : '')
+        + '<td>' + (isUrl(r.link)
+            ? '<a class="lnk" href="' + esc(r.link) + '" target="_blank" rel="noopener">'
+              + (esc(r.title) || '(제목 없음)') + ' ↗</a>'
+            : (esc(r.title) || '<span class="zero">(제목 없음)</span>')) + '</td>'
+        + '<td>' + cell(r.author) + '</td>'
+        + '<td>' + cell(r.topic) + '</td>'
+        + '<td>' + cell(r.keyword) + '</td>'
+        + '<td>' + cell(r.worktype) + '</td>'
+        + '</tr>').join('')
+    + '</tbody></table></div>'
+    + (rows.length > cap
+        ? '<div class="fmeta" style="margin-top:8px">최근 ' + cap + '건만 보여줍니다 (전체 '
+          + rows.length + '건). 브랜드나 달을 골라 좁혀 보세요.</div>'
+        : '');
+}
+
+/* 브랜드 안의 「✍️ 블로그」 탭 */
+function viewBlogBrand(b){
+  blogEnsure();
+  if(!blog.loaded && blog.busy){
+    return '<div class="empty">블로그 기록을 받아오는 중입니다…</div>';
+  }
+  const warn = blogWarnBox();
+  if(blog.off){
+    return warn + '<div class="empty">블로그 연결을 꺼두었습니다.</div>';
+  }
+  const rows  = blogOf(b);
+  const now   = blogMonthCount(rows);
+  const prev  = blogMonthCount(rows, lastYm());
+  const last  = rows.length ? rows[0].publishedAt : '';
+  const who   = {};
+  rows.forEach(r => { const k = r.author || '(작성자 없음)'; who[k] = (who[k] || 0) + 1; });
+  const names = Object.keys(who).sort((x, y) => who[y] - who[x]);
+
+  const tiles = '<div class="stats">'
+    + '<div class="stat"><div class="lb">✍️ 이번 달</div><div class="val">' + now + '건</div>'
+      + '<div class="sub">' + esc(todayStr().slice(0, 7)) + ' 에 나간 글</div></div>'
+    + '<div class="stat"><div class="lb">📅 지난 달</div><div class="val">' + prev + '건</div>'
+      + '<div class="sub">' + esc(lastYm()) + '</div></div>'
+    + '<div class="stat"><div class="lb">📚 지금까지</div><div class="val">' + rows.length + '건</div>'
+      + '<div class="sub">' + (last ? '마지막 발행 ' + esc(last) : '아직 없습니다') + '</div></div>'
+    + '</div>';
+
+  const byWho = names.length
+    ? '<div class="fmeta" style="margin:10px 0 4px">작성자 · '
+      + names.map(n => esc(n) + ' ' + who[n] + '건').join(' / ') + '</div>'
+    : '';
+
+  return blogBar() + warn + tiles + byWho + blogTable(rows, false);
+}
+
+/* 업무 → ✍️ 블로그 발행 */
+function renderBlog(){
+  blogEnsure();
+
+  const head = '<h2 class="page-h">✍️ 블로그 발행</h2>'
+    + '<div class="page-sub">「블로그 포스팅 대시보드」에 쌓인 발행 기록을 그대로 가져와 봅니다. '
+      + '누가 어떤 브랜드로 몇 건을 썼는지 한자리에서 확인하세요</div>';
+  const box = h => { document.getElementById('main').innerHTML =
+    '<div class="panel"><div class="tabbody">' + head + h + '</div></div>'; };
+
+  if(!blog.loaded && blog.busy){
+    box('<div class="empty">블로그 기록을 받아오는 중입니다…</div>');
+    return;
+  }
+  if(!blog.loaded && blog.error){
+    box(blogBar() + blogWarnBox());
+    return;
+  }
+  if(blog.off){
+    box(blogBar() + '<div class="empty">블로그 연결을 꺼두었습니다.</div>');
+    return;
+  }
+
+  const all   = blog.rows;
+  const ymNow = todayStr().slice(0, 7);
+  const ymPre = lastYm();
+
+  // 브랜드로 좁히기 — 우리 대시보드 브랜드를 앞에, 그 밖의 이름은 뒤에
+  const keys  = Object.keys(blog.byBrand);
+  const mine  = data.brands.filter(b => keys.some(k => blogNorm(k) === blogNorm(b.name)))
+                           .map(b => b.name);
+  const rest  = keys.filter(k => !mine.some(n => blogNorm(n) === blogNorm(k)))
+                    .sort((x, y) => blog.byBrand[y] - blog.byBrand[x]);
+  const cnt   = n => all.filter(r => blogNorm(r.brand) === blogNorm(n)).length;
+  const pick  = '<div class="sec-bar" style="margin-bottom:12px">'
+    + '<span class="fmeta">브랜드로 보기</span>'
+    + '<button class="btn sm' + (blog.brand ? '' : ' primary') + '" '
+      + 'onclick="setBlogBrand(\'\')">전체 ' + all.length + '</button>'
+    + mine.concat(rest).map(n => '<button class="btn sm'
+        + (blogNorm(blog.brand) === blogNorm(n) ? ' primary' : '') + '" '
+        + 'onclick="setBlogBrand(\'' + jsq(n) + '\')">' + esc(n)
+        + ' <b>' + cnt(n) + '</b></button>').join('')
+    + '</div>';
+
+  // 좁힌 결과
+  let rows = all;
+  if(blog.brand) rows = rows.filter(r => blogNorm(r.brand) === blogNorm(blog.brand));
+  if(blog.month) rows = rows.filter(r => String(r.publishedAt || '').slice(0, 7) === blog.month);
+
+  const scope  = blog.brand ? all.filter(r => blogNorm(r.brand) === blogNorm(blog.brand)) : all;
+  const people = {};
+  scope.forEach(r => { const k = r.author || '(작성자 없음)'; people[k] = (people[k] || 0) + 1; });
+  const names  = Object.keys(people).sort((x, y) => people[y] - people[x]);
+
+  const tiles = '<div class="stats">'
+    + '<div class="stat"><div class="lb">✍️ 이번 달</div>'
+      + '<div class="val">' + blogMonthCount(scope, ymNow) + '건</div>'
+      + '<div class="sub">' + esc(ymNow) + '</div></div>'
+    + '<div class="stat"><div class="lb">📅 지난 달</div>'
+      + '<div class="val">' + blogMonthCount(scope, ymPre) + '건</div>'
+      + '<div class="sub">' + esc(ymPre) + '</div></div>'
+    + '<div class="stat"><div class="lb">📚 지금까지</div>'
+      + '<div class="val">' + scope.length + '건</div>'
+      + '<div class="sub">' + (blog.brand ? esc(blog.brand) : '브랜드 '
+        + Object.keys(blog.byBrand).length + '곳') + '</div></div>'
+    + '<div class="stat"><div class="lb">🙋 쓴 사람</div>'
+      + '<div class="val">' + names.length + '명</div>'
+      + '<div class="sub">' + (names.length
+          ? esc(names[0]) + ' ' + people[names[0]] + '건이 가장 많습니다'
+          : '아직 없습니다') + '</div></div>'
+    + '</div>';
+
+  // 달마다 몇 건 (누르면 그 달만 봅니다)
+  const byMonth = {};
+  scope.forEach(r => {
+    const m = String(r.publishedAt || '').slice(0, 7);
+    if(m) byMonth[m] = (byMonth[m] || 0) + 1;
+  });
+  const ms  = Object.keys(byMonth).sort().reverse().slice(0, 12);
+  const max = ms.length ? Math.max.apply(null, ms.map(m => byMonth[m])) : 1;
+  const bars = ms.length
+    ? '<div class="vz-box" style="margin:14px 0">'
+      + '<div class="vz-head">📅 달마다 몇 건 (눌러서 그 달만 보기)</div>'
+      + ms.map(m => '<div class="bar-row" style="cursor:pointer" '
+          + 'onclick="setBlogMonth(\'' + jsq(m) + '\')">'
+          + '<span class="bl" style="width:64px' + (blog.month === m ? ';font-weight:700' : '')
+            + '">' + esc(m) + '</span>'
+          + '<span class="bt"><span class="bf" style="width:'
+            + Math.round(byMonth[m] / max * 100) + '%;background:'
+            + (blog.month === m ? 'var(--accent)' : 'var(--green)') + '"></span></span>'
+          + '<span class="bv">' + byMonth[m] + '건</span></div>').join('')
+      + '</div>'
+    : '';
+
+  const chosen = (blog.brand || blog.month)
+    ? '<div class="sec-bar" style="margin-bottom:10px">'
+      + '<span class="fmeta">보고 있는 것 · '
+        + esc(blog.brand || '전체 브랜드') + (blog.month ? ' · ' + esc(blog.month) : '')
+        + ' · ' + rows.length + '건</span>'
+      + '<button class="btn sm" onclick="blogClear()">전체로 되돌리기</button>'
+      + '</div>'
+    : '';
+
+  box(blogBar() + blogWarnBox() + pick + tiles + bars + chosen + blogTable(rows, !blog.brand));
 }
 
 function viewLinks(b){

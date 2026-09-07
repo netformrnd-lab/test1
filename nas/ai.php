@@ -229,7 +229,15 @@ function ai_local_url($base, $what = 'chat') {
      ② 화면이 몇 초마다 「끝났나요?」 물어봅니다
    PHP 가 몇 분씩 붙잡고 있으면 NAS 가 요청을 끊어버리기 때문입니다.
    ================================================================= */
-const MANUS_API = 'https://api.manus.ai/v1/tasks';
+const MANUS_BASE = 'https://api.manus.ai';
+const MANUS_API  = MANUS_BASE . '/v1/tasks';      // 예전 방식 (아직 되는 계정이 있습니다)
+
+/** 어느 방식이 되는지 적어둡니다 ('2' = 새 방식, '1' = 예전 방식) */
+function manus_ver() {
+    $f = __DIR__ . '/data/ai-manus-ver.txt';
+    return (is_file($f) && trim((string)@file_get_contents($f)) === '1') ? 1 : 2;
+}
+function manus_ver_set($v) { @file_put_contents(__DIR__ . '/data/ai-manus-ver.txt', (string)$v); }
 
 function manus_head($key, $which = 0) {
     // 회사마다 키를 싣는 자리가 다릅니다. 거절당하면 다음 방법으로 한 번 더 해봅니다.
@@ -241,6 +249,12 @@ function manus_head($key, $which = 0) {
     return ['Content-Type: application/json',
             'x-manus-api-key: ' . $key,
             'API_KEY: ' . $key];
+}
+
+/** 키를 싣는 자리 중 되는 쪽 ('1' = Authorization: Bearer) */
+function manus_head_pref() {
+    $f = __DIR__ . '/data/ai-manus-head.txt';
+    return (is_file($f) && trim((string)@file_get_contents($f)) === '1') ? 1 : 0;
 }
 
 /* 마누스는 한 번에 받는 글 길이에 한도가 있습니다 (5000 토큰).
@@ -260,16 +274,30 @@ function manus_fit($text, $limit = MANUS_LIMIT, &$cut = false) {
 function manus_start($key, $prompt, &$cut = false, $limit = MANUS_LIMIT) {
     $why = [];
     $prompt = manus_fit($prompt, $limit, $cut);
-    $body = json_encode(['prompt' => $prompt], JSON_UNESCAPED_UNICODE);
-    [$code, $raw] = ai_post(MANUS_API, manus_head($key, manus_head_pref()), $body, $why);
-    // 키를 싣는 자리가 다를 수 있습니다 — 거절당하면 다른 방법으로 한 번 더
-    if ($raw !== false && ($code === 401 || $code === 403)) {
-        [$code2, $raw2] = ai_post(MANUS_API, manus_head($key, manus_head_pref() ? 0 : 1), $body, $why);
-        if ($raw2 !== false && $code2 !== 401 && $code2 !== 403) {
-            @file_put_contents(__DIR__ . '/data/ai-manus-head.txt', '1');   // 되는 방법을 적어둡니다
-            $code = $code2; $raw = $raw2;
+    $body   = json_encode(['prompt' => $prompt], JSON_UNESCAPED_UNICODE);
+    $head   = manus_head($key, manus_head_pref());
+
+    // 새 방식(v2) 과 예전 방식(v1) 중 되는 쪽을 씁니다
+    $tries = manus_ver() === 1
+        ? [[1, MANUS_API], [2, MANUS_BASE . '/v2/task.create']]
+        : [[2, MANUS_BASE . '/v2/task.create'], [1, MANUS_API]];
+
+    $code = 0; $raw = false; $ver = manus_ver();
+    foreach ($tries as [$v, $url]) {
+        [$code, $raw] = ai_post($url, $head, $body, $why);
+        if ($raw === false) continue;
+        // 키를 싣는 자리가 다를 수 있습니다 — 거절당하면 다른 방법으로 한 번 더
+        if ($code === 401 || $code === 403) {
+            [$c2, $r2] = ai_post($url, manus_head($key, manus_head_pref() ? 0 : 1), $body, $why);
+            if ($r2 !== false && $c2 !== 401 && $c2 !== 403) {
+                @file_put_contents(__DIR__ . '/data/ai-manus-head.txt', manus_head_pref() ? '0' : '1');
+                $code = $c2; $raw = $r2;
+            }
         }
+        if ($code >= 200 && $code < 300) { $ver = $v; break; }
+        if ($code !== 404 && $code !== 405) break;      // 주소 문제가 아니면 그대로 알려줍니다
     }
+
     // 「너무 길다」 고 하면 그 한도에 맞춰 한 번 더 줄여서 보냅니다
     if ($raw !== false && $code >= 400) {
         $msg = ai_errmsg($raw);
@@ -277,285 +305,132 @@ function manus_start($key, $prompt, &$cut = false, $limit = MANUS_LIMIT) {
             $newLimit = max(800, (int)round((int)$m[1] * 0.75));
             if ($newLimit < $limit) {
                 $prompt2 = manus_fit($prompt, $newLimit, $cut);
-                $body2 = json_encode(['prompt' => $prompt2], JSON_UNESCAPED_UNICODE);
-                [$code, $raw] = ai_post(MANUS_API, manus_head($key, manus_head_pref()), $body2, $why);
+                $body2   = json_encode(['prompt' => $prompt2], JSON_UNESCAPED_UNICODE);
+                $url2    = $ver === 1 ? MANUS_API : MANUS_BASE . '/v2/task.create';
+                [$code, $raw] = ai_post($url2, $head, $body2, $why);
             }
         }
     }
     if ($raw === false) return [$code, false, '', $why];
-    $j = json_decode($raw, true);
+
+    $j  = json_decode($raw, true);
     $id = '';
     foreach (['task_id', 'taskId', 'id'] as $k) {
         if (!empty($j[$k]) && is_string($j[$k])) { $id = $j[$k]; break; }
     }
-    if ($id === '' && !empty($j['data']) && is_array($j['data'])) {
-        foreach (['task_id', 'taskId', 'id'] as $k) {
-            if (!empty($j['data'][$k])) { $id = (string)$j['data'][$k]; break; }
-        }
-    }
-    return [$code, $raw, $id, $why];
-}
-
-/** 마누스 답에서 글자만 뽑아냅니다 (모양이 조금씩 달라도 되게) */
-function manus_text($j) {
-    $out = '';
-    $walk = function ($node) use (&$walk, &$out) {
-        if (is_string($node)) return;
-        if (!is_array($node)) return;
-        // { type:"output_text"|"text", text:"…" }
-        if (isset($node['text']) && is_string($node['text'])
-            && (!isset($node['type']) || strpos((string)$node['type'], 'text') !== false)) {
-            $out .= ($out === '' ? '' : "\n") . $node['text'];
-        }
-        if (isset($node['content']) && is_string($node['content'])) {
-            $out .= ($out === '' ? '' : "\n") . $node['content'];
-        }
-        foreach ($node as $v) if (is_array($v)) $walk($v);
-    };
-    // 조수(assistant)가 한 말만 있으면 그것부터
-    $pref = [];
-    foreach ((array)($j['output'] ?? $j['messages'] ?? []) as $m) {
-        if (is_array($m) && (($m['role'] ?? '') === 'assistant')) $pref[] = $m;
-    }
-    $walk($pref ?: $j);
-    return trim($out);
-}
-
-/** 끝났는지 물어봅니다 — [상태, 글, 응답코드, 원문] */
-function manus_head_pref() {
-    $f = __DIR__ . '/data/ai-manus-head.txt';
-    return (is_file($f) && trim((string)@file_get_contents($f)) === '1') ? 1 : 0;
-}
-
-function manus_poll($key, $id) {
-    $why = [];
-    $url = MANUS_API . '/' . rawurlencode($id);
-    [$code, $raw] = ai_post($url, manus_head($key, manus_head_pref()), null, $why);
-    if ($raw !== false && ($code === 401 || $code === 403)) {
-        [$c2, $r2] = ai_post($url, manus_head($key, manus_head_pref() ? 0 : 1), null, $why);
-        if ($r2 !== false && $c2 !== 401 && $c2 !== 403) { $code = $c2; $raw = $r2; }
-    }
-    if ($raw === false) return ['모름', '', $code, false];
-    $j = json_decode($raw, true);
-    $st = strtolower((string)($j['status'] ?? $j['state'] ?? ($j['data']['status'] ?? '')));
-    $text = manus_text(is_array($j) ? $j : []);
-    if ($st === 'completed' || $st === 'succeeded' || $st === 'success' || $st === 'finished') {
-        return ['끝', $text, $code, $raw];
-    }
-    if ($st === 'failed' || $st === 'error' || $st === 'cancelled' || $st === 'canceled') {
-        return ['실패', $text, $code, $raw];
-    }
-    if ($st === '' && $text !== '') return ['끝', $text, $code, $raw];   // 상태가 없어도 글이 왔으면
-    return ['하는 중', $text, $code, $raw];
-}
-
-/** OpenAI 는 모델 이름이 자주 바뀝니다. 계정이 실제로 쓸 수 있는 것 중에서 고릅니다. */
-function openai_model($key, $modelFile, $force = false) {
-    if (!$force && is_file($modelFile)) {
-        $m = trim((string)@file_get_contents($modelFile));
-        if ($m !== '') return $m;
-    }
-    $prefer = ['gpt-5.1', 'gpt-5', 'gpt-4.1', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4o-mini'];
-    $why = [];
-    [$code, $raw] = ai_post('https://api.openai.com/v1/models',
-        ['Authorization: Bearer ' . $key], null, $why);
-    $pick = '';
-    if ($raw !== false && $code === 200) {
-        $j = json_decode($raw, true);
-        $ids = [];
-        foreach (($j['data'] ?? []) as $d) if (!empty($d['id'])) $ids[$d['id']] = true;
-        foreach ($prefer as $want) if (isset($ids[$want])) { $pick = $want; break; }
-        if ($pick === '') {                       // 그래도 없으면 gpt- 로 시작하는 것 중 하나
-            foreach (array_keys($ids) as $id) {
-                if (strpos($id, 'gpt-') === 0 && strpos($id, 'instruct') === false) { $pick = $id; break; }
+    if ($id === '') {
+        foreach (['data', 'task', 'result'] as $box) {
+            if (empty($j[$box]) || !is_array($j[$box])) continue;
+            foreach (['task_id', 'taskId', 'id'] as $k) {
+                if (!empty($j[$box][$k])) { $id = (string)$j[$box][$k]; break 2; }
             }
         }
     }
-    if ($pick === '') $pick = 'gpt-4o';            // 못 물어봤으면 무난한 것으로
-    @file_put_contents($modelFile, $pick);
-    return $pick;
+    if ($id !== '') manus_ver_set($ver);
+    return [$code, $raw, $id, $why];
 }
 
-/** 회사에 맞게 물어보고, 글자만 뽑아 돌려줍니다.
- *  돌려주는 값: [응답코드, 원문, 뽑은글자|false, 쓴모델] */
-function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
-    $v = ai_vendor($key);
+/** 마누스 답에서 글자와 파일을 뽑아냅니다 (모양이 조금씩 달라도 되게) */
+function manus_text($j, &$files = []) {
+    $files = [];
+    $out   = '';
+    $add   = function ($t) use (&$out) {
+        $t = trim((string)$t);
+        if ($t !== '') $out .= ($out === '' ? '' : "\n\n") . $t;
+    };
 
-    if ($v === 'local') {
-        $c = ai_local_conf();
-        $url = ai_local_url($c['url']);
-        if ($url === '') return [0, false, false, ''];
-        $model = $c['model'] !== '' ? $c['model'] : 'local';
-        $head  = ['Content-Type: application/json'];
-        if ($c['key'] !== '') $head[] = 'Authorization: Bearer ' . $c['key'];
-        $body = json_encode([
-            'model' => $model,
-            'messages' => [
-                ['role' => 'system', 'content' => $sys],
-                ['role' => 'user',   'content' => $user],
-            ],
-            'max_tokens' => $maxTokens,
-            'stream' => false,
-        ], JSON_UNESCAPED_UNICODE);
-        [$code, $raw] = ai_post($url, $head, $body, $why);
-        if ($raw === false) return [$code, false, false, $model];
-        $j = json_decode($raw, true);
-        $text = trim((string)($j['choices'][0]['message']['content']
-                           ?? $j['message']['content']        // Ollama 예전 모양
-                           ?? $j['response'] ?? ''));
-        return [$code, $raw, $text === '' ? false : $text, $model];
+    // ① 새 방식: 메시지 목록에서 조수가 쓴 글
+    $msgs = $j['messages'] ?? $j['data'] ?? $j['items'] ?? null;
+    if (is_array($msgs)) {
+        foreach ($msgs as $m) {
+            if (!is_array($m)) continue;
+            $am = $m['assistant_message'] ?? null;
+            if (is_array($am)) {
+                $add($am['content'] ?? '');
+                foreach ((array)($am['attachments'] ?? []) as $f) {
+                    if (is_array($f) && (!empty($f['url']) || !empty($f['filename']))) {
+                        $files[] = ['이름' => (string)($f['filename'] ?? '파일'),
+                                    '주소' => (string)($f['url'] ?? '')];
+                    }
+                }
+                continue;
+            }
+            if (($m['type'] ?? '') === 'assistant_message') $add($m['content'] ?? '');
+            elseif (($m['role'] ?? '') === 'assistant') {
+                if (is_string($m['content'] ?? null)) $add($m['content']);
+            }
+        }
     }
 
-    if ($v === 'openai') {
-        $model = openai_model($key, $modelFile);
-        $mk = function ($model, $tokenKey) use ($sys, $user, &$maxTokens) {
-            return json_encode([
-                'model' => $model,
-                'messages' => [
-                    ['role' => 'system', 'content' => $sys],
-                    ['role' => 'user',   'content' => $user],
-                ],
-                $tokenKey => $maxTokens,
-            ], JSON_UNESCAPED_UNICODE);
+    // ② 예전 방식: output[] 안의 글 블록
+    if ($out === '') {
+        $walk = function ($node) use (&$walk, $add) {
+            if (!is_array($node)) return;
+            if (isset($node['text']) && is_string($node['text'])
+                && (!isset($node['type']) || strpos((string)$node['type'], 'text') !== false)) {
+                $add($node['text']);
+            }
+            if (isset($node['content']) && is_string($node['content'])) $add($node['content']);
+            foreach ($node as $v) if (is_array($v)) $walk($v);
         };
-        $head = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
-        $url  = 'https://api.openai.com/v1/chat/completions';
-
-        // 요즘 모델은 max_completion_tokens, 옛 모델은 max_tokens 를 씁니다.
-        // 첫 번째로 안 되면 반대쪽으로 한 번 더 해봅니다.
-        [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why);
-        $j = $raw === false ? null : json_decode($raw, true);
-        $emsg = strtolower((string)($j['error']['message'] ?? ''));
-        if ($raw !== false && $code !== 200 && strpos($emsg, 'max_completion_tokens') !== false) {
-            [$code, $raw] = ai_post($url, $head, $mk($model, 'max_tokens'), $why);
-            $j = $raw === false ? null : json_decode($raw, true);
-            $emsg = strtolower((string)($j['error']['message'] ?? ''));
+        $pref = [];
+        foreach ((array)($j['output'] ?? []) as $m) {
+            if (is_array($m) && (($m['role'] ?? '') === 'assistant')) $pref[] = $m;
         }
-        // 모델 이름이 안 맞으면 계정이 쓸 수 있는 것으로 다시 골라 한 번 더
-        if ($raw !== false && $code !== 200
-            && (strpos($emsg, 'model') !== false && (strpos($emsg, 'not exist') !== false
-                || strpos($emsg, 'not found') !== false || strpos($emsg, 'access') !== false))) {
-            $model = openai_model($key, $modelFile, true);
-            [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why);
-            $j = $raw === false ? null : json_decode($raw, true);
-        }
-        // 진짜로 몰린 것이면 잠깐 쉬었다가 한 번만 다시 물어봅니다
-        //  (잔액 문제로 온 429 는 다시 해도 소용없으니 그대로 돌려줍니다)
-        if ($raw !== false && $code === 429 && !ai_is_quota(ai_errmsg($raw))) {
-            sleep(6);
-            // 분당 한도에 걸린 것이면 답 길이를 줄여 부담을 낮춥니다
-            $maxTokens = min($maxTokens, 4000);
-            [$code, $raw] = ai_post($url, $head, $mk($model, 'max_completion_tokens'), $why);
-            $j = $raw === false ? null : json_decode($raw, true);
-        }
-        if ($raw === false) return [$code, false, false, $model];
-        $text = trim((string)($j['choices'][0]['message']['content'] ?? ''));
-        return [$code, $raw, $text === '' ? false : $text, $model];
+        $walk($pref ?: $j);
     }
+    return trim($out);
+}
 
-    // Anthropic (클로드)
-    $model = 'claude-opus-5';
-    $payload = json_encode([
-        'model' => $model, 'max_tokens' => $maxTokens, 'system' => $sys,
-        'thinking' => ['type' => 'adaptive'],
-        'messages' => [['role' => 'user', 'content' => $user]],
-    ], JSON_UNESCAPED_UNICODE);
-    $head = ['Content-Type: application/json', 'x-api-key: ' . $key,
-             'anthropic-version: 2023-06-01'];
-    $url  = 'https://api.anthropic.com/v1/messages';
-    [$code, $raw] = ai_post($url, $head, $payload, $why);
-    if ($raw !== false && $code === 429 && !ai_is_quota(ai_errmsg($raw))) {
-        sleep(6);
-        [$code, $raw] = ai_post($url, $head, $payload, $why);
+/** 끝났는지 물어봅니다 — [상태, 글, 응답코드, 원문, 파일들] */
+function manus_poll($key, $id) {
+    $why  = [];
+    $head = manus_head($key, manus_head_pref());
+    $urls = manus_ver() === 1
+        ? [MANUS_API . '/' . rawurlencode($id),
+           MANUS_BASE . '/v2/task.listMessages?task_id=' . rawurlencode($id) . '&limit=100&order=asc']
+        : [MANUS_BASE . '/v2/task.listMessages?task_id=' . rawurlencode($id) . '&limit=100&order=asc',
+           MANUS_API . '/' . rawurlencode($id)];
+
+    $code = 0; $raw = false;
+    foreach ($urls as $url) {
+        [$code, $raw] = ai_post($url, $head, null, $why);
+        if ($raw !== false && ($code === 401 || $code === 403)) {
+            [$c2, $r2] = ai_post($url, manus_head($key, manus_head_pref() ? 0 : 1), null, $why);
+            if ($r2 !== false && $c2 !== 401 && $c2 !== 403) { $code = $c2; $raw = $r2; }
+        }
+        if ($raw !== false && $code >= 200 && $code < 300) break;
+        if ($code !== 404 && $code !== 405) break;
     }
-    if ($raw === false) return [$code, false, false, $model];
+    if ($raw === false) return ['모름', '', $code, false, []];
+
     $j = json_decode($raw, true);
-    if (($j['stop_reason'] ?? '') === 'refusal') return [$code, $raw, false, $model];
-    $text = '';
-    foreach (($j['content'] ?? []) as $blk) if (($blk['type'] ?? '') === 'text') $text .= $blk['text'];
-    $text = trim($text);
-    return [$code, $raw, $text === '' ? false : $text, $model];
-}
+    if (!is_array($j)) return ['모름', '', $code, $raw, []];
 
-/** AI 가 돌려준 영어 오류를, 무엇을 해야 하는지 알 수 있는 말로 바꿉니다.
- *  회사에 따라 충전하는 곳이 다르므로 키 종류도 같이 봅니다. */
-function ai_friendly($code, $msg, $vendor = '') {
-    $m   = strtolower((string)$msg);
-    $gpt = ($vendor === 'openai');
-    $where = $gpt
-        ? "platform.openai.com → 왼쪽 [Settings → Billing] 에서 결제 수단·크레딧을 확인해 주세요."
-        : "console.anthropic.com → [Plans & Billing] 에서 크레딧을 충전해 주세요.";
-    $sub = $gpt
-        ? "(챗GPT Plus 구독료와 API 는 지갑이 다릅니다. 구독 중이어도 API 크레딧이 따로 필요합니다)"
-        : "(클로드 구독료와 API 는 지갑이 다릅니다. 쓴 만큼만 나가는 선불입니다)";
+    $files = [];
+    $text  = manus_text($j, $files);
 
-    // 돈 문제 — OpenAI 는 이것도 429 로 보냅니다 (insufficient_quota)
-    if (strpos($m, 'credit balance') !== false || strpos($m, 'insufficient') !== false
-        || strpos($m, 'quota') !== false || strpos($m, 'billing') !== false
-        || strpos($m, 'payment') !== false) {
-        return "💳 AI 잔액이 떨어졌습니다.\n\n"
-             . "대시보드 문제가 아니라 AI 회사 계정에 남은 크레딧이 없는 것입니다.\n"
-             . $where . " 충전하면 바로 다시 됩니다.\n" . $sub . "\n\n"
-             . "받은 말 그대로: " . $msg;
+    // 상태 — 새 방식은 status_update 의 agent_status 가 stopped 면 끝난 것입니다
+    $st = strtolower((string)($j['status'] ?? $j['state'] ?? ($j['data']['status'] ?? '')));
+    $stopped = false;
+    foreach ((array)($j['messages'] ?? $j['data'] ?? []) as $m) {
+        if (!is_array($m)) continue;
+        $su = $m['status_update'] ?? (($m['type'] ?? '') === 'status_update' ? $m : null);
+        if (is_array($su)) {
+            $as = strtolower((string)($su['agent_status'] ?? $su['status'] ?? ''));
+            if ($as === 'stopped' || $as === 'completed' || $as === 'finished') $stopped = true;
+            if ($as === 'failed' || $as === 'error') return ['실패', $text, $code, $raw, $files];
+        }
     }
-    if (strpos($m, 'rate limit') !== false || strpos($m, 'rate_limit') !== false
-        || strpos($m, 'too many requests') !== false || ($code === 429 && $m === '')) {
-        return "⏳ 짧은 사이에 너무 여러 번 물어봤습니다.\n\n"
-             . "1~2분 뒤에 다시 눌러주세요. 계속 이러면 계정의 분당 한도가 낮은 것이라\n"
-             . ($gpt ? "platform.openai.com → Settings → Limits" : "console.anthropic.com → Limits")
-             . " 에서 한도를 확인해 보세요.\n\n"
-             . ($msg !== '' ? ("받은 말 그대로: " . $msg) : '');
+    if (in_array($st, ['completed', 'succeeded', 'success', 'finished', 'stopped'], true)) $stopped = true;
+    if (in_array($st, ['failed', 'error', 'cancelled', 'canceled'], true)) {
+        return ['실패', $text, $code, $raw, $files];
     }
-    if (strpos($m, 'overloaded') !== false) {
-        return "AI 서버가 지금 몰려 있습니다. 1~2분 뒤에 다시 해주세요.\n\n받은 말: " . $msg;
+    if ($stopped) return ['끝', $text, $code, $raw, $files];
+    if ($st === '' && !$stopped && $text !== '' && !isset($j['messages'])) {
+        return ['끝', $text, $code, $raw, $files];      // 상태가 없어도 글이 왔으면
     }
-    if (strpos($m, 'context length') !== false || strpos($m, 'too long') !== false
-        || strpos($m, 'maximum context') !== false) {
-        return "내용이 너무 깁니다. 브랜드북(또는 회의록)을 조금 줄여서 다시 해주세요.\n\n"
-             . "받은 말: " . $msg;
-    }
-    if (strpos($m, 'model') !== false && (strpos($m, 'not_found') !== false
-        || strpos($m, 'not found') !== false || strpos($m, 'does not exist') !== false)) {
-        return "이 키로는 지금 모델을 쓸 수 없습니다.\n"
-             . "계정에서 모델 사용 권한을 확인해 주세요.\n\n받은 말: " . $msg;
-    }
-    if (strpos($m, 'authentication') !== false || strpos($m, 'invalid x-api-key') !== false
-        || strpos($m, 'incorrect api key') !== false) {
-        return "AI 키가 받아들여지지 않습니다. [🔑 AI 키 넣기] 로 새 키를 넣어주세요.\n\n받은 말: " . $msg;
-    }
-    return "AI 가 오류를 돌려줬습니다 (HTTP $code)\n\n" . $msg;
-}
-
-/** 429 가 「돈이 없어서」 인지 「너무 자주 불러서」 인지 */
-function ai_is_quota($msg) {
-    $m = strtolower((string)$msg);
-    return strpos($m, 'quota') !== false || strpos($m, 'billing') !== false
-        || strpos($m, 'credit') !== false || strpos($m, 'insufficient') !== false
-        || strpos($m, 'payment') !== false;
-}
-
-/** 키가 거부됐을 때 — 「어디에」 물어봤는지 밝혀줍니다.
- *  엉뚱한 회사에 물어보고 있는 경우가 가장 흔하기 때문입니다. */
-function ai_key_refused($code, $key) {
-    $v = ai_vendor($key);
-    $host = ($v === 'manus') ? 'api.manus.ai'
-          : (($v === 'openai') ? 'api.openai.com' : 'api.anthropic.com');
-    return "AI 키가 거부됐습니다 (HTTP $code).\n\n"
-         . "지금 대시보드는 이 키를 「" . ai_vendor_name($v) . "」 의 키로 알고 있어서\n"
-         . $host . " 에 물어봤습니다.\n\n"
-         . "· 다른 회사(예: 마누스) 키라면 [🔑 AI 키 바꾸기] 에서 키를 다시 넣고\n"
-         . "  「어느 AI 인가요?」 에서 맞는 번호를 골라주세요.\n"
-         . "· 회사가 맞다면 키가 틀렸거나 만료된 것입니다. 새 키를 만들어 넣어주세요.";
-}
-
-/** 응답에서 오류 문구만 꺼냅니다 */
-function ai_errmsg($raw) {
-    $j = is_string($raw) ? json_decode($raw, true) : null;
-    if (is_array($j) && isset($j['error'])) {
-        if (is_array($j['error'])) return (string)($j['error']['message'] ?? json_encode($j['error'], JSON_UNESCAPED_UNICODE));
-        return (string)$j['error'];
-    }
-    return is_string($raw) ? trim(substr($raw, 0, 300)) : '';
+    return ['하는 중', $text, $code, $raw, $files];
 }
 
 $action = $_GET['action'] ?? 'check';
@@ -913,7 +788,7 @@ if ($action === 'taskcheck') {
         jout(['ok' => false, 'error' => '작업번호가 이상합니다'], 400);
     }
 
-    [$st, $text, $c, $raw] = manus_poll($key, $tid);
+    [$st, $text, $c, $raw, $files] = manus_poll($key, $tid);
 
     if ($raw === false) {
         jout(['ok' => true, '상태' => '하는 중', '안내' => '아직 확인하지 못했습니다. 잠시 뒤 다시 봅니다.']);
@@ -925,11 +800,22 @@ if ($action === 'taskcheck') {
         jout(['ok' => false, 'error' => ai_friendly($c, ($text !== '' ? $text : ai_errmsg($raw)), 'manus')], 502);
     }
     if ($st !== '끝') {
-        jout(['ok' => true, '상태' => '하는 중']);
+        jout(['ok' => true, '상태' => '하는 중',
+              '지금까지' => mb_strcut(trim((string)$text), 0, 120)]);
     }
 
     if (trim($text) === '') {
-        jout(['ok' => false, 'error' => "마누스가 빈 답을 보냈습니다.\n\n받은 것 앞부분:\n"
+        // 마누스가 글 대신 파일로만 냈을 수 있습니다 — 그러면 그 자리를 알려줍니다
+        if (!empty($files)) {
+            $lines = [];
+            foreach ($files as $f) $lines[] = ' · ' . $f['이름'] . ($f['주소'] ? ' — ' . $f['주소'] : '');
+            jout(['ok' => false, '파일들' => $files, 'error' =>
+                "마누스가 글 대신 파일로 결과를 냈습니다.\n\n" . implode("\n", $lines)
+                . "\n\n그 파일을 열어 내용을 복사한 뒤 [📥 답 붙여넣기] 에 넣어주세요."], 502);
+        }
+        jout(['ok' => false, 'error' => "마누스가 글을 돌려주지 않았습니다.\n\n"
+            . "마누스 앱에서 그 작업(" . $tid . ") 을 열어 결과를 복사한 뒤\n"
+            . "[📥 답 붙여넣기] 에 넣으셔도 됩니다.\n\n받은 것 앞부분:\n"
             . mb_strcut((string)$raw, 0, 400)], 502);
     }
 

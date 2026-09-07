@@ -1086,7 +1086,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260907-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260907-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7094,10 +7094,13 @@ async function aiCheck(){
 async function aiSetLocal(){
   const now = (aiState.info || {})['우리것주소'] || '';
   const url = prompt('우리 AI 가 있는 주소를 적어주세요.\n\n'
-    + '· NAS 안(도커)에 올렸다면:  http://localhost:11434\n'
     + '· 사무실 PC 에 올렸다면:    http://192.168.0.50:11434\n'
+    + '· NAS 안(도커)에 올렸다면:  http://localhost:11434\n'
     + '  (LM Studio 는 보통 :1234)\n\n'
-    + '인터넷에 나가지 않고, 돈도 들지 않습니다.', now || 'http://localhost:11434');
+    + '※ Ollama 는 기본이 「그 PC 안에서만」 입니다.\n'
+    + '   OLLAMA_HOST=0.0.0.0 을 넣고 다시 시작해야 NAS 가 부를 수 있습니다.\n'
+    + '   윈도우 방화벽에서 그 포트도 열어주세요.\n\n'
+    + '인터넷에 나가지 않고, 돈도 들지 않습니다.', now || 'http://192.168.0.50:11434');
   if(url === null || !url.trim()) return;
 
   toast('🔎 그 주소를 확인하는 중…');
@@ -7107,7 +7110,11 @@ async function aiSetLocal(){
     models = out['모델들'] || [];
   }catch(e){
     if(!confirm('그 주소에 닿지 못했습니다.\n\n' + apiErrText(e)
-      + '\n\n그래도 이 주소로 저장할까요?')) return;
+      + '\n\n흔한 원인은 이 셋입니다.\n'
+      + '  1) 그 PC 가 꺼져 있거나 AI 프로그램이 안 떠 있음\n'
+      + '  2) OLLAMA_HOST=0.0.0.0 을 안 넣어 그 PC 안에서만 열려 있음\n'
+      + '  3) 윈도우 방화벽이 그 포트를 막고 있음\n\n'
+      + '그래도 이 주소로 저장할까요?')) return;
   }
 
   let model = '';
@@ -7128,10 +7135,16 @@ async function aiSetLocal(){
     + 'Ollama·LM Studio 는 보통 필요 없습니다. 그냥 비워두고 확인을 누르세요.', '');
   if(key === null) return;
 
+  const sec = prompt('얼마나 기다려 줄까요? (초)\n\n'
+    + '그래픽카드 없는 사무실 PC 는 회의록 한 건에 1~3분이 걸리기도 합니다.\n'
+    + '너무 짧으면 다 만들기 전에 끊깁니다.', '240');
+  if(sec === null) return;
+
   try{
     const res = await fetch('ai.php?action=setkey', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ vendor:'local', url: url.trim(), model, key: key.trim() })
+      body: JSON.stringify({ vendor:'local', url: url.trim(), model, key: key.trim(),
+                             secs: Number(sec.trim()) || 240 })
     });
     const out = JSON.parse(await res.text());
     if(!out.ok) throw new Error(out.error || '저장하지 못했습니다');
@@ -8779,6 +8792,10 @@ function markDirty(brandId){
   pushUndo();
   const id = brandId || currentBrandId;
   if(id) dirtyBrands.add(id);
+  // 브랜드에 속하지 않은 수정(회의록·달력 …)은 「전체가 바뀌었다」 로 둡니다.
+  // 이게 없으면 아직 저장되기 전에 실시간 동기화가 서버 것으로 통째로 갈아끼워
+  // 방금 넣은 내용이 사라집니다. (붙여넣은 AI 정리가 0.6초 뒤 사라지던 문제)
+  else dirtyGlobal = true;
   setSaveState(autoSave ? 'dirty' : 'hold');
   clearTimeout(saveTimer);
   if(autoSave) saveTimer = setTimeout(() => saveAll(true), 1200);

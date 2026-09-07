@@ -71,8 +71,14 @@ function bh_wget($url, $headers, $postFile, $sec, &$code, &$note) {
 
     $outF = tempnam(sys_get_temp_dir(), 'wo');
     $errF = tempnam(sys_get_temp_dir(), 'we');
-    $mk = function ($extra) use ($url, $headers, $postFile, $sec, $outF, $errF) {
-        $c = 'wget' . $extra . ' -T ' . (int)$sec . ' -t 1 -O ' . escapeshellarg($outF);
+    // 「닿는 데」 는 짧게, 「답을 다 받는 데」 는 길게.
+    // 이게 없으면 꺼져 있는 PC 주소 하나에 정해둔 시간을 통째로 기다립니다.
+    $conn = min(10, max(3, (int)$sec));
+    $mk = function ($extra) use ($url, $headers, $postFile, $sec, $conn, $outF, $errF) {
+        // ⚠️ -T 는 dns·connect·read 를 한꺼번에 바꿉니다.
+        //    그래서 --connect-timeout 을 반드시 -T 뒤에 두어야 살아남습니다.
+        $c = 'wget' . $extra . ' -T ' . (int)$sec . ' --connect-timeout=' . $conn
+           . ' -t 1 -O ' . escapeshellarg($outF);
         foreach ($headers as $h) $c .= ' --header=' . escapeshellarg($h);
         if ($postFile !== null) $c .= ' --post-file=' . escapeshellarg($postFile);
         return $c . ' ' . escapeshellarg($url) . ' 2>' . escapeshellarg($errF);
@@ -120,6 +126,23 @@ function ai_post($url, $headers, $body, &$why, $sec = 90) {
     $deadline = microtime(true) + $sec;
     $left = function () use ($deadline) { return (int)max(0, ceil($deadline - microtime(true))); };
 
+    /* 사내 AI(http://…)는 그 PC 가 꺼져 있으면 세 방법이 차례로 매달려
+       정해둔 시간을 통째로 까먹습니다. 그래서 먼저 문만 두드려 봅니다.
+       (https 는 회사 프록시를 거칠 수 있어 두드리지 않습니다)             */
+    if (stripos($url, 'http://') === 0) {
+        $h = parse_url($url, PHP_URL_HOST);
+        $pt = (int)(parse_url($url, PHP_URL_PORT) ?: 80);
+        if ($h) {
+            $e = 0; $es = '';
+            $probe = @fsockopen($h, $pt, $e, $es, min(8, max(3, $left())));
+            if ($probe) { @fclose($probe); }
+            else {
+                $why[] = $h . ':' . $pt . ' 에 닿지 않습니다 (' . ($es ?: '응답 없음') . ')';
+                return [0, false];
+            }
+        }
+    }
+
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         // ⚠️ CURLOPT_POSTFIELDS 는 값이 null 이어도 POST 로 바꿔버립니다.
@@ -154,7 +177,11 @@ function ai_post($url, $headers, $body, &$why, $sec = 90) {
             return [$code, $out];
         }
         $why[] = 'file_get_contents 실패';
-    } else { $why[] = 'allow_url_fopen 이 꺼져 있습니다'; }
+    } elseif (!ini_get('allow_url_fopen')) {
+        $why[] = 'allow_url_fopen 이 꺼져 있습니다';
+    } else {
+        $why[] = 'file_get_contents 를 해볼 시간이 남지 않았습니다';
+    }
 
     if (function_exists('shell_exec') && $left() > 2) {
         $tmpB = null;
@@ -213,9 +240,15 @@ function ai_local_conf() {
     $f = __DIR__ . '/data/ai-local.json';
     $j = is_file($f) ? json_decode((string)@file_get_contents($f), true) : null;
     if (!is_array($j)) $j = [];
+    // 우리 것은 밖으로 나가는 게 아니라 사내망이라, 클라우드보다 오래 기다려 줍니다.
+    // 그래픽카드 없는 사무실 PC 는 회의록 한 건에 1~3분이 걸리기도 합니다.
+    $secs = (int)($j['secs'] ?? 0);
+    if ($secs < 20)  $secs = 240;
+    if ($secs > 900) $secs = 900;
     return ['url'   => rtrim((string)($j['url'] ?? ''), '/'),
             'model' => (string)($j['model'] ?? ''),
-            'key'   => (string)($j['key'] ?? '')];
+            'key'   => (string)($j['key'] ?? ''),
+            'secs'  => $secs];
 }
 
 /** 적어둔 주소를 부를 수 있는 모양으로 다듬습니다 */
@@ -491,6 +524,47 @@ function ai_secs($most = 40) {
     return min($most, max(8, (int)ai_budget()));
 }
 
+/** 우리 것(사내 AI)이 안 될 때 — 「못 닿았다」 와 「시간이 모자랐다」 는 원인이 다릅니다 */
+function ai_local_help($url, $why, $secs = 0) {
+    $host = parse_url($url, PHP_URL_HOST) ?: '(주소 없음)';
+    $mine = in_array($host, ['127.0.0.1', 'localhost', '::1'], true);
+    $all = implode(' ', (array)$why);
+    // 문을 두드려 보고 「닿지 않는다」 고 한 것이 있으면 그건 느린 게 아니라 못 닿는 것입니다.
+    // (그 문구 안에도 'timed out' 이 들어 있어 먼저 걸러냅니다)
+    $dead = strpos($all, '닿지 않습니다') !== false
+         || stripos($all, 'refused') !== false || stripos($all, 'resolve') !== false;
+    $low  = strtolower($all);
+    $slow = !$dead && (strpos($low, 'timed out') !== false || strpos($low, 'timeout') !== false
+                    || strpos($all, '시간이') !== false);
+
+    // ① 닿기는 했는데 다 만들기 전에 시간이 다 된 경우
+    if ($slow) {
+        return "우리 AI 가 " . ($secs ? $secs . "초" : "정해둔 시간") . " 안에 끝내지 못했습니다.\n\n"
+             . "길이 막힌 것이 아니라 **그 PC 가 느린 것**입니다. 셋 중 하나를 하세요.\n\n"
+             . "1) [🖥 우리 것] 을 다시 눌러 「얼마나 기다려 줄까요」 를 늘리세요 (예: 600).\n"
+             . "2) 더 작은 모델로 바꾸세요 — gemma3:4b 나 qwen2.5:3b 는 훨씬 빠릅니다.\n"
+             . "3) 회의 메모를 조금 줄여서 다시 해보세요.\n\n"
+             . "그래도 「도중에 끊겼습니다」 가 나오면, 웹 스테이션이 먼저 끊은 것입니다.\n"
+             . "DSM → 웹 스테이션 → PHP 프로필 → max_execution_time 을 늘려주세요.\n\n"
+             . "받은 것 그대로:\n · " . implode("\n · ", (array)$why);
+    }
+
+    // ② 아예 닿지 못한 경우
+    return "우리 AI 에 닿지 못했습니다 (" . $url . ")\n\n"
+         . "시도한 방법:\n · " . implode("\n · ", (array)$why) . "\n\n"
+         . "가장 흔한 순서로 확인해 보세요.\n"
+         . ($mine
+             ? "1) 지금 주소가 localhost 입니다. AI 가 NAS 자신에 올라가 있을 때만 맞습니다.\n"
+               . "   사무실 PC 에 깔았다면 그 PC 의 주소(예: http://192.168.0.50:11434)로 바꿔주세요.\n"
+             : "1) 그 PC 가 켜져 있고 AI 프로그램이 실행 중인지\n")
+         . "2) Ollama 는 기본이 「그 PC 안에서만」 입니다. 밖에서 부르려면\n"
+         . "   OLLAMA_HOST=0.0.0.0 을 넣고 다시 시작해야 합니다.\n"
+         . "3) 윈도우 방화벽에서 그 포트(보통 11434)를 열어야 합니다.\n"
+         . "4) NAS 와 그 PC 가 같은 사내망에 있는지\n\n"
+         . "확인은 [🖥 우리 것] 을 다시 눌러 주소를 넣어보시면 됩니다 "
+         . "(모델 목록이 보이면 길이 열린 것입니다).";
+}
+
 /** 회사에 맞게 물어보고, 글자만 뽑아 돌려줍니다.
  *  돌려주는 값: [응답코드, 원문, 뽑은글자|false, 쓴모델] */
 function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
@@ -513,7 +587,9 @@ function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
             'max_tokens' => $maxTokens,
             'stream' => false,
         ], JSON_UNESCAPED_UNICODE);
-        [$code, $raw] = ai_post($url, $head, $body, $why, ai_secs());
+        // 클라우드용 45초 예산에 묶지 않습니다 — 사내망이라 「멈춰 있는 것」 걱정이 없고,
+        // 느린 PC 에서 40초에 끊기면 아예 쓸 수가 없기 때문입니다.
+        [$code, $raw] = ai_post($url, $head, $body, $why, $c['secs']);
         if ($raw === false) return [$code, false, false, $model];
         $j = json_decode($raw, true);
         $text = trim((string)($j['choices'][0]['message']['content']
@@ -954,8 +1030,12 @@ if ($action === 'setkey') {
         if (!is_dir($DATA_DIR) && !@mkdir($DATA_DIR, 0775, true) && !is_dir($DATA_DIR)) {
             jout(['ok' => false, 'error' => 'data 폴더를 만들지 못했습니다'], 500);
         }
+        $secs = (int)($b['secs'] ?? 240);
+        if ($secs < 20)  $secs = 20;                   // 너무 짧으면 늘 끊깁니다
+        if ($secs > 900) $secs = 900;
         @file_put_contents($DATA_DIR . '/ai-local.json',
-            json_encode(['url' => $url, 'model' => $model, 'key' => $k], JSON_UNESCAPED_UNICODE));
+            json_encode(['url' => $url, 'model' => $model, 'key' => $k, 'secs' => $secs],
+                        JSON_UNESCAPED_UNICODE));
         @chmod($DATA_DIR . '/ai-local.json', 0640);
         @file_put_contents($VENDOR_FILE, 'local');
         // 키가 있으면 같이 저장, 없으면 빈 키 파일을 둡니다 (로컬은 키가 없어도 됩니다)
@@ -963,8 +1043,9 @@ if ($action === 'setkey') {
         @file_put_contents($KEY_FILE, $php);
         @chmod($KEY_FILE, 0640);
         jout(['ok' => true, '키등록됨' => true, '어느 AI' => ai_vendor_name('local'),
-              '주소' => $url, '모델' => $model,
-              '안내' => '우리 것(' . $url . ') 을 쓰도록 맞췄습니다']);
+              '주소' => $url, '모델' => $model, '기다리는시간' => $secs,
+              '안내' => '우리 것(' . $url . ') 을 쓰도록 맞췄습니다 '
+                      . '(최대 ' . $secs . '초 기다립니다)']);
     }
 
     if ($k === '') {                                   // 빈 값이면 지웁니다
@@ -1187,6 +1268,13 @@ if ($action === 'prompt') {
     [$code, $raw, $text, $usedModel] = ai_ask($key, $sys, $user, $MAX_TOKENS, $MODEL_FILE, $why);
 
     if ($raw === false) {
+        // 우리 것(사내 AI)은 막히는 이유가 전혀 다릅니다 — 그쪽 안내로 보냅니다
+        if (ai_vendor($key) === 'local') {
+            $lc = ai_local_conf();
+            jout(['ok' => false,
+                  'error' => ai_local_help(ai_local_url($lc['url']), $why, $lc['secs']),
+                  '우리것' => true], 502);
+        }
         jout(['ok' => false, 'error' =>
             "AI 에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $why)
             . "\n\nNAS 가 인터넷에 나갈 수 있는지 확인해 주세요."], 502);
@@ -1290,6 +1378,13 @@ if ($action === 'summarize') {
     [$code, $raw, $text, $usedModel] = ai_ask($key, $sys, $user, $MAX_TOKENS, $MODEL_FILE, $why);
 
     if ($raw === false) {
+        // 우리 것(사내 AI)은 막히는 이유가 전혀 다릅니다 — 그쪽 안내로 보냅니다
+        if (ai_vendor($key) === 'local') {
+            $lc = ai_local_conf();
+            jout(['ok' => false,
+                  'error' => ai_local_help(ai_local_url($lc['url']), $why, $lc['secs']),
+                  '우리것' => true], 502);
+        }
         jout(['ok' => false, 'error' =>
             "AI 에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $why)
             . "\n\nNAS 가 인터넷에 나갈 수 있는지 확인해 주세요."], 502);

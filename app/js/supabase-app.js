@@ -1354,6 +1354,44 @@ window.shareLeaflet = async function (u) {
   if (!ok) { try { window.open(u, '_blank', 'noopener') } catch (e) {} }
 }
 
+// ── 영업 명함(business_cards): 감리사 앱에서 검색 · 다운로드/공유 ──
+let CARDS = []
+window.openCards = function () { window.showScreen('s60'); loadCards() }
+async function loadCards () {
+  const box = document.getElementById('card-list'); if (!box) return
+  box.innerHTML = '<div style="padding:24px;text-align:center;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  try {
+    const { data, error } = await sb.from('business_cards').select('*').eq('active', true).order('sort', { ascending: true }).order('created_at', { ascending: false })
+    if (error) throw error
+    CARDS = data || []
+  } catch (e) {
+    CARDS = []
+    box.innerHTML = '<div style="padding:34px 18px;text-align:center;color:#8b95ad;font-size:12.5px;font-weight:600;line-height:1.7">명함을 불러오지 못했어요.<br>관리자 페이지에서 명함을 등록했는지 확인해 주세요.</div>'
+    return
+  }
+  renderCards()
+}
+window.renderCards = function () {
+  const box = document.getElementById('card-list'); if (!box) return
+  const q = ((document.getElementById('card-search') || {}).value || '').trim().toLowerCase()
+  const list = q ? CARDS.filter(c => ((c.name || '') + ' ' + (c.caption || '')).toLowerCase().includes(q)) : CARDS
+  if (!CARDS.length) { box.innerHTML = '<div style="padding:34px 18px;text-align:center;color:#8b95ad;font-size:12.5px;font-weight:600;line-height:1.7">아직 등록된 명함이 없어요.<br>관리자 페이지에서 명함을 올리면 여기에 보여요.</div>'; return }
+  if (!list.length) { box.innerHTML = '<div style="padding:30px 18px;text-align:center;color:#8b95ad;font-size:12.5px;font-weight:600">‘' + escH(q) + '’ 검색 결과가 없어요.</div>'; return }
+  box.innerHTML = list.map(c => {
+    const u = c.image_url || ''
+    return '<div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;overflow:hidden;box-shadow:0 8px 20px -16px rgba(23,38,80,.5)">' +
+      (u ? '<img src="' + escH(u) + '" onclick="shareCard(\'' + escH(u) + '\')" style="width:100%;display:block;cursor:pointer;background:#f2f5fa">' : '') +
+      '<div style="padding:11px 13px;display:flex;align-items:center;gap:10px">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#1c2440">' + (escH(c.name) || '이름 없음') + '</div>' +
+        (c.caption ? '<div style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:2px">' + escH(c.caption) + '</div>' : '') + '</div>' +
+        '<button onclick="shareCard(\'' + escH(u) + '\')" style="flex-shrink:0;background:#2F6BF6;color:#fff;border:0;border-radius:10px;padding:9px 14px;font-size:11.5px;font-weight:800;font-family:inherit;cursor:pointer">저장·공유</button>' +
+      '</div>' +
+    '</div>'
+  }).join('')
+}
+// 명함 저장/공유: 리플렛과 동일한 네이티브 공유(파일) 재사용
+window.shareCard = function (u) { if (u) window.shareLeaflet(u) }
+
 // ── 감리일지: 목록 · 작성 · 상세 ─────────────────────────
 let currentApt = null
 let REPORTS = {}

@@ -321,11 +321,12 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-promo">
-      <div class="head"><div><h2>홍보·자료</h2><div class="desc">우수사례 · 인증·이력 · 리플렛</div></div></div>
+      <div class="head"><div><h2>홍보·자료</h2><div class="desc">우수사례 · 인증·이력 · 리플렛 · 명함</div></div></div>
       <div class="seg" id="promoTabs">
         <button class="on" onclick="promoTab('case',this)">🏅 우수 사례</button>
         <button onclick="promoTab('cred',this)">📜 인증·이력</button>
         <button onclick="promoTab('leaflet',this)">📁 리플렛</button>
+        <button onclick="promoTab('namecard',this)">📇 명함</button>
       </div>
       <div id="promoBody"></div>
     </section>
@@ -411,7 +412,7 @@ const lsDel=(k)=>{try{localStorage.removeItem(k);}catch(e){}};
 const loginId=(m)=>m.username||dispId(m.email)||'';
 const realEmail=(m)=>{const e=(m.email||'');return e.endsWith('@aptsquare.app')?'':e;};
 
-let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],APT_AUD={};
+let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={};
 let SALES=[],ROADMAP=[],DOCS=[],SITE_NOTES=[],VIEWS={},CSITES={},PHASEB_OK={sales:false,roadmap:false,docs:false,csites:false};
 function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return a.auditor_id?[a.auditor_id]:[]; }
 function auditorName(id){ const m=MEMBERS.find(x=>x.id===id); return m?(m.name||m.email||'-'):'-'; }
@@ -463,6 +464,7 @@ async function loadAll(){
   try{ const {data:rm,error}=await sb.from('roadmap_items').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); ROADMAP=rm||[]; PHASEB_OK.roadmap=!error; }catch(e){ ROADMAP=[]; PHASEB_OK.roadmap=false; }
   try{ const {data:dc,error}=await sb.from('doc_files').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); DOCS=dc||[]; PHASEB_OK.docs=!error; }catch(e){ DOCS=[]; PHASEB_OK.docs=false; }
   try{ const {data:sn}=await sb.from('site_notes').select('*').order('created_at',{ascending:false}); SITE_NOTES=sn||[]; }catch(e){ SITE_NOTES=[]; }
+  try{ const {data:bc,error}=await sb.from('business_cards').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); CARDS=bc||[]; PHASEB_OK.cards=!error; }catch(e){ CARDS=[]; PHASEB_OK.cards=false; }
   try{ const {data:ev}=await sb.from('app_events').select('apartment_id'); VIEWS={}; (ev||[]).forEach(e=>{ if(e.apartment_id)VIEWS[e.apartment_id]=(VIEWS[e.apartment_id]||0)+1; }); }catch(e){ VIEWS={}; }
   try{ const {data:cs,error}=await sb.from('control_sites').select('slug,name,data'); CSITES={}; (cs||[]).forEach(x=>{ CSITES[x.slug]=x.data||{}; }); PHASEB_OK.csites=!error; }catch(e){ CSITES={}; PHASEB_OK.csites=false; }
   initSeen();
@@ -974,6 +976,8 @@ function promoTab(t,btn){
     h=`<div class="toolbar"><button class="b blue" onclick="openCaseAdd()">➕ 사례 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>구분</th><th>관리</th></tr></thead><tbody>${CASES.length?CASES.map(c=>`<tr style="cursor:pointer" onclick="openCaseView('${c.id}')"><td style="font-weight:700"><span class="link">${esc(c.title)||'-'}</span></td><td><span class="pill blue">${esc(c.type||c.meta)||'사례'}</span></td><td style="white-space:nowrap" onclick="event.stopPropagation()"><button class="b line sm" onclick="openCaseView('${c.id}')">보기</button> <button class="b line sm" onclick="openCaseEdit('${c.id}')">편집</button> <button class="b red sm" onclick="deleteCase('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">사례가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='cred'){
     h=`<div class="toolbar"><button class="b blue" onclick="openCredAdd()">➕ 인증·이력 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>이미지</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${CREDS.length?CREDS.map(c=>`<tr><td>${c.image_url?`<img src="${esc(c.image_url)}" style="width:52px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`:'-'}</td><td style="font-weight:700">${esc(c.caption)||'(설명 없음)'}</td><td><label style="cursor:pointer"><input type="checkbox" ${c.active?'checked':''} onchange="toggleCred('${c.id}',this.checked)"> ${c.active?'노출중':'숨김'}</label></td><td><button class="b red sm" onclick="delCred('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">인증·이력이 없어요</td></tr>'}</tbody></table></div>`;
+  } else if(t==='namecard'){
+    h=`<div class="toolbar"><button class="b blue" onclick="openNameCardAdd()">➕ 명함 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>명함</th><th>이름</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${CARDS.length?CARDS.map(c=>`<tr><td>${c.image_url?`<a href="${esc(c.image_url)}" target="_blank"><img src="${esc(c.image_url)}" style="width:72px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)"></a>`:'-'}</td><td style="font-weight:700">${esc(c.name)||'-'}</td><td style="color:var(--mut)">${esc(c.caption)||''}</td><td><label style="cursor:pointer"><input type="checkbox" ${c.active?'checked':''} onchange="toggleNameCard('${c.id}',this.checked)"> ${c.active?'노출중':'숨김'}</label></td><td style="white-space:nowrap"><button class="b line sm" onclick="openNameCardEdit('${c.id}')">편집</button> <button class="b red sm" onclick="delNameCard('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="5" class="empty">등록된 명함이 없어요. ‘명함 추가’로 사진과 이름을 올려주세요.</td></tr>'}</tbody></table></div>`;
   } else {
     h=`<div class="toolbar"><button class="b blue" onclick="openLeafletAdd()">➕ 리플렛 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>미리보기</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${LEAFLETS.length?LEAFLETS.map(l=>{const isPdf=/\.pdf(\?|$)/i.test(l.image_url||'');return `<tr><td>${l.image_url?(isPdf?`<a href="${esc(l.image_url)}" target="_blank" style="font-size:20px">📄</a>`:`<img src="${esc(l.image_url)}" style="width:52px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`):'-'}</td><td style="font-weight:700">${esc(l.caption)||'(설명 없음)'}</td><td><label style="cursor:pointer"><input type="checkbox" ${l.active?'checked':''} onchange="toggleLeaflet('${l.id}',this.checked)"> ${l.active?'노출중':'숨김'}</label></td><td><button class="b red sm" onclick="delLeaflet('${l.id}')">삭제</button></td></tr>`;}).join(''):'<tr><td colspan="4" class="empty">리플렛이 없어요</td></tr>'}</tbody></table></div>`;
   }
@@ -1622,6 +1626,53 @@ async function submitLeafletAdd(){
 }
 async function toggleLeaflet(id,on){ const {error}=await sb.from('leaflets').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);on=!on;} const l=LEAFLETS.find(x=>x.id===id); if(l)l.active=on; promoTab('leaflet'); }
 async function delLeaflet(id){ if(!confirm('이 리플렛을 삭제할까요?'))return; const {error}=await sb.from('leaflets').delete().eq('id',id); if(error)return alert('오류: '+error.message); await loadAll(); }
+
+/* ===== 모바일 명함(business_cards) ===== */
+function openNameCardAdd(){
+  openModal(mHead('➕ 명함 추가')+`
+    <div class="fld"><label>이름 * (검색에 사용)</label><input id="m-name" placeholder="예) 이승우"></div>
+    <div class="fld"><label>명함 사진 *</label><input id="m-img" type="file" accept="image/*"></div>
+    <div class="fld"><label>설명 (선택 · 직함/부서 등)</label><input id="m-cap" placeholder="예) 감리사 · 영업담당"></div>
+    <div class="fld"><label>정렬 순서</label><input id="m-sort" type="number" value="0"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitNameCardAdd()">추가</button></div>`);
+}
+async function submitNameCardAdd(){
+  const name=$('m-name').value.trim(); const file=($('m-img').files||[])[0];
+  if(!name){$('m-msg').textContent='이름을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  if(!file){$('m-msg').textContent='명함 사진을 선택하세요';$('m-msg').style.color='var(--red)';return;}
+  const cap=$('m-cap').value.trim(); const sort=parseInt($('m-sort').value||'0')||0;
+  const btn=$('m-submit'); if(btn){btn.disabled=true;}
+  if($('m-msg')){$('m-msg').textContent='업로드 중…';$('m-msg').style.color='var(--mut)';}
+  const url=await uploadTo('report-photos',file,'card/');
+  if(!url){$('m-msg').textContent='업로드 실패';$('m-msg').style.color='var(--red)';if(btn)btn.disabled=false;return;}
+  const {error}=await sb.from('business_cards').insert({name,image_url:url,caption:cap||null,sort,active:true});
+  if(error){$('m-msg').textContent='오류: '+error.message+' (명함 SQL을 실행했는지 확인 · migration-business-cards.sql)';$('m-msg').style.color='var(--red)';if(btn)btn.disabled=false;return;}
+  closeModal(); await loadAll();
+}
+function openNameCardEdit(id){
+  const c=CARDS.find(x=>x.id===id); if(!c)return;
+  openModal(mHead('✏️ 명함 편집')+`
+    <div class="fld"><label>이름 *</label><input id="m-name" value="${esc(c.name)||''}"></div>
+    <div class="fld"><label>명함 사진 교체 (선택)</label><input id="m-img" type="file" accept="image/*"></div>
+    <div class="fld"><label>설명</label><input id="m-cap" value="${esc(c.caption)||''}"></div>
+    <div class="fld"><label>정렬 순서</label><input id="m-sort" type="number" value="${c.sort||0}"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitNameCardEdit('${id}')">저장</button></div>`);
+}
+async function submitNameCardEdit(id){
+  const name=$('m-name').value.trim(); if(!name){$('m-msg').textContent='이름을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const cap=$('m-cap').value.trim(); const sort=parseInt($('m-sort').value||'0')||0;
+  const file=($('m-img').files||[])[0];
+  const btn=$('m-submit'); if(btn){btn.disabled=true;}
+  const patch={name,caption:cap||null,sort};
+  if(file){ if($('m-msg')){$('m-msg').textContent='업로드 중…';$('m-msg').style.color='var(--mut)';} const url=await uploadTo('report-photos',file,'card/'); if(url)patch.image_url=url; }
+  const {error}=await sb.from('business_cards').update(patch).eq('id',id);
+  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';if(btn)btn.disabled=false;return;}
+  closeModal(); await loadAll();
+}
+async function toggleNameCard(id,on){ const {error}=await sb.from('business_cards').update({active:on}).eq('id',id); if(error){alert('오류: '+error.message);on=!on;} const c=CARDS.find(x=>x.id===id); if(c)c.active=on; promoTab('namecard'); }
+async function delNameCard(id){ if(!confirm('이 명함을 삭제할까요?'))return; const {error}=await sb.from('business_cards').delete().eq('id',id); if(error)return alert('오류: '+error.message); await loadAll(); }
 
 /* ===== 회원(members) 추가/편집/삭제 ===== */
 async function resolveApartment(name){

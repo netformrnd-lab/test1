@@ -156,6 +156,7 @@
           <div style="padding:15px 16px 9px;background:#fff">
             <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:15px;font-weight:800;color:#141d34">담당 단지</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;font-weight:800;color:#e4544b;background:#fdecea;padding:4px 9px;border-radius:99px">🛠️ 감리사</span><span onclick="openAccount()" style="cursor:pointer;font-size:10px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:4px 9px;border-radius:99px">내 정보</span><span onclick="appLogout()" style="cursor:pointer;font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:4px 9px;border-radius:99px">로그아웃</span></div></div>
             <div id="aud-sub" style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:3px">맡은 단지 불러오는 중…</div>
+            <div onclick="openCards()" style="margin-top:10px;display:flex;align-items:center;gap:8px;background:linear-gradient(100deg,#2F6BF6,#2456c9);color:#fff;border-radius:11px;padding:10px 13px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 8px 18px -12px #2F6BF6">📇 영업 명함<span style="margin-left:auto;font-weight:600;opacity:.92;font-size:10.5px">이름으로 검색 · 공유 ›</span></div>
           </div>
           <div style="padding:0 14px"><div style="display:flex;align-items:center;gap:8px;background:#f2f5fa;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px"><span style="font-size:12px">🔍</span><input id="aud-search" placeholder="단지 이름·지역 검색" style="border:none;background:transparent;outline:none;flex:1;min-width:0;font-size:11.5px;font-weight:600;color:#141d34;font-family:inherit"></div>
           <div id="aud-filters" style="display:flex;gap:6px;margin:11px 0 2px"><span data-filter="all" style="cursor:pointer;font-size:10px;font-weight:800;color:#fff;background:#2F6BF6;padding:5px 11px;border-radius:99px">전체</span><span data-filter="in_progress" style="cursor:pointer;font-size:10px;font-weight:700;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">진행중</span><span data-filter="scheduled" style="cursor:pointer;font-size:10px;font-weight:700;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">점검예정</span><span data-filter="done" style="cursor:pointer;font-size:10px;font-weight:700;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">완료</span></div>
@@ -227,6 +228,15 @@
           <div id="leaflet-list" style="padding:14px;display:flex;flex-direction:column;gap:14px"></div>
         </div>
         <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div class="on"><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+      <section class="screen" id="s60" data-name="영업 명함">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">영업 명함</div><div style="font-size:10px;color:#2F6BF6;font-weight:800">이름으로 검색 · 다운로드/공유</div></div></div>
+        <div class="bd" style="background:#F4F6FA">
+          <div style="padding:12px 14px 8px;background:#fff">
+            <div style="display:flex;align-items:center;gap:8px;background:#f2f5fa;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px"><span style="font-size:12px">🔍</span><input id="card-search" placeholder="이름으로 검색" oninput="renderCards()" style="border:none;background:transparent;outline:none;flex:1;min-width:0;font-size:11.5px;font-weight:600;color:#141d34;font-family:inherit"></div>
+          </div>
+          <div id="card-list" style="padding:12px 14px 16px;display:flex;flex-direction:column;gap:11px"></div>
+        </div>
       </section>
       <section class="screen" id="s48" data-name="단지 추가">
         <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">단지 추가</div><div style="font-size:10px;color:#2F6BF6;font-weight:800">새 담당 단지 등록</div></div></div>

@@ -951,6 +951,76 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   background:var(--text-primary);color:var(--bg-card);padding:11px 20px;border-radius:999px;
   font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:200;
   letter-spacing:-.012em}
+
+/* ═══════════════ 휴대폰 (≤620px) ═══════════════════════════════════
+   손안에서는 「머리말·메뉴」 가 화면을 다 먹으면 안 됩니다.
+   내용이 첫 화면에 바로 오도록 위쪽을 눌러 담고, 메뉴는 접어 둡니다.
+   ================================================================= */
+.navbtn{display:none}
+
+@media(max-width:900px){
+  /* 메뉴는 [☰] 를 눌렀을 때만 펼칩니다 */
+  .navbtn{display:inline-flex}
+  .side{display:none}
+  body.nav-open .side{display:block}
+  body.nav-open .brand-list{flex-direction:column;overflow-x:visible}
+}
+
+@media(max-width:620px){
+  .topbar{padding:9px 12px;gap:8px}
+  .topbar h1{font-size:15px;gap:6px}
+  .topbar .sub{display:none}          /* 마지막 저장 시각은 아래 저장 표시로 갈음합니다 */
+  .searchbox input{padding:8px 12px 8px 32px;font-size:16px}  /* 16px 이라야 아이폰이 확대 안 합니다 */
+  .actions{gap:6px}
+  .statusgrp{gap:5px}
+  .verbadge,.presence{display:none}
+  .btngrp{flex-wrap:wrap;gap:5px}
+  .btngrp .btn{padding:7px 9px;font-size:12px}
+  .hide-phone{display:none!important}   /* 백업·복원처럼 PC 에서 하는 것 */
+
+  .layout{padding:12px;gap:12px}
+  .panel{border-radius:var(--r-md)}
+  .tabbody{padding:16px 14px 24px}
+  .bhead{padding:16px 14px 14px;gap:10px}
+  .page-h{font-size:17px}
+  .page-sub{margin-bottom:14px}
+  .hsec{margin:18px 0 8px}
+  .stats{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+  .stat{padding:12px 13px}
+  /* 「2,405,000원」 같은 긴 숫자가 두 줄로 깨지지 않게 폭에 맞춰 줄입니다 */
+  .stat .val{font-size:min(22px,7.2vw);letter-spacing:-.045em;white-space:nowrap}
+  .stat .sub{font-size:11px}
+  .hgrid{grid-template-columns:minmax(0,1fr)}
+  .tabs{padding:0 10px}
+  .tab{padding:9px 10px 11px;font-size:12.5px}
+  .sec-bar{gap:6px;margin-bottom:12px}
+  /* 「빈 칸을 두 번 누르면」·「마우스를 올리면」 같은 PC 용 설명은 접습니다.
+     손가락으로 쓰는 화면에서는 자리만 차지하고 맞지도 않는 말입니다. */
+  .sec-bar .hint{display:none}
+  .page-sub{font-size:11.5px;line-height:1.5;margin-bottom:10px}
+  .vz-legend{font-size:11px;gap:8px}
+  .vz-key{font-size:11px}
+  /* 달력 단추는 좁으니 촘촘하게 */
+  .sec-bar .btn{padding:8px 10px;font-size:12.5px}
+
+  /* 손가락으로 누를 수 있는 크기로 (애플 권장 44px 에 맞춥니다) */
+  .btn{min-height:38px}
+  .btn.sm{min-height:32px}
+  .brand-item{padding:11px}
+
+  /* 달력은 7칸이라 좁히면 글자가 뭉갭니다 — 옆으로 밀어 봅니다 */
+  .calwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;
+    margin:0 -14px;padding:0 14px}
+  .calwrap .cal{min-width:600px}
+  .cal-c{min-height:78px}
+
+  /* 표는 원래도 가로 스크롤 상자 안에 있습니다 — 가장자리까지 쓰게 합니다 */
+  .vz-tw{margin:0 -14px;padding:0 14px}
+
+  .toast{bottom:16px;left:12px;right:12px;transform:none;text-align:center}
+  .modal{max-width:100%!important;border-radius:var(--r-md)}
+  .modal-bg{padding:10px}
+}
 </style>
 </head>
 <body>
@@ -979,13 +1049,15 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
     </div>
     <!-- 오른쪽 묶음: 단추. 왼쪽이 길어져도 자리가 움직이지 않습니다 -->
     <div class="btngrp">
+    <button class="btn navbtn" id="navBtn" onclick="toggleNav()" title="메뉴 열고 닫기">☰</button>
     <button class="btn" id="userBtn" style="display:none" onclick="userMenu()">👤</button>
     <button class="btn" id="undoBtn" title="되돌리기 (Ctrl+Z)" onclick="undoStep()">↩︎</button>
     <button class="btn" id="redoBtn" title="다시 하기 (Ctrl+Shift+Z)" onclick="redoStep()">↪︎</button>
     <button class="btn" id="autoBtn" onclick="toggleAutoSave()">💾자동</button>
     <button class="btn" title="밝게/어둡게" onclick="toggleDark()">🌙</button>
-    <button class="btn" title="파일로 내보내기 (백업)" onclick="exportJSON()">📤</button>
-    <button class="btn" title="파일에서 가져오기 (복원)" onclick="document.getElementById('importFile').click()">📥</button>
+    <button class="btn hide-phone" title="파일로 내보내기 (백업)" onclick="exportJSON()">📤</button>
+    <button class="btn hide-phone" title="파일에서 가져오기 (복원)"
+            onclick="document.getElementById('importFile').click()">📥</button>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importJSON(event)">
     <button class="btn primary" title="지금 바로 저장 (Ctrl+S) — 평소에는 자동 저장됩니다"
             onclick="saveAll()">💾 저장</button>
@@ -1109,7 +1181,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260907-14';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260907-15';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1733,8 +1805,24 @@ function render(){
   restoreUI(snap);
 }
 
+/* ── 휴대폰 메뉴 ────────────────────────────────────────────────
+   좁은 화면에서는 왼쪽 목록을 접어둡니다. [☰] 로 펼치고, 어디로든
+   옮겨가면 저절로 닫힙니다 (연 채로 두면 내용이 안 보입니다).      */
+let navOpen = false;
+function toggleNav(){
+  navOpen = !navOpen;
+  document.body.classList.toggle('nav-open', navOpen);
+  if(navOpen) window.scrollTo({ top:0, behavior:'smooth' });
+}
+function closeNav(){
+  if(!navOpen) return;
+  navOpen = false;
+  document.body.classList.remove('nav-open');
+}
+
 /* 브랜드와 상관없는 화면(회의록·달력)으로 갑니다 */
 function goView(v){
+  closeNav();
   clearSearchQuietly();
   view = v;
   currentBrandId = null;
@@ -1743,6 +1831,7 @@ function goView(v){
 }
 
 function goNas(){
+  closeNav();
   clearSearchQuietly();
   view = 'nas';
   render();
@@ -1750,6 +1839,7 @@ function goNas(){
 }
 
 function goHome(){
+  closeNav();
   clearSearchQuietly();
   view = 'home';
   currentBrandId = null;
@@ -8160,11 +8250,11 @@ function renderCalendar(){
     + '</div>'
     + '<div class="vz-legend" style="margin-bottom:10px">' + legend + '</div>'
     + wcalBar()
-    + '<div class="cal">'
+    + '<div class="calwrap"><div class="cal">'
       + ['일','월','화','수','목','금','토'].map((w, i) =>
           '<div class="cal-h' + (i === 0 ? ' sun' : (i === 6 ? ' sat' : '')) + '">' + w + '</div>').join('')
       + cells.join('')
-    + '</div>'
+    + '</div></div>'
     + '<div class="ainote" style="margin-top:14px">'
       + '👷 <b>휴가 · 외근 · 공휴일은 「근무현황 캘린더」에서 그대로 가져옵니다.</b> '
       + '여기서는 <b>보기만</b> 합니다 — 휴가·외근을 넣고 고치는 것은 그 도구에서 하세요. '
@@ -8854,6 +8944,7 @@ function gotoResult(brandId, tab){
 
 /* ========================= 브랜드 ========================= */
 function selectBrand(id){
+  closeNav();
   clearSearchQuietly();
   view = 'brand';
   currentBrandId = id;

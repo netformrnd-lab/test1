@@ -300,10 +300,16 @@ function manus_head($key, $which = 0) {
    그 자리에 시놀로지 오류 화면을 내보냅니다. 그러면 무엇 때문인지 알 수가
    없으므로, 우리가 먼저 시간을 재서 「제때 답하지 않았습니다」 라고
    제대로 알려줍니다. */
+/* 한 번 물어보는 데 통째로 쓸 수 있는 시간 */
+const AI_BUDGET_SECS = 100;
+
 function ai_budget($startedAt = null) {
     static $t0 = null;
     if ($t0 === null) $t0 = $startedAt ?: microtime(true);
-    return max(0, 45 - (microtime(true) - $t0));      // 45초 안에 끝냅니다
+    // 브랜드북처럼 긴 글을 정리하면 40초로는 모자랍니다 (실제로 자주 잘렸습니다).
+    // 그렇다고 몇 분씩 잡고 있으면 웹 스테이션이 먼저 끊어 「도중에 끊겼습니다」 가
+    // 뜨므로, 그 사이인 100초로 둡니다.
+    return max(0, AI_BUDGET_SECS - (microtime(true) - $t0));
 }
 
 function manus_head_pref() {
@@ -525,8 +531,27 @@ function openai_model($key, $modelFile, $force = false) {
 
 /** 물어볼 때 쓸 수 있는 시간 — 남은 예산 안에서 넉넉히 잡습니다.
  *  (오래 끌면 웹 스테이션이 먼저 끊어 「도중에 끊겼습니다」 가 됩니다) */
-function ai_secs($most = 40) {
+function ai_secs($most = 85) {
     return min($most, max(8, (int)ai_budget()));
+}
+
+/** 밖으로 못 나간 것인가, 시간이 모자랐던 것인가 */
+function ai_timed_out($why) {
+    $t = strtolower(implode(' ', (array)$why));
+    return strpos($t, 'timed out') !== false || strpos($t, 'timeout') !== false
+        || strpos($t, '시간이') !== false;
+}
+
+/** 시간이 모자랐을 때 — 「인터넷이 막혔다」 고 하면 엉뚱한 데를 뒤지게 됩니다 */
+function ai_slow_help($why, $what) {
+    return "AI 가 정해둔 시간(" . AI_BUDGET_SECS . "초) 안에 "
+         . $what . "를 끝내지 못했습니다.\n\n"
+         . "인터넷이 막힌 것이 아닙니다 — 답이 길어서 오래 걸린 것입니다.\n\n"
+         . "· 그냥 한 번 더 눌러보세요. 대개 두 번째에는 됩니다.\n"
+         . "· 자주 그러면 내용을 조금 줄여서 해보세요 "
+         . "(브랜드북이나 회의 메모가 길수록 오래 걸립니다).\n"
+         . "· 급하면 [🆓 클로드 창에서 하기] 로 바로 하실 수 있습니다.\n\n"
+         . "받은 것 그대로:\n · " . implode("\n · ", (array)$why);
 }
 
 /** 우리 것(사내 AI)이 안 될 때 — 「못 닿았다」 와 「시간이 모자랐다」 는 원인이 다릅니다 */
@@ -653,9 +678,12 @@ function ai_ask($key, $sys, $user, $maxTokens, $modelFile, &$why) {
 
     // ── 클로드 (Anthropic)
     $model = 'claude-opus-5';
+    // 회의록 정리·프롬프트 쓰기는 아주 어려운 문제가 아니라서, 생각하는 깊이를
+    // 한 단계 낮춥니다(effort). 답 품질은 그대로인데 훨씬 빨리 끝납니다.
     $payload = json_encode([
         'model' => $model, 'max_tokens' => $maxTokens, 'system' => $sys,
         'thinking' => ['type' => 'adaptive'],
+        'output_config' => ['effort' => 'medium'],
         'messages' => [['role' => 'user', 'content' => $user]],
     ], JSON_UNESCAPED_UNICODE);
     $head = ['Content-Type: application/json', 'x-api-key: ' . $key,
@@ -1285,6 +1313,11 @@ if ($action === 'prompt') {
                   'error' => ai_local_help(ai_local_url($lc['url']), $why, $lc['secs']),
                   '우리것' => true], 502);
         }
+        // 시간이 모자란 것을 「인터넷이 막혔다」 고 하면 엉뚱한 데를 뒤지게 됩니다
+        if (ai_timed_out($why)) {
+            jout(['ok' => false, '느림' => true,
+                  'error' => ai_slow_help($why, $action === 'prompt' ? '마스터프롬프트' : '정리')], 504);
+        }
         jout(['ok' => false, 'error' =>
             "AI 에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $why)
             . "\n\nNAS 가 인터넷에 나갈 수 있는지 확인해 주세요."], 502);
@@ -1394,6 +1427,11 @@ if ($action === 'summarize') {
             jout(['ok' => false,
                   'error' => ai_local_help(ai_local_url($lc['url']), $why, $lc['secs']),
                   '우리것' => true], 502);
+        }
+        // 시간이 모자란 것을 「인터넷이 막혔다」 고 하면 엉뚱한 데를 뒤지게 됩니다
+        if (ai_timed_out($why)) {
+            jout(['ok' => false, '느림' => true,
+                  'error' => ai_slow_help($why, $action === 'prompt' ? '마스터프롬프트' : '정리')], 504);
         }
         jout(['ok' => false, 'error' =>
             "AI 에 연결하지 못했습니다.\n\n시도한 방법:\n · " . implode("\n · ", $why)

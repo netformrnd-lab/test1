@@ -226,7 +226,12 @@ if ($action === 'trash') {
 }
 
 if ($action === 'trashlist') {
-    if (!function_exists('bh_trash_list')) jout(['ok' => true, '목록' => []]);
+    // 「볼 수 없음」 과 「비어 있음」 은 다릅니다 — 화면이 구분해 말할 수 있게 알려줍니다
+    if (!function_exists('bh_trash_list')) {
+        jout(['ok' => true, '목록' => [], '준비됨' => false,
+              '안내' => 'NAS 의 guard.php 가 예전 판이라 휴지통 기록을 읽을 수 없습니다. '
+                      . '[⬇ 최신으로 업데이트] 를 해주세요.']);
+    }
     $list = [];
     foreach (bh_trash_list() as $e) {
         $e['있음'] = file_exists((string)($e['휴지통자리'] ?? ''));
@@ -234,7 +239,8 @@ if ($action === 'trashlist') {
         unset($e['바이트']);
         $list[] = $e;
     }
-    jout(['ok' => true, '목록' => array_slice($list, 0, 300), '전체' => count($list)]);
+    jout(['ok' => true, '목록' => array_slice($list, 0, 300), '전체' => count($list),
+          '준비됨' => true, '기록파일' => is_file(bh_trash_log())]);
 }
 
 if ($action === 'untrash') {

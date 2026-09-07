@@ -289,6 +289,57 @@ function find_by_name($dir, $name, $depth) {
     return null;
 }
 
+/**
+ * path= 로 온 자리를 찾습니다.
+ *
+ * 폴더를 정리하면 자리가 바뀝니다 (기록부 → 02_브랜드기록부, 연도 폴더 넣기…).
+ * 대시보드에 적힌 옛 자리로는 못 찾으니, 그 자리에 없으면 **파일 이름으로**
+ * 한 번 더 찾습니다. 아이디로 찾을 때(resolve_path)와 같은 방식입니다.
+ *
+ * 돌려주는 것: [실제 파일 경로, 뿌리에서 본 지금 자리]  (없으면 [null, null])
+ */
+function resolve_rel($fileDirs, $rel) {
+    $rel = str_replace('\\', '/', trim((string)$rel));
+    if ($rel === '' || strpos($rel, '..') !== false || substr($rel, 0, 1) === '/') {
+        return [null, null];
+    }
+    if (!is_array($fileDirs)) $fileDirs = [$fileDirs];
+
+    // 1) 적힌 자리에 그대로 있으면 그것으로
+    foreach ($fileDirs as $dir) {
+        $root = realpath($dir);
+        if (!$root) continue;
+        $real = realpath($dir . '/' . $rel);
+        if ($real && strpos($real, $root . DIRECTORY_SEPARATOR) === 0 && is_file($real)) {
+            return [$real, $rel];
+        }
+    }
+
+    // 2) 자리가 바뀌었을 때 — 같은 이름을 찾아봅니다 (휴지통 안은 빼고).
+    //    같은 이름이 여러 브랜드에 있을 수 있으니 **원래 브랜드 폴더 안**을 먼저 봅니다.
+    $name = basename($rel);
+    if ($name === '') return [null, null];
+    $first = strpos($rel, '/') === false ? '' : substr($rel, 0, strpos($rel, '/'));
+    $tries = [];
+    foreach ($fileDirs as $dir) {
+        if ($first !== '' && is_dir($dir . '/' . $first)) $tries[] = [$dir, $dir . '/' . $first, 3];
+    }
+    foreach ($fileDirs as $dir) $tries[] = [$dir, $dir, 4];
+
+    foreach ($tries as [$dir, $from, $depth]) {
+        $root = realpath($dir);
+        if (!$root) continue;
+        $hit = find_by_name($from, $name, $depth);
+        if ($hit) {
+            $now = strpos($hit, $root . DIRECTORY_SEPARATOR) === 0
+                 ? str_replace('\\', '/', substr($hit, strlen($root) + 1))
+                 : $rel;
+            return [$hit, $now];
+        }
+    }
+    return [null, null];
+}
+
 /** brand-data.json 에서 fileId 에 해당하는 원본 파일명을 찾습니다 */
 function lookup_name($manifest, $fileId) {
     if (!file_exists($manifest)) return null;
@@ -846,11 +897,11 @@ if ($action === 'run') {
     $rel = trim($_GET['path'] ?? '');
     if ($rel === '') jout(['ok' => false, 'error' => '도구 경로가 없습니다'], 400);
 
-    $rel  = str_replace('\\', '/', $rel);
-    $real = realpath($FILE_DIR . '/' . $rel);
-    $root = realpath($FILE_DIR);
-    if (!$real || !$root || strpos($real, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($real)) {
-        jout(['ok' => false, 'error' => '그런 도구가 없습니다: ' . $rel], 404);
+    [$real, $now] = resolve_rel($FILE_DIRS, $rel);
+    if (!$real) {
+        jout(['ok' => false, 'error' => '그런 도구가 없습니다: ' . $rel,
+              '찾은이름' => basename($rel),
+              '안내' => '폴더에서 지웠거나 이름을 바꾼 것 같습니다. 다시 올려주세요.'], 404);
     }
     $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
     if ($ext !== 'html' && $ext !== 'htm') {
@@ -877,17 +928,19 @@ if ($action === 'view') {
     // 1) 파일 경로를 직접 받은 경우 (저장이 끝나기 전에도 바로 볼 수 있습니다)
     $rel = trim($_GET['path'] ?? '');
     if ($rel !== '') {
-        $rel  = str_replace('\\', '/', $rel);
-        $try  = $FILE_DIR . '/' . $rel;
-        $real = realpath($try);
-        $root = realpath($FILE_DIR);
-        // files 폴더 밖으로 벗어나는 경로는 거부합니다
-        if ($real && $root && strpos($real, $root . DIRECTORY_SEPARATOR) === 0 && is_file($real)) {
-            $path = $real;
-            $name = basename($real);
-        } else {
-            jout(['ok' => false, 'error' => '그런 문서가 없습니다: ' . $rel], 404);
+        // 자리가 바뀌었으면 이름으로 찾아냅니다 (폴더 정리·연도 폴더 때문에 흔합니다)
+        [$real, $now] = resolve_rel($FILE_DIRS, $rel);
+        if (!$real) {
+            jout(['ok' => false,
+                  'error' => '그런 문서가 없습니다: ' . $rel,
+                  '찾은이름' => basename($rel),
+                  '안내' => '폴더에서 지웠거나 이름을 바꾼 것 같습니다. '
+                          . '문서를 다시 올리면 자리를 새로 적어둡니다.'], 404);
         }
+        $path = $real;
+        $name = basename($real);
+        // 옮겨간 자리를 화면에 알려줍니다 — 화면이 그걸 보고 스스로 고쳐 적습니다
+        if ($now !== $rel) header('X-Moved-To: ' . rawurlencode($now));
     } else {
         // 2) 예전 방식 — 저장된 목록에서 찾습니다
         $id = $_GET['id'] ?? '';

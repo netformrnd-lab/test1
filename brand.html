@@ -1086,7 +1086,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260907-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260907-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4541,17 +4541,27 @@ async function setUpRoot(path){
   }finally{ upRoot.busy = false; render(); }
 }
 
+/* 파일 자리가 바뀌었을 때 대시보드에 적힌 자리도 같이 고칩니다.
+   자료·기록부·자동화 도구 세 군데 모두 filePath 를 들고 있습니다.
+   (예전에는 자료만 고쳐서, 기록부 문서가 「그런 문서가 없습니다」 가 됐습니다) */
+function fixFilePath(oldP, newP){
+  if(!oldP || !newP || oldP === newP) return 0;
+  let n = 0;
+  data.brands.forEach(b => {
+    (b.assets || []).forEach(a => { if(a.filePath === oldP){ a.filePath = newP; n++; } });
+    (b.tools  || []).forEach(t => { if(t.filePath === oldP){ t.filePath = newP; n++; } });
+    if(b.record && b.record.filePath === oldP){ b.record.filePath = newP; n++; }
+  });
+  return n;
+}
+
 /* 공유폴더 안을 예쁘게 정리합니다 (자리가 바뀐 것은 대시보드에도 반영) */
 async function tidyFolders(quiet){
   try{
     const o = await apiJson('files.php?action=tidy', { method:'POST' });
     const map = o['자리바뀜'] || {};
     let fixed = 0;
-    Object.keys(map).forEach(oldP => {
-      data.brands.forEach(b => (b.assets || []).forEach(a => {
-        if(a.filePath === oldP){ a.filePath = map[oldP]; fixed++; }
-      }));
-    });
+    Object.keys(map).forEach(oldP => { fixed += fixFilePath(oldP, map[oldP]); });
     if(fixed){ markDirtyAll(); await saveAll(true); }
     upRoot.info = null; await loadUpRoot(true);
     if(!quiet){
@@ -7797,6 +7807,16 @@ async function loadRecord(rec){
   recordCache[id] = { loading:true };
   try{
     const res  = await fetch(recordUrl(rec), { cache:'no-store' });
+
+    // 폴더를 정리해서 자리가 바뀌었으면, 서버가 지금 자리를 알려줍니다.
+    // 적어둔 자리를 그때 고쳐두면 다음부터는 한 번에 찾습니다.
+    const moved = res.headers.get('X-Moved-To');
+    if(moved){
+      const now = decodeURIComponent(moved);
+      if(fixFilePath(rec.filePath, now)){ markDirtyAll(); saveAll(true); }
+      else rec.filePath = now;
+    }
+
     const text = await res.text();
     if(/^\s*\{/.test(text)){
       const j = JSON.parse(text);
@@ -7804,7 +7824,7 @@ async function loadRecord(rec){
     }
     recordCache[id] = parseRecordDoc(text);
   }catch(e){
-    recordCache[id] = { error: e.message || String(e) };
+    recordCache[id] = { error: e.message || String(e), name: rec.name || '' };
   }
   render();
 }
@@ -7813,7 +7833,16 @@ function recordView(rec){
   const c = recordCache[rec.id];
   if(!c){ setTimeout(() => loadRecord(rec), 10); return '<div class="fmeta">문서를 불러오는 중…</div>'; }
   if(c.loading) return '<div class="fmeta">문서를 불러오는 중…</div>';
-  if(c.error)   return '<div class="empty">⚠️ ' + esc(c.error) + '</div>';
+  if(c.error){
+    const gone = /그런 문서가 없습니다|없습니다|찾지 못/.test(c.error);
+    return '<div class="empty">⚠️ ' + esc(c.error)
+      + (gone
+          ? '<br><span style="color:var(--text-muted)">'
+            + 'NAS 폴더에서 지웠거나 이름을 바꾼 것 같습니다.<br>'
+            + '위 <b>[📄 기록부 문서 다시 올리기]</b> 를 누르시면 됩니다.</span>'
+          : '')
+      + '</div>';
+  }
   if(!c.secs.length) return '<div class="empty">문서에서 읽을 내용을 찾지 못했습니다.</div>';
 
   const cut = (t, n) => t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t;

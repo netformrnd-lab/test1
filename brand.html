@@ -912,6 +912,12 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-none{padding:9px 12px;font-size:12px;color:var(--text-muted);
   border-top:1px solid var(--border)}
 
+.gb-kpi .brd{font-size:10.5px;font-weight:800;color:var(--text-muted);
+  margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gb-kpi .who{display:flex;gap:6px;flex-wrap:wrap;padding:6px 12px 9px;
+  border-top:1px solid var(--border);font-size:10.5px;color:var(--text-muted)}
+.gb-kpi .who b{color:var(--text-primary)}
+
 /* ── 브랜드 꼬리표 · 보기 바꾸기 ──────────────────────────────── */
 .gb-brs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 9px}
 .gb-brs .b{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
@@ -1679,7 +1685,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-26';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-27';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6573,23 +6579,120 @@ function gbEnsure(who, year){
   return g;
 }
 
+/* ── 지표는 브랜드에 겁니다 ──────────────────────────────────────
+   예전에는 지표가 사람에게 붙어 있어서, 한 사람이 여러 브랜드를 맡으면
+   「전화 문의율 2배 UP」 이 어느 브랜드 숫자인지 알 수 없었습니다.
+   이제 지표는 브랜드 × 해 로 한 벌만 있고, 사람은 그 지표에 자기 업무를
+   걸어 둡니다. 그래서 같은 브랜드를 여러 명이 맡아도 숫자가 하나입니다.
+   자료는 data.gbkpis 에 들어가고, 회의록처럼 합쳐집니다 (TOP_LISTS).
+   ------------------------------------------------------------- */
+function gbKpis(){
+  if(!Array.isArray(data.gbkpis)) data.gbkpis = [];
+  return data.gbkpis;
+}
+/* 이 해의 지표 (브랜드를 주면 그 브랜드 것만) */
+function gbKpiList(year, brandId){
+  return gbKpis().filter(k => String(k.year) === String(year)
+    && (brandId === undefined || (k.brandId || '') === (brandId || '')));
+}
+function gbKpiById(id){ return gbKpis().find(k => k.id === id) || null; }
+
+/* 이 보드에 보여줄 지표 — 이 사람이 손대고 있는 브랜드의 지표들 */
+function gbBoardKpis(g){
+  const use = {};
+  (g.stages || []).forEach(st => (st.items || []).forEach(it => {
+    use[it.brandId || ''] = 1;
+  }));
+  // 브랜드로 걸러 보는 중이면 그 브랜드만
+  const list = gbKpiList(g.year).filter(k => {
+    if(gbBr) return (k.brandId || '') === gbBr;
+    return use[k.brandId || ''] || use[''] ;
+  });
+  // 브랜드 차례대로, 그 안에서는 만든 차례대로
+  const ord = {}; (data.brands || []).forEach((b, i) => { ord[b.id] = i; });
+  return list.sort((a, c) => (ord[a.brandId] == null ? 99 : ord[a.brandId])
+                           - (ord[c.brandId] == null ? 99 : ord[c.brandId]));
+}
+
+/* 이 업무에 걸 수 있는 지표 — 같은 브랜드 것 (브랜드가 없으면 전부) */
+function gbKpisFor(it, year){
+  const all = gbKpiList(year);
+  if(!it || !it.brandId) return all;
+  return all.filter(k => (k.brandId || '') === it.brandId || k.id === it.kpiId);
+}
+
+/* 「자동」 지표 — 이 해에 이 지표를 건 모든 사람의 결과를 더합니다 */
+function gbAuto(g, kpiId){
+  let sum = 0, n = 0;
+  (data.growth || []).forEach(bd => {
+    if(String(bd.year) !== String(g.year)) return;
+    (bd.stages || []).forEach(st => (st.items || []).forEach(it => {
+      if(it.kpiId !== kpiId) return;
+      (it.acts || []).forEach(a => {
+        if(String(a.value || '').trim() === '') return;
+        sum += gbNum(a.value); n++;
+      });
+    }));
+  });
+  return { value: sum, n: n };
+}
+
+/* 이 지표를 누가 몇 건 맡고 있나 (지표 카드 아래 한 줄) */
+function gbKpiWho(g, kpiId){
+  const out = [];
+  (data.growth || []).forEach(bd => {
+    if(String(bd.year) !== String(g.year)) return;
+    let n = 0;
+    (bd.stages || []).forEach(st => (st.items || []).forEach(it => {
+      if(it.kpiId === kpiId) n++;
+    }));
+    if(n) out.push({ who: bd.who, n: n });
+  });
+  return out;
+}
+
+/* ── 지표 만들기·지우기 ──────────────────────────────────────── */
+let gbKpiAdd = false;      // 어느 브랜드에 넣을지 고르는 중
+
+function gbToggleKpiAdd(){ gbKpiAdd = !gbKpiAdd; render(); }
+function gbAddKpi(brandId){
+  if(brandId === undefined){ gbToggleKpiAdd(); return; }
+  if(gbKpiList(gbYear, brandId).length >= 8){
+    toast('⚠️ 한 브랜드에 지표는 8개까지입니다'); return;
+  }
+  gbKpis().push({ id: uid('k'), year: String(gbYear), brandId: brandId || '',
+                  name:'새 지표', current:'', target:'', unit:'', mode:'manual',
+                  createdAt: new Date().toISOString() });
+  gbKpiAdd = false;
+  markDirtyAll(); render();
+}
+function gbDelKpi(kid){
+  const k = gbKpiById(kid); if(!k) return;
+  const users = gbKpiWho({ year: gbYear }, kid);
+  if(!confirm('"' + (k.name || '이름 없는 지표') + '" 지표를 지울까요?\n\n'
+    + (users.length ? users.map(u => '· ' + gbName(u.who) + ' ' + u.n + '건').join('\n')
+        + '\n에 걸려 있습니다. 업무는 그대로 남고 연결만 풀립니다.'
+      : '이 지표에 걸린 업무는 없습니다.'))) return;
+  data.gbkpis = gbKpis().filter(x => x.id !== kid);
+  (data.growth || []).forEach(bd => (bd.stages || []).forEach(st =>
+    (st.items || []).forEach(it => { if(it.kpiId === kid) it.kpiId = ''; })));
+  markDirtyAll(); render();
+}
+/* 지표 고치기 — 사람 보드가 아니라 지표 목록을 직접 고칩니다 */
+function gbKpiEdit(kid, key, v, draw){
+  const k = gbKpiById(kid); if(!k) return;
+  k[key] = v;
+  k.updatedAt = new Date().toISOString();
+  markDirtyAll();
+  if(draw) render();
+}
+
 /* ── 셈 ─────────────────────────────────────────────────────── */
 function gbNum(v){
   const n = Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''));
   return isFinite(n) ? n : 0;
 }
 /* 이 지표에 붙어 있는 업무들의 결과를 더합니다 */
-function gbAuto(g, kpiId){
-  let sum = 0, n = 0;
-  (g.stages || []).forEach(st => (st.items || []).forEach(it => {
-    if(it.kpiId !== kpiId) return;
-    (it.acts || []).forEach(a => {
-      if(String(a.value || '').trim() === '') return;
-      sum += gbNum(a.value); n++;
-    });
-  }));
-  return { value: sum, n: n };
-}
 function gbCur(g, k){
   const mode = (k.mode === 'auto') ? 'auto' : 'manual';
   return mode === 'auto' ? gbAuto(g, k.id).value : gbNum(k.current);
@@ -6645,30 +6748,7 @@ function gbAt(g, path){
 function gbEditDraw(path, v){ gbEdit(path, v); render(); }
 
 /* ── 지표 ───────────────────────────────────────────────────── */
-function gbAddKpi(){
-  const g = gbEnsure(gbWho, gbYear);
-  g.kpis = g.kpis || [];
-  if(g.kpis.length >= 8){ toast('⚠️ 지표는 8개까지입니다'); return; }
-  g.kpis.push({ id: uid('k'), name:'새 지표', current:'', target:'', unit:'', mode:'manual' });
-  markDirtyAll(); render();
-}
-function gbDelKpi(kid){
-  const g = gbFind(gbWho, gbYear); if(!g) return;
-  const k = (g.kpis || []).find(x => x.id === kid);
-  if(!k) return;
-  if(!confirm('"' + (k.name || '이름 없는 지표') + '" 지표를 지울까요?\n\n'
-    + '이 지표에 붙여둔 업무는 그대로 남습니다.')) return;
-  g.kpis = g.kpis.filter(x => x.id !== kid);
-  (g.stages || []).forEach(st => (st.items || []).forEach(it => {
-    if(it.kpiId === kid) it.kpiId = '';
-  }));
-  markDirtyAll(); render();
-}
-function gbKpiMode(kid, mode){
-  const g = gbFind(gbWho, gbYear); if(!g) return;
-  const k = (g.kpis || []).find(x => x.id === kid); if(!k) return;
-  k.mode = mode; markDirtyAll(); render();
-}
+function gbKpiMode(kid, mode){ gbKpiEdit(kid, 'mode', mode, true); }
 
 /* ── 단계 ───────────────────────────────────────────────────── */
 function gbAddStage(){
@@ -6870,7 +6950,8 @@ function renderGrowth(){
   const tools = '<div class="sec-bar" style="margin:0 0 14px">'
     + '<button class="btn sm' + (gbHelpOn() ? ' primary' : '') + '" onclick="gbToggleHelp()" '
       + 'title="처음 쓰는 사람을 위한 안내">📖 안내</button>'
-    + '<button class="btn" onclick="gbAddKpi()">＋ 지표 추가</button>'
+    + '<button class="btn' + (gbKpiAdd ? ' primary' : '') + '" '
+      + 'onclick="gbAddKpi()">＋ 지표 추가</button>'
     + '<button class="btn" onclick="gbOpenWb()" '
       + 'title="이 보드에 딸린 판입니다. 흐름도나 구성안을 그려두세요">'
       + '🧩 판 열기' + (wbN ? ' <b>' + wbN + '</b>' : '') + '</button>'
@@ -6920,10 +7001,12 @@ function renderGrowth(){
           + '</textarea>')
     + '</div>';
 
-  const kpis = (g.kpis || []).length
-    ? '<div class="gb-kpis">' + g.kpis.map(k => gbKpiCard(g, k)).join('') + '</div>'
+  const kpiList = gbBoardKpis(g);
+  const kpis = gbKpiAddBar(g) + (kpiList.length
+    ? '<div class="gb-kpis">' + kpiList.map(k => gbKpiCard(g, k)).join('') + '</div>'
     : '<div class="empty" style="margin-bottom:18px">아직 지표가 없습니다. '
-      + '<b style="color:var(--text-primary)">[＋ 지표 추가]</b> 로 올해 볼 숫자를 걸어주세요.</div>';
+      + '<b style="color:var(--text-primary)">[＋ 지표 추가]</b> 로 브랜드마다 볼 숫자를 '
+      + '걸어주세요.</div>');
 
   const brBar = gbBrandBar(g);
   const byBar = brBar
@@ -7156,16 +7239,19 @@ function gbKpiCard(g, k){
   const tgt  = gbNum(k.target);
   const p    = gbPct(g, k);
   const col  = gbColor(p);
-  const kp   = 'kpis.' + k.id + '.';
+  const br   = (data.brands || []).find(b => b.id === k.brandId);
+  const who  = gbKpiWho(g, k.id);
   const left = (String(k.target || '').trim() && tgt) ? Math.max(0, tgt - cur) : null;
   const num  = v => Number(v || 0).toLocaleString('ko-KR');
 
   return '<div class="gb-kpi">'
     + '<button class="x" title="지표 지우기" onclick="gbDelKpi(\'' + jsq(k.id) + '\')">×</button>'
+    + '<div class="brd"' + (br && br.color ? ' style="color:' + esc(br.color) + '"' : '') + '>'
+      + (br ? esc(br.icon || '🏷️') + ' ' + esc(br.name) : '브랜드 없음') + '</div>'
     + (gbShot
         ? '<div class="nm">' + esc(k.name || '') + '</div>'
         : '<input class="nm" value="' + esc(k.name || '') + '" placeholder="지표 이름" '
-          + 'oninput="gbEdit(\'' + jsq(kp) + 'name\', this.value)">')
+          + 'oninput="gbKpiEdit(\'' + jsq(k.id) + '\',\'name\', this.value)">')
     + '<div class="pct' + (p === null ? ' none' : '') + '" style="color:' + col + '">'
       + (p === null ? '목표를 넣으면 진행률이 나옵니다' : p + '%') + '</div>'
     + '<div class="bar"><div class="fill" style="width:'
@@ -7176,13 +7262,13 @@ function gbKpiCard(g, k){
             ? '<span class="v" style="color:' + (mode === 'auto' ? col : 'inherit') + '" '
               + 'title="업무 ' + auto.n + '건 합계">' + num(cur) + esc(k.unit || '') + '</span>'
             : '<input value="' + esc(k.current || '') + '" placeholder="0" '
-              + 'oninput="gbEditDraw(\'' + jsq(kp) + 'current\', this.value)">')
+              + 'oninput="gbKpiEdit(\'' + jsq(k.id) + '\',\'current\', this.value, 1)">')
       + '</span>'
       + '<span class="cell"><span class="k">목표</span>'
         + (gbShot
             ? '<span class="v">' + esc(k.target || '–') + esc(k.unit || '') + '</span>'
             : '<input value="' + esc(k.target || '') + '" placeholder="–" '
-              + 'oninput="gbEditDraw(\'' + jsq(kp) + 'target\', this.value)">') + '</span>'
+              + 'oninput="gbKpiEdit(\'' + jsq(k.id) + '\',\'target\', this.value, 1)">') + '</span>'
       + '<span class="cell"><span class="k">' + (left !== null && left <= 0 ? '넘음' : '남음')
         + '</span><span class="v">'
         + (left === null ? '–' : num(Math.abs(left)) + esc(gbShot ? (k.unit || '') : ''))
@@ -7200,13 +7286,20 @@ function gbKpiCard(g, k){
         + 'style="width:44px;font-family:inherit;font-size:10.5px;text-align:center;'
         + 'padding:2px 4px;border-radius:var(--r-xs);border:1px solid var(--border);'
         + 'background:var(--bg-input);color:var(--text-secondary)" '
-        + 'oninput="gbEdit(\'' + jsq(kp) + 'unit\', this.value)">'
+        + 'oninput="gbKpiEdit(\'' + jsq(k.id) + '\',\'unit\', this.value)">'
       + '<span style="margin-left:auto;overflow:hidden;text-overflow:ellipsis;'
         + 'white-space:nowrap">'
         + (mode === 'auto'
             ? (auto.n ? '업무 ' + auto.n + '건 합계' : '연결된 업무 없음')
             : '직접 적는 값') + '</span>'
-    + '</div></div>';
+    + '</div>'
+    // 이 지표를 누가 몇 건 맡고 있나 — 브랜드 지표라 여러 사람이 걸 수 있습니다
+    + (who.length
+        ? '<div class="who">' + who.map(u => (u.who === g.who ? '<b>' : '<span>')
+            + esc(gbName(u.who)) + ' ' + u.n + (u.who === g.who ? '</b>' : '</span>')).join('')
+          + '</div>'
+        : '')
+    + '</div>';
 }
 
 function gbStageHtml(g, st, idx){
@@ -7379,7 +7472,7 @@ const GB_TPL = [
 function gbAutoKpi(it){
   if(!it || !it.kpiId) return false;
   const g = gbFind(gbWho, gbYear); if(!g) return false;
-  const k = (g.kpis || []).find(x => x.id === it.kpiId);
+  const k = gbKpiById(it.kpiId);
   return !!(k && k.mode === 'auto');
 }
 function gbTpl(it){
@@ -7447,6 +7540,26 @@ function gbBrandUse(g){
 /* 거르기까지 마친 업무들 */
 function gbPick(st){
   return gbVisibleItems(st).filter(it => !gbBr || (it.brandId || '') === gbBr);
+}
+
+/* ＋ 지표 추가 — 어느 브랜드에 걸지 먼저 고릅니다 */
+function gbKpiAddBar(g){
+  if(!gbKpiAdd) return '';
+  const use = gbBrandUse(g).filter(u => u.key);
+  const rest = (data.brands || []).filter(b => !use.some(u => u.key === b.id));
+  const btn = (key, icon, name, hint) =>
+    '<button onclick="gbAddKpi(\'' + jsq(key) + '\')">'
+    + '<b>' + esc(icon) + ' ' + esc(name) + '</b>'
+    + '<span>' + esc(hint) + '</span></button>';
+  return '<div class="gb-tpl" style="margin:0 0 12px">'
+    + '<div class="hd">어느 브랜드 지표인가요? '
+      + '<span>같은 브랜드를 여러 명이 맡아도 숫자는 하나로 봅니다</span></div>'
+    + use.map(u => btn(u.key, u.icon, u.name,
+        '내 업무 ' + u.n + '건 · 지표 ' + gbKpiList(g.year, u.key).length + '개')).join('')
+    + rest.map(b => btn(b.id, b.icon || '🏷️', b.name,
+        '지표 ' + gbKpiList(g.year, b.id).length + '개')).join('')
+    + btn('', '·', '브랜드 없음', '개인 목표처럼 브랜드를 안 거는 숫자')
+    + '</div>';
 }
 
 /* 브랜드 고르는 칸 (업무 상세에서) */
@@ -7558,7 +7671,7 @@ function gbMoveStage(sid, iid, to){
 function gbRowHtml(g, st, it, idx, opts){
   opts = opts || {};
   const stt  = GB_STATUS.indexOf(it.status) >= 0 ? it.status : '진행 중';
-  const kpi  = (g.kpis || []).find(x => x.id === it.kpiId);
+  const kpi  = gbKpiById(it.kpiId);
   const iwb  = gbWbCount(it);
   const peek = gbPeek(it);
   const br   = gbBrandOf(it);
@@ -7638,7 +7751,7 @@ function gbDetailHtml(g){
       + '</select></label>'
     + '<label>지표<select onchange="gbEditDraw(\'' + jsq(ip) + 'kpiId\', this.value)">'
       + '<option value="">연결 안 함</option>'
-      + (g.kpis || []).map(k => '<option value="' + esc(k.id) + '"'
+      + gbKpisFor(it, g.year).map(k => '<option value="' + esc(k.id) + '"'
           + (it.kpiId === k.id ? ' selected' : '') + '>🔗 ' + esc(k.name || '이름 없는 지표')
           + '</option>').join('')
       + '</select></label>'
@@ -7675,7 +7788,7 @@ function gbDetailHtml(g){
 /* 사진으로 뽑을 때는 목록 대신 속을 다 펴서 그립니다 */
 function gbItemFullHtml(g, st, it, idx){
   const stt = GB_STATUS.indexOf(it.status) >= 0 ? it.status : '진행 중';
-  const kpi = (g.kpis || []).find(x => x.id === it.kpiId);
+  const kpi = gbKpiById(it.kpiId);
   const br  = gbBrandOf(it);
   const acts = (it.acts || []).map((a2, ai) =>
     gbActHtml(st, it, a2, ai, (it.acts || []).length)).join('');
@@ -8088,14 +8201,16 @@ function gbDoPaste(mode){
       + '단계 ' + got.stages.length + '개 · 업무 ' + nItem + '건'
       + (got.kpis.length ? ' · 지표 ' + got.kpis.length + '개' : ''))) return;
     g.stages = [];
-    if(got.kpis.length) g.kpis = [];
   }
   if(got.goal && (mode === 'replace' || !(g.goal || '').trim())) g.goal = got.goal;
-  got.kpis.forEach(k => { g.kpis.push(k); });
+  // 지표는 브랜드에 걸립니다 — 브랜드를 모르면 「브랜드 없음」 으로 둡니다
+  got.kpis.forEach(k => {
+    gbKpis().push(Object.assign({ year: String(g.year), brandId:'' }, k));
+  });
 
   // 「지표: 이름」 을 실제 지표에 이어 붙입니다
   const byName = {};
-  (g.kpis || []).forEach(k => { byName[String(k.name || '').trim()] = k.id; });
+  gbKpiList(g.year).forEach(k => { byName[String(k.name || '').trim()] = k.id; });
   got.stages.forEach(x => {
     x.items.forEach(it => {
       if(it._kpi && byName[it._kpi]) it.kpiId = byName[it._kpi];
@@ -8414,20 +8529,23 @@ async function bfRun(mode){
       wiped[g.id] = true;
       g.stages = GB_STAGES.map((s, i) => ({ id: uid('gs'), key: s.key, no: i + 1,
                                             label: s.label, desc: s.desc, items: [] }));
-      g.kpis = [];
+      data.gbkpis = gbKpis().filter(k => String(k.year) !== String(g.year)
+        || !rows.some(r2 => r2.brandId && r2.brandId === k.brandId));
       g.goal = '';
     }
     // 목표는 비어 있을 때만 채웁니다 (이미 적어 둔 것을 덮어쓰지 않게)
     if(got.goal && !(g.goal || '').trim()) g.goal = got.goal;
 
-    // 지표 — 이름이 같은 것이 이미 있으면 그것에 이어 붙입니다 (두 개로 안 늘게)
-    const byName = {}; (g.kpis || []).forEach(k => { byName[String(k.name || '').trim()] = k.id; });
+    // 지표는 이 줄의 브랜드에 겁니다. 같은 브랜드에 같은 이름이 있으면 그것에 이어 붙입니다
+    const bid2   = bfBrandId(r.brand);
+    const byName = {};
+    gbKpiList(g.year, bid2).forEach(k => { byName[String(k.name || '').trim()] = k.id; });
     const idMap  = {};
     got.kpis.forEach(k => {
       const nm = String(k.name || '').trim(), old = k._old;
       delete k._old;
       if(nm && byName[nm]){ if(old) idMap[old] = byName[nm]; return; }
-      g.kpis.push(k);
+      gbKpis().push(Object.assign({ year: String(g.year), brandId: bid2 }, k));
       if(nm) byName[nm] = k.id;
       if(old) idMap[old] = k.id;
     });
@@ -8505,11 +8623,13 @@ function gbText(){
   const L = [];
   L.push('# ' + gbName(g.who) + ' · ' + g.year + '년 그로스보드');
   if((g.goal || '').trim()) L.push('\n올해 목표: ' + g.goal.trim());
-  if((g.kpis || []).length){
+  const kl = gbBoardKpis(g);
+  if(kl.length){
     L.push('\n## 핵심 지표');
-    g.kpis.forEach(k => {
-      const p = gbPct(g, k);
-      L.push('- ' + (k.name || '(이름 없음)') + ': '
+    kl.forEach(k => {
+      const p  = gbPct(g, k);
+      const b2 = (data.brands || []).find(x => x.id === k.brandId);
+      L.push('- ' + (b2 ? '[' + b2.name + '] ' : '') + (k.name || '(이름 없음)') + ': '
         + gbCur(g, k).toLocaleString('ko-KR') + ' / ' + (k.target || '-')
         + (k.unit || '') + (p === null ? '' : ' (' + p + '%)'));
     });
@@ -8518,7 +8638,7 @@ function gbText(){
     if(!(st.items || []).length) return;
     L.push('\n## ' + (i + 1) + '. ' + (st.label || '') + (st.desc ? ' — ' + st.desc : ''));
     st.items.forEach((it, j) => {
-      const k = (g.kpis || []).find(x => x.id === it.kpiId);
+      const k = gbKpiById(it.kpiId);
       const br2 = gbBrandOf(it);
       L.push('\n### ' + (j + 1) + ') ' + (it.title || '(제목 없음)')
         + '  [' + (it.status || '진행 중') + ']'
@@ -12997,7 +13117,7 @@ function markDirtyAll(){
 }
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels']);
-const TOP_LISTS   = ['meetings', 'events', 'trash', 'growth', 'boards'];  // 브랜드 밖
+const TOP_LISTS   = ['meetings', 'events', 'trash', 'growth', 'boards', 'gbkpis'];  // 브랜드 밖
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
 let revived  = 0;                // 되살린 개수 (알려주기 위해)
@@ -13364,15 +13484,22 @@ function normalize(raw){
     b.edges = b.edges.filter(e => e && ids.has(e.from) && ids.has(e.to));
     b.edges.forEach(e => { e.id = e.id || uid('we'); });
   });
+  if(!Array.isArray(raw.gbkpis))   raw.gbkpis   = [];   // 그로스 지표 (브랜드 × 연도)
+  raw.gbkpis.forEach(k => {
+    k.id      = k.id || uid('k');
+    k.year    = String(k.year || new Date().getFullYear());
+    k.brandId = String(k.brandId || '');
+    if(k.mode !== 'auto') k.mode = 'manual';
+  });
   if(!Array.isArray(raw.growth))   raw.growth   = [];   // 그로스보드 (사람 × 연도 한 장씩)
   raw.growth.forEach(g => {
     g.id   = g.id || uid('gb');
     g.who  = String(g.who || '');
     g.year = String(g.year || new Date().getFullYear());
     if(typeof g.goal !== 'string') g.goal = '';
-    if(!Array.isArray(g.kpis))   g.kpis   = [];
     if(!Array.isArray(g.stages)) g.stages = [];
-    g.kpis.forEach(k => { k.id = k.id || uid('k'); });
+    // 예전 자료: 사람에게 붙어 있던 지표는 아래에서 브랜드 지표로 옮깁니다
+    if(Array.isArray(g.kpis)) g.kpis.forEach(k => { k.id = k.id || uid('k'); });
     g.stages.forEach(st => {
       st.id = st.id || uid('gs');
       if(!Array.isArray(st.items)) st.items = [];
@@ -13422,6 +13549,32 @@ function normalize(raw){
       seen.add(x.id); return true;
     });
   });
+  // 예전 자료: 사람 보드에 붙어 있던 지표를 브랜드 지표로 한 번만 옮깁니다
+  raw.growth.forEach(g => {
+    if(!Array.isArray(g.kpis) || !g.kpis.length) return;
+    g.kpis.forEach(k => {
+      const cnt = {};
+      (g.stages || []).forEach(st => (st.items || []).forEach(it => {
+        if(it.kpiId === k.id) cnt[it.brandId || ''] = (cnt[it.brandId || ''] || 0) + 1;
+      }));
+      let bid = '', top = 0;
+      Object.keys(cnt).forEach(b => { if(cnt[b] > top){ top = cnt[b]; bid = b; } });
+      const same = raw.gbkpis.find(x => String(x.year) === String(g.year)
+        && (x.brandId || '') === bid && (x.name || '').trim() === (k.name || '').trim());
+      if(same){
+        (g.stages || []).forEach(st => (st.items || []).forEach(it => {
+          if(it.kpiId === k.id) it.kpiId = same.id;
+        }));
+      }else{
+        raw.gbkpis.push({ id: k.id, year: String(g.year), brandId: bid,
+                          name: k.name || '', current: k.current || '',
+                          target: k.target || '', unit: k.unit || '',
+                          mode: k.mode === 'auto' ? 'auto' : 'manual' });
+      }
+    });
+    delete g.kpis;
+  });
+
   return raw;
 }
 

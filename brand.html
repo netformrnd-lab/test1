@@ -781,7 +781,7 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-kpi .mode button.on{background:var(--ink);color:#fff}
 /* 📷 사진으로 뽑을 때 — 고치는 단추와 빈 칸은 감춥니다 */
 .gb-shot .gb-top,.gb-shot .gb-sedit,.gb-shot .gb-add,.gb-shot .gb-foot,
-.gb-shot .gb-kpi .x,.gb-shot .gb-act .rm,.gb-shot .gb-step .x,
+.gb-shot .gb-kpi .x,.gb-shot .gb-act .rm,.gb-shot .gb-radd,
 .gb-shot .sec-bar,.gb-shot .gb-filter,
 .gb-shot .gb-help,.gb-shot .gb-tpl,.gb-shot .gb-sedit{display:none!important}
 .gb-shot .gb-ih .btn,.gb-shot .gb-kpi .foot{display:none}
@@ -793,14 +793,10 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-shot .gb-kpi .cell input{background:transparent!important}
 .gb-shot .gb-item,.gb-shot .gb-stage{break-inside:avoid}
 /* 사진으로 뽑을 때 글자로 보여주는 칸 (입력칸은 긴 글이 잘려 나옵니다) */
-.gb-ro{font-size:12.5px;line-height:1.7;color:var(--text-primary);white-space:pre-wrap;
-  word-break:break-word;padding:2px 0}
-.gb-goal .gb-ro{font-size:13px;line-height:1.75;padding:9px 12px;
-  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-input)}
-.gb-shot .gb-step{gap:6px}
-.gb-shot .gb-step .bx{font-size:12.5px;color:var(--text-muted);line-height:1.7}
-.gb-shot .gb-step .tx{font-size:12.5px;line-height:1.7;color:var(--text-primary);
-  word-break:break-word}
+.gb-ro{font-size:14px;line-height:1.65;color:var(--text-primary);white-space:pre-wrap;
+  word-break:break-word;padding:8px 11px;border:1px solid var(--border);
+  border-radius:9px;background:var(--bg-card)}
+.gb-goal .gb-ro{font-size:14px;line-height:1.75;background:var(--bg-input)}
 /* 📖 처음 쓰는 사람을 위한 안내 */
 .gb-help{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-card);
   padding:14px 16px;margin:0 0 14px}
@@ -913,126 +909,140 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-item.done .gb-ih{background:var(--bg-sunken)}
 .gb-item.done .gb-ih .no{background:var(--green)}
 .gb-item.done .gb-ih .tt{color:var(--text-muted);text-decoration:line-through}
-.gb-ib{border-top:1px solid var(--border);padding:0;background:var(--bg-card)}
+.gb-none{padding:9px 12px;font-size:12px;color:var(--text-muted);
+  border-top:1px solid var(--border)}
 
-/* 목표·문제 한 덩이 — 카드 한 장 (이름표 표 대신) */
 /* ── 단계 안 목록 ────────────────────────────────────────────── */
 .gb-list{display:flex;flex-direction:column;gap:6px;padding:2px 0 4px}
 .gb-row2{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
-  padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:11px 13px;border:1px solid var(--border);border-radius:var(--r-sm);
   background:var(--bg-card);cursor:pointer;font-family:inherit}
 .gb-row2:hover{border-color:var(--blue);background:var(--blue-soft)}
-.gb-row2 .no{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--blue);
+.gb-row2 .no{flex:0 0 auto;width:21px;height:21px;border-radius:50%;background:var(--blue);
   color:#fff;display:flex;align-items:center;justify-content:center;
-  font-size:10.5px;font-weight:800}
-.gb-row2 .mid{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
-.gb-row2 .tt{font-size:13px;font-weight:700;color:var(--text-primary);letter-spacing:-.015em;
-  word-break:break-word}
-.gb-row2 .pk{font-size:11.5px;line-height:1.5;color:var(--text-muted);word-break:break-word}
+  font-size:11px;font-weight:800}
+.gb-row2 .mid{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.gb-row2 .tt{font-size:14px;font-weight:700;color:var(--text-primary);letter-spacing:-.015em;
+  line-height:1.45;word-break:break-word}
+.gb-row2 .pk{font-size:12.5px;line-height:1.5;color:var(--text-muted);word-break:break-word}
 .gb-row2 .pk b{color:var(--green)}
 .gb-row2 .cs{flex:0 0 auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;
-  max-width:44%}
-.gb-row2 .chip{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:99px;
+  max-width:42%}
+.gb-row2 .chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;
   border:1px solid var(--border);color:var(--text-muted);background:var(--bg-input);
   white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis}
 .gb-row2 .chip.s0{color:var(--text-muted)}
 .gb-row2 .chip.s1{color:var(--blue);border-color:var(--blue)}
 .gb-row2 .chip.s2{color:var(--green);border-color:var(--green)}
 .gb-row2 .chip.s3{color:var(--orange);border-color:var(--orange)}
-.gb-row2 .go{flex:0 0 auto;color:var(--text-muted);font-size:16px;line-height:1}
+.gb-row2 .go{flex:0 0 auto;color:var(--text-muted);font-size:17px;line-height:1}
 .gb-row2.done .tt{color:var(--text-muted);text-decoration:line-through}
 @media(max-width:640px){
   .gb-row2{flex-wrap:wrap}
-  .gb-row2 .cs{max-width:100%;justify-content:flex-start;flex:1 1 100%;padding-left:30px}
+  .gb-row2 .cs{max-width:100%;justify-content:flex-start;flex:1 1 100%;padding-left:31px}
   .gb-row2 .go{display:none}
 }
 
 /* ── 업무 하나만 크게 (안으로 들어온 화면) ────────────────────── */
 .gb-dbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 12px}
-.gb-dbar .bc{font-size:12px;color:var(--text-muted)}
+.gb-dbar .bc{font-size:12.5px;color:var(--text-muted)}
 .gb-dbar .bc b{color:var(--text-secondary)}
-.gb-dtt{width:100%;border:none;border-bottom:2px solid var(--border);background:transparent;
-  font-family:inherit;font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.4;
-  color:var(--text-primary);padding:2px 0 8px;resize:none;overflow:hidden;min-height:38px}
+.gb-dtt{width:100%;box-sizing:border-box;border:none;
+  border-bottom:2px solid var(--border);background:transparent;
+  font-family:inherit;font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.4;
+  color:var(--text-primary);padding:2px 0 9px;resize:none;overflow:hidden;min-height:40px}
 .gb-dtt:focus{outline:none;border-bottom-color:var(--blue)}
-.gb-dmeta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 14px}
-.gb-dmeta label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+.gb-dmeta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:13px 0 16px}
+.gb-dmeta label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;
   color:var(--text-muted)}
-.gb-dmeta select{font-family:inherit;font-size:12px;padding:4px 8px;border-radius:var(--r-xs);
+.gb-dmeta select{font-family:inherit;font-size:13px;padding:5px 9px;border-radius:var(--r-xs);
   border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);
-  max-width:210px}
-.gb-dacts{display:flex;flex-direction:column;gap:10px}
-.gb-detail .gb-foot{display:flex;gap:6px;margin-top:12px}
+  max-width:230px}
+.gb-dacts{display:flex;flex-direction:column;gap:0}
+.gb-detail .gb-foot{display:flex;gap:6px;margin-top:14px}
 
-.gb-none{padding:9px 12px;font-size:11.5px;color:var(--text-muted);
-  border-top:1px solid var(--border)}
-.gb-ib{border-top:1px solid var(--border);padding:10px;background:var(--bg-sunken);
-  display:flex;flex-direction:column;gap:9px}
-.gb-act{position:relative;border:1px solid var(--border);border-radius:var(--r-sm);
-  background:var(--bg-card);padding:10px 12px 10px 15px;overflow:hidden}
-.gb-act::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
-.gb-act.goal::before{background:var(--green)}
-.gb-act.problem::before{background:var(--orange)}
-.gb-act .ah{display:flex;align-items:center;gap:7px;margin-bottom:3px}
-.gb-act .ah .tag{border:none;background:transparent;font-family:inherit;font-size:11.5px;
-  font-weight:800;cursor:pointer;padding:0;letter-spacing:-.01em}
-.gb-act.goal .ah .tag{color:var(--green)}
-.gb-act.problem .ah .tag{color:var(--orange)}
-.gb-act .ah .rd{font-size:10.5px;font-weight:700;color:var(--text-muted);
-  border:1px solid var(--border);border-radius:99px;padding:1px 7px}
-.gb-act .rm{border:none;background:transparent;color:var(--text-muted);cursor:pointer;
-  font-size:14px;line-height:1;padding:0 2px;margin-left:auto;opacity:0}
-.gb-act:hover .rm{opacity:1}
-.gb-act textarea{width:100%;border:none;background:transparent;resize:none;overflow:hidden;
-  font-family:inherit;color:var(--text-primary);padding:2px 0;min-height:24px}
-.gb-act textarea:focus{outline:none}
-.gb-act .txt{font-size:13.5px;line-height:1.65;font-weight:700;letter-spacing:-.015em}
-.gb-act .basis{font-size:12.5px;line-height:1.7;color:var(--text-secondary);font-weight:400}
+/* ── 활동 한 차수 (예전 브랜드플로우와 같은 모양) ─────────────── */
+.gb-ib{border-top:1px solid var(--border);padding:12px 14px;background:var(--bg-card)}
+.gb-act{position:relative;padding:14px 0 16px 30px}
+.gb-act + .gb-act{border-top:1px solid var(--border-light)}
+.gb-ahead{display:flex;align-items:center;gap:9px;margin-bottom:11px;flex-wrap:wrap}
+.gb-ahead .dot{position:absolute;left:0;width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;
+  color:#fff;background:var(--blue)}
+.gb-act.problem .gb-ahead .dot{background:var(--orange)}
+.gb-ahead .rl{font-size:14px;font-weight:800;color:var(--text-primary)}
+.gb-ahead .modes{display:inline-flex;gap:2px;background:var(--bg-input);border-radius:8px;
+  padding:2px}
+.gb-ahead .pill{border:none;background:none;font-family:inherit;font-size:11.5px;
+  font-weight:700;color:var(--text-muted);padding:4px 11px;border-radius:6px;cursor:pointer}
+.gb-ahead .pill.on{background:var(--bg-card);color:var(--blue);
+  box-shadow:0 1px 2px rgba(20,30,50,.10)}
+.gb-act.problem .gb-ahead .pill.on{color:var(--orange)}
+.gb-ahead .rm{margin-left:auto;border:none;background:none;color:var(--text-muted);
+  font-family:inherit;font-size:11.5px;cursor:pointer;padding:2px 4px;opacity:0}
+.gb-act:hover .gb-ahead .rm{opacity:.75}
+.gb-ahead .rm:hover{color:var(--red);opacity:1}
 
-/* 아래 칸들 — 적은 것만 나옵니다 */
-.gb-act .af{margin-top:9px;padding-top:8px;border-top:1px dashed var(--border)}
-.gb-act .af .fl{display:block;font-size:10.5px;font-weight:800;letter-spacing:.02em;
-  color:var(--text-muted);margin-bottom:3px}
-.gb-act .af .fl b{color:var(--text-secondary);font-weight:800}
+/* 한 칸 — 왼쪽 이름 · 오른쪽 테두리 친 글칸 */
+.gb-fs{display:grid;gap:9px}
+.gb-f{display:grid;grid-template-columns:96px 1fr;gap:11px;align-items:start}
+.gb-f > label{font-size:12.5px;font-weight:700;color:var(--text-muted);padding-top:9px;
+  word-break:keep-all;line-height:1.45}
+.gb-f > .bd{min-width:0}
+.gb-act textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);
+  border-radius:9px;padding:8px 11px;font-family:inherit;font-size:14px;line-height:1.6;
+  background:var(--bg-card);color:var(--text-primary);resize:none;overflow:hidden;
+  min-height:38px}
+.gb-act textarea:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px var(--blue-soft)}
+.gb-act textarea::placeholder{color:var(--text-muted)}
+.gb-act .tx.res{font-weight:700}
 
-/* 결과 — 이 덩이의 마무리라 눈에 띄게 */
-.gb-act .ares{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin:10px -12px -10px -15px;
-  padding:8px 12px 8px 15px;background:var(--bg-input);border-top:1px solid var(--border)}
-.gb-act .ares .rl{flex:0 0 auto;font-size:10.5px;font-weight:800;color:var(--green);
-  padding-top:6px}
-.gb-act .ares textarea{flex:1 1 220px;min-width:0;font-family:inherit;font-size:12.5px;
-  line-height:1.6;font-weight:700;padding:4px 9px;border-radius:var(--r-xs);
-  border:1px solid var(--border);resize:none;overflow:hidden;min-height:26px;
-  background:var(--bg-card);color:var(--text-primary)}
-.gb-act .ares textarea:focus{outline:none;border-color:var(--blue)}
-.gb-act .ares .rv{flex:1 1 220px;min-width:0;font-size:12.5px;font-weight:700;
-  line-height:1.6;color:var(--text-primary);white-space:pre-wrap;word-break:break-word}
-.gb-act .ares .hint{font-size:11px;color:var(--text-muted)}
+/* 가설 · 행동 */
+.gb-rws{display:grid;gap:7px}
+.gb-rw{border:1px solid var(--border);border-radius:10px;padding:9px 11px;
+  background:var(--bg-input)}
+.gb-rw.hyp{border-style:dashed}
+.gb-rw .hd{display:flex;align-items:flex-start;gap:8px}
+.gb-rw .nu{flex:0 0 auto;font-size:12.5px;font-weight:800;color:var(--blue);padding-top:9px;
+  white-space:nowrap}
+.gb-rw.hyp .nu{color:var(--purple)}
+.gb-rw .hd textarea{font-weight:700;background:var(--bg-card)}
+.gb-rw .hd .tt{flex:1;min-width:0;font-size:14px;font-weight:700;line-height:1.6;
+  padding-top:6px;color:var(--text-primary);white-space:pre-wrap;word-break:break-word}
+.gb-rw .ic{flex:0 0 auto;border:none;background:none;color:var(--text-muted);cursor:pointer;
+  font-size:13px;padding:8px 3px 0;opacity:0}
+.gb-rw:hover .ic{opacity:.7}
+.gb-rw .ic:hover{opacity:1;color:var(--text-primary)}
+.gb-rw .ic.x:hover{color:var(--red)}
+.gb-rw .subs{display:grid;gap:5px;padding:6px 0 0 26px}
+.gb-rw .sub{display:flex;align-items:flex-start;gap:6px}
+.gb-rw .sub .bu{flex:0 0 auto;color:var(--text-muted);padding-top:7px;font-size:13px}
+.gb-rw .sub textarea{font-size:13.5px;padding:5px 9px;border-radius:7px;min-height:30px}
+.gb-rw .sub .tt{flex:1;min-width:0;font-size:13.5px;line-height:1.6;padding-top:4px;
+  color:var(--text-secondary);white-space:pre-wrap;word-break:break-word}
+.gb-rw .sub .x{flex:0 0 auto;border:none;background:none;color:var(--text-muted);
+  cursor:pointer;font-size:14px;padding:4px 3px 0;opacity:0}
+.gb-rw .sub:hover .x{opacity:.7}
+.gb-radd{display:flex;gap:6px;margin-top:2px}
+.gb-radd button{border:1px dashed var(--border-light);background:transparent;
+  color:var(--text-muted);font-family:inherit;font-size:12px;font-weight:700;
+  padding:5px 11px;border-radius:8px;cursor:pointer}
+.gb-radd button:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
 
-/* 아직 안 적은 칸은 작은 단추로만 남깁니다 */
-.gb-act .am{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
-.gb-act .am button{border:1px dashed var(--border-light);background:transparent;
-  color:var(--text-muted);font-family:inherit;font-size:11px;font-weight:600;
-  padding:3px 9px;border-radius:99px;cursor:pointer}
-.gb-act .am button:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
+/* 아직 안 적은 칸은 작은 단추로만 */
+.gb-am{display:flex;gap:5px;flex-wrap:wrap;margin:9px 0 0 107px}
+.gb-am button{border:1px dashed var(--border-light);background:transparent;
+  color:var(--text-muted);font-family:inherit;font-size:11.5px;font-weight:700;
+  padding:4px 10px;border-radius:99px;cursor:pointer}
+.gb-am button:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
+@media(max-width:640px){
+  .gb-act{padding-left:26px}
+  .gb-f{grid-template-columns:1fr;gap:4px}
+  .gb-f > label{padding-top:0}
+  .gb-am{margin-left:0}
+}
 
-.gb-step{display:flex;align-items:flex-start;gap:7px;padding:2px 0}
-.gb-step input[type=checkbox]{flex:0 0 auto;width:14px;height:14px;accent-color:var(--green);
-  cursor:pointer;margin-top:3px}
-.gb-step textarea{flex:1;min-width:0;border:none;background:transparent;resize:none;
-  overflow:hidden;font-family:inherit;font-size:12.5px;line-height:1.6;
-  color:var(--text-secondary);padding:1px 0;min-height:22px}
-.gb-step textarea:focus{outline:none;border-bottom:1px solid var(--border-light)}
-.gb-step.done textarea{text-decoration:line-through;color:var(--text-muted)}
-.gb-step .x{border:none;background:transparent;color:var(--text-muted);cursor:pointer;
-  font-size:13px;padding:0 3px;opacity:0}
-.gb-step:hover .x{opacity:1}
-/* 결과 — 숫자만 적는 칸이 아니라 「어떻게 됐나」 를 적는 칸이라 넓게 둡니다 */
-.gb-val{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.gb-val input{flex:1 1 240px;min-width:0;font-family:inherit;font-size:12.5px;font-weight:700;
-  padding:4px 9px;border-radius:var(--r-xs);
-  border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)}
-.gb-val .hint{font-size:11.5px;color:var(--text-muted)}
 .gb-add.tiny{padding:2px 8px;font-size:11px;margin-top:4px}
 .gb-add{border:1px dashed var(--border-light);background:transparent;color:var(--text-muted);
   font-family:inherit;font-size:12px;font-weight:600;padding:5px 10px;border-radius:var(--r-sm);
@@ -1649,7 +1659,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-23';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-24';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6455,13 +6465,16 @@ function setGbQ(v){
 }
 function setGbSt(v){ gbSt = v; render(); }
 
-/* 이 업무가 찾는 말에 걸리나 — 제목·내용·근거·확인할 것까지 봅니다 */
+/* 이 업무가 찾는 말에 걸리나 — 제목·내용·가설·행동·결과까지 봅니다 */
 function gbHit(it, q){
   if(!q) return true;
   const bag = [it.title || '', it.status || ''];
   (it.acts || []).forEach(a => {
-    bag.push(a.text || '', a.basis || '');
-    (a.steps || []).forEach(t => bag.push(t.text || ''));
+    bag.push(a.text || '', a.basis || '', a.value || '');
+    (a.steps || []).forEach(t => {
+      bag.push(t.text || '');
+      (t.subs || []).forEach(x => bag.push(x.text || ''));
+    });
   });
   const hay = bag.join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.indexOf(w) >= 0);
@@ -6482,7 +6495,7 @@ function gbGrow(el){
   el.style.height = Math.max(26, el.scrollHeight) + 'px';
 }
 function gbGrowAll(){
-  document.querySelectorAll('.gb-act textarea, .gb-step textarea, .gb-dtt, #gbGoal')
+  document.querySelectorAll('.gb-act textarea, .gb-dtt, #gbGoal')
     .forEach(gbGrow);
 }
 function setGbWho(v){
@@ -6576,13 +6589,13 @@ function gbColor(p){
 }
 /* 단계 안에서 끝난 단계가 몇 개인지 */
 function gbStepStat(st){
-  let done = 0, all = 0, fin = 0;
+  let all = 0, fin = 0;
   (st.items || []).forEach(it => {
     if(it.status === '완료') fin++;
     (it.acts || []).forEach(a =>
-      (a.steps || []).forEach(x => { all++; if(x.done) done++; }));
+      (a.steps || []).forEach(x => { if(String(x.text || '').trim()) all++; }));
   });
-  return { done: done, all: all, fin: fin };
+  return { all: all, fin: fin };
 }
 
 /* ── 고치기 (다시 그리지 않습니다 — 글 치는 중에 화면이 흔들리지 않게) ── */
@@ -6670,7 +6683,7 @@ function gbAddItem(sid, tplKey){
   const it = { id: uid('gi'), title: T.ti || '새 업무', status:'진행 중', kpiId:'',
     tpl: T.key,
     acts:[ { id: uid('ga'), mode:'goal', text:'', basis:'', value:'',
-             steps: (T.steps || []).map(x => ({ id: uid('gt'), text: x, done:false })) } ] };
+             steps: (T.steps || []).map(x => ({ id: uid('gt'), kind:'act', text: x, subs:[] })) } ] };
   st.items.push(it);
   gbTplAt = ''; gbOpen[sid] = true; gbOpen[it.id] = true;
   markDirtyAll(); render();
@@ -6698,18 +6711,12 @@ function gbAddAct(sid, iid, mode){
   it.acts.push({ id: uid('ga'), mode: mode || 'goal', text:'', basis:'', value:'', steps:[] });
   markDirtyAll(); render();
 }
-function gbActMode(sid, iid, aid){
-  const g = gbFind(gbWho, gbYear); if(!g) return;
-  const a = gbAct(g, sid, iid, aid); if(!a) return;
-  a.mode = (a.mode === 'goal') ? 'problem' : 'goal';
-  markDirtyAll(); render();
-}
 function gbDelAct(sid, iid, aid){
   const g = gbFind(gbWho, gbYear); if(!g) return;
   const st = (g.stages || []).find(x => x.id === sid); if(!st) return;
   const it = (st.items || []).find(x => x.id === iid); if(!it) return;
   if((it.acts || []).length <= 1){ toast('⚠️ 마지막 하나는 지울 수 없습니다'); return; }
-  if(!confirm('이 칸을 지울까요? 안에 적은 근거와 단계도 같이 갑니다.')) return;
+  if(!confirm('이 차수를 지울까요? 안에 적은 가설·행동과 결과도 같이 갑니다.')) return;
   it.acts = it.acts.filter(x => x.id !== aid);
   markDirtyAll(); render();
 }
@@ -6717,38 +6724,6 @@ function gbAct(g, sid, iid, aid){
   const st = (g.stages || []).find(x => x.id === sid); if(!st) return null;
   const it = (st.items || []).find(x => x.id === iid); if(!it) return null;
   return (it.acts || []).find(x => x.id === aid) || null;
-}
-
-/* ── 세부 단계 ──────────────────────────────────────────────── */
-/* 확인할 것에서 Enter 를 누르면 다음 줄이 생깁니다 (줄바꿈 대신) */
-function gbStepKey(ev, sid, iid, aid){
-  if(ev.key !== 'Enter' || ev.shiftKey || ev.isComposing) return;
-  ev.preventDefault();
-  gbAddStep(sid, iid, aid);
-}
-function gbAddStep(sid, iid, aid){
-  const g = gbFind(gbWho, gbYear); if(!g) return;
-  const a = gbAct(g, sid, iid, aid); if(!a) return;
-  a.steps = a.steps || [];
-  a.steps.push({ id: uid('gt'), text:'', done:false });
-  markDirtyAll(); render();
-  setTimeout(() => {
-    const el = document.getElementById('gbs_' + a.steps[a.steps.length - 1].id);
-    if(el) el.focus();
-  }, 30);
-}
-function gbStepDone(sid, iid, aid, tid, on){
-  const g = gbFind(gbWho, gbYear); if(!g) return;
-  const a = gbAct(g, sid, iid, aid); if(!a) return;
-  const t = (a.steps || []).find(x => x.id === tid); if(!t) return;
-  t.done = !!on;
-  markDirtyAll(); render();
-}
-function gbDelStep(sid, iid, aid, tid){
-  const g = gbFind(gbWho, gbYear); if(!g) return;
-  const a = gbAct(g, sid, iid, aid); if(!a) return;
-  a.steps = (a.steps || []).filter(x => x.id !== tid);
-  markDirtyAll(); render();
 }
 
 /* ── 그리기 ─────────────────────────────────────────────────── */
@@ -6837,7 +6812,7 @@ function renderGrowth(){
   const search = '<div class="gb-top">'
     + '<span class="gb-search"><span class="ic">🔍</span>'
       + '<input id="gbQ" value="' + esc(gbQ) + '" '
-      + 'placeholder="업무 찾기 — 제목·근거·확인할 것에서 찾습니다" '
+      + 'placeholder="업무 찾기 — 제목·내용·가설·행동에서 찾습니다" '
       + 'oninput="setGbQ(this.value)"></span>'
     + (gbQ.trim()
         ? '<button class="btn sm" onclick="setGbQ(\'\')">✕ 지우기</button>' : '')
@@ -6940,11 +6915,12 @@ function renderGrowth(){
         + 'border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)" '
         + 'placeholder="## 1. 유입 — 신규 유입률 확대&#10;'
         + '### 1) 블로그 검색 유입 늘리기  [진행 중]  [지표: 신규 문의 수]&#10;'
-        + '- 목표: 월 검색 유입 3,000 → 6,000&#10;'
-        + '  근거: 상위 노출 키워드가 12개뿐&#10;'
-        + '  [ ] 키워드 30개 목록 만들기&#10;'
-        + '  [x] 주 2편 발행&#10;'
-        + '  결과: 35"></textarea>'
+        + '[1차] 목표 / 실행 이유&#10;'
+        + '월 검색 유입 3,000 → 6,000&#10;'
+        + '  행동 1. 주 2편씩 8주 발행&#10;'
+        + '    · 키워드 30개 목록 먼저 만들기&#10;'
+        + '  가설 1. 키워드를 30개로 늘리면 유입이 2배가 될 것이다&#10;'
+        + '  결과: 검색 유입 4,100명"></textarea>'
       + '<div class="sec-bar" style="margin:9px 0 0">'
         + '<button class="btn primary" onclick="gbDoPaste(\'add\')">＋ 지금 보드에 더하기</button>'
         + '<button class="btn danger" onclick="gbDoPaste(\'replace\')">↻ 통째로 바꾸기</button>'
@@ -7121,7 +7097,7 @@ function gbStageHtml(g, st, idx){
     + '<span class="ct">'
       + (all ? (n === all ? all + '건' : n + ' / ' + all + '건') : '비어 있음')
       + (stat.fin ? ' · 완료 ' + stat.fin : '')
-      + (stat.all ? ' · ☑ ' + stat.done + '/' + stat.all : '') + '</span>'
+      + (stat.all ? ' · 가설·행동 ' + stat.all : '') + '</span>'
     + '</button>';
 
   if(!open) return '<div class="gb-stage">' + head + '</div>';
@@ -7188,20 +7164,19 @@ function gbHelpHtml(){
       + step(2, '지표 2~3개',     '그 목표를 무슨 숫자로 보나 (지금 → 목표)')
       + step(3, '업무를 단계에',   '그 숫자를 올릴 일을 유입·전환·활성화·재사용에 나눠 담기')
     + '</div>'
-    + '<div class="four"><div class="fh">업무 한 건은 이 네 칸입니다</div>'
-      + row('🎯 목표 / ❓ 문제', '왜 이 일을 하나 — 이루려는 것, 또는 걸려 있는 것')
-      + row('근거 · 가설',      '왜 그렇게 보나 — 숫자나 실제로 겪은 일로')
-      + row('확인할 것',        '무엇을 해서 확인할까 — 하나씩 체크')
-      + row('결과',            '어떻게 됐나 — 숫자든 말이든, 안 됐으면 안 된 대로')
+    + '<div class="four"><div class="fh">한 차수는 이 세 칸입니다 (1차 → 2차 → 3차로 쌓입니다)</div>'
+      + row('목표 / 실행 이유', '왜 이 일을 하나 (문제형이면 「문제 / 이슈」 — 무엇이 걸렸나)')
+      + row('가설 / 행동',     '무엇을 했나(행동) · 무엇을 그렇게 봤나(가설) — 번호 순서대로')
+      + row('결과',           '어떻게 됐나 — 숫자든 말이든, 안 됐으면 안 된 대로')
     + '</div>'
     + '<div class="tip">처음이면 단계를 펴고 <b>[＋ 업무 추가]</b> 를 눌러 '
-      + '「어떤 일인가」 를 골라보세요. 확인할 것이 미리 채워지고 칸마다 예시가 뜹니다.</div>'
+      + '「어떤 일인가」 를 골라보세요. 행동이 미리 채워지고 칸마다 예시가 뜹니다.</div>'
     + '</div>';
 }
 
 /* ── 서식 ──────────────────────────────────────────────────────
    빈 칸만 있으면 처음 온 사람은 무엇을 적어야 할지 모릅니다.
-   그래서 업무를 만들 때 「어떤 일인가」 를 고르면 확인할 것이
+   그래서 업무를 만들 때 「어떤 일인가」 를 고르면 행동이
    미리 채워지고, 칸마다 그 일에 맞는 예시 문구가 뜹니다.
    (예시는 회색 안내 글이라 지울 필요가 없습니다)
    ------------------------------------------------------------- */
@@ -7294,7 +7269,7 @@ function gbPickTpl(sid){ gbTplAt = (gbTplAt === sid) ? '' : sid; render(); }
 function gbTplBar(sid){
   if(gbTplAt !== sid) return '';
   return '<div class="gb-tpl">'
-    + '<div class="hd">어떤 일인가요? <span>고르면 「확인할 것」 이 채워지고 '
+    + '<div class="hd">어떤 일인가요? <span>고르면 「행동」 이 채워지고 '
       + '칸마다 예시가 뜹니다</span></div>'
     + GB_TPL.map(t => '<button onclick="gbAddItem(\'' + jsq(sid) + '\',\'' + t.key + '\')">'
         + '<b>' + t.ic + ' ' + esc(t.nm) + '</b>'
@@ -7356,10 +7331,9 @@ function gbRowHtml(g, st, it, idx){
   const kpi  = (g.kpis || []).find(x => x.id === it.kpiId);
   const iwb  = gbWbCount(it);
   const peek = gbPeek(it);
-  let done = 0, all = 0;
+  let all = 0;
   (it.acts || []).forEach(a => (a.steps || []).forEach(t => {
-    if(!String(t.text || '').trim()) return;
-    all++; if(t.done) done++;
+    if(String(t.text || '').trim()) all++;
   }));
 
   return '<button class="gb-row2' + (stt === '완료' ? ' done' : '') + '" '
@@ -7372,7 +7346,7 @@ function gbRowHtml(g, st, it, idx){
     + '<span class="cs">'
       + '<span class="chip s' + GB_STATUS.indexOf(stt) + '">' + esc(stt) + '</span>'
       + (kpi ? '<span class="chip">🔗 ' + esc(kpi.name || '') + '</span>' : '')
-      + (all ? '<span class="chip">☑ ' + done + '/' + all + '</span>' : '')
+      + (all ? '<span class="chip">' + all + '줄</span>' : '')
       + (iwb ? '<span class="chip">🧩 ' + iwb + '</span>' : '')
     + '</span>'
     + '<span class="go">›</span>'
@@ -7477,13 +7451,18 @@ function gbItemFullHtml(g, st, it, idx){
     + '</div>';
 }
 
-/* 목표·문제 한 덩이 — 카드 한 장.
-   적은 것만 나오고, 안 적은 칸은 아래 작은 단추로만 남습니다. */
-const gbShow = {};      // 'ga_1:basis' → 빈 칸을 펴 두었나
+/* ── 활동 한 차수 ───────────────────────────────────────────────
+   예전 브랜드플로우와 같은 모양입니다.
+     ● n차 활동  [목표형 | 문제형]
+       목표 / 실행 이유   (문제형이면 「문제 / 이슈」)
+       가설 / 행동        — 가설 1. · 행동 1. 로 번호가 붙고, 그 아래 세부 단계
+       결과
+   칸마다 테두리를 둘러 어디까지가 한 칸인지 눈에 바로 들어오게 했습니다.
+   ------------------------------------------------------------- */
+const gbShow = {};      // 'ga_1:value' → 빈 칸을 펴 두었나
 
 function gbShowFld(sid, iid, aid, f){
   gbShow[aid + ':' + f] = true;
-  if(f === 'steps'){ gbAddStep(sid, iid, aid); return; }   // gbAddStep 이 다시 그립니다
   render();
   setTimeout(() => {
     const el = document.getElementById('gbf_' + aid + '_' + f);
@@ -7491,97 +7470,172 @@ function gbShowFld(sid, iid, aid, f){
   }, 20);
 }
 
+/* 가설·행동 줄 (예전 자료는 kind 가 없어서 「행동」 으로 봅니다) */
+function gbRows(a){
+  if(!Array.isArray(a.steps)) a.steps = [];
+  a.steps.forEach(r => {
+    if(r.kind !== 'hyp' && r.kind !== 'act') r.kind = 'act';
+    if(!Array.isArray(r.subs)) r.subs = [];
+  });
+  return a.steps;
+}
+function gbAct2(g, sid, iid, aid){
+  const st = (g.stages || []).find(x => x.id === sid); if(!st) return null;
+  const it = (st.items || []).find(x => x.id === iid); if(!it) return null;
+  return (it.acts || []).find(x => x.id === aid) || null;
+}
+function gbAddRow(sid, iid, aid, kind){
+  const g = gbFind(gbWho, gbYear); if(!g) return;
+  const a = gbAct2(g, sid, iid, aid); if(!a) return;
+  const r = { id: uid('gt'), kind: kind === 'hyp' ? 'hyp' : 'act', text:'', subs:[] };
+  gbRows(a).push(r);
+  markDirtyAll(); render();
+  setTimeout(() => { const el = document.getElementById('gbs_' + r.id);
+                     if(el){ el.focus(); gbGrow(el); } }, 30);
+}
+function gbDelRow(sid, iid, aid, rid){
+  const g = gbFind(gbWho, gbYear); if(!g) return;
+  const a = gbAct2(g, sid, iid, aid); if(!a) return;
+  a.steps = gbRows(a).filter(x => x.id !== rid);
+  markDirtyAll(); render();
+}
+function gbAddSub(sid, iid, aid, rid){
+  const g = gbFind(gbWho, gbYear); if(!g) return;
+  const a = gbAct2(g, sid, iid, aid); if(!a) return;
+  const r = gbRows(a).find(x => x.id === rid); if(!r) return;
+  const s2 = { id: uid('gu'), text:'' };
+  r.subs.push(s2);
+  markDirtyAll(); render();
+  setTimeout(() => { const el = document.getElementById('gbu_' + s2.id);
+                     if(el){ el.focus(); gbGrow(el); } }, 30);
+}
+function gbDelSub(sid, iid, aid, rid, sid2){
+  const g = gbFind(gbWho, gbYear); if(!g) return;
+  const a = gbAct2(g, sid, iid, aid); if(!a) return;
+  const r = gbRows(a).find(x => x.id === rid); if(!r) return;
+  r.subs = r.subs.filter(x => x.id !== sid2);
+  markDirtyAll(); render();
+}
+
 function gbActHtml(st, it, a, idx, tot){
   const goal = a.mode !== 'problem';
   const T    = gbTpl(it);
   const ap   = 'stages.' + st.id + '.items.' + it.id + '.acts.' + a.id + '.';
   const args = '\'' + jsq(st.id) + '\',\'' + jsq(it.id) + '\',\'' + jsq(a.id) + '\'';
+  const rows = gbRows(a);
 
   const hasT = String(a.text  || '').trim() !== '';
   const hasB = String(a.basis || '').trim() !== '';
   const hasV = String(a.value || '').trim() !== '';
-  const hasS = (a.steps || []).some(t => String(t.text || '').trim());
-  // 사진으로 뽑을 때 아무것도 안 적힌 덩이는 안 찍습니다
-  if(gbShot && !hasT && !hasB && !hasV && !hasS) return '';
+  const hasR = rows.some(r => String(r.text || '').trim());
+  if(gbShot && !hasT && !hasB && !hasV && !hasR) return '';
 
   const shown = f => !!gbShow[a.id + ':' + f];
-  const ro    = v => '<div class="gb-ro">' + esc(v || '') + '</div>';
+  const ro = v => '<div class="gb-ro">' + esc(v || '') + '</div>';
 
-  const head = '<div class="ah">'
-    + '<button class="tag"' + (gbShot ? '' : ' title="누르면 목표 ↔ 문제 로 바뀝니다" '
-        + 'onclick="gbActMode(' + args + ')"') + '>'
-      + (goal ? '🎯 목표' : '❓ 문제') + '</button>'
-    + (tot > 1 ? '<span class="rd">' + (idx + 1) + '차</span>' : '')
-    + (gbShot ? '' : '<button class="rm" title="이 덩이 지우기" '
-        + 'onclick="gbDelAct(' + args + ')">×</button>')
-    + '</div>';
-
-  const body = gbShot
-    ? ro(a.text)
-    : '<textarea class="txt" rows="1" placeholder="' + esc(goal ? T.goal : T.prob) + '" '
-      + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'text\', this.value)">'
-      + esc(a.text || '') + '</textarea>';
-
-  // 적은 것만 보여줍니다 (빈 칸이 자리를 차지하지 않게)
+  /* 한 칸 — 왼쪽 이름, 오른쪽 테두리 친 글칸 */
   const fld = (f, label, has, inner) =>
     (!has && (gbShot || !shown(f))) ? ''
-    : '<div class="af"><span class="fl">' + label + '</span>' + inner + '</div>';
+    : '<div class="gb-f"><label>' + label + '</label><div class="bd">' + inner + '</div></div>';
 
-  const basis = fld('basis', goal ? '근거 · 가설' : '원인 · 짚이는 것', hasB,
-    gbShot ? ro(a.basis)
-    : '<textarea class="basis" rows="1" id="gbf_' + esc(a.id) + '_basis" '
-      + 'placeholder="' + esc(T.basis) + '" '
+  const head = '<div class="gb-ahead">'
+    + '<span class="dot">' + (idx + 1) + '</span>'
+    + '<span class="rl">' + (idx + 1) + '차 활동</span>'
+    + (gbShot
+        ? '<span class="pill on">' + (goal ? '목표형' : '문제형') + '</span>'
+        : '<span class="modes">'
+          + '<button class="pill' + (goal ? ' on' : '') + '" '
+            + 'onclick="gbSetMode(' + args + ',\'goal\')">목표형</button>'
+          + '<button class="pill' + (goal ? '' : ' on') + '" '
+            + 'onclick="gbSetMode(' + args + ',\'problem\')">문제형</button>'
+          + '</span>'
+          + '<button class="rm" title="이 차수 지우기" onclick="gbDelAct(' + args + ')">삭제</button>')
+    + '</div>';
+
+  const ctx = fld('text', goal ? '목표 / 실행 이유' : '문제 / 이슈', true, gbShot
+    ? ro(a.text)
+    : '<textarea class="tx" rows="1" placeholder="' + esc(goal ? T.goal : T.prob) + '" '
+      + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'text\', this.value)">'
+      + esc(a.text || '') + '</textarea>');
+
+  let hn = 0, an = 0;
+  const list = rows.filter(r => !gbShot || String(r.text || '').trim()).map(r => {
+    const isH = r.kind === 'hyp';
+    const n   = isH ? ++hn : ++an;
+    const rp  = ap + 'steps.' + r.id + '.';
+    const subs = (r.subs || []).filter(x => !gbShot || String(x.text || '').trim()).map(x =>
+      '<div class="sub">'
+      + '<span class="bu">•</span>'
+      + (gbShot
+          ? '<span class="tt">' + esc(x.text || '') + '</span>'
+          : '<textarea id="gbu_' + esc(x.id) + '" rows="1" placeholder="세부 단계" '
+            + 'oninput="gbGrow(this);gbEdit(\'' + jsq(rp) + 'subs.' + jsq(x.id)
+            + '.text\', this.value)">' + esc(x.text || '') + '</textarea>'
+          + '<button class="x" title="지우기" onclick="gbDelSub(' + args + ',\''
+            + jsq(r.id) + '\',\'' + jsq(x.id) + '\')">×</button>')
+      + '</div>').join('');
+
+    return '<div class="gb-rw' + (isH ? ' hyp' : '') + '">'
+      + '<div class="hd">'
+        + '<span class="nu">' + (isH ? '가설' : '행동') + ' ' + n + '.</span>'
+        + (gbShot
+            ? '<span class="tt">' + esc(r.text || '') + '</span>'
+            : '<textarea id="gbs_' + esc(r.id) + '" rows="1" '
+              + 'placeholder="' + (isH ? '이렇게 하면 이렇게 될 것이다' : '무엇을 했나 / 할 건가')
+              + '" oninput="gbGrow(this);gbEdit(\'' + jsq(rp) + 'text\', this.value)">'
+              + esc(r.text || '') + '</textarea>'
+            + '<button class="ic" title="세부 단계 추가" onclick="gbAddSub(' + args + ',\''
+              + jsq(r.id) + '\')">＋</button>'
+            + '<button class="ic x" title="지우기" onclick="gbDelRow(' + args + ',\''
+              + jsq(r.id) + '\')">✕</button>')
+      + '</div>'
+      + (subs ? '<div class="subs">' + subs + '</div>' : '')
+      + '</div>';
+  }).join('');
+
+  const flow = fld('rows', '가설 / 행동', hasR,
+    '<div class="gb-rws">' + list
+    + (gbShot ? ''
+       : '<div class="gb-radd">'
+         + '<button onclick="gbAddRow(' + args + ',\'hyp\')">＋ 가설</button>'
+         + '<button onclick="gbAddRow(' + args + ',\'act\')">＋ 행동</button>'
+         + '</div>')
+    + '</div>');
+
+  const memo = fld('basis', '메모', hasB, gbShot
+    ? ro(a.basis)
+    : '<textarea class="tx" rows="1" id="gbf_' + esc(a.id) + '_basis" '
+      + 'placeholder="덧붙일 것" '
       + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'basis\', this.value)">'
       + esc(a.basis || '') + '</textarea>');
 
-  const list = (a.steps || []).filter(t => !gbShot || String(t.text || '').trim());
-  const steps = list.map(t => gbShot
-    ? '<div class="gb-step' + (t.done ? ' done' : '') + '">'
-      + '<span class="bx">' + (t.done ? '☑' : '☐') + '</span>'
-      + '<span class="tx">' + esc(t.text || '') + '</span></div>'
-    : '<div class="gb-step' + (t.done ? ' done' : '') + '">'
-      + '<input type="checkbox"' + (t.done ? ' checked' : '') + ' '
-        + 'onchange="gbStepDone(' + args + ',\'' + jsq(t.id) + '\', this.checked)">'
-      + '<textarea id="gbs_' + esc(t.id) + '" rows="1" placeholder="무엇을 해서 확인할까요" '
-        + 'onkeydown="gbStepKey(event,' + args + ')" '
-        + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'steps.' + jsq(t.id)
-        + '.text\', this.value)">' + esc(t.text || '') + '</textarea>'
-      + '<button class="x" title="지우기" onclick="gbDelStep(' + args + ',\''
-        + jsq(t.id) + '\')">×</button>'
-      + '</div>').join('');
-
-  const nD = (a.steps || []).filter(t => t.done && String(t.text || '').trim()).length;
-  const nA = list.length;
-  const check = fld('steps', '확인할 것' + (nA ? ' <b>' + nD + '/' + nA + '</b>' : ''), hasS,
-    steps + (gbShot ? ''
-      : '<button class="gb-add tiny" onclick="gbAddStep(' + args + ')">＋ 한 줄 더</button>'));
-
-  // 결과는 이 덩이의 마무리라 눈에 띄게 아래에 띠로 둡니다
-  const res = (!hasV && (gbShot || !shown('value'))) ? ''
-    : '<div class="ares"><span class="rl">✔ 결과</span>'
-      + (gbShot
-          ? '<span class="rv">' + esc(a.value || '') + '</span>'
-          : '<textarea id="gbf_' + esc(a.id) + '_value" rows="1" '
-            + 'placeholder="' + esc(T.val) + '" '
-            + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'value\', this.value)" '
-            + 'onchange="render()">' + esc(a.value || '') + '</textarea>')
-      + (!gbShot && gbAutoKpi(it)
-          ? '<span class="hint">숫자면 「자동」 지표에 더해집니다</span>' : '')
-      + '</div>';
+  const res = fld('value', '결과', hasV, gbShot
+    ? ro(a.value)
+    : '<textarea class="tx res" rows="1" id="gbf_' + esc(a.id) + '_value" '
+      + 'placeholder="' + esc(T.val) + '" '
+      + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'value\', this.value)">'
+      + esc(a.value || '') + '</textarea>');
 
   const miss = [];
   if(!gbShot){
-    if(!hasB && !shown('basis')) miss.push(['basis', goal ? '근거 · 가설' : '원인 · 짚이는 것']);
-    if(!hasS && !shown('steps')) miss.push(['steps', '확인할 것']);
+    if(!hasR && !shown('rows'))  miss.push(['rows',  '가설 / 행동']);
     if(!hasV && !shown('value')) miss.push(['value', '결과']);
+    if(!hasB && !shown('basis')) miss.push(['basis', '메모']);
   }
   const more = miss.length
-    ? '<div class="am">' + miss.map(m => '<button onclick="gbShowFld(' + args + ',\''
+    ? '<div class="gb-am">' + miss.map(m => '<button onclick="gbShowFld(' + args + ',\''
         + m[0] + '\')">＋ ' + m[1] + '</button>').join('') + '</div>'
     : '';
 
   return '<div class="gb-act ' + (goal ? 'goal' : 'problem') + '">'
-    + head + body + basis + check + more + res + '</div>';
+    + head + '<div class="gb-fs">' + ctx + flow + res + memo + '</div>' + more + '</div>';
+}
+
+function gbSetMode(sid, iid, aid, mode){
+  const g = gbFind(gbWho, gbYear); if(!g) return;
+  const a = gbAct2(g, sid, iid, aid); if(!a) return;
+  a.mode = mode;
+  markDirtyAll(); render();
 }
 
 /* ── 📷 사진으로 내보내기 ────────────────────────────────────────
@@ -7671,14 +7725,14 @@ async function gbExport(){
    --------------------------------------------------------------- */
 function gbParse(text){
   const out = { goal:'', kpis:[], stages:[] };
-  let st = null, it = null, act = null;
+  let st = null, it = null, act = null, row = null;
   String(text || '').split(/\r?\n/).forEach(raw => {
     const line = raw.trim();
     if(!line) return;
 
     let m;
     if((m = line.match(/^올해 목표\s*[:：]\s*(.+)$/))){ out.goal = m[1].trim(); return; }
-    if(/^#{1,2}(?!#)\s*핵심 지표/.test(line)){ st = null; it = null; act = null; return; }
+    if(/^#{1,2}(?!#)\s*핵심 지표/.test(line)){ st = null; it = null; act = null; row = null; return; }
 
     // - 이름: 현재 / 목표단위 (00%)
     if((m = line.match(/^[-·*]\s*(.+?)\s*[:：]\s*([0-9,.\-]+)\s*\/\s*([0-9,.\-]+)\s*([^\s(]*)\s*(?:\(\d+%\))?$/))
@@ -7701,7 +7755,7 @@ function gbParse(text){
       if(!st){ st = { id: uid('gs'), key:'own', label:'옮겨온 것', desc:'', items:[] };
                out.stages.push(st); }
       it = { id: uid('gi'), title: title.trim(), status: status, kpiId:'', _kpi: kpi, acts: [] };
-      st.items.push(it); act = null;
+      st.items.push(it); act = null; row = null;
       return;
     }
     // ## 1. 유입 — 신규 유입률 확대
@@ -7709,32 +7763,51 @@ function gbParse(text){
       const parts = m[1].split(/\s+[—–-]\s+/);
       st = { id: uid('gs'), key:'own', label: parts[0].trim(),
              desc: (parts[1] || '').trim(), items: [] };
-      out.stages.push(st); it = null; act = null;
+      out.stages.push(st); it = null; act = null; row = null;
       return;
     }
-    // - 목표: … / - 문제: …
+    // [1차] 목표 / 실행 이유   ·  - 목표: …  (예전 모양도 받습니다)
+    if((m = line.match(/^\[?\d*차?\]?\s*(목표\s*\/\s*실행 이유|문제\s*\/\s*이슈)\s*$/))){
+      if(!it) return;
+      act = { id: uid('ga'), mode: /문제/.test(m[1]) ? 'problem' : 'goal',
+              text:'', basis:'', value:'', steps:[] };
+      it.acts.push(act); row = null;
+      return;
+    }
     if((m = line.match(/^[-·*]\s*(목표|문제)\s*[:：]\s*(.*)$/))){
       if(!it) return;
       act = { id: uid('ga'), mode: m[1] === '문제' ? 'problem' : 'goal',
               text: m[2].trim(), basis:'', value:'', steps:[] };
-      it.acts.push(act);
+      it.acts.push(act); row = null;
       return;
     }
-    if((m = line.match(/^(?:근거|원인)\s*[:：]\s*(.*)$/))){
-      if(act) act.basis = m[1].trim();
+    // 가설 1. …  /  행동 1. …
+    if((m = line.match(/^(가설|행동)\s*\d*\.?\s*(.*)$/))){
+      if(!act) return;
+      row = { id: uid('gt'), kind: m[1] === '가설' ? 'hyp' : 'act',
+              text: m[2].trim(), subs: [] };
+      act.steps.push(row);
       return;
     }
-    if((m = line.match(/^\[([ xX])\]\s*(.*)$/))){
-      if(act) act.steps.push({ id: uid('gt'), text: m[2].trim(), done: /[xX]/.test(m[1]) });
+    // · 세부 단계   ·  [ ] 확인할 것 (예전 모양)
+    if((m = line.match(/^[·•*]\s*(.+)$/)) || (m = line.match(/^\[[ xX]\]\s*(.+)$/))){
+      if(row) row.subs.push({ id: uid('gu'), text: m[1].trim() });
+      else if(act) act.steps.push({ id: uid('gt'), kind:'act', text: m[1].trim(), subs:[] });
       return;
     }
     if((m = line.match(/^(?:결과|기여 수치)\s*[:：]\s*(.*)$/))){
       if(act) act.value = m[1].trim();
+      row = null;
+      return;
+    }
+    if((m = line.match(/^(?:메모|근거|원인)\s*[:：]\s*(.*)$/))){
+      if(act) act.basis = m[1].trim();
+      row = null;
       return;
     }
     // 이름표 없이 이어지는 줄은 바로 앞 칸에 붙입니다
-    if(act && act.basis) act.basis += '\n' + line;
-    else if(act && act.text) act.text += '\n' + line;
+    if(row) row.text = row.text ? row.text + '\n' + line : line;
+    else if(act) act.text = act.text ? act.text + '\n' + line : line;
   });
   return out;
 }
@@ -7753,10 +7826,12 @@ function gbDoPaste(mode){
       + '[📋 글로 복사] 로 뽑은 것과 같은 모양이어야 합니다:\n\n'
       + '## 1. 유입 — 한 줄 설명\n'
       + '### 1) 업무 이름  [진행 중]  [지표: 신규 문의]\n'
-      + '- 목표: 무엇을 이루려 하나\n'
-      + '  근거: 왜 그렇게 보나\n'
-      + '  [ ] 확인할 것\n'
-      + '  결과: 35');
+      + '[1차] 목표 / 실행 이유\n'
+      + '무엇을 이루려 하나\n'
+      + '  행동 1. 무엇을 했나\n'
+      + '    · 세부 단계\n'
+      + '  가설 1. 이렇게 하면 이렇게 될 것이다\n'
+      + '  결과: 어떻게 됐나');
     return;
   }
   const g = gbEnsure(gbWho, gbYear);
@@ -7942,23 +8017,21 @@ function bfConv(row){
 
     const acts = [];
     (t.activities || []).forEach(a => {
-      const steps = [];
-      (a.actions || []).slice()
-        .sort((x, y) => (x.ord || 0) - (y.ord || 0))
-        .forEach(ac => {
-          const head = String(ac.title || '').trim();
-          if(head) steps.push({ id: uid('gt'), text: head, done: false });
-          (ac.steps || []).forEach(s => {
-            const v = String(s || '').trim();
-            if(v) steps.push({ id: uid('gt'), text: '· ' + v, done: false });
-          });
-        });
+      // 예전 화면과 똑같이 「가설 n.」 「행동 n.」 을 적어 둔 차례대로 늘어놓습니다
+      const rows = []
+        .concat((a.hypotheses || []).map(h => ({ o: h.ord || 0, kind:'hyp',
+                  text: String(h.text || '').trim(), subs: h.steps || [] })))
+        .concat((a.actions || []).map(c => ({ o: c.ord || 0, kind:'act',
+                  text: String(c.title || '').trim(), subs: c.steps || [] })))
+        .sort((x, y) => x.o - y.o)
+        .filter(r => r.text || (r.subs || []).some(v => String(v || '').trim()))
+        .map(r => ({ id: uid('gt'), kind: r.kind, text: r.text,
+                     subs: (r.subs || []).map(v => String(v || '').trim()).filter(Boolean)
+                             .map(v => ({ id: uid('gu'), text: v })) }));
       acts.push({
         id: uid('ga'), mode: (a.mode === 'problem' ? 'problem' : 'goal'),
-        text:  String(a.context || '').trim(),
-        basis: (a.hypotheses || []).map(h => String(h.text || '').trim())
-                 .filter(Boolean).join('\n'),
-        value: String(a.result || '').trim(), steps: steps
+        text:  String(a.context || '').trim(), basis: '',
+        value: String(a.result || '').trim(), steps: rows
       });
     });
     // 발표용으로 적어 둔 「왜 · 무엇을」 도 한 덩이로 옮깁니다
@@ -8162,13 +8235,21 @@ function gbText(){
       L.push('\n### ' + (j + 1) + ') ' + (it.title || '(제목 없음)')
         + '  [' + (it.status || '진행 중') + ']'
         + (k ? '  [지표: ' + (k.name || '') + ']' : ''));
-      (it.acts || []).forEach(a => {
-        if((a.text || '').trim())  L.push((a.mode === 'problem' ? '- 문제: ' : '- 목표: ') + a.text.trim());
-        if((a.basis || '').trim()) L.push('  근거: ' + a.basis.trim());
-        (a.steps || []).forEach(t => {
-          if((t.text || '').trim()) L.push('  ' + (t.done ? '[x] ' : '[ ] ') + t.text.trim());
+      (it.acts || []).forEach((a, ai) => {
+        L.push('\n[' + (ai + 1) + '차] ' + (a.mode === 'problem' ? '문제 / 이슈' : '목표 / 실행 이유'));
+        if((a.text || '').trim()) L.push(a.text.trim());
+        let hn = 0, an = 0;
+        (a.steps || []).forEach(r => {
+          const isH = r.kind === 'hyp';
+          const n = isH ? ++hn : ++an;
+          if(!String(r.text || '').trim() && !(r.subs || []).length) return;
+          L.push('  ' + (isH ? '가설 ' : '행동 ') + n + '. ' + String(r.text || '').trim());
+          (r.subs || []).forEach(x => {
+            if(String(x.text || '').trim()) L.push('    · ' + x.text.trim());
+          });
         });
-        if(String(a.value || '').trim()) L.push('  결과: ' + a.value);
+        if(String(a.value || '').trim()) L.push('  결과: ' + a.value.trim());
+        if((a.basis || '').trim())       L.push('  메모: ' + a.basis.trim());
       });
     });
   });

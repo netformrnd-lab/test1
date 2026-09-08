@@ -918,6 +918,50 @@ table.itable tr:hover td{background:var(--bg-hover)}
   border-top:1px solid var(--border);font-size:10.5px;color:var(--text-muted)}
 .gb-kpi .who b{color:var(--text-primary)}
 
+/* ── 📣 성과 정리 (발표용) ────────────────────────────────────── */
+.gb-perf{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-card);
+  padding:14px 16px;margin:0 0 16px}
+.gb-perf .pf{display:grid;grid-template-columns:170px 1fr;gap:14px;align-items:start;
+  padding:12px 0;border-top:1px dashed var(--border)}
+.gb-perf .pf:first-of-type{border-top:none;padding-top:2px}
+.gb-perf .pf > label{font-size:13px;font-weight:800;color:var(--text-primary);
+  display:flex;flex-direction:column;gap:4px;padding-top:7px;word-break:keep-all}
+.gb-perf .pf > label span{font-size:11px;font-weight:400;line-height:1.55;
+  color:var(--text-muted)}
+.gb-perf .pf > .bd{min-width:0}
+.gb-perf textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);
+  border-radius:9px;padding:8px 11px;font-family:inherit;font-size:14px;line-height:1.65;
+  background:var(--bg-card);color:var(--text-primary);resize:none;overflow:hidden;
+  min-height:38px}
+.gb-perf textarea:focus,.gb-perf input:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px var(--blue-soft)}
+.gb-perf input{font-family:inherit;font-size:13.5px;padding:7px 10px;border-radius:9px;
+  border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary)}
+.gb-perf input.big{width:100%;box-sizing:border-box;font-size:15px;font-weight:700;
+  letter-spacing:-.015em}
+.gb-perf .nums{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:7px 0}
+.gb-perf .nums span{font-size:11px;font-weight:700;color:var(--text-muted)}
+.gb-perf .nums b{font-size:15px;font-weight:800;margin-left:4px}
+.gb-perf .nums em{font-size:11px;color:var(--text-muted);font-style:normal}
+.gb-perf .lead{display:flex;gap:9px;align-items:flex-start;padding:10px 11px;margin-bottom:7px;
+  border:1px solid var(--border);border-left:3px solid var(--yellow);border-radius:10px;
+  background:var(--bg-input)}
+.gb-perf .lead .no{flex:0 0 auto;width:21px;height:21px;border-radius:50%;
+  background:var(--yellow);color:#4a3c0a;display:flex;align-items:center;
+  justify-content:center;font-size:11px;font-weight:800;margin-top:5px}
+.gb-perf .lead .in{flex:1;min-width:0}
+.gb-perf .lead .rm{flex:0 0 auto;border:none;background:none;color:var(--text-muted);
+  font-size:15px;cursor:pointer;padding:4px;opacity:0}
+.gb-perf .lead:hover .rm{opacity:.7}
+.gb-perf .ai{border-top:2px solid var(--border)}
+.gb-perf .ai .out{font-size:13.5px;line-height:1.8;white-space:pre-wrap;word-break:break-word;
+  color:var(--text-primary);padding:11px 13px;border:1px solid var(--border);
+  border-radius:10px;background:var(--bg-input)}
+@media(max-width:720px){
+  .gb-perf .pf{grid-template-columns:1fr;gap:5px}
+  .gb-perf .pf > label{padding-top:0}
+}
+
 /* ── 사람 보드 ↔ 브랜드 보드 ──────────────────────────────────── */
 .gb-vw{display:flex;align-items:center;gap:5px;margin:0 0 12px}
 .gb-vw button{border:1px solid var(--border);background:var(--bg-card);
@@ -1700,7 +1744,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-28';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-29';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6536,7 +6580,7 @@ function gbGrow(el){
   el.style.height = Math.max(26, el.scrollHeight) + 'px';
 }
 function gbGrowAll(){
-  document.querySelectorAll('.gb-act textarea, .gb-dtt, #gbGoal')
+  document.querySelectorAll('.gb-act textarea, .gb-perf textarea, .gb-dtt, #gbGoal')
     .forEach(gbGrow);
 }
 function setGbWho(v){
@@ -6889,6 +6933,20 @@ function renderGrowth(){
           + (n ? ' <b>' + n + '</b>' : '') + '</button>';
       }).join('')
     + '</div>';
+
+  // 따로 만든 판 (성과 흐름도 포함) 은 어느 보기에서든 먼저 보여줍니다
+  if(gbWb && gbWb.loose){
+    const lb = wbBoards().find(x => x.id === gbWb.loose);
+    if(lb){
+      wbId = lb.id;
+      main.innerHTML = box(viewBar
+        + '<div class="fmeta" style="margin:-4px 0 8px">🧩 ' + esc(lb.name || '판') + '</div>'
+        + wbBoardHtml(lb, '<button class="btn sm" onclick="gbCloseWb()">← 그로스보드</button>'));
+      wbApplyView(); wbDrawEdges();
+      return;
+    }
+    gbWb = null;
+  }
 
   // 🏷️ 브랜드 보드 — 사람을 가로질러 이 브랜드만 봅니다
   if(gbView === 'brand' && !gbIt){
@@ -7566,6 +7624,393 @@ function gbTplBar(sid){
 
 const GB_STATUS = ['예정', '진행 중', '완료', '보류'];
 
+/* ── 📣 성과 정리 (발표용) ──────────────────────────────────────
+   그로스보드는 「무엇을 했다」 를 나열하는 자리가 아니라,
+     ① 결과를 만들 선행 지표를 무엇으로 정했나 (왜 이 지표인가)
+     ② 거기에 어떻게 집중했나
+     ③ 얼마나 달성했고, 그게 결과로 어떻게 이어졌나
+     ④ 그 과정에서 무엇을 배웠나
+   를 증명하는 자리입니다. 지난 발표에서 쓰던 그 틀 그대로 적습니다.
+   브랜드 × 사람 × 해 로 한 장씩이고, data.gbperf 에 들어갑니다.
+   ------------------------------------------------------------- */
+function gbPerfs(){
+  if(!Array.isArray(data.gbperf)) data.gbperf = [];
+  return data.gbperf;
+}
+function gbPerfFind(brandId, who, year){
+  return gbPerfs().find(p => p.brandId === brandId && p.who === who
+    && String(p.year) === String(year)) || null;
+}
+function gbPerfEnsure(brandId, who, year){
+  let p = gbPerfFind(brandId, who, year);
+  if(p) return p;
+  p = { id: uid('gp'), brandId: brandId, who: who, year: String(year),
+        result:{ name:'', target:'', current:'', unit:'' },
+        leads: [{ id: uid('gl'), name:'', target:'', current:'', unit:'', why:'' }],
+        why:'', how:'', causal:'', lesson:'', next:'', ai:'', aiAt:'',
+        createdAt: new Date().toISOString() };
+  gbPerfs().push(p);
+  markDirtyAll();
+  return p;
+}
+/* 이 브랜드에 성과 정리를 적어 둔 사람들 */
+function gbPerfWho(brandId, year){
+  return gbPerfs().filter(p => p.brandId === brandId && String(p.year) === String(year))
+    .map(p => p.who);
+}
+function gbPerfPct(x){
+  const t = gbNum(x.target), c = gbNum(x.current);
+  if(!String(x.target || '').trim() || t === 0) return null;
+  return Math.round(c / t * 100);
+}
+
+let gbPerfWhoId = '';    // 브랜드 보드에서 보고 있는 사람의 성과 정리
+function setGbPerfWho(v){ gbPerfWhoId = v; render(); }
+
+function gbPerfEdit(pid, path, v, draw){
+  const p = gbPerfs().find(x => x.id === pid); if(!p) return;
+  const seg = String(path).split('.');
+  let cur = p;
+  for(let i = 0; i < seg.length - 1; i++){
+    if(Array.isArray(cur)) cur = cur.find(x => x.id === seg[i]);
+    else cur = cur[seg[i]];
+    if(!cur) return;
+  }
+  cur[seg[seg.length - 1]] = v;
+  p.updatedAt = new Date().toISOString();
+  markDirtyAll();
+  if(draw) render();
+}
+function gbPerfAddLead(pid){
+  const p = gbPerfs().find(x => x.id === pid); if(!p) return;
+  if((p.leads || []).length >= 5){ toast('⚠️ 선행 지표는 5개까지입니다'); return; }
+  p.leads = p.leads || [];
+  p.leads.push({ id: uid('gl'), name:'', target:'', current:'', unit:'', why:'' });
+  markDirtyAll(); render();
+}
+function gbPerfDelLead(pid, lid){
+  const p = gbPerfs().find(x => x.id === pid); if(!p) return;
+  p.leads = (p.leads || []).filter(x => x.id !== lid);
+  markDirtyAll(); render();
+}
+
+/* 적은 것을 글 한 덩이로 — AI 에게 보낼 때와 복사할 때 씁니다 */
+function gbPerfText(p){
+  const br = (data.brands || []).find(b => b.id === p.brandId);
+  const L = [];
+  L.push('브랜드: ' + ((br && br.name) || '(없음)'));
+  L.push('발표자: ' + gbName(p.who) + ' · ' + p.year + '년');
+  const r = p.result || {};
+  L.push('\n[결과 지표]');
+  L.push((r.name || '(아직 없음)')
+    + (String(r.target || '').trim()
+        ? '  — 지금 ' + (r.current || '0') + (r.unit || '')
+          + ' / 목표 ' + r.target + (r.unit || '')
+          + (gbPerfPct(r) === null ? '' : ' (' + gbPerfPct(r) + '%)')
+        : ''));
+  L.push('\n[선행 지표]');
+  const ls = (p.leads || []).filter(x => String(x.name || '').trim());
+  if(!ls.length) L.push('(아직 없음)');
+  ls.forEach((x, i) => {
+    L.push((i + 1) + ') ' + x.name
+      + (String(x.target || '').trim()
+          ? ' : ' + (x.current || '0') + (x.unit || '') + ' / ' + x.target + (x.unit || '')
+            + (gbPerfPct(x) === null ? '' : ' (' + gbPerfPct(x) + '%)')
+          : '')
+      + (String(x.why || '').trim() ? '\n   왜 이 지표인가: ' + x.why.trim() : ''));
+  });
+  const put = (t, v) => { L.push('\n[' + t + ']'); L.push(String(v || '').trim() || '(아직 없음)'); };
+  put('왜 이 지표인가', p.why);
+  put('어떻게 집중했나', p.how);
+  put('달성 · 인과', p.causal);
+  put('시행착오 → 교훈', p.lesson);
+  put('다음 분기 약속', p.next);
+  return L.join('\n');
+}
+async function gbPerfCopy(pid){
+  const p = gbPerfs().find(x => x.id === pid); if(!p) return;
+  const t = gbPerfText(p);
+  try{ await navigator.clipboard.writeText(t); toast('📋 성과 정리를 글로 복사했습니다'); }
+  catch(e){ prompt('아래 내용을 복사해 쓰세요', t); }
+}
+
+/* ── 🤖 AI 로 다듬기 ────────────────────────────────────────────
+   발표 톤으로 고쳐 주고, 「결과 지표만 있고 선행 지표가 없다」 처럼
+   빠진 것을 짚어 줍니다. 없는 사실은 지어내지 않습니다. */
+async function gbPerfAI(pid){
+  const p = gbPerfs().find(x => x.id === pid); if(!p) return;
+  const body = gbPerfText(p);
+  if(body.replace(/\(아직 없음\)/g, '').replace(/[^가-힣a-zA-Z0-9]/g, '').length < 30){
+    alert('조금 더 적어주세요.\n\n적어도 결과 지표와 선행 지표 하나는 있어야\nAI 가 다듬을 거리가 생깁니다.');
+    return;
+  }
+  if((p.ai || '').trim() && !confirm('이미 다듬어 둔 글이 있습니다.\n\n새로 다듬을까요?')) return;
+
+  aiState.busy = 'perf:' + p.id; render();
+  try{
+    let out = await apiJson('ai.php?action=prompt', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ kind:'growth', brand: gbName(p.who), book: body })
+    });
+    if(out['진행중']){
+      aiState.wait = 0; render();
+      out = await waitTask(out['작업번호'], 'prompt', sec => { aiState.wait = sec; render(); });
+    }
+    p.ai   = String(out['프롬프트'] || '').trim();
+    p.aiAt = new Date().toISOString();
+    markDirtyAll(); render();
+    toast('✨ 발표 톤으로 다듬었습니다');
+  }catch(e){
+    alert('다듬지 못했습니다.\n\n' + apiErrText(e));
+  }finally{
+    aiState.busy = ''; aiState.wait = 0; render();
+  }
+}
+
+/* ── 📐 판으로 — 선행 지표 → 결과 지표 흐름도 ────────────────── */
+function gbPerfBoard(p){
+  let b = wbBoards().find(x => x.id === p.wbId);
+  if(b) return b;
+  const br = (data.brands || []).find(x => x.id === p.brandId);
+  b = { id: uid('wb'), name: ((br && br.name) || '') + ' · ' + gbName(p.who) + ' 성과',
+        nodes: [], edges: [], from: { who: p.who, year: p.year, perf: p.id },
+        createdAt: new Date().toISOString() };
+  wbBoards().unshift(b);
+  p.wbId = b.id;
+  markDirtyAll();
+  return b;
+}
+function gbPerfFlow(pid){
+  const p = gbPerfs().find(x => x.id === pid); if(!p) return;
+  const ls = (p.leads || []).filter(x => String(x.name || '').trim());
+  const r  = p.result || {};
+  if(!String(r.name || '').trim() && !ls.length){
+    toast('⚠️ 결과 지표나 선행 지표를 먼저 적어주세요'); return;
+  }
+  const b = gbPerfBoard(p);
+  const had = (b.nodes || []).filter(n => n.src === 'gp').length;
+  if(had && !confirm('적어 둔 것으로 판을 다시 그릴까요?\n\n'
+    + '손으로 만든 것과 사진은 그대로 둡니다. 전에 그린 ' + had + '개만 새로 그립니다.')) return;
+
+  const gone = {};
+  (b.nodes || []).forEach(n => { if(n.src === 'gp') gone[n.id] = 1; });
+  b.nodes = (b.nodes || []).filter(n => !gone[n.id]);
+  b.edges = (b.edges || []).filter(e => !gone[e.from] && !gone[e.to]);
+
+  const N = [], E = [];
+  const put  = o => { const n = Object.assign({ id: uid('wn'), kind:'note', color:'gray',
+                                                src:'gp', text:'' }, o); N.push(n); return n; };
+  const link = (a, c) => { if(a && c) E.push({ id: uid('we'), from: a.id, to: c.id }); };
+  const H = (t, min) => Math.max(min || 80, Math.min(320, 40
+    + String(t || '').split('\n').reduce((a, l) => a + Math.max(1, Math.ceil(l.length / 20)), 0) * 21));
+
+  const br = (data.brands || []).find(x => x.id === p.brandId);
+  // 가로로 너무 벌어지면 열었을 때 글씨가 작아집니다 — 세 칸으로 좁히고
+  // 마무리(달성·교훈·약속)는 결과 아래로 내려 붙입니다
+  const X = [40, 430, 830];
+  let y = 40;
+  put({ kind:'text', x:X[0], y:y, w:800, h:56, color:'dark',
+        text: ((br && br.name) || '') + ' · ' + gbName(p.who) + ' · ' + p.year + '년 성과' });
+  y += 92;
+
+  // ① 왜 이 지표인가 → ② 어떻게 집중했나 (같은 열에 쌓습니다)
+  const whyT = '왜 이 지표인가\n\n' + (String(p.why || '').trim() || '(아직 없음)');
+  const why  = put({ x:X[0], y:y, w:340, h:H(whyT, 110), color:'blue', text: whyT });
+  let hy = y + why.h + 18;
+  const hows = String(p.how || '').split('\n').map(v => v.trim()).filter(Boolean);
+  const howN = hows.map(v => {
+    const n = put({ x:X[0], y:hy, w:340, h:H(v, 70), color:'gray', text: v });
+    hy += n.h + 12;
+    return n;
+  });
+  howN.forEach(n => link(why, n));
+
+  // ③ 선행 지표
+  let ly = y;
+  const leadN = ls.map((x, i2) => {
+    const pc = gbPerfPct(x);
+    const t = '선행 ' + (i2 + 1) + '. ' + x.name
+      + (String(x.target || '').trim()
+          ? '\n' + (x.current || '0') + (x.unit || '') + ' / ' + x.target + (x.unit || '')
+            + (pc === null ? '' : '  (' + pc + '%)')
+          : '')
+      + (String(x.why || '').trim() ? '\n— ' + x.why.trim() : '');
+    const n = put({ x:X[1], y:ly, w:340, h:H(t, 92), color:'yellow', text: t });
+    ly += n.h + 14;
+    return n;
+  });
+  howN.forEach((n, i2) => { if(leadN.length) link(n, leadN[Math.min(i2, leadN.length - 1)]); });
+  if(!howN.length) leadN.forEach(n => link(why, n));
+
+  // ④ 결과 지표 — 그 아래로 달성·교훈·약속을 이어 붙입니다
+  const rp = gbPerfPct(r);
+  const resT = '결과 지표\n\n' + (r.name || '(아직 없음)')
+    + (String(r.target || '').trim()
+        ? '\n' + (r.current || '0') + (r.unit || '') + ' / ' + r.target + (r.unit || '')
+          + (rp === null ? '' : '  (' + rp + '%)')
+        : '');
+  const res = put({ x:X[2], y:y, w:330, h:H(resT, 110), color:'green', text: resT });
+  leadN.forEach(n => link(n, res));
+  if(!leadN.length) link(why, res);
+
+  let ry = y + res.h + 18, prev = res;
+  [['달성 · 인과', p.causal, 'green'], ['시행착오 → 교훈', p.lesson, 'pink'],
+   ['다음 분기 약속', p.next, 'blue']].forEach(pair => {
+    if(!String(pair[1] || '').trim()) return;
+    const txt = pair[0] + '\n\n' + String(pair[1]).trim();
+    const n = put({ x:X[2], y:ry, w:330, h:H(txt, 96), color:pair[2], text: txt });
+    ry += n.h + 14;
+    link(prev, n); prev = n;
+  });
+
+  b.nodes = (b.nodes || []).concat(N);
+  b.edges = (b.edges || []).concat(E);
+  b.updatedAt = new Date().toISOString();
+  markDirtyAll();
+  gbWb = { loose: b.id };
+  render();
+  setTimeout(wbFit, 40);
+  toast('📐 ' + N.length + '개를 이어서 그렸습니다');
+}
+
+/* 성과 정리 화면 — 브랜드 보드 안에 들어갑니다 */
+function gbPerfHtml(brandId){
+  const ppl = gbPeople();
+  if(!ppl.length) return '';
+  const wrote = gbPerfWho(brandId, gbYear);
+  const me    = authOn() && authMe() ? authMe().id : (ppl[0] || {}).key;
+  let who = gbPerfWhoId;
+  if(!who || !ppl.some(u => u.key === who)) who = (wrote.indexOf(me) >= 0 || !wrote.length)
+    ? me : wrote[0];
+
+  const p = gbPerfFind(brandId, who, gbYear);
+  const tabs = '<div class="sec-bar" style="margin:0 0 10px">'
+    + '<span class="fmeta" style="flex:0 0 auto">📣 누구 성과</span>'
+    + ppl.map(u => '<button class="btn sm' + (u.key === who ? ' primary' : '') + '" '
+        + 'onclick="setGbPerfWho(\'' + jsq(u.key) + '\')">' + esc(u.name)
+        + (wrote.indexOf(u.key) >= 0 ? ' <b>✎</b>' : '') + '</button>').join('')
+    + '</div>';
+
+  if(!p){
+    return '<div class="gb-perf">' + tabs
+      + '<div class="empty" style="padding:18px 0">'
+      + '<b style="color:var(--text-primary)">' + esc(gbName(who)) + '</b> 님의 '
+      + esc(gbYear) + '년 성과 정리가 아직 없습니다.<br><br>'
+      + '<button class="btn primary" onclick="gbPerfStart(\'' + jsq(brandId) + '\',\''
+        + jsq(who) + '\')">📣 성과 정리 시작하기</button><br><br>'
+      + '<span style="color:var(--text-muted)">결과 지표 → 선행 지표 → 왜 이 지표인가 → '
+      + '어떻게 집중했나 → 달성·인과 → 시행착오·교훈 순서로 적습니다.<br>'
+      + '발표 때 그대로 쓰는 틀입니다.</span></div></div>';
+  }
+
+  const busy = aiState.busy === 'perf:' + p.id;
+  const pid  = jsq(p.id);
+  const ta = (path, ph, v, h) => '<textarea rows="' + (h || 2) + '" placeholder="' + esc(ph) + '" '
+    + 'oninput="gbGrow(this);gbPerfEdit(\'' + pid + '\',\'' + path + '\', this.value)">'
+    + esc(v || '') + '</textarea>';
+  const num = (path, ph, v, w) => '<input value="' + esc(v || '') + '" placeholder="' + esc(ph) + '" '
+    + 'style="width:' + (w || 74) + 'px" '
+    + 'oninput="gbPerfEdit(\'' + pid + '\',\'' + path + '\', this.value, 1)">';
+
+  const r  = p.result || {};
+  const rp = gbPerfPct(r);
+  const res = '<div class="pf"><label>결과 지표<span>이 브랜드가 올해 만들어야 할 숫자</span></label>'
+    + '<div class="bd">'
+      + '<input class="big" value="' + esc(r.name || '') + '" '
+        + 'placeholder="예) 아파트스퀘어 유입 3배" '
+        + 'oninput="gbPerfEdit(\'' + pid + '\',\'result.name\', this.value)">'
+      + '<div class="nums">'
+        + '<span>지금</span>' + num('result.current', '0', r.current)
+        + '<span>목표</span>' + num('result.target', '–', r.target)
+        + num('result.unit', '단위', r.unit, 60)
+        + (rp === null ? '<em>목표를 넣으면 달성률이 나옵니다</em>'
+                       : '<b style="color:' + gbColor(rp) + '">' + rp + '%</b>')
+      + '</div></div></div>';
+
+  const leads = '<div class="pf"><label>선행 지표'
+    + '<span>결과를 만드는 앞단 레버. 「유입 3배」 는 결과이고, 그걸 움직이는 숫자가 여기입니다</span>'
+    + '</label><div class="bd">'
+    + (p.leads || []).map((x, i) => {
+        const lp = gbPerfPct(x);
+        return '<div class="lead">'
+          + '<span class="no">' + (i + 1) + '</span>'
+          + '<div class="in">'
+            + '<input class="big" value="' + esc(x.name || '') + '" '
+              + 'placeholder="예) 블로그 발행량 주 3회" '
+              + 'oninput="gbPerfEdit(\'' + pid + '\',\'leads.' + jsq(x.id) + '.name\', this.value)">'
+            + '<div class="nums">'
+              + '<span>지금</span>' + num('leads.' + jsq(x.id) + '.current', '0', x.current)
+              + '<span>목표</span>' + num('leads.' + jsq(x.id) + '.target', '–', x.target)
+              + num('leads.' + jsq(x.id) + '.unit', '단위', x.unit, 60)
+              + (lp === null ? '' : '<b style="color:' + gbColor(lp) + '">' + lp + '%</b>')
+            + '</div>'
+            + ta('leads.' + jsq(x.id) + '.why', '왜 이 지표를 골랐나 — 유입을 만드는 앞단이라고 본 근거',
+                 x.why, 1)
+          + '</div>'
+          + '<button class="rm" title="지우기" onclick="gbPerfDelLead(\'' + pid + '\',\''
+            + jsq(x.id) + '\')">×</button>'
+          + '</div>';
+      }).join('')
+    + '<button class="gb-add tiny" onclick="gbPerfAddLead(\'' + pid + '\')">＋ 선행 지표</button>'
+    + '</div></div>';
+
+  const fld = (key, title, hint, ph, h) =>
+    '<div class="pf"><label>' + title + '<span>' + hint + '</span></label>'
+    + '<div class="bd">' + ta(key, ph, p[key], h) + '</div></div>';
+
+  const body = res + leads
+    + fld('why', '왜 이 지표인가',
+          '막연한 목표는 감점입니다. 왜 하필 이 숫자를 앞단으로 봤는지',
+          '예) 유입은 결국 검색 노출 수가 만든다. 지금 상위 노출 키워드가 12개뿐이라 여기가 병목이다.')
+    + fld('how', '어떻게 집중했나',
+          '한 줄에 하나씩 — 판으로 그릴 때 줄마다 칸이 됩니다',
+          '① 키워드 30개 목록 만들기\n② 주 2편씩 8주 발행\n③ 2주마다 순위 확인', 3)
+    + fld('causal', '달성 · 인과',
+          '선행 지표가 결과로 어떻게 이어졌나 — 숫자로',
+          '예) 상위 노출 12 → 27개 (225%), 같은 기간 검색 유입 3,000 → 5,400명 (1.8배)')
+    + fld('lesson', '시행착오 → 교훈',
+          '안 된 것도 그대로. 무엇을 배웠는지가 성장입니다',
+          '예) 블로그 원고를 카페에 그대로 올렸더니 반응이 없었다 → 채널마다 도입부를 다시 씀')
+    + fld('next', '다음 분기 약속',
+          '남은 기간에 무엇을 어떻게 할 것인가',
+          '예) 12월까지 상위 노출 40개 · 유입 3배 달성 과정을 주 단위로 남긴다');
+
+  const ai = (p.ai || '').trim()
+    ? '<div class="pf ai"><label>🤖 다듬은 글'
+      + '<span>' + (p.aiAt ? esc(new Date(p.aiAt).toLocaleString('ko-KR')) : '') + '</span></label>'
+      + '<div class="bd"><div class="out">' + esc(p.ai) + '</div>'
+      + '<div class="sec-bar" style="margin:8px 0 0">'
+        + '<button class="btn sm" onclick="gbPerfCopyAI(\'' + pid + '\')">📋 다듬은 글 복사</button>'
+        + '<button class="btn sm danger" onclick="gbPerfEdit(\'' + pid
+          + '\',\'ai\',\'\',1)">지우기</button>'
+      + '</div></div></div>'
+    : '';
+
+  const bar = '<div class="sec-bar" style="margin:0 0 12px">'
+    + '<button class="btn primary" ' + (busy ? 'disabled ' : '')
+      + 'onclick="gbPerfAI(\'' + pid + '\')">'
+      + (busy ? '⏳ 다듬는 중' + (aiState.wait ? ' ' + aiState.wait + '초' : '') + '…'
+              : '🤖 AI 로 다듬기') + '</button>'
+    + '<button class="btn" onclick="gbPerfFlow(\'' + pid + '\')" '
+      + 'title="선행 지표 → 결과 지표 흐름도로 판에 그립니다">📐 판으로</button>'
+    + '<button class="btn sm" onclick="gbPerfCopy(\'' + pid + '\')">📋 글로 복사</button>'
+    + '<span class="hint">적은 그대로 발표에 씁니다. AI 는 없는 사실을 지어내지 않고, '
+      + '빠진 것을 짚어 줍니다</span>'
+    + '</div>';
+
+  return '<div class="gb-perf">' + tabs + bar + body + ai + '</div>';
+}
+function gbPerfStart(brandId, who){
+  gbPerfEnsure(brandId, who, gbYear);
+  gbPerfWhoId = who;
+  render();
+}
+async function gbPerfCopyAI(pid){
+  const p = gbPerfs().find(x => x.id === pid); if(!p) return;
+  try{ await navigator.clipboard.writeText(p.ai || ''); toast('📋 다듬은 글을 복사했습니다'); }
+  catch(e){ prompt('아래 내용을 복사해 쓰세요', p.ai || ''); }
+}
+
 /* ── 브랜드 보드 ────────────────────────────────────────────────
    이제 한 사람이 여러 브랜드가 아니라, 모두가 모든 브랜드를 함께 합니다.
    그래서 보는 방향이 둘이어야 합니다.
@@ -7691,7 +8136,7 @@ function gbBrdBoardHtml(){
         + esc(b.name) + (b._n ? ' <b>' + b._n + '</b>' : '') + '</button>').join('')
     + '</div>';
 
-  return bar + head + who + kpis + stages;
+  return bar + head + who + kpis + gbPerfHtml(br.id) + stages;
 }
 
 /* 브랜드 보드의 한 줄 — 담당자가 앞에 옵니다 */
@@ -13340,7 +13785,8 @@ function markDirtyAll(){
 }
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels']);
-const TOP_LISTS   = ['meetings', 'events', 'trash', 'growth', 'boards', 'gbkpis'];  // 브랜드 밖
+const TOP_LISTS   = ['meetings', 'events', 'trash', 'growth', 'boards', 'gbkpis',
+                     'gbperf'];  // 브랜드 밖
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
 let revived  = 0;                // 되살린 개수 (알려주기 위해)
@@ -13706,6 +14152,20 @@ function normalize(raw){
     const ids = new Set(b.nodes.map(n => n.id));
     b.edges = b.edges.filter(e => e && ids.has(e.from) && ids.has(e.to));
     b.edges.forEach(e => { e.id = e.id || uid('we'); });
+  });
+  if(!Array.isArray(raw.gbperf))   raw.gbperf   = [];   // 성과 정리 (브랜드 × 사람 × 연도)
+  raw.gbperf.forEach(p => {
+    p.id      = p.id || uid('gp');
+    p.year    = String(p.year || new Date().getFullYear());
+    p.brandId = String(p.brandId || '');
+    p.who     = String(p.who || '');
+    if(!p.result || typeof p.result !== 'object')
+      p.result = { name:'', target:'', current:'', unit:'' };
+    if(!Array.isArray(p.leads)) p.leads = [];
+    p.leads.forEach(x => { x.id = x.id || uid('gl'); });
+    ['why','how','causal','lesson','next','ai'].forEach(k => {
+      if(typeof p[k] !== 'string') p[k] = '';
+    });
   });
   if(!Array.isArray(raw.gbkpis))   raw.gbkpis   = [];   // 그로스 지표 (브랜드 × 연도)
   raw.gbkpis.forEach(k => {

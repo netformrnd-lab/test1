@@ -782,7 +782,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
 /* 📷 사진으로 뽑을 때 — 고치는 단추와 빈 칸은 감춥니다 */
 .gb-shot .gb-top,.gb-shot .gb-sedit,.gb-shot .gb-add,.gb-shot .gb-foot,
 .gb-shot .gb-kpi .x,.gb-shot .gb-act .rm,.gb-shot .gb-step .x,
-.gb-shot .sec-bar,.gb-shot .gb-filter{display:none!important}
+.gb-shot .sec-bar,.gb-shot .gb-filter,
+.gb-shot .gb-help,.gb-shot .gb-tpl,.gb-shot .gb-sedit{display:none!important}
 .gb-shot .gb-ih .btn,.gb-shot .gb-kpi .foot{display:none}
 .gb-shot .gb-kpi{box-shadow:none}
 .gb-shot .gb-ih select{border-color:transparent;background:transparent;
@@ -791,6 +792,58 @@ table.itable tr:hover td{background:var(--bg-hover)}
   background:transparent!important;box-shadow:none!important}
 .gb-shot .gb-kpi .cell input{background:transparent!important}
 .gb-shot .gb-item,.gb-shot .gb-stage{break-inside:avoid}
+/* 사진으로 뽑을 때 글자로 보여주는 칸 (입력칸은 긴 글이 잘려 나옵니다) */
+.gb-ro{font-size:12.5px;line-height:1.7;color:var(--text-primary);white-space:pre-wrap;
+  word-break:break-word;padding:2px 0}
+.gb-goal .gb-ro{font-size:13px;line-height:1.75;padding:9px 12px;
+  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-input)}
+.gb-shot .gb-step{gap:6px}
+.gb-shot .gb-step .bx{font-size:12.5px;color:var(--text-muted);line-height:1.7}
+.gb-shot .gb-step .tx{font-size:12.5px;line-height:1.7;color:var(--text-primary);
+  word-break:break-word}
+/* 📖 처음 쓰는 사람을 위한 안내 */
+.gb-help{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-card);
+  padding:14px 16px;margin:0 0 14px}
+.gb-help .hh{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;
+  color:var(--text-primary);margin-bottom:8px}
+.gb-help .hh .btn{margin-left:auto}
+.gb-help .lead{margin:0 0 12px;font-size:12.5px;line-height:1.75;color:var(--text-secondary)}
+.gb-help .lead b{color:var(--text-primary)}
+.gb-help .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;
+  margin-bottom:12px}
+.gb-help .s{display:flex;flex-direction:column;gap:2px;min-width:0;padding:9px 11px;
+  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-input)}
+.gb-help .s b{font-size:10.5px;color:#fff;background:var(--ink);width:17px;height:17px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:3px}
+.gb-help .s .t{font-size:12.5px;font-weight:700;color:var(--text-primary)}
+.gb-help .s .d{font-size:11.5px;line-height:1.55;color:var(--text-muted)}
+.gb-help .four{border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;
+  margin-bottom:10px}
+.gb-help .fh{padding:7px 11px;background:var(--bg-input);font-size:11.5px;font-weight:700;
+  color:var(--text-secondary);border-bottom:1px solid var(--border)}
+.gb-help .r{display:flex;gap:10px;padding:7px 11px;border-top:1px solid var(--border);
+  flex-wrap:wrap}
+.gb-help .r:first-of-type{border-top:none}
+.gb-help .r .t{flex:0 0 118px;font-size:12px;font-weight:700;color:var(--text-primary)}
+.gb-help .r .d{flex:1 1 200px;min-width:0;font-size:11.5px;line-height:1.6;color:var(--text-muted)}
+.gb-help .tip{font-size:11.5px;line-height:1.65;color:var(--text-muted)}
+.gb-help .tip b{color:var(--text-primary)}
+@media(max-width:640px){.gb-help .r .t{flex:1 1 100%}}
+
+/* 서식 고르기 */
+.gb-add.on{border-color:var(--ink);color:var(--text-primary);font-weight:700}
+.gb-tpl{margin:8px 0 2px;padding:11px;border:1px solid var(--border);
+  border-radius:var(--r-sm);background:var(--bg-input);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:7px}
+.gb-tpl .hd{grid-column:1/-1;font-size:12px;font-weight:700;color:var(--text-primary)}
+.gb-tpl .hd span{font-weight:400;color:var(--text-muted);font-size:11.5px}
+.gb-tpl button{display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;
+  min-width:0;padding:9px 11px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--bg-card);cursor:pointer;font-family:inherit}
+.gb-tpl button:hover{border-color:var(--ink)}
+.gb-tpl button b{font-size:12.5px;color:var(--text-primary)}
+.gb-tpl button span{font-size:11px;line-height:1.5;color:var(--text-muted)}
+
 /* 📦 브랜드플로우 백업 옮기기 — 어느 보드로 보낼지 고르는 표 */
 .bf-list{display:flex;flex-direction:column;gap:6px;margin-top:2px}
 .bf-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
@@ -895,10 +948,12 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-step .x{border:none;background:transparent;color:var(--text-muted);cursor:pointer;
   font-size:13px;padding:0 3px;opacity:0}
 .gb-step:hover .x{opacity:1}
-.gb-val input{width:96px;font-family:inherit;font-size:12.5px;font-weight:700;
-  text-align:right;padding:3px 8px;border-radius:var(--r-xs);
+/* 결과 — 숫자만 적는 칸이 아니라 「어떻게 됐나」 를 적는 칸이라 넓게 둡니다 */
+.gb-val{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.gb-val input{flex:1 1 240px;min-width:0;font-family:inherit;font-size:12.5px;font-weight:700;
+  padding:4px 9px;border-radius:var(--r-xs);
   border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)}
-.gb-val .hint{font-size:11.5px;color:var(--text-muted);margin-left:7px}
+.gb-val .hint{font-size:11.5px;color:var(--text-muted)}
 .gb-add{border:1px dashed var(--border-light);background:transparent;color:var(--text-muted);
   font-family:inherit;font-size:12px;font-weight:600;padding:5px 10px;border-radius:var(--r-sm);
   cursor:pointer}
@@ -1514,7 +1569,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-20';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-21';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6517,16 +6572,21 @@ function gbDelStage(sid){
 }
 
 /* ── 업무 ───────────────────────────────────────────────────── */
-function gbAddItem(sid){
+function gbAddItem(sid, tplKey){
   const g = gbFind(gbWho, gbYear); if(!g) return;
   const st = (g.stages || []).find(x => x.id === sid); if(!st) return;
+  // 서식을 안 골랐으면 먼저 고르게 합니다
+  if(!tplKey){ gbPickTpl(sid); return; }
   st.items = st.items || [];
-  const it = { id: uid('gi'), title:'새 업무', status:'진행 중', kpiId:'', acts:[
-    { id: uid('ga'), mode:'goal', text:'', basis:'', value:'', steps:[] }
-  ] };
+  const T = GB_TPL.find(x => x.key === tplKey) || GB_TPL[0];
+  const it = { id: uid('gi'), title: T.ti || '새 업무', status:'진행 중', kpiId:'',
+    tpl: T.key,
+    acts:[ { id: uid('ga'), mode:'goal', text:'', basis:'', value:'',
+             steps: (T.steps || []).map(x => ({ id: uid('gt'), text: x, done:false })) } ] };
   st.items.push(it);
-  gbOpen[sid] = true; gbOpen[it.id] = true;
+  gbTplAt = ''; gbOpen[sid] = true; gbOpen[it.id] = true;
   markDirtyAll(); render();
+  toast('＋ ' + T.ic + ' ' + T.nm + ' 서식으로 만들었습니다');
 }
 function gbDelItem(sid, iid){
   const g = gbFind(gbWho, gbYear); if(!g) return;
@@ -6705,27 +6765,46 @@ function renderGrowth(){
         + '<b>' + cnt[v] + '</b></button>').join('')
     + '</div>';
 
+  // 업무가 하나도 없으면 단계를 펴 둡니다 — 처음 온 사람이 [＋ 업무 추가] 를 바로 보게
+  const nAll = (g.stages || []).reduce((a, st) => a + (st.items || []).length, 0);
+  if(!nAll) (g.stages || []).forEach(st => {
+    if(gbOpen[st.id] === undefined) gbOpen[st.id] = true;
+  });
+
+  /* 늘 쓰는 것만 앞에 두고, 가끔 쓰는 것은 [⋯ 더보기] 안에 넣습니다.
+     단추가 열 개씩 늘어서 있으면 처음 온 사람은 어디를 눌러야 할지 모릅니다. */
   const tools = '<div class="sec-bar" style="margin:0 0 14px">'
+    + '<button class="btn sm' + (gbHelpOn() ? ' primary' : '') + '" onclick="gbToggleHelp()" '
+      + 'title="처음 쓰는 사람을 위한 안내">📖 안내</button>'
     + '<button class="btn" onclick="gbAddKpi()">＋ 지표 추가</button>'
-    + '<button class="btn" onclick="gbAddStage()">＋ 단계 추가</button>'
     + '<button class="btn" onclick="gbOpenWb()" '
       + 'title="이 보드에 딸린 판입니다. 흐름도나 구성안을 그려두세요">'
       + '🧩 판 열기' + (wbN ? ' <b>' + wbN + '</b>' : '') + '</button>'
-    + '<button class="btn sm" onclick="gbCopyText()" '
-      + 'title="보드 전체를 글로 복사합니다 (보고용·AI에게 물어볼 때)">📋 글로 복사</button>'
-    + '<button class="btn sm' + (gbPasteOpen ? ' primary' : '') + '" onclick="gbTogglePaste()" '
-      + 'title="같은 모양의 글을 붙여넣으면 보드로 만들어 줍니다">📥 글로 붙여넣기</button>'
     + '<button class="btn sm" onclick="gbExport()" '
       + 'title="지금 보드를 사진(PNG) 한 장으로 내려받습니다">📷 사진으로</button>'
-    + '<button class="btn sm' + (bfRows ? ' primary' : '') + '" onclick="bfLoadBuiltin()" '
-      + 'title="예전 브랜드플로우에 적어 두셨던 내용을 그대로 불러옵니다">'
-      + '📦 예전 그로스보드 불러오기</button>'
-    + '<button class="btn sm" onclick="bfOpen()" '
-      + 'title="직접 받은 백업(JSON) 파일에서 옮깁니다">📂 백업 파일에서</button>'
+    + '<button class="btn sm" onclick="gbCopyText()" '
+      + 'title="보드 전체를 글로 복사합니다 (보고용·AI에게 물어볼 때)">📋 글로 복사</button>'
+    // 아직 아무것도 없을 때는 「옮겨오기」 가 제일 먼저 필요합니다
+    + (nAll ? '' : '<button class="btn primary" onclick="bfLoadBuiltin()" '
+        + 'title="예전 브랜드플로우에 적어 두셨던 내용을 그대로 불러옵니다">'
+        + '📦 예전 그로스보드 불러오기</button>')
+    + '<button class="btn sm' + (gbMore ? ' primary' : '') + '" onclick="gbToggleMore()">'
+      + '⋯ 더보기</button>'
     + '<input type="file" id="bfFile" accept=".json,application/json" '
       + 'style="display:none" onchange="bfPick(this)">'
-    + '<span class="hint">지표에 「자동」 을 걸면 아래 업무에 적은 결과가 저절로 더해집니다</span>'
-    + '</div>';
+    + '</div>'
+    + (gbMore
+      ? '<div class="sec-bar" style="margin:-8px 0 14px">'
+        + '<button class="btn sm" onclick="gbAddStage()">＋ 단계 추가</button>'
+        + '<button class="btn sm' + (gbPasteOpen ? ' primary' : '') + '" onclick="gbTogglePaste()" '
+          + 'title="같은 모양의 글을 붙여넣으면 보드로 만들어 줍니다">📥 글로 붙여넣기</button>'
+        + (nAll ? '<button class="btn sm' + (bfRows ? ' primary' : '') + '" '
+            + 'onclick="bfLoadBuiltin()">📦 예전 그로스보드 불러오기</button>' : '')
+        + '<button class="btn sm" onclick="bfOpen()" '
+          + 'title="직접 받은 백업(JSON) 파일에서 옮깁니다">📂 백업 파일에서</button>'
+        + '<span class="hint">지표에 「자동」 을 걸면 아래 업무에 적은 결과가 저절로 더해집니다</span>'
+      + '</div>'
+      : '');
 
   // 예전에 따로 만들어 둔 판이 있으면 여기서 열 수 있게 보여줍니다
   const loose = gbLooseBoards();
@@ -6740,8 +6819,11 @@ function renderGrowth(){
 
   const goal = '<div class="gb-goal">'
     + '<label for="gbGoal">' + esc(gbYear) + '년 ' + esc(gbName(gbWho)) + ' 목표</label>'
-    + '<textarea id="gbGoal" placeholder="올 한 해 무엇을 이루려 하는지 한두 줄로 적어주세요" '
-      + 'oninput="gbGrow(this);gbEdit(\'goal\', this.value)">' + esc(g.goal || '') + '</textarea>'
+    + (gbShot
+        ? '<div class="gb-ro">' + esc(g.goal || '') + '</div>'
+        : '<textarea id="gbGoal" placeholder="올 한 해 무엇을 이루려 하는지 한두 줄로 적어주세요" '
+          + 'oninput="gbGrow(this);gbEdit(\'goal\', this.value)">' + esc(g.goal || '')
+          + '</textarea>')
     + '</div>';
 
   const kpis = (g.kpis || []).length
@@ -6777,7 +6859,7 @@ function renderGrowth(){
       + '</div></div>'
     : '';
 
-  main.innerHTML = box(whoBar + search + tools + paste + bfPanelHtml()
+  main.innerHTML = box(whoBar + search + tools + gbHelpHtml() + paste + bfPanelHtml()
     + looseBar + goal + kpis + filter + stages);
   setTimeout(gbGrowAll, 0);
 }
@@ -6838,7 +6920,9 @@ function gbLooseBoards(){
       if(it.wbId) used[it.wbId] = 1;
     }));
   });
-  return wbBoards().filter(b => !used[b.id]);
+  // 남의 보드에서 만든 판이 내 화면에 뜨지 않게, 주인이 같은 것만 보여줍니다
+  return wbBoards().filter(b => !used[b.id]
+    && (!b.from || !b.from.who || b.from.who === gbWho));
 }
 function gbOpenLoose(id){
   wbMany = []; wbMarq = null;
@@ -6940,13 +7024,17 @@ function gbStageHtml(g, st, idx){
 
   if(!open) return '<div class="gb-stage">' + head + '</div>';
 
-  const edit = '<div class="gb-sedit">'
-    + '<input value="' + esc(st.label || '') + '" placeholder="단계 이름" '
-      + 'oninput="gbEditDraw(\'' + jsq(sp) + 'label\', this.value)" style="flex:0 1 190px">'
-    + '<input value="' + esc(st.desc || '') + '" placeholder="이 단계에서 무엇을 하나 (한 줄)" '
-      + 'oninput="gbEdit(\'' + jsq(sp) + 'desc\', this.value)">'
-    + '<button class="btn sm danger" onclick="gbDelStage(\'' + jsq(st.id) + '\')">단계 삭제</button>'
-    + '</div>';
+  // 단계 이름은 자주 고칠 일이 없으니 눌렀을 때만 보여줍니다 (처음 온 사람에게 덜 어수선하게)
+  const edit = (gbStEdit === st.id)
+    ? '<div class="gb-sedit">'
+      + '<input value="' + esc(st.label || '') + '" placeholder="단계 이름" '
+        + 'oninput="gbEditDraw(\'' + jsq(sp) + 'label\', this.value)" style="flex:0 1 190px">'
+      + '<input value="' + esc(st.desc || '') + '" placeholder="이 단계에서 무엇을 하나 (한 줄)" '
+        + 'oninput="gbEdit(\'' + jsq(sp) + 'desc\', this.value)">'
+      + '<button class="btn sm" onclick="gbStName(\'\')">덮기</button>'
+      + '<button class="btn sm danger" onclick="gbDelStage(\'' + jsq(st.id) + '\')">단계 삭제</button>'
+      + '</div>'
+    : '';
 
   const body = items.length
     ? items.map((it, i) => gbItemHtml(g, st, it, (st.items || []).indexOf(it))).join('')
@@ -6955,8 +7043,157 @@ function gbStageHtml(g, st, idx){
 
   return '<div class="gb-stage">' + head
     + '<div class="gb-sb">' + edit + body
-    + '<button class="gb-add" onclick="gbAddItem(\'' + jsq(st.id) + '\')">＋ 업무 추가</button>'
+    + '<button class="gb-add' + (gbTplAt === st.id ? ' on' : '') + '" '
+      + 'onclick="gbAddItem(\'' + jsq(st.id) + '\')">＋ 업무 추가</button>'
+    + (gbStEdit === st.id ? '' : '<button class="gb-add" style="margin-left:6px" '
+        + 'title="단계 이름·설명을 고치거나 단계를 지웁니다" '
+        + 'onclick="gbStName(\'' + jsq(st.id) + '\')">✎ 단계 고치기</button>')
+    + gbTplBar(st.id)
     + '</div></div>';
+}
+
+/* ── 📖 처음 쓰는 사람을 위한 안내 ──────────────────────────────
+   빈 보드를 처음 본 사람이 「무엇을 어디에 적나」 를 바로 알 수 있게
+   맨 위에 펼쳐 둡니다. 한 번 닫으면 이 컴퓨터에서는 계속 접혀 있습니다.
+   ------------------------------------------------------------- */
+function gbHelpOn(){
+  try{ return localStorage.getItem('bh_gbhelp') !== 'off'; }catch(e){ return true; }
+}
+function gbToggleHelp(){
+  try{ localStorage.setItem('bh_gbhelp', gbHelpOn() ? 'off' : 'on'); }catch(e){}
+  render();
+}
+
+function gbHelpHtml(){
+  if(!gbHelpOn()) return '';
+  const step = (n, t, d) => '<div class="s"><b>' + n + '</b>'
+    + '<span class="t">' + t + '</span><span class="d">' + d + '</span></div>';
+  const row = (t, d) => '<div class="r"><span class="t">' + t + '</span>'
+    + '<span class="d">' + d + '</span></div>';
+
+  return '<div class="gb-help">'
+    + '<div class="hh"><span>📖 그로스보드, 이렇게 씁니다</span>'
+      + '<button class="btn sm" onclick="gbToggleHelp()">접기</button></div>'
+    + '<p class="lead">「무엇을 했다」 를 적는 곳이 아닙니다. '
+      + '<b>왜 했고 · 무엇으로 확인했고 · 어떻게 됐나</b> 를 남기는 곳입니다. '
+      + '나중에 이 한 장만 보고도 그때 무슨 생각이었는지 알 수 있어야 합니다.</p>'
+    + '<div class="steps">'
+      + step(1, '올해 목표 한 줄', '올해를 무엇으로 기억할 건가')
+      + step(2, '지표 2~3개',     '그 목표를 무슨 숫자로 보나 (지금 → 목표)')
+      + step(3, '업무를 단계에',   '그 숫자를 올릴 일을 유입·전환·활성화·재사용에 나눠 담기')
+    + '</div>'
+    + '<div class="four"><div class="fh">업무 한 건은 이 네 칸입니다</div>'
+      + row('🎯 목표 / ❓ 문제', '왜 이 일을 하나 — 이루려는 것, 또는 걸려 있는 것')
+      + row('근거 · 가설',      '왜 그렇게 보나 — 숫자나 실제로 겪은 일로')
+      + row('확인할 것',        '무엇을 해서 확인할까 — 하나씩 체크')
+      + row('결과',            '어떻게 됐나 — 숫자든 말이든, 안 됐으면 안 된 대로')
+    + '</div>'
+    + '<div class="tip">처음이면 단계를 펴고 <b>[＋ 업무 추가]</b> 를 눌러 '
+      + '「어떤 일인가」 를 골라보세요. 확인할 것이 미리 채워지고 칸마다 예시가 뜹니다.</div>'
+    + '</div>';
+}
+
+/* ── 서식 ──────────────────────────────────────────────────────
+   빈 칸만 있으면 처음 온 사람은 무엇을 적어야 할지 모릅니다.
+   그래서 업무를 만들 때 「어떤 일인가」 를 고르면 확인할 것이
+   미리 채워지고, 칸마다 그 일에 맞는 예시 문구가 뜹니다.
+   (예시는 회색 안내 글이라 지울 필요가 없습니다)
+   ------------------------------------------------------------- */
+const GB_TPL = [
+  { key:'blank', ic:'📝', nm:'빈 것부터', ds:'내가 알아서 적겠습니다', ti:'새 업무',
+    goal:'무엇을 이루려 하나요', prob:'무엇이 문제인가요',
+    basis:'왜 그렇게 보나요 — 숫자나 겪은 일로',
+    val:'어떻게 됐나요 — 숫자든 말이든', steps:[] },
+
+  { key:'content', ic:'✍️', nm:'콘텐츠 · 블로그', ds:'꾸준히 내보내 검색으로 들어오게',
+    ti:'블로그 검색 유입 늘리기',
+    goal:'예) 월 검색 유입 3,000 → 6,000 으로',
+    prob:'예) 발행이 끊기니 검색 노출과 신규 유입이 정체됨',
+    basis:'예) 상위 노출 키워드가 12개뿐. 30개까지 늘리면 2배',
+    val:'예) 검색 유입 4,100명 · 문의 12건',
+    steps:['노릴 키워드 30개 목록 만들기', '주 2편씩 8주 발행', '2주마다 키워드 순위 확인'] },
+
+  { key:'ad', ic:'📣', nm:'광고 집행', ds:'돈을 써서 빠르게 노출·문의 만들기',
+    ti:'네이버 파워컨텐츠 광고',
+    goal:'예) 예산 300만원으로 문의 30건 만들기',
+    prob:'예) 로직이 바뀌어 자연 노출이 막힘',
+    basis:'예) 성수기 7-9월을 놓치면 1년을 기다려야 함',
+    val:'예) 노출 12만 · 클릭 1,800 · 문의 24건',
+    steps:['소재·키워드 정해 심사 넣기', '주 1회 키워드별 순위 보기',
+           '성과 없는 키워드 끄고 예산 옮기기'] },
+
+  { key:'page', ic:'🖥', nm:'홈페이지 · 상세페이지', ds:'들어온 사람이 문의까지 가게',
+    ti:'메인 페이지 리뉴얼',
+    goal:'예) 이탈률 70% → 50% 로 낮추기',
+    prob:'예) 첫 화면만 보고 그냥 나감',
+    basis:'예) GA4 상 첫 화면 이탈이 68%. 무슨 회사인지 안 보임',
+    val:'예) 이탈률 54% · 문의 버튼 클릭 2.1배',
+    steps:['잘된 곳 3개 보고 뭐가 다른지 적기', '섹션 순서 새로 짜기',
+           '바꾸고 2주 뒤 숫자 비교'] },
+
+  { key:'doc', ic:'📄', nm:'자료 만들기', ds:'제안서·브랜드북처럼 두고두고 쓰는 것',
+    ti:'제안서 최신화',
+    goal:'예) 올해 안에 6종 최신화',
+    prob:'예) 자료마다 말이 달라 고객이 헷갈림',
+    basis:'예) 작년 자료라 바뀐 서비스가 빠져 있음',
+    val:'예) 4종 완료 · 영업팀이 쓰기 시작',
+    steps:['지금 자료에서 틀린 곳 뽑기', '새 내용으로 다시 쓰기',
+           '팀에 돌리고 고칠 것 받기'] },
+
+  { key:'field', ic:'🤝', nm:'오프라인 · 만나기', ds:'세미나·방문처럼 직접 만나는 일',
+    ti:'관리사무소 방문',
+    goal:'예) 단지 40곳 방문해 문의 10건',
+    prob:'예) 온라인만으로는 관리주체가 안 움직임',
+    basis:'예) 작년 4곳 방문에서 문의 2건 — 방문당 0.5건',
+    val:'예) 38곳 방문 · 문의 9건',
+    steps:['갈 곳 목록과 동선 짜기', '두고 올 자료 준비하기',
+           '다녀와서 반응 적어두기'] },
+
+  { key:'keep', ic:'🔁', nm:'다시 찾게 만들기', ds:'이미 온 고객이 또 오게',
+    ti:'기존 고객 다시 부르기',
+    goal:'예) 재사용률 0% → 30%',
+    prob:'예) 한 번 하고 연락이 끊김',
+    basis:'예) 시공 끝난 뒤 안내가 아예 없음',
+    val:'예) 재문의 14건 · 재계약 3건',
+    steps:['끝난 고객 목록 정리하기', '언제 무엇을 보낼지 정하기',
+           '보내고 답이 온 수 세기'] },
+
+  { key:'help', ic:'🔧', nm:'지원 · 개인 업무', ds:'다른 팀 도움이나 그 밖의 일',
+    ti:'', goal:'예) 무엇을 어디까지 해두면 되나',
+    prob:'예) 무엇이 걸려 있나',
+    basis:'예) 왜 지금 필요한 일인가',
+    val:'예) 어떻게 마무리됐나', steps:[] }
+];
+/* 이 업무가 「자동」 으로 합산되는 지표에 걸려 있나 */
+function gbAutoKpi(it){
+  if(!it || !it.kpiId) return false;
+  const g = gbFind(gbWho, gbYear); if(!g) return false;
+  const k = (g.kpis || []).find(x => x.id === it.kpiId);
+  return !!(k && k.mode === 'auto');
+}
+function gbTpl(it){
+  return GB_TPL.find(x => x.key === ((it && it.tpl) || 'blank')) || GB_TPL[0];
+}
+
+let gbStEdit = '';       // 이름을 고치는 중인 단계 id
+function gbStName(id){ gbStEdit = id; render(); }
+
+let gbMore = false;      // [⋯ 더보기] 를 펴 두었나
+function gbToggleMore(){ gbMore = !gbMore; render(); }
+
+let gbTplAt = '';        // 서식을 고르는 중인 단계 id
+function gbPickTpl(sid){ gbTplAt = (gbTplAt === sid) ? '' : sid; render(); }
+
+/* 서식 고르는 줄 — 단계 아래에 잠깐 펼쳐집니다 */
+function gbTplBar(sid){
+  if(gbTplAt !== sid) return '';
+  return '<div class="gb-tpl">'
+    + '<div class="hd">어떤 일인가요? <span>고르면 「확인할 것」 이 채워지고 '
+      + '칸마다 예시가 뜹니다</span></div>'
+    + GB_TPL.map(t => '<button onclick="gbAddItem(\'' + jsq(sid) + '\',\'' + t.key + '\')">'
+        + '<b>' + t.ic + ' ' + esc(t.nm) + '</b>'
+        + '<span>' + esc(t.ds) + '</span></button>').join('')
+    + '</div>';
 }
 
 const GB_STATUS = ['예정', '진행 중', '완료', '보류'];
@@ -7020,16 +7257,23 @@ function gbItemHtml(g, st, it, idx){
 /* 목표·문제 한 덩이 — 왼쪽 이름표, 오른쪽 내용 */
 function gbActHtml(st, it, a){
   const goal = a.mode !== 'problem';
+  const T    = gbTpl(it);
   const ap = 'stages.' + st.id + '.items.' + it.id + '.acts.' + a.id + '.';
   const args = '\'' + jsq(st.id) + '\',\'' + jsq(it.id) + '\',\'' + jsq(a.id) + '\'';
 
-  const row = (label, tip, body) =>
-    '<div class="gb-row"><span class="lb">' + label
-      + (tip ? '<span class="rm" title="' + tip + '"></span>' : '') + '</span>'
-    + '<span class="bd">' + body + '</span></div>';
+  // 사진으로 뽑을 때는 비어 있는 줄을 통째로 뺍니다 (빈 칸만 넓게 남지 않게)
+  const row = (label, has, body) =>
+    (gbShot && !has) ? ''
+    : '<div class="gb-row"><span class="lb">' + label + '</span>'
+      + '<span class="bd">' + body + '</span></div>';
+  const ro = v => '<div class="gb-ro">' + esc(v || '') + '</div>';
 
-  const steps = (a.steps || []).map(t =>
-    '<div class="gb-step' + (t.done ? ' done' : '') + '">'
+  const steps = (a.steps || []).filter(t => !gbShot || String(t.text || '').trim()).map(t =>
+    gbShot
+    ? '<div class="gb-step' + (t.done ? ' done' : '') + '">'
+      + '<span class="bx">' + (t.done ? '☑' : '☐') + '</span>'
+      + '<span class="tx">' + esc(t.text || '') + '</span></div>'
+    : '<div class="gb-step' + (t.done ? ' done' : '') + '">'
     + '<input type="checkbox"' + (t.done ? ' checked' : '') + ' '
       + 'onchange="gbStepDone(' + args + ',\'' + jsq(t.id) + '\', this.checked)">'
     + '<input type="text" id="gbs_' + esc(t.id) + '" value="' + esc(t.text || '') + '" '
@@ -7043,26 +7287,35 @@ function gbActHtml(st, it, a){
       + 'onclick="gbActMode(' + args + ')">' + (goal ? '🎯 목표' : '❓ 문제') + '</span>'
     + '<button class="rm" title="이 덩이 지우기" onclick="gbDelAct(' + args + ')">×</button>';
 
+  const hasT = String(a.text  || '').trim() !== '';
+  const hasB = String(a.basis || '').trim() !== '';
+  const hasV = String(a.value || '').trim() !== '';
+  const hasS = (a.steps || []).some(t => String(t.text || '').trim());
+  if(gbShot && !hasT && !hasB && !hasV && !hasS) return '';   // 아무것도 안 적힌 덩이는 안 찍습니다
+
   return '<div class="gb-act ' + (goal ? 'goal' : 'problem') + '">'
-    + '<div class="gb-row"><span class="lb">' + head + '</span>'
-      + '<span class="bd"><textarea class="txt" placeholder="'
-      + (goal ? '무엇을 이루려 하나요' : '무엇이 문제인가요') + '" '
-      + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'text\', this.value)">'
-      + esc(a.text || '') + '</textarea></span></div>'
-    + row(goal ? '근거 · 가설' : '원인 · 짚이는 것', '',
-        '<textarea class="basis" placeholder="'
-        + (goal ? '왜 그렇게 보나요' : '왜 그런가요') + '" '
-        + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'basis\', this.value)">'
-        + esc(a.basis || '') + '</textarea>')
-    + row('확인할 것', '', steps
-        + '<button class="gb-add" style="padding:3px 8px;font-size:11.5px;margin-top:4px" '
-        + 'onclick="gbAddStep(' + args + ')">＋ 한 줄 더</button>')
-    + row('결과', '',
-        '<span class="gb-val"><input value="' + esc(a.value || '') + '" placeholder="숫자" '
-        + 'oninput="gbEditDraw(\'' + jsq(ap) + 'value\', this.value)">'
-        + '<span class="hint">'
-        + (it.kpiId ? '연결된 지표에 더해집니다' : '지표를 연결하면 합산됩니다')
-        + '</span></span>')
+    + row(head, hasT || hasB || hasS || hasV, gbShot
+        ? ro(a.text)
+        : '<textarea class="txt" placeholder="' + esc(goal ? T.goal : T.prob) + '" '
+          + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'text\', this.value)">'
+          + esc(a.text || '') + '</textarea>')
+    + row(goal ? '근거 · 가설' : '원인 · 짚이는 것', hasB, gbShot
+        ? ro(a.basis)
+        : '<textarea class="basis" placeholder="' + esc(T.basis) + '" '
+          + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'basis\', this.value)">'
+          + esc(a.basis || '') + '</textarea>')
+    + row('확인할 것', hasS, steps
+        + (gbShot ? ''
+           : '<button class="gb-add" style="padding:3px 8px;font-size:11.5px;margin-top:4px" '
+             + 'onclick="gbAddStep(' + args + ')">＋ 한 줄 더</button>'))
+    + row('결과', hasV, gbShot
+        ? ro(a.value)
+        : '<span class="gb-val"><input value="' + esc(a.value || '') + '" '
+          + 'placeholder="' + esc(T.val) + '" '
+          + 'oninput="gbEditDraw(\'' + jsq(ap) + 'value\', this.value)">'
+          + (gbAutoKpi(it)
+              ? '<span class="hint">숫자로 적으면 「자동」 지표에 더해집니다</span>' : '')
+          + '</span>')
     + '</div>';
 }
 
@@ -7435,8 +7688,19 @@ function bfConv(row){
     if(!acts.length) acts.push({ id: uid('ga'), mode:'goal', text:'', basis:'',
                                  value:'', steps:[] });
 
+    // 이 업무에 딸린 사진들 (결과 사진 · 발표용 · 이슈 · 실행 사진)
+    const imgs = [];
+    const grab = arr => (arr || []).forEach(x => {
+      if(x && x.url) imgs.push(x);
+      else if(typeof x === 'string' && x.slice(0, 10) === 'data:image') imgs.push({ url: x });
+    });
+    (t.activities || []).forEach(a => grab(a.resultImages));
+    grab(t.pExpectImages);
+    (t.issues   || []).forEach(x => grab(x.images));
+    (t.pActions || []).forEach(x => grab(x.images));
+
     (items[key] = items[key] || []).push({
-      id: uid('gi'), title: title || '(제목 없음)',
+      id: uid('gi'), title: title || '(제목 없음)', _imgs: imgs,
       status: (t.status === '진행중') ? '진행 중'
             : (GB_STATUS.indexOf(t.status) >= 0 ? t.status : '진행 중'),
       kpiId: '', _kpi: String((t.metric || {}).kpiId || ''), acts: acts
@@ -7448,7 +7712,50 @@ function bfConv(row){
   return { goal: goal, kpis: kpis, items: items };
 }
 
-function bfRun(mode){
+/* data:… 글자를 진짜 파일로 되돌립니다 */
+function bfBlob(im){
+  const s2  = String(im.url || '');
+  const cut = s2.indexOf(',');
+  const mime = s2.slice(5, s2.indexOf(';')) || 'image/jpeg';
+  const bin = atob(s2.slice(cut + 1));
+  const u8  = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return new File([u8], im.name || '예전 자료.jpg', { type: mime });
+}
+
+/* 사진은 업무마다 딸린 🧩 판에 붙여 둡니다 (자료 파일은 그대로 가볍게) */
+async function bfAttachImgs(jobs){
+  if(!jobs.length) return 0;
+  if(STORAGE_MODE !== 'nas'){
+    toast('⚠️ 사진은 NAS 주소로 열었을 때만 붙습니다 (내용은 다 들어갔습니다)');
+    return 0;
+  }
+  const total = jobs.reduce((a, j) => a + j.imgs.length, 0);
+  toast('🖼 사진 ' + total + '장을 판에 붙이는 중…');
+  let done = 0;
+  for(const j of jobs){
+    const bd = gbBoardFor(j.g, j.it);
+    let x = 40, y = 40;
+    for(const im of j.imgs){
+      try{
+        const m = await wbPutMedia(bfBlob(im));
+        if(!m) continue;
+        const k = Math.min(360 / (im.w || 360), 300 / (im.h || 240), 1);
+        bd.nodes.push(Object.assign({
+          id: uid('wn'), kind:'media', x: x, y: y,
+          w: Math.max(120, Math.round((im.w || 360) * k)),
+          h: Math.max(90,  Math.round((im.h || 240) * k)),
+          color:'dark', text:''
+        }, m));
+        x += 34; y += 34; done++;
+      }catch(e){ /* 한 장이 안 붙어도 나머지는 계속합니다 */ }
+    }
+    bd.updatedAt = new Date().toISOString();
+  }
+  return done;
+}
+
+async function bfRun(mode){
   const rows = (bfRows || []).filter(r => r.who);
   if(!rows.length){ toast('⚠️ 누구 보드로 넣을지 골라주세요'); return; }
   const nT  = rows.reduce((a, r) => a + r.nTask, 0);
@@ -7459,8 +7766,9 @@ function bfRun(mode){
       + rows.map(r => '· ' + r.brand + ' ' + r.year + '년 → ' + gbName(r.who)
           + ' (업무 ' + r.nTask + '건'
           + (r.nKpi ? ' · 지표 ' + r.nKpi + '개' : '') + ')').join('\n')
-      + (nI ? '\n\n※ 사진 ' + nI + '장은 파일이 너무 커져서 가져오지 않습니다' : ''))) return;
+      + (nI ? '\n\n※ 사진 ' + nI + '장은 업무마다 딸린 🧩 판에 붙습니다' : ''))) return;
 
+  const jobs  = [];   // 나중에 판에 붙일 사진들
   const wiped = {};   // 한 사람 보드에 두 줄을 보내도 두 번 지우지 않게
   rows.forEach(r => {
     const got = bfConv(r);
@@ -7497,8 +7805,10 @@ function bfRun(mode){
       }
       got.items[key].forEach(it => {
         it.kpiId = idMap[it._kpi] || '';
-        delete it._kpi;
+        const im = it._imgs || [];
+        delete it._kpi; delete it._imgs;
         st.items.push(it);
+        if(im.length) jobs.push({ g: g, it: it, imgs: im });
       });
     });
     g.updatedAt = new Date().toISOString();
@@ -7507,6 +7817,12 @@ function bfRun(mode){
   bfRows = null;
   markDirtyAll(); render();
   toast('📦 보드 ' + rows.length + '개 · 업무 ' + nT + '건을 옮겼습니다');
+
+  const shot = await bfAttachImgs(jobs);
+  if(shot){
+    markDirtyAll(); render();
+    toast('🖼 사진 ' + shot + '장을 업무마다 🧩 판에 붙였습니다');
+  }
 }
 
 /* 어디에 넣을지 고르는 표 */
@@ -7523,7 +7839,7 @@ function bfPanelHtml(){
       + '<span class="nm">' + esc(r.brand) + ' <b>' + esc(r.year) + '</b></span>'
       + '<span class="ct">업무 ' + r.nTask + ' · 내용 ' + r.nAct
         + (r.nKpi ? ' · 지표 ' + r.nKpi : '')
-        + (r.nImg ? ' · <span style="color:var(--yellow)">사진 ' + r.nImg + ' (못 옮김)</span>' : '')
+        + (r.nImg ? ' · <span style="color:var(--cyan)">사진 ' + r.nImg + '장 → 🧩 판</span>' : '')
         + '</span>'
       + '<span class="ar">→</span>' + sel + '</div>';
   }).join('');
@@ -7538,7 +7854,7 @@ function bfPanelHtml(){
       + '<button class="btn primary" onclick="bfRun(\'add\')">＋ 고른 보드에 더하기</button>'
       + '<button class="btn danger" onclick="bfRun(\'replace\')">↻ 통째로 바꾸기</button>'
       + '<span class="hint">테마 글에서 유입·전환·활성화·재사용을 찾아 그 단계에 넣습니다. '
-        + '못 찾으면 「개인 및 자유업무」 로 갑니다. 사진은 파일이 너무 커져서 빼고 옮깁니다</span>'
+        + '못 찾으면 「개인 및 자유업무」 로 갑니다. 사진은 그 업무의 🧩 판에 붙습니다</span>'
     + '</div></div>';
 }
 

@@ -1426,7 +1426,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-11';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-12';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -2084,6 +2084,8 @@ function closeNav(){
 function goView(v){
   closeNav();
   clearSearchQuietly();
+  if(v !== 'growth') gbWb = null;      // 그로스보드 안에서 열어둔 판은 닫습니다
+  if(v !== 'boards' && v !== 'growth') wbId = '';
   view = v;
   currentBrandId = null;
   render();
@@ -5627,7 +5629,12 @@ function renderBoards(){
             + '<div class="ct">🧩 ' + esc(x.name || '이름 없는 판') + '</div>'
             + '<div class="row"><span class="chip">' + n + '개</span>'
               + ((x.edges || []).length
-                  ? '<span class="chip">화살표 ' + x.edges.length + '</span>' : '') + '</div>'
+                  ? '<span class="chip">화살표 ' + x.edges.length + '</span>' : '')
+              + (x.from
+                  ? '<span class="chip on" title="그로스보드에서 만든 판입니다">📈 '
+                    + esc(gbName(x.from.who)) + ' · ' + esc(String(x.from.year))
+                    + (x.from.item ? ' · ' + esc(x.from.item) : '') + '</span>' : '')
+              + '</div>'
             + (when ? '<div class="fmeta" style="margin-top:6px">'
                 + esc(new Date(when).toLocaleString('ko-KR',
                     { dateStyle:'medium', timeStyle:'short' })) + '</div>' : '')
@@ -5642,8 +5649,19 @@ function renderBoards(){
     return;
   }
 
+  main.innerHTML = '<div class="panel"><div class="tabbody">' + head
+    + wbBoardHtml(b, '<button class="btn sm" onclick="wbClose()">← 판 목록</button>')
+    + '</div></div>';
+
+  wbApplyView();
+  wbDrawEdges();
+}
+
+/* 판 하나를 그립니다 — 화이트보드 화면과 그로스보드 안에서 같이 씁니다.
+   backBtn 은 왼쪽 맨 앞에 붙일 「돌아가기」 단추입니다 (없어도 됩니다). */
+function wbBoardHtml(b, backBtn){
   const bar = '<div class="sec-bar" style="margin:0 0 10px">'
-    + '<button class="btn sm" onclick="wbClose()">← 판 목록</button>'
+    + (backBtn || '')
     + '<button class="btn sm" onclick="wbRename()" title="이름 바꾸기">✏️ '
       + esc(b.name || '이름 없는 판') + '</button>'
     + '<span style="width:9px"></span>'
@@ -5654,7 +5672,7 @@ function renderBoards(){
 
   const nodes = (b.nodes || []).map(n => wbNodeHtml(n)).join('');
 
-  main.innerHTML = '<div class="panel"><div class="tabbody">' + head + bar
+  return bar
     + '<div class="wb-wrap grab" id="wbWrap" onpointerdown="wbDown(event,null,\'pan\')" '
       + 'onclick="wbBlank()" onwheel="wbWheel(event)">'
       + '<div class="wb-canvas" id="wbCanvas">'
@@ -5670,10 +5688,7 @@ function renderBoards(){
       + '</div>'
       + '<div class="wb-hint">빈 곳을 끌면 판이 움직입니다 · '
         + '한 번 누르면 고르고, 고른 것을 다시 누르면 글을 고칩니다</div>'
-    + '</div></div></div>';
-
-  wbApplyView();
-  wbDrawEdges();
+    + '</div>';
 }
 
 function wbNodeHtml(n){
@@ -5767,8 +5782,11 @@ function gbGrow(el){
 function gbGrowAll(){
   document.querySelectorAll('.gb-act .txt, .gb-act .basis, #gbGoal').forEach(gbGrow);
 }
-function setGbWho(v){ gbWho = v; render(); window.scrollTo({ top:0, behavior:'smooth' }); }
-function setGbYear(v){ gbYear = String(v); render(); }
+function setGbWho(v){
+  gbWho = v; gbWb = null;
+  render(); window.scrollTo({ top:0, behavior:'smooth' });
+}
+function setGbYear(v){ gbYear = String(v); gbWb = null; render(); }
 
 /* 보드를 쓸 사람들 — 계정을 쓰면 팀원 목록, 아니면 적어둔 이름들 */
 function gbPeople(){
@@ -6069,9 +6087,31 @@ function renderGrowth(){
     return;
   }
 
+  // 판을 열어둔 상태면 그로스보드 대신 판을 보여줍니다
+  if(gbWb){
+    const st = gbWb.sid ? (g.stages || []).find(x => x.id === gbWb.sid) : null;
+    const it = st ? (st.items || []).find(x => x.id === gbWb.iid) : null;
+    const board = gbBoardFor(g, it);
+    wbId = board.id;
+    const where = it
+      ? esc(st.label || '') + ' › ' + esc(it.title || '이름 없는 업무')
+      : esc(gbYear) + '년 보드 전체';
+    main.innerHTML = box(whoBar
+      + '<div class="fmeta" style="margin:-4px 0 8px">🧩 ' + where + '의 판</div>'
+      + wbBoardHtml(board,
+          '<button class="btn sm" onclick="gbCloseWb()">← 그로스보드</button>'));
+    wbApplyView();
+    wbDrawEdges();
+    return;
+  }
+
+  const wbN = gbWbCount(g);
   const tools = '<div class="sec-bar" style="margin:0 0 14px">'
     + '<button class="btn" onclick="gbAddKpi()">＋ 지표 추가</button>'
     + '<button class="btn" onclick="gbAddStage()">＋ 단계 추가</button>'
+    + '<button class="btn" onclick="gbOpenWb()" '
+      + 'title="이 보드에 딸린 판입니다. 흐름도나 구성안을 그려두세요">'
+      + '🧩 판 열기' + (wbN ? ' <b>' + wbN + '</b>' : '') + '</button>'
     + '<button class="btn sm" onclick="gbCopyText()" '
       + 'title="보드 전체를 글로 복사합니다 (보고용·AI에게 물어볼 때)">📋 글로 복사</button>'
     + '<span class="hint">지표에 「자동」 을 걸면 아래 업무에 적은 기여 수치가 저절로 더해집니다</span>'
@@ -6097,6 +6137,53 @@ function renderGrowth(){
 }
 
 function gbStart(){ gbEnsure(gbWho, gbYear); render(); }
+
+/* ── 그로스보드 안의 화이트보드 ────────────────────────────────
+   보드 전체에 하나, 업무마다 하나씩 판을 붙일 수 있습니다.
+   판 자체는 data.boards 에 그대로 들어가므로 🧩 화이트보드 목록에도 나옵니다.
+   ------------------------------------------------------------- */
+let gbWb = null;      // null | { sid, iid }  (sid 가 없으면 보드 전체 판)
+
+/* 이 자리에 붙은 판을 찾고, 없으면 만듭니다 */
+function gbBoardFor(g, it){
+  const holder = it || g;
+  let b = wbBoards().find(x => x.id === holder.wbId);
+  if(b) return b;
+  const name = it
+    ? gbName(g.who) + ' · ' + (it.title || '이름 없는 업무')
+    : gbName(g.who) + ' · ' + g.year + '년 그로스보드';
+  b = { id: uid('wb'), name: name, nodes: [], edges: [],
+        from: { who: g.who, year: g.year, item: it ? (it.title || '') : '' },
+        createdAt: new Date().toISOString() };
+  wbBoards().unshift(b);
+  holder.wbId = b.id;
+  markDirtyAll();
+  return b;
+}
+
+function gbOpenWb(sid, iid){
+  const g = gbFind(gbWho, gbYear); if(!g) return;
+  let it = null;
+  if(sid){
+    const st = (g.stages || []).find(x => x.id === sid);
+    it = st ? (st.items || []).find(x => x.id === iid) : null;
+    if(!it) return;
+  }
+  const b = gbBoardFor(g, it);
+  wbId = b.id; wbSel = ''; wbEdit = ''; wbLink = null;
+  wbView = { x:0, y:0, z:1 };
+  gbWb = { sid: sid || '', iid: iid || '' };
+  render();
+  setTimeout(wbFit, 30);
+}
+function gbCloseWb(){ gbWb = null; wbId = ''; wbSel = ''; wbEdit = ''; wbLink = null; render(); }
+
+/* 이 자리에 판이 있고 뭔가 그려져 있나 (단추에 개수를 보여주려고) */
+function gbWbCount(holder){
+  if(!holder || !holder.wbId) return 0;
+  const b = wbBoards().find(x => x.id === holder.wbId);
+  return b ? (b.nodes || []).length : 0;
+}
 
 function gbKpiCard(g, k){
   const mode = (k.mode === 'auto') ? 'auto' : 'manual';
@@ -6196,6 +6283,7 @@ function gbItemHtml(g, st, it, idx){
         + '</option>').join('')
     + '</select>';
 
+  const iwb = gbWbCount(it);
   const head = '<div class="gb-ih">'
     + '<button class="ar" onclick="gbToggle(\'' + jsq(it.id) + '\')" '
       + 'title="' + (open ? '접기' : '펴기') + '">' + (open ? '▼' : '▶') + '</button>'
@@ -6204,6 +6292,10 @@ function gbItemHtml(g, st, it, idx){
       + 'oninput="gbEdit(\'' + jsq(ip) + 'title\', this.value)">'
     + stSel
     + pick
+    + '<button class="btn sm' + (iwb ? ' primary' : '') + '" '
+      + 'title="이 업무만 놓고 판에 그려봅니다" '
+      + 'onclick="gbOpenWb(\'' + jsq(st.id) + '\',\'' + jsq(it.id) + '\')">🧩'
+      + (iwb ? ' ' + iwb : '') + '</button>'
     + '<button class="btn sm danger" onclick="gbDelItem(\'' + jsq(st.id) + '\',\''
       + jsq(it.id) + '\')">삭제</button>'
     + '</div>';

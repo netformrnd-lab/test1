@@ -912,6 +912,26 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-none{padding:9px 12px;font-size:12px;color:var(--text-muted);
   border-top:1px solid var(--border)}
 
+/* ── 브랜드 꼬리표 · 보기 바꾸기 ──────────────────────────────── */
+.gb-brs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 9px}
+.gb-brs .b{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+  background:var(--bg-card);color:var(--text-secondary);font-family:inherit;font-size:12.5px;
+  font-weight:700;padding:6px 12px;border-radius:99px;cursor:pointer}
+.gb-brs .b b{font-size:12.5px;color:var(--text-primary)}
+.gb-brs .b .d{font-size:11px;font-weight:700;color:var(--green)}
+.gb-brs .b:hover{border-color:var(--ink)}
+.gb-brs .b.on{border-color:var(--hue,var(--ink));color:var(--hue,var(--text-primary));
+  background:var(--bg-input)}
+.gb-brs .b.on b{color:var(--hue,var(--text-primary))}
+.gb-by{display:flex;align-items:center;gap:4px;margin:0 0 12px}
+.gb-by .lb{font-size:11.5px;font-weight:700;color:var(--text-muted);margin-right:5px}
+.gb-by button{border:1px solid var(--border);background:var(--bg-card);
+  color:var(--text-muted);font-family:inherit;font-size:12px;font-weight:700;
+  padding:5px 13px;border-radius:99px;cursor:pointer}
+.gb-by button.on{border-color:var(--ink);background:var(--ink);color:#fff}
+.gb-row2 .chip.br{font-weight:800}
+.gb-row2 .chip.st{color:var(--text-secondary)}
+
 /* ── 단계 안 목록 ────────────────────────────────────────────── */
 .gb-list{display:flex;flex-direction:column;gap:6px;padding:2px 0 4px}
 .gb-row2{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
@@ -1659,7 +1679,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-25';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-26';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6499,7 +6519,7 @@ function gbGrowAll(){
     .forEach(gbGrow);
 }
 function setGbWho(v){
-  gbWho = v; gbWb = null; gbIt = null; gbQ = ''; gbSt = '';
+  gbWho = v; gbWb = null; gbIt = null; gbQ = ''; gbSt = ''; gbBr = '';
   render(); window.scrollTo({ top:0, behavior:'smooth' });
 }
 function setGbYear(v){ gbYear = String(v); gbWb = null; gbIt = null; render(); }
@@ -6905,9 +6925,22 @@ function renderGrowth(){
     : '<div class="empty" style="margin-bottom:18px">아직 지표가 없습니다. '
       + '<b style="color:var(--text-primary)">[＋ 지표 추가]</b> 로 올해 볼 숫자를 걸어주세요.</div>';
 
-  const stages = (g.stages || []).length
-    ? g.stages.map((st, i) => gbStageHtml(g, st, i)).join('')
-    : '<div class="empty">단계가 없습니다. [＋ 단계 추가] 를 눌러주세요.</div>';
+  const brBar = gbBrandBar(g);
+  const byBar = brBar
+    ? '<div class="gb-by"><span class="lb">보기</span>'
+      + '<button class="' + (gbBy === 'stage' ? 'on' : '') + '" '
+        + 'onclick="setGbBy(\'stage\')" title="유입 → 전환 → 활성화 → 재사용 으로 봅니다">'
+        + '단계별</button>'
+      + '<button class="' + (gbBy === 'brand' ? 'on' : '') + '" '
+        + 'onclick="setGbBy(\'brand\')" title="브랜드마다 무엇을 하고 있는지 봅니다">'
+        + '브랜드별</button></div>'
+    : '';
+
+  const stages = !(g.stages || []).length
+    ? '<div class="empty">단계가 없습니다. [＋ 단계 추가] 를 눌러주세요.</div>'
+    : (gbBy === 'brand' && !gbShot)
+      ? gbBrandViewHtml(g)
+      : g.stages.map((st, i) => gbStageHtml(g, st, i)).join('');
 
   const paste = gbPasteOpen
     ? '<div class="mbox" style="margin:0 0 14px;border-color:var(--blue)">'
@@ -6942,7 +6975,7 @@ function renderGrowth(){
   }
 
   main.innerHTML = box(whoBar + search + tools + gbHelpHtml() + paste + bfPanelHtml()
-    + looseBar + goal + kpis + filter + stages);
+    + looseBar + goal + kpis + brBar + byBar + filter + stages);
   setTimeout(gbGrowAll, 0);
   setTimeout(gbGrowAll, 140);   // 카드 너비가 잡힌 뒤 한 번 더 (빈 줄이 남지 않게)
 }
@@ -7180,7 +7213,7 @@ function gbStageHtml(g, st, idx){
   const open = !!gbOpen[st.id];
   const hue  = GB_HUE[st.key] || 'var(--text-muted)';
   const sp   = 'stages.' + st.id + '.';
-  const items = gbVisibleItems(st);
+  const items = gbPick(st);
   const n     = items.length;
   const all   = (st.items || []).length;
   const stat  = gbStepStat(st);
@@ -7376,6 +7409,105 @@ function gbTplBar(sid){
 
 const GB_STATUS = ['예정', '진행 중', '완료', '보류'];
 
+/* ── 브랜드 꼬리표 ──────────────────────────────────────────────
+   예전 그로스보드는 「브랜드 한 장에 담당자 한 명」 이었습니다.
+   지금은 한 사람이 여러 브랜드를 맡으므로, 보드는 사람 한 장으로 두고
+   업무마다 「어느 브랜드 일인가」 를 붙입니다.
+   그래서 두 가지로 볼 수 있습니다.
+     · 단계별 보기  — 유입 → 전환 → 활성화 → 재사용 (퍼널이 보입니다)
+     · 브랜드별 보기 — 브랜드마다 내가 무엇을 하고 있나 (몫이 보입니다)
+   ------------------------------------------------------------- */
+let gbBr = '';            // 브랜드로 거르기 ('' = 전체)
+let gbBy = 'stage';       // 'stage' = 단계별 · 'brand' = 브랜드별
+
+function setGbBr(v){ gbBr = (gbBr === v) ? '' : v; render(); }
+function setGbBy(v){ gbBy = v; render(); }
+
+function gbBrandOf(it){
+  return (it && it.brandId) ? (data.brands || []).find(b => b.id === it.brandId) : null;
+}
+/* 이 보드가 쓰고 있는 브랜드들 — 몇 건씩 맡고 있는지까지 */
+function gbBrandUse(g){
+  const map = {}, out = [];
+  (g.stages || []).forEach(st => (st.items || []).forEach(it => {
+    const k = it.brandId || '';
+    if(!map[k]){
+      const b = gbBrandOf(it);
+      map[k] = { key: k, name: b ? b.name : '브랜드 없음',
+                 icon: b ? (b.icon || '🏷️') : '·', color: b ? b.color : '',
+                 n: 0, done: 0 };
+      out.push(map[k]);
+    }
+    map[k].n++;
+    if(it.status === '완료') map[k].done++;
+  }));
+  out.sort((a, c) => (a.key ? 0 : 1) - (c.key ? 0 : 1) || c.n - a.n);
+  return out;
+}
+/* 거르기까지 마친 업무들 */
+function gbPick(st){
+  return gbVisibleItems(st).filter(it => !gbBr || (it.brandId || '') === gbBr);
+}
+
+/* 브랜드 고르는 칸 (업무 상세에서) */
+function gbBrandSel(ip, it){
+  return '<label>브랜드<select onchange="gbEditDraw(\'' + jsq(ip) + 'brandId\', this.value)">'
+    + '<option value="">브랜드 없음</option>'
+    + (data.brands || []).map(b => '<option value="' + esc(b.id) + '"'
+        + (it.brandId === b.id ? ' selected' : '') + '>'
+        + esc(b.icon || '🏷️') + ' ' + esc(b.name) + '</option>').join('')
+    + '</select></label>';
+}
+
+/* 브랜드별 보기 — 브랜드마다 묶고, 줄마다 어느 단계인지 붙입니다 */
+function gbBrandViewHtml(g){
+  const use = gbBrandUse(g).filter(u => !gbBr || u.key === gbBr);
+  if(!use.length) return '<div class="empty">고른 조건에 맞는 업무가 없습니다.</div>';
+
+  return use.map(u => {
+    const rows = [];
+    (g.stages || []).forEach(st => gbPick(st).forEach(it => {
+      if((it.brandId || '') !== u.key) return;
+      rows.push({ st: st, it: it });
+    }));
+    if(!rows.length) return '';
+    const gid  = 'gbb_' + (u.key || 'none');
+    const open = gbOpen[gid] !== false;      // 브랜드 묶음은 기본으로 펴 둡니다
+    const hue  = u.color || 'var(--text-muted)';
+
+    const head = '<button class="gb-sh" style="--hue:' + esc(hue) + '" '
+      + 'onclick="gbToggle(\'' + gid + '\')">'
+      + '<span class="ar">' + (open ? '▼' : '▶') + '</span>'
+      + '<span class="nm">' + esc(u.icon) + ' ' + esc(u.name) + '</span>'
+      + '<span class="ct">' + rows.length + '건'
+        + (u.done ? ' · 완료 ' + u.done : '') + '</span>'
+      + '</button>';
+    if(!open) return '<div class="gb-stage">' + head + '</div>';
+
+    return '<div class="gb-stage">' + head + '<div class="gb-sb"><div class="gb-list">'
+      + rows.map((r, i) => gbRowHtml(g, r.st, r.it, (r.st.items || []).indexOf(r.it),
+                                     { stage: true, no: i + 1 })).join('')
+      + '</div></div></div>';
+  }).join('');
+}
+
+/* 브랜드마다 몇 건씩 맡고 있나 — 보드 위쪽 한 줄 */
+function gbBrandBar(g){
+  const use = gbBrandUse(g);
+  if(use.length < 2) return '';
+  const all = use.reduce((a, u) => a + u.n, 0);
+  return '<div class="gb-brs">'
+    + '<button class="b' + (gbBr ? '' : ' on') + '" onclick="setGbBr(\'\')">'
+      + '전체 <b>' + all + '</b></button>'
+    + use.map(u => '<button class="b' + (gbBr === u.key ? ' on' : '') + '" '
+        + (u.color ? 'style="--hue:' + esc(u.color) + '" ' : '')
+        + 'onclick="setGbBr(\'' + jsq(u.key) + '\')">'
+        + esc(u.icon) + ' ' + esc(u.name) + ' <b>' + u.n + '</b>'
+        + (u.done ? '<span class="d">✓' + u.done + '</span>' : '')
+        + '</button>').join('')
+    + '</div>';
+}
+
 /* ── 목록 → 안으로 들어가기 ────────────────────────────────────
    예전에는 업무를 누르면 그 자리에서 아래로 펴져서, 화면이 밀리고
    좁은 칸 안에 내용이 갇혔습니다. 이제 단계 안은 목록이고,
@@ -7423,11 +7555,13 @@ function gbMoveStage(sid, iid, to){
 }
 
 /* 목록 한 줄 — 무엇을 하는 일이고 어떻게 됐는지가 한눈에 */
-function gbRowHtml(g, st, it, idx){
+function gbRowHtml(g, st, it, idx, opts){
+  opts = opts || {};
   const stt  = GB_STATUS.indexOf(it.status) >= 0 ? it.status : '진행 중';
   const kpi  = (g.kpis || []).find(x => x.id === it.kpiId);
   const iwb  = gbWbCount(it);
   const peek = gbPeek(it);
+  const br   = gbBrandOf(it);
   let all = 0;
   (it.acts || []).forEach(a => (a.steps || []).forEach(t => {
     if(String(t.text || '').trim()) all++;
@@ -7435,12 +7569,18 @@ function gbRowHtml(g, st, it, idx){
 
   return '<button class="gb-row2' + (stt === '완료' ? ' done' : '') + '" '
     + 'onclick="gbOpenItem(\'' + jsq(st.id) + '\',\'' + jsq(it.id) + '\')">'
-    + '<span class="no">' + (idx + 1) + '</span>'
+    + '<span class="no">' + (opts.no || (idx + 1)) + '</span>'
     + '<span class="mid">'
       + '<span class="tt">' + esc(it.title || '(제목 없음)') + '</span>'
       + (peek ? '<span class="pk">' + peek + '</span>' : '')
     + '</span>'
     + '<span class="cs">'
+      // 브랜드별로 볼 때는 「어느 단계」, 단계별로 볼 때는 「어느 브랜드」 를 붙입니다
+      + (opts.stage
+          ? '<span class="chip st">' + esc(st.label || '') + '</span>'
+          : (br ? '<span class="chip br"' + (br.color ? ' style="border-color:' + esc(br.color)
+                    + ';color:' + esc(br.color) + '"' : '') + '>'
+                  + esc(br.icon || '🏷️') + ' ' + esc(br.name) + '</span>' : ''))
       + '<span class="chip s' + GB_STATUS.indexOf(stt) + '">' + esc(stt) + '</span>'
       + (kpi ? '<span class="chip">🔗 ' + esc(kpi.name || '') + '</span>' : '')
       + (all ? '<span class="chip">' + all + '줄</span>' : '')
@@ -7487,6 +7627,7 @@ function gbDetailHtml(g){
     + '</span></div>';
 
   const meta = '<div class="gb-dmeta">'
+    + gbBrandSel(ip, it)
     + '<label>단계<select onchange="gbMoveStage(\'' + jsq(st.id) + '\',\''
       + jsq(it.id) + '\', this.value)">'
       + (g.stages || []).map(x => '<option value="' + esc(x.id) + '"'
@@ -7535,12 +7676,16 @@ function gbDetailHtml(g){
 function gbItemFullHtml(g, st, it, idx){
   const stt = GB_STATUS.indexOf(it.status) >= 0 ? it.status : '진행 중';
   const kpi = (g.kpis || []).find(x => x.id === it.kpiId);
+  const br  = gbBrandOf(it);
   const acts = (it.acts || []).map((a2, ai) =>
     gbActHtml(st, it, a2, ai, (it.acts || []).length)).join('');
   return '<div class="gb-item' + (stt === '완료' ? ' done' : '') + '">'
     + '<div class="gb-ih">'
       + '<span class="no">' + (idx + 1) + '</span>'
       + '<span class="tt">' + esc(it.title || '') + '</span>'
+      + (br ? '<span class="chip"' + (br.color ? ' style="border-color:' + esc(br.color)
+                + ';color:' + esc(br.color) + '"' : '') + '>'
+              + esc(br.icon || '🏷️') + ' ' + esc(br.name) + '</span>' : '')
       + '<span class="chip">' + esc(stt) + '</span>'
       + (kpi ? '<span class="chip on">🔗 ' + esc(kpi.name || '') + '</span>' : '')
     + '</div>'
@@ -7846,14 +7991,18 @@ function gbParse(text){
     if((m = line.match(/^###(?!#)\s*(?:\d+[.)]\s*)?(.+)$/))){
       let title = m[1];
       let status = '진행 중', kpi = '';
+      let brn = '';
       title = title.replace(/\[지표:\s*([^\]]*)\]/, (x, v) => { kpi = v.trim(); return ''; });
+      title = title.replace(/\[브랜드:\s*([^\]]*)\]/, (x, v) => { brn = v.trim(); return ''; });
       title = title.replace(/\[([^\]]*)\]/g, (x, v) => {
         if(GB_STATUS.indexOf(v.trim()) >= 0){ status = v.trim(); return ''; }
         return x;
       });
       if(!st){ st = { id: uid('gs'), key:'own', label:'옮겨온 것', desc:'', items:[] };
                out.stages.push(st); }
-      it = { id: uid('gi'), title: title.trim(), status: status, kpiId:'', _kpi: kpi, acts: [] };
+      const bh = brn ? (data.brands || []).find(x2 => (x2.name || '').trim() === brn) : null;
+      it = { id: uid('gi'), title: title.trim(), status: status, kpiId:'', _kpi: kpi,
+             brandId: bh ? bh.id : '', acts: [] };
       st.items.push(it); act = null; row = null;
       return;
     }
@@ -8084,6 +8233,7 @@ function bfScan(j){
         key: String(b.id || b.name) + '|' + y,
         brand: String(b.name || '(이름 없음)'), year: String(y), owner: nm,
         who: hit ? hit.key : '',
+        brandId: bfBrandId(b.name),
         nKpi: (yv.kpis || []).length, nTask: tasks.length, nAct: acts,
         nImg: bfCountImg(tasks),
         raw: { goal: yv.goal || '', kpis: yv.kpis || [], tasks: tasks }
@@ -8093,8 +8243,26 @@ function bfScan(j){
   return out;
 }
 
+/* 백업의 브랜드 이름을 우리 브랜드에 맞춥니다
+   「POUR솔루션_김소라」 처럼 이름 뒤에 사람이 붙어 있으면 떼고 찾습니다 */
+function bfBrandId(name){
+  const raw = String(name || '').trim();
+  if(!raw) return '';
+  const bare = raw.split('_')[0].trim();
+  const norm = v => String(v || '').replace(/\s+/g, '').toLowerCase();
+  const list = data.brands || [];
+  let hit = list.find(b => norm(b.name) === norm(raw))
+         || list.find(b => norm(b.name) === norm(bare));
+  if(hit) return hit.id;
+  // 서로 안에 들어 있으면 같은 것으로 봅니다 (POUR공법 ↔ POUR 공법)
+  hit = list.find(b => norm(b.name) && (norm(bare).indexOf(norm(b.name)) >= 0
+                                     || norm(b.name).indexOf(norm(bare)) >= 0));
+  return hit ? hit.id : '';
+}
+
 /* 한 줄을 우리 보드 모양으로 바꿉니다 */
 function bfConv(row){
+  const brandId = bfBrandId(row.brand);
   const kpis = (row.raw.kpis || []).map(k => ({
     id: uid('k'), name: String(k.name || '').trim(),
     current: String(k.current == null ? '' : k.current),
@@ -8152,7 +8320,7 @@ function bfConv(row){
     (t.pActions || []).forEach(x => grab(x.images));
 
     (items[key] = items[key] || []).push({
-      id: uid('gi'), title: title || '(제목 없음)', _imgs: imgs,
+      id: uid('gi'), title: title || '(제목 없음)', _imgs: imgs, brandId: brandId,
       status: (t.status === '진행중') ? '진행 중'
             : (GB_STATUS.indexOf(t.status) >= 0 ? t.status : '진행 중'),
       kpiId: '', _kpi: String((t.metric || {}).kpiId || ''), acts: acts
@@ -8219,6 +8387,23 @@ async function bfRun(mode){
           + ' (업무 ' + r.nTask + '건'
           + (r.nKpi ? ' · 지표 ' + r.nKpi + '개' : '') + ')').join('\n')
       + (nI ? '\n\n※ 사진 ' + nI + '장은 업무마다 딸린 🧩 판에 붙습니다' : ''))) return;
+
+  // 백업에 있는 브랜드가 대시보드에 없으면, 만들지 물어봅니다
+  const miss = [];
+  rows.forEach(r => {
+    if(r.brandId) return;
+    const nm = String(r.brand || '').split('_')[0].trim();
+    if(nm && miss.indexOf(nm) < 0) miss.push(nm);
+  });
+  if(miss.length && confirm('대시보드에 없는 브랜드가 있습니다.\n\n· ' + miss.join('\n· ')
+      + '\n\n브랜드를 만들고 업무에 꼬리표로 붙일까요?\n'
+      + '(취소하면 브랜드 없이 옮깁니다 — 나중에 업무마다 골라도 됩니다)')){
+    const IC = ['🏷️','⚙️','🏢','🏗️','📍','🏘️','🧩'];
+    const CO = ['#06b6d4','#8b5cf6','#3b82f6','#22c55e','#f97316','#ec4899'];
+    miss.forEach((nm, i) => {
+      data.brands.push(newBrand(nm, IC[i % IC.length], CO[i % CO.length], ''));
+    });
+  }
 
   const jobs  = [];   // 나중에 판에 붙일 사진들
   const wiped = {};   // 한 사람 보드에 두 줄을 보내도 두 번 지우지 않게
@@ -8290,6 +8475,9 @@ function bfPanelHtml(){
     return '<div class="bf-row' + (r.who ? ' on' : '') + '">'
       + '<span class="nm">' + esc(r.brand) + ' <b>' + esc(r.year) + '</b></span>'
       + '<span class="ct">업무 ' + r.nTask + ' · 내용 ' + r.nAct
+        + (r.brandId
+            ? ' · 🏷️ ' + esc(((data.brands || []).find(b => b.id === r.brandId) || {}).name || '')
+            : ' · <span style="color:var(--yellow)">브랜드 못 찾음</span>')
         + (r.nKpi ? ' · 지표 ' + r.nKpi : '')
         + (r.nImg ? ' · <span style="color:var(--cyan)">사진 ' + r.nImg + '장 → 🧩 판</span>' : '')
         + '</span>'
@@ -8331,8 +8519,10 @@ function gbText(){
     L.push('\n## ' + (i + 1) + '. ' + (st.label || '') + (st.desc ? ' — ' + st.desc : ''));
     st.items.forEach((it, j) => {
       const k = (g.kpis || []).find(x => x.id === it.kpiId);
+      const br2 = gbBrandOf(it);
       L.push('\n### ' + (j + 1) + ') ' + (it.title || '(제목 없음)')
         + '  [' + (it.status || '진행 중') + ']'
+        + (br2 ? '  [브랜드: ' + (br2.name || '') + ']' : '')
         + (k ? '  [지표: ' + (k.name || '') + ']' : ''));
       (it.acts || []).forEach((a, ai) => {
         L.push('\n[' + (ai + 1) + '차] ' + (a.mode === 'problem' ? '문제 / 이슈' : '목표 / 실행 이유'));

@@ -730,107 +730,136 @@ table.itable tr:hover td{background:var(--bg-hover)}
 }
 
 /* ---------- 개인 그로스보드 ---------- */
-.gb-goal{display:flex;flex-direction:column;gap:6px;margin:2px 0 16px}
+.gb-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.gb-search{flex:1 1 260px;min-width:180px;position:relative}
+.gb-search input{width:100%;font-family:inherit;font-size:13px;padding:8px 12px 8px 32px;
+  border-radius:var(--r);border:1px solid var(--border);background:var(--bg-input);
+  color:var(--text-primary)}
+.gb-search input:focus{outline:none;border-color:var(--blue);box-shadow:var(--ring)}
+.gb-search .ic{position:absolute;left:11px;top:50%;transform:translateY(-50%);
+  font-size:12.5px;opacity:.5;pointer-events:none}
+
+.gb-goal{display:flex;flex-direction:column;gap:6px;margin:2px 0 14px}
 .gb-goal label{font-size:12px;font-weight:700;color:var(--text-muted)}
-.gb-goal textarea{width:100%;min-height:46px;resize:vertical;font-family:inherit;
+.gb-goal textarea{width:100%;min-height:44px;resize:vertical;font-family:inherit;
   font-size:14px;line-height:1.6;padding:11px 13px;border-radius:var(--r);
   border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)}
 .gb-goal textarea:focus{outline:none;border-color:var(--blue);box-shadow:var(--ring)}
 
-.gb-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));
-  gap:11px;margin-bottom:20px}
+/* 지표 타일 — 이름 · 큰 % · 얇은 막대 · 아래 세 칸 */
+.gb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));
+  gap:11px;margin-bottom:14px}
 .gb-kpi{position:relative;border:1px solid var(--border);border-radius:var(--r-md);
-  background:var(--bg-card);padding:13px 14px 12px;box-shadow:var(--shadow-sm)}
+  background:var(--bg-card);padding:12px 14px 10px;box-shadow:var(--shadow-sm)}
 .gb-kpi .nm{width:100%;border:none;background:transparent;font-family:inherit;
-  font-size:12.5px;font-weight:700;color:var(--text-secondary);padding:0 0 3px;
+  font-size:12px;font-weight:700;color:var(--text-muted);padding:0 0 4px;
   letter-spacing:-.01em}
 .gb-kpi .nm:focus{outline:none;color:var(--text-primary)}
-.gb-kpi .pct{font-size:29px;font-weight:800;line-height:1.15;letter-spacing:-.03em}
-.gb-kpi .pct.none{font-size:12px;font-weight:600;color:var(--text-muted);line-height:2.6}
-.gb-kpi .bar{height:5px;border-radius:99px;background:var(--bg-sunken);overflow:hidden;
-  margin:7px 0 9px}
+.gb-kpi .pct{font-size:30px;font-weight:800;line-height:1.05;letter-spacing:-.035em}
+.gb-kpi .pct.none{font-size:11.5px;font-weight:600;color:var(--text-muted);line-height:2.6}
+.gb-kpi .bar{height:3px;border-radius:99px;background:var(--bg-sunken);overflow:hidden;
+  margin:8px 0 9px}
 .gb-kpi .fill{height:100%;border-radius:99px;transition:width .3s var(--ease)}
-.gb-kpi .det{display:flex;align-items:center;gap:4px;font-size:11.5px;
-  color:var(--text-muted);white-space:nowrap}
-.gb-kpi .det input{flex:1 1 0;min-width:0;font-family:inherit;font-size:11.5px;
-  text-align:center;padding:3px 4px;border-radius:var(--r-xs);border:1px solid var(--border);
-  background:var(--bg-input);color:var(--text-primary)}
-.gb-kpi .det input.u{flex:0 0 38px}
-.gb-kpi .det .auto{flex:1 1 0;min-width:0;text-align:center;padding:3px 4px;
-  border-radius:var(--r-xs);background:var(--blue-soft);color:var(--blue);font-weight:700;
-  overflow:hidden;text-overflow:ellipsis}
-.gb-kpi .modeline{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-.gb-kpi .modeline .lb{font-size:11px;color:var(--text-muted);overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap}
+.gb-kpi .cells{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;
+  background:var(--border);border:1px solid var(--border);border-radius:var(--r-sm);
+  overflow:hidden}
+.gb-kpi .cell{background:var(--bg-input);padding:5px 4px;text-align:center;min-width:0}
+.gb-kpi .cell .k{display:block;font-size:9.5px;font-weight:700;color:var(--text-muted);
+  letter-spacing:.02em}
+.gb-kpi .cell .v{display:block;font-size:12.5px;font-weight:700;color:var(--text-primary);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gb-kpi .cell input{width:100%;border:none;background:transparent;font-family:inherit;
+  font-size:12.5px;font-weight:700;text-align:center;color:var(--text-primary);padding:0;
+  min-width:0}
+.gb-kpi .cell input:focus{outline:none;background:var(--blue-soft);border-radius:3px}
+.gb-kpi .foot{display:flex;align-items:center;gap:5px;margin-top:7px;font-size:10.5px;
+  color:var(--text-muted)}
 .gb-kpi .mode{display:inline-flex;border:1px solid var(--border);border-radius:99px;
   overflow:hidden;flex:0 0 auto}
 .gb-kpi .mode button{border:none;background:var(--bg-input);color:var(--text-muted);
-  font-family:inherit;font-size:10.5px;font-weight:700;padding:3px 8px;cursor:pointer}
+  font-family:inherit;font-size:10px;font-weight:700;padding:2px 7px;cursor:pointer}
 .gb-kpi .mode button.on{background:var(--ink);color:#fff}
-.gb-kpi .x{position:absolute;top:7px;right:8px;border:none;background:transparent;
+.gb-kpi .x{position:absolute;top:6px;right:7px;border:none;background:transparent;
   color:var(--text-muted);font-size:15px;line-height:1;cursor:pointer;padding:2px 4px;
   border-radius:var(--r-xs);opacity:0}
 .gb-kpi:hover .x{opacity:1}
 .gb-kpi .x:hover{background:var(--bg-hover);color:var(--red)}
 
+/* 상태로 거르는 줄 */
+.gb-filter{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:0 0 14px}
+.gb-filter .lb{font-size:11.5px;color:var(--text-muted);margin-right:2px}
+.gb-filter button{border:1px solid var(--border);background:var(--bg-input);
+  font-family:inherit;font-size:11.5px;font-weight:600;color:var(--text-secondary);
+  padding:4px 11px;border-radius:99px;cursor:pointer}
+.gb-filter button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.gb-filter button b{margin-left:4px;opacity:.75}
+
+/* 단계 — 띠 모양 머리 */
 .gb-stage{border:1px solid var(--border);border-radius:var(--r-md);
-  background:var(--bg-secondary);margin-bottom:12px;overflow:hidden}
-.gb-sh{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;
-  user-select:none;background:var(--bg-secondary);border:none;width:100%;text-align:left;
-  font-family:inherit}
-.gb-sh:hover{background:var(--bg-hover)}
-.gb-sh .ar{color:var(--text-muted);font-size:11px;width:11px;flex:0 0 auto}
-.gb-sh .no{flex:0 0 auto;width:21px;height:21px;border-radius:7px;display:flex;
-  align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:#fff}
-.gb-sh .nm{font-size:14px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em}
+  background:var(--bg-secondary);margin-bottom:10px;overflow:hidden}
+.gb-sh{display:flex;align-items:center;gap:9px;padding:11px 14px;cursor:pointer;
+  user-select:none;border:none;width:100%;text-align:left;font-family:inherit;
+  background:var(--bg-sunken);border-left:3px solid var(--hue,var(--text-muted))}
+.gb-sh:hover{filter:brightness(.985)}
+.gb-sh .ar{color:var(--text-muted);font-size:10px;width:10px;flex:0 0 auto}
+.gb-sh .no{flex:0 0 auto;font-size:13px;font-weight:800;color:var(--hue,var(--text-muted))}
+.gb-sh .nm{font-size:13.5px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em;
+  flex:0 0 auto}
 .gb-sh .ds{font-size:12px;color:var(--text-muted);min-width:0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
-.gb-sh .ct{margin-left:auto;flex:0 0 auto;font-size:11.5px;font-weight:700;
-  color:var(--text-muted);background:var(--bg-sunken);border-radius:99px;padding:2px 9px}
-.gb-sb{border-top:1px solid var(--border);padding:12px 14px 14px;
-  background:var(--bg-primary)}
-.gb-sedit{display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap}
+.gb-sh .ct{margin-left:auto;flex:0 0 auto;font-size:11px;font-weight:700;
+  color:var(--text-muted)}
+.gb-sb{border-top:1px solid var(--border);padding:10px 12px 12px;background:var(--bg-primary)}
+.gb-sedit{display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap}
 .gb-sedit input{flex:1 1 180px;font-family:inherit;font-size:12.5px;padding:6px 9px;
   border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg-input);
   color:var(--text-primary)}
 
+/* 업무 — 연한 띠 머리 */
 .gb-item{border:1px solid var(--border);border-radius:var(--r);background:var(--bg-card);
-  margin-bottom:9px;overflow:hidden}
-.gb-ih{display:flex;align-items:center;gap:9px;padding:10px 12px}
-.gb-ih .ar{border:none;background:transparent;color:var(--text-muted);font-size:11px;
-  cursor:pointer;padding:2px 3px}
-.gb-ih .no{flex:0 0 auto;width:19px;height:19px;border-radius:50%;background:var(--bg-sunken);
-  color:var(--text-secondary);display:flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:800}
+  margin-bottom:8px;overflow:hidden}
+.gb-ih{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--blue-soft)}
+.gb-ih .ar{border:none;background:transparent;color:var(--text-muted);font-size:10px;
+  cursor:pointer;padding:2px 3px;flex:0 0 auto}
+.gb-ih .no{flex:0 0 auto;width:19px;height:19px;border-radius:50%;background:var(--blue);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:10.5px;font-weight:800}
 .gb-ih .tt{flex:1;min-width:0;border:none;background:transparent;font-family:inherit;
-  font-size:13.5px;font-weight:700;color:var(--text-primary);padding:2px 0;
+  font-size:13px;font-weight:700;color:var(--text-primary);padding:2px 0;
   letter-spacing:-.015em}
 .gb-ih .tt:focus{outline:none;border-bottom:1px solid var(--blue)}
-.gb-ih select{font-family:inherit;font-size:11.5px;padding:3px 6px;border-radius:var(--r-xs);
-  border:1px solid var(--border);background:var(--bg-input);color:var(--text-secondary);
+.gb-ih select{font-family:inherit;font-size:11px;padding:3px 6px;border-radius:99px;
+  border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);
   max-width:150px}
 .gb-ih select.st{max-width:82px;font-weight:700}
+.gb-item.done .gb-ih{background:var(--bg-sunken)}
+.gb-item.done .gb-ih .no{background:var(--green)}
 .gb-item.done .gb-ih .tt{color:var(--text-muted);text-decoration:line-through}
-.gb-item.done{opacity:.72}
-.gb-ib{border-top:1px solid var(--border);padding:11px 12px 12px;background:var(--bg-input)}
+.gb-ib{border-top:1px solid var(--border);padding:0;background:var(--bg-card)}
 
-.gb-act{border-left:2px solid var(--border);padding:0 0 0 11px;margin:0 0 13px}
-.gb-act:last-of-type{margin-bottom:9px}
-.gb-act.goal{border-left-color:var(--green)}
-.gb-act.problem{border-left-color:var(--orange)}
-.gb-act .ah{display:flex;align-items:center;gap:7px;margin-bottom:5px}
-.gb-act .tag{flex:0 0 auto;font-size:10.5px;font-weight:800;border-radius:99px;
-  padding:2px 8px;cursor:pointer;border:1px solid transparent}
-.gb-act.goal .tag{background:rgba(18,161,80,.12);color:var(--green)}
-.gb-act.problem .tag{background:rgba(221,107,19,.12);color:var(--orange)}
-.gb-act .txt,.gb-act .basis{width:100%;font-family:inherit;resize:vertical;
-  border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg-card);
-  color:var(--text-primary);padding:7px 9px;margin-bottom:5px}
-.gb-act .txt{font-size:13px;line-height:1.55;min-height:34px;font-weight:600;overflow:hidden}
-.gb-act .basis{font-size:12.5px;line-height:1.6;min-height:34px;
-  color:var(--text-secondary);overflow:hidden}
-.gb-act .txt:focus,.gb-act .basis:focus{outline:none;border-color:var(--blue);
-  box-shadow:var(--ring)}
+/* 목표·문제 한 덩이 — 왼쪽 이름표 · 오른쪽 내용 */
+.gb-act{border-bottom:1px solid var(--border)}
+.gb-act:last-of-type{border-bottom:none}
+.gb-row{display:flex;align-items:flex-start;gap:0;border-top:1px solid var(--border)}
+.gb-act > .gb-row:first-child{border-top:none}
+.gb-row > .lb{flex:0 0 96px;padding:9px 10px;font-size:11.5px;font-weight:700;
+  word-break:keep-all;line-height:1.45;
+  color:var(--text-muted);background:var(--bg-input);align-self:stretch;
+  display:flex;align-items:flex-start;gap:5px;border-right:1px solid var(--border)}
+.gb-row > .bd{flex:1;min-width:0;padding:6px 10px}
+.gb-act.goal .gb-row > .lb .tag{color:var(--green)}
+.gb-act.problem .gb-row > .lb .tag{color:var(--orange)}
+.gb-row .lb .tag{border:none;background:transparent;font-family:inherit;font-size:11.5px;
+  font-weight:800;cursor:pointer;padding:0}
+.gb-act textarea{width:100%;border:none;background:transparent;resize:none;overflow:hidden;
+  font-family:inherit;color:var(--text-primary);padding:3px 0;min-height:26px}
+.gb-act textarea:focus{outline:none}
+.gb-act .txt{font-size:13px;line-height:1.55;font-weight:600}
+.gb-act .basis{font-size:12.5px;line-height:1.6;color:var(--text-secondary)}
+.gb-act .rm{border:none;background:transparent;color:var(--text-muted);cursor:pointer;
+  font-size:13px;padding:0 2px;margin-left:auto;opacity:0}
+.gb-act:hover .rm{opacity:1}
+
 .gb-step{display:flex;align-items:center;gap:7px;padding:2px 0}
 .gb-step input[type=checkbox]{flex:0 0 auto;width:14px;height:14px;accent-color:var(--green);
   cursor:pointer}
@@ -841,33 +870,33 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-step .x{border:none;background:transparent;color:var(--text-muted);cursor:pointer;
   font-size:13px;padding:0 3px;opacity:0}
 .gb-step:hover .x{opacity:1}
-.gb-val{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11.5px;
-  color:var(--text-muted);flex-wrap:wrap}
-.gb-val .lb{white-space:nowrap;flex:0 0 auto}
-.gb-val input{width:74px;font-family:inherit;font-size:12px;text-align:right;padding:3px 7px;
-  border-radius:var(--r-xs);border:1px solid var(--border);background:var(--bg-card);
-  color:var(--text-primary)}
+.gb-val input{width:96px;font-family:inherit;font-size:12.5px;font-weight:700;
+  text-align:right;padding:3px 8px;border-radius:var(--r-xs);
+  border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)}
+.gb-val .hint{font-size:11.5px;color:var(--text-muted);margin-left:7px}
 .gb-add{border:1px dashed var(--border-light);background:transparent;color:var(--text-muted);
-  font-family:inherit;font-size:12px;font-weight:600;padding:6px 11px;border-radius:var(--r-sm);
+  font-family:inherit;font-size:12px;font-weight:600;padding:5px 10px;border-radius:var(--r-sm);
   cursor:pointer}
 .gb-add:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
+.gb-foot{padding:8px 11px;display:flex;gap:6px;flex-wrap:wrap;background:var(--bg-input);
+  border-top:1px solid var(--border)}
 
 @media(max-width:620px){
-  /* minmax(0,1fr) 이라야 칸 안의 글이 길어도 화면 밖으로 밀려나지 않습니다 */
   .gb-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-  .gb-kpi{padding:11px 10px 10px;min-width:0}
-  .gb-kpi .pct{font-size:24px}
-  .gb-kpi .pct.none{font-size:11px;line-height:1.5}
-  .gb-kpi .det{flex-wrap:wrap;white-space:normal}
-  .gb-kpi .det input{flex:1 1 38px}
-  .gb-kpi .det input.u{flex:0 0 32px}
-  .gb-kpi .modeline .lb{display:none}
+  .gb-kpi{padding:10px 9px 9px;min-width:0}
+  .gb-kpi .pct{font-size:23px}
+  .gb-kpi .pct.none{font-size:10.5px;line-height:1.5}
+  .gb-kpi .cell .k{font-size:8.5px}
+  .gb-kpi .cell .v,.gb-kpi .cell input{font-size:11px}
   .gb-sh .ds{display:none}
-  .gb-ih{flex-wrap:wrap;row-gap:7px}
+  .gb-ih{flex-wrap:wrap;row-gap:6px}
   .gb-ih .tt{flex:1 1 100%;order:2}
   .gb-ih select{max-width:none;flex:1 1 40%;order:9}
   .gb-ih .btn{order:9}
-  .gb-act .txt,.gb-act .basis{font-size:13px}
+  .gb-row{flex-direction:column}
+  .gb-row > .lb{flex:0 0 auto;width:100%;border-right:none;
+    border-bottom:1px solid var(--border);padding:5px 10px}
+  .gb-row > .bd{width:100%}
 }
 
 /* ---------- 문서 내용 ---------- */
@@ -1460,7 +1489,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-15';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-16';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6240,23 +6269,56 @@ const GB_STAGES = [
 const GB_HUE = {};
 GB_STAGES.forEach(s => { GB_HUE[s.key] = s.hue; });
 
+let gbQ    = '';        // 업무 찾기 (제목·내용에서 찾습니다)
+let gbSt   = '';        // 상태로 거르기 ('' = 전체)
 let gbWho  = '';        // 지금 보고 있는 사람 (계정 아이디 또는 이름)
 let gbYear = String(new Date().getFullYear());
 const gbOpen = {};      // 접힘 상태 (id → 펼침)
 
 function gbToggle(id){ gbOpen[id] = !gbOpen[id]; render(); }
 
+function setGbQ(v){
+  gbQ = v;
+  // 찾는 중에는 걸린 업무가 보이도록 그 단계를 펴 둡니다
+  if(v.trim()){
+    const g = gbFind(gbWho, gbYear);
+    if(g) (g.stages || []).forEach(st => {
+      if(gbVisibleItems(st).length) gbOpen[st.id] = true;
+    });
+  }
+  render();
+}
+function setGbSt(v){ gbSt = v; render(); }
+
+/* 이 업무가 찾는 말에 걸리나 — 제목·내용·근거·확인할 것까지 봅니다 */
+function gbHit(it, q){
+  if(!q) return true;
+  const bag = [it.title || '', it.status || ''];
+  (it.acts || []).forEach(a => {
+    bag.push(a.text || '', a.basis || '');
+    (a.steps || []).forEach(t => bag.push(t.text || ''));
+  });
+  const hay = bag.join(' ').toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.indexOf(w) >= 0);
+}
+/* 거르고 남은 업무들 */
+function gbVisibleItems(st){
+  const q = gbQ.trim();
+  return (st.items || []).filter(it =>
+    (!gbSt || (it.status || '진행 중') === gbSt) && gbHit(it, q));
+}
+
 /* 글이 길어지면 칸이 저절로 늘어납니다 (작은 칸 안에서 스크롤하지 않게) */
 function gbGrow(el){
   if(!el) return;
   el.style.height = 'auto';
-  el.style.height = Math.max(34, el.scrollHeight) + 'px';
+  el.style.height = Math.max(26, el.scrollHeight) + 'px';
 }
 function gbGrowAll(){
-  document.querySelectorAll('.gb-act .txt, .gb-act .basis, #gbGoal').forEach(gbGrow);
+  document.querySelectorAll('.gb-act textarea, #gbGoal').forEach(gbGrow);
 }
 function setGbWho(v){
-  gbWho = v; gbWb = null;
+  gbWho = v; gbWb = null; gbQ = ''; gbSt = '';
   render(); window.scrollTo({ top:0, behavior:'smooth' });
 }
 function setGbYear(v){ gbYear = String(v); gbWb = null; render(); }
@@ -6586,6 +6648,31 @@ function renderGrowth(){
   }
 
   const wbN = gbWbCount(g);
+  const search = '<div class="gb-top">'
+    + '<span class="gb-search"><span class="ic">🔍</span>'
+      + '<input id="gbQ" value="' + esc(gbQ) + '" '
+      + 'placeholder="업무 찾기 — 제목·근거·확인할 것에서 찾습니다" '
+      + 'oninput="setGbQ(this.value)"></span>'
+    + (gbQ.trim()
+        ? '<button class="btn sm" onclick="setGbQ(\'\')">✕ 지우기</button>' : '')
+    + '</div>';
+
+  // 상태로 거르기 — 몇 건인지 같이 보여줍니다
+  const cnt = { '': 0 };
+  GB_STATUS.forEach(v => { cnt[v] = 0; });
+  (g.stages || []).forEach(st => (st.items || []).forEach(it => {
+    const v = GB_STATUS.indexOf(it.status) >= 0 ? it.status : '진행 중';
+    cnt[v]++; cnt['']++;
+  }));
+  const filter = '<div class="gb-filter">'
+    + '<span class="lb">상태</span>'
+    + '<button class="' + (gbSt ? '' : 'on') + '" onclick="setGbSt(\'\')">전체'
+      + '<b>' + cnt[''] + '</b></button>'
+    + GB_STATUS.map(v => '<button class="' + (gbSt === v ? 'on' : '') + '" '
+        + 'onclick="setGbSt(\'' + jsq(v) + '\')">' + esc(v)
+        + '<b>' + cnt[v] + '</b></button>').join('')
+    + '</div>';
+
   const tools = '<div class="sec-bar" style="margin:0 0 14px">'
     + '<button class="btn" onclick="gbAddKpi()">＋ 지표 추가</button>'
     + '<button class="btn" onclick="gbAddStage()">＋ 단계 추가</button>'
@@ -6623,7 +6710,7 @@ function renderGrowth(){
     ? g.stages.map((st, i) => gbStageHtml(g, st, i)).join('')
     : '<div class="empty">단계가 없습니다. [＋ 단계 추가] 를 눌러주세요.</div>';
 
-  main.innerHTML = box(whoBar + tools + looseBar + goal + kpis + stages);
+  main.innerHTML = box(whoBar + search + tools + looseBar + goal + kpis + filter + stages);
   setTimeout(gbGrowAll, 0);
 }
 
@@ -6705,9 +6792,14 @@ function gbWbCount(holder){
 function gbKpiCard(g, k){
   const mode = (k.mode === 'auto') ? 'auto' : 'manual';
   const auto = gbAuto(g, k.id);
+  const cur  = gbCur(g, k);
+  const tgt  = gbNum(k.target);
   const p    = gbPct(g, k);
   const col  = gbColor(p);
   const kp   = 'kpis.' + k.id + '.';
+  const left = (String(k.target || '').trim() && tgt) ? Math.max(0, tgt - cur) : null;
+  const num  = v => Number(v || 0).toLocaleString('ko-KR');
+
   return '<div class="gb-kpi">'
     + '<button class="x" title="지표 지우기" onclick="gbDelKpi(\'' + jsq(k.id) + '\')">×</button>'
     + '<input class="nm" value="' + esc(k.name || '') + '" placeholder="지표 이름" '
@@ -6716,7 +6808,22 @@ function gbKpiCard(g, k){
       + (p === null ? '목표를 넣으면 진행률이 나옵니다' : p + '%') + '</div>'
     + '<div class="bar"><div class="fill" style="width:'
       + (p === null ? 0 : Math.min(100, Math.max(0, p))) + '%;background:' + col + '"></div></div>'
-    + '<div class="modeline">'
+    + '<div class="cells">'
+      + '<span class="cell"><span class="k">현재</span>'
+        + (mode === 'auto'
+            ? '<span class="v" style="color:' + col + '" title="업무 ' + auto.n + '건 합계">'
+              + num(cur) + '</span>'
+            : '<input value="' + esc(k.current || '') + '" placeholder="0" '
+              + 'oninput="gbEditDraw(\'' + jsq(kp) + 'current\', this.value)">')
+      + '</span>'
+      + '<span class="cell"><span class="k">목표</span>'
+        + '<input value="' + esc(k.target || '') + '" placeholder="–" '
+          + 'oninput="gbEditDraw(\'' + jsq(kp) + 'target\', this.value)"></span>'
+      + '<span class="cell"><span class="k">' + (left !== null && left <= 0 ? '넘음' : '남음')
+        + '</span><span class="v">'
+        + (left === null ? '–' : num(Math.abs(left))) + '</span></span>'
+    + '</div>'
+    + '<div class="foot">'
       + '<span class="mode">'
         + '<button class="' + (mode === 'manual' ? 'on' : '') + '" title="현재값을 직접 적습니다" '
           + 'onclick="gbKpiMode(\'' + jsq(k.id) + '\',\'manual\')">직접</button>'
@@ -6724,37 +6831,36 @@ function gbKpiCard(g, k){
           + 'title="이 지표에 붙인 업무의 기여 수치를 더합니다" '
           + 'onclick="gbKpiMode(\'' + jsq(k.id) + '\',\'auto\')">자동</button>'
       + '</span>'
-      + '<span class="lb">' + (mode === 'auto'
-          ? (auto.n ? '업무 ' + auto.n + '건 합계' : '연결된 업무 없음')
-          : '현재 / 목표') + '</span>'
-    + '</div>'
-    + '<div class="det">'
-      + (mode === 'auto'
-          ? '<span class="auto" title="이 지표에 붙인 업무 ' + auto.n + '건의 기여 수치 합계">'
-            + auto.value.toLocaleString('ko-KR') + '</span>'
-          : '<input value="' + esc(k.current || '') + '" placeholder="0" '
-            + 'oninput="gbEditDraw(\'' + jsq(kp) + 'current\', this.value)">')
-      + '<span>/</span>'
-      + '<input value="' + esc(k.target || '') + '" placeholder="목표" '
-        + 'oninput="gbEditDraw(\'' + jsq(kp) + 'target\', this.value)">'
       + '<input class="u" value="' + esc(k.unit || '') + '" placeholder="단위" '
+        + 'style="width:44px;font-family:inherit;font-size:10.5px;text-align:center;'
+        + 'padding:2px 4px;border-radius:var(--r-xs);border:1px solid var(--border);'
+        + 'background:var(--bg-input);color:var(--text-secondary)" '
         + 'oninput="gbEdit(\'' + jsq(kp) + 'unit\', this.value)">'
+      + '<span style="margin-left:auto;overflow:hidden;text-overflow:ellipsis;'
+        + 'white-space:nowrap">'
+        + (mode === 'auto'
+            ? (auto.n ? '업무 ' + auto.n + '건 합계' : '연결된 업무 없음')
+            : '직접 적는 값') + '</span>'
     + '</div></div>';
 }
 
 function gbStageHtml(g, st, idx){
   const open = !!gbOpen[st.id];
-  const n    = (st.items || []).length;
-  const stat = gbStepStat(st);
   const hue  = GB_HUE[st.key] || 'var(--text-muted)';
   const sp   = 'stages.' + st.id + '.';
+  const items = gbVisibleItems(st);
+  const n     = items.length;
+  const all   = (st.items || []).length;
+  const stat  = gbStepStat(st);
 
-  const head = '<button class="gb-sh" onclick="gbToggle(\'' + jsq(st.id) + '\')">'
+  const head = '<button class="gb-sh" style="--hue:' + hue + '" '
+    + 'onclick="gbToggle(\'' + jsq(st.id) + '\')">'
     + '<span class="ar">' + (open ? '▼' : '▶') + '</span>'
-    + '<span class="no" style="background:' + hue + '">' + (idx + 1) + '</span>'
+    + '<span class="no">' + (idx + 1) + '.</span>'
     + '<span class="nm">' + esc(st.label || '이름 없는 단계') + '</span>'
     + (st.desc ? '<span class="ds">' + esc(st.desc) + '</span>' : '')
-    + '<span class="ct">' + (n ? n + '건' : '비어 있음')
+    + '<span class="ct">'
+      + (all ? (n === all ? all + '건' : n + ' / ' + all + '건') : '비어 있음')
       + (stat.fin ? ' · 완료 ' + stat.fin : '')
       + (stat.all ? ' · ☑ ' + stat.done + '/' + stat.all : '') + '</span>'
     + '</button>';
@@ -6769,12 +6875,13 @@ function gbStageHtml(g, st, idx){
     + '<button class="btn sm danger" onclick="gbDelStage(\'' + jsq(st.id) + '\')">단계 삭제</button>'
     + '</div>';
 
-  const items = (st.items || []).length
-    ? st.items.map((it, i) => gbItemHtml(g, st, it, i)).join('')
-    : '<div class="empty" style="padding:18px 0">이 단계에 업무가 없습니다.</div>';
+  const body = items.length
+    ? items.map((it, i) => gbItemHtml(g, st, it, (st.items || []).indexOf(it))).join('')
+    : '<div class="empty" style="padding:16px 0">'
+      + (all ? '고른 조건에 맞는 업무가 없습니다.' : '이 단계에 업무가 없습니다.') + '</div>';
 
   return '<div class="gb-stage">' + head
-    + '<div class="gb-sb">' + edit + items
+    + '<div class="gb-sb">' + edit + body
     + '<button class="gb-add" onclick="gbAddItem(\'' + jsq(st.id) + '\')">＋ 업무 추가</button>'
     + '</div></div>';
 }
@@ -6786,6 +6893,7 @@ function gbItemHtml(g, st, it, idx){
   const ip   = 'stages.' + st.id + '.items.' + it.id + '.';
   const kpis = g.kpis || [];
   const stt  = GB_STATUS.indexOf(it.status) >= 0 ? it.status : '진행 중';
+  const iwb  = gbWbCount(it);
 
   const stSel = '<select class="st" title="이 업무가 어디쯤 왔나" '
     + 'onchange="gbEditDraw(\'' + jsq(ip) + 'status\', this.value)">'
@@ -6800,7 +6908,6 @@ function gbItemHtml(g, st, it, idx){
         + '</option>').join('')
     + '</select>';
 
-  const iwb = gbWbCount(it);
   const head = '<div class="gb-ih">'
     + '<button class="ar" onclick="gbToggle(\'' + jsq(it.id) + '\')" '
       + 'title="' + (open ? '접기' : '펴기') + '">' + (open ? '▼' : '▶') + '</button>'
@@ -6820,20 +6927,27 @@ function gbItemHtml(g, st, it, idx){
   const cls = 'gb-item' + (stt === '완료' ? ' done' : '');
   if(!open) return '<div class="' + cls + '">' + head + '</div>';
 
-  const acts = (it.acts || []).map(a => gbActHtml(st, it, a)).join('');
+  const acts = (it.acts || []).map(a2 => gbActHtml(st, it, a2)).join('');
   return '<div class="' + cls + '">' + head
-    + '<div class="gb-ib">' + acts
-    + '<button class="gb-add" onclick="gbAddAct(\'' + jsq(st.id) + '\',\'' + jsq(it.id)
-      + '\',\'goal\')">＋ 목표</button> '
-    + '<button class="gb-add" onclick="gbAddAct(\'' + jsq(st.id) + '\',\'' + jsq(it.id)
-      + '\',\'problem\')">＋ 문제</button>'
+    + '<div class="gb-ib">' + acts + '</div>'
+    + '<div class="gb-foot">'
+      + '<button class="gb-add" onclick="gbAddAct(\'' + jsq(st.id) + '\',\'' + jsq(it.id)
+        + '\',\'goal\')">＋ 목표</button>'
+      + '<button class="gb-add" onclick="gbAddAct(\'' + jsq(st.id) + '\',\'' + jsq(it.id)
+        + '\',\'problem\')">＋ 문제</button>'
     + '</div></div>';
 }
 
+/* 목표·문제 한 덩이 — 왼쪽 이름표, 오른쪽 내용 */
 function gbActHtml(st, it, a){
   const goal = a.mode !== 'problem';
   const ap = 'stages.' + st.id + '.items.' + it.id + '.acts.' + a.id + '.';
   const args = '\'' + jsq(st.id) + '\',\'' + jsq(it.id) + '\',\'' + jsq(a.id) + '\'';
+
+  const row = (label, tip, body) =>
+    '<div class="gb-row"><span class="lb">' + label
+      + (tip ? '<span class="rm" title="' + tip + '"></span>' : '') + '</span>'
+    + '<span class="bd">' + body + '</span></div>';
 
   const steps = (a.steps || []).map(t =>
     '<div class="gb-step' + (t.done ? ' done' : '') + '">'
@@ -6846,29 +6960,30 @@ function gbActHtml(st, it, a){
       + jsq(t.id) + '\')">×</button>'
     + '</div>').join('');
 
+  const head = '<span class="tag" title="누르면 목표 ↔ 문제 로 바뀝니다" '
+      + 'onclick="gbActMode(' + args + ')">' + (goal ? '🎯 목표' : '❓ 문제') + '</span>'
+    + '<button class="rm" title="이 덩이 지우기" onclick="gbDelAct(' + args + ')">×</button>';
+
   return '<div class="gb-act ' + (goal ? 'goal' : 'problem') + '">'
-    + '<div class="ah">'
-      + '<button class="tag" title="누르면 목표 ↔ 문제 로 바뀝니다" '
-        + 'onclick="gbActMode(' + args + ')">' + (goal ? '🎯 목표' : '❓ 문제') + '</button>'
-      + '<button class="x gb-step" style="margin-left:auto;opacity:1;border:none;'
-        + 'background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px" '
-        + 'title="이 칸 지우기" onclick="gbDelAct(' + args + ')">×</button>'
-    + '</div>'
-    + '<textarea class="txt" placeholder="' + (goal ? '무엇을 이루려 하나요' : '무엇이 문제인가요')
-      + '" oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'text\', this.value)">' + esc(a.text || '') + '</textarea>'
-    + '<textarea class="basis" placeholder="'
-      + (goal ? '왜 그렇게 보나요 — 근거·가설' : '왜 그런가요 — 원인·짚이는 것')
-      + '" oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'basis\', this.value)">' + esc(a.basis || '')
-      + '</textarea>'
-    + steps
-    + '<div style="margin-top:5px">'
-      + '<button class="gb-add" style="padding:4px 9px;font-size:11.5px" '
-        + 'onclick="gbAddStep(' + args + ')">＋ 확인할 것</button></div>'
-    + '<div class="gb-val"><span class="lb">기여 수치</span>'
-      + '<input value="' + esc(a.value || '') + '" placeholder="숫자" '
+    + '<div class="gb-row"><span class="lb">' + head + '</span>'
+      + '<span class="bd"><textarea class="txt" placeholder="'
+      + (goal ? '무엇을 이루려 하나요' : '무엇이 문제인가요') + '" '
+      + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'text\', this.value)">'
+      + esc(a.text || '') + '</textarea></span></div>'
+    + row(goal ? '근거 · 가설' : '원인 · 짚이는 것', '',
+        '<textarea class="basis" placeholder="'
+        + (goal ? '왜 그렇게 보나요' : '왜 그런가요') + '" '
+        + 'oninput="gbGrow(this);gbEdit(\'' + jsq(ap) + 'basis\', this.value)">'
+        + esc(a.basis || '') + '</textarea>')
+    + row('확인할 것', '', steps
+        + '<button class="gb-add" style="padding:3px 8px;font-size:11.5px;margin-top:4px" '
+        + 'onclick="gbAddStep(' + args + ')">＋ 한 줄 더</button>')
+    + row('기여 수치', '',
+        '<span class="gb-val"><input value="' + esc(a.value || '') + '" placeholder="숫자" '
         + 'oninput="gbEditDraw(\'' + jsq(ap) + 'value\', this.value)">'
-      + '<span>' + (it.kpiId ? '→ 연결된 지표에 더해집니다' : '(지표를 연결하면 합산됩니다)')
-      + '</span></div>'
+        + '<span class="hint">'
+        + (it.kpiId ? '연결된 지표에 더해집니다' : '지표를 연결하면 합산됩니다')
+        + '</span></span>')
     + '</div>';
 }
 

@@ -443,11 +443,13 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .drop.over{border-color:var(--blue);background:var(--blue-soft)}
 .drop.dragover{border-color:var(--blue);background:var(--blue-soft)}
 .nasdrop{border:1.5px dashed var(--border-light);border-radius:var(--r-md);
-  padding:14px 18px;margin-bottom:12px;background:var(--bg-input);cursor:pointer;
+  padding:13px 16px;margin-bottom:12px;background:var(--bg-input);
   display:flex;align-items:center;gap:12px;transition:.16s var(--ease)}
 .nasdrop:hover{border-color:var(--blue);background:var(--blue-soft)}
 .nasdrop.dragover{border-color:var(--blue);background:var(--blue-soft)}
-.nasdrop .ic{font-size:22px;opacity:.85;flex:0 0 auto}
+.nasdrop .ic{font-size:22px;opacity:.85;flex:0 0 auto;cursor:pointer}
+.nasdrop .tx{flex:1;min-width:0;cursor:pointer}
+.nasdrop .mk{flex:0 0 auto;cursor:pointer}
 .nasdrop .t{font-size:13.5px;font-weight:700;letter-spacing:-.015em;color:var(--text-primary)}
 .nasdrop .s{font-size:12px;color:var(--text-muted);margin-top:2px}
 .nasdrop .here{font-weight:700;color:var(--blue)}
@@ -1424,7 +1426,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3402,6 +3404,25 @@ async function nasMkdir(navKey, startDir){
   }catch(e){ alert('폴더를 만들지 못했습니다.\n\n' + apiErrText(e)); }
 }
 
+/* 폴더를 만들고 곧바로 그 안으로 들어갑니다 — 만들자마자 올릴 수 있게 */
+async function nasMkdirGo(navKey, startDir){
+  const dir = currentDirOf(navKey, startDir);
+  if(!dir){ toast('⚠️ 폴더를 먼저 열어주세요'); return; }
+  const name = prompt('여기에 만들 폴더 이름을 적어주세요.\n\n' + dir, '');
+  if(name === null || !name.trim()) return;
+  try{
+    const out = await apiJson('nasfiles.php?action=mkdir', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ dir, name: name.trim() })
+    });
+    delete browseCache[dir];
+    const made = out['경로'] || (dir + '/' + name.trim());
+    await loadBrowse(dir);
+    gotoFolder(navKey, made);                       // 만든 폴더 안으로 바로 들어갑니다
+    toast('📁 ' + (out['안내'] || '만들었습니다') + ' — 이 안에 올리시면 됩니다');
+  }catch(e){ alert('폴더를 만들지 못했습니다.\n\n' + apiErrText(e)); }
+}
+
 /* 이 폴더에 파일 올리기 */
 function nasUpload(navKey, startDir){
   const dir = currentDirOf(navKey, startDir);
@@ -3852,16 +3873,24 @@ function folderBrowserHtml(navKey, startDir, opts){
 
   // 지금 열어둔 폴더에 바로 올릴 수 있는 자리 (끌어다 놓거나 눌러서 고르거나)
   const here = c.dir || '';
+  const hereName = here.split('/').pop() || '이 폴더';
   const drop = (STORAGE_MODE === 'nas' && here)
-    ? '<div class="nasdrop" onclick="nasPickHere(\'' + jsq(navKey) + '\',\''
-        + jsq(startDir || '') + '\')" '
+    ? '<div class="nasdrop" '
       + 'ondragover="nasDropAllow(event)" ondragleave="nasDropLeave(event)" '
       + 'ondrop="nasDropFiles(event,\'' + jsq(navKey) + '\',\'' + jsq(startDir || '') + '\')">'
-      + '<span class="ic">⬆</span>'
-      + '<span><span class="t">여기에 파일 올리기</span>'
-        + '<span class="s">컴퓨터에서 끌어다 놓거나, 눌러서 고르세요 — '
-        + '<span class="here">' + esc(here.split('/').pop() || '이 폴더') + '</span> 안에 들어갑니다'
-        + '</span></span></div>'
+      + '<span class="ic" onclick="nasPickHere(\'' + jsq(navKey) + '\',\''
+        + jsq(startDir || '') + '\')">⬆</span>'
+      + '<span class="tx" onclick="nasPickHere(\'' + jsq(navKey) + '\',\''
+        + jsq(startDir || '') + '\')">'
+        + '<span class="t"><span class="here">' + esc(hereName) + '</span> 안에 파일 올리기</span>'
+        + '<span class="s">컴퓨터에서 끌어다 놓거나, 눌러서 고르세요 · '
+        + '고른 파일이 <b>이 폴더에 그대로</b> 들어갑니다 '
+        + '(폴더를 저절로 만들거나 다른 데로 옮기지 않습니다)</span>'
+      + '</span>'
+      + '<button class="btn sm mk" onclick="event.stopPropagation();nasMkdirGo(\'' + jsq(navKey)
+        + '\',\'' + jsq(startDir || '') + '\')" '
+        + 'title="여기에 새 폴더를 만들고 그 안으로 들어갑니다">📁 새 폴더</button>'
+      + '</div>'
     : '';
 
   const folders = c.folders.length
@@ -4050,7 +4079,8 @@ function renderNas(){
     + '<button class="btn" onclick="setScanRoot()">⚙️ 훑을 폴더 바꾸기</button>'
     + (STORAGE_MODE === 'nas'
         ? '<button class="btn" onclick="openUpRoot()" '
-          + 'title="기록부 문서·도구 파일이 저장되는 폴더입니다">📂 저장 폴더</button>' : '')
+          + 'title="브랜드북의 기록부 문서와 도구 파일이 저장되는 폴더입니다">'
+          + '📂 저장 폴더</button>' : '')
     + '<span class="hint">'
       + (info['파일수'] || 0).toLocaleString('ko-KR') + '개 파일 · 목록 만든 시각 '
       + esc(when || '-')
@@ -4628,14 +4658,18 @@ function upRootBar(){
     return '<div class="flist" style="margin-bottom:12px">'
       + '<button class="fhead" onclick="toggleUpRoot()" style="border-radius:12px">'
         + '<span class="fh-ar">▸</span><span class="fh-ic">📂</span>'
-        + '<span class="fh-nm">올린 파일이 쌓이는 곳</span>'
+        + '<span class="fh-nm">기록부 문서 · 도구 파일이 쌓이는 곳</span>'
         + '<span class="fh-ct">' + esc(i['지금폴더']) + '</span>'
       + '</button></div>';
   }
 
   return '<div class="ainote" style="margin-bottom:12px">'
     + '<div style="display:flex;align-items:flex-start;gap:8px">'
-      + '<span style="flex:1">📂 올린 파일은 <b>' + esc(i['지금폴더']) + '</b> 안에 이렇게 쌓입니다</span>'
+      + '<span style="flex:1">📂 브랜드북의 <b>기록부 문서</b>와 <b>도구 파일</b>은 '
+        + '<b>' + esc(i['지금폴더']) + '</b> 안에 이렇게 쌓입니다'
+        + '<div class="fmeta" style="margin-top:3px">'
+        + '아래 폴더에서 직접 올리는 파일은 여기와 상관없이 '
+        + '<b>고른 폴더에 그대로</b> 들어갑니다.</div></span>'
       + (upRootOpen ? '<button class="btn sm" onclick="toggleUpRoot()">접기</button>' : '')
     + '</div>'
     + '<div class="treebox">'

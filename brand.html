@@ -1514,7 +1514,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-19';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-20';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6645,7 +6645,9 @@ function renderGrowth(){
       + '<span style="color:var(--text-muted)">'
       + '유입 · 전환 · 활성화 · 재사용 · 개인업무 다섯 단계가 먼저 놓입니다. '
       + '단계 이름은 바꾸셔도 됩니다.</span><br><br>'
-      + '<button class="btn sm" onclick="bfOpen()">📦 브랜드플로우 백업에서 옮기기</button>'
+      + '<button class="btn primary" onclick="bfLoadBuiltin()">'
+        + '📦 예전 그로스보드 불러오기</button> '
+      + '<button class="btn sm" onclick="bfOpen()">📂 백업 파일에서</button>'
       + '<input type="file" id="bfFile" accept=".json,application/json" '
         + 'style="display:none" onchange="bfPick(this)">'
       + '</div>' + bfPanelHtml());
@@ -6715,8 +6717,11 @@ function renderGrowth(){
       + 'title="같은 모양의 글을 붙여넣으면 보드로 만들어 줍니다">📥 글로 붙여넣기</button>'
     + '<button class="btn sm" onclick="gbExport()" '
       + 'title="지금 보드를 사진(PNG) 한 장으로 내려받습니다">📷 사진으로</button>'
-    + '<button class="btn sm' + (bfRows ? ' primary' : '') + '" onclick="bfOpen()" '
-      + 'title="예전 브랜드플로우에서 받은 백업(JSON) 을 그대로 옮겨옵니다">📦 백업 옮기기</button>'
+    + '<button class="btn sm' + (bfRows ? ' primary' : '') + '" onclick="bfLoadBuiltin()" '
+      + 'title="예전 브랜드플로우에 적어 두셨던 내용을 그대로 불러옵니다">'
+      + '📦 예전 그로스보드 불러오기</button>'
+    + '<button class="btn sm" onclick="bfOpen()" '
+      + 'title="직접 받은 백업(JSON) 파일에서 옮깁니다">📂 백업 파일에서</button>'
     + '<input type="file" id="bfFile" accept=".json,application/json" '
       + 'style="display:none" onchange="bfPick(this)">'
     + '<span class="hint">지표에 「자동」 을 걸면 아래 업무에 적은 결과가 저절로 더해집니다</span>'
@@ -7275,6 +7280,22 @@ let bfRows = null;      // null = 안 열림 · 배열 = 읽어 둔 보드 목�
 let bfFileName = '';
 
 function bfOpen(){ const el = document.getElementById('bfFile'); if(el) el.click(); }
+/* 예전 브랜드플로우 내용을 미리 넣어 두었습니다 — 파일을 안 골라도 바로 열립니다 */
+async function bfLoadBuiltin(){
+  try{
+    const r = await fetch('brandflow-2026.json', { cache:'no-store' });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const rows = bfScan(await r.json());
+    if(!rows.length){ toast('⚠️ 옮길 보드를 못 찾았습니다'); return; }
+    bfFileName = '예전 브랜드플로우 (2026년)';
+    bfRows = rows; render();
+  }catch(e){
+    alert('예전 그로스보드 자료를 못 받았습니다.\n\n'
+      + 'brandflow-2026.json 이 brand.html 과 같은 곳에 있어야 합니다. '
+      + '[⚙ 설정] 에서 배포를 한 번 돌려주세요.\n\n'
+      + (e && e.message ? e.message : ''));
+  }
+}
 function bfClose(){ bfRows = null; render(); }
 function bfSet(key, v){
   const r = (bfRows || []).find(x => x.key === key);

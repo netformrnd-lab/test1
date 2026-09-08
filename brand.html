@@ -791,6 +791,19 @@ table.itable tr:hover td{background:var(--bg-hover)}
   background:transparent!important;box-shadow:none!important}
 .gb-shot .gb-kpi .cell input{background:transparent!important}
 .gb-shot .gb-item,.gb-shot .gb-stage{break-inside:avoid}
+/* 📦 브랜드플로우 백업 옮기기 — 어느 보드로 보낼지 고르는 표 */
+.bf-list{display:flex;flex-direction:column;gap:6px;margin-top:2px}
+.bf-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--bg-input)}
+.bf-row.on{border-color:var(--purple)}
+.bf-row .nm{font-size:12.5px;font-weight:700;color:var(--text-primary);min-width:0}
+.bf-row .ct{font-size:11.5px;color:var(--text-muted);min-width:0}
+.bf-row .ar{margin-left:auto;color:var(--text-muted);font-size:12px}
+.bf-row select{font-family:inherit;font-size:12px;padding:4px 8px;
+  border:1px solid var(--border);border-radius:var(--r-xs);
+  background:var(--bg-card);color:var(--text-primary)}
+@media(max-width:640px){.bf-row .ar{margin-left:0}.bf-row select{flex:1 1 100%}}
 .gb-kpi .x{position:absolute;top:6px;right:7px;border:none;background:transparent;
   color:var(--text-muted);font-size:15px;line-height:1;cursor:pointer;padding:2px 4px;
   border-radius:var(--r-xs);opacity:0}
@@ -1501,7 +1514,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-18';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-19';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6631,7 +6644,11 @@ function renderGrowth(){
       + '<button class="btn primary" onclick="gbStart()">📈 이 해 보드 만들기</button><br><br>'
       + '<span style="color:var(--text-muted)">'
       + '유입 · 전환 · 활성화 · 재사용 · 개인업무 다섯 단계가 먼저 놓입니다. '
-      + '단계 이름은 바꾸셔도 됩니다.</span></div>');
+      + '단계 이름은 바꾸셔도 됩니다.</span><br><br>'
+      + '<button class="btn sm" onclick="bfOpen()">📦 브랜드플로우 백업에서 옮기기</button>'
+      + '<input type="file" id="bfFile" accept=".json,application/json" '
+        + 'style="display:none" onchange="bfPick(this)">'
+      + '</div>' + bfPanelHtml());
     return;
   }
 
@@ -6698,6 +6715,10 @@ function renderGrowth(){
       + 'title="같은 모양의 글을 붙여넣으면 보드로 만들어 줍니다">📥 글로 붙여넣기</button>'
     + '<button class="btn sm" onclick="gbExport()" '
       + 'title="지금 보드를 사진(PNG) 한 장으로 내려받습니다">📷 사진으로</button>'
+    + '<button class="btn sm' + (bfRows ? ' primary' : '') + '" onclick="bfOpen()" '
+      + 'title="예전 브랜드플로우에서 받은 백업(JSON) 을 그대로 옮겨옵니다">📦 백업 옮기기</button>'
+    + '<input type="file" id="bfFile" accept=".json,application/json" '
+      + 'style="display:none" onchange="bfPick(this)">'
     + '<span class="hint">지표에 「자동」 을 걸면 아래 업무에 적은 결과가 저절로 더해집니다</span>'
     + '</div>';
 
@@ -6751,7 +6772,8 @@ function renderGrowth(){
       + '</div></div>'
     : '';
 
-  main.innerHTML = box(whoBar + search + tools + paste + looseBar + goal + kpis + filter + stages);
+  main.innerHTML = box(whoBar + search + tools + paste + bfPanelHtml()
+    + looseBar + goal + kpis + filter + stages);
   setTimeout(gbGrowAll, 0);
 }
 
@@ -7241,6 +7263,262 @@ function gbDoPaste(mode){
   gbPasteOpen = false;
   markDirtyAll(); render();
   toast('📥 단계 ' + got.stages.length + '개 · 업무 ' + nItem + '건을 넣었습니다');
+}
+
+/* ── 📦 브랜드플로우 백업 불러오기 ──────────────────────────────
+   예전에 쓰던 브랜드플로우(GitHub Pages) 의 [⬇ 백업] JSON 을 그대로
+   읽어 개인 그로스보드로 옮깁니다. 안에 들어 있는 사진(base64)은
+   한 장에 몇 MB 라 자료 파일이 감당하지 못하므로 가져오지 않고,
+   몇 장을 건너뛰었는지만 알려줍니다.
+   ------------------------------------------------------------- */
+let bfRows = null;      // null = 안 열림 · 배열 = 읽어 둔 보드 목록
+let bfFileName = '';
+
+function bfOpen(){ const el = document.getElementById('bfFile'); if(el) el.click(); }
+function bfClose(){ bfRows = null; render(); }
+function bfSet(key, v){
+  const r = (bfRows || []).find(x => x.key === key);
+  if(r){ r.who = v; render(); }
+}
+
+/* 어느 단계에 넣을지 — 예전 「테마」 글에서 찾아냅니다 */
+function bfStage(theme){
+  const t = String(theme || '');
+  if(/유입|인지도|acquisition/i.test(t))      return 'acquisition';
+  if(/전환|conversion/i.test(t))              return 'conversion';
+  if(/활성|activation/i.test(t))              return 'activation';
+  if(/재사용|재구매|충성|retention/i.test(t)) return 'retention';
+  return 'own';
+}
+/* 「2. 브랜드 확산 _ 어쩌고저쩌고」 → 「브랜드 확산」 */
+function bfShort(theme){
+  const t = String(theme || '').replace(/^\s*\d+[.)]\s*/, '').split(/[_—–]/)[0];
+  return t.trim().slice(0, 18);
+}
+/* 사진이 몇 장 들어 있나 (…Images 로 끝나는 칸을 다 셉니다) */
+function bfCountImg(o){
+  let n = 0;
+  (function walk(x){
+    if(Array.isArray(x)) return x.forEach(walk);
+    if(x && typeof x === 'object') Object.keys(x).forEach(k => {
+      if(/images$/i.test(k) && Array.isArray(x[k])) n += x[k].length;
+      else walk(x[k]);
+    });
+  })(o);
+  return n;
+}
+
+function bfPick(input){
+  const f = (input.files || [])[0];
+  input.value = '';
+  if(!f){ toast('⚠️ 고른 파일이 없습니다'); return; }
+  bfFileName = f.name;
+  const r = new FileReader();
+  r.onerror = () => alert('파일을 못 읽었습니다. 다시 골라주세요.');
+  r.onload = () => {
+    let j = null;
+    try { j = JSON.parse(String(r.result || '')); }
+    catch(e){
+      alert('JSON 을 못 읽었습니다.\n\n브랜드플로우에서 [⬇ 백업] 으로 받은 파일이 맞는지 봐주세요.');
+      return;
+    }
+    const rows = bfScan(j);
+    if(!rows.length){
+      alert('옮길 보드를 못 찾았습니다.\n\n이 파일 안에 brands → years 가 있어야 합니다.');
+      return;
+    }
+    bfRows = rows;
+    render();
+  };
+  r.readAsText(f, 'utf-8');
+}
+
+/* 백업 안을 훑어서 「브랜드 × 해」 한 줄씩 만듭니다 */
+function bfScan(j){
+  const out  = [];
+  const list = gbPeople();
+  (Array.isArray(j && j.brands) ? j.brands : []).forEach(b => {
+    const years = (b && b.years) || {};
+    Object.keys(years).forEach(y => {
+      const yv = years[y] || {};
+      let tasks = [];
+      (yv.quarters || []).forEach(q => { tasks = tasks.concat(q.tasks || [], q.extra || []); });
+      // 제목도 내용도 없는 빈 줄은 세지도, 옮기지도 않습니다
+      tasks = tasks.filter(t => String(t.title || '').trim() || (t.activities || []).length);
+      const acts = tasks.reduce((a, t) => a + ((t.activities || []).length), 0);
+      // 아무것도 안 적힌 해는 굳이 옮기지 않습니다
+      if(!tasks.length && !(yv.kpis || []).length) return;
+      // 누구 것인지 짐작 — years.owner → 「POUR솔루션_김소라」 처럼 이름 뒤쪽
+      const nm  = String(yv.owner || '').trim()
+               || (String(b.name || '').split('_')[1] || '').trim();
+      const hit = list.find(p => p.name === nm);
+      out.push({
+        key: String(b.id || b.name) + '|' + y,
+        brand: String(b.name || '(이름 없음)'), year: String(y), owner: nm,
+        who: hit ? hit.key : '',
+        nKpi: (yv.kpis || []).length, nTask: tasks.length, nAct: acts,
+        nImg: bfCountImg(tasks),
+        raw: { goal: yv.goal || '', kpis: yv.kpis || [], tasks: tasks }
+      });
+    });
+  });
+  return out;
+}
+
+/* 한 줄을 우리 보드 모양으로 바꿉니다 */
+function bfConv(row){
+  const kpis = (row.raw.kpis || []).map(k => ({
+    id: uid('k'), name: String(k.name || '').trim(),
+    current: String(k.current == null ? '' : k.current),
+    target:  String(k.target  == null ? '' : k.target),
+    unit: String(k.unit || ''), mode: (k.mode === 'auto' ? 'auto' : 'manual'),
+    _old: k.id
+  }));
+
+  const items = {};     // 단계 key → 업무들
+  (row.raw.tasks || []).forEach(t => {
+    // 아무것도 안 적힌 빈 줄은 옮기지 않습니다
+    if(!String(t.title || '').trim() && !(t.activities || []).length) return;
+
+    const key = bfStage(t.theme);
+    let title = String(t.title || '').trim();
+    // 예전 「묶음(initiative)」 이나 「테마」 이름을 앞에 짧게 붙여 어디 일이었는지 남깁니다
+    const tag = bfShort(t.initiative) || (key === 'own' ? bfShort(t.theme) : '');
+    if(tag && !/^기타|지원/.test(tag) && title.indexOf(tag) < 0) title = tag + ' · ' + title;
+
+    const acts = [];
+    (t.activities || []).forEach(a => {
+      const steps = [];
+      (a.actions || []).slice()
+        .sort((x, y) => (x.ord || 0) - (y.ord || 0))
+        .forEach(ac => {
+          const head = String(ac.title || '').trim();
+          if(head) steps.push({ id: uid('gt'), text: head, done: false });
+          (ac.steps || []).forEach(s => {
+            const v = String(s || '').trim();
+            if(v) steps.push({ id: uid('gt'), text: '· ' + v, done: false });
+          });
+        });
+      acts.push({
+        id: uid('ga'), mode: (a.mode === 'problem' ? 'problem' : 'goal'),
+        text:  String(a.context || '').trim(),
+        basis: (a.hypotheses || []).map(h => String(h.text || '').trim())
+                 .filter(Boolean).join('\n'),
+        value: String(a.result || '').trim(), steps: steps
+      });
+    });
+    // 발표용으로 적어 둔 「왜 · 무엇을」 도 한 덩이로 옮깁니다
+    const why = String(t.pWhy || '').trim(), what = String(t.pWhat || '').trim();
+    if(why || what) acts.push({ id: uid('ga'), mode:'goal', text: why || what,
+                                basis: (why && what) ? what : '', value:'', steps:[] });
+    if(!acts.length) acts.push({ id: uid('ga'), mode:'goal', text:'', basis:'',
+                                 value:'', steps:[] });
+
+    (items[key] = items[key] || []).push({
+      id: uid('gi'), title: title || '(제목 없음)',
+      status: (t.status === '진행중') ? '진행 중'
+            : (GB_STATUS.indexOf(t.status) >= 0 ? t.status : '진행 중'),
+      kpiId: '', _kpi: String((t.metric || {}).kpiId || ''), acts: acts
+    });
+  });
+
+  let goal = String(row.raw.goal || '').trim();
+  if(/^\(.*\)$/.test(goal)) goal = '';    // 「(목표를 입력하세요)」 는 빈 것으로 봅니다
+  return { goal: goal, kpis: kpis, items: items };
+}
+
+function bfRun(mode){
+  const rows = (bfRows || []).filter(r => r.who);
+  if(!rows.length){ toast('⚠️ 누구 보드로 넣을지 골라주세요'); return; }
+  const nT  = rows.reduce((a, r) => a + r.nTask, 0);
+  const nI  = rows.reduce((a, r) => a + r.nImg, 0);
+  if(!confirm((mode === 'replace'
+        ? '고른 사람의 보드를 지우고 백업 내용으로 바꿀까요?\n\n'
+        : '고른 사람의 보드에 더할까요?\n\n')
+      + rows.map(r => '· ' + r.brand + ' ' + r.year + '년 → ' + gbName(r.who)
+          + ' (업무 ' + r.nTask + '건'
+          + (r.nKpi ? ' · 지표 ' + r.nKpi + '개' : '') + ')').join('\n')
+      + (nI ? '\n\n※ 사진 ' + nI + '장은 파일이 너무 커져서 가져오지 않습니다' : ''))) return;
+
+  const wiped = {};   // 한 사람 보드에 두 줄을 보내도 두 번 지우지 않게
+  rows.forEach(r => {
+    const got = bfConv(r);
+    const g   = gbEnsure(r.who, r.year);
+    if(mode === 'replace' && !wiped[g.id]){
+      wiped[g.id] = true;
+      g.stages = GB_STAGES.map((s, i) => ({ id: uid('gs'), key: s.key, no: i + 1,
+                                            label: s.label, desc: s.desc, items: [] }));
+      g.kpis = [];
+      g.goal = '';
+    }
+    // 목표는 비어 있을 때만 채웁니다 (이미 적어 둔 것을 덮어쓰지 않게)
+    if(got.goal && !(g.goal || '').trim()) g.goal = got.goal;
+
+    // 지표 — 이름이 같은 것이 이미 있으면 그것에 이어 붙입니다 (두 개로 안 늘게)
+    const byName = {}; (g.kpis || []).forEach(k => { byName[String(k.name || '').trim()] = k.id; });
+    const idMap  = {};
+    got.kpis.forEach(k => {
+      const nm = String(k.name || '').trim(), old = k._old;
+      delete k._old;
+      if(nm && byName[nm]){ if(old) idMap[old] = byName[nm]; return; }
+      g.kpis.push(k);
+      if(nm) byName[nm] = k.id;
+      if(old) idMap[old] = k.id;
+    });
+
+    Object.keys(got.items).forEach(key => {
+      let st = (g.stages || []).find(x => x.key === key);
+      if(!st){
+        const d = GB_STAGES.find(x => x.key === key) || { label:'옮겨온 것', desc:'' };
+        st = { id: uid('gs'), key: key, no: (g.stages || []).length + 1,
+               label: d.label, desc: d.desc, items: [] };
+        g.stages.push(st);
+      }
+      got.items[key].forEach(it => {
+        it.kpiId = idMap[it._kpi] || '';
+        delete it._kpi;
+        st.items.push(it);
+      });
+    });
+    g.updatedAt = new Date().toISOString();
+  });
+
+  bfRows = null;
+  markDirtyAll(); render();
+  toast('📦 보드 ' + rows.length + '개 · 업무 ' + nT + '건을 옮겼습니다');
+}
+
+/* 어디에 넣을지 고르는 표 */
+function bfPanelHtml(){
+  if(!bfRows) return '';
+  const list = gbPeople();
+  const rows = bfRows.map(r => {
+    const sel = '<select onchange="bfSet(\'' + jsq(r.key) + '\', this.value)">'
+      + '<option value="">— 옮기지 않음 —</option>'
+      + list.map(p => '<option value="' + esc(p.key) + '"'
+          + (r.who === p.key ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('')
+      + '</select>';
+    return '<div class="bf-row' + (r.who ? ' on' : '') + '">'
+      + '<span class="nm">' + esc(r.brand) + ' <b>' + esc(r.year) + '</b></span>'
+      + '<span class="ct">업무 ' + r.nTask + ' · 내용 ' + r.nAct
+        + (r.nKpi ? ' · 지표 ' + r.nKpi : '')
+        + (r.nImg ? ' · <span style="color:var(--yellow)">사진 ' + r.nImg + ' (못 옮김)</span>' : '')
+        + '</span>'
+      + '<span class="ar">→</span>' + sel + '</div>';
+  }).join('');
+
+  return '<div class="mbox" style="margin:0 0 14px;border-color:var(--purple)">'
+    + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
+      + '<span>📦 브랜드플로우 백업 — ' + esc(bfFileName) + '</span>'
+      + '<span style="margin-left:auto"><button class="btn sm" onclick="bfClose()">닫기</button></span>'
+    + '</div>'
+    + '<div class="bf-list">' + rows + '</div>'
+    + '<div class="sec-bar" style="margin:9px 0 0">'
+      + '<button class="btn primary" onclick="bfRun(\'add\')">＋ 고른 보드에 더하기</button>'
+      + '<button class="btn danger" onclick="bfRun(\'replace\')">↻ 통째로 바꾸기</button>'
+      + '<span class="hint">테마 글에서 유입·전환·활성화·재사용을 찾아 그 단계에 넣습니다. '
+        + '못 찾으면 「개인 및 자유업무」 로 갑니다. 사진은 파일이 너무 커져서 빼고 옮깁니다</span>'
+    + '</div></div>';
 }
 
 /* 보드를 글로 — 보고할 때나 AI 에게 통째로 물어볼 때 씁니다 */

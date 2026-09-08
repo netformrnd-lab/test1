@@ -605,6 +605,81 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .tidysel{max-width:280px;font-size:12px;padding:5px 8px;border-radius:var(--r-sm);
   border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)}
 
+/* ---------- 화이트보드 (판) ---------- */
+.wb-wrap{position:relative;border:1px solid var(--border);border-radius:var(--r-md);
+  background:var(--bg-sunken);overflow:hidden;height:calc(100vh - 250px);min-height:440px;
+  touch-action:none;user-select:none;-webkit-user-select:none}
+.wb-wrap.grab{cursor:grab}
+.wb-wrap.grabbing{cursor:grabbing}
+.wb-canvas{position:absolute;top:0;left:0;transform-origin:0 0;
+  background-image:radial-gradient(circle,var(--border-light) 1px,transparent 1px);
+  background-size:26px 26px;width:12000px;height:8000px}
+.wb-edges{position:absolute;top:0;left:0;width:12000px;height:8000px;pointer-events:none;
+  overflow:visible}
+.wb-edges path{fill:none;stroke:var(--text-muted);stroke-width:2}
+.wb-edges .hit{stroke:transparent;stroke-width:14;pointer-events:stroke;cursor:pointer}
+.wb-edges g.on path{stroke:var(--blue)}
+
+.wb-n{position:absolute;border-radius:var(--r);box-sizing:border-box;
+  display:flex;flex-direction:column;cursor:grab;user-select:none;
+  box-shadow:var(--shadow-sm);overflow:hidden}
+.wb-n.on{box-shadow:0 0 0 2px var(--blue),var(--shadow-md);z-index:5}
+.wb-n.drag{cursor:grabbing;z-index:9;box-shadow:var(--shadow-lg)}
+.wb-n .bd{flex:1;min-height:0;padding:9px 11px;font-size:12.5px;line-height:1.55;
+  white-space:pre-wrap;word-break:break-word;overflow:hidden}
+.wb-n textarea{flex:1;width:100%;border:none;background:transparent;resize:none;
+  font-family:inherit;font-size:12.5px;line-height:1.55;padding:9px 11px;color:inherit;
+  outline:none;user-select:text;-webkit-user-select:text;cursor:text}
+.wb-n .hd{font-weight:800;font-size:12.5px;padding:8px 11px 0;letter-spacing:-.01em}
+
+.wb-n.k-note{border:1px solid rgba(0,0,0,.06)}
+.wb-n.k-box{background:var(--bg-card);border:1px solid var(--border)}
+.wb-n.k-text{background:transparent;box-shadow:none;border:1px dashed transparent}
+.wb-n.k-text .bd{font-size:17px;font-weight:800;letter-spacing:-.02em;padding:4px 6px;
+  color:var(--text-primary)}
+.wb-n.k-text:hover{border-color:var(--border-light)}
+.wb-n.k-table{background:var(--bg-card);border:1px solid var(--border)}
+.wb-n.k-table .bd{padding:0;overflow:auto}
+.wb-tb{width:100%;border-collapse:collapse;font-size:11.5px}
+.wb-tb td{border:1px solid var(--border);padding:5px 7px;color:var(--text-secondary);
+  vertical-align:top}
+.wb-tb tr:first-child td{background:var(--bg-sunken);color:var(--text-primary);font-weight:700}
+
+.wb-n .rz{position:absolute;right:0;bottom:0;width:15px;height:15px;cursor:nwse-resize;
+  opacity:0}
+.wb-n.on .rz{opacity:1;background:linear-gradient(135deg,transparent 48%,var(--blue) 48%)}
+.wb-tools{position:absolute;display:flex;gap:3px;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:99px;padding:3px 5px;box-shadow:var(--shadow-md);
+  z-index:20;white-space:nowrap}
+.wb-tools button{border:none;background:transparent;font-family:inherit;font-size:12px;
+  padding:3px 7px;border-radius:99px;cursor:pointer;color:var(--text-secondary)}
+.wb-tools button:hover{background:var(--bg-hover);color:var(--text-primary)}
+.wb-tools button.danger:hover{background:rgba(217,59,59,.12);color:var(--red)}
+.wb-tools .sw{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.12);
+  cursor:pointer;padding:0}
+.wb-tools .sw.on{box-shadow:0 0 0 2px var(--blue)}
+
+.wb-bar{position:absolute;left:12px;bottom:12px;display:flex;gap:5px;align-items:center;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:99px;
+  padding:5px 8px;box-shadow:var(--shadow-md);z-index:15;font-size:12px}
+.wb-bar button{border:none;background:transparent;font-family:inherit;font-size:12.5px;
+  font-weight:600;padding:4px 9px;border-radius:99px;cursor:pointer;color:var(--text-secondary)}
+.wb-bar button:hover{background:var(--bg-hover);color:var(--text-primary)}
+.wb-bar .z{min-width:44px;text-align:center;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.wb-hint{position:absolute;right:12px;bottom:12px;z-index:15;font-size:11.5px;
+  pointer-events:none;opacity:.9;
+  color:var(--text-muted);background:var(--bg-card);border:1px solid var(--border);
+  border-radius:99px;padding:5px 11px;box-shadow:var(--shadow-sm)}
+.wb-link{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:20;
+  background:var(--blue);color:#fff;font-size:12px;font-weight:700;border-radius:99px;
+  padding:6px 14px;box-shadow:var(--shadow-md)}
+.wb-n.pick{cursor:crosshair;box-shadow:0 0 0 2px var(--blue)}
+
+@media(max-width:620px){
+  .wb-wrap{height:calc(100vh - 210px);min-height:360px}
+  .wb-hint{display:none}
+}
+
 /* ---------- 개인 그로스보드 ---------- */
 .gb-goal{display:flex;flex-direction:column;gap:6px;margin:2px 0 16px}
 .gb-goal label{font-size:12px;font-weight:700;color:var(--text-muted)}
@@ -1257,6 +1332,11 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="em">📈</span><span>그로스보드</span>
         <span class="cnt" id="growCnt"></span>
       </button>
+      <button class="brand-item home-item" id="wbBtn" onclick="goView('boards')">
+        <span class="bar" style="background:var(--yellow)"></span>
+        <span class="em">🧩</span><span>화이트보드</span>
+        <span class="cnt" id="wbCnt"></span>
+      </button>
       <button class="brand-item home-item" id="costBtn" onclick="goView('costs')">
         <span class="bar" style="background:var(--red)"></span>
         <span class="em">💳</span><span>마케팅 비용</span>
@@ -1334,7 +1414,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1375,6 +1455,7 @@ function setMyName(){
 /* 판 번호가 바뀌었는지만 확인하고, 바뀌었으면 받아서 화면에 반영합니다 */
 async function liveTick(){
   if(STORAGE_MODE !== 'nas' || liveBusy || saving || saveBlocked) return;
+  if(wbDrag) return;        // 화이트보드에서 무언가를 끌고 있으면 건드리지 않습니다
   liveBusy = true;
   try{
     const r = await apiJson(NAS_API.load + '?rev=1&t=' + Date.now());
@@ -1931,7 +2012,8 @@ function render(){
   if(home) home.classList.toggle('on', view === 'home' && !searchQuery && !currentBrandId);
   if(nas)  nas.classList.toggle('on',  view === 'nas'  && !searchQuery);
   [['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],['growBtn','growth'],
-   ['costBtn','costs'],['blogBtn','blog'],['trashBtn','trash']].forEach(([id, v]) => {
+   ['wbBtn','boards'],['costBtn','costs'],['blogBtn','blog'],
+   ['trashBtn','trash']].forEach(([id, v]) => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('on', view === v && !searchQuery);
   });
@@ -1945,6 +2027,8 @@ function render(){
   const gc = document.getElementById('growCnt');
   if(gc) gc.textContent = (data.growth || []).reduce((a, g) =>
     a + (g.stages || []).reduce((x, st) => x + (st.items || []).length, 0), 0) || '';
+  const wc = document.getElementById('wbCnt');
+  if(wc) wc.textContent = (data.boards || []).length || '';
   const sc = document.getElementById('costCnt');
   if(sc) sc.textContent = data.brands.reduce((a, b) => a + (b.costs || []).length, 0) || '';
   const bc = document.getElementById('blogCnt');
@@ -1960,6 +2044,7 @@ function render(){
   else if(view === 'calendar') renderCalendar();
   else if(view === 'tasks') renderTasks();
   else if(view === 'growth') renderGrowth();
+  else if(view === 'boards') renderBoards();
   else if(view === 'costs') renderCosts();
   else if(view === 'blog') renderBlog();
   else if(view === 'trash') renderTrash();
@@ -5040,6 +5125,452 @@ function peopleName(id){
   if(me && me.id === id) return me['이름'];
   const u = (people.list || []).find(x => x.id === id);
   return u ? u['이름'] : id;
+}
+
+/* ═══════════════ 업무 → 🧩 화이트보드 ═════════════════════════════
+   빈 판에 메모·상자·글·표를 놓고 화살표로 잇습니다.
+   흐름도나 구성안을 그릴 때 씁니다 (탐색기 대신 여기서).
+
+   자료는 data.boards 배열에 판 하나씩 들어갑니다.
+   TOP_LISTS 에 넣어서 저장·합치기·휴지통이 회의록과 똑같이 돌아갑니다.
+
+   ⚠ 끄는 동안에는 다시 그리지 않습니다 (wbDrag). 그리면 잡고 있던 것을
+     놓치기 때문입니다. 끝낸 뒤에 한 번만 그립니다.
+   ================================================================= */
+const WB_HUES = [
+  { key:'yellow', label:'노랑', bg:'#fef7d3', fg:'#4a3c0a' },
+  { key:'green',  label:'초록', bg:'#d7f5e1', fg:'#0d4a2a' },
+  { key:'pink',   label:'분홍', bg:'#fbd9e2', fg:'#5a1128' },
+  { key:'blue',   label:'파랑', bg:'#d8e4fb', fg:'#132a5e' },
+  { key:'gray',   label:'회색', bg:'#eceae5', fg:'#33363c' },
+  { key:'dark',   label:'검정', bg:'#242730', fg:'#e8e9ec' }
+];
+function wbHue(k){ return WB_HUES.find(h => h.key === k) || WB_HUES[0]; }
+
+const WB_KINDS = {
+  note:  { label:'메모', icon:'🗒', w:190, h:150 },
+  box:   { label:'상자', icon:'▭',  w:250, h:130 },
+  text:  { label:'글',   icon:'T',  w:260, h:46  },
+  table: { label:'표',   icon:'▦',  w:340, h:150 }
+};
+
+let wbId    = '';            // 지금 보고 있는 판
+let wbSel   = '';            // 고른 개체
+let wbEdit  = '';            // 글을 고치고 있는 개체
+let wbLink  = null;          // 잇는 중 {from}
+let wbDrag  = null;          // 끄는 중 (이때는 다시 그리지 않습니다)
+let wbView  = { x: 0, y: 0, z: 1 };
+
+function wbBoards(){ if(!Array.isArray(data.boards)) data.boards = []; return data.boards; }
+function wbCur(){ return wbBoards().find(b => b.id === wbId) || null; }
+function wbNode(id){ const b = wbCur(); return b ? (b.nodes || []).find(n => n.id === id) : null; }
+
+function wbNew(){
+  const b = { id: uid('wb'), name:'새 판', nodes:[], edges:[],
+              createdAt:new Date().toISOString() };
+  wbBoards().unshift(b);
+  wbId = b.id; wbSel = ''; wbEdit = ''; wbView = { x:0, y:0, z:1 };
+  markDirtyAll(); render();
+}
+function wbOpen(id){
+  wbId = id; wbSel = ''; wbEdit = ''; wbLink = null;
+  wbView = { x:0, y:0, z:1 };
+  render();
+  setTimeout(wbFit, 30);
+}
+function wbClose(){ wbId = ''; wbSel = ''; wbEdit = ''; wbLink = null; render(); }
+function wbRename(){
+  const b = wbCur(); if(!b) return;
+  const v = prompt('판 이름', b.name || '');
+  if(v === null) return;
+  b.name = v.trim() || '이름 없는 판';
+  b.updatedAt = new Date().toISOString();
+  markDirtyAll(); render();
+}
+function wbDel(id){
+  const b = wbBoards().find(x => x.id === id); if(!b) return;
+  const n = (b.nodes || []).length;
+  if(!confirm('"' + (b.name || '이름 없는 판') + '" 판을 지울까요?'
+    + (n ? '\n\n안에 놓은 ' + n + '개도 같이 갑니다.' : '')
+    + '\n\n휴지통으로 갑니다 — 업무 → 🗑 휴지통 에서 되돌릴 수 있습니다.')) return;
+  trashPut('화이트보드', b.name || '이름 없는 판', b, { kind:'board' });
+  data.boards = wbBoards().filter(x => x.id !== id);
+  if(wbId === id) wbId = '';
+  markDirtyAll(); render();
+  toast('🗑️ 휴지통으로 보냈습니다');
+}
+
+/* ── 개체 ───────────────────────────────────────────────────── */
+function wbAdd(kind){
+  const b = wbCur(); if(!b) return;
+  const k = WB_KINDS[kind] || WB_KINDS.note;
+  // 지금 보고 있는 화면 한가운데에 놓습니다
+  const wrap = document.getElementById('wbWrap');
+  const cw = wrap ? wrap.clientWidth  : 900;
+  const ch = wrap ? wrap.clientHeight : 520;
+  let x = Math.max(20, Math.round((-wbView.x + cw / 2) / wbView.z - k.w / 2));
+  let y = Math.max(20, Math.round((-wbView.y + ch / 2) / wbView.z - k.h / 2));
+  // 이미 놓인 것 위에 겹쳐 놓지 않습니다 — 빈 자리를 찾을 때까지 비켜갑니다
+  const hit = (px, py) => (b.nodes || []).some(o =>
+    px < o.x + o.w && px + k.w > o.x && py < o.y + o.h && py + k.h > o.y);
+  for(let i = 0; i < 40 && hit(x, y); i++){ x += 30; y += 30; }
+
+  const n = { id: uid('wn'), kind: kind, x: x, y: y,
+              w: k.w, h: k.h, color: kind === 'note' ? 'yellow' : 'gray',
+              text: kind === 'table' ? '항목 | 내용\n | ' : '' };
+  b.nodes = b.nodes || [];
+  b.nodes.push(n);
+  b.updatedAt = new Date().toISOString();
+  wbSel = n.id; wbEdit = n.id;
+  markDirtyAll(); render();
+  setTimeout(() => { const el = document.getElementById('wbt_' + n.id); if(el) el.focus(); }, 30);
+}
+let wbMoved = false;      // 방금 끌었나 (끝나고 오는 click 을 흘려보내려고)
+
+function wbSelect(id, ev){
+  if(ev) ev.stopPropagation();
+  if(wbMoved) return;                       // 옮기고 나서 오는 click 은 무시
+  if(wbLink){ wbConnectTo(id); return; }
+  if(wbSel === id && wbEdit !== id){        // 고른 것을 다시 누르면 글을 고칩니다
+    wbStartEdit(id); return;
+  }
+  if(wbSel !== id) wbEdit = '';
+  wbSel = id; render();
+}
+function wbBlank(){
+  if(wbMoved) return;
+  if(wbLink){ wbLink = null; render(); return; }
+  if(wbSel || wbEdit){ wbSel = ''; wbEdit = ''; render(); }
+}
+function wbStartEdit(id, ev){
+  if(ev) ev.stopPropagation();
+  wbSel = id; wbEdit = id; render();
+  setTimeout(() => {
+    const el = document.getElementById('wbt_' + id);
+    if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  }, 20);
+}
+function wbText(id, v){
+  const n = wbNode(id); if(!n) return;
+  n.text = v;
+  const b = wbCur(); if(b) b.updatedAt = new Date().toISOString();
+  markDirtyAll();
+}
+function wbColor(id, key){
+  const n = wbNode(id); if(!n) return;
+  n.color = key; markDirtyAll(); render();
+}
+function wbDelNode(id){
+  const b = wbCur(); if(!b) return;
+  b.nodes = (b.nodes || []).filter(n => n.id !== id);
+  b.edges = (b.edges || []).filter(e => e.from !== id && e.to !== id);
+  b.updatedAt = new Date().toISOString();
+  if(wbSel === id) wbSel = '';
+  if(wbEdit === id) wbEdit = '';
+  markDirtyAll(); render();
+}
+function wbFront(id){
+  const b = wbCur(); if(!b) return;
+  const n = (b.nodes || []).find(x => x.id === id); if(!n) return;
+  b.nodes = b.nodes.filter(x => x.id !== id).concat([n]);
+  markDirtyAll(); render();
+}
+function wbCopyNode(id){
+  const b = wbCur(); const n = wbNode(id);
+  if(!b || !n) return;
+  const c = Object.assign({}, n, { id: uid('wn'), x: n.x + 24, y: n.y + 24 });
+  b.nodes.push(c);
+  wbSel = c.id; markDirtyAll(); render();
+}
+
+/* ── 잇기 ───────────────────────────────────────────────────── */
+function wbStartLink(id){ wbLink = { from: id }; render(); }
+function wbConnectTo(id){
+  const b = wbCur();
+  const from = wbLink ? wbLink.from : '';
+  wbLink = null;
+  if(!b || !from || from === id){ render(); return; }
+  b.edges = b.edges || [];
+  if(b.edges.some(e => e.from === from && e.to === id)){ render(); return; }
+  b.edges.push({ id: uid('we'), from: from, to: id });
+  b.updatedAt = new Date().toISOString();
+  markDirtyAll(); render();
+}
+function wbDelEdge(eid){
+  const b = wbCur(); if(!b) return;
+  b.edges = (b.edges || []).filter(e => e.id !== eid);
+  markDirtyAll(); render();
+}
+
+/* ── 화면 옮기기·키우기 ─────────────────────────────────────── */
+function wbApplyView(){
+  const c = document.getElementById('wbCanvas');
+  if(c) c.style.transform = 'translate(' + wbView.x + 'px,' + wbView.y + 'px) scale('
+    + wbView.z + ')';
+  const z = document.getElementById('wbZoom');
+  if(z) z.textContent = Math.round(wbView.z * 100) + '%';
+}
+function wbZoom(d){
+  const wrap = document.getElementById('wbWrap');
+  const cw = wrap ? wrap.clientWidth / 2 : 400;
+  const ch = wrap ? wrap.clientHeight / 2 : 260;
+  const z0 = wbView.z;
+  const z1 = Math.min(2, Math.max(0.25, Math.round((z0 + d) * 100) / 100));
+  if(z1 === z0) return;
+  // 화면 한가운데를 붙잡고 키웁니다
+  wbView.x = cw - (cw - wbView.x) * (z1 / z0);
+  wbView.y = ch - (ch - wbView.y) * (z1 / z0);
+  wbView.z = z1;
+  wbApplyView();
+}
+function wbFit(){
+  const b = wbCur(); const wrap = document.getElementById('wbWrap');
+  if(!b || !wrap) return;
+  const ns = b.nodes || [];
+  if(!ns.length){ wbView = { x:0, y:0, z:1 }; wbApplyView(); return; }
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  ns.forEach(n => {
+    x1 = Math.min(x1, n.x); y1 = Math.min(y1, n.y);
+    x2 = Math.max(x2, n.x + n.w); y2 = Math.max(y2, n.y + n.h);
+  });
+  const pad = 40;
+  const z = Math.min(1.4, Math.max(0.25,
+    Math.min((wrap.clientWidth - pad * 2) / Math.max(1, x2 - x1),
+             (wrap.clientHeight - pad * 2) / Math.max(1, y2 - y1))));
+  wbView.z = Math.round(z * 100) / 100;
+  wbView.x = -x1 * wbView.z + (wrap.clientWidth  - (x2 - x1) * wbView.z) / 2;
+  wbView.y = -y1 * wbView.z + (wrap.clientHeight - (y2 - y1) * wbView.z) / 2;
+  wbApplyView();
+}
+
+/* ── 끌기 (개체 옮기기 · 크기 · 판 밀기) ────────────────────── */
+function wbDown(ev, id, mode){
+  if(ev.button !== undefined && ev.button !== 0) return;
+  if(wbLink) return;
+  const b = wbCur(); if(!b) return;
+  const n = id ? wbNode(id) : null;
+  if(id && !n) return;
+
+  // preventDefault 를 하면 그 뒤 click 이 오지 않아 「눌러서 고르기」 가 죽습니다.
+  // 글자가 끌려 나가는 것은 CSS(user-select:none) 로 막습니다.
+  ev.stopPropagation();
+  const el = id ? document.getElementById('wbn_' + id) : null;
+  wbDrag = { mode: mode, id: id, sx: ev.clientX, sy: ev.clientY, moved: false,
+             x0: n ? n.x : wbView.x, y0: n ? n.y : wbView.y,
+             w0: n ? n.w : 0, h0: n ? n.h : 0, el: el };
+  if(el && mode === 'move') el.classList.add('drag');
+  if(!id) document.getElementById('wbWrap').classList.add('grabbing');
+  window.addEventListener('pointermove', wbMove);
+  window.addEventListener('pointerup', wbUp);
+}
+function wbMove(ev){
+  const d = wbDrag; if(!d) return;
+  const dx = ev.clientX - d.sx, dy = ev.clientY - d.sy;
+  if(!d.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+  d.moved = true;
+  if(d.mode === 'pan'){
+    wbView.x = d.x0 + dx; wbView.y = d.y0 + dy;
+    wbApplyView();
+    return;
+  }
+  const n = wbNode(d.id); if(!n || !d.el) return;
+  if(d.mode === 'move'){
+    n.x = Math.max(0, Math.round(d.x0 + dx / wbView.z));
+    n.y = Math.max(0, Math.round(d.y0 + dy / wbView.z));
+    d.el.style.left = n.x + 'px';
+    d.el.style.top  = n.y + 'px';
+  }else{
+    n.w = Math.max(90,  Math.round(d.w0 + dx / wbView.z));
+    n.h = Math.max(40,  Math.round(d.h0 + dy / wbView.z));
+    d.el.style.width  = n.w + 'px';
+    d.el.style.height = n.h + 'px';
+  }
+  wbDrawEdges();
+}
+function wbUp(){
+  const d = wbDrag;
+  window.removeEventListener('pointermove', wbMove);
+  window.removeEventListener('pointerup', wbUp);
+  wbDrag = null;
+  const wrap = document.getElementById('wbWrap');
+  if(wrap) wrap.classList.remove('grabbing');
+  if(!d) return;
+  if(d.el) d.el.classList.remove('drag');
+  if(d.moved){ wbMoved = true; setTimeout(() => { wbMoved = false; }, 0); }
+  if(d.mode === 'pan') return;           // 판을 민 것은 저장하지 않습니다
+  if(!d.moved) return;                   // 그냥 누른 것 — click 이 알아서 고릅니다
+  const b = wbCur(); if(b) b.updatedAt = new Date().toISOString();
+  markDirtyAll();
+  render();
+}
+function wbWheel(ev){
+  if(!ev.ctrlKey && !ev.metaKey) return;
+  ev.preventDefault();
+  wbZoom(ev.deltaY > 0 ? -0.1 : 0.1);
+}
+
+/* ── 선 그리기 ──────────────────────────────────────────────── */
+/* 두 상자를 잇는 선 — 서로 마주 보는 변에서 나가고 들어옵니다 */
+function wbEdgePath(a, z){
+  const A = a.from, B = a.to;
+  const ax = A.x + A.w / 2, ay = A.y + A.h / 2;
+  const bx = B.x + B.w / 2, by = B.y + B.h / 2;
+  const dx = bx - ax, dy = by - ay;
+  const side = Math.abs(dx) > Math.abs(dy);
+  const p1 = side ? { x: ax + (dx > 0 ? A.w / 2 : -A.w / 2), y: ay }
+                  : { x: ax, y: ay + (dy > 0 ? A.h / 2 : -A.h / 2) };
+  const p2 = side ? { x: bx + (dx > 0 ? -B.w / 2 : B.w / 2), y: by }
+                  : { x: bx, y: by + (dy > 0 ? -B.h / 2 : B.h / 2) };
+  const c = side ? Math.abs(p2.x - p1.x) / 2 : Math.abs(p2.y - p1.y) / 2;
+  const c1 = side ? { x: p1.x + (dx > 0 ? c : -c), y: p1.y } : { x: p1.x, y: p1.y + (dy > 0 ? c : -c) };
+  const c2 = side ? { x: p2.x + (dx > 0 ? -c : c), y: p2.y } : { x: p2.x, y: p2.y + (dy > 0 ? -c : c) };
+  return 'M' + p1.x + ',' + p1.y + ' C' + c1.x + ',' + c1.y + ' ' + c2.x + ',' + c2.y
+       + ' ' + p2.x + ',' + p2.y;
+}
+function wbDrawEdges(){
+  const svg = document.getElementById('wbEdges');
+  const b = wbCur();
+  if(!svg || !b) return;
+  const byId = {};
+  (b.nodes || []).forEach(n => { byId[n.id] = n; });
+  const gs = (b.edges || []).map(e => {
+    const A = byId[e.from], B = byId[e.to];
+    if(!A || !B) return '';
+    const d = wbEdgePath({ from:A, to:B });
+    return '<g' + (wbSel === e.id ? ' class="on"' : '') + '>'
+      + '<path d="' + d + '" marker-end="url(#wbArrow)"></path>'
+      + '<path class="hit" d="' + d + '" onclick="wbEdgeClick(\'' + jsq(e.id) + '\')"></path>'
+      + '</g>';
+  }).join('');
+  svg.innerHTML = '<defs><marker id="wbArrow" viewBox="0 0 10 10" refX="9" refY="5" '
+    + 'markerWidth="6" markerHeight="6" orient="auto-start-reverse">'
+    + '<path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)"></path></marker></defs>' + gs;
+}
+function wbEdgeClick(eid){
+  if(!confirm('이 화살표를 지울까요?')) return;
+  wbDelEdge(eid);
+}
+
+/* ── 그리기 ─────────────────────────────────────────────────── */
+function renderBoards(){
+  const main = document.getElementById('main');
+  const head = '<h2 class="page-h">🧩 화이트보드</h2>'
+    + '<div class="page-sub">빈 판에 메모·상자·글·표를 놓고 화살표로 이어 '
+      + '흐름도나 구성안을 그립니다</div>';
+
+  const b = wbCur();
+  if(!b){
+    const list = wbBoards();
+    const cards = list.length
+      ? '<div class="cards">' + list.map(x => {
+          const n = (x.nodes || []).length;
+          const when = x.updatedAt || x.createdAt;
+          return '<div class="card" style="cursor:pointer" onclick="wbOpen(\'' + jsq(x.id) + '\')">'
+            + '<div class="ca"><button class="btn sm danger" '
+              + 'onclick="event.stopPropagation();wbDel(\'' + jsq(x.id) + '\')">삭제</button></div>'
+            + '<div class="ct">🧩 ' + esc(x.name || '이름 없는 판') + '</div>'
+            + '<div class="row"><span class="chip">' + n + '개</span>'
+              + ((x.edges || []).length
+                  ? '<span class="chip">화살표 ' + x.edges.length + '</span>' : '') + '</div>'
+            + (when ? '<div class="fmeta" style="margin-top:6px">'
+                + esc(new Date(when).toLocaleString('ko-KR',
+                    { dateStyle:'medium', timeStyle:'short' })) + '</div>' : '')
+            + '</div>';
+        }).join('') + '</div>'
+      : '<div class="empty">아직 판이 없습니다. '
+        + '<b style="color:var(--text-primary)">[＋ 새 판]</b> 을 눌러 시작해 보세요.</div>';
+    main.innerHTML = '<div class="panel"><div class="tabbody">' + head
+      + '<div class="sec-bar"><button class="btn primary" onclick="wbNew()">＋ 새 판</button>'
+        + '<span class="hint">판마다 따로 저장되고, 팀원 화면에도 몇 초 안에 나타납니다</span></div>'
+      + cards + '</div></div>';
+    return;
+  }
+
+  const bar = '<div class="sec-bar" style="margin:0 0 10px">'
+    + '<button class="btn sm" onclick="wbClose()">← 판 목록</button>'
+    + '<button class="btn sm" onclick="wbRename()" title="이름 바꾸기">✏️ '
+      + esc(b.name || '이름 없는 판') + '</button>'
+    + '<span style="width:9px"></span>'
+    + Object.keys(WB_KINDS).map(k => '<button class="btn" onclick="wbAdd(\'' + k + '\')">'
+        + WB_KINDS[k].icon + ' ' + WB_KINDS[k].label + '</button>').join('')
+    + '<button class="btn sm" onclick="wbFit()" style="margin-left:auto">⤢ 화면에 맞추기</button>'
+    + '</div>';
+
+  const nodes = (b.nodes || []).map(n => wbNodeHtml(n)).join('');
+
+  main.innerHTML = '<div class="panel"><div class="tabbody">' + head + bar
+    + '<div class="wb-wrap grab" id="wbWrap" onpointerdown="wbDown(event,null,\'pan\')" '
+      + 'onclick="wbBlank()" onwheel="wbWheel(event)">'
+      + '<div class="wb-canvas" id="wbCanvas">'
+        + '<svg class="wb-edges" id="wbEdges"></svg>'
+        + nodes
+      + '</div>'
+      + (wbLink ? '<div class="wb-link">이을 상대를 눌러주세요 (빈 곳을 누르면 그만둡니다)</div>' : '')
+      + '<div class="wb-bar">'
+        + '<button onclick="event.stopPropagation();wbZoom(-0.1)">−</button>'
+        + '<span class="z" id="wbZoom">100%</span>'
+        + '<button onclick="event.stopPropagation();wbZoom(0.1)">＋</button>'
+        + '<button onclick="event.stopPropagation();wbFit()">맞추기</button>'
+      + '</div>'
+      + '<div class="wb-hint">빈 곳을 끌면 판이 움직입니다 · '
+        + '한 번 누르면 고르고, 고른 것을 다시 누르면 글을 고칩니다</div>'
+    + '</div></div></div>';
+
+  wbApplyView();
+  wbDrawEdges();
+}
+
+function wbNodeHtml(n){
+  const h   = wbHue(n.color);
+  const sel = wbSel === n.id;
+  const ed  = wbEdit === n.id;
+  const dark = n.color === 'dark';
+  const style = 'left:' + n.x + 'px;top:' + n.y + 'px;width:' + n.w + 'px;height:' + n.h + 'px;'
+    + (n.kind === 'text' ? '' : 'background:' + h.bg + ';color:' + h.fg + ';');
+
+  let body;
+  if(ed){
+    body = '<textarea id="wbt_' + esc(n.id) + '" '
+      + 'onpointerdown="event.stopPropagation()" onclick="event.stopPropagation()" '
+      + 'oninput="wbText(\'' + jsq(n.id) + '\', this.value)" '
+      + 'placeholder="' + (n.kind === 'table' ? '한 줄이 한 칸 줄, | 로 칸을 나눕니다'
+                                              : '내용을 적어주세요') + '">'
+      + esc(n.text || '') + '</textarea>';
+  }else if(n.kind === 'table'){
+    const rows = String(n.text || '').split('\n').filter(r => r.trim() !== '');
+    body = '<div class="bd">' + (rows.length
+      ? '<table class="wb-tb">' + rows.map(r => '<tr>'
+          + r.split('|').map(c => '<td>' + esc(c.trim()) + '</td>').join('') + '</tr>').join('')
+        + '</table>'
+      : '<div style="padding:9px 11px;opacity:.5">두 번 눌러 표를 채워주세요</div>') + '</div>';
+  }else{
+    body = '<div class="bd"' + (String(n.text || '').trim() ? '' : ' style="opacity:.45"') + '>'
+      + esc(String(n.text || '').trim() || '두 번 눌러 글을 적어주세요') + '</div>';
+  }
+
+  const tools = sel
+    ? '<div class="wb-tools" style="left:' + n.x + 'px;top:' + (n.y - 34) + 'px" '
+      + 'onpointerdown="event.stopPropagation()" onclick="event.stopPropagation()">'
+      + WB_HUES.map(c => '<button class="sw' + (n.color === c.key ? ' on' : '') + '" '
+          + 'style="background:' + c.bg + '" title="' + c.label + '" '
+          + 'onclick="wbColor(\'' + jsq(n.id) + '\',\'' + c.key + '\')"></button>').join('')
+      + '<button onclick="wbStartEdit(\'' + jsq(n.id) + '\')" title="글 고치기">✏️</button>'
+      + '<button onclick="wbStartLink(\'' + jsq(n.id) + '\')" title="다른 것과 잇기">⇢</button>'
+      + '<button onclick="wbCopyNode(\'' + jsq(n.id) + '\')" title="하나 더">⧉</button>'
+      + '<button onclick="wbFront(\'' + jsq(n.id) + '\')" title="맨 앞으로">⬆</button>'
+      + '<button class="danger" onclick="wbDelNode(\'' + jsq(n.id) + '\')" title="지우기">🗑</button>'
+      + '</div>'
+    : '';
+
+  return tools
+    + '<div class="wb-n k-' + n.kind + (sel ? ' on' : '') + (wbLink ? ' pick' : '')
+      + (dark ? ' dark' : '') + '" id="wbn_' + esc(n.id) + '" style="' + style + '" '
+      + 'onpointerdown="wbDown(event,\'' + jsq(n.id) + '\',\'move\')" '
+      + 'onclick="wbSelect(\'' + jsq(n.id) + '\', event)" '
+      + 'ondblclick="wbStartEdit(\'' + jsq(n.id) + '\', event)">'
+      + body
+      + '<span class="rz" onpointerdown="wbDown(event,\'' + jsq(n.id) + '\',\'size\')"></span>'
+    + '</div>';
 }
 
 /* ═══════════════ 업무 → 📈 그로스보드 ═════════════════════════════
@@ -9772,6 +10303,11 @@ function trashRestore(tid){
     }
     data.brands.push(t.내용);
     deletedIds.delete(t.내용.id);
+  }else if(w.kind === 'board'){
+    if(!Array.isArray(data.boards)) data.boards = [];
+    if(data.boards.some(x => x.id === t.내용.id)){ toast('⚠️ 같은 판이 이미 있습니다'); return; }
+    data.boards.unshift(t.내용);
+    deletedIds.delete(t.내용.id);
   }else if(w.kind === 'gbstage' || w.kind === 'gbitem'){
     const g = (data.growth || []).find(x => x.id === w.boardId);
     if(!g){
@@ -10120,7 +10656,7 @@ function markDirtyAll(){
 }
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels']);
-const TOP_LISTS   = ['meetings', 'events', 'trash', 'growth'];  // 브랜드 밖에 있는 목록
+const TOP_LISTS   = ['meetings', 'events', 'trash', 'growth', 'boards'];  // 브랜드 밖
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
 let revived  = 0;                // 되살린 개수 (알려주기 위해)
@@ -10463,6 +10999,25 @@ function normalize(raw){
   if(!Array.isArray(raw.meetings)) raw.meetings = [];   // 회의록 (브랜드 공통)
   if(!Array.isArray(raw.events))   raw.events   = [];   // 달력 일정 (브랜드 공통)
   if(!Array.isArray(raw.trash))    raw.trash    = [];   // 휴지통 (지운 것)
+  if(!Array.isArray(raw.boards))   raw.boards   = [];   // 화이트보드 (판 하나씩)
+  raw.boards.forEach(b => {
+    b.id = b.id || uid('wb');
+    if(typeof b.name !== 'string') b.name = '이름 없는 판';
+    if(!Array.isArray(b.nodes)) b.nodes = [];
+    if(!Array.isArray(b.edges)) b.edges = [];
+    b.nodes.forEach(n => {
+      n.id = n.id || uid('wn');
+      if(!WB_KINDS[n.kind]) n.kind = 'note';
+      ['x','y','w','h'].forEach(k => { if(typeof n[k] !== 'number' || !isFinite(n[k])) n[k] = 0; });
+      if(n.w < 40) n.w = WB_KINDS[n.kind].w;
+      if(n.h < 24) n.h = WB_KINDS[n.kind].h;
+      if(typeof n.text !== 'string') n.text = '';
+      if(!WB_HUES.some(h => h.key === n.color)) n.color = 'yellow';
+    });
+    const ids = new Set(b.nodes.map(n => n.id));
+    b.edges = b.edges.filter(e => e && ids.has(e.from) && ids.has(e.to));
+    b.edges.forEach(e => { e.id = e.id || uid('we'); });
+  });
   if(!Array.isArray(raw.growth))   raw.growth   = [];   // 그로스보드 (사람 × 연도 한 장씩)
   raw.growth.forEach(g => {
     g.id   = g.id || uid('gb');
@@ -10513,7 +11068,7 @@ function normalize(raw){
 
   // 같은 id 가 두 번 들어간 것이 있으면 하나만 남깁니다.
   // (합치는 과정이 꼬여 같은 회의록·일정이 두 줄로 보이는 일을 막습니다)
-  ['meetings', 'events', 'growth'].forEach(k => {
+  ['meetings', 'events', 'growth', 'boards'].forEach(k => {
     const seen = new Set();
     raw[k] = raw[k].filter(x => {
       if(!x || !x.id) return false;

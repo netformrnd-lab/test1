@@ -1659,7 +1659,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-24';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-25';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6802,7 +6802,12 @@ function renderGrowth(){
     main.innerHTML = box(whoBar
       + '<div class="fmeta" style="margin:-4px 0 8px">🧩 ' + where + '의 판</div>'
       + wbBoardHtml(board,
-          '<button class="btn sm" onclick="gbCloseWb()">← 그로스보드</button>'));
+          '<button class="btn sm" onclick="gbCloseWb()">← 그로스보드</button>'
+          + (gbWb.sid && gbWb.iid
+              ? '<button class="btn sm" title="적어 둔 글을 그대로 이어서 그립니다" '
+                + 'onclick="gbFlow(\'' + jsq(gbWb.sid) + '\',\'' + jsq(gbWb.iid)
+                + '\')">📐 글을 판으로</button>'
+              : '')));
     wbApplyView();
     wbDrawEdges();
     return;
@@ -6949,6 +6954,98 @@ function gbStart(){ gbEnsure(gbWho, gbYear); render(); }
    판 자체는 data.boards 에 그대로 들어가므로 🧩 화이트보드 목록에도 나옵니다.
    ------------------------------------------------------------- */
 let gbWb = null;      // null | { sid, iid }  (sid 가 없으면 보드 전체 판)
+
+/* ── 📐 글을 판으로 ─────────────────────────────────────────────
+   적어 둔 글을 그대로 판에 옮겨 이어 그립니다.
+     문제 / 목표 ─→ 행동·가설 ─→ 결과 ─→ (다음 차수의 문제/목표)
+   손으로 옮겨 놓거나 새로 만든 것은 그대로 두고, 전에 글로 그린 것만
+   다시 그립니다 (판에 붙여 둔 사진도 지우지 않습니다).
+   ------------------------------------------------------------- */
+function gbFlowH(txt, min){
+  const n = String(txt || '').split('\n')
+    .reduce((a, l) => a + Math.max(1, Math.ceil(l.length / 22)), 0);
+  return Math.max(min || 76, Math.min(340, 40 + n * 21));
+}
+
+function gbFlow(sid, iid){
+  const g = gbFind(gbWho, gbYear); if(!g) return;
+  const st = (g.stages || []).find(x => x.id === sid); if(!st) return;
+  const it = (st.items || []).find(x => x.id === iid); if(!it) return;
+
+  const acts = (it.acts || []).filter(a => String(a.text || '').trim()
+    || String(a.value || '').trim()
+    || (a.steps || []).some(r => String(r.text || '').trim()));
+  if(!acts.length){ toast('⚠️ 아직 적은 내용이 없습니다'); return; }
+
+  const b   = gbBoardFor(g, it);
+  const had = (b.nodes || []).filter(n => n.src === 'gb').length;
+  if(had && !confirm('적어 둔 글로 판을 다시 그릴까요?\n\n'
+    + '손으로 옮기거나 새로 만든 것과 사진은 그대로 둡니다.\n'
+    + '전에 글로 그린 ' + had + '개만 새로 그립니다.')) return;
+
+  const gone = {};
+  (b.nodes || []).forEach(n => { if(n.src === 'gb') gone[n.id] = 1; });
+  b.nodes = (b.nodes || []).filter(n => !gone[n.id]);
+  b.edges = (b.edges || []).filter(e => !gone[e.from] && !gone[e.to]);
+
+  const N = [], E = [];
+  const put  = o => { const n = Object.assign({ id: uid('wn'), kind:'note', color:'gray',
+                                                src:'gb', text:'' }, o);
+                      N.push(n); return n; };
+  const link = (a, c) => { E.push({ id: uid('we'), from: a.id, to: c.id }); };
+
+  const X0 = 40, X1 = 400, X2 = 830, W0 = 320, W1 = 390, W2 = 300;
+  let y = 40, prev = null;
+
+  put({ kind:'text', x:X0, y:y, w:760, h:56, color:'dark',
+        text: (it.title || '이름 없는 업무') + '   ·   ' + (st.label || '') });
+  y += 92;
+
+  acts.forEach((a, i) => {
+    const goal = a.mode !== 'problem';
+    const rows = (a.steps || []).filter(r => String(r.text || '').trim()
+      || (r.subs || []).some(x => String(x.text || '').trim()));
+
+    // 가운데 줄(행동·가설)을 먼저 쌓아 이 차수의 높이를 잽니다
+    let ry = y, hn = 0, an = 0;
+    const mid = rows.map(r => {
+      const isH = r.kind === 'hyp';
+      const no  = isH ? ++hn : ++an;
+      const body = (isH ? '가설 ' : '행동 ') + no + '. ' + String(r.text || '').trim()
+        + (r.subs || []).filter(x => String(x.text || '').trim())
+            .map(x => '\n · ' + x.text.trim()).join('');
+      const h = gbFlowH(body, 80);
+      const n = put({ x:X1, y:ry, w:W1, h:h, color: isH ? 'yellow' : 'gray', text: body });
+      ry += h + 16;
+      return n;
+    });
+    const bandH = Math.max(ry - y - 16, 120);
+
+    const ctxT = (i + 1) + '차 · ' + (goal ? '목표 / 실행 이유' : '문제 / 이슈')
+      + '\n\n' + String(a.text || '').trim();
+    const ctx = put({ x:X0, y:y, w:W0, h: gbFlowH(ctxT, 120),
+                      color: goal ? 'blue' : 'pink', text: ctxT });
+
+    let res = null;
+    if(String(a.value || '').trim()){
+      const rt = '결과\n\n' + a.value.trim();
+      res = put({ x:X2, y:y, w:W2, h: gbFlowH(rt, 110), color:'green', text: rt });
+    }
+
+    mid.forEach(m => { link(ctx, m); if(res) link(m, res); });
+    if(!mid.length && res) link(ctx, res);
+    if(prev) link(prev, ctx);
+    prev = res || (mid.length ? mid[mid.length - 1] : ctx);
+    y += bandH + 70;
+  });
+
+  b.nodes = (b.nodes || []).concat(N);
+  b.edges = (b.edges || []).concat(E);
+  b.updatedAt = new Date().toISOString();
+  markDirtyAll();
+  gbOpenWb(sid, iid);
+  toast('📐 ' + N.length + '개를 이어서 그렸습니다');
+}
 
 /* 이 자리에 붙은 판을 찾고, 없으면 만듭니다 */
 function gbBoardFor(g, it){
@@ -7405,6 +7502,8 @@ function gbDetailHtml(g){
           + '</option>').join('')
       + '</select></label>'
     + '<span style="margin-left:auto;display:flex;gap:6px">'
+      + '<button class="btn sm" title="적어 둔 글을 그대로 판에 이어서 그립니다" '
+        + 'onclick="gbFlow(\'' + jsq(st.id) + '\',\'' + jsq(it.id) + '\')">📐 글을 판으로</button>'
       + '<button class="btn sm' + (iwb ? ' primary' : '') + '" '
         + 'title="이 업무만 놓고 판에 그려봅니다" '
         + 'onclick="gbOpenWb(\'' + jsq(st.id) + '\',\'' + jsq(it.id) + '\')">🧩 판'

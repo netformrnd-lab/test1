@@ -230,7 +230,7 @@
         <div class="fg"><label for="audience">시청 대상 <span class="help">— 위 칩에 없는 대상은 여기 직접</span></label>
           <input type="text" id="audience" value="입주자대표회의"></div>
         <div class="fg"><label for="goal">시청 후 행동</label>
-          <input type="text" id="goal" value="앱에서 우리 단지 자료 확인"></div>
+          <input type="text" id="goal" value="현장진단 문의"></div>
       </div>
 
       <div class="grouplabel">아바타</div>
@@ -296,7 +296,7 @@
       </div>
       <div class="fg">
         <label for="cta">마무리 문구</label>
-        <input type="text" id="cta" value="우리 단지 상황도 같은 기준으로 정리해 보실 수 있어요">
+        <input type="text" id="cta" value="우리 단지 상태부터 진단으로 확인해 보실 수 있어요">
       </div>
       <div class="fg">
         <label for="company">회사와 서비스 <span class="help">— AI가 서비스를 잘못 설명하지 않도록 고정</span></label>
@@ -525,7 +525,7 @@
     '한 화면에는 이미지·수치·제목 중 하나만 주인공으로 둔다. 긴 문장과 그래프를 한 화면에 함께 넣지 않는다.',
     '챕터가 바뀔 때는 전체 화면 타이틀을 넣어 다음 내용을 미리 알린다.',
     'B롤은 말한 내용을 증명하거나 분위기를 전환할 때만 쓴다. 내용과 무관한 장식용 영상을 반복하지 않는다.',
-    '움직임은 핵심어·수치·차트가 등장할 때만 짧고 선명하게 준다. 장시간 자동으로 움직이는 화면을 만들지 않는다.',
+    '팝업·확대 같은 강조 모션은 핵심어·수치·차트가 등장할 때만 준다. 다만 배경의 은은한 움직임은 끊기지 않게 유지한다.',
     '이미지나 영상 위에 글자를 올릴 때는 어두운 오버레이를 깔아 대비를 확보한다.',
     '로고와 안내 문구는 정보가 정리된 뒤 다음 행동을 안내하는 마지막 구간에만 노출한다.'
   ];
@@ -551,7 +551,7 @@
       {n:'질문 제시', w:.07, screen:'전체 화면 타이틀 카드. 이번 영상에서 다룰 질문 한 줄',
        note:'다음 내용을 계속 봐야 하는 이유를 만든다.'},
       {n:'기준 1', w:.18, screen:'큰 제목 → 짧은 설명 → 시각 근거 하나',
-       note:auto?'핵심 기준 1을 여기서 설명한다. (기준은 아래 “스스로 정할 것”에서 직접 정한다)':'핵심 기준 1: '+msgs[0]},
+       note:auto?'핵심 기준 1을 여기서 설명한다. (기준은 위 “스스로 정할 것”에서 직접 정한다)':'핵심 기준 1: '+msgs[0]},
       {n:'기준 2', w:.18, screen:'큰 제목 → 짧은 설명 → 시각 근거 하나',
        note:auto?'핵심 기준 2를 여기서 설명한다.':'핵심 기준 2: '+(msgs[1]||msgs[0])},
       {n:'기준 3', w:.18, screen:'큰 제목 → 짧은 설명 → 시각 근거 하나',
@@ -560,8 +560,9 @@
        note:autoCase?'앞의 세 기준이 실제 단지 상황에서 어떻게 쓰이는지 구체적인 장면으로 보여준다.':cases.join(' / ')},
       {n:'정리 · 다음 행동', w:.12,
        screen:'앞부분은 3줄 요약, 뒷부분은 앱 화면을 실제로 보여준다. 로고와 안내 문구는 여기서만',
-       note:'앞의 기준을 3줄로 요약한 뒤, 아파트스퀘어 앱에서 무엇을 확인할 수 있는지 화면으로 보여준다. '+
-            (lns('app').join(' / ')||'')}
+       note:'앞의 기준을 3줄로 요약한 뒤, '+
+            (lns('app').length?'아래 “마지막 구간의 앱 소개”에 적힌 내용을 앱 화면으로 보여준다.'
+                              :'다음에 무엇을 확인하면 되는지 안내한다.')}
     ];
     var t=0, out=[];
     plan.forEach(function(p){
@@ -605,10 +606,10 @@
     else { for(i=0;i<n;i++){ var v=Math.round((i+0.5)*sc.length/n)-1; idx.push(Math.max(0,Math.min(sc.length-1,v))); } }
     idx=idx.filter(function(v,j,a){return a.indexOf(v)===j;}).sort(function(a,b){return a-b;});
     return {idx:idx,billed:idx.length*st.cutLen,
-      line:'아바타는 '+idx.length+'개 씬에만 '+st.cutLen+'초 내외로 짧게 등장한다 ('+
+      line:'아바타는 '+idx.length+'개 장면에만 '+st.cutLen+'초 내외로 짧게 등장한다 ('+
         idx.map(function(k){return sc[k].name;}).join(', ')+
         '). 나머지 구간은 아바타를 화면에서 완전히 빼고 내레이션과 그래픽으로만 채운다. '+
-        '등장할 때마다 같은 위치·같은 크기로 나와야 하며, 등장과 퇴장은 컷 전환으로 처리한다.'};
+        '등장할 때마다 같은 위치·같은 크기로 나와야 한다.'};
   }
 
   function masterPrompt(){
@@ -622,20 +623,6 @@
     b.push('');
     b.push('# 주제');
     b.push(kw());
-    b.push('');
-    b.push('# 스스로 정할 것');
-    if(msgs.length){
-      b.push('- 핵심 기준은 아래 씬 구성에 이미 지정되어 있습니다. 바꾸지 마세요.');
-    } else {
-      b.push('- 이 주제에서 시청자가 확인해야 할 판단 기준을 정확히 3개로 정하세요.');
-      b.push('  세 기준은 서로 겹치지 않아야 하고, 각각 한 문장으로 요약되어야 합니다.');
-      b.push('  기준마다 시각 근거를 하나씩 정하세요 (비교 표 · 카운트업 · 단계 다이어그램 중 하나).');
-    }
-    if(!cases.length){
-      b.push('- 세 기준이 실제 단지 상황에서 쓰이는 장면을 구체적으로 정하세요.');
-      b.push('  가상의 회사명이나 실존 업체명은 쓰지 마세요.');
-    }
-    b.push('- 확정한 내용을 표로 먼저 보여 주고, 승인을 받은 뒤 영상을 생성하세요.');
     if(multi){
       b.push('');
       b.push('# 이 프롬프트의 범위');
@@ -669,10 +656,10 @@
     var am=audMatch(); if(am) b.push('- 어휘 수준: '+am.vocab);
     b.push('');
     b.push('# 화면 연출');
-    b.push('- 구성: '+FORMATS[st.fmt].v);
+
     b.push('- 자막: '+CAPS[st.cap].v);
     b.push('- 수치 표현: '+DATAV[st.data].v);
-    b.push('- 컷 전환: '+PACE[st.pace].v);
+
     b.push('- 아바타: '+plan.line);
     if(val('avatarId') && AVAS[st.ava].mode!=='none')
       b.push('- 사용할 아바타: '+val('avatarId')+' (다른 아바타로 바꾸지 마세요)');
@@ -684,17 +671,6 @@
     b.push('');
     b.push('# 연출 원칙');
     PRINCIPLES.forEach(function(p){ b.push('- '+p); });
-    b.push('');
-    b.push('# 장면 구성 — 아래 '+ch.length+'개 장면을 순서대로 하나씩 만들어 주세요');
-    b.push('장면을 합치거나 줄이지 마세요. 한 장면이 20초를 넘으면 안 됩니다.');
-    b.push('');
-    ch.forEach(function(s,i){
-      var gi=sc.indexOf(s);
-      var on=plan.idx.indexOf(gi)>=0?'  ← 아바타 등장':'';
-      b.push('장면 '+(i+1)+' ['+(s.from-base)+'~'+(s.to-base)+'초] '+s.name+on);
-      b.push('  화면: '+s.screen);
-      b.push('  내용: '+s.note);
-    });
     var tr=TRADES[st.trade];
     if(tr.grades.length){
       b.push('');
@@ -720,6 +696,31 @@
     } else {
       b.push('- 위에 적힌 값 외에 어떤 숫자나 통계도 새로 만들어 넣지 마세요.');
     }
+    b.push('');
+    b.push('# 스스로 정할 것');
+    if(msgs.length){
+      b.push('- 핵심 기준은 아래 장면 구성에 이미 지정되어 있습니다. 바꾸지 마세요.');
+    } else {
+      b.push('- 이 주제에서 시청자가 확인해야 할 판단 기준을 정확히 3개로 정하세요.');
+      b.push('  세 기준은 서로 겹치지 않아야 하고, 각각 한 문장으로 요약되어야 합니다.');
+      b.push('  기준마다 시각 근거를 하나씩 정하세요 (비교 표 · 카운트업 · 단계 다이어그램 중 하나).');
+    }
+    if(!cases.length){
+      b.push('- 세 기준이 실제 단지 상황에서 쓰이는 장면을 구체적으로 정하세요.');
+      b.push('  가상의 회사명이나 실존 업체명은 쓰지 마세요.');
+    }
+    b.push('- 확정한 내용을 표로 먼저 보여 주고, 승인을 받은 뒤 영상을 생성하세요.');
+    b.push('');
+    b.push('# 장면 구성 — 아래 '+ch.length+'개 장면을 순서대로 하나씩 만들어 주세요');
+    b.push('장면을 합치거나 줄이지 마세요. 한 장면이 20초를 넘으면 안 됩니다.');
+    b.push('');
+    ch.forEach(function(s,i){
+      var gi=sc.indexOf(s);
+      var on=plan.idx.indexOf(gi)>=0?'  ← 아바타 등장':'';
+      b.push('장면 '+(i+1)+' ['+(s.from-base)+'~'+(s.to-base)+'초] '+s.name+on);
+      b.push('  화면: '+s.screen);
+      b.push('  내용: '+s.note);
+    });
     if(ci===chs.length-1){
       var ap=lns('app');
       if(ap.length){

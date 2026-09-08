@@ -1188,7 +1188,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1506,8 +1506,8 @@ const TYPES = {
     fields:[
       { key:'title',  label:'할 일',   type:'text',     required:true, ph:'예: 관리사무소용 영업자료 정비' },
       { key:'status', label:'상태',    type:'select',   options:['예정','진행 중','완료','보류'] },
-      // 계정을 쓸 때는 「맡은 사람」 을 고릅니다. 그 사람과 관리자만 봅니다.
-      { key:'uid',    label:'맡은 사람 (이 사람만 봅니다)', type:'select',
+      // 계정을 쓸 때는 「맡은 사람」 을 고릅니다. 팀원 모두가 서로 봅니다.
+      { key:'uid',    label:'맡은 사람', type:'select',
         options: taskPeople, when: () => authOn(),
         def: () => { const m = authMe(); return m ? m.id : ''; } },
       { key:'owner',  label:'담당자',  type:'text',     ph:'예: 김담당 매니저',
@@ -4844,20 +4844,21 @@ function statusChip(st){
   return st ? '<span class="chip ' + (map[st] || '') + '">' + esc(st) + '</span>' : '';
 }
 
-/* ═══════════════ 할 일은 맡은 사람 것 ═══════════════════════════
-   계정을 쓰면 할 일은 「맡은 사람」 것이 됩니다.
-   팀원 화면에는 자기 것(과 공용)만 옵니다 — 화면에서 숨기는 게 아니라
-   서버(load.php)가 아예 보내지 않습니다. 관리자는 모두 봅니다.
+/* ═══════════════ 할 일을 맡은 사람 ═══════════════════════════════
+   계정을 쓰면 할 일마다 「맡은 사람」 을 정합니다.
+   가리는 용도가 아니라 누가 무엇을 맡았는지 나타내는 표시입니다 —
+   팀원 모두가 서로의 할 일을 봅니다 (2026-09 부터).
    ================================================================= */
 const people = { list:null, at:0, busy:false };
 
-/* 사람 목록 (관리자만 받아올 수 있습니다. 팀원은 자기 자신만 씁니다) */
+/* 팀원 이름 목록 — 할 일을 서로 나눠 맡으려면 모두에게 필요합니다.
+   관리자는 users(권한·마지막 접속까지), 팀원은 people(아이디·이름만)로 받습니다. */
 async function loadPeople(force){
-  if(!authOn() || !isAdmin()) return;
+  if(!authOn()) return;
   if(people.busy || (people.list && !force && Date.now() - people.at < 60000)) return;
   people.busy = true;
   try{
-    const out = await apiJson('auth.php?action=users');
+    const out = await apiJson('auth.php?action=' + (isAdmin() ? 'users' : 'people'));
     people.list = out['사람'] || [];
     people.at = Date.now();
     render();
@@ -4865,18 +4866,20 @@ async function loadPeople(force){
   finally{ people.busy = false; }
 }
 
-/* 창에서 고를 사람 목록 */
+/* 창에서 고를 사람 목록 — 할 일은 팀이 같이 보므로 모두가 서로를 고를 수 있습니다 */
 function taskPeople(){
   const me = authMe();
-  const opts = [{ value:'', label:'— 공용 (모두 봅니다) —' }];
-  if(isAdmin() && people.list){
+  const opts = [{ value:'', label:'— 맡은 사람 없음 (공용) —' }];
+  let listed = false;
+  if(people.list){
     people.list.forEach(u => {
       if(!u['쓸수있음']) return;                      // 퇴사 처리된 사람은 빼고
       opts.push({ value:u.id, label:u['이름'] + (me && u.id === me.id ? ' (나)' : '') });
+      listed = true;
     });
-  }else if(me){
-    opts.push({ value:me.id, label:me['이름'] + ' (나)' });
   }
+  // 아직 사람 목록을 못 받아왔으면 적어도 나는 고를 수 있게 합니다
+  if(!listed && me) opts.push({ value:me.id, label:me['이름'] + ' (나)' });
   return opts;
 }
 
@@ -4902,7 +4905,11 @@ function setTaskWho(v){ taskWho = v; render(); }
 function setTaskBrand(v){ taskBrand = v; render(); }
 function toggleTaskDone(){ taskDone = !taskDone; render(); }
 function openTaskAdd(){ taskAdd = !taskAdd; render(); }
-function addTaskTo(bid){ taskAdd = false; openItemModal('tasks', null, null, bid); }
+function addTaskTo(bid){
+  taskAdd = false;
+  if(authOn()) loadPeople();
+  openItemModal('tasks', null, null, bid);
+}
 
 /* 모든 브랜드의 할 일을 한 줄로 폅니다 */
 function taskAll(){
@@ -5030,7 +5037,7 @@ function taskFilterBar(rows){
       + (taskDone ? '✅ 끝난 일도 보는 중' : '끝난 일 보기') + '</button>'
     + '<span class="hint">'
       + (authOn()
-          ? '「맡은 사람」 을 고르면 그 사람과 관리자에게만 보입니다'
+          ? '「맡은 사람」 을 고르면 사람별로 묶여서 보입니다 (팀원 모두가 서로 봅니다)'
           : '담당자 칸에 이름을 적으면 사람별로 묶여서 보입니다')
       + '</span>'
     + '</div>';
@@ -5039,6 +5046,7 @@ function taskFilterBar(rows){
 }
 
 function renderTasks(){
+  if(authOn()) setTimeout(() => loadPeople(), 10);
   const rows = taskAll();
   const head = '<h2 class="page-h">✅ 할 일</h2>'
     + '<div class="page-sub">브랜드마다 흩어져 있던 할 일을 한 화면에 모았습니다. '

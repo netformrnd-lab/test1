@@ -309,38 +309,9 @@ if ($baseRev !== null && $baseRev !== $curRev) {
     exit;
 }
 
-/* ---- 안 보이는 할 일은 그대로 지켜줍니다 ------------------------
-   팀원 화면에는 다른 사람의 할 일이 아예 오지 않습니다(load.php).
-   그래서 팀원이 저장하면 그 할 일들이 사라진 것처럼 보입니다.
-   저장하기 직전에 서버에 있던 것을 다시 붙여 넣습니다.           */
-$__me = function_exists('guard_user') ? guard_user() : null;
-if ($__me && empty($__me['open']) && empty($__me['admin']) && file_exists($file)) {
-    $prev = json_decode(bh_read_raw($file), true);
-    if (is_array($prev) && !empty($prev['brands']) && is_array($prev['brands'])
-        && isset($data['brands']) && is_array($data['brands'])) {
-        $mine = (string)($__me['id'] ?? '');
-        $hidden = [];                       // 브랜드id => 안 보이던 할 일들
-        foreach ($prev['brands'] as $pb) {
-            $bid = (string)($pb['id'] ?? '');
-            if ($bid === '' || empty($pb['tasks']) || !is_array($pb['tasks'])) continue;
-            foreach ($pb['tasks'] as $t) {
-                $u = isset($t['uid']) ? (string)$t['uid'] : '';
-                if ($u !== '' && $u !== $mine) $hidden[$bid][] = $t;
-            }
-        }
-        foreach ($data['brands'] as &$nb) {
-            $bid = (string)($nb['id'] ?? '');
-            if ($bid === '' || empty($hidden[$bid])) continue;
-            if (!isset($nb['tasks']) || !is_array($nb['tasks'])) $nb['tasks'] = [];
-            $have = [];
-            foreach ($nb['tasks'] as $t) if (isset($t['id'])) $have[(string)$t['id']] = true;
-            foreach ($hidden[$bid] as $t) {
-                if (!isset($have[(string)($t['id'] ?? '')])) $nb['tasks'][] = $t;
-            }
-        }
-        unset($nb);
-    }
-}
+/* 할 일은 이제 팀이 같이 봅니다(guard.php).
+   화면에 안 오던 할 일을 저장 직전에 다시 붙여 넣던 일은 필요 없어졌습니다.
+   오히려 팀원이 지운 할 일이 되살아나므로 없앴습니다.                     */
 
 // 하루 1회 백업 (백업도 주소로 열리지 않게 .php 로 둡니다)
 $backup = $dir . '/backup-' . date('Y-m-d') . '.php';

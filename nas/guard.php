@@ -183,21 +183,16 @@ function bh_secure($plain, $shielded) {
     return $done[$k] = $shielded;
 }
 
-/** 할 일은 맡은 사람만 봅니다 — 팀원에게 보낼 자료에서 남의 할 일을 뺍니다.
- *  관리자와, 계정을 아직 안 쓰는 경우에는 그대로 둡니다. */
+/** 할 일은 팀이 같이 봅니다.
+ *
+ *  예전에는 「맡은 사람」 을 지정하면 그 사람과 관리자만 봤습니다. 그런데
+ *  업무 화면의 뜻이 「누가 무엇을 맡고 있나」 를 서로 보는 것이라, 2026-09
+ *  부터는 팀원 모두가 서로의 할 일을 봅니다.
+ *
+ *  부르는 곳(load.php · save.php)을 그대로 두려고 함수는 남겨둡니다.
+ *  다시 가리기로 하면 여기 한 곳만 되돌리면 됩니다.
+ */
 function guard_hide_tasks($d) {
-    $me = guard_user();
-    if (!$me || !empty($me['open']) || !empty($me['admin'])) return $d;
-    if (!is_array($d) || empty($d['brands']) || !is_array($d['brands'])) return $d;
-    $mine = (string)($me['id'] ?? '');
-    foreach ($d['brands'] as &$b) {
-        if (empty($b['tasks']) || !is_array($b['tasks'])) continue;
-        $b['tasks'] = array_values(array_filter($b['tasks'], function ($t) use ($mine) {
-            $u = isset($t['uid']) ? (string)$t['uid'] : '';
-            return $u === '' || $u === $mine;          // 공용이거나 내 것
-        }));
-    }
-    unset($b);
     return $d;
 }
 

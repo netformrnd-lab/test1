@@ -308,6 +308,21 @@ if ($action === 'passwd') {
 }
 
 /* ---------------- 사람 목록 ---------------- */
+/* ---------------- 이름만 담은 팀원 목록 ----------------
+   할 일을 서로 나눠 맡으려면 팀원 이름이 필요합니다.
+   여기서는 아이디와 이름만 나갑니다 (마지막 접속 시각·권한은 빼고).
+   ------------------------------------------------------ */
+if ($action === 'people') {
+    if (!$me) jout(['ok' => false, 'error' => '로그인이 필요합니다', '로그인필요' => true], 401);
+    $out = [];
+    foreach ($users as $u) {
+        if (empty($u['active'])) continue;                 // 그만둔 사람은 빼고
+        $out[] = ['id' => $u['id'], '이름' => $u['name'] ?? $u['id'], '쓸수있음' => true];
+    }
+    usort($out, function ($a, $b2) { return strcmp($a['id'], $b2['id']); });
+    jout(['ok' => true, '사람' => $out]);
+}
+
 if ($action === 'users') {
     need_admin($me);
     $out = array_map('pub_user', $users);

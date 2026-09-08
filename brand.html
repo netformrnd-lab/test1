@@ -1424,7 +1424,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5972,7 +5972,9 @@ function taskSort(rows){
 }
 
 function taskDueChip(t){
-  if(!t.due || t.status === '완료') return '';
+  if(t.status === '완료') return '';
+  if(!t.due) return '<span class="chip" style="opacity:.7" '
+    + 'title="기한을 넣으면 📅 달력에도 그 날짜에 나옵니다">📅 기한 없음</span>';
   const days = Math.round((new Date(t.due) - new Date(todayStr())) / 86400000);
   const label = fmtDate(t.due);
   if(days < 0)  return '<span class="chip off">지남 · ' + esc(label) + '</span>';
@@ -6061,6 +6063,7 @@ function taskFilterBar(rows){
       + '</div>'
     : '';
 
+  const noDue = rows.filter(r => r.t.status !== '완료' && !r.t.due).length;
   const tools = '<div class="sec-bar" style="margin:0 0 8px">'
     + (taskBrand
         ? '<button class="btn primary" onclick="addTaskTo(\'' + jsq(taskBrand) + '\')">＋ 할 일 추가</button>'
@@ -6068,9 +6071,12 @@ function taskFilterBar(rows){
     + '<button class="btn sm' + (taskDone ? ' primary' : '') + '" onclick="toggleTaskDone()">'
       + (taskDone ? '✅ 끝난 일도 보는 중' : '끝난 일 보기') + '</button>'
     + '<span class="hint">'
-      + (authOn()
-          ? '「맡은 사람」 을 고르면 사람별로 묶여서 보입니다 (팀원 모두가 서로 봅니다)'
-          : '담당자 칸에 이름을 적으면 사람별로 묶여서 보입니다')
+      + (noDue
+          ? '📅 기한이 없는 할 일 ' + noDue + '건은 달력에 나오지 않습니다 — '
+            + '고쳐서 기한을 넣어주세요'
+          : (authOn()
+              ? '「맡은 사람」 을 고르면 사람별로 묶여서 보입니다 (팀원 모두가 서로 봅니다)'
+              : '담당자 칸에 이름을 적으면 사람별로 묶여서 보입니다'))
       + '</span>'
     + '</div>';
 
@@ -9118,8 +9124,16 @@ function renderCalendar(){
       + '<button class="btn sm' + (calTasks ? ' primary' : '') + '" onclick="toggleCalTasks()" '
         + 'title="브랜드 할 일의 기한을 달력에 함께 보여줍니다">'
         + (calTasks ? '✅ 할 일 보이는 중' : '할 일 보기') + '</button>'
-      + '<span class="hint">빈 칸을 두 번 누르면 그 날짜로 넣습니다 · '
-        + '일정을 누르면 날짜까지 고칠 수 있습니다</span>'
+      + (function(){
+          const n = data.brands.reduce((a, b) => a + (b.tasks || [])
+            .filter(t => t.status !== '완료' && !t.due).length, 0);
+          return n && calTasks
+            ? '<span class="hint">📅 기한이 없는 할 일 ' + n + '건은 여기 안 나옵니다 — '
+              + '<button class="btn sm" onclick="goView(\'tasks\')">✅ 할 일에서 기한 넣기</button>'
+              + '</span>'
+            : '<span class="hint">빈 칸을 두 번 누르면 그 날짜로 넣습니다 · '
+              + '일정을 누르면 날짜까지 고칠 수 있습니다</span>';
+        })()
     + '</div>'
     + '<div class="vz-legend" style="margin-bottom:10px">' + legend + '</div>'
     + wcalBar()

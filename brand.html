@@ -602,6 +602,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .tidy-mid{flex:1;min-width:0}
 .tidy-nm{font-size:13.5px;font-weight:600;color:var(--text-primary);
   word-break:break-all;line-height:1.45;letter-spacing:-.014em}
+.tidysel{max-width:280px;font-size:12px;padding:5px 8px;border-radius:var(--r-sm);
+  border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)}
 
 /* ---------- 문서 내용 ---------- */
 .doc-snip{font-size:12.5px;line-height:1.75;color:var(--text-secondary);
@@ -1104,6 +1106,11 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="em">📅</span><span>달력</span>
         <span class="cnt" id="calCnt"></span>
       </button>
+      <button class="brand-item home-item" id="taskBtn" onclick="goView('tasks')">
+        <span class="bar" style="background:var(--green)"></span>
+        <span class="em">✅</span><span>할 일</span>
+        <span class="cnt" id="taskCnt"></span>
+      </button>
       <button class="brand-item home-item" id="costBtn" onclick="goView('costs')">
         <span class="bar" style="background:var(--red)"></span>
         <span class="em">💳</span><span>마케팅 비용</span>
@@ -1181,7 +1188,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260907-17';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -1534,6 +1541,8 @@ function itemCount(b){
   return ITEM_KEYS.reduce((a, k) => a + ((b[k] || []).length), 0) + ((b.tools || []).length);
 }
 const TAB_KEYS  = ['inquiries','automations','history','tasks','links','channels','assets','book','prompt'];
+/* 없어진 탭 → 지금 있는 탭 (합치기 전 주소로 들어와도 길을 잃지 않게) */
+const TAB_MOVED = { history:'book', prompt:'book', links:'automations' };
 
 let data = defaultData();      // init() 에서 normalize 를 한 번 더 거칩니다
 let currentBrandId = null;
@@ -1775,7 +1784,7 @@ function render(){
   const nas  = document.getElementById('nasBtn');
   if(home) home.classList.toggle('on', view === 'home' && !searchQuery && !currentBrandId);
   if(nas)  nas.classList.toggle('on',  view === 'nas'  && !searchQuery);
-  [['meetBtn','meetings'],['calBtn','calendar'],['costBtn','costs'],
+  [['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],['costBtn','costs'],
    ['blogBtn','blog'],['trashBtn','trash']].forEach(([id, v]) => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('on', view === v && !searchQuery);
@@ -1784,6 +1793,9 @@ function render(){
   if(mc) mc.textContent = (data.meetings || []).length || '';
   const cc = document.getElementById('calCnt');
   if(cc) cc.textContent = (data.events || []).length || '';
+  const kc = document.getElementById('taskCnt');
+  if(kc) kc.textContent = data.brands.reduce((a, b) =>
+    a + (b.tasks || []).filter(t => t.status !== '완료').length, 0) || '';
   const sc = document.getElementById('costCnt');
   if(sc) sc.textContent = data.brands.reduce((a, b) => a + (b.costs || []).length, 0) || '';
   const bc = document.getElementById('blogCnt');
@@ -1797,6 +1809,7 @@ function render(){
   else if(view === 'nas') renderNas();
   else if(view === 'meetings') renderMeetings();
   else if(view === 'calendar') renderCalendar();
+  else if(view === 'tasks') renderTasks();
   else if(view === 'costs') renderCosts();
   else if(view === 'blog') renderBlog();
   else if(view === 'trash') renderTrash();
@@ -2095,24 +2108,6 @@ async function copyNasPath(i){
     await navigator.clipboard.writeText(win);
     toast('📋 경로를 복사했습니다 — 탐색기 주소창에 붙여넣으세요');
   }catch(e){ prompt('아래 경로를 복사해 탐색기 주소창에 붙여넣으세요', win); }
-}
-
-function linkNasDir(i){
-  const f = nasState.res.results[i];
-  if(!data.brands.length){ toast('⚠️ 브랜드가 없습니다'); return; }
-  const names = data.brands.map((b, n) => (n + 1) + '. ' + b.name).join('\n');
-  const pick = prompt('이 폴더를 어느 브랜드에 연결할까요?\n\n' + names
-    + '\n\n폴더: ' + f.dir + '\n\n번호를 입력하세요', '1');
-  if(pick === null) return;
-  const idx = parseInt(pick, 10) - 1;
-  const b = data.brands[idx];
-  if(!b){ toast('⚠️ 번호가 올바르지 않습니다'); return; }
-
-  b.nasFolders = b.nasFolders || [];
-  if(b.nasFolders.some(x => x.path === f.dir)){ toast('이미 연결된 폴더입니다'); return; }
-  b.nasFolders.push({ id: uid('nf'), path: f.dir, label: f.dir.split('/').pop(), q: '' });
-  markDirty();
-  toast('📂 "' + b.name + '" 자료에 연결했습니다');
 }
 
 async function copyNasDir(i){
@@ -2810,12 +2805,32 @@ function docView(){
    한 폴더에 쌓인 파일을, 옆 폴더들로 하나씩 넣습니다.
    사진이면 그림을 보면서 고를 수 있습니다.
    ============================================= */
-const tidy = { from:null, to:null, files:null, targets:null,
+const tidy = { from:null, to:null, files:null, targets:null, deep:true, init:false,
                loading:false, error:null, pick:null, done:[], busy:null };
 
-function openTidy(){
-  nasState.mode = 'tidy';
+/* 공유폴더 목록 (「전체」 화면에서 같이 옵니다). 아직 없으면 한 번 불러옵니다. */
+function nasRootsList(){
+  const c = browseCache[''];
+  if(!c){ setTimeout(() => loadBrowse(''), 10); return null; }
+  if(c.loading) return null;
+  return c.roots || [];
+}
+
+/* 정리를 하는 곳 — 「01. 브랜드마케팅팀」 폴더가 기본입니다 */
+function tidyRoot(){
+  const rs = nasRootsList();
+  if(rs === null) return null;                 // 아직 못 받았습니다
+  if(!rs.length) return '';
+  const hit = rs.find(r => /브랜드\s*마케팅\s*팀/.test(r.name))
+           || rs.find(r => /^0*1[.\s]/.test(r.name));
+  return (hit || rs[0]).path;
+}
+
+function toggleTidyDeep(){
+  tidy.deep = !tidy.deep;
+  tidy.targets = null;
   render();
+  tidyLoad();
 }
 
 function tidyPick(which){
@@ -2857,15 +2872,23 @@ async function tidyLoad(){
       tidy.files = a.files || [];
     }
     if(tidy.to && !tidy.targets){
-      const b = await apiJson('nasfiles.php?action=browse&lim=50&dir=' + encodeURIComponent(tidy.to));
+      // 깊이 2 면 하위의 하위 폴더까지 나옵니다 — 큰 폴더가 아니라 세부 폴더로 바로 넣습니다
+      const b = await apiJson('nasfiles.php?action=dirtree&depth=' + (tidy.deep ? 2 : 1)
+        + '&dir=' + encodeURIComponent(tidy.to));
       // 정리할 폴더 자신은 옮길 곳에서 뺍니다
       tidy.targets = (b.folders || []).filter(f => f.path !== tidy.from);
+      tidy.cut = !!b['잘림'];
     }
   }catch(e){ tidy.error = apiErrText(e); }
   tidy.loading = false; render();
 }
 
 /* 파일 이름과 폴더 이름이 얼마나 겹치는지 봐서 알맞은 폴더를 먼저 보여줍니다 */
+/* 화면에 보일 폴더 이름 — 하위 폴더는 「부모 › 자식」 으로 보여줍니다 */
+function tidyLabel(t){
+  return t.rel ? t.rel.replace(/\//g, ' › ') : t.name;
+}
+
 function tidySuggest(fileName){
   if(!tidy.targets) return [];
   const n = normKey(fileName.replace(/\.[^.]+$/, ''));
@@ -2885,6 +2908,13 @@ function tidySuggest(fileName){
     return { t:t, score:score };
   }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
   return scored.slice(0, 3).map(x => x.t);
+}
+
+/* 고르는 칸에서 폴더를 골랐을 때 */
+function tidyMoveSel(sel, path, name){
+  const dest = sel.value;
+  sel.value = '';
+  if(dest) tidyMove(path, dest, name);
 }
 
 async function tidyMove(path, dest, name){
@@ -2910,6 +2940,14 @@ async function tidyMove(path, dest, name){
 }
 
 function tidyView(){
+  // 처음 열면 「01. 브랜드마케팅팀」 폴더를 미리 잡아둡니다 (여기서 정리합니다)
+  if(!tidy.init && !tidy.from && !tidy.to){
+    const r = tidyRoot();
+    if(r === null) return '<div class="fmeta">공유폴더를 확인하는 중…</div>';
+    if(r){ tidy.init = true; tidy.from = r; tidy.to = r; setTimeout(tidyLoad, 10); }
+    else tidy.init = true;
+  }
+
   const pathBar = (label, val, which) =>
     '<div class="krow" style="align-items:center;padding:7px 0">'
     + '<span style="flex:0 0 110px;font-weight:700;color:var(--text-primary)">' + label + '</span>'
@@ -2922,8 +2960,18 @@ function tidyView(){
     + '<div class="mh">🧹 어디에서 어디로</div>'
     + pathBar('정리할 폴더', tidy.from, 'from')
     + pathBar('옮길 곳', tidy.to, 'to')
+    + '<div class="sec-bar" style="margin:8px 0 0">'
+      + '<button class="btn sm' + (tidy.deep ? ' primary' : '') + '" onclick="toggleTidyDeep()">'
+        + (tidy.deep ? '📂 하위의 하위 폴더까지 (세부 정리)' : '📁 바로 아래 폴더만') + '</button>'
+      + '<span class="hint">'
+        + (tidy.deep
+            ? '「제품자료 › 카탈로그」 처럼 안쪽 폴더로 바로 넣을 수 있습니다'
+            : '큰 폴더로만 나눕니다')
+      + '</span>'
+    + '</div>'
     + '<div class="fmeta" style="margin-top:6px">'
-      + '"옮길 곳" 안에 들어 있는 폴더들이 아래 버튼으로 나옵니다. 누르면 그리로 옮겨집니다.</div>'
+      + '"옮길 곳" 안에 들어 있는 폴더들이 아래 버튼으로 나옵니다. 누르면 그리로 옮겨집니다.'
+      + (tidy.cut ? ' (폴더가 아주 많아 일부만 보여드립니다)' : '') + '</div>'
     + '</div>';
 
   let picker = '';
@@ -2972,8 +3020,21 @@ function tidyView(){
     const sugP = sug.map(t => t.path);
     const rest = (tidy.targets || []).filter(t => sugP.indexOf(t.path) < 0);
     const btn  = (t, star) => '<button class="btn sm' + (star ? ' primary' : '') + '" '
-      + 'onclick="tidyMove(\'' + jsq(f.path) + '\',\'' + jsq(t.path) + '\',\'' + jsq(f.name) + '\')">'
-      + (star ? '⭐ ' : '') + esc(t.name) + '</button>';
+      + 'onclick="tidyMove(\'' + jsq(f.path) + '\',\'' + jsq(t.path) + '\',\'' + jsq(f.name) + '\')" '
+      + 'title="' + esc(tidyLabel(t)) + '">'
+      + (star ? '⭐ ' : '') + esc(tidyLabel(t)) + '</button>';
+    // 폴더가 많으면 버튼이 화면을 덮으므로, 추천 말고는 고르는 칸에 넣습니다
+    const restBox = rest.length
+      ? (rest.length <= 6
+          ? rest.map(t => btn(t, false)).join('')
+          : '<select class="tidysel" onchange="tidyMoveSel(this,\'' + jsq(f.path) + '\',\''
+            + jsq(f.name) + '\')">'
+            + '<option value="">📂 다른 폴더로… (' + rest.length + '곳)</option>'
+            + rest.map(t => '<option value="' + esc(t.path) + '">'
+                + esc('　'.repeat(Math.max(0, (t.depth || 1) - 1)) + tidyLabel(t))
+                + (t.files ? ' · ' + t.files + '개' : '') + '</option>').join('')
+            + '</select>')
+      : '';
 
     return '<div class="tidyrow' + (tidy.busy === f.path ? ' busy' : '') + '">'
       + (f.img
@@ -2985,7 +3046,7 @@ function tidyView(){
         + '<div class="fmeta">' + esc(f.size) + ' · ' + esc(f.date) + '</div>'
         + '<div class="row" style="margin-top:7px">'
           + sug.map(t => btn(t, true)).join('')
-          + rest.map(t => btn(t, false)).join('')
+          + restBox
           + (!(tidy.targets || []).length
               ? '<span class="fmeta">"옮길 곳" 안에 폴더가 없습니다</span>' : '')
         + '</div>'
@@ -3312,9 +3373,20 @@ function crumbHtml(navKey, out, rootOverride){
   rel = rel.replace(/^\//, '');
   const parts = rel ? rel.split('/') : [];
 
-  const bits = ['<button class="crumb' + (parts.length ? '' : ' on') + '"'
-    + (parts.length ? ' onclick="gotoFolder(\'' + jsq(navKey) + '\',\'' + jsq(root) + '\')"' : '')
-    + '>🏠 ' + esc(root.split('/').pop() || '전체') + '</button>'];
+  const bits = [];
+  // 공유폴더가 여럿이면 맨 앞에 「전체」 를 둡니다 — 두 폴더를 한 자리에서 오갑니다
+  const many = (out.roots || []).length > 1;
+  if(many){
+    bits.push('<button class="crumb' + (root ? '' : ' on') + '"'
+      + (root ? ' onclick="gotoFolder(\'' + jsq(navKey) + '\',\'\')"' : '')
+      + '>🗂 전체</button>');
+    if(root) bits.push('<span class="crumbsep">›</span>');
+  }
+  if(root || !many){
+    bits.push('<button class="crumb' + (parts.length ? '' : ' on') + '"'
+      + (parts.length ? ' onclick="gotoFolder(\'' + jsq(navKey) + '\',\'' + jsq(root) + '\')"' : '')
+      + '>' + (many ? '📂 ' : '🏠 ') + esc(root.split('/').pop() || '전체') + '</button>');
+  }
 
   let acc = root;
   parts.forEach((seg, i) => {
@@ -3425,7 +3497,6 @@ async function scanLoop(){
     render();
   }
   if(scanRun && scanRun.done){
-    treeCache = null;
     browseCache2Clear();
     await nasCheck();
     toast('✅ 목록을 다 만들었습니다 — ' + scanRun['찾은파일'].toLocaleString('ko-KR') + '개');
@@ -3475,23 +3546,7 @@ function scanPanel(){
     + '</div>';
 }
 
-/* ================= 브랜드 ↔ 폴더 자동 연결 =================
-   폴더 이름과 브랜드 이름을 맞춰봐서, 손으로 지정하지 않아도
-   각 브랜드 자료 탭에 알맞은 NAS 폴더가 저절로 뜨게 합니다.
-   ============================================================ */
-let treeCache = null;   // null=아직 | {loading} | {error} | 서버응답
-
-async function loadTree(){
-  treeCache = { loading:true };
-  try{
-    treeCache = await apiJson('nasfiles.php?action=tree&depth=4');
-  }catch(e){
-    treeCache = { error: apiErrText(e) };
-  }
-  redraw();
-}
-
-/* 이름을 비교하기 좋게 다듬습니다.
+/* 이름을 비교하기 좋게 다듬습니다 (파일 정리에서 폴더를 추천할 때 씁니다).
    "00. 브랜드 공유폴더" → "브랜드공유폴더", "POUR 솔루션" → "솔루션" */
 function normKey(s){
   return String(s).toLowerCase()
@@ -3500,69 +3555,6 @@ function normKey(s){
     .replace(/^[_\-.\s]+/, '')
     .replace(/pour/g, '')
     .replace(/[\s_\-.()\[\]·]/g, '');
-}
-
-function nameMatches(brandName, folderName){
-  const a = normKey(brandName), b = normKey(folderName);
-  if(a.length < 2 || b.length < 2) return false;
-  return a === b || a.includes(b) || b.includes(a);
-}
-
-/* 이 브랜드에 해당하는 폴더들을 자동으로 골라냅니다.
-   - 얕은 폴더를 우선하고, 이미 고른 폴더의 하위는 다시 넣지 않습니다
-   - 손으로 연결했거나 숨긴 폴더는 뺍니다 */
-function autoFoldersFor(b){
-  const t = treeCache;
-  if(!t || !t.folders) return [];
-  const hidden = b.nasHidden || [];
-  const manual = (b.nasFolders || []).map(x => x.path);
-
-  const hits = t.folders.filter(f => nameMatches(b.name, f.name)
-    && hidden.indexOf(f.path) < 0 && manual.indexOf(f.path) < 0);
-  if(!hits.length) return [];
-
-  // 같은 이름이 여러 단계에 흩어져 있으면, 가장 위쪽 단계만 씁니다.
-  // (POUR공법_시방서, POUR공법_카달로그 … 같은 하위 폴더가 수십 개 걸리는 것을 막습니다)
-  const minDepth = Math.min.apply(null, hits.map(f => f.depth));
-
-  const out = [];
-  hits.filter(f => f.depth === minDepth)
-      .sort((x, y) => (y.count || 0) - (x.count || 0))
-      .forEach(f => {
-        if(out.some(o => f.path.indexOf(o.path + '/') === 0)) return;
-        out.push(f);
-      });
-  return out;
-}
-
-/* 어느 폴더가 어느 브랜드에도 안 붙었는지 */
-function unmatchedFolders(){
-  const t = treeCache;
-  if(!t || !t.folders) return [];
-  const taken = {};
-  data.brands.forEach(b => autoFoldersFor(b).forEach(f => { taken[f.path] = 1; }));
-  data.brands.forEach(b => (b.nasFolders || []).forEach(f => { taken[f.path] = 1; }));
-  return t.folders.filter(f => f.depth === 1 && !taken[f.path]);
-}
-
-function hideAutoFolder(path){
-  const b = currentBrand();
-  if(!b) return;
-  if(!confirm('이 폴더를 "' + b.name + '" 자료에서 숨길까요?\n\n'
-    + 'NAS의 실제 파일은 그대로 남습니다.\n\n' + path)) return;
-  b.nasHidden = b.nasHidden || [];
-  b.nasHidden.push(path);
-  markDirty();
-  redraw();
-}
-
-function unhideAll(){
-  const b = currentBrand();
-  if(!b || !(b.nasHidden || []).length) return;
-  b.nasHidden = [];
-  markDirty();
-  redraw();
-  toast('숨긴 폴더를 다시 보여줍니다');
 }
 
 /* 폴더 하나를 화면에 그립니다.
@@ -3577,11 +3569,13 @@ function folderBrowserHtml(navKey, startDir, opts){
   if(c.loading) return '<div class="fmeta">불러오는 중…</div>';
   if(c.error)   return '<div class="fmeta">⚠️ ' + esc(c.error) + '</div>';
 
-  const canUp = c.parent && (!startDir || c.dir !== startDir);
+  // parent 가 '' 이면 「전체」 화면(공유폴더 두 개가 나란히 보이는 곳)입니다
+  const canUp = c.parent !== null && c.parent !== undefined && (!startDir || c.dir !== startDir);
   const tools = '<div class="sec-bar" style="margin:0 0 10px">'
     + (canUp
         ? '<button class="btn sm" onclick="gotoFolder(\'' + jsq(navKey) + '\',\''
-          + jsq(c.parent) + '\')">⬆ 상위 폴더</button>' : '')
+          + jsq(c.parent) + '\')">'
+          + (c.parent === '' ? '⬆ 공유폴더 전체' : '⬆ 상위 폴더') + '</button>' : '')
     + '<button class="btn sm" onclick="reloadFolder(\'' + jsq(navKey) + '\',\''
       + jsq(startDir || '') + '\')">↻ 새로고침</button>'
     + '<button class="btn sm" onclick="copyDirPath(\'' + jsq(navKey) + '\',\''
@@ -3592,9 +3586,6 @@ function folderBrowserHtml(navKey, startDir, opts){
       + jsq(startDir || '') + '\')" title="이 폴더에 파일을 올립니다">⬆ 여기에 올리기</button>'
     + '<button class="btn sm" onclick="openTrash()" '
       + 'title="지운 것을 보고 되돌립니다">🗑 휴지통</button>'
-    + (opts.link
-        ? '<button class="btn sm" onclick="linkCurrentDir(\'' + jsq(navKey) + '\',\''
-          + jsq(startDir || '') + '\')">＋ 브랜드에 연결</button>' : '')
     + '<span class="hint">이 폴더 ' + (c.fileCount || 0).toLocaleString('ko-KR') + '개'
       + ' · 아래 전체 ' + (c.total || 0).toLocaleString('ko-KR') + '개</span>'
     + '</div>';
@@ -3709,23 +3700,6 @@ async function copyDirPath(navKey, startDir){
   }catch(e){ prompt('아래 폴더 경로를 복사해 탐색기 주소창에 붙여넣으세요', win); }
 }
 
-function linkCurrentDir(navKey, startDir){
-  const dir = currentDirOf(navKey, startDir);
-  if(!data.brands.length){ toast('⚠️ 브랜드가 없습니다'); return; }
-  const names = data.brands.map((b, n) => (n + 1) + '. ' + b.name).join('\n');
-  const pick = prompt('지금 보고 있는 폴더를 어느 브랜드에 연결할까요?\n\n' + names
-    + '\n\n폴더: ' + dir + '\n\n번호를 입력하세요', '1');
-  if(pick === null) return;
-  const b = data.brands[parseInt(pick, 10) - 1];
-  if(!b){ toast('⚠️ 번호가 올바르지 않습니다'); return; }
-
-  b.nasFolders = b.nasFolders || [];
-  if(b.nasFolders.some(x => x.path === dir)){ toast('이미 연결된 폴더입니다'); return; }
-  b.nasFolders.push({ id: uid('nf'), path: dir, label: dir.split('/').pop(), q: '' });
-  markDirty();
-  toast('📂 "' + b.name + '" 자료에 연결했습니다');
-}
-
 /* 훑을 폴더(목록을 만들 최상위 폴더)를 바꿉니다.
    Y:\... , \\netformrnd\... , /volume1/... 아무 형태나 받습니다. */
 async function setScanRoot(){
@@ -3735,6 +3709,7 @@ async function setScanRoot(){
     '파일 목록을 만들 최상위 폴더를 넣어주세요.\n\n'
     + '탐색기 주소창에서 복사한 그대로 붙여넣으셔도 됩니다.\n'
     + '예) Y:\\넷폼알앤디 공유폴더\\마케팅 공유폴더 외장하드 백업\\00. 브랜드 공유폴더\n\n'
+    + '「올린 파일 폴더」(01. 브랜드마케팅팀) 는 여기 적지 않아도 함께 훑습니다.\n'
     + '바꾼 뒤에는 NAS 작업 스케줄러에서 scan.sh 를 한 번 더 실행해 주세요.', now);
   if(v === null) return;
   if(!v.trim()){ toast('⚠️ 폴더 경로를 넣어주세요'); return; }
@@ -3759,9 +3734,14 @@ function renderNas(){
     ? new Date(info['만든시각']).toLocaleString('ko-KR', { dateStyle:'medium', timeStyle:'short' })
     : null;
 
+  const rootNames = (nasRootsList() || []).map(r => r.name);
   const head = '<h2 class="page-h">🗂️ NAS 자료</h2>'
     + '<div style="font-size:13px;color:var(--text-muted);margin-bottom:18px">'
-      + '공유폴더를 정리된 그대로 열어봅니다. 파일은 옮기지 않고 있는 자리에서 바로 내려받습니다.</div>';
+      + '공유폴더를 브랜드로 나누지 않고 한 곳에서 함께 봅니다. '
+      + '파일은 옮기지 않고 있는 자리에서 바로 내려받습니다.'
+      + (rootNames.length > 1
+          ? '<br>지금 보고 있는 공유폴더 — ' + esc(rootNames.join(' · ')) : '')
+      + '</div>';
 
   if(!info || !info.ok){
     document.getElementById('main').innerHTML = '<div class="panel"><div class="tabbody">'
@@ -3797,7 +3777,7 @@ function renderNas(){
     + '<span class="hint">'
       + (info['파일수'] || 0).toLocaleString('ko-KR') + '개 파일 · 목록 만든 시각 '
       + esc(when || '-')
-      + (info['훑은폴더'] ? ' · ' + esc(info['훑은폴더']) : '')
+      + ' · 「찾기」 는 이 목록에서 찾습니다'
       + '</span>'
     + '</div>';
 
@@ -3807,8 +3787,7 @@ function renderNas(){
   }else if(mode === 'tidy'){
     body = tidyView();
   }else if(mode === 'browse'){
-    body = pickerPanel() + scanPanel() + autoMatchPanel()
-           + folderBrowserHtml('nas', '', { link:true });
+    body = pickerPanel() + scanPanel() + folderBrowserHtml('nas', '');
   }else{
     const bar = '<div class="sec-bar">'
       + '<span class="searchbox" style="flex:1 1 320px"><span class="ico">🔍</span>'
@@ -3848,7 +3827,6 @@ function renderNas(){
               + '<a class="btn sm" href="nasfiles.php?action=download&path='
                 + encodeURIComponent(f.path) + '">⬇ 다운로드</a>'
               + '<button class="btn sm" onclick="openInBrowser(' + i + ')">📁 이 폴더 열기</button>'
-              + '<button class="btn sm" onclick="linkNasDir(' + i + ')">＋ 브랜드에 연결</button>'
               + '<button class="btn sm" onclick="copyNasPath(' + i + ')">📋 경로</button>'
             + '</div></div>').join('')
         + '</div>';
@@ -3863,59 +3841,6 @@ function renderNas(){
     const el = document.getElementById('nasQ');
     if(el && nasState.focusSearch){ nasState.focusSearch = false; el.focus(); }
   }
-}
-
-/* 어느 폴더가 어느 브랜드로 자동 연결됐는지 보여줍니다.
-   기본은 접어두고, 눌렀을 때만 펼칩니다. */
-let matchOpen = false;
-
-function toggleMatchPanel(){ matchOpen = !matchOpen; render(); }
-
-function autoMatchPanel(){
-  if(treeCache === null){ setTimeout(loadTree, 10); return ''; }
-  if(treeCache.loading) return '<div class="fmeta" style="margin-bottom:12px">브랜드 연결을 맞춰보는 중…</div>';
-  if(treeCache.error)   return '';
-
-  const per = data.brands.map(b => ({ b:b, auto:autoFoldersFor(b), man:(b.nasFolders || []) }));
-  const linked  = per.filter(x => x.auto.length + x.man.length > 0).length;
-  const missing = per.filter(x => x.auto.length + x.man.length === 0).map(x => x.b.name);
-
-  const head = '<button class="fhead" onclick="toggleMatchPanel()" '
-      + 'style="border-radius:12px">'
-    + '<span class="fh-ar">' + (matchOpen ? '▾' : '▸') + '</span>'
-    + '<span class="fh-ic">🪄</span>'
-    + '<span class="fh-nm">브랜드 자동 연결</span>'
-    + '<span class="fh-ct">' + linked + ' / ' + data.brands.length + ' 브랜드 연결됨'
-      + (missing.length ? ' · 없음: ' + esc(missing.join(', ')) : '') + '</span>'
-    + '</button>';
-
-  if(!matchOpen) return '<div class="flist" style="margin-bottom:16px">' + head + '</div>';
-
-  const rows = per.map(x => {
-    const all = x.auto.map(f => ({ name:f.name, count:f.count, auto:true }))
-      .concat(x.man.map(f => ({ name:(f.label || f.path.split('/').pop()), count:null, auto:false })));
-    return '<div class="krow" style="align-items:flex-start;padding:8px 14px">'
-      + '<span style="flex:0 0 130px"><b style="color:var(--text-primary)">'
-        + esc(x.b.icon || '') + ' ' + esc(x.b.name) + '</b></span>'
-      + '<span style="flex:1;min-width:0;text-align:right">'
-        + (all.length
-            ? all.map(v => '<span class="chip' + (v.auto ? ' on' : '') + '" '
-                + 'style="margin:2px 0 2px 4px">' + (v.auto ? '🪄 ' : '📂 ') + esc(v.name)
-                + (v.count !== null ? ' · ' + v.count.toLocaleString('ko-KR') + '개' : '')
-                + '</span>').join('')
-            : '<span class="fmeta">맞는 폴더 없음</span>')
-      + '</span></div>';
-  }).join('');
-
-  const un = unmatchedFolders();
-  const unHtml = un.length
-    ? '<div class="fmeta" style="padding:8px 14px 12px">어느 브랜드에도 안 붙은 폴더 '
-      + un.length + '개 — ' + esc(un.slice(0, 12).map(f => f.name).join(' · '))
-      + (un.length > 12 ? ' …' : '') + '</div>'
-    : '';
-
-  return '<div class="flist" style="margin-bottom:16px">' + head
-    + '<div style="border-top:1px solid var(--border)">' + rows + unHtml + '</div></div>';
 }
 
 function setNasMode(m){
@@ -3990,26 +3915,23 @@ function renderBrand(){
     return;
   }
   const counts = {
-    automations: autoCount(b),
-    history: b.history.length + (b.record ? 1 : 0),
+    // 자동화 · 바로가기는 한 탭에서 같이 봅니다
+    automations: autoCount(b) + (b.links || []).length,
     assets: b.assets.length,
-    tasks: b.tasks.filter(t => t.status !== '완료').length,
-    links: b.links.length,
     channels: (b.channels || []).length,
     inquiries: (inquiryCache.byBrand[b.name] || []).length,
-    book: bookFilled(b) + ((b.masterPrompt || '').trim() ? 1 : 0),
+    // 브랜드북 · 히스토리도 한 탭입니다
+    book: bookFilled(b) + ((b.masterPrompt || '').trim() ? 1 : 0)
+        + (b.history || []).length + (b.record ? 1 : 0),
     blog: blog.loaded ? blogOf(b).length : 0
   };
   const tabDefs = [
     ['inquiries','📞 문의'],
-    ['automations','🤖 자동화 모음'],
-    ['history','📜 히스토리'],
-    ['tasks','✅ 할 일'],
-    ['links','🔗 바로가기'],
+    ['automations','🤖 자동화 · 바로가기'],
+    ['book','📕 브랜드북 · 히스토리'],
     ['channels','📣 채널'],
     ['assets','📁 자료'],
-    ['blog','✍️ 블로그'],
-    ['book','📕 브랜드북 · 프롬프트']
+    ['blog','✍️ 블로그']
   ];
 
   main.innerHTML =
@@ -4033,11 +3955,11 @@ function renderBrand(){
     + '</div>';
 
   const body = document.getElementById('tabbody');
-  if(currentTab === 'prompt'){        // 예전에 보던 탭 — 브랜드북 안으로 들어왔습니다
-    currentTab = 'book'; body.innerHTML = viewBook(b);
-  }
-  else if(currentTab === 'history') body.innerHTML = viewHistory(b);
-  else if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
+  // 예전에 따로 있던 탭들은 합쳐진 탭으로 보냅니다
+  if(currentTab === 'prompt' || currentTab === 'history') currentTab = 'book';
+  if(currentTab === 'links') currentTab = 'automations';
+
+  if(currentTab === 'assets') { body.innerHTML = viewAssets(b); bindDrop(); }
   else if(currentTab === 'inquiries') {
     body.innerHTML = viewInquiries(b);
     loadInquiries();
@@ -4047,12 +3969,19 @@ function renderBrand(){
   else if(currentTab === 'costs'){          // 예전 주소로 들어온 경우 — 업무로 보냅니다
     goView('costs'); return;
   }
+  else if(currentTab === 'tasks'){          // 할 일은 업무 → ✅ 할 일 로 모았습니다
+    goView('tasks'); taskBrand = b.id; render(); return;
+  }
   else if(currentTab === 'blog') body.innerHTML = viewBlogBrand(b);
-  else if(currentTab === 'book') body.innerHTML = viewBook(b);
-  else if(currentTab === 'tasks') body.innerHTML = viewTasks(b);
-  else if(currentTab === 'links') body.innerHTML = viewLinks(b);
+  else if(currentTab === 'book'){
+    body.innerHTML = viewBook(b)
+      + '<div class="hsec">📜 브랜드 히스토리</div>' + viewHistory(b);
+  }
   else if(currentTab === 'channels') body.innerHTML = viewChannels(b);
-  else if(currentTab === 'automations') body.innerHTML = viewTools(b) + viewCards(b, 'automations');
+  else if(currentTab === 'automations'){
+    body.innerHTML = viewTools(b) + viewCards(b, 'automations')
+      + '<div class="hsec">🔗 바로가기</div>' + viewLinks(b);
+  }
   else body.innerHTML = viewCards(b, currentTab);
 }
 
@@ -4382,13 +4311,11 @@ async function runAssetFind(){
   assetFind.ext = ex ? ex.value : '';
   if(!assetFind.q.trim() && !assetFind.ext){ toast('⚠️ 찾을 말을 넣어주세요'); return; }
 
-  const roots = (b.nasFolders || []).map(f => f.path).filter(Boolean);
   assetFind.busy = true; assetFind.error = null; assetFind.forId = b.id; render();
   try{
     const r = await apiJson('nasfiles.php?action=findin'
       + '&q=' + encodeURIComponent(assetFind.q.trim())
       + (assetFind.ext ? '&ext=' + encodeURIComponent(assetFind.ext) : '')
-      + '&roots=' + encodeURIComponent(roots.join('|'))
       + '&limit=100');
     assetFind.res = r;
   }catch(e){ assetFind.error = apiErrText(e); assetFind.res = null; }
@@ -4429,10 +4356,10 @@ function nasHitRow(h){
 
 function assetFindPanel(b){
   const exts = ['', 'pdf', 'xlsx', 'docx', 'pptx', 'jpg', 'png', 'hwp', 'ai', 'psd', 'zip', 'mp4'];
-  const nRoot = (b.nasFolders || []).length;
+
   const bar = '<div class="sec-bar" style="margin-bottom:10px">'
     + '<span class="searchbox" style="flex:0 1 320px"><span class="ico">🔍</span>'
-      + '<input type="text" id="afQ" placeholder="이 브랜드 자료에서 파일 찾기 (예: 제안서 최종)" '
+      + '<input type="text" id="afQ" placeholder="공유폴더에서 파일 찾기 (예: 제안서 최종)" '
       + 'value="' + esc(assetFind.q) + '" oninput="assetFindInput(this.value)" '
       + 'onkeydown="if(event.key===\'Enter\')runAssetFind()"></span>'
     + '<select id="afExt" onchange="runAssetFind()" style="font-family:inherit;font-size:13px;'
@@ -4444,9 +4371,8 @@ function assetFindPanel(b){
     + '<button class="btn primary" onclick="runAssetFind()">찾기</button>'
     + (assetFind.res || assetFind.error
         ? '<button class="btn" onclick="clearAssetFind()">✕ 지우기</button>' : '')
-    + '<span class="hint">' + (nRoot
-        ? '연결된 NAS 폴더 ' + nRoot + '곳 안에서 찾습니다'
-        : '아래에서 NAS 폴더를 먼저 연결하면 그 안까지 찾습니다') + '</span>'
+    + '<span class="hint">공유폴더 전체에서 찾습니다 '
+      + '(🗂️ NAS 자료 → 🔍 이름으로 찾기 와 같은 곳을 봅니다)</span>'
     + '</div>';
 
   if(assetFind.forId !== b.id) return bar;
@@ -4808,71 +4734,6 @@ async function openUpRoot(){
   await setUpRoot(v.trim());
 }
 
-/* ═══════════════ 브랜드 공유폴더 열어보기 ═══════════════════════════
-   올린 파일이 실제로 쌓이는 폴더를, NAS 자료와 똑같이 열어봅니다.
-   여기서도 새 폴더·올리기·끌어다 옮기기가 됩니다.
-   ================================================================= */
-const brandDir = {};        // 브랜드id → { path, 있음, error }
-let shareOpen = {};         // 브랜드id → 펼쳤나
-
-async function loadBrandDir(b, make){
-  if(STORAGE_MODE !== 'nas' || !b) return;
-  if(brandDir[b.id] && brandDir[b.id].busy) return;
-  brandDir[b.id] = { busy:true };
-  try{
-    const out = await apiJson('files.php?action=branddir&brand=' + encodeURIComponent(b.name)
-      + (make ? '&make=1' : ''));
-    brandDir[b.id] = { path: out['경로'], 있음: out['있음'], 뿌리: out['뿌리'] };
-  }catch(e){ brandDir[b.id] = { error: apiErrText(e) }; }
-  render();
-}
-
-function toggleShare(bid){
-  shareOpen[bid] = !shareOpen[bid];
-  render();
-  if(shareOpen[bid]) setTimeout(bindDrop, 30);
-}
-
-async function makeBrandDir(bid){
-  const b = data.brands.find(x => x.id === bid); if(!b) return;
-  await loadBrandDir(b, true);
-  const d = brandDir[bid] || {};
-  if(d.path){ delete browseCache[d.path]; loadBrowse(d.path); }
-  toast('📂 브랜드 폴더를 만들었습니다');
-}
-
-/* 자료 탭 아래에 붙는 「이 브랜드 공유폴더」 */
-function shareBrowser(b){
-  if(STORAGE_MODE !== 'nas') return '';
-  const i = upRoot.info;
-  if(!i || i.error || !i['공유폴더로']) return '';          // 공유폴더로 저장할 때만 보여줍니다
-
-  const d = brandDir[b.id];
-  if(d === undefined){ setTimeout(() => loadBrandDir(b), 10); }
-
-  const open = !!shareOpen[b.id];
-  const head = '<button class="fhead" style="border:1px solid var(--border);border-radius:10px;'
-    + 'background:var(--bg-secondary);margin-top:14px" onclick="toggleShare(\'' + jsq(b.id) + '\')">'
-    + '<span class="fh-ar">' + (open ? '▾' : '▸') + '</span>'
-    + '<span class="fh-ic">📂</span>'
-    + '<span class="fh-nm">이 브랜드 공유폴더 열어보기</span>'
-    + '<span class="fh-ct">폴더 만들기 · 올리기 · 옮기기</span>'
-    + '</button>';
-
-  if(!open) return head;
-
-  let body;
-  if(!d || d.busy)      body = '<div class="fmeta">폴더를 찾는 중…</div>';
-  else if(d.error)      body = '<div class="fmeta">⚠️ ' + esc(d.error) + '</div>';
-  else if(!d['있음'])   body = '<div class="empty">아직 이 브랜드 폴더가 없습니다.<br>'
-    + '<span class="path">' + esc(d.path || '') + '</span><br>'
-    + '<button class="btn sm primary" style="margin-top:10px" onclick="makeBrandDir(\'' + jsq(b.id) + '\')">'
-    + '📂 지금 만들기</button></div>';
-  else body = folderBrowserHtml('share:' + b.id, d.path, { crumbRoot: d.path });
-
-  return head + '<div class="mbox" style="margin-top:8px;padding:12px 14px">' + body + '</div>';
-}
-
 function viewAssets(b){
   const dropZone = STORAGE_MODE === 'nas'
     ? '<div class="drop" id="dropZone" onclick="document.getElementById(\'fileInput\').click()">'
@@ -4967,194 +4828,15 @@ function viewAssets(b){
       + '<button class="btn sm" style="align-self:flex-start" onclick="clearReport()">결과 닫기</button>'
       + '</div>'
     : '';
+  // 공유폴더는 브랜드마다 나누지 않고 왼쪽 🗂️ NAS 자료 한 곳에서 함께 봅니다
+  const toNas = STORAGE_MODE === 'nas'
+    ? '<div class="sec-bar" style="margin:14px 0 0">'
+      + '<button class="btn" onclick="goNas()">🗂️ NAS 공유폴더 열기</button>'
+      + '<span class="hint">공유폴더는 브랜드마다 나누지 않고 한 곳에서 함께 봅니다 — '
+        + '거기서 폴더를 만들고, 올리고, 옮길 수 있습니다</span></div>'
+    : '';
   return upRootBar() + findBar + dropZone + '<div class="upqueue" id="upQueue"></div>' + report
-       + movePanel() + viewNasFolders(b) + shareBrowser(b) + bar + goneBar + cards;
-}
-
-/* ========================= 브랜드에 연결한 NAS 폴더 =========================
-   파일을 복사하지 않고, 있는 자리에서 바로 내려받습니다.
-   ========================================================================== */
-const nasFolderCache = {};   // 폴더경로 → 파일 목록
-
-async function loadNasFolder(brandId, folderId, path, q){
-  const key = folderId;
-  nasFolderCache[key] = { loading:true };
-  try{
-    const url = 'nasfiles.php?action=under&dir=' + encodeURIComponent(path)
-              + (q ? '&q=' + encodeURIComponent(q) : '');
-    const out = await (await fetch(url, { cache:'no-store' })).json();
-    if(!out.ok) throw new Error(out.error || '목록을 불러오지 못했습니다');
-    nasFolderCache[key] = out;
-  }catch(e){
-    nasFolderCache[key] = { error: e.message };
-  }
-  if(currentTab === 'assets') { render(); bindDrop(); }
-}
-
-function viewNasFolders(b){
-  if(treeCache === null) setTimeout(loadTree, 10);
-
-  const auto   = autoFoldersFor(b);
-  const list   = b.nasFolders || [];
-  const hidden = b.nasHidden || [];
-  const open   = openFolder[b.id] || null;
-  const total  = auto.length + list.length;
-
-  let note;
-  if(treeCache && treeCache.loading)      note = 'NAS 폴더를 찾아보는 중…';
-  else if(treeCache && treeCache.error)   note = '⚠️ ' + treeCache.error.split('\n')[0];
-  else if(total)                          note = '폴더를 펼치면 그 안에서 새 폴더를 만들고, 파일을 올리고, 끌어다 옮길 수 있습니다';
-  else if(hidden.length)                  note = '자동으로 찾은 폴더를 숨겨둔 상태입니다';
-  else                                    note = '이름이 맞는 NAS 폴더를 찾지 못했습니다. 아래 버튼으로 직접 연결해 주세요';
-
-  const head = '<div class="sec-bar" style="margin-top:6px">'
-    + '<button class="btn" onclick="addNasFolder()">📂 NAS 폴더 직접 연결</button>'
-    + (hidden.length
-        ? '<button class="btn sm" onclick="unhideAll()">숨긴 폴더 ' + hidden.length + '개 다시 보기</button>'
-        : '')
-    + '<span class="hint">' + esc(note) + '</span>'
-    + '</div>';
-
-  if(!total) return head;
-
-  /* 접힌 줄 하나 */
-  const row = (o) => {
-    const isOpen = open === o.path;
-    const inner = isOpen
-      ? '<div style="padding:12px 14px;border-top:1px solid var(--border)">'
-        + (o.manual
-            ? (o.q ? viewNasFolderSearch(b, o) : folderBrowserHtml('nf:' + o.id, o.path, { crumbRoot:o.path }))
-            : folderBrowserHtml('auto:' + o.path, o.path, { crumbRoot:o.path }))
-        + '</div>'
-      : '';
-    return '<div class="frow' + (isOpen ? ' on' : '') + '"'
-      + ' ondragover="allowDropAsset(event)" ondragleave="leaveDropAsset(event)"'
-      + ' ondrop="dropOnFolder(event,\'' + jsq(o.path) + '\')">'
-      + '<button class="fhead" onclick="toggleFolder(\'' + jsq(b.id) + '\',\'' + jsq(o.path) + '\')">'
-        + '<span class="fh-ar">' + (isOpen ? '▾' : '▸') + '</span>'
-        + '<span class="fh-ic">' + (o.manual ? '📂' : '🪄') + '</span>'
-        + '<span class="fh-nm">' + esc(o.name) + '</span>'
-        + '<span class="fh-ct">' + (o.count !== null && o.count !== undefined
-            ? o.count.toLocaleString('ko-KR') + '개' + (o.size ? ' · ' + esc(o.size) : '') : '') + '</span>'
-      + '</button>'
-      + (isOpen
-          ? '<div class="fh-act">'
-            + '<span class="path" style="flex:1;min-width:0;word-break:break-all">' + esc(o.path) + '</span>'
-            + (o.manual
-                ? '<button class="btn sm" onclick="filterNasFolder(\'' + jsq(b.id) + '\',\'' + jsq(o.id) + '\')">'
-                  + (o.q ? '🔍 ' + esc(o.q) : '🔍 찾기') + '</button>'
-                  + (o.q ? '<button class="btn sm" onclick="clearNasFolderFilter(\'' + jsq(b.id) + '\',\''
-                           + jsq(o.id) + '\')">✕</button>' : '')
-                  + '<button class="btn sm danger" onclick="removeNasFolder(\'' + jsq(o.id) + '\')">연결 해제</button>'
-                : '<button class="btn sm" onclick="hideAutoFolder(\'' + jsq(o.path) + '\')">숨기기</button>')
-            + '</div>'
-          : '')
-      + inner + '</div>';
-  };
-
-  const rows = auto.map(f => row({ name:f.name, path:f.path, count:f.count, size:f.size, manual:false }))
-    .concat(list.map(f => row({ name:(f.label || f.path.split('/').pop()), path:f.path,
-                               count:null, size:null, manual:true, id:f.id, q:f.q })))
-    .join('');
-
-  return head
-    + '<div class="fmeta" style="margin:0 0 8px">폴더 ' + total + '개'
-      + (open ? '' : ' · 눌러서 펼치기') + '</div>'
-    + '<div class="flist">' + rows + '</div>';
-}
-
-/* 폴더 안에서 이름으로 찾은 결과 (직접 연결한 폴더 전용) */
-function viewNasFolderSearch(b, o){
-  const c = nasFolderCache[o.id];
-  if(!c) { setTimeout(() => loadNasFolder(b.id, o.id, o.path, o.q), 10); }
-  if(!c || c.loading) return '<div class="fmeta">불러오는 중…</div>';
-  if(c.error) return '<div class="fmeta">⚠️ ' + esc(c.error) + '</div>';
-  if(!c.results.length) return '<div class="fmeta">"' + esc(o.q) + '" 에 맞는 파일이 없습니다.</div>';
-  return '<div class="mbox">' + c.results.map(x =>
-      '<div class="krow" style="align-items:center">'
-      + '<span class="fileicon" style="font-size:15px">' + fileIcon(x.name) + '</span>'
-      + '<span style="flex:1;min-width:0;white-space:normal;word-break:break-all">'
-        + '<b style="color:var(--text-primary)">' + esc(x.name) + '</b>'
-        + (x.sub ? '<span class="fmeta"> · ' + esc(x.sub) + '</span>' : '')
-      + '</span>'
-      + '<span class="fmeta" style="white-space:nowrap;margin:0">'
-        + esc(x.size) + ' · ' + esc(x.date) + '</span>'
-      + '<a class="btn sm" href="nasfiles.php?action=download&path='
-        + encodeURIComponent(x.path) + '">⬇</a>'
-      + '</div>').join('')
-    + (c.matched > c.shown
-        ? '<div class="fmeta" style="margin-top:8px">전체 ' + c.matched.toLocaleString('ko-KR')
-          + '개 중 ' + c.shown + '개 표시 · 검색어를 더 좁혀보세요</div>' : '')
-    + '</div>';
-}
-
-function clearNasFolderFilter(brandId, id){
-  const b = currentBrand();
-  const f = b.nasFolders.find(x => x.id === id);
-  if(!f) return;
-  f.q = '';
-  delete nasFolderCache[id];
-  markDirty();
-  redraw();
-}
-
-async function addNasFolder(){
-  const b = currentBrand();
-  if(!b) return;
-  const path = prompt(
-    'NAS 폴더 경로를 넣어주세요.\n\n'
-    + '탐색기 주소창에서 복사한 그대로 붙여넣으셔도 됩니다.\n'
-    + '예) Y:\\넷폼알앤디 공유폴더\\마케팅 공유폴더 외장하드 백업\\00. 브랜드 공유폴더\\공법\n\n'
-    + '🗂️ NAS 자료 화면에서 그 폴더까지 들어간 뒤 [＋ 브랜드에 연결] 을 쓰시면 더 편합니다.');
-  if(path === null) return;
-  if(!path.trim()){ toast('⚠️ 폴더 경로를 넣어주세요'); return; }
-
-  let p;
-  try{
-    const out = await apiJson('nasfiles.php?action=resolve&path=' + encodeURIComponent(path));
-    p = out.dir;
-  }catch(e){
-    alert(apiErrText(e)
-      + (e.tried ? '\n\n이런 경로들을 찾아봤습니다:\n' + e.tried.join('\n') : ''));
-    return;
-  }
-
-  if(b.nasFolders.some(x => x.path === p)){ toast('이미 연결된 폴더입니다'); return; }
-  const label = prompt('이 폴더를 뭐라고 부를까요? (비우면 폴더 이름 사용)',
-                       p.split('/').pop()) || '';
-  b.nasFolders.push({ id: uid('nf'), path: p, label: label.trim(), q: '' });
-  markDirty();
-  redraw();
-  toast('📂 폴더를 연결했습니다');
-}
-
-function removeNasFolder(id){
-  const b = currentBrand();
-  const f = b.nasFolders.find(x => x.id === id);
-  if(!confirm('"' + (f.label || f.path) + '" 연결을 해제할까요?\n\n'
-    + 'NAS의 실제 파일은 그대로 남습니다. 목록에서만 사라집니다.')) return;
-  b.nasFolders = b.nasFolders.filter(x => x.id !== id);
-  delete nasFolderCache[id];
-  render(); bindDrop(); markDirty();
-}
-
-function refreshNasFolder(brandId, id){
-  const f = currentBrand().nasFolders.find(x => x.id === id);
-  delete nasFolderCache[id];
-  loadNasFolder(brandId, id, f.path, f.q || '');
-  toast('↻ 다시 불러옵니다');
-}
-
-function filterNasFolder(brandId, id){
-  const b = currentBrand();
-  const f = b.nasFolders.find(x => x.id === id);
-  const q = prompt('이 폴더 안에서 찾을 이름을 넣어주세요. (비우면 전체)', f.q || '');
-  if(q === null) return;
-  f.q = q.trim();
-  delete nasFolderCache[id];
-  markDirty();
-  if(f.q) loadNasFolder(brandId, id, f.path, f.q);
-  else redraw();
+       + movePanel() + bar + goneBar + cards + toNas;
 }
 
 function statusChip(st){
@@ -5207,92 +4889,223 @@ function peopleName(id){
   return u ? u['이름'] : id;
 }
 
-/* 관리자 화면에서 「누구 것만 볼까」 */
-let taskWho = '';        // '' = 전체
+/* ═══════════════ 업무 → ✅ 할 일 ═════════════════════════════════
+   브랜드마다 흩어져 있던 할 일을 한 화면에 모았습니다.
+   누가 무엇을 맡고 있는지 사람별로 묶어서 봅니다.
+   ================================================================= */
+let taskWho   = '';       // '' = 전체 · '__pub' = 공용 · 그 밖은 계정 아이디
+let taskBrand = '';       // '' = 전체
+let taskDone  = false;    // 끝난 일도 보여줄까
+let taskAdd   = false;    // 「어느 브랜드에 넣을까」 고르는 중
 
-function taskWhoBar(b){
-  if(!authOn() || !isAdmin()) return '';
-  setTimeout(() => loadPeople(), 10);
-  const list = b.tasks || [];
-  const cnt = {};
-  list.forEach(t => { const k = t.uid || ''; cnt[k] = (cnt[k] || 0) + 1; });
-  const keys = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x]);
-  if(!keys.length) return '';
-  const chip = (v, label, n) =>
-    '<button class="btn sm' + (taskWho === v ? ' primary' : '') + '" '
-    + 'onclick="setTaskWho(\'' + jsq(v) + '\')">' + esc(label)
-    + (n != null ? ' <b>' + n + '</b>' : '') + '</button>';
-  return '<div class="sec-bar" style="margin:-2px 0 10px">'
-    + '<span class="hint" style="margin:0 2px 0 0">👥 누구 것</span>'
-    + chip('', '전체', list.length)
-    + keys.map(k => chip(k || '__pub', k ? (peopleName(k) || k) : '공용', cnt[k])).join('')
-    + '<span class="hint">팀원은 자기 할 일만 보입니다 (관리자는 모두 보입니다)</span>'
-    + '</div>';
+function setTaskWho(v){ taskWho = v; render(); }
+function setTaskBrand(v){ taskBrand = v; render(); }
+function toggleTaskDone(){ taskDone = !taskDone; render(); }
+function openTaskAdd(){ taskAdd = !taskAdd; render(); }
+function addTaskTo(bid){ taskAdd = false; openItemModal('tasks', null, null, bid); }
+
+/* 모든 브랜드의 할 일을 한 줄로 폅니다 */
+function taskAll(){
+  const out = [];
+  data.brands.forEach(b => (b.tasks || []).forEach(t => out.push({ t:t, b:b })));
+  return out;
 }
-function setTaskWho(v){ taskWho = (v === '__pub') ? '__pub' : v; render(); }
 
-function viewTasks(b){
-  const whoBar = taskWhoBar(b);
-  const all = b.tasks || [];
-  const list = !taskWho ? all
-    : all.filter(t => taskWho === '__pub' ? !t.uid : t.uid === taskWho);
-  if(!list.length){
-    return secBar('tasks') + whoBar + '<div class="empty">'
-      + (all.length ? '고른 사람의 할 일이 없습니다.' : TYPES.tasks.empty) + '</div>';
-  }
+/* 이 할 일을 맡은 사람 — 계정을 쓰면 아이디, 안 쓰면 적어둔 이름 */
+function taskOwnerKey(t){
+  if(authOn()) return t.uid || '__pub';
+  return (t.owner || '').trim() || '__pub';
+}
+function taskOwnerName(key){
+  if(key === '__pub') return '공용 (맡은 사람 없음)';
+  return authOn() ? (peopleName(key) || key) : key;
+}
 
-  const order = { '진행 중':0, '예정':1, '보류':2, '완료':3 };
-  const sorted = list.slice().sort((x, y) => {
-    const d = (order[x.status] ?? 1) - (order[y.status] ?? 1);
+/* 정렬 — 진행 중 → 예정 → 보류 → 완료, 같은 상태면 기한이 급한 것부터 */
+const TASK_ORDER = { '진행 중':0, '예정':1, '보류':2, '완료':3 };
+function taskSort(rows){
+  return rows.slice().sort((x, y) => {
+    const d = (TASK_ORDER[x.t.status] ?? 1) - (TASK_ORDER[y.t.status] ?? 1);
     if(d) return d;
-    if(x.due && y.due) return x.due.localeCompare(y.due);
-    return x.due ? -1 : y.due ? 1 : 0;
+    if(x.t.due && y.t.due) return x.t.due.localeCompare(y.t.due);
+    return x.t.due ? -1 : y.t.due ? 1 : 0;
   });
+}
 
-  const today = todayStr();
-  const dueChip = t => {
-    if(!t.due || t.status === '완료') return '';
-    const days = Math.round((new Date(t.due) - new Date(today)) / 86400000);
-    const label = fmtDate(t.due);
-    if(days < 0)  return '<span class="chip off">지남 · ' + esc(label) + '</span>';
-    if(days <= 3) return '<span class="chip test">D-' + days + ' · ' + esc(label) + '</span>';
-    return '<span class="chip">' + esc(label) + '</span>';
-  };
-  const stChip = st => {
-    const m = { '진행 중':'test', '완료':'on', '보류':'', '예정':'' };
-    return '<span class="chip ' + (m[st] || '') + '">' + esc(st || '예정') + '</span>';
-  };
+function taskDueChip(t){
+  if(!t.due || t.status === '완료') return '';
+  const days = Math.round((new Date(t.due) - new Date(todayStr())) / 86400000);
+  const label = fmtDate(t.due);
+  if(days < 0)  return '<span class="chip off">지남 · ' + esc(label) + '</span>';
+  if(days <= 3) return '<span class="chip test">D-' + days + ' · ' + esc(label) + '</span>';
+  return '<span class="chip">' + esc(label) + '</span>';
+}
+function taskStChip(st){
+  const m = { '진행 중':'test', '완료':'on', '보류':'', '예정':'' };
+  return '<span class="chip ' + (m[st] || '') + '">' + esc(st || '예정') + '</span>';
+}
 
-  const whoChip = t => {
-    if(!authOn()) return t.owner ? '<span class="chip">' + esc(t.owner) + '</span>' : '';
-    const me = authMe();
-    if(!t.uid) return '<span class="chip">공용</span>';
-    return '<span class="chip' + (me && t.uid === me.id ? ' on' : '') + '">👤 '
-      + esc(peopleName(t.uid) || t.owner || t.uid) + '</span>';
-  };
+/* 할 일 한 장 — 어느 브랜드 것인지 늘 같이 보여줍니다 */
+function taskCard(t, b, opts){
+  opts = opts || {};
+  const bid = jsq(b.id);
+  const brandChip = opts.hideBrand ? ''
+    : '<button class="chip" style="border-color:' + esc(b.color || 'var(--border)') + '" '
+      + 'onclick="setTaskBrand(\'' + bid + '\')" title="이 브랜드 것만 보기">'
+      + esc(b.icon || '🏷️') + ' ' + esc(b.name) + '</button>';
+  const whoChip = opts.hideWho ? ''
+    : '<span class="chip' + (authOn() && authMe() && t.uid === authMe().id ? ' on' : '') + '">👤 '
+      + esc(taskOwnerName(taskOwnerKey(t))) + '</span>';
 
-  return secBar('tasks') + whoBar + '<div class="cards">' + sorted.map(t =>
-    '<div class="card' + (t.status === '완료' ? ' done' : '') + '">'
+  return '<div class="card' + (t.status === '완료' ? ' done' : '') + '">'
     + '<div class="ca">'
-      + (t.status !== '완료'
-          ? '<button class="btn sm" title="완료 처리" onclick="toggleTask(\'' + t.id + '\')">✓ 완료</button>'
-          : '<button class="btn sm" title="다시 진행" onclick="toggleTask(\'' + t.id + '\')">되돌리기</button>')
-      + '<button class="btn sm" onclick="openItemModal(\'tasks\',\'' + t.id + '\')">수정</button>'
-      + '<button class="btn sm danger" onclick="deleteItem(\'tasks\',\'' + t.id + '\')">삭제</button>'
+      + '<button class="btn sm" title="' + (t.status === '완료' ? '다시 진행' : '완료 처리') + '" '
+        + 'onclick="toggleTask(\'' + jsq(t.id) + '\',\'' + bid + '\')">'
+        + (t.status === '완료' ? '되돌리기' : '✓ 완료') + '</button>'
+      + '<button class="btn sm" onclick="openItemModal(\'tasks\',\'' + jsq(t.id)
+        + '\',null,\'' + bid + '\')">수정</button>'
+      + '<button class="btn sm danger" onclick="deleteItem(\'tasks\',\'' + jsq(t.id)
+        + '\',\'' + bid + '\')">삭제</button>'
     + '</div>'
     + '<div class="ct">' + esc(t.title) + '</div>'
-    + '<div class="row">' + stChip(t.status) + dueChip(t) + whoChip(t) + '</div>'
+    + '<div class="row">' + taskStChip(t.status) + taskDueChip(t) + whoChip + brandChip + '</div>'
     + (t.note ? '<div class="cd">' + esc(t.note) + '</div>' : '')
-    + '</div>').join('') + '</div>';
+    + '</div>';
 }
 
-function toggleTask(id){
-  const b = currentBrand();
-  const t = b && b.tasks.find(x => x.id === id);
+function toggleTask(id, brandId){
+  const b = brandId ? brandById(brandId) : currentBrand();
+  const t = b && (b.tasks || []).find(x => x.id === id);
   if(!t){ render(); return; }           // 그 사이 다른 분이 지웠습니다
   t.status = t.status === '완료' ? '진행 중' : '완료';
   t.updatedAt = new Date().toISOString();
   render(); markDirty(b.id);
+}
+
+/* 화면 맨 위 — 어느 브랜드 · 누구 것을 볼까 */
+function taskFilterBar(rows){
+  const live = r => r.t.status !== '완료';
+
+  const bcnt = {};
+  rows.forEach(r => { if(live(r)) bcnt[r.b.id] = (bcnt[r.b.id] || 0) + 1; });
+  const bBar = '<div class="sec-bar" style="margin:0 0 8px">'
+    + '<span class="fmeta" style="flex:0 0 auto">🏷️ 브랜드</span>'
+    + '<button class="btn sm' + (taskBrand ? '' : ' primary') + '" onclick="setTaskBrand(\'\')">'
+      + '전체 ' + rows.filter(live).length + '</button>'
+    + data.brands.map(b => '<button class="btn sm' + (taskBrand === b.id ? ' primary' : '') + '" '
+        + 'onclick="setTaskBrand(\'' + jsq(b.id) + '\')">' + esc(b.icon || '🏷️') + ' '
+        + esc(b.name) + (bcnt[b.id] ? ' <b>' + bcnt[b.id] + '</b>' : '') + '</button>').join('')
+    + '</div>';
+
+  const scoped = taskBrand ? rows.filter(r => r.b.id === taskBrand) : rows;
+  const wcnt = {};
+  scoped.forEach(r => { if(live(r)){ const k = taskOwnerKey(r.t); wcnt[k] = (wcnt[k] || 0) + 1; } });
+  const keys = Object.keys(wcnt).sort((x, y) => wcnt[y] - wcnt[x]);
+  const wBar = keys.length
+    ? '<div class="sec-bar" style="margin:0 0 8px">'
+      + '<span class="fmeta" style="flex:0 0 auto">👥 담당</span>'
+      + '<button class="btn sm' + (taskWho ? '' : ' primary') + '" onclick="setTaskWho(\'\')">'
+        + '모두 ' + scoped.filter(live).length + '</button>'
+      + keys.map(k => '<button class="btn sm' + (taskWho === k ? ' primary' : '') + '" '
+          + 'onclick="setTaskWho(\'' + jsq(k) + '\')">' + esc(taskOwnerName(k))
+          + ' <b>' + wcnt[k] + '</b></button>').join('')
+      + '</div>'
+    : '';
+
+  const addRow = taskAdd
+    ? '<div class="sec-bar" style="margin:0 0 8px;border:1px solid var(--blue);'
+      + 'border-radius:10px;padding:9px 11px">'
+      + '<span class="fmeta" style="flex:0 0 auto">어느 브랜드의 할 일인가요?</span>'
+      + data.brands.map(b => '<button class="btn sm" onclick="addTaskTo(\'' + jsq(b.id) + '\')">'
+          + esc(b.icon || '🏷️') + ' ' + esc(b.name) + '</button>').join('')
+      + '<button class="btn sm" onclick="openTaskAdd()">취소</button>'
+      + '</div>'
+    : '';
+
+  const tools = '<div class="sec-bar" style="margin:0 0 8px">'
+    + (taskBrand
+        ? '<button class="btn primary" onclick="addTaskTo(\'' + jsq(taskBrand) + '\')">＋ 할 일 추가</button>'
+        : '<button class="btn primary" onclick="openTaskAdd()">＋ 할 일 추가</button>')
+    + '<button class="btn sm' + (taskDone ? ' primary' : '') + '" onclick="toggleTaskDone()">'
+      + (taskDone ? '✅ 끝난 일도 보는 중' : '끝난 일 보기') + '</button>'
+    + '<span class="hint">'
+      + (authOn()
+          ? '「맡은 사람」 을 고르면 그 사람과 관리자에게만 보입니다'
+          : '담당자 칸에 이름을 적으면 사람별로 묶여서 보입니다')
+      + '</span>'
+    + '</div>';
+
+  return tools + addRow + bBar + wBar;
+}
+
+function renderTasks(){
+  const rows = taskAll();
+  const head = '<h2 class="page-h">✅ 할 일</h2>'
+    + '<div class="page-sub">브랜드마다 흩어져 있던 할 일을 한 화면에 모았습니다. '
+      + '누가 무엇을 맡고 있는지 사람별로 묶어서 봅니다</div>';
+  const box = h => '<div class="panel"><div class="tabbody">' + head
+    + taskFilterBar(rows) + h + '</div></div>';
+  const main = document.getElementById('main');
+
+  if(!data.brands.length){
+    main.innerHTML = box('<div class="empty">브랜드가 아직 없습니다. '
+      + '왼쪽에서 브랜드를 먼저 만들어 주세요.</div>');
+    return;
+  }
+
+  // 걸러내기 — 브랜드 → 담당 → 끝난 일
+  let list = rows;
+  if(taskBrand) list = list.filter(r => r.b.id === taskBrand);
+  if(taskWho)   list = list.filter(r => taskOwnerKey(r.t) === taskWho);
+  if(!taskDone) list = list.filter(r => r.t.status !== '완료');
+
+  // 위쪽 숫자판 — 걸러내기와 상관없이 팀 전체 기준입니다
+  const live   = rows.filter(r => r.t.status !== '완료');
+  const today  = todayStr();
+  const late   = live.filter(r => r.t.due && r.t.due < today).length;
+  const soon   = live.filter(r => r.t.due && r.t.due >= today
+                    && Math.round((new Date(r.t.due) - new Date(today)) / 86400000) <= 3).length;
+  const going  = live.filter(r => r.t.status === '진행 중').length;
+  const doneN  = rows.length - live.length;
+  const tiles = '<div class="stats">'
+    + '<div class="stat"><div class="lb">🔥 지금 하는 일</div><div class="val">' + going + '</div>'
+      + '<div class="sub">전체 남은 일 ' + live.length + '건</div></div>'
+    + '<div class="stat"><div class="lb">⏰ 곧 마감</div><div class="val">' + soon + '</div>'
+      + '<div class="sub">사흘 안에 기한이 옵니다</div></div>'
+    + '<div class="stat"><div class="lb">🚨 기한 지남</div><div class="val">' + late + '</div>'
+      + '<div class="sub">' + (late ? '먼저 손봐야 할 일입니다' : '지난 일이 없습니다 👏') + '</div></div>'
+    + '<div class="stat"><div class="lb">✅ 끝낸 일</div><div class="val">' + doneN + '</div>'
+      + '<div class="sub">' + (taskDone ? '지금 같이 보고 있습니다' : '[끝난 일 보기] 로 볼 수 있습니다') + '</div></div>'
+    + '</div>';
+
+  if(!list.length){
+    main.innerHTML = box(tiles + '<div class="empty">'
+      + (rows.length ? '고른 조건에 맞는 할 일이 없습니다.'
+                     : '아직 등록된 할 일이 없습니다. [＋ 할 일 추가] 로 시작해 보세요.')
+      + '</div>');
+    return;
+  }
+
+  // 사람별로 묶습니다 — 「누가 무엇을 맡고 있나」 가 이 화면의 핵심입니다
+  const groups = {};
+  list.forEach(r => { (groups[taskOwnerKey(r.t)] = groups[taskOwnerKey(r.t)] || []).push(r); });
+  const order = Object.keys(groups).sort((x, y) => {
+    if(x === '__pub') return 1;
+    if(y === '__pub') return -1;
+    return groups[y].length - groups[x].length;
+  });
+
+  const secs = order.map(k => {
+    const g = taskSort(groups[k]);
+    const undone = g.filter(r => r.t.status !== '완료').length;
+    return '<div class="hsec">👤 ' + esc(taskOwnerName(k))
+      + '<span class="fmeta" style="margin-left:8px">' + undone + '건</span></div>'
+      + '<div class="cards">'
+      + g.map(r => taskCard(r.t, r.b, { hideWho:true, hideBrand: !!taskBrand })).join('')
+      + '</div>';
+  }).join('');
+
+  main.innerHTML = box(tiles + secs);
 }
 
 /* ═══════════════ 마케팅 비용 ═════════════════════════════════════
@@ -8945,9 +8758,14 @@ function gotoResult(brandId, tab){
     render(); window.scrollTo({ top:0, behavior:'smooth' });
     return;
   }
+  if(tab === 'tasks'){                      // 할 일도 업무 쪽에 있습니다
+    view = 'tasks'; currentBrandId = null; taskBrand = brandId;
+    render(); window.scrollTo({ top:0, behavior:'smooth' });
+    return;
+  }
   view = 'brand';
   currentBrandId = brandId;
-  currentTab = tab;
+  currentTab = TAB_MOVED[tab] || tab;
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
@@ -8965,7 +8783,7 @@ function selectBrand(id){
 function clearSearchQuietly(){
   if(searchQuery){ searchQuery = ''; document.getElementById('search').value = ''; }
 }
-function selectTab(t){ currentTab = t; cellEdit = null; chartCell = null; render(); }
+function selectTab(t){ currentTab = TAB_MOVED[t] || t; cellEdit = null; chartCell = null; render(); }
 
 let editingBrandId = null;
 function openBrandModal(id){
@@ -9096,7 +8914,8 @@ function openItemModal(type, id, preset, brandId){
   const del = document.getElementById('itemDelBtn');
   if(del){
     del.style.display = it ? '' : 'none';
-    del.onclick = () => { closeModal('itemModal'); deleteItem(type, id); };
+    const delBid = brandId || '';
+    del.onclick = () => { closeModal('itemModal'); deleteItem(type, id, delBid); };
   }
 
   document.getElementById('itemModal').classList.add('open');

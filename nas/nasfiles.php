@@ -156,6 +156,60 @@ function roots_all() {
     return $cache = $out;
 }
 
+/** 공유폴더 목록을 화면에 쓸 모양으로 (이름 · 경로) */
+function root_list($roots) {
+    $out = [];
+    foreach ($roots as $r) $out[] = ['name' => basename($r), 'path' => $r];
+    return $out;
+}
+
+/** 폴더 안에 파일이 몇 개인지 — 만들어 둔 목록에서 먼저 찾고, 없으면 잠깐 세어 봅니다 */
+function root_count($dir, $indexFile) {
+    if (is_file($indexFile) && ($fp = fopen($indexFile, 'r'))) {
+        $prefix = $dir . '/';
+        $preLen = strlen($prefix);
+        $n = 0; $sz = 0;
+        while (($line = fgets($fp)) !== false) {
+            $p = explode("\t", rtrim($line, "\r\n"), 3);
+            if (count($p) < 3) continue;
+            if (strncmp($p[2], $prefix, $preLen) !== 0) continue;
+            $n++; $sz += (int)$p[1];
+        }
+        fclose($fp);
+        if ($n > 0) return [$n, $sz];
+    }
+    // 목록에 없는 폴더 — 화면이 느려지지 않게 잠깐만 세어 봅니다
+    $n = 0; $sz = 0;
+    $deadline = microtime(true) + 1.2;
+    $walk = function ($d, $lv) use (&$walk, &$n, &$sz, $deadline) {
+        if ($lv > 6 || $n > 20000 || microtime(true) > $deadline) return;
+        foreach ((array)@scandir($d) as $e) {
+            if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+            $pp = $d . '/' . $e;
+            if (is_dir($pp)) $walk($pp, $lv + 1);
+            elseif (is_file($pp)) { $n++; $sz += (int)@filesize($pp); }
+            if ($n > 20000 || microtime(true) > $deadline) return;
+        }
+    };
+    $walk($dir, 0);
+    return [$n, $sz];
+}
+
+/** 공유폴더가 여럿일 때 보여주는 맨 윗 화면 — 폴더들이 나란히 놓입니다 */
+function root_top($roots, $indexFile) {
+    $folders = [];
+    foreach ($roots as $r) {
+        [$n, $sz] = root_count($r, $indexFile);
+        $folders[] = ['name' => basename($r), 'path' => $r,
+                      'count' => $n, 'size' => human($sz)];
+    }
+    usort($folders, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
+    return ['ok' => true, 'dir' => '', 'root' => '', 'parent' => null,
+            'total' => array_sum(array_column($folders, 'count')),
+            'folders' => $folders, 'files' => [], 'off' => 0, 'fileCount' => 0,
+            'roots' => root_list($roots), 'top' => true, 'live' => true];
+}
+
 /** 이 경로가 허락된 폴더 안쪽인가 */
 function under_roots($real) {
     if ($real === false || $real === null) return false;
@@ -458,9 +512,14 @@ if ($action === 'findin') {
         [$rr, ] = resolve_nas_dir(normalize_nas_input($r));   // [경로, 시도내역] 을 돌려줍니다
         if ($rr && is_dir($rr)) $roots[] = rtrim($rr, '/');
     }
-    $scanRoot = is_file($ROOT_FILE) ? rtrim(trim((string)@file_get_contents($ROOT_FILE)), '/') : '';
-    if (!$roots && $scanRoot !== '') $roots[] = $scanRoot;
-    if (!$roots) jout(['ok' => false, 'error' => '찾을 폴더가 없습니다. 먼저 브랜드에 NAS 폴더를 연결해 주세요.'], 400);
+    // 따로 지정하지 않으면 공유폴더 전체에서 찾습니다 (자료는 브랜드로 나누지 않습니다)
+    if (!$roots) $roots = roots_all();
+    if (!$roots) {
+        $scanRoot = is_file($ROOT_FILE) ? rtrim(trim((string)@file_get_contents($ROOT_FILE)), '/') : '';
+        if ($scanRoot !== '') $roots[] = $scanRoot;
+    }
+    if (!$roots) jout(['ok' => false, 'error' => '찾을 공유폴더가 정해져 있지 않습니다 '
+        . '(NAS 자료 → ⚙️ 훑을 폴더 바꾸기)'], 400);
 
     $imgExt = ['jpg','jpeg','png','gif','webp','bmp'];
     $hits = []; $found = 0; $cut = false; $how = '';
@@ -608,15 +667,26 @@ if ($action === 'under') {
    (하위 폴더의 개수·용량만 미리 만들어 둔 목록에서 가져옵니다)
    -------------------------------------------------------- */
 if ($action === 'browse') {
-    $dir = rtrim(trim($_GET['dir'] ?? ''), '/');
+    $dir   = rtrim(trim($_GET['dir'] ?? ''), '/');
+    $roots = roots_all();
+
+    // 공유폴더가 여럿이면 맨 위는 「전체」 — 폴더 두 개가 나란히 보입니다.
+    // 하나뿐이면 예전처럼 그 폴더를 바로 엽니다.
     if ($dir === '') {
-        $dir = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
+        if (count($roots) > 1) jout(root_top($roots, $FILE));
+        $dir = $roots ? $roots[0]
+             : (is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '');
     }
     if ($dir === '') jout(['ok' => false, 'error' => '폴더를 지정해 주세요'], 400);
 
-    $root = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
     $real = @realpath($dir);
     if (!$real) jout(['ok' => false, 'error' => '그런 폴더가 없습니다: ' . $dir], 404);
+
+    // 이 폴더를 품고 있는 공유폴더가 「집」 입니다 (빵부스러기의 시작점)
+    $root = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
+    foreach ($roots as $r) {
+        if ($real === $r || strpos($real, $r . DIRECTORY_SEPARATOR) === 0) { $root = $r; break; }
+    }
 
     // 허락된 폴더(훑는 폴더 · 올린 파일 폴더) 밖은 열지 않습니다
     if (!under_roots($real)) {
@@ -718,9 +788,10 @@ if ($action === 'browse') {
         'ok'      => true,
         'dir'     => $real,
         'root'    => $root,
-        'parent'  => (function () use ($real) {          // 뿌리보다 위로는 못 올라갑니다
-                          foreach (roots_all() as $r) if ($real === $r) return null;   // 여기가 뿌리
-                          foreach (roots_all() as $r) {
+        'parent'  => (function () use ($real, $roots) {   // 뿌리보다 위로는 못 올라갑니다
+                          // 공유폴더가 여럿이면 뿌리에서 한 칸 더 위 = 「전체」 화면
+                          foreach ($roots as $r) if ($real === $r) return count($roots) > 1 ? '' : null;
+                          foreach ($roots as $r) {
                               if (strpos($real, $r . DIRECTORY_SEPARATOR) === 0) return dirname($real);
                           }
                           return null;
@@ -730,6 +801,7 @@ if ($action === 'browse') {
         'files'   => $files,
         'off'     => $off,
         'fileCount' => count($fileNames),
+        'roots'   => root_list($roots),
         'live'    => true,
     ]);
 }
@@ -789,6 +861,57 @@ perm_help($real)], 403);
           'folders' => $folders, '이폴더의파일수' => $fileCount]);
 }
 
+/* ---------------- 하위 폴더를 한 번에 (파일 정리용) ----------------
+   「옮길 곳」 안의 폴더를, 그 안쪽 폴더까지 한 번에 가져옵니다.
+   그래야 큰 폴더가 아니라 세부 폴더로 바로 넣을 수 있습니다.
+   ------------------------------------------------------------------ */
+if ($action === 'dirtree') {
+    $dir = rtrim(trim($_GET['dir'] ?? ''), '/');
+    if ($dir === '') jout(['ok' => false, 'error' => '폴더를 지정해 주세요'], 400);
+
+    $real = safe_real_dir($dir);
+    if ($real === null) {
+        jout(['ok' => false, 'error' => '여기서 볼 수 있는 곳이 아닙니다 '
+            . '(NAS 훑는 폴더나 공유 저장 폴더 안쪽만 됩니다)'], 403);
+    }
+
+    $depth = (int)($_GET['depth'] ?? 2);
+    if ($depth < 1) $depth = 1;
+    if ($depth > 3) $depth = 3;
+
+    $skip     = ['.', '..', '@eaDir', '#recycle', '#snapshot'];
+    $out      = [];
+    $deadline = microtime(true) + 3.0;
+    $cut      = false;
+
+    $walk = function ($d, $rel, $lv) use (&$walk, &$out, $skip, $depth, $deadline, &$cut) {
+        if ($lv > $depth) return;
+        if (count($out) >= 400 || microtime(true) > $deadline) { $cut = true; return; }
+        $es = @scandir($d);
+        if ($es === false) return;
+        usort($es, 'strnatcasecmp');
+        foreach ($es as $e) {
+            if (in_array($e, $skip, true)) continue;
+            $full = $d . '/' . $e;
+            if (!@is_dir($full)) continue;
+            if (count($out) >= 400 || microtime(true) > $deadline) { $cut = true; return; }
+            $r = ($rel === '' ? $e : $rel . '/' . $e);
+            $n = 0;
+            foreach ((array)@scandir($full) as $x) {
+                if ($x === '.' || $x === '..' || $x === '@eaDir') continue;
+                if (@is_file($full . '/' . $x)) $n++;
+            }
+            $out[] = ['name' => $e, 'rel' => $r, 'path' => $full,
+                      'depth' => $lv, 'files' => $n];
+            $walk($full, $r, $lv + 1);
+        }
+    };
+    $walk($real, '', 1);
+
+    jout(['ok' => true, 'dir' => $real, 'depth' => $depth,
+          'folders' => $out, '잘림' => $cut]);
+}
+
 /* ---------------- 목록 만들기 ---------------- */
 /* ---------------- 상태 ---------------- */
 if ($action === 'scanstatus') {
@@ -838,9 +961,18 @@ perm_help($root),
             'data 폴더에 쓸 수 없습니다. File Station 에서 web 폴더에 '
             . '"http" 사용자 읽기/쓰기 권한을 주세요.'], 500);
     }
-    file_put_contents($QUEUE, $root . "\n");
+    // 공유폴더가 둘이면 둘 다 훑습니다 — 그래야 「이름으로 찾기」 가 두 폴더를 다 봅니다
+    $queue = [$root];
+    $upF   = $DATA . '/uploadroot.txt';
+    if (is_file($upF)) {
+        $up = @realpath(rtrim(trim((string)@file_get_contents($upF)), '/'));
+        if ($up && $up !== $root
+            && strpos($up, $root . DIRECTORY_SEPARATOR) !== 0
+            && strpos($root, $up . DIRECTORY_SEPARATOR) !== 0) $queue[] = $up;
+    }
+    file_put_contents($QUEUE, implode("\n", $queue) . "\n");
 
-    $st = ['root' => $root, 'qpos' => 0, 'files' => 0, 'dirs' => 0,
+    $st = ['root' => $root, 'roots' => $queue, 'qpos' => 0, 'files' => 0, 'dirs' => 0,
            'current' => $root, 'errors' => [], 'started' => microtime(true), 'done' => false];
     save_state($STATE, $st);
     jout(progress($st));
@@ -929,71 +1061,7 @@ if ($action === 'scanclear') {
     jout(['ok' => true]);
 }
 
-
-/* ---------------- 폴더 나무 (브랜드 자동 연결용) ----------------
-   목록을 한 번만 훑어서 depth 단계까지의 폴더를 모두 뽑아옵니다.
-   ---------------------------------------------------------------- */
-if ($action === 'tree') {
-    if (!is_file($FILE)) jout(['ok' => false, 'error' => '파일 목록이 아직 없습니다'], 404);
-    $root = is_file($ROOT_FILE) ? rtrim(trim(file_get_contents($ROOT_FILE)), '/') : '';
-    if ($root === '') jout(['ok' => false, 'error' => '훑은 폴더를 알 수 없습니다'], 404);
-
-    $depth = (int)($_GET['depth'] ?? 4);
-    if ($depth < 1) $depth = 1;
-    if ($depth > 6) $depth = 6;
-    $limit = (int)($_GET['limit'] ?? 5000);
-    if ($limit < 100)   $limit = 100;
-    if ($limit > 20000) $limit = 20000;
-
-    $fp = fopen($FILE, 'r');
-    if (!$fp) jout(['ok' => false, 'error' => '목록을 열지 못했습니다'], 500);
-
-    $prefix = $root . '/';
-    $preLen = strlen($prefix);
-    $acc    = [];
-
-    while (($line = fgets($fp)) !== false) {
-        $p = explode("\t", rtrim($line, "\r\n"), 3);
-        if (count($p) < 3) continue;
-        [$date, $size, $path] = $p;
-        if (strncmp($path, $prefix, $preLen) !== 0) continue;
-
-        $segs = explode('/', substr($path, $preLen));
-        array_pop($segs);                       // 파일 이름은 뺍니다
-        $n = min(count($segs), $depth);
-        $cur = '';
-        for ($i = 0; $i < $n; $i++) {
-            $cur .= ($i ? '/' : '') . $segs[$i];
-            if (!isset($acc[$cur])) $acc[$cur] = [0, 0];
-            $acc[$cur][0]++;
-            $acc[$cur][1] += (int)$size;
-        }
-    }
-    fclose($fp);
-
-    $out = [];
-    foreach ($acc as $rel => $v) {
-        $out[] = [
-            'name'  => basename($rel),
-            'path'  => $root . '/' . $rel,
-            'depth' => substr_count($rel, '/') + 1,
-            'count' => $v[0],
-            'size'  => human($v[1]),
-        ];
-    }
-    // 얕은 폴더를 앞에 둡니다. 너무 많으면 깊은 쪽부터 잘립니다.
-    usort($out, function ($a, $b) {
-        if ($a['depth'] !== $b['depth']) return $a['depth'] - $b['depth'];
-        return strnatcasecmp($a['path'], $b['path']);
-    });
-    $total = count($out);
-    if ($total > $limit) $out = array_slice($out, 0, $limit);
-
-    jout(['ok' => true, 'root' => $root, 'depth' => $depth,
-          'total' => $total, 'shown' => count($out), 'folders' => $out]);
-}
-
-/* ---------------- 폴더 경로 알아듣기 ---------------- */
+/* ---------------- 경로 확인 ---------------- */
 if ($action === 'resolve') {
     $in = normalize_nas_input($_GET['path'] ?? '');
     if ($in === null) {

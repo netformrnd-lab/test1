@@ -17,6 +17,21 @@ if [ -z "$ROOT" ] && [ -f "$TARGET/data/scanroot.txt" ]; then
     ROOT=$(cat "$TARGET/data/scanroot.txt")
 fi
 ROOT="${ROOT:-/volume1/넷폼알앤디 공유폴더}"
+
+# 올린 파일이 쌓이는 폴더(01. 브랜드마케팅팀)도 함께 훑습니다.
+# 두 폴더를 한 곳에서 같이 보기 때문에, 찾기도 두 곳을 다 봐야 합니다.
+ROOT2=""
+if [ -f "$TARGET/data/uploadroot.txt" ]; then
+    ROOT2=$(cat "$TARGET/data/uploadroot.txt")
+fi
+case "$ROOT2" in
+    "$ROOT"|"$ROOT"/*) ROOT2="" ;;          # 이미 ROOT 안에 있으면 두 번 훑지 않습니다
+esac
+if [ -n "$ROOT2" ] && [ ! -d "$ROOT2" ]; then ROOT2=""; fi
+case "$ROOT" in
+    "$ROOT2"/*) ROOT2="" ;;                 # 거꾸로 들어 있어도 마찬가지입니다
+esac
+
 OUT="$TARGET/data/nasfiles.tsv"
 TMP="$OUT.tmp"
 LOG="$TARGET/scan.log"
@@ -31,20 +46,23 @@ fi
 
 mkdir -p "$TARGET/data" || { log "실패: data 폴더를 만들 수 없습니다"; exit 1; }
 
-log "시작: $ROOT"
+log "시작: $ROOT${ROOT2:+ · $ROOT2}"
 START=$(date +%s)
+
+# 폴더 이름에 띄어쓰기가 있어도 안전하게 넘기려고 위치 인자에 담습니다
+if [ -n "$ROOT2" ]; then set -- "$ROOT" "$ROOT2"; else set -- "$ROOT"; fi
 
 # 시놀로지가 자동으로 만드는 폴더와 임시 파일은 제외합니다
 # 출력 형식: 수정일(탭)크기(탭)전체경로
 if find . -maxdepth 0 -printf '' 2>/dev/null; then
     # GNU find — 한 번에 처리해서 빠릅니다
-    find "$ROOT" -type f \
+    find "$@" -type f \
         ! -path '*/@eaDir/*' ! -path '*/#recycle/*' \
         ! -name '.DS_Store' ! -name 'Thumbs.db' ! -name '~$*' \
         -printf '%TY-%Tm-%Td\t%s\t%p\n' > "$TMP" 2>/dev/null
 else
     # printf 옵션이 없는 경우 — 느리지만 동작합니다
-    find "$ROOT" -type f \
+    find "$@" -type f \
         ! -path '*/@eaDir/*' ! -path '*/#recycle/*' \
         ! -name '.DS_Store' ! -name 'Thumbs.db' 2>/dev/null |
     while IFS= read -r f; do

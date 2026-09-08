@@ -1426,7 +1426,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-10';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-11';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3785,7 +3785,9 @@ function nasUpload(navKey, startDir){
 
 async function onNasUpload(input){
   const dir = input.dataset.dir || '';
-  const files = input.files;
+  // ⚠️ input.files 는 살아 있는 목록이라, value 를 비우면 같이 비워집니다.
+  //    반드시 먼저 베껴두고 나서 비워야 합니다. (안 그러면 아무것도 안 올라갑니다)
+  const files = [...(input.files || [])];
   input.value = '';
   await nasPutFiles(dir, files);
 }
@@ -3793,7 +3795,8 @@ async function onNasUpload(input){
 /* 파일 여러 개를 한 폴더에 올립니다 (창에서 고르거나, 끌어다 놓거나) */
 async function nasPutFiles(dir, files){
   files = [...(files || [])];
-  if(!dir || !files.length) return;
+  if(!dir){ toast('⚠️ 올릴 폴더를 먼저 열어주세요'); return; }
+  if(!files.length){ toast('⚠️ 고른 파일이 없습니다'); return; }
   let done = 0; const failed = [];
   toast('⬆ ' + files.length + '개 올리는 중…');
   for(const f of files){

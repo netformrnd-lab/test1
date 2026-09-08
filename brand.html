@@ -679,6 +679,20 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .wb-tb td{border:1px solid var(--border);padding:5px 7px;color:var(--text-secondary);
   vertical-align:top}
 .wb-tb tr:first-child td{background:var(--bg-sunken);color:var(--text-primary);font-weight:700}
+.wb-tb input{width:100%;border:none;background:transparent;font-family:inherit;
+  font-size:11.5px;color:inherit;font-weight:inherit;padding:0;outline:none;min-width:0}
+.wb-tb input:focus{background:var(--blue-soft);border-radius:3px}
+.wb-tb td.on{padding:4px 6px}
+.wb-pick{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:22;
+  display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:center;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
+  padding:8px 11px;box-shadow:var(--shadow-lg);max-width:calc(100% - 24px)}
+.wb-pick .lb{font-size:12px;font-weight:700;color:var(--text-muted);margin-right:3px}
+.wb-pick button{border:1px solid var(--border);background:var(--bg-input);
+  font-family:inherit;font-size:12px;padding:5px 10px;border-radius:99px;cursor:pointer;
+  color:var(--text-secondary);white-space:nowrap}
+.wb-pick button:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
+.wb-pick .x{border:none;background:transparent;font-size:14px;padding:4px 6px}
 
 .wb-n .rz{position:absolute;right:0;bottom:0;width:15px;height:15px;cursor:nwse-resize;
   opacity:0}
@@ -1446,7 +1460,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-14';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-15';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5329,6 +5343,94 @@ const WB_KINDS = {
   media: { label:'사진·영상', icon:'🖼', w:300, h:200 }
 };
 
+/* ── 표 서식 ────────────────────────────────────────────────────
+   자주 쓰는 표 모양을 미리 만들어 둡니다. [▦ 표] 를 누르면 고릅니다.
+   내용은 「한 줄이 한 칸 줄, | 로 칸을 나눔」 그대로라 나중에 손으로도 고칩니다.
+   --------------------------------------------------------------- */
+const WB_TABLES = [
+  { key:'blank', label:'빈 표', icon:'▦', w:340, h:150,
+    rows:['항목 | 내용', ' | ', ' | '] },
+  { key:'channel', label:'채널별 배포', icon:'📣', w:520, h:190,
+    rows:['채널 | 규격 | 담당 | 마감', '자사몰 |  |  | ', '네이버 |  |  | ',
+          '인스타 |  |  | '] },
+  { key:'plan', label:'콘텐츠 일정', icon:'🗓', w:560, h:200,
+    rows:['주차 | 주제 | 채널 | 담당 | 상태', '1주 |  |  |  | ', '2주 |  |  |  | ',
+          '3주 |  |  |  | ', '4주 |  |  |  | '] },
+  { key:'task', label:'할 일 나누기', icon:'✅', w:520, h:190,
+    rows:['할 일 | 담당 | 기한 | 상태', ' |  |  | ', ' |  |  | ', ' |  |  | '] },
+  { key:'compare', label:'비교', icon:'⚖', w:520, h:180,
+    rows:['항목 | 우리 | 경쟁사 A | 경쟁사 B', ' |  |  | ', ' |  |  | '] },
+  { key:'issue', label:'문제 · 원인 · 해결', icon:'🩺', w:560, h:180,
+    rows:['문제 | 원인 | 해볼 것 | 결과', ' |  |  | ', ' |  |  | '] },
+  { key:'decide', label:'회의 결정', icon:'📝', w:520, h:180,
+    rows:['안건 | 결정 | 담당 | 기한', ' |  |  | ', ' |  |  | '] }
+];
+
+let wbTablePick = false;
+function wbToggleTablePick(){ wbTablePick = !wbTablePick; render(); }
+
+function wbAddTable(key){
+  const t = WB_TABLES.find(x => x.key === key) || WB_TABLES[0];
+  wbTablePick = false;
+  wbAdd('table', { w: t.w, h: t.h, text: t.rows.join('\n') });
+}
+
+/* 표를 칸 배열로 / 다시 글로 */
+function wbGrid(n){
+  const rows = String(n.text || '').split('\n');
+  const g = rows.map(r => r.split('|').map(c => c.trim()));
+  const w = Math.max(1, ...g.map(r => r.length));
+  g.forEach(r => { while(r.length < w) r.push(''); });
+  return g.length ? g : [['']];
+}
+function wbGridWrite(n, g){
+  n.text = g.map(r => r.join(' | ')).join('\n');
+  const b = wbCur(); if(b) b.updatedAt = new Date().toISOString();
+  markDirtyAll();
+}
+function wbCellSet(id, r, c, v){
+  const n = wbNode(id); if(!n) return;
+  const g = wbGrid(n);
+  if(!g[r]) return;
+  g[r][c] = String(v).replace(/[|\n]/g, ' ');   // | 와 줄바꿈은 칸을 깨뜨립니다
+  wbGridWrite(n, g);
+}
+function wbRowAdd(id){
+  const n = wbNode(id); if(!n) return;
+  const g = wbGrid(n);
+  g.push(new Array(g[0].length).fill(''));
+  wbGridWrite(n, g);
+  n.h = Math.min(600, n.h + 30);
+  render();
+}
+function wbRowDel(id){
+  const n = wbNode(id); if(!n) return;
+  const g = wbGrid(n);
+  if(g.length <= 1){ toast('⚠️ 마지막 줄은 지울 수 없습니다'); return; }
+  g.pop();
+  wbGridWrite(n, g);
+  n.h = Math.max(60, n.h - 30);
+  render();
+}
+function wbColAdd(id){
+  const n = wbNode(id); if(!n) return;
+  const g = wbGrid(n);
+  if(g[0].length >= 8){ toast('⚠️ 칸은 8개까지입니다'); return; }
+  g.forEach(r => r.push(''));
+  wbGridWrite(n, g);
+  n.w = Math.min(900, n.w + 90);
+  render();
+}
+function wbColDel(id){
+  const n = wbNode(id); if(!n) return;
+  const g = wbGrid(n);
+  if(g[0].length <= 1){ toast('⚠️ 마지막 칸은 지울 수 없습니다'); return; }
+  g.forEach(r => r.pop());
+  wbGridWrite(n, g);
+  n.w = Math.max(120, n.w - 90);
+  render();
+}
+
 /* 판에 붙인 사진·영상은 **공유폴더에 넣지 않습니다.**
    대시보드 자기 자리(data/board-media)에 두기 때문에 탐색기나
    NAS 자료 목록에는 나오지 않습니다. 이름은 32자리 무작위이고,
@@ -5510,9 +5612,9 @@ function wbDel(id){
 }
 
 /* ── 개체 ───────────────────────────────────────────────────── */
-function wbAdd(kind){
+function wbAdd(kind, preset){
   const b = wbCur(); if(!b) return;
-  const k = WB_KINDS[kind] || WB_KINDS.note;
+  const k = Object.assign({}, WB_KINDS[kind] || WB_KINDS.note, preset || {});
   // 지금 보고 있는 화면 한가운데에 놓습니다
   const wrap = document.getElementById('wbWrap');
   const cw = wrap ? wrap.clientWidth  : 900;
@@ -5526,20 +5628,29 @@ function wbAdd(kind){
 
   const n = { id: uid('wn'), kind: kind, x: x, y: y,
               w: k.w, h: k.h, color: kind === 'note' ? 'yellow' : 'gray',
-              text: kind === 'table' ? '항목 | 내용\n | ' : '' };
+              text: (preset && preset.text != null) ? preset.text
+                  : (kind === 'table' ? '항목 | 내용\n | ' : '') };
   b.nodes = b.nodes || [];
   b.nodes.push(n);
   b.updatedAt = new Date().toISOString();
-  wbSel = n.id; wbEdit = n.id;
+  wbSel = n.id;
+  // 표는 칸을 바로 고치므로 글 고치기 칸을 띄우지 않습니다
+  wbEdit = (kind === 'table') ? '' : n.id;
   markDirtyAll(); render();
-  setTimeout(() => { const el = document.getElementById('wbt_' + n.id); if(el) el.focus(); }, 30);
+  if(wbEdit){
+    setTimeout(() => { const el = document.getElementById('wbt_' + n.id); if(el) el.focus(); }, 30);
+  }else{
+    setTimeout(() => {
+      const el = document.querySelector('#wbn_' + n.id + ' .wb-tb input');
+      if(el) el.focus();
+    }, 30);
+  }
 }
 let wbMoved = false;      // 방금 끌었나 (끝나고 오는 click 을 흘려보내려고)
 let wbMany = [];          // 여러 개 고른 것 (id 목록)
 let wbMarq = null;        // 끌어서 감싸는 중 {x1,y1,x2,y2}
 
 function wbInMany(id){ return wbMany.indexOf(id) >= 0; }
-function wbClearMany(){ if(wbMany.length){ wbMany = []; return true; } return false; }
 function wbToggleMany(id){
   const i = wbMany.indexOf(id);
   if(i >= 0) wbMany.splice(i, 1); else wbMany.push(id);
@@ -5656,7 +5767,8 @@ function wbSelect(id, ev){
   if(ev && (ev.shiftKey || ev.ctrlKey || ev.metaKey)){ wbToggleMany(id); return; }
   if(wbMany.length){ wbMany = []; }         // 여럿 고른 상태에서 하나를 누르면 풀립니다
   const nd = wbNode(id);
-  if(wbSel === id && wbEdit !== id && nd && nd.kind !== 'media'){
+  if(wbSel === id && wbEdit !== id && nd
+     && nd.kind !== 'media' && nd.kind !== 'table'){
     wbStartEdit(id); return;               // 고른 것을 다시 누르면 글을 고칩니다
   }
   if(wbSel !== id) wbEdit = '';
@@ -5664,6 +5776,7 @@ function wbSelect(id, ev){
 }
 function wbBlank(){
   if(wbMoved) return;
+  if(wbTablePick){ wbTablePick = false; render(); return; }
   if(wbLink){ wbLink = null; render(); return; }
   if(wbSel || wbEdit || wbMany.length){
     wbSel = ''; wbEdit = ''; wbMany = [];
@@ -5971,8 +6084,11 @@ function wbBoardHtml(b, backBtn){
     + '<button class="btn sm" onclick="wbRename()" title="이름 바꾸기">✏️ '
       + esc(b.name || '이름 없는 판') + '</button>'
     + '<span style="width:9px"></span>'
-    + Object.keys(WB_KINDS).map(k => '<button class="btn" onclick="'
-        + (k === 'media' ? 'wbPickMedia()' : 'wbAdd(\'' + k + '\')') + '">'
+    + Object.keys(WB_KINDS).map(k => '<button class="btn'
+        + (k === 'table' && wbTablePick ? ' primary' : '') + '" onclick="'
+        + (k === 'media' ? 'wbPickMedia()'
+          : k === 'table' ? 'wbToggleTablePick()'
+          : 'wbAdd(\'' + k + '\')') + '">'
         + WB_KINDS[k].icon + ' ' + WB_KINDS[k].label + '</button>').join('')
     + '<button class="btn sm' + (wbMarqMode ? ' primary' : '') + '" onclick="wbToggleMarq()" '
       + 'title="끌어서 네모로 감싸면 여러 개가 한꺼번에 골라집니다 (Shift 를 누른 채 끌어도 됩니다)" '
@@ -5997,6 +6113,16 @@ function wbBoardHtml(b, backBtn){
         + '<div class="wb-marq" id="wbMarq" style="display:none"></div>'
       + '</div>'
       + wbManyBar()
+      + (wbTablePick
+          ? '<div class="wb-pick" onpointerdown="event.stopPropagation()" '
+            + 'onclick="event.stopPropagation()">'
+            + '<span class="lb">▦ 어떤 표로</span>'
+            + WB_TABLES.map(t => '<button onclick="wbAddTable(\'' + t.key + '\')" '
+                + 'title="' + esc(t.rows[0]) + '">' + t.icon + ' ' + esc(t.label)
+                + '</button>').join('')
+            + '<button class="x" onclick="wbToggleTablePick()" title="닫기">✕</button>'
+          + '</div>'
+          : '')
       + (wbLink ? '<div class="wb-link">이을 상대를 눌러주세요 (빈 곳을 누르면 그만둡니다)</div>' : '')
       + '<div class="wb-bar">'
         + '<button onclick="event.stopPropagation();wbZoom(-0.1)">−</button>'
@@ -6041,12 +6167,16 @@ function wbNodeHtml(n){
       + '</div>'
       + (n.name ? '<span class="cap">' + esc(n.name) + '</span>' : '');
   }else if(n.kind === 'table'){
-    const rows = String(n.text || '').split('\n').filter(r => r.trim() !== '');
-    body = '<div class="bd">' + (rows.length
-      ? '<table class="wb-tb">' + rows.map(r => '<tr>'
-          + r.split('|').map(c => '<td>' + esc(c.trim()) + '</td>').join('') + '</tr>').join('')
-        + '</table>'
-      : '<div style="padding:9px 11px;opacity:.5">두 번 눌러 표를 채워주세요</div>') + '</div>';
+    const g = wbGrid(n);
+    // 고른 표는 칸을 바로 고칠 수 있습니다 (누르고 적으면 됩니다)
+    body = '<div class="bd"><table class="wb-tb">'
+      + g.map((row, ri) => '<tr>' + row.map((c, ci) => sel
+          ? '<td class="on"><input value="' + esc(c) + '" '
+            + 'onpointerdown="event.stopPropagation()" onclick="event.stopPropagation()" '
+            + 'oninput="wbCellSet(\'' + jsq(n.id) + '\',' + ri + ',' + ci + ', this.value)" '
+            + 'placeholder="' + (ri === 0 ? '머리글' : '') + '"></td>'
+          : '<td>' + esc(c) + '</td>').join('') + '</tr>').join('')
+      + '</table></div>';
   }else{
     body = '<div class="bd"' + (String(n.text || '').trim() ? '' : ' style="opacity:.45"') + '>'
       + esc(String(n.text || '').trim() || '두 번 눌러 글을 적어주세요') + '</div>';
@@ -6062,6 +6192,12 @@ function wbNodeHtml(n){
               + 'style="background:' + c.bg + '" title="' + c.label + '" '
               + 'onclick="wbColor(\'' + jsq(n.id) + '\',\'' + c.key + '\')"></button>').join('')
             + '<button onclick="wbStartEdit(\'' + jsq(n.id) + '\')" title="글 고치기">✏️</button>')
+      + (n.kind === 'table'
+          ? '<button onclick="wbRowAdd(\'' + jsq(n.id) + '\')" title="줄 하나 더">＋줄</button>'
+            + '<button onclick="wbRowDel(\'' + jsq(n.id) + '\')" title="마지막 줄 빼기">－줄</button>'
+            + '<button onclick="wbColAdd(\'' + jsq(n.id) + '\')" title="칸 하나 더">＋칸</button>'
+            + '<button onclick="wbColDel(\'' + jsq(n.id) + '\')" title="마지막 칸 빼기">－칸</button>'
+          : '')
       + '<button onclick="wbStartLink(\'' + jsq(n.id) + '\')" title="다른 것과 잇기">⇢</button>'
       + '<button onclick="wbCopyNode(\'' + jsq(n.id) + '\')" title="하나 더">⧉</button>'
       + '<button onclick="wbFront(\'' + jsq(n.id) + '\')" title="맨 앞으로">⬆</button>'

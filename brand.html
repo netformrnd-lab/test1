@@ -1426,7 +1426,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-10';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3044,7 +3044,7 @@ function docView(){
    ============================================= */
 const tidy = { from:null, to:null, files:null, targets:null, deep:true, init:false,
                loading:false, error:null, pick:null, done:[], busy:null,
-               plan:null, running:null, undo:[] };
+               plan:null, running:null, undo:[], mk:false, madeDirs:[] };
 
 /* 공유폴더 목록 (「전체」 화면에서 같이 옵니다). 아직 없으면 한 번 불러옵니다. */
 function nasRootsList(){
@@ -3192,6 +3192,51 @@ function tidySuggest(fileName){
 const TIDY_MIN  = 40;    // 이 점수는 넘어야 옮깁니다
 const TIDY_GAP  = 8;     // 1등이 2등보다 이만큼은 앞서야 합니다
 
+/* 파일 이름을 낱말로 쪼갭니다.
+   "2026-03-리플렛_최종본(1).ai" → ['리플렛','최종본']
+   날짜·번호·버전처럼 폴더 이름이 될 수 없는 것은 버립니다. */
+const TIDY_STOP = ['최종','최종본','수정','복사본','사본','원본','버전','시안본',
+                   'final','copy','new','old','test','임시','확인','완료'];
+function tidyWords(name){
+  const base = String(name).replace(/\.[^.]+$/, '');
+  return base
+    .replace(/[0-9]{4}[-_.]?[0-9]{1,2}[-_.]?[0-9]{0,2}/g, ' ')   // 날짜
+    .replace(/\bv?[0-9]+(차|회|번|판)?\b/gi, ' ')                 // 번호·버전
+    .split(/[\s_\-.·,()\[\]{}+&]+/)
+    .map(w => w.trim())
+    .filter(w => w.length >= 2 && !/^[0-9]+$/.test(w)
+                 && TIDY_STOP.indexOf(w.toLowerCase()) < 0);
+}
+
+/* 어울리는 폴더가 없는 파일들 중, 같은 낱말이 여러 번 나오면 그 낱말로 폴더를 냅니다 */
+const TIDY_MK_MIN = 3;      // 이만큼 모여야 폴더를 만들자고 합니다
+
+function tidyNewFolders(left){
+  const byWord = {};
+  left.forEach(x => {
+    const seen = {};
+    tidyWords(x.f.name).forEach(w => {
+      if(seen[w]) return;                       // 한 파일이 같은 낱말로 두 번 세지 않게
+      seen[w] = 1;
+      (byWord[w] = byWord[w] || []).push(x.f);
+    });
+  });
+  // 이미 있는 폴더 이름과 겹치면 그건 새로 만들 이유가 없습니다
+  const have = (tidy.targets || []).map(t => normKey(t.name));
+  const out = [];
+  const taken = {};
+  Object.keys(byWord)
+    .filter(w => byWord[w].length >= TIDY_MK_MIN && have.indexOf(normKey(w)) < 0)
+    .sort((a, b) => byWord[b].length - byWord[a].length || b.length - a.length)
+    .forEach(w => {
+      const files = byWord[w].filter(f => !taken[f.path]);
+      if(files.length < TIDY_MK_MIN) return;    // 다른 낱말이 이미 가져갔습니다
+      files.forEach(f => { taken[f.path] = 1; });
+      out.push({ name: w, files: files });
+    });
+  return out;
+}
+
 function tidyPlan(){
   const out = { move: [], skip: [] };
   (tidy.files || []).forEach(f => {
@@ -3216,6 +3261,18 @@ function tidyPlan(){
       out.move.push({ f:f, t:top.t, why:top.why });
     }
   });
+
+  // 「없는 폴더는 만들어서」 를 켰을 때만 — 남은 것들 중 같은 낱말끼리 묶습니다
+  out.make = [];
+  if(tidy.mk){
+    const groups = tidyNewFolders(out.skip);
+    const used = {};
+    groups.forEach(g => {
+      g.files.forEach(f => { used[f.path] = 1; });
+      out.make.push(g);
+    });
+    out.skip = out.skip.filter(x => !used[x.f.path]);
+  }
   return out;
 }
 
@@ -3226,6 +3283,17 @@ function tidyAuto(){
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 function tidyPlanClose(){ tidy.plan = null; render(); }
+function toggleTidyMk(){
+  tidy.mk = !tidy.mk;
+  if(tidy.plan) tidy.plan = tidyPlan();     // 켜자마자 다시 셈해서 보여줍니다
+  render();
+}
+function tidyMakeDrop(i){
+  if(!tidy.plan || !tidy.plan.make) return;
+  const g = tidy.plan.make.splice(i, 1)[0];
+  if(g) g.files.forEach(f => tidy.plan.skip.push({ f:f, why:'그냥 두기로 함' }));
+  render();
+}
 function tidyPlanDrop(i){
   if(!tidy.plan) return;
   const x = tidy.plan.move.splice(i, 1)[0];
@@ -3236,11 +3304,48 @@ function tidyPlanDrop(i){
 /* 「이대로 옮기기」 — 하나씩 옮기고, 되돌릴 수 있게 적어둡니다 */
 async function tidyRun(){
   const plan = tidy.plan;
-  if(!plan || !plan.move.length) return;
-  tidy.running = { done:0, all: plan.move.length };
+  const mk = plan ? (plan.make || []) : [];
+  if(!plan || (!plan.move.length && !mk.length)) return;
+
+  const total = plan.move.length + mk.reduce((a, g) => a + g.files.length, 0);
+  tidy.running = { done:0, all: total };
   tidy.undo = [];
+  tidy.madeDirs = [];
   render();
   const failed = [];
+
+  // ① 새 폴더를 먼저 만들고, 그 안으로 옮깁니다
+  for(const g of mk){
+    let dirPath = '';
+    try{
+      const o = await apiJson('nasfiles.php?action=mkdir', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ dir: tidy.to, name: g.name })
+      });
+      dirPath = o['경로'];
+      tidy.madeDirs.push(dirPath);
+    }catch(e){
+      failed.push('폴더 「' + g.name + '」 을 만들지 못했습니다 — ' + apiErrText(e));
+      tidy.running.done += g.files.length;
+      render();
+      continue;
+    }
+    for(const f of g.files){
+      try{
+        const out = await apiJson('nasfiles.php?action=movenas', {
+          method:'POST', headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ src: f.path, dest: dirPath })
+        });
+        tidy.undo.push({ path: (out && out['옮긴곳']) || (dirPath + '/' + f.name),
+                         back: tidy.from, name: f.name, to: g.name });
+        tidy.done.unshift({ name: f.name, dest: g.name });
+      }catch(e){ failed.push(f.name + ' — ' + apiErrText(e)); }
+      tidy.running.done++;
+      render();
+    }
+  }
+
+  // ② 이미 있는 폴더로 옮깁니다
   for(const m of plan.move){
     try{
       const out = await apiJson('nasfiles.php?action=movenas', {
@@ -3282,6 +3387,16 @@ async function tidyUndo(){
     tidy.running.done++;
     render();
   }
+  // 이번에 만든 폴더가 비었으면 휴지통으로 보냅니다 (되돌리면 자취도 없게)
+  for(const d of (tidy.madeDirs || [])){
+    try{
+      await apiJson('nasfiles.php?action=trash', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ path: d })
+      });
+    }catch(e){ /* 안에 뭔가 남아 있으면 그냥 둡니다 */ }
+  }
+  tidy.madeDirs = [];
   tidy.running = null;
   tidy.undo = [];
   tidy.done = [];
@@ -3345,22 +3460,47 @@ function tidyPlanPanel(){
       + '<br>이런 것은 아래 목록에서 손으로 골라 옮겨주세요.</div>'
     : '';
 
+  const mk = pl.make || [];
+  const mkN = mk.reduce((a, g) => a + g.files.length, 0);
+  const mkHtml = mk.length
+    ? '<div class="hsec" style="margin:14px 0 8px">📁 새로 만들 폴더 '
+      + mk.length + '개 (파일 ' + mkN + '개) — 「'
+      + esc(String(tidy.to || '').split('/').pop()) + '」 안에</div>'
+      + mk.map((g, i) =>
+        '<div class="krow" style="align-items:flex-start">'
+        + '<span class="chip on" style="white-space:nowrap;flex:0 0 auto">'
+          + '＋ 📁 ' + esc(g.name) + '</span>'
+        + '<span style="flex:1;min-width:0;white-space:normal;word-break:break-all;'
+          + 'color:var(--text-secondary);font-size:12.5px">'
+          + esc(g.files.map(f => f.name).join(' · ')) + '</span>'
+        + '<span class="fmeta" style="white-space:nowrap;margin:0">'
+          + g.files.length + '개</span>'
+        + '<button class="btn sm" title="이 폴더는 만들지 않기" '
+          + 'onclick="tidyMakeDrop(' + i + ')">빼기</button>'
+        + '</div>').join('')
+    : '';
+
+  const total = pl.move.length + mkN;
+
   return '<div class="mbox" style="margin-bottom:14px;border-color:var(--blue)">'
     + '<div class="mh" style="display:flex;align-items:center;gap:6px">'
       + '<span>🪄 이렇게 옮길게요</span>'
-      + '<span class="mhs">' + pl.move.length + '개</span>'
+      + '<span class="mhs">' + total + '개</span>'
       + '<span style="margin-left:auto">'
         + '<button class="btn sm" onclick="tidyPlanClose()">그만두기</button></span>'
     + '</div>'
-    + (pl.move.length
-        ? rows
-          + '<div class="sec-bar" style="margin:10px 0 0">'
-            + '<button class="btn primary" onclick="tidyRun()">✅ 이대로 ' + pl.move.length
-              + '개 옮기기</button>'
-            + '<span class="hint">옮긴 뒤에도 [↩︎ 되돌리기] 로 한 번에 제자리로 돌릴 수 있습니다</span>'
+    + rows + mkHtml
+    + (total
+        ? '<div class="sec-bar" style="margin:10px 0 0">'
+            + '<button class="btn primary" onclick="tidyRun()">✅ 이대로 ' + total
+              + '개 옮기기' + (mk.length ? ' (폴더 ' + mk.length + '개 만들고)' : '') + '</button>'
+            + '<span class="hint">옮긴 뒤에도 [↩︎ 되돌리기] 로 한 번에 제자리로 돌릴 수 있습니다'
+              + (mk.length ? ' — 만든 폴더도 비었으면 같이 치웁니다' : '') + '</span>'
           + '</div>'
         : '<div class="fmeta" style="padding:6px 0">'
-          + '자신 있게 옮길 만한 것이 없습니다. 아래에서 손으로 골라주세요.</div>')
+          + '자신 있게 옮길 만한 것이 없습니다.'
+          + (tidy.mk ? '' : ' [＋ 없는 폴더도 만들까요] 를 켜보시거나,')
+          + ' 아래에서 손으로 골라주세요.</div>')
     + skips
     + '</div>';
 }
@@ -3400,6 +3540,10 @@ function tidyView(){
         + (tidy.running ? 'disabled ' : '')
         + 'title="파일마다 어울리는 폴더를 골라 「이렇게 옮길게요」 를 먼저 보여줍니다">'
         + '🪄 알아서 정리</button>'
+      + '<button class="btn sm' + (tidy.mk ? ' primary' : '') + '" onclick="toggleTidyMk()" '
+        + 'title="어울리는 폴더가 없을 때, 같은 낱말이 ' + TIDY_MK_MIN
+        + '개 이상 모이면 그 낱말로 폴더를 냅니다">'
+        + (tidy.mk ? '📁 없는 폴더는 만들어서' : '＋ 없는 폴더도 만들까요') + '</button>'
       + ((tidy.undo || []).length && !tidy.running
           ? '<button class="btn" onclick="tidyUndo()">↩︎ 방금 옮긴 '
             + tidy.undo.length + '개 되돌리기</button>' : '')

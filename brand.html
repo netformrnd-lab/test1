@@ -1424,7 +1424,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -9039,8 +9039,58 @@ function wcalBar(){
 let calTasks = true;        // 달력에 브랜드 할 일 기한도 함께 보일까
 function toggleCalTasks(){ calTasks = !calTasks; render(); }
 
+/* 「할 일을 넣었는데 달력에 안 뜬다」 는 대개 셋 중 하나입니다.
+   기한이 없거나 · 다른 달이거나 · 이미 완료했거나.
+   화면이 말을 안 하면 「연동이 안 된다」 로 보이므로 여기서 짚어줍니다. */
+function calTaskNote(c){
+  const ym = c.y + '-' + String(c.m + 1).padStart(2, '0');
+  let here = 0, noDue = 0, other = 0, done = 0, nearest = '';
+  data.brands.forEach(b => (b.tasks || []).forEach(t => {
+    if(t.status === '완료'){ if(t.due) done++; return; }
+    if(!t.due){ noDue++; return; }
+    if(String(t.due).slice(0, 7) === ym){ here++; return; }
+    other++;
+    if(!nearest || Math.abs(new Date(t.due) - new Date()) < Math.abs(new Date(nearest) - new Date()))
+      nearest = t.due;
+  }));
+
+  if(!calTasks){
+    return (here + other)
+      ? '<div class="fmeta" style="margin:-2px 0 10px">'
+        + '✅ 할 일은 지금 숨겨져 있습니다 — 위 [할 일 보기] 를 누르면 함께 보입니다.</div>'
+      : '';
+  }
+  if(!noDue && !other && !done) return '';          // 다 보이고 있습니다
+
+  const bits = [];
+  if(here)  bits.push('이 달에 <b>' + here + '건</b> 보이는 중');
+  if(noDue) bits.push('기한 없음 <b>' + noDue + '건</b>');
+  if(other) bits.push('다른 달 <b>' + other + '건</b>');
+  if(done)  bits.push('완료 <b>' + done + '건</b>');
+
+  return '<div class="ainote" style="margin:-2px 0 12px">'
+    + '✅ <b>할 일</b> — ' + bits.join(' · ')
+    + '<div class="fmeta" style="margin-top:5px">'
+      + '기한이 있고 아직 안 끝난 할 일만 그 날짜에 나옵니다.</div>'
+    + '<div class="sec-bar" style="margin-top:8px">'
+      + (noDue ? '<button class="btn sm primary" onclick="goView(\'tasks\')">'
+          + '📅 기한 없는 ' + noDue + '건에 기한 넣기</button>' : '')
+      + (other && nearest ? '<button class="btn sm" onclick="calGoTo(\'' + jsq(nearest) + '\')">'
+          + '→ 가장 가까운 할 일 (' + esc(fmtDate(nearest)) + ') 보기</button>' : '')
+    + '</div></div>';
+}
+
+/* 그 날짜가 있는 달로 옮겨갑니다 */
+function calGoTo(ds){
+  const d = new Date(ds + 'T00:00:00');
+  if(isNaN(d.getTime())) return;
+  calYM = { y: d.getFullYear(), m: d.getMonth() };
+  render(); window.scrollTo({ top:0, behavior:'smooth' });
+}
+
 function renderCalendar(){
   wcalEnsure();
+  if(authOn()) setTimeout(() => loadPeople(), 10);   // 담당자 이름을 제대로 쓰려고
   const c = calNow();
   const first = new Date(c.y, c.m, 1);
   const days  = new Date(c.y, c.m + 1, 0).getDate();
@@ -9062,8 +9112,10 @@ function renderCalendar(){
   if(calTasks){
     data.brands.forEach(b => (b.tasks || []).forEach(t => {
       if(!t.due || t.status === '완료') return;
-      const who = authOn() ? (t.uid ? (peopleName(t.uid) || t.owner || '') : '')
-                           : (t.owner || '');
+      // 사람 목록을 아직 못 받았으면 peopleName 이 아이디를 그대로 돌려줍니다.
+      // 그때는 할 일에 적어둔 이름을 씁니다 (「hyeyoung」 대신 「권혜영」).
+      const nm = t.uid ? peopleName(t.uid) : '';
+      const who = (nm && nm !== t.uid) ? nm : (t.owner || '');
       put(t.due, { id:t.id, t:t.title, kind:'할 일', brand:b.name, bid:b.id,
                    own:false, who:who, st:t.status });
     }));
@@ -9124,17 +9176,10 @@ function renderCalendar(){
       + '<button class="btn sm' + (calTasks ? ' primary' : '') + '" onclick="toggleCalTasks()" '
         + 'title="브랜드 할 일의 기한을 달력에 함께 보여줍니다">'
         + (calTasks ? '✅ 할 일 보이는 중' : '할 일 보기') + '</button>'
-      + (function(){
-          const n = data.brands.reduce((a, b) => a + (b.tasks || [])
-            .filter(t => t.status !== '완료' && !t.due).length, 0);
-          return n && calTasks
-            ? '<span class="hint">📅 기한이 없는 할 일 ' + n + '건은 여기 안 나옵니다 — '
-              + '<button class="btn sm" onclick="goView(\'tasks\')">✅ 할 일에서 기한 넣기</button>'
-              + '</span>'
-            : '<span class="hint">빈 칸을 두 번 누르면 그 날짜로 넣습니다 · '
-              + '일정을 누르면 날짜까지 고칠 수 있습니다</span>';
-        })()
+      + '<span class="hint">빈 칸을 두 번 누르면 그 날짜로 넣습니다 · '
+        + '일정을 누르면 날짜까지 고칠 수 있습니다</span>'
     + '</div>'
+    + calTaskNote(c)
     + '<div class="vz-legend" style="margin-bottom:10px">' + legend + '</div>'
     + wcalBar()
     + '<div class="calwrap"><div class="cal">'

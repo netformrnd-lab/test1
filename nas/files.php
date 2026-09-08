@@ -820,6 +820,105 @@ if ($action === 'upload') {
     ]);
 }
 
+/* ═══════════ 판(화이트보드)에 붙인 사진·영상 ═══════════════════════
+   공유폴더에 넣지 않습니다. 대시보드 자기 자리(data/board-media)에 둡니다.
+   그래서 탐색기나 NAS 자료 목록에는 나오지 않습니다.
+
+   · 이름은 32자리 무작위라 주소를 찍어서 맞힐 수 없습니다
+   · 꺼내 보는 것도 로그인을 지나야 합니다 (이 파일 맨 위 guard.php)
+   ================================================================= */
+if ($action === 'bmupload') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
+    }
+    if (empty($_FILES) && empty($_POST)) {
+        jout(['ok' => false, 'error' =>
+            '파일이 너무 커서 서버가 받지 못했습니다. 지금 한도: '
+            . ini_get('upload_max_filesize') . ' / 요청 ' . ini_get('post_max_size')], 413);
+    }
+    if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        jout(['ok' => false, 'error' => '전달된 파일이 없습니다'], 400);
+    }
+    $f = $_FILES['file'];
+    if ($f['size'] > 60 * 1024 * 1024) {
+        jout(['ok' => false, 'error' => '한 개 60MB까지 붙일 수 있습니다'], 413);
+    }
+
+    // 사진과 영상만 받습니다
+    $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+    $okExt = ['jpg','jpeg','png','gif','webp','bmp','heic','svg',
+              'mp4','mov','webm','m4v'];
+    if (!in_array($ext, $okExt, true)) {
+        jout(['ok' => false, 'error' => '사진이나 영상만 붙일 수 있습니다 (' . $ext . ')'], 400);
+    }
+
+    $dir = $DATA_DIR . '/board-media';
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        jout(['ok' => false, 'error' => 'data 폴더에 쓸 수 없습니다'], 500);
+    }
+    $id   = bin2hex(random_bytes(16));
+    $dest = $dir . '/' . $id . '.' . $ext;
+    if (!move_uploaded_file($f['tmp_name'], $dest)) {
+        jout(['ok' => false, 'error' => '저장하지 못했습니다 (권한 확인)'], 500);
+    }
+    @chmod($dest, 0664);
+
+    jout(['ok' => true, 'id' => $id . '.' . $ext,
+          '이름' => (string)$f['name'],
+          'mime' => $f['type'] ?: 'application/octet-stream',
+          '크기' => (int)$f['size']]);
+}
+
+if ($action === 'bmview') {
+    $id = (string)($_GET['id'] ?? '');
+    if (!preg_match('/^[0-9a-f]{32}\.[a-z0-9]{2,5}$/', $id)) {
+        jout(['ok' => false, 'error' => '잘못된 주소입니다'], 400);
+    }
+    $path = $DATA_DIR . '/board-media/' . $id;
+    if (!is_file($path)) jout(['ok' => false, 'error' => '그 그림이 없습니다'], 404);
+
+    $ext  = strtolower(pathinfo($id, PATHINFO_EXTENSION));
+    $type = [
+        'jpg'=>'image/jpeg','jpeg'=>'image/jpeg','png'=>'image/png','gif'=>'image/gif',
+        'webp'=>'image/webp','bmp'=>'image/bmp','heic'=>'image/heic','svg'=>'image/svg+xml',
+        'mp4'=>'video/mp4','mov'=>'video/quicktime','webm'=>'video/webm','m4v'=>'video/x-m4v',
+    ][$ext] ?? 'application/octet-stream';
+
+    header('Content-Type: ' . $type);
+    header('Content-Length: ' . filesize($path));
+    header('Content-Disposition: inline');
+    header('Cache-Control: private, max-age=86400');
+    header('X-Content-Type-Options: nosniff');
+    readfile($path);
+    exit;
+}
+
+/* 아무도 안 쓰는 그림을 치웁니다 — 화면이 「지금 쓰는 것」 목록을 보내줍니다 */
+if ($action === 'bmsweep') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    }
+    $in   = json_decode((string)file_get_contents('php://input'), true) ?: [];
+    $keep = [];
+    foreach ((array)($in['keep'] ?? []) as $k) {
+        if (preg_match('/^[0-9a-f]{32}\.[a-z0-9]{2,5}$/', (string)$k)) $keep[(string)$k] = 1;
+    }
+    // 목록을 아예 못 받았으면 아무것도 지우지 않습니다 (실수로 다 날리지 않게)
+    if (!isset($in['keep']) || !is_array($in['keep'])) {
+        jout(['ok' => false, 'error' => '지금 쓰는 목록을 받지 못했습니다'], 400);
+    }
+    $dir = $DATA_DIR . '/board-media';
+    $gone = 0; $bytes = 0;
+    foreach ((array)@glob($dir . '/*') as $p2) {
+        $n = basename($p2);
+        if (isset($keep[$n]) || !is_file($p2)) continue;
+        if (time() - (@filemtime($p2) ?: 0) < 3600) continue;   // 방금 올린 것은 건드리지 않습니다
+        $bytes += (int)@filesize($p2);
+        if (@unlink($p2)) $gone++;
+    }
+    jout(['ok' => true, '지운수' => $gone, '되찾은용량' => $bytes]);
+}
+
 /* ---------------- 다운로드 ---------------- */
 /* ---------------- NAS 공유폴더로 옮기기 ----------------
    대시보드에 올린 파일을 실제 공유폴더 안으로 옮깁니다.

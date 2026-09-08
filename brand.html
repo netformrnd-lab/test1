@@ -636,6 +636,21 @@ table.itable tr:hover td{background:var(--bg-hover)}
   display:flex;flex-direction:column;cursor:grab;user-select:none;
   box-shadow:var(--shadow-sm);overflow:hidden}
 .wb-n.on{box-shadow:0 0 0 2px var(--blue),var(--shadow-md);z-index:5}
+.wb-n.on2{box-shadow:0 0 0 2px var(--purple),var(--shadow-md);z-index:4}
+.wb-marq{position:absolute;border:1.5px dashed var(--blue);background:var(--blue-soft);
+  pointer-events:none;z-index:30;border-radius:4px}
+.wb-many{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:22;
+  display:flex;gap:3px;align-items:center;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:99px;padding:4px 8px;
+  box-shadow:var(--shadow-md);white-space:nowrap;font-size:12px}
+.wb-many b{color:var(--purple);margin-right:4px}
+.wb-many button{border:none;background:transparent;font-family:inherit;font-size:12px;
+  padding:3px 7px;border-radius:99px;cursor:pointer;color:var(--text-secondary)}
+.wb-many button:hover{background:var(--bg-hover);color:var(--text-primary)}
+.wb-many button.danger:hover{background:rgba(217,59,59,.12);color:var(--red)}
+.wb-many .sw{width:15px;height:15px;border-radius:50%;border:1px solid rgba(0,0,0,.12);
+  cursor:pointer;padding:0}
+.wb-many .sep{width:1px;height:15px;background:var(--border);margin:0 3px}
 .wb-n.drag{cursor:grabbing;z-index:9;box-shadow:var(--shadow-lg)}
 .wb-n .bd{flex:1;min-height:0;padding:9px 11px;font-size:12.5px;line-height:1.55;
   white-space:pre-wrap;word-break:break-word;overflow:hidden}
@@ -651,6 +666,14 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--text-primary)}
 .wb-n.k-text:hover{border-color:var(--border-light)}
 .wb-n.k-table{background:var(--bg-card);border:1px solid var(--border)}
+.wb-n.k-media{background:#1b1d22;border:1px solid var(--border);padding:0}
+.wb-n.k-media .bd{padding:0;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;background:#1b1d22}
+.wb-n.k-media img,.wb-n.k-media video{width:100%;height:100%;object-fit:contain;display:block}
+.wb-n.k-media .up{color:#c8cad0;font-size:12px;text-align:center;padding:10px;line-height:1.6}
+.wb-n.k-media .cap{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);
+  color:#fff;font-size:10.5px;padding:3px 7px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;pointer-events:none}
 .wb-n.k-table .bd{padding:0;overflow:auto}
 .wb-tb{width:100%;border-collapse:collapse;font-size:11.5px}
 .wb-tb td{border:1px solid var(--border);padding:5px 7px;color:var(--text-secondary);
@@ -1406,6 +1429,8 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 
 <div id="usersLayer"></div>
 <input type="file" id="nasUpInput" multiple style="display:none" onchange="onNasUpload(this)">
+<input type="file" id="wbMediaInput" multiple accept="image/*,video/*" style="display:none"
+       onchange="onWbMedia(this)">
 
 <div class="toast" id="toast"></div>
 
@@ -1421,7 +1446,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260908-13';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260908-14';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5300,8 +5325,147 @@ const WB_KINDS = {
   note:  { label:'메모', icon:'🗒', w:190, h:150 },
   box:   { label:'상자', icon:'▭',  w:250, h:130 },
   text:  { label:'글',   icon:'T',  w:260, h:46  },
-  table: { label:'표',   icon:'▦',  w:340, h:150 }
+  table: { label:'표',   icon:'▦',  w:340, h:150 },
+  media: { label:'사진·영상', icon:'🖼', w:300, h:200 }
 };
+
+/* 판에 붙인 사진·영상은 **공유폴더에 넣지 않습니다.**
+   대시보드 자기 자리(data/board-media)에 두기 때문에 탐색기나
+   NAS 자료 목록에는 나오지 않습니다. 이름은 32자리 무작위이고,
+   꺼내 보는 것도 로그인을 지납니다.
+
+   공유자료 파일에 그림을 통째로 넣는 방법은 쓰지 않습니다 —
+   그러면 팀원이 화면을 열 때마다 그 용량을 다 내려받게 됩니다. */
+const WB_MEDIA_MAX = 60 * 1024 * 1024;      // 한 개 60MB 까지
+
+function wbIsVideo(m){ return /^video\//.test(String(m || '')); }
+function wbMediaSrc(n){
+  return 'files.php?action=bmview&id=' + encodeURIComponent(n.path || '');
+}
+
+/* 파일 하나를 올려 판에 붙일 모양으로 돌려줍니다 */
+async function wbPutMedia(file){
+  if(STORAGE_MODE !== 'nas'){
+    toast('⚠️ 사진·영상은 NAS 주소로 열었을 때만 붙일 수 있습니다');
+    return null;
+  }
+  if(file.size > WB_MEDIA_MAX){
+    toast('⚠️ ' + file.name + ' 은 너무 큽니다 (한 개 60MB까지)');
+    return null;
+  }
+  const fd = new FormData();
+  fd.append('file', file, file.name);
+  const r = await fetch('files.php?action=bmupload', { method:'POST', body: fd });
+  const o = JSON.parse(await r.text());
+  if(!o.ok) throw new Error(o.error || '올리지 못했습니다');
+  return { path: o.id, name: o['이름'] || file.name,
+           mime: o.mime || file.type || '', size: o['크기'] || file.size };
+}
+
+/* 그림의 진짜 크기를 재서 판에 알맞게 놓습니다 (찌그러지지 않게) */
+function wbFitSize(file){
+  return new Promise(res => {
+    if(!/^image\//.test(file.type || '')) return res(null);
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = () => {
+      URL.revokeObjectURL(url);
+      const max = 360;
+      const k = Math.min(max / im.naturalWidth, max / im.naturalHeight, 1);
+      res({ w: Math.max(90, Math.round(im.naturalWidth * k)),
+            h: Math.max(60, Math.round(im.naturalHeight * k)) });
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); res(null); };
+    im.src = url;
+  });
+}
+
+/* 판에 사진·영상을 붙입니다 (창에서 고르거나, 끌어다 놓거나) */
+async function wbAddMedia(files, at){
+  const b = wbCur(); if(!b) return;
+  const list = [...(files || [])].filter(f =>
+    /^(image|video)\//.test(f.type || '') || /\.(jpe?g|png|gif|webp|bmp|heic|mp4|mov|webm)$/i.test(f.name));
+  if(!list.length){ toast('⚠️ 사진이나 영상만 붙일 수 있습니다'); return; }
+
+  const wrap = document.getElementById('wbWrap');
+  const cw = wrap ? wrap.clientWidth  : 900;
+  const ch = wrap ? wrap.clientHeight : 520;
+  let x = at ? at.x : Math.round((-wbView.x + cw / 2) / wbView.z - 150);
+  let y = at ? at.y : Math.round((-wbView.y + ch / 2) / wbView.z - 100);
+
+  toast('⬆ ' + list.length + '개 올리는 중…');
+  const failed = [];
+  for(const f of list){
+    try{
+      const size = await wbFitSize(f);
+      const m = await wbPutMedia(f);
+      if(!m) continue;
+      b.nodes.push(Object.assign({
+        id: uid('wn'), kind:'media',
+        x: Math.max(0, x), y: Math.max(0, y),
+        w: size ? size.w : 300, h: size ? size.h : 200,
+        color:'dark', text:''
+      }, m));
+      x += 26; y += 26;
+    }catch(e){ failed.push(f.name + ' — ' + (e.message || e)); }
+  }
+  b.updatedAt = new Date().toISOString();
+  markDirtyAll(); render();
+  if(failed.length) alert('붙이지 못한 것:\n\n' + failed.join('\n'));
+  else toast('🖼 ' + list.length + '개를 판에 붙였습니다');
+}
+
+/* 컴퓨터에서 사진·영상을 끌어다 놓으면 그 자리에 붙습니다 */
+function wbDropAllow(ev){
+  if(!ev.dataTransfer || [...(ev.dataTransfer.types || [])].indexOf('Files') < 0) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'copy';
+  ev.currentTarget.classList.add('dragover');
+}
+function wbDropLeave(ev){ ev.currentTarget.classList.remove('dragover'); }
+async function wbDropMedia(ev){
+  ev.currentTarget.classList.remove('dragover');
+  const fs = ev.dataTransfer ? ev.dataTransfer.files : null;
+  if(!fs || !fs.length) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const wrap = document.getElementById('wbWrap');
+  const r = wrap.getBoundingClientRect();
+  await wbAddMedia(fs, {
+    x: Math.round((ev.clientX - r.left - wbView.x) / wbView.z - 150),
+    y: Math.round((ev.clientY - r.top  - wbView.y) / wbView.z - 100)
+  });
+}
+
+/* 아무 판에도 안 붙은 사진·영상을 서버에서 치웁니다.
+   「지금 쓰는 것」 목록을 보내야만 서버가 지웁니다 (실수로 다 날리지 않게).
+   방금 올린 것(1시간 이내)은 서버가 건드리지 않습니다. */
+async function wbSweepMedia(){
+  if(STORAGE_MODE !== 'nas') return;
+  if(!Array.isArray(data.boards)) return;          // 아직 안 불러왔으면 손대지 않습니다
+  const keep = [];
+  data.boards.forEach(b => (b.nodes || []).forEach(n => {
+    if(n.kind === 'media' && n.path) keep.push(n.path);
+  }));
+  try{
+    await apiJson('files.php?action=bmsweep', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ keep: keep })
+    });
+  }catch(e){ /* 곁다리라 조용히 */ }
+}
+
+/* 창에서 고르기 */
+function wbPickMedia(){
+  const el = document.getElementById('wbMediaInput');
+  if(!el) return;
+  el.value = '';
+  el.click();
+}
+async function onWbMedia(input){
+  const files = [...(input.files || [])];    // 먼저 베껴둡니다 (value 를 비우면 사라집니다)
+  input.value = '';
+  if(files.length) await wbAddMedia(files);
+}
 
 let wbId    = '';            // 지금 보고 있는 판
 let wbSel   = '';            // 고른 개체
@@ -5342,6 +5506,7 @@ function wbDel(id){
   });
   markDirtyAll(); render();
   toast('🗑️ 휴지통으로 보냈습니다');
+  setTimeout(wbSweepMedia, 1200);
 }
 
 /* ── 개체 ───────────────────────────────────────────────────── */
@@ -5370,13 +5535,129 @@ function wbAdd(kind){
   setTimeout(() => { const el = document.getElementById('wbt_' + n.id); if(el) el.focus(); }, 30);
 }
 let wbMoved = false;      // 방금 끌었나 (끝나고 오는 click 을 흘려보내려고)
+let wbMany = [];          // 여러 개 고른 것 (id 목록)
+let wbMarq = null;        // 끌어서 감싸는 중 {x1,y1,x2,y2}
+
+function wbInMany(id){ return wbMany.indexOf(id) >= 0; }
+function wbClearMany(){ if(wbMany.length){ wbMany = []; return true; } return false; }
+function wbToggleMany(id){
+  const i = wbMany.indexOf(id);
+  if(i >= 0) wbMany.splice(i, 1); else wbMany.push(id);
+  wbSel = ''; wbEdit = '';
+  render();
+}
+function wbSelectAll(){
+  const b = wbCur(); if(!b) return;
+  wbMany = (b.nodes || []).map(n => n.id);
+  wbSel = ''; wbEdit = '';
+  render();
+}
+/* 고른 것들을 감싸는 네모 */
+function wbManyBox(){
+  const b = wbCur(); if(!b) return null;
+  const ns = (b.nodes || []).filter(n => wbInMany(n.id));
+  if(!ns.length) return null;
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  ns.forEach(n => {
+    x1 = Math.min(x1, n.x); y1 = Math.min(y1, n.y);
+    x2 = Math.max(x2, n.x + n.w); y2 = Math.max(y2, n.y + n.h);
+  });
+  return { x1, y1, x2, y2, ns };
+}
+
+/* ── 줄 맞추기 ─────────────────────────────────────────────── */
+function wbAlign(how){
+  const box = wbManyBox(); if(!box || box.ns.length < 2) return;
+  const ns = box.ns;
+  if(how === 'left')   ns.forEach(n => { n.x = box.x1; });
+  if(how === 'right')  ns.forEach(n => { n.x = box.x2 - n.w; });
+  if(how === 'cx')     ns.forEach(n => { n.x = Math.round((box.x1 + box.x2) / 2 - n.w / 2); });
+  if(how === 'top')    ns.forEach(n => { n.y = box.y1; });
+  if(how === 'bottom') ns.forEach(n => { n.y = box.y2 - n.h; });
+  if(how === 'cy')     ns.forEach(n => { n.y = Math.round((box.y1 + box.y2) / 2 - n.h / 2); });
+  if(how === 'row'){                       // 가로로 고르게 벌리기
+    const sorted = ns.slice().sort((a, b2) => a.x - b2.x);
+    const gap = 24;
+    let x = sorted[0].x;
+    sorted.forEach(n => { n.x = Math.round(x); x += n.w + gap; });
+  }
+  if(how === 'col'){                       // 세로로 고르게 벌리기
+    const sorted = ns.slice().sort((a, b2) => a.y - b2.y);
+    const gap = 18;
+    let y = sorted[0].y;
+    sorted.forEach(n => { n.y = Math.round(y); y += n.h + gap; });
+  }
+  const b = wbCur(); if(b) b.updatedAt = new Date().toISOString();
+  markDirtyAll(); render();
+}
+function wbManyColor(key){
+  const box = wbManyBox(); if(!box) return;
+  box.ns.forEach(n => { if(n.kind !== 'media') n.color = key; });
+  markDirtyAll(); render();
+}
+function wbManyDel(){
+  const b = wbCur(); const box = wbManyBox();
+  if(!b || !box) return;
+  if(!confirm('고른 ' + box.ns.length + '개를 지울까요?')) return;
+  const ids = {};
+  box.ns.forEach(n => { ids[n.id] = 1; });
+  const hadMedia = box.ns.some(n => n.kind === 'media');
+  b.nodes = (b.nodes || []).filter(n => !ids[n.id]);
+  b.edges = (b.edges || []).filter(e => !ids[e.from] && !ids[e.to]);
+  b.updatedAt = new Date().toISOString();
+  wbMany = [];
+  markDirtyAll(); render();
+  if(hadMedia) setTimeout(wbSweepMedia, 1200);
+}
+function wbManyCopy(){
+  const b = wbCur(); const box = wbManyBox();
+  if(!b || !box) return;
+  const made = [];
+  box.ns.forEach(n => {
+    const c = Object.assign({}, n, { id: uid('wn'), x: n.x + 28, y: n.y + 28 });
+    b.nodes.push(c); made.push(c.id);
+  });
+  wbMany = made;
+  markDirtyAll(); render();
+}
+
+/* 고른 것들 위에 뜨는 줄 */
+function wbManyBar(){
+  const box = wbManyBox();
+  if(!box || box.ns.length < 2) return '';
+  const btn = (how, label, tip) => '<button onclick="event.stopPropagation();wbAlign(\''
+    + how + '\')" title="' + tip + '">' + label + '</button>';
+  return '<div class="wb-many" onpointerdown="event.stopPropagation()" '
+    + 'onclick="event.stopPropagation()">'
+    + '<b>' + box.ns.length + '개</b>'
+    + btn('left', '⇤', '왼쪽 맞춤') + btn('cx', '↔', '가로 가운데')
+    + btn('right', '⇥', '오른쪽 맞춤')
+    + '<span class="sep"></span>'
+    + btn('top', '⇡', '위 맞춤') + btn('cy', '↕', '세로 가운데')
+    + btn('bottom', '⇣', '아래 맞춤')
+    + '<span class="sep"></span>'
+    + btn('row', '▤', '가로로 고르게 벌리기') + btn('col', '▥', '세로로 고르게 벌리기')
+    + '<span class="sep"></span>'
+    + WB_HUES.map(c => '<button class="sw" style="background:' + c.bg + '" '
+        + 'title="' + c.label + '으로" '
+        + 'onclick="event.stopPropagation();wbManyColor(\'' + c.key + '\')"></button>').join('')
+    + '<span class="sep"></span>'
+    + '<button onclick="event.stopPropagation();wbManyCopy()" title="하나씩 더">⧉</button>'
+    + '<button class="danger" onclick="event.stopPropagation();wbManyDel()" title="지우기">🗑</button>'
+    + '<button onclick="event.stopPropagation();wbMany=[];render()" title="고르기 그만">✕</button>'
+    + '</div>';
+}
 
 function wbSelect(id, ev){
   if(ev) ev.stopPropagation();
   if(wbMoved) return;                       // 옮기고 나서 오는 click 은 무시
   if(wbLink){ wbConnectTo(id); return; }
-  if(wbSel === id && wbEdit !== id){        // 고른 것을 다시 누르면 글을 고칩니다
-    wbStartEdit(id); return;
+  // Shift(또는 Ctrl) 를 누른 채 누르면 고른 목록에 넣고 뺍니다
+  if(ev && (ev.shiftKey || ev.ctrlKey || ev.metaKey)){ wbToggleMany(id); return; }
+  if(wbMany.length){ wbMany = []; }         // 여럿 고른 상태에서 하나를 누르면 풀립니다
+  const nd = wbNode(id);
+  if(wbSel === id && wbEdit !== id && nd && nd.kind !== 'media'){
+    wbStartEdit(id); return;               // 고른 것을 다시 누르면 글을 고칩니다
   }
   if(wbSel !== id) wbEdit = '';
   wbSel = id; render();
@@ -5384,7 +5665,10 @@ function wbSelect(id, ev){
 function wbBlank(){
   if(wbMoved) return;
   if(wbLink){ wbLink = null; render(); return; }
-  if(wbSel || wbEdit){ wbSel = ''; wbEdit = ''; render(); }
+  if(wbSel || wbEdit || wbMany.length){
+    wbSel = ''; wbEdit = ''; wbMany = [];
+    render();
+  }
 }
 function wbStartEdit(id, ev){
   if(ev) ev.stopPropagation();
@@ -5406,12 +5690,14 @@ function wbColor(id, key){
 }
 function wbDelNode(id){
   const b = wbCur(); if(!b) return;
+  const gone = (b.nodes || []).find(n => n.id === id);
   b.nodes = (b.nodes || []).filter(n => n.id !== id);
   b.edges = (b.edges || []).filter(e => e.from !== id && e.to !== id);
   b.updatedAt = new Date().toISOString();
   if(wbSel === id) wbSel = '';
   if(wbEdit === id) wbEdit = '';
   markDirtyAll(); render();
+  if(gone && gone.kind === 'media') setTimeout(wbSweepMedia, 1200);
 }
 function wbFront(id){
   const b = wbCur(); if(!b) return;
@@ -5447,6 +5733,22 @@ function wbDelEdge(eid){
 }
 
 /* ── 화면 옮기기·키우기 ─────────────────────────────────────── */
+let wbMarqMode = false;    // 단추로 켠 「여러 개 고르기」 (터치 화면용)
+function wbToggleMarq(){ wbMarqMode = !wbMarqMode; render(); }
+
+function wbPaintMarq(){
+  const el = document.getElementById('wbMarq');
+  if(!el) return;
+  if(!wbMarq){ el.style.display = 'none'; return; }
+  const x1 = Math.min(wbMarq.x1, wbMarq.x2), x2 = Math.max(wbMarq.x1, wbMarq.x2);
+  const y1 = Math.min(wbMarq.y1, wbMarq.y2), y2 = Math.max(wbMarq.y1, wbMarq.y2);
+  el.style.display = '';
+  el.style.left = x1 + 'px';
+  el.style.top  = y1 + 'px';
+  el.style.width  = (x2 - x1) + 'px';
+  el.style.height = (y2 - y1) + 'px';
+}
+
 function wbApplyView(){
   const c = document.getElementById('wbCanvas');
   if(c) c.style.transform = 'translate(' + wbView.x + 'px,' + wbView.y + 'px) scale('
@@ -5495,6 +5797,33 @@ function wbDown(ev, id, mode){
   const n = id ? wbNode(id) : null;
   if(id && !n) return;
 
+  // 빈 곳에서 Shift 를 누른 채 끌면 네모로 감싸서 여러 개를 고릅니다
+  if(!id && mode === 'pan' && (ev.shiftKey || wbMarqMode)){
+    ev.stopPropagation();
+    const wrap = document.getElementById('wbWrap');
+    const r = wrap.getBoundingClientRect();
+    const px = (ev.clientX - r.left - wbView.x) / wbView.z;
+    const py = (ev.clientY - r.top  - wbView.y) / wbView.z;
+    wbDrag = { mode:'marq', sx: ev.clientX, sy: ev.clientY, x0: px, y0: py, moved:false };
+    wbMarq = { x1:px, y1:py, x2:px, y2:py };
+    window.addEventListener('pointermove', wbMove);
+    window.addEventListener('pointerup', wbUp);
+    return;
+  }
+
+  // 이미 여럿을 골라둔 상태에서 그중 하나를 끌면 다 같이 움직입니다
+  if(id && mode === 'move' && wbInMany(id) && wbMany.length > 1){
+    ev.stopPropagation();
+    const b2 = wbCur();
+    wbDrag = { mode:'many', sx: ev.clientX, sy: ev.clientY, moved:false,
+               list: (b2.nodes || []).filter(x => wbInMany(x.id))
+                       .map(x => ({ n:x, x0:x.x, y0:x.y,
+                                    el: document.getElementById('wbn_' + x.id) })) };
+    window.addEventListener('pointermove', wbMove);
+    window.addEventListener('pointerup', wbUp);
+    return;
+  }
+
   // preventDefault 를 하면 그 뒤 click 이 오지 않아 「눌러서 고르기」 가 죽습니다.
   // 글자가 끌려 나가는 것은 CSS(user-select:none) 로 막습니다.
   ev.stopPropagation();
@@ -5512,6 +5841,27 @@ function wbMove(ev){
   const dx = ev.clientX - d.sx, dy = ev.clientY - d.sy;
   if(!d.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
   d.moved = true;
+
+  if(d.mode === 'marq'){
+    const wrap = document.getElementById('wbWrap');
+    const r = wrap.getBoundingClientRect();
+    wbMarq = {
+      x1: d.x0, y1: d.y0,
+      x2: (ev.clientX - r.left - wbView.x) / wbView.z,
+      y2: (ev.clientY - r.top  - wbView.y) / wbView.z
+    };
+    wbPaintMarq();
+    return;
+  }
+  if(d.mode === 'many'){
+    d.list.forEach(o => {
+      o.n.x = Math.max(0, Math.round(o.x0 + dx / wbView.z));
+      o.n.y = Math.max(0, Math.round(o.y0 + dy / wbView.z));
+      if(o.el){ o.el.style.left = o.n.x + 'px'; o.el.style.top = o.n.y + 'px'; }
+    });
+    wbDrawEdges();
+    return;
+  }
   if(d.mode === 'pan'){
     wbView.x = d.x0 + dx; wbView.y = d.y0 + dy;
     wbApplyView();
@@ -5541,6 +5891,23 @@ function wbUp(){
   if(!d) return;
   if(d.el) d.el.classList.remove('drag');
   if(d.moved){ wbMoved = true; setTimeout(() => { wbMoved = false; }, 0); }
+
+  if(d.mode === 'marq'){
+    const m = wbMarq;
+    wbMarq = null;
+    if(m && d.moved){
+      const x1 = Math.min(m.x1, m.x2), x2 = Math.max(m.x1, m.x2);
+      const y1 = Math.min(m.y1, m.y2), y2 = Math.max(m.y1, m.y2);
+      const b2 = wbCur();
+      wbMany = (b2.nodes || []).filter(n =>
+        n.x < x2 && n.x + n.w > x1 && n.y < y2 && n.y + n.h > y1).map(n => n.id);
+      wbSel = ''; wbEdit = '';
+      if(!wbMany.length) toast('감싼 곳에 아무것도 없습니다');
+    }
+    wbMarqMode = false;
+    render();
+    return;
+  }
   if(d.mode === 'pan') return;           // 판을 민 것은 저장하지 않습니다
   if(!d.moved) return;                   // 그냥 누른 것 — click 이 알아서 고릅니다
   const b = wbCur(); if(b) b.updatedAt = new Date().toISOString();
@@ -5604,9 +5971,15 @@ function wbBoardHtml(b, backBtn){
     + '<button class="btn sm" onclick="wbRename()" title="이름 바꾸기">✏️ '
       + esc(b.name || '이름 없는 판') + '</button>'
     + '<span style="width:9px"></span>'
-    + Object.keys(WB_KINDS).map(k => '<button class="btn" onclick="wbAdd(\'' + k + '\')">'
+    + Object.keys(WB_KINDS).map(k => '<button class="btn" onclick="'
+        + (k === 'media' ? 'wbPickMedia()' : 'wbAdd(\'' + k + '\')') + '">'
         + WB_KINDS[k].icon + ' ' + WB_KINDS[k].label + '</button>').join('')
-    + '<button class="btn sm" onclick="wbFit()" style="margin-left:auto">⤢ 화면에 맞추기</button>'
+    + '<button class="btn sm' + (wbMarqMode ? ' primary' : '') + '" onclick="wbToggleMarq()" '
+      + 'title="끌어서 네모로 감싸면 여러 개가 한꺼번에 골라집니다 (Shift 를 누른 채 끌어도 됩니다)" '
+      + 'style="margin-left:auto">▣ 여러 개 고르기</button>'
+    + '<button class="btn sm" onclick="wbSelectAll()" title="이 판의 모든 것을 고릅니다">'
+      + '모두</button>'
+    + '<button class="btn sm" onclick="wbFit()">⤢ 화면에 맞추기</button>'
     + '<button class="btn sm danger" onclick="wbDel(\'' + jsq(b.id) + '\')" '
       + 'title="이 판을 통째로 지웁니다 (휴지통으로 갑니다)">🗑 판 지우기</button>'
     + '</div>';
@@ -5615,11 +5988,15 @@ function wbBoardHtml(b, backBtn){
 
   return bar
     + '<div class="wb-wrap grab" id="wbWrap" onpointerdown="wbDown(event,null,\'pan\')" '
-      + 'onclick="wbBlank()" onwheel="wbWheel(event)">'
+      + 'onclick="wbBlank()" onwheel="wbWheel(event)" '
+      + 'ondragover="wbDropAllow(event)" ondragleave="wbDropLeave(event)" '
+      + 'ondrop="wbDropMedia(event)">'
       + '<div class="wb-canvas" id="wbCanvas">'
         + '<svg class="wb-edges" id="wbEdges"></svg>'
         + nodes
+        + '<div class="wb-marq" id="wbMarq" style="display:none"></div>'
       + '</div>'
+      + wbManyBar()
       + (wbLink ? '<div class="wb-link">이을 상대를 눌러주세요 (빈 곳을 누르면 그만둡니다)</div>' : '')
       + '<div class="wb-bar">'
         + '<button onclick="event.stopPropagation();wbZoom(-0.1)">−</button>'
@@ -5628,7 +6005,9 @@ function wbBoardHtml(b, backBtn){
         + '<button onclick="event.stopPropagation();wbFit()">맞추기</button>'
       + '</div>'
       + '<div class="wb-hint">빈 곳을 끌면 판이 움직입니다 · '
-        + '한 번 누르면 고르고, 고른 것을 다시 누르면 글을 고칩니다</div>'
+        + '한 번 누르면 고르고, 고른 것을 다시 누르면 글을 고칩니다 · '
+        + 'Shift 를 누른 채 끌면 여러 개가 골라집니다 · '
+        + '사진·영상은 끌어다 놓으면 붙습니다</div>'
     + '</div>';
 }
 
@@ -5648,6 +6027,19 @@ function wbNodeHtml(n){
       + 'placeholder="' + (n.kind === 'table' ? '한 줄이 한 칸 줄, | 로 칸을 나눕니다'
                                               : '내용을 적어주세요') + '">'
       + esc(n.text || '') + '</textarea>';
+  }else if(n.kind === 'media'){
+    const src = wbMediaSrc(n);
+    body = '<div class="bd">'
+      + (!n.path
+          ? '<span class="up">사진이 없습니다</span>'
+          : (wbIsVideo(n.mime)
+              ? '<video src="' + esc(src) + '" controls preload="metadata" '
+                + 'onpointerdown="event.stopPropagation()" '
+                + 'onclick="event.stopPropagation()"></video>'
+              : '<img src="' + esc(src) + '" alt="' + esc(n.name || '') + '" '
+                + 'loading="lazy" draggable="false">'))
+      + '</div>'
+      + (n.name ? '<span class="cap">' + esc(n.name) + '</span>' : '');
   }else if(n.kind === 'table'){
     const rows = String(n.text || '').split('\n').filter(r => r.trim() !== '');
     body = '<div class="bd">' + (rows.length
@@ -5663,10 +6055,13 @@ function wbNodeHtml(n){
   const tools = sel
     ? '<div class="wb-tools" style="left:' + n.x + 'px;top:' + (n.y - 34) + 'px" '
       + 'onpointerdown="event.stopPropagation()" onclick="event.stopPropagation()">'
-      + WB_HUES.map(c => '<button class="sw' + (n.color === c.key ? ' on' : '') + '" '
-          + 'style="background:' + c.bg + '" title="' + c.label + '" '
-          + 'onclick="wbColor(\'' + jsq(n.id) + '\',\'' + c.key + '\')"></button>').join('')
-      + '<button onclick="wbStartEdit(\'' + jsq(n.id) + '\')" title="글 고치기">✏️</button>'
+      + (n.kind === 'media'
+          ? '<a class="btn sm" style="padding:3px 7px" href="' + esc(wbMediaSrc(n)) + '" '
+            + 'target="_blank" rel="noopener" title="새 탭에서 크게 보기">↗</a>'
+          : WB_HUES.map(c => '<button class="sw' + (n.color === c.key ? ' on' : '') + '" '
+              + 'style="background:' + c.bg + '" title="' + c.label + '" '
+              + 'onclick="wbColor(\'' + jsq(n.id) + '\',\'' + c.key + '\')"></button>').join('')
+            + '<button onclick="wbStartEdit(\'' + jsq(n.id) + '\')" title="글 고치기">✏️</button>')
       + '<button onclick="wbStartLink(\'' + jsq(n.id) + '\')" title="다른 것과 잇기">⇢</button>'
       + '<button onclick="wbCopyNode(\'' + jsq(n.id) + '\')" title="하나 더">⧉</button>'
       + '<button onclick="wbFront(\'' + jsq(n.id) + '\')" title="맨 앞으로">⬆</button>'
@@ -5675,7 +6070,8 @@ function wbNodeHtml(n){
     : '';
 
   return tools
-    + '<div class="wb-n k-' + n.kind + (sel ? ' on' : '') + (wbLink ? ' pick' : '')
+    + '<div class="wb-n k-' + n.kind + (sel ? ' on' : '') + (wbInMany(n.id) ? ' on2' : '')
+      + (wbLink ? ' pick' : '')
       + (dark ? ' dark' : '') + '" id="wbn_' + esc(n.id) + '" style="' + style + '" '
       + 'onpointerdown="wbDown(event,\'' + jsq(n.id) + '\',\'move\')" '
       + 'onclick="wbSelect(\'' + jsq(n.id) + '\', event)" '
@@ -6121,6 +6517,7 @@ function gbBoardFor(g, it){
 }
 
 function gbOpenWb(sid, iid){
+  wbMany = []; wbMarq = null;
   const g = gbFind(gbWho, gbYear); if(!g) return;
   let it = null;
   if(sid){
@@ -6135,7 +6532,10 @@ function gbOpenWb(sid, iid){
   render();
   setTimeout(wbFit, 30);
 }
-function gbCloseWb(){ gbWb = null; wbId = ''; wbSel = ''; wbEdit = ''; wbLink = null; render(); }
+function gbCloseWb(){
+  gbWb = null; wbId = ''; wbSel = ''; wbEdit = ''; wbLink = null; wbMany = [];
+  render();
+}
 
 /* 어느 자리에도 안 매인 판 — 화이트보드 탭이 있던 시절에 따로 만든 것들입니다.
    없어지면 찾을 길이 없으므로 그로스보드에서 열 수 있게 남겨둡니다. */
@@ -6150,6 +6550,7 @@ function gbLooseBoards(){
   return wbBoards().filter(b => !used[b.id]);
 }
 function gbOpenLoose(id){
+  wbMany = []; wbMarq = null;
   const b = wbBoards().find(x => x.id === id); if(!b) return;
   wbId = b.id; wbSel = ''; wbEdit = ''; wbLink = null;
   wbView = { x:0, y:0, z:1 };
@@ -11180,6 +11581,11 @@ function normalize(raw){
       if(n.w < 40) n.w = WB_KINDS[n.kind].w;
       if(n.h < 24) n.h = WB_KINDS[n.kind].h;
       if(typeof n.text !== 'string') n.text = '';
+      if(n.kind === 'media'){
+        n.path = String(n.path || '');
+        n.name = String(n.name || '');
+        n.mime = String(n.mime || '');
+      }
       if(!WB_HUES.some(h => h.key === n.color)) n.color = 'yellow';
     });
     const ids = new Set(b.nodes.map(n => n.id));

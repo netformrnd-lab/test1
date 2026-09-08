@@ -1112,15 +1112,10 @@ if ($action === 'movenas') {
     $dest = rtrim(trim($in['dest'] ?? ''), '/');
     if ($src === '' || $dest === '') jout(['ok' => false, 'error' => '옮길 파일과 폴더를 지정해 주세요'], 400);
 
-    if (!is_file($ROOT_FILE)) {
-        jout(['ok' => false, 'error' => '먼저 [🔎 목록 다시 만들기] 를 한 번 해주세요'], 400);
-    }
-    $nasRoot = @realpath(rtrim(trim(file_get_contents($ROOT_FILE)), '/'));
     $srcReal = @realpath($src);
     $dstReal = @realpath($dest);
-    $inRoot  = function ($p) use ($nasRoot) {
-        return $nasRoot && $p && ($p === $nasRoot || strpos($p, $nasRoot . DIRECTORY_SEPARATOR) === 0);
-    };
+    // 공유폴더 두 곳 모두 안쪽이면 됩니다 (한 곳만 보면 다른 폴더에서 못 옮깁니다)
+    $inRoot  = function ($p) { return under_roots($p); };
 
     if (!$srcReal || !is_file($srcReal) || !$inRoot($srcReal)) {
         jout(['ok' => false, 'error' => '옮길 파일을 찾지 못했습니다: ' . $src], 404);

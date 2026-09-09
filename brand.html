@@ -931,43 +931,98 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-btabs button.on b{color:rgba(255,255,255,.8)}
 
 /* ── 브랜드 한 화면 (지금 | 여기까지) ─────────────────────────── */
-.bx-line{display:flex;flex-direction:column;gap:5px;margin:0 0 14px}
-.bx-line label{font-size:12px;font-weight:800;color:var(--text-muted)}
-.bx-line textarea{width:100%;box-sizing:border-box;font-family:inherit;font-size:15px;
+/* ── 📜 연혁 라인 ── 선 하나에 마디가 찍힙니다 ── */
+.tl-now{border:1px solid var(--border);border-top:3px solid var(--ink);
+  border-radius:var(--r-md);background:var(--bg-card);padding:14px 16px;margin:0 0 4px;
+  position:relative}
+.tl-now > .hd{font-size:15px;font-weight:800;color:var(--text-primary);
+  display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:9px}
+.tl-now > .hd span{font-size:11.5px;font-weight:400;color:var(--text-muted)}
+.tl-now > .hd .btn{margin-left:auto;align-self:center}
+.tl-now .one{width:100%;box-sizing:border-box;font-family:inherit;font-size:15.5px;
   font-weight:700;line-height:1.6;padding:10px 13px;border:1px solid var(--border);
-  border-radius:10px;background:var(--bg-card);color:var(--text-primary);
+  border-radius:10px;background:var(--bg-input);color:var(--text-primary);
   resize:none;overflow:hidden;min-height:44px}
-.bx-line textarea:focus{outline:none;border-color:var(--blue);
-  box-shadow:0 0 0 3px var(--blue-soft)}
-.bx-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;
-  align-items:start}
-.bx-col{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-card);
-  padding:13px 15px;min-width:0}
-.bx-col.now{border-top:3px solid var(--ink)}
-.bx-col.past{border-top:3px solid var(--purple);background:var(--bg-sunken)}
-.bx-col .ch{font-size:14px;font-weight:800;color:var(--text-primary);margin-bottom:11px;
-  padding-bottom:9px;border-bottom:1px solid var(--border);
-  display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.bx-col .ch span{font-size:11.5px;font-weight:400;color:var(--text-muted)}
+.tl-now .one:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+.nw-list{margin-top:10px;border-top:1px solid var(--border)}
+.nw-a{border-bottom:1px solid var(--border)}
+.nw-a > .hd{display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  padding:9px 2px;border:none;background:none;cursor:pointer;font-family:inherit}
+.nw-a > .hd:hover{background:var(--bg-sunken)}
+.nw-a .ic{flex:0 0 auto;font-size:14px}
+.nw-a .nm{flex:0 0 auto;font-size:12.5px;font-weight:800;color:var(--text-primary);
+  min-width:104px}
+.nw-a .vl{flex:1;min-width:0;font-size:12.5px;color:var(--text-secondary);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nw-a.no .vl{color:var(--text-muted)}
+.nw-a .ct{flex:0 0 auto;font-size:10.5px;font-weight:700;color:var(--text-muted);
+  background:var(--bg-sunken);border-radius:99px;padding:2px 7px}
+.nw-a .ar{flex:0 0 auto;font-size:11px;color:var(--text-muted)}
+.nw-a.open > .hd{background:var(--bg-sunken)}
+.nw-a .bd{padding:4px 2px 12px}
 .bx-f{display:flex;flex-direction:column;gap:4px;margin-bottom:11px}
 .bx-f label{font-size:12px;font-weight:700;color:var(--text-secondary)}
 .bx-f textarea{width:100%;box-sizing:border-box;font-family:inherit;font-size:14px;
   line-height:1.7;padding:9px 12px;border:1px solid var(--border);border-radius:9px;
   background:var(--bg-input);color:var(--text-primary);resize:none;overflow:hidden;
-  min-height:64px}
+  min-height:56px}
 .bx-f textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
-.bx-sub{font-size:12.5px;font-weight:800;color:var(--text-primary);margin:16px 0 8px;
-  padding-top:12px;border-top:1px dashed var(--border);
-  display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
-.bx-sub.first{margin-top:2px;padding-top:0;border-top:none}
-.bx-sub span{font-size:11px;font-weight:400;color:var(--text-muted)}
-.bx-none{font-size:12px;color:var(--text-muted);padding:8px 0 10px;line-height:1.6}
-.ht-tabs .dot{display:inline-block;width:6px;height:6px;border-radius:50%;
-  background:var(--border-light);margin-left:5px;vertical-align:middle}
-.ht-tabs .dot.on{background:var(--green)}
-.ht-tabs button.on .dot{background:rgba(255,255,255,.45)}
-.ht-tabs button.on .dot.on{background:#7ee2a8}
-@media(max-width:900px){.bx-two{grid-template-columns:1fr}}
+
+.tl-bar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:14px 0 4px}
+.tl-bar .sp{flex:1}
+.lf{border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);
+  font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:99px;
+  cursor:pointer;white-space:nowrap}
+.lf b{color:var(--text-muted);font-size:10.5px;margin-left:3px}
+.lf:hover{border-color:var(--ink)}
+.lf.on{border-color:var(--ink);background:var(--ink);color:#fff}
+.lf.on b{color:rgba(255,255,255,.8)}
+
+.tl{position:relative;margin:10px 0 0;padding:2px 0 4px 30px}
+.tl:before{content:'';position:absolute;left:9px;top:6px;bottom:34px;width:2px;
+  background:linear-gradient(var(--ink), var(--border-light))}
+.tl-y{position:relative;margin:18px 0 9px;font-size:13px;font-weight:800;
+  color:var(--text-primary);letter-spacing:.02em}
+.tl-y:first-child{margin-top:4px}
+.tl-y:before{content:'';position:absolute;left:-27px;top:2px;width:14px;height:14px;
+  border-radius:50%;background:var(--bg-page);border:2px solid var(--ink)}
+.tl-i{position:relative;margin:0 0 8px;border:1px solid var(--border);border-radius:11px;
+  background:var(--bg-card);padding:10px 13px;cursor:pointer}
+.tl-i:hover{border-color:var(--blue)}
+.tl-i:before{content:'';position:absolute;left:-25px;top:15px;width:10px;height:10px;
+  border-radius:50%;background:var(--blue);border:2px solid var(--bg-page)}
+.tl-i.k-ev:before{background:var(--blue)}
+.tl-i.k-sh:before{background:var(--purple)}
+.tl-i.k-wd:before{background:var(--orange)}
+.tl-i.k-fl:before{background:var(--red)}
+.tl-i.k-gap{background:transparent;border-style:dashed;opacity:.9}
+.tl-i.k-gap:before{background:var(--bg-page);border-color:var(--text-muted)}
+.tl-i.open{cursor:default;border-color:var(--ink);background:var(--bg-card);
+  display:flex;flex-direction:column;gap:7px;padding:12px 14px}
+.tl-i .dt{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px}
+.tl-i .dt .d{font-size:11.5px;font-weight:800;color:var(--text-primary)}
+.tl-i .dt .kd,.tl-i .dt .ax{font-size:10.5px;font-weight:700;color:var(--text-muted);
+  background:var(--bg-sunken);border-radius:99px;padding:2px 8px}
+.tl-i .dt .gs{font-size:10.5px;font-weight:800;color:var(--orange);
+  border:1px solid var(--orange);border-radius:99px;padding:1px 7px}
+.tl-i .ti{font-size:14px;font-weight:700;line-height:1.6;color:var(--text-primary);
+  white-space:pre-wrap;word-break:break-word}
+.tl-i .ti i{font-weight:400;color:var(--text-muted)}
+.tl-i .sc{margin-top:4px;font-size:11.5px;color:var(--text-muted);line-height:1.6}
+.tl-x{margin-left:auto;display:flex;gap:2px}
+.tl-x button{border:none;background:none;color:var(--text-muted);cursor:pointer;
+  font-size:13px;padding:3px 6px;border-radius:6px}
+.tl-x button:hover{background:var(--bg-sunken);color:var(--text-primary)}
+.tl-x button.x:hover{color:var(--red)}
+.tl-none{font-size:13px;color:var(--text-muted);line-height:1.8;padding:8px 0 4px}
+.tl-add{position:relative;display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+.tl-add:before{content:'';position:absolute;left:-25px;top:9px;width:10px;height:10px;
+  border-radius:50%;background:var(--bg-page);border:2px dashed var(--text-muted)}
+@media(max-width:640px){
+  .nw-a > .hd{flex-wrap:wrap}
+  .nw-a .nm{min-width:0}
+  .nw-a .vl{flex:1 1 100%;white-space:normal}
+}
 
 /* ── 📜 브랜드 히스토리 ───────────────────────────────────────── */
 .ht-tabs{display:flex;gap:5px;flex-wrap:wrap;margin:0 0 14px;
@@ -1902,7 +1957,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260909-36';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260909-37';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -2536,6 +2591,7 @@ function render(){
   else if(!currentBrandId) renderHome();
   else renderBrand();
   restoreUI(snap);
+  gbGrowAll();   // 글 칸 높이를 내용에 맞춥니다 (한 줄이면 한 줄로)
 }
 
 /* ── 휴대폰 메뉴 ────────────────────────────────────────────────
@@ -6741,7 +6797,7 @@ function gbGrow(el){
   el.style.height = Math.max(26, el.scrollHeight) + 'px';
 }
 function gbGrowAll(){
-  document.querySelectorAll('.gb-act textarea, .gb-perf textarea, .pl-doc textarea,\n     .ht-sec textarea, .gb-dtt, #gbGoal')
+  document.querySelectorAll('.gb-act textarea, .gb-perf textarea, .pl-doc textarea,\n     .hxb textarea, .tl-now textarea, .gb-dtt, #gbGoal')
     .forEach(gbGrow);
 }
 function setGbWho(v){
@@ -12370,17 +12426,16 @@ const BRAND_AXES = [
 const AXIS_OLD = { '서비스':'what', '페르소나':'who', '메시지 · 표현':'say', '채널':'where' };
 
 function axisOf(k){ return BRAND_AXES.find(a => a.key === k) || BRAND_AXES[0]; }
+/* 예전 자료(shifts)를 축으로 거르던 것 — 라인으로 옮기기 전 자료에만 씁니다 */
 function axisShifts(b, k){
   return histOf(b).shifts.filter(x => (AXIS_OLD[x.axis] || x.axis || 'what') === k);
 }
-/* 이 축이 얼마나 차 있나 — 탭에 점으로 보여줍니다 */
+/* 이 축이 얼마나 차 있나 — 「지금」 칸 수와 라인의 기록 수 */
 function axisFilled(b, a){
   const bk = bookOf(b);
-  const now = a.now.filter(f => String(bk[f[0]] || '').trim()).length;
-  let past = axisShifts(b, a.key).length;
-  if(a.showWords) past += histOf(b).words.length;
-  if(a.showFails) past += histOf(b).fails.length;
-  return { now: now, all: a.now.length, past: past };
+  return { now: a.now.filter(f => String(bk[f[0]] || '').trim()).length,
+           all: a.now.length,
+           past: recsOf(b).filter(r => r.axis === a.key).length };
 }
 
 /* ── 📜 브랜드 히스토리 ──────────────────────────────────────────
@@ -12401,7 +12456,7 @@ function axisFilled(b, a){
    ------------------------------------------------------------- */
 const EV_KINDS = ['사건', '자료 없음 구간'];
 
-let histTab = 'now';
+let histTab = 'line';
 function setHistTab(v){ histTab = v; planOpenId = ''; render(); }
 
 function histOf(b){
@@ -12444,68 +12499,37 @@ function histMove(bid, key, id, d){
   markDirty(b.id); render();
 }
 
-/* 글로 복사 — 기획서의 산출물(본문·연표·대조표·색인) 그대로 */
+/* 글로 복사 — 화면에 보이는 그대로. 「지금」 다음에 연혁 라인 */
 function histText(b){
-  const h = histOf(b);
-  const L = [];
+  const h  = histOf(b);
+  const bk = bookOf(b);
+  const L  = [];
   L.push('# ' + b.name);
   L.push('\n한 줄 정의: ' + (String(h.now || '').trim() || '(아직 없음 — 채워주세요)'));
 
-  L.push('\n## 연표');
-  if(!h.events.length) L.push('(아직 없음)');
-  h.events.forEach(e => {
-    if(e.kind === '자료 없음 구간'){
-      L.push('\n· ' + (e.date || '') + '  [자료 없음] ' + (e.title || ''));
-      if((e.body || '').trim()) L.push('  ' + e.body.trim());
-      return;
-    }
-    L.push('\n· ' + (e.date || '(날짜 확인 필요)') + '  ' + (e.title || '')
-      + (e.guess ? '  [추정]' : ''));
-    if((e.body || '').trim()) L.push('  ' + e.body.trim());
-    if((e.src  || '').trim()) L.push('  출처: ' + e.src.trim());
-  });
-
-  // 축마다 「지금」 다음에 「여기까지」 를 붙입니다 — 읽는 순서 그대로
-  const bk = bookOf(b);
+  L.push('\n## 지금');
   BRAND_AXES.forEach(a => {
-    L.push('\n## ' + a.no + '. ' + a.name);
-    L.push('\n[지금]');
+    L.push('\n[' + a.no + '. ' + a.name + ']');
     a.now.forEach(f => {
       L.push('· ' + f[1] + ': ' + (String(bk[f[0]] || '').trim() || '(아직 없음)'));
     });
-    L.push('\n[여기까지 — ' + a.past + ']');
-    const rows = axisShifts(b, a.key);
-    if(!rows.length) L.push('(아직 없음)');
-    rows.forEach(x => {
-      L.push('  전: ' + (String(x.before || '').trim() || '(아직 없음)'));
-      L.push('  후: ' + (String(x.after  || '').trim() || '(아직 없음)'));
-      L.push('  왜: ' + (String(x.why    || '').trim() || '(아직 없음)')
-        + (x.guess ? '  [추정]' : ''));
-      if((x.src || '').trim()) L.push('  출처: ' + x.src.trim());
-      L.push('');
+  });
+
+  L.push('\n## 연혁 — 여기까지 온 길');
+  const rows = recsOf(b).slice().sort((x, y) => recKey(x) - recKey(y));
+  if(!rows.length) L.push('(아직 없음)');
+  let year = null;
+  rows.forEach(r => {
+    const y = recYear(r) || '날짜 확인 필요';
+    if(y !== year){ year = y; L.push('\n### ' + y); }
+    const K = recKindOf(r);
+    const a = recAxis(r);
+    L.push('\n· ' + (r.date || '(날짜 확인 필요)') + '  [' + K.k + ']'
+      + (a ? ' (' + a.name + ')' : '') + (r.guess ? ' [추정]' : ''));
+    (REC_FIELDS[K.k] || REC_FIELDS['사건']).forEach(f => {
+      const v = String(r[f[0]] || '').trim();
+      if(v) L.push('  ' + f[2] + ': ' + v);
     });
-    if(a.showWords){
-      L.push('  — 폐기 ↔ 현재 표현 —');
-      if(!h.words.length) L.push('  (아직 없음)');
-      h.words.forEach(w => {
-        L.push('  ✕ ' + (w.old || ''));
-        L.push('    폐기 이유: ' + (String(w.why || '').trim() || '(아직 없음)'));
-        L.push('    → 지금은: ' + (String(w.now || '').trim() || '(아직 없음)'));
-        if((w.src || '').trim()) L.push('    출처: ' + w.src.trim());
-      });
-    }
-    if(a.showFails){
-      L.push('  — 실패 기록 —');
-      if(!h.fails.length) L.push('  (아직 없음)');
-      h.fails.forEach(f => {
-        L.push('  · ' + (f.title || '(제목 없음)'));
-        L.push('    무엇이 안 됐나: ' + (String(f.bad  || '').trim() || '(아직 없음)'));
-        L.push('    무엇을 했었나: ' + (String(f.what || '').trim() || '(아직 없음)'));
-        L.push('    왜 그랬나: '     + (String(f.why  || '').trim() || '(아직 없음)'));
-        L.push('    무엇을 바꿨나: ' + (String(f.fix  || '').trim() || '(아직 없음)'));
-        if((f.src || '').trim()) L.push('    출처: ' + f.src.trim());
-      });
-    }
   });
   return L.join('\n');
 }
@@ -12518,10 +12542,9 @@ async function histCopy(bid){
 
 /* 얼마나 채웠나 — 탭마다 개수 */
 function histCount(b, key){
-  const h = histOf(b);
-  if(key === 'now')   return String(h.now || '').trim() ? 1 : 0;
   if(key === 'plans') return planList(b).length;
-  return (h[key] || []).length;
+  if(key === 'line')  return recsOf(b).length;
+  return String(histOf(b).now || '').trim() ? 1 : 0;
 }
 
 /* ── 📋 기획서 (브랜드 히스토리) ─────────────────────────────────
@@ -12804,205 +12827,300 @@ function planViewHtml(b){
   return '<div class="pl-doc">' + bar + head + body + '</div>';
 }
 
-/* 브랜드 한 화면 — 축마다 「지금 | 여기까지」 */
+/* ── 📜 연혁 라인 ───────────────────────────────────────────────
+   칸을 채우는 화면이 아닙니다. 선 하나에 마디를 찍습니다.
+   맨 위가 「지금」이고, 아래로 내려갈수록 과거입니다.
+   기업 홍보영상의 연혁 줄처럼, 브랜드가 어떻게 여기까지 왔는지를
+   하나의 흐름으로 읽습니다.
+   ------------------------------------------------------------- */
+const REC_KINDS = [
+  { k:'사건',     ic:'📌', cls:'k-ev',   nm:'사건' },
+  { k:'바뀐 것',  ic:'🔀', cls:'k-sh',   nm:'바뀐 것' },
+  { k:'폐기 표현', ic:'✂️', cls:'k-wd',   nm:'폐기 표현' },
+  { k:'실패',     ic:'💥', cls:'k-fl',   nm:'실패' },
+  { k:'자료 없음', ic:'␣',  cls:'k-gap',  nm:'자료 없음 구간' }
+];
+function recKindOf(r){
+  return REC_KINDS.find(x => x.k === (r.kind || '사건')) || REC_KINDS[0];
+}
+/* 마디마다 무엇을 적나 — [열쇠, 안내글, 이름] */
+const REC_FIELDS = {
+  '사건':      [['title','무슨 일이 있었나','무엇'],
+                ['body','무엇이 어떻게 됐나 (한두 줄)','내용'],
+                ['src','어디에 남아 있나 · 언제 일인가','출처']],
+  '바뀐 것':   [['before','예전에는 무엇이었나','전'],
+                ['after','지금은 무엇인가','후'],
+                ['why','무엇 때문에 바꿨나 — 사건이나 판단으로','왜'],
+                ['src','어디에서 · 언제 본 것인가','출처']],
+  '폐기 표현': [['before','폐기된 문장을 원문 그대로','✕ 폐기'],
+                ['why','왜 쓰면 안 되나','이유'],
+                ['after','그럼 뭐라고 써야 하나','→ 지금'],
+                ['src','어느 자료 · 어느 시점의 문장인가','출처']],
+  '실패':      [['title','무엇에 대한 실패인가','무엇'],
+                ['body','무엇이 안 됐나 — 그대로','안 된 것'],
+                ['before','무엇을 했었나','했던 것'],
+                ['why','왜 그렇게 됐나','왜'],
+                ['fix','그래서 무엇을 바꿨나','바꾼 것'],
+                ['src','어디에 남아 있나 · 언제 일인가','출처']],
+  '자료 없음': [['title','이 구간의 자료가 왜 없는지','왜 없나'],
+                ['body','나중에 어디서 확인할 수 있을지','어디서 확인']]
+};
+
+/* 예전 자료(연표·바뀐 것·폐기 표현·실패)를 라인 위로 한 번만 옮깁니다.
+   원본 목록은 지우지 않고 그대로 둡니다 — 되돌릴 수 있게. */
+function recsOf(b){
+  const h = histOf(b);
+  if(!Array.isArray(h.recs)) h.recs = [];
+  if(!h.v2){
+    // 「제안서 2025.04.03」 처럼 출처에만 날짜가 있으면 그것을 라인 날짜로 씁니다
+    const dateIn = t => {
+      const m = String(t || '').match(/(19|20)\d{2}([.\-\/]\d{1,2}){0,2}/);
+      return m ? m[0].replace(/[\-\/]/g, '.') : '';
+    };
+    const add = o => h.recs.push(Object.assign({ id: uid('hx') },
+      o, { date: o.date || dateIn(o.src) }));
+    h.events.forEach(e => add({ date:e.date || '', axis:'',
+      kind: e.kind === '자료 없음 구간' ? '자료 없음' : '사건',
+      title:e.title, body:e.body, src:e.src, guess:e.guess }));
+    h.shifts.forEach(x => add({ date:'', kind:'바뀐 것',
+      axis: AXIS_OLD[x.axis] || x.axis || 'what',
+      before:x.before, after:x.after, why:x.why, src:x.src, guess:x.guess }));
+    h.words.forEach(w => add({ date:'', kind:'폐기 표현', axis:'say',
+      before:w.old, after:w.now, why:w.why, src:w.src }));
+    h.fails.forEach(f => add({ date:'', kind:'실패', axis:'keep',
+      title:f.title, body:f.bad, before:f.what, why:f.why, fix:f.fix, src:f.src }));
+    h.v2 = 1;
+  }
+  return h.recs;
+}
+/* 날짜를 숫자로 — 2025.04.03 · 2023 상반기 · 2022 모두 받습니다 */
+function recKey(r){
+  // 「2023 ~ 2025.03」 같은 구간은 시작 연도로 봅니다 (물결 뒤 숫자는 안 씁니다)
+  const m = String(r.date || '')
+    .match(/(?:19|20)\d{2}(?:[.\-\/]\d{1,2})?(?:[.\-\/]\d{1,2})?/);
+  if(!m) return -1;                                  // 날짜 미상은 맨 아래로
+  const p = m[0].split(/[.\-\/]/).map(Number);
+  return (p[0] || 0) * 10000 + (p[1] || 0) * 100 + (p[2] || 0);
+}
+function recYear(r){
+  const m = String(r.date || '').match(/\d{4}/);
+  return m ? m[0] : '';
+}
+/* 접힌 마디에 보이는 한 줄 */
+function recHead(r){
+  if(r.kind === '바뀐 것' || r.kind === '폐기 표현'){
+    const a = String(r.before || '').trim(), c = String(r.after || '').trim();
+    if(a || c) return a + (c ? '  →  ' + c : '');
+  }
+  return String(r.title || r.body || '').trim();
+}
+function recAxis(r){ return r.axis ? axisOf(r.axis) : null; }
+
+let lineAxis = '';        // 축 거르개 ('' 이면 전부)
+let lineOld  = false;     // 오래된 순으로 보기
+let lineOpen = '';        // 펼쳐서 고치는 중인 마디
+let nowOpen  = '';        // 「지금」 에서 펼친 축
+
+function setLineAxis(k){ lineAxis = (lineAxis === k ? '' : k); render(); }
+function toggleLineOld(){ lineOld = !lineOld; render(); }
+function lineToggle(id){ lineOpen = (lineOpen === id ? '' : id); render(); }
+function nowToggle(k){ nowOpen = (nowOpen === k ? '' : k); render(); }
+
+function recAdd(bid, kind){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const r = { id: uid('hx'), kind: kind || '사건', date:'', axis: lineAxis || '' };
+  recsOf(b).push(r);
+  lineOpen = r.id; markDirty(b.id); render();
+}
+function recDel(bid, id){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  if(!confirm('이 마디를 지웁니다. 되돌릴 수 없습니다.')) return;
+  const h = histOf(b);
+  h.recs = recsOf(b).filter(x => x.id !== id);
+  if(lineOpen === id) lineOpen = '';
+  markDirty(b.id); render();
+}
+function recEdit(bid, id, field, v, draw){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const r = recsOf(b).find(x => x.id === id); if(!r) return;
+  r[field] = v;
+  markDirty(b.id);
+  if(draw) render();
+}
+
+/* ── 브랜드 한 화면 ── 위에 「지금」, 아래로 연혁 라인 ── */
 function brandAxisHtml(b){
   const bid = jsq(b.id);
   const h   = histOf(b);
-  const bk  = bookOf(b);
-  const TABS = BRAND_AXES.map(a => ({ key:a.key, icon:a.icon, name:a.no + '. ' + a.name }))
-    .concat([{ key:'events', icon:'📅', name:'연표' },
-             { key:'plans',  icon:'📋', name:'기획서' }]);
-  if(!TABS.some(t => t.key === histTab)) histTab = BRAND_AXES[0].key;
+  const recs = recsOf(b);
 
   const tabs = '<div class="ht-tabs">'
-    + TABS.map(t => {
-        let n = '';
-        if(t.key === 'events') n = h.events.length ? ' <b>' + h.events.length + '</b>' : '';
-        else if(t.key === 'plans') n = planList(b).length ? ' <b>' + planList(b).length + '</b>' : '';
-        else {
-          const f = axisFilled(b, axisOf(t.key));
-          n = '<i class="dot' + (f.now ? ' on' : '') + '"></i>'
-            + (f.past ? ' <b>' + f.past + '</b>' : '');
-        }
-        return '<button class="' + (t.key === histTab ? 'on' : '') + '" '
-          + 'onclick="setHistTab(\'' + t.key + '\')">' + t.icon + ' ' + esc(t.name) + n
-          + '</button>';
-      }).join('')
+    + '<button class="' + (histTab === 'plans' ? '' : 'on') + '" '
+      + 'onclick="setHistTab(\'line\')">📜 연혁'
+      + (recs.length ? ' <b>' + recs.length + '</b>' : '') + '</button>'
+    + '<button class="' + (histTab === 'plans' ? 'on' : '') + '" '
+      + 'onclick="setHistTab(\'plans\')">📋 기획서'
+      + (planList(b).length ? ' <b>' + planList(b).length + '</b>' : '') + '</button>'
     + '</div>';
+  if(histTab === 'plans') return tabs + planViewHtml(b);
 
-  /* 맨 위 한 줄 정의 — 어느 축을 보든 늘 보입니다 */
-  const line = '<div class="bx-line"><label>한 줄 정의</label>'
-    + '<textarea rows="1" placeholder="이 브랜드가 무엇을 하는 곳인지 한 문장으로 — '
+  return tabs + lineNowHtml(b) + lineBarHtml(b) + lineBodyHtml(b);
+}
+
+/* 라인 맨 위 큰 마디 — 「지금」. 이 내용이 마스터프롬프트로 들어갑니다 */
+function lineNowHtml(b){
+  const bid = jsq(b.id);
+  const h   = histOf(b);
+  const bk  = bookOf(b);
+
+  const axes = BRAND_AXES.map(a => {
+    const open = nowOpen === a.key;
+    const vals = a.now.map(f => String(bk[f[0]] || '').trim()).filter(Boolean);
+    const cnt  = recsOf(b).filter(r => r.axis === a.key).length;
+    return '<div class="nw-a' + (open ? ' open' : '') + (vals.length ? '' : ' no') + '">'
+      + '<button class="hd" onclick="nowToggle(\'' + a.key + '\')">'
+        + '<span class="ic">' + a.icon + '</span>'
+        + '<span class="nm">' + esc(a.name) + '</span>'
+        + '<span class="vl">' + (vals.length ? esc(vals.join(' · ')) : '아직 없습니다') + '</span>'
+        + (cnt ? '<span class="ct">기록 ' + cnt + '</span>' : '')
+        + '<span class="ar">' + (open ? '▾' : '▸') + '</span>'
+      + '</button>'
+      + (open
+          ? '<div class="bd">'
+            + a.now.map(f => '<div class="bx-f"><label>' + esc(f[1]) + '</label>'
+                + '<textarea rows="2" placeholder="' + esc(f[2]) + '" '
+                + 'oninput="gbGrow(this);onBookInput(\'' + f[0] + '\', this.value)">'
+                + esc(bk[f[0]] || '') + '</textarea></div>').join('')
+            + '<div class="sec-bar" style="margin:2px 0 0">'
+              + '<button class="gb-add tiny" onclick="recAdd(\'' + bid + '\',\'바뀐 것\');'
+                + 'recEdit(\'' + bid + '\', lineOpen, \'axis\', \'' + a.key + '\', 1)">'
+                + '＋ 이 축이 바뀐 것</button>'
+              + '<span class="hint">지금 이렇게 된 이유를 라인에 남깁니다</span>'
+            + '</div>'
+            + '</div>'
+          : '')
+      + '</div>';
+  }).join('');
+
+  return '<div class="tl-now">'
+    + '<div class="hd">지금'
+      + '<span>이 브랜드는 오늘 이렇습니다 — 그대로 마스터프롬프트로 들어갑니다</span>'
+      + '<button class="btn sm" onclick="histCopy(\'' + bid + '\')">📋 글로 복사</button>'
+    + '</div>'
+    + '<textarea class="one" rows="1" placeholder="이 브랜드가 무엇을 하는 곳인지 한 문장으로 — '
       + '신입이 첫 줄에서 답을 얻는 자리입니다" '
       + 'oninput="gbGrow(this);histEdit(\'' + bid + '\',\'now\',null,\'now\', this.value)">'
-    + esc(h.now || '') + '</textarea></div>';
-
-  const bar = '<div class="sec-bar" style="margin:0 0 12px">'
-    + '<button class="btn sm" onclick="histCopy(\'' + bid + '\')">📋 글로 복사</button>'
-    + '<span class="hint">왼쪽은 <b>지금의 기준</b> (마스터프롬프트가 읽습니다) · '
-      + '오른쪽은 <b>여기까지 온 과정</b> (전 → 후 → 왜 · 출처)</span>'
+    + esc(h.now || '') + '</textarea>'
+    + '<div class="nw-list">' + axes + '</div>'
     + '</div>';
-
-  if(histTab === 'plans') return tabs + planViewHtml(b);
-  if(histTab === 'events') return tabs + line + bar + histEventsHtml(b);
-
-  const a = axisOf(histTab);
-  const now = '<div class="bx-col now"><div class="ch">지금'
-    + '<span>이대로 마스터프롬프트에 들어갑니다</span></div>'
-    + a.now.map(f => '<div class="bx-f"><label>' + esc(f[1]) + '</label>'
-        + '<textarea rows="3" placeholder="' + esc(f[2]) + '" '
-        + 'oninput="gbGrow(this);onBookInput(\'' + f[0] + '\', this.value)">'
-        + esc(bk[f[0]] || '') + '</textarea></div>').join('')
-    + '</div>';
-
-  const past = '<div class="bx-col past hxb"><div class="ch">여기까지'
-    + '<span>' + esc(a.past) + '</span></div>'
-    + histShiftHtml(b, a)
-    + (a.showWords ? histWordHtml(b) : '')
-    + (a.showFails ? histFailHtml(b) : '')
-    + '</div>';
-
-  return tabs + line + bar + '<div class="bx-two">' + now + past + '</div>';
 }
 
-/* 오른쪽 「여기까지」 조각들 — 전 → 후 → 왜 · 폐기↔현재 · 실패 · 연표 */
-function histBits(b){
+/* 라인 위 거르개 — 축 · 순서 · 마디 넣기 */
+function lineBarHtml(b){
   const bid = jsq(b.id);
-  return {
-    bid: bid,
-    ta: (key, id, f, ph, v) =>
-      '<textarea rows="1" placeholder="' + esc(ph) + '" '
-      + 'oninput="gbGrow(this);histEdit(\'' + bid + '\',\'' + key + '\','
-      + (id === null ? 'null' : '\'' + jsq(id) + '\'') + ',\'' + f + '\', this.value)">'
-      + esc(v || '') + '</textarea>',
-    tx: (key, id, f, ph, v, w) =>
-      '<input value="' + esc(v || '') + '" placeholder="' + esc(ph) + '"'
-      + (w ? ' style="max-width:' + w + 'px"' : '') + ' '
-      + 'oninput="histEdit(\'' + bid + '\',\'' + key + '\',\'' + jsq(id) + '\',\'' + f
-      + '\', this.value)">',
-    guess: (key, id, on) =>
-      '<label class="ht-guess' + (on ? ' on' : '') + '">'
-      + '<input type="checkbox"' + (on ? ' checked' : '') + ' '
-      + 'onchange="histEdit(\'' + bid + '\',\'' + key + '\',\'' + jsq(id)
-      + '\',\'guess\', this.checked, 1)"> 추정</label>',
-    tools: (key, id, i, n) => '<span class="tl">'
-      + (i > 0 ? '<button onclick="histMove(\'' + bid + '\',\'' + key + '\',\'' + jsq(id)
-          + '\',-1)" title="위로">↑</button>' : '')
-      + (i < n - 1 ? '<button onclick="histMove(\'' + bid + '\',\'' + key + '\',\'' + jsq(id)
-          + '\',1)" title="아래로">↓</button>' : '')
-      + '<button class="x" onclick="histDel(\'' + bid + '\',\'' + key + '\',\'' + jsq(id)
-        + '\')" title="지우기">×</button></span>',
-    add: (key, label, seed) => '<button class="gb-add tiny" '
-      + 'onclick="histAdd(\'' + bid + '\',\'' + key + '\'' + (seed || '') + ')">'
-      + label + '</button>'
-  };
+  const chip = (k, ic, nm, n) => '<button class="lf' + (lineAxis === k ? ' on' : '') + '" '
+    + 'onclick="setLineAxis(\'' + k + '\')">' + ic + ' ' + esc(nm)
+    + (n ? ' <b>' + n + '</b>' : '') + '</button>';
+  const recs = recsOf(b);
+  return '<div class="tl-bar">'
+    + '<button class="lf' + (lineAxis ? '' : ' on') + '" onclick="setLineAxis(\'\')">'
+      + '전체 <b>' + recs.length + '</b></button>'
+    + BRAND_AXES.map(a => chip(a.key, a.icon, a.name,
+        recs.filter(r => r.axis === a.key).length)).join('')
+    + '<span class="sp"></span>'
+    + '<button class="lf" onclick="toggleLineOld()">'
+      + (lineOld ? '⬆ 오래된 순' : '⬇ 최근 순') + '</button>'
+    + '</div>';
 }
 
-/* 전 → 후 → 왜 */
-function histShiftHtml(b, a){
-  const B = histBits(b);
-  const rows = axisShifts(b, a.key);
-  const hd = (a.showWords || a.showFails)
-    ? '<div class="bx-sub first">🔀 ' + esc(a.past)
-      + '<span>전 → 후 → 왜 · 출처를 한 건씩</span></div>' : '';
-  return hd + (rows.length
-      ? rows.map((x, i) => '<div class="ht-shift">'
-          + '<div class="rh">' + B.guess('shifts', x.id, x.guess)
-            + B.tools('shifts', x.id, i, rows.length) + '</div>'
-          + '<label class="wy"><span class="k b">전</span>'
-            + B.ta('shifts', x.id, 'before', '예전에는 무엇이었나', x.before) + '</label>'
-          + '<label class="wy"><span class="k a">후</span>'
-            + B.ta('shifts', x.id, 'after', '지금은 무엇인가', x.after) + '</label>'
-          + '<label class="wy"><span class="k w">왜</span>'
-            + B.ta('shifts', x.id, 'why', '무엇 때문에 바꿨나 — 사건이나 판단으로', x.why)
-            + '</label>'
-          + '<label class="wy"><span class="k s">출처 · 기준일</span>'
-            + B.ta('shifts', x.id, 'src', '어디에서 · 언제 본 것인가', x.src) + '</label>'
-          + '</div>').join('')
-      : '<div class="bx-none">아직 없습니다. 무엇이 어떻게 바뀌었는지 한 건씩 남깁니다.</div>')
-    + B.add('shifts', '＋ 바뀐 것', ",{axis:'" + a.key + "'}");
+/* 라인 본체 — 연도 마디를 지나 아래로 흐릅니다 */
+function lineBodyHtml(b){
+  const bid = jsq(b.id);
+  let rows = recsOf(b).slice();
+  if(lineAxis) rows = rows.filter(r => r.axis === lineAxis);
+  rows.sort((x, y) => lineOld ? recKey(x) - recKey(y) : recKey(y) - recKey(x));
+
+  let out = '', year = null;
+  rows.forEach(r => {
+    const y = recYear(r) || '날짜 확인 필요';
+    if(y !== year){ year = y; out += '<div class="tl-y">' + esc(y) + '</div>'; }
+    out += lineItemHtml(b, r);
+  });
+
+  const add = '<div class="tl-add">'
+    + REC_KINDS.map(k => '<button class="gb-add tiny" '
+        + 'onclick="recAdd(\'' + bid + '\',\'' + k.k + '\')">'
+        + k.ic + ' ' + esc(k.nm) + '</button>').join('')
+    + '</div>';
+
+  if(!rows.length){
+    return '<div class="tl hxb"><div class="tl-none">'
+      + (lineAxis ? '이 축에는 아직 기록이 없습니다.'
+                  : '아직 라인이 비어 있습니다. 무슨 일이 있었는지 한 건씩 남기면 '
+                    + '브랜드가 어떻게 여기까지 왔는지가 하나의 줄로 보입니다.')
+      + '</div>' + add + '</div>';
+  }
+  return '<div class="tl hxb">' + out + add + '</div>';
 }
 
-/* 폐기 ↔ 현재 표현 */
-function histWordHtml(b){
-  const B = histBits(b);
-  const ws = histOf(b).words;
-  return '<div class="bx-sub">✂️ 폐기 ↔ 현재 표현'
-      + '<span>폐기 문장은 원문 그대로 두고, 옆에 이유와 지금 표현을</span></div>'
-    + (ws.length
-      ? ws.map((w, i) => '<div class="ht-word">'
-          + '<div class="rh">' + B.tools('words', w.id, i, ws.length) + '</div>'
-          + '<label class="wy"><span class="k x">✕ 폐기</span>'
-            + B.ta('words', w.id, 'old', '폐기된 문장을 원문 그대로', w.old) + '</label>'
-          + '<label class="wy"><span class="k w">이유</span>'
-            + B.ta('words', w.id, 'why', '왜 쓰면 안 되나', w.why) + '</label>'
-          + '<label class="wy"><span class="k a">→ 지금</span>'
-            + B.ta('words', w.id, 'now', '그럼 뭐라고 써야 하나', w.now) + '</label>'
-          + '<label class="wy"><span class="k s">출처</span>'
-            + B.ta('words', w.id, 'src', '어느 자료 · 어느 시점의 문장인가', w.src) + '</label>'
-          + '</div>').join('')
-      : '<div class="bx-none">아직 없습니다.</div>')
-    + B.add('words', '＋ 폐기된 표현');
-}
+/* 마디 하나 */
+function lineItemHtml(b, r){
+  const bid = jsq(b.id), rid = jsq(r.id);
+  const K = recKindOf(r);
+  const a = recAxis(r);
+  const open = lineOpen === r.id;
+  const head = recHead(r);
 
-/* 실패 기록 */
-function histFailHtml(b){
-  const B = histBits(b);
-  const fs = histOf(b).fails;
-  return '<div class="bx-sub">💥 실패 기록'
-      + '<span>반려·폐기된 것을 같은 무게로. 완곡하게 쓰지 않습니다</span></div>'
-    + (fs.length
-      ? fs.map((f, i) => '<div class="ht-fail">'
-          + '<div class="rh">'
-            + B.tx('fails', f.id, 'title', '무엇에 대한 실패인가', f.title)
-            + B.tools('fails', f.id, i, fs.length) + '</div>'
-          + '<label class="wy"><span class="k x">안 된 것</span>'
-            + B.ta('fails', f.id, 'bad', '무엇이 안 됐나 — 그대로', f.bad) + '</label>'
-          + '<label class="wy"><span class="k b">했던 것</span>'
-            + B.ta('fails', f.id, 'what', '무엇을 했었나', f.what) + '</label>'
-          + '<label class="wy"><span class="k w">왜</span>'
-            + B.ta('fails', f.id, 'why', '왜 그렇게 됐나', f.why) + '</label>'
-          + '<label class="wy"><span class="k a">바꾼 것</span>'
-            + B.ta('fails', f.id, 'fix', '그래서 무엇을 바꿨나', f.fix) + '</label>'
-          + '<label class="wy"><span class="k s">출처</span>'
-            + B.ta('fails', f.id, 'src', '어디에 남아 있나 · 언제 일인가', f.src) + '</label>'
-          + '</div>').join('')
-      : '<div class="bx-none">아직 없습니다.</div>')
-    + B.add('fails', '＋ 실패 한 건');
-}
+  const meta = '<div class="dt">'
+    + '<span class="d">' + esc(r.date || '날짜 확인 필요') + '</span>'
+    + '<span class="kd">' + K.ic + ' ' + esc(K.nm) + '</span>'
+    + (a ? '<span class="ax">' + a.icon + ' ' + esc(a.name) + '</span>' : '')
+    + (r.guess ? '<span class="gs">추정</span>' : '')
+    + '</div>';
 
-/* 연표 — 축을 가로지릅니다 */
-function histEventsHtml(b){
-  const B = histBits(b);
-  const es = histOf(b).events;
-  return '<div class="ht-sec hxb"><div class="hd">📅 연표'
-      + '<span>사건 단위로. 자료가 없는 구간은 「자료 없음」 으로 그 자리를 비워 둡니다</span></div>'
-    + (es.length
-      ? es.map((e, i) => {
-          const gap = e.kind === '자료 없음 구간';
-          return '<div class="ht-ev' + (gap ? ' gap' : '') + '">'
-            + '<div class="rh">'
-              + B.tx('events', e.id, 'date', '2022.11.28 · 2023 상반기', e.date, 170)
-              + '<select onchange="histEdit(\'' + B.bid + '\',\'events\',\'' + jsq(e.id)
-                + '\',\'kind\', this.value, 1)">'
-                + EV_KINDS.map(k => '<option' + (k === (e.kind || '사건') ? ' selected' : '')
-                    + '>' + k + '</option>').join('')
-              + '</select>'
-              + (gap ? '' : B.guess('events', e.id, e.guess))
-              + B.tools('events', e.id, i, es.length)
-            + '</div>'
-            + B.ta('events', e.id, 'title', gap ? '이 구간의 자료가 왜 없는지' : '무슨 일이 있었나',
-                   e.title)
-            + B.ta('events', e.id, 'body', gap ? '나중에 어디서 확인할 수 있을지'
-                                              : '무엇이 어떻게 됐나 (한두 줄)', e.body)
-            + (gap ? '' : B.ta('events', e.id, 'src', '출처 · 기준일', e.src))
-            + '</div>';
-        }).join('')
-      : '<div class="empty" style="padding:14px 0">아직 연표가 없습니다.</div>')
-    + '<div class="sec-bar" style="margin:10px 0 0">'
-      + B.add('events', '＋ 사건')
-      + B.add('events', '＋ 자료 없음 구간', ",{kind:'자료 없음 구간'}")
-    + '</div></div>';
+  if(!open){
+    const sub = [r.why, r.src].map(x => String(x || '').trim()).filter(Boolean).join(' · ');
+    return '<div class="tl-i ' + K.cls + '" onclick="lineToggle(\'' + rid + '\')">'
+      + meta
+      + '<div class="ti">' + (head ? esc(head) : '<i>아직 안 적었습니다 — 눌러서 적습니다</i>')
+        + '</div>'
+      + (sub ? '<div class="sc">' + esc(sub) + '</div>' : '')
+      + '</div>';
+  }
+
+  const F = REC_FIELDS[K.k] || REC_FIELDS['사건'];
+  const body = '<div class="tl-i ' + K.cls + ' open">'
+    + '<div class="rh">'
+      + '<input value="' + esc(r.date || '') + '" placeholder="2025.04.03 · 2023 상반기" '
+        + 'style="max-width:190px" '
+        + 'oninput="recEdit(\'' + bid + '\',\'' + rid + '\',\'date\', this.value)">'
+      + '<select onchange="recEdit(\'' + bid + '\',\'' + rid + '\',\'kind\', this.value, 1)">'
+        + REC_KINDS.map(k => '<option' + (k.k === K.k ? ' selected' : '') + '>'
+            + k.k + '</option>').join('')
+      + '</select>'
+      + '<select onchange="recEdit(\'' + bid + '\',\'' + rid + '\',\'axis\', this.value, 1)">'
+        + '<option value=""' + (r.axis ? '' : ' selected') + '>축 없음</option>'
+        + BRAND_AXES.map(x => '<option value="' + x.key + '"'
+            + (r.axis === x.key ? ' selected' : '') + '>' + x.icon + ' ' + x.name
+            + '</option>').join('')
+      + '</select>'
+      + (K.k === '자료 없음' ? ''
+          : '<label class="ht-guess' + (r.guess ? ' on' : '') + '">'
+            + '<input type="checkbox"' + (r.guess ? ' checked' : '') + ' '
+            + 'onchange="recEdit(\'' + bid + '\',\'' + rid + '\',\'guess\', this.checked, 1)">'
+            + ' 추정</label>')
+      + '<span class="tl-x">'
+        + '<button onclick="lineToggle(\'' + rid + '\')" title="접기">▾</button>'
+        + '<button class="x" onclick="recDel(\'' + bid + '\',\'' + rid + '\')" '
+          + 'title="지우기">×</button>'
+      + '</span>'
+    + '</div>'
+    + F.map(f => '<label class="wy"><span class="k">' + esc(f[2]) + '</span>'
+        + '<textarea rows="1" placeholder="' + esc(f[1]) + '" '
+        + 'oninput="gbGrow(this);recEdit(\'' + bid + '\',\'' + rid + '\',\'' + f[0]
+        + '\', this.value)">' + esc(r[f[0]] || '') + '</textarea></label>').join('')
+    + '</div>';
+  return body;
 }
 
 function viewHistory(b){
@@ -13068,8 +13186,8 @@ function viewHistory(b){
     : '';
 
   return brandAxisHtml(b)
-    + (histTab === 'now' ? '<div style="margin-top:22px">' + docBar + docView + '</div>' : '')
-    + (histTab === 'now' ? oldNotes : '');
+    + (histTab === 'plans' ? ''
+        : '<div style="margin-top:22px">' + docBar + docView + '</div>' + oldNotes);
 }
 
 /* ---------- 기록부 문서를 대시보드 디자인으로 다시 그립니다 ----------

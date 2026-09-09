@@ -441,6 +441,15 @@ proposal_cards = [
          [{"path": "제안서_표지.png", "label": "표지 · 클릭 시 제안서 PDF 전체", "mock": True, "file": "proposal", "hifi": True}]),
 ]
 
+# ----- 감리 사원증 (ID카드) -----
+idcard_cards = [
+    card("🪪", "아파트스퀘어 감리 사원증 (ID카드)",
+         [("앞면", "로고 · '감리' · 성명(김지원 / Kim Ji Won)"),
+          ("뒷면", "이용 안내 4항 · 회사 정보(건축·설계감리 컨설팅)"),
+          ("용도", "현장 감리 착용 ID카드 (세로형)")],
+         [{"path": "사원증.png", "label": "앞면 · 뒷면 · 클릭 시 크게 보기", "mock": True, "hifi": True}]),
+]
+
 sections_html = "".join([
     section("1", "볼펜 / 젤펜", "4종 검토", pen_cards),
     section("2", "손전등 / 랜턴", "4종 비교", flash_cards),
@@ -455,12 +464,13 @@ sections_html = "".join([
     section("11", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
     section("12", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards),
     section("13", "제안서", "클릭 시 원본 PDF", proposal_cards),
+    section("14", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("13", "검토 카테고리"), ("31", "검토 항목"),
+summary_cards = [("14", "검토 카테고리"), ("32", "검토 항목"),
                  ("42", "확보 이미지"), ("24", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -601,10 +611,10 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 13개 카테고리</span>
+    <span class="chip">총 14개 카테고리</span>
     <span class="chip">35개 항목 검토</span>
   </div>
 </header>

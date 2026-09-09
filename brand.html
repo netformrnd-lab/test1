@@ -67,7 +67,7 @@ body{
 }
 /* 숫자는 자리가 흔들리지 않게 */
 .stat .val,.hcard .nums .n b,.bar-row .bv,.recent .rb,.verbadge,.path,
-table.itable td,.tl-date{font-variant-numeric:tabular-nums}
+table.itable td{font-variant-numeric:tabular-nums}
 
 /* 스크롤 막대를 얇고 조용하게 */
 *::-webkit-scrollbar{width:10px;height:10px}
@@ -290,27 +290,6 @@ body.dark-mode .chip.off{color:#f79191}
   word-break:break-all;letter-spacing:-.01em}
 
 /* ---------- 히스토리 ---------- */
-.tl{position:relative;padding-left:26px}
-.tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:1px;
-  background:var(--border)}
-.tl-item{position:relative;padding:0 0 22px}
-.tl-item:last-child{padding-bottom:0}
-.tl-item::before{content:'';position:absolute;left:-22px;top:7px;width:9px;height:9px;
-  border-radius:50%;background:var(--blue);border:2.5px solid var(--bg-card);
-  box-shadow:0 0 0 1px var(--border)}
-.tl-date{font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.01em}
-.tl-title{font-size:14px;font-weight:700;margin:2px 0 3px;padding-right:70px;
-  letter-spacing:-.018em}
-.tl-body{font-size:12.5px;color:var(--text-secondary);white-space:pre-wrap;
-  word-break:break-word;line-height:1.7}
-.jblock{margin-top:9px}
-.jlabel{font-size:10.5px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;
-  text-transform:uppercase}
-.jtext{font-size:13px;color:var(--text-secondary);white-space:pre-wrap;
-  word-break:break-word;margin-top:2px;line-height:1.7}
-.tl-item .ca{position:absolute;top:0;right:0;display:flex;gap:3px;opacity:0;
-  transition:.16s var(--ease)}
-.tl-item:hover .ca{opacity:1}
 
 /* ---------- 마스터프롬프트 ---------- */
 .pwrap{display:flex;flex-direction:column;gap:11px}
@@ -521,37 +500,6 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .fhead .fh-ct{margin-left:auto;font-size:11px;color:var(--text-muted);
   white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums}
 .fh-act{display:flex;align-items:center;gap:5px;padding:0 15px 11px 35px;flex-wrap:wrap}
-
-/* ---------- 기록부 문서 ---------- */
-.docwrap{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;
-  background:var(--bg-card);box-shadow:var(--shadow-sm)}
-.doc-title{font-size:23px;font-weight:750;margin:4px 0 16px;letter-spacing:-.036em;
-  line-height:1.32}
-.jtl{position:relative;padding-left:32px}
-.jtl:before{content:'';position:absolute;left:11px;top:10px;bottom:10px;width:1px;
-  background:var(--border)}
-.jsec{position:relative;margin-bottom:8px;border:1px solid var(--border);
-  border-radius:var(--r-md);background:var(--bg-secondary);transition:.16s var(--ease)}
-.jsec.on{background:var(--bg-card);border-color:var(--border-light);
-  box-shadow:var(--shadow-sm)}
-.jdot{position:absolute;left:-32px;top:14px;width:23px;height:23px;border-radius:50%;
-  background:var(--bg-card);border:1px solid var(--border);color:var(--text-muted);
-  font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;
-  z-index:1;font-variant-numeric:tabular-nums;transition:.16s var(--ease)}
-.jsec.on .jdot{background:var(--text-primary);border-color:var(--text-primary);
-  color:var(--bg-card)}
-.jhead{width:100%;font-family:inherit;text-align:left;display:block;padding:14px 17px;
-  border:0;background:transparent;cursor:pointer;border-radius:var(--r-md);
-  transition:.13s var(--ease)}
-.jhead:hover{background:var(--bg-hover)}
-.jh-top{display:flex;align-items:baseline;gap:10px}
-.jh-title{font-size:15px;font-weight:750;color:var(--text-primary);letter-spacing:-.026em}
-.jh-ar{margin-left:auto;font-size:11px;font-weight:600;color:var(--text-muted);
-  white-space:nowrap;flex-shrink:0}
-.jh-lead{font-size:13px;line-height:1.7;color:var(--text-secondary);margin-top:7px}
-.jh-subs{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
-.jh-sub{font-size:11px;font-weight:500;color:var(--text-muted);padding:2.5px 9px;
-  border-radius:999px;border:1px solid var(--border);background:var(--bg-input)}
 
 /* ---------- 자동화 도구 ---------- */
 .toolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(262px,1fr));
@@ -932,18 +880,18 @@ table.itable tr:hover td{background:var(--bg-hover)}
 
 /* ── 브랜드 한 화면 (지금 | 여기까지) ─────────────────────────── */
 /* ── 📜 연혁 라인 ── 선 하나에 마디가 찍힙니다 ── */
-.tl-now{border:1px solid var(--border);border-top:3px solid var(--ink);
+.hl-now{border:1px solid var(--border);border-top:3px solid var(--ink);
   border-radius:var(--r-md);background:var(--bg-card);padding:14px 16px;margin:0 0 4px;
   position:relative}
-.tl-now > .hd{font-size:15px;font-weight:800;color:var(--text-primary);
+.hl-now > .hd{font-size:15px;font-weight:800;color:var(--text-primary);
   display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:9px}
-.tl-now > .hd span{font-size:11.5px;font-weight:400;color:var(--text-muted)}
-.tl-now > .hd .btn{margin-left:auto;align-self:center}
-.tl-now .one{width:100%;box-sizing:border-box;font-family:inherit;font-size:15.5px;
+.hl-now > .hd span{font-size:11.5px;font-weight:400;color:var(--text-muted)}
+.hl-now > .hd .btn{margin-left:auto;align-self:center}
+.hl-now .one{width:100%;box-sizing:border-box;font-family:inherit;font-size:15.5px;
   font-weight:700;line-height:1.6;padding:10px 13px;border:1px solid var(--border);
   border-radius:10px;background:var(--bg-input);color:var(--text-primary);
   resize:none;overflow:hidden;min-height:44px}
-.tl-now .one:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+.hl-now .one:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
 .nw-list{margin-top:10px;border-top:1px solid var(--border)}
 .nw-a{border-bottom:1px solid var(--border)}
 .nw-a > .hd{display:flex;align-items:center;gap:9px;width:100%;text-align:left;
@@ -968,8 +916,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
   min-height:56px}
 .bx-f textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
 
-.tl-bar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:14px 0 4px}
-.tl-bar .sp{flex:1}
+.hl-bar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:14px 0 4px}
+.hl-bar .sp{flex:1}
 .lf{border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);
   font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:99px;
   cursor:pointer;white-space:nowrap}
@@ -978,45 +926,45 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .lf.on{border-color:var(--ink);background:var(--ink);color:#fff}
 .lf.on b{color:rgba(255,255,255,.8)}
 
-.tl{position:relative;margin:10px 0 0;padding:2px 0 4px 30px}
-.tl:before{content:'';position:absolute;left:9px;top:6px;bottom:34px;width:2px;
+.hl{position:relative;margin:10px 0 0;padding:2px 0 4px 30px}
+.hl:before{content:'';position:absolute;left:9px;top:6px;bottom:34px;width:2px;
   background:linear-gradient(var(--ink), var(--border-light))}
-.tl-y{position:relative;margin:18px 0 9px;font-size:13px;font-weight:800;
+.hl-y{position:relative;margin:18px 0 9px;font-size:13px;font-weight:800;
   color:var(--text-primary);letter-spacing:.02em}
-.tl-y:first-child{margin-top:4px}
-.tl-y:before{content:'';position:absolute;left:-27px;top:2px;width:14px;height:14px;
+.hl-y:first-child{margin-top:4px}
+.hl-y:before{content:'';position:absolute;left:-27px;top:2px;width:14px;height:14px;
   border-radius:50%;background:var(--bg-page);border:2px solid var(--ink)}
-.tl-i{position:relative;margin:0 0 8px;border:1px solid var(--border);border-radius:11px;
+.hl-i{position:relative;margin:0 0 8px;border:1px solid var(--border);border-radius:11px;
   background:var(--bg-card);padding:10px 13px;cursor:pointer}
-.tl-i:hover{border-color:var(--blue)}
-.tl-i:before{content:'';position:absolute;left:-25px;top:15px;width:10px;height:10px;
+.hl-i:hover{border-color:var(--blue)}
+.hl-i:before{content:'';position:absolute;left:-25px;top:15px;width:10px;height:10px;
   border-radius:50%;background:var(--blue);border:2px solid var(--bg-page)}
-.tl-i.k-ev:before{background:var(--blue)}
-.tl-i.k-sh:before{background:var(--purple)}
-.tl-i.k-wd:before{background:var(--orange)}
-.tl-i.k-fl:before{background:var(--red)}
-.tl-i.k-gap{background:transparent;border-style:dashed;opacity:.9}
-.tl-i.k-gap:before{background:var(--bg-page);border-color:var(--text-muted)}
-.tl-i.open{cursor:default;border-color:var(--ink);background:var(--bg-card);
+.hl-i.k-ev:before{background:var(--blue)}
+.hl-i.k-sh:before{background:var(--purple)}
+.hl-i.k-wd:before{background:var(--orange)}
+.hl-i.k-fl:before{background:var(--red)}
+.hl-i.k-gap{background:transparent;border-style:dashed;opacity:.9}
+.hl-i.k-gap:before{background:var(--bg-page);border-color:var(--text-muted)}
+.hl-i.open{cursor:default;border-color:var(--ink);background:var(--bg-card);
   display:flex;flex-direction:column;gap:7px;padding:12px 14px}
-.tl-i .dt{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px}
-.tl-i .dt .d{font-size:11.5px;font-weight:800;color:var(--text-primary)}
-.tl-i .dt .kd,.tl-i .dt .ax{font-size:10.5px;font-weight:700;color:var(--text-muted);
+.hl-i .dt{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px}
+.hl-i .dt .d{font-size:11.5px;font-weight:800;color:var(--text-primary)}
+.hl-i .dt .kd,.hl-i .dt .ax{font-size:10.5px;font-weight:700;color:var(--text-muted);
   background:var(--bg-sunken);border-radius:99px;padding:2px 8px}
-.tl-i .dt .gs{font-size:10.5px;font-weight:800;color:var(--orange);
+.hl-i .dt .gs{font-size:10.5px;font-weight:800;color:var(--orange);
   border:1px solid var(--orange);border-radius:99px;padding:1px 7px}
-.tl-i .ti{font-size:14px;font-weight:700;line-height:1.6;color:var(--text-primary);
+.hl-i .ti{font-size:14px;font-weight:700;line-height:1.6;color:var(--text-primary);
   white-space:pre-wrap;word-break:break-word}
-.tl-i .ti i{font-weight:400;color:var(--text-muted)}
-.tl-i .sc{margin-top:4px;font-size:11.5px;color:var(--text-muted);line-height:1.6}
-.tl-x{margin-left:auto;display:flex;gap:2px}
-.tl-x button{border:none;background:none;color:var(--text-muted);cursor:pointer;
+.hl-i .ti i{font-weight:400;color:var(--text-muted)}
+.hl-i .sc{margin-top:4px;font-size:11.5px;color:var(--text-muted);line-height:1.6}
+.hl-x{margin-left:auto;display:flex;gap:2px}
+.hl-x button{border:none;background:none;color:var(--text-muted);cursor:pointer;
   font-size:13px;padding:3px 6px;border-radius:6px}
-.tl-x button:hover{background:var(--bg-sunken);color:var(--text-primary)}
-.tl-x button.x:hover{color:var(--red)}
-.tl-none{font-size:13px;color:var(--text-muted);line-height:1.8;padding:8px 0 4px}
-.tl-add{position:relative;display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
-.tl-add:before{content:'';position:absolute;left:-25px;top:9px;width:10px;height:10px;
+.hl-x button:hover{background:var(--bg-sunken);color:var(--text-primary)}
+.hl-x button.x:hover{color:var(--red)}
+.hl-none{font-size:13px;color:var(--text-muted);line-height:1.8;padding:8px 0 4px}
+.hl-add{position:relative;display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+.hl-add:before{content:'';position:absolute;left:-25px;top:9px;width:10px;height:10px;
   border-radius:50%;background:var(--bg-page);border:2px dashed var(--text-muted)}
 @media(max-width:640px){
   .nw-a > .hd{flex-wrap:wrap}
@@ -1957,7 +1905,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260909-37';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260909-38';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -2763,8 +2711,8 @@ function renderHome(){
       todos.push(['✨', b, 'prompt', '마스터프롬프트가 비어 있습니다']);
     if(!b.automations.length)
       todos.push(['🤖', b, 'automations', '등록된 자동화가 없습니다']);
-    if(!b.history.length)
-      todos.push(['📜', b, 'history', '여정 기록이 없습니다']);
+    if(!recsOf(b).length)
+      todos.push(['📜', b, 'book', '연혁 라인이 비어 있습니다']);
   });
 
   const todoHtml = todos.length
@@ -4959,7 +4907,7 @@ function renderNas(){
     + '<button class="btn" onclick="setScanRoot()">⚙️ 훑을 폴더 바꾸기</button>'
     + (STORAGE_MODE === 'nas'
         ? '<button class="btn" onclick="openUpRoot()" '
-          + 'title="브랜드북의 기록부 문서와 도구 파일이 저장되는 폴더입니다">'
+          + 'title="브랜드 문서와 도구 파일이 저장되는 폴더입니다">'
           + '📂 저장 폴더</button>' : '')
     + '<span class="hint">'
       + (info['파일수'] || 0).toLocaleString('ko-KR') + '개 파일 · 목록 만든 시각 '
@@ -5164,8 +5112,7 @@ function renderBrand(){
     channels: (b.channels || []).length,
     inquiries: (inquiryCache.byBrand[b.name] || []).length,
     // 브랜드북 · 히스토리도 한 탭입니다
-    book: bookFilled(b) + ((b.masterPrompt || '').trim() ? 1 : 0)
-        + (b.history || []).length + (b.record ? 1 : 0),
+    book: bookFilled(b) + ((b.masterPrompt || '').trim() ? 1 : 0) + recsOf(b).length,
     blog: blog.loaded ? blogOf(b).length : 0
   };
   const tabDefs = [
@@ -5286,7 +5233,7 @@ function viewCards(b, type){
 
 /* ================= 자동화 도구 (실행되는 HTML 파일) =================
    생성기처럼 눌러서 쓰는 도구를 올려두고 바로 실행합니다.
-   읽기용 문서(기록부)와 달리 스크립트가 그대로 살아 있어야 합니다.
+   읽기용 문서와 달리 스크립트가 그대로 살아 있어야 합니다.
    ================================================================== */
 let runningTool = null;   // 지금 화면 안에서 실행 중인 도구 id
 
@@ -5541,14 +5488,14 @@ function upRootBar(){
     return '<div class="flist" style="margin-bottom:12px">'
       + '<button class="fhead" onclick="toggleUpRoot()" style="border-radius:12px">'
         + '<span class="fh-ar">▸</span><span class="fh-ic">📂</span>'
-        + '<span class="fh-nm">기록부 문서 · 도구 파일이 쌓이는 곳</span>'
+        + '<span class="fh-nm">브랜드 문서 · 도구 파일이 쌓이는 곳</span>'
         + '<span class="fh-ct">' + esc(i['지금폴더']) + '</span>'
       + '</button></div>';
   }
 
   return '<div class="ainote" style="margin-bottom:12px">'
     + '<div style="display:flex;align-items:flex-start;gap:8px">'
-      + '<span style="flex:1">📂 브랜드북의 <b>기록부 문서</b>와 <b>도구 파일</b>은 '
+      + '<span style="flex:1">📂 브랜드의 <b>문서</b>와 <b>도구 파일</b>은 '
         + '<b>' + esc(i['지금폴더']) + '</b> 안에 이렇게 쌓입니다'
         + '<div class="fmeta" style="margin-top:3px">'
         + '아래 폴더에서 직접 올리는 파일은 여기와 상관없이 '
@@ -5622,15 +5569,13 @@ async function setUpRoot(path){
 }
 
 /* 파일 자리가 바뀌었을 때 대시보드에 적힌 자리도 같이 고칩니다.
-   자료·기록부·자동화 도구 세 군데 모두 filePath 를 들고 있습니다.
-   (예전에는 자료만 고쳐서, 기록부 문서가 「그런 문서가 없습니다」 가 됐습니다) */
+   자료와 자동화 도구 두 군데가 filePath 를 들고 있습니다. */
 function fixFilePath(oldP, newP){
   if(!oldP || !newP || oldP === newP) return 0;
   let n = 0;
   data.brands.forEach(b => {
     (b.assets || []).forEach(a => { if(a.filePath === oldP){ a.filePath = newP; n++; } });
     (b.tools  || []).forEach(t => { if(t.filePath === oldP){ t.filePath = newP; n++; } });
-    if(b.record && b.record.filePath === oldP){ b.record.filePath = newP; n++; }
   });
   return n;
 }
@@ -6797,7 +6742,7 @@ function gbGrow(el){
   el.style.height = Math.max(26, el.scrollHeight) + 'px';
 }
 function gbGrowAll(){
-  document.querySelectorAll('.gb-act textarea, .gb-perf textarea, .pl-doc textarea,\n     .hxb textarea, .tl-now textarea, .gb-dtt, #gbGoal')
+  document.querySelectorAll('.gb-act textarea, .gb-perf textarea, .pl-doc textarea,\n     .hxb textarea, .hl-now textarea, .gb-dtt, #gbGoal')
     .forEach(gbGrow);
 }
 function setGbWho(v){
@@ -13002,7 +12947,7 @@ function lineNowHtml(b){
       + '</div>';
   }).join('');
 
-  return '<div class="tl-now">'
+  return '<div class="hl-now">'
     + '<div class="hd">지금'
       + '<span>이 브랜드는 오늘 이렇습니다 — 그대로 마스터프롬프트로 들어갑니다</span>'
       + '<button class="btn sm" onclick="histCopy(\'' + bid + '\')">📋 글로 복사</button>'
@@ -13022,7 +12967,7 @@ function lineBarHtml(b){
     + 'onclick="setLineAxis(\'' + k + '\')">' + ic + ' ' + esc(nm)
     + (n ? ' <b>' + n + '</b>' : '') + '</button>';
   const recs = recsOf(b);
-  return '<div class="tl-bar">'
+  return '<div class="hl-bar">'
     + '<button class="lf' + (lineAxis ? '' : ' on') + '" onclick="setLineAxis(\'\')">'
       + '전체 <b>' + recs.length + '</b></button>'
     + BRAND_AXES.map(a => chip(a.key, a.icon, a.name,
@@ -13043,24 +12988,24 @@ function lineBodyHtml(b){
   let out = '', year = null;
   rows.forEach(r => {
     const y = recYear(r) || '날짜 확인 필요';
-    if(y !== year){ year = y; out += '<div class="tl-y">' + esc(y) + '</div>'; }
+    if(y !== year){ year = y; out += '<div class="hl-y">' + esc(y) + '</div>'; }
     out += lineItemHtml(b, r);
   });
 
-  const add = '<div class="tl-add">'
+  const add = '<div class="hl-add">'
     + REC_KINDS.map(k => '<button class="gb-add tiny" '
         + 'onclick="recAdd(\'' + bid + '\',\'' + k.k + '\')">'
         + k.ic + ' ' + esc(k.nm) + '</button>').join('')
     + '</div>';
 
   if(!rows.length){
-    return '<div class="tl hxb"><div class="tl-none">'
+    return '<div class="hl hxb"><div class="hl-none">'
       + (lineAxis ? '이 축에는 아직 기록이 없습니다.'
                   : '아직 라인이 비어 있습니다. 무슨 일이 있었는지 한 건씩 남기면 '
                     + '브랜드가 어떻게 여기까지 왔는지가 하나의 줄로 보입니다.')
       + '</div>' + add + '</div>';
   }
-  return '<div class="tl hxb">' + out + add + '</div>';
+  return '<div class="hl hxb">' + out + add + '</div>';
 }
 
 /* 마디 하나 */
@@ -13080,7 +13025,7 @@ function lineItemHtml(b, r){
 
   if(!open){
     const sub = [r.why, r.src].map(x => String(x || '').trim()).filter(Boolean).join(' · ');
-    return '<div class="tl-i ' + K.cls + '" onclick="lineToggle(\'' + rid + '\')">'
+    return '<div class="hl-i ' + K.cls + '" onclick="lineToggle(\'' + rid + '\')">'
       + meta
       + '<div class="ti">' + (head ? esc(head) : '<i>아직 안 적었습니다 — 눌러서 적습니다</i>')
         + '</div>'
@@ -13089,7 +13034,7 @@ function lineItemHtml(b, r){
   }
 
   const F = REC_FIELDS[K.k] || REC_FIELDS['사건'];
-  const body = '<div class="tl-i ' + K.cls + ' open">'
+  const body = '<div class="hl-i ' + K.cls + ' open">'
     + '<div class="rh">'
       + '<input value="' + esc(r.date || '') + '" placeholder="2025.04.03 · 2023 상반기" '
         + 'style="max-width:190px" '
@@ -13109,7 +13054,7 @@ function lineItemHtml(b, r){
             + '<input type="checkbox"' + (r.guess ? ' checked' : '') + ' '
             + 'onchange="recEdit(\'' + bid + '\',\'' + rid + '\',\'guess\', this.checked, 1)">'
             + ' 추정</label>')
-      + '<span class="tl-x">'
+      + '<span class="hl-x">'
         + '<button onclick="lineToggle(\'' + rid + '\')" title="접기">▾</button>'
         + '<button class="x" onclick="recDel(\'' + bid + '\',\'' + rid + '\')" '
           + 'title="지우기">×</button>'
@@ -13124,320 +13069,10 @@ function lineItemHtml(b, r){
 }
 
 function viewHistory(b){
-  const list = b.history;
-  const rec  = b.record || null;
-
-  /* 기록부 문서 — 브랜드 여정을 한 편의 문서로 올려두는 자리 */
-  const docBar = '<div class="sec-bar" style="margin-bottom:12px">'
-    + '<button class="btn" onclick="pickRecord()">'
-      + (rec ? '📄 문서 바꾸기' : '📄 기록부 문서 올리기') + '</button>'
-    + (rec
-        ? '<a class="btn" href="' + esc(recordUrl(rec))
-          + '" target="_blank" rel="noopener">↗ 새 탭에서 보기</a>'
-          + '<button class="btn" onclick="toggleAllSections()">'
-            + (allSecOpen ? '🔼 모두 접기' : '🔽 모두 펼치기') + '</button>'
-          + '<button class="btn sm danger" onclick="removeRecord()">문서 내리기</button>'
-          + '<span class="hint">' + esc(rec.name) + ' · ' + fmtSize(rec.size || 0) + '</span>'
-        : '<span class="hint">HTML 문서를 올리면 여기서 그대로 읽을 수 있습니다 '
-          + '(브랜드 자료 폴더에도 함께 보관됩니다)</span>')
-    + '</div>'
-    + '<input type="file" id="recInput" accept=".html,.htm,.md,.txt" '
-      + 'style="display:none" onchange="uploadRecord(this.files[0]); this.value=\'\'">';
-
-  const docView = rec ? recordView(rec) : '';
-
-  /* 짧게 남기는 여정 메모 — 문서와 별개로 계속 쓸 수 있습니다 */
-  const notes = list.length
-    ? '<div class="hsec" style="margin-top:22px">✍️ 짧게 남긴 메모</div>'
-      + '<div class="tl">' + list.map((it, i) =>
-        '<div class="tl-item">'
-        + '<div class="ca">'
-          + (i > 0 ? '<button class="btn sm" title="위로" onclick="moveHistory(\'' + it.id + '\',-1)">↑</button>' : '')
-          + (i < list.length - 1 ? '<button class="btn sm" title="아래로" onclick="moveHistory(\'' + it.id + '\',1)">↓</button>' : '')
-          + '<button class="btn sm" onclick="openItemModal(\'history\',\'' + it.id + '\')">수정</button>'
-          + '<button class="btn sm danger" onclick="deleteItem(\'history\',\'' + it.id + '\')">삭제</button>'
-        + '</div>'
-        + '<div class="tl-title">' + esc(it.title) + '</div>'
-        + '<div class="row" style="margin:2px 0 8px">'
-          + statusChip(it.status)
-          + (it.period ? '<span class="chip">' + esc(it.period) + '</span>' : '')
-        + '</div>'
-        + (it.why    ? '<div class="jblock"><div class="jlabel">왜 했나</div><div class="jtext">' + esc(it.why) + '</div></div>' : '')
-        + (it.result || it.body ? '<div class="jblock"><div class="jlabel">어떻게 됐나</div><div class="jtext">' + esc(it.result || it.body) + '</div></div>' : '')
-        + (it.next   ? '<div class="jblock"><div class="jlabel">그래서 다음은</div><div class="jtext">' + esc(it.next) + '</div></div>' : '')
-        + '</div>').join('') + '</div>'
-    : '';
-
   // 기획서 한 장을 펴 두었으면 그것만 보여줍니다
   if(planOpenId) return planViewHtml(b);
   histOf(b);
-
-  // 예전에 짧게 남긴 메모는 있을 때만 아래에 접어 둡니다
-  const oldNotes = list.length
-    ? '<div class="pl-old"><button class="gb-sh" style="--hue:var(--text-muted)" '
-        + 'onclick="gbToggle(\'plold_' + jsq(b.id) + '\')">'
-        + '<span class="ar">' + (gbOpen['plold_' + b.id] ? '▼' : '▶') + '</span>'
-        + '<span class="nm">✍️ 예전에 짧게 남긴 메모</span>'
-        + '<span class="ct">' + list.length + '건</span></button>'
-      + (gbOpen['plold_' + b.id]
-          ? notes + '<div style="margin-top:12px">' + secBar('history') + '</div>'
-          : '')
-      + '</div>'
-    : '';
-
-  return brandAxisHtml(b)
-    + (histTab === 'plans' ? ''
-        : '<div style="margin-top:22px">' + docBar + docView + '</div>' + oldNotes);
-}
-
-/* ---------- 기록부 문서를 대시보드 디자인으로 다시 그립니다 ----------
-   문서의 원래 색과 글꼴은 쓰지 않고, 글의 뼈대(제목·문단·목록·표)만
-   가져와 이 화면 스타일로 보여줍니다. 원본은 [새 탭에서 보기] 로 볼 수 있습니다.
-   ------------------------------------------------------------------ */
-function recordUrl(rec){
-  return rec.filePath
-    ? 'files.php?action=view&path=' + encodeURIComponent(rec.filePath)
-    : 'files.php?action=view&id='   + encodeURIComponent(rec.id);
-}
-
-const recordCache = {};      // 문서 id → {loading} | {error} | {title, secs}
-const secOpen     = {};      // 섹션 번호 → 펼침 여부
-let   allSecOpen  = false;   // 처음엔 접어둡니다
-
-function toggleAllSections(){
-  allSecOpen = !allSecOpen;
-  Object.keys(secOpen).forEach(k => { delete secOpen[k]; });
-  render();
-}
-function toggleSection(i){
-  secOpen[i] = (secOpen[i] !== undefined) ? !secOpen[i] : !allSecOpen;
-  render();
-}
-
-/* 남길 태그와 속성만 남기고 나머지는 버립니다 (색·글꼴·스크립트 제거) */
-const DOC_OK_TAGS = ['P','UL','OL','LI','STRONG','B','EM','I','CODE','PRE','BLOCKQUOTE',
-  'HR','TABLE','THEAD','TBODY','TR','TH','TD','BR','A','IMG','SMALL','MARK','H4','H5','DL','DT','DD'];
-
-function cleanNode(node, out){
-  node.childNodes.forEach(n => {
-    if(n.nodeType === 3){ out.push(esc(n.nodeValue)); return; }
-    if(n.nodeType !== 1) return;
-    const tag = n.tagName;
-    if(tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'NOSCRIPT') return;
-
-    if(DOC_OK_TAGS.indexOf(tag) < 0){          // 모르는 태그는 껍데기만 벗기고 속은 살립니다
-      out.push(' ');                            // 붙어버리지 않게 사이를 띄웁니다
-      cleanNode(n, out);
-      out.push(' ');
-      return;
-    }
-    if(tag === 'BR' || tag === 'HR'){ out.push('<' + tag.toLowerCase() + '>'); return; }
-    if(tag === 'IMG'){
-      const src = n.getAttribute('src') || '';
-      if(/^(https?:|data:image\/)/i.test(src))
-        out.push('<img src="' + esc(src) + '" alt="' + esc(n.getAttribute('alt') || '') + '">');
-      return;
-    }
-    let open = '<' + tag.toLowerCase();
-    if(tag === 'A'){
-      const href = n.getAttribute('href') || '';
-      if(/^(https?:|mailto:|#)/i.test(href))
-        open += ' href="' + esc(href) + '" target="_blank" rel="noopener"';
-    }
-    if(tag === 'TD' || tag === 'TH'){
-      ['colspan','rowspan'].forEach(a => {
-        const v = n.getAttribute(a);
-        if(v && /^\d+$/.test(v)) open += ' ' + a + '="' + v + '"';
-      });
-    }
-    out.push(open + '>');
-    cleanNode(n, out);
-    out.push('</' + tag.toLowerCase() + '>');
-  });
-}
-
-/* 문서를 h2 기준으로 잘라 섹션 목록을 만듭니다 */
-function parseRecordDoc(text){
-  const doc  = new DOMParser().parseFromString(text, 'text/html');
-  doc.querySelectorAll('script,style,link,noscript,nav,[class*="toc"]').forEach(e => e.remove());
-
-  const title = (doc.title || doc.querySelector('h1')?.textContent || '브랜드 기록부').trim();
-  const body  = doc.body || doc.documentElement;
-
-  const secs = [];
-  let cur = null;
-  const walk = (parent) => {
-    Array.from(parent.children).forEach(el => {
-      const t = el.tagName;
-      if(t === 'H1'){ return; }
-      if(t === 'H2'){
-        cur = { title: el.textContent.trim(), subs: [], parts: [], lead: '' };
-        secs.push(cur);
-        return;
-      }
-      if(t === 'H3'){
-        if(!cur){ cur = { title:'', subs:[], parts:[], lead:'' }; secs.push(cur); }
-        const s = el.textContent.trim();
-        cur.subs.push(s);
-        cur.parts.push('<h4 class="doc-h3">' + esc(s) + '</h4>');
-        return;
-      }
-      // 감싸고만 있는 상자는 안으로 들어갑니다
-      if((t === 'DIV' || t === 'SECTION' || t === 'ARTICLE' || t === 'MAIN' || t === 'HEADER')
-         && el.querySelector('h2, h3')){ walk(el); return; }
-
-      if(!el.textContent.trim() && !el.querySelector('img,hr')) return;
-      if(!cur){ cur = { title:'', subs:[], parts:[], lead:'' }; secs.push(cur); }
-      cur.parts.push(wrapEl(el));
-      if(!cur.lead && t === 'P'){
-        const txt = el.textContent.replace(/\s+/g, ' ').trim();
-        if(txt.length > 12) cur.lead = txt;
-      }
-    });
-  };
-  const wrapEl = (el) => {
-    const o = [];
-    cleanNode(el, o);
-    const inner = o.join('').replace(/[ \t]{2,}/g, ' ').replace(/> </g, '><');
-    const t = el.tagName.toLowerCase();
-    if(t === 'p')  return '<p>' + inner + '</p>';
-    if(t === 'ul' || t === 'ol') return '<' + t + '>' + inner + '</' + t + '>';
-    if(t === 'table') return '<div class="doc-tw"><table>' + inner + '</table></div>';
-    if(t === 'blockquote') return '<blockquote>' + inner + '</blockquote>';
-    if(t === 'hr') return '<hr>';
-    return '<div class="doc-p">' + inner + '</div>';
-  };
-  walk(body);
-
-  return { title: title, secs: secs.filter(x => x.parts.length || x.title) };
-}
-
-async function loadRecord(rec){
-  const id = rec.id;
-  recordCache[id] = { loading:true };
-  try{
-    const res  = await fetch(recordUrl(rec), { cache:'no-store' });
-
-    // 폴더를 정리해서 자리가 바뀌었으면, 서버가 지금 자리를 알려줍니다.
-    // 적어둔 자리를 그때 고쳐두면 다음부터는 한 번에 찾습니다.
-    const moved = res.headers.get('X-Moved-To');
-    if(moved){
-      const now = decodeURIComponent(moved);
-      if(fixFilePath(rec.filePath, now)){ markDirtyAll(); saveAll(true); }
-      else rec.filePath = now;
-    }
-
-    const text = await res.text();
-    if(/^\s*\{/.test(text)){
-      const j = JSON.parse(text);
-      throw new Error(j.error || '문서를 불러오지 못했습니다');
-    }
-    recordCache[id] = parseRecordDoc(text);
-  }catch(e){
-    recordCache[id] = { error: e.message || String(e), name: rec.name || '' };
-  }
-  render();
-}
-
-function recordView(rec){
-  const c = recordCache[rec.id];
-  if(!c){ setTimeout(() => loadRecord(rec), 10); return '<div class="fmeta">문서를 불러오는 중…</div>'; }
-  if(c.loading) return '<div class="fmeta">문서를 불러오는 중…</div>';
-  if(c.error){
-    const gone = /그런 문서가 없습니다|없습니다|찾지 못/.test(c.error);
-    return '<div class="empty">⚠️ ' + esc(c.error)
-      + (gone
-          ? '<br><span style="color:var(--text-muted)">'
-            + 'NAS 폴더에서 지웠거나 이름을 바꾼 것 같습니다.<br>'
-            + '위 <b>[📄 기록부 문서 다시 올리기]</b> 를 누르시면 됩니다.</span>'
-          : '')
-      + '</div>';
-  }
-  if(!c.secs.length) return '<div class="empty">문서에서 읽을 내용을 찾지 못했습니다.</div>';
-
-  const cut = (t, n) => t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t;
-
-  const body = c.secs.map((sc, i) => {
-    const open  = (secOpen[i] !== undefined) ? secOpen[i] : allSecOpen;
-    const title = sc.title || '들어가며';
-
-    return '<div class="jsec' + (open ? ' on' : '') + '" id="dsec' + i + '">'
-      + '<div class="jdot">' + (i + 1) + '</div>'
-      + '<button class="jhead" onclick="toggleSection(' + i + ')">'
-        + '<div class="jh-top">'
-          + '<span class="jh-title">' + esc(title) + '</span>'
-          + '<span class="jh-ar">' + (open ? '접기 ▾' : '펼치기 ▸') + '</span>'
-        + '</div>'
-        + (sc.lead && !open
-            ? '<div class="jh-lead">' + esc(cut(sc.lead, 120)) + '</div>' : '')
-        + (sc.subs.length && !open
-            ? '<div class="jh-subs">' + sc.subs.map(x =>
-                '<span class="jh-sub">' + esc(x) + '</span>').join('') + '</div>'
-            : '')
-      + '</button>'
-      + (open ? '<div class="doc-body">' + sc.parts.join('') + '</div>' : '')
-      + '</div>';
-  }).join('');
-
-  return '<div class="doc-title">' + esc(c.title) + '</div>'
-    + '<div class="fmeta" style="margin:-8px 0 16px">'
-      + c.secs.length + '단계 · 제목을 누르면 그 대목이 펼쳐집니다</div>'
-    + '<div class="jtl">' + body + '</div>';
-}
-
-
-function pickRecord(){
-  if(STORAGE_MODE !== 'nas'){
-    alert('문서 올리기는 NAS 주소로 접속했을 때만 됩니다.\n\n'
-      + 'http://192.168.0.37/brand/brand.html 로 열어주세요.');
-    return;
-  }
-  const el = document.getElementById('recInput');
-  if(el) el.click();
-}
-
-async function uploadRecord(file){
-  if(!file) return;
-  const b = currentBrand();
-  if(!b) return;
-  toast('📄 문서를 올리는 중…');
-  try{
-    const fd = new FormData();
-    fd.append('brand', b.name);
-    fd.append('sub', '기록부');
-    fd.append('file', file);
-    const res  = await fetch('files.php?action=upload', { method:'POST', body: fd });
-    const text = await res.text();
-    let out = null;
-    try{ out = JSON.parse(text); }catch(e){}
-    if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ') → '
-      + text.slice(0, 200).replace(/\s+/g, ' '));
-    if(!out.ok) throw new Error(out.error || '업로드 실패');
-
-    b.record = { id: out.fileId, name: out.fileName, size: out.fileSize,
-                 filePath: out.filePath || '', at: new Date().toISOString() };
-    // 자료 탭에서도 내려받을 수 있게 함께 넣어둡니다
-    b.assets.unshift({ id: uid('i'), title: out.fileName.replace(/\.[^.]+$/, ''),
-      kind: '기록부', url: '', note: '브랜드 기록부 문서',
-      fileId: out.fileId, fileName: out.fileName, filePath: out.filePath || '',
-      fileSize: out.fileSize, at: new Date().toISOString() });
-    delete recordCache[out.fileId];
-    await saveAll(true);          // 서버가 바로 찾을 수 있게 먼저 저장합니다
-    render();
-    toast('✅ 기록부 문서를 올렸습니다');
-  }catch(e){
-    alert('문서를 올리지 못했습니다.\n\n' + (e.message || e));
-  }
-}
-
-function removeRecord(){
-  const b = currentBrand();
-  if(!b || !b.record) return;
-  if(!confirm('이 브랜드의 기록부 문서를 목록에서 내릴까요?\n\n'
-    + 'NAS의 실제 파일은 자료 폴더에 그대로 남습니다.')) return;
-  b.record = null;
-  markDirty();
-  render();
+  return brandAxisHtml(b);
 }
 
 function moveBrand(id, dir){
@@ -13446,15 +13081,6 @@ function moveBrand(id, dir){
   if(i < 0 || j < 0 || j >= data.brands.length) return;
   [data.brands[i], data.brands[j]] = [data.brands[j], data.brands[i]];
   render(); markDirtyAll();          // 목록 순서가 바뀌었습니다
-}
-
-function moveHistory(id, dir){
-  const b = currentBrand();
-  const i = b.history.findIndex(x => x.id === id);
-  const j = i + dir;
-  if(i < 0 || j < 0 || j >= b.history.length) return;
-  [b.history[i], b.history[j]] = [b.history[j], b.history[i]];
-  render(); markDirty();
 }
 
 /* ═══════════════ 브랜드북 ════════════════════════════════════════

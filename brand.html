@@ -930,6 +930,73 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:#fff}
 .gb-btabs button.on b{color:rgba(255,255,255,.8)}
 
+/* ── 📋 기획서 (브랜드 히스토리) ──────────────────────────────── */
+.pl-list{display:flex;flex-direction:column;gap:6px}
+.pl-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:11px 13px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--bg-card);cursor:pointer;font-family:inherit}
+.pl-row:hover{border-color:var(--blue);background:var(--blue-soft)}
+.pl-row .no{flex:0 0 auto;width:21px;height:21px;border-radius:50%;background:var(--ink);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;
+  font-weight:800}
+.pl-row .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pl-row .tt{font-size:14px;font-weight:700;color:var(--text-primary);letter-spacing:-.015em;
+  word-break:break-word}
+.pl-row .pk{font-size:12px;line-height:1.5;color:var(--text-muted);word-break:break-word}
+.pl-row .cs{flex:0 0 auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.pl-row .chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;
+  border:1px solid var(--border);color:var(--text-muted);background:var(--bg-input);
+  white-space:nowrap}
+.pl-row .chip.p0{color:var(--text-muted)}
+.pl-row .chip.p1{color:var(--blue);border-color:var(--blue)}
+.pl-row .chip.p2{color:var(--green);border-color:var(--green)}
+.pl-row .chip.p3{color:var(--red);border-color:var(--red)}
+.pl-row .chip.p4{color:var(--orange);border-color:var(--orange)}
+.pl-row .go{flex:0 0 auto;color:var(--text-muted);font-size:17px}
+@media(max-width:640px){.pl-row{flex-wrap:wrap}.pl-row .go{display:none}}
+
+.pl-doc textarea,.pl-doc input{font-family:inherit;color:var(--text-primary);
+  background:var(--bg-card);border:1px solid var(--border);border-radius:9px}
+.pl-doc textarea{width:100%;box-sizing:border-box;padding:8px 11px;font-size:14px;
+  line-height:1.65;resize:none;overflow:hidden;min-height:38px}
+.pl-doc textarea:focus,.pl-doc input:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px var(--blue-soft)}
+.pl-doc .gb-dmeta input{font-size:13px;padding:5px 9px;max-width:150px}
+.pl-purpose{display:flex;flex-direction:column;gap:5px;margin:0 0 18px}
+.pl-purpose label{font-size:12px;font-weight:800;color:var(--text-muted)}
+.pl-sec{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-card);
+  padding:14px 16px;margin:0 0 14px}
+.pl-sec > .hd{font-size:14.5px;font-weight:800;color:var(--text-primary);
+  padding-bottom:10px;margin-bottom:10px;border-bottom:2px solid var(--border);
+  display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.pl-sec > .hd span{font-size:11.5px;font-weight:400;color:var(--text-muted)}
+.pl-f{display:grid;grid-template-columns:130px 1fr;gap:12px;align-items:start;
+  padding:9px 0;border-top:1px dashed var(--border)}
+.pl-f:first-of-type{border-top:none;padding-top:0}
+.pl-f > label{font-size:12.5px;font-weight:700;color:var(--text-secondary);padding-top:9px;
+  word-break:keep-all;line-height:1.45}
+.pl-f > .bd{min-width:0}
+.pl-ref{border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:10px;
+  background:var(--bg-input);padding:10px 12px;margin-bottom:8px}
+.pl-ref .rh{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.pl-ref .rh .no{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--cyan);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;
+  font-weight:800}
+.pl-ref .rh textarea.big{flex:1;min-width:0;font-size:14px;font-weight:700;
+  padding:6px 10px;min-height:32px}
+.pl-ref .rh .rm{flex:0 0 auto;border:none;background:none;color:var(--text-muted);
+  font-size:15px;cursor:pointer;padding:3px;opacity:0}
+.pl-ref:hover .rh .rm{opacity:.7}
+.pl-ref .rb{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px}
+.pl-ref .rb label{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pl-ref .rb label span{font-size:11px;font-weight:700;color:var(--text-muted)}
+.pl-ref .rb textarea{font-size:13px;padding:6px 9px;min-height:32px}
+.pl-old{margin-top:22px}
+@media(max-width:720px){
+  .pl-f{grid-template-columns:1fr;gap:4px}
+  .pl-f > label{padding-top:0}
+}
+
 /* ── 📣 성과 정리 (발표용) ────────────────────────────────────── */
 .gb-perf{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-card);
   padding:14px 16px;margin:0 0 16px}
@@ -1741,7 +1808,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260909-32';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260909-33';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -2084,7 +2151,7 @@ const TYPES = {
     ]
   }
 };
-const ITEM_KEYS = ['automations','history','assets','tasks','links','costs'];
+const ITEM_KEYS = ['automations','history','assets','tasks','links','costs','plans'];
 
 /* 자동화 개수 — 손으로 적은 것과 올려둔 도구 파일을 합쳐서 셉니다.
    화면마다 다르게 세면 "등록했는데 숫자가 안 올라간다" 가 되므로 여기 하나만 씁니다. */
@@ -5002,9 +5069,14 @@ function renderBrand(){
   else if(currentTab === 'blog') body.innerHTML = viewBlogBrand(b);
   else if(currentTab === 'book'){
     // 브랜드북 → 브랜드 히스토리 → 마스터프롬프트
-    body.innerHTML = viewBook(b)
-      + '<div class="hsec">📜 브랜드 히스토리</div>' + viewHistory(b)
-      + '<div class="pwrap">' + viewPrompt(b) + '</div>';
+    body.innerHTML = planOpenId
+      // 기획서 한 장을 펴 두었으면 그 장만 크게 봅니다
+      ? viewHistory(b)
+      : viewBook(b)
+        + '<div class="hsec">📜 브랜드 히스토리</div>' + viewHistory(b)
+        + '<div class="pwrap">' + viewPrompt(b) + '</div>';
+    setTimeout(gbGrowAll, 0);
+    setTimeout(gbGrowAll, 140);
   }
   else if(currentTab === 'channels') body.innerHTML = viewChannels(b);
   else if(currentTab === 'automations'){
@@ -6577,7 +6649,7 @@ function gbGrow(el){
   el.style.height = Math.max(26, el.scrollHeight) + 'px';
 }
 function gbGrowAll(){
-  document.querySelectorAll('.gb-act textarea, .gb-perf textarea, .gb-dtt, #gbGoal')
+  document.querySelectorAll('.gb-act textarea, .gb-perf textarea, .pl-doc textarea,\n     .gb-dtt, #gbGoal')
     .forEach(gbGrow);
 }
 function setGbWho(v){
@@ -12164,6 +12236,286 @@ function aiPanel(m, ai){
     + '</div>';
 }
 
+/* ── 📋 기획서 (브랜드 히스토리) ─────────────────────────────────
+   「브랜드 히스토리 문서 기획서」 양식을 그대로 옮겼습니다.
+   무엇을 기획했고, 무엇을 조사했고, 어떻게 만들었고, 어떻게 됐는지를
+   한 장에 남깁니다. 이 장들이 쌓인 것이 브랜드의 히스토리입니다.
+   자료는 브랜드마다 b.plans 에 들어갑니다.
+   ------------------------------------------------------------- */
+const PLAN_STATUS = ['기획 중', '진행 중', '완료', '반려', '보류'];
+
+/* 절 이름과 칸 — 표에 있던 순서 그대로입니다 */
+const PLAN_SECS = [
+  { key:'s1', no:'1', name:'기획 개요', fields:[
+    ['name',     '서비스명',    '무엇을 만드는가 — 한 줄로'],
+    ['bg',       '기획 배경',   '왜 지금 이것이 필요한가 (지금 없는 것이 무엇인가)'],
+    ['sPurpose', '서비스 목적', '이걸 쓰는 사람이 무엇을 할 수 있게 되나'],
+    ['bPurpose', '사업 목적',   '회사에는 무엇이 남나']
+  ]},
+  { key:'s2', no:'2', name:'문제 정의', fields:[
+    ['problem', '고객 문제', '지금 누가 무엇 때문에 막혀 있나'],
+    ['old',     '기존 방식', '지금은 그 문제를 어떻게 넘기고 있나'],
+    ['limit',   '기존 한계', '그 방식이 무엇을 못 하나'],
+    ['hypo',    '서비스 가설', '이렇게 하면 이렇게 될 것이다']
+  ]},
+  { key:'s4', no:'4', name:'타겟 · 페르소나', fields:[
+    ['persona',  '핵심 페르소나', '누구인가 — 아는 것과 모르는 것까지'],
+    ['trigger',  '발생 계기',     '언제 이 사람이 이것을 찾게 되나'],
+    ['questions','주요 질문',     '그 사람이 실제로 던지는 말'],
+    ['fear',     '불안 · 장벽',   '무엇 때문에 망설이나'],
+    ['journey',  '고객 여정',     '① → ② → ③ 으로'],
+    ['touch',    '핵심 접점',     '어디서 만나나']
+  ]},
+  { key:'s5', no:'5', name:'서비스 기획 내용', fields:[
+    ['value',   '핵심 가치',   '이 기획이 지키는 것'],
+    ['message', '핵심 메시지', '한 문장으로 말하면'],
+    ['scope',   '제공 범위',   '어디부터 어디까지 — 목차처럼'],
+    ['process', '진행 과정',   '① → ② → ③ 으로'],
+    ['quality', '품질 기준',   '무엇을 지켜야 통과인가'],
+    ['trust',   '신뢰 근거',   '왜 믿을 수 있나'],
+    ['price',   '가격 · 계약', '없으면 「해당 없음」'],
+    ['exp',     '고객 경험',   '실제로 어떻게 쓰이나'],
+    ['edge',    '예외 처리',   '자료가 없거나 어긋날 때 어떻게 하나']
+  ]},
+  { key:'s6', no:'6', name:'실행 계획', fields:[
+    ['owner',   '운영 담당',   '누가 맡나'],
+    ['res',     '필요 자원',   '무엇이 있어야 되나'],
+    ['output',  '필요 산출물', '① ② ③ 으로'],
+    ['channel', '채널 연결',   '어디에 올리나 · 어디에 올리면 안 되나'],
+    ['sched',   '실행 일정',   '모르면 「확인 필요」'],
+    ['kpi',     '성과 기준',   '무엇으로 됐다고 판단하나']
+  ]},
+  { key:'s7', no:'7', name:'결과 · 수정 기록', fields:[
+    ['result', '실제 결과',   '몇 차까지 갔고 어떻게 됐나'],
+    ['good',   '잘된 점',     '무엇이 실제로 작동했나'],
+    ['bad',    '문제 · 실패', '무엇이 안 됐나 — 완곡하게 쓰지 않습니다'],
+    ['whyFix', '수정 이유',   '왜 그렇게 바꿨나'],
+    ['fix',    '수정 내용',   '무엇을 어떻게 바꿨나'],
+    ['base',   '현재 기준',   '지금 무엇을 기준으로 하고 있나'],
+    ['next',   '다음 실행',   '① ② ③ 으로']
+  ]}
+];
+/* 3절은 표라서 따로 그립니다 */
+const PLAN_REF_COLS = [
+  ['kind',  '구분',   '초기 자료 · 현행 서비스 · 브랜드 기준 · 작업 기록'],
+  ['src',   '자료 · 레퍼런스', '무엇을 봤나'],
+  ['found', '확인 내용', '거기서 무엇을 알았나'],
+  ['why',   '참고한 이유', '왜 이걸 봤나'],
+  ['use',   '적용할 내용', '기획에 무엇을 가져오나'],
+  ['skip',  '적용하지 않을 내용', '무엇은 가져오지 않나'],
+  ['from',  '출처 · 기준일', '어디에서 · 언제 본 것인가']
+];
+
+function planList(b){ if(!Array.isArray(b.plans)) b.plans = []; return b.plans; }
+function planFind(b, id){ return planList(b).find(p => p.id === id) || null; }
+
+function planNew(b){
+  const p = { id: uid('pl'), title:'', status:'기획 중', date: todayStr(),
+              planner:'', reviewer:'', purpose:'',
+              refs: [{ id: uid('pr') }], createdAt: new Date().toISOString() };
+  PLAN_SECS.forEach(s => { p[s.key] = {}; });
+  planList(b).push(p);
+  markDirty(b.id);
+  planOpenId = p.id;
+  render();
+  setTimeout(() => { const el = document.getElementById('plTitle'); if(el) el.focus(); }, 40);
+}
+function planDel(bid, id){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const p = planFind(b, id); if(!p) return;
+  if(!confirm('"' + (p.title || '제목 없는 기획서') + '" 을 지울까요?\n\n'
+    + '휴지통으로 갑니다 — 업무 → 🗑 휴지통 에서 되돌릴 수 있습니다.')) return;
+  trashPut('기획서', b.name + ' · ' + (p.title || ''), p, { kind:'plan', brandId: b.id });
+  b.plans = planList(b).filter(x => x.id !== id);
+  planOpenId = '';
+  markDirty(b.id); render();
+  toast('🗑️ 휴지통으로 보냈습니다');
+}
+function planEdit(bid, id, path, v, draw){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const p = planFind(b, id); if(!p) return;
+  const seg = String(path).split('.');
+  let cur = p;
+  for(let i = 0; i < seg.length - 1; i++){
+    if(Array.isArray(cur)) cur = cur.find(x => x.id === seg[i]);
+    else { if(!cur[seg[i]] || typeof cur[seg[i]] !== 'object') cur[seg[i]] = {}; cur = cur[seg[i]]; }
+    if(!cur) return;
+  }
+  cur[seg[seg.length - 1]] = v;
+  p.updatedAt = new Date().toISOString();
+  markDirty(b.id);
+  if(draw) render();
+}
+function planAddRef(bid, id){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const p = planFind(b, id); if(!p) return;
+  if(!Array.isArray(p.refs)) p.refs = [];
+  p.refs.push({ id: uid('pr') });
+  markDirty(b.id); render();
+}
+function planDelRef(bid, id, rid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const p = planFind(b, id); if(!p) return;
+  p.refs = (p.refs || []).filter(x => x.id !== rid);
+  markDirty(b.id); render();
+}
+
+let planOpenId = '';
+function planOpen(id){ planOpenId = id; render(); window.scrollTo({ top: 0 }); }
+function planClose(){ planOpenId = ''; render(); }
+
+/* 얼마나 채웠나 — 목록에서 한눈에 보이게 */
+function planFilled(p){
+  let all = 0, has = 0;
+  PLAN_SECS.forEach(s => s.fields.forEach(f => {
+    all++;
+    if(String(((p[s.key] || {})[f[0]]) || '').trim()) has++;
+  }));
+  return { all: all, has: has, pct: all ? Math.round(has / all * 100) : 0 };
+}
+
+/* 글로 복사 — 그대로 문서에 붙여 쓰거나 AI 에게 넘길 때 */
+function planText(b, p){
+  const L = [];
+  L.push('# ' + (p.title || '(제목 없음)'));
+  L.push('브랜드: ' + b.name + ' · 상태: ' + (p.status || '') + ' · ' + (p.date || ''));
+  if((p.planner || '').trim())  L.push('작성자: ' + p.planner);
+  if((p.reviewer || '').trim()) L.push('검토자: ' + p.reviewer);
+  if((p.purpose || '').trim())  L.push('\n한 줄 목적: ' + p.purpose.trim());
+  PLAN_SECS.forEach(s => {
+    if(s.key === 's4') planRefText(p, L);      // 3절(표)을 4절 앞에 끼웁니다
+    L.push('\n## ' + s.no + '. ' + s.name);
+    s.fields.forEach(f => {
+      const v = String(((p[s.key] || {})[f[0]]) || '').trim();
+      L.push('- ' + f[1] + ': ' + (v || '(아직 없음)'));
+    });
+  });
+  return L.join('\n');
+}
+function planRefText(p, L){
+  const rs = (p.refs || []).filter(r => PLAN_REF_COLS.some(c => String(r[c[0]] || '').trim()));
+  L.push('\n## 3. 조사 · 레퍼런스 분석');
+  if(!rs.length){ L.push('(아직 없음)'); return; }
+  rs.forEach((r, i) => {
+    L.push('\n[' + (i + 1) + '] ' + (r.src || '(자료 이름 없음)'));
+    PLAN_REF_COLS.forEach(c => {
+      if(c[0] === 'src') return;
+      const v = String(r[c[0]] || '').trim();
+      if(v) L.push('  ' + c[1] + ': ' + v);
+    });
+  });
+}
+async function planCopy(bid, id){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const p = planFind(b, id); if(!p) return;
+  const t = planText(b, p);
+  try{ await navigator.clipboard.writeText(t); toast('📋 기획서를 글로 복사했습니다'); }
+  catch(e){ prompt('아래 내용을 복사해 쓰세요', t); }
+}
+
+/* 기획서 목록 · 한 장 크게 보기 */
+function planViewHtml(b){
+  const bid  = jsq(b.id);
+  const list = planList(b);
+  const p    = planOpenId ? planFind(b, planOpenId) : null;
+  if(planOpenId && !p) planOpenId = '';
+
+  if(!p){
+    const rows = list.length
+      ? '<div class="pl-list">' + list.map((x, i) => {
+          const f = planFilled(x);
+          const si = PLAN_STATUS.indexOf(x.status || '기획 중');
+          return '<button class="pl-row" onclick="planOpen(\'' + jsq(x.id) + '\')">'
+            + '<span class="no">' + (i + 1) + '</span>'
+            + '<span class="mid">'
+              + '<span class="tt">' + esc(x.title || '(제목 없는 기획서)') + '</span>'
+              + (String(x.purpose || '').trim()
+                  ? '<span class="pk">' + esc(gbOneLine(x.purpose, 110)) + '</span>' : '')
+            + '</span>'
+            + '<span class="cs">'
+              + '<span class="chip p' + (si < 0 ? 0 : si) + '">' + esc(x.status || '기획 중') + '</span>'
+              + (x.date ? '<span class="chip">' + esc(x.date) + '</span>' : '')
+              + '<span class="chip">' + f.pct + '%</span>'
+            + '</span><span class="go">›</span></button>';
+        }).join('') + '</div>'
+      : '<div class="empty" style="padding:16px 0">아직 기획서가 없습니다.<br>'
+        + '<span style="color:var(--text-muted)">무엇을 만들려 했고, 무엇을 조사했고, '
+        + '어떻게 됐는지를 한 장에 남깁니다. 이 장들이 쌓인 것이 브랜드의 히스토리입니다.</span></div>';
+    return '<div class="sec-bar" style="margin:0 0 10px">'
+      + '<button class="btn primary" onclick="planNew(currentBrand())">＋ 기획서 만들기</button>'
+      + '<span class="hint">기획 개요 · 문제 정의 · 조사 · 페르소나 · 기획 내용 · 실행 계획 · '
+      + '결과와 수정 기록</span></div>' + rows;
+  }
+
+  /* ── 한 장 크게 ── */
+  const ta = (path, ph, v, h) => '<textarea rows="' + (h || 2) + '" placeholder="' + esc(ph) + '" '
+    + 'oninput="gbGrow(this);planEdit(\'' + bid + '\',\'' + jsq(p.id) + '\',\'' + path
+    + '\', this.value)">' + esc(v || '') + '</textarea>';
+  const tx = (path, ph, v, cls) => '<input class="' + (cls || '') + '" value="' + esc(v || '') + '" '
+    + 'placeholder="' + esc(ph) + '" '
+    + 'oninput="planEdit(\'' + bid + '\',\'' + jsq(p.id) + '\',\'' + path + '\', this.value)">';
+
+  const f = planFilled(p);
+  const bar = '<div class="gb-dbar">'
+    + '<button class="btn sm" onclick="planClose()">← 목록으로</button>'
+    + '<span class="bc">' + esc(b.name) + ' <b>›</b> 기획서</span>'
+    + '<span style="margin-left:auto;display:flex;gap:5px">'
+      + '<button class="btn sm" onclick="planCopy(\'' + bid + '\',\'' + jsq(p.id)
+        + '\')">📋 글로 복사</button>'
+      + '<button class="btn sm danger" onclick="planDel(\'' + bid + '\',\'' + jsq(p.id)
+        + '\')">삭제</button>'
+    + '</span></div>';
+
+  const head = '<textarea class="gb-dtt" id="plTitle" rows="1" '
+      + 'placeholder="기획명 — 예) 브랜드 히스토리 문서 제작 (내부 온보딩용)" '
+      + 'onkeydown="if(event.key===\'Enter\')event.preventDefault()" '
+      + 'oninput="gbGrow(this);planEdit(\'' + bid + '\',\'' + jsq(p.id)
+      + '\',\'title\', this.value)">' + esc(p.title || '') + '</textarea>'
+    + '<div class="gb-dmeta">'
+      + '<label>상태<select onchange="planEdit(\'' + bid + '\',\'' + jsq(p.id)
+        + '\',\'status\', this.value, 1)">'
+        + PLAN_STATUS.map(v => '<option' + (v === (p.status || '기획 중') ? ' selected' : '') + '>'
+            + v + '</option>').join('')
+        + '</select></label>'
+      + '<label>기준일' + tx('date', '2026-09-09', p.date) + '</label>'
+      + '<label>작성자' + tx('planner', '브랜드·마케팅팀', p.planner) + '</label>'
+      + '<label>검토자' + tx('reviewer', '대표 · 팀장', p.reviewer) + '</label>'
+      + '<span style="margin-left:auto;font-size:11.5px;color:var(--text-muted)">'
+        + '채운 칸 ' + f.has + '/' + f.all + '</span>'
+    + '</div>'
+    + '<div class="pl-purpose"><label>한 줄 목적</label>'
+      + ta('purpose', '이 문서 하나로 무엇을 할 수 있게 되는가', p.purpose, 1) + '</div>';
+
+  const sec = s => '<div class="pl-sec"><div class="hd">' + s.no + '. ' + esc(s.name) + '</div>'
+    + s.fields.map(fl => '<div class="pl-f"><label>' + esc(fl[1]) + '</label>'
+        + '<div class="bd">' + ta(s.key + '.' + fl[0], fl[2], (p[s.key] || {})[fl[0]]) + '</div>'
+        + '</div>').join('')
+    + '</div>';
+
+  /* 3. 조사 · 레퍼런스 — 자료 한 건이 카드 한 장 */
+  const refs = '<div class="pl-sec"><div class="hd">3. 조사 · 레퍼런스 분석'
+    + '<span>무엇을 봤고, 무엇을 가져오고, 무엇은 안 가져오는가</span></div>'
+    + (p.refs || []).map((r, i) => '<div class="pl-ref">'
+        + '<div class="rh"><span class="no">' + (i + 1) + '</span>'
+          + '<textarea class="big" rows="1" placeholder="자료 · 레퍼런스 이름" '
+            + 'onkeydown="if(event.key===\'Enter\')event.preventDefault()" '
+            + 'oninput="gbGrow(this);planEdit(\'' + bid + '\',\'' + jsq(p.id)
+            + '\',\'refs.' + jsq(r.id) + '.src\', this.value)">'
+            + esc(r.src || '') + '</textarea>'
+          + '<button class="rm" onclick="planDelRef(\'' + bid + '\',\'' + jsq(p.id) + '\',\''
+            + jsq(r.id) + '\')">×</button></div>'
+        + '<div class="rb">'
+          + PLAN_REF_COLS.filter(c => c[0] !== 'src').map(c =>
+              '<label><span>' + esc(c[1]) + '</span>'
+              + ta('refs.' + jsq(r.id) + '.' + c[0], c[2], r[c[0]], 1) + '</label>').join('')
+        + '</div></div>').join('')
+    + '<button class="gb-add tiny" onclick="planAddRef(\'' + bid + '\',\'' + jsq(p.id)
+      + '\')">＋ 자료 한 건 더</button></div>';
+
+  const body = PLAN_SECS.map(s => (s.key === 's4' ? refs + sec(s) : sec(s))).join('');
+  return '<div class="pl-doc">' + bar + head + body + '</div>';
+}
+
 function viewHistory(b){
   const list = b.history;
   const rec  = b.record || null;
@@ -12209,15 +12561,23 @@ function viewHistory(b){
         + '</div>').join('') + '</div>'
     : '';
 
-  const empty = (!rec && !list.length)
-    ? '<div class="empty">이 브랜드의 여정을 담은 <b>문서를 올려주세요.</b><br>'
-      + '<span style="color:var(--text-muted)">'
-      + '위 [📄 기록부 문서 올리기] 를 누르시면 됩니다. HTML 문서를 그대로 읽을 수 있습니다.<br>'
-      + '짧은 메모만 남기고 싶으시면 아래 [+ 여정 추가] 를 쓰세요.</span></div>'
+  // 기획서 한 장을 펴 두었으면 그것만 보여줍니다
+  if(planOpenId) return planViewHtml(b);
+
+  // 예전에 짧게 남긴 메모는 있을 때만 아래에 접어 둡니다
+  const oldNotes = list.length
+    ? '<div class="pl-old"><button class="gb-sh" style="--hue:var(--text-muted)" '
+        + 'onclick="gbToggle(\'plold_' + jsq(b.id) + '\')">'
+        + '<span class="ar">' + (gbOpen['plold_' + b.id] ? '▼' : '▶') + '</span>'
+        + '<span class="nm">✍️ 예전에 짧게 남긴 메모</span>'
+        + '<span class="ct">' + list.length + '건</span></button>'
+      + (gbOpen['plold_' + b.id]
+          ? notes + '<div style="margin-top:12px">' + secBar('history') + '</div>'
+          : '')
+      + '</div>'
     : '';
 
-  return docBar + docView + empty + notes
-       + '<div style="margin-top:18px">' + secBar('history') + '</div>';
+  return planViewHtml(b) + docBar + docView + oldNotes;
 }
 
 /* ---------- 기록부 문서를 대시보드 디자인으로 다시 그립니다 ----------
@@ -12821,6 +13181,7 @@ function gotoResult(brandId, tab){
 
 /* ========================= 브랜드 ========================= */
 function selectBrand(id){
+  planOpenId = '';
   closeNav();
   clearSearchQuietly();
   view = 'brand';

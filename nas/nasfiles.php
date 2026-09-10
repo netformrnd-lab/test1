@@ -1232,7 +1232,7 @@ $IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
 
 /* 원본 사진을 그대로 보여줍니다 (크게 볼 때) */
 if ($action === 'image') {
-    $real = safe_real_path($_GET['path'] ?? '', $ROOT_FILE);
+    $real = safe_real_path(img_input(), $ROOT_FILE);
     if (!$real) jout(['ok' => false, 'error' => '볼 수 없는 파일입니다'], 403);
 
     $ext  = strtolower(pathinfo($real, PATHINFO_EXTENSION));
@@ -1249,9 +1249,27 @@ if ($action === 'image') {
     exit;
 }
 
+/* 올린 파일 폴더(uploadroot) 기준 상대경로 → 실제 자리.
+   브랜드에 올린 사진(명함 등)을 그대로 보고 줄여 보여주는 데 씁니다. */
+function up_rel_path($rel) {
+    $f = __DIR__ . '/data/uploadroot.txt';
+    if (!is_file($f)) return '';
+    $base = rtrim(trim((string)@file_get_contents($f)), '/');
+    if ($base === '' || !is_dir($base)) return '';
+    $rel = str_replace('\\', '/', (string)$rel);
+    if ($rel === '' || strpos($rel, '..') !== false) return '';
+    return $base . '/' . ltrim($rel, '/');
+}
+/* path(전체 경로) 또는 up(올린 파일 폴더 기준) 둘 다 받습니다 */
+function img_input() {
+    $p = trim((string)($_GET['path'] ?? ''));
+    if ($p !== '') return $p;
+    return up_rel_path($_GET['up'] ?? '');
+}
+
 /* 작은 그림 */
 if ($action === 'thumb') {
-    $real = safe_real_path($_GET['path'] ?? '', $ROOT_FILE);
+    $real = safe_real_path(img_input(), $ROOT_FILE);
     if (!$real) jout(['ok' => false, 'error' => '볼 수 없는 파일입니다'], 403);
 
     $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
@@ -1277,7 +1295,7 @@ if ($action === 'thumb') {
 
     if (!extension_loaded('gd')) {
         // 그림을 줄이는 기능이 없으면 원본을 그대로 보냅니다 (느릴 수 있습니다)
-        header('Location: nasfiles.php?action=image&path=' . rawurlencode($_GET['path'] ?? ''));
+        header('Location: nasfiles.php?action=image&path=' . rawurlencode($real));
         exit;
     }
     if (filesize($real) > 40 * 1024 * 1024) {

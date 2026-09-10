@@ -112,6 +112,7 @@ const SUBDIRS = [
     '자료'   => '01_자료',
     '기록부' => '02_브랜드기록부',
     '도구'   => '03_자동화도구',
+    '명함'   => '04_명함',
 ];
 /* 예전에 쓰던 이름 → 지금 이름 (정리할 때 옮깁니다) */
 const OLDSUBS = [
@@ -493,6 +494,9 @@ function guess_sub($name) {
     foreach (['생성기', '자동화', 'generator', 'gpts', '봇', 'bot', '도구', 'tool'] as $k) {
         if (strpos($n, $k) !== false) return SUBDIRS['도구'];
     }
+    foreach (['명함', 'namecard', 'businesscard', 'business_card'] as $k) {
+        if (strpos($n, $k) !== false) return SUBDIRS['명함'];
+    }
     return SUBDIRS['자료'];
 }
 
@@ -519,11 +523,14 @@ function write_guide($root, $useYear = true) {
         . "    02_브랜드기록부   브랜드 기록부 파일\r\n"
         . "      2026\r\n"
         . "    03_자동화도구     블로그·카페 생성기 같은 도구 파일\r\n"
+        . "      2026\r\n"
+        . "    04_명함           명함 이미지 (앞면·뒷면·재단선)\r\n"
         . "      2026\r\n\r\n"
         : "  브랜드 이름 (아파트스퀘어, POUR공법 …)\r\n"
         . "    01_자료           카탈로그·제안서·이미지 등 올린 파일\r\n"
         . "    02_브랜드기록부   브랜드 기록부 파일\r\n"
-        . "    03_자동화도구     블로그·카페 생성기 같은 도구 파일\r\n\r\n";
+        . "    03_자동화도구     블로그·카페 생성기 같은 도구 파일\r\n"
+        . "    04_명함           명함 이미지 (앞면·뒷면·재단선)\r\n\r\n";
     $txt = "브랜드 마케팅팀 폴더 안내\r\n"
          . "==========================\r\n\r\n"
          . "이 폴더는 브랜드 대시보드가 자동으로 정리합니다.\r\n\r\n"

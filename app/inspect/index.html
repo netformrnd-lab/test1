@@ -2310,10 +2310,16 @@ clock();
 (function(){
   var SUPABASE_URL='https://gndktayoicegyqyllybk.supabase.co';
   var SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
-  var sb = (window.supabase && window.supabase.createClient) ? window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY) : null;
   var QS = new URLSearchParams(location.search);
   var APT_ID = QS.get('apt')||'';
   var APT_NAME = QS.get('name')||'';
+  /* 발표용 데모(?sess=...): 메인 앱과 같은 세션 저장소 키를 써서 로그인 세션을 공유한다
+     → 감리일지 전송 시 "로그인이 필요" 대신 데모 감리사로 정상 전송되어 대시보드에 실시간 반영 */
+  var DEMO_SESS = QS.get('sess')||'';
+  var _sbOpts = DEMO_SESS ? { auth: { storageKey: 'sb-aptsq-demo-' + DEMO_SESS } } : undefined;
+  var sb = (window.supabase && window.supabase.createClient)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, _sbOpts)
+    : null;
   var INTEG = { photos:[], auditors:[], boss:'', me:'' };
 
   /* 단지명 자동 주입 */
@@ -2546,6 +2552,7 @@ clock();
   /* 앱으로 돌아가기 */
   function goBackToApp(){
     var url = '/' + (APT_ID ? ('?openApt=' + encodeURIComponent(APT_ID)) : '');
+    if(DEMO_SESS){ url += (APT_ID ? '&' : '?') + 'sess=' + encodeURIComponent(DEMO_SESS); }
     /* 앱에서 들어왔으면 히스토리 뒤로가기로 즉시 복원한다(전체 새로고침·스플래시 없이) →
        되돌아온 직후 바로 클릭이 되게 한다. 직접 진입 등 히스토리가 없으면 주소 이동으로 보강 */
     try{

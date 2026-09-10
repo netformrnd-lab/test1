@@ -2319,6 +2319,21 @@ clock();
   /* 단지명 자동 주입 */
   if(APT_NAME){ store.meta.site = APT_NAME; try{ save(); }catch(e){} }
 
+  /* ===== 들어올 때마다 '1번 현장정보'부터 새로 시작 =====
+     앱에서 '감리일지 작성'으로 들어오면, 전에 보던 출력/대시보드 전송 화면이나
+     이전에 작성하던 체크가 그대로 뜨지 않도록 항상 1번 현장정보부터 연다.
+     (단지명·감리원·공사감리자 자동채움과 지적 이력은 그대로 유지) */
+  try{
+    if(typeof ready==='function' && ready()){
+      if(typeof clearChecks==='function') clearChecks();  /* 이전 방문 체크·진행만 비움(이력은 보존) */
+      ST = 'meta';
+    } else {
+      ST = null;   /* 공종·단계 미선택이면 선택 화면부터 */
+    }
+    store.step = ST; INTEG.photos = []; try{ save(); }catch(e){}
+    if(typeof render==='function') render();
+  }catch(e){}
+
   /* ---- 이미지 압축(앱과 동일) ---- */
   function compressImage(file, cb){
     try{

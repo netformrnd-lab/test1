@@ -1029,6 +1029,20 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .hxb .k.s{color:var(--text-muted)}
 @media(max-width:640px){.hxb .ba > .ar{display:none}}
 
+/* ── 📋 경로로 가기 ───────────────────────────────────────────── */
+.gp{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-card);
+  padding:11px 13px;margin:0 0 12px}
+.gp-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gp-row .ic{flex:0 0 auto;font-size:15px}
+.gp-row input{flex:1 1 320px;min-width:0;box-sizing:border-box;font-family:inherit;
+  font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;
+  background:var(--bg-input);color:var(--text-primary)}
+.gp-row input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+.gp-hint{margin-top:7px;font-size:11.5px;color:var(--text-muted)}
+.gp-err{margin-top:7px;font-size:12.5px;font-weight:700;color:var(--red);line-height:1.6}
+.gp-err span{display:block;font-size:11.5px;font-weight:400;color:var(--text-muted);
+  margin-top:3px}
+
 /* ── 📄 기획서 문서 ── 올려 두는 카드 ──────────────────────────── */
 .dc-list{display:flex;flex-direction:column;gap:10px}
 .dc{border:1px solid var(--border);border-left:3px solid var(--cyan);
@@ -1058,6 +1072,32 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .dc-none{font-size:13.5px;font-weight:700;color:var(--text-primary);line-height:1.8;
   padding:18px 0}
 .dc-none span{font-size:12.5px;font-weight:400;color:var(--text-muted)}
+/* 문서에서 뽑은 마디 고르기 */
+.dmn{margin-top:10px;padding-top:11px;border-top:1px dashed var(--border)}
+.dmn-hd{font-size:13px;font-weight:800;color:var(--text-primary);
+  display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.dmn-hd span{font-size:11.5px;font-weight:400;color:var(--text-muted)}
+.dmn-err{font-size:12.5px;font-weight:700;color:var(--red);line-height:1.7;
+  white-space:pre-wrap;margin-bottom:9px}
+.dmn-bar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.dmn-list{display:flex;flex-direction:column;gap:5px;max-height:460px;overflow:auto;
+  padding-right:2px}
+.dmn-r{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;cursor:pointer;
+  border:1px solid var(--border);border-radius:10px;background:var(--bg-input)}
+.dmn-r:hover{border-color:var(--blue)}
+.dmn-r.on{border-color:var(--ink);background:var(--bg-card)}
+.dmn-r > input{flex:0 0 auto;width:15px;height:15px;margin-top:2px}
+.dmn-r .bd{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.dmn-r .dt{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dmn-r .dt b{font-size:11px;font-weight:800;color:var(--text-primary)}
+.dmn-r .dt .kd,.dmn-r .dt .ax,.dmn-r .dt .at{font-size:10px;font-weight:700;
+  color:var(--text-muted);background:var(--bg-sunken);border-radius:99px;padding:1px 7px}
+.dmn-r .dt .gs{font-size:10px;font-weight:800;color:var(--orange);
+  border:1px solid var(--orange);border-radius:99px;padding:0 6px}
+.dmn-r .ti{font-size:13.5px;font-weight:700;line-height:1.55;color:var(--text-primary);
+  word-break:break-word}
+.dmn-r .sc{font-size:11.5px;color:var(--text-muted);line-height:1.55;word-break:break-word}
+.dmn-ac{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 /* 라인 마디에 거는 근거 문서 */
 .hxb .wy.hl-src{flex-direction:row;align-items:center;gap:7px;flex-wrap:wrap}
 .hl-src .k{flex:0 0 auto}
@@ -1879,7 +1919,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260910-39';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260910-40';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4513,6 +4553,73 @@ async function loadPicker(dir){
   render();
 }
 
+/* ── 📋 경로로 가기 ──────────────────────────────────────────────
+   탐색기 주소창에서 복사한 경로를 그대로 붙여넣으면 그 폴더를 엽니다.
+     Y:\넷폼알앤디 공유폴더\…\000. 공용디자인\명함_캐논프린터기\2026명함재단선
+     \\netformrnd\넷폼알앤디 공유폴더\…
+     /volume1/넷폼알앤디 공유폴더/…
+   드라이브 문자만으로는 어느 볼륨인지 알 수 없어, NAS 가 뒤쪽 폴더
+   이름부터 하나씩 맞춰가며 실제 자리를 찾아 줍니다 (띄어쓰기·괄호가
+   조금 달라도 찾습니다).
+   ------------------------------------------------------------- */
+let goPath = { txt:'', busy:false, err:'', tried:[] };
+
+function focusGoPath(){
+  const el = document.getElementById('goPathIn');
+  if(el){ el.focus(); el.select(); el.scrollIntoView({ block:'center' }); }
+}
+function goPathKey(e){ if(e.key === 'Enter') goPathRun(); }
+
+async function goPathRun(){
+  const el = document.getElementById('goPathIn');
+  const v  = (el ? el.value : goPath.txt).trim();
+  goPath.txt = v; goPath.err = ''; goPath.tried = [];
+  if(!v){ goPath.err = '경로를 붙여넣어 주세요.'; redraw(); return; }
+
+  goPath.busy = true; redraw();
+  try{
+    const out = await apiJson('nasfiles.php?action=resolve&path=' + encodeURIComponent(v));
+    goPath.busy = false;
+    goPath.txt  = '';
+    gotoFolder('nas', out.dir);
+    toast('📂 ' + out.dir.split('/').pop());
+  }catch(e){
+    goPath.busy = false;
+    goPath.err  = apiErrText(e);
+    // 파일 경로를 넣었을 수 있습니다 — 한 단계 위(폴더)로 다시 해봅니다
+    const up = v.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '');
+    if(up && up !== v && !/^[A-Za-z]:$/.test(up)){
+      try{
+        const out2 = await apiJson('nasfiles.php?action=resolve&path=' + encodeURIComponent(up));
+        goPath.err = ''; goPath.txt = '';
+        gotoFolder('nas', out2.dir);
+        toast('📂 파일이 든 폴더를 열었습니다');
+      }catch(e2){}
+    }
+    redraw();
+  }
+}
+
+function goPathBar(){
+  return '<div class="gp">'
+    + '<div class="gp-row">'
+      + '<span class="ic">📋</span>'
+      + '<input id="goPathIn" value="' + esc(goPath.txt) + '" '
+        + 'placeholder="탐색기 주소를 그대로 붙여넣으세요 — '
+        + 'Y:\\넷폼알앤디 공유폴더\\…\\2026명함재단선" '
+        + 'oninput="goPath.txt=this.value" onkeydown="goPathKey(event)">'
+      + '<button class="btn primary" onclick="goPathRun()"' + (goPath.busy ? ' disabled' : '')
+        + '>' + (goPath.busy ? '찾는 중…' : '가기') + '</button>'
+    + '</div>'
+    + (goPath.err
+        ? '<div class="gp-err">⚠️ ' + esc(goPath.err)
+          + '<span>드라이브 문자(Y:)는 무시하고 뒤쪽 폴더 이름으로 찾습니다. '
+            + '폴더 이름이 바뀌었거나, 훑는 폴더 밖일 수 있습니다.</span></div>'
+        : '<div class="gp-hint">파일 경로를 넣으면 그 파일이 든 폴더를 엽니다. '
+          + '<b>Enter</b> 로도 갑니다.</div>')
+    + '</div>';
+}
+
 function pickerPanel(){
   if(!pick) return '';
   const back = pick.parent !== undefined && pick.parent !== null
@@ -4877,6 +4984,7 @@ function renderNas(){
       + ' onclick="setNasMode(\'doc\')">📖 내용으로 찾기</button>'
     + '<button class="btn' + (mode === 'tidy' ? ' primary' : '') + '"'
       + ' onclick="setNasMode(\'tidy\')">🧹 파일 정리</button>'
+    + '<button class="btn" onclick="focusGoPath()">📋 경로로 가기</button>'
     + '<button class="btn" onclick="startScan()">🔎 목록 다시 만들기</button>'
     + '<button class="btn" onclick="setScanRoot()">⚙️ 훑을 폴더 바꾸기</button>'
     + (STORAGE_MODE === 'nas'
@@ -4896,7 +5004,7 @@ function renderNas(){
   }else if(mode === 'tidy'){
     body = tidyView();
   }else if(mode === 'browse'){
-    body = pickerPanel() + scanPanel() + upRootBar() + oldAssetsPanel()
+    body = goPathBar() + pickerPanel() + scanPanel() + upRootBar() + oldAssetsPanel()
            + folderBrowserHtml('nas', '');
   }else{
     const bar = '<div class="sec-bar">'
@@ -12574,6 +12682,158 @@ function docVerDel(bid, id, vid){
   markDirty(b.id); render();
 }
 
+/* ── 🤖 문서에서 라인 마디 뽑기 ─────────────────────────────────
+   올린 기획서를 NAS 가 읽어 글자를 뽑고, AI 에게 「연혁 마디」 로
+   정리하게 합니다. 바로 넣지 않고 목록으로 보여주고 고르게 합니다 —
+   AI 가 잘못 읽은 것을 사람이 걸러내야 하기 때문입니다.
+   ------------------------------------------------------------- */
+let docMineState = {};   // 문서 id → {busy, step, err, rows[], pick{}}
+
+function docMineHtml(b, d){
+  const st = docMineState[d.id];
+  if(!st) return '';
+  const bid = jsq(b.id), did = jsq(d.id);
+
+  if(st.busy){
+    return '<div class="dmn"><div class="dmn-hd">🤖 ' + esc(st.step || '읽는 중…')
+      + '<span>문서가 길면 1~2분 걸립니다</span></div></div>';
+  }
+  if(st.err){
+    return '<div class="dmn"><div class="dmn-err">⚠️ ' + esc(st.err) + '</div>'
+      + '<div class="dmn-ac"><button class="btn sm" onclick="docMineClose(\'' + did
+        + '\')">닫기</button></div></div>';
+  }
+  if(!st.rows.length){
+    return '<div class="dmn"><div class="dmn-hd">🤖 이 문서에서 마디를 찾지 못했습니다'
+      + '<span>연혁으로 옮길 만한 사건·변화가 없거나, 글자가 잘 안 읽힌 문서입니다</span></div>'
+      + '<div class="dmn-ac"><button class="btn sm" onclick="docMineClose(\'' + did
+        + '\')">닫기</button></div></div>';
+  }
+
+  const on = st.rows.filter((r, i) => st.pick[i]).length;
+  const rows = st.rows.map((r, i) => {
+    const K = recKindOf(r);
+    const a = r.axis ? axisOf(r.axis) : null;
+    const head = recHead(r);
+    const sub = [r.why, r.fix].map(x => String(x || '').trim()).filter(Boolean).join(' · ');
+    return '<label class="dmn-r' + (st.pick[i] ? ' on' : '') + '">'
+      + '<input type="checkbox"' + (st.pick[i] ? ' checked' : '') + ' '
+        + 'onchange="docMinePick(\'' + did + '\',' + i + ', this.checked)">'
+      + '<span class="bd">'
+        + '<span class="dt">'
+          + '<b>' + esc(r.date || '날짜 없음') + '</b>'
+          + '<span class="kd">' + K.ic + ' ' + esc(K.nm) + '</span>'
+          + (a ? '<span class="ax">' + a.icon + ' ' + esc(a.name) + '</span>' : '')
+          + (r.docAt ? '<span class="at">' + esc(r.docAt) + '</span>' : '')
+          + (r.guess ? '<span class="gs">추정</span>' : '')
+        + '</span>'
+        + '<span class="ti">' + esc(head || '(빈 마디)') + '</span>'
+        + (sub ? '<span class="sc">' + esc(sub) + '</span>' : '')
+      + '</span></label>';
+  }).join('');
+
+  return '<div class="dmn">'
+    + '<div class="dmn-hd">🤖 이 문서에서 마디 ' + st.rows.length + '건을 찾았습니다'
+      + '<span>넣을 것만 골라 주세요. 넣은 뒤에도 라인에서 고칠 수 있습니다</span></div>'
+    + '<div class="dmn-bar">'
+      + '<button class="btn sm" onclick="docMineAll(\'' + did + '\',1)">모두 고르기</button>'
+      + '<button class="btn sm" onclick="docMineAll(\'' + did + '\',0)">모두 풀기</button>'
+      + '<span class="hint">' + on + ' / ' + st.rows.length + '건</span>'
+    + '</div>'
+    + '<div class="dmn-list">' + rows + '</div>'
+    + '<div class="dmn-ac">'
+      + '<button class="btn primary"' + (on ? '' : ' disabled')
+        + ' onclick="docMineAdd(\'' + bid + '\',\'' + did + '\')">'
+        + '라인에 ' + on + '건 넣기</button>'
+      + '<button class="btn sm" onclick="docMineClose(\'' + did + '\')">닫기</button>'
+    + '</div></div>';
+}
+
+function docMineClose(id){ delete docMineState[id]; render(); }
+function docMinePick(id, i, on){
+  const st = docMineState[id]; if(!st) return;
+  st.pick[i] = !!on; render();
+}
+function docMineAll(id, on){
+  const st = docMineState[id]; if(!st) return;
+  st.rows.forEach((r, i) => { st.pick[i] = !!on; });
+  render();
+}
+
+async function docMine(bid, id){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const d = docFind(b, id); if(!d) return;
+  const v = docTop(d);
+  if(!v || !v.filePath){
+    alert('이 문서의 파일 자리를 알 수 없습니다. 다시 올려 주세요.');
+    return;
+  }
+  docMineState[id] = { busy:true, step:'문서에서 글자를 뽑는 중…', err:'', rows:[], pick:{} };
+  render();
+  try{
+    const t = await apiJson('doctext.php?action=one&path=' + encodeURIComponent(v.filePath));
+    const txt = String(t['글자'] || '').trim();
+    if(!txt) throw new Error('이 문서에서 글자를 뽑지 못했습니다.');
+
+    docMineState[id].step = 'AI 가 연혁 마디로 정리하는 중…';
+    render();
+
+    const out = await apiJson('ai.php?action=prompt', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ kind:'hist', brand: b.name, book: txt })
+    });
+    const rows = docMineParse(out['프롬프트'] || '');
+    const st = docMineState[id];
+    st.busy = false; st.rows = rows; st.pick = {};
+    rows.forEach((r, i) => { st.pick[i] = true; });
+    render();
+  }catch(e){
+    docMineState[id] = { busy:false, err: apiErrText(e), rows:[], pick:{} };
+    render();
+  }
+}
+
+/* AI 가 앞뒤에 말을 붙여도 JSON 만 골라냅니다 */
+function docMineParse(text){
+  let t = String(text || '').trim();
+  t = t.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  let j = null;
+  try{ j = JSON.parse(t); }catch(e){
+    const a = t.indexOf('{'), z = t.lastIndexOf('}');
+    if(a >= 0 && z > a){ try{ j = JSON.parse(t.slice(a, z + 1)); }catch(e2){} }
+  }
+  const arr = (j && (j['마디'] || j.records || j.rows)) || (Array.isArray(j) ? j : []);
+  if(!Array.isArray(arr)) return [];
+  const KIND = REC_KINDS.map(k => k.k);
+  const AX   = BRAND_AXES.map(a => a.key);
+  return arr.map(x => {
+    const o = {};
+    ['date','title','body','before','after','why','fix','docAt'].forEach(k => {
+      o[k] = String((x && x[k]) || '').trim();
+    });
+    o.kind  = KIND.indexOf(String((x && x.kind) || '')) >= 0 ? x.kind : '사건';
+    o.axis  = AX.indexOf(String((x && x.axis) || '')) >= 0 ? x.axis : '';
+    o.guess = !!(x && x.guess);
+    return o;
+  }).filter(r => recHead(r));       // 아무 내용도 없는 것은 버립니다
+}
+
+function docMineAdd(bid, id){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const st = docMineState[id]; if(!st) return;
+  const recs = recsOf(b);
+  let n = 0;
+  st.rows.forEach((r, i) => {
+    if(!st.pick[i]) return;
+    recs.push(Object.assign({ id: uid('hx') }, r, { docId: id }));
+    n++;
+  });
+  delete docMineState[id];
+  markDirty(b.id);
+  setHistTab('line');
+  toast('✅ 라인에 ' + n + '건 넣었습니다');
+}
+
 /* 기획서 화면 — 문서 카드 목록 */
 function docsViewHtml(b){
   const bid  = jsq(b.id);
@@ -12617,6 +12877,8 @@ function docsViewHtml(b){
         + 'oninput="gbGrow(this);docNote(\'' + bid + '\',\'' + jsq(d.id) + '\', this.value)">'
         + esc(d.note || '') + '</textarea>'
       + '<div class="dc-ac">'
+        + '<button class="btn sm primary" onclick="docMine(\'' + bid + '\',\''
+          + jsq(d.id) + '\')">🤖 라인으로 뽑기</button>'
         + '<button class="btn sm" onclick="pickDoc(\'' + jsq(d.id) + '\')">'
           + '＋ 새 판 올리기</button>'
         + '<button class="btn sm" onclick="docRename(\'' + bid + '\',\'' + jsq(d.id)
@@ -12628,6 +12890,7 @@ function docsViewHtml(b){
               + (docOldOpen[d.id] ? '▼' : '▶') + ' 지난 판 ' + old.length + '</button>'
             : '')
       + '</div>'
+      + docMineHtml(b, d)
       + (docOldOpen[d.id] && old.length
           ? '<div class="dc-old">' + old.map(v => '<div class="dc-f">'
               + '<span class="vn">v' + docVerNo(d, v) + '</span>'

@@ -114,23 +114,93 @@ function normalize_nas_input($raw) {
     return $p;
 }
 
-/* 다듬은 경로가 실제로 어느 볼륨에 있는지 찾아냅니다.
-   못 찾으면 어떤 경로들을 시도했는지 같이 돌려줍니다. */
-function resolve_nas_dir($p) {
-    $bare  = preg_replace('#^/volume\d+/#', '/', $p);
-    $cands = [$p];
-    $vols  = glob('/volume*', GLOB_ONLYDIR) ?: [];
-    sort($vols);
-    foreach ($vols as $v) $cands[] = $v . $bare;
+/* 다듬은 경로가 실제로 어느 자리인지 찾아냅니다.
 
+   탐색기에서 복사한 주소는 드라이브 문자(Y:)나 서버 이름으로 시작해서,
+   NAS 안의 어느 볼륨·어느 공유폴더에 붙은 것인지 알 수 없습니다.
+   그래서 세 단계로 찾습니다.
+     ① 그대로 · /volume1 /volume2 … 를 앞에 붙여서
+     ② 우리가 여는 공유폴더(와 그 위 단계)를 바탕으로, 앞쪽 폴더 이름을
+        하나씩 떼어 가며   (Y:\A\B\C\D  →  <공유폴더>/C/D 처럼)
+     ③ 그래도 없으면 띄어쓰기·괄호·마침표를 무시하고 한 칸씩 내려가며
+        비슷한 이름을 찾아서 (「00.브랜드」 ↔ 「00. 브랜드」)
+   못 찾으면 어떤 경로들을 시도했는지 같이 돌려줍니다.                   */
+function nas_name_key($s) {
+    $s = (string)$s;
+    if (function_exists('mb_strtolower')) $s = mb_strtolower($s, 'UTF-8');
+    return preg_replace('/[\s_\-()\[\].]+/u', '', $s);
+}
+
+/* 어디부터 찾아볼지 — 공유폴더와 그 위 단계, 그리고 볼륨들 */
+function nas_search_bases() {
+    $bases = [];
+    foreach (roots_all() as $r) {
+        $r = rtrim($r, '/');
+        $bases[] = $r;
+        $bases[] = dirname($r);
+        $bases[] = dirname(dirname($r));
+    }
+    foreach ((glob('/volume*', GLOB_ONLYDIR) ?: []) as $v) $bases[] = rtrim($v, '/');
+    $bases[] = '';                                   // 절대경로 그대로
+    $out = [];
+    foreach ($bases as $b) {
+        if ($b !== '' && (!is_dir($b) || $b === '/' || $b === '.')) continue;
+        if (!in_array($b, $out, true)) $out[] = $b;
+    }
+    return $out;
+}
+
+function resolve_nas_dir($p) {
     $tried = [];
-    foreach ($cands as $c) {
+    $hit = function ($c) use (&$tried) {
         $c = preg_replace('#/+#', '/', $c);
-        if (in_array($c, $tried, true)) continue;
-        $tried[] = $c;
-        if (is_dir($c)) {
-            $real = realpath($c);
-            return [$real !== false ? $real : $c, $tried];
+        if ($c === '' || in_array($c, $tried, true)) return null;
+        if (count($tried) < 60) $tried[] = $c;
+        if (!is_dir($c)) return null;
+        $real = realpath($c);
+        return $real !== false ? $real : $c;
+    };
+
+    // ① 그대로 · 볼륨을 바꿔서
+    if (($r = $hit($p)) !== null) return [$r, $tried];
+    $bare = preg_replace('#^/volume\d+/#', '/', $p);
+    foreach ((glob('/volume*', GLOB_ONLYDIR) ?: []) as $v) {
+        if (($r = $hit(rtrim($v, '/') . $bare)) !== null) return [$r, $tried];
+    }
+
+    $parts = array_values(array_filter(explode('/', trim($bare, '/')), 'strlen'));
+    if (!$parts) return [null, $tried];
+    $bases = nas_search_bases();
+
+    // ② 앞쪽을 하나씩 떼어 가며 (드라이브가 어디에 붙었는지 모르므로)
+    for ($skip = 0; $skip < count($parts); $skip++) {
+        $tail = implode('/', array_slice($parts, $skip));
+        foreach ($bases as $b) {
+            if (($r = $hit($b . '/' . $tail)) !== null) return [$r, $tried];
+        }
+    }
+
+    // ③ 띄어쓰기·괄호가 달라도 찾도록, 한 칸씩 내려가며 비슷한 이름으로
+    foreach ($bases as $b) {
+        for ($skip = 0; $skip < count($parts); $skip++) {
+            $cur = ($b === '' ? '' : $b);
+            $ok  = true;
+            foreach (array_slice($parts, $skip) as $want) {
+                $next = null;
+                foreach ((array)@scandir($cur === '' ? '/' : $cur) as $e) {
+                    if ($e === '.' || $e === '..') continue;
+                    $try = ($cur === '' ? '' : $cur) . '/' . $e;
+                    if (!is_dir($try)) continue;
+                    if (nas_name_key($e) === nas_name_key($want)) { $next = $try; break; }
+                }
+                if ($next === null) { $ok = false; break; }
+                $cur = $next;
+            }
+            if ($ok && $cur !== '' && is_dir($cur)) {
+                if (count($tried) < 60) $tried[] = $cur;
+                $real = realpath($cur);
+                return [$real !== false ? $real : $cur, $tried];
+            }
         }
     }
     return [null, $tried];

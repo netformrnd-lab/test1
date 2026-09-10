@@ -290,6 +290,48 @@ function progress($st) {
 
 $action = $_GET['action'] ?? '';
 
+/* ---------------- 문서 한 장의 글자 ----------------
+   ?action=one&path=아파트스퀘어/02_브랜드기록부/2026/….pdf
+   기획서로 올린 문서에서 글자를 뽑아 돌려줍니다 (연혁 라인 자동 채우기용).
+   경로는 「올린 파일 폴더」(uploadroot) 기준입니다. 그 안쪽만 읽습니다.
+   원본은 읽기만 하며 고치지 않습니다.
+   -------------------------------------------------- */
+if ($action === 'one') {
+    $upF  = $DATA . '/uploadroot.txt';
+    $base = is_file($upF) ? rtrim(trim((string)@file_get_contents($upF)), '/') : '';
+    if ($base === '' || !is_dir($base)) {
+        jout(['ok' => false, 'error' => '올린 파일 폴더를 아직 정하지 않았습니다.'], 400);
+    }
+    $rel = str_replace('\\', '/', trim((string)($_GET['path'] ?? '')));
+    if ($rel === '' || strpos($rel, '..') !== false) {
+        jout(['ok' => false, 'error' => '파일 경로가 올바르지 않습니다.'], 400);
+    }
+    $file = @realpath($base . '/' . ltrim($rel, '/'));
+    $root = @realpath($base);
+    if (!$file || !$root || strpos($file, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($file)) {
+        jout(['ok' => false, 'error' => '그런 파일이 없습니다: ' . $rel], 404);
+    }
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    if (!in_array($ext, $KNOWN, true)) {
+        jout(['ok' => false, 'error' =>
+            '.' . $ext . ' 은 글자를 뽑을 수 없는 형식입니다.' . "\n\n"
+            . '읽을 수 있는 것: ' . implode(' · ', $KNOWN) . "\n"
+            . '한글(.hwp)은 아직 못 읽습니다 — PDF 로 내보내 올려주세요.'], 415);
+    }
+    $t = extract_text($file, $ext, $MAX_TEXT, microtime(true) + 20);
+    if ($t === null) jout(['ok' => false, 'error' => '이 파일에서 글자를 뽑지 못했습니다.'], 422);
+    $t = tidy_text($t, $MAX_TEXT);
+    $q = text_quality($t);
+    if (trim($t) === '' || $q < 0.25) {
+        jout(['ok' => false, 'error' =>
+            '글자가 거의 안 읽힙니다 (읽힌 정도 ' . round($q * 100) . '%).' . "\n\n"
+            . '그림으로 스캔한 PDF 이거나 글꼴이 특수한 문서일 수 있습니다. '
+            . '글자로 된 문서로 다시 올려주세요.'], 422);
+    }
+    jout(['ok' => true, '글자' => $t, '글자수' => mb_strlen($t, 'UTF-8'),
+          '읽힌정도' => round($q, 3), '파일' => basename($file)]);
+}
+
 /* ---------------- 목록 상태 ---------------- */
 if ($action === 'check') {
     jout([

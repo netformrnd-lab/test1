@@ -1956,9 +1956,10 @@ async function addSchedule() {
   const sel = document.getElementById('sc-apt')
   const aptId = sel ? sel.value : ''
   const cat = (document.getElementById('sc-cat') || {}).value || null
-  const row = { date, title, description: desc || null, category: cat }
-  if (aptId) { row.apartment_id = aptId; row.owner_id = null }   // 단지 일정 (입주민도 봄)
-  else { row.owner_id = user.id; row.apartment_id = null }        // 개인 일정 (나만 봄)
+  const pub = !!((document.getElementById('sc-public') || {}).checked)
+  const row = { date, title, description: desc || null, category: cat, source: 'aptsq' }
+  if (aptId) { row.apartment_id = aptId; row.owner_id = null; row.resident_visible = pub }   // 단지 일정: '공개' 켰을 때만 입주민에게 보임
+  else { row.owner_id = user.id; row.apartment_id = null; row.resident_visible = false }        // 개인 일정 (나만 봄)
   if (editSchedId) {
     const { error } = await sb.from('schedules').update(row).eq('id', editSchedId)
     if (error) { alert('수정 실패: ' + error.message); return }
@@ -1978,6 +1979,7 @@ function openSchedEdit(id) {
   if ($g('sc-title')) $g('sc-title').value = s.title || ''
   if ($g('sc-desc')) $g('sc-desc').value = s.description || ''
   if ($g('sc-cat')) $g('sc-cat').value = s.category || ''
+  if ($g('sc-public')) $g('sc-public').checked = !!s.resident_visible
   populateSchedAptSelect()
   if ($g('sc-apt')) $g('sc-apt').value = s.apartment_id || ''
   const sv = $g('sc-save'); if (sv) sv.textContent = '✓ 수정 저장'
@@ -1987,6 +1989,7 @@ function cancelSchedEdit() {
   editSchedId = null
   const $g = i => document.getElementById(i)
   ;['sc-date', 'sc-title', 'sc-desc'].forEach(i => { if ($g(i)) $g(i).value = '' })
+  if ($g('sc-public')) $g('sc-public').checked = false
   const sv = $g('sc-save'); if (sv) sv.textContent = '등록'
   const f = $g('sc-form'); if (f) f.style.display = 'none'
 }

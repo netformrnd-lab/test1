@@ -2337,6 +2337,40 @@ clock();
     }catch(e){ cb(null); }
   }
 
+  /* ---- 음성 입력(마이크): 직접입력 칸 · 감리원/공사감리자 ---- */
+  var REC=null, REC_BTN=null;
+  function micSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); }
+  function stopMic(){ if(REC_BTN){ REC_BTN.textContent='🎤'; REC_BTN.style.background='#232a28'; REC_BTN.style.borderColor='#3a4340'; } REC=null; REC_BTN=null; }
+  function startMic(target, btn){
+    if(REC){ try{ REC.stop(); }catch(e){} return; }
+    var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ toast('이 기기는 음성 입력을 지원하지 않아요'); return; }
+    try{ REC=new SR(); }catch(e){ toast('음성 입력을 쓸 수 없어요'); return; }
+    REC.lang='ko-KR'; REC.interimResults=false; REC.maxAlternatives=1;
+    REC_BTN=btn; if(btn){ btn.textContent='●'; btn.style.background='#c0392b'; btn.style.borderColor='#c0392b'; }
+    REC.onresult=function(e){
+      var t=''; for(var i=e.resultIndex;i<e.results.length;i++){ if(e.results[i].isFinal) t+=e.results[i][0].transcript; }
+      if(!t && e.results[0]) t=e.results[0][0].transcript;
+      if(t && target){ var cur=(target.value||'').replace(/\s*$/,''); target.value= cur ? (cur+' '+t) : t;
+        target.dispatchEvent(new Event('input',{bubbles:true})); }
+    };
+    REC.onerror=function(){ toast('음성 입력 오류'); stopMic(); };
+    REC.onend=stopMic;
+    try{ REC.start(); toast('말씀하세요… (버튼 다시 누르면 종료)'); }catch(e){ stopMic(); }
+  }
+  function addMics(){
+    if(!micSupported()) return;
+    var list=document.querySelectorAll('textarea.finp');
+    for(var i=0;i<list.length;i++){
+      var el=list[i]; if(el.getAttribute('data-mic')) continue; el.setAttribute('data-mic','1');
+      var m=document.createElement('button'); m.type='button'; m.textContent='🎤'; m.title='음성 입력';
+      m.style.cssText='flex:none;background:#232a28;color:#e9ede7;border:1px solid #3a4340;border-radius:8px;padding:6px 10px;font-size:15px;line-height:1;cursor:pointer;margin-left:6px;align-self:center';
+      (function(t,btn){ btn.addEventListener('click',function(e){ e.preventDefault(); startMic(t,btn); }); })(el,m);
+      if(el.nextSibling) el.parentNode.insertBefore(m, el.nextSibling); else el.parentNode.appendChild(m);
+    }
+  }
+  if(typeof renderStep==='function'){ var _renderStep=renderStep; renderStep=function(){ _renderStep.apply(this,arguments); try{ addMics(); }catch(e){} }; }
+
   /* ---- 데이터 로드: 로그인 감리사, 감리사 목록, 담당 감리사 ---- */
   function loadIntegData(){
     if(!sb) return;
@@ -2506,6 +2540,15 @@ clock();
 
   loadIntegData();
   applyMeta();
+  try{ addMics(); }catch(e){}
+  /* 직접입력 칸은 내부 redraw로 생기므로 DOM 변화를 감시해 마이크를 붙인다 */
+  try{
+    if(micSupported() && window.MutationObserver){
+      var _micT=null;
+      var mo=new MutationObserver(function(){ if(_micT) return; _micT=setTimeout(function(){ _micT=null; try{ addMics(); }catch(e){} }, 60); });
+      mo.observe(document.body,{childList:true,subtree:true});
+    }
+  }catch(e){}
 })();
 </script>
 

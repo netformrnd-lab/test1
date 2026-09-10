@@ -1080,6 +1080,46 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .st-r.k-fl .dt .kd{color:var(--red)}
 .st-r.k-wd .dt .kd{color:var(--orange)}
 .st-r.k-sh .dt .kd{color:var(--purple)}
+.st-mode .sp{flex:1}
+.st-mode > button.sm{font-size:11.5px;font-weight:700;padding:5px 11px;
+  border:1px solid var(--border);border-radius:99px;background:var(--bg-card);
+  color:var(--text-muted);cursor:pointer;font-family:inherit}
+.st-mode > button.sm:hover{border-color:var(--cyan);color:var(--cyan)}
+.st-mode > button.sm.on{border-color:var(--cyan);background:var(--cyan);color:#fff}
+.st-r .dt .ax{font-size:10.5px;font-weight:700;color:var(--text-muted);
+  background:var(--bg-sunken);border-radius:99px;padding:1px 8px}
+/* 읽기 화면의 사진 */
+.st-ph{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0 6px}
+.st-ph a{display:block;max-width:260px;border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;background:var(--bg-sunken);line-height:0}
+.st-ph a:hover{border-color:var(--blue)}
+.st-ph img{display:block;width:100%;height:auto;max-height:220px;object-fit:contain}
+.st-ph .file{display:inline-block;padding:9px 12px;font-size:12px;line-height:1.5;
+  color:var(--text-secondary)}
+/* 연도로 읽기 */
+.st-yr{padding:20px 0;border-bottom:1px solid var(--border)}
+.st-yr:last-child{border-bottom:none}
+.st-yr > h3{font-size:24px;font-weight:800;color:var(--text-primary);margin:0 0 13px;
+  letter-spacing:-.035em;display:flex;align-items:baseline;gap:9px}
+.st-yr > h3 span{font-size:11.5px;font-weight:700;color:var(--text-muted)}
+.st-yr > .bd{padding-left:15px;border-left:2px solid var(--border)}
+/* 고치는 마디의 사진 줄 */
+.rp{margin-top:4px}
+.rp-hd{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:6px}
+.rp-hd{font-size:11px;font-weight:800;color:var(--text-muted);letter-spacing:.02em}
+.rp-hd span{font-weight:400}
+.rp-hd .gb-add{margin-left:auto}
+.rp-list{display:flex;gap:7px;flex-wrap:wrap}
+.rp-i{position:relative;width:110px}
+.rp-i img{display:block;width:110px;height:74px;object-fit:contain;border-radius:8px;
+  border:1px solid var(--border);background:var(--bg-card)}
+.rp-i .file{display:flex;align-items:center;justify-content:center;width:110px;height:74px;
+  border-radius:8px;border:1px solid var(--border);background:var(--bg-card);font-size:20px}
+.rp-i .x{position:absolute;top:3px;right:3px;border:none;background:var(--bg-card);
+  color:var(--text-muted);cursor:pointer;font-size:13px;line-height:1;padding:1px 5px;
+  border-radius:6px;opacity:0;box-shadow:var(--shadow-sm)}
+.rp-i:hover .x{opacity:1}
+.rp-i .x:hover{color:var(--red)}
 .st-none{font-size:14.5px;font-weight:700;color:var(--text-primary);line-height:1.9;
   padding:22px 0}
 .st-none span{font-size:13px;font-weight:400;color:var(--text-muted)}
@@ -2056,7 +2096,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260910-42';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260910-43';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13322,6 +13362,30 @@ function docsViewHtml(b){
   return bar + '<div class="dc-list">' + cards + '</div>';
 }
 
+/* 고치는 마디의 사진 줄 */
+function recImgEditHtml(b, r){
+  const bid = jsq(b.id), rid = jsq(r.id);
+  const fs  = recImgs(r);
+  return '<div class="rp">'
+    + '<div class="rp-hd">📷 사진'
+      + '<span>그 때 무엇이 어떻게 보였는지 — 캡처 · 현장 · 자료</span>'
+      + '<button class="gb-add tiny" onclick="pickRecImg(\'' + bid + '\',\'' + rid
+        + '\')">＋ 사진</button>'
+    + '</div>'
+    + (fs.length
+        ? '<div class="rp-list">' + fs.map(f => '<div class="rp-i">'
+            + '<a href="' + esc(cardFull(f)) + '" target="_blank" rel="noopener">'
+              + (cardIsImg(f)
+                  ? '<img loading="lazy" src="' + esc(cardThumb(f, 260)) + '" alt="">'
+                  : '<span class="file">📄</span>')
+            + '</a>'
+            + '<button class="x" onclick="recImgDel(\'' + bid + '\',\'' + rid + '\',\''
+              + jsq(f.id) + '\')" title="빼기">×</button>'
+          + '</div>').join('') + '</div>'
+        : '')
+    + '</div>';
+}
+
 /* 마디의 근거 문서 — 올려 둔 기획서 중에서 고릅니다.
    문서가 없으면 아무것도 안 보여줍니다 (먼저 올려야 고를 것이 생깁니다).
    문서가 하나뿐이면 고를 것이 없으니 그 문서로 자동으로 겁니다. */
@@ -13442,12 +13506,67 @@ let lineOld  = false;     // 오래된 순으로 보기
 let lineOpen = '';        // 펼쳐서 고치는 중인 마디
 let nowOpen  = '';        // 「지금」 에서 펼친 축
 let brandRead = true;     // 브랜드를 열면 먼저 읽기로 보여줍니다
+let storyBy   = 'axis';   // 읽는 차례 — 축으로 / 연도로
+function setStoryBy(v){ storyBy = v; render(); }
 function setBrandRead(v){ brandRead = !!v; render(); window.scrollTo({ top:0 }); }
 
 function setLineAxis(k){ lineAxis = (lineAxis === k ? '' : k); render(); }
 function toggleLineOld(){ lineOld = !lineOld; render(); }
 function lineToggle(id){ lineOpen = (lineOpen === id ? '' : id); render(); }
 function nowToggle(k){ nowOpen = (nowOpen === k ? '' : k); render(); }
+
+/* ── 📷 마디에 붙이는 사진 ───────────────────────────────────────
+   연혁은 글만으로는 안 읽힙니다. 그 때 무엇이 어떻게 보였는지가
+   가장 확실한 증거라, 마디마다 사진을 함께 답니다.
+   파일은 공유폴더 <브랜드>/05_연혁 에 그대로 쌓입니다.
+   ------------------------------------------------------------- */
+function recImgs(r){ if(!Array.isArray(r.imgs)) r.imgs = []; return r.imgs; }
+let recImgTo = null;    // {bid, rid}
+
+function pickRecImg(bid, rid){
+  recImgTo = { bid: bid, rid: rid };
+  const el = document.getElementById('recImgInput');
+  if(el) el.click();
+}
+async function uploadRecImg(fileList){
+  const files = Array.from(fileList || []);
+  const to = recImgTo; recImgTo = null;
+  if(!files.length || !to) return;
+  const b = brandById(to.bid) || currentBrand(); if(!b) return;
+  const r = recsOf(b).find(x => x.id === to.rid); if(!r) return;
+
+  for(const f of files){
+    toast('📷 "' + f.name + '" 올리는 중…');
+    try{
+      const fd = new FormData();
+      fd.append('brand', b.name);
+      fd.append('sub', '연혁');
+      fd.append('file', f);
+      const res  = await fetch('files.php?action=upload', { method:'POST', body: fd });
+      const text = await res.text();
+      let out = null;
+      try{ out = JSON.parse(text); }catch(e){}
+      if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ') → '
+        + text.slice(0, 200).replace(/\s+/g, ' '));
+      if(!out.ok) throw new Error(out.error || '올리지 못했습니다');
+      recImgs(r).push({ id: uid('ri'), name: out.fileName, size: out.fileSize,
+                        filePath: out.filePath || '', mime: out.mime || '' });
+    }catch(e){
+      alert('"' + f.name + '" 을 올리지 못했습니다.\n\n' + (e.message || e));
+    }
+  }
+  markDirty(b.id);
+  await saveAll(true);
+  render();
+  toast('✅ 사진을 붙였습니다');
+}
+function recImgDel(bid, rid, fid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const r = recsOf(b).find(x => x.id === rid); if(!r) return;
+  if(!confirm('이 사진을 마디에서 뺄까요?\n\nNAS 의 파일은 그대로 남습니다.')) return;
+  r.imgs = recImgs(r).filter(f => f.id !== fid);
+  markDirty(b.id); render();
+}
 
 function recAdd(bid, kind){
   const b = brandById(bid) || currentBrand(); if(!b) return;
@@ -13492,13 +13611,18 @@ function brandAxisHtml(b){
       + '📖 읽기</button>'
     + '<button class="' + (brandRead ? '' : 'on') + '" onclick="setBrandRead(0)">'
       + '✏️ 고치기</button>'
-    + '<span class="hint">'
-      + (brandRead
-          ? '이 브랜드가 무엇이고 어떻게 여기까지 왔는지를 처음부터 끝까지 읽습니다'
-          : '한 줄 정의 · 축마다의 지금 · 연혁 마디를 여기서 고칩니다')
-      + '</span>'
+    + (brandRead
+        ? '<span class="sp"></span>'
+          + '<button class="sm' + (storyBy === 'axis' ? ' on' : '') + '" '
+            + 'onclick="setStoryBy(\'axis\')">축으로</button>'
+          + '<button class="sm' + (storyBy === 'year' ? ' on' : '') + '" '
+            + 'onclick="setStoryBy(\'year\')">연도로</button>'
+        : '<span class="hint">한 줄 정의 · 축마다의 지금 · 연혁 마디를 여기서 '
+          + '고칩니다</span>')
     + '<button class="btn sm" onclick="histCopy(\'' + bid + '\')">📋 글로 복사</button>'
-    + '</div>';
+    + '</div>'
+    + '<input type="file" id="recImgInput" accept="image/*" multiple style="display:none" '
+      + 'onchange="uploadRecImg(this.files); this.value=\'\'">';
 
   if(brandRead) return tabs + mode + brandStoryHtml(b);
   return tabs + mode + lineNowHtml(b) + lineBarHtml(b) + lineBodyHtml(b);
@@ -13530,6 +13654,15 @@ function brandStoryHtml(b){
       + recs.length + '마디 · 기획서 ' + docList(b).length + '장</div>'
     + '</div>';
 
+  const none = (!line && !filled && !recs.length)
+    ? '<div class="st-none">이 브랜드는 아직 아무것도 적혀 있지 않습니다.<br>'
+      + '<span>[✏️ 고치기] 에서 한 줄 정의부터 채우거나, '
+      + '[📋 기획서] 에 문서를 올리고 [🤖 라인으로 뽑기] 를 눌러 보세요.</span></div>'
+    : '';
+
+  if(storyBy === 'year')
+    return '<div class="story">' + top + none + storyYearHtml(b) + '</div>';
+
   const secs = BRAND_AXES.map(a => {
     const vals = a.now.map(f => [f[1], String(bk[f[0]] || '').trim()]);
     const has  = vals.some(v => v[1]);
@@ -13557,17 +13690,35 @@ function brandStoryHtml(b){
       + '</section>'
     : '';
 
-  const none = (!line && !filled && !recs.length)
-    ? '<div class="st-none">이 브랜드는 아직 아무것도 적혀 있지 않습니다.<br>'
-      + '<span>[✏️ 고치기] 에서 한 줄 정의부터 채우거나, '
-      + '[📋 기획서] 에 문서를 올리고 [🤖 라인으로 뽑기] 를 눌러 보세요.</span></div>'
-    : '';
-
   return '<div class="story">' + top + none + secs + restHtml + '</div>';
 }
 
+/* 연도로 읽기 — 오래된 해부터 차례로. 그 해에 무슨 일이 있었는지 */
+function storyYearHtml(b){
+  const rows = recsOf(b).slice().sort((x, y) => recKey(x) - recKey(y));
+  if(!rows.length){
+    return '<div class="st-none">아직 연혁 마디가 없습니다.<br>'
+      + '<span>[✏️ 고치기] 에서 한 건씩 남기거나, [📋 기획서] 에 문서를 올리고 '
+      + '[🤖 라인으로 뽑기] 를 눌러 보세요.</span></div>';
+  }
+  let out = '', year = null;
+  rows.forEach(r => {
+    const y = recYear(r) || '날짜 확인 필요';
+    if(y !== year){
+      if(year !== null) out += '</div></section>';
+      year = y;
+      const n = rows.filter(x => (recYear(x) || '날짜 확인 필요') === y).length;
+      out += '<section class="st-yr"><h3>' + esc(y)
+        + '<span>' + n + '건</span></h3><div class="bd">';
+    }
+    out += storyRecHtml(b, r, 1);
+  });
+  out += '</div></section>';
+  return out;
+}
+
 /* 서사 안의 마디 한 줄 — 읽으라고 만든 모양입니다 (고치는 칸이 아닙니다) */
-function storyRecHtml(b, r){
+function storyRecHtml(b, r, withAxis){
   const K  = recKindOf(r);
   const dc = r.docId ? docFind(b, r.docId) : null;
   const bits = [];
@@ -13587,12 +13738,23 @@ function storyRecHtml(b, r){
   if(dc) src.push('📄 ' + (dc.title || '문서') + (r.docAt ? ' · ' + r.docAt : ''));
   if(String(r.src || '').trim()) src.push(r.src.trim());
 
+  const a  = recAxis(r);
+  const fs = recImgs(r);
   return '<div class="st-r ' + K.cls + '">'
     + '<div class="dt"><span class="d">' + esc(r.date || '날짜 확인 필요') + '</span>'
       + '<span class="kd">' + K.ic + ' ' + esc(K.nm) + '</span>'
+      + (withAxis && a ? '<span class="ax">' + a.icon + ' ' + esc(a.name) + '</span>' : '')
       + (r.guess ? '<span class="gs">추정</span>' : '') + '</div>'
     + (bits.length ? '<p>' + bits.join('<br>') + '</p>' : '')
     + (tail.length ? '<p class="wy">' + esc(tail.join(' · ')) + '</p>' : '')
+    + (fs.length
+        ? '<div class="st-ph">' + fs.map(f => '<a href="' + esc(cardFull(f)) + '" '
+            + 'target="_blank" rel="noopener">'
+            + (cardIsImg(f)
+                ? '<img loading="lazy" src="' + esc(cardThumb(f, 520)) + '" alt="">'
+                : '<span class="file">📄 ' + esc(f.name || '') + '</span>')
+            + '</a>').join('') + '</div>'
+        : '')
     + (src.length  ? '<p class="sc">' + esc(src.join(' · ')) + '</p>' : '')
     + '</div>';
 }
@@ -13752,6 +13914,7 @@ function lineItemHtml(b, r){
         + 'oninput="gbGrow(this);recEdit(\'' + bid + '\',\'' + rid + '\',\'' + f[0]
         + '\', this.value)">' + esc(r[f[0]] || '') + '</textarea></label>').join('')
     + recSrcHtml(b, r)
+    + recImgEditHtml(b, r)
     + '</div>';
   return body;
 }

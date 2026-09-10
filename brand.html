@@ -2096,7 +2096,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260910-43';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260910-44';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -2176,6 +2176,14 @@ async function pullLive(by){
 
   const who = (by && by !== myName()) ? by + '님이 ' : '';
   if(by !== myName()) toast('🔄 ' + who + '방금 고친 내용을 가져왔습니다');
+}
+
+/* 로그인이 끊겼을 때 실시간 확인을 멈춥니다.
+   (안 멈추면 2초마다 「로그인 필요」 를 받아 화면이 계속 흔들립니다) */
+function stopLive(){
+  clearInterval(liveTimer);
+  liveTimer = null;
+  liveOn = false;
 }
 
 function startLive(){
@@ -13125,6 +13133,7 @@ function docDel(bid, id){
     + '\n\nNAS 공유폴더의 실제 파일은 그대로 남습니다.')) return;
   recsOf(b).forEach(r => { if(r.docId === id){ r.docId = ''; r.docAt = ''; } });
   b.docs = docList(b).filter(d => d.id !== id);
+  deletedIds.add(id);
   markDirty(b.id); render();
 }
 function docVerDel(bid, id, vid){
@@ -13579,6 +13588,7 @@ function recDel(bid, id){
   if(!confirm('이 마디를 지웁니다. 되돌릴 수 없습니다.')) return;
   const h = histOf(b);
   h.recs = recsOf(b).filter(x => x.id !== id);
+  deletedIds.add(id);          // 합칠 때 남의 저장본에서 되살아나지 않게
   if(lineOpen === id) lineOpen = '';
   markDirty(b.id); render();
 }
@@ -14758,7 +14768,7 @@ function markDirtyAll(){
   markDirty();
 }
 
-const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels']);
+const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels', 'docs']);
 const TOP_LISTS   = ['meetings', 'events', 'trash', 'growth', 'boards', 'gbkpis',
                      'gbperf', 'cards'];  // 브랜드 밖
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
@@ -14786,6 +14796,11 @@ function snapshotIds(d){
       tasks:0, links:0, tools:0, channels:0, _conflicts:0 })));
     m.set(b.id + ':prompt', sigOf(b.masterPrompt || ''));
     m.set(b.id + ':chartfix', JSON.stringify(b.chartFix || {}));   // 지문이 아니라 원본
+    m.set(b.id + ':book', JSON.stringify(b.book || {}));           // 「지금」 칸도 칸 단위로
+    m.set(b.id + ':histnow', sigOf((b.hist && b.hist.now) || ''));
+    ((b.hist && b.hist.recs) || []).forEach(x => {                 // 연혁 마디도 한 건씩
+      if(x && x.id) m.set(x.id, sigOf(x));
+    });
     MERGE_LISTS.forEach(k => (b[k] || []).forEach(x => {
       if(x && x.id) m.set(x.id, sigOf(x));
     }));
@@ -14849,6 +14864,50 @@ function mergeChartFix(mineB, srvB){
   return out;
 }
 
+/* 칸 단위 합치기 — 내가 만진 칸만 내 값으로 얹습니다 (chartFix 와 같은 규칙) */
+function mergeKeyed(mine, srv, baseKey){
+  mine = mine && typeof mine === 'object' && !Array.isArray(mine) ? mine : {};
+  srv  = srv  && typeof srv  === 'object' && !Array.isArray(srv)  ? srv  : {};
+  let base = {};
+  try{ base = JSON.parse(baseIds.get(baseKey) || '{}'); }catch(e){}
+  const out = Object.assign({}, srv);
+  Object.keys(mine).forEach(k => { if(mine[k] !== base[k]) out[k] = mine[k]; });
+  Object.keys(base).forEach(k => { if(!(k in mine)) delete out[k]; });
+  return out;
+}
+
+/* 연혁 합치기 — 마디는 한 건씩, 한 줄 정의는 내가 바꿨을 때만.
+   통째로 덮으면 둘이 같은 브랜드를 만졌을 때 상대가 남긴 마디가 사라집니다. */
+function mergeHist(mineB, srvB){
+  const mh = (mineB.hist && typeof mineB.hist === 'object' && !Array.isArray(mineB.hist))
+    ? mineB.hist : {};
+  const sh = (srvB.hist && typeof srvB.hist === 'object' && !Array.isArray(srvB.hist))
+    ? srvB.hist : {};
+  const out = Object.assign({}, sh, mh);
+
+  const mineArr = Array.isArray(mh.recs) ? mh.recs : [];
+  const srvArr  = Array.isArray(sh.recs) ? sh.recs : [];
+  const mineById = new Map(mineArr.map(x => [x.id, x]));
+  const srvIds   = new Set(srvArr.map(x => x.id));
+  const res = [];
+  srvArr.forEach(sv => {
+    if(deletedIds.has(sv.id)) return;            // 내가 지운 마디
+    res.push(mineById.get(sv.id) || sv);         // 둘 다 고쳤으면 내 것
+  });
+  mineArr.forEach((m, i) => {
+    if(srvIds.has(m.id)) return;
+    if(!keepMine(m.id, m)) return;               // 손 안 댄 채 남이 지운 것
+    if(i === 0) res.unshift(m); else res.push(m);
+  });
+  out.recs = res;
+
+  // 한 줄 정의 — 내가 바꾸지 않았으면 서버 것을 씁니다
+  const base = baseIds.get(mineB.id + ':histnow');
+  const mineNow = String(mh.now || ''), srvNow = String(sh.now || '');
+  out.now = (base !== undefined && sigOf(mineNow) === base) ? srvNow : mineNow;
+  return out;
+}
+
 function mergeBrand(mineB, srvB){
   const out = Object.assign({}, srvB, mineB);
   out._conflicts = (mineB._conflicts || srvB._conflicts || []).slice();
@@ -14864,6 +14923,13 @@ function mergeBrand(mineB, srvB){
   // 고친 문의 숫자는 칸 단위로 합칩니다.
   // 내가 손댄 칸은 내 값, 손대지 않은 칸은 상대 값 — 서로 다른 달을 고쳤으면 둘 다 남습니다.
   out.chartFix = mergeChartFix(mineB, srvB);
+
+  // 「지금」 칸도 같은 규칙 — 내가 만진 칸만 내 값으로 얹습니다.
+  // (통째로 덮으면, 둘이 다른 축을 채웠을 때 한쪽이 사라집니다)
+  out.book = mergeKeyed(mineB.book, srvB.book, mineB.id + ':book');
+
+  // 연혁 — 마디는 한 건씩 합치고, 한 줄 정의는 내가 바꿨을 때만 내 것을 씁니다
+  out.hist = mergeHist(mineB, srvB);
 
   MERGE_LISTS.forEach(k => {
     const mineArr = Array.isArray(mineB[k]) ? mineB[k] : [];

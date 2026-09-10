@@ -2325,7 +2325,12 @@ clock();
      (단지명·감리원·공사감리자 자동채움과 지적 이력은 그대로 유지) */
   try{
     if(typeof ready==='function' && ready()){
+      /* 규칙 확인 기록은 보존해 두고(진입마다 규칙 모달이 다시 떠서
+         화면 전체 클릭을 막는 일이 없도록), 체크·진행만 비운다 */
+      var _pk = (typeof pk==='function') ? pk() : null;
+      var _ack = (_pk && store.rule) ? store.rule[_pk] : null;
       if(typeof clearChecks==='function') clearChecks();  /* 이전 방문 체크·진행만 비움(이력은 보존) */
+      if(_pk && _ack){ store.rule = store.rule || {}; store.rule[_pk] = _ack; }
       ST = 'meta';
     } else {
       ST = null;   /* 공종·단계 미선택이면 선택 화면부터 */
@@ -2333,6 +2338,13 @@ clock();
     store.step = ST; INTEG.photos = []; try{ save(); }catch(e){}
     if(typeof render==='function') render();
   }catch(e){}
+
+  /* 뒤로가기(bfcache)로 화면이 되살아날 때, 열려 있던 모달이 남아
+     화면 전체 클릭을 먹는 일이 없도록 안전하게 닫는다 */
+  window.addEventListener('pageshow', function(){
+    try{ var rm=document.getElementById('ruleModal'); if(rm) rm.hidden=true; }catch(e){}
+    try{ var lm=document.getElementById('logModal'); if(lm) lm.hidden=true; }catch(e){}
+  });
 
   /* ---- 이미지 압축(앱과 동일) ---- */
   function compressImage(file, cb){

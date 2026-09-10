@@ -2113,7 +2113,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260910-45';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260910-46';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -2476,7 +2476,8 @@ function itemCount(b){
 }
 const TAB_KEYS  = ['inquiries','automations','history','tasks','links','channels','assets','book','prompt'];
 /* 없어진 탭 → 지금 있는 탭 (합치기 전 주소로 들어와도 길을 잃지 않게) */
-const TAB_MOVED = { history:'book', prompt:'book', links:'automations' };
+const TAB_MOVED = { history:'inquiries', prompt:'inquiries', book:'inquiries',
+                    links:'automations' };
 
 let data = defaultData();      // init() 에서 normalize 를 한 번 더 거칩니다
 let currentBrandId = null;
@@ -2930,8 +2931,7 @@ function renderHome(){
       todos.push(['✨', b, 'prompt', '마스터프롬프트가 비어 있습니다']);
     if(!b.automations.length)
       todos.push(['🤖', b, 'automations', '등록된 자동화가 없습니다']);
-    if(!recsOf(b).length)
-      todos.push(['📜', b, 'book', '연혁 라인이 비어 있습니다']);
+
   });
 
   const todoHtml = todos.length
@@ -5402,10 +5402,13 @@ function renderBrand(){
     book: bookFilled(b) + ((b.masterPrompt || '').trim() ? 1 : 0) + recsOf(b).length,
     blog: blog.loaded ? blogOf(b).length : 0
   };
+  /* 📕 브랜드 탭(연혁 · 기획서 · 마스터프롬프트)은 다시 기획하려고 내려두었습니다.
+     화면만 안 보일 뿐이고, 적어 둔 자료(b.hist · b.book · b.docs · b.masterPrompt)와
+     그리는 코드는 그대로 있습니다. 아래 한 줄을 되살리면 그 자리에 다시 나옵니다.
+       ['book','📕 브랜드'],                                                        */
   const tabDefs = [
     ['inquiries','📞 문의'],
     ['automations','🤖 자동화 · 바로가기'],
-    ['book','📕 브랜드'],
     ['channels','📣 채널'],
     ['blog','✍️ 블로그']
   ];
@@ -5432,7 +5435,9 @@ function renderBrand(){
 
   const body = document.getElementById('tabbody');
   // 예전에 따로 있던 탭들은 합쳐진 탭으로 보냅니다
-  if(currentTab === 'prompt' || currentTab === 'history') currentTab = 'book';
+  // 📕 브랜드 탭을 내려둔 동안은 문의로 보냅니다 (없는 탭에 갇히지 않게)
+  if(currentTab === 'prompt' || currentTab === 'history' || currentTab === 'book')
+    currentTab = 'inquiries';
   if(currentTab === 'links') currentTab = 'automations';
 
   if(currentTab === 'assets'){          // 자료는 🗂️ NAS 자료 한 곳으로 모았습니다
@@ -14131,7 +14136,6 @@ async function bookToPrompt(){
     b.promptUpdatedAt = new Date().toISOString();
     b.promptFrom = '브랜드북 · ' + new Date().toISOString();
     markDirty(b.id);
-    currentTab = 'book';
     render();
     setTimeout(() => {
       // 프롬프트 칸에 커서가 있었으면 화면이 옛 글을 되살려 두기 때문에 새로 씁니다

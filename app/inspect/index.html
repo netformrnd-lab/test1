@@ -2,7 +2,7 @@
 <html lang="ko" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <style>body{margin:0}img{max-width:100%}</style>
 <title>감리 현장 앱</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -963,7 +963,7 @@ var NSTEP = STEPS.length;
 /* 기존 바탕상태 기록 계열 검측코드 — 감리 확인 단계로 보냄 */
 var RECHP = { H1:1, G1:1 };
 var GRPS  = ['rep','chk','iss','note'];
-var KEY   = 'asq_app_v6';
+var KEY   = 'asq_app_v6_' + (function(){ try{ return (new URLSearchParams(location.search).get('apt'))||'x'; }catch(e){ return 'x'; } })();
 
 var store = load();
 var W  = D[store.w] ? store.w : null;
@@ -2474,6 +2474,7 @@ clock();
           if(res.error){ msg('전송 실패: '+res.error.message); if(btn) btn.disabled=false; return; }
           msg('✅ 전송 완료! 앱으로 돌아갑니다…', true);
           INTEG.photos=[]; renderThumbs();
+          try{ localStorage.removeItem(KEY); }catch(e){}   /* 전송 끝난 이 단지 임시작성 비우기 → 다음엔 새로 시작 */
           setTimeout(function(){ if(window._integBack) window._integBack(); }, 1300);
         });
       }
@@ -2482,7 +2483,11 @@ clock();
   }
 
   /* 앱으로 돌아가기 */
-  function goBackToApp(){ location.href = '../' + (APT_ID ? ('?openApt=' + encodeURIComponent(APT_ID)) : ''); }
+  function goBackToApp(){
+    var url = '/' + (APT_ID ? ('?openApt=' + encodeURIComponent(APT_ID)) : '');
+    try{ window.location.assign(url); }
+    catch(e){ try{ window.location.href = url; }catch(e2){ try{ history.back(); }catch(e3){} } }
+  }
   (function backBtn(){
     var bar=document.createElement('div');
     bar.style.cssText='position:fixed;left:0;right:0;top:0;height:40px;z-index:9999;display:flex;align-items:center;padding:0 10px;background:rgba(13,15,14,.94);backdrop-filter:blur(6px);border-bottom:1px solid #313834';

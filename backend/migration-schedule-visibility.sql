@@ -11,6 +11,9 @@ alter table public.schedules add column if not exists sync_id         text;     
 alter table public.schedules add column if not exists ext_updated_at  timestamptz;  -- 외부에서 수정된 시각(충돌 판정용)
 create index if not exists schedules_sync_id_idx on public.schedules(sync_id);
 
+--   [연동용] 삭제 이벤트에도 전체 컬럼이 실시간으로 전달되게(삭제 반영에 category 필요)
+alter table public.schedules replica identity full;
+
 -- 2) 기존 데이터 표시 ---------------------------------------
 --   우리 앱에서 만든 기존 일정은 'aptsq'로 표시
 update public.schedules set source = 'aptsq' where source is null;

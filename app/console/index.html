@@ -817,11 +817,13 @@ function renderCalDayList(){
 function renderAssignTable(){
   const box=$('cal-alert'); if(!box)return;
   if(!PHASEB_OK.csites){ box.innerHTML='<div class="card" style="margin-top:16px"><div class="empty">방문 배치를 쓰려면 Supabase에서 <b>backend/migration-control-sites.sql</b> 을 한 번 실행하세요.</div></div>'; return; }
-  const sites=activeSites().slice().sort((p,q)=>(p.name||'').localeCompare(q.name||'','ko'));
-  if(!sites.length){ box.innerHTML='<div class="card" style="margin-top:16px"><h3>📍 방문 배치표</h3><div class="empty">배치할 현장(단지)이 없어요.<br>단지관리에서 단지를 추가하거나, 완료 처리된 단지만 있는지 확인하세요. (전체 단지 '+APTS.length+'곳)</div></div>'; return; }
+  // 진행중 현장 + '이미 방문 계획을 만들어 둔' 현장(완료 처리됐어도)까지 표시
+  const hasPlan=a=>{ const d=ownAsg(a); return !!(d&&(String(d.visitDay||'').trim()||(d.cycle&&d.cycle!=='미확인'))); };
+  const sites=APTS.filter(a=>a.status!=='done'||hasPlan(a)).slice().sort((p,q)=>(p.name||'').localeCompare(q.name||'','ko'));
+  if(!sites.length){ box.innerHTML='<div class="card" style="margin-top:16px"><h3>📍 방문 배치표</h3><div class="empty">배치할 현장(단지)이 없어요.<br>단지관리에서 단지를 추가하세요. (전체 단지 '+APTS.length+'곳)</div></div>'; return; }
   const mgrs=auditorNames(), wk=weekKeyOf(new Date()), CYB=['주1회','주2회','주3회','상주'];
   const AUDS=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
-  const rows=sites.map(a=>{ const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean);
+  const rows=sites.map(a=>{ const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean); const curSub=(d.subs&&d.subs[wk])||'';
     const mgr=siteMgrName(a);
     const mgrCell=mgrs.length
       ? `<select onchange="asgSetAuditor('${a.id}',this.value)" style="font-size:12px;padding:5px 8px;border-radius:8px;font-weight:700;border:1.5px solid ${a.auditor_id?'var(--blue,#2f6bf6)':'#e6b04d'};color:${a.auditor_id?'var(--blue,#2f6bf6)':'#b8710a'};background:#fff"><option value="">- 담당 지정 -</option>${AUDS.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select>`

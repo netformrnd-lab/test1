@@ -34,9 +34,23 @@ if (!SUPABASE_SERVICE_ROLE_KEY) die('SUPABASE_SERVICE_ROLE_KEY 가 없습니다 
 
 // ── Firebase Admin ──────────────────────────────────────────────────────────
 function loadServiceAccount(v) {
-  const s = v.trim();
-  if (s.startsWith('{')) return JSON.parse(s);         // JSON 문자열
-  return require(require('path').resolve(s));           // 파일 경로
+  let s = v.trim();
+  // 실수로 앞뒤에 따옴표를 붙여 넣은 경우 제거
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) s = s.slice(1, -1);
+  // 1) JSON 문자열로 시도 (가장 흔한 방식)
+  try {
+    const obj = JSON.parse(s);
+    if (obj && typeof obj === 'object' && obj.private_key) return obj;
+  } catch (_) { /* JSON 아님 → 파일 경로로 시도 */ }
+  // 2) 파일 경로로 시도 (로컬 실행용. GitHub Actions에는 파일이 없음)
+  const fs = require('fs'), path = require('path');
+  const p = path.resolve(s);
+  if (fs.existsSync(p)) return require(p);
+  // 3) 둘 다 아니면 명확히 안내 (비밀값 자체는 로그에 찍지 않음)
+  die('FIREBASE_SERVICE_ACCOUNT 값이 올바르지 않습니다.\n' +
+      '   GitHub Secrets 의 FIREBASE_SERVICE_ACCOUNT 에는\n' +
+      '   Firebase 서비스계정 JSON "내용 전체"({ "type": "service_account", ... })를 붙여넣어야 합니다.\n' +
+      '   (파일 경로가 아니라 파일을 열어서 나오는 { ... } 전체)');
 }
 admin.initializeApp({
   credential: admin.credential.cert(loadServiceAccount(FIREBASE_SERVICE_ACCOUNT)),

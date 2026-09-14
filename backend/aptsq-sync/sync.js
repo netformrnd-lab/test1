@@ -65,14 +65,18 @@ async function rtdbDelete(path) {
 
 // ── 방향 A : POUR 한 건 → Supabase upsert ────────────────────────────────────
 async function importPourEntry(node, id, s) {
-  if (!s || typeof s !== 'object') return;
-  if (s._origin === 'aptsq') return;                 // 우리가 내보낸 것 → 되돌려 읽지 않음
+  if (!s || typeof s !== 'object') return false;
+  if (s._origin === 'aptsq') return false;           // 우리가 내보낸 것 → 되돌려 읽지 않음
   const row = M.pourToSupabase(node, id, s);
-  if (!row.date) return;                             // 날짜 없는 건 스킵
-  const { data: existing } = await sb
+  if (!row.date) return false;                        // 날짜 없는 건 스킵
+  const { data: existing, error: selErr } = await sb
     .from('schedules').select('id').eq('sync_id', row.sync_id).maybeSingle();
-  if (existing) await sb.from('schedules').update(row).eq('id', existing.id);
-  else await sb.from('schedules').insert(row);
+  if (selErr) { log(`  ⚠️ ${node}/${id} 조회실패: ${selErr.message}`); return false; }
+  const { error } = existing
+    ? await sb.from('schedules').update(row).eq('id', existing.id)
+    : await sb.from('schedules').insert(row);
+  if (error) { log(`  ⚠️ ${node}/${id} 저장실패: ${error.message}`); return false; }
+  return true;                                        // 실제로 저장에 성공한 것만 true
 }
 
 // ── 방향 B : Supabase(aptsq) 한 건 → POUR PUT ────────────────────────────────
@@ -95,10 +99,9 @@ async function reconcileSync() {
     for (const [id, s] of Object.entries(val)) {
       if (s && s._origin === 'aptsq') { if (s._aptsqId) aptsqIdsInPour.add(String(s._aptsqId)); continue; }
       livePourSyncIds.add(`pour:${node}:${id}`);
-      await importPourEntry(node, id, s);
-      n++;
+      if (await importPourEntry(node, id, s)) n++;    // 저장 성공한 것만 카운트
     }
-    if (n) log(`A⬅  POUR/${node} → Supabase ${n}건`);
+    if (n) log(`A⬅  POUR/${node} → Supabase ${n}건 저장`);
   }
   // POUR 에서 사라진 pour 일정 → Supabase 짝 삭제
   const { data: pourRows } = await sb.from('schedules').select('id,sync_id').eq('source', 'pour');

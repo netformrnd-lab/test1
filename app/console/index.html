@@ -707,6 +707,8 @@ function asgToggleDay(aptId,w){ const a=APTS.find(x=>x.id===aptId); if(!a)return
   let days=String(d.visitDay||'').split('·').filter(Boolean); const i=days.indexOf(w); if(i>=0)days.splice(i,1); else days.push(w);
   days.sort((x,y)=>WKB.indexOf(x)-WKB.indexOf(y)); csSave(a,{visitDay:days.join('·')}).then(renderCalendar); renderCalendar();
 }
+// 요일마다 담당 감리사 지정 (주2회 = 서로 다른 감리사 2명이 다른 날)
+function asgSetDayAuditor(aptId,w,id){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const da={...(d.dayAuditors||{})}; if(id)da[w]=id; else delete da[w]; csSave(a,{dayAuditors:da}).then(renderCalendar); renderCalendar(); }
 function asgSetSub(aptId,name){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const wk=weekKeyOf(new Date());
   const subs=(d.subs&&typeof d.subs==='object')?{...d.subs}:{}; if(name)subs[wk]=name; else delete subs[wk];
   csSave(a,{subs}).then(renderCalendar); renderCalendar();
@@ -723,10 +725,13 @@ async function asgSetAuditor(aptId,mid){ const a=APTS.find(x=>x.id===aptId); if(
 // 특정 달의 자동 방문 목록 계산 → [{aptId,name,date,who,sub}]  (담당자=우리 단지 배정 감리사, 요일=우리가 저장한 값)
 function computeVisits(y,m){
   const days=new Date(y,m+1,0).getDate(); const out=[];
-  const sites=activeSites().filter(a=>{ const d=ownAsg(a); return siteMgrName(a) && d.visitDay; });
+  const sites=activeSites().filter(a=>{ const d=ownAsg(a); return d.visitDay && (siteMgrName(a) || Object.keys(d.dayAuditors||{}).length); });
   for(let dd=1;dd<=days;dd++){ const dt=new Date(y,m,dd); const wd=WKB[(dt.getDay()+6)%7]; const wk=weekKeyOf(dt);
-    sites.forEach(a=>{ const d=ownAsg(a); if(!String(d.visitDay).split('·').includes(wd))return; const mgr=siteMgrName(a); const em=(d.subs&&d.subs[wk])||mgr;
-      out.push({aptId:a.id,name:a.name,date:isoDate(dt),dd,who:em,sub:em!==mgr}); }); }
+    sites.forEach(a=>{ const d=ownAsg(a); if(!String(d.visitDay).split('·').includes(wd))return;
+      const mgr=siteMgrName(a); const dayId=(d.dayAuditors||{})[wd];
+      const who=dayId?(auditorName(dayId)||mgr):((d.subs&&d.subs[wk])||mgr);   // 요일별 담당 우선, 없으면 대타/대표
+      const assigneeId=dayId||a.auditor_id||null;
+      out.push({aptId:a.id,name:a.name,date:isoDate(dt),dd,who:who||'-',sub:!!who&&who!==mgr,assigneeId}); }); }
   return out;
 }
 function renderCalendar(){
@@ -765,15 +770,14 @@ function renderAssignTable(){
       : '<span style="color:var(--mut);font-size:11px">회원에서 ‘감리사’를 먼저 등록하세요</span>';
     const cyc=`<select onchange="asgSetCycle('${a.id}',this.value)" style="font-size:12px;padding:4px 7px;border-radius:7px;border:1px solid var(--line)">${['미확인'].concat(CYB).map(c=>`<option ${(d.cycle||'미확인')===c?'selected':''}>${c}</option>`).join('')}</select>`;
     const wdBtns=WKB.map(w=>{const on=days.includes(w);return `<i onclick="asgToggleDay('${a.id}','${w}')" style="cursor:pointer;display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;margin:1px;border-radius:6px;font-size:11px;font-weight:700;font-style:normal;border:1px solid ${on?'var(--blue,#2f6bf6)':'var(--line)'};background:${on?'var(--blue,#2f6bf6)':'#fff'};color:${on?'#fff':'var(--mut)'}">${w}</i>`;}).join('');
-    const curSub=(d.subs&&d.subs[wk])||'';
-    const subSel=mgr?`<select onchange="asgSetSub('${a.id}',this.value)" style="font-size:12px;padding:4px 7px;border-radius:7px;border:1px solid var(--line)"><option value="">없음</option>${mgrs.filter(mn=>mn!==mgr).map(mn=>`<option ${curSub===mn?'selected':''}>${esc(mn)}</option>`).join('')}</select>`:'<span style="color:var(--mut)">—</span>';
+    const daySel=days.length?days.map(w=>{ const cur=(d.dayAuditors||{})[w]||''; return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="font-size:11px;font-weight:800;width:26px;color:var(--fg)">${w}</span><select onchange="asgSetDayAuditor('${a.id}','${w}',this.value)" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid var(--line);min-width:110px"><option value="">담당(대표)</option>${AUDS.map(m=>`<option value="${m.id}" ${cur===m.id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>`; }).join(''):'<span style="color:var(--mut);font-size:11px">요일 먼저 선택</span>';
     const stat=!mgr?'<span style="color:#b8710a;font-size:11.5px">담당 미배정</span>':(days.length?(curSub?`<span style="color:#b8710a;font-size:11.5px">🔁 이번주 ${esc(curSub)}</span>`:'<span style="color:var(--green);font-size:11.5px">✓ 배치됨</span>'):'<span style="color:#b8710a;font-size:11.5px">요일 선택</span>');
-    return `<tr style="${!mgr?'background:#fffaf0':''}"><td style="font-weight:700">${esc(a.name)}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${mgrCell}</td><td>${cyc}</td><td style="white-space:nowrap">${wdBtns}</td><td>${subSel}</td><td>${stat}</td></tr>`;
+    return `<tr style="${!mgr?'background:#fffaf0':''}"><td style="font-weight:700">${esc(a.name)}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${mgrCell}</td><td>${cyc}</td><td style="white-space:nowrap">${wdBtns}</td><td>${daySel}</td><td>${stat}</td></tr>`;
   }).join('');
   const un=sites.filter(a=>!siteMgrName(a)).length;
   box.innerHTML=`<div class="card" style="margin-top:16px"><h3>📍 방문 배치표 <span class="r">현장 ${sites.length}곳${un?` · <b style="color:#b8710a">담당 미배정 ${un}</b>`:' · 담당 전원 배정'}</span></h3>
-    <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">담당자는 <b>단지에 배정된 감리사</b>가 자동으로 들어가요(바꾸려면 단지 설정 ⚙️). 여기서는 <b>주기·요일·대타</b>만 정하면 위 캘린더에 바로 반영 · <b>“이 달 방문 일정 생성”</b>을 누르면 감리사·입주민 앱에도 방문이 떠요.</div>
-    <div style="overflow-x:auto"><table style="width:100%;min-width:760px"><thead><tr><th>현장</th><th>담당 감리사(자동)</th><th>주기</th><th>방문 요일</th><th>이번주 대타</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px"><b>주기·요일</b>을 정한 뒤, <b>요일별 담당 감리사</b>를 고르세요(주2회면 서로 다른 감리사 2명이 다른 날). 비워두면 대표 감리사로 들어갑니다 · <b>“이 달 방문 일정 생성”</b>을 누르면 감리사·입주민 앱에도 방문이 떠요.</div>
+    <div style="overflow-x:auto"><table style="width:100%;min-width:820px"><thead><tr><th>현장</th><th>대표 감리사</th><th>주기</th><th>방문 요일</th><th>요일별 담당</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 async function materializeVisits(){
   if(!PHASEB_OK.csites){ alert('먼저 backend/migration-control-sites.sql 을 실행하세요'); return; }
@@ -788,7 +792,7 @@ async function materializeVisits(){
   const to=`${y}-${String(m+1).padStart(2,'0')}-${String(days).padStart(2,'0')}`;
   // 오늘 이후 · 아직 안 다녀온(done_at 없는) 자동 방문만 삭제 → 과거·다녀온 기록 보존
   try{ await sb.from('schedules').delete().gte('date',todayStr).lte('date',to).like('title',VISIT_MARK+'%').is('done_at',null); }catch(e){}
-  const rows=future.map(v=>({apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':'')}));
+  const rows=future.map(v=>({apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':''),assignee_id:v.assigneeId||null}));
   const {error}=await sb.from('schedules').insert(rows);
   if(error){ alert('생성 실패: '+error.message); return; }
   await loadAll(); alert(rows.length+'건의 예정 방문을 생성했어요. 감리사·입주민 앱에도 표시됩니다.');

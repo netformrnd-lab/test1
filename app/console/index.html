@@ -709,7 +709,21 @@ function activeSites(){ return APTS.filter(a=>a.status!=='done'); }
 function auditorNames(){ return [...new Set(MEMBERS.filter(m=>m.role==='auditor').map(m=>m.name||loginId(m)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko')); }
 function auditorList(){ return MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko')); }
 function audNameC(id){ if(!id)return ''; const a=MEMBERS.find(m=>String(m.id)===String(id)); return a?(a.name||loginId(a)):''; }
-function audSelectOptions(sel){ return '<option value="">담당 미지정</option>'+auditorList().map(a=>`<option value="${a.id}" ${String(sel)===String(a.id)?'selected':''}>${esc(a.name||loginId(a))}</option>`).join(''); }
+// 영업(POUR) 담당자 이름 목록: 알려진 팀 + POUR 일정 설명에서 '담당 XX' 추출
+function pourAssignees(){
+  const set=new Set(['이승우','황윤선','한준엽','조재연','이필선','한인규','정정훈','김성민','조현식']);
+  (SCHEDULES||[]).forEach(s=>{ if(s.source!=='pour')return; const md=String(s.description||'').match(/담당\s+([^·]+)/); if(md){ md[1].split(/[,、\/]/).forEach(n=>{ const t=n.trim().replace(/\s*님$/,''); if(t&&t.length<=12)set.add(t); }); } });
+  return [...set].sort((a,b)=>a.localeCompare(b,'ko'));
+}
+// 담당 드롭다운 옵션 (감리사=id 값, 영업담당=이름 값). selId/selName 으로 현재값 선택 표시
+function audSelectOptions(selId,selName){
+  let h='<option value="">담당 미지정</option>';
+  h+='<optgroup label="아파트스퀘어 감리사">'+auditorList().map(a=>`<option value="id:${a.id}" ${String(selId)===String(a.id)?'selected':''}>${esc(a.name||loginId(a))}</option>`).join('')+'</optgroup>';
+  h+='<optgroup label="영업(POUR) 담당">'+pourAssignees().map(n=>`<option value="nm:${esc(n)}" ${(!selId&&selName===n)?'selected':''}>${esc(n)}</option>`).join('')+'</optgroup>';
+  return h;
+}
+function parseAsg(v){ if(!v)return {assignee_id:null,assignee_name:null}; if(v.slice(0,3)==='id:')return {assignee_id:v.slice(3),assignee_name:null}; if(v.slice(0,3)==='nm:')return {assignee_id:null,assignee_name:v.slice(3)}; return {assignee_id:null,assignee_name:null}; }
+function schedAsgName(s){ return (s&&s.assignee_name)||audNameC(s&&s.assignee_id)||''; }
 let calPerson='전체';
 function setCalPerson(p){ calPerson=p; renderCalendar(); }
 let calCat='전체';   // 범례 클릭 → 그 종류만 보기 ('전체'=모두)
@@ -777,8 +791,9 @@ function renderCalendar(){
     h+=`<div class="cell" style="${_selSt}"><div class="dn" onclick="pickCalDay('${date}')" style="cursor:pointer">${d}</div>${ev.map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}</div>`;
   }
   $('calGrid').innerHTML=h;
-  renderCalDayList();
-  renderAssignTable();
+  // 날짜 선택 전 = 방문 배치표, 날짜 클릭 = 그 날 일정 목록 (서로 토글)
+  if(calPickedDay){ const ca=$('cal-alert'); if(ca)ca.innerHTML=''; renderCalDayList(); }
+  else { const dl=$('calDayList'); if(dl)dl.innerHTML=''; renderAssignTable(); }
 }
 let calPickedDay=null;
 function pickCalDay(dk){ calPickedDay=(calPickedDay===dk?null:dk); renderCalendar(); }
@@ -793,7 +808,7 @@ function renderCalDayList(){
   const wd=['일','월','화','수','목','금','토'][new Date(Y,M-1,D).getDay()];
   let h=`<div class="card" style="margin-top:12px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📅 ${M}/${D} (${wd}) 일정 <span style="font-size:12px;color:var(--mut);font-weight:600">${items.length}건</span><span style="flex:1"></span><button class="b blue sm" onclick="openScheduleAdd('${calPickedDay}')">➕ 이 날 일정 추가</button><button class="b line sm" onclick="pickCalDay('${calPickedDay}')">닫기</button></h3>`;
   if(!items.length){ h+='<div class="empty">이 날 일정이 없어요</div>'; }
-  else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const asg=audNameC(s.assignee_id); const apt=s.apartment_id?aptName[s.apartment_id]:''; return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${col};background:#f8faff;border-radius:0 8px 8px 0;margin-bottom:6px"><b style="font-size:10px;font-weight:800;color:#fff;background:${col};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b><span style="font-weight:700;font-size:13px">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:var(--mut)">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
+  else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const asg=schedAsgName(s); const apt=s.apartment_id?aptName[s.apartment_id]:''; return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${col};background:#f8faff;border-radius:0 8px 8px 0;margin-bottom:6px"><b style="font-size:10px;font-weight:800;color:#fff;background:${col};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b><span style="font-weight:700;font-size:13px">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:var(--mut)">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
   h+='</div>';
   box.innerHTML=h;
 }
@@ -1794,7 +1809,7 @@ function openScheduleAdd(preDate){
   openModal(mHead('➕ 일정 추가')+`
     <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date" value="${preDate||''}"></div><div class="fld"><label>분류 *</label><select id="m-cat">${CAL_CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select></div></div>
     <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 공사일정이면 선택, 개인·회의·휴가 등은 비워도 돼요</span></label><select id="m-apt"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>
-    <div class="frow"><div class="fld"><label>일정 내용 *</label><input id="m-title" placeholder="예: 옥상 방수 점검 / PT / 세미나"></div><div class="fld"><label>담당</label><select id="m-asg">${audSelectOptions('')}</select></div></div>
+    <div class="frow"><div class="fld"><label>일정 내용 *</label><input id="m-title" placeholder="예: 옥상 방수 점검 / PT / 세미나"></div><div class="fld"><label>담당</label><select id="m-asg">${audSelectOptions('','')}</select></div></div>
     <div class="fld"><label>상세 (선택)</label><input id="m-desc"></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitScheduleAdd()">등록</button></div>`);
@@ -1802,10 +1817,11 @@ function openScheduleAdd(preDate){
 async function submitScheduleAdd(){
   const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;
   if(!date||!title){$('m-msg').textContent='날짜·일정 내용을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const row={date,title,description:$('m-desc').value.trim()||null,category,assignee_id:($('m-asg')&&$('m-asg').value)||null};
+  const _a=parseAsg($('m-asg')?$('m-asg').value:'');
+  const row={date,title,description:$('m-desc').value.trim()||null,category,assignee_id:_a.assignee_id,assignee_name:_a.assignee_name};
   if(aptId){ row.apartment_id=aptId; row.owner_id=null; } else { row.apartment_id=null; }
   const {error}=await sb.from('schedules').insert(row);
-  if(error){$('m-msg').textContent='등록 실패: '+error.message+(/category/.test(error.message)?'\n(backend/migration-control-sites.sql 실행 필요)':'');$('m-msg').style.color='var(--red)';return;}
+  if(error){$('m-msg').textContent='등록 실패: '+error.message+(/assignee_name/.test(error.message)?'\n(backend/migration-assignee-name.sql 실행 필요)':(/category/.test(error.message)?'\n(backend/migration-control-sites.sql 실행 필요)':''));$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();
 }
 async function deleteSchedule(id){
@@ -1824,7 +1840,7 @@ function openScheduleEdit(id){
     ${isPour?'<div class="mmsg" style="color:var(--mut)">📣 POUR 영업시스템에서 온 일정이에요. 여기서 지워도 다음 동기화 때 다시 올 수 있어요(원본은 POUR에서 지워야 함).</div>':''}
     <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date" value="${s.date||''}"></div><div class="fld"><label>분류 *</label><select id="m-cat">${CAL_CATS.map(c=>`<option value="${c[0]}" ${s.category===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select></div></div>
     <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 없으면 비워두기</span></label><select id="m-apt"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}" ${String(s.apartment_id)===String(a.id)?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
-    <div class="frow"><div class="fld"><label>일정 내용 *</label><input id="m-title" value="${esc(s.title||'')}"></div><div class="fld"><label>담당</label><select id="m-asg">${audSelectOptions(s.assignee_id)}</select></div></div>
+    <div class="frow"><div class="fld"><label>일정 내용 *</label><input id="m-title" value="${esc(s.title||'')}"></div><div class="fld"><label>담당</label><select id="m-asg">${audSelectOptions(s.assignee_id,s.assignee_name)}</select></div></div>
     <div class="fld"><label>상세 (선택)</label><input id="m-desc" value="${esc(s.description||'')}"></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b" style="background:#fdecec;color:#d9453c" onclick="deleteSchedule('${s.id}')">🗑 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitScheduleEdit('${s.id}')">저장</button></div>`);
@@ -1842,9 +1858,10 @@ async function deleteOwnSchedules(){
 async function submitScheduleEdit(id){
   const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;
   if(!date||!title){$('m-msg').textContent='날짜·일정 내용을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const patch={date,title,description:$('m-desc').value.trim()||null,category,apartment_id:aptId||null,assignee_id:($('m-asg')&&$('m-asg').value)||null};
+  const _a=parseAsg($('m-asg')?$('m-asg').value:'');
+  const patch={date,title,description:$('m-desc').value.trim()||null,category,apartment_id:aptId||null,assignee_id:_a.assignee_id,assignee_name:_a.assignee_name};
   const {error}=await sb.from('schedules').update(patch).eq('id',id);
-  if(error){$('m-msg').textContent='저장 실패: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  if(error){$('m-msg').textContent='저장 실패: '+error.message+(/assignee_name/.test(error.message)?'\n(backend/migration-assignee-name.sql 실행 필요)':'');$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();
 }
 

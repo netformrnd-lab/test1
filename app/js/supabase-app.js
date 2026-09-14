@@ -1981,7 +1981,7 @@ function renderSchedList(scheds) {
     const md = s.done_at ? (s.done_at.slice(5, 7) + '/' + s.done_at.slice(8, 10)) : ''
     // 다녀감 표시 — 모든 역할이 볼 수 있게 (언제 방문했는지)
     const doneChip = (isVisit && s.done_at) ? '<span style="font-size:9px;font-weight:800;color:#16a34a;background:#e9f7ef;padding:2px 7px;border-radius:6px">✓ 다녀감 ' + md + '</span>' : ''
-    const asgNm = (isAud && s.assignee_id) ? audName(s.assignee_id) : ''
+    const asgNm = isAud ? (s.assignee_name || (s.assignee_id ? audName(s.assignee_id) : '')) : ''
     const asgChip = asgNm ? '<span style="font-size:9px;font-weight:800;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px">👤 ' + escH(asgNm) + '</span>' : ''
     let actions = ''
     if (currentRole === 'auditor') {

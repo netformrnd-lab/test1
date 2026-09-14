@@ -1822,8 +1822,8 @@ async function submitScheduleAdd(){
   const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;
   if(!date||!title){$('m-msg').textContent='날짜·일정 내용을 입력하세요';$('m-msg').style.color='var(--red)';return;}
   const _a=parseAsg($('m-asg')?$('m-asg').value:'');
-  const row={date,title,description:$('m-desc').value.trim()||null,category,assignee_id:_a.assignee_id,assignee_name:_a.assignee_name};
-  if(aptId){ row.apartment_id=aptId; row.owner_id=null; } else { row.apartment_id=null; }
+  const row={date,title,description:$('m-desc').value.trim()||null,category,assignee_id:_a.assignee_id,assignee_name:_a.assignee_name,source:'aptsq'};
+  if(aptId){ row.apartment_id=aptId; row.owner_id=null; } else { row.apartment_id=null; row.owner_id=null; }
   const {error}=await sb.from('schedules').insert(row);
   if(error){$('m-msg').textContent='등록 실패: '+error.message+(/assignee_name/.test(error.message)?'\n(backend/migration-assignee-name.sql 실행 필요)':(/category/.test(error.message)?'\n(backend/migration-control-sites.sql 실행 필요)':''));$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();

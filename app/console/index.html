@@ -449,11 +449,22 @@ async function gate(){
 gate();
 
 /* ===== 데이터 로드 ===== */
+// Supabase는 한 번에 최대 1000행만 준다 → 1000건씩 끝까지 이어서 전부 가져온다.
+async function fetchAllSchedules(){
+  const out=[]; const SIZE=1000;
+  for(let from=0;;from+=SIZE){
+    const {data,error}=await sb.from('schedules').select('*').order('date',{ascending:true}).range(from,from+SIZE-1);
+    if(error||!data||!data.length) break;
+    out.push(...data);
+    if(data.length<SIZE) break;
+  }
+  return out;
+}
 async function loadAll(){
   const P=(t,o)=>sb.from(t).select('*').order(o||'created_at',{ascending:false});
   const [m,a,n,c,r,f,s,sv,ct,lf,cr,mf]=await Promise.all([
     P('profiles'),P('apartments'),P('notices'),P('cases'),P('reports'),P('field_updates'),
-    sb.from('schedules').select('*').order('date',{ascending:true}),
+    fetchAllSchedules().then(d=>({data:d})),   // 1000행 제한 우회 → 일정 전부
     P('surveys'),P('contracts'),sb.from('leaflets').select('*').order('sort',{ascending:true}),P('credentials'),P('manager_forms')
   ]);
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
@@ -522,7 +533,7 @@ async function refreshLight(){
       sb.from('profiles').select('*').order('created_at',{ascending:false}),
       sb.from('surveys').select('*').order('created_at',{ascending:false}),
       sb.from('notices').select('*').order('created_at',{ascending:false}),
-      sb.from('schedules').select('*').order('date',{ascending:true})
+      fetchAllSchedules().then(d=>({data:d}))   // 1000행 제한 우회
     ]);
     if(a.data)APTS=a.data; if(r.data)REPORTS=r.data; if(f.data)FIELDS=f.data; if(m.data)MEMBERS=m.data; if(sv.data)SURVEYS=sv.data; if(n.data)NOTICES=n.data; if(s.data)SCHEDULES=s.data;
     try{ const {data:aa}=await sb.from('apartment_auditors').select('*'); APT_AUD={}; (aa||[]).forEach(x=>{(APT_AUD[x.apartment_id]=APT_AUD[x.apartment_id]||[]).push(x.auditor_id);}); }catch(e){}

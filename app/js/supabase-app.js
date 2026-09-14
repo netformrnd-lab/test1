@@ -1734,6 +1734,17 @@ function setSchedNav (isAud) {
     ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
     : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
 }
+// Supabase는 한 번에 최대 1000행만 준다 → 1000건씩 끝까지 이어붙여 전부 가져온다(6월 이후 일정 누락 방지).
+async function fetchAllSchedulesApp() {
+  const out = []; const SIZE = 1000
+  for (let from = 0; ; from += SIZE) {
+    const { data, error } = await sb.from('schedules').select('*').order('date').range(from, from + SIZE - 1)
+    if (error || !data || !data.length) break
+    out.push(...data)
+    if (data.length < SIZE) break
+  }
+  return out
+}
 async function loadSchedule() {
   // 진입 즉시 '아는 역할(currentRole)'로 하단 탭을 먼저 세팅 → 입주민 탭이 잠깐 뜨는 깜빡임 방지
   setSchedNav(currentRole === 'auditor')
@@ -1768,8 +1779,7 @@ async function loadSchedule() {
     // 감리사 → 내 전체 일정(개인 + 담당 단지 모두). RLS가 볼 수 있는 것만 돌려줌
     if (addBtn) addBtn.style.display = ''
     if (sub) sub.innerHTML = '<b style="color:#2F6BF6">내 전체 일정</b> &mdash; 개인 🔒 + 담당 단지 👥 를 한눈에'
-    const { data } = await sb.from('schedules').select('*').order('date')
-    scheds = data || []
+    scheds = await fetchAllSchedulesApp()   // 1000행 제한 우회 → 일정 전부(6월 이후도)
   }
   const vb = document.getElementById('sc-vp-btn'), vp = document.getElementById('sc-vp')
   if (isAuditor) {

@@ -749,6 +749,17 @@ function showSiteTab(sec){
 }
 // 초기 상태(대시보드 선택)는 HTML에 이미 반영돼 있어 별도 호출 불필요
 
+// Supabase는 한 번에 최대 1000행만 준다 → 1000건씩 끝까지 이어붙여 일정 전부 가져오기
+async function fetchAllSchedules(){
+  const out=[]; const SIZE=1000;
+  for(let from=0;;from+=SIZE){
+    const {data,error}=await sb.from('schedules').select('*').order('date',{ascending:true}).range(from,from+SIZE-1);
+    if(error||!data||!data.length) break;
+    out.push(...data);
+    if(data.length<SIZE) break;
+  }
+  return out;
+}
 async function loadAll(){
   const [m,a,n,c,r,f,s]=await Promise.all([
     sb.from('profiles').select('*').order('created_at',{ascending:false}),
@@ -757,7 +768,7 @@ async function loadAll(){
     sb.from('cases').select('*').order('created_at',{ascending:false}),
     sb.from('reports').select('*').order('created_at',{ascending:false}),
     sb.from('field_updates').select('*').order('created_at',{ascending:false}),
-    sb.from('schedules').select('*').order('date',{ascending:true})
+    fetchAllSchedules().then(d=>({data:d}))
   ]);
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
   APT_AUD={}; try{ const {data:aa}=await sb.from('apartment_auditors').select('*'); (aa||[]).forEach(x=>{(APT_AUD[x.apartment_id]=APT_AUD[x.apartment_id]||[]).push(x.auditor_id);}); }catch(e){}

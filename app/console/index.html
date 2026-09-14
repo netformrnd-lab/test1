@@ -273,7 +273,7 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-calendar">
-      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
+      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b line" style="color:#d9453c;border-color:#f3c2be" onclick="deleteAllVisits()">🗑 방문 일정 전체삭제</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
       <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div></div>
       <div id="cal-alert"></div>
     </section>
@@ -769,7 +769,7 @@ function renderCalendar(){
   ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    h+=`<div class="cell" style="${date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':''}"><div class="dn">${d}</div>${ev.slice(0,4).map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}${ev.length>4?`<div style="font-size:9px;color:var(--mut)">+${ev.length-4} 더</div>`:''}</div>`;
+    h+=`<div class="cell" style="${date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':''}"><div class="dn">${d}</div>${ev.map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}</div>`;
   }
   $('calGrid').innerHTML=h;
   renderAssignTable();
@@ -1805,6 +1805,15 @@ function openScheduleEdit(id){
     <div class="fld"><label>상세 (선택)</label><input id="m-desc" value="${esc(s.description||'')}"></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b" style="background:#fdecec;color:#d9453c" onclick="deleteSchedule('${s.id}')">🗑 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitScheduleEdit('${s.id}')">저장</button></div>`);
+}
+// 자동 생성된 「🔧 정기 방문」 일정 전부 삭제 (입주민 방문 일정도 함께 사라짐)
+async function deleteAllVisits(){
+  const {count}=await sb.from('schedules').select('id',{count:'exact',head:true}).like('title',VISIT_MARK+'%');
+  if(!confirm(`자동 생성된 「🔧 정기 방문」 일정 ${count||''}건을 전부 삭제할까요?\n\n⚠️ 입주민 앱의 방문 일정도 함께 사라집니다. 되돌릴 수 없어요.\n(방문 배치는 그대로 남아, 필요하면 다시 생성할 수 있어요.)`))return;
+  const {error}=await sb.from('schedules').delete().like('title',VISIT_MARK+'%');
+  if(error)return alert('삭제 실패: '+error.message);
+  alert('「🔧 정기 방문」 일정을 모두 삭제했어요.');
+  await loadAll();
 }
 async function submitScheduleEdit(id){
   const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;

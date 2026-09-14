@@ -1913,6 +1913,15 @@ function catColor(k) { return APP_CAL_COLOR[k] || '#2F6BF6' }
 let schedPicked = null
 function schedPickDay(dk) { schedPicked = (schedPicked === dk ? null : dk); renderCalendar(SCHED_ALL || []); renderSchedList(SCHED_ALL || []) }
 window.schedPickDay = schedPickDay
+let schedCat = '전체'   // 범례 클릭 → 그 종류만 ('전체'=모두)
+function schedMatchCat(s) {
+  if (schedCat === '전체') return true
+  const isV = String(s.title || '').indexOf(VP_MARK) === 0
+  if (schedCat === '방문') return isV
+  return (s.category || '') === schedCat && !isV
+}
+function setSchedCat(c) { schedCat = (schedCat === c ? '전체' : c); renderCalendar(SCHED_ALL || []); renderSchedList(SCHED_ALL || []) }
+window.setSchedCat = setSchedCat
 function renderCalendar(scheds) {
   const { y, m } = schedYM
   const mo = document.getElementById('s-month'); if (mo) mo.textContent = y + '년 ' + (m + 1) + '월'
@@ -1921,7 +1930,7 @@ function renderCalendar(scheds) {
   const today = new Date()
   const isAud = currentRole === 'auditor'
   const cats = {}
-  scheds.forEach(s => { if (s.date) { const d = new Date(s.date); if (d.getFullYear() === y && d.getMonth() === m) { const dd = d.getDate(); const col = (isAud && s.done_at && s.apartment_id) ? '#16a34a' : (s.source === 'pour' ? catColor(s.category) : (isAud ? catColor(s.category) : '#2F6BF6')); (cats[dd] = cats[dd] || []).push(col) } } })
+  scheds.forEach(s => { if (s.date && schedMatchCat(s)) { const d = new Date(s.date); if (d.getFullYear() === y && d.getMonth() === m) { const dd = d.getDate(); const col = (isAud && s.done_at && s.apartment_id) ? '#16a34a' : (s.source === 'pour' ? catColor(s.category) : (isAud ? catColor(s.category) : '#2F6BF6')); (cats[dd] = cats[dd] || []).push(col) } } })
   let cells = ''
   for (let i = 0; i < first; i++) cells += '<span></span>'
   for (let d = 1; d <= total; d++) {
@@ -1939,7 +1948,11 @@ function renderCalendar(scheds) {
   const lg = document.getElementById('s-legend')
   if (lg) {
     // 분류 범례는 감리사만 — 입주민·관리주체는 기존 캘린더처럼 단순하게
-    if (isAud) { lg.style.display = 'flex'; lg.innerHTML = Object.keys(APP_CAT_LABEL).map(k => '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:7px;height:7px;border-radius:99px;background:' + APP_CAL_COLOR[k] + '"></span>' + APP_CAT_LABEL[k] + '</span>').join('') }
+    if (isAud) {
+      lg.style.display = 'flex'
+      const chip = (key, label, color) => '<span onclick="setSchedCat(\'' + key + '\')" style="cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:8px;' + (schedCat === key ? 'background:#111a33;color:#fff' : '') + '">' + (color ? '<span style="width:7px;height:7px;border-radius:99px;background:' + color + '"></span>' : '') + label + '</span>'
+      lg.innerHTML = '<span onclick="setSchedCat(\'전체\')" style="cursor:pointer;padding:2px 8px;border-radius:8px;font-weight:800;' + (schedCat === '전체' ? 'background:#111a33;color:#fff' : 'background:#eef1f6') + '">전체</span>' + chip('방문', '방문', '#2F6BF6') + Object.keys(APP_CAT_LABEL).map(k => chip(k, APP_CAT_LABEL[k], APP_CAL_COLOR[k])).join('')
+    }
     else { lg.style.display = 'none'; lg.innerHTML = '' }
   }
 }
@@ -1948,7 +1961,7 @@ function renderSchedList(scheds) {
   const el = document.getElementById('s-list'); if (!el) return
   if (!schedPicked) { el.innerHTML = '<div style="padding:12px 10px;text-align:center;color:#b3bccf;font-size:11px;font-weight:600">달력의 날짜를 누르면 그 날 일정이 여기 보여요</div>'; return }
   const wd = ['일', '월', '화', '수', '목', '금', '토']
-  const day = (scheds || []).filter(s => String(s.date || '').slice(0, 10) === schedPicked)
+  const day = (scheds || []).filter(s => String(s.date || '').slice(0, 10) === schedPicked && schedMatchCat(s))
   const [Y, M, D] = schedPicked.split('-').map(Number)
   const head = M + '/' + D + ' (' + wd[new Date(Y, M - 1, D).getDay()] + ')'
   if (!day.length) { el.innerHTML = '<div style="padding:12px 10px;text-align:center;color:#9aa3b6;font-size:11.5px;font-weight:600">' + head + ' 일정이 없어요</div>'; return }

@@ -792,7 +792,7 @@ async function materializeVisits(){
   const to=`${y}-${String(m+1).padStart(2,'0')}-${String(days).padStart(2,'0')}`;
   // 오늘 이후 · 아직 안 다녀온(done_at 없는) 자동 방문만 삭제 → 과거·다녀온 기록 보존
   try{ await sb.from('schedules').delete().gte('date',todayStr).lte('date',to).like('title',VISIT_MARK+'%').is('done_at',null); }catch(e){}
-  const rows=future.map(v=>({apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':''),assignee_id:v.assigneeId||null}));
+  const rows=future.map(v=>({apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':''),assignee_id:v.assigneeId||null,resident_visible:true}));   // 방문 날짜는 입주민에게 공개(나머지 일정은 숨김)
   const {error}=await sb.from('schedules').insert(rows);
   if(error){ alert('생성 실패: '+error.message); return; }
   await loadAll(); alert(rows.length+'건의 예정 방문을 생성했어요. 감리사·입주민 앱에도 표시됩니다.');

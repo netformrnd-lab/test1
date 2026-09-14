@@ -1882,7 +1882,7 @@ async function vpGenerate() {
       if (days.includes(wd) && ds >= todayStr) {
         const aid = da[wd] || null
         const nm = audName(aid) || MY_NAME || '감리사'
-        rows.push({ apartment_id: a.id, date: ds, title: VP_MARK, description: '담당 ' + nm, category: null, assignee_id: aid })
+        rows.push({ apartment_id: a.id, date: ds, title: VP_MARK, description: '담당 ' + nm, category: null, assignee_id: aid, resident_visible: true })   // 방문 날짜는 입주민에게 공개(나머지 일정은 숨김)
       }
     }
   }

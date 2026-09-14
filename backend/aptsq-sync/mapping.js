@@ -62,7 +62,7 @@ function pourToSupabase(node, id, s) {
     source: 'pour',
     sync_id: `pour:${node}:${id}`,
     category: NODE_TO_CATEGORY[node] || null,
-    date: normalizeDate(s.date),
+    date: pickDate(s),
     title: String(title).slice(0, 300),
     description: parts.join(' · ').slice(0, 1000) || null,
     apartment_id: null,          // POUR 일정은 특정 단지에 매이지 않음
@@ -109,6 +109,40 @@ function supabaseToPour(row) {
   }
 }
 
+// 일정 종류마다 날짜 필드명이 달라서(date/startDate/ptDate/...) 여러 곳을 훑는다.
+// 명시 필드 → 없으면 값들 중 'YYYY-MM-DD' 처럼 생긴 문자열을 탐색(생성/수정 시각 필드는 제외).
+const DATE_FIELDS = [
+  'date', 'startDate', 'start', 'scheduleDate', 'dateStr', 'day', 'ymd',
+  'ptDate', 'salesDate', 'visitDate', 'meetingDate', 'seminarDate',
+  'vacationDate', 'briefingDate', 'when', 'dt', 'endDate', 'end',
+];
+const SKIP_DATE_KEY = /(created|updated|synced|modified|timestamp|_at$)/i;
+function pickDate(s) {
+  if (!s || typeof s !== 'object') return null;
+  for (const f of DATE_FIELDS) {
+    if (s[f] != null) { const d = normalizeDate(s[f]); if (d) return d; }
+  }
+  // 명시 필드에 없으면: 날짜처럼 생긴 문자열 값을 탐색
+  for (const [k, v] of Object.entries(s)) {
+    if (SKIP_DATE_KEY.test(k)) continue;
+    if (typeof v === 'string' && /^\d{4}[-.\/]\d{1,2}[-.\/]\d{1,2}/.test(v)) {
+      const d = normalizeDate(v); if (d) return d;
+    }
+  }
+  return null;
+}
+
+// 진단용: 이 일정에서 날짜가 들어있는 필드명(없으면 null)
+function dateFieldOf(s) {
+  if (!s || typeof s !== 'object') return null;
+  for (const f of DATE_FIELDS) if (s[f] != null && normalizeDate(s[f])) return f;
+  for (const [k, v] of Object.entries(s)) {
+    if (SKIP_DATE_KEY.test(k)) continue;
+    if (typeof v === 'string' && /^\d{4}[-.\/]\d{1,2}[-.\/]\d{1,2}/.test(v) && normalizeDate(v)) return k + '(추정)';
+  }
+  return null;
+}
+
 // 'YYYY-MM-DD' / Date / timestamp 모두 받아 date 컬럼용 문자열로
 function normalizeDate(d) {
   if (!d) return null;
@@ -130,4 +164,6 @@ module.exports = {
   pourToSupabase,
   supabaseToPour,
   normalizeDate,
+  pickDate,
+  dateFieldOf,
 };

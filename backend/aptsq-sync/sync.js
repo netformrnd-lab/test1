@@ -95,13 +95,20 @@ async function reconcileSync() {
   const aptsqIdsInPour = new Set();
   for (const node of M.SYNC_NODES) {
     const val = (await rtdbGet(node)) || {};
-    let n = 0;
+    let n = 0, total = 0, noDate = 0; let sample = null;
     for (const [id, s] of Object.entries(val)) {
       if (s && s._origin === 'aptsq') { if (s._aptsqId) aptsqIdsInPour.add(String(s._aptsqId)); continue; }
+      total++;
       livePourSyncIds.add(`pour:${node}:${id}`);
+      if (!(s && M.pickDate(s))) {                    // 날짜를 못 찾아 건너뛰는 건 따로 집계
+        noDate++;
+        if (!sample && s && typeof s === 'object') sample = Object.keys(s).slice(0, 12).join(', ');
+        continue;
+      }
       if (await importPourEntry(node, id, s)) n++;    // 저장 성공한 것만 카운트
     }
-    if (n) log(`A⬅  POUR/${node} → Supabase ${n}건 저장`);
+    // 종류별 요약: 전체 / 저장 / 날짜없어 건너뜀 (+ 건너뛴 첫 건의 필드명)
+    log(`A⬅  POUR/${node}: 전체 ${total} · 저장 ${n} · 날짜없음 ${noDate}` + (noDate && sample ? `  (건너뛴 필드예시: ${sample})` : ''));
   }
   // POUR 에서 사라진 pour 일정 → Supabase 짝 삭제
   const { data: pourRows } = await sb.from('schedules').select('id,sync_id').eq('source', 'pour');

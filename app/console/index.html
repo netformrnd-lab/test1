@@ -475,9 +475,11 @@ async function loadAll(){
 }
 let WON_MATED=false;
 function renderAll(){
-  renderDash(); renderOrgs(); renderCalendar(); renderProjList(); renderHistory();
-  renderPending(); renderMembers(); fillAptSelectsConsole(); commTab(commTabCur); promoTab(promoTabCur);
-  renderSales(); renderRoadmap(); renderDocs(); gsInit();
+  // 한 화면이 오류나도 나머지는 그려지도록 각각 독립 실행(회원·공사관리 등이 통째로 사라지는 것 방지)
+  const R=(fn,name)=>{ try{ fn(); }catch(e){ console.error('[render 실패] '+name, e); } };
+  R(renderDash,'dash'); R(renderOrgs,'orgs'); R(renderCalendar,'calendar'); R(renderProjList,'projList'); R(renderHistory,'history');
+  R(renderPending,'pending'); R(renderMembers,'members'); R(fillAptSelectsConsole,'aptSelects'); R(()=>commTab(commTabCur),'comm'); R(()=>promoTab(promoTabCur),'promo');
+  R(renderSales,'sales'); R(renderRoadmap,'roadmap'); R(renderDocs,'docs'); R(gsInit,'gs');
   if(curProj){ const np=APTS.find(a=>a.id===curProj.id); if(np){curProj=np; if($('projDetail').style.display!=='none') renderProj();} }
   updateBadges();
 }

@@ -1945,11 +1945,12 @@ function renderSchedList(scheds) {
   const isAud = currentRole === 'auditor'
   el.innerHTML = '<div style="font-size:11px;font-weight:800;color:#3a445e;margin:2px 2px 6px">' + head + '</div>' + day.map(s => {
     // 입주민·관리주체: 분류 색/배지 없이 기존 캘린더처럼 (감리사만 분류 표시)
-    const isPour = s.source === 'pour'   // POUR 영업일정 → 빨간색
-    const c = isPour ? '#e4544b' : (isAud ? catColor(s.category) : '#2F6BF6'), lab = isPour ? '📣 영업' : (isAud ? (APP_CAT_LABEL[s.category] || '') : '')
+    const isPour = s.source === 'pour'   // POUR 영업시스템에서 온 일정 → 빨간색
+    const catLab = APP_CAT_LABEL[s.category] || ''
+    const c = isPour ? '#e4544b' : (isAud ? catColor(s.category) : '#2F6BF6'), lab = isPour ? (catLab || '영업') : (isAud ? catLab : '')
     let badge = ''
     if (currentRole === 'auditor') {
-      if (isPour) badge = '<span style="font-size:9px;font-weight:800;color:#e4544b;background:#fdecec;padding:2px 7px;border-radius:6px">📣 POUR 영업</span>'
+      if (isPour) badge = '<span style="font-size:9px;font-weight:800;color:#e4544b;background:#fdecec;padding:2px 7px;border-radius:6px">📣 POUR</span>'
       else if (s.apartment_id) { const apt = AUD_APTS[s.apartment_id]; badge = '<span style="font-size:9px;font-weight:800;color:#2F6BF6;background:#e8f0ff;padding:2px 7px;border-radius:6px">👥 ' + (apt ? escH(apt.name) : '단지') + '</span>' }
       else badge = '<span style="font-size:9px;font-weight:800;color:#8b7a2f;background:#f6efd8;padding:2px 7px;border-radius:6px">🔒 개인</span>'
     }

@@ -1773,6 +1773,7 @@ async function loadSchedule() {
   }
   const vb = document.getElementById('sc-vp-btn'), vp = document.getElementById('sc-vp')
   if (isAuditor) {
+    await loadAuditorRoster()
     populateSchedAptSelect()
     await loadVisitPlan(); renderVisitPlan()
     if (vb) vb.style.display = ''
@@ -1789,14 +1790,22 @@ function populateSchedAptSelect() {
   const sel = document.getElementById('sc-apt'); if (!sel) return
   const apts = Object.values(AUD_APTS)
   sel.innerHTML = '<option value="">🔒 개인 일정 (나만 봐요)</option>' +
-    apts.map(a => `<option value="${a.id}">${escH(a.name)} · 단지 일정 (입주민도 봄)</option>`).join('')
+    apts.map(a => `<option value="${a.id}">${escH(a.name)} · 단지 일정</option>`).join('')
   sel.value = currentApt ? currentApt.id : ''
+  const asg = document.getElementById('sc-assignee')
+  if (asg) asg.innerHTML = audOptions(MY_ID)   // 담당 감리사(기본=나)
 }
 /* ===== 방문 배치 (감리사 앱) — control_sites 에 주기·요일 저장 → 내 담당 단지 방문 자동생성 ===== */
 const VP_CYCLE_DAYS = { '주1회': '수', '주2회': '화·목', '주3회': '월·수·금', '상주': '월·화·수·목·금' }
 const VP_WKB = ['월', '화', '수', '목', '금', '토', '일']
 const VP_MARK = '🔧 정기 방문'
 let CS_APP = {}   // apartment_id → control_sites.data
+let AUDITORS_ROSTER = []   // [{id,name}] 승인된 감리사 명단 (배정 드롭다운용)
+async function loadAuditorRoster() {
+  try { const { data } = await sb.from('profiles').select('id,name').eq('role', 'auditor').eq('approved', true).order('name'); AUDITORS_ROSTER = (data || []).filter(x => x.name) } catch (e) { AUDITORS_ROSTER = [] }
+}
+function audName(id) { if (!id) return ''; if (String(id) === String(MY_ID)) return MY_NAME || '나'; const a = AUDITORS_ROSTER.find(x => String(x.id) === String(id)); return a ? a.name : '' }
+function audOptions(sel) { return '<option value="">담당 미지정</option>' + AUDITORS_ROSTER.map(a => '<option value="' + a.id + '"' + (String(sel) === String(a.id) ? ' selected' : '') + '>' + escH(a.name) + '</option>').join('') }
 function vpSlug(name) { return String(name || '').replace(/[\/#\.\[\]\$]/g, '_').slice(0, 300) }
 function vpData(a) { return CS_APP[a.id] || {} }
 function vpIso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
@@ -1824,10 +1833,19 @@ function vpSetCycle(aptId, c) {
 function vpToggleDay(aptId, w) {
   const a = AUD_APTS[aptId]; if (!a) return
   const d = vpData(a); let days = String(d.visitDay || '').split('·').filter(Boolean)
-  const i = days.indexOf(w); if (i >= 0) days.splice(i, 1); else days.push(w)
+  const da = { ...(d.dayAuditors || {}) }
+  const i = days.indexOf(w)
+  if (i >= 0) { days.splice(i, 1); delete da[w] }           // 요일 끄면 그 날 담당자도 해제
+  else { days.push(w); if (!da[w]) da[w] = MY_ID }           // 요일 켜면 기본 담당 = 나 (드롭다운에서 바꿈)
   days.sort((x, y) => VP_WKB.indexOf(x) - VP_WKB.indexOf(y))
-  vpUpsert(a, { visitDay: days.join('·') }).then(() => renderVisitPlan())
+  vpUpsert(a, { visitDay: days.join('·'), dayAuditors: da }).then(() => renderVisitPlan())
 }
+function vpSetDayAuditor(aptId, w, auditorId) {
+  const a = AUD_APTS[aptId]; if (!a) return
+  const d = vpData(a); const da = { ...(d.dayAuditors || {}) }; da[w] = auditorId || ''
+  vpUpsert(a, { dayAuditors: da }).then(() => renderVisitPlan())
+}
+window.vpSetDayAuditor = vpSetDayAuditor
 function renderVisitPlan() {
   const box = document.getElementById('sc-vp'); if (!box) return
   const apts = Object.values(AUD_APTS)
@@ -1838,7 +1856,12 @@ function renderVisitPlan() {
     const cyc = '<select onchange="vpSetCycle(\'' + a.id + '\',this.value)" style="font-size:11px;font-weight:700;padding:5px 6px;border-radius:8px;border:1px solid #e6eaf2;background:#fff;color:#1c2440">' + ['미확인'].concat(CYB).map(c => '<option ' + ((d.cycle || '미확인') === c ? 'selected' : '') + '>' + c + '</option>').join('') + '</select>'
     const wd = VP_WKB.map(w => { const on = days.includes(w); return '<i onclick="vpToggleDay(\'' + a.id + '\',\'' + w + '\')" style="cursor:pointer;display:inline-flex;width:23px;height:23px;align-items:center;justify-content:center;margin:1px;border-radius:6px;font-size:10.5px;font-weight:800;font-style:normal;border:1px solid ' + (on ? '#2F6BF6' : '#e6eaf2') + ';background:' + (on ? '#2F6BF6' : '#fff') + ';color:' + (on ? '#fff' : '#9aa3b6') + '">' + w + '</i>' }).join('')
     const stat = days.length ? '<span style="font-size:10px;font-weight:700;color:#1E7F4F">✓ ' + (d.cycle && d.cycle !== '미확인' ? d.cycle + ' · ' : '') + days.join('·') + '</span>' : '<span style="font-size:10px;font-weight:700;color:#b8710a">요일을 눌러 지정</span>'
-    return '<div style="background:#fff;border:1px solid #eef1f6;border-radius:10px;padding:9px 10px;margin-bottom:7px"><div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><div style="font-size:11.5px;font-weight:800;color:#1c2440;flex:1">' + escH(a.name) + '</div>' + cyc + '</div><div style="margin-bottom:5px">' + wd + '</div>' + stat + '</div>'
+    // 요일마다 담당 감리사 지정 (주2회 = 서로 다른 감리사 2명이 다른 날)
+    const dayRows = days.length ? '<div style="margin-top:7px;padding-top:7px;border-top:1px dashed #e6eaf2">' + days.map(w =>
+      '<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px"><span style="font-size:10.5px;font-weight:800;color:#3a445e;width:40px;flex:none">' + w + '요일</span>' +
+      '<select onchange="vpSetDayAuditor(\'' + a.id + '\',\'' + w + '\',this.value)" style="flex:1;min-width:0;font-size:11px;font-weight:700;padding:5px 6px;border-radius:8px;border:1px solid #e6eaf2;background:#fff;color:#1c2440">' + audOptions((d.dayAuditors || {})[w]) + '</select></div>'
+    ).join('') + '</div>' : ''
+    return '<div style="background:#fff;border:1px solid #eef1f6;border-radius:10px;padding:9px 10px;margin-bottom:7px"><div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><div style="font-size:11.5px;font-weight:800;color:#1c2440;flex:1">' + escH(a.name) + '</div>' + cyc + '</div><div style="margin-bottom:5px">' + wd + '</div>' + stat + dayRows + '</div>'
   }).join('')
   box.innerHTML = '<div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:7px">담당 단지별로 방문 주기·요일을 정하세요. 아래 버튼을 누르면 이 달 방문이 달력·입주민 앱에 떠요.</div>' + rows +
     '<div id="sc-vp-gen" class="plus" style="height:38px;margin-top:4px;font-size:12px" onclick="vpGenerate()">📅 ' + schedYM.y + '년 ' + (schedYM.m + 1) + '월 방문 자동생성</div>'
@@ -1853,7 +1876,15 @@ async function vpGenerate() {
   const rows = []
   for (const a of apts) {
     const days = String(vpData(a).visitDay || '').split('·').filter(Boolean)
-    for (let dd = 1; dd <= total; dd++) { const dt = new Date(y, m, dd); const wd = VP_WKB[(dt.getDay() + 6) % 7]; const ds = vpIso(dt); if (days.includes(wd) && ds >= todayStr) rows.push({ apartment_id: a.id, date: ds, title: VP_MARK, description: '담당 ' + (MY_NAME || '감리사'), category: null }) }
+    const da = vpData(a).dayAuditors || {}
+    for (let dd = 1; dd <= total; dd++) {
+      const dt = new Date(y, m, dd); const wd = VP_WKB[(dt.getDay() + 6) % 7]; const ds = vpIso(dt)
+      if (days.includes(wd) && ds >= todayStr) {
+        const aid = da[wd] || null
+        const nm = audName(aid) || MY_NAME || '감리사'
+        rows.push({ apartment_id: a.id, date: ds, title: VP_MARK, description: '담당 ' + nm, category: null, assignee_id: aid })
+      }
+    }
   }
   if (!rows.length) { alert('앞으로(오늘 이후) 만들 방문이 없어요.\n지난 방문·다녀온 기록은 그대로 두고, 앞날 예정만 만들어요.'); return }
   if (!confirm(y + '년 ' + (m + 1) + '월 앞으로의 방문 ' + rows.length + '건을 만들까요?\n· 지난 방문과 ‘다녀옴’ 표시한 기록은 그대로 보존돼요\n· 아직 안 다녀온 앞날 예정만 새로 갱신돼요')) return
@@ -1924,6 +1955,8 @@ function renderSchedList(scheds) {
     const md = s.done_at ? (s.done_at.slice(5, 7) + '/' + s.done_at.slice(8, 10)) : ''
     // 다녀감 표시 — 모든 역할이 볼 수 있게 (언제 방문했는지)
     const doneChip = (isVisit && s.done_at) ? '<span style="font-size:9px;font-weight:800;color:#16a34a;background:#e9f7ef;padding:2px 7px;border-radius:6px">✓ 다녀감 ' + md + '</span>' : ''
+    const asgNm = (isAud && s.assignee_id) ? audName(s.assignee_id) : ''
+    const asgChip = asgNm ? '<span style="font-size:9px;font-weight:800;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px">👤 ' + escH(asgNm) + '</span>' : ''
     let actions = ''
     if (currentRole === 'auditor') {
       const doneBtn = isVisit
@@ -1937,7 +1970,7 @@ function renderSchedList(scheds) {
         + '<button onclick="deleteSchedApp(\'' + s.id + '\')" style="background:#fdecec;color:#d9453c;border:none;border-radius:8px;padding:6px 11px;font-size:10.5px;font-weight:800;font-family:inherit;cursor:pointer">🗑</button>'
         + '</div>'
     }
-    return '<div style="border-left:3px solid ' + (s.done_at && isVisit ? '#16a34a' : c) + ';background:#f8faff;border-radius:0 10px 10px 0;padding:9px 11px;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + (lab ? '<span style="font-size:9px;font-weight:800;color:' + c + ';background:' + c + '1a;padding:2px 7px;border-radius:6px">' + lab + '</span>' : '') + '<div style="font-size:11.5px;font-weight:800;color:#1c2440">' + escH(s.title) + '</div>' + doneChip + (badge ? '<span style="margin-left:auto">' + badge + '</span>' : '') + '</div>' + (s.description ? '<div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">' + escH(s.description) + '</div>' : '') + actions + '</div>'
+    return '<div style="border-left:3px solid ' + (s.done_at && isVisit ? '#16a34a' : c) + ';background:#f8faff;border-radius:0 10px 10px 0;padding:9px 11px;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + (lab ? '<span style="font-size:9px;font-weight:800;color:' + c + ';background:' + c + '1a;padding:2px 7px;border-radius:6px">' + lab + '</span>' : '') + '<div style="font-size:11.5px;font-weight:800;color:#1c2440">' + escH(s.title) + '</div>' + doneChip + asgChip + (badge ? '<span style="margin-left:auto">' + badge + '</span>' : '') + '</div>' + (s.description ? '<div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">' + escH(s.description) + '</div>' : '') + actions + '</div>'
   }).join('')
 }
 async function markVisited(id, on) {
@@ -1957,9 +1990,10 @@ async function addSchedule() {
   const aptId = sel ? sel.value : ''
   const cat = (document.getElementById('sc-cat') || {}).value || null
   const pub = !!((document.getElementById('sc-public') || {}).checked)
+  const asgId = ((document.getElementById('sc-assignee') || {}).value) || null
   const row = { date, title, description: desc || null, category: cat, source: 'aptsq' }
-  if (aptId) { row.apartment_id = aptId; row.owner_id = null; row.resident_visible = pub }   // 단지 일정: '공개' 켰을 때만 입주민에게 보임
-  else { row.owner_id = user.id; row.apartment_id = null; row.resident_visible = false }        // 개인 일정 (나만 봄)
+  if (aptId) { row.apartment_id = aptId; row.owner_id = null; row.resident_visible = pub; row.assignee_id = asgId }   // 단지 일정: '공개' 켰을 때만 입주민에게 보임 · 담당 감리사 지정
+  else { row.owner_id = user.id; row.apartment_id = null; row.resident_visible = false; row.assignee_id = null }        // 개인 일정 (나만 봄)
   if (editSchedId) {
     const { error } = await sb.from('schedules').update(row).eq('id', editSchedId)
     if (error) { alert('수정 실패: ' + error.message); return }
@@ -1982,6 +2016,7 @@ function openSchedEdit(id) {
   if ($g('sc-public')) $g('sc-public').checked = !!s.resident_visible
   populateSchedAptSelect()
   if ($g('sc-apt')) $g('sc-apt').value = s.apartment_id || ''
+  if ($g('sc-assignee')) $g('sc-assignee').value = s.assignee_id || ''
   const sv = $g('sc-save'); if (sv) sv.textContent = '✓ 수정 저장'
   const f = $g('sc-form'); if (f) { f.style.display = 'block'; f.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
 }
@@ -1990,6 +2025,7 @@ function cancelSchedEdit() {
   const $g = i => document.getElementById(i)
   ;['sc-date', 'sc-title', 'sc-desc'].forEach(i => { if ($g(i)) $g(i).value = '' })
   if ($g('sc-public')) $g('sc-public').checked = false
+  if ($g('sc-assignee')) $g('sc-assignee').value = MY_ID || ''
   const sv = $g('sc-save'); if (sv) sv.textContent = '등록'
   const f = $g('sc-form'); if (f) f.style.display = 'none'
 }

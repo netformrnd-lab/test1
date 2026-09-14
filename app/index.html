@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>아파트스퀘어</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="아파트스퀘어">
+<link rel="stylesheet" href="css/app.css">
+<style>
+#app-splash{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(160deg,#2a3a6e,#1a2450);transition:opacity .5s ease;-webkit-tap-highlight-color:transparent}
+#app-splash.hide{opacity:0;pointer-events:none}
+#app-splash img{width:96px;height:96px;filter:drop-shadow(0 8px 22px rgba(0,0,0,.35));animation:splashPop .6s ease both}
+#app-splash .sp-name{font-size:21px;font-weight:800;color:#fff;letter-spacing:.5px}
+#app-splash .sp-tag{font-size:11.5px;font-weight:600;color:#b9c6ea;margin-top:-8px}
+@keyframes splashPop{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+.tos-h{font-size:12.5px;font-weight:800;color:#1c2440;margin:17px 0 6px}
+.tos-p{font-size:11.5px;color:#4a5468;font-weight:500;line-height:1.75;margin-top:2px}
+.tos-box{background:#f6f8fb;border:1px solid #e6eaf2;border-radius:11px;padding:12px 13px;font-size:11px;color:#4a5468;font-weight:600;line-height:1.7;margin-top:14px}
+</style>
+</head>
+<body>
+<div id="app-splash">
+  <img src="assets/a081eb63-6da0-4864-98a1-1a3194cbb947.png" alt="아파트스퀘어">
+  <div class="sp-name">아파트스퀘어</div>
+  <div class="sp-tag">함께 짓는 믿음, 아파트 감리</div>
+</div>
+<script>
+/* 스플래시 실패 안전장치: 네트워크/스크립트 오류로 앱 초기화가 멈춰도
+   파란 스플래시가 화면을 영영 덮어 클릭이 막히는 일이 없도록, 일정 시간 뒤 강제로 치운다.
+   (정상일 때는 앱이 1.7초쯤에 먼저 부드럽게 감추므로 이 타이머는 대개 할 일이 없다) */
+(function(){
+  function kill(){ var s=document.getElementById('app-splash'); if(s){ s.classList.add('hide'); setTimeout(function(){ if(s.parentNode) s.remove(); }, 700); } }
+  setTimeout(kill, 6000);
+  window.addEventListener('pageshow', function(e){ if(e.persisted) kill(); });
+})();
+</script>
+<div id="app">
+  <div id="frame">
+    <div id="stage">
+      <section class="screen active" id="s01" data-name="로그인 · 회원가입">
+
+        <div class="bd" style="background:#fff;display:flex;flex-direction:column">
+          <div style="background:linear-gradient(155deg,#243768,#1F2C5C);position:relative;overflow:hidden;padding:44px 24px 34px;color:#fff;text-align:center"><div style="position:absolute;top:-24px;right:-24px;width:140px;height:140px;background:radial-gradient(circle,rgba(127,161,224,.35),transparent 65%)"></div><div style="position:relative"><img src="assets/a081eb63-6da0-4864-98a1-1a3194cbb947.png" alt="아파트스퀘어" style="height:40px;display:block;margin:0 auto 14px"><div style="font-size:16px;font-weight:800;line-height:1.4">우리 단지 감리를<br>한눈에</div><div style="font-size:11px;color:#c3cee6;font-weight:600;margin-top:7px">로그인하고 우리 단지 소식을 확인하세요</div></div></div>
+          <div style="padding:26px 22px 24px;flex:1">
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">아이디</div>
+            <input id="login-email" type="text" inputmode="text" autocapitalize="none" autocorrect="off" autocomplete="username" placeholder="아이디를 입력하세요" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">비밀번호</div>
+            <input id="login-pw" type="password" autocomplete="current-password" placeholder="비밀번호 (6자 이상)" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
+            <div id="signup-fields" style="display:none">
+              <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이메일 <span style="color:#2F6BF6">(비밀번호 찾기에 사용)</span></div>
+              <input id="signup-email" type="email" inputmode="email" autocapitalize="none" autocorrect="off" autocomplete="email" placeholder="example@naver.com" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
+              <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이름 및 직급</div>
+              <input id="signup-name" placeholder="예: 김현수 / 관리소장" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
+              <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">연락처</div>
+              <input id="signup-phone" inputmode="tel" placeholder="010-0000-0000" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
+            </div>
+            <label id="login-remember-row" style="display:flex;align-items:center;gap:8px;margin:0 2px 12px;font-size:11.5px;font-weight:700;color:#6b7690;cursor:pointer;-webkit-user-select:none;user-select:none">
+              <input id="login-remember" type="checkbox" checked style="width:16px;height:16px;accent-color:#2F6BF6;cursor:pointer">
+              자동 로그인 (이 기기에서 로그인 유지)
+            </label>
+            <div id="auth-msg" style="font-size:11px;font-weight:700;min-height:15px;margin-bottom:8px;color:#d94b4b"></div>
+            <div id="auth-submit" class="plus" data-mode="login" style="background:#1F2C5C;height:48px;border-radius:13px">로그인</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:11.5px;color:#6b7690;font-weight:700">
+              <span id="auth-toggle-signup" style="cursor:pointer">회원가입</span>
+              <span id="auth-toggle-login" style="cursor:pointer;display:none;color:#2F6BF6">← 로그인으로</span>
+              <span onclick="openFindAccount()" style="cursor:pointer">아이디 · 비밀번호 찾기</span>
+            </div>
+            <div style="font-size:11.5px;color:#9aa3b6;font-weight:600;text-align:center;margin-top:13px;line-height:1.7">회원가입 시 <span onclick="showScreen('s43')" style="color:#2F6BF6;text-decoration:underline;cursor:pointer">이용약관</span> 및 <span onclick="showScreen('s44')" style="color:#2F6BF6;text-decoration:underline;cursor:pointer">개인정보처리방침</span>에<br>동의하는 것으로 간주됩니다.</div>
+          </div>
+        </div>
+      
+      </section>
+      <section class="screen" id="s02" data-name="승인 대기 화면 (로그인 했지만 미승인)">
+
+        <div class="bd" style="background:#F4F6FA;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 26px;text-align:center">
+          <div style="width:74px;height:74px;border-radius:50%;background:#fff7e6;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:20px">⏳</div>
+          <div style="font-size:17px;font-weight:800;color:#141d34;line-height:1.4">관리자 승인 후<br>연결됩니다</div>
+          <div style="font-size:12px;color:#5c6580;font-weight:600;line-height:1.75;margin-top:12px">로그인은 됐지만 아직 승인 대기 상태예요. 관리자가 우리 단지로 확인·승인하면 <b>자동으로 홈으로 이동</b>돼요. (이 화면을 켜두면 승인되는 순간 넘어가요)</div>
+          <button onclick="checkApprovalNow()" style="margin-top:22px;background:#2F6BF6;color:#fff;border:none;border-radius:12px;padding:13px 26px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">승인됐어요 · 지금 확인</button>
+          <div style="margin-top:16px;font-size:10.5px;color:#98a1b5;font-weight:600">승인이 안 됐으면 이 화면이 그대로 유지돼요.</div>
+        </div>
+      
+      </section>
+      <section class="screen" id="s03" data-name="고객 목록에서 아파트 지정 · 승인 (아임웹 관리자)">
+<div class="bd" style="padding:40px;color:#888">이 화면은 준비 중이에요</div>
+      </section>
+      <section class="screen" id="s04" data-name="로그인 전 홈 · 로그인 후와 같은 구성 (누구나)">
+
+        <div class="bd">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;background:#fff"><img src="assets/e535b9b4-1af5-4a0e-ad66-dcd9f469ba4a.png" alt="아파트스퀘어" style="height:24px;display:block"><span data-nav="s01" style="cursor:pointer;font-size:18px;color:#2a3350">≡</span></div>
+
+          <div style="margin:0 14px;border-radius:18px;background:linear-gradient(155deg,#243768,#1F2C5C);position:relative;overflow:hidden;padding:16px;color:#fff"><div style="position:absolute;top:-24px;right:-24px;width:120px;height:120px;background:radial-gradient(circle,rgba(127,161,224,.35),transparent 65%)"></div><div style="position:relative"><div style="font-size:16.5px;font-weight:800;line-height:1.42">우리 집의 작은 변화,<br>아파트스퀘어가 함께합니다</div><div style="font-size:11.5px;color:#c3cee6;font-weight:600;margin-top:8px;line-height:1.55">아파트 보수공사, 감리가 곁에서 확인해요.<br>우리 단지도 무료로 상담받아 보세요</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:14px"><div data-inquiry="1" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;background:#fff;color:#1F2C5C;border-radius:11px;padding:12px;font-size:12.5px;font-weight:800">🏢 우리 단지 감리 신청·상담</div><div style="display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.32);color:#fff;border-radius:11px;padding:11px;font-size:12px;font-weight:800" data-nav="s19">감리가 뭔가요? 서비스 알아보기</div><div style="text-align:center;font-size:9.5px;color:#c3cee6;font-weight:600;margin-top:3px">이미 이용 중이신가요? <span data-nav="s01" style="cursor:pointer;color:#fff;font-weight:800;text-decoration:underline;display:inline-block;padding:10px 14px;margin:-6px 0">로그인 · 회원가입</span></div></div></div></div>
+          <div style="margin:12px 14px 2px;border-radius:15px;background:linear-gradient(150deg,#eaf1ff,#f7faff);border:1px solid #dbe6fb;padding:14px 15px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">🩺</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#1c2440">30초 우리 단지 자가진단</div><div style="font-size:11.5px;color:#5c6580;font-weight:600;margin-top:2px">로그인 없이 지금 바로 · 우리 단지에 어떤 점검이 필요한지 알려드려요</div></div></div>
+            <div data-nav="s05" style="cursor:pointer;margin-top:11px;background:#2F6BF6;color:#fff;border-radius:11px;padding:11px;text-align:center;font-size:12px;font-weight:800">지금 진단 시작하기 →</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:5px;padding:12px 14px 8px;text-align:center">
+            <div data-nav="s23" style="cursor:pointer;flex:1"><div style="width:50px;height:50px;border-radius:14px;background:#e6f2ec;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:24px">🏆</div><div style="font-size:11.5px;font-weight:800;color:#26314d;margin-top:6px">감리 사례</div></div>
+            <div data-nav="s01" style="cursor:pointer;flex:1"><div style="width:50px;height:50px;border-radius:14px;background:#eaf0fb;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:24px">📄</div><div style="font-size:11.5px;font-weight:800;color:#26314d;margin-top:6px">감리일지</div></div>
+            <div data-nav="s01" style="cursor:pointer;flex:1"><div style="width:50px;height:50px;border-radius:14px;background:#eaf0fb;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:24px">📅</div><div style="font-size:11.5px;font-weight:800;color:#26314d;margin-top:6px">공사 일정</div></div>
+            <div data-inquiry="1" style="cursor:pointer;flex:1"><div style="width:50px;height:50px;border-radius:14px;background:#fdecea;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:24px">💬</div><div style="font-size:11.5px;font-weight:800;color:#26314d;margin-top:6px">무료 상담</div></div>
+          </div>
+          <div style="padding:4px 14px 0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 2px 6px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">무료 진단 서비스</span><span data-nav="s17" style="cursor:pointer;font-size:11px;font-weight:700;color:#2F6BF6">더보기 ›</span></div>
+            <div data-nav="s17" style="cursor:pointer;border-radius:14px;overflow:hidden;position:relative;background:linear-gradient(120deg,rgba(15,22,48,.88) 0%,rgba(15,22,48,.62) 55%,rgba(15,22,48,.35) 100%),url(&quot;assets/64b64e0c-3fe7-4f86-bfd3-90263d67f89b.jpg&quot;) center/cover;padding:14px;color:#fff"><span style="font-size:9px;font-weight:800;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:99px">드론·AI 정밀 진단</span><div style="font-size:14px;font-weight:800;margin-top:9px;line-height:1.4">드론 AI 하자진단<br>무료 지원</div><div style="font-size:11.5px;color:#dbe6fb;font-weight:500;margin-top:6px">우리 단지 외벽 상태, 비용 부담 없이 먼저 확인하세요</div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 2px 6px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">공지사항</span><span onclick="openNoticeList()" style="cursor:pointer;font-size:11px;font-weight:700;color:#2F6BF6">전체보기 ›</span></div>
+            <div id="s04-notices" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;overflow:hidden"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 2px 6px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">영상으로 보는 감리 이야기</span></div><div class="res-videos" style="display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 2px 6px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">감리, 궁금한 건 여기서</span></div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div data-nav="s19" style="cursor:pointer;height:108px;border-radius:14px;position:relative;overflow:hidden;background:url(&quot;assets/7fc9e5a0-4126-43bf-9a05-02c1bdde7e05.jpg&quot;) center/cover"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 40%,rgba(10,16,34,.78))"></div><div style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:99px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;color:#2F6BF6;font-size:14px;font-weight:800">→</div><div style="position:absolute;left:13px;right:13px;bottom:12px;color:#fff"><div style="font-size:14px;font-weight:800">감리는 왜 필요할까요</div><div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,.9);margin-top:2px">셀프 계약의 위험, 사례로 확인</div></div></div>
+              <div data-nav="s20" style="cursor:pointer;height:108px;border-radius:14px;position:relative;overflow:hidden;background:url(&quot;assets/1a905ffe-a717-4079-b676-a56a4131335d.jpg&quot;) center/cover"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 40%,rgba(10,16,34,.78))"></div><div style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:99px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;color:#2F6BF6;font-size:14px;font-weight:800">→</div><div style="position:absolute;left:13px;right:13px;bottom:12px;color:#fff"><div style="font-size:14px;font-weight:800">감리 비용·절차 한눈에</div><div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,.9);margin-top:2px">얼마나, 어떻게 진행되나요</div></div></div>
+              <div data-nav="s21" style="cursor:pointer;height:108px;border-radius:14px;position:relative;overflow:hidden;background:url(&quot;assets/934184ea-23fe-49df-82cd-274954e27b9b.jpg&quot;) center/cover"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 40%,rgba(10,16,34,.78))"></div><div style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:99px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;color:#2F6BF6;font-size:14px;font-weight:800">→</div><div style="position:absolute;left:13px;right:13px;bottom:12px;color:#fff"><div style="font-size:14px;font-weight:800">하자 유형별 대처법</div><div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,.9);margin-top:2px">균열·누수·백화 이렇게</div></div></div>
+              <div data-nav="s22" style="cursor:pointer;height:108px;border-radius:14px;position:relative;overflow:hidden;background:url(&quot;assets/intro.jpg&quot;) center/cover"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 40%,rgba(10,16,34,.78))"></div><div style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:99px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;color:#2F6BF6;font-size:14px;font-weight:800">→</div><div style="position:absolute;left:13px;right:13px;bottom:12px;color:#fff"><div style="font-size:14px;font-weight:800">아파트스퀘어 소개</div><div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,.9);margin-top:2px">감리가 곁에서 확인하는 브랜드</div></div></div>
+            </div>
+          </div>
+          
+        </div>
+        
+        <div class="nav"><div data-tab="home" class="on"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s05" data-name="30초 자가진단 (아임웹 코드위젯 · 실제 작동)">
+
+        <div class="ab" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px 15px 11px">
+          <div style="display:flex;align-items:center;gap:9px"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">30초 우리 단지 자가진단</span><span id="sdgpct" style="margin-left:auto;font-size:10.5px;font-weight:800;color:#2F6BF6"></span></div>
+          <div style="height:5px;border-radius:99px;background:#eef1f7;overflow:hidden"><div id="sdgbar" style="height:100%;width:0;background:#2F6BF6;border-radius:99px;transition:width .35s ease"></div></div>
+        </div>
+        <div class="bd" id="sdg" style="background:#F4F6FA"></div>
+      
+      </section>
+      <section class="screen" id="s06" data-name="로그인 전 · 1:1 문의 (누구나)">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">1:1 문의</span></div>
+        <div class="bd" style="background:#F4F6FA;padding:14px">
+          <div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.6;margin-bottom:13px">아파트스퀘어가 궁금하신가요? 서비스 도입·감리 문의를 편하게 남겨주세요. 로그인 없이도 문의할 수 있어요</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;background:#eef2f8;color:#2a3350;border-radius:11px;padding:11px;font-size:11.5px;font-weight:800;margin-bottom:13px">📞 전화로 바로 상담하기</div>
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:13px 14px 15px">
+            <div style="font-size:12px;font-weight:800;color:#1c2440">문의 남기기</div>
+            <div style="font-size:10.5px;font-weight:800;color:#3a445e;margin:12px 2px 5px">성함 및 직급<span style="color:#e4544b">*</span></div><div style="background:#f4f6fa;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:11px;color:#9aa3b8;font-weight:500">성함·직급을 입력해 주세요</div>
+            <div style="font-size:10.5px;font-weight:800;color:#3a445e;margin:12px 2px 5px">연락처<span style="color:#e4544b">*</span></div><div style="display:flex;gap:6px"><div style="background:#f4f6fa;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:11px;color:#9aa3b8;font-weight:500">010</div><div style="background:#f4f6fa;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:11px;color:#9aa3b8;font-weight:500">0000</div><div style="background:#f4f6fa;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:11px;color:#9aa3b8;font-weight:500">0000</div></div>
+            <div style="font-size:10.5px;font-weight:800;color:#3a445e;margin:12px 2px 5px">아파트명<span style="color:#e4544b">*</span></div><div style="background:#f4f6fa;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:11px;color:#9aa3b8;font-weight:500">단지명을 입력해 주세요</div>
+            <div style="font-size:10.5px;font-weight:800;color:#3a445e;margin:12px 2px 5px">공사 종류<span style="color:#e4544b">*</span></div><div style="background:#f4f6fa;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:11px;color:#9aa3b8;font-weight:500">예) 외벽 재도장, 옥상·외벽 방수, 지하주차장 에폭시</div>
+            <div style="font-size:10.5px;font-weight:800;color:#3a445e;margin:12px 2px 5px">지역</div><div style="background:#f4f6fa;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:11px;color:#9aa3b8;font-weight:500;display:flex;justify-content:space-between;align-items:center">(선택) <span style="opacity:.7">▾</span></div>
+            <div style="font-size:10.5px;font-weight:800;color:#3a445e;margin:12px 2px 5px">문의 내용</div><div style="background:#f4f6fa;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:11px;color:#9aa3b8;font-weight:500;min-height:52px">궁금한 점을 자유롭게 적어주세요</div>
+            <div style="display:flex;justify-content:center;margin-top:14px"><div style="background:#1F2C5C;color:#fff;border-radius:9px;padding:10px 30px;font-size:12px;font-weight:800">문의하기</div></div>
+          </div>
+          <div style="font-size:14.5px;font-weight:800;color:#1c2440;margin:18px 2px 9px">자주 묻는 질문</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="background:#fff;border:1px solid #eef1f7;border-radius:11px;padding:11px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:10.5px;font-weight:700;color:#2a3350;line-height:1.4">아파트스퀘어는 어떤 서비스인가요?</span><span style="font-size:13px;color:#b7c0d2;flex-shrink:0">＋</span></div>
+            <div style="background:#fff;border:1px solid #eef1f7;border-radius:11px;padding:11px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:10.5px;font-weight:700;color:#2a3350;line-height:1.4">우리 단지도 감리를 신청할 수 있나요?</span><span style="font-size:13px;color:#b7c0d2;flex-shrink:0">＋</span></div>
+            <div style="background:#fff;border:1px solid #eef1f7;border-radius:11px;padding:11px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:10.5px;font-weight:700;color:#2a3350;line-height:1.4">비용은 어떻게 되나요?</span><span style="font-size:13px;color:#b7c0d2;flex-shrink:0">＋</span></div>
+          </div>
+        </div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s07" data-name="감리사 · 담당 단지 대시보드">
+
+        <div class="bd">
+          <div style="padding:15px 16px 9px;background:#fff">
+            <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:15px;font-weight:800;color:#141d34">담당 단지</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;font-weight:800;color:#e4544b;background:#fdecea;padding:4px 9px;border-radius:99px">🛠️ 감리사</span><span onclick="openAccount()" style="cursor:pointer;font-size:10px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:4px 9px;border-radius:99px">내 정보</span><span onclick="appLogout()" style="cursor:pointer;font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:4px 9px;border-radius:99px">로그아웃</span></div></div>
+            <div id="aud-sub" style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:3px">맡은 단지 불러오는 중…</div>
+            <div onclick="openCards()" style="margin-top:10px;display:flex;align-items:center;gap:8px;background:linear-gradient(100deg,#2F6BF6,#2456c9);color:#fff;border-radius:11px;padding:10px 13px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 8px 18px -12px #2F6BF6">📇 영업 명함<span style="margin-left:auto;font-weight:600;opacity:.92;font-size:10.5px">이름으로 검색 · 공유 ›</span></div>
+          </div>
+          <div style="padding:0 14px"><div style="display:flex;align-items:center;gap:8px;background:#f2f5fa;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px"><span style="font-size:12px">🔍</span><input id="aud-search" placeholder="단지 이름·지역 검색" style="border:none;background:transparent;outline:none;flex:1;min-width:0;font-size:11.5px;font-weight:600;color:#141d34;font-family:inherit"></div>
+          <div id="aud-filters" style="display:flex;gap:6px;margin:11px 0 2px"><span data-filter="all" style="cursor:pointer;font-size:10px;font-weight:800;color:#fff;background:#2F6BF6;padding:5px 11px;border-radius:99px">전체</span><span data-filter="in_progress" style="cursor:pointer;font-size:10px;font-weight:700;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">진행중</span><span data-filter="scheduled" style="cursor:pointer;font-size:10px;font-weight:700;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">점검예정</span><span data-filter="done" style="cursor:pointer;font-size:10px;font-weight:700;color:#5a6480;background:#eef1f7;padding:5px 11px;border-radius:99px">완료</span></div>
+          <div id="aud-cho" style="display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:9px 0 1px;padding-bottom:2px"></div></div>
+          <div style="padding:14px 14px 2px"><button onclick="openAudAptForm()" style="width:100%;border:1.5px dashed #b9c6e0;background:#f7faff;color:#2F6BF6;font-size:12.5px;font-weight:800;padding:11px;border-radius:12px;font-family:inherit;cursor:pointer">＋ 단지 추가</button></div>
+          <div id="aud-apts" style="padding:8px 14px 14px;display:flex;flex-direction:column;gap:9px">
+
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center">
+            <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,#5c86c8,#33507f);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🏢</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">이편한세상한강신도시2차</span></div>
+              <div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:1px">경기 김포 · 외벽 재도장</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:6px"><div style="flex:1;height:5px;border-radius:9px;background:#eef1f7;overflow:hidden"><div style="width:64%;height:100%;background:#2F6BF6;border-radius:9px"></div></div><span style="font-size:9px;font-weight:800;color:#2F6BF6">7/11</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0"><span style="display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:800;color:#1f8a5b;background:#e7f5ee;padding:3px 7px;border-radius:99px"><span style="width:4px;height:4px;border-radius:99px;background:#1f8a5b"></span>감리중</span><span style="font-size:18px;color:#c3ccdb;line-height:1">›</span></div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center">
+            <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,#5c86c8,#33507f);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🏢</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">힐스테이트</span><span style="font-size:8px;font-weight:800;color:#fff;background:#e4544b;padding:1px 6px;border-radius:99px;flex-shrink:0">새 2</span></div>
+              <div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:1px">서울 노원 · 지하 방수</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:6px"><div style="flex:1;height:5px;border-radius:9px;background:#eef1f7;overflow:hidden"><div style="width:44%;height:100%;background:#2F6BF6;border-radius:9px"></div></div><span style="font-size:9px;font-weight:800;color:#2F6BF6">4/9</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0"><span style="display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:800;color:#1f8a5b;background:#e7f5ee;padding:3px 7px;border-radius:99px"><span style="width:4px;height:4px;border-radius:99px;background:#1f8a5b"></span>감리중</span><span style="font-size:18px;color:#c3ccdb;line-height:1">›</span></div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center">
+            <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,#5c86c8,#33507f);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🏢</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">래미안</span></div>
+              <div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:1px">경기 성남 · 옥상 방수</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:6px"><div style="flex:1;height:5px;border-radius:9px;background:#eef1f7;overflow:hidden"><div style="width:100%;height:100%;background:#2F6BF6;border-radius:9px"></div></div><span style="font-size:9px;font-weight:800;color:#2F6BF6">11/11</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0"><span style="display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:800;color:#5a6480;background:#eef1f7;padding:3px 7px;border-radius:99px">완료</span><span style="font-size:18px;color:#c3ccdb;line-height:1">›</span></div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center">
+            <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,#5c86c8,#33507f);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🏢</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">자이</span></div>
+              <div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:1px">인천 연수 · 착공 전 진단</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:6px"><div style="flex:1;height:5px;border-radius:9px;background:#eef1f7;overflow:hidden"><div style="width:0%;height:100%;background:#2F6BF6;border-radius:9px"></div></div><span style="font-size:9px;font-weight:800;color:#2F6BF6">0/8</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0"><span style="display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:800;color:#a5701a;background:#fbf1de;padding:3px 7px;border-radius:99px"><span style="width:4px;height:4px;border-radius:99px;background:#c98a25"></span>점검예정</span><span style="font-size:18px;color:#c3ccdb;line-height:1">›</span></div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px 11px;display:flex;gap:10px;align-items:center">
+            <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,#5c86c8,#33507f);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🏢</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">푸르지오</span></div>
+              <div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:1px">경기 용인 · 옥상·외벽 방수</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:6px"><div style="flex:1;height:5px;border-radius:9px;background:#eef1f7;overflow:hidden"><div style="width:30%;height:100%;background:#2F6BF6;border-radius:9px"></div></div><span style="font-size:9px;font-weight:800;color:#2F6BF6">3/10</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0"><span style="display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:800;color:#1f8a5b;background:#e7f5ee;padding:3px 7px;border-radius:99px"><span style="width:4px;height:4px;border-radius:99px;background:#1f8a5b"></span>감리중</span><span style="font-size:18px;color:#c3ccdb;line-height:1">›</span></div>
+          </div>
+          </div>
+        </div>
+      
+      
+        <div class="nav"><div class="on"><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+      <section class="screen" id="s47" data-name="리플렛">
+        <div class="bd" style="background:#F4F6FA">
+          <div style="padding:15px 16px 10px;background:#fff">
+            <div style="font-size:15px;font-weight:800;color:#141d34">리플렛</div>
+            <div style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:3px">태블릿에서 확대해 보여주거나, 다운받아 공유하세요</div>
+          </div>
+          <div id="leaflet-list" style="padding:14px;display:flex;flex-direction:column;gap:14px"></div>
+        </div>
+        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div class="on"><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+      <section class="screen" id="s60" data-name="영업 명함">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">영업 명함</div><div style="font-size:10px;color:#2F6BF6;font-weight:800">이름으로 검색 · 다운로드/공유</div></div></div>
+        <div class="bd" style="background:#F4F6FA">
+          <div style="padding:12px 14px 8px;background:#fff">
+            <div style="display:flex;align-items:center;gap:8px;background:#f2f5fa;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px"><span style="font-size:12px">🔍</span><input id="card-search" placeholder="이름으로 검색" oninput="renderCards()" style="border:none;background:transparent;outline:none;flex:1;min-width:0;font-size:11.5px;font-weight:600;color:#141d34;font-family:inherit"></div>
+          </div>
+          <div id="card-list" style="padding:12px 14px 16px;display:flex;flex-direction:column;gap:11px"></div>
+        </div>
+      </section>
+      <section class="screen" id="s48" data-name="단지 추가">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">단지 추가</div><div style="font-size:10px;color:#2F6BF6;font-weight:800">새 담당 단지 등록</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:17px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">단지 이름 <span style="color:#e4544b">*</span></label>
+              <input id="na-name" placeholder="예: 동탄역시범리슈빌" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">지역</label>
+              <input id="na-region" placeholder="예: 경기 화성" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">공종(종류)</label>
+              <input id="na-ctype" list="na-ctype-opts" placeholder="예: 외벽 재도장 / 옥상 방수 / 지하 에폭시" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit">
+              <datalist id="na-ctype-opts"><option value="외벽 재도장"><option value="옥상 방수"><option value="옥상·외벽 방수"><option value="지하주차장 에폭시"><option value="지하 방수"><option value="착공 전 진단"></datalist>
+            </div>
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">상태</label>
+              <select id="na-status" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit;background:#fff">
+                <option value="scheduled">점검예정</option>
+                <option value="in_progress">진행중</option>
+                <option value="done">완료</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">공법</label>
+              <select id="na-method" onchange="audMethodChange()" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit;background:#fff"><option value="">— 공법 선택 —</option></select>
+            </div>
+            <div>
+              <label style="font-size:11.5px;font-weight:800;color:#5a6480">공정 (현재 단계)</label>
+              <select id="na-stage" style="width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;border:1px solid #e6eaf2;border-radius:10px;font-size:13px;outline:none;font-family:inherit;background:#fff"><option value="0">— 공법을 먼저 선택 —</option></select>
+              <div style="font-size:10.5px;color:#9aa3b6;font-weight:600;margin-top:5px">공법을 고르면 공정 단계가 나와요. 지금까지 끝낸 단계를 선택하세요.</div>
+            </div>
+            <button id="na-btn" onclick="audCreateApt()" style="margin-top:2px;border:none;background:#2F6BF6;color:#fff;font-size:14px;font-weight:800;padding:13px;border-radius:11px;font-family:inherit;cursor:pointer">단지 추가</button>
+          </div>
+        </div>
+      </section>
+      <section class="screen" id="s08" data-name="감리일지 목록">
+
+        <div class="ab"><span onclick="goBack()" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">감리일지</div><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#2F6BF6;font-weight:800"><span id="rep-apt-name">이편한세상한강신도시2차</span> <span style="opacity:.7"></span></div></div></div>
+        <div class="bd" style="padding:14px">
+          <div style="font-size:12px;color:#5c6580;font-weight:600;line-height:1.55;margin:2px 2px 12px">감리가 현장을 다녀올 때마다 사진과 함께 기록을 남겨드려요. 하나씩 눌러 확인해 보세요</div>
+          <div id="stage-track" style="margin:0 0 12px"></div>
+          <div id="rep-write-btn" class="plus">＋ 감리일지 작성 <span class="badm">감리사</span></div>
+          <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px;margin:11px 0 12px"><span style="font-size:12px">🔍</span><input id="rep-search" placeholder="제목·공사 단계 검색" style="border:none;background:transparent;outline:none;flex:1;min-width:0;font-size:12px;font-weight:600;color:#141d34;font-family:inherit"></div>
+          <div id="report-list" style="display:flex;flex-direction:column;gap:9px">
+            <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center"><div style="width:50px;height:50px;border-radius:10px;background:url(&quot;assets/00701238-6267-4c2a-b1e6-c22f70df2149.jpg&quot;) center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">12장</span></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">외벽 재도장, 꼼꼼히 살펴봤어요</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">2026.05.06 · 사진 12장</div></div></div>
+            <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center"><div style="width:50px;height:50px;border-radius:10px;background:url(&quot;assets/1a905ffe-a717-4079-b676-a56a4131335d.jpg&quot;) center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">7장</span></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">지하주차장 방수, 함께 확인했어요</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">2026.04.21 · 사진 7장</div></div></div>
+            <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center"><div style="width:50px;height:50px;border-radius:10px;background:url(&quot;assets/bd71d251-4fa6-47f9-a364-f688b91aeec9.jpg&quot;) center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">9장</span></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">공사 시작 전, 상태부터 점검했어요</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">2026.03.11 · 사진 9장</div></div></div>
+          </div>
+        </div>
+        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s09" data-name="감리일지 작성 (감리사)" style="background:#EDF2FA">
+
+        <div class="ab"><span onclick="goBack()" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">현장 간편 작성</span></div>
+        <div class="bd" style="padding:14px">
+          <div style="background:#eaf1ff;border:1px solid #d5e3ff;border-radius:11px;padding:10px 12px;font-size:10.5px;color:#2F6BF6;font-weight:700;line-height:1.55;margin-bottom:13px">📷 현장에선 사진과 태그만 톡톡 남겨주세요. 자세한 내용은 관리자가 다듬어 공개해요.</div>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">📷 현장 사진</div>
+          <div id="w-photo-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:14px"></div>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">단지</div>
+          <div style="background:#fff;border:1.5px solid #cdd9ef;border-radius:11px;padding:10px 12px;margin-bottom:13px"><span id="w-apt-name" style="font-size:12.5px;font-weight:800;color:#151c33">단지</span></div>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">작업한 동 <span style="color:#b7c0d2;font-weight:600">(쉼표로 여러 개 · 예: 101, 102, 105)</span></div>
+          <input id="w-dongs" placeholder="예: 101, 102, 105" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:11px 12px;font-size:12.5px;font-weight:700;color:#151c33;margin-bottom:14px;font-family:inherit;outline:none;-webkit-appearance:none">
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">공사 단계 <span style="color:#b7c0d2;font-weight:600">(탭해서 선택)</span></div>
+          <select id="w-stage" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:11px 12px;font-size:12.5px;font-weight:700;color:#151c33;margin-bottom:14px;font-family:inherit;outline:none"><option value="">단계 선택</option></select>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:7px">특이사항 <span style="color:#b7c0d2;font-weight:600">(해당되는 것 톡톡)</span></div>
+          <div id="w-tags" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">
+            <span class="wtag" data-tag="이상 없음" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">이상 없음</span>
+            <span class="wtag" data-tag="균열 발견" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">균열 발견</span>
+            <span class="wtag" data-tag="누수·결로" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">누수·결로</span>
+            <span class="wtag" data-tag="들뜸·박리" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">들뜸·박리</span>
+            <span class="wtag" data-tag="백화" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">백화</span>
+            <span class="wtag" data-tag="재시공 필요" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">재시공 필요</span>
+            <span class="wtag" data-tag="자재 확인" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">자재 확인</span>
+            <span class="wtag" data-tag="안전 조치" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">안전 조치</span>
+            <span class="wtag" data-tag="우천·중단" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">우천·중단</span>
+            <span class="wtag" data-tag="기타" data-on="0" onclick="toggleWTag(this)" style="font-size:12px;font-weight:700;color:#3a445e;background:#fff;border:1.5px solid #dbe3f0;padding:8px 13px;border-radius:99px;cursor:pointer">기타</span>
+          </div>
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">한 줄 메모 <span style="color:#b7c0d2;font-weight:600">(선택)</span></div>
+          <input id="w-memo" placeholder="필요할 때만 짧게 (예: 3동 균열 5곳)" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:11px 12px;font-size:12.5px;font-weight:700;color:#151c33;margin-bottom:13px;font-family:inherit;outline:none;-webkit-appearance:none">
+          <div style="font-size:11px;font-weight:800;color:#8b93a8;margin-bottom:5px">제목 <span style="color:#b7c0d2;font-weight:600">(선택 · 비우면 자동)</span></div>
+          <input id="w-title" placeholder="비우면 '단계 점검'으로 자동 생성" style="width:100%;background:#fff;border:1.5px solid #e6eaf2;border-radius:11px;padding:11px 12px;font-size:12.5px;font-weight:700;color:#151c33;margin-bottom:14px;font-family:inherit;outline:none;-webkit-appearance:none">
+          <div id="w-submit" class="plus" style="height:46px">등록하기</div>
+        </div>
+      
+      </section>
+      <section class="screen" id="s10" data-name="감리일지 상세 (등록 완료)">
+
+        <div class="ab"><span onclick="window.goBack()" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span id="d-title" class="abt" style="font-size:13px">감리일지</span></div>
+        <div class="bd" style="background:#fff;padding:14px">
+          
+          <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap"><span id="d-stage" style="font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:3px 8px;border-radius:6px">단계</span><span id="d-dong" style="display:none;font-size:10px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:3px 8px;border-radius:6px"></span><span id="d-date" style="font-size:10px;color:#98a1b5;font-weight:600;margin-left:auto">날짜</span></div>
+          <div id="d-pdf" style="display:none;margin-bottom:14px"></div>
+          <div id="d-photo1" style="height:126px;border-radius:12px;background:url(&quot;assets/00701238-6267-4c2a-b1e6-c22f70df2149.jpg&quot;) center/cover;display:flex;align-items:flex-end;padding:10px"><span style="font-size:10px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:3px 8px;border-radius:6px">📷 현장 사진 12장</span></div>
+          <div id="d-photo2" style="display:flex;gap:6px;margin-top:6px"><div style="flex:1;height:40px;border-radius:8px;background:url(&quot;assets/bd71d251-4fa6-47f9-a364-f688b91aeec9.jpg&quot;) center/cover"></div><div style="flex:1;height:40px;border-radius:8px;background:url(&quot;assets/1a905ffe-a717-4079-b676-a56a4131335d.jpg&quot;) center/cover"></div><div style="flex:1;height:40px;border-radius:8px;background:url(&quot;assets/00701238-6267-4c2a-b1e6-c22f70df2149.jpg&quot;) center/cover"></div></div>
+          <div id="d-body-label" style="font-size:13px;font-weight:800;color:#2F6BF6;margin-top:14px">점검 내용</div>
+          <div id="d-body" style="font-size:11px;color:#374151;line-height:1.65;margin-top:8px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,'D2Coding',monospace;background:#f7f9fc;border:1px solid #eef1f7;border-radius:10px;padding:12px;overflow-x:auto">내용</div>
+          <div id="d-h2" style="font-size:13px;font-weight:800;color:#2F6BF6;margin-top:12px">상태는 괜찮은가요</div>
+          <div style="font-size:11.5px;color:#404a63;line-height:1.7;margin-top:4px">몇 군데를 골라 확인해 보니 칠 상태가 좋아요. 다음 방문 때 한 번 더 살펴보고 알려드릴게요. 궁금한 점은 언제든 문의해 주세요</div>
+        </div>
+        <div class="nav" id="report-nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s11" data-name="입주민·관리소장 홈">
+
+        <div class="bd">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;background:#fff"><img src="assets/e535b9b4-1af5-4a0e-ad66-dcd9f469ba4a.png" alt="아파트스퀘어" style="height:24px;display:block"><span id="res-menu-btn" style="cursor:pointer;font-size:18px;color:#2a3350">≡</span></div>
+          <div style="margin:0 14px;border-radius:18px;background:linear-gradient(155deg,#243768,#1F2C5C);position:relative;overflow:hidden;padding:15px 16px;color:#fff"><div style="position:absolute;top:-24px;right:-24px;width:120px;height:120px;background:radial-gradient(circle,rgba(127,161,224,.35),transparent 65%)"></div><div style="position:relative"><div style="display:flex;align-items:center;justify-content:flex-end"><div style="display:inline-flex;align-items:center;gap:5px;background:rgba(127,213,168,.18);padding:3px 9px;border-radius:99px"><span style="width:5px;height:5px;border-radius:99px;background:#7FD5A8"></span><span style="font-size:9px;font-weight:800;color:#c7f0da">감리 진행 중</span></div></div><div style="margin-top:12px"><div id="res-apt-name" style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-.2px">불러오는 중…</div><div style="font-size:15px;font-weight:700;line-height:1.4;margin-top:5px;color:#c3cee6">감리가 곁에서<br>함께하고 있어요</div></div><div id="res-aud-card" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);border-radius:13px;padding:9px 11px;margin-top:12px"><div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(150deg,#7FA1E0,#4a6bb0);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff" id="res-aud-av"></div><div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:700;color:#aeb9d6">우리 단지 담당 감리 · 탭하면 채팅 상담</div><div id="res-aud-name" style="font-size:14px;font-weight:800;color:#fff">확인 중…</div></div></div></div></div>
+          <div id="res-survey-banner" onclick="openSurvey()" style="display:none;margin:16px 14px 0;border-radius:15px;padding:13px 14px;background:linear-gradient(120deg,#F5A623,#F7C948);color:#3a2c00;cursor:pointer;align-items:center;gap:12px;box-shadow:0 10px 20px -12px rgba(245,166,35,.6)">
+            <div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.35);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">⭐</div>
+            <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800">공사가 마무리됐어요!</div><div id="res-survey-sub" style="font-size:11px;font-weight:700;margin-top:2px;color:#5c4600">만족도를 남겨주시면 큰 힘이 돼요</div></div>
+            <span style="font-size:18px;font-weight:800;flex-shrink:0">›</span>
+          </div>
+          <div id="res-next-card" style="margin:16px 14px 0;background:#fff;border:1px solid #e3ebf7;border-radius:15px;padding:12px 13px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 18px -12px rgba(23,38,80,.35);cursor:pointer">
+            <div id="res-next-date" style="width:46px;height:46px;border-radius:12px;background:#eaf1ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;line-height:1"><span style="font-size:22px">📅</span></div>
+            <div style="flex:1;min-width:0"><div style="font-size:9.5px;font-weight:800;color:#8b95ad">다가오는 감리 일정</div><div id="res-next-title" style="font-size:14.5px;font-weight:800;color:#1c2440;margin-top:2px">일정을 불러오는 중…</div><div id="res-next-sub" style="font-size:11.5px;color:#5c6580;font-weight:600;margin-top:2px"></div></div>
+            <span style="font-size:18px;color:#c3ccdb;flex-shrink:0">›</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:5px;padding:14px 14px 8px;text-align:center">
+            <div id="res-ic-report" style="flex:1;cursor:pointer"><div style="width:50px;height:50px;border-radius:14px;background:#eaf0fb;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:24px">📄</div><div style="font-size:11.5px;font-weight:800;color:#26314d;margin-top:6px">감리일지</div></div>
+            <div id="res-ic-field" style="flex:1;cursor:pointer"><div style="width:50px;height:50px;border-radius:14px;background:#eaf0fb;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:24px">📸</div><div style="font-size:11.5px;font-weight:800;color:#26314d;margin-top:6px">현장 현황</div></div>
+            <div id="res-ic-schedule" style="flex:1;cursor:pointer"><div style="width:50px;height:50px;border-radius:14px;background:#eaf0fb;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:24px">📅</div><div style="font-size:11.5px;font-weight:800;color:#26314d;margin-top:6px">공사 일정</div></div>
+            <div id="res-ic-case" style="flex:1;cursor:pointer"><div style="width:50px;height:50px;border-radius:14px;background:#eaf0fb;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:24px">🏆</div><div style="font-size:11.5px;font-weight:800;color:#26314d;margin-top:6px">감리 우수 사례</div></div>
+          </div>
+          <div style="padding:0 14px 16px">
+            <div id="res-freediag" style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 2px 6px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">무료 진단 서비스</span><span data-nav="s17" style="cursor:pointer;font-size:11px;font-weight:700;color:#2F6BF6">더보기 ›</span></div>
+            <div data-nav="s17" style="cursor:pointer;border-radius:14px;overflow:hidden;position:relative;background:linear-gradient(120deg,rgba(15,22,48,.88) 0%,rgba(15,22,48,.62) 55%,rgba(15,22,48,.35) 100%),url(&quot;assets/64b64e0c-3fe7-4f86-bfd3-90263d67f89b.jpg&quot;) center/cover;padding:14px;color:#fff"><span style="font-size:9px;font-weight:800;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:99px">드론·AI 정밀 진단</span><div style="font-size:14px;font-weight:800;margin-top:9px;line-height:1.4">드론 AI 하자진단<br>무료 지원</div><div style="font-size:11.5px;color:#dbe6fb;font-weight:500;margin-top:6px">우리 단지 외벽 상태, 비용 부담 없이 먼저 확인하세요</div></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 2px 6px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">공지사항</span><span onclick="openNoticeList()" style="cursor:pointer;font-size:11px;font-weight:700;color:#2F6BF6">전체보기 ›</span></div>
+            <div id="res-notices" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;overflow:hidden"><div style="display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #f0f2f7;"><span style="font-size:11px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">여름철 외벽 보수공사 안전 점검 안내</span><span style="font-size:9px;color:#aab2c4;font-weight:600;flex-shrink:0">06.28</span></div><div style="display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #f0f2f7;"><span style="font-size:11px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">무료 하자진단 신청 방법이 쉬워졌어요</span><span style="font-size:9px;color:#aab2c4;font-weight:600;flex-shrink:0">06.15</span></div><div style="display:flex;justify-content:space-between;gap:8px;padding:10px 12px;"><span style="font-size:11px;font-weight:600;color:#3a445e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">감리일지 발송 서비스가 열렸어요</span><span style="font-size:9px;color:#aab2c4;font-weight:600;flex-shrink:0">05.30</span></div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 2px 6px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">타 감리 감독 현황</span><span style="font-size:9px;font-weight:800;color:#1f8a5b;background:#e7f5ee;padding:3px 9px;border-radius:99px">● 실시간</span></div>
+            <div id="res-region" style="background:#fff;border:1px solid #eef1f7;border-radius:13px;overflow:hidden"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 2px 6px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">영상으로 보는 감리 이야기</span></div>
+            <div class="res-videos" style="display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 2px 6px"><span style="font-size:14.5px;font-weight:800;color:#1c2440">감리, 궁금한 건 여기서</span></div>
+            <div style="display:flex;flex-direction:column;gap:9px"><div data-nav="s19" style="cursor:pointer;height:108px;border-radius:14px;position:relative;overflow:hidden;background:url(&quot;assets/7fc9e5a0-4126-43bf-9a05-02c1bdde7e05.jpg&quot;) center/cover"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 40%,rgba(10,16,34,.78))"></div><div style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:99px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;color:#2F6BF6;font-size:14px;font-weight:800">→</div><div style="position:absolute;left:13px;right:13px;bottom:12px;color:#fff"><div style="font-size:14px;font-weight:800">감리는 왜 필요할까요</div><div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,.9);margin-top:2px">셀프 계약의 위험, 사례로 확인</div></div></div><div data-nav="s20" style="cursor:pointer;height:108px;border-radius:14px;position:relative;overflow:hidden;background:url(&quot;assets/1a905ffe-a717-4079-b676-a56a4131335d.jpg&quot;) center/cover"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 40%,rgba(10,16,34,.78))"></div><div style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:99px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;color:#2F6BF6;font-size:14px;font-weight:800">→</div><div style="position:absolute;left:13px;right:13px;bottom:12px;color:#fff"><div style="font-size:14px;font-weight:800">감리 비용·절차 한눈에</div><div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,.9);margin-top:2px">얼마나, 어떻게 진행되나요</div></div></div><div data-nav="s21" style="cursor:pointer;height:108px;border-radius:14px;position:relative;overflow:hidden;background:url(&quot;assets/934184ea-23fe-49df-82cd-274954e27b9b.jpg&quot;) center/cover"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 40%,rgba(10,16,34,.78))"></div><div style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:99px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;color:#2F6BF6;font-size:14px;font-weight:800">→</div><div style="position:absolute;left:13px;right:13px;bottom:12px;color:#fff"><div style="font-size:14px;font-weight:800">하자 유형별 대처법</div><div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,.9);margin-top:2px">균열·누수·백화 이렇게</div></div></div><div data-nav="s22" style="cursor:pointer;height:108px;border-radius:14px;position:relative;overflow:hidden;background:url(&quot;assets/intro.jpg&quot;) center/cover"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 40%,rgba(10,16,34,.78))"></div><div style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:99px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;color:#2F6BF6;font-size:14px;font-weight:800">→</div><div style="position:absolute;left:13px;right:13px;bottom:12px;color:#fff"><div style="font-size:14px;font-weight:800">아파트스퀘어 소개</div><div style="font-size:11.5px;font-weight:500;color:rgba(255,255,255,.9);margin-top:2px">감리가 곁에서 확인하는 브랜드</div></div></div></div>
+          </div>
+        </div>
+        
+        <div class="nav"><div data-tab="home" class="on"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s12" data-name="감리일지 목록">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><div><div class="abt">감리일지</div><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#2F6BF6;font-weight:800"><span id="res-rep-apt">우리 단지</span></div></div></div>
+        <div class="bd" style="padding:14px">
+          <div style="font-size:12px;color:#5c6580;font-weight:600;line-height:1.55;margin:2px 2px 12px">감리가 현장을 다녀올 때마다 사진과 함께 기록을 남겨드려요. 하나씩 눌러 확인해 보세요</div>
+          <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px;color:#9aa3b8;font-size:12px;font-weight:500;margin:11px 0 12px">🔍 어떤 공사가 궁금하세요?</div>
+          <div id="res-report-list" style="display:flex;flex-direction:column;gap:9px">
+            <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center"><div style="width:50px;height:50px;border-radius:10px;background:url(&quot;assets/00701238-6267-4c2a-b1e6-c22f70df2149.jpg&quot;) center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">12장</span></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">외벽 재도장, 꼼꼼히 살펴봤어요</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">2026.05.06 · 사진 12장</div></div></div>
+            <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center"><div style="width:50px;height:50px;border-radius:10px;background:url(&quot;assets/1a905ffe-a717-4079-b676-a56a4131335d.jpg&quot;) center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">7장</span></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">지하주차장 방수, 함께 확인했어요</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">2026.04.21 · 사진 7장</div></div></div>
+            <div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:10px;display:flex;gap:10px;align-items:center"><div style="width:50px;height:50px;border-radius:10px;background:url(&quot;assets/bd71d251-4fa6-47f9-a364-f688b91aeec9.jpg&quot;) center/cover;flex-shrink:0;position:relative"><span style="position:absolute;left:4px;bottom:4px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:1px 5px;border-radius:5px">9장</span></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440">공사 시작 전, 상태부터 점검했어요</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">2026.03.11 · 사진 9장</div></div></div>
+          </div>
+        </div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s13" data-name="입주민 요약 리포트">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt" style="font-size:13px">외벽 재도장, 이렇게 살펴봤어요</span></div>
+        <div class="bd" style="background:#fff;padding:14px">
+          <div style="display:flex;gap:6px;margin-bottom:10px"><span style="font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:3px 8px;border-radius:6px">도장</span><span style="font-size:10px;font-weight:800;color:#2f7a56;background:#e9f3ee;padding:3px 8px;border-radius:6px">쉬운 요약</span><span style="font-size:10px;color:#98a1b5;font-weight:600;margin-left:auto">26.05.06</span></div>
+          <div style="height:126px;border-radius:12px;background:url(&quot;assets/00701238-6267-4c2a-b1e6-c22f70df2149.jpg&quot;) center/cover;display:flex;align-items:flex-end;padding:10px"><span style="font-size:10px;font-weight:800;color:#fff;background:rgba(15,22,48,.5);padding:3px 8px;border-radius:6px">📷 현장 사진 12장</span></div>
+          <div style="display:flex;gap:6px;margin-top:6px"><div style="flex:1;height:40px;border-radius:8px;background:url(&quot;assets/bd71d251-4fa6-47f9-a364-f688b91aeec9.jpg&quot;) center/cover"></div><div style="flex:1;height:40px;border-radius:8px;background:url(&quot;assets/1a905ffe-a717-4079-b676-a56a4131335d.jpg&quot;) center/cover"></div><div style="flex:1;height:40px;border-radius:8px;background:url(&quot;assets/00701238-6267-4c2a-b1e6-c22f70df2149.jpg&quot;) center/cover"></div></div>
+          <div style="font-size:13px;font-weight:800;color:#2F6BF6;margin-top:14px">지금 어디까지 진행됐나요</div>
+          <div style="font-size:11.5px;color:#404a63;line-height:1.7;margin-top:4px">외벽 밑칠(하도)과 중간칠(중도)까지 마쳤고, 지금은 마감칠을 하고 있어요. 페인트 두께와 자재 규격이 기준에 맞는지 현장에서 직접 확인했습니다.</div>
+          <div style="font-size:13px;font-weight:800;color:#2F6BF6;margin-top:12px">상태는 괜찮은가요</div>
+          <div style="font-size:11.5px;color:#404a63;line-height:1.7;margin-top:4px">몇 군데를 골라 확인해 보니 칠 상태가 좋아요. 다음 방문 때 한 번 더 살펴보고 알려드릴게요. 궁금한 점은 언제든 문의해 주세요</div>
+        </div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s14" data-name="공사 일정">
+
+        <div class="ab"><span onclick="window.goBack()" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">공사 일정</span></div>
+        <div class="bd" style="background:#fff;padding:14px">
+          <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:4px">
+            <span onclick="changeSchedMonth(-1)" style="cursor:pointer;padding:6px 12px;margin:-6px 0;font-size:20px;color:#9aa3b6;-webkit-tap-highlight-color:transparent;user-select:none">‹</span>
+            <span id="s-month" onclick="changeSchedMonth('today')" style="cursor:pointer;font-size:14px;font-weight:800;color:#1c2440;min-width:96px;text-align:center">2026년 7월</span>
+            <span onclick="changeSchedMonth(1)" style="cursor:pointer;padding:6px 12px;margin:-6px 0;font-size:20px;color:#9aa3b6;-webkit-tap-highlight-color:transparent;user-select:none">›</span>
+          </div>
+          <div id="s-sub" style="font-size:10.5px;color:#5c6580;font-weight:600;margin-bottom:12px">감리사가 방문하는 날을 미리 알려드려요. 그날 무엇을 보는지 함께 확인해요</div>
+          <div id="sc-add-btn" class="plus" style="height:40px;margin-bottom:11px;display:none">＋ 일정 추가 <span class="badm">감리사</span></div>
+          <div id="sc-form" style="display:none;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px;margin-bottom:12px">
+            <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">날짜</div>
+            <input id="sc-date" type="date" style="width:100%;min-width:0;background:#fff;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;color:#151c33;margin-bottom:9px;box-sizing:border-box;font-family:inherit;outline:none;-webkit-appearance:none;appearance:none">
+            <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">분류</div>
+            <select id="sc-cat" style="width:100%;min-width:0;background:#fff;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;color:#151c33;margin-bottom:9px;box-sizing:border-box;font-family:inherit;outline:none"><option value="work">공사일정</option><option value="asq">아스퀘</option><option value="pt">PT</option><option value="sales">영업</option><option value="bids">현설</option><option value="seminar">세미나</option><option value="personal">개인</option><option value="meeting">회의</option><option value="vacation">휴가</option></select>
+            <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">단지 선택 <span style="font-weight:600;color:#b3bccf">(개인·회의·휴가는 비워도 돼요)</span></div>
+            <select id="sc-apt" style="width:100%;min-width:0;background:#fff;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;color:#151c33;margin-bottom:9px;box-sizing:border-box;font-family:inherit;outline:none"></select>
+            <select id="sc-assignee" title="담당 감리사" style="width:100%;min-width:0;background:#fff;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;color:#151c33;margin-bottom:9px;box-sizing:border-box;font-family:inherit;outline:none"></select>
+            <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">일정 내용</div>
+            <input id="sc-title" placeholder="예: 외벽 상도 점검" style="width:100%;min-width:0;background:#fff;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;color:#151c33;margin-bottom:9px;box-sizing:border-box;font-family:inherit;outline:none">
+            <div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">시간·메모</div>
+            <input id="sc-desc" placeholder="예: 오후 2시" style="width:100%;min-width:0;background:#fff;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;color:#151c33;margin-bottom:9px;box-sizing:border-box;font-family:inherit;outline:none">
+            <label id="sc-public-wrap" style="display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:12px;font-weight:700;color:#151c33;cursor:pointer;-webkit-tap-highlight-color:transparent">
+              <input id="sc-public" type="checkbox" style="width:18px;height:18px;accent-color:#2F6BF6;flex:none;margin:0">
+              입주민에게 공개 <span style="color:#8b95ad;font-weight:600">(기본 비공개 · 켜야 입주민이 봄)</span>
+            </label>
+            <div id="sc-save" class="plus" style="height:40px;margin-top:3px">등록</div>
+          </div>
+          <div id="sc-vp-btn" class="plus" style="height:38px;margin-bottom:11px;display:none;background:#eef3ff;color:#2F6BF6;font-size:12px">🔧 정기 방문 배치 설정 <span class="badm">감리사</span></div>
+          <div id="sc-vp" style="display:none;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px;margin-bottom:12px"></div>
+          <div id="s-legend" style="display:flex;flex-wrap:wrap;gap:4px 9px;justify-content:center;margin-bottom:9px;font-size:9.5px;color:#8b93a8;font-weight:700"></div>
+          <div id="s-cal" style="touch-action:pan-y">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:9.5px;color:#98a1b5;font-weight:700;margin-bottom:4px"><span style="color:#d06b62">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style="color:#5a78b8">토</span></div>
+            <div id="s-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:11px;font-weight:700;color:#3a445e"></div>
+            <div style="text-align:center;font-size:9.5px;color:#b3bccf;font-weight:600;margin-top:7px">← 옆으로 넘겨 다른 달 보기 · 월 이름을 누르면 오늘로</div>
+          </div>
+          <div id="s-list" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+        <div class="nav" id="sched-nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s15" data-name="정보 · 보수공사">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">정보 · 보수공사</span></div>
+        <div class="bd" style="background:#fff;padding:14px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:10.5px;font-weight:800;color:#fff;background:#2F6BF6;padding:5px 11px;border-radius:99px">전체</span><span style="font-size:10.5px;font-weight:700;color:#5a6480;background:#f2f4f8;padding:5px 11px;border-radius:99px">영상</span><span style="font-size:10.5px;font-weight:700;color:#5a6480;background:#f2f4f8;padding:5px 11px;border-radius:99px">블로그</span></div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:9px"><div style="width:74px;height:52px;border-radius:9px;background:linear-gradient(150deg,#5c86c8,#33507f);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;position:relative">▶<span style="position:absolute;right:4px;bottom:4px;font-size:7.5px;font-weight:800;background:rgba(15,22,48,.6);padding:1px 5px;border-radius:4px">8:24</span></div><div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:800;color:#1c2440;line-height:1.35">외벽 재도장, 왜 10~15년마다 돌아올까</div><div style="font-size:9.5px;color:#e4544b;font-weight:800;margin-top:4px">▶ 유튜브 · 도장</div></div></div>
+            <div style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:9px"><div style="width:74px;height:52px;border-radius:9px;background:linear-gradient(150deg,#3a4f7d,#1f2c5c);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;position:relative">▶<span style="position:absolute;right:4px;bottom:4px;font-size:7.5px;font-weight:800;background:rgba(15,22,48,.6);padding:1px 5px;border-radius:4px">5:12</span></div><div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:800;color:#1c2440;line-height:1.35">AI·드론 하자진단, 이렇게 확인합니다</div><div style="font-size:9.5px;color:#e4544b;font-weight:800;margin-top:4px">▶ 유튜브 · 진단</div></div></div>
+            <div style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:9px"><div style="width:74px;height:52px;border-radius:9px;background:linear-gradient(150deg,#88b0a0,#4f7c69);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px">📖</div><div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:800;color:#1c2440;line-height:1.35">장기수선충당금, 어디에 쓰는 돈인가</div><div style="font-size:9.5px;color:#2f7a56;font-weight:800;margin-top:4px">📖 블로그 · 체크리스트</div></div></div>
+            <div style="display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:9px"><div style="width:74px;height:52px;border-radius:9px;background:linear-gradient(150deg,#6d86bd,#3a4f7d);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px">📖</div><div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:800;color:#1c2440;line-height:1.35">감리일지, 이렇게 읽으세요</div><div style="font-size:9.5px;color:#2f7a56;font-weight:800;margin-top:4px">📖 블로그 · 감리</div></div></div>
+          </div>
+        </div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s16" data-name="문의하기">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">문의하기</span></div>
+        <div class="bd" style="background:#F4F6FA;padding:14px">
+          <div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.6;margin-bottom:13px">궁금한 점이 있으면 언제든 편하게 남겨주세요. 담당 감리가 확인하고 답해드려요</div>
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:13px">
+            <div style="display:flex;align-items:center;gap:11px"><div id="q-aud-av" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(150deg,#7FA1E0,#4a6bb0);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff">감</div><div style="flex:1;min-width:0"><div style="font-size:9px;font-weight:700;color:#8b95ad">우리 단지 담당 감리</div><div id="q-aud-name" style="font-size:13px;font-weight:800;color:#1c2440">담당 감리사</div><div id="q-aud-phone" style="font-size:11px;font-weight:700;color:#2F6BF6;margin-top:2px"></div></div></div>
+            <div style="display:flex;gap:8px;margin-top:12px"><div id="q-call" style="cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:#2F6BF6;color:#fff;border-radius:10px;padding:9px;font-size:11px;font-weight:800">📞 전화하기</div><div id="q-sms" style="cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:#eef2f8;color:#2a3350;border-radius:10px;padding:9px;font-size:11px;font-weight:800">💬 메시지</div></div>
+          </div>
+          
+          <div style="font-size:14.5px;font-weight:800;color:#1c2440;margin:18px 2px 9px">자주 묻는 질문</div>
+          <div style="display:flex;flex-direction:column;gap:8px"><div class="faq-item" style="background:#fff;border:1px solid #eef1f7;border-radius:11px;padding:11px 12px;cursor:pointer"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:10.5px;font-weight:700;color:#2a3350;line-height:1.4">공사가 지금 어디까지 진행됐나요?</span><span class="faq-plus" style="font-size:13px;color:#b7c0d2;flex-shrink:0">＋</span></div><div class="faq-ans" style="display:none;font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.7;margin-top:9px">홈 화면과 ‘현장 현황’에서 우리 단지의 현재 공정 단계를 실시간으로 확인하실 수 있어요. 감리가 각 단계를 마칠 때마다 업데이트됩니다.</div></div><div class="faq-item" style="background:#fff;border:1px solid #eef1f7;border-radius:11px;padding:11px 12px;cursor:pointer"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:10.5px;font-weight:700;color:#2a3350;line-height:1.4">감리일지는 얼마나 자주 올라오나요?</span><span class="faq-plus" style="font-size:13px;color:#b7c0d2;flex-shrink:0">＋</span></div><div class="faq-ans" style="display:none;font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.7;margin-top:9px">감리가 현장을 방문할 때마다 사진과 함께 기록을 남겨드려요. (입주민 열람 기능은 곧 제공될 예정이에요.)</div></div><div class="faq-item" style="background:#fff;border:1px solid #eef1f7;border-radius:11px;padding:11px 12px;cursor:pointer"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:10.5px;font-weight:700;color:#2a3350;line-height:1.4">우리 집 앞 공사는 언제 하나요?</span><span class="faq-plus" style="font-size:13px;color:#b7c0d2;flex-shrink:0">＋</span></div><div class="faq-ans" style="display:none;font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.7;margin-top:9px">‘일정’ 탭에서 우리 단지의 방문·점검 일정을 미리 확인하실 수 있어요. 홈 화면에도 다가오는 일정이 표시됩니다.</div></div></div>
+        </div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s17" data-name="무료 진단 서비스 › 상세">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">무료 진단 서비스</span></div>
+        <div class="bd" style="background:#F4F6FA"><div style="padding:14px"><div style="border-radius:14px;overflow:hidden;position:relative;height:172px;background:#000"><iframe id="diag-video" src="about:blank" data-src="https://www.youtube.com/embed/OtNt2Jv08ag?autoplay=1&mute=1&loop=1&playlist=OtNt2Jv08ag&playsinline=1&controls=1&rel=0&modestbranding=1" title="드론 AI 진단" style="width:100%;height:100%;border:0;display:block" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div><div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:12px;padding:12px 13px;margin-top:12px;font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.7;word-break:keep-all">🚁 <b>누적 50만 세대 데이터를 학습한 AI</b>가 외벽·옥상의 <b>균열·들뜸·누수</b>를 정밀 분석해요. 사람이 오르기 어려운 곳도 드론으로 안전하게 진단합니다.</div><div style="font-size:13px;font-weight:800;color:#1c2440;margin:18px 2px 10px">진행 순서</div><div style="display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px"><span style="width:24px;height:24px;border-radius:50%;background:#2F6BF6;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</span><div style="font-size:12px;font-weight:700;color:#2a3350">무료 진단을 신청해요</div></div><div style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px"><span style="width:24px;height:24px;border-radius:50%;background:#2F6BF6;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</span><div style="font-size:12px;font-weight:700;color:#2a3350">드론·AI로 외벽을 정밀 진단해요</div></div><div style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px"><span style="width:24px;height:24px;border-radius:50%;background:#1f8a5b;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">✓</span><div style="font-size:12px;font-weight:700;color:#2a3350">진단 결과 요약을 무료로 받아요</div></div></div><div class="plus" style="margin-top:16px">무료 진단 신청하기</div></div></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s18" data-name="공지사항 › 상세">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">공지사항</span></div>
+        <div class="bd" style="background:#F4F6FA"><div style="padding:16px"><div id="n-title" style="font-size:16px;font-weight:800;color:#141d34;line-height:1.4">여름철 외벽 보수공사<br>안전 점검 안내</div><div id="n-date" style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:8px">아파트스퀘어 · 2026.06.28</div><div style="height:1px;background:#eef1f7;margin:14px 0"></div><div id="n-body" style="font-size:12.5px;color:#404a63;line-height:1.8">장마철을 앞두고 외벽·옥상 방수 상태를 미리 점검하시길 권장드립니다. 감리 방문 시 도막 상태와 배수구 마감을 함께 확인해 드리며, 이상이 발견되면 사진과 함께 보고서로 남겨 드립니다.<br><br>점검을 원하시는 단지는 홈 화면의 <b style="color:#2F6BF6">무료 상담·문의</b>로 신청해 주세요.</div></div></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s19" data-name="감리, 궁금한 건 › 감리는 왜 필요할까요">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">감리는 왜 필요할까요</span></div>
+        <div class="bd" style="background:#F4F6FA"><div style="height:150px;background:linear-gradient(180deg,rgba(10,16,34,.05),rgba(10,16,34,.6)),url(&quot;assets/7fc9e5a0-4126-43bf-9a05-02c1bdde7e05.jpg&quot;) center/cover;display:flex;align-items:flex-end;padding:16px"><div style="color:#fff;font-size:17px;font-weight:800;line-height:1.35">감리는 왜 필요할까요</div></div><div style="padding:16px"><span style="font-size:11px;font-weight:800;color:#2F6BF6;background:#eaf1ff;display:inline-block;padding:4px 11px;border-radius:99px">감리 확인하기</span><div style="font-size:12.5px;color:#404a63;line-height:1.8;margin-top:12px">보수공사는 한 번 덮으면 속을 다시 보기 어렵습니다. 감리는 진단부터 시공까지 <b>필요한 공사와 미뤄도 되는 공사를 구분</b>하고, 단계마다 확인해 기록으로 남기는 일입니다.<br><br>아파트스퀘어는 그 판단을 <b>쉽게 이해하고 · 공정하게 결정하며 · 안심하고 맡기실 수 있도록</b>, 모든 과정을 앱으로 실시간 공유합니다.</div>
+<div style="margin-top:16px;background:#fff;border:1px solid #eef1f7;border-radius:12px;overflow:hidden"><div style="display:flex;gap:9px;align-items:flex-start;padding:12px 13px"><span style="font-size:14px;flex-shrink:0;margin-top:1px">✅</span><div><div style="font-size:11.5px;font-weight:800;color:#1c2440">감리가 하는 일</div><div style="font-size:10.5px;color:#5c6580;font-weight:600;margin-top:3px;line-height:1.55">진단 · 설계 검토 · 시공 감리 · 보고서 기록 · 투명한 공유</div></div></div><div style="height:1px;background:#eef1f7"></div><div style="display:flex;gap:9px;align-items:flex-start;padding:12px 13px"><span style="font-size:14px;flex-shrink:0;margin-top:1px">🚫</span><div><div style="font-size:11.5px;font-weight:800;color:#1c2440">감리가 하지 않는 일</div><div style="font-size:10.5px;color:#5c6580;font-weight:600;margin-top:3px;line-height:1.55">시공 · 업체 선정 · 최종 결정 — 결정은 단지가, 감리는 곁에서 함께 검토합니다</div></div></div></div>
+<div data-soon="1" style="cursor:pointer;margin-top:14px;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:13px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">▶</span><div style="font-size:11.5px;font-weight:700;color:#2a3350">영상으로 더 알아보기 · 1:20</div><span style="margin-left:auto;font-size:9px;font-weight:800;color:#c98a1e;background:#fbf1de;padding:3px 8px;border-radius:99px">준비중</span></div><div style="margin-top:16px;background:#1F2C5C;border-radius:14px;padding:15px;color:#fff"><div style="font-size:12.5px;font-weight:800;line-height:1.4">우리 단지 감리, 더 알고 싶다면</div><div data-inquiry="1" style="cursor:pointer;margin-top:11px;background:#fff;color:#1F2C5C;border-radius:10px;padding:12px;text-align:center;font-size:12.5px;font-weight:800">감리 신청하기</div></div></div></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s20" data-name="감리, 궁금한 건 › 감리 비용·절차 한눈에">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">감리 비용·절차 한눈에</span></div>
+        <div class="bd" style="background:#F4F6FA"><div style="height:150px;background:linear-gradient(180deg,rgba(10,16,34,.05),rgba(10,16,34,.6)),url(&quot;assets/1a905ffe-a717-4079-b676-a56a4131335d.jpg&quot;) center/cover;display:flex;align-items:flex-end;padding:16px"><div style="color:#fff;font-size:17px;font-weight:800;line-height:1.35">감리 비용·절차 한눈에</div></div><div style="padding:16px"><span style="font-size:11px;font-weight:800;color:#2F6BF6;background:#eaf1ff;display:inline-block;padding:4px 11px;border-radius:99px">비용·절차</span><div style="font-size:12.5px;color:#404a63;line-height:1.8;margin-top:12px">감리 비용은 공사 규모와 기간에 따라 달라지지만, 보통 전체 공사비의 일부 수준이에요. 계약 전 <b>견적·점검 범위·방문 횟수</b>를 명확히 확인하는 게 좋아요.</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:14px"><div style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px"><span style="width:22px;height:22px;border-radius:50%;background:#2F6BF6;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</span><div style="font-size:12px;font-weight:700;color:#2a3350">상담·현장 확인</div></div><div style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px"><span style="width:22px;height:22px;border-radius:50%;background:#2F6BF6;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</span><div style="font-size:12px;font-weight:700;color:#2a3350">단계별 검측·기록</div></div><div style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px"><span style="width:22px;height:22px;border-radius:50%;background:#1f8a5b;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">✓</span><div style="font-size:12px;font-weight:700;color:#2a3350">감리일지 전달</div></div></div><div style="margin-top:16px;background:#1F2C5C;border-radius:14px;padding:15px;color:#fff"><div style="font-size:12.5px;font-weight:800;line-height:1.4">우리 단지 예상 비용이 궁금하다면</div><div data-inquiry="1" style="cursor:pointer;margin-top:11px;background:#fff;color:#1F2C5C;border-radius:10px;padding:12px;text-align:center;font-size:12.5px;font-weight:800">무료 견적·상담 신청</div></div></div></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s21" data-name="감리, 궁금한 건 › 하자 유형별 대처법">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">하자 유형별 대처법</span></div>
+        <div class="bd" style="background:#F4F6FA"><div style="height:150px;background:linear-gradient(180deg,rgba(10,16,34,.05),rgba(10,16,34,.6)),url(&quot;assets/934184ea-23fe-49df-82cd-274954e27b9b.jpg&quot;) center/cover;display:flex;align-items:flex-end;padding:16px"><div style="color:#fff;font-size:17px;font-weight:800;line-height:1.35">하자 유형별 대처법</div></div><div style="padding:16px"><span style="font-size:11px;font-weight:800;color:#2F6BF6;background:#eaf1ff;display:inline-block;padding:4px 11px;border-radius:99px">하자 대응</span><div style="font-size:12px;color:#404a63;line-height:1.85;margin-top:12px"><b>① 외벽 균열</b> — 층간 조인트·모서리·미세 균열 등 종류가 다양해요. 균열을 그대로 두면 빗물이 스며 <b>철근 부식·콘크리트 중성화·세대 누수</b>로 이어집니다. 단순 퍼티·몰탈은 콘크리트와 팽창 성질이 달라 다시 들뜨기 때문에, 균열 특성에 맞는 보수·보강이 필요해요.<br><br><b>② 백화·곰팡이</b> — 수분과 미세 균열로 외벽에 곰팡이·오염, 흰 가루(백화)가 생겨요. 방치하면 방수 성능이 떨어져 세대 누수·곰팡이로 번지니, 곰팡이를 억제하는 바인더로 표면을 보호하고 바탕처리를 해야 합니다.<br><br><b>③ 콘크리트 중성화·철근 부식</b> — 콘크리트가 노후·중성화되면 박리·박락과 녹물이 생기고 철근이 드러나요. 방치하면 콘크리트가 떨어져 위험하니, 바탕면 강화와 단면 복구가 필요합니다.<br><br><b>④ 창틀·이음부 실리콘 탈락</b> — 창문 샷시·구조물 이음부의 실리콘이 수축팽창으로 벌어지면 그 틈으로 빗물이 들어와 누수·곰팡이가 생겨요. 이음부 전용 보강·방수가 필요합니다.<br><br><b>⑤ 지붕·옥상 누수</b> — 금속지붕·슁글 마감재 탈락, 끝단 마감재 풀림, 배수로·모서리·이음부가 특히 취약해요. 강풍 시 낙하 위험도 있어, 끝단 마감재를 고정하고 이음부를 보강시트로 방수해야 합니다.<br><br><b>⑥ 지하주차장 에폭시 하자</b> — 습기로 들뜸·기포, 콘크리트 균열, 주행로·코너 마모·미끄러짐, 천정·배수로 누수가 생겨요. 습기 배출·균열 보강·미끄럼 방지·이음부 방수로 잡습니다.<br><br><span style="color:#8b95ad">※ 눈에 보이는 건 결과일 뿐, 원인은 다를 수 있어요. 정확한 판단은 감리·전문가의 현장 확인을 권장드립니다.</span></div><div style="margin-top:16px;background:#1F2C5C;border-radius:14px;padding:15px;color:#fff"><div style="font-size:12.5px;font-weight:800;line-height:1.4">우리 단지엔 어떤 하자가 있을까요?</div><div data-inquiry="1" style="cursor:pointer;margin-top:11px;background:#fff;color:#1F2C5C;border-radius:10px;padding:12px;text-align:center;font-size:12.5px;font-weight:800">무료 진단·상담 신청</div></div></div></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s22" data-name="회사 소개 › 아파트스퀘어">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">아파트스퀘어 소개</span></div>
+        <div class="bd" style="background:#F4F6FA"><div style="height:172px;background:linear-gradient(150deg,rgba(31,44,92,.86),rgba(31,44,92,.55)),url(&quot;assets/intro.jpg&quot;) center/cover;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:18px"><div style="position:absolute;top:-24px;right:-24px;width:130px;height:130px;background:radial-gradient(circle,rgba(127,161,224,.35),transparent 65%)"></div><img src="assets/e535b9b4-1af5-4a0e-ad66-dcd9f469ba4a.png" alt="아파트스퀘어" style="height:22px;width:auto;filter:brightness(0) invert(1);align-self:flex-start"><div style="font-size:14px;font-weight:800;color:#fff;margin-top:12px;line-height:1.4">어려운 보수공사도,<br>쉽게 · 공정하게 · 안심되게</div></div><div style="padding:16px"><span style="font-size:11px;font-weight:800;color:#2F6BF6;background:#eaf1ff;display:inline-block;padding:4px 11px;border-radius:99px">회사 소개</span><div style="font-size:12.5px;color:#404a63;line-height:1.8;margin-top:12px">아파트스퀘어는 <b>고객 경험</b>을 가장 중요하게 생각합니다. 어려운 보수공사도 쉽게 이해하고, 공정하게 결정하고, 끝까지 안심할 수 있도록 곁에서 돕습니다.</div><div style="font-size:11px;font-weight:800;color:#1c2440;margin:16px 2px 8px">고객이 느끼는 경험</div><div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 12px"><span style="font-size:17px;flex-shrink:0;margin-top:1px">👋</span><div style="flex:1"><div style="font-size:12px;font-weight:800;color:#1c2440">쉽게 이해돼요</div><div style="font-size:10.5px;color:#5c6580;font-weight:600;margin-top:2px;line-height:1.5">전문 용어 대신 쉬운 말과 현장 사진으로 설명해요</div></div></div><div style="display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 12px"><span style="font-size:17px;flex-shrink:0;margin-top:1px">⚖️</span><div style="flex:1"><div style="font-size:12px;font-weight:800;color:#1c2440">공정하게 결정해요</div><div style="font-size:10.5px;color:#5c6580;font-weight:600;margin-top:2px;line-height:1.5">꼭 필요한 공사와 미뤄도 되는 공사를 구분해 드려요</div></div></div><div style="display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:11px 12px"><span style="font-size:17px;flex-shrink:0;margin-top:1px">🛡️</span><div style="flex:1"><div style="font-size:12px;font-weight:800;color:#1c2440">끝까지 안심돼요</div><div style="font-size:10.5px;color:#5c6580;font-weight:600;margin-top:2px;line-height:1.5">상담부터 준공·사후관리까지 한 담당이 함께해요</div></div></div></div><div style="margin-top:10px;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:13px"><div style="font-size:11px;font-weight:800;color:#1c2440;margin-bottom:8px">주요 공종</div><div style="display:flex;flex-wrap:wrap;gap:6px"><span style="font-size:10.5px;font-weight:700;color:#3a445e;background:#f2f4f8;padding:5px 10px;border-radius:99px">외벽 재도장</span><span style="font-size:10.5px;font-weight:700;color:#3a445e;background:#f2f4f8;padding:5px 10px;border-radius:99px">옥상·외벽 방수</span><span style="font-size:10.5px;font-weight:700;color:#3a445e;background:#f2f4f8;padding:5px 10px;border-radius:99px">지하주차장 에폭시·누수</span></div></div><div style="margin-top:16px;background:#1F2C5C;border-radius:14px;padding:15px;color:#fff"><div style="font-size:12.5px;font-weight:800;line-height:1.4">아파트스퀘어와 이야기 나누고 싶다면</div><div style="margin-top:11px;background:#fff;color:#1F2C5C;border-radius:10px;padding:12px;text-align:center;font-size:12.5px;font-weight:800">1:1 문의하기</div></div></div></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+      <section class="screen" id="s23" data-name="감리 우수 사례 (목록)">
+
+        <div class="ab"><span style="font-size:19px;color:#2a3350">‹</span><span class="abt">감리 우수 사례</span></div>
+        <div class="bd" style="background:#F4F6FA"><div style="padding:14px"><div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.55;margin-bottom:12px">감리가 직접 관리한 단지들의 전·후 기록이에요. 우리 단지와 비슷한 사례를 찾아보세요.</div><div id="case-list" style="display:flex;flex-direction:column;gap:9px"></div></div></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      
+      </section>
+        <section class="screen" id="s24" data-name="입주민 현장 현황">
+        <div class="bd">
+          <div style="padding:15px 16px 10px;background:#fff">
+            <div style="font-size:15px;font-weight:800;color:#141d34">우리 단지 현장 현황</div>
+            <div id="prog-apt-name" style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:3px">단지</div>
+          </div>
+          <div style="padding:12px 14px 16px">
+            <div id="prog-track"></div>
+            <div style="margin-top:14px;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:13px;font-size:10.5px;color:#5c6580;font-weight:600;line-height:1.7">감리가 각 단계를 직접 확인하고 있어요. 단계가 끝날 때마다 이곳에서 업데이트됩니다.</div>
+          </div>
+        </div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+        <section class="screen" id="s25" data-name="감리 우수 사례 상세">
+        <div class="bd" style="background:#F4F6FA">
+          <div class="ab" style="background:#fff"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">감리 우수 사례</span></div>
+          <div style="display:flex;gap:8px;padding:14px 16px 0"><div style="flex:1"><div style="font-size:9px;font-weight:800;color:#8b95ad;margin-bottom:5px">📷 시공 전</div><div id="case-before" style="height:130px;border-radius:10px;background:#dfe5ee center/cover;border:1px solid #e6eaf2"></div></div><div style="flex:1"><div style="font-size:9px;font-weight:800;color:#2F6BF6;margin-bottom:5px">✨ 시공 후</div><div id="case-after" style="height:130px;border-radius:10px;background:#dfe5ee center/cover;border:1px solid #e6eaf2"></div></div></div>
+          <div style="padding:16px">
+            <div id="case-title" style="font-size:16px;font-weight:800;color:#141d34;line-height:1.4">사례</div>
+            <div id="case-meta" style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:6px"></div>
+            <div style="height:1px;background:#eef1f7;margin:13px 0"></div>
+            <div id="case-body" style="font-size:12.5px;color:#404a63;line-height:1.8"></div>
+          </div>
+        </div>
+      </section>
+        <section class="screen" id="s26" data-name="현장 현황 목록">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">현장 현황</div><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#2F6BF6;font-weight:800"><span id="field-apt">우리 단지</span></div></div></div>
+        <div class="bd" style="padding:14px">
+          <div id="field-prog" style="display:none;background:linear-gradient(150deg,#243768,#1F2C5C);border-radius:15px;padding:13px 14px;color:#fff;margin-bottom:13px;cursor:pointer" onclick="showScreen('s24');loadResidentProgress()">
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:800;color:#c3cee6">공정 진행 단계</span><span id="field-prog-pct" style="font-size:12px;font-weight:800;color:#fff"></span></div>
+            <div style="height:6px;border-radius:9px;background:rgba(255,255,255,.15);margin:9px 0 7px;overflow:hidden"><div id="field-prog-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#7FA1E0,#fff);border-radius:9px"></div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span id="field-prog-cap" style="font-size:11px;font-weight:700;color:#eaf1ff">현재 단계 확인 중…</span><span style="font-size:10.5px;font-weight:800;color:#aeb9d6">단계별 자세히 ›</span></div>
+          </div>
+          <div id="field-survey-banner" onclick="openSurvey()" style="display:none;border-radius:15px;padding:13px 14px;background:linear-gradient(120deg,#F5A623,#F7C948);color:#3a2c00;cursor:pointer;margin-bottom:13px;box-shadow:0 10px 20px -12px rgba(245,166,35,.6)">
+            <div style="display:flex;align-items:center;gap:11px"><div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.35);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:21px">⭐</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800">공사가 마무리됐어요!</div><div style="font-size:11px;font-weight:700;margin-top:2px;color:#5c4600">만족도 평가에 참여해 주세요</div></div><span style="font-size:18px;font-weight:800">›</span></div>
+          </div>
+          <div style="font-size:12px;color:#5c6580;font-weight:600;line-height:1.55;margin:2px 2px 12px">우리 단지 현장 사진과 진행 기록이에요. 하나씩 눌러 확인해 보세요</div>
+          <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px;margin-bottom:12px"><span style="font-size:12px">🔍</span><input id="field-search" placeholder="제목·내용으로 검색" style="border:none;background:transparent;outline:none;flex:1;min-width:0;font-size:12px;font-weight:600;color:#141d34;font-family:inherit"></div>
+          <div id="field-list" style="display:flex;flex-direction:column;gap:9px"></div>
+        </div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field" class="on"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+        <section class="screen" id="s27" data-name="감리사 단지 메뉴">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt" id="aud-menu-apt">단지</div><div style="font-size:10px;color:#2F6BF6;font-weight:800">무엇을 확인할까요?</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div id="aud-menu-report" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#eaf0fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">📄</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">감리일지 작성</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">이 단지 감리일지 작성·확인</div></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+          <div id="aud-menu-field" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#eaf0fb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">📸</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">현장 사진 확인</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">현장 현황 사진·기록 보기</div></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+          <div id="aud-menu-meeting" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">📋</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">첫 미팅 질문리스트</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">첫 미팅에서 확인할 질문 목록</div></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+          <div id="aud-menu-manager" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#eafaf2;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">📝</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">관리소장 점검표</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">소장님께 링크 보내고 · 받은 점검표 확인</div></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+          <div id="aud-menu-contract" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#f3eeff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">📑</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">계약서 보기</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">이 단지 계약서 보기·등록 (감리사만)</div></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+          <div id="aud-menu-survey" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#fff3d9;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">⭐</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">만족도 결과 확인</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">공사 완료 후 입주민 만족도 평가</div></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+        </div>
+        <div class="nav"><div class="on"><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+        <section class="screen" id="s28" data-name="감리사 현장 사진 목록">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">현장 사진</div><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#2F6BF6;font-weight:800"><span id="audfield-apt">단지</span></div></div></div>
+        <div class="bd" style="padding:14px">
+          <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e6eaf2;border-radius:11px;padding:9px 12px;margin-bottom:12px"><span style="font-size:12px">🔍</span><input id="audfield-search" placeholder="제목·내용으로 검색" style="border:none;background:transparent;outline:none;flex:1;min-width:0;font-size:12px;font-weight:600;color:#141d34;font-family:inherit"></div>
+          <div id="audfield-list" style="display:flex;flex-direction:column;gap:9px"></div>
+        </div>
+        <div class="nav"><div class="on"><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <!-- s29: 미팅 자료 선택 -->
+      <section class="screen" id="s29" data-name="미팅 자료">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">미팅 자료</div><div style="font-size:10px;color:#2F6BF6;font-weight:800">어떤 자료를 볼까요?</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="font-size:12px;color:#5c6580;font-weight:600;line-height:1.6;margin-bottom:14px">단지 미팅·상담 전에 확인할 자료예요. 필요한 자료를 선택하세요.</div>
+          <div id="meet-first" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:16px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">🗣️</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">첫 미팅 질문리스트</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">단지 관계자와 첫 미팅 때 확인할 질문</div></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+          <div id="meet-internal" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:16px;display:flex;align-items:center;gap:13px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#f3eeff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">✅</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">내부 상담 체크리스트</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">상담 진행 시 빠짐없이 챙길 항목</div></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+        </div>
+        <div class="nav"><div class="on"><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <!-- s30: 미팅 문서 뷰어 -->
+      <section class="screen" id="s30" data-name="미팅 문서">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt" id="meetdoc-title" style="font-size:14px">미팅 문서</span></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div id="meetdoc-body"></div>
+        </div>
+        <div class="nav"><div class="on"><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <!-- s31: 소장님 작성지 (링크 전송) -->
+      <section class="screen" id="s31" data-name="소장님 작성지">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">관리소장 점검표</div><div style="font-size:10px;color:#2F6BF6;font-weight:800" id="mgr-apt">단지</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="background:#eafaf2;border:1px solid #cdeede;border-radius:12px;padding:13px 14px;font-size:12px;color:#1f6b47;font-weight:600;line-height:1.7;margin-bottom:16px">
+            📝 <b>작성 링크를 소장님께 카톡으로 보내면</b>, 소장님이 링크를 열어 <b>칸만 채워 제출</b>해요. 제출하면 <b>바로 아래 ‘받은 점검표’</b>와 관리자 대시보드에 저장돼요. 카톡으로 다시 받을 필요 없어요.
+          </div>
+
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:16px 15px">
+            <div style="font-size:12.5px;font-weight:800;color:#2a3350;margin-bottom:9px">📨 소장님께 보낼 작성 링크</div>
+            <div style="display:flex;align-items:center;gap:8px;background:#f7f9fc;border:1px solid #e6eaf2;border-radius:10px;padding:11px 12px;margin-bottom:13px">
+              <span style="font-size:15px">🔗</span>
+              <div id="mgr-link" style="flex:1;min-width:0;font-size:11.5px;color:#5c6580;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">링크 준비 중…</div>
+            </div>
+            <button id="mgr-share" style="width:100%;background:#FEE500;color:#191600;border:none;border-radius:12px;padding:15px;font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit">💬 카톡으로 링크 보내기</button>
+            <div id="mgr-msg" style="min-height:18px;text-align:center;font-size:11.5px;font-weight:800;margin:9px 0 4px"></div>
+            <button id="mgr-copy" style="width:100%;background:#fff;border:1.5px solid #d7deea;color:#3a445e;border-radius:12px;padding:12px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit">📋 안 되면 · 링크 복사하기</button>
+          </div>
+
+          <button id="mgr-preview" style="width:100%;margin-top:12px;background:transparent;border:none;color:#2F6BF6;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;text-decoration:underline">👀 소장님이 볼 작성 화면 미리보기</button>
+          <div style="text-align:center;font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:6px">💡 ‘보내기’를 누르면 공유 목록이 떠요. 안 되면 ‘링크 복사하기’로 복사해 붙여넣기 하세요.</div>
+
+          <div style="border-top:1px solid #e6eaf2;margin:22px 0 0;padding-top:18px">
+            <div style="font-size:13.5px;font-weight:800;color:#1c2440;margin:0 2px 5px">📥 받은 점검표</div>
+            <div style="font-size:11px;color:#8b95ad;font-weight:600;line-height:1.6;margin:0 2px 12px">소장님이 링크에서 제출한 내용이에요. 단지명을 누르면 펼쳐집니다.</div>
+            <div id="mgr-received"></div>
+          </div>
+        </div>
+        <div class="nav"><div class="on"><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <!-- s33: 알림 (아파트스퀘어 소개) -->
+      <section class="screen" id="s33" data-name="알림 · 아파트스퀘어 소개">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;background:#fff"><img src="assets/e535b9b4-1af5-4a0e-ad66-dcd9f469ba4a.png" alt="아파트스퀘어" style="height:24px;display:block"><span style="font-size:17px">📖</span></div>
+        <div id="alim-tabs" style="display:flex;background:#fff;border-bottom:1px solid #eef1f7;position:sticky;top:0;z-index:5">
+          <div class="alim-tab" data-atab="brand" style="flex:1;text-align:center;padding:12px 3px;font-size:12px;font-weight:800;cursor:pointer;color:#2F6BF6;border-bottom:2.5px solid #2F6BF6">철학</div>
+          <div class="alim-tab" data-atab="philosophy" style="flex:1;text-align:center;padding:12px 3px;font-size:12px;font-weight:700;cursor:pointer;color:#98a1b5;border-bottom:2.5px solid transparent">소개</div>
+          <div class="alim-tab" data-atab="features" style="flex:1;text-align:center;padding:12px 3px;font-size:12px;font-weight:700;cursor:pointer;color:#98a1b5;border-bottom:2.5px solid transparent">서비스</div>
+          <div class="alim-tab" data-atab="process" style="flex:1;text-align:center;padding:12px 3px;font-size:12px;font-weight:700;cursor:pointer;color:#98a1b5;border-bottom:2.5px solid transparent">진행과정</div>
+          <div class="alim-tab" data-atab="content" style="flex:1;text-align:center;padding:12px 3px;font-size:12px;font-weight:700;cursor:pointer;color:#98a1b5;border-bottom:2.5px solid transparent">콘텐츠</div>
+        </div>
+        <div class="bd" style="background:#F4F6FA;padding:0"><div id="alim-body"></div></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim" class="on"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <!-- s34: 채팅 (입주민↔감리사 / 손님↔관리자) -->
+      <section class="screen" id="s34" data-name="채팅">
+        <div class="ab" style="align-items:center"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div style="display:flex;align-items:center;gap:9px;flex:1;min-width:0"><div id="chat-av" style="width:34px;height:34px;border-radius:50%;background:linear-gradient(150deg,#7FA1E0,#4a6bb0);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff">감</div><div style="min-width:0"><div id="chat-title" class="abt" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">채팅</div><div id="chat-sub" style="font-size:11.5px;color:#8b95ad;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">연결 중…</div></div></div></div>
+        <div id="chat-body" class="bd" style="background:#eef1f6;padding:14px 12px;display:flex;flex-direction:column;gap:9px"></div>
+        <div style="flex-shrink:0;display:flex;align-items:flex-end;gap:8px;padding:9px 11px;background:#fff;border-top:1px solid #eaedf4"><textarea id="chat-input" rows="1" placeholder="메시지를 입력하세요" style="flex:1;resize:none;max-height:88px;border:1px solid #e1e7f0;border-radius:18px;padding:10px 14px;font-size:13.5px;font-family:inherit;outline:none;line-height:1.4;background:#f7f9fc"></textarea><button id="chat-send" style="flex-shrink:0;width:42px;height:42px;border-radius:50%;background:#2F6BF6;color:#fff;border:none;font-size:17px;cursor:pointer">➤</button></div>
+      </section>
+
+      <!-- s35: 계약서 (감리사) -->
+      <section class="screen" id="s35" data-name="계약서">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">계약서</div><div style="font-size:10px;color:#2F6BF6;font-weight:800" id="ct-apt">단지</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <label style="display:flex;align-items:center;justify-content:center;gap:7px;border:1.5px dashed #b9a6e8;background:#f7f3ff;border-radius:12px;padding:14px;cursor:pointer;font-size:13.5px;font-weight:800;color:#7c5cc4;margin-bottom:14px">＋ 계약서 올리기 (PDF·사진)<input id="ct-file" type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadContract(this.files)"></label>
+          <div id="ct-msg" style="font-size:11.5px;font-weight:700;text-align:center;min-height:16px;margin-bottom:8px;color:#8b95ad"></div>
+          <div id="ct-list" style="display:flex;flex-direction:column;gap:9px"></div>
+        </div>
+        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <!-- s36: 감리사 채팅 목록 (담당 단지별) -->
+      <section class="screen" id="s36" data-name="채팅">
+        <div class="ab"><div><div class="abt">채팅</div><div style="font-size:11.5px;color:#8b95ad;font-weight:700">담당 단지 입주민과 대화</div></div></div>
+        <div id="audchat-list" class="bd" style="background:#F4F6FA;padding:12px;display:flex;flex-direction:column;gap:9px"></div>
+        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat" class="on"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <!-- s38: 공지사항 전체 목록 -->
+      <section class="screen" id="s38" data-name="공지사항">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">공지사항</span></div>
+        <div id="notice-list" class="bd" style="background:#F4F6FA;padding:14px;display:flex;flex-direction:column;gap:9px"></div>
+        <div class="nav"><div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <!-- s39: 만족도 조사 (입주민·관리소장) -->
+      <section class="screen" id="s39" data-name="만족도 조사">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">만족도 조사</div><div id="survey-apt" style="font-size:10px;color:#F5A623;font-weight:800">단지</div></div></div>
+        <div id="survey-body" class="bd" style="background:#F4F6FA;padding:16px"></div>
+      </section>
+
+      <!-- s40: 만족도 결과 (감리사·관리자) -->
+      <section class="screen" id="s40" data-name="만족도 결과">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">만족도 결과</div><div id="svr-apt" style="font-size:10px;color:#2F6BF6;font-weight:800">단지</div></div></div>
+        <div id="svr-body" class="bd" style="background:#F4F6FA;padding:16px"></div>
+        <div class="nav"><div><div class="ic">🏠</div>홈</div><div><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div></div>
+      </section>
+
+      <section class="screen" id="s41" data-name="내 정보 · 비밀번호 변경">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">내 정보</div><div style="font-size:10px;color:#2F6BF6;font-weight:800">회원정보 · 비밀번호 변경</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px 15px 17px;margin-bottom:14px">
+            <div style="font-size:13px;font-weight:800;color:#1c2440;margin-bottom:12px">회원정보 변경</div>
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">아이디</div>
+            <input id="acc-id" type="text" readonly style="width:100%;box-sizing:border-box;background:#f0f2f6;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#8b95ad;font-weight:700;margin-bottom:12px;font-family:inherit;outline:none">
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이름 · 직급</div>
+            <input id="acc-name" type="text" placeholder="예: 김현수 / 관리소장" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none">
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">연락처</div>
+            <input id="acc-phone" type="text" inputmode="tel" placeholder="010-0000-0000" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none">
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">이메일 <span style="color:#2F6BF6">(비밀번호 찾기에 사용)</span></div>
+            <input id="acc-email" type="email" inputmode="email" autocapitalize="none" autocorrect="off" placeholder="example@naver.com" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:14px;font-family:inherit;outline:none">
+            <div onclick="saveAccountInfo()" style="cursor:pointer;text-align:center;background:#1F2C5C;color:#fff;height:46px;line-height:46px;border-radius:12px;font-size:13px;font-weight:800">회원정보 저장</div>
+          </div>
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px 15px 17px">
+            <div style="font-size:13px;font-weight:800;color:#1c2440;margin-bottom:12px">비밀번호 변경</div>
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">새 비밀번호 (6자 이상)</div>
+            <input id="acc-pw1" type="password" autocomplete="new-password" placeholder="새 비밀번호" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none">
+            <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">새 비밀번호 확인</div>
+            <input id="acc-pw2" type="password" autocomplete="new-password" placeholder="한 번 더 입력" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:14px;font-family:inherit;outline:none">
+            <div onclick="changePassword()" style="cursor:pointer;text-align:center;background:#2F6BF6;color:#fff;height:46px;line-height:46px;border-radius:12px;font-size:13px;font-weight:800">비밀번호 변경</div>
+          </div>
+          <div id="acc-msg" style="font-size:11.5px;font-weight:800;min-height:16px;margin:12px 2px 0;text-align:center;color:#1f8a5b"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="s43" data-name="이용약관">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">이용약관</span></div>
+        <div class="bd" style="background:#fff;padding:18px 17px 40px;overflow-y:auto">
+          <div style="font-size:11px;color:#8b95ad;font-weight:700;margin-bottom:16px">아파트스퀘어 서비스 이용약관</div>
+          <div class="tos-h">제1조 (목적)</div>
+          <div class="tos-p">본 약관은 아파트스퀘어(이하 “회사”)가 제공하는 아파트·공동주택 보수공사 감리 정보 서비스(이하 “서비스”)의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.</div>
+          <div class="tos-h">제2조 (정의)</div>
+          <div class="tos-p">① “서비스”란 회사가 앱·웹을 통해 제공하는 감리 진행 현황, 감리일지, 현장 사진, 공사 일정, 공지, 상담(채팅), 만족도 조사 등 정보 서비스를 말합니다.<br>② “이용자”란 입주민·관리소장, 감리사 등 본 약관에 따라 서비스를 이용하는 자를 말합니다.<br>③ “회원”이란 회원가입 후 관리자의 승인을 받아 서비스를 이용하는 자를 말합니다.</div>
+          <div class="tos-h">제3조 (약관의 효력 및 변경)</div>
+          <div class="tos-p">① 본 약관은 서비스 화면에 게시함으로써 효력이 발생합니다.<br>② 회사는 관련 법령을 위반하지 않는 범위에서 약관을 변경할 수 있으며, 변경 시 적용일자와 사유를 명시하여 사전 공지합니다.</div>
+          <div class="tos-h">제4조 (서비스의 제공)</div>
+          <div class="tos-p">① 회사는 감리 진행 현황·현장 사진 열람, 감리일지(PDF) 열람, 공사 일정 안내, 공지사항, 1:1 상담(채팅), 만족도 조사 등의 서비스를 제공합니다.<br>② 서비스는 연중무휴 제공을 원칙으로 하되, 점검·장애·천재지변 등의 사유가 있는 경우 일시 중단될 수 있습니다.</div>
+          <div class="tos-h">제5조 (회원가입 및 승인)</div>
+          <div class="tos-p">① 이용자는 아이디·비밀번호·이름·연락처 등을 입력하여 가입을 신청합니다.<br>② 회사(관리자)는 신청 내용을 확인한 후 승인하며, 승인 전에는 서비스 이용이 제한될 수 있습니다.<br>③ 타인의 정보를 도용하거나 허위로 기재한 경우 이용이 제한될 수 있습니다.</div>
+          <div class="tos-h">제6조 (회원의 의무)</div>
+          <div class="tos-p">① 회원은 본인의 계정 정보를 안전하게 관리하여야 하며, 이를 제3자가 이용하게 하여서는 안 됩니다.<br>② 회원은 서비스 이용 시 관련 법령과 본 약관을 준수하여야 합니다.</div>
+          <div class="tos-h">제7조 (게시물 및 자료)</div>
+          <div class="tos-p">① 서비스에 게시되는 현장 사진·감리일지 등은 해당 단지의 감리 진행 정보 제공을 목적으로 합니다.<br>② 회원은 타인의 권리를 침해하거나 부적절한 내용을 게시해서는 안 되며, 회사는 그러한 게시물을 사전 통지 없이 삭제할 수 있습니다.</div>
+          <div class="tos-h">제8조 (서비스 이용 제한)</div>
+          <div class="tos-p">회사는 회원이 본 약관을 위반하거나 서비스의 정상적 운영을 방해한 경우 이용을 제한하거나 계정을 정지·해지할 수 있습니다.</div>
+          <div class="tos-h">제9조 (면책)</div>
+          <div class="tos-p">① 회사는 천재지변, 통신 장애 등 불가항력으로 인한 서비스 중단에 대해 책임을 지지 않습니다.<br>② 서비스에 제공되는 감리 정보는 감리사의 현장 판단에 근거한 것으로, 실제 공사·계약의 최종 결정은 해당 단지 및 감리·시공 계약에 따릅니다.</div>
+          <div class="tos-h">제10조 (개인정보 보호)</div>
+          <div class="tos-p">회사는 이용자의 개인정보를 관련 법령 및 별도의 「개인정보처리방침」에 따라 보호합니다.</div>
+          <div class="tos-h">제11조 (준거법 및 관할)</div>
+          <div class="tos-p">본 약관은 대한민국 법령에 따라 해석되며, 서비스 이용과 관련한 분쟁은 회사 소재지를 관할하는 법원을 관할 법원으로 합니다.</div>
+          <div class="tos-box">
+            <div style="font-weight:800;color:#1c2440;margin-bottom:6px">사업자 정보</div>
+            상호: 스퀘어건축사사무소 (서비스명: 아파트스퀘어)<br>대표자: 조현식<br>주소: 경기도 화성시 정남면 정남동로 35 103호<br>이메일: square1600@naver.com &nbsp;|&nbsp; 전화: 1600-6069
+          </div>
+          <div class="tos-p" style="margin-top:14px;color:#8b95ad">부칙 — 본 약관은 2026년 8월 7일부터 시행합니다.</div>
+        </div>
+      </section>
+
+      <section class="screen" id="s44" data-name="개인정보처리방침">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">개인정보처리방침</span></div>
+        <div class="bd" style="background:#fff;padding:18px 17px 40px;overflow-y:auto">
+          <div class="tos-p" style="margin-top:0">아파트스퀘어(이하 “회사”)는 이용자의 개인정보를 중요하게 생각하며 「개인정보 보호법」 등 관련 법령을 준수합니다. 본 방침은 회사가 어떤 개인정보를 어떤 목적으로 수집·이용하는지 안내합니다.</div>
+          <div class="tos-h">1. 수집하는 개인정보 항목</div>
+          <div class="tos-p"><b>[회원가입 시 · 필수]</b> 아이디, 비밀번호, 이름·직급, 휴대전화번호<br><b>[서비스 이용 중 생성·수집]</b> 배정 단지 정보, 상담(채팅) 내용, 감리일지·현장 관련 기록, 만족도 조사 응답, 접속·이용 기록(로그)</div>
+          <div class="tos-h">2. 개인정보의 수집·이용 목적</div>
+          <div class="tos-p">· 회원 식별 및 관리, 가입 승인<br>· 감리 서비스 제공(단지 배정, 감리일지·현장현황·일정 제공)<br>· 공지·상담(채팅) 응대, 만족도 조사<br>· 서비스 개선 및 오류 대응</div>
+          <div class="tos-h">3. 보유 및 이용 기간</div>
+          <div class="tos-p">원칙적으로 회원 탈퇴 시 또는 수집·이용 목적 달성 시 지체 없이 파기합니다. 다만 관련 법령에서 일정 기간 보관을 정한 경우 그 기간 동안 보관합니다.</div>
+          <div class="tos-h">4. 개인정보의 제3자 제공</div>
+          <div class="tos-p">회사는 원칙적으로 이용자의 개인정보를 외부에 제공하지 않습니다. 다만 법령에 근거가 있거나 이용자의 동의가 있는 경우에 한합니다.</div>
+          <div class="tos-h">5. 처리 위탁 및 국외 이전</div>
+          <div class="tos-p">회사는 서비스 운영을 위해 아래 업체에 개인정보 처리를 위탁하며, 일부 데이터는 국외 서버에 저장될 수 있습니다.<br>· <b>Supabase</b> — 데이터베이스·인증·저장 인프라<br>· <b>Cloudflare</b> — 앱 호스팅·배포<br>· <b>카카오</b> — 1:1 상담 채널 운영<br>이용자가 국외 이전을 원하지 않는 경우 회원 탈퇴를 통해 거부할 수 있습니다.</div>
+          <div class="tos-h">6. 자동 로그인(로컬 저장소) 안내</div>
+          <div class="tos-p">이용자 편의를 위한 ‘자동 로그인’ 사용 시, 브라우저 저장소(localStorage/sessionStorage)에 로그인 유지 정보가 저장됩니다. 로그아웃하거나 자동 로그인을 해제하면 삭제됩니다.</div>
+          <div class="tos-h">7. 이용자의 권리와 행사 방법</div>
+          <div class="tos-p">이용자는 언제든지 자신의 개인정보에 대해 열람·정정·삭제·처리정지를 요구할 수 있습니다. ‘내 정보’ 화면에서 직접 정정하거나, 회원 탈퇴로 동의를 철회할 수 있습니다.</div>
+          <div class="tos-h">8. 개인정보의 파기</div>
+          <div class="tos-p">보유기간 경과 또는 목적 달성 시 지체 없이 파기하며, 전자적 파일은 복구 불가능한 방법으로 삭제합니다.</div>
+          <div class="tos-h">9. 안전성 확보 조치</div>
+          <div class="tos-p">접근 권한 관리(행 수준 보안), 비밀번호 암호화 저장, 전송 구간 암호화(HTTPS) 등을 적용합니다.</div>
+          <div class="tos-h">10. 개인정보 보호책임자</div>
+          <div class="tos-box">성명: 조현식 (스퀘어건축사사무소 대표)<br>이메일: square1600@naver.com &nbsp;|&nbsp; 전화: 1600-6069</div>
+          <div class="tos-p" style="margin-top:14px;color:#8b95ad">본 방침은 2026년 8월 7일부터 시행합니다.</div>
+        </div>
+      </section>
+
+      <section class="screen" id="s45" data-name="아이디 · 비밀번호 찾기">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><span class="abt">아이디 · 비밀번호 찾기</span></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px;overflow-y:auto">
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px 15px 17px;margin-bottom:14px">
+            <div style="font-size:13px;font-weight:800;color:#1c2440;margin-bottom:4px">아이디 찾기</div>
+            <div style="font-size:11px;color:#8b95ad;font-weight:600;margin-bottom:11px">가입할 때 등록한 연락처로 아이디를 찾아드려요.</div>
+            <input id="find-phone" inputmode="tel" placeholder="연락처 (010-0000-0000)" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:11px;font-family:inherit;outline:none">
+            <div onclick="findMyId()" style="cursor:pointer;text-align:center;background:#1F2C5C;color:#fff;height:44px;line-height:44px;border-radius:12px;font-size:13px;font-weight:800">아이디 찾기</div>
+            <div id="find-id-result" style="font-size:12px;font-weight:800;margin-top:11px;text-align:center;color:#1c2440"></div>
+          </div>
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px 15px 17px">
+            <div style="font-size:13px;font-weight:800;color:#1c2440;margin-bottom:4px">비밀번호 재설정</div>
+            <div style="font-size:11px;color:#8b95ad;font-weight:600;margin-bottom:11px">가입한 아이디 또는 이메일을 입력하면, 등록된 이메일로 <b>재설정 링크</b>를 보내드려요.</div>
+            <input id="reset-id" type="text" autocapitalize="none" autocorrect="off" placeholder="아이디 또는 이메일" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:11px;font-family:inherit;outline:none">
+            <div onclick="requestPasswordReset()" style="cursor:pointer;text-align:center;background:#2F6BF6;color:#fff;height:44px;line-height:44px;border-radius:12px;font-size:13px;font-weight:800">재설정 메일 보내기</div>
+            <div id="reset-msg" style="font-size:11.5px;font-weight:700;margin-top:11px;text-align:center;color:#1f8a5b;line-height:1.6"></div>
+          </div>
+          <div style="font-size:10.5px;color:#9aa3b6;font-weight:600;text-align:center;margin-top:14px;line-height:1.7">이메일이 등록되지 않은 예전 계정은<br><span onclick="window.open(INQUIRY_URL,'_blank','noopener')" style="color:#2F6BF6;text-decoration:underline;cursor:pointer">카카오 상담</span>으로 도와드려요.</div>
+        </div>
+      </section>
+
+      <section class="screen" id="s46" data-name="새 비밀번호 설정">
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="text-align:center;margin:18px 0 8px"><img src="assets/a081eb63-6da0-4864-98a1-1a3194cbb947.png" alt="" style="height:44px;filter:brightness(0.15)"></div>
+          <div style="font-size:15px;font-weight:800;color:#1c2440;text-align:center;margin-bottom:4px">새 비밀번호 설정</div>
+          <div style="font-size:11.5px;color:#8b95ad;font-weight:600;text-align:center;margin-bottom:16px">새로 사용할 비밀번호를 입력해 주세요.</div>
+          <div style="background:#fff;border:1px solid #eef1f7;border-radius:14px;padding:15px 15px 17px">
+            <input id="recover-pw1" type="password" autocomplete="new-password" placeholder="새 비밀번호 (6자 이상)" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:11px;font-family:inherit;outline:none">
+            <input id="recover-pw2" type="password" autocomplete="new-password" placeholder="새 비밀번호 확인" style="width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:14px;font-family:inherit;outline:none">
+            <div onclick="submitRecoverPassword()" style="cursor:pointer;text-align:center;background:#2F6BF6;color:#fff;height:46px;line-height:46px;border-radius:12px;font-size:13px;font-weight:800">비밀번호 변경 완료</div>
+            <div id="recover-msg" style="font-size:11.5px;font-weight:800;min-height:15px;margin-top:11px;text-align:center;color:#1f8a5b"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+<script src="js/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/stages.js"></script>
+  <script>
+  /* Supabase CDN이 늦게 오거나 실패하면 앱 스크립트가 createClient에서 바로 죽어
+     스플래시가 화면을 덮고 클릭이 막히던 문제 예방 → window.supabase가 준비된 뒤 앱 로드.
+     (되돌아오며 전체 새로고침될 때 특히 중요) */
+  (function(){
+    var SBAPP = "js/supabase-app.js";   /* 배포 캐시버스팅(?v=) 치환 대상 — 이 문자열 형태 유지 */
+    var started = false;
+    function start(){ if(started) return; started = true; var s=document.createElement('script'); s.src=SBAPP; document.body.appendChild(s); }
+    var waited = 0;
+    (function wait(){
+      if(window.supabase && window.supabase.createClient){ start(); return; }
+      waited += 100;
+      if(waited >= 4000){
+        /* 끝까지 안 오면 CDN을 한 번 더 시도하고, 그래도 없으면 일단 앱을 로드한다
+           (스플래시 안전장치가 화면은 풀어준다) */
+        var alt=document.createElement('script');
+        alt.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        alt.onload=start; alt.onerror=start;
+        document.body.appendChild(alt);
+        setTimeout(start, 2500);
+        return;
+      }
+      setTimeout(wait, 100);
+    })();
+  })();
+  </script>
+</body>
+</html>

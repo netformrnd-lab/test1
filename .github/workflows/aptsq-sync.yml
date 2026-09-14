@@ -1,0 +1,41 @@
+name: 영업일정 ↔ 아파트스퀘어 동기화
+
+# 컴퓨터 없이 GitHub이 자동으로 돌려줍니다.
+#   · 5분마다 자동 실행 (GitHub 사정에 따라 몇 분 더 늦어질 수 있음)
+#   · 수동으로 "Run workflow" 버튼으로도 바로 돌릴 수 있음
+#
+# 준비물 (Repo → Settings → Secrets and variables → Actions → New repository secret):
+#   SUPABASE_SERVICE_ROLE_KEY   = Supabase → Project Settings → API → service_role 키
+#   FIREBASE_SERVICE_ACCOUNT    = test-168a4 서비스계정 JSON "내용 전체" 붙여넣기
+#                                 (Firebase Console → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성)
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'     # 5분마다
+  workflow_dispatch:           # 수동 실행 버튼
+
+# 이전 실행이 겹치지 않게 (동시에 두 번 돌아 충돌나는 것 방지)
+concurrency:
+  group: aptsq-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 의존성 설치
+        working-directory: backend/aptsq-sync
+        run: npm install --no-audit --no-fund
+
+      - name: 동기화 1회 실행
+        working-directory: backend/aptsq-sync
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node sync.js --once

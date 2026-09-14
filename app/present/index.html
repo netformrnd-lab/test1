@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>아파트스퀘어 · 발표용</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+    background:radial-gradient(1200px 800px at 50% -10%,#eaf0fb,#dfe5f1 60%,#d7dded);color:#1c2440;overflow:hidden}
+  .wrap{height:100%;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:12px;padding:16px 24px}
+  header .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#243768,#1F2C5C);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  header .logo svg{width:20px;height:20px}
+  header .t{font-size:17px;font-weight:800;letter-spacing:-.02em}
+  header .s{font-size:12px;font-weight:700;color:#5c6580}
+  header .hint{margin-left:auto;font-size:12px;font-weight:700;color:#6c7690;background:#fff;border:1px solid #e3e9f4;padding:7px 13px;border-radius:99px}
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+  #app{width:360px;height:720px;border:none;transform-origin:center center;
+    border-radius:44px;box-shadow:0 40px 80px -30px rgba(20,30,60,.55);background:#eef1f7}
+  .cats{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:16px 20px 22px;max-width:1000px;margin:0 auto}
+  .cat{font-size:13px;font-weight:800;color:#31405f;background:#fff;border:1px solid #e0e7f3;padding:10px 16px;border-radius:99px;cursor:pointer;transition:all .12s}
+  .cat:hover{border-color:#2F6BF6;color:#2F6BF6}
+  .cat.on{background:#2F6BF6;border-color:#2F6BF6;color:#fff}
+  @media (max-width:700px){ header .s{display:none} #app{border-radius:38px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><svg viewBox="0 0 100 100" fill="none"><path d="M38 20 L18 50 L38 80" stroke="#fff" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M62 20 L82 50 L62 80" stroke="#fff" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div><div class="t">아파트스퀘어</div><div class="s">서비스 소개 · 발표용 화면</div></div>
+    <div class="hint">아래 버튼으로 화면 이동 · 리플렛·일정은 마우스로 좌우로 끌기</div>
+  </header>
+  <div id="stage"><iframe id="app" src="../index.html" title="아파트스퀘어"></iframe></div>
+  <nav class="cats" id="cats"></nav>
+</div>
+<script>
+  var IW=360, IH=720;
+  function fit(){
+    var stage=document.getElementById('stage'), f=document.getElementById('app');
+    var s=Math.min((stage.clientWidth-28)/IW, (stage.clientHeight-28)/IH);
+    s=Math.max(0.4, Math.min(s, 1.9));
+    f.style.transform='scale('+s+')';
+  }
+  window.addEventListener('resize', fit);
+
+  var CATS=[
+    {t:'홈(둘러보기)', s:'s04', special:'home'},
+    {t:'30초 자가진단', s:'s05'},
+    {t:'무료 진단', s:'s17'},
+    {t:'감리 사례', s:'s23', l:'loadCases'},
+    {t:'감리는 왜 필요할까', s:'s19'},
+    {t:'비용·절차', s:'s20'},
+    {t:'하자 대처법', s:'s21'},
+    {t:'회사 소개', s:'s22'},
+    {t:'로그인 · 회원', s:'s01'}
+  ];
+  function appWin(){ return document.getElementById('app').contentWindow; }
+  function go(c, btn){
+    var w=appWin(); if(!w||!w.showScreen) return;
+    try{
+      w.showScreen(c.s);
+      if(c.special==='home' && w.loadResidentNotices) w.loadResidentNotices('s04-notices');
+      else if(c.l && w[c.l]) w[c.l]();
+    }catch(e){}
+    var all=document.querySelectorAll('.cat'); for(var i=0;i<all.length;i++) all[i].classList.remove('on');
+    if(btn) btn.classList.add('on');
+  }
+  var box=document.getElementById('cats');
+  CATS.forEach(function(c){
+    var b=document.createElement('div'); b.className='cat'; b.textContent=c.t; b.dataset.s=c.s;
+    b.onclick=function(){ go(c,b); };
+    box.appendChild(b);
+  });
+  // 첫 로드: 앱이 뜨면 크기 맞추고 홈(둘러보기)으로
+  var f=document.getElementById('app');
+  f.addEventListener('load', function(){ fit(); setTimeout(fit, 400); });
+  fit();
+</script>
+</body>
+</html>

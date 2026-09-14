@@ -708,6 +708,9 @@ function activeSites(){ return APTS.filter(a=>a.status!=='done'); }
 function auditorNames(){ return [...new Set(MEMBERS.filter(m=>m.role==='auditor').map(m=>m.name||loginId(m)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko')); }
 let calPerson='전체';
 function setCalPerson(p){ calPerson=p; renderCalendar(); }
+let calCat='전체';   // 범례 클릭 → 그 종류만 보기 ('전체'=모두)
+function setCalCat(c){ calCat=(calCat===c?'전체':c); renderCalendar(); }
+window.setCalCat=setCalCat;
 async function csSave(a,patch){
   const slug=csSlug(a.name); const cur=CSITES[slug]||{}; const data={...cur,_name:a.name,...patch,own:true,updatedAt:new Date().toISOString()};
   CSITES[slug]=data;
@@ -755,16 +758,18 @@ function renderCalendar(){
   const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), todayStr=isoDate(now);
   const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
   const byDay={};
-  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({t,visit:isV,color:isP?(meta[2]||'#888'):(isV?null:meta[2]),cat:isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:''))}); }});
-  computeVisits(y,m).forEach(v=>{ if(calPerson!=='전체'&&v.who!==calPerson)return; (byDay[v.dd]=byDay[v.dd]||[]).push({t:'방문 · '+v.name,who:v.who,visit:true,sub:v.sub,plan:true,cat:'방문'}); });
-  // 색상 범례
-  let h='<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 12px;padding:8px 4px 12px;font-size:11px;color:var(--mut)">'+
-    '<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:var(--blue,#2f6bf6);display:inline-block"></i>방문</span>'+
-    CAL_CATS.map(c=>`<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:${c[2]};display:inline-block"></i>${c[1]}</span>`).join('')+'</div>';
+  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({id:s.id,t,visit:isV,color:isP?(meta[2]||'#888'):(isV?null:meta[2]),cat:isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:''))}); }});
+  computeVisits(y,m).forEach(v=>{ if(calPerson!=='전체'&&v.who!==calPerson)return; if(calCat!=='전체'&&calCat!=='방문')return; (byDay[v.dd]=byDay[v.dd]||[]).push({t:'방문 · '+v.name,who:v.who,visit:true,sub:v.sub,plan:true,cat:'방문'}); });
+  // 색상 범례 = 클릭하면 그 종류만 보기 (다시 누르면 전체)
+  const legChip=(key,label,color)=>`<span onclick="setCalCat('${key}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:7px;${calCat===key?'background:#111a33;color:#fff':''}"><i style="width:9px;height:9px;border-radius:3px;background:${color};display:inline-block"></i>${label}</span>`;
+  let h='<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 7px;padding:8px 4px 12px;font-size:11px;color:var(--mut);align-items:center">'+
+    `<span onclick="setCalCat('전체')" style="cursor:pointer;padding:2px 9px;border-radius:7px;font-weight:800;${calCat==='전체'?'background:#111a33;color:#fff':'background:#eef1f6'}">전체</span>`+
+    legChip('방문','방문','var(--blue,#2f6bf6)')+
+    CAL_CATS.map(c=>legChip(c[0],c[1],c[2])).join('')+'</div>';
   ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    h+=`<div class="cell" style="${date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':''}"><div class="dn">${d}</div>${ev.slice(0,4).map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev" style="${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}${ev.length>4?`<div style="font-size:9px;color:var(--mut)">+${ev.length-4} 더</div>`:''}</div>`;
+    h+=`<div class="cell" style="${date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':''}"><div class="dn">${d}</div>${ev.slice(0,4).map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}${ev.length>4?`<div style="font-size:9px;color:var(--mut)">+${ev.length-4} 더</div>`:''}</div>`;
   }
   $('calGrid').innerHTML=h;
   renderAssignTable();
@@ -1784,7 +1789,30 @@ async function deleteSchedule(id){
   if(!confirm('이 일정을 삭제할까요?'))return;
   const {error}=await sb.from('schedules').delete().eq('id',id);
   if(error)return alert('삭제 실패: '+error.message);
+  try{ closeModal(); }catch(e){}
   await loadAll();
+}
+// 캘린더 일정 클릭 → 수정·삭제
+function openScheduleEdit(id){
+  const s=(SCHEDULES||[]).find(x=>String(x.id)===String(id)); if(!s){ alert('일정을 찾을 수 없어요'); return; }
+  const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  const isPour=s.source==='pour';
+  openModal(mHead('✏️ 일정 수정')+`
+    ${isPour?'<div class="mmsg" style="color:var(--mut)">📣 POUR 영업시스템에서 온 일정이에요. 여기서 지워도 다음 동기화 때 다시 올 수 있어요(원본은 POUR에서 지워야 함).</div>':''}
+    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date" value="${s.date||''}"></div><div class="fld"><label>분류 *</label><select id="m-cat">${CAL_CATS.map(c=>`<option value="${c[0]}" ${s.category===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select></div></div>
+    <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 없으면 비워두기</span></label><select id="m-apt"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}" ${String(s.apartment_id)===String(a.id)?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label>일정 내용 *</label><input id="m-title" value="${esc(s.title||'')}"></div>
+    <div class="fld"><label>상세 (선택)</label><input id="m-desc" value="${esc(s.description||'')}"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b" style="background:#fdecec;color:#d9453c" onclick="deleteSchedule('${s.id}')">🗑 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitScheduleEdit('${s.id}')">저장</button></div>`);
+}
+async function submitScheduleEdit(id){
+  const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;
+  if(!date||!title){$('m-msg').textContent='날짜·일정 내용을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const patch={date,title,description:$('m-desc').value.trim()||null,category,apartment_id:aptId||null};
+  const {error}=await sb.from('schedules').update(patch).eq('id',id);
+  if(error){$('m-msg').textContent='저장 실패: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
 }
 
 /* ===== 채팅 답장 ===== */

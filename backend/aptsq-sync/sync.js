@@ -142,24 +142,56 @@ function watchSupabase() {
     .subscribe(status => log('▶ Supabase 실시간 구독:', status));
 }
 
-// ── 초기 풀 싱크(양쪽을 한 번씩 훑어 맞춘다) ──────────────────────────────────
-async function initialSync() {
-  // POUR → Supabase
+// ── 풀 싱크(양쪽을 한 번씩 훑어 맞춘다: 생성·수정·삭제 모두) ──────────────────
+//   --once / 크론(GitHub Actions) 모드는 이 한 번으로 완전한 양방향 동기화가 됨.
+async function reconcileSync() {
+  // ── 방향 A : POUR(RTDB) → Supabase ──────────────────────────────────────
+  const livePourSyncIds = new Set();   // 지금 POUR에 살아있는 pour 일정
+  const aptsqIdsInPour = new Set();    // POUR에 남아있는 '아파트스퀘어발' 일정의 원본 id
   for (const node of M.SYNC_NODES) {
     const snap = await rtdb.ref(node).get();
     const val = snap.val() || {};
-    for (const [id, s] of Object.entries(val)) await importPourEntry(node, id, s);
+    for (const [id, s] of Object.entries(val)) {
+      if (s && s._origin === 'aptsq') {            // 우리가 내보낸 것 → 되돌려 읽지 않음
+        if (s._aptsqId) aptsqIdsInPour.add(String(s._aptsqId));
+        continue;
+      }
+      livePourSyncIds.add(`pour:${node}:${id}`);
+      await importPourEntry(node, id, s);
+    }
   }
-  // Supabase(aptsq) → POUR
+  // POUR에서 사라진 pour 일정 → Supabase 짝 삭제
+  const { data: pourRows } = await sb.from('schedules').select('id,sync_id').eq('source', 'pour');
+  for (const r of pourRows || []) {
+    if (r.sync_id && !livePourSyncIds.has(r.sync_id)) {
+      await sb.from('schedules').delete().eq('id', r.id);
+      log(`A🗑  POUR에서 사라짐 → Supabase ${r.id} 삭제`);
+    }
+  }
+
+  // ── 방향 B : Supabase(aptsq) → POUR(RTDB) ───────────────────────────────
   const { data: rows } = await sb.from('schedules').select('*').eq('source', 'aptsq');
-  for (const row of rows || []) await pushSupabaseRow(row);
-  log('✅ 초기 동기화 완료');
+  const liveAptsqIds = new Set();
+  for (const row of rows || []) {
+    if (M.CATEGORY_TO_NODE[row.category]) liveAptsqIds.add(String(row.id));
+    await pushSupabaseRow(row);
+  }
+  // 아파트스퀘어에서 사라진 일정 → POUR 짝 삭제
+  for (const aptsqId of aptsqIdsInPour) {
+    if (!liveAptsqIds.has(aptsqId)) {
+      for (const node of M.SYNC_NODES) {   // 어느 노드인지 몰라 전 노드에서 제거 시도
+        await rtdb.ref(`${node}/${M.safeId('asq_' + aptsqId)}`).remove();
+      }
+      log(`B🗑  아파트스퀘어에서 사라짐 → POUR asq_${aptsqId} 삭제`);
+    }
+  }
+  log('✅ 동기화 완료');
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
 (async () => {
   log('aptsq-sync 시작', ONCE ? '(--once)' : '(상주)');
-  await initialSync();
+  await reconcileSync();
   if (ONCE) { process.exit(0); }
   watchPour();
   watchSupabase();

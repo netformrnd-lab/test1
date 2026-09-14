@@ -1,0 +1,22 @@
+name: 진단 - POUR 일정 월별 집계
+
+# 수동 실행 전용. Supabase 에 POUR 일정이 몇 건, 어느 달에 있는지 로그로 확인.
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 의존성 설치
+        working-directory: backend/aptsq-sync
+        run: npm install --no-audit --no-fund
+      - name: 진단 실행
+        working-directory: backend/aptsq-sync
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node diag.js

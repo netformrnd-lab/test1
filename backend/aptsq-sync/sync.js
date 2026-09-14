@@ -65,14 +65,18 @@ async function rtdbDelete(path) {
 
 // ── 방향 A : POUR 한 건 → Supabase upsert ────────────────────────────────────
 async function importPourEntry(node, id, s) {
-  if (!s || typeof s !== 'object') return;
-  if (s._origin === 'aptsq') return;                 // 우리가 내보낸 것 → 되돌려 읽지 않음
+  if (!s || typeof s !== 'object') return false;
+  if (s._origin === 'aptsq') return false;           // 우리가 내보낸 것 → 되돌려 읽지 않음
   const row = M.pourToSupabase(node, id, s);
-  if (!row.date) return;                             // 날짜 없는 건 스킵
-  const { data: existing } = await sb
+  if (!row.date) return false;                        // 날짜 없는 건 스킵
+  const { data: existing, error: selErr } = await sb
     .from('schedules').select('id').eq('sync_id', row.sync_id).maybeSingle();
-  if (existing) await sb.from('schedules').update(row).eq('id', existing.id);
-  else await sb.from('schedules').insert(row);
+  if (selErr) { log(`  ⚠️ ${node}/${id} 조회실패: ${selErr.message}`); return false; }
+  const { error } = existing
+    ? await sb.from('schedules').update(row).eq('id', existing.id)
+    : await sb.from('schedules').insert(row);
+  if (error) { log(`  ⚠️ ${node}/${id} 저장실패: ${error.message}`); return false; }
+  return true;                                        // 실제로 저장에 성공한 것만 true
 }
 
 // ── 방향 B : Supabase(aptsq) 한 건 → POUR PUT ────────────────────────────────
@@ -91,14 +95,20 @@ async function reconcileSync() {
   const aptsqIdsInPour = new Set();
   for (const node of M.SYNC_NODES) {
     const val = (await rtdbGet(node)) || {};
-    let n = 0;
+    let n = 0, total = 0, noDate = 0; let sample = null;
     for (const [id, s] of Object.entries(val)) {
       if (s && s._origin === 'aptsq') { if (s._aptsqId) aptsqIdsInPour.add(String(s._aptsqId)); continue; }
+      total++;
       livePourSyncIds.add(`pour:${node}:${id}`);
-      await importPourEntry(node, id, s);
-      n++;
+      if (!(s && M.pickDate(s))) {                    // 날짜를 못 찾아 건너뛰는 건 따로 집계
+        noDate++;
+        if (!sample && s && typeof s === 'object') sample = Object.keys(s).slice(0, 12).join(', ');
+        continue;
+      }
+      if (await importPourEntry(node, id, s)) n++;    // 저장 성공한 것만 카운트
     }
-    if (n) log(`A⬅  POUR/${node} → Supabase ${n}건`);
+    // 종류별 요약: 전체 / 저장 / 날짜없어 건너뜀 (+ 건너뛴 첫 건의 필드명)
+    log(`A⬅  POUR/${node}: 전체 ${total} · 저장 ${n} · 날짜없음 ${noDate}` + (noDate && sample ? `  (건너뛴 필드예시: ${sample})` : ''));
   }
   // POUR 에서 사라진 pour 일정 → Supabase 짝 삭제
   const { data: pourRows } = await sb.from('schedules').select('id,sync_id').eq('source', 'pour');

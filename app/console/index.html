@@ -742,12 +742,13 @@ function renderCalendar(){
   const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), todayStr=isoDate(now);
   const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
   const byDay={};
-  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({t,visit:isV,color:isV?null:meta[2],cat:isV?'방문':(s.category?meta[1]:'')}); }});
+  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({t,visit:isV,color:isP?'#e4544b':(isV?null:meta[2]),cat:isP?'영업':(isV?'방문':(s.category?meta[1]:''))}); }});
   computeVisits(y,m).forEach(v=>{ if(calPerson!=='전체'&&v.who!==calPerson)return; (byDay[v.dd]=byDay[v.dd]||[]).push({t:'방문 · '+v.name,who:v.who,visit:true,sub:v.sub,plan:true,cat:'방문'}); });
   // 색상 범례
   let h='<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 12px;padding:8px 4px 12px;font-size:11px;color:var(--mut)">'+
     '<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:var(--blue,#2f6bf6);display:inline-block"></i>방문</span>'+
-    CAL_CATS.map(c=>`<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:${c[2]};display:inline-block"></i>${c[1]}</span>`).join('')+'</div>';
+    CAL_CATS.map(c=>`<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:${c[2]};display:inline-block"></i>${c[1]}</span>`).join('')+
+    '<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:#e4544b;display:inline-block"></i>영업(POUR)</span>'+'</div>';
   ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;

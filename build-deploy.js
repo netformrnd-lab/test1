@@ -37,7 +37,7 @@ fs.writeFileSync(OUT + "/admin/index.html", admin);
 // --- console/index.html (통합 관리자 대시보드) ---
 cp.execSync(`mkdir -p "${OUT}/console"`);
 let konsole = fs.readFileSync(APP + "/console/index.html", "utf8");
-konsole = konsole.replace("</head>", NOCACHE + "\n</head>");
+konsole = konsole.replace("</head>", NOCACHE + '\n<script>window.__BUILD__="' + V + '"</script>\n</head>');
 konsole = konsole.replace('../js/stages.js"', '../js/stages.js?v=' + V + '"');
 fs.writeFileSync(OUT + "/console/index.html", konsole);
 

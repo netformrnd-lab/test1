@@ -274,7 +274,7 @@ tbody tr:hover{background:#f8fafc}
 
     <section class="sec" id="s-calendar">
       <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b line" style="color:#d9453c;border-color:#f3c2be" onclick="deleteOwnSchedules()">🗑 우리가 올린 일정 삭제 (POUR 제외)</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
-      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div></div>
+      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button> <span id="buildTag" style="font-size:9px;color:#c3c9d4;font-weight:600"></span></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div></div>
       <div id="calDayList"></div>
       <div id="cal-alert"></div>
     </section>
@@ -770,6 +770,7 @@ function computeVisits(y,m){
 }
 function renderCalendar(){
   const now=new Date(); if(!calYM)calYM={y:now.getFullYear(),m:now.getMonth()};
+  const bt=$('buildTag'); if(bt)bt.textContent='v'+(window.__BUILD__||'dev');
   const {y,m}=calYM; const cl=$('calLabel'); if(cl)cl.textContent=`${y}년 ${m+1}월`;
   const names=auditorNames(); const ps=$('calPersonSel');
   if(ps) ps.innerHTML=`담당 <select onchange="setCalPerson(this.value)" style="font-size:12px;padding:3px 8px;border-radius:7px;border:1px solid var(--line)"><option ${calPerson==='전체'?'selected':''}>전체</option>${names.map(n=>`<option ${calPerson===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`;
@@ -777,7 +778,8 @@ function renderCalendar(){
   const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
   const byDay={};
   SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({id:s.id,t,visit:isV,color:isP?(meta[2]||'#888'):(isV?null:meta[2]),cat:isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:''))}); }});
-  computeVisits(y,m).forEach(v=>{ if(calPerson!=='전체'&&v.who!==calPerson)return; if(calCat!=='전체'&&calCat!=='방문')return; (byDay[v.dd]=byDay[v.dd]||[]).push({t:'방문 · '+v.name,who:v.who,visit:true,sub:v.sub,plan:true,cat:'방문'}); });
+  // 예상(계획) 방문은 달력에 자동으로 그리지 않음 — 실제 저장된 일정만 표시.
+  // (방문 배치는 아래 표에서 관리하고, '🔄 이 달 방문 일정 생성'을 누르면 실제 일정으로 만들어짐)
   // 색상 범례 = 클릭하면 그 종류만 보기 (다시 누르면 전체)
   const legChip=(key,label,color)=>`<span onclick="setCalCat('${key}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:7px;${calCat===key?'background:#111a33;color:#fff':''}"><i style="width:9px;height:9px;border-radius:3px;background:${color};display:inline-block"></i>${label}</span>`;
   let h='<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 7px;padding:8px 4px 12px;font-size:11px;color:var(--mut);align-items:center">'+

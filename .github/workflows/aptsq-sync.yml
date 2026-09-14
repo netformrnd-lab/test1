@@ -6,8 +6,8 @@ name: 영업일정 ↔ 아파트스퀘어 동기화
 #
 # 준비물 (Repo → Settings → Secrets and variables → Actions → New repository secret):
 #   SUPABASE_SERVICE_ROLE_KEY   = Supabase → Project Settings → API → service_role 키
-#   FIREBASE_SERVICE_ACCOUNT    = test-168a4 서비스계정 JSON "내용 전체" 붙여넣기
-#                                 (Firebase Console → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성)
+#
+# ✅ Firebase 서비스계정 불필요 — RTDB 권한이 열려 있어 주소만으로 접근합니다.
 
 on:
   schedule:
@@ -37,5 +37,4 @@ jobs:
         working-directory: backend/aptsq-sync
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node sync.js --once

@@ -11,6 +11,7 @@ const APIS = [
   'run.googleapis.com',
   'eventarc.googleapis.com',
   'pubsub.googleapis.com',
+  'cloudscheduler.googleapis.com',
   'firebasedatabase.googleapis.com',
 ];
 (async () => {

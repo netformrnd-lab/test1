@@ -72,6 +72,19 @@ begin
   ts    := to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
   asgn  := case when who <> '' then jsonb_build_array(who) else '[]'::jsonb end;
 
+  -- meta(POUR 상세 폼)가 있으면 그대로 전송 (id/_origin/date 만 보정)
+  if NEW.meta is not null then
+    obj := NEW.meta || jsonb_build_object(
+      'id', sid, '_origin', 'aptsq', '_aptsqId', NEW.id::text, '_syncedAt', ts,
+      'date', coalesce(nullif(NEW.meta->>'date', ''), dt)
+    );
+    perform net.http_post(
+      url := url, body := obj,
+      headers := '{"Content-Type":"application/json","X-HTTP-Method-Override":"PUT"}'::jsonb
+    );
+    return NEW;
+  end if;
+
   if node = 'sales' then
     -- 영업: POUR에서 type/dateType 없는 단순 구조
     obj := jsonb_build_object(

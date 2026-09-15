@@ -1754,8 +1754,9 @@ async function loadSchedule() {
   const vpb0 = document.getElementById('sc-vp-btn'); if (vpb0) vpb0.style.display = 'none'
   const vpf0 = document.getElementById('sc-vp'); if (vpf0) vpf0.style.display = 'none'
   // 진입 즉시 '현재 달' 달력을 먼저 그림 — 정적 샘플(빈 7월 달력)이 잠깐 보이는 깜빡임 방지
+  // ★ 최초 진입(데이터 없음)일 때만. 새로고침·등록 후엔 빈 달력을 안 그려야 높이가 줄었다 늘며 화면이 위아래로 튀지 않음.
   if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
-  try { renderCalendar([]) } catch (e) {}
+  if (!SCHED_ALL.length) { try { renderCalendar([]) } catch (e) {} }
   const { data: { user } } = await sb.auth.getUser()
   const sub = document.getElementById('s-sub'), addBtn = document.getElementById('sc-add-btn')
   if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
@@ -1802,8 +1803,20 @@ function populateSchedAptSelect() {
   sel.innerHTML = '<option value="">🔒 개인 일정 (나만 봐요)</option>' +
     apts.map(a => `<option value="${a.id}">${escH(a.name)} · 단지 일정</option>`).join('')
   sel.value = currentApt ? currentApt.id : ''
+  // 단지를 고르면 '입주민 공개'를 자동으로 켠다(개인 일정이면 끔) → 다가오는 감리일정에 표시
+  sel.onchange = syncSchedPublic
+  syncSchedPublic()
   const asg = document.getElementById('sc-assignee')
   if (asg) asg.innerHTML = audOptions(MY_ID)   // 담당 감리사(기본=나)
+}
+// 단지 선택 여부에 맞춰 '입주민 공개' 체크박스 자동 세팅(개인 일정은 공개 불가)
+function syncSchedPublic() {
+  const sel = document.getElementById('sc-apt'); const cb = document.getElementById('sc-public'); const wrap = document.getElementById('sc-public-wrap')
+  if (!sel || !cb) return
+  const hasApt = !!sel.value
+  if (!editSchedId) cb.checked = hasApt          // 새 일정: 단지 있으면 공개 기본 ON
+  cb.disabled = !hasApt                           // 개인 일정은 공개 불가
+  if (wrap) wrap.style.opacity = hasApt ? '1' : '.45'
 }
 /* ===== 방문 배치 (감리사 앱) — control_sites 에 주기·요일 저장 → 내 담당 단지 방문 자동생성 ===== */
 const VP_CYCLE_DAYS = { '주1회': '수', '주2회': '화·목', '주3회': '월·수·금', '상주': '월·화·수·목·금' }
@@ -2043,6 +2056,7 @@ function openSchedEdit(id) {
   if ($g('sc-public')) $g('sc-public').checked = !!s.resident_visible
   populateSchedAptSelect()
   if ($g('sc-apt')) $g('sc-apt').value = s.apartment_id || ''
+  syncSchedPublic()   // 단지 유무에 맞춰 공개 체크박스 활성/비활성 (수정 시 기존 공개값은 유지)
   if ($g('sc-assignee')) $g('sc-assignee').value = s.assignee_id || ''
   const sv = $g('sc-save'); if (sv) sv.textContent = '✓ 수정 저장'
   const f = $g('sc-form'); if (f) { f.style.display = 'block'; f.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
@@ -2052,6 +2066,7 @@ function cancelSchedEdit() {
   const $g = i => document.getElementById(i)
   ;['sc-date', 'sc-title', 'sc-desc'].forEach(i => { if ($g(i)) $g(i).value = '' })
   if ($g('sc-public')) $g('sc-public').checked = false
+  try { syncSchedPublic() } catch (e) {}   // 단지 선택 상태에 맞춰 공개 체크박스 재설정
   if ($g('sc-assignee')) $g('sc-assignee').value = MY_ID || ''
   const sv = $g('sc-save'); if (sv) sv.textContent = '등록'
   const f = $g('sc-form'); if (f) f.style.display = 'none'

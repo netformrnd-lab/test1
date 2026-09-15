@@ -1,0 +1,21 @@
+name: 진단 - 최근 우리 일정 RTDB 대조
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 의존성 설치
+        working-directory: backend/aptsq-sync
+        run: npm install --no-audit --no-fund
+      - name: 최근 일정 대조
+        working-directory: backend/aptsq-sync
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node recentcheck.js

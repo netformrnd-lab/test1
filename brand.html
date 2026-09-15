@@ -1337,6 +1337,14 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .dmn-sub{font-size:12px;font-weight:800;color:var(--text-primary);margin:14px 0 8px;
   display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
 .dmn-sub span{font-size:11px;font-weight:400;color:var(--text-muted)}
+.dmn-why{font-size:13.5px;font-weight:700;line-height:1.75;color:var(--text-primary);
+  padding:10px 12px;border-left:3px solid var(--orange);background:var(--bg-input);
+  border-radius:0 9px 9px 0;margin-bottom:10px;word-break:keep-all}
+.dmn-need{font-size:12.5px;line-height:1.85;color:var(--text-muted);margin-bottom:4px}
+.dmn-need b{color:var(--text-primary)}
+.dmn-r .dt b.wq{color:var(--orange)}
+.pe-warn{font-size:12.5px;font-weight:700;line-height:1.8;color:var(--orange);
+  padding:10px 12px;border:1px solid var(--orange);border-radius:10px;margin-bottom:10px}
 .dmn-nlist{display:flex;flex-direction:column;gap:5px}
 .dmn-n{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;cursor:pointer;
   border:1px solid var(--border);border-radius:10px;background:var(--bg-input)}
@@ -2196,7 +2204,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260915-48';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260915-49';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13194,6 +13202,12 @@ function pathOf(b){
 function chapsOf(b){ return pathOf(b).chapters; }
 function chapFind(b, id){ return chapsOf(b).find(c => c.id === id) || null; }
 function chapImgs(c){ if(!Array.isArray(c.imgs)) c.imgs = []; return c.imgs; }
+/* 아무것도 안 적힌 장 — 읽기 화면에서는 건너뜁니다 (고치기에서는 보입니다) */
+function chapBlank(c){
+  return !PATH_FIELDS.concat([['title']]).some(f => String(c[f[0]] || '').trim());
+}
+/* 때를 안 적은 장 — 길에는 시간이 있어야 합니다 */
+function chapNoWhen(c){ return !String(c.when || '').trim(); }
 
 let pathEdit = false;      // 읽기 / 고치기
 let pathOpen = '';         // 고치기에서 펼친 장
@@ -13351,6 +13365,7 @@ async function uploadPathDoc(fileList){
     const got = pathMineParse(ai['프롬프트'] || '');
     const m = pathMine[bid];
     m.busy = false;
+    m.no   = got.no;
     m.sum   = got.sum;
     m.sumOn = !!got.sum && !String(pathOf(b).summary || '').trim();
     m.chaps = got.chaps;
@@ -13374,6 +13389,7 @@ function pathMineParse(text){
     if(a >= 0 && z > a){ try{ j = JSON.parse(t.slice(a, z + 1)); }catch(e2){} }
   }
   const KIND = PATH_KINDS.map(k => k.k);
+  const no   = String((j && (j['못읽음'] || j.cannot)) || '').trim();
   const arr  = (j && (j['장'] || j.chapters)) || [];
   const chaps = (Array.isArray(arr) ? arr : []).map(x => {
     const o = { when: String((x && x.when) || '').trim() };
@@ -13381,8 +13397,9 @@ function pathMineParse(text){
     o.title = String((x && x.title) || '').trim();
     PATH_FIELDS.forEach(f => { o[f[0]] = String((x && x[f[0]]) || '').trim(); });
     return o;
-  }).filter(c => c.title || c.body || c.before || c.after);
-  return { sum: String((j && (j['한문단'] || j.summary)) || '').trim(), chaps: chaps };
+  }).filter(c => c.title && (c.body || c.before || c.after || c.why || c.bad || c.nogo));
+  return { sum: String((j && (j['한문단'] || j.summary)) || '').trim(),
+           chaps: chaps, no: no };
 }
 
 function pathMineAdd(bid){
@@ -13419,12 +13436,23 @@ function pathMineHtml(b){
       + '<div class="dmn-ac"><button class="btn sm" onclick="pathMineClose(\'' + bid
         + '\')">닫기</button></div></div>';
   }
-  if(!m.chaps.length && !m.sum){
-    return '<div class="dmn"><div class="dmn-hd">🤖 이 문서에서 길을 읽지 못했습니다'
-      + '<span>브랜드가 어떻게 바뀌어 왔는지가 적혀 있지 않거나, '
-      + '글자가 잘 안 읽힌 문서입니다</span></div>'
-      + '<div class="dmn-ac"><button class="btn sm" onclick="pathMineClose(\'' + bid
-        + '\')">닫기</button></div></div>';
+  if(m.no || (!m.chaps.length && !m.sum)){
+    return '<div class="dmn"><div class="dmn-hd">🤖 이 문서로는 걸어온 길을 만들 수 없습니다'
+      + '</div>'
+      + '<div class="dmn-why">' + esc(m.no
+          || '브랜드가 어떻게 바뀌어 왔는지가 적혀 있지 않거나, 글자가 잘 안 읽힌 문서입니다.')
+      + '</div>'
+      + '<div class="dmn-need">필요한 것은 <b>브랜드가 무엇을 팔고 누구에게 가는지가 '
+        + '바뀐 이야기</b> 입니다.<br>'
+        + '· 되는 문서 — 브랜드 히스토리 · 사업계획서 · 투자 자료 · 대표 인터뷰 · '
+          + '연혁 정리본<br>'
+        + '· 안 되는 문서 — 기능 개선 내역 · 화면 기획서 · 업무 절차서 · 매뉴얼 · '
+          + '회의록 · 견적서</div>'
+      + '<div class="dmn-ac">'
+        + '<button class="btn sm primary" onclick="pathMineClose(\'' + bid
+          + '\');pickPathDoc(\'' + bid + '\')">다른 문서로 다시</button>'
+        + '<button class="btn sm" onclick="pathMineClose(\'' + bid + '\')">닫기</button>'
+      + '</div></div>';
   }
 
   const cur = String(pathOf(b).summary || '').trim();
@@ -13451,7 +13479,8 @@ function pathMineHtml(b){
       + '<input type="checkbox"' + (m.pick[i] ? ' checked' : '') + ' '
         + 'onchange="pathMinePick(\'' + bid + '\',' + i + ', this.checked)">'
       + '<span class="bd">'
-        + '<span class="dt"><b>' + esc(c.when || '때 미상') + '</b>'
+        + '<span class="dt"><b' + (chapNoWhen(c) ? ' class="wq"' : '') + '>'
+          + esc(c.when || '때를 못 찾았습니다') + '</b>'
           + '<span class="kd">' + K.ic + ' ' + esc(K.k) + '</span></span>'
         + '<span class="ti">' + esc(c.title || '(제목 없음)') + '</span>'
         + (sub ? '<span class="sc">' + esc(gbOneLine(sub, 110)) + '</span>' : '')
@@ -13543,8 +13572,9 @@ function pathReadHtml(b){
              + '여기만 읽어도 이 브랜드를 설명할 수 있게 적어 주세요</p>')
     + '</div>';
 
-  const body = cs.length
-    ? '<div class="pw-line">' + cs.map((c, i) => chapReadHtml(b, c, i)).join('') + '</div>'
+  const shown = cs.filter(c => !chapBlank(c));
+  const body = shown.length
+    ? '<div class="pw-line">' + shown.map((c, i) => chapReadHtml(b, c, i)).join('') + '</div>'
     : '<div class="pw-none" style="padding:18px 0">아직 장이 없습니다.<br>'
       + '<span>길이 꺾인 지점만 서너 개 남기면 됩니다 — 출발 · 방향을 틀다 · 지금.</span></div>';
 
@@ -13573,7 +13603,8 @@ function chapReadHtml(b, c, i){
     + '<div class="no">' + (i + 1) + '</div>'
     + '<div class="bd">'
       + '<div class="hd">'
-        + '<span class="wn">' + esc(c.when || '때 미상') + '</span>'
+        + (String(c.when || '').trim()
+            ? '<span class="wn">' + esc(c.when) + '</span>' : '')
         + '<span class="kd">' + K.ic + ' ' + esc(K.k) + '</span>'
       + '</div>'
       + (String(c.title || '').trim()
@@ -13609,8 +13640,17 @@ function pathEditHtml(b){
       + 'oninput="gbGrow(this);pathSum(\'' + bid + '\', this.value)">'
     + esc(P.summary || '') + '</textarea></div>';
 
+  const blank = cs.filter(chapBlank).length;
+  const nowh  = cs.filter(c => !chapBlank(c) && chapNoWhen(c)).length;
+  const warn = (blank || nowh)
+    ? '<div class="pe-warn">'
+      + (blank ? '<div>빈 장이 ' + blank + '개 있습니다 — 읽기 화면에는 안 나옵니다. '
+          + '채우거나 지워 주세요.</div>' : '')
+      + (nowh ? '<div>때를 안 적은 장이 ' + nowh + '개 있습니다 — '
+          + '길에는 시간이 있어야 흐름이 보입니다.</div>' : '')
+      + '</div>' : '';
   const list = cs.length
-    ? '<div class="pe-list">' + cs.map((c, i) => chapEditHtml(b, c, i, cs.length)).join('') + '</div>'
+    ? warn + '<div class="pe-list">' + cs.map((c, i) => chapEditHtml(b, c, i, cs.length)).join('') + '</div>'
     : '<div class="pw-none" style="padding:14px 0">아직 장이 없습니다.<br>'
       + '<span>길이 꺾인 지점만 서너 개면 충분합니다.</span></div>';
 

@@ -29,7 +29,13 @@ async function upsert(node, id, s) {
   }
 }
 
-async function del(node, id) {
+async function del(node, id, before) {
+  // POUR에서 지운 게 '우리가 내보낸 일정(_origin=aptsq)'이면 → 우리 원본(Supabase, id=_aptsqId)을 삭제.
+  //   (안 그러면 우리 원본이 남아 대시보드에 계속 보이고, 배치가 POUR로 다시 되살림)
+  if (before && before._origin === 'aptsq' && before._aptsqId) {
+    await sb(`schedules?id=eq.${encodeURIComponent(before._aptsqId)}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+    return;
+  }
   const sync_id = `pour:${node}:${id}`;
   await sb(`schedules?sync_id=eq.${encodeURIComponent(sync_id)}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
 }
@@ -38,9 +44,10 @@ function handler(node) {
   return async (change, context) => {
     const id = context.params.id;
     const after = change.after.exists() ? change.after.val() : null;
+    const before = change.before.exists() ? change.before.val() : null;
     try {
-      if (after === null) await del(node, id);   // 지워짐 → 아스퀘에서도 삭제
-      else await upsert(node, id, after);         // 추가/수정 → 아스퀘 upsert
+      if (after === null) await del(node, id, before);   // 지워짐 → 아스퀘에서도 삭제(우리 것이면 원본까지)
+      else await upsert(node, id, after);                 // 추가/수정 → 아스퀘 upsert
     } catch (e) { console.error('sync err', node, id, e && e.message); }
     return null;
   };

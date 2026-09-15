@@ -1,10 +1,10 @@
 -- ============================================================
--- 아스퀘(Supabase) → POUR(RTDB) "즉시" 동기화
+-- 아스퀘(Supabase) → POUR(RTDB) "즉시" 동기화  (v2: POUR과 '똑같은 데이터 모양'으로 전송)
 --   우리(source='aptsq') 일정을 추가/수정/삭제하면 즉시 POUR RTDB 로 전송.
---   pg_net 확장으로 DB에서 바로 HTTP 호출(추가 서버/비밀키 불필요, RTDB 권한 열림).
---   루프 방지: 보내는 객체에 _origin='aptsq' 를 붙여, POUR→아스퀘 함수가 되읽지 않음.
---             source='pour'(POUR에서 온 것)은 되돌려 보내지 않음.
--- Supabase → SQL Editor → 붙여넣고 Run (한 번만)
+--   ★ POUR 캘린더는 type + dateType='confirmed' + status='확정' 가 있어야 달력에 그림.
+--     (POUR 실데이터 필드를 그대로 맞춰야 POUR 화면에 뜬다)
+--   루프 방지: _origin='aptsq' 표식 → POUR→아스퀘 함수가 되읽지 않음.
+-- Supabase → SQL Editor → 붙여넣고 Run (다시 실행하면 최신 버전으로 교체됨)
 -- ============================================================
 
 create extension if not exists pg_net;
@@ -23,11 +23,15 @@ declare
   url   text;
   title text;
   memo  text;
+  who   text;
+  dt    text;
+  ts    text;
+  asgn  jsonb;
   obj   jsonb;
 begin
   r := coalesce(NEW, OLD);
 
-  -- 우리가 올린 일정만 내보낸다 (POUR에서 온 것/개인정산 등은 제외)
+  -- 우리가 올린 일정만 내보낸다 (POUR에서 온 것 등은 제외)
   if r.source is distinct from 'aptsq' then
     return coalesce(NEW, OLD);
   end if;
@@ -50,7 +54,7 @@ begin
   sid := 'asq_' || r.id::text;
   url := rtdb || '/' || node || '/' || sid || '.json';
 
-  -- 삭제 → RTDB 에서도 삭제 (POST + method override DELETE)
+  -- 삭제 → RTDB 에서도 삭제
   if (TG_OP = 'DELETE') then
     perform net.http_post(
       url := url,
@@ -60,24 +64,49 @@ begin
     return OLD;
   end if;
 
-  -- 추가/수정 → RTDB 에 set (POST + method override PUT)
+  -- 추가/수정 → POUR과 동일한 모양으로 set
   title := coalesce(NEW.title, '');
   memo  := coalesce(NEW.description, '');
-  obj := jsonb_build_object(
-    'id', sid,
-    'date', coalesce(NEW.date::text, ''),
-    '_origin', 'aptsq',
-    '_aptsqId', NEW.id::text,
-    '_syncedAt', to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
-  );
-  obj := obj || case node
-    when 'pt'       then jsonb_build_object('siteName', title, 'note', memo, 'ptAssignee','', 'workType','', 'status','')
-    when 'briefing' then jsonb_build_object('siteName', title, 'assignee','', 'time', memo)
-    when 'sales'    then jsonb_build_object('company', title, 'content', memo, 'assignee','')
-    when 'meetings' then jsonb_build_object('title', title, 'time', memo, 'location','', 'attendees', '[]'::jsonb)
-    when 'vacation' then jsonb_build_object('title', title, 'assignees', '[]'::jsonb)
-    else                 jsonb_build_object('title', title, 'time', memo, 'location','', 'assignees', '[]'::jsonb)
-  end;
+  who   := coalesce(NEW.assignee_name, '');
+  dt    := coalesce(NEW.date::text, '');
+  ts    := to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
+  asgn  := case when who <> '' then jsonb_build_array(who) else '[]'::jsonb end;
+
+  if node = 'sales' then
+    -- 영업: POUR에서 type/dateType 없는 단순 구조
+    obj := jsonb_build_object(
+      'id', sid, 'date', dt,
+      'company', title, 'content', memo, 'assignee', who,
+      'contactPerson', '', 'contactPhone', '', 'followUp', '',
+      '_origin', 'aptsq', '_aptsqId', NEW.id::text, '_syncedAt', ts
+    );
+  elsif node = 'meetings' then
+    -- 회의
+    obj := jsonb_build_object(
+      'id', sid, 'date', dt, 'type', 'meeting', 'title', title,
+      'time', '', 'location', '', 'attendees', asgn, 'responses', '{}'::jsonb, 'createdAt', ts,
+      '_origin', 'aptsq', '_aptsqId', NEW.id::text, '_syncedAt', ts
+    );
+  else
+    -- 공통(확정일정) 필드 — 이게 있어야 POUR 달력에 그려짐
+    obj := jsonb_build_object(
+      'id', sid, 'date', dt,
+      'type', node, 'dateType', 'confirmed', 'status', '확정', 'mainCategory', '재도장',
+      'address', '', 'competitor', '', 'dateNote', '', 'expectedMonth', '',
+      'location', '', 'note', memo, 'participants', '', 'ptAssignee', '',
+      'requester', '', 'time', '', 'workType', '',
+      '_origin', 'aptsq', '_aptsqId', NEW.id::text, '_syncedAt', ts
+    );
+    if node = 'pt' then
+      obj := obj || jsonb_build_object('siteName', title, 'title', '', 'ptAssignee', who);
+    elsif node = 'briefing' then
+      obj := obj || jsonb_build_object('siteName', title, 'title', '', 'assignee', who, 'ptProduct', '', 'bidDeadline', '');
+    elsif node = 'asq' then
+      obj := obj || jsonb_build_object('title', title, 'siteName', title, 'assignee', '', 'assignees', asgn, 'ptProduct', '', 'bidDeadline', '');
+    else  -- seminar / personal / vacation
+      obj := obj || jsonb_build_object('title', title, 'siteName', '', 'assignee', '', 'assignees', asgn, 'ptProduct', '', 'bidDeadline', '');
+    end if;
+  end if;
 
   perform net.http_post(
     url := url,
@@ -95,5 +124,5 @@ create trigger trg_push_schedule_to_pour
   for each row execute function public.push_schedule_to_pour();
 
 -- 참고:
---  · 추가/수정/삭제 모두 즉시 반영됩니다(양방향 수정 지원).
---  · 5분 배치 동기화는 그대로 두면 '보정(누락 방지)' 역할을 합니다.
+--  · type + dateType='confirmed' + status='확정' 를 넣어 POUR 달력에 바로 표시됩니다.
+--  · 배치 동기화(sync.js)도 같은 모양으로 맞춰져 있어, 한 번 돌리면 기존 일정도 전부 반영됩니다.

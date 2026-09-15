@@ -72,38 +72,58 @@ function pourToSupabase(node, id, s) {
 }
 
 // ── 아파트스퀘어 schedules row → POUR(RTDB) 일정 객체 ──────────────────────
-// 노드별 필드 모양에 맞춰 최소 필드만 채운다.
+//  POUR 캘린더는 실제 POUR 일정과 '똑같은 모양'만 화면에 그린다:
+//   · 반드시 type(노드명) + dateType:'confirmed' + status:'확정' 가 있어야 달력에 뜸.
+//   · 노드마다 제목 필드가 다름(pt/briefing=siteName, 나머지=title, sales=company).
+//  → POUR 실데이터(dumpnodes.js 로 확인)와 동일한 필드를 채워 넣는다.
 function supabaseToPour(row) {
   const node = CATEGORY_TO_NODE[row.category];
   if (!node) return null; // 내보낼 노드가 없는 category(work 등)는 건너뜀
 
   const rtdbId = `asq_${row.id}`;           // 우리 쪽 id 기반의 안정적인 키
-  const base = {
-    id: rtdbId,
-    date: row.date || '',
-    _origin: 'aptsq',                        // 루프 방지 표식
-    _aptsqId: row.id,                        // 원본 Supabase row id
-    _syncedAt: new Date().toISOString(),
-  };
-
   const title = row.title || '';
   const memo = row.description || '';
+  const who = row.assignee_name || '';      // 담당자 이름(POUR는 assignees 배열/assignee 문자열 사용)
+  const date = row.date || '';
+  const syncedAt = new Date().toISOString();
+
+  // sales(영업)는 POUR에서 type/dateType 없이 단순 구조 → 그대로 맞춤
+  if (node === 'sales') {
+    return {
+      id: rtdbId, date, company: title, content: memo, assignee: who,
+      contactPerson: '', contactPhone: '', followUp: '',
+      _origin: 'aptsq', _aptsqId: String(row.id), _syncedAt: syncedAt,
+    };
+  }
+
+  // 그 외 노드: POUR 확정일정 공통 필드
+  const base = {
+    id: rtdbId, date,
+    type: node === 'meetings' ? 'meeting' : node,   // POUR 항목 type
+    dateType: 'confirmed',                          // ★ 이게 있어야 POUR 달력에 그려짐
+    status: '확정',
+    mainCategory: '재도장',
+    address: '', competitor: '', dateNote: '', expectedMonth: '',
+    location: '', note: memo, participants: '', ptAssignee: '',
+    requester: '', time: '', workType: '',
+    _origin: 'aptsq', _aptsqId: String(row.id), _syncedAt: syncedAt,
+  };
 
   switch (node) {
     case 'pt':
-      return { ...base, siteName: title, note: memo, ptAssignee: '', workType: '', status: '' };
-    case 'briefing':
-      return { ...base, siteName: title, assignee: '', time: memo };
-    case 'sales':
-      return { ...base, company: title, content: memo, assignee: '' };
-    case 'meetings':
-      return { ...base, title, time: memo, location: '', attendees: [] };
-    case 'personal':
+      return { ...base, siteName: title, title: '', ptAssignee: who };
+    case 'briefing':                                 // 현설
+      return { ...base, siteName: title, title: '', assignee: who, ptProduct: '', bidDeadline: '' };
+    case 'meetings':                                 // 회의
+      return { id: rtdbId, date, type: 'meeting', title, time: '', location: '',
+        attendees: who ? [who] : [], responses: {}, createdAt: syncedAt,
+        _origin: 'aptsq', _aptsqId: String(row.id), _syncedAt: syncedAt };
     case 'seminar':
-    case 'asq':
-      return { ...base, title, time: memo, location: '', assignees: [] };
+    case 'personal':
     case 'vacation':
-      return { ...base, title, assignees: [] };
+      return { ...base, title, siteName: '', assignee: '', assignees: who ? [who] : [], ptProduct: '', bidDeadline: '' };
+    case 'asq':                                      // 아스퀘 (POUR에도 있는 분류)
+      return { ...base, title, siteName: title, assignee: '', assignees: who ? [who] : [], ptProduct: '', bidDeadline: '' };
     default:
       return { ...base, title };
   }

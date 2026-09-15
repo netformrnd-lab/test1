@@ -273,8 +273,9 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-calendar">
-      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
-      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div></div>
+      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b line" style="color:#d9453c;border-color:#f3c2be" onclick="deleteOwnSchedules()">🗑 우리가 올린 일정 삭제 (POUR 제외)</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
+      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button> <span id="buildTag" style="font-size:9px;color:#c3c9d4;font-weight:600"></span></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div></div>
+      <div id="calDayList"></div>
       <div id="cal-alert"></div>
     </section>
 
@@ -449,11 +450,22 @@ async function gate(){
 gate();
 
 /* ===== 데이터 로드 ===== */
+// Supabase는 한 번에 최대 1000행만 준다 → 1000건씩 끝까지 이어서 전부 가져온다.
+async function fetchAllSchedules(){
+  const out=[]; const SIZE=1000;
+  for(let from=0;;from+=SIZE){
+    const {data,error}=await sb.from('schedules').select('*').order('date',{ascending:true}).range(from,from+SIZE-1);
+    if(error||!data||!data.length) break;
+    out.push(...data);
+    if(data.length<SIZE) break;
+  }
+  return out;
+}
 async function loadAll(){
   const P=(t,o)=>sb.from(t).select('*').order(o||'created_at',{ascending:false});
   const [m,a,n,c,r,f,s,sv,ct,lf,cr,mf]=await Promise.all([
     P('profiles'),P('apartments'),P('notices'),P('cases'),P('reports'),P('field_updates'),
-    sb.from('schedules').select('*').order('date',{ascending:true}),
+    fetchAllSchedules().then(d=>({data:d})),   // 1000행 제한 우회 → 일정 전부
     P('surveys'),P('contracts'),sb.from('leaflets').select('*').order('sort',{ascending:true}),P('credentials'),P('manager_forms')
   ]);
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
@@ -475,9 +487,11 @@ async function loadAll(){
 }
 let WON_MATED=false;
 function renderAll(){
-  renderDash(); renderOrgs(); renderCalendar(); renderProjList(); renderHistory();
-  renderPending(); renderMembers(); fillAptSelectsConsole(); commTab(commTabCur); promoTab(promoTabCur);
-  renderSales(); renderRoadmap(); renderDocs(); gsInit();
+  // 한 화면이 오류나도 나머지는 그려지도록 각각 독립 실행(회원·공사관리 등이 통째로 사라지는 것 방지)
+  const R=(fn,name)=>{ try{ fn(); }catch(e){ console.error('[render 실패] '+name, e); } };
+  R(renderDash,'dash'); R(renderOrgs,'orgs'); R(renderCalendar,'calendar'); R(renderProjList,'projList'); R(renderHistory,'history');
+  R(renderPending,'pending'); R(renderMembers,'members'); R(fillAptSelectsConsole,'aptSelects'); R(()=>commTab(commTabCur),'comm'); R(()=>promoTab(promoTabCur),'promo');
+  R(renderSales,'sales'); R(renderRoadmap,'roadmap'); R(renderDocs,'docs'); R(gsInit,'gs');
   if(curProj){ const np=APTS.find(a=>a.id===curProj.id); if(np){curProj=np; if($('projDetail').style.display!=='none') renderProj();} }
   updateBadges();
 }
@@ -520,7 +534,7 @@ async function refreshLight(){
       sb.from('profiles').select('*').order('created_at',{ascending:false}),
       sb.from('surveys').select('*').order('created_at',{ascending:false}),
       sb.from('notices').select('*').order('created_at',{ascending:false}),
-      sb.from('schedules').select('*').order('date',{ascending:true})
+      fetchAllSchedules().then(d=>({data:d}))   // 1000행 제한 우회
     ]);
     if(a.data)APTS=a.data; if(r.data)REPORTS=r.data; if(f.data)FIELDS=f.data; if(m.data)MEMBERS=m.data; if(sv.data)SURVEYS=sv.data; if(n.data)NOTICES=n.data; if(s.data)SCHEDULES=s.data;
     try{ const {data:aa}=await sb.from('apartment_auditors').select('*'); APT_AUD={}; (aa||[]).forEach(x=>{(APT_AUD[x.apartment_id]=APT_AUD[x.apartment_id]||[]).push(x.auditor_id);}); }catch(e){}
@@ -693,8 +707,28 @@ function ownAsg(a){ const d=csData(a); return (d&&d.own)?d:{}; }
 function siteMgrName(a){ const rep=a.auditor_id||(aptAuditors(a)[0]||null); return rep?auditorName(rep):''; }
 function activeSites(){ return APTS.filter(a=>a.status!=='done'); }
 function auditorNames(){ return [...new Set(MEMBERS.filter(m=>m.role==='auditor').map(m=>m.name||loginId(m)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko')); }
+function auditorList(){ return MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko')); }
+function audNameC(id){ if(!id)return ''; const a=MEMBERS.find(m=>String(m.id)===String(id)); return a?(a.name||loginId(a)):''; }
+// 영업(POUR) 담당자 이름 목록: 알려진 팀 + POUR 일정 설명에서 '담당 XX' 추출
+function pourAssignees(){
+  const set=new Set(['이승우','황윤선','한준엽','조재연','이필선','한인규','정정훈','김성민','조현식']);
+  (SCHEDULES||[]).forEach(s=>{ if(s.source!=='pour')return; const md=String(s.description||'').match(/담당\s+([^·]+)/); if(md){ md[1].split(/[,、\/]/).forEach(n=>{ const t=n.trim().replace(/\s*님$/,''); if(t&&t.length<=12)set.add(t); }); } });
+  return [...set].sort((a,b)=>a.localeCompare(b,'ko'));
+}
+// 담당 드롭다운 옵션 (감리사=id 값, 영업담당=이름 값). selId/selName 으로 현재값 선택 표시
+function audSelectOptions(selId,selName){
+  let h='<option value="">담당 미지정</option>';
+  h+='<optgroup label="아파트스퀘어 감리사">'+auditorList().map(a=>`<option value="id:${a.id}" ${String(selId)===String(a.id)?'selected':''}>${esc(a.name||loginId(a))}</option>`).join('')+'</optgroup>';
+  h+='<optgroup label="영업(POUR) 담당">'+pourAssignees().map(n=>`<option value="nm:${esc(n)}" ${(!selId&&selName===n)?'selected':''}>${esc(n)}</option>`).join('')+'</optgroup>';
+  return h;
+}
+function parseAsg(v){ if(!v)return {assignee_id:null,assignee_name:null}; if(v.slice(0,3)==='id:')return {assignee_id:v.slice(3),assignee_name:null}; if(v.slice(0,3)==='nm:')return {assignee_id:null,assignee_name:v.slice(3)}; return {assignee_id:null,assignee_name:null}; }
+function schedAsgName(s){ return (s&&s.assignee_name)||audNameC(s&&s.assignee_id)||''; }
 let calPerson='전체';
 function setCalPerson(p){ calPerson=p; renderCalendar(); }
+let calCat='전체';   // 범례 클릭 → 그 종류만 보기 ('전체'=모두)
+function setCalCat(c){ calCat=(calCat===c?'전체':c); renderCalendar(); }
+window.setCalCat=setCalCat;
 async function csSave(a,patch){
   const slug=csSlug(a.name); const cur=CSITES[slug]||{}; const data={...cur,_name:a.name,...patch,own:true,updatedAt:new Date().toISOString()};
   CSITES[slug]=data;
@@ -736,34 +770,60 @@ function computeVisits(y,m){
 }
 function renderCalendar(){
   const now=new Date(); if(!calYM)calYM={y:now.getFullYear(),m:now.getMonth()};
+  const bt=$('buildTag'); if(bt)bt.textContent='v'+(window.__BUILD__||'dev');
   const {y,m}=calYM; const cl=$('calLabel'); if(cl)cl.textContent=`${y}년 ${m+1}월`;
   const names=auditorNames(); const ps=$('calPersonSel');
   if(ps) ps.innerHTML=`담당 <select onchange="setCalPerson(this.value)" style="font-size:12px;padding:3px 8px;border-radius:7px;border:1px solid var(--line)"><option ${calPerson==='전체'?'selected':''}>전체</option>${names.map(n=>`<option ${calPerson===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`;
   const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), todayStr=isoDate(now);
   const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
   const byDay={};
-  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({t,visit:isV,color:isP?(meta[2]||'#888'):(isV?null:meta[2]),cat:isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:''))}); }});
-  computeVisits(y,m).forEach(v=>{ if(calPerson!=='전체'&&v.who!==calPerson)return; (byDay[v.dd]=byDay[v.dd]||[]).push({t:'방문 · '+v.name,who:v.who,visit:true,sub:v.sub,plan:true,cat:'방문'}); });
-  // 색상 범례
-  let h='<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 12px;padding:8px 4px 12px;font-size:11px;color:var(--mut)">'+
-    '<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:var(--blue,#2f6bf6);display:inline-block"></i>방문</span>'+
-    CAL_CATS.map(c=>`<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:9px;height:9px;border-radius:3px;background:${c[2]};display:inline-block"></i>${c[1]}</span>`).join('')+'</div>';
+  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({id:s.id,t,visit:isV,color:isP?(meta[2]||'#888'):(isV?null:meta[2]),cat:isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:''))}); }});
+  // 예상(계획) 방문은 달력에 자동으로 그리지 않음 — 실제 저장된 일정만 표시.
+  // (방문 배치는 아래 표에서 관리하고, '🔄 이 달 방문 일정 생성'을 누르면 실제 일정으로 만들어짐)
+  // 색상 범례 = 클릭하면 그 종류만 보기 (다시 누르면 전체)
+  const legChip=(key,label,color)=>`<span onclick="setCalCat('${key}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:7px;${calCat===key?'background:#111a33;color:#fff':''}"><i style="width:9px;height:9px;border-radius:3px;background:${color};display:inline-block"></i>${label}</span>`;
+  let h='<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 7px;padding:8px 4px 12px;font-size:11px;color:var(--mut);align-items:center">'+
+    `<span onclick="setCalCat('전체')" style="cursor:pointer;padding:2px 9px;border-radius:7px;font-weight:800;${calCat==='전체'?'background:#111a33;color:#fff':'background:#eef1f6'}">전체</span>`+
+    legChip('방문','방문','var(--blue,#2f6bf6)')+
+    CAL_CATS.map(c=>legChip(c[0],c[1],c[2])).join('')+'</div>';
   ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    h+=`<div class="cell" style="${date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':''}"><div class="dn">${d}</div>${ev.slice(0,4).map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev" style="${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}${ev.length>4?`<div style="font-size:9px;color:var(--mut)">+${ev.length-4} 더</div>`:''}</div>`;
+    const _selSt=date===calPickedDay?'box-shadow:0 0 0 2px #111a33 inset':(date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':'');
+    h+=`<div class="cell" onclick="pickCalDay('${date}')" style="cursor:pointer;${_selSt}"><div class="dn">${d}</div>${ev.map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="event.stopPropagation();openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}</div>`;
   }
   $('calGrid').innerHTML=h;
-  renderAssignTable();
+  // 날짜 선택 전 = 방문 배치표, 날짜 클릭 = 그 날 일정 목록 (서로 토글)
+  if(calPickedDay){ const ca=$('cal-alert'); if(ca)ca.innerHTML=''; renderCalDayList(); }
+  else { const dl=$('calDayList'); if(dl)dl.innerHTML=''; renderAssignTable(); }
+}
+let calPickedDay=null;
+function pickCalDay(dk){ calPickedDay=(calPickedDay===dk?null:dk); renderCalendar(); if(calPickedDay){ const el=$('calDayList'); if(el)setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50); } }
+window.pickCalDay=pickCalDay;
+// 날짜 클릭 → 그 날 일정 전부를 달력 아래에 목록으로 (클릭해서 수정/삭제, 담당 표시)
+function renderCalDayList(){
+  const box=$('calDayList'); if(!box)return;
+  if(!calPickedDay){ box.innerHTML=''; return; }
+  const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
+  const items=(SCHEDULES||[]).filter(s=>{ if(String(s.date||'').slice(0,10)!==calPickedDay)return false; if(calCat!=='전체'){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const ck=isV?'방문':(s.category||''); if(ck!==calCat)return false; } return true; });
+  const [Y,M,D]=calPickedDay.split('-').map(Number);
+  const wd=['일','월','화','수','목','금','토'][new Date(Y,M-1,D).getDay()];
+  let h=`<div class="card" style="margin-top:12px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📅 ${M}/${D} (${wd}) 일정 <span style="font-size:12px;color:var(--mut);font-weight:600">${items.length}건</span><span style="flex:1"></span><button class="b blue sm" onclick="openScheduleAdd('${calPickedDay}')">➕ 이 날 일정 추가</button><button class="b line sm" onclick="pickCalDay('${calPickedDay}')">닫기</button></h3>`;
+  if(!items.length){ h+='<div class="empty">이 날 일정이 없어요</div>'; }
+  else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const asg=schedAsgName(s); const apt=s.apartment_id?aptName[s.apartment_id]:''; return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${col};background:#f8faff;border-radius:0 8px 8px 0;margin-bottom:6px"><b style="font-size:10px;font-weight:800;color:#fff;background:${col};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b><span style="font-weight:700;font-size:13px">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:var(--mut)">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
+  h+='</div>';
+  box.innerHTML=h;
 }
 function renderAssignTable(){
   const box=$('cal-alert'); if(!box)return;
   if(!PHASEB_OK.csites){ box.innerHTML='<div class="card" style="margin-top:16px"><div class="empty">방문 배치를 쓰려면 Supabase에서 <b>backend/migration-control-sites.sql</b> 을 한 번 실행하세요.</div></div>'; return; }
-  const sites=activeSites().slice().sort((p,q)=>(p.name||'').localeCompare(q.name||'','ko'));
-  if(!sites.length){ box.innerHTML=''; return; }
+  // 진행중 현장 + '이미 방문 계획을 만들어 둔' 현장(완료 처리됐어도)까지 표시
+  const hasPlan=a=>{ const d=ownAsg(a); return !!(d&&(String(d.visitDay||'').trim()||(d.cycle&&d.cycle!=='미확인'))); };
+  const sites=APTS.filter(a=>a.status!=='done'||hasPlan(a)).slice().sort((p,q)=>(p.name||'').localeCompare(q.name||'','ko'));
+  if(!sites.length){ box.innerHTML='<div class="card" style="margin-top:16px"><h3>📍 방문 배치표</h3><div class="empty">배치할 현장(단지)이 없어요.<br>단지관리에서 단지를 추가하세요. (전체 단지 '+APTS.length+'곳)</div></div>'; return; }
   const mgrs=auditorNames(), wk=weekKeyOf(new Date()), CYB=['주1회','주2회','주3회','상주'];
   const AUDS=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
-  const rows=sites.map(a=>{ const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean);
+  const rows=sites.map(a=>{ const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean); const curSub=(d.subs&&d.subs[wk])||'';
     const mgr=siteMgrName(a);
     const mgrCell=mgrs.length
       ? `<select onchange="asgSetAuditor('${a.id}',this.value)" style="font-size:12px;padding:5px 8px;border-radius:8px;font-weight:700;border:1.5px solid ${a.auditor_id?'var(--blue,#2f6bf6)':'#e6b04d'};color:${a.auditor_id?'var(--blue,#2f6bf6)':'#b8710a'};background:#fff"><option value="">- 담당 지정 -</option>${AUDS.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select>`
@@ -1748,12 +1808,12 @@ async function deleteMember(id){
 let calYMset=false;
 function calMove(d){ if(!calYM){const n=new Date();calYM={y:n.getFullYear(),m:n.getMonth()};} let m=calYM.m+d,y=calYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} calYM={y,m}; renderCalendar(); }
 function schOwnerName(s){ const m=MEMBERS.find(x=>x.id===s.owner_id); return m?(m.name||loginId(m)):'개인'; }
-function openScheduleAdd(){
+function openScheduleAdd(preDate){
   const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   openModal(mHead('➕ 일정 추가')+`
-    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date"></div><div class="fld"><label>분류 *</label><select id="m-cat">${CAL_CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select></div></div>
+    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date" value="${preDate||''}"></div><div class="fld"><label>분류 *</label><select id="m-cat">${CAL_CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select></div></div>
     <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 공사일정이면 선택, 개인·회의·휴가 등은 비워도 돼요</span></label><select id="m-apt"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>
-    <div class="fld"><label>일정 내용 *</label><input id="m-title" placeholder="예: 옥상 방수 점검 / PT / 세미나"></div>
+    <div class="frow"><div class="fld"><label>일정 내용 *</label><input id="m-title" placeholder="예: 옥상 방수 점검 / PT / 세미나"></div><div class="fld"><label>담당</label><select id="m-asg">${audSelectOptions('','')}</select></div></div>
     <div class="fld"><label>상세 (선택)</label><input id="m-desc"></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitScheduleAdd()">등록</button></div>`);
@@ -1761,17 +1821,52 @@ function openScheduleAdd(){
 async function submitScheduleAdd(){
   const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;
   if(!date||!title){$('m-msg').textContent='날짜·일정 내용을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const row={date,title,description:$('m-desc').value.trim()||null,category};
-  if(aptId){ row.apartment_id=aptId; row.owner_id=null; } else { row.apartment_id=null; }
+  const _a=parseAsg($('m-asg')?$('m-asg').value:'');
+  const row={date,title,description:$('m-desc').value.trim()||null,category,assignee_id:_a.assignee_id,assignee_name:_a.assignee_name,source:'aptsq'};
+  if(aptId){ row.apartment_id=aptId; row.owner_id=null; } else { row.apartment_id=null; row.owner_id=null; }
   const {error}=await sb.from('schedules').insert(row);
-  if(error){$('m-msg').textContent='등록 실패: '+error.message+(/category/.test(error.message)?'\n(backend/migration-control-sites.sql 실행 필요)':'');$('m-msg').style.color='var(--red)';return;}
+  if(error){$('m-msg').textContent='등록 실패: '+error.message+(/assignee_name/.test(error.message)?'\n(backend/migration-assignee-name.sql 실행 필요)':(/category/.test(error.message)?'\n(backend/migration-control-sites.sql 실행 필요)':''));$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();
 }
 async function deleteSchedule(id){
   if(!confirm('이 일정을 삭제할까요?'))return;
   const {error}=await sb.from('schedules').delete().eq('id',id);
   if(error)return alert('삭제 실패: '+error.message);
+  try{ closeModal(); }catch(e){}
   await loadAll();
+}
+// 캘린더 일정 클릭 → 수정·삭제
+function openScheduleEdit(id){
+  const s=(SCHEDULES||[]).find(x=>String(x.id)===String(id)); if(!s){ alert('일정을 찾을 수 없어요'); return; }
+  const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  const isPour=s.source==='pour';
+  openModal(mHead('✏️ 일정 수정')+`
+    ${isPour?'<div class="mmsg" style="color:var(--mut)">📣 POUR 영업시스템에서 온 일정이에요. 여기서 지워도 다음 동기화 때 다시 올 수 있어요(원본은 POUR에서 지워야 함).</div>':''}
+    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date" value="${s.date||''}"></div><div class="fld"><label>분류 *</label><select id="m-cat">${CAL_CATS.map(c=>`<option value="${c[0]}" ${s.category===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select></div></div>
+    <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 없으면 비워두기</span></label><select id="m-apt"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}" ${String(s.apartment_id)===String(a.id)?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
+    <div class="frow"><div class="fld"><label>일정 내용 *</label><input id="m-title" value="${esc(s.title||'')}"></div><div class="fld"><label>담당</label><select id="m-asg">${audSelectOptions(s.assignee_id,s.assignee_name)}</select></div></div>
+    <div class="fld"><label>상세 (선택)</label><input id="m-desc" value="${esc(s.description||'')}"></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b" style="background:#fdecec;color:#d9453c" onclick="deleteSchedule('${s.id}')">🗑 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitScheduleEdit('${s.id}')">저장</button></div>`);
+}
+// 우리(아파트스퀘어)가 올린 일정만 전부 삭제. POUR 영업앱에서 온 일정(source='pour')은 건드리지 않음.
+async function deleteOwnSchedules(){
+  const {count}=await sb.from('schedules').select('id',{count:'exact',head:true}).eq('source','aptsq');
+  if(!count){ alert('우리가 올린 일정이 없어요. (POUR 일정은 그대로 유지됩니다)'); return; }
+  if(!confirm(`우리(아파트스퀘어)가 올린 일정 ${count}건을 전부 삭제할까요?\n\n✅ POUR 영업앱에서 온 일정은 그대로 유지됩니다.\n⚠️ 우리가 만든 방문·개인 등 일정은 사라져요. 되돌릴 수 없어요.`))return;
+  const {error}=await sb.from('schedules').delete().eq('source','aptsq');
+  if(error)return alert('삭제 실패: '+error.message);
+  alert(`우리가 올린 일정 ${count}건을 삭제했어요. (POUR 일정은 유지됨)`);
+  await loadAll();
+}
+async function submitScheduleEdit(id){
+  const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;
+  if(!date||!title){$('m-msg').textContent='날짜·일정 내용을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const _a=parseAsg($('m-asg')?$('m-asg').value:'');
+  const patch={date,title,description:$('m-desc').value.trim()||null,category,apartment_id:aptId||null,assignee_id:_a.assignee_id,assignee_name:_a.assignee_name};
+  const {error}=await sb.from('schedules').update(patch).eq('id',id);
+  if(error){$('m-msg').textContent='저장 실패: '+error.message+(/assignee_name/.test(error.message)?'\n(backend/migration-assignee-name.sql 실행 필요)':'');$('m-msg').style.color='var(--red)';return;}
+  closeModal(); await loadAll();
 }
 
 /* ===== 채팅 답장 ===== */

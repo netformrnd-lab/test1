@@ -1,0 +1,16 @@
+name: 진단 - POUR 노드 데이터 모양 덤프
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 노드 덤프
+        working-directory: backend/aptsq-sync
+        run: node dumpnodes.js

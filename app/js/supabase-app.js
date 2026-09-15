@@ -1908,8 +1908,8 @@ async function vpGenerate() {
 }
 window.vpGenerate = vpGenerate
 const APP_CAL_COLOR = { work: '#1E7F4F', asq: '#2a78d6', pt: '#5598e7', sales: '#256abf', bids: '#d9662f', seminar: '#0891b2', personal: '#8b5cf6', meeting: '#64748b', vacation: '#e0900a' }
-// POUR 영업시스템과 '똑같은' 분류 체계 (POUR에 없는 '아스퀘'·'공사일정'은 제외 → 등록하면 POUR에 그대로 표시)
-const APP_CAT_LABEL = { pt: 'PT', sales: '영업', bids: '현설', seminar: '세미나', personal: '개인', meeting: '회의', vacation: '휴가' }
+// POUR 영업시스템과 동일한 분류 체계 (POUR에도 '아스퀘' 분류가 있음)
+const APP_CAT_LABEL = { work: '공사일정', asq: '아스퀘', pt: 'PT', sales: '영업', bids: '현설', seminar: '세미나', personal: '개인', meeting: '회의', vacation: '휴가' }
 function catColor(k) { return APP_CAL_COLOR[k] || '#2F6BF6' }
 let schedPicked = null
 function schedPickDay(dk) { schedPicked = (schedPicked === dk ? null : dk); renderCalendar(SCHED_ALL || []); renderSchedList(SCHED_ALL || []) }

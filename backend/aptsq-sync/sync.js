@@ -127,12 +127,27 @@ async function reconcileSync() {
     log(`A⬅  POUR/${node}: 전체 ${total} · 저장 ${n} · 날짜없음 ${noDate}` + (noDate && sample ? `  (건너뛴 필드예시: ${sample})` : ''));
   }
   // POUR 에서 사라진 pour 일정 → Supabase 짝 삭제
-  const { data: pourRows } = await sb.from('schedules').select('id,sync_id').eq('source', 'pour');
-  for (const r of pourRows || []) {
-    if (r.sync_id && !livePourSyncIds.has(r.sync_id)) {
-      await sb.from('schedules').delete().eq('id', r.id);
-      log(`A🗑  POUR에서 사라짐 → Supabase ${r.id} 삭제`);
+  //  ★ 반드시 1000행씩 끝까지 읽는다(POUR 일정이 1600여 건 → 1000만 읽으면 그 밖의 삭제가 영영 반영 안 됨).
+  //     조회가 실패하면 삭제 정리를 통째로 건너뛴다(안전).
+  let pourReadOk = true;
+  const pourRows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from('schedules').select('id,sync_id').eq('source', 'pour').range(from, from + 999);
+    if (error) { log(`  ⚠️ pour 조회 실패: ${error.message} → 삭제 정리 건너뜀(안전)`); pourReadOk = false; break; }
+    if (!data || !data.length) break;
+    pourRows.push(...data);
+    if (data.length < 1000) break;
+  }
+  if (pourReadOk) {
+    let removed = 0;
+    for (const r of pourRows) {
+      if (r.sync_id && !livePourSyncIds.has(r.sync_id)) {
+        await sb.from('schedules').delete().eq('id', r.id);
+        removed++;
+        log(`A🗑  POUR에서 사라짐 → Supabase ${r.id} 삭제`);
+      }
     }
+    if (removed) log(`A🗑  POUR 삭제 반영: ${removed}건 (전체 pour ${pourRows.length}건 대조)`);
   }
 
   // 방향 B : Supabase(aptsq) → POUR

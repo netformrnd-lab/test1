@@ -1803,11 +1803,70 @@ function populateSchedAptSelect() {
   sel.innerHTML = '<option value="">🔒 개인 일정 (나만 봐요)</option>' +
     apts.map(a => `<option value="${a.id}">${escH(a.name)} · 단지 일정</option>`).join('')
   sel.value = currentApt ? currentApt.id : ''
-  // 단지를 고르면 '입주민 공개'를 자동으로 켠다(개인 일정이면 끔) → 다가오는 감리일정에 표시
-  sel.onchange = syncSchedPublic
+  // 단지를 고르면 현장 자동입력 + '입주민 공개' 자동 ON (개인 일정은 공개 불가)
+  sel.onchange = onAppAptChange
+  // 새로 열 때(수정 아님) 현재 분류의 상세 폼을 그려둔다
+  if (!editSchedId) { const dyn = document.getElementById('sc-dyn'); const cat = (document.getElementById('sc-cat') || {}).value || 'asq'; if (dyn) dyn.innerHTML = renderAppSchedFields(cat, {}); renderAppAsgn() }
   syncSchedPublic()
-  const asg = document.getElementById('sc-assignee')
-  if (asg) asg.innerHTML = audOptions(MY_ID)   // 담당 감리사(기본=나)
+}
+
+/* ===== POUR식 분류별 상세 폼 (감리사 앱) ===== */
+const APP_SCHED_NODE = { pt: 'pt', bids: 'briefing', sales: 'sales', seminar: 'seminar', personal: 'personal', meeting: 'meetings', vacation: 'vacation', asq: 'asq' }
+const APP_POUR_STAFF = ['이승우', '황윤선', '한준엽', '조재연', '이필선', '한인규', '정정훈', '김성민', '조현식']
+const APP_TIMES = (() => { const a = []; for (let h = 6; h <= 22; h++) { a.push(String(h).padStart(2, '0') + ':00'); a.push(String(h).padStart(2, '0') + ':30') } return a })()
+let APP_ASGN = []
+const SCIN = 'width:100%;min-width:0;background:#fff;border:1px solid #e6eaf2;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;color:#151c33;margin-bottom:9px;box-sizing:border-box;font-family:inherit;outline:none'
+function appRoster() { const auds = (AUDITORS_ROSTER || []).map(a => a.name).filter(Boolean); const me = MY_NAME ? [MY_NAME] : []; return [...new Set([...APP_POUR_STAFF, ...auds, ...me])] }
+function appEsc(n) { return String(n).replace(/\\/g, '\\\\').replace(/'/g, "\\'") }
+function renderAppAsgn() { const box = document.getElementById('sc-asgn'); if (!box) return
+  box.innerHTML = appRoster().map(n => { const on = APP_ASGN.includes(n); return `<span onclick="toggleAppAsgn('${appEsc(n)}')" style="cursor:pointer;display:inline-block;padding:5px 10px;margin:0 6px 6px 0;border-radius:16px;font-size:12px;font-weight:700;border:1px solid ${on ? '#2F6BF6' : '#e6eaf2'};background:${on ? '#eaf1ff' : '#fff'};color:${on ? '#2F6BF6' : '#5c6580'}">${escH(n)}</span>` }).join('')
+    + `<div style="font-size:10.5px;color:#8b95ad;font-weight:700;margin:2px 0 9px">선택: ${APP_ASGN.length ? APP_ASGN.map(escH).join(', ') : '없음'}</div>` }
+window.toggleAppAsgn = function (n) { const i = APP_ASGN.indexOf(n); if (i >= 0) APP_ASGN.splice(i, 1); else APP_ASGN.push(n); renderAppAsgn() }
+window.addAppAsgn = function () { const el = document.getElementById('sc-asgnc'); const v = (el && el.value || '').trim(); if (v && !APP_ASGN.includes(v)) APP_ASGN.push(v); if (el) el.value = ''; renderAppAsgn() }
+function appLbl(t) { return `<div style="font-size:10px;font-weight:800;color:#8b93a8;margin-bottom:5px">${t}</div>` }
+function appInp(id, v, ph) { return `<input id="${id}" value="${escH(v || '')}" placeholder="${escH(ph || '')}" style="${SCIN}">` }
+function appAsgnBlock() { return appLbl('담당자 (복수 선택)') + `<div id="sc-asgn"></div><div style="display:flex;gap:6px;margin-bottom:9px"><input id="sc-asgnc" placeholder="기타: 직접 입력" style="${SCIN};margin-bottom:0"><div onclick="addAppAsgn()" class="plus" style="height:auto;min-width:56px;padding:0 12px;font-size:12px;display:flex;align-items:center;justify-content:center">추가</div></div>` }
+function appTimeField(v) { return appLbl('시간') + `<input id="sc-time" list="sc-times" value="${escH(v || '')}" placeholder="예: 14:00" style="${SCIN}"><datalist id="sc-times">${APP_TIMES.map(t => `<option value="${t}"></option>`).join('')}</datalist>` }
+function appDate(v) { return appLbl('날짜') + `<input id="sc-date" type="date" value="${escH(v || '')}" style="${SCIN};-webkit-appearance:none;appearance:none">` }
+function renderAppSchedFields(cat, m) { m = m || {}; const site = (cat === 'pt' || cat === 'bids' || cat === 'asq'); let h = ''
+  if (site) {
+    h += appLbl('일정 타입') + `<select id="sc-datetype" style="${SCIN}"><option value="confirmed" ${m.dateType !== 'expected' && m.dateType !== 'tbd' ? 'selected' : ''}>확정일</option><option value="expected" ${m.dateType === 'expected' ? 'selected' : ''}>예정월</option><option value="tbd" ${m.dateType === 'tbd' ? 'selected' : ''}>미정</option></select>`
+    h += appDate(m.date) + appTimeField(m.time)
+    h += appLbl('현장명') + appInp('sc-siteName', m.siteName, '예: ○○아파트')
+    h += appLbl('공종') + appInp('sc-workType', m.workType, '예: 외벽 재도장')
+    h += appLbl('주소') + appInp('sc-address', m.address, '')
+    h += appLbl('요청사') + appInp('sc-requester', m.requester, '')
+    h += appLbl('참여인원') + appInp('sc-participants', m.participants, '')
+    h += appLbl('경쟁사') + appInp('sc-competitor', m.competitor, '')
+    if (cat === 'pt' || cat === 'bids') h += appLbl('공고문 공법') + appInp('sc-ptProduct', m.ptProduct, '')
+    h += appAsgnBlock()
+    h += appLbl('비고') + appInp('sc-note', m.note, '')
+  } else if (cat === 'sales') {
+    h += appDate(m.date) + appTimeField(m.time)
+    h += appLbl('업체명') + appInp('sc-company', m.company, '')
+    h += appLbl('연락처') + appInp('sc-phone', m.contactPhone, '')
+    h += appAsgnBlock()
+    h += appLbl('내용') + appInp('sc-content', m.content, '')
+  } else if (cat === 'meeting') {
+    h += appDate(m.date) + appTimeField(m.time)
+    h += appLbl('일정명') + appInp('sc-title', m.title, '')
+    h += appAsgnBlock()
+    h += appLbl('장소') + appInp('sc-location', m.location, '')
+    h += appLbl('비고') + appInp('sc-note', m.note, '')
+  } else {
+    h += appDate(m.date) + appTimeField(m.time)
+    h += appLbl('일정명') + appInp('sc-title', m.title, '예: 외벽 상도 점검')
+    h += appAsgnBlock()
+    if (cat !== 'vacation') h += appLbl('장소') + appInp('sc-location', m.location, '')
+    h += appLbl('비고') + appInp('sc-note', m.note, '')
+  }
+  return h
+}
+window.onAppCatChange = function () { const cat = document.getElementById('sc-cat').value; const box = document.getElementById('sc-dyn'); if (box) box.innerHTML = renderAppSchedFields(cat, {}); renderAppAsgn(); onAppAptChange() }
+window.onAppAptChange = function () { const sel = document.getElementById('sc-apt'); const apt = Object.values(AUD_APTS || {}).find(a => String(a.id) === String(sel && sel.value)); syncSchedPublic(); if (!apt) return
+  const sn = document.getElementById('sc-siteName'); if (sn && !sn.value) sn.value = apt.name || ''
+  const wt = document.getElementById('sc-workType'); if (wt && !wt.value) wt.value = apt.construction_type || ''
+  const ad = document.getElementById('sc-address'); if (ad && !ad.value) ad.value = apt.address || apt.region || ''
 }
 // 단지 선택 여부에 맞춰 '입주민 공개' 체크박스 자동 세팅(개인 일정은 공개 불가)
 function syncSchedPublic() {
@@ -2022,52 +2081,68 @@ window.markVisited = markVisited
 let editSchedId = null
 async function addSchedule() {
   const { data: { user } } = await sb.auth.getUser()
-  const date = document.getElementById('sc-date').value
-  const title = document.getElementById('sc-title').value.trim()
-  const desc = document.getElementById('sc-desc').value.trim()
-  if (!date || !title) { alert('날짜와 일정 내용을 입력하세요'); return }
-  const sel = document.getElementById('sc-apt')
-  const aptId = sel ? sel.value : ''
-  const cat = (document.getElementById('sc-cat') || {}).value || null
+  const gv = i => { const e = document.getElementById(i); return e ? (e.value || '').trim() : '' }
+  const cat = (document.getElementById('sc-cat') || {}).value || 'asq'
+  const aptSel = document.getElementById('sc-apt'); const aptId = aptSel ? aptSel.value : ''
+  const site = (cat === 'pt' || cat === 'bids' || cat === 'asq'); const node = APP_SCHED_NODE[cat]
+  const dateType = site ? (document.getElementById('sc-datetype') ? document.getElementById('sc-datetype').value : 'confirmed') : 'confirmed'
+  const date = gv('sc-date'); const time = gv('sc-time')
+  const title = site ? gv('sc-siteName') : (cat === 'sales' ? gv('sc-company') : gv('sc-title'))
+  if (!title) { alert('현장명/제목을 입력하세요'); return }
+  const needDate = !(site && dateType !== 'confirmed')
+  if (needDate && !date) { alert('날짜를 입력하세요'); return }
+  const asg = APP_ASGN.slice(); const note = gv('sc-note')
+  let meta = null
+  if (node) {
+    if (cat === 'sales') meta = { date, company: title, content: gv('sc-content'), assignee: asg[0] || '', contactPerson: '', contactPhone: gv('sc-phone'), followUp: '' }
+    else if (cat === 'meeting') meta = { type: 'meeting', date, time, title, location: gv('sc-location'), attendees: asg, responses: {}, createdAt: new Date().toISOString(), note }
+    else if (site) meta = { type: node, dateType, status: dateType === 'confirmed' ? '확정' : (dateType === 'expected' ? '예정' : '미정'), mainCategory: '재도장', date: dateType === 'confirmed' ? date : '', time, siteName: title, title: (cat === 'asq' ? title : ''), workType: gv('sc-workType'), address: gv('sc-address'), requester: gv('sc-requester'), participants: gv('sc-participants'), competitor: gv('sc-competitor'), ptProduct: (cat === 'pt' || cat === 'bids') ? gv('sc-ptProduct') : '', assignees: asg, ptAssignee: (cat === 'pt' ? (asg[0] || '') : ''), assignee: (cat === 'bids' ? (asg[0] || '') : ''), location: '', note, expectedMonth: dateType === 'expected' ? date.slice(0, 7) : '', dateNote: '', bidDeadline: '' }
+    else meta = { type: node, dateType: 'confirmed', status: '확정', mainCategory: '재도장', date, time, title, siteName: '', assignees: asg, assignee: '', location: (cat !== 'vacation') ? gv('sc-location') : '', note }
+  }
+  const desc = (cat === 'sales') ? gv('sc-content') : note
   const pub = !!((document.getElementById('sc-public') || {}).checked)
-  const asgId = ((document.getElementById('sc-assignee') || {}).value) || null
-  const row = { date, title, description: desc || null, category: cat, source: 'aptsq' }
-  if (aptId) { row.apartment_id = aptId; row.owner_id = null; row.resident_visible = pub; row.assignee_id = asgId }   // 단지 일정: '공개' 켰을 때만 입주민에게 보임 · 담당 감리사 지정
-  else { row.owner_id = user.id; row.apartment_id = null; row.resident_visible = false; row.assignee_id = null }        // 개인 일정 (나만 봄)
+  const row = { date: (dateType === 'confirmed' ? date : null) || null, title, description: desc || null, category: cat, source: 'aptsq', assignee_name: asg[0] || null, assignee_id: null, meta }
+  if (aptId) { row.apartment_id = aptId; row.owner_id = null; row.resident_visible = pub }
+  else { row.owner_id = user.id; row.apartment_id = null; row.resident_visible = false }
   if (editSchedId) {
     const { error } = await sb.from('schedules').update(row).eq('id', editSchedId)
-    if (error) { alert('수정 실패: ' + error.message); return }
+    if (error) { alert('수정 실패: ' + error.message + (/meta|column/.test(error.message) ? '\n(backend/migration-schedule-meta.sql 실행 필요)' : '')); return }
   } else {
     const { error } = await sb.from('schedules').insert(row)
-    if (error) { alert('등록 실패: ' + error.message); return }
+    if (error) { alert('등록 실패: ' + error.message + (/meta|column/.test(error.message) ? '\n(backend/migration-schedule-meta.sql 실행 필요)' : '')); return }
   }
   cancelSchedEdit()
   loadSchedule()
 }
-// 수정 모드로 폼 열기 (감리사) — 방문 날짜 옮기기 등
+// 수정 모드로 폼 열기 (감리사) — POUR식 상세 폼
 function openSchedEdit(id) {
   const s = (SCHED_ALL || []).find(x => String(x.id) === String(id)); if (!s) return
   editSchedId = s.id
-  const $g = i => document.getElementById(i)
-  if ($g('sc-date')) $g('sc-date').value = String(s.date || '').slice(0, 10)
-  if ($g('sc-title')) $g('sc-title').value = s.title || ''
-  if ($g('sc-desc')) $g('sc-desc').value = s.description || ''
-  if ($g('sc-cat')) $g('sc-cat').value = s.category || ''
-  if ($g('sc-public')) $g('sc-public').checked = !!s.resident_visible
+  const cat = s.category || 'asq'; const $g = i => document.getElementById(i)
+  const m = (s.meta && typeof s.meta === 'object') ? Object.assign({}, s.meta) : {}
+  if (!m.date && s.date) m.date = String(s.date).slice(0, 10)
+  if (!m.siteName && (cat === 'pt' || cat === 'bids' || cat === 'asq') && s.title) m.siteName = s.title
+  if (!m.title && !(cat === 'pt' || cat === 'bids' || cat === 'asq') && cat !== 'sales' && s.title) m.title = s.title
+  if (!m.company && cat === 'sales' && s.title) m.company = s.title
+  APP_ASGN = (m.assignees && m.assignees.length) ? m.assignees.slice() : (m.attendees && m.attendees.length ? m.attendees.slice() : (s.assignee_name ? [s.assignee_name] : []))
+  if ($g('sc-cat')) $g('sc-cat').value = cat
   populateSchedAptSelect()
   if ($g('sc-apt')) $g('sc-apt').value = s.apartment_id || ''
-  syncSchedPublic()   // 단지 유무에 맞춰 공개 체크박스 활성/비활성 (수정 시 기존 공개값은 유지)
-  if ($g('sc-assignee')) $g('sc-assignee').value = s.assignee_id || ''
+  const dyn = $g('sc-dyn'); if (dyn) dyn.innerHTML = renderAppSchedFields(cat, m)
+  renderAppAsgn()
+  if ($g('sc-public')) $g('sc-public').checked = !!s.resident_visible
+  syncSchedPublic()
   const sv = $g('sc-save'); if (sv) sv.textContent = '✓ 수정 저장'
   const f = $g('sc-form'); if (f) { f.style.display = 'block'; f.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
 }
 function cancelSchedEdit() {
-  editSchedId = null
+  editSchedId = null; APP_ASGN = []
   const $g = i => document.getElementById(i)
-  ;['sc-date', 'sc-title', 'sc-desc'].forEach(i => { if ($g(i)) $g(i).value = '' })
+  const cat = ($g('sc-cat') || {}).value || 'asq'
+  const dyn = $g('sc-dyn'); if (dyn) dyn.innerHTML = renderAppSchedFields(cat, {})
+  renderAppAsgn()
   if ($g('sc-public')) $g('sc-public').checked = false
-  try { syncSchedPublic() } catch (e) {}   // 단지 선택 상태에 맞춰 공개 체크박스 재설정
-  if ($g('sc-assignee')) $g('sc-assignee').value = MY_ID || ''
+  try { syncSchedPublic() } catch (e) {}
   const sv = $g('sc-save'); if (sv) sv.textContent = '등록'
   const f = $g('sc-form'); if (f) f.style.display = 'none'
 }

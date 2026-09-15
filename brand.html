@@ -1078,6 +1078,11 @@ table.itable tr:hover td{background:var(--bg-hover)}
   padding:22px 0}
 .pw-none span{font-size:13px;font-weight:400;color:var(--text-muted)}
 
+.pw-src{margin-top:20px;padding-top:14px;border-top:1px solid var(--border);
+  font-size:11.5px;color:var(--text-muted)}
+.pw-src a{color:var(--text-secondary);text-decoration:none}
+.pw-src a:hover{color:var(--blue);text-decoration:underline}
+
 /* 고치기 */
 .pe-sum{display:flex;flex-direction:column;gap:6px;margin:0 0 16px}
 .pe-sum label{font-size:12.5px;font-weight:800;color:var(--text-primary);
@@ -2191,7 +2196,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260915-47';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260915-48';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13271,6 +13276,207 @@ function chapImgDel(bid, id, fid){
   markDirty(b.id); render();
 }
 
+/* ── 🤖 문서에서 길을 읽어내기 ───────────────────────────────────
+   일일이 적지 않고, 정리해 둔 문서를 올리면 NAS 가 글자를 뽑고
+   AI 가 「한 문단 + 길이 꺾인 장」 으로 정리합니다.
+   바로 넣지 않고 목록으로 보여주고 고르게 합니다 — AI 가 잘못 읽은
+   것을 사람이 걸러야 하기 때문입니다.
+   ------------------------------------------------------------- */
+let pathMine = {};        // 브랜드 id → {busy, step, err, sum, sumOn, chaps[], pick{}, doc}
+
+function pathDocs(b){
+  const P = pathOf(b);
+  if(!Array.isArray(P.docs)) P.docs = [];
+  return P.docs;
+}
+let pathDocTo = '';
+function pickPathDoc(bid){
+  pathDocTo = bid;
+  const el = document.getElementById('pathDocInput');
+  if(el) el.click();
+}
+function pathMineClose(bid){ delete pathMine[bid]; render(); }
+function pathMinePick(bid, i, on){
+  const m = pathMine[bid]; if(!m) return;
+  m.pick[i] = !!on; render();
+}
+function pathMineAll(bid, on){
+  const m = pathMine[bid]; if(!m) return;
+  m.chaps.forEach((c, i) => { m.pick[i] = !!on; });
+  render();
+}
+function pathMineSum(bid, on){
+  const m = pathMine[bid]; if(m){ m.sumOn = !!on; render(); }
+}
+
+async function uploadPathDoc(fileList){
+  const files = Array.from(fileList || []);
+  const bid = pathDocTo; pathDocTo = '';
+  if(!files.length || !bid) return;
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const f = files[0];
+
+  pathMine[bid] = { busy:true, step:'문서를 올리는 중…', err:'', sum:'', sumOn:false,
+                    chaps:[], pick:{}, doc:null };
+  render();
+  try{
+    const fd = new FormData();
+    fd.append('brand', b.name); fd.append('sub', '기록부'); fd.append('file', f);
+    const res  = await fetch('files.php?action=upload', { method:'POST', body: fd });
+    const text = await res.text();
+    let out = null;
+    try{ out = JSON.parse(text); }catch(e){}
+    if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ') → '
+      + text.slice(0, 200).replace(/\s+/g, ' '));
+    if(!out.ok) throw new Error(out.error || '올리지 못했습니다');
+    const doc = { id: uid('pd'), name: out.fileName, size: out.fileSize,
+                  filePath: out.filePath || '', at: new Date().toISOString(),
+                  by: (authMe() || {})['이름'] || '' };
+    pathMine[bid].doc  = doc;
+    pathMine[bid].step = '문서에서 글자를 뽑는 중…';
+    render();
+
+    const t = await apiJson('doctext.php?action=one&path='
+      + encodeURIComponent(doc.filePath));
+    const txt = String(t['글자'] || '').trim();
+    if(!txt) throw new Error('이 문서에서 글자를 뽑지 못했습니다.');
+
+    pathMine[bid].step = 'AI 가 걸어온 길로 정리하는 중…';
+    render();
+
+    const ai = await apiJson('ai.php?action=prompt', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ kind:'path', brand: b.name, book: txt })
+    });
+    const got = pathMineParse(ai['프롬프트'] || '');
+    const m = pathMine[bid];
+    m.busy = false;
+    m.sum   = got.sum;
+    m.sumOn = !!got.sum && !String(pathOf(b).summary || '').trim();
+    m.chaps = got.chaps;
+    m.pick  = {};
+    got.chaps.forEach((c, i) => { m.pick[i] = true; });
+    render();
+  }catch(e){
+    pathMine[bid] = { busy:false, err: apiErrText(e), sum:'', sumOn:false,
+                      chaps:[], pick:{}, doc: (pathMine[bid] || {}).doc || null };
+    render();
+  }
+}
+
+/* AI 가 앞뒤에 말을 붙여도 JSON 만 골라냅니다 */
+function pathMineParse(text){
+  let t = String(text || '').trim();
+  t = t.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  let j = null;
+  try{ j = JSON.parse(t); }catch(e){
+    const a = t.indexOf('{'), z = t.lastIndexOf('}');
+    if(a >= 0 && z > a){ try{ j = JSON.parse(t.slice(a, z + 1)); }catch(e2){} }
+  }
+  const KIND = PATH_KINDS.map(k => k.k);
+  const arr  = (j && (j['장'] || j.chapters)) || [];
+  const chaps = (Array.isArray(arr) ? arr : []).map(x => {
+    const o = { when: String((x && x.when) || '').trim() };
+    o.kind = KIND.indexOf(String((x && x.kind) || '')) >= 0 ? x.kind : '방향을 틀다';
+    o.title = String((x && x.title) || '').trim();
+    PATH_FIELDS.forEach(f => { o[f[0]] = String((x && x[f[0]]) || '').trim(); });
+    return o;
+  }).filter(c => c.title || c.body || c.before || c.after);
+  return { sum: String((j && (j['한문단'] || j.summary)) || '').trim(), chaps: chaps };
+}
+
+function pathMineAdd(bid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const m = pathMine[bid]; if(!m) return;
+  const P = pathOf(b);
+  let n = 0;
+  if(m.sumOn && m.sum){ P.summary = m.sum; n++; }
+  m.chaps.forEach((c, i) => {
+    if(!m.pick[i]) return;
+    P.chapters.push(Object.assign({ id: uid('pc') }, c));
+    n++;
+  });
+  if(m.doc && !pathDocs(b).some(d => d.filePath === m.doc.filePath))
+    pathDocs(b).push(m.doc);
+  delete pathMine[bid];
+  markDirty(b.id);
+  pathEdit = false;                 // 넣은 결과를 바로 읽게 합니다
+  render();
+  toast('✅ ' + n + '개를 넣었습니다');
+}
+
+function pathMineHtml(b){
+  const bid = jsq(b.id);
+  const m = pathMine[b.id];
+  if(!m) return '';
+
+  if(m.busy){
+    return '<div class="dmn"><div class="dmn-hd">🤖 ' + esc(m.step || '읽는 중…')
+      + '<span>문서가 길면 1~2분 걸립니다</span></div></div>';
+  }
+  if(m.err){
+    return '<div class="dmn"><div class="dmn-err">⚠️ ' + esc(m.err) + '</div>'
+      + '<div class="dmn-ac"><button class="btn sm" onclick="pathMineClose(\'' + bid
+        + '\')">닫기</button></div></div>';
+  }
+  if(!m.chaps.length && !m.sum){
+    return '<div class="dmn"><div class="dmn-hd">🤖 이 문서에서 길을 읽지 못했습니다'
+      + '<span>브랜드가 어떻게 바뀌어 왔는지가 적혀 있지 않거나, '
+      + '글자가 잘 안 읽힌 문서입니다</span></div>'
+      + '<div class="dmn-ac"><button class="btn sm" onclick="pathMineClose(\'' + bid
+        + '\')">닫기</button></div></div>';
+  }
+
+  const cur = String(pathOf(b).summary || '').trim();
+  const on  = m.chaps.filter((c, i) => m.pick[i]).length + (m.sumOn ? 1 : 0);
+
+  const sum = m.sum
+    ? '<div class="dmn-sub">📖 맨 위 한 문단</div>'
+      + '<div class="dmn-nlist"><label class="dmn-n' + (m.sumOn ? ' on' : '')
+        + (cur ? ' over' : '') + '">'
+        + '<input type="checkbox"' + (m.sumOn ? ' checked' : '') + ' '
+          + 'onchange="pathMineSum(\'' + bid + '\', this.checked)">'
+        + '<span class="bd">'
+          + (cur ? '<span class="lb"><em>이미 적혀 있습니다 — 켜면 이 글로 바뀝니다</em></span>'
+                   + '<span class="be">' + esc(gbOneLine(cur, 140)) + '</span>' : '')
+          + '<span class="af">' + esc(m.sum) + '</span>'
+        + '</span></label></div>'
+    : '';
+
+  const rows = m.chaps.map((c, i) => {
+    const K = pathKindOf(c);
+    const sub = [c.body, c.before && c.after ? c.before + ' → ' + c.after : '', c.bad]
+      .map(x => String(x || '').trim()).filter(Boolean)[0] || '';
+    return '<label class="dmn-r' + (m.pick[i] ? ' on' : '') + '">'
+      + '<input type="checkbox"' + (m.pick[i] ? ' checked' : '') + ' '
+        + 'onchange="pathMinePick(\'' + bid + '\',' + i + ', this.checked)">'
+      + '<span class="bd">'
+        + '<span class="dt"><b>' + esc(c.when || '때 미상') + '</b>'
+          + '<span class="kd">' + K.ic + ' ' + esc(K.k) + '</span></span>'
+        + '<span class="ti">' + esc(c.title || '(제목 없음)') + '</span>'
+        + (sub ? '<span class="sc">' + esc(gbOneLine(sub, 110)) + '</span>' : '')
+      + '</span></label>';
+  }).join('');
+
+  return '<div class="dmn">'
+    + '<div class="dmn-hd">🤖 ' + esc((m.doc && m.doc.name) || '문서') + ' 에서 읽어냈습니다'
+      + '<span>넣을 것만 골라 주세요. 넣은 뒤에도 [✏️ 고치기] 에서 고칠 수 있습니다</span></div>'
+    + sum
+    + (m.chaps.length
+        ? '<div class="dmn-sub">🧭 장 ' + m.chaps.length + '개</div>'
+          + '<div class="dmn-bar">'
+            + '<button class="btn sm" onclick="pathMineAll(\'' + bid + '\',1)">모두 고르기</button>'
+            + '<button class="btn sm" onclick="pathMineAll(\'' + bid + '\',0)">모두 풀기</button>'
+          + '</div>'
+          + '<div class="dmn-list">' + rows + '</div>'
+        : '')
+    + '<div class="dmn-ac">'
+      + '<button class="btn primary"' + (on ? '' : ' disabled')
+        + ' onclick="pathMineAdd(\'' + bid + '\')">' + on + '개 넣기</button>'
+      + '<button class="btn sm" onclick="pathMineClose(\'' + bid + '\')">닫기</button>'
+    + '</div></div>';
+}
+
 /* 글로 복사 — 화면에 보이는 그대로 */
 function pathText(b){
   const P = pathOf(b);
@@ -13306,11 +13512,16 @@ function pathViewHtml(b){
       + (pathEdit ? '한 문단과 장을 여기서 고칩니다'
                   : '신입이 첫날 이것만 읽고 이 브랜드가 어떤 길을 걸었는지 알게 되는 자리입니다')
       + '</span>'
+    + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\')">'
+      + '🤖 문서에서 만들기</button>'
     + '<button class="btn sm" onclick="pathCopy(\'' + bid + '\')">📋 글로 복사</button>'
     + '</div>'
     + '<input type="file" id="chapImgInput" accept="image/*" multiple style="display:none" '
-      + 'onchange="uploadChapImg(this.files); this.value=\'\'">';
-  return bar + (pathEdit ? pathEditHtml(b) : pathReadHtml(b));
+      + 'onchange="uploadChapImg(this.files); this.value=\'\'">'
+    + '<input type="file" id="pathDocInput" style="display:none" '
+      + 'onchange="uploadPathDoc(this.files); this.value=\'\'">';
+  return bar + pathMineHtml(b)
+    + (pathEdit ? pathEditHtml(b) : pathReadHtml(b));
 }
 
 function pathReadHtml(b){
@@ -13320,7 +13531,8 @@ function pathReadHtml(b){
 
   if(!sum && !cs.length){
     return '<div class="pw"><div class="pw-none">이 브랜드가 걸어온 길이 아직 비어 있습니다.'
-      + '<br><span>[✏️ 고치기] 에서 맨 위 한 문단부터 적어 보세요. '
+      + '<br><span>정리해 둔 문서가 있으면 <b>[🤖 문서에서 만들기]</b> 로 한 번에 채웁니다. '
+      + '없으면 [✏️ 고치기] 에서 맨 위 한 문단부터 적어 보세요 — '
       + '신입이 그 문단만 읽고도 이 브랜드를 설명할 수 있으면 된 것입니다.</span></div></div>';
   }
 
@@ -13336,7 +13548,13 @@ function pathReadHtml(b){
     : '<div class="pw-none" style="padding:18px 0">아직 장이 없습니다.<br>'
       + '<span>길이 꺾인 지점만 서너 개 남기면 됩니다 — 출발 · 방향을 틀다 · 지금.</span></div>';
 
-  return '<div class="pw">' + head + body + '</div>';
+  const ds = pathDocs(b);
+  const foot = ds.length
+    ? '<div class="pw-src">읽어온 문서 · '
+      + ds.map(d => '<a href="' + esc(cardFull(d)) + '" target="_blank" rel="noopener">'
+          + esc(d.name || '') + '</a>').join(' · ') + '</div>'
+    : '';
+  return '<div class="pw">' + head + body + foot + '</div>';
 }
 
 function chapReadHtml(b, c, i){

@@ -11,6 +11,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: 의존성
+        working-directory: backend/aptsq-sync
+        run: npm install google-auth-library --no-audit --no-fund --no-save
       - name: 서비스계정 검사
         working-directory: backend/aptsq-sync
         env:

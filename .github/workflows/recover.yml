@@ -1,0 +1,19 @@
+name: 복구 - 삭제 함수 소스 찾기
+
+on:
+  workflow_dispatch:
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 의존성
+        run: npm install google-auth-library --no-save --no-audit --no-fund
+      - name: 저장소 검색
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node backend/aptsq-sync/recover.js

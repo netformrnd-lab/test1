@@ -697,6 +697,14 @@ const WKB=['월','화','수','목','금','토','일'];
 const VISIT_MARK='🔧 정기 방문';
 const CAL_CATS=[['work','공사일정','#1E7F4F'],['asq','아스퀘','#2a78d6'],['pt','PT','#5598e7'],['sales','영업','#256abf'],['bids','현설','#d9662f'],['seminar','세미나','#0891b2'],['personal','개인','#8b5cf6'],['meeting','회의','#64748b'],['vacation','휴가','#e0900a']];
 function catMeta(k){ return CAL_CATS.find(c=>c[0]===k)||['','일정','#2F6BF6']; }
+// POUR와 공유되는(= POUR 앱에도 보이는) 분류. work(공사일정)·asq(아스퀘)는 POUR에 대응 노드가 없어 아스퀘 전용.
+const POUR_SHARED_CATS=new Set(['pt','sales','bids','seminar','personal','meeting','vacation']);
+function catOptTag(k){ return POUR_SHARED_CATS.has(k)?' · POUR 공유':' · 아스퀘 전용'; }
+// 일정 추가/수정용 분류 <option> 생성. withPh=true 면 맨 앞에 "분류 선택" 안내(선택 강제).
+function catSelectOptions(sel, withPh){
+  const ph = withPh ? `<option value="" disabled ${sel?'':'selected'}>— 분류 선택 —</option>` : '';
+  return ph + CAL_CATS.map(c=>`<option value="${c[0]}" ${sel===c[0]?'selected':''}>${c[1]}${catOptTag(c[0])}</option>`).join('');
+}
 function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function weekKeyOf(dt){ const n=new Date(dt); const off=(n.getDay()+6)%7; n.setHours(0,0,0,0); n.setDate(n.getDate()-off); return isoDate(n); }
 function csSlug(name){ return String(name||'').replace(/[\/#\.\[\]\$]/g,'_').slice(0,300); }
@@ -1811,7 +1819,7 @@ function schOwnerName(s){ const m=MEMBERS.find(x=>x.id===s.owner_id); return m?(
 function openScheduleAdd(preDate){
   const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   openModal(mHead('➕ 일정 추가')+`
-    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date" value="${preDate||''}"></div><div class="fld"><label>분류 *</label><select id="m-cat">${CAL_CATS.map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')}</select></div></div>
+    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date" value="${preDate||''}"></div><div class="fld"><label>분류 * <span style="font-weight:600;color:var(--mut)">— 'POUR 공유'는 POUR 앱에도 떠요</span></label><select id="m-cat">${catSelectOptions('',true)}</select></div></div>
     <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 공사일정이면 선택, 개인·회의·휴가 등은 비워도 돼요</span></label><select id="m-apt"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>
     <div class="frow"><div class="fld"><label>일정 내용 *</label><input id="m-title" placeholder="예: 옥상 방수 점검 / PT / 세미나"></div><div class="fld"><label>담당</label><select id="m-asg">${audSelectOptions('','')}</select></div></div>
     <div class="fld"><label>상세 (선택)</label><input id="m-desc"></div>
@@ -1821,6 +1829,7 @@ function openScheduleAdd(preDate){
 async function submitScheduleAdd(){
   const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;
   if(!date||!title){$('m-msg').textContent='날짜·일정 내용을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  if(!category){$('m-msg').textContent='분류를 선택하세요 (POUR에 보이게 하려면 \'POUR 공유\' 분류)';$('m-msg').style.color='var(--red)';return;}
   const _a=parseAsg($('m-asg')?$('m-asg').value:'');
   const row={date,title,description:$('m-desc').value.trim()||null,category,assignee_id:_a.assignee_id,assignee_name:_a.assignee_name,source:'aptsq'};
   if(aptId){ row.apartment_id=aptId; row.owner_id=null; } else { row.apartment_id=null; row.owner_id=null; }
@@ -1842,7 +1851,7 @@ function openScheduleEdit(id){
   const isPour=s.source==='pour';
   openModal(mHead('✏️ 일정 수정')+`
     ${isPour?'<div class="mmsg" style="color:var(--mut)">📣 POUR 영업시스템에서 온 일정이에요. 여기서 지워도 다음 동기화 때 다시 올 수 있어요(원본은 POUR에서 지워야 함).</div>':''}
-    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date" value="${s.date||''}"></div><div class="fld"><label>분류 *</label><select id="m-cat">${CAL_CATS.map(c=>`<option value="${c[0]}" ${s.category===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select></div></div>
+    <div class="frow"><div class="fld"><label>날짜 *</label><input id="m-date" type="date" value="${s.date||''}"></div><div class="fld"><label>분류 * <span style="font-weight:600;color:var(--mut)">— 'POUR 공유'는 POUR 앱에도 떠요</span></label><select id="m-cat">${catSelectOptions(s.category,!s.category)}</select></div></div>
     <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 없으면 비워두기</span></label><select id="m-apt"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}" ${String(s.apartment_id)===String(a.id)?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
     <div class="frow"><div class="fld"><label>일정 내용 *</label><input id="m-title" value="${esc(s.title||'')}"></div><div class="fld"><label>담당</label><select id="m-asg">${audSelectOptions(s.assignee_id,s.assignee_name)}</select></div></div>
     <div class="fld"><label>상세 (선택)</label><input id="m-desc" value="${esc(s.description||'')}"></div>
@@ -1862,6 +1871,7 @@ async function deleteOwnSchedules(){
 async function submitScheduleEdit(id){
   const date=$('m-date').value, aptId=$('m-apt').value, title=$('m-title').value.trim(), category=$('m-cat').value||null;
   if(!date||!title){$('m-msg').textContent='날짜·일정 내용을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  if(!category){$('m-msg').textContent='분류를 선택하세요 (POUR에 보이게 하려면 \'POUR 공유\' 분류)';$('m-msg').style.color='var(--red)';return;}
   const _a=parseAsg($('m-asg')?$('m-asg').value:'');
   const patch={date,title,description:$('m-desc').value.trim()||null,category,apartment_id:aptId||null,assignee_id:_a.assignee_id,assignee_name:_a.assignee_name};
   const {error}=await sb.from('schedules').update(patch).eq('id',id);

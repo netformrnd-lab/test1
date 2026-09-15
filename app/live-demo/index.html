@@ -20,10 +20,12 @@
   .btn{border:1px solid var(--line);background:#1a2542;color:var(--txt);font-weight:800;font-size:12.5px;border-radius:10px;padding:9px 14px;cursor:pointer;font-family:inherit}
   .btn:hover{background:#22315a}
   .btn.b{background:var(--blue);border-color:var(--blue);color:#fff}
-  .stage{height:calc(100% - 64px);display:flex;gap:18px;padding:18px;overflow-x:auto;align-items:stretch}
+  /* 무대: 데크를 화면 크기에 맞춰 통째로 축소(scale-to-fit) → 노트북에서도 비율 안 깨짐 */
+  #stage{height:calc(100% - 64px);display:flex;align-items:center;justify-content:center;overflow:hidden;padding:16px}
+  #deck{width:1400px;height:800px;display:flex;gap:18px;flex:0 0 auto;align-items:stretch;transform-origin:center center}
   .col{display:flex;flex-direction:column;min-width:0}
-  .col.dash{flex:1;min-width:520px}
-  .col.phone{width:392px;flex:0 0 392px}
+  .col.dash{flex:1;min-width:0}
+  .col.phone{width:372px;flex:0 0 372px}
   .cap{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 2px}
   .num{width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff;flex:0 0 24px}
   .num.n1{background:var(--blue)} .num.n2{background:#7c5cff} .num.n3{background:var(--green)}
@@ -31,6 +33,8 @@
   .cap .d{font-size:11px;font-weight:600;color:var(--mut)}
   .frame{flex:1;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#0b1120;box-shadow:0 18px 50px rgba(0,0,0,.45);position:relative}
   .frame iframe{width:100%;height:100%;border:0;display:block;background:#fff}
+  /* 관리자 대시보드는 데스크톱 화면 → 넓은 폭으로 그린 뒤 칸에 맞게 축소(눌려 보이지 않게) */
+  .dash .frame iframe{position:absolute;top:0;left:0;transform-origin:top left}
   /* 폰 목업 */
   .phone .frame{border-radius:30px;border:8px solid #0a1020;background:#0a1020;box-shadow:0 24px 60px rgba(0,0,0,.55);padding:0}
   .phone .frame::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:110px;height:22px;background:#0a1020;border-radius:0 0 16px 16px;z-index:5}
@@ -53,7 +57,8 @@
     <button class="btn b" onclick="toggleFlow()">데모 안내</button>
   </div>
 
-  <div class="stage">
+  <div id="stage">
+   <div id="deck">
     <div class="col dash">
       <div class="cap"><div class="num n1">1</div><div><div class="t">관리자 대시보드</div><div class="d">여기서 수정 — 감리일지·방문 배치·일정·단지 정보</div></div></div>
       <div class="frame"><iframe id="fr-dash" src="../console/?sess=demoadmin" title="대시보드"></iframe></div>
@@ -70,9 +75,31 @@
       <div class="frame"><iframe id="fr-res" src="../?sess=demores" title="입주민 앱"></iframe></div>
       <div class="hint">처음 한 번 <b>입주민 계정</b>으로 로그인</div>
     </div>
+   </div>
   </div>
 
 <script>
+  // 데크(1400×800)를 화면에 맞춰 통째로 축소 → 3분할 비율 유지하며 노트북에 딱 맞춤
+  function fitDeck(){
+    var st=document.getElementById('stage'), dk=document.getElementById('deck');
+    if(!st||!dk) return;
+    var s=Math.min((st.clientWidth-24)/1400,(st.clientHeight-24)/800);
+    s=Math.max(0.3, Math.min(s,1.6));
+    dk.style.transform='scale('+s+')';
+    fitDash();
+  }
+  // 관리자 대시보드 iframe을 데스크톱 폭(1280)으로 그린 뒤, 칸 크기에 맞춰 축소해 채움
+  function fitDash(){
+    var fr=document.querySelector('.dash .frame'), ifr=fr&&fr.querySelector('iframe');
+    if(!fr||!ifr) return;
+    var DW=1280, sc=fr.clientWidth/DW;
+    ifr.style.width=DW+'px';
+    ifr.style.height=(fr.clientHeight/sc)+'px';
+    ifr.style.transform='scale('+sc+')';
+  }
+  window.addEventListener('resize', fitDeck);
+  var _fd=document.getElementById('fr-dash'); if(_fd) _fd.addEventListener('load', function(){ fitDash(); setTimeout(fitDash,300); });
+  fitDeck(); setTimeout(fitDeck,300); setTimeout(fitDeck,800);
   function reloadAll(){ ['fr-dash','fr-aud','fr-res'].forEach(function(id){ var f=document.getElementById(id); if(f) f.src=f.src; }); }
   var flowOn=true;
   function toggleFlow(){

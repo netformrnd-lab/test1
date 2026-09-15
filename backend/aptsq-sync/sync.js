@@ -136,21 +136,35 @@ async function reconcileSync() {
   }
 
   // 방향 B : Supabase(aptsq) → POUR
-  const { data: rows } = await sb.from('schedules').select('*').eq('source', 'aptsq');
+  //  ★ 반드시 1000행씩 끝까지(페이지네이션) + 에러 체크. 조회가 불완전하면 아래 '정리(삭제)'를 건너뛴다.
   const liveAptsqIds = new Set();
   let pushed = 0;
-  for (const row of rows || []) {
+  let readOk = true;
+  const aptsqRows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from('schedules').select('*').eq('source', 'aptsq').range(from, from + 999);
+    if (error) { log(`  ⚠️ aptsq 조회 실패: ${error.message} → 삭제 정리 건너뜀(안전)`); readOk = false; break; }
+    if (!data || !data.length) break;
+    aptsqRows.push(...data);
+    if (data.length < 1000) break;
+  }
+  for (const row of aptsqRows) {
     if (M.CATEGORY_TO_NODE[row.category]) { liveAptsqIds.add(String(row.id)); await pushSupabaseRow(row); pushed++; }
   }
   if (pushed) log(`B⮕  Supabase(aptsq) → POUR ${pushed}건`);
   // 아파트스퀘어에서 사라진 일정 → POUR 짝 삭제
-  for (const aptsqId of aptsqIdsInPour) {
-    if (!liveAptsqIds.has(aptsqId)) {
-      for (const node of M.SYNC_NODES) {
-        await rtdbDelete(`${node}/${M.safeId('asq_' + aptsqId)}`).catch(() => {});
+  //  ★ 안전장치: aptsq 조회가 실패/불완전하면 절대 삭제하지 않는다(전량 오삭제 방지 = "자꾸 연결 끊김" 원인 차단).
+  if (readOk) {
+    for (const aptsqId of aptsqIdsInPour) {
+      if (!liveAptsqIds.has(aptsqId)) {
+        for (const node of M.SYNC_NODES) {
+          await rtdbDelete(`${node}/${M.safeId('asq_' + aptsqId)}`).catch(() => {});
+        }
+        log(`B🗑  아파트스퀘어에서 사라짐 → POUR asq_${aptsqId} 삭제`);
       }
-      log(`B🗑  아파트스퀘어에서 사라짐 → POUR asq_${aptsqId} 삭제`);
     }
+  } else {
+    log('⚠️ aptsq 조회 불완전 → POUR 정리(삭제) 전체 생략');
   }
   log('✅ 동기화 완료');
 }

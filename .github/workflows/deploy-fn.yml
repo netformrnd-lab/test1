@@ -1,0 +1,38 @@
+name: 즉시연동 - Firebase 함수 배포
+
+# 수동 실행. POUR RTDB(test-168a4) → 아스퀘 즉시 동기화 함수를 배포.
+# 준비물(GitHub Secrets): FIREBASE_SERVICE_ACCOUNT (test-168a4), SUPABASE_SERVICE_ROLE_KEY
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: firebase-tools 설치
+        run: npm install -g firebase-tools@13
+
+      - name: 서비스계정 파일 생성
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$SA" > "$HOME/sa.json"
+
+      - name: 매핑 복사 + 함수 .env
+        run: |
+          cp backend/aptsq-sync/mapping.js functions/mapping.js
+          echo "SUPABASE_URL=https://gndktayoicegyqyllybk.supabase.co" > functions/.env
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> functions/.env
+
+      - name: 함수 의존성
+        working-directory: functions
+        run: npm install --no-audit --no-fund
+
+      - name: 배포
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /home/runner/sa.json
+        run: firebase deploy --only functions --project test-168a4 --non-interactive --force

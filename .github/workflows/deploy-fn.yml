@@ -32,12 +32,13 @@ jobs:
         working-directory: functions
         run: npm install --no-audit --no-fund
 
-      - name: 권한 자가부여 시도 (ActAs)
+      - name: 필요한 API 켜기
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           npm install google-auth-library --no-save --no-audit --no-fund
-          node backend/aptsq-sync/fbgrant.js || echo "⚠️ 자가부여 실패 — 소유자가 수동으로 권한 줘야 할 수 있음(계속 진행)"
+          node backend/aptsq-sync/enableapi.js || echo "⚠️ API 활성화 일부 실패(계속 진행)"
+          sleep 30
 
       - name: 배포
         env:

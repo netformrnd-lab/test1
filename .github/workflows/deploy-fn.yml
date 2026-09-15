@@ -40,7 +40,10 @@ jobs:
           node backend/aptsq-sync/enableapi.js || echo "⚠️ API 활성화 일부 실패(계속 진행)"
           sleep 30
 
-      - name: 배포
+      - name: 배포 (우리 8개 함수만 — POUR 기존 함수는 건드리지 않음)
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /home/runner/sa.json
-        run: firebase deploy --only functions --project test-168a4 --non-interactive --force
+        run: >
+          firebase deploy
+          --only "functions:pt,functions:briefing,functions:sales,functions:seminar,functions:personal,functions:meetings,functions:vacation,functions:asq"
+          --project test-168a4 --non-interactive

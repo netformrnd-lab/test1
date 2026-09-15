@@ -1754,8 +1754,9 @@ async function loadSchedule() {
   const vpb0 = document.getElementById('sc-vp-btn'); if (vpb0) vpb0.style.display = 'none'
   const vpf0 = document.getElementById('sc-vp'); if (vpf0) vpf0.style.display = 'none'
   // 진입 즉시 '현재 달' 달력을 먼저 그림 — 정적 샘플(빈 7월 달력)이 잠깐 보이는 깜빡임 방지
+  // ★ 최초 진입(데이터 없음)일 때만. 새로고침·등록 후엔 빈 달력을 안 그려야 높이가 줄었다 늘며 화면이 위아래로 튀지 않음.
   if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }
-  try { renderCalendar([]) } catch (e) {}
+  if (!SCHED_ALL.length) { try { renderCalendar([]) } catch (e) {} }
   const { data: { user } } = await sb.auth.getUser()
   const sub = document.getElementById('s-sub'), addBtn = document.getElementById('sc-add-btn')
   if (!schedYM) { const d = new Date(); schedYM = { y: d.getFullYear(), m: d.getMonth() } }

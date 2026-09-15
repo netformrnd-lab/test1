@@ -1,7 +1,9 @@
 name: 영업일정 ↔ 아파트스퀘어 동기화
 
-# 컴퓨터 없이 GitHub이 자동으로 돌려줍니다.
-#   · 5분마다 자동 실행 (GitHub 사정에 따라 몇 분 더 늦어질 수 있음)
+# 실시간 동기화는 이제 즉시(양방향)로 처리됩니다:
+#   · POUR→아스퀘: Firebase 함수(onWrite)
+#   · 아스퀘→POUR: Supabase pg_net 트리거
+# 이 배치는 '보정(누락 방지)'용으로 3시간마다만 한 번 전체를 맞춥니다.
 #   · 수동으로 "Run workflow" 버튼으로도 바로 돌릴 수 있음
 #
 # 준비물 (Repo → Settings → Secrets and variables → Actions → New repository secret):
@@ -11,7 +13,7 @@ name: 영업일정 ↔ 아파트스퀘어 동기화
 
 on:
   schedule:
-    - cron: '*/5 * * * *'     # 5분마다
+    - cron: '0 */3 * * *'     # 3시간마다 (보정용 — 실시간은 즉시 처리)
   workflow_dispatch:           # 수동 실행 버튼
 
 # 이전 실행이 겹치지 않게 (동시에 두 번 돌아 충돌나는 것 방지)

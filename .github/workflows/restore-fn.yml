@@ -1,0 +1,58 @@
+name: 복구 - 삭제된 POUR 함수 되돌리기
+
+# 삭제된 POUR 알림 함수들을 원본 소스(Storage에 남아있던)로 다시 배포.
+# 우리 8개 즉시연동 함수는 건드리지 않음(범위 지정).
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: firebase-tools 설치
+        run: npm install -g firebase-tools@13
+
+      - name: 서비스계정 파일
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$SA" > "$HOME/sa.json"
+
+      - name: google-auth + 필요한 API 켜기
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          npm install google-auth-library --no-save --no-audit --no-fund
+          node backend/aptsq-sync/enableapi.js || true
+          sleep 20
+
+      - name: 원본 소스 다운로드 + 준비
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          node backend/aptsq-sync/inspectfn.js
+          mkdir -p restorepkg/fn
+          unzip -o -q restore-src.zip -d restorepkg/fn
+          rm -f restorepkg/fn/functions.zip
+          rm -rf restorepkg/fn/node_modules
+          printf '{ "functions": { "source": "fn" } }' > restorepkg/firebase.json
+          printf '{ "projects": { "default": "test-168a4" } }' > restorepkg/.firebaserc
+          echo "== 복구할 함수 목록 =="
+          grep -oE "exports\.[A-Za-z0-9_]+" restorepkg/fn/index.js | sort -u
+
+      - name: 복구 함수 의존성
+        working-directory: restorepkg/fn
+        run: npm install --no-audit --no-fund
+
+      - name: 복구 배포 (POUR 알림 함수만)
+        working-directory: restorepkg
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /home/runner/sa.json
+        run: >
+          firebase deploy
+          --only "functions:sendDailyNotification,functions:sendUrgentMeetingNotification,functions:sendPendingResponseNotification,functions:sendUnassignedPTNotification,functions:sendMeetingReminder,functions:testNotification"
+          --project test-168a4 --non-interactive

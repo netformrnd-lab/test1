@@ -90,6 +90,13 @@ async function pushSupabaseRow(row) {
 
 // ── 풀 싱크(양쪽을 한 번씩 훑어 생성·수정·삭제 모두 맞춘다) ────────────────────
 async function reconcileSync() {
+  // source 없는(옛날 콘솔로 넣은) 우리 일정 → 'aptsq' 로 표시(POUR 전송 대상이 되도록).
+  // POUR 에서 온 건 source='pour' 라 건드리지 않음.
+  {
+    const { data: fixed, error } = await sb.from('schedules').update({ source: 'aptsq' }).is('source', null).select('id');
+    if (!error && fixed && fixed.length) log(`source 없던 우리 일정 ${fixed.length}건 → aptsq 표시`);
+  }
+
   // 방향 A : POUR → Supabase
   const livePourSyncIds = new Set();
   const aptsqIdsInPour = new Set();

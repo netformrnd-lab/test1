@@ -3020,6 +3020,8 @@ setInterval(refreshCurrentScreen, 7000)   // 안전망(실시간이 끊겼을 �
 // 실시간(Realtime): 관리자가 삭제·추가·수정하면 즉시 앱에 반영
 let _rtDone = false, _rtTimer = null
 function scheduleRealtimeRefresh() {
+  // 디바운스를 넉넉히(2초) 둬서, 대량 변경(배치 동기화 등)이 몰릴 때 매 건 재렌더로
+  // 화면이 "번쩍번쩍" 하는 걸 막는다. 연속 이벤트가 2초 안에 계속 오면 마지막에 한 번만 갱신.
   clearTimeout(_rtTimer)
   _rtTimer = setTimeout(() => {
     try { refreshCurrentScreen(true) } catch (e) {}
@@ -3029,7 +3031,7 @@ function scheduleRealtimeRefresh() {
       if (currentRole && currentRole !== 'auditor' && NAV_CUR !== 's11') loadResidentHome()
       else if (currentRole === 'auditor' && NAV_CUR !== 's07') loadAuditorApts()
     } catch (e) {}
-  }, 250)
+  }, 2000)
 }
 function setupRealtime() {
   if (_rtDone) return

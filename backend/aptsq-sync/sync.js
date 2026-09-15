@@ -70,11 +70,20 @@ async function importPourEntry(node, id, s) {
   const row = M.pourToSupabase(node, id, s);
   if (!row.date) return false;                        // 날짜 없는 건 스킵
   const { data: existing, error: selErr } = await sb
-    .from('schedules').select('id').eq('sync_id', row.sync_id).maybeSingle();
+    .from('schedules').select('id,category,date,title,description').eq('sync_id', row.sync_id).maybeSingle();
   if (selErr) { log(`  ⚠️ ${node}/${id} 조회실패: ${selErr.message}`); return false; }
-  const { error } = existing
-    ? await sb.from('schedules').update(row).eq('id', existing.id)
-    : await sb.from('schedules').insert(row);
+  if (existing) {
+    // 내용이 그대로면 업데이트 생략 → 매 배치마다 무의미한 write 로 실시간이 폭주(앱 번쩍임)하는 것 방지
+    const same = existing.category === row.category
+      && String(existing.date || '') === String(row.date || '')
+      && (existing.title || '') === (row.title || '')
+      && (existing.description || '') === (row.description || '');
+    if (same) return false;
+    const { error } = await sb.from('schedules').update(row).eq('id', existing.id);
+    if (error) { log(`  ⚠️ ${node}/${id} 저장실패: ${error.message}`); return false; }
+    return true;
+  }
+  const { error } = await sb.from('schedules').insert(row);
   if (error) { log(`  ⚠️ ${node}/${id} 저장실패: ${error.message}`); return false; }
   return true;                                        // 실제로 저장에 성공한 것만 true
 }

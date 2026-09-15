@@ -32,6 +32,16 @@ async function cnt(table) {
     console.log(`  source=${src === null ? 'null(옛날)' : src}: ${error ? '에러 ' + error.message : count + '건'}`);
   }
 
+  // 2.5) 우리(aptsq)가 올린 일정 상세 — 방향 B(아스퀘→POUR) 대상인지 확인
+  console.log('\n── 우리(source=aptsq) 일정들 (POUR로 나가는 대상) ──');
+  const CAT2NODE={pt:'pt',bids:'briefing',sales:'sales',seminar:'seminar',personal:'personal',meeting:'meetings',vacation:'vacation',asq:'asq'};
+  const { data: mine } = await sb.from('schedules').select('id,date,title,category,source,apartment_id').eq('source','aptsq').order('date',{ascending:false}).limit(30);
+  (mine||[]).forEach(r=>{
+    const pushable = r.category && CAT2NODE[r.category] ? '→POUR전송O' : '→전송X(분류없음/공사)';
+    console.log(`  ${r.date} [${r.category||'분류없음'}] ${String(r.title||'').slice(0,20)}  ${pushable}`);
+  });
+  if(!mine||!mine.length) console.log('  (source=aptsq 일정이 하나도 없음! → 콘솔이 옛날버전이라 source를 안 넣었을 수 있음)');
+
   // 3) POUR 일정 월별/종류별
   const byMonth = {}, byCat = {}; let total = 0, noDate = 0, min = '9999', max = '0000';
   for (let from = 0; ; from += 1000) {

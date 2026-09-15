@@ -197,6 +197,11 @@ footer{padding:28px 0 54px;color:var(--muted);font-size:12.5px}
         <div class="why">왜: 운영 이관을 앞두고 데이터 정합성을 맞추고, 다음 사람이 흐름을 알 수 있게 문서화하는 단계예요.</div>
         <div class="files"><span class="dev">schedules.done_at</span><span class="dev">roadmap_manual</span><span class="dev">/live-demo/</span></div></div>
 
+      <div class="tlrow big"><div class="date">2026-09-15</div><div class="tt">POUR 영업시스템 실시간 양방향 연동 + POUR식 일정 폼</div>
+        <div class="dd">아파트스퀘어 일정과 <b class="k">POUR 영업시스템(Firebase)</b>을 <b class="k">양방향 실시간(약 2초)</b>으로 이었어요. POUR→아스퀘는 <b class="k">Firebase 함수(onWrite)</b>, 아스퀘→POUR는 <b class="k">Supabase pg_net 트리거</b>가 처리하고, 3시간 배치가 누락을 보정해요. 일정 등록 화면을 <b class="k">POUR과 똑같은 분류별 상세 폼</b>(PT·현설·아스퀘=일정타입·현장명·공종·주소·요청사·참여인원·경쟁사·공고문공법·담당자 복수선택 / 개인·세미나=장소 / 회의=참석자 / 영업=업체·연락처)으로 바꾸고, <b class="k">단지를 고르면 현장명·공종·주소가 자동으로</b> 채워지게 했어요(단지에 주소 칸 추가). 단지 지정 일정은 <b class="k">입주민에게 자동 공개</b>돼 ‘다가오는 감리일정’에 떠요. 3분할 실시간 데모를 노트북 화면에 <b class="k">자동 맞춤(scale-to-fit)</b> 하고, 실시간 갱신을 묶어 화면 번쩍임을 없앴어요.</div>
+        <div class="why">왜: 영업(POUR)과 감리(아파트스퀘어)가 각자 쓰던 일정을 <b class="k">한 달력처럼 공유</b>해, 어느 쪽에서 등록하든 서로 바로 보이게 하려고요. POUR과 데이터 모양(<span class="dev">type·dateType·siteName</span> 등)을 동일하게 맞춰야 POUR 화면에 그대로 표시돼요.</div>
+        <div class="files"><span class="dev">functions/ (RTDB onWrite)</span><span class="dev">backend/migration-instant-aptsq-to-pour.sql</span><span class="dev">backend/aptsq-sync/</span><span class="dev">schedules.meta</span><span class="dev">apartments.address</span></div></div>
+
     </div>
   </div>
 
@@ -205,12 +210,12 @@ footer{padding:28px 0 54px;color:var(--muted);font-size:12.5px}
     <div class="grp-h"><span class="ic">🗃️</span><h2>핵심 데이터 (Supabase 표)</h2></div>
     <p class="sub">모든 기록은 아래 표에 쌓여요. 사진·PDF 파일은 별도 저장소(버킷)에 들어가요.</p>
     <div class="stores">
-      <div class="store"><div class="nm">apartments</div><div class="ds">단지(현장) — 이름·지역·세대수·공법·진행률·감리비·수금·담당 감리사</div></div>
+      <div class="store"><div class="nm">apartments</div><div class="ds">단지(현장) — 이름·지역·<b class="k">주소</b>·세대수·공법·진행률·감리비·수금·담당 감리사</div></div>
       <div class="store"><div class="nm">profiles</div><div class="ds">회원 — 역할·담당 단지·승인 여부</div></div>
       <div class="store"><div class="nm">apartment_auditors</div><div class="ds">단지 ↔ 담당 감리사 연결</div></div>
       <div class="store"><div class="nm">reports</div><div class="ds">감리일지 — 내용·공정·사진·공개 여부</div></div>
       <div class="store"><div class="nm">field_updates</div><div class="ds">현장 사진·현황</div></div>
-      <div class="store"><div class="nm">schedules</div><div class="ds">일정·방문 — 분류·<span class="dev">done_at</span>(다녀옴)</div></div>
+      <div class="store"><div class="nm">schedules</div><div class="ds">일정·방문 — 분류·<span class="dev">done_at</span>(다녀옴)·<span class="dev">source</span>(pour/aptsq)·<span class="dev">meta</span>(POUR 상세필드). <b class="k">POUR과 실시간 양방향 연동</b></div></div>
       <div class="store"><div class="nm">control_sites</div><div class="ds">방문 배치 — 담당·주기·요일</div></div>
       <div class="store"><div class="nm">sales_leads</div><div class="ds">영업 딜 — 단계·금액·체크리스트·특이사항</div></div>
       <div class="store"><div class="nm">manager_forms</div><div class="ds">관리소장 점검표(제출본)</div></div>

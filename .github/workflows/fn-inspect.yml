@@ -1,0 +1,33 @@
+name: 복구 - 삭제 함수 소스 열어보기
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 의존성
+        run: npm install google-auth-library --no-save --no-audit --no-fund
+      - name: 소스 다운로드
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node backend/aptsq-sync/inspectfn.js
+      - name: 압축 풀고 내용 확인
+        run: |
+          mkdir -p restorefn && unzip -o -q restore-src.zip -d restorefn
+          echo "===== 파일 목록 ====="
+          find restorefn -maxdepth 2 -type f -not -path '*/node_modules/*' | head -60
+          echo ""
+          echo "===== package.json ====="
+          cat restorefn/package.json 2>/dev/null | head -60
+          echo ""
+          echo "===== index.js: exports/트리거 ====="
+          grep -nE "exports\.|require\(|functions\.(pubsub|https|database|firestore|region|runWith|config)|\.(schedule|onRun|onCall|onRequest|onWrite|onCreate|onUpdate|ref|topic|document)\(" restorefn/index.js 2>/dev/null | head -120
+          echo ""
+          echo "===== .env / 런타임설정 존재? ====="
+          ls -la restorefn/.env* restorefn/.runtimeconfig.json 2>/dev/null || echo "(.env 없음 — functions.config() 사용 가능성)"

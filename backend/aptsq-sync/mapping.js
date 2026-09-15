@@ -81,6 +81,16 @@ function supabaseToPour(row) {
   if (!node) return null; // 내보낼 노드가 없는 category(work 등)는 건너뜀
 
   const rtdbId = `asq_${row.id}`;           // 우리 쪽 id 기반의 안정적인 키
+
+  // meta(POUR 상세 폼)가 있으면 그대로 POUR 모양으로 전송 (id/_origin/date 만 보정)
+  if (row.meta && typeof row.meta === 'object') {
+    return Object.assign({}, row.meta, {
+      id: rtdbId, _origin: 'aptsq', _aptsqId: String(row.id),
+      _syncedAt: new Date().toISOString(),
+      date: row.meta.date || row.date || '',
+    });
+  }
+
   const title = row.title || '';
   const memo = row.description || '';
   const who = row.assignee_name || '';      // 담당자 이름(POUR는 assignees 배열/assignee 문자열 사용)

@@ -2376,7 +2376,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260916-62';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260916-63';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13655,9 +13655,23 @@ function pathDocs(b){
   if(!Array.isArray(P.docs)) P.docs = [];
   return P.docs;
 }
+/* 문서 갈래 — 어느 문서가 어느 단을 채우는지 나눕니다.
+   전에는 갈래를 모른 채 한 번에 다 뽑아서, 채널 실무 쪽으로 쏠렸습니다. */
+const DOC_KINDS = {
+  plan:  { ic:'📋', name:'기획서',
+           what:'무엇을 했고 어떻게 됐는지 → 4단 걸어온 길 · 5단 첫 2주' },
+  guide: { ic:'📐', name:'지침서',
+           what:'어떻게 일하는지 → 2단 지킬 것 · 1단 이 브랜드는 뭘 하나' },
+  auto:  { ic:'🤖', name:'가리지 않고',
+           what:'문서를 보고 알아서 — 갈래가 섞여 있는 문서에' }
+};
+function docKindOf(k){ return DOC_KINDS[k] || DOC_KINDS.auto; }
+
 let pathDocTo = '';
-function pickPathDoc(bid){
+let pathDocKind = 'auto';
+function pickPathDoc(bid, kind){
   pathDocTo = bid;
+  pathDocKind = DOC_KINDS[kind] ? kind : 'auto';
   const el = document.getElementById('pathDocInput');
   if(el) el.click();
 }
@@ -13668,8 +13682,10 @@ async function uploadPathDoc(fileList){
   if(!files.length || !bid) return;
   const b = brandById(bid) || currentBrand(); if(!b) return;
   const f = files[0];
+  const kind = pathDocKind; pathDocKind = 'auto';
 
   pathMine[bid] = { busy:true, step:'문서를 올리는 중…', err:'', no:'', half:'',
+                    kind: kind,
                     done:null, doc:null, txt:'' };
   render();
   try{
@@ -13684,6 +13700,7 @@ async function uploadPathDoc(fileList){
     if(!out.ok) throw new Error(out.error || '올리지 못했습니다');
     const doc = { id: uid('pd'), name: out.fileName, size: out.fileSize,
                   filePath: out.filePath || '', at: new Date().toISOString(),
+                  kind: kind,
                   by: (authMe() || {})['이름'] || '' };
     pathMine[bid].doc  = doc;
     pathMine[bid].step = '문서에서 글자를 뽑는 중…';
@@ -13695,6 +13712,7 @@ async function uploadPathDoc(fileList){
     if(!txt) throw new Error('이 문서에서 글자를 뽑지 못했습니다.');
 
     pathMine[bid].txt = txt;
+    pathMine[bid].kind = kind;
     await pathRun(bid);
   }catch(e){
     const was = pathMine[bid] || {};
@@ -13710,14 +13728,16 @@ async function pathRun(bid){
   const b = brandById(bid) || currentBrand(); if(!b) return;
   const m0 = pathMine[bid]; if(!m0) return;
   const txt = String(m0.txt || ''), doc = m0.doc;
+  const kind = DOC_KINDS[m0.kind] ? m0.kind : 'auto';
   if(!txt || !doc) return;
   m0.busy = true; m0.err = ''; m0.no = ''; m0.half = ''; m0.done = null;
   try{
     /* 다섯 단을 한 번에 물으면 답이 길어서 시간 안에 못 끝냅니다.
        두 번에 나눠 묻습니다 — 분량이 큰 여정·지킬 것을 먼저, 나머지를 그다음에. */
-    pathMine[bid].step = 'AI 가 걸어온 길을 뽑는 중… (1/2)';
+    pathMine[bid].step = (kind === 'guide'
+      ? 'AI 가 지킬 것을 뽑는 중… (1/2)' : 'AI 가 걸어온 길을 뽑는 중… (1/2)');
     render();
-    const g1 = pathMineParse(await pathAsk(b.name, txt, 1, ''));
+    const g1 = pathMineParse(await pathAsk(b.name, txt, 1, '', kind));
     if(g1.no){
       const m0 = pathMine[bid]; m0.busy = false; m0.no = g1.no; render(); return;
     }
@@ -13731,7 +13751,7 @@ async function pathRun(bid){
         .concat(g1.chaps || [])
         .map(c => [c.when, pathKindOf(c).k, c.title].filter(Boolean).join(' · '))
         .join('\n');
-      g2 = pathMineParse(await pathAsk(b.name, txt, 2, seen));
+      g2 = pathMineParse(await pathAsk(b.name, txt, 2, seen, kind));
     }catch(e2){
       // 2/2 가 안 돼도 1/2 에서 뽑은 것은 살립니다
       half = apiErrText(e2);
@@ -13802,14 +13822,15 @@ async function pathSumAsk(bid){
 
 /* AI 에 한 번 물어봅니다. 시간이 모자라 끊긴 것이면 한 번만 다시 해 봅니다
    (사람이 단추를 다시 누르는 것과 같은 일을 대신 합니다). */
-async function pathAsk(brand, book, part, seen){
+async function pathAsk(brand, book, part, seen, doc){
   let last = null;
   for(let i = 0; i < 2; i++){
     try{
       const r = await apiJson('ai.php?action=prompt', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ kind:'path', brand: brand, book: book,
-                               part: part, '여정': seen || '' })
+                               part: part, '여정': seen || '',
+                               doc: doc || 'auto' })
       });
       return r['프롬프트'] || '';
     }catch(e){
@@ -14019,7 +14040,7 @@ function pathMineHtml(b){
           + '회의록 · 견적서</div>'
       + '<div class="dmn-ac">'
         + '<button class="btn sm primary" onclick="pathDoneClose(\'' + bid
-          + '\');pickPathDoc(\'' + bid + '\')">다른 문서로 다시</button>'
+          + '\');pickPathDoc(\'' + bid + '\',\'auto\')">다른 문서로 다시</button>'
         + '<button class="btn sm" onclick="pathDoneClose(\'' + bid + '\')">닫기</button>'
       + '</div></div>';
   }
@@ -14096,8 +14117,12 @@ function pathViewHtml(b){
       + (pathEdit ? '다섯 단을 여기서 고칩니다'
                   : '신입이 첫날 이것만 읽고 이 브랜드에서 어떻게 일하면 되는지 알게 되는 자리입니다')
       + '</span>'
-    + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\')">'
-      + '🤖 문서에서 만들기</button>'
+    + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\',\'plan\')" '
+      + 'title="기획서 · 제안서 — 무엇을 했고 어떻게 됐는지를 걸어온 길에 쌓습니다">'
+      + '📋 기획서 올리기</button>'
+    + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\',\'guide\')" '
+      + 'title="지침서 · 매뉴얼 · 브랜드북 — 어떻게 일하는지를 지킬 것에 쌓습니다">'
+      + '📐 지침서 올리기</button>'
     + '<a class="btn sm" href="기획서양식-v1.1.xlsx" download '
       + 'title="이 양식으로 기획서를 쓰면 결과까지 그대로 온보딩에 쌓입니다">'
       + '📋 기획서 양식</a>'
@@ -14124,7 +14149,8 @@ function pathReadHtml(b){
 
   if(!what && !rs.length && !ws.length && !cs.length && !sum && !ss.length && !goal){
     return '<div class="pw"><div class="pw-none">이 브랜드의 온보딩이 아직 비어 있습니다.'
-      + '<br><span>정리해 둔 문서가 있으면 <b>[🤖 문서에서 만들기]</b> 로 한 번에 채웁니다. '
+      + '<br><span>문서가 있으면 갈래에 맞게 올리면 됩니다 — '
+      + '<b>[📋 기획서]</b> 는 걸어온 길에, <b>[📐 지침서]</b> 는 지킬 것에 쌓입니다.<br>'
       + '없으면 [✏️ 고치기] 에서 <b>1. 이 브랜드는 뭘 하나</b> 부터 적어 보세요.</span>'
       + '</div></div>';
   }
@@ -14213,6 +14239,7 @@ function pathReadHtml(b){
   const foot = ds.length
     ? '<div class="pw-src">읽어온 문서 · '
       + ds.map(d => '<a href="' + esc(cardFull(d)) + '" target="_blank" rel="noopener">'
+          + (d.kind && d.kind !== 'auto' ? docKindOf(d.kind).ic + ' ' : '')
           + esc(d.name || '') + '</a>').join(' · ') + '</div>'
     : '';
 

@@ -1229,6 +1229,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pe-sum label{font-size:12.5px;font-weight:800;color:var(--text-primary);
   display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .pe-sum label span{font-size:11.5px;font-weight:400;color:var(--text-muted)}
+.pe-sum label span.bt{display:block;margin-top:5px}
+.pe-hint{font-style:normal;font-size:11.5px;color:var(--text-muted)}
 .pe-sum textarea{width:100%;box-sizing:border-box;font-family:inherit;font-size:15px;
   font-weight:600;line-height:1.8;padding:11px 13px;border:1px solid var(--border);
   border-radius:10px;background:var(--bg-input);color:var(--text-primary);
@@ -2358,7 +2360,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260916-60';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260916-61';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13708,8 +13710,11 @@ async function pathRun(bid){
     render();
     let g2 = pathMineParse('{}'), half = '';
     try{
-      const seen = (g1.chaps || []).map(c =>
-        [c.when, c.kind, c.title, c.result].filter(Boolean).join(' · ')).join('\n');
+      // 이번 문서에서 뽑은 것 + 이미 브랜드에 쌓여 있는 것을 같이 보냅니다
+      const seen = chapsOf(b).filter(c => !chapBlank(c))
+        .concat(g1.chaps || [])
+        .map(c => [c.when, pathKindOf(c).k, c.title].filter(Boolean).join(' · '))
+        .join('\n');
       g2 = pathMineParse(await pathAsk(b.name, txt, 2, seen));
     }catch(e2){
       // 2/2 가 안 돼도 1/2 에서 뽑은 것은 살립니다
@@ -13736,6 +13741,48 @@ async function pathRun(bid){
   }
 }
 function pathRetry(bid){ pathRun(bid); render(); }
+
+/* 쌓인 여정 전체를 글로 풀어 씁니다 — 한 문단을 쓸 때 AI 에 보냅니다 */
+function pathLineText(b){
+  return chapLine(chapsOf(b).filter(c => !chapBlank(c))).map(c => {
+    const K = pathKindOf(c);
+    return [String(c.when || '').trim() || '때 미상', K.k,
+            String(c.title || '').trim()].filter(Boolean).join(' · ')
+      + (String(c.body   || '').trim() ? '\n  한 일: '    + gbOneLine(c.body, 200)   : '')
+      + (String(c.result || '').trim() ? '\n  결과: '     + gbOneLine(c.result, 200) : '')
+      + (String(c.bad    || '').trim() ? '\n  안 된 것: ' + gbOneLine(c.bad, 150)    : '')
+      + (String(c.nogo   || '').trim() ? '\n  하지 않기로: ' + gbOneLine(c.nogo, 150) : '');
+  }).join('\n');
+}
+
+/* 맨 위 한 문단을 여정에서 다시 씁니다.
+   문서 한 장을 보고 쓰면 그 문서 이야기만 적힙니다 — 그래서 쌓인 여정을 봅니다. */
+let pathSumBusy = '';
+async function pathSumAsk(bid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const cs = chapsOf(b).filter(c => !chapBlank(c));
+  if(cs.length < 3){ toast('마디가 세 칸은 있어야 한 문단을 쓸 수 있습니다'); return; }
+  const had = String(pathOf(b).summary || '').trim();
+  if(had && !confirm('지금 적혀 있는 한 문단을 지우고 다시 씁니다.\n\n'
+    + '쌓인 여정 ' + cs.length + '칸 전체를 보고 씁니다.')) return;
+  pathSumBusy = b.id; render();
+  try{
+    const r = await apiJson('ai.php?action=prompt', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ kind:'path', brand: b.name, part: 3,
+                             book: pathLineText(b) })
+    });
+    const got = pathMineParse(r['프롬프트'] || '');
+    if(!got.sum){ toast('여정에서 한 문단을 뽑지 못했습니다'); return; }
+    pathOf(b).summary = got.sum;
+    markDirty(b.id);
+    toast('✍️ 여정 ' + cs.length + '칸에서 한 문단을 썼습니다');
+  }catch(e){
+    alert('한 문단을 쓰지 못했습니다.\n\n' + apiErrText(e));
+  }finally{
+    pathSumBusy = ''; render();
+  }
+}
 
 /* AI 에 한 번 물어봅니다. 시간이 모자라 끊긴 것이면 한 번만 다시 해 봅니다
    (사람이 단추를 다시 누르는 것과 같은 일을 대신 합니다). */
@@ -13830,10 +13877,6 @@ function pathAutoFill(b, got, doc){
   if(got.what){
     if(String(P.what || '').trim()) skip.push('이 브랜드는 뭘 하나');
     else { P.what = got.what; put.push('이 브랜드는 뭘 하나'); }
-  }
-  if(got.sum){
-    if(String(P.summary || '').trim()) skip.push('맨 위 한 문단');
-    else { P.summary = got.sum; put.push('맨 위 한 문단'); }
   }
 
   // 여정을 먼저 넣습니다 — 규칙이 이걸 근거로 걸어야 하기 때문입니다
@@ -14313,9 +14356,18 @@ function pathEditHtml(b){
     + '<div class="pe-add"><button class="gb-add tiny" onclick="whoAdd(\'' + bid
       + '\')">＋ 사람</button></div></div>';
 
+  const nch = chapsOf(b).filter(c => !chapBlank(c)).length;
+  const sumBtn = pathSumBusy === b.id
+    ? '<button class="gb-add tiny" disabled>✍️ 쓰는 중…</button>'
+    : (nch >= 3
+        ? '<button class="gb-add tiny" onclick="pathSumAsk(\'' + bid + '\')">'
+          + '🤖 여정 ' + nch + '칸에서 쓰기</button>'
+        : '<em class="pe-hint">마디가 세 칸이 되면 AI 가 여정 전체를 보고 '
+          + '여기를 대신 써 줍니다</em>');
   const sum = '<div class="pe-sum">'
     + '<label>맨 위 한 문단 <span>출발 → 꺾인 데 → 지금 순서로 서너 문장. '
-      + '여기까지만 읽어도 이 브랜드가 어떻게 여기까지 왔는지 알 수 있게</span></label>'
+      + '여기까지만 읽어도 이 브랜드가 어떻게 여기까지 왔는지 알 수 있게</span>'
+      + '<span class="bt">' + sumBtn + '</span></label>'
     + '<textarea rows="3" placeholder="예) 아파트 유지보수 플랫폼으로 시작했습니다. '
       + '발주자가 비전문가라는 문제는 맞았지만 플랫폼은 팔리지 않았고, 2025년 '
       + '전문감리기관으로 방향을 틀었습니다. 지금은 관리주체를 대신해 공사 전 과정을 봅니다." '

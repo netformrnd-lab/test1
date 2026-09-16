@@ -10,43 +10,47 @@
   :root{--bg:#0c1222;--panel:#131c33;--line:#243357;--txt:#eaf0ff;--mut:#93a3c8;--blue:#4f8cff;--green:#28c76f;--amber:#ffb020;--pour:#e8912f}
   html,body{height:100%}
   body{background:linear-gradient(180deg,#0a0f1e,#0c1526);color:var(--txt);font-family:'Pretendard',-apple-system,sans-serif;overflow:hidden}
-  .top{height:60px;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);background:rgba(10,16,30,.7);backdrop-filter:blur(6px)}
-  .brand{font-size:16px;font-weight:900;letter-spacing:-.3px}
+  .top{height:64px;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);background:rgba(10,16,30,.7);backdrop-filter:blur(6px)}
+  .brand{font-size:17px;font-weight:900;letter-spacing:-.3px}
   .brand small{display:block;font-size:11px;font-weight:600;color:var(--mut);margin-top:2px}
   .flow{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;color:var(--mut);flex-wrap:wrap}
   .flow b{color:var(--blue)}
   .flow b.p{color:var(--pour)}
   .flow .arw{color:var(--green);font-weight:900}
   .top .sp{flex:1}
-  .btn{border:1px solid var(--line);background:#1a2542;color:var(--txt);font-weight:800;font-size:12.5px;border-radius:10px;padding:9px 14px;cursor:pointer;font-family:inherit}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#1a2542;color:var(--txt);font-weight:800;font-size:12.5px;border-radius:10px;padding:9px 14px;cursor:pointer;font-family:inherit;text-decoration:none}
   .btn:hover{background:#22315a}
   .btn.b{background:var(--blue);border-color:var(--blue);color:#fff}
+  .btn.pour{background:rgba(232,145,47,.14);border-color:rgba(232,145,47,.55);color:#ffb974}
+  .btn.pour:hover{background:rgba(232,145,47,.24)}
   /* 무대: 데크를 화면 크기에 맞춰 통째로 축소(scale-to-fit) → 노트북에서도 비율 안 깨짐 */
-  #stage{height:calc(100% - 60px);display:flex;align-items:center;justify-content:center;overflow:hidden;padding:14px}
-  #deck{width:1400px;height:812px;display:flex;flex-direction:column;gap:14px;flex:0 0 auto;transform-origin:center center}
-  .row{display:flex;gap:16px;min-height:0}
-  .row.top{flex:1.55}
-  .row.bot{flex:1;justify-content:center}
+  #stage{height:calc(100% - 64px);display:flex;align-items:center;justify-content:center;overflow:hidden;padding:16px}
+  #deck{width:1400px;height:800px;display:flex;gap:18px;flex:0 0 auto;align-items:stretch;transform-origin:center center}
   .col{display:flex;flex-direction:column;min-width:0}
-  .col.desk{flex:1;min-width:0}
-  .col.phone{width:300px;flex:0 0 300px}
-  .cap{display:flex;align-items:center;gap:8px;margin-bottom:9px;padding:0 2px}
-  .num{width:23px;height:23px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:#fff;flex:0 0 23px}
-  .num.np{background:var(--pour)} .num.n1{background:var(--blue)} .num.n2{background:#7c5cff} .num.n3{background:var(--green)}
-  .cap .t{font-size:13.5px;font-weight:900}
+  .col.dash{flex:1;min-width:0}
+  .col.phone{width:372px;flex:0 0 372px}
+  .cap{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 2px}
+  .num{width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff;flex:0 0 24px}
+  .num.n1{background:var(--blue)} .num.n2{background:#7c5cff} .num.n3{background:var(--green)}
+  .cap .t{font-size:14px;font-weight:900}
   .cap .d{font-size:11px;font-weight:600;color:var(--mut)}
-  .frame{flex:1;border-radius:15px;overflow:hidden;border:1px solid var(--line);background:#0b1120;box-shadow:0 16px 44px rgba(0,0,0,.45);position:relative}
+  .frame{flex:1;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#0b1120;box-shadow:0 18px 50px rgba(0,0,0,.45);position:relative}
   .frame iframe{width:100%;height:100%;border:0;display:block;background:#fff}
-  /* 데스크톱 화면(POUR·대시보드)은 넓은 폭으로 그린 뒤 칸에 맞게 축소(눌려 보이지 않게) */
-  .desk .frame iframe{position:absolute;top:0;left:0;transform-origin:top left}
-  .desk.pourcol .frame{border-color:rgba(232,145,47,.5)}
+  /* 관리자 대시보드는 데스크톱 화면 → 넓은 폭으로 그린 뒤 칸에 맞게 축소(눌려 보이지 않게) */
+  .dash .frame iframe{position:absolute;top:0;left:0;transform-origin:top left}
+  /* POUR 안내 배너 (대시보드 위) */
+  .pour-strip{display:flex;align-items:center;gap:10px;background:rgba(232,145,47,.1);border:1px solid rgba(232,145,47,.4);border-radius:12px;padding:9px 13px;margin-bottom:10px}
+  .pour-strip .pi{width:26px;height:26px;border-radius:8px;background:var(--pour);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;flex:none}
+  .pour-strip .pt{font-size:12px;font-weight:800;line-height:1.4}
+  .pour-strip .pt small{display:block;font-weight:600;color:var(--mut);font-size:10.5px;margin-top:1px}
+  .pour-strip a.go{margin-left:auto;flex:none;font-size:12px;font-weight:800;color:#fff;background:var(--pour);border-radius:9px;padding:7px 13px;text-decoration:none;white-space:nowrap}
+  .pour-strip a.go:hover{filter:brightness(1.08)}
   /* 폰 목업 */
-  .phone .frame{border-radius:26px;border:7px solid #0a1020;background:#0a1020;box-shadow:0 20px 52px rgba(0,0,0,.55);padding:0}
-  .phone .frame::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:96px;height:19px;background:#0a1020;border-radius:0 0 14px 14px;z-index:5}
-  .phone .frame iframe{border-radius:19px}
-  .hint{font-size:10.5px;color:var(--mut);font-weight:600;margin-top:7px;text-align:center;line-height:1.5}
+  .phone .frame{border-radius:30px;border:8px solid #0a1020;background:#0a1020;box-shadow:0 24px 60px rgba(0,0,0,.55);padding:0}
+  .phone .frame::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:110px;height:22px;background:#0a1020;border-radius:0 0 16px 16px;z-index:5}
+  .phone .frame iframe{border-radius:22px}
+  .hint{font-size:10.5px;color:var(--mut);font-weight:600;margin-top:8px;text-align:center;line-height:1.5}
   .hint b{color:var(--amber)}
-  .hint a{color:var(--pour);font-weight:800;text-decoration:none}
   .tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;margin-left:6px}
   .tag.live{background:rgba(40,199,111,.16);color:#4be08b}
   @media (max-width:1100px){ .flow{display:none} }
@@ -54,78 +58,70 @@
 </head>
 <body>
   <div class="top">
-    <div class="brand">아파트스퀘어 <span class="tag live">● LIVE 연동</span><small>POUR에서 잡은 일정이 우리 대시보드·앱에 실시간으로 같이 떠요</small></div>
+    <div class="brand">아파트스퀘어 <span class="tag live">● LIVE 연동</span><small>POUR에서 잡은 일정이 대시보드·앱에 실시간으로 같이 떠요</small></div>
     <div class="flow">
       <b class="p">POUR 영업</b><span class="arw">→</span> <b>관리자 대시보드</b> <span class="arw">→</span> <b>감리사 앱</b> <span class="arw">·</span> <b>입주민 앱</b>
     </div>
     <div class="sp"></div>
-    <button class="btn" onclick="reloadAll()">↻ 네 화면 새로고침</button>
+    <a class="btn pour" href="https://schedules-cip.pages.dev/" target="_blank" rel="noopener">🟠 POUR 영업시스템 ↗</a>
+    <button class="btn" onclick="reloadAll()">↻ 새로고침</button>
     <button class="btn b" onclick="toggleFlow()">데모 안내</button>
   </div>
 
   <div id="stage">
    <div id="deck">
-    <!-- 위 줄: POUR ↔ 관리자 대시보드 (연동 두 화면) -->
-    <div class="row top">
-      <div class="col desk pourcol">
-        <div class="cap"><div class="num np">P</div><div><div class="t">POUR 영업시스템</div><div class="d">여기서 일정 등록 — 영업이 쓰던 그 화면</div></div></div>
-        <div class="frame"><iframe id="fr-pour" src="https://schedules-cip.pages.dev/" title="POUR 영업시스템"></iframe></div>
-        <div class="hint">POUR에서 일정을 잡으면 오른쪽 대시보드에 자동으로 →　<a href="https://schedules-cip.pages.dev/" target="_blank" rel="noopener">↗ 안 보이면 새 창</a></div>
+    <div class="col dash">
+      <div class="cap"><div class="num n1">1</div><div><div class="t">관리자 대시보드</div><div class="d">POUR 일정이 자동 반영 — 감리일지·방문 배치·일정·단지</div></div></div>
+      <div class="pour-strip">
+        <div class="pi">P</div>
+        <div class="pt">POUR 영업시스템에서 잡은 일정이 여기 달력에 자동으로 떠요<small>POUR 화면은 아래 버튼으로 열어서 확인 → 등록하면 약 2초 뒤 이 대시보드에 반영</small></div>
+        <a class="go" href="https://schedules-cip.pages.dev/" target="_blank" rel="noopener">POUR 열기 ↗</a>
       </div>
-      <div class="col desk">
-        <div class="cap"><div class="num n1">1</div><div><div class="t">관리자 대시보드</div><div class="d">약 2초 뒤 자동 반영 — 감리일지·방문 배치·일정·단지</div></div></div>
-        <div class="frame"><iframe id="fr-dash" src="../console/?sess=demoadmin" title="대시보드"></iframe></div>
-      </div>
+      <div class="frame"><iframe id="fr-dash" src="../console/?sess=demoadmin" title="대시보드"></iframe></div>
     </div>
 
-    <!-- 아래 줄: 감리사 앱 · 입주민 앱 -->
-    <div class="row bot">
-      <div class="col phone">
-        <div class="cap"><div class="num n2">2</div><div><div class="t">감리사 앱</div><div class="d">담당 단지·방문·일지</div></div></div>
-        <div class="frame"><iframe id="fr-aud" src="../?sess=demoaud" title="감리사 앱"></iframe></div>
-        <div class="hint">처음 한 번 <b>감리사 계정</b>으로 로그인</div>
-      </div>
-      <div class="col phone">
-        <div class="cap"><div class="num n3">3</div><div><div class="t">입주민 앱</div><div class="d">우리 단지 일정·일지·현황</div></div></div>
-        <div class="frame"><iframe id="fr-res" src="../?sess=demores" title="입주민 앱"></iframe></div>
-        <div class="hint">처음 한 번 <b>입주민 계정</b>으로 로그인</div>
-      </div>
+    <div class="col phone">
+      <div class="cap"><div class="num n2">2</div><div><div class="t">감리사 앱</div><div class="d">담당 단지·방문·일지 작성</div></div></div>
+      <div class="frame"><iframe id="fr-aud" src="../?sess=demoaud" title="감리사 앱"></iframe></div>
+      <div class="hint">처음 한 번 <b>감리사 계정</b>으로 로그인</div>
+    </div>
+
+    <div class="col phone">
+      <div class="cap"><div class="num n3">3</div><div><div class="t">입주민 앱</div><div class="d">우리 단지 일정·일지·현황 보기</div></div></div>
+      <div class="frame"><iframe id="fr-res" src="../?sess=demores" title="입주민 앱"></iframe></div>
+      <div class="hint">처음 한 번 <b>입주민 계정</b>으로 로그인</div>
     </div>
    </div>
   </div>
 
 <script>
-  // 데크(1400×812)를 화면에 맞춰 통째로 축소 → 2×2 비율 유지하며 노트북에 딱 맞춤
+  // 데크(1400×800)를 화면에 맞춰 통째로 축소 → 3분할 비율 유지하며 노트북에 딱 맞춤
   function fitDeck(){
     var st=document.getElementById('stage'), dk=document.getElementById('deck');
     if(!st||!dk) return;
-    var s=Math.min((st.clientWidth-20)/1400,(st.clientHeight-20)/812);
+    var s=Math.min((st.clientWidth-24)/1400,(st.clientHeight-24)/800);
     s=Math.max(0.3, Math.min(s,1.6));
     dk.style.transform='scale('+s+')';
-    fitDesk();
+    fitDash();
   }
-  // 데스크톱 iframe(POUR·대시보드)을 데스크톱 폭으로 그린 뒤, 칸 크기에 맞춰 축소해 채움
-  function fitDesk(){
-    ['fr-pour','fr-dash'].forEach(function(id){
-      var ifr=document.getElementById(id); if(!ifr) return;
-      var fr=ifr.parentElement; if(!fr) return;
-      var DW=1280, sc=fr.clientWidth/DW;
-      ifr.style.width=DW+'px';
-      ifr.style.height=(fr.clientHeight/sc)+'px';
-      ifr.style.transform='scale('+sc+')';
-    });
+  // 관리자 대시보드 iframe을 데스크톱 폭(1280)으로 그린 뒤, 칸 크기에 맞춰 축소해 채움
+  function fitDash(){
+    var fr=document.querySelector('.dash .frame'), ifr=fr&&fr.querySelector('iframe');
+    if(!fr||!ifr) return;
+    var w=fr.clientWidth; if(!w) return;
+    var DW=1280, sc=w/DW;
+    ifr.style.width=DW+'px';
+    ifr.style.height=(fr.clientHeight/sc)+'px';
+    ifr.style.transform='scale('+sc+')';
   }
   window.addEventListener('resize', fitDeck);
-  ['fr-pour','fr-dash'].forEach(function(id){
-    var f=document.getElementById(id);
-    if(f) f.addEventListener('load', function(){ fitDesk(); setTimeout(fitDesk,300); });
-  });
+  var _fd=document.getElementById('fr-dash'); if(_fd) _fd.addEventListener('load', function(){ fitDash(); setTimeout(fitDash,300); });
   fitDeck(); setTimeout(fitDeck,300); setTimeout(fitDeck,800);
-  function reloadAll(){ ['fr-pour','fr-dash','fr-aud','fr-res'].forEach(function(id){ var f=document.getElementById(id); if(f) f.src=f.src; }); }
+  function reloadAll(){ ['fr-dash','fr-aud','fr-res'].forEach(function(id){ var f=document.getElementById(id); if(f) f.src=f.src; }); }
   var flowOn=true;
   function toggleFlow(){
     flowOn=!flowOn;
-    if(flowOn){ alert('발표 데모 사용법\n\n▣ 위 줄 = POUR 영업시스템(왼쪽) ↔ 관리자 대시보드(오른쪽)\n▣ 아래 줄 = 감리사 앱 · 입주민 앱\n\n① 왼쪽 POUR에서 일정을 하나 등록하면,\n    몇 초 안에 오른쪽 대시보드 달력에 자동으로 나타나요 (실시간 연동).\n② 반대로 대시보드에서 등록·수정·삭제해도 POUR에 그대로 반영됩니다.\n③ 각 앱 화면엔 처음 한 번씩 로그인하세요 (중:감리사 / 하:입주민).\n\n※ POUR 화면이 비어 보이면 캡션의 “↗ 새 창”으로 열어 확인하세요.\n※ 안 보이면 오른쪽 위 ↻ 로 새로고침하세요.'); }
+    if(flowOn){ alert('발표 데모 사용법\n\n① 왼쪽=관리자 대시보드, 가운데=감리사 앱, 오른쪽=입주민 앱\n② 위 “POUR 열기 ↗” 버튼으로 POUR 영업시스템을 새 창에서 엽니다.\n③ POUR에서 일정을 하나 등록하면, 몇 초 안에 왼쪽 대시보드 달력에 자동으로 나타나요 (실시간 연동).\n    반대로 대시보드/앱에서 등록·수정·삭제해도 POUR에 그대로 반영됩니다.\n④ 각 앱 화면엔 처음 한 번씩 로그인하세요 (중:감리사 / 우:입주민).\n\n※ 안 보이면 오른쪽 위 ↻ 로 새로고침하세요.'); }
   }
   // 안내를 처음 한 번 자동으로
   setTimeout(function(){ try{ if(!sessionStorage.getItem('demo_seen')){ sessionStorage.setItem('demo_seen','1'); toggleFlow(); } }catch(e){} }, 600);

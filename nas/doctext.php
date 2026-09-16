@@ -72,20 +72,43 @@ function human($b) {
 }
 
 /* ---------- 워드·엑셀·파워포인트 ---------- */
+$OFFICE_WHY = '';          // 못 읽었을 때 왜 못 읽었는지 (화면에 그대로 보여줍니다)
 function office_text($file, $max, $deadline = null) {
-    if (!class_exists('ZipArchive')) return null;
+    global $OFFICE_WHY;
+    $OFFICE_WHY = '';
+    if (!class_exists('ZipArchive')) {
+        $OFFICE_WHY = '이 서버에 zip 기능(ZipArchive)이 없어서 워드·엑셀·PPT 를 못 엽니다.'
+                    . "\n" . 'Web Station → PHP 프로필에서 zip 확장을 켜면 됩니다.';
+        return null;
+    }
     if ($deadline === null) $deadline = microtime(true) + 8;
     $z = new ZipArchive;
-    if (@$z->open($file) !== true) return null;
+    if (@$z->open($file) !== true) {
+        $OFFICE_WHY = '파일을 여는 데 실패했습니다. 받다가 끊겼거나 깨진 파일일 수 있습니다.'
+                    . "\n" . '다시 올려 보시고, 그래도 안 되면 다른 이름으로 저장해 보세요.';
+        return null;
+    }
     $out = '';
-    $n = min($z->numFiles, 3000);
-    for ($i = 0; $i < $n; $i++) {
+    $cnt = min($z->numFiles, 3000);                        // 칸 수 (예전에는 $n 을 아래에서
+    for ($i = 0; $i < $cnt; $i++) {                        //  덮어써서 이 한도가 안 먹었습니다)
         if (microtime(true) > $deadline) break;
-        $n = $z->getNameIndex($i);
-        if (!preg_match('#^(word/document|word/footnotes|word/endnotes'
-            . '|xl/sharedStrings|ppt/slides/slide[0-9]+|ppt/notesSlides/notesSlide[0-9]+)#', $n)) continue;
+        $nm = $z->getNameIndex($i);
+        if ($nm === false) break;
+        /* 엑셀은 글자를 두 가지로 저장합니다.
+             · 공유 문자열표 (xl/sharedStrings.xml)  — 엑셀이 보통 쓰는 방식
+             · 시트 안에 그대로 (inlineStr)          — 구글 시트 내려받기 · 일부 도구
+           앞의 것만 읽고 있어서, 뒤의 방식으로 저장된 파일은 다 채워져 있어도
+           「글자를 뽑지 못했습니다」 가 났습니다. */
+        $isSheet = (strpos($nm, 'xl/worksheets/sheet') === 0);
+        if (!$isSheet && !preg_match('#^(word/document|word/footnotes|word/endnotes'
+            . '|xl/sharedStrings|ppt/slides/slide[0-9]+|ppt/notesSlides/notesSlide[0-9]+)#', $nm)) continue;
         $x = $z->getFromIndex($i);
         if ($x === false) continue;
+        if ($isSheet) {
+            // 시트에서는 칸에 박힌 글자만 꺼냅니다 (서식·수식 찌꺼기를 안 담게)
+            if (!preg_match_all('#<t(?:\s[^>]*)?>(.*?)</t>#s', $x, $mm)) continue;
+            $x = implode("\n", $mm[1]);
+        }
         $r = preg_replace('#<[^>]+>#', ' ', $x);           // 태그를 공백으로 (/u 없이 — 실패 안 하게)
         if ($r !== null) $x = $r;
         $out .= ' ' . html_entity_decode($x, ENT_QUOTES | ENT_XML1, 'UTF-8');
@@ -319,14 +342,21 @@ if ($action === 'one') {
             . '한글(.hwp)은 아직 못 읽습니다 — PDF 로 내보내 올려주세요.'], 415);
     }
     $t = extract_text($file, $ext, $MAX_TEXT, microtime(true) + 20);
-    if ($t === null) jout(['ok' => false, 'error' => '이 파일에서 글자를 뽑지 못했습니다.'], 422);
+    if ($t === null) {
+        $why = (string)($GLOBALS['OFFICE_WHY'] ?? '');
+        jout(['ok' => false, 'error' => '이 파일에서 글자를 뽑지 못했습니다.'
+              . ($why !== '' ? "\n\n" . $why : '')], 422);
+    }
     $t = tidy_text($t, $MAX_TEXT);
     $q = text_quality($t);
     if (trim($t) === '' || $q < 0.25) {
         jout(['ok' => false, 'error' =>
             '글자가 거의 안 읽힙니다 (읽힌 정도 ' . round($q * 100) . '%).' . "\n\n"
-            . '그림으로 스캔한 PDF 이거나 글꼴이 특수한 문서일 수 있습니다. '
-            . '글자로 된 문서로 다시 올려주세요.'], 422);
+            . ($ext === 'xlsx' || $ext === 'xlsm'
+                ? '엑셀인데 칸이 전부 비어 있거나, 글자가 그림으로 들어가 있습니다. '
+                  . '칸에 글자로 적힌 파일로 다시 올려주세요.'
+                : '그림으로 스캔한 PDF 이거나 글꼴이 특수한 문서일 수 있습니다. '
+                  . '글자로 된 문서로 다시 올려주세요.')], 422);
     }
     jout(['ok' => true, '글자' => $t, '글자수' => mb_strlen($t, 'UTF-8'),
           '읽힌정도' => round($q, 3), '파일' => basename($file)]);

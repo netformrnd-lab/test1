@@ -1038,9 +1038,23 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--text-primary);letter-spacing:-.022em;white-space:pre-wrap;word-break:keep-all}
 .pw-sum.no{font-size:14px;font-weight:400;color:var(--text-muted)}
 
+.pw-meta{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.pw-meta span{font-size:11.5px;font-weight:700;color:var(--text-secondary);
+  background:var(--bg-sunken);border:1px solid var(--border-light);border-radius:99px;
+  padding:3px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
 .pw-line{position:relative;padding-left:40px;margin-top:4px}
-.pw-line:before{content:'';position:absolute;left:14px;top:26px;bottom:26px;width:2px;
+.pw-line:before{content:'';position:absolute;left:14px;top:15px;bottom:26px;width:2px;
   background:linear-gradient(var(--border-light), var(--ink))}
+/* 연도 — 기업 히스토리 영상처럼 줄기에 해가 박힙니다 */
+.pw-yr{position:relative;display:flex;align-items:center;gap:12px;margin:34px 0 2px}
+.pw-yr:first-child{margin-top:4px}
+.pw-yr b{font-size:23px;font-weight:800;line-height:1;letter-spacing:-.035em;
+  color:var(--text-primary);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pw-yr i{flex:1 1 auto;min-width:0;height:1px;background:var(--border);font-style:normal}
+.pw-yr:before{content:'';position:absolute;left:-29.5px;top:50%;margin-top:-4px;
+  width:9px;height:9px;border-radius:50%;background:var(--ink)}
+
 .pw-ch{position:relative;padding:22px 0}
 .pw-ch .no{position:absolute;left:-40px;top:22px;width:29px;height:29px;border-radius:50%;
   background:var(--bg-page);border:2px solid var(--border);color:var(--text-muted);
@@ -2298,7 +2312,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260916-52';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260916-53';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13330,6 +13344,38 @@ function chapBlank(c){
 /* 때를 안 적은 장 — 길에는 시간이 있어야 합니다 */
 function chapNoWhen(c){ return !String(c.when || '').trim(); }
 
+/* ── 히스토리 ──────────────────────────────────────────────
+   기획서가 한 장씩 쌓여 이 줄기가 됩니다.
+   읽기 화면에서는 적어 둔 차례가 아니라 「때」 순서로 세웁니다.        */
+function chapKey(c){
+  // 「2023 ~ 2025.03」 같은 구간은 시작 연도로 봅니다
+  const m = String(c.when || '')
+    .match(/(?:19|20)\d{2}(?:[.\-\/]\d{1,2})?(?:[.\-\/]\d{1,2})?/);
+  if(m){
+    const q = m[0].split(/[.\-\/]/).map(Number);
+    return (q[0] || 0) * 10000 + (q[1] || 0) * 100 + (q[2] || 0);
+  }
+  return -1;                                   // 때 미상은 맨 끝으로
+}
+/* 줄기에 박히는 해. 연도가 없고 「지금」 이면 그대로 「지금」 으로 세웁니다. */
+function chapYear(c){
+  const m = String(c.when || '').match(/(?:19|20)\d{2}/);
+  if(m) return m[0];
+  if(pathKindOf(c).k === '지금' || /지금|현재|오늘/.test(String(c.when || ''))) return '지금';
+  return '';
+}
+/* 오래된 것부터 → 「지금」 → 때 미상. 때가 같으면 적어 둔 차례대로. */
+function chapLine(cs){
+  const on = [], now = [], off = [];
+  cs.forEach((c, i) => {
+    if(chapKey(c) >= 0)           on.push({ c:c, i:i });
+    else if(chapYear(c) === '지금') now.push({ c:c, i:i });
+    else                          off.push({ c:c, i:i });
+  });
+  on.sort((a, z) => (chapKey(a.c) - chapKey(z.c)) || (a.i - z.i));
+  return on.map(x => x.c).concat(now.map(x => x.c), off.map(x => x.c));
+}
+
 let pathEdit = false;      // 읽기 / 고치기
 let pathOpen = '';         // 고치기에서 펼친 장
 function setPathEdit(v){ pathEdit = !!v; pathOpen = ''; render(); window.scrollTo({ top:0 }); }
@@ -13832,13 +13878,39 @@ function pathReadHtml(b){
         + '</div>').join('') + '</div>'
       : none('아직 없습니다 — 누구에게 물어보면 되는지가 신입에게는 제일 무섭습니다.'));
 
-  /* 4 — 왜 지금 이렇게 하나 (걸어온 길) */
-  const s4 = sec('4', '왜 지금 이렇게 하나', '위의 규칙이 어디서 왔는지',
-    (sum ? '<p class="pw-sum">' + esc(sum) + '</p>' : '')
-    + (cs.length
-        ? '<div class="pw-line">' + cs.map((c, k) => chapReadHtml(b, c, k)).join('') + '</div>'
-        : (sum ? '' : none('아직 없습니다 — 무엇을 했고 어떻게 됐는지 하나씩 남기면 '
-                           + '위의 규칙이 왜 생겼는지 신입이 납득합니다.'))));
+  /* 4 — 이 브랜드가 걸어온 길 (히스토리)
+     기획서 한 장 = 마디 한 칸. 장이 쌓일수록 이 줄기가 길어집니다. */
+  const line  = chapLine(cs);
+  const nPlan = line.filter(c => String(c.plan || '').trim()).length;
+  const nRes  = line.filter(c => String(c.result || '').trim()).length;
+  const yrs   = line.map(chapYear).filter(y => /^\d{4}$/.test(y));
+  const tag   = [];
+  if(yrs.length)    tag.push(yrs[0] + ' 부터');
+  if(line.length)   tag.push('마디 ' + line.length + '칸');
+  if(nPlan)         tag.push('📋 기획서 ' + nPlan + '장');
+  if(line.length)   tag.push('결과 적힘 ' + nRes + ' / ' + line.length);
+  const meta = tag.length
+    ? '<div class="pw-meta">' + tag.map(t => '<span>' + esc(t) + '</span>').join('') + '</div>'
+    : '';
+
+  let yr = null, rail = '';
+  line.forEach((c, k) => {
+    const y = chapYear(c);
+    if(y !== yr){
+      yr = y;
+      rail += '<div class="pw-yr"><b>' + esc(y || '때 미상') + '</b><i></i></div>';
+    }
+    rail += chapReadHtml(b, c, k, y);
+  });
+
+  const s4 = sec('4', '이 브랜드가 걸어온 길',
+    '기획서가 한 장씩 쌓여 이 줄기가 됩니다 — 위의 규칙이 어디서 왔는지',
+    meta
+    + (sum ? '<p class="pw-sum">' + esc(sum) + '</p>' : '')
+    + (line.length
+        ? '<div class="pw-line">' + rail + '</div>'
+        : (sum ? '' : none('아직 없습니다 — 기획서를 올리면 한 장이 한 칸이 됩니다. '
+                           + '칸이 쌓이면 위의 규칙이 왜 생겼는지 신입이 납득합니다.'))));
 
   const ds = pathDocs(b);
   const foot = ds.length
@@ -13873,7 +13945,8 @@ function ruleReadHtml(b, r){
     + '</div>';
 }
 
-function chapReadHtml(b, c, i){
+/* yr — 그 마디가 속한 연도 머리. 「2022」 아래 다시 「2022」 를 적지 않습니다. */
+function chapReadHtml(b, c, i, yr){
   const K = pathKindOf(c);
   const imgs = chapImgs(c);
   const line = (key, label, cls) => {
@@ -13889,7 +13962,7 @@ function chapReadHtml(b, c, i){
     + '<div class="no">' + (i + 1) + '</div>'
     + '<div class="bd">'
       + '<div class="hd">'
-        + (String(c.when || '').trim()
+        + (String(c.when || '').trim() && String(c.when).trim() !== String(yr || '')
             ? '<span class="wn">' + esc(c.when) + '</span>' : '')
         + '<span class="kd">' + K.ic + ' ' + esc(K.k) + '</span>'
         + (String(c.plan || '').trim()
@@ -13993,8 +14066,9 @@ function pathEditHtml(b){
     + '</div>';
 
   const e4 = '<div class="pe-sec"><div class="pe-h"><span class="no">4</span>'
-    + '<h3>왜 지금 이렇게 하나</h3>'
-    + '<span class="hn">위의 규칙이 어디서 왔는지 — 무엇을 했고, 어떻게 됐고, 왜 그랬는지'
+    + '<h3>이 브랜드가 걸어온 길</h3>'
+    + '<span class="hn">무엇을 했고, 어떻게 됐고, 왜 그랬는지 — '
+      + '읽기 화면에서는 여기 적은 차례가 아니라 「때」 순서로 세워집니다'
       + '</span></div>' + sum + list + add + '</div>';
   return '<div class="pw">' + e1 + e2 + e3 + e4 + '</div>';
 }

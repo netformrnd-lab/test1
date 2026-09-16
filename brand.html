@@ -1427,6 +1427,10 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .dn-g.put b{color:var(--green)}
 .dn-g.put span{border-color:var(--green);color:var(--text-primary)}
 .dn-g.skip span{opacity:.8}
+.dn-g.up b{color:var(--blue)}
+.dn-g.up span{border-color:var(--blue);color:var(--text-primary)}
+.pw-ch .hd .pl{font-size:10.5px;font-weight:700;color:var(--cyan);
+  border:1px solid var(--cyan);border-radius:99px;padding:1px 8px}
 .dmn-why{font-size:13.5px;font-weight:700;line-height:1.75;color:var(--text-primary);
   padding:10px 12px;border-left:3px solid var(--orange);background:var(--bg-input);
   border-radius:0 9px 9px 0;margin-bottom:10px;word-break:keep-all}
@@ -2294,7 +2298,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260916-51';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260916-52';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13554,6 +13558,7 @@ function pathMineParse(text){
     const o = { when: String((x && x.when) || '').trim() };
     o.kind = KIND.indexOf(String((x && x.kind) || '')) >= 0 ? x.kind : '방향을 틀다';
     o.title = String((x && x.title) || '').trim();
+    o.plan  = String((x && x.plan) || '').trim();   // 기획서 한 장 = 여정 한 칸
     PATH_FIELDS.forEach(f => { o[f[0]] = String((x && x[f[0]]) || '').trim(); });
     return o;
   }).filter(c => c.title && (c.body || c.before || c.after || c.why || c.bad || c.nogo));
@@ -13596,13 +13601,32 @@ function pathAutoFill(b, got, doc){
   }
 
   // 여정을 먼저 넣습니다 — 규칙이 이걸 근거로 걸어야 하기 때문입니다
-  const madeChaps = [];
+  const up = [];                                   // 결과가 새로 채워진 것
   (got.chaps || []).forEach(c => {
-    const same = P.chapters.find(x => key(x.title) === key(c.title)
-      && key(x.when) === key(c.when));
-    if(same){ skip.push('여정 「' + (c.title || '') + '」'); madeChaps.push(same); return; }
-    const nc = Object.assign({ id: uid('pc') }, c);
-    P.chapters.push(nc); madeChaps.push(nc);
+    // 같은 기획서(기획명)거나 같은 제목+때면 새로 만들지 않고 그 칸을 씁니다.
+    // 기획서는 처음엔 결과가 없고 나중에 생기므로, 빈 칸만 채워 갱신합니다.
+    const same = P.chapters.find(x =>
+      (c.plan && key(x.plan) === key(c.plan))
+      || (key(x.title) === key(c.title) && key(x.when) === key(c.when)));
+    if(same){
+      const filled = [];
+      PATH_FIELDS.forEach(f => {
+        const v = String(c[f[0]] || '').trim();
+        if(v && !String(same[f[0]] || '').trim()){ same[f[0]] = v; filled.push(f[1]); }
+      });
+      if(!String(same.when || '').trim() && c.when) same.when = c.when;
+      if(c.plan && !same.plan) same.plan = c.plan;
+      if(filled.length){
+        // 결과가 채워졌으면 갈래도 「해봤다」 에서 옮겨 줍니다
+        if(filled.indexOf('결과') >= 0 && pathKindOf(same).k === '해봤다' && c.kind)
+          same.kind = c.kind;
+        up.push('「' + (same.title || '') + '」 의 ' + filled.join(' · '));
+      }else{
+        skip.push('여정 「' + (c.title || '') + '」');
+      }
+      return;
+    }
+    P.chapters.push(Object.assign({ id: uid('pc') }, c));
     put.push('여정 「' + (c.title || '') + '」');
   });
 
@@ -13613,7 +13637,8 @@ function pathAutoFill(b, got, doc){
     // AI 가 적어 준 근거(여정 제목)를 제목으로 찾아 걸어 줍니다
     let chapId = '';
     if(r.ref){
-      const hit = P.chapters.find(x => key(x.title) === key(r.ref));
+      const hit = P.chapters.find(x => key(x.title) === key(r.ref)
+        || (x.plan && key(x.plan) === key(r.ref)));
       if(hit) chapId = hit.id;
     }
     P.rules.push({ id: uid('rl'), kind: r.kind, text: r.text, why: r.why, chapId: chapId });
@@ -13628,7 +13653,7 @@ function pathAutoFill(b, got, doc){
     put.push('사람 「' + w.name + '」');
   });
 
-  return { put: put, skip: skip, before: before,
+  return { put: put, skip: skip, up: up, before: before,
            tied: P.rules.filter(r => r.chapId).length };
 }
 
@@ -13678,7 +13703,7 @@ function pathMineHtml(b){
 
   const d = m.done;
   if(!d) return '';
-  if(!d.put.length && !d.skip.length){
+  if(!d.put.length && !d.skip.length && !(d.up || []).length){
     return '<div class="dmn"><div class="dmn-hd">🤖 이 문서에서 채울 것을 찾지 못했습니다'
       + '</div><div class="dmn-ac">'
       + '<button class="btn sm" onclick="pathDoneClose(\'' + bid + '\')">닫기</button>'
@@ -13690,12 +13715,14 @@ function pathMineHtml(b){
       + arr.map(x => '<span>' + esc(x) + '</span>').join('') + '</div>'
     : '';
 
+  const upl = d.up || [];
   return '<div class="dmn ok">'
     + '<div class="dmn-hd">✅ ' + esc((m.doc && m.doc.name) || '문서') + ' 에서 '
-      + d.put.length + '개를 채웠습니다'
+      + (d.put.length + upl.length) + '개를 채웠습니다'
       + (d.tied ? '<span>규칙 ' + d.tied + '개에 근거가 되는 여정을 걸었습니다</span>' : '')
       + '</div>'
     + lst('넣은 것', d.put, 'put')
+    + lst('이어서 채운 것', upl, 'up')
     + lst('이미 적혀 있어 그대로 둔 것', d.skip, 'skip')
     + '<div class="dmn-ac">'
       + '<button class="btn sm" onclick="pathDoneClose(\'' + bid + '\')">확인</button>'
@@ -13742,6 +13769,9 @@ function pathViewHtml(b){
       + '</span>'
     + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\')">'
       + '🤖 문서에서 만들기</button>'
+    + '<a class="btn sm" href="기획서양식-v1.1.xlsx" download '
+      + 'title="이 양식으로 기획서를 쓰면 결과까지 그대로 온보딩에 쌓입니다">'
+      + '📋 기획서 양식</a>'
     + '<button class="btn sm" onclick="pathCopy(\'' + bid + '\')">📋 글로 복사</button>'
     + '</div>'
     + '<input type="file" id="chapImgInput" accept="image/*" multiple style="display:none" '
@@ -13862,6 +13892,8 @@ function chapReadHtml(b, c, i){
         + (String(c.when || '').trim()
             ? '<span class="wn">' + esc(c.when) + '</span>' : '')
         + '<span class="kd">' + K.ic + ' ' + esc(K.k) + '</span>'
+        + (String(c.plan || '').trim()
+            ? '<span class="pl">📋 기획서</span>' : '')
       + '</div>'
       + (String(c.title || '').trim()
           ? '<h3>' + esc(c.title) + '</h3>' : '')

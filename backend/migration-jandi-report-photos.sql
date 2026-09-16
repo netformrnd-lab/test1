@@ -1,5 +1,5 @@
 -- ============================================================
--- 감리일지 → 잔디(Jandi) 알림에 '현장 사진'도 함께 표시 (최대 4장)
+-- 감리일지 → 잔디(Jandi) 알림에 '현장 사진'도 함께 표시 (최대 20장)
 --   · reports.photos(jsonb 배열, 공개 버킷 URL)를 잔디 connectInfo.imageUrl 로 첨부
 --   · 앱 수정 불필요(사진은 이미 저장 시 리포트에 들어있음). 이 SQL만 실행하면 됨.
 --   · 기존 트리거/함수 이름 그대로 교체(재실행 안전).
@@ -43,13 +43,13 @@ begin
     jsonb_build_object('title', '요약',   'description', left(coalesce(new.content, '-'), 200))
   );
 
-  -- 현장 사진: 앞에서부터 최대 4장을 이미지로 첨부(버킷이 public 이라 잔디가 불러옴)
+  -- 현장 사진: 앞에서부터 최대 20장을 이미지로 첨부(버킷이 public 이라 잔디가 불러옴)
   if total > 0 then
     for photo_url in select value from jsonb_array_elements_text(new.photos) loop
-      exit when i >= 4;
+      exit when i >= 20;
       info := info || jsonb_build_array(jsonb_build_object(
         'title', case when i = 0
-                   then '📷 현장 사진 (' || total || '장' || case when total > 4 then ' 중 4장' else '' end || ')'
+                   then '📷 현장 사진 (' || total || '장' || case when total > 20 then ' 중 20장' else '' end || ')'
                    else ' ' end,
         'description', '',
         'imageUrl', photo_url

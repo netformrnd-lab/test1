@@ -71,6 +71,182 @@ function human($b) {
     return round($b / 1073741824, 2) . ' GB';
 }
 
+/* ---------- 순수 PHP 압축 풀기 (zlib 도 없는 서버용) ----------
+   RFC 1951 (DEFLATE). zlib 이 있으면 이 클래스는 안 씁니다.
+   시놀로지 PHP 프로필에서 zlib 이 꺼져 있거나 disable_functions 로
+   gzinflate 가 막혀 있어도 워드·엑셀·PPT 를 열 수 있게 하는 마지막 길입니다. */
+class NfInflate {
+    private $in, $inlen, $incnt = 0, $bitbuf = 0, $bitcnt = 0, $out = '', $max;
+    private static $fixL = null, $fixD = null;
+    private static $LBASE = [3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,
+                             67,83,99,115,131,163,195,227,258];
+    private static $LEXT  = [0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0];
+    private static $DBASE = [1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,
+                             1025,1537,2049,3073,4097,6145,8193,12289,16385,24577];
+    private static $DEXT  = [0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+    private static $ORD   = [16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15];
+
+    private function __construct($in, $max) {
+        $this->in = $in; $this->inlen = strlen($in); $this->max = $max;
+    }
+    /** 풀어서 돌려줍니다. 못 풀면 false. */
+    public static function run($in, $max = 16777216) {
+        $p = new self($in, $max);
+        try { if (!$p->blocks()) return false; } catch (Throwable $e) { return false; }
+        return $p->out;
+    }
+
+    private function bits($need) {
+        if ($need === 0) return 0;
+        $val = $this->bitbuf;
+        while ($this->bitcnt < $need) {
+            if ($this->incnt >= $this->inlen) throw new Exception('짧음');
+            $val |= ord($this->in[$this->incnt++]) << $this->bitcnt;
+            $this->bitcnt += 8;
+        }
+        $this->bitbuf = $val >> $need;
+        $this->bitcnt -= $need;
+        return $val & ((1 << $need) - 1);
+    }
+
+    private function blocks() {
+        do {
+            $last = $this->bits(1);
+            $type = $this->bits(2);
+            if      ($type === 0) $this->stored();
+            else if ($type === 1) $this->codes(self::fixedL(), self::fixedD());
+            else if ($type === 2) $this->dynamic();
+            else return false;
+            if (strlen($this->out) > $this->max) return false;
+        } while (!$last);
+        return true;
+    }
+
+    private function stored() {
+        $this->bitbuf = 0; $this->bitcnt = 0;
+        if ($this->incnt + 4 > $this->inlen) throw new Exception('짧음');
+        $len = ord($this->in[$this->incnt]) | (ord($this->in[$this->incnt + 1]) << 8);
+        $this->incnt += 4;
+        if ($this->incnt + $len > $this->inlen) throw new Exception('짧음');
+        $this->out .= substr($this->in, $this->incnt, $len);
+        $this->incnt += $len;
+    }
+
+    /* 허프만 표 만들기 — 길이 배열에서 (기준: puff.c) */
+    private static function build($lengths, $n) {
+        $count = array_fill(0, 16, 0);
+        for ($i = 0; $i < $n; $i++) $count[$lengths[$i]]++;
+        $offs = array_fill(0, 16, 0);
+        for ($len = 1; $len < 15; $len++) $offs[$len + 1] = $offs[$len] + $count[$len];
+        $symbol = array_fill(0, $n, 0);
+        for ($i = 0; $i < $n; $i++) if ($lengths[$i] !== 0) $symbol[$offs[$lengths[$i]]++] = $i;
+        return ['count' => $count, 'symbol' => $symbol];
+    }
+    private static function fixedL() {
+        if (self::$fixL === null) {
+            $l = [];
+            for ($i = 0;   $i < 144; $i++) $l[$i] = 8;
+            for (         ; $i < 256; $i++) $l[$i] = 9;
+            for (         ; $i < 280; $i++) $l[$i] = 7;
+            for (         ; $i < 288; $i++) $l[$i] = 8;
+            self::$fixL = self::build($l, 288);
+        }
+        return self::$fixL;
+    }
+    private static function fixedD() {
+        if (self::$fixD === null) self::$fixD = self::build(array_fill(0, 30, 5), 30);
+        return self::$fixD;
+    }
+
+    /* 한 글자(또는 길이) 읽기 — 비트를 여기서 직접 다룹니다 (속도) */
+    private function decode($h) {
+        $count = $h['count']; $symbol = $h['symbol'];
+        $code = 0; $first = 0; $index = 0;
+        $buf = $this->bitbuf; $cnt = $this->bitcnt;
+        for ($len = 1; $len <= 15; $len++) {
+            if ($cnt < 1) {
+                if ($this->incnt >= $this->inlen) {
+                    $this->bitbuf = $buf; $this->bitcnt = $cnt; throw new Exception('짧음');
+                }
+                $buf |= ord($this->in[$this->incnt++]) << $cnt;
+                $cnt += 8;
+            }
+            $code |= $buf & 1; $buf >>= 1; $cnt--;
+            $c = $count[$len];
+            if ($code - $c < $first) {
+                $this->bitbuf = $buf; $this->bitcnt = $cnt;
+                return $symbol[$index + ($code - $first)];
+            }
+            $index += $c; $first = ($first + $c) << 1; $code <<= 1;
+        }
+        $this->bitbuf = $buf; $this->bitcnt = $cnt;
+        throw new Exception('코드 오류');
+    }
+
+    private function codes($lh, $dh) {
+        while (true) {
+            $sym = $this->decode($lh);
+            if ($sym < 256) { $this->out .= chr($sym); }
+            else if ($sym === 256) return;
+            else {
+                $sym -= 257;
+                if ($sym >= 29) throw new Exception('길이 오류');
+                $len  = self::$LBASE[$sym] + $this->bits(self::$LEXT[$sym]);
+                $s2   = $this->decode($dh);
+                if ($s2 >= 30) throw new Exception('거리 오류');
+                $dist = self::$DBASE[$s2] + $this->bits(self::$DEXT[$s2]);
+                $olen = strlen($this->out);
+                if ($dist > $olen) throw new Exception('거리 큼');
+                if ($dist >= $len) {
+                    $this->out .= substr($this->out, $olen - $dist, $len);
+                } else {
+                    // 앞 글자를 되풀이해 채웁니다 (겹치는 복사)
+                    $chunk = substr($this->out, $olen - $dist);
+                    $this->out .= substr(str_repeat($chunk, (int)ceil($len / $dist)), 0, $len);
+                }
+            }
+            if (strlen($this->out) > $this->max) throw new Exception('너무 큼');
+        }
+    }
+
+    private function dynamic() {
+        $nlen  = $this->bits(5) + 257;
+        $ndist = $this->bits(5) + 1;
+        $ncode = $this->bits(4) + 4;
+        if ($nlen > 286 || $ndist > 30) throw new Exception('갯수 오류');
+        $lengths = array_fill(0, 320, 0);
+        for ($i = 0; $i < $ncode; $i++) $lengths[self::$ORD[$i]] = $this->bits(3);
+        for (      ; $i < 19;     $i++) $lengths[self::$ORD[$i]] = 0;
+        $lencode = self::build($lengths, 19);
+        $index = 0;
+        while ($index < $nlen + $ndist) {
+            $sym = $this->decode($lencode);
+            if ($sym < 16) { $lengths[$index++] = $sym; continue; }
+            $len = 0;
+            if ($sym === 16) {
+                if ($index === 0) throw new Exception('반복 오류');
+                $len = $lengths[$index - 1];
+                $sym = 3 + $this->bits(2);
+            } else if ($sym === 17) $sym = 3  + $this->bits(3);
+            else                    $sym = 11 + $this->bits(7);
+            if ($index + $sym > $nlen + $ndist) throw new Exception('넘침');
+            while ($sym--) $lengths[$index++] = $len;
+        }
+        $this->codes(self::build(array_slice($lengths, 0, $nlen), $nlen),
+                     self::build(array_slice($lengths, $nlen, $ndist), $ndist));
+    }
+}
+
+/* 눌러 담긴 것을 풉니다 — zlib 이 있으면 그것으로, 없으면 순수 PHP 로 */
+function nf_inflate($d) {
+    if (function_exists('gzinflate')) { $r = @gzinflate($d); if ($r !== false) return $r; }
+    return NfInflate::run($d);
+}
+function nf_uncompress($d) {                       // zlib 머리(2바이트)가 붙은 것
+    if (function_exists('gzuncompress')) { $r = @gzuncompress($d); if ($r !== false) return $r; }
+    return NfInflate::run(substr($d, 2));
+}
+
 /* ---------- 워드·엑셀·파워포인트 ---------- */
 $OFFICE_WHY = '';          // 못 읽었을 때 왜 못 읽었는지 (화면에 그대로 보여줍니다)
 
@@ -87,10 +263,6 @@ function office_wanted($nm) {
    서버 설정을 건드리지 않고도 열 수 있습니다. (zlib 은 PHP 기본입니다)   */
 function zip_parts_raw($file, $deadline) {
     global $OFFICE_WHY;
-    if (!function_exists('gzinflate')) {
-        $OFFICE_WHY = '이 서버에는 zip 기능도 zlib 도 없어서 워드·엑셀·PPT 를 못 엽니다.';
-        return null;
-    }
     $raw = @file_get_contents($file);
     if ($raw === false) { $OFFICE_WHY = '파일을 읽지 못했습니다.'; return null; }
     $len = strlen($raw);
@@ -135,7 +307,11 @@ function zip_parts_raw($file, $deadline) {
         $at   = $lofs + 30 + $lnl + $lel;
         if ($at + $csize > $len) continue;
         $data = substr($raw, $at, $csize);
-        if ($method === 8) { $data = @gzinflate($data); if ($data === false) continue; }
+        if ($method === 8) {
+            // zlib 이 있으면 그것으로, 없으면 순수 PHP 로 풉니다
+            $data = nf_inflate($data);
+            if ($data === false) continue;
+        }
         else if ($method !== 0) continue;                    // 다른 방식은 건너뜁니다
         $out[] = [$nm, $data];
     }
@@ -224,9 +400,9 @@ function pdf_streams($raw, $maxBody, $deadline) {
         $chunk = substr($raw, $from, $e - $from);
         $pos = $e + 9; $n++;
         if ($chunk === '' || strlen($chunk) > 4 * 1024 * 1024) continue;   // 그림 덩어리는 건너뜁니다
-        $d = @gzuncompress($chunk);
-        if ($d === false) $d = @gzinflate($chunk);
-        if ($d === false) $d = @gzinflate(substr($chunk, 2));
+        $d = nf_uncompress($chunk);
+        if ($d === false) $d = nf_inflate($chunk);
+        if ($d === false) $d = nf_inflate(substr($chunk, 2));
         if ($d === false) $d = $chunk;
         if (strpos($d, 'Tj') === false && strpos($d, 'TJ') === false) continue;
         $out .= $d;
@@ -459,6 +635,7 @@ if ($action === 'check') {
         '만든시각'  => is_file($OUT) ? date('c', filemtime($OUT)) : null,
         '만드는중'  => is_file($STATE) ? '예' : '아니오',
         'zip기능'   => (class_exists('ZipArchive') && method_exists('ZipArchive','open')) ? '있음' : '없음 — 직접 풀어 읽습니다 (워드·엑셀·PPT 다 됩니다)',
+        'zlib기능'  => function_exists('gzinflate') ? '있음' : '없음 — 순수 PHP 로 풉니다 (느리지만 됩니다)',
     ]);
 }
 
@@ -488,8 +665,8 @@ if ($action === 'selftest') {
         'ok' => true,
         'PHP'          => PHP_VERSION,
         'zip기능'      => (class_exists('ZipArchive') && method_exists('ZipArchive','open')) ? '있음' : '없음 — 직접 풀어 읽습니다 (워드·엑셀·PPT 다 됩니다)',
+        'zlib'         => function_exists('gzinflate') ? '있음' : '없음 — 순수 PHP 로 풉니다 (느리지만 됩니다)',
         'mbstring'     => function_exists('mb_strcut') ? '있음' : '없음 (한글이 깨집니다)',
-        'zlib'         => function_exists('gzuncompress') ? '있음' : '없음 (PDF 를 못 읽습니다)',
         'shell_exec'   => function_exists('shell_exec') && !in_array('shell_exec',
                             array_map('trim', explode(',', (string)ini_get('disable_functions'))), true)
                             ? '됨' : '막힘 (없어도 괜찮습니다)',

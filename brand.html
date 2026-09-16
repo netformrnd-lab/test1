@@ -1418,6 +1418,15 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .dmn-sub{font-size:12px;font-weight:800;color:var(--text-primary);margin:14px 0 8px;
   display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
 .dmn-sub span{font-size:11px;font-weight:400;color:var(--text-muted)}
+.dmn.ok{border-top-color:var(--green)}
+.dn-g{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.dn-g b{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--text-muted);
+  margin-right:2px}
+.dn-g span{font-size:11.5px;padding:3px 9px;border-radius:99px;border:1px solid var(--border);
+  background:var(--bg-input);color:var(--text-secondary);word-break:break-word}
+.dn-g.put b{color:var(--green)}
+.dn-g.put span{border-color:var(--green);color:var(--text-primary)}
+.dn-g.skip span{opacity:.8}
 .dmn-why{font-size:13.5px;font-weight:700;line-height:1.75;color:var(--text-primary);
   padding:10px 12px;border-left:3px solid var(--orange);background:var(--bg-input);
   border-radius:0 9px 9px 0;margin-bottom:10px;word-break:keep-all}
@@ -2285,7 +2294,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260915-50';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260916-51';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13469,28 +13478,6 @@ function pickPathDoc(bid){
   const el = document.getElementById('pathDocInput');
   if(el) el.click();
 }
-function pathMineClose(bid){ delete pathMine[bid]; render(); }
-function pathMinePick(bid, i, on){
-  const m = pathMine[bid]; if(!m) return;
-  m.pick[i] = !!on; render();
-}
-function pathMineAll(bid, on){
-  const m = pathMine[bid]; if(!m) return;
-  m.chaps.forEach((c, i) => { m.pick[i] = !!on; });
-  render();
-}
-function pathMineSum(bid, on){
-  const m = pathMine[bid]; if(m){ m.sumOn = !!on; render(); }
-}
-function pathMineWhat(bid, on){
-  const m = pathMine[bid]; if(m){ m.whatOn = !!on; render(); }
-}
-function pathMineRule(bid, i, on){
-  const m = pathMine[bid]; if(m){ m.rpick[i] = !!on; render(); }
-}
-function pathMineWho(bid, i, on){
-  const m = pathMine[bid]; if(m){ m.wpick[i] = !!on; render(); }
-}
 
 async function uploadPathDoc(fileList){
   const files = Array.from(fileList || []);
@@ -13499,9 +13486,7 @@ async function uploadPathDoc(fileList){
   const b = brandById(bid) || currentBrand(); if(!b) return;
   const f = files[0];
 
-  pathMine[bid] = { busy:true, step:'문서를 올리는 중…', err:'', what:'', whatOn:false,
-                    sum:'', sumOn:false, rules:[], rpick:{}, who:[], wpick:{},
-                    chaps:[], pick:{}, doc:null };
+  pathMine[bid] = { busy:true, step:'문서를 올리는 중…', err:'', no:'', done:null, doc:null };
   render();
   try{
     const fd = new FormData();
@@ -13525,7 +13510,7 @@ async function uploadPathDoc(fileList){
     const txt = String(t['글자'] || '').trim();
     if(!txt) throw new Error('이 문서에서 글자를 뽑지 못했습니다.');
 
-    pathMine[bid].step = 'AI 가 걸어온 길로 정리하는 중…';
+    pathMine[bid].step = 'AI 가 온보딩 네 단으로 정리하는 중…';
     render();
 
     const ai = await apiJson('ai.php?action=prompt', {
@@ -13536,22 +13521,18 @@ async function uploadPathDoc(fileList){
     const m = pathMine[bid];
     m.busy = false;
     m.no   = got.no;
-    const P = pathOf(b);
-    m.what   = got.what;
-    m.whatOn = !!got.what && !String(P.what || '').trim();
-    m.sum    = got.sum;
-    m.sumOn  = !!got.sum && !String(P.summary || '').trim();
-    m.rules  = got.rules;  m.rpick = {};
-    got.rules.forEach((r, i) => { m.rpick[i] = true; });
-    m.who    = got.who;    m.wpick = {};
-    got.who.forEach((w, i) => { m.wpick[i] = true; });
-    m.chaps  = got.chaps;  m.pick = {};
-    got.chaps.forEach((c, i) => { m.pick[i] = true; });
+    if(m.no){ render(); return; }
+
+    // 고르라고 하지 않고 바로 채웁니다.
+    // 이미 적혀 있는 것은 건드리지 않고, 없는 것만 더합니다.
+    m.done = pathAutoFill(b, got, doc);
+    if(!pathDocs(b).some(d => d.filePath === doc.filePath)) pathDocs(b).push(doc);
+    markDirty(b.id);
+    pathEdit = false;
     render();
   }catch(e){
-    pathMine[bid] = { busy:false, err: apiErrText(e), what:'', whatOn:false,
-                      sum:'', sumOn:false, rules:[], rpick:{}, who:[], wpick:{},
-                      chaps:[], pick:{}, doc: (pathMine[bid] || {}).doc || null };
+    pathMine[bid] = { busy:false, err: apiErrText(e), no:'', done:null,
+                      doc: (pathMine[bid] || {}).doc || null };
     render();
   }
 }
@@ -13579,7 +13560,9 @@ function pathMineParse(text){
   const rules = ((j && (j['지킬것'] || j.rules)) || []).map(x => ({
     kind: RK.indexOf(String((x && x.kind) || '')) >= 0 ? x.kind : '그 밖',
     text: String((x && x.text) || '').trim(),
-    why:  String((x && x.why) || '').trim()
+    why:  String((x && x.why) || '').trim(),
+    // 근거가 되는 여정의 제목 — 넣을 때 제목으로 찾아 걸어 줍니다
+    ref:  String((x && (x['근거'] || x.ref)) || '').trim()
   })).filter(r => r.text);
   const who = ((j && (j['사람'] || j.who)) || []).map(x => ({
     name:  String((x && x.name) || '').trim(),
@@ -13593,36 +13576,74 @@ function pathMineParse(text){
            chaps: chaps, no: no };
 }
 
-function pathMineAdd(bid){
-  const b = brandById(bid) || currentBrand(); if(!b) return;
-  const m = pathMine[bid]; if(!m) return;
+/* 문서에서 읽은 것을 그대로 채웁니다.
+   원칙 하나 — 이미 적혀 있는 것은 절대 건드리지 않습니다.
+   같은 말이 이미 있으면 건너뛰고, 없는 것만 더합니다.
+   되돌릴 수 있게 채우기 직전 모습을 통째로 남겨 둡니다. */
+function pathAutoFill(b, got, doc){
   const P = pathOf(b);
-  let n = 0;
-  if(m.whatOn && m.what){ P.what = m.what; n++; }
-  if(m.sumOn  && m.sum ){ P.summary = m.sum; n++; }
-  (m.rules || []).forEach((r, i) => {
-    if(!m.rpick[i]) return;
-    P.rules.push(Object.assign({ id: uid('rl'), chapId:'' }, r));
-    n++;
+  const before = JSON.parse(JSON.stringify(P));    // 되돌리기용
+  const key = t => String(t || '').replace(/\s+/g, '').toLowerCase();
+  const put = [], skip = [];
+
+  if(got.what){
+    if(String(P.what || '').trim()) skip.push('이 브랜드는 뭘 하나');
+    else { P.what = got.what; put.push('이 브랜드는 뭘 하나'); }
+  }
+  if(got.sum){
+    if(String(P.summary || '').trim()) skip.push('맨 위 한 문단');
+    else { P.summary = got.sum; put.push('맨 위 한 문단'); }
+  }
+
+  // 여정을 먼저 넣습니다 — 규칙이 이걸 근거로 걸어야 하기 때문입니다
+  const madeChaps = [];
+  (got.chaps || []).forEach(c => {
+    const same = P.chapters.find(x => key(x.title) === key(c.title)
+      && key(x.when) === key(c.when));
+    if(same){ skip.push('여정 「' + (c.title || '') + '」'); madeChaps.push(same); return; }
+    const nc = Object.assign({ id: uid('pc') }, c);
+    P.chapters.push(nc); madeChaps.push(nc);
+    put.push('여정 「' + (c.title || '') + '」');
   });
-  (m.who || []).forEach((w, i) => {
-    if(!m.wpick[i]) return;
+
+  (got.rules || []).forEach(r => {
+    if(P.rules.some(x => key(x.text) === key(r.text))){
+      skip.push('지킬 것 「' + gbOneLine(r.text, 24) + '」'); return;
+    }
+    // AI 가 적어 준 근거(여정 제목)를 제목으로 찾아 걸어 줍니다
+    let chapId = '';
+    if(r.ref){
+      const hit = P.chapters.find(x => key(x.title) === key(r.ref));
+      if(hit) chapId = hit.id;
+    }
+    P.rules.push({ id: uid('rl'), kind: r.kind, text: r.text, why: r.why, chapId: chapId });
+    put.push('지킬 것 「' + gbOneLine(r.text, 24) + '」');
+  });
+
+  (got.who || []).forEach(w => {
+    if(P.who.some(x => key(x.name) === key(w.name))){
+      skip.push('사람 「' + w.name + '」'); return;
+    }
     P.who.push(Object.assign({ id: uid('wh') }, w));
-    n++;
+    put.push('사람 「' + w.name + '」');
   });
-  m.chaps.forEach((c, i) => {
-    if(!m.pick[i]) return;
-    P.chapters.push(Object.assign({ id: uid('pc') }, c));
-    n++;
-  });
-  if(m.doc && !pathDocs(b).some(d => d.filePath === m.doc.filePath))
-    pathDocs(b).push(m.doc);
-  delete pathMine[bid];
-  markDirty(b.id);
-  pathEdit = false;                 // 넣은 결과를 바로 읽게 합니다
-  render();
-  toast('✅ ' + n + '개를 넣었습니다');
+
+  return { put: put, skip: skip, before: before,
+           tied: P.rules.filter(r => r.chapId).length };
 }
+
+/* 채운 것을 통째로 되돌립니다 */
+function pathUndoFill(bid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const m = pathMine[bid]; if(!m || !m.done || !m.done.before) return;
+  if(!confirm('문서에서 채운 것을 모두 되돌립니다.\n\n채우기 직전 모습으로 돌아갑니다.')) return;
+  b.path = JSON.parse(JSON.stringify(m.done.before));
+  delete pathMine[bid];
+  markDirty(b.id); render();
+  toast('↩︎ 채우기 전으로 되돌렸습니다');
+}
+function pathDoneClose(bid){ delete pathMine[bid]; render(); }
+
 
 function pathMineHtml(b){
   const bid = jsq(b.id);
@@ -13635,115 +13656,52 @@ function pathMineHtml(b){
   }
   if(m.err){
     return '<div class="dmn"><div class="dmn-err">⚠️ ' + esc(m.err) + '</div>'
-      + '<div class="dmn-ac"><button class="btn sm" onclick="pathMineClose(\'' + bid
+      + '<div class="dmn-ac"><button class="btn sm" onclick="pathDoneClose(\'' + bid
         + '\')">닫기</button></div></div>';
   }
-  if(m.no || (!m.chaps.length && !m.sum && !m.what
-              && !(m.rules || []).length && !(m.who || []).length)){
-    return '<div class="dmn"><div class="dmn-hd">🤖 이 문서로는 걸어온 길을 만들 수 없습니다'
+  if(m.no){
+    return '<div class="dmn"><div class="dmn-hd">🤖 이 문서로는 온보딩을 채울 수 없습니다'
       + '</div>'
-      + '<div class="dmn-why">' + esc(m.no
-          || '브랜드가 어떻게 바뀌어 왔는지가 적혀 있지 않거나, 글자가 잘 안 읽힌 문서입니다.')
-      + '</div>'
-      + '<div class="dmn-need">필요한 것은 <b>브랜드가 무엇을 팔고 누구에게 가는지가 '
-        + '바뀐 이야기</b> 입니다.<br>'
+      + '<div class="dmn-why">' + esc(m.no) + '</div>'
+      + '<div class="dmn-need">필요한 것은 <b>이 브랜드가 무엇을 팔고 누구에게 가고 '
+        + '어떻게 말하는지</b> 가 적힌 문서입니다.<br>'
         + '· 되는 문서 — 브랜드 히스토리 · 사업계획서 · 투자 자료 · 대표 인터뷰 · '
           + '연혁 정리본<br>'
         + '· 안 되는 문서 — 기능 개선 내역 · 화면 기획서 · 업무 절차서 · 매뉴얼 · '
           + '회의록 · 견적서</div>'
       + '<div class="dmn-ac">'
-        + '<button class="btn sm primary" onclick="pathMineClose(\'' + bid
+        + '<button class="btn sm primary" onclick="pathDoneClose(\'' + bid
           + '\');pickPathDoc(\'' + bid + '\')">다른 문서로 다시</button>'
-        + '<button class="btn sm" onclick="pathMineClose(\'' + bid + '\')">닫기</button>'
+        + '<button class="btn sm" onclick="pathDoneClose(\'' + bid + '\')">닫기</button>'
       + '</div></div>';
   }
 
-  const P = pathOf(b);
-  const on = m.chaps.filter((c, i) => m.pick[i]).length
-    + (m.rules || []).filter((r, i) => m.rpick[i]).length
-    + (m.who   || []).filter((w, i) => m.wpick[i]).length
-    + (m.whatOn ? 1 : 0) + (m.sumOn ? 1 : 0);
+  const d = m.done;
+  if(!d) return '';
+  if(!d.put.length && !d.skip.length){
+    return '<div class="dmn"><div class="dmn-hd">🤖 이 문서에서 채울 것을 찾지 못했습니다'
+      + '</div><div class="dmn-ac">'
+      + '<button class="btn sm" onclick="pathDoneClose(\'' + bid + '\')">닫기</button>'
+      + '</div></div>';
+  }
 
-  const one = (label, before, after, on2, fn) =>
-    '<label class="dmn-n' + (on2 ? ' on' : '') + (before ? ' over' : '') + '">'
-    + '<input type="checkbox"' + (on2 ? ' checked' : '') + ' onchange="' + fn + '">'
-    + '<span class="bd">'
-      + (before ? '<span class="lb"><em>이미 적혀 있습니다 — 켜면 이 글로 바뀝니다</em></span>'
-                  + '<span class="be">' + esc(gbOneLine(before, 140)) + '</span>' : '')
-      + '<span class="af">' + esc(after) + '</span>'
-    + '</span></label>';
-
-  const what = m.what
-    ? '<div class="dmn-sub">1️⃣ 이 브랜드는 뭘 하나</div><div class="dmn-nlist">'
-      + one('무엇', String(P.what || '').trim(), m.what, m.whatOn,
-          'pathMineWhat(\'' + bid + '\', this.checked)') + '</div>'
+  const lst = (ttl, arr, cls) => arr.length
+    ? '<div class="dn-g ' + cls + '"><b>' + esc(ttl) + ' ' + arr.length + '</b>'
+      + arr.map(x => '<span>' + esc(x) + '</span>').join('') + '</div>'
     : '';
 
-  const rules = (m.rules || []).length
-    ? '<div class="dmn-sub">2️⃣ 여기서 일할 때 지킬 것 '
-      + '<span>' + m.rules.length + '줄</span></div><div class="dmn-list">'
-      + m.rules.map((r, i) => '<label class="dmn-r' + (m.rpick[i] ? ' on' : '') + '">'
-          + '<input type="checkbox"' + (m.rpick[i] ? ' checked' : '') + ' '
-            + 'onchange="pathMineRule(\'' + bid + '\',' + i + ', this.checked)">'
-          + '<span class="bd">'
-            + '<span class="dt"><span class="kd">' + ruleKindOf(r).ic + ' '
-              + esc(ruleKindOf(r).k) + '</span></span>'
-            + '<span class="ti">' + esc(r.text) + '</span>'
-            + (r.why ? '<span class="sc">↳ ' + esc(r.why) + '</span>' : '')
-          + '</span></label>').join('') + '</div>'
-    : '';
-
-  const who = (m.who || []).length
-    ? '<div class="dmn-sub">3️⃣ 막히면 누구에게</div><div class="dmn-list">'
-      + m.who.map((w, i) => '<label class="dmn-r' + (m.wpick[i] ? ' on' : '') + '">'
-          + '<input type="checkbox"' + (m.wpick[i] ? ' checked' : '') + ' '
-            + 'onchange="pathMineWho(\'' + bid + '\',' + i + ', this.checked)">'
-          + '<span class="bd"><span class="ti">' + esc(w.name)
-            + (w.role ? ' · ' + esc(w.role) : '') + '</span>'
-            + (w.where ? '<span class="sc">' + esc(w.where) + '</span>' : '')
-          + '</span></label>').join('') + '</div>'
-    : '';
-
-  const sum = m.sum
-    ? '<div class="dmn-sub">4️⃣ 왜 지금 이렇게 하나 <span>한 문단</span></div>'
-      + '<div class="dmn-nlist">'
-      + one('한문단', String(P.summary || '').trim(), m.sum, m.sumOn,
-          'pathMineSum(\'' + bid + '\', this.checked)') + '</div>'
-    : '';
-
-  const rows = m.chaps.map((c, i) => {
-    const K = pathKindOf(c);
-    const sub = [c.body, c.before && c.after ? c.before + ' → ' + c.after : '', c.bad]
-      .map(x => String(x || '').trim()).filter(Boolean)[0] || '';
-    return '<label class="dmn-r' + (m.pick[i] ? ' on' : '') + '">'
-      + '<input type="checkbox"' + (m.pick[i] ? ' checked' : '') + ' '
-        + 'onchange="pathMinePick(\'' + bid + '\',' + i + ', this.checked)">'
-      + '<span class="bd">'
-        + '<span class="dt"><b' + (chapNoWhen(c) ? ' class="wq"' : '') + '>'
-          + esc(c.when || '때를 못 찾았습니다') + '</b>'
-          + '<span class="kd">' + K.ic + ' ' + esc(K.k) + '</span></span>'
-        + '<span class="ti">' + esc(c.title || '(제목 없음)') + '</span>'
-        + (sub ? '<span class="sc">' + esc(gbOneLine(sub, 110)) + '</span>' : '')
-      + '</span></label>';
-  }).join('');
-
-  return '<div class="dmn">'
-    + '<div class="dmn-hd">🤖 ' + esc((m.doc && m.doc.name) || '문서') + ' 에서 읽어냈습니다'
-      + '<span>넣을 것만 골라 주세요. 넣은 뒤에도 [✏️ 고치기] 에서 고칠 수 있습니다</span></div>'
-    + what + rules + who + sum
-    + (m.chaps.length
-        ? '<div class="dmn-sub">4️⃣ 왜 지금 이렇게 하나 '
-            + '<span>여정 ' + m.chaps.length + '개</span></div>'
-          + '<div class="dmn-bar">'
-            + '<button class="btn sm" onclick="pathMineAll(\'' + bid + '\',1)">모두 고르기</button>'
-            + '<button class="btn sm" onclick="pathMineAll(\'' + bid + '\',0)">모두 풀기</button>'
-          + '</div>'
-          + '<div class="dmn-list">' + rows + '</div>'
-        : '')
+  return '<div class="dmn ok">'
+    + '<div class="dmn-hd">✅ ' + esc((m.doc && m.doc.name) || '문서') + ' 에서 '
+      + d.put.length + '개를 채웠습니다'
+      + (d.tied ? '<span>규칙 ' + d.tied + '개에 근거가 되는 여정을 걸었습니다</span>' : '')
+      + '</div>'
+    + lst('넣은 것', d.put, 'put')
+    + lst('이미 적혀 있어 그대로 둔 것', d.skip, 'skip')
     + '<div class="dmn-ac">'
-      + '<button class="btn primary"' + (on ? '' : ' disabled')
-        + ' onclick="pathMineAdd(\'' + bid + '\')">' + on + '개 넣기</button>'
-      + '<button class="btn sm" onclick="pathMineClose(\'' + bid + '\')">닫기</button>'
+      + '<button class="btn sm" onclick="pathDoneClose(\'' + bid + '\')">확인</button>'
+      + '<button class="btn sm danger" onclick="pathUndoFill(\'' + bid
+        + '\')">↩︎ 채우기 전으로</button>'
+      + '<span class="hint">틀린 곳은 [✏️ 고치기] 에서 바로 고칩니다</span>'
     + '</div></div>';
 }
 

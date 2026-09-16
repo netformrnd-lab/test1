@@ -1159,8 +1159,17 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-q{margin-top:6px;padding:7px 11px;border-left:3px solid var(--purple);
   background:var(--bg-input);border-radius:0 9px 9px 0;font-size:12px;
   color:var(--text-secondary);line-height:1.65}
+.ob-q{display:block;width:100%;box-sizing:border-box;text-align:left;font-family:inherit;
+  border:none;border-left:3px solid var(--purple);cursor:pointer}
+.ob-q:hover{background:var(--bg-hover)}
 .ob-q b{color:var(--text-primary);font-weight:800}
 .ob-q .rs{display:block;margin-top:2px;color:var(--green);font-weight:700}
+.ob-q .mo{margin-left:6px;font-size:11px;color:var(--text-muted)}
+.ob-q.again{padding-top:5px;padding-bottom:5px;font-size:11.5px;
+  border-left-color:var(--border);background:transparent}
+.ob-q.again:hover{background:var(--bg-hover)}
+.pw-ch.hit > .bd{background:var(--blue-soft);border-radius:12px;
+  box-shadow:0 0 0 8px var(--blue-soft);transition:background .3s}
 .ob-who{display:flex;flex-direction:column;gap:7px}
 .ob-who .wc{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;padding:9px 12px;
   border:1px solid var(--border);border-radius:10px;background:var(--bg-card)}
@@ -2349,7 +2358,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260916-59';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260916-60';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -14075,11 +14084,14 @@ function pathReadHtml(b){
          : none('아직 없습니다 — [✏️ 고치기] 에서 한 문단으로 적어 주세요.'));
 
   /* 2 — 여기서 일할 때 지킬 것 (걸어온 길이 근거로 붙습니다) */
+  // 같은 여정이 여러 규칙의 근거면, 결과까지 붙이는 것은 처음 한 번뿐입니다.
+  // (네 줄이 같은 여정을 걸면 같은 글을 네 번 읽게 됩니다)
+  const quoted = new Set();
   const byKind = RULE_KINDS.map(k => {
     const mine = rs.filter(r => ruleKindOf(r).k === k.k);
     if(!mine.length) return '';
     return '<div class="ob-rk"><div class="kh">' + k.ic + ' ' + esc(k.k) + '</div>'
-      + mine.map(r => ruleReadHtml(b, r)).join('') + '</div>';
+      + mine.map(r => ruleReadHtml(b, r, quoted)).join('') + '</div>';
   }).join('');
   const s2 = sec('2', '여기서 일할 때 지킬 것', '신입이 첫날 제일 급하게 알아야 하는 것',
     rs.length ? byKind
@@ -14177,22 +14189,36 @@ function stepReadHtml(b, t){
 
 /* 지킬 것 한 줄 — 근거가 걸려 있으면 그 여정을 그 자리에 인용합니다.
    규칙만 있으면 안 지킵니다. 왜 생겼는지가 붙어야 납득합니다. */
-function ruleReadHtml(b, r){
+function ruleReadHtml(b, r, quoted){
   const c = String(r.chapId || '').trim() ? chapFind(b, r.chapId) : null;
   const why = String(r.why || '').trim();
   const K = c ? pathKindOf(c) : null;
+  const first = c && !(quoted && quoted.has(c.id));
+  if(c && quoted) quoted.add(c.id);
   return '<div class="ob-r">'
     + '<p class="tx">' + esc(r.text) + '</p>'
     + (why ? '<p class="wy">↳ ' + esc(why) + '</p>' : '')
     + (c
-        ? '<div class="ob-q">' + K.ic + ' '
+        ? '<button type="button" class="ob-q' + (first ? '' : ' again') + '" '
+          + 'onclick="goChap(\'' + jsq(c.id) + '\')" '
+          + 'title="걸어온 길에서 이 마디 보기">' + K.ic + ' '
           + (String(c.when || '').trim() ? '<b>' + esc(c.when) + '</b> · ' : '')
           + esc(String(c.title || '').trim() || '(제목 없음)')
-          + (String(c.result || '').trim()
-              ? '<span class="rs">결과 — ' + esc(gbOneLine(c.result, 90)) + '</span>' : '')
-        + '</div>'
+          + (first && String(c.result || '').trim()
+              ? '<span class="rs">결과 — ' + esc(gbOneLine(c.result, 150)) + '</span>'
+              : '<span class="mo">↓ 위에서 본 마디</span>')
+        + '</button>'
         : '')
     + '</div>';
+}
+
+/* 규칙에 걸린 여정으로 내려갑니다 */
+function goChap(id){
+  const el = document.getElementById('ch-' + id);
+  if(!el) return;
+  el.scrollIntoView({ behavior:'smooth', block:'center' });
+  el.classList.add('hit');
+  setTimeout(() => { el.classList.remove('hit'); }, 1800);
 }
 
 /* yr — 그 마디가 속한 연도 머리. 「2022」 아래 다시 「2022」 를 적지 않습니다. */
@@ -14208,7 +14234,7 @@ function chapReadHtml(b, c, i, yr){
       + '<span>→</span>' + esc(String(c.after || '').trim()) + '</p>'
     : '';
 
-  return '<section class="pw-ch ' + K.cls + '">'
+  return '<section class="pw-ch ' + K.cls + '" id="ch-' + esc(c.id || '') + '">'
     + '<div class="no">' + (i + 1) + '</div>'
     + '<div class="bd">'
       + '<div class="hd">'

@@ -2360,7 +2360,23 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260916-61';   // 화면 오른쪽 위에 표시됩니다
+
+/* 접속 주소 — 사무실 밖에서는 주소가 다릅니다 (Tailscale · DDNS · 터널).
+   그래서 주소를 화면에 박아 두지 않고, 마지막으로 열었던 주소를 기억해
+   안내 문구에 그대로 씁니다. 한 번도 NAS 로 연 적이 없으면 사무실 주소를 씁니다. */
+const NAS_URL_KEY = 'netform_brand_nas_url';
+function nasUrlSave(){
+  if(STORAGE_MODE !== 'nas') return;
+  try{ localStorage.setItem(NAS_URL_KEY, location.origin + location.pathname); }catch(e){}
+}
+function nasUrl(){
+  if(STORAGE_MODE === 'nas') return location.origin + location.pathname;
+  try{ const v = localStorage.getItem(NAS_URL_KEY); if(v) return v; }catch(e){}
+  return 'http://192.168.0.37/brand/brand.html';       // 사무실 주소 (처음 쓸 때)
+}
+function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
+nasUrlSave();
+const APP_VER = 'v20260916-62';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5788,7 +5804,7 @@ function toolUrl(t){
 function pickTool(){
   if(STORAGE_MODE !== 'nas'){
     alert('도구 올리기는 NAS 주소로 접속했을 때만 됩니다.\n\n'
-      + 'http://192.168.0.37/brand/brand.html 로 열어주세요.');
+      + nasUrl() + ' 로 열어주세요.');
     return;
   }
   const el = document.getElementById('toolInput');
@@ -10470,7 +10486,7 @@ async function loadNasTrash(){
     trash.list = []; trash.ready = false;
     trash.why = '이 화면을 NAS 주소로 열지 않았습니다.\n'
       + '지금 주소: ' + location.href.split('?')[0] + '\n'
-      + 'NAS 주소(http://192.168.0.37/brand/brand.html)로 열어야 NAS 휴지통이 보입니다.';
+      + 'NAS 주소(' + nasUrl() + ')로 열어야 NAS 휴지통이 보입니다.';
     render(); return;
   }
   trash.busy = true; trash.error = ''; trash.why = ''; render();
@@ -11899,7 +11915,7 @@ function inquiryYearView(rows, dateCol, sum, b, searching){
 function viewInquiries(b){
   if(STORAGE_MODE !== 'nas'){
     return '<div class="empty">🔒 문의 기록은 NAS 주소로 접속했을 때만 보입니다.<br>'
-      + 'http://192.168.0.37/brand/brand.html 로 접속해 주세요.</div>';
+      + esc(nasUrl()) + ' 로 접속해 주세요.</div>';
   }
   if(!inquiryCache.loaded) return '<div class="empty">불러오는 중…</div>';
 
@@ -11946,7 +11962,7 @@ function viewInquiries(b){
           ? '문의 기능 파일이 아직 NAS에 없습니다.<br><br>'
             + '아래 주소를 브라우저에서 한 번 열면 자동으로 설치됩니다.<br>'
             + '<span class="path" style="display:inline-block;margin-top:8px">'
-            + 'http://192.168.0.37/brand/save.php?action=bootstrap</span><br>'
+            + esc(nasBase()) + '/save.php?action=bootstrap</span><br>'
             + '<span style="display:inline-block;margin-top:8px;color:var(--text-muted)">'
             + '설치 후 이 화면에서 Ctrl+F5 를 눌러주세요</span>'
           : '문의 기록을 불러오지 못했습니다.<br>'

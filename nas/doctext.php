@@ -73,38 +73,126 @@ function human($b) {
 
 /* ---------- 워드·엑셀·파워포인트 ---------- */
 $OFFICE_WHY = '';          // 못 읽었을 때 왜 못 읽었는지 (화면에 그대로 보여줍니다)
+
+/* 우리가 볼 조각인지 */
+function office_wanted($nm) {
+    return (bool)preg_match('#^(word/document|word/footnotes|word/endnotes'
+        . '|xl/sharedStrings|xl/worksheets/sheet[0-9]+'
+        . '|ppt/slides/slide[0-9]+|ppt/notesSlides/notesSlide[0-9]+)#', $nm);
+}
+
+/* zip 확장 없이 직접 풀어 읽습니다.
+   시놀로지 Web Station 의 PHP 프로필은 zip 확장이 꺼져 있는 경우가 많습니다.
+   워드·엑셀·PPT 는 그냥 zip 이라, 목록을 직접 읽고 gzinflate 로 풀면
+   서버 설정을 건드리지 않고도 열 수 있습니다. (zlib 은 PHP 기본입니다)   */
+function zip_parts_raw($file, $deadline) {
+    global $OFFICE_WHY;
+    if (!function_exists('gzinflate')) {
+        $OFFICE_WHY = '이 서버에는 zip 기능도 zlib 도 없어서 워드·엑셀·PPT 를 못 엽니다.';
+        return null;
+    }
+    $raw = @file_get_contents($file);
+    if ($raw === false) { $OFFICE_WHY = '파일을 읽지 못했습니다.'; return null; }
+    $len = strlen($raw);
+    if ($len < 22 || substr($raw, 0, 2) !== 'PK') {
+        $OFFICE_WHY = '엑셀·워드 파일이 아니거나 깨진 파일입니다.';
+        return null;
+    }
+    // 맨 끝의 「목록 끝 표시」 를 뒤에서부터 찾습니다 (뒤에 주석이 붙어 있어도 되게)
+    $eo = -1;
+    $from = max(0, $len - 66000);
+    for ($q = $len - 22; $q >= $from; $q--) {
+        if ($raw[$q] === 'P' && substr($raw, $q, 4) === "PK\x05\x06") { $eo = $q; break; }
+    }
+    if ($eo < 0) {
+        $OFFICE_WHY = '파일 안의 목록을 찾지 못했습니다. 받다가 끊긴 파일일 수 있습니다.';
+        return null;
+    }
+    $cnt   = unpack('v', substr($raw, $eo + 10, 2))[1];
+    $cdOff = unpack('V', substr($raw, $eo + 16, 4))[1];
+    if ($cdOff <= 0 || $cdOff >= $len) {
+        $OFFICE_WHY = '파일이 너무 크거나(4GB 이상) 형식이 달라 목록을 읽지 못했습니다.';
+        return null;
+    }
+    $out = [];
+    $p = $cdOff;
+    for ($i = 0; $i < $cnt && $i < 3000; $i++) {
+        if (microtime(true) > $deadline) break;
+        if ($p + 46 > $len || substr($raw, $p, 4) !== "PK\x01\x02") break;
+        $method = unpack('v', substr($raw, $p + 10, 2))[1];   // 0 그대로 · 8 눌러 담음
+        $csize  = unpack('V', substr($raw, $p + 20, 4))[1];
+        $nlen   = unpack('v', substr($raw, $p + 28, 2))[1];
+        $elen   = unpack('v', substr($raw, $p + 30, 2))[1];
+        $clen   = unpack('v', substr($raw, $p + 32, 2))[1];
+        $lofs   = unpack('V', substr($raw, $p + 42, 4))[1];
+        $nm     = substr($raw, $p + 46, $nlen);
+        $p     += 46 + $nlen + $elen + $clen;
+        if (!office_wanted($nm)) continue;
+        if ($csize <= 0 || $csize > 64 * 1024 * 1024) continue;
+        if ($lofs + 30 > $len || substr($raw, $lofs, 4) !== "PK\x03\x04") continue;
+        $lnl  = unpack('v', substr($raw, $lofs + 26, 2))[1];
+        $lel  = unpack('v', substr($raw, $lofs + 28, 2))[1];
+        $at   = $lofs + 30 + $lnl + $lel;
+        if ($at + $csize > $len) continue;
+        $data = substr($raw, $at, $csize);
+        if ($method === 8) { $data = @gzinflate($data); if ($data === false) continue; }
+        else if ($method !== 0) continue;                    // 다른 방식은 건너뜁니다
+        $out[] = [$nm, $data];
+    }
+    if (!$out) $OFFICE_WHY = '파일 안에서 글자가 들어 있는 부분을 찾지 못했습니다.';
+    return $out;
+}
+
+/* 파일 안에서 볼 조각만 뽑아 옵니다 — zip 확장이 있으면 그것으로, 없으면 직접 */
+function office_parts($file, $deadline) {
+    global $OFFICE_WHY;
+    // 클래스만 있고 알맹이가 없는 경우도 있어서 open 까지 확인합니다
+    if (!class_exists('ZipArchive') || !method_exists('ZipArchive', 'open')) {
+        return zip_parts_raw($file, $deadline);
+    }
+    try { $z = new ZipArchive; } catch (Throwable $e) { return zip_parts_raw($file, $deadline); }
+    if (@$z->open($file) !== true) {
+        // zip 확장이 못 열어도 직접 한 번 더 해 봅니다
+        $r = zip_parts_raw($file, $deadline);
+        if ($r === null && $OFFICE_WHY === '') {
+            $OFFICE_WHY = '파일을 여는 데 실패했습니다. 받다가 끊겼거나 깨진 파일일 수 있습니다.'
+                        . "\n" . '다시 올려 보시고, 그래도 안 되면 다른 이름으로 저장해 보세요.';
+        }
+        return $r;
+    }
+    $out = [];
+    try {
+        $cnt = min($z->numFiles, 3000);                    // 칸 수 (예전에는 $n 을 아래에서
+        for ($i = 0; $i < $cnt; $i++) {                    //  덮어써서 이 한도가 안 먹었습니다)
+            if (microtime(true) > $deadline) break;
+            $nm = $z->getNameIndex($i);
+            if ($nm === false) break;
+            if (!office_wanted($nm)) continue;
+            $x = $z->getFromIndex($i);
+            if ($x !== false) $out[] = [$nm, $x];
+        }
+        $z->close();
+    } catch (Throwable $e) { return zip_parts_raw($file, $deadline); }
+    if (!$out) return zip_parts_raw($file, $deadline);      // 못 찾았으면 직접 한 번 더
+    return $out;
+}
+
 function office_text($file, $max, $deadline = null) {
     global $OFFICE_WHY;
     $OFFICE_WHY = '';
-    if (!class_exists('ZipArchive')) {
-        $OFFICE_WHY = '이 서버에 zip 기능(ZipArchive)이 없어서 워드·엑셀·PPT 를 못 엽니다.'
-                    . "\n" . 'Web Station → PHP 프로필에서 zip 확장을 켜면 됩니다.';
-        return null;
-    }
     if ($deadline === null) $deadline = microtime(true) + 8;
-    $z = new ZipArchive;
-    if (@$z->open($file) !== true) {
-        $OFFICE_WHY = '파일을 여는 데 실패했습니다. 받다가 끊겼거나 깨진 파일일 수 있습니다.'
-                    . "\n" . '다시 올려 보시고, 그래도 안 되면 다른 이름으로 저장해 보세요.';
-        return null;
-    }
+    $parts = office_parts($file, $deadline);
+    if ($parts === null) return null;
     $out = '';
-    $cnt = min($z->numFiles, 3000);                        // 칸 수 (예전에는 $n 을 아래에서
-    for ($i = 0; $i < $cnt; $i++) {                        //  덮어써서 이 한도가 안 먹었습니다)
+    foreach ($parts as $pt) {
         if (microtime(true) > $deadline) break;
-        $nm = $z->getNameIndex($i);
-        if ($nm === false) break;
+        list($nm, $x) = $pt;
         /* 엑셀은 글자를 두 가지로 저장합니다.
              · 공유 문자열표 (xl/sharedStrings.xml)  — 엑셀이 보통 쓰는 방식
              · 시트 안에 그대로 (inlineStr)          — 구글 시트 내려받기 · 일부 도구
            앞의 것만 읽고 있어서, 뒤의 방식으로 저장된 파일은 다 채워져 있어도
            「글자를 뽑지 못했습니다」 가 났습니다. */
-        $isSheet = (strpos($nm, 'xl/worksheets/sheet') === 0);
-        if (!$isSheet && !preg_match('#^(word/document|word/footnotes|word/endnotes'
-            . '|xl/sharedStrings|ppt/slides/slide[0-9]+|ppt/notesSlides/notesSlide[0-9]+)#', $nm)) continue;
-        $x = $z->getFromIndex($i);
-        if ($x === false) continue;
-        if ($isSheet) {
+        if (strpos($nm, 'xl/worksheets/sheet') === 0) {
             // 시트에서는 칸에 박힌 글자만 꺼냅니다 (서식·수식 찌꺼기를 안 담게)
             if (!preg_match_all('#<t(?:\s[^>]*)?>(.*?)</t>#s', $x, $mm)) continue;
             $x = implode("\n", $mm[1]);
@@ -114,7 +202,6 @@ function office_text($file, $max, $deadline = null) {
         $out .= ' ' . html_entity_decode($x, ENT_QUOTES | ENT_XML1, 'UTF-8');
         if (strlen($out) > $max) break;
     }
-    $z->close();
     return $out;
 }
 
@@ -371,7 +458,7 @@ if ($action === 'check') {
         '목록크기'  => is_file($OUT) ? human(filesize($OUT)) : '-',
         '만든시각'  => is_file($OUT) ? date('c', filemtime($OUT)) : null,
         '만드는중'  => is_file($STATE) ? '예' : '아니오',
-        'zip기능'   => class_exists('ZipArchive') ? '있음' : '없음 (워드·엑셀·PPT 를 못 읽습니다)',
+        'zip기능'   => (class_exists('ZipArchive') && method_exists('ZipArchive','open')) ? '있음' : '없음 — 직접 풀어 읽습니다 (워드·엑셀·PPT 다 됩니다)',
     ]);
 }
 
@@ -400,7 +487,7 @@ if ($action === 'selftest') {
     jout([
         'ok' => true,
         'PHP'          => PHP_VERSION,
-        'zip기능'      => class_exists('ZipArchive') ? '있음' : '없음 (워드·엑셀·PPT 를 못 읽습니다)',
+        'zip기능'      => (class_exists('ZipArchive') && method_exists('ZipArchive','open')) ? '있음' : '없음 — 직접 풀어 읽습니다 (워드·엑셀·PPT 다 됩니다)',
         'mbstring'     => function_exists('mb_strcut') ? '있음' : '없음 (한글이 깨집니다)',
         'zlib'         => function_exists('gzuncompress') ? '있음' : '없음 (PDF 를 못 읽습니다)',
         'shell_exec'   => function_exists('shell_exec') && !in_array('shell_exec',

@@ -1,0 +1,21 @@
+name: 진단 - 즉시함수(POUR→아스퀘) 실측
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 의존성 설치
+        working-directory: backend/aptsq-sync
+        run: npm install --no-audit --no-fund
+      - name: 즉시함수 실측
+        working-directory: backend/aptsq-sync
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node funcin.js

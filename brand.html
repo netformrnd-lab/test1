@@ -1110,6 +1110,44 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-what{margin:0;font-size:15.5px;font-weight:700;line-height:1.85;
   color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
 .pw-none2{margin:0;font-size:13px;color:var(--text-muted);line-height:1.8}
+
+/* 5단 — 첫 2주에 해볼 것 */
+.ob-goal{margin:0 0 14px;padding:11px 14px;border-radius:11px;background:var(--bg-sunken);
+  border-left:3px solid var(--ink);font-size:14.5px;font-weight:700;line-height:1.75;
+  color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
+.ob-goal b{display:block;font-size:11px;font-weight:800;color:var(--text-muted);
+  letter-spacing:.02em;margin-bottom:3px}
+.ob-st{counter-reset:obst;list-style:none;margin:0;padding:0;
+  display:flex;flex-direction:column;gap:9px}
+.ob-st li{counter-increment:obst;position:relative;padding:12px 14px 12px 42px;
+  border:1px solid var(--border);border-radius:11px;background:var(--bg-card)}
+.ob-st li:before{content:counter(obst);position:absolute;left:13px;top:12px;
+  width:20px;height:20px;border-radius:50%;background:var(--ink);color:#fff;
+  font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  font-variant-numeric:tabular-nums}
+.ob-st .sh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ob-st .sh .dy{flex:0 0 auto;font-size:10.5px;font-weight:800;color:var(--blue);
+  background:var(--blue-soft);border-radius:99px;padding:2px 8px;white-space:nowrap}
+.ob-st .sh b{font-size:14.5px;font-weight:800;color:var(--text-primary);
+  line-height:1.6;word-break:keep-all}
+.ob-st p{margin:5px 0 0;font-size:13.5px;line-height:1.8;color:var(--text-secondary);
+  white-space:pre-wrap;word-break:keep-all}
+.ob-st .sf{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.ob-st .sf a,.ob-st .sf .rf{font-size:11.5px;font-weight:700;color:var(--text-secondary);
+  background:var(--bg-sunken);border-radius:99px;padding:3px 10px;text-decoration:none;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ob-st .sf a:hover{color:var(--blue);background:var(--blue-soft)}
+.ob-st .sf .wh{font-size:11.5px;font-weight:700;color:var(--text-muted);white-space:nowrap}
+.ob-who .mt{font-size:10.5px;font-weight:800;color:var(--blue);background:var(--blue-soft);
+  border-radius:99px;padding:2px 8px;white-space:nowrap}
+.pe-who .wr .mt{flex:0 0 auto;display:flex;align-items:center;gap:4px;font-size:11.5px;
+  font-weight:700;color:var(--text-secondary);white-space:nowrap;cursor:pointer}
+.pe-who .wr .mt input{flex:0 0 auto;width:auto;min-width:0;margin:0}
+.pe-rl .rh input.dy{flex:1 1 150px;min-width:0;box-sizing:border-box;font-family:inherit;
+  font-size:12.5px;padding:5px 9px;border:1px solid var(--border);border-radius:9px;
+  background:var(--bg-card);color:var(--text-primary)}
+.pe-rl .rh input.dy:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px var(--blue-soft)}
 .ob-rk{margin-bottom:16px}
 .ob-rk:last-child{margin-bottom:0}
 .ob-rk .kh{font-size:11.5px;font-weight:800;color:var(--text-muted);margin-bottom:7px;
@@ -2312,7 +2350,7 @@ const STORAGE_MODE = STORAGE_MODE_SETTING !== 'auto'
   : (location.protocol === 'http:' || location.protocol === 'https:' ? 'nas' : 'local');
 
 const NAS_API = { load: 'load.php', save: 'save.php' };
-const APP_VER = 'v20260916-53';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260916-54';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13327,6 +13365,9 @@ function pathOf(b){
   if(!Array.isArray(P.rules))    P.rules = [];        // 2. 지킬 것
   if(!Array.isArray(P.who))      P.who = [];          // 3. 막히면 누구에게
   if(!Array.isArray(P.chapters)) P.chapters = [];     // 4. 여정
+  if(!P.first || typeof P.first !== 'object' || Array.isArray(P.first)) P.first = {};
+  if(typeof P.first.goal !== 'string') P.first.goal = '';   // 5. 첫 달 목표
+  if(!Array.isArray(P.first.steps)) P.first.steps = [];     // 5. 해볼 것
   return P;
 }
 function rulesOf(b){ return pathOf(b).rules; }
@@ -13374,6 +13415,72 @@ function chapLine(cs){
   });
   on.sort((a, z) => (chapKey(a.c) - chapKey(z.c)) || (a.i - z.i));
   return on.map(x => x.c).concat(now.map(x => x.c), off.map(x => x.c));
+}
+
+/* ── 5. 첫 2주에 해볼 것 ────────────────────────────────────
+   읽고 끝나면 신입은 내일 아무것도 못 합니다.
+   직접 해보는 차례와, 한 달 뒤에 뭘 해냈으면 되는지를 적어 둡니다.   */
+function firstOf(b){ return pathOf(b).first; }
+function stepsOf(b){ return firstOf(b).steps; }
+function stepFind(b, id){ return stepsOf(b).find(x => x.id === id) || null; }
+function stepBlank(s){
+  return !String(s.title || '').trim() && !String(s.body || '').trim();
+}
+/* 「어디서 해보나」 — 이 브랜드에 이미 등록된 것 중에서 고릅니다 */
+const STEP_REFS = [
+  ['links',       '🔗 바로가기'],
+  ['automations', '🤖 자동화'],
+  ['assets',      '📁 자료'],
+  ['channels',    '📣 채널']
+];
+function stepRefList(b){
+  const out = [];
+  STEP_REFS.forEach(g => (Array.isArray(b[g[0]]) ? b[g[0]] : []).forEach(x => {
+    const nm = String((x && (x.title || x.name)) || '').trim();
+    if(x && x.id && nm) out.push({ id:x.id, group:g[1], name:nm,
+                                   url:String(x.url || '').trim() });
+  }));
+  return out;
+}
+function stepRef(b, id){
+  if(!String(id || '').trim()) return null;
+  return stepRefList(b).find(x => x.id === id) || null;
+}
+function stepWho(b, id){
+  if(!String(id || '').trim()) return null;
+  return whoOf(b).find(x => x.id === id && String(x.name || '').trim()) || null;
+}
+
+function firstGoal(bid, v){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  firstOf(b).goal = v; markDirty(b.id);
+}
+function stepAdd(bid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  stepsOf(b).push({ id: uid('sp'), day:'', title:'', body:'', ref:'', who:'' });
+  markDirty(b.id); render();
+}
+function stepEdit(bid, id, f, v, draw){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const t = stepFind(b, id); if(!t) return;
+  t[f] = v; markDirty(b.id);
+  if(draw) render();
+}
+function stepDel(bid, id){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  if(!confirm('이 차례를 지웁니다.')) return;
+  firstOf(b).steps = stepsOf(b).filter(x => x.id !== id);
+  deletedIds.add(id);
+  markDirty(b.id); render();
+}
+function stepMove(bid, id, d){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const l = stepsOf(b);
+  const i = l.findIndex(x => x.id === id);
+  const j = i + d;
+  if(i < 0 || j < 0 || j >= l.length) return;
+  const t = l[i]; l[i] = l[j]; l[j] = t;
+  markDirty(b.id); render();
 }
 
 let pathEdit = false;      // 읽기 / 고치기
@@ -13426,10 +13533,11 @@ function whoAdd(bid){
   whoOf(b).push({ id: uid('wh'), name:'', role:'', where:'' });
   markDirty(b.id); render();
 }
-function whoEdit(bid, id, f, v){
+function whoEdit(bid, id, f, v, draw){
   const b = brandById(bid) || currentBrand(); if(!b) return;
   const w = whoOf(b).find(x => x.id === id); if(!w) return;
   w[f] = v; markDirty(b.id);
+  if(draw) render();
 }
 function whoDel(bid, id){
   const b = brandById(bid) || currentBrand(); if(!b) return;
@@ -13560,7 +13668,7 @@ async function uploadPathDoc(fileList){
     const txt = String(t['글자'] || '').trim();
     if(!txt) throw new Error('이 문서에서 글자를 뽑지 못했습니다.');
 
-    pathMine[bid].step = 'AI 가 온보딩 네 단으로 정리하는 중…';
+    pathMine[bid].step = 'AI 가 온보딩 다섯 단으로 정리하는 중…';
     render();
 
     const ai = await apiJson('ai.php?action=prompt', {
@@ -13620,7 +13728,17 @@ function pathMineParse(text){
     role:  String((x && x.role) || '').trim(),
     where: String((x && x.where) || '').trim()
   })).filter(w => w.name);
+  // 5. 첫 2주에 해볼 것 — 「누구에게」 는 이름으로 오므로 넣을 때 사람에 걸어 줍니다
+  const fj = (j && (j['첫2주'] || j.first)) || {};
+  const steps = ((fj && (fj['차례'] || fj.steps)) || []).map(x => ({
+    day:   String((x && (x['며칠차'] || x.day)) || '').trim(),
+    title: String((x && x.title) || '').trim(),
+    body:  String((x && x.body) || '').trim(),
+    whoNm: String((x && (x['누구'] || x.who)) || '').trim()
+  })).filter(t => t.title);
   return { what: String((j && (j['무엇'] || j.what)) || '').trim(),
+           goal: String((fj && (fj['첫달목표'] || fj.goal)) || '').trim(),
+           steps: steps,
            sum:  String((j && (j['한문단'] || j.summary)) || '').trim(),
            rules: Array.isArray(rules) ? rules : [],
            who:   Array.isArray(who) ? who : [],
@@ -13697,6 +13815,27 @@ function pathAutoFill(b, got, doc){
     }
     P.who.push(Object.assign({ id: uid('wh') }, w));
     put.push('사람 「' + w.name + '」');
+  });
+
+  // 5단 — 첫 달 목표와 해볼 차례. 이미 적혀 있으면 건드리지 않습니다.
+  const F = P.first;
+  if(got.goal){
+    if(String(F.goal || '').trim()) skip.push('첫 달에 이건 해냈으면');
+    else { F.goal = got.goal; put.push('첫 달에 이건 해냈으면'); }
+  }
+  (got.steps || []).forEach(t => {
+    if(F.steps.some(x => key(x.title) === key(t.title))){
+      skip.push('해볼 것 「' + gbOneLine(t.title, 24) + '」'); return;
+    }
+    // AI 가 적어 준 이름을 3단의 사람에 걸어 줍니다
+    let whoId = '';
+    if(t.whoNm){
+      const hit = P.who.find(x => key(x.name) === key(t.whoNm));
+      if(hit) whoId = hit.id;
+    }
+    F.steps.push({ id: uid('sp'), day:t.day, title:t.title, body:t.body,
+                   ref:'', who:whoId });
+    put.push('해볼 것 「' + gbOneLine(t.title, 24) + '」');
   });
 
   return { put: put, skip: skip, up: up, before: before,
@@ -13810,7 +13949,7 @@ function pathViewHtml(b){
     + '<button class="' + (pathEdit ? '' : 'on') + '" onclick="setPathEdit(0)">📖 읽기</button>'
     + '<button class="' + (pathEdit ? 'on' : '') + '" onclick="setPathEdit(1)">✏️ 고치기</button>'
     + '<span class="hint">'
-      + (pathEdit ? '네 단을 여기서 고칩니다'
+      + (pathEdit ? '다섯 단을 여기서 고칩니다'
                   : '신입이 첫날 이것만 읽고 이 브랜드에서 어떻게 일하면 되는지 알게 되는 자리입니다')
       + '</span>'
     + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\')">'
@@ -13835,8 +13974,11 @@ function pathReadHtml(b){
   const ws = whoOf(b).filter(w => String(w.name || '').trim());
   const what = String(P.what || '').trim();
   const sum  = String(P.summary || '').trim();
+  const F    = firstOf(b);
+  const ss   = stepsOf(b).filter(x => !stepBlank(x));
+  const goal = String(F.goal || '').trim();
 
-  if(!what && !rs.length && !ws.length && !cs.length && !sum){
+  if(!what && !rs.length && !ws.length && !cs.length && !sum && !ss.length && !goal){
     return '<div class="pw"><div class="pw-none">이 브랜드의 온보딩이 아직 비어 있습니다.'
       + '<br><span>정리해 둔 문서가 있으면 <b>[🤖 문서에서 만들기]</b> 로 한 번에 채웁니다. '
       + '없으면 [✏️ 고치기] 에서 <b>1. 이 브랜드는 뭘 하나</b> 부터 적어 보세요.</span>'
@@ -13873,6 +14015,7 @@ function pathReadHtml(b){
     ws.length
       ? '<div class="ob-who">' + ws.map(w => '<div class="wc">'
           + '<span class="nm">' + esc(w.name) + '</span>'
+          + (w.mentor ? '<span class="mt">🧭 첫 2주 멘토</span>' : '')
           + (String(w.role || '').trim() ? '<span class="rl">' + esc(w.role) + '</span>' : '')
           + (String(w.where || '').trim() ? '<span class="wr">' + esc(w.where) + '</span>' : '')
         + '</div>').join('') + '</div>'
@@ -13912,6 +14055,14 @@ function pathReadHtml(b){
         : (sum ? '' : none('아직 없습니다 — 기획서를 올리면 한 장이 한 칸이 됩니다. '
                            + '칸이 쌓이면 위의 규칙이 왜 생겼는지 신입이 납득합니다.'))));
 
+  /* 5 — 첫 2주에 해볼 것 (읽고 끝나지 않게) */
+  const s5 = sec('5', '첫 2주에 해볼 것', '읽고 끝나지 않게 — 직접 해보는 차례',
+    (goal ? '<p class="ob-goal"><b>첫 달에 이건 해냈으면</b>' + esc(goal) + '</p>' : '')
+    + (ss.length
+        ? '<ol class="ob-st">' + ss.map(t => stepReadHtml(b, t)).join('') + '</ol>'
+        : none('아직 없습니다 — 신입이 첫 2주에 무엇을 직접 해보면 되는지 적어 두면, '
+               + '읽고 끝나지 않고 내일부터 손을 댑니다.')));
+
   const ds = pathDocs(b);
   const foot = ds.length
     ? '<div class="pw-src">읽어온 문서 · '
@@ -13922,7 +14073,31 @@ function pathReadHtml(b){
   return '<div class="pw">'
     + '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
       + esc(b.name) + ' — 신입 온보딩</div></div>'
-    + s1 + s2 + s3 + s4 + foot + '</div>';
+    + s1 + s2 + s3 + s4 + s5 + foot + '</div>';
+}
+
+/* 해볼 것 한 칸 — 어디서 하는지와 누구에게 확인받는지가 같이 붙습니다 */
+function stepReadHtml(b, t){
+  const r = stepRef(b, t.ref);
+  const w = stepWho(b, t.who);
+  const link = r && /^https?:\/\//i.test(r.url)
+    ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">'
+      + esc(r.group + ' · ' + r.name) + ' ↗</a>'
+    : (r ? '<span class="rf">' + esc(r.group + ' · ' + r.name)
+           + (r.url ? ' — ' + esc(r.url) : '') + '</span>' : '');
+  return '<li>'
+    + '<div class="sh">'
+      + (String(t.day || '').trim() ? '<span class="dy">' + esc(t.day) + '</span>' : '')
+      + '<b>' + esc(String(t.title || '').trim() || '(제목 없음)') + '</b>'
+    + '</div>'
+    + (String(t.body || '').trim()
+        ? '<p>' + esc(t.body.trim()) + '</p>' : '')
+    + ((link || w)
+        ? '<div class="sf">' + link
+          + (w ? '<span class="wh">🧭 ' + esc(w.name) + ' 에게 확인</span>' : '')
+          + '</div>'
+        : '')
+    + '</li>';
 }
 
 /* 지킬 것 한 줄 — 근거가 걸려 있으면 그 여정을 그 자리에 인용합니다.
@@ -14031,6 +14206,10 @@ function pathEditHtml(b){
               + 'oninput="whoEdit(\'' + bid + '\',\'' + jsq(w.id) + '\',\'role\', this.value)">'
             + '<input value="' + esc(w.where || '') + '" placeholder="어디로 — 카톡 · 자리 · 메일" '
               + 'oninput="whoEdit(\'' + bid + '\',\'' + jsq(w.id) + '\',\'where\', this.value)">'
+            + '<label class="mt" title="첫 2주 동안 이 사람에게 물어봅니다">'
+              + '<input type="checkbox"' + (w.mentor ? ' checked' : '')
+              + ' onchange="whoEdit(\'' + bid + '\',\'' + jsq(w.id)
+              + '\',\'mentor\', this.checked, 1)">멘토</label>'
             + '<button class="x" onclick="whoDel(\'' + bid + '\',\'' + jsq(w.id)
               + '\')" title="지우기">×</button>'
           + '</div>').join('') + '</div>' : '')
@@ -14070,7 +14249,73 @@ function pathEditHtml(b){
     + '<span class="hn">무엇을 했고, 어떻게 됐고, 왜 그랬는지 — '
       + '읽기 화면에서는 여기 적은 차례가 아니라 「때」 순서로 세워집니다'
       + '</span></div>' + sum + list + add + '</div>';
-  return '<div class="pw">' + e1 + e2 + e3 + e4 + '</div>';
+
+  /* 5 — 첫 2주에 해볼 것 */
+  const F     = firstOf(b);
+  const ss    = stepsOf(b);
+  const refs  = stepRefList(b);
+  const wsOk  = whoOf(b).filter(w => String(w.name || '').trim());
+  const e5 = '<div class="pe-sec"><div class="pe-h"><span class="no">5</span>'
+    + '<h3>첫 2주에 해볼 것</h3>'
+    + '<span class="hn">읽고 끝나지 않게 — 직접 해보는 차례. '
+      + '이 브랜드에 이미 등록된 바로가기·자동화·자료·채널을 걸 수 있습니다</span></div>'
+    + '<div class="pe-sum"><label>첫 달에 이건 해냈으면 '
+      + '<span>한 달 뒤에 신입이 무엇을 해냈으면 되는지 한 줄. '
+      + '이게 있어야 잘하고 있는지 본인이 압니다</span></label>'
+      + '<textarea rows="1" placeholder="예) 감리 사례 글 2편을 혼자 써서 올린다." '
+        + 'oninput="gbGrow(this);firstGoal(\'' + bid + '\', this.value)">'
+      + esc(F.goal || '') + '</textarea></div>'
+    + (ss.length
+        ? '<div class="pe-rules">'
+          + ss.map((t, i) => stepEditHtml(b, t, i, ss.length, refs, wsOk)).join('')
+          + '</div>' : '')
+    + '<div class="pe-add"><button class="gb-add tiny" onclick="stepAdd(\'' + bid
+      + '\')">＋ 해볼 것</button></div></div>';
+
+  return '<div class="pw">' + e1 + e2 + e3 + e4 + e5 + '</div>';
+}
+
+/* 해볼 것 한 칸 고치기 */
+function stepEditHtml(b, t, i, n, refs, wsOk){
+  const bid = jsq(b.id), sid = jsq(t.id);
+  return '<div class="pe-rl">'
+    + '<div class="rh">'
+      + '<input class="dy" value="' + esc(t.day || '') + '" placeholder="며칠차 — 1일차 · 1주차" '
+        + 'oninput="stepEdit(\'' + bid + '\',\'' + sid + '\',\'day\', this.value)">'
+      + '<span class="tl-x">'
+        + (i > 0 ? '<button onclick="stepMove(\'' + bid + '\',\'' + sid
+            + '\',-1)" title="위로">↑</button>' : '')
+        + (i < n - 1 ? '<button onclick="stepMove(\'' + bid + '\',\'' + sid
+            + '\',1)" title="아래로">↓</button>' : '')
+        + '<button class="x" onclick="stepDel(\'' + bid + '\',\'' + sid
+          + '\')" title="지우기">×</button>'
+      + '</span>'
+    + '</div>'
+    + '<textarea rows="1" placeholder="무엇을 해보나 — 「감리 사례 글 1편 초안 써 보기」" '
+      + 'oninput="gbGrow(this);stepEdit(\'' + bid + '\',\'' + sid + '\',\'title\', this.value)">'
+      + esc(t.title || '') + '</textarea>'
+    + '<textarea rows="1" placeholder="어떻게 하면 되는지 (선택)" '
+      + 'oninput="gbGrow(this);stepEdit(\'' + bid + '\',\'' + sid + '\',\'body\', this.value)">'
+      + esc(t.body || '') + '</textarea>'
+    + '<label class="rc"><span>어디서</span>'
+      + '<select onchange="stepEdit(\'' + bid + '\',\'' + sid + '\',\'ref\', this.value, 1)">'
+        + '<option value=""' + (t.ref ? '' : ' selected') + '>안 걺</option>'
+        + refs.map(r => '<option value="' + esc(r.id) + '"'
+            + (t.ref === r.id ? ' selected' : '') + '>'
+            + esc(r.group + ' · ' + r.name) + '</option>').join('')
+      + '</select>'
+      + (refs.length ? '' : '<em>바로가기·자동화·자료·채널을 먼저 등록하면 여기서 고릅니다</em>')
+    + '</label>'
+    + '<label class="rc"><span>누구에게 확인</span>'
+      + '<select onchange="stepEdit(\'' + bid + '\',\'' + sid + '\',\'who\', this.value, 1)">'
+        + '<option value=""' + (t.who ? '' : ' selected') + '>안 걺</option>'
+        + wsOk.map(w => '<option value="' + esc(w.id) + '"'
+            + (t.who === w.id ? ' selected' : '') + '>'
+            + esc(w.name + (String(w.role || '').trim() ? ' · ' + w.role : '')) + '</option>').join('')
+      + '</select>'
+      + (wsOk.length ? '' : '<em>3단에 사람을 먼저 적으면 여기서 고를 수 있습니다</em>')
+    + '</label>'
+    + '</div>';
 }
 
 /* 지킬 것 한 줄 고치기 */
@@ -16014,6 +16259,18 @@ function snapshotIds(d){
     m.set(b.id + ':chartfix', JSON.stringify(b.chartFix || {}));   // 지문이 아니라 원본
     m.set(b.id + ':book', JSON.stringify(b.book || {}));           // 「지금」 칸도 칸 단위로
     m.set(b.id + ':histnow', sigOf((b.hist && b.hist.now) || ''));
+    // 온보딩 — 글 칸은 칸별로, 목록은 한 건씩 (통째로 덮으면 상대가 쓴 것이 사라집니다)
+    const P0 = (b.path && typeof b.path === 'object' && !Array.isArray(b.path)) ? b.path : {};
+    const F0 = (P0.first && typeof P0.first === 'object' && !Array.isArray(P0.first))
+      ? P0.first : {};
+    m.set(b.id + ':pwhat', sigOf(String(P0.what || '')));
+    m.set(b.id + ':psum',  sigOf(String(P0.summary || '')));
+    m.set(b.id + ':pgoal', sigOf(String(F0.goal || '')));
+    ['chapters', 'rules', 'who'].forEach(k => (Array.isArray(P0[k]) ? P0[k] : [])
+      .forEach(x => { if(x && x.id) m.set(x.id, sigOf(x)); }));
+    (Array.isArray(F0.steps) ? F0.steps : []).forEach(x => {
+      if(x && x.id) m.set(x.id, sigOf(x));
+    });
     ((b.hist && b.hist.recs) || []).forEach(x => {                 // 연혁 마디도 한 건씩
       if(x && x.id) m.set(x.id, sigOf(x));
     });
@@ -16092,6 +16349,50 @@ function mergeKeyed(mine, srv, baseKey){
   return out;
 }
 
+/* 목록 하나를 id 기준으로 합칩니다 — 내가 지운 것은 빼고, 내가 새로 만든 것은 더합니다 */
+function mergeList(mineArr, srvArr){
+  mineArr = Array.isArray(mineArr) ? mineArr : [];
+  srvArr  = Array.isArray(srvArr)  ? srvArr  : [];
+  const mineById = new Map(mineArr.map(x => [x.id, x]));
+  const srvIds   = new Set(srvArr.map(x => x.id));
+  const res = [];
+  srvArr.forEach(sv => {
+    if(deletedIds.has(sv.id)) return;            // 내가 지운 것
+    res.push(mineById.get(sv.id) || sv);         // 둘 다 고쳤으면 내 것
+  });
+  mineArr.forEach((m, i) => {
+    if(srvIds.has(m.id)) return;
+    if(!keepMine(m.id, m)) return;               // 손 안 댄 채 남이 지운 것
+    if(i === 0) res.unshift(m); else res.push(m);
+  });
+  return res;
+}
+/* 글 한 칸 — 내가 바꾸지 않았으면 상대 것을 씁니다 */
+function pickText(baseKey, mineTxt, srvTxt){
+  const base = baseIds.get(baseKey);
+  return (base !== undefined && sigOf(mineTxt) === base) ? srvTxt : mineTxt;
+}
+
+/* 온보딩 합치기 — 여기도 통째로 덮으면 안 됩니다.
+   둘이 같은 브랜드의 다른 단을 채웠을 때 한쪽이 사라지기 때문입니다. */
+function mergePath(mineB, srvB){
+  const obj = o => (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+  const mp = obj(mineB.path), sp = obj(srvB.path);
+  const out = Object.assign({}, sp, mp);
+
+  ['chapters', 'rules', 'who'].forEach(k => { out[k] = mergeList(mp[k], sp[k]); });
+
+  const mf = obj(mp.first), sf = obj(sp.first);
+  const f  = Object.assign({}, sf, mf);
+  f.steps  = mergeList(mf.steps, sf.steps);
+  f.goal   = pickText(mineB.id + ':pgoal', String(mf.goal || ''), String(sf.goal || ''));
+  out.first = f;
+
+  out.what    = pickText(mineB.id + ':pwhat', String(mp.what || ''), String(sp.what || ''));
+  out.summary = pickText(mineB.id + ':psum',  String(mp.summary || ''), String(sp.summary || ''));
+  return out;
+}
+
 /* 연혁 합치기 — 마디는 한 건씩, 한 줄 정의는 내가 바꿨을 때만.
    통째로 덮으면 둘이 같은 브랜드를 만졌을 때 상대가 남긴 마디가 사라집니다. */
 function mergeHist(mineB, srvB){
@@ -16146,6 +16447,9 @@ function mergeBrand(mineB, srvB){
 
   // 연혁 — 마디는 한 건씩 합치고, 한 줄 정의는 내가 바꿨을 때만 내 것을 씁니다
   out.hist = mergeHist(mineB, srvB);
+
+  // 온보딩 — 단마다 따로 합칩니다 (통째로 덮으면 상대가 쓴 단이 사라집니다)
+  out.path = mergePath(mineB, srvB);
 
   MERGE_LISTS.forEach(k => {
     const mineArr = Array.isArray(mineB[k]) ? mineB[k] : [];

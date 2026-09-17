@@ -1,10 +1,11 @@
 -- ============================================================
 -- 감리일지 → 잔디(Jandi) 알림: 본문 '내용 전체' + '현장 사진 보기 링크' 1개(깔끔)
 --   · 본문은 최대 40000자(이전 200자 잘림 해결)
---   · 사진은 이미지 임베드 대신 '📷 현장 사진 N장 · 앱에서 보기 → <링크>' 한 줄
---   · 링크 주소를 바꾸려면(선택):
+--   · 사진은 '📷 현장 사진 N장 · 모아보기 → <갤러리 링크>' 한 줄
+--       링크를 누르면 사진 20장이 그리드로 보이는 페이지(app/photos, 로그인 불필요).
+--   · 갤러리 주소를 바꾸려면(선택, 기본=GitHub Pages):
 --       insert into public.app_integrations(key, value)
---       values ('report_app_url', 'https://내앱주소')
+--       values ('report_gallery_base', 'https://내앱주소/photos/')
 --       on conflict (key) do update set value = excluded.value;
 --   · reports.photos(jsonb 배열, 공개 버킷 URL)를 잔디 connectInfo.imageUrl 로 첨부
 --   · 앱 수정 불필요(사진은 이미 저장 시 리포트에 들어있음). 이 SQL만 실행하면 됨.
@@ -25,7 +26,8 @@ declare
   author_name text;
   when_kst    text;
   info        jsonb;
-  app_url     text;
+  gallery     text;
+  files       text;
   total       int;
 begin
   select value into hook from public.app_integrations where key = 'jandi_report_webhook';
@@ -48,14 +50,18 @@ begin
     jsonb_build_object('title', '내용',   'description', left(coalesce(new.content, '-'), 40000))
   );
 
-  -- 현장 사진: 잔디엔 '보기 링크' 한 줄만 깔끔하게(이미지 임베드 안 함, 원본은 앱에서).
-  --   링크 주소는 app_integrations.report_app_url 에서 읽고, 없으면 기본 앱 주소 사용.
+  -- 현장 사진: 잔디엔 '모아보기 링크' 한 줄만(이미지 임베드 안 함).
+  --   링크를 누르면 갤러리 페이지가 사진 20장을 그리드로 보여줌(로그인 불필요).
+  --   링크에는 파일명만 담고(짧고 안전), 갤러리 페이지가 공개 버킷에서 원본을 불러옴.
   if total > 0 then
-    app_url := coalesce(nullif((select value from public.app_integrations where key = 'report_app_url'), ''),
-                        'https://gamri-app.vercel.app');
+    select string_agg(regexp_replace(fn.value, '^.*/', ''), ',' order by fn.ord)
+      into files
+      from jsonb_array_elements_text(new.photos) with ordinality as fn(value, ord);
+    gallery := coalesce(nullif((select value from public.app_integrations where key = 'report_gallery_base'), ''),
+                        'https://netformrnd-lab.github.io/test1/photos/');
     info := info || jsonb_build_array(jsonb_build_object(
       'title',       '📷 현장 사진',
-      'description', total || '장 · 앱에서 보기 → ' || app_url
+      'description', total || '장 · 모아보기 → ' || gallery || '?f=' || coalesce(files, '')
     ));
   end if;
 

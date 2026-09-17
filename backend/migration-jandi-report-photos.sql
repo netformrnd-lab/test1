@@ -58,7 +58,7 @@ begin
       into files
       from jsonb_array_elements_text(new.photos) with ordinality as fn(value, ord);
     gallery := coalesce(nullif((select value from public.app_integrations where key = 'report_gallery_base'), ''),
-                        'https://gamri-app.vercel.app/photos/');
+                        'https://gndktayoicegyqyllybk.supabase.co/storage/v1/object/public/web/gallery.html');
     info := info || jsonb_build_array(jsonb_build_object(
       'title',       '📷 현장 사진',
       'description', total || '장 · 모아보기 → ' || gallery || '?f=' || coalesce(files, '')

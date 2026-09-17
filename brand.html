@@ -1110,6 +1110,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-what{margin:0;font-size:15.5px;font-weight:700;line-height:1.85;
   color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
 .pw-none2{margin:0;font-size:13px;color:var(--text-muted);line-height:1.8}
+.gonecard.stale{border-color:var(--amber,#f59e0b);
+  background:rgba(245,158,11,.08);color:var(--text-primary)}
 
 /* 🏷️ 브랜드 정리 — 한 일마다 어느 브랜드 것인지 한 화면에서 */
 .gb-fix{border:1px solid var(--blue);border-radius:12px;background:var(--bg-card);
@@ -2411,7 +2413,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-66';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-67';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -12862,6 +12864,21 @@ function wcalWhen(){
   return t.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) + ' 확인';
 }
 
+/* 하이웍스 → 파이어베이스 동기화가 멈췄는지 (몇 시간째인지 돌려줍니다).
+   우리 NAS 는 60초마다 멀쩡히 받아오는데도, 하이웍스에서 파이어베이스로
+   넣어주는 도구가 멈추면 새 휴가가 아예 안 들어옵니다. 그런데 화면에는
+   작은 글씨로 「휴가 동기화 9/14 08:09」 라고만 적혀 있어서 아무도 못 봤습니다. */
+function wcalSyncStale(){
+  if(!wcal.sync) return 0;
+  const t = new Date(Number(wcal.sync) || wcal.sync);
+  if(isNaN(t)) return 0;
+  const h = (Date.now() - t.getTime()) / 3600000;
+  return h > 26 ? h : 0;              // 하루에 한 번 도는 경우가 있어 26시간부터
+}
+function wcalStaleText(h){
+  if(h >= 48) return Math.floor(h / 24) + '일';
+  return Math.floor(h) + '시간';
+}
 /* 하이웍스가 마지막으로 휴가를 내려받은 때 */
 function wcalSyncText(){
   if(!wcal.sync) return '';
@@ -13154,7 +13171,15 @@ function wcalBar(){
         ? '<div class="gonecard">⚠️ 근무현황을 불러오지 못했습니다.<br>'
           + '<span class="fmeta">' + esc(wcal.error) + '</span></div>'
         : (wcal.warn
-            ? '<div class="gonecard">⚠️ ' + esc(wcal.warn) + '</div>' : ''));
+            ? '<div class="gonecard">⚠️ ' + esc(wcal.warn) + '</div>' : ''))
+    + (wcalSyncStale()
+        ? '<div class="gonecard stale">⏸ 하이웍스 휴가 동기화가 <b>'
+          + esc(wcalStaleText(wcalSyncStale())) + '째 멈춰</b> 있습니다'
+          + '<br><span class="fmeta">마지막 동기화 ' + esc(wcalSyncText().replace('휴가 동기화 ', ''))
+          + ' · 그 뒤에 신청된 휴가·외근은 달력에 안 나옵니다.<br>'
+          + '이 대시보드와 NAS 는 정상입니다 — 하이웍스에서 받아오는 쪽'
+          + '(넷폼알앤디 근무현황 캘린더)을 확인해 주세요.</span></div>'
+        : '');
 }
 
 let calTasks = true;        // 달력에 브랜드 할 일 기한도 함께 보일까

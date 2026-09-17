@@ -14046,7 +14046,14 @@ async function pathRun(bid){
     pathMine[bid].step = (kind === 'guide'
       ? 'AI 가 지킬 것을 뽑는 중… (1/2)' : 'AI 가 걸어온 길을 뽑는 중… (1/2)');
     render();
-    const g1 = pathMineParse(await pathAsk(b.name, txt, 1, '', kind));
+    /* 지침서에는 「왜 이 규칙이 생겼는지」 가 안 적혀 있는 것이 보통입니다.
+       그래서 이미 쌓여 있는 여정을 같이 보내, 규칙이 어느 일에서 나왔는지
+       AI 가 걸어 주게 합니다. 규칙만 있으면 신입이 안 지킵니다. */
+    const have = chapsOf(b).filter(c => !chapBlank(c))
+      .map(c => [c.when, pathKindOf(c).k, c.title].filter(Boolean).join(' · '))
+      .join('\n');
+    const g1 = pathMineParse(
+      await pathAsk(b.name, txt, 1, (kind === 'guide' ? have : ''), kind));
     if(g1.no){
       const m0 = pathMine[bid]; m0.busy = false; m0.no = g1.no; render(); return;
     }

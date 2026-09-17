@@ -1179,6 +1179,18 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-nob span{display:block;font-weight:400;font-size:12px;color:var(--text-muted);
   margin-bottom:8px}
 /* 사진으로 뽑을 때 맨 위에 브랜드 이름 */
+/* 퇴사 처리된 사람 — 흐리게, 「퇴사」 를 달아서 */
+.btn.gb-gone{opacity:.72}
+.btn.gb-gone i{font-style:normal;font-size:10.5px;font-weight:700;padding:1px 5px;
+  border-radius:99px;background:var(--bg-sunken);color:var(--text-muted);margin-left:3px}
+.btn.gb-gone.primary{opacity:1}
+.btn.gb-gone.primary i{background:rgba(255,255,255,.22);color:#fff}
+.gb-gonebar{display:flex;flex-direction:column;gap:3px;margin:0 0 12px;padding:10px 13px;
+  border:1px solid var(--border);border-left:4px solid var(--text-muted);
+  border-radius:var(--r-sm);background:var(--bg-sunken);
+  font-size:13.5px;color:var(--text-primary)}
+.gb-gonebar .t{font-weight:600}
+.gb-gonebar span{font-size:12.5px;color:var(--text-muted)}
 .gb-shot-br{font-size:15px;font-weight:800;color:var(--text-primary);
   margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
 @media (max-width:640px){
@@ -2464,7 +2476,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-76';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-77';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6395,6 +6407,15 @@ function taskPeople(){
       opts.push({ value:u.id, label:u['이름'] + (me && u.id === me.id ? ' (나)' : '') });
       listed = true;
     });
+    /* 퇴사한 사람이 이미 맡고 있는 할 일이 있으면 그 이름을 남겨 둡니다.
+       목록에서 아예 빼 버리면 창을 열었다 저장하는 것만으로 맡은 사람이
+       조용히 바뀌거나, 이름 대신 아이디가 그대로 보입니다. */
+    people.list.forEach(u => {
+      if(u['쓸수있음']) return;
+      if(!taskAll().some(r => (r.t.uid || '') === u.id)) return;
+      opts.push({ value:u.id, label:u['이름'] + ' (퇴사)' });
+      listed = true;
+    });
   }
   // 아직 사람 목록을 못 받아왔으면 적어도 나는 고를 수 있게 합니다
   if(!listed && me) opts.push({ value:me.id, label:me['이름'] + ' (나)' });
@@ -6408,6 +6429,15 @@ function peopleName(id){
   if(me && me.id === id) return me['이름'];
   const u = (people.list || []).find(x => x.id === id);
   return u ? u['이름'] : id;
+}
+
+/* 퇴사(정지) 처리된 계정인가.
+   계정을 막는 것과 그 사람이 남긴 글을 지우는 것은 다른 일입니다.
+   여기서 true 가 나와도 적어 둔 것은 그대로 열리고, 새로 맡기는 자리에서만 빠집니다. */
+function peopleGone(id){
+  if(!id || !authOn()) return false;
+  const u = (people.list || []).find(x => x.id === id);
+  return !!u && !u['쓸수있음'];
 }
 
 /* ═══════════════ 업무 → 🧩 화이트보드 ═════════════════════════════
@@ -7338,6 +7368,7 @@ GB_STAGES.forEach(s => { GB_HUE[s.key] = s.hue; });
 let gbQ    = '';        // 업무 찾기 (제목·내용에서 찾습니다)
 let gbSt   = '';        // 상태로 거르기 ('' = 전체)
 let gbWho  = '';        // 지금 보고 있는 사람 (계정 아이디 또는 이름)
+let gbGone = false;     // 그 사람이 퇴사 처리됐나 (기록은 그대로, 새로 더하는 것만 막습니다)
 let gbYear = String(new Date().getFullYear());
 const gbOpen = {};      // 접힘 상태 (id → 펼침)
 
@@ -7404,8 +7435,20 @@ function setGbYear(v){ gbYear = String(v); gbWb = null; gbIt = null; render(); }
 function gbPeople(){
   if(authOn()){
     setTimeout(() => loadPeople(), 10);
-    const list = (people.list || []).filter(u => u['쓸수있음'])
-      .map(u => ({ key:u.id, name:u['이름'] }));
+    const all  = people.list || [];
+    const list = all.filter(u => u['쓸수있음']).map(u => ({ key:u.id, name:u['이름'] }));
+    /* 퇴사한 사람이라도 보드가 남아 있으면 계속 열립니다.
+       계정을 막았다고 그 사람이 적어 둔 것까지 못 보게 되면 안 됩니다. */
+    all.forEach(u => {
+      if(u['쓸수있음'] || list.some(x => x.key === u.id)) return;
+      if(!(data.growth || []).some(g => g.who === u.id)) return;
+      list.push({ key:u.id, name:u['이름'], gone:true });
+    });
+    /* 계정을 아예 지웠는데 보드만 남은 경우도 놓치지 않습니다 */
+    (data.growth || []).forEach(g => {
+      if(!g.who || list.some(x => x.key === g.who)) return;
+      list.push({ key:g.who, name:peopleName(g.who) || g.who, gone:true });
+    });
     if(list.length) return list;
     const me = authMe();
     return me ? [{ key:me.id, name:me['이름'] }] : [];
@@ -7598,14 +7641,18 @@ function renderGrowth(){
     const me = authMe();
     gbWho = (me && ppl.some(x => x.key === me.id)) ? me.id : ppl[0].key;
   }
+  gbGone = ppl.some(x => x.key === gbWho && x.gone);
 
   const whoBar = '<div class="sec-bar" style="margin:0 0 10px">'
     + '<span class="fmeta" style="flex:0 0 auto">👤 누구 보드</span>'
     + ppl.map(u => {
         const g = gbFind(u.key, gbYear);
         const n = g ? (g.stages || []).reduce((a, st) => a + (st.items || []).length, 0) : 0;
-        return '<button class="btn sm' + (gbWho === u.key ? ' primary' : '') + '" '
+        return '<button class="btn sm' + (gbWho === u.key ? ' primary' : '')
+          + (u.gone ? ' gb-gone' : '') + '" '
+          + (u.gone ? 'title="퇴사 처리된 사람입니다. 남긴 기록은 그대로 열립니다" ' : '')
           + 'onclick="setGbWho(\'' + jsq(u.key) + '\')">' + esc(u.name)
+          + (u.gone ? ' <i>퇴사</i>' : '')
           + (n ? ' <b>' + n + '</b>' : '') + '</button>';
       }).join('')
     + '<select onchange="setGbYear(this.value)" style="font-family:inherit;font-size:12.5px;'
@@ -7809,7 +7856,15 @@ function renderGrowth(){
            setTimeout(gbGrowAll, 140); return; }
   }
 
-  main.innerHTML = box(whoBar + search + tools + gbHelpHtml() + paste + bfPanelHtml()
+  /* 퇴사한 사람 보드를 볼 때 — 왜 아직 여기 있는지 한 줄로 짚어 줍니다 */
+  const goneBar = (gbGone && !gbShot)
+    ? '<div class="gb-gonebar">'
+      + '<div class="t">🗄️ <b>' + esc(gbName(gbWho)) + '</b> 님은 퇴사 처리된 계정입니다.</div>'
+      + '<span>적어 두신 것은 그대로 남아 있습니다 — 읽기 · 고치기 · 사진으로 뽑기 다 됩니다. '
+      + '새 업무를 더하는 단추만 감췄습니다.</span></div>'
+    : '';
+
+  main.innerHTML = box(whoBar + goneBar + search + tools + gbHelpHtml() + paste + bfPanelHtml()
     + (gbShot ? '' : gbFixHtml(g))
     + looseBar + goal + btabs + stages);
   setTimeout(gbGrowAll, 0);
@@ -8702,9 +8757,10 @@ function gbMyBrandHtml(g, filter){
                         (r.st.items || []).indexOf(r.it), { stage: true, no: i + 1 })).join('')
                     + '</div>')
               : '<div class="empty" style="padding:14px 0">아직 없습니다.</div>')
-          + '<button class="gb-add' + (gbTplAt === 'my' ? ' on' : '') + '" '
-            + 'onclick="gbAddMine()">＋ 한 일 추가</button>'
-          + gbTplBar('my')
+          + (gbGone ? ''            // 그만둔 사람 보드에 새 업무를 더할 일은 없습니다
+              : '<button class="gb-add' + (gbTplAt === 'my' ? ' on' : '') + '" '
+                + 'onclick="gbAddMine()">＋ 한 일 추가</button>'
+                + gbTplBar('my'))
           + '</div>'
         : '')
     + '</div>';
@@ -13074,7 +13130,8 @@ function teamPickAdd(){
 }
 /* 계정에 있는 사람을 그대로 명단으로 (관리자만 계정 목록을 볼 수 있습니다) */
 function teamPickFromAccounts(){
-  const names = (people.list || []).map(u => u.name).filter(Boolean);
+  const names = (people.list || []).filter(u => u['쓸수있음'] !== false)
+    .map(u => u['이름'] || u.name).filter(Boolean);
   if(!names.length){ toast('⚠️ 계정 목록을 가져오지 못했습니다 (관리자만 됩니다)'); return; }
   data.settings = data.settings || {};
   const cur = wcalTeam();

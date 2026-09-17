@@ -314,10 +314,14 @@ if ($action === 'passwd') {
    ------------------------------------------------------ */
 if ($action === 'people') {
     if (!$me) jout(['ok' => false, 'error' => '로그인이 필요합니다', '로그인필요' => true], 401);
+    /* 그만둔 사람도 이름은 돌려줍니다 — 그 사람이 남긴 회의록·보드·할 일에
+       이름이 아니라 아이디가 찍히면 안 되기 때문입니다. 「쓸수있음」 이 false 면
+       화면에서 새로 맡기거나 고르는 데서는 빠집니다. 아이디·이름뿐이라
+       권한이나 마지막 접속 같은 것은 여전히 안 나갑니다. */
     $out = [];
     foreach ($users as $u) {
-        if (empty($u['active'])) continue;                 // 그만둔 사람은 빼고
-        $out[] = ['id' => $u['id'], '이름' => $u['name'] ?? $u['id'], '쓸수있음' => true];
+        $out[] = ['id' => $u['id'], '이름' => $u['name'] ?? $u['id'],
+                  '쓸수있음' => !empty($u['active'])];
     }
     usort($out, function ($a, $b2) { return strcmp($a['id'], $b2['id']); });
     jout(['ok' => true, '사람' => $out]);

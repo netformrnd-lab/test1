@@ -1,5 +1,6 @@
 -- ============================================================
--- 감리일지 → 잔디(Jandi) 알림에 '현장 사진'도 함께 표시 (최대 20장)
+-- 감리일지 → 잔디(Jandi) 알림에 '현장 사진'(최대 20장) + 본문 '내용 전체' 표시
+--   · 이전엔 요약이 200자에서 잘렸음 → 본문 전체(최대 10000자)를 보냄
 --   · reports.photos(jsonb 배열, 공개 버킷 URL)를 잔디 connectInfo.imageUrl 로 첨부
 --   · 앱 수정 불필요(사진은 이미 저장 시 리포트에 들어있음). 이 SQL만 실행하면 됨.
 --   · 기존 트리거/함수 이름 그대로 교체(재실행 안전).
@@ -40,7 +41,7 @@ begin
     jsonb_build_object('title', '단계',   'description', coalesce(new.stage, '-')),
     jsonb_build_object('title', '동',     'description', coalesce(new.dongs, '-')),
     jsonb_build_object('title', '제목',   'description', coalesce(new.title, '-')),
-    jsonb_build_object('title', '요약',   'description', left(coalesce(new.content, '-'), 200))
+    jsonb_build_object('title', '내용',   'description', left(coalesce(new.content, '-'), 10000))
   );
 
   -- 현장 사진: 앞에서부터 최대 20장을 이미지로 첨부(버킷이 public 이라 잔디가 불러옴)

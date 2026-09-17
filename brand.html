@@ -2132,7 +2132,9 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
   color:var(--text-primary);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cal-e:hover{background:color-mix(in srgb,var(--ec) 24%,transparent)}
-.cal-who{margin-left:5px;font-size:10.5px;opacity:.7;font-weight:700}
+.cal-t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-who{flex:0 0 auto;margin-left:auto;padding-left:5px;font-size:10.5px;opacity:.75;
+  font-weight:700;max-width:52%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cal-dot{width:7px;height:7px;border-radius:99px;flex-shrink:0;background:var(--ec)}
 /* 며칠에 걸치는 일정: 이어지는 쪽 모서리를 붙여 한 덩어리로 보이게 합니다 */
 .cal-e.p-first{border-top-right-radius:0;border-bottom-right-radius:0}
@@ -2496,7 +2498,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-78';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-79';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -2730,6 +2732,12 @@ const TYPES = {
       { key:'until', label:'끝나는 날 (선택)', type:'date', noDefault:true,
         ph:'며칠에 걸치는 일정이면 마지막 날' },
       { key:'kind',  label:'종류',      type:'select', options:EVENT_KINDS },
+      // 누가 맡나 — 할 일과 같은 방식입니다. 계정을 쓰면 명단에서 고르고,
+      // 안 쓰면 그냥 적습니다. 비워두면 「팀 공용」 입니다.
+      { key:'uid',   label:'담당자 (선택)', type:'select',
+        options:evPeople, when: () => authOn() },
+      { key:'owner', label:'담당자 (선택)', type:'text', ph:'예: 김마케',
+        when: () => !authOn() },
       { key:'brand', label:'브랜드 (선택)', type:'select', options:brandNames },
       { key:'memo',  label:'메모 (선택)', type:'textarea',
         ph:'같이 알아야 할 것이 있으면 적어두세요' }
@@ -6427,12 +6435,12 @@ function taskPeople(){
       opts.push({ value:u.id, label:u['이름'] + (me && u.id === me.id ? ' (나)' : '') });
       listed = true;
     });
-    /* 퇴사한 사람이 이미 맡고 있는 할 일이 있으면 그 이름을 남겨 둡니다.
+    /* 퇴사한 사람이 이미 맡고 있는 할 일·일정이 있으면 그 이름을 남겨 둡니다.
        목록에서 아예 빼 버리면 창을 열었다 저장하는 것만으로 맡은 사람이
        조용히 바뀌거나, 이름 대신 아이디가 그대로 보입니다. */
     people.list.forEach(u => {
       if(u['쓸수있음']) return;
-      if(!taskAll().some(r => (r.t.uid || '') === u.id)) return;
+      if(!whoHasWork(u.id)) return;
       opts.push({ value:u.id, label:u['이름'] + ' (퇴사)' });
       listed = true;
     });
@@ -10103,6 +10111,23 @@ function taskAll(){
   return out;
 }
 
+/* 이 사람 앞으로 맡아 둔 것이 있나 (할 일 · 일정) — 퇴사해도 명단에 남길지 정합니다 */
+function whoHasWork(uid){
+  uid = String(uid || '');
+  if(!uid) return false;
+  if((data.brands || []).some(b => (b.tasks || []).some(t => String(t.uid || '') === uid)))
+    return true;
+  return (data.events || []).some(e => String(e.uid || '') === uid);
+}
+
+/* 일정 담당자 고르개 — 할 일과 같은 명단인데 맨 윗줄 말만 다릅니다.
+   일정은 「마감」 처럼 팀 전체 것이 많아서 비워두는 쪽이 기본입니다. */
+function evPeople(){
+  const o = taskPeople().slice();
+  if(o.length && o[0].value === '') o[0] = { value:'', label:'— 담당 없음 (팀 공용) —' };
+  return o;
+}
+
 /* 이 할 일을 맡은 사람 — 계정을 쓰면 아이디, 안 쓰면 적어둔 이름 */
 function taskOwnerKey(t){
   if(authOn()) return t.uid || '__pub';
@@ -13551,10 +13576,14 @@ function renderCalendar(){
   const put = (d, o) => { (byDay[d] = byDay[d] || []).push(o); };
   (data.events || []).forEach(e => {
     if(!e.date) return;
+    // 사람 목록을 아직 못 받았으면 peopleName 이 아이디를 그대로 돌려줍니다.
+    // 그때는 적어둔 이름을 씁니다 (「hyeyoung」 대신 「권혜영」).
+    const enm = e.uid ? peopleName(e.uid) : '';
+    const ewho = (enm && enm !== e.uid) ? enm : (e.owner || '');
     const span = eachDay(e.date, e.until);           // 며칠에 걸치면 매일 보이게
     span.forEach((d, i) => put(d, {
       id:e.id, t:e.title, kind:e.kind || '기타', brand:e.brand, own:true,
-      memo:e.memo, from:e.date, to:e.until,
+      memo:e.memo, from:e.date, to:e.until, who:ewho,
       part: span.length > 1 ? (i === 0 ? 'first' : (i === span.length - 1 ? 'last' : 'mid')) : ''
     }));
   });
@@ -13597,7 +13626,9 @@ function renderCalendar(){
                      : 'onclick="gotoResult(\'' + jsq(o.bid) + '\',\'tasks\')"') + '>'
             + '<span class="cal-dot"></span>'
             + (o.part === 'mid' || o.part === 'last' ? '<span class="cal-cont">…</span>' : '')
-            + esc(o.t)
+            /* 제목은 줄어들고 담당자 이름은 끝까지 남게 — 맨 텍스트로 두면
+               제목이 길 때 담당자가 먼저 잘려 나갑니다 */
+            + '<span class="cal-t">' + esc(o.t) + '</span>'
             + (o.who ? '<span class="cal-who">' + esc(o.who) + '</span>' : '')
             + '</div>';
         }).join('')

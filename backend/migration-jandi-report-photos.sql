@@ -41,7 +41,7 @@ begin
     jsonb_build_object('title', '단계',   'description', coalesce(new.stage, '-')),
     jsonb_build_object('title', '동',     'description', coalesce(new.dongs, '-')),
     jsonb_build_object('title', '제목',   'description', coalesce(new.title, '-')),
-    jsonb_build_object('title', '내용',   'description', left(coalesce(new.content, '-'), 10000))
+    jsonb_build_object('title', '내용',   'description', left(coalesce(new.content, '-'), 40000))
   );
 
   -- 현장 사진: 앞에서부터 최대 20장을 이미지로 첨부(버킷이 public 이라 잔디가 불러옴)

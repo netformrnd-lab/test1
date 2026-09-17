@@ -3,7 +3,7 @@
 --   · 본문은 최대 40000자(이전 200자 잘림 해결)
 --   · 사진은 '📷 현장 사진 N장 · 모아보기 → <갤러리 링크>' 한 줄
 --       링크를 누르면 사진 20장이 그리드로 보이는 페이지(app/photos, 로그인 불필요).
---   · 갤러리 주소를 바꾸려면(선택, 기본=GitHub Pages):
+--   · 갤러리 주소를 바꾸려면(선택, 기본=gamri-app.vercel.app/photos/):
 --       insert into public.app_integrations(key, value)
 --       values ('report_gallery_base', 'https://내앱주소/photos/')
 --       on conflict (key) do update set value = excluded.value;
@@ -58,7 +58,7 @@ begin
       into files
       from jsonb_array_elements_text(new.photos) with ordinality as fn(value, ord);
     gallery := coalesce(nullif((select value from public.app_integrations where key = 'report_gallery_base'), ''),
-                        'https://netformrnd-lab.github.io/test1/photos/');
+                        'https://gamri-app.vercel.app/photos/');
     info := info || jsonb_build_array(jsonb_build_object(
       'title',       '📷 현장 사진',
       'description', total || '장 · 모아보기 → ' || gallery || '?f=' || coalesce(files, '')

@@ -1131,6 +1131,12 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-fix .fr.no select{border-color:var(--amber,#f59e0b)}
 .gb-fix .fr select:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px var(--blue-soft)}
+/* 브랜드 없음 탭에서 짚어 주는 칸 */
+.gb-nob{border:1px solid var(--amber,#f59e0b);border-radius:12px;padding:12px 14px;
+  margin:0 0 14px;background:rgba(245,158,11,.08);font-size:13px;font-weight:700;
+  line-height:1.8;color:var(--text-primary);word-break:keep-all}
+.gb-nob span{display:block;font-weight:400;font-size:12px;color:var(--text-muted);
+  margin-bottom:8px}
 /* 사진으로 뽑을 때 맨 위에 브랜드 이름 */
 .gb-shot-br{font-size:15px;font-weight:800;color:var(--text-primary);
   margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
@@ -2405,7 +2411,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-64';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-65';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7470,8 +7476,9 @@ function gbAddItem(sid, tplKey){
   if(!tplKey){ gbPickTpl(sid); return; }
   st.items = st.items || [];
   const T = GB_TPL.find(x => x.key === tplKey) || GB_TPL[0];
+  // 지금 보고 있는 브랜드로 붙입니다 (예전에는 브랜드를 안 넣어서 늘 「브랜드 없음」 이었습니다)
   const it = { id: uid('gi'), title: T.ti || '새 업무', status:'진행 중', kpiId:'',
-    tpl: T.key,
+    brandId: gbPbId, tpl: T.key,
     acts:[ { id: uid('ga'), mode:'goal', text:'', basis:'', value:'',
              steps: (T.steps || []).map(x => ({ id: uid('gt'), kind:'act', text: x, subs:[] })) } ] };
   st.items.push(it);
@@ -8590,10 +8597,13 @@ function gbBrandTabs(g){
     icon:b.icon || '🏷️', color:b.color, n:n[b.id] || 0 }));
   if(n[''] !== undefined) pick.push({ id:'', name:'브랜드 없음', icon:'·', color:'', n:n[''] });
   if(!pick.length) return '';
-  // 처음 열 때는 한 일이 가장 많은 브랜드부터 보여줍니다 (고른 뒤에는 그대로 둡니다)
+  /* 처음 열 때는 한 일이 가장 많은 브랜드부터 보여줍니다 (고른 뒤에는 그대로 둡니다).
+     다만 「브랜드 없음」 에는 저절로 들어가지 않습니다 — 거기서 업무를 더하면
+     그것도 브랜드 없음이 되어, 브랜드 없음이 계속 불어납니다. */
   if(!pick.some(b => b.id === gbPbId)){
-    const top = pick.slice().sort((a, c) => c.n - a.n)[0];
-    gbPbId = top.id;
+    const real = pick.filter(b => b.id);
+    const top = (real.length ? real : pick).slice().sort((a, c) => c.n - a.n)[0];
+    gbPbId = top ? top.id : '';
   }
   return '<div class="gb-btabs">'
     + pick.map(b => '<button class="' + (b.id === gbPbId ? 'on' : '') + '" '
@@ -8633,7 +8643,17 @@ function gbMyBrandHtml(g, filter){
         : '')
     + '</div>';
 
-  return gbPerfHtml(gbPbId, g.who) + (filter || '') + done;
+  /* 「브랜드 없음」 을 보고 있을 때는 짚어 줍니다 — 여기서 만들면 그것도
+     브랜드가 안 붙어서, 브랜드 없음이 계속 불어납니다. */
+  const warn = (!gbPbId && (data.brands || []).length && !gbShot)
+    ? '<div class="gb-nob">여기 있는 <b>' + rows.length + '건</b> 은 아직 어느 브랜드 것인지 '
+      + '안 정해진 업무입니다.<br>'
+      + '<span>여기서 ＋ 한 일을 만들면 그것도 브랜드가 안 붙습니다. '
+      + '위에서 브랜드를 고르고 만들거나, 아래로 한 번에 정리하세요.</span>'
+      + '<button class="btn sm primary" onclick="gbFixOpen()">🏷️ 브랜드 정리 열기</button>'
+      + '</div>'
+    : '';
+  return warn + gbPerfHtml(gbPbId, g.who) + (filter || '') + done;
 }
 
 /* ── 🏷️ 브랜드 정리 ───────────────────────────────────────
@@ -8643,6 +8663,11 @@ function gbMyBrandHtml(g, filter){
    ------------------------------------------------------------- */
 let gbFixOn = false;
 function gbFixToggle(){ gbFixOn = !gbFixOn; render(); }
+function gbFixOpen(){
+  gbFixOn = true; render();
+  const el = document.querySelector('.gb-fix');
+  if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
 /* 아직 브랜드를 안 정한 업무 수 — 단추에 숫자로 띄웁니다 */
 function gbFixNo(g){
   let n = 0;
@@ -9216,9 +9241,10 @@ function gbParse(text){
       });
       if(!st){ st = { id: uid('gs'), key:'own', label:'옮겨온 것', desc:'', items:[] };
                out.stages.push(st); }
+      // 글에 브랜드 이름이 없으면 지금 보고 있는 브랜드로 봅니다
       const bh = brn ? (data.brands || []).find(x2 => (x2.name || '').trim() === brn) : null;
       it = { id: uid('gi'), title: title.trim(), status: status, kpiId:'', _kpi: kpi,
-             brandId: bh ? bh.id : '', acts: [] };
+             brandId: bh ? bh.id : (brn ? '' : gbPbId), acts: [] };
       st.items.push(it); act = null; row = null;
       return;
     }

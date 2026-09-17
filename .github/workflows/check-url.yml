@@ -1,0 +1,16 @@
+name: 진단 - 앱/갤러리 주소 접속 확인
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 주소 확인
+        working-directory: backend/aptsq-sync
+        run: node checkurl.js

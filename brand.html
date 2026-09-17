@@ -1192,6 +1192,25 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .gb-gonebar .t{font-weight:600}
 .gb-gonebar .ga{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:7px}
 .gb-gonebar .ga .hint{font-size:11.5px;color:var(--text-muted)}
+/* 🏁 줄기에 처음이 없을 때 */
+.pw-gap{display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+  margin:0 0 13px;padding:12px 14px;border:1px solid var(--border);
+  border-left:4px solid var(--amber,#f59e0b);border-radius:var(--r-sm);
+  background:rgba(192,119,8,.06)}
+.pw-gap .t{font-size:14px;font-weight:600;color:var(--text-primary)}
+.pw-gap span{font-size:12.5px;line-height:1.6;color:var(--text-muted)}
+.pw-gap .btn{margin-top:4px}
+/* 처음부터 적기 창 */
+.modal .hf-l{display:block;margin:13px 0 5px;font-size:12px;font-weight:700;
+  color:var(--text-secondary)}
+.modal .hf-l span{display:block;margin-top:2px;font-size:11px;font-weight:400;
+  color:var(--text-muted)}
+.modal .hf-h{margin:20px 0 7px;font-size:13px;font-weight:700;color:var(--text-primary)}
+.modal .hf-h span{font-size:11.5px;font-weight:400;color:var(--text-muted)}
+.modal .hf-t{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.modal .hf-t input{flex:1 1 150px;width:auto;min-width:0}
+.modal .hf-t input.w{flex:0 0 92px}
+.modal .hf-t .btn{flex:0 0 auto;align-self:center}
 /* 🧹 퇴사자 자료 정리
    — 「.modal label{display:block}」 과 「.modal input{width:100%}」 이 눌러 버리므로
       여기서는 .modal 을 앞에 붙여 특이도를 올려 둡니다 (안 그러면 줄이 무너집니다) */
@@ -2498,7 +2517,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-79';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-80';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3135,8 +3154,8 @@ function render(){
   const tc = document.getElementById('trashCnt');
   if(tc) tc.textContent = (data.trash || []).length || '';
   const up = document.getElementById('usersLayer');
-  if(up) up.innerHTML = usersPanel() + wipePanel() + pickPanel() + netPanel() + pastePanel()
-                      + trashPanel() + teamPickPanel();
+  if(up) up.innerHTML = usersPanel() + wipePanel() + histPanel() + pickPanel() + netPanel()
+                      + pastePanel() + trashPanel() + teamPickPanel();
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
   else if(view === 'meetings') renderMeetings();
@@ -14192,6 +14211,125 @@ function whoDel(bid, id){
   markDirty(b.id); render();
 }
 
+/* ── 🏁 이 줄기에 「처음」 이 있나 ──────────────────────────────
+   「걸어온 길」 인데 걸어온 것이 없고 걸어가는 중만 쌓이는 일이 생깁니다.
+   마디가 들어오는 길이 사실상 기획서 하나뿐인데, 기획서는 늘 「지금 하는 일」
+   이라서 그렇습니다. 2022년에 무엇으로 시작했는지는 어느 기획서에도 없습니다.
+   그래서 무엇이 비었는지 짚어 주고, 손으로 한 번에 채울 자리를 둡니다.
+   -------------------------------------------------------------- */
+function chapGap(b){
+  const cs = chapsOf(b).filter(c => !chapBlank(c));
+  if(!cs.length) return null;
+  const has = k => cs.some(c => pathKindOf(c).k === k);
+  const plans = cs.filter(c => String(c.plan || '').trim()).length;
+  const miss = [];
+  if(!has('출발')) miss.push('처음');
+  if(!has('방향을 틀다') && !has('접었다') && cs.length >= 4) miss.push('꺾인 데');
+  if(!miss.length) return null;
+  return { miss: miss, n: cs.length, plans: plans };
+}
+
+/* 처음부터 적기 — 사람만 아는 것이라 AI 에 물어볼 수 없습니다 */
+let histForm = null;      // null | { bid, when, title, who, why, turns:[{when,title,why}] }
+
+function histOpen(bid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  histForm = { bid: b.id, when:'', title:'', who:'', why:'',
+               turns: [{ when:'', title:'', why:'' }] };
+  render();
+}
+function histClose(){ histForm = null; render(); }
+function histSet(f, v){ if(histForm) histForm[f] = v; }
+function histTurnSet(i, f, v){
+  if(histForm && histForm.turns[i]) histForm.turns[i][f] = v;
+}
+function histTurnAdd(){
+  if(!histForm) return;
+  histForm.turns.push({ when:'', title:'', why:'' });
+  render();
+}
+function histTurnDel(i){
+  if(!histForm) return;
+  histForm.turns.splice(i, 1);
+  if(!histForm.turns.length) histForm.turns.push({ when:'', title:'', why:'' });
+  render();
+}
+
+function histGo(){
+  if(!histForm) return;
+  const b = brandById(histForm.bid); if(!b){ histClose(); return; }
+  const T = String(histForm.title || '').trim();
+  if(!T){ toast('⚠️ 무엇으로 시작했는지는 적어 주세요'); return; }
+
+  const made = [];
+  made.push({ id: uid('pc'), when: String(histForm.when || '').trim(),
+              kind: '출발', title: T,
+              body: String(histForm.who || '').trim(),
+              why:  String(histForm.why || '').trim() });
+  histForm.turns.forEach(t => {
+    const tt = String(t.title || '').trim();
+    if(!tt) return;
+    made.push({ id: uid('pc'), when: String(t.when || '').trim(),
+                kind: '방향을 틀다', title: tt,
+                why: String(t.why || '').trim() });
+  });
+
+  chapsOf(b).push.apply(chapsOf(b), made);
+  histForm = null;
+  markDirty(b.id);
+  render();
+  toast('🏁 줄기 앞에 ' + made.length + '칸을 넣었습니다');
+}
+
+function histPanel(){
+  if(!histForm) return '';
+  const b = brandById(histForm.bid); if(!b) return '';
+  const F = histForm;
+  const fld = (f, label, hint, ph) => '<label class="hf-l">' + label
+    + '<span>' + hint + '</span></label>'
+    + '<input type="text" value="' + esc(F[f] || '') + '" placeholder="' + esc(ph) + '" '
+      + 'oninput="histSet(\'' + f + '\', this.value)">';
+
+  const turns = F.turns.map((t, i) => '<div class="hf-t">'
+    + '<input type="text" class="w" value="' + esc(t.when || '') + '" placeholder="2025.04" '
+      + 'oninput="histTurnSet(' + i + ',\'when\', this.value)">'
+    + '<input type="text" value="' + esc(t.title || '') + '" '
+      + 'placeholder="무엇으로 틀었나 — 예) 전문감리기관으로" '
+      + 'oninput="histTurnSet(' + i + ',\'title\', this.value)">'
+    + '<input type="text" value="' + esc(t.why || '') + '" '
+      + 'placeholder="왜 틀었나 (선택)" '
+      + 'oninput="histTurnSet(' + i + ',\'why\', this.value)">'
+    + '<button class="btn sm" onclick="histTurnDel(' + i + ')" title="이 줄 빼기">✕</button>'
+    + '</div>').join('');
+
+  return '<div class="modal-bg open" onclick="if(event.target===this)histClose()">'
+    + '<div class="modal" style="max-width:640px">'
+    /* 「…는/은」 은 받침에 따라 갈려서 줄표로 피합니다 (POUR 솔루션「는」 이 됩니다) */
+    + '<h3>🏁 ' + esc(b.name) + ' — 어떻게 시작했나요</h3>'
+    + '<div class="fmeta" style="margin:-4px 0 14px">'
+      + '기획서에는 늘 <b>지금 하는 일</b>만 적혀 있어서, 처음은 아무리 올려도 '
+      + '안 들어옵니다. 여기는 아는 사람이 한 번만 적으면 됩니다.</div>'
+    + '<div class="hf">'
+      + fld('when',  '언제 시작했나요', '연도만 적어도 됩니다', '2022')
+      + fld('title', '무엇으로 시작했나요 *', '한 줄로', '아파트 유지보수 플랫폼')
+      + fld('who',   '누구에게 팔려고 했나요', '비워도 됩니다',
+            '아파트 관리사무소 · 입주자대표회의')
+      + fld('why',   '왜 그렇게 시작했나요', '무엇이 문제라고 봤나 (비워도 됩니다)',
+            '발주자가 비전문가라 견적이 맞는지 판단 못 한다고 봤다')
+    + '</div>'
+    + '<div class="hf-h">🔀 중간에 방향을 튼 적이 있나요 <span>(없으면 비워두세요)</span></div>'
+    + '<div class="hf-ts">' + turns + '</div>'
+    + '<button class="gb-add tiny" onclick="histTurnAdd()">＋ 한 칸 더</button>'
+    + '<div class="ainote" style="margin-top:12px">'
+      + '넣고 나면 <b>때 순서로 저절로 세워집니다.</b> 지금 쌓인 마디 앞에 붙습니다. '
+      + '다 적고 나서 ❹ 의 <b>[🤖 여정 N칸에서 쓰기]</b> 를 누르면 맨 위 한 문단도 '
+      + '처음부터 다시 씁니다.</div>'
+    + '<div class="modal-actions">'
+      + '<button class="btn" onclick="histClose()">닫기</button>'
+      + '<button class="btn primary" onclick="histGo()">🏁 줄기 앞에 넣기</button>'
+    + '</div></div></div>';
+}
+
 function chapAdd(bid, kind){
   const b = brandById(bid) || currentBrand(); if(!b) return;
   const c = { id: uid('pc'), when:'', kind: kind || '방향을 틀다', title:'' };
@@ -14516,15 +14654,28 @@ async function pathRun(bid){
 function pathRetry(bid){ pathRun(bid); render(); }
 
 /* 쌓인 여정 전체를 글로 풀어 씁니다 — 한 문단을 쓸 때 AI 에 보냅니다 */
+/* 줄기가 되는 갈래 — 브랜드가 꺾인 지점입니다.
+   나머지(해냈다·해봤다)는 대개 기획서에서 온 「그 사이에 한 일」 이라,
+   그대로 두면 한 문단이 제품 이야기로 덮입니다. 그래서 ★ 로 갈라 주고
+   줄기가 아닌 칸은 짧게 줄여 보냅니다. */
+const CHAP_ARC = ['출발', '방향을 틀다', '접었다', '지금'];
+
 function pathLineText(b){
   return chapLine(chapsOf(b).filter(c => !chapBlank(c))).map(c => {
-    const K = pathKindOf(c);
-    return [String(c.when || '').trim() || '때 미상', K.k,
-            String(c.title || '').trim()].filter(Boolean).join(' · ')
-      + (String(c.body   || '').trim() ? '\n  한 일: '    + gbOneLine(c.body, 200)   : '')
-      + (String(c.result || '').trim() ? '\n  결과: '     + gbOneLine(c.result, 200) : '')
-      + (String(c.bad    || '').trim() ? '\n  안 된 것: ' + gbOneLine(c.bad, 150)    : '')
-      + (String(c.nogo   || '').trim() ? '\n  하지 않기로: ' + gbOneLine(c.nogo, 150) : '');
+    const K   = pathKindOf(c);
+    const arc = CHAP_ARC.indexOf(K.k) >= 0;
+    const n   = arc ? 200 : 90;          // 줄기가 아니면 짧게
+    return (arc ? '★ ' : '  ')
+      + [String(c.when || '').trim() || '때 미상', K.k,
+         String(c.title || '').trim()].filter(Boolean).join(' · ')
+      + (String(c.body   || '').trim() ? '\n  한 일: '    + gbOneLine(c.body, n)   : '')
+      /* 「왜」 가 줄기를 잇는 말입니다 — 이게 빠지면 한 일만 나열됩니다 */
+      + (String(c.why    || '').trim() ? '\n  왜: '       + gbOneLine(c.why, n)    : '')
+      + (arc && String(c.before || '').trim() ? '\n  전에는: ' + gbOneLine(c.before, 150) : '')
+      + (arc && String(c.after  || '').trim() ? '\n  그 뒤로: ' + gbOneLine(c.after, 150) : '')
+      + (String(c.result || '').trim() ? '\n  결과: '     + gbOneLine(c.result, n) : '')
+      + (arc && String(c.bad  || '').trim() ? '\n  안 된 것: ' + gbOneLine(c.bad, 150) : '')
+      + (arc && String(c.nogo || '').trim() ? '\n  하지 않기로: ' + gbOneLine(c.nogo, 150) : '');
   }).join('\n');
 }
 
@@ -15013,15 +15164,31 @@ function pathReadHtml(b){
     rail += chapReadHtml(b, c, k, y);
   });
 
+  /* 걸어온 길인데 걸어온 것이 없을 때 — 기획서만 쌓이면 늘 이렇게 됩니다 */
+  const gap = chapGap(b);
+  const gapBar = gap
+    ? '<div class="pw-gap">'
+      + '<div class="t">🏁 이 줄기에 <b>' + gap.miss.join(' · ') + '</b> 가 없습니다</div>'
+      + '<span>' + (gap.plans
+          ? '마디 ' + gap.n + '칸 가운데 ' + gap.plans + '칸이 기획서에서 왔습니다. '
+          : '')
+        + '기획서에는 늘 <b>지금 하는 일</b>만 적혀 있어서, 처음은 아무리 올려도 '
+        + '안 들어옵니다. 그래서 「걸어온 길」 인데 걸어가는 중만 남습니다.</span>'
+      + '<button class="btn sm primary" onclick="histOpen(\'' + jsq(b.id) + '\')">'
+        + '🏁 처음부터 적기</button>'
+      + '</div>'
+    : '';
+
   const s4 = sec('4', '이 브랜드가 걸어온 길',
-    '기획서가 한 장씩 쌓여 이 줄기가 됩니다 — 위의 규칙이 어디서 왔는지',
+    '처음 · 꺾인 데 · 지금이 한 줄기로 — 위의 규칙이 어디서 왔는지',
     meta
+    + gapBar
     + (sum ? '<p class="pw-sum">' + esc(sum) + '</p>' : '')
     + yPick
     + (line.length
         ? '<div class="pw-line">' + rail + '</div>'
-        : (sum ? '' : none('아직 없습니다 — 기획서를 올리면 한 장이 한 칸이 됩니다. '
-                           + '칸이 쌓이면 위의 규칙이 왜 생겼는지 신입이 납득합니다.'))));
+        : (sum ? '' : none('아직 없습니다 — [🏁 처음부터 적기] 로 시작점을 놓고, '
+                           + '기획서를 올리면 한 장이 한 칸씩 이어 붙습니다.'))));
 
   /* 5 — 첫 2주에 해볼 것 (읽고 끝나지 않게) */
   const s5 = sec('5', '첫 2주에 해볼 것', '읽고 끝나지 않게 — 직접 해보는 차례',
@@ -15254,6 +15421,8 @@ function pathEditHtml(b){
       + '<span>길이 꺾인 지점만 서너 개면 충분합니다.</span></div>';
 
   const add = '<div class="pe-add">'
+    + '<button class="gb-add tiny" onclick="histOpen(\'' + bid + '\')" '
+      + 'title="처음 · 방향 튼 데를 한 번에 넣습니다">🏁 처음부터 적기</button>'
     + PATH_KINDS.map(k => '<button class="gb-add tiny" onclick="chapAdd(\'' + bid + '\',\''
         + k.k + '\')">' + k.ic + ' ' + esc(k.k) + '</button>').join('')
     + '</div>';

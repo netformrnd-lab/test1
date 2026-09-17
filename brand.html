@@ -2446,7 +2446,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-72';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-73';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13691,7 +13691,7 @@ function chapNoWhen(c){ return !String(c.when || '').trim(); }
    「§21-C」 「p.12」 「Rev.2」 처럼 그 문서 안에서만 통하는 기호가 들어가면,
    읽는 사람은 그 줄에서 막히고 확인할 방법이 없습니다. AI 에게 쓰지 말라고
    일러 두었지만 가끔 새어 나오므로, 고치기 화면에서 짚어 줍니다. */
-const ODD_REF = /(§\s*[\w-]+|\bRev\.?\s*\d+|\bp\.\s?\d+|\b\d+\s?-\s?[A-Z]\b|\b[A-Z]-\d+\b)/g;
+const ODD_REF = /(§\s*[\w-]+|\bRev\.?\s*[\d.]+|\bp\.\s?\d+|\b\d+\s?-\s?[A-Z]\b|\b[A-Z]-\d+\b|\b[A-Z]{3,}[-_][A-Z0-9][A-Z0-9-]*\b)/g;
 function oddRefs(txt){
   const m = String(txt || '').match(ODD_REF);
   return m ? m.map(x => x.trim()) : [];

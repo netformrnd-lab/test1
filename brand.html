@@ -2446,7 +2446,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-73';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-74';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13843,6 +13843,20 @@ function ruleEdit(bid, id, f, v, draw){
   r[f] = v; markDirty(b.id);
   if(draw) render();
 }
+/* 지킬 것을 전부 비웁니다 — 지침서를 다시 읽혀 새로 채우고 싶을 때.
+   다시 올려도 이미 있는 줄은 건너뛰기 때문에, 먼저 비워야 새로 들어옵니다. */
+function ruleClear(bid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const n = rulesOf(b).length;
+  if(!n) return;
+  if(!confirm('지킬 것 ' + n + '줄을 전부 지웁니다.\n\n'
+    + '지침서를 다시 올려 새로 채우려면 먼저 비워야 합니다 '
+    + '(이미 있는 줄은 다시 안 채워집니다).\n\n되돌릴 수 없습니다.')) return;
+  rulesOf(b).forEach(r => deletedIds.add(r.id));
+  b.path.rules = [];
+  markDirty(b.id); render();
+  toast('🗑 지킬 것을 비웠습니다 — 이제 지침서를 다시 올리세요');
+}
 function ruleDel(bid, id){
   const b = brandById(bid) || currentBrand(); if(!b) return;
   if(!confirm('이 줄을 지웁니다.')) return;
@@ -14157,6 +14171,28 @@ async function pathRun(bid){
       half = apiErrText(e2);
     }
     const got = pathMineMerge(g1, g2);
+
+    /* 아무리 일러도 「§4-B 어휘로」 같은 줄이 가끔 남습니다.
+       그 줄들만 따로 보내 번호를 내용으로 바꿔 받습니다 (보내는 것도
+       받는 것도 짧아서 금방입니다). 실패하면 원래 줄이 그대로 남습니다. */
+    const bad = [];
+    (got.rules || []).forEach((r, i) => {
+      if(oddRefs(r.text).length || oddRefs(r.why).length) bad.push({ i:i, r:r });
+    });
+    if(bad.length){
+      pathMine[bid].step = '조항 번호를 풀어 쓰는 중… (' + bad.length + '줄)';
+      render();
+      try{
+        const lines = bad.map(x => 'id: n' + x.i + '\n' + x.r.text
+          + (String(x.r.why || '').trim() ? '\n(왜) ' + x.r.why : '')).join('\n---\n');
+        const fixed = pathFixParse(await pathAsk(b.name, txt, 4, lines, kind));
+        bad.forEach(x => {
+          const f = fixed['n' + x.i];
+          if(f && !oddRefs(f).length) x.r.text = f;
+        });
+      }catch(e){}
+    }
+
     const m = pathMine[bid];
     m.busy = false;
     m.no   = '';
@@ -14229,7 +14265,9 @@ async function pathAsk(brand, book, part, seen, doc){
       const r = await apiJson('ai.php?action=prompt', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ kind:'path', brand: brand, book: book,
-                               part: part, '여정': seen || '',
+                               part: part,
+                               '여정': (part === 4 ? '' : (seen || '')),
+                               '줄':   (part === 4 ? (seen || '') : ''),
                                doc: doc || 'auto' })
       });
       return r['프롬프트'] || '';
@@ -14239,6 +14277,24 @@ async function pathAsk(brand, book, part, seen, doc){
     }
   }
   throw last;
+}
+
+/* 「고친 줄」 을 id → 글 로 */
+function pathFixParse(text){
+  let t = String(text || '').trim();
+  t = t.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  let j = null;
+  try{ j = JSON.parse(t); }catch(e){
+    const a = t.indexOf('{'), z = t.lastIndexOf('}');
+    if(a >= 0 && z > a){ try{ j = JSON.parse(t.slice(a, z + 1)); }catch(e2){} }
+  }
+  const out = {};
+  ((j && (j['고친줄'] || j.fixed)) || []).forEach(x => {
+    const id = String((x && x.id) || '').trim();
+    const tx = String((x && x.text) || '').trim();
+    if(id && tx) out[id] = tx;
+  });
+  return out;
 }
 
 /* 나눠 받은 두 답을 하나로 합칩니다 */
@@ -14831,6 +14887,9 @@ function pathEditHtml(b){
     + '<div class="pe-add">'
       + RULE_KINDS.map(k => '<button class="gb-add tiny" onclick="ruleAdd(\'' + bid + '\',\''
           + k.k + '\')">' + k.ic + ' ' + esc(k.k) + '</button>').join('')
+      + (rs.length
+          ? '<button class="gb-add tiny danger" onclick="ruleClear(\'' + bid + '\')">'
+            + '🗑 전부 비우기</button>' : '')
     + '</div></div>';
 
   /* 3 — 막히면 누구에게 */

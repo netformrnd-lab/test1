@@ -19,11 +19,18 @@ const sb = createClient(SUPABASE_URL, KEY, { auth: { persistSession: false } });
   if (bErr && !/already exists|duplicate/i.test(bErr.message)) console.log('버킷 생성 경고:', bErr.message);
   else console.log('버킷 web 준비 완료(public)');
 
-  // 2) gallery.html 업로드(text/html, 덮어쓰기)
-  const { error: uErr } = await sb.storage.from('web').upload('gallery.html', html, {
-    contentType: 'text/html; charset=utf-8', upsert: true, cacheControl: '60',
+  // 2) gallery.html 업로드 — content-type 을 확실히 text/html 로 지정(REST 직접 호출).
+  //    (supabase-js upload 는 content-type 이 text/plain 으로 저장되어 브라우저가 렌더 안 함)
+  const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/web/gallery.html`, {
+    method: 'POST',
+    headers: {
+      apikey: KEY, Authorization: `Bearer ${KEY}`,
+      'Content-Type': 'text/html; charset=utf-8',
+      'x-upsert': 'true', 'cache-control': 'max-age=60',
+    },
+    body: html,
   });
-  if (uErr) { console.log('❌ 업로드 실패:', uErr.message); process.exit(1); }
+  if (!upRes.ok) { console.log('❌ 업로드 실패:', upRes.status, await upRes.text().catch(() => '')); process.exit(1); }
 
   const url = `${SUPABASE_URL}/storage/v1/object/public/web/gallery.html`;
   console.log('✅ 업로드 완료:', url);
@@ -33,9 +40,10 @@ const sb = createClient(SUPABASE_URL, KEY, { auth: { persistSession: false } });
     const r = await fetch(url + '?f=test.jpg');
     const ct = r.headers.get('content-type') || '';
     const body = await r.text();
-    console.log('공개 확인: HTTP', r.status, '· content-type=', ct, '· html?', body.includes('<title>') ? 'O' : 'X');
-    if (r.status === 200 && body.includes('현장 사진')) console.log('🎉 갤러리 페이지 정상 서비스');
-    else console.log('⚠️ 응답 이상 — content-type/CSP 확인 필요');
+    const htmlType = /text\/html/i.test(ct);
+    console.log('공개 확인: HTTP', r.status, '· content-type=', ct, '· html렌더?', htmlType ? 'O' : 'X(text/plain이면 소스로 보임)');
+    if (r.status === 200 && htmlType && body.includes('현장 사진')) console.log('🎉 갤러리 페이지 정상 서비스(브라우저 렌더 OK)');
+    else { console.log('⚠️ content-type 이 text/html 이 아님 → 렌더 안 됨'); process.exit(1); }
   } catch (e) { console.log('확인 요청 실패:', e.message); }
 
   console.log('\n잔디 링크 base 로 이 주소를 쓰세요:\n  ' + url);

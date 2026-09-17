@@ -2446,7 +2446,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-71';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-72';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13687,6 +13687,32 @@ function chapBlank(c){
 /* 때를 안 적은 장 — 길에는 시간이 있어야 합니다 */
 function chapNoWhen(c){ return !String(c.when || '').trim(); }
 
+/* ── 사람이 못 찾아가는 표시 ───────────────────────────────
+   「§21-C」 「p.12」 「Rev.2」 처럼 그 문서 안에서만 통하는 기호가 들어가면,
+   읽는 사람은 그 줄에서 막히고 확인할 방법이 없습니다. AI 에게 쓰지 말라고
+   일러 두었지만 가끔 새어 나오므로, 고치기 화면에서 짚어 줍니다. */
+const ODD_REF = /(§\s*[\w-]+|\bRev\.?\s*\d+|\bp\.\s?\d+|\b\d+\s?-\s?[A-Z]\b|\b[A-Z]-\d+\b)/g;
+function oddRefs(txt){
+  const m = String(txt || '').match(ODD_REF);
+  return m ? m.map(x => x.trim()) : [];
+}
+/* 온보딩 전체에서 그런 표시를 모읍니다 — [{ 어디, 말 }] */
+function pathOddRefs(b){
+  const out = [];
+  const add = (where, txt) => oddRefs(txt).forEach(w => out.push({ at: where, w: w }));
+  rulesOf(b).forEach(r => { add('지킬 것', r.text); add('지킬 것', r.why); });
+  chapsOf(b).forEach(c => {
+    const nm = String(c.title || '').trim() || '여정';
+    PATH_FIELDS.forEach(f => add(nm, c[f[0]]));
+  });
+  add('이 브랜드는 뭘 하나', pathOf(b).what);
+  add('맨 위 한 문단', pathOf(b).summary);
+  // 같은 말이 여러 번 나오면 한 번만
+  const seen = {};
+  return out.filter(x => { const k = x.at + '|' + x.w;
+    if(seen[k]) return false; seen[k] = 1; return true; });
+}
+
 /* ── 히스토리 ──────────────────────────────────────────────
    기획서가 한 장씩 쌓여 이 줄기가 됩니다.
    읽기 화면에서는 적어 둔 차례가 아니라 「때」 순서로 세웁니다.        */
@@ -14845,12 +14871,20 @@ function pathEditHtml(b){
 
   const blank = cs.filter(chapBlank).length;
   const nowh  = cs.filter(c => !chapBlank(c) && chapNoWhen(c)).length;
-  const warn = (blank || nowh)
+  const odd = pathOddRefs(b);
+  const warn = (blank || nowh || odd.length)
     ? '<div class="pe-warn">'
       + (blank ? '<div>빈 장이 ' + blank + '개 있습니다 — 읽기 화면에는 안 나옵니다. '
           + '채우거나 지워 주세요.</div>' : '')
       + (nowh ? '<div>때를 안 적은 장이 ' + nowh + '개 있습니다 — '
           + '길에는 시간이 있어야 흐름이 보입니다.</div>' : '')
+      + (odd.length
+          ? '<div>사람이 찾아갈 수 없는 표시가 ' + odd.length + '개 있습니다 — '
+            + odd.slice(0, 6).map(x => '<b>' + esc(x.w) + '</b> (' + esc(x.at) + ')').join(' · ')
+            + (odd.length > 6 ? ' 외 ' + (odd.length - 6) + '개' : '')
+            + '<br>읽는 사람은 이 기호가 무슨 뜻인지 확인할 방법이 없습니다. '
+            + '문서 이름과 날짜로 바꾸거나 빼 주세요.</div>'
+          : '')
       + '</div>' : '';
   const list = cs.length
     ? warn + '<div class="pe-list">' + cs.map((c, i) => chapEditHtml(b, c, i, cs.length)).join('') + '</div>'

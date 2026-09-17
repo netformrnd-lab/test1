@@ -1190,6 +1190,26 @@ table.itable tr:hover td{background:var(--bg-hover)}
   border-radius:var(--r-sm);background:var(--bg-sunken);
   font-size:13.5px;color:var(--text-primary)}
 .gb-gonebar .t{font-weight:600}
+.gb-gonebar .ga{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:7px}
+.gb-gonebar .ga .hint{font-size:11.5px;color:var(--text-muted)}
+/* 🧹 퇴사자 자료 정리
+   — 「.modal label{display:block}」 과 「.modal input{width:100%}」 이 눌러 버리므로
+      여기서는 .modal 을 앞에 붙여 특이도를 올려 둡니다 (안 그러면 줄이 무너집니다) */
+.modal .wz-list{display:flex;flex-direction:column;gap:7px}
+.modal .wz-r{display:flex;align-items:center;gap:10px;margin:0;padding:11px 13px;
+  cursor:pointer;font-size:13.5px;font-weight:400;letter-spacing:normal;
+  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-input)}
+.modal .wz-r:hover{border-color:var(--blue)}
+.modal .wz-r.off{opacity:.5;cursor:default}
+.modal .wz-r.off:hover{border-color:var(--border)}
+.modal .wz-r input[type=checkbox]{width:17px;height:17px;flex:0 0 auto;margin:0;padding:0;
+  accent-color:var(--red)}
+.modal .wz-r .ic{flex:0 0 auto;font-size:16px}
+.modal .wz-r .nm{flex:1;min-width:0;font-size:13.5px;font-weight:600;
+  color:var(--text-primary)}
+.modal .wz-r .ct{flex:0 0 auto;font-size:12.5px;color:var(--text-muted);white-space:nowrap}
+.modal .wz-r .ct b{font-size:14.5px;color:var(--text-primary)}
+.modal .wz-r .ct span{color:var(--text-muted);font-weight:400}
 .gb-gonebar span{font-size:12.5px;color:var(--text-muted)}
 .gb-shot-br{font-size:15px;font-weight:800;color:var(--text-primary);
   margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
@@ -2476,7 +2496,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-77';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-78';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3107,7 +3127,7 @@ function render(){
   const tc = document.getElementById('trashCnt');
   if(tc) tc.textContent = (data.trash || []).length || '';
   const up = document.getElementById('usersLayer');
-  if(up) up.innerHTML = usersPanel() + pickPanel() + netPanel() + pastePanel()
+  if(up) up.innerHTML = usersPanel() + wipePanel() + pickPanel() + netPanel() + pastePanel()
                       + trashPanel() + teamPickPanel();
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
@@ -7861,7 +7881,16 @@ function renderGrowth(){
     ? '<div class="gb-gonebar">'
       + '<div class="t">🗄️ <b>' + esc(gbName(gbWho)) + '</b> 님은 퇴사 처리된 계정입니다.</div>'
       + '<span>적어 두신 것은 그대로 남아 있습니다 — 읽기 · 고치기 · 사진으로 뽑기 다 됩니다. '
-      + '새 업무를 더하는 단추만 감췄습니다.</span></div>'
+      + '새 업무를 더하는 단추만 감췄습니다.</span>'
+      /* 정리하는 것은 관리자만 — 휴지통을 한 번 거칩니다 */
+      + (isAdmin()
+          ? '<div class="ga">'
+            + '<button class="btn sm danger" onclick="wipeOpen(\'' + jsq(gbWho) + '\')">'
+              + '🧹 ' + esc(gbName(gbWho)) + ' 님이 남긴 자료 정리</button>'
+            + '<span class="hint">휴지통을 거치니 30일 안에 되돌릴 수 있습니다</span>'
+            + '</div>'
+          : '')
+      + '</div>'
     : '';
 
   main.innerHTML = box(whoBar + goneBar + search + tools + gbHelpHtml() + paste + bfPanelHtml()
@@ -7872,6 +7901,161 @@ function renderGrowth(){
 }
 
 function gbStart(){ gbEnsure(gbWho, gbYear); render(); }
+
+/* ── 🧹 퇴사자가 남긴 자료 정리 (관리자 전용) ────────────────────
+   그만둔 사람의 기록을 언제까지고 안고 갈 수는 없습니다. 그렇다고 누르는
+   순간 없애지도 않습니다 — 휴지통에 30일 동안 그대로 있어서, 나중에
+   「그때 그 자료 어디 갔지」 가 되면 되돌릴 수 있습니다.
+
+   계정 아이디로 확실히 묶이는 것만 다룹니다 (누구 것인지 헷갈릴 수 없는 것):
+     📈 그로스보드   growth[].who
+     ✅ 맡은 할 일   brands[].tasks[].uid
+     🧩 그로스 판    boards[].from.who
+     📊 성과 정리    gbperf[].who   (화면에서는 뺐지만 자료는 남아 있습니다)
+   회의록·일정은 작성자가 계정이 아니라 그냥 적어둔 글자라서 손대지 않습니다.
+   ---------------------------------------------------------------- */
+let wipeWho = '';                                   // 지금 정리하는 사람 (계정 아이디)
+const wipePick = { growth:true, tasks:true, boards:true, perf:true };
+
+/* 이 사람 앞으로 무엇이 남아 있나 */
+function wipeFind(who){
+  who = String(who || '');
+  const growth = (data.growth || []).filter(x => x.who === who);
+  const tasks  = [];
+  (data.brands || []).forEach(b => (b.tasks || []).forEach(t => {
+    if(String(t.uid || '') === who) tasks.push({ b:b, t:t });
+  }));
+  const boards = (data.boards || []).filter(x => x.from && x.from.who === who);
+  const perf   = (data.gbperf || []).filter(x => x.who === who);
+  const items  = growth.reduce((a, g) =>
+    a + (g.stages || []).reduce((c, st) => c + (st.items || []).length, 0), 0);
+  return { growth, tasks, boards, perf, items,
+           total: growth.length + tasks.length + boards.length + perf.length };
+}
+
+function wipeOpen(who){
+  if(!isAdmin()){ toast('⚠️ 관리자만 할 수 있습니다'); return; }
+  wipeWho = String(who || '');
+  wipePick.growth = wipePick.tasks = wipePick.boards = wipePick.perf = true;
+  render();
+}
+function wipeClose(){ wipeWho = ''; render(); }
+function wipeToggle(k){ wipePick[k] = !wipePick[k]; render(); }
+
+function wipeGo(){
+  if(!isAdmin()){ toast('⚠️ 관리자만 할 수 있습니다'); return; }
+  const who = wipeWho, nm = peopleName(who) || who;
+  const f = wipeFind(who);
+
+  const line = [];
+  if(wipePick.growth && f.growth.length)
+    line.push('📈 그로스보드 ' + f.growth.length + '개 (한 일 ' + f.items + '건)');
+  if(wipePick.tasks  && f.tasks.length)  line.push('✅ 맡은 할 일 ' + f.tasks.length + '건');
+  if(wipePick.boards && f.boards.length) line.push('🧩 그로스 판 ' + f.boards.length + '개');
+  if(wipePick.perf   && f.perf.length)   line.push('📊 성과 정리 ' + f.perf.length + '건');
+  if(!line.length){ toast('⚠️ 고른 것이 없습니다'); return; }
+
+  if(!confirm(nm + ' 님이 남긴 것을 지울까요?\n\n· ' + line.join('\n· ')
+    + '\n\n휴지통으로 갑니다 — 업무 → 🗑 휴지통 에서 30일 안에 되돌릴 수 있습니다.')) return;
+
+  let n = 0;
+  if(wipePick.growth && f.growth.length){
+    f.growth.forEach(g => {
+      const c = (g.stages || []).reduce((a, st) => a + (st.items || []).length, 0);
+      trashPut('그로스보드', nm + ' · ' + g.year + '년 (한 일 ' + c + '건)', g, { kind:'gbboard' });
+      deletedIds.add(g.id); n++;            // 합칠 때 남의 저장본에서 되살아나지 않게
+    });
+    const ids = new Set(f.growth.map(x => x.id));
+    data.growth = (data.growth || []).filter(x => !ids.has(x.id));
+  }
+  if(wipePick.tasks && f.tasks.length){
+    f.tasks.forEach(r => {
+      trashPut('할 일', r.t.title || '(제목 없음)', r.t,
+               { kind:'item', type:'tasks', brandId: r.b.id });
+      deletedIds.add(r.t.id); n++;
+    });
+    const ids = new Set(f.tasks.map(r => r.t.id));
+    (data.brands || []).forEach(b => {
+      if(Array.isArray(b.tasks)) b.tasks = b.tasks.filter(x => !ids.has(x.id));
+    });
+  }
+  if(wipePick.boards && f.boards.length){
+    f.boards.forEach(b2 => {
+      trashPut('그로스 판', b2.name || '이름 없는 판', b2, { kind:'board' });
+      deletedIds.add(b2.id); n++;
+    });
+    const ids = new Set(f.boards.map(x => x.id));
+    data.boards = (data.boards || []).filter(x => !ids.has(x.id));
+  }
+  if(wipePick.perf && f.perf.length){
+    f.perf.forEach(pp => {
+      trashPut('성과 정리', nm + ' · ' + pp.year + '년', pp,
+               { kind:'item', type:'gbperf', brandId:'' });
+      deletedIds.add(pp.id); n++;
+    });
+    const ids = new Set(f.perf.map(x => x.id));
+    data.gbperf = (data.gbperf || []).filter(x => !ids.has(x.id));
+  }
+
+  gbIt = null; gbWb = null;
+  markDirtyAll(); render();
+  toast('🧹 ' + nm + ' 님 자료 ' + n + '개를 휴지통으로 보냈습니다');
+}
+
+/* 자료를 치운 뒤 계정까지 — 이건 진짜 끝입니다 (되돌리기 없음) */
+async function wipeAccount(){
+  if(!isAdmin()){ toast('⚠️ 관리자만 할 수 있습니다'); return; }
+  const who = wipeWho, nm = peopleName(who) || who;
+  const f = wipeFind(who);
+  if(f.total && !confirm('아직 ' + nm + ' 님 앞으로 자료 ' + f.total + '개가 남아 있습니다.\n\n'
+    + '계정을 지우면 이름을 알려줄 곳이 없어져서, 남은 자료에 이름 대신 '
+    + '아이디(' + who + ')가 찍힙니다.\n\n그래도 계정을 지울까요?')) return;
+  if(!confirm('"' + who + '" 계정을 아예 지울까요?\n\n이건 되돌릴 수 없습니다.')) return;
+  try{
+    const o = await authPost('deluser', { id: who });
+    toast('🗑️ ' + (o['안내'] || '지웠습니다'));
+    wipeWho = '';
+    loadUsers(); loadPeople(true); render();
+  }catch(e){ alert(e.message); }
+}
+
+/* 정리판 — 무엇이 얼마나 남았는지 보여주고 고르게 합니다 */
+function wipePanel(){
+  if(!wipeWho) return '';
+  const who = wipeWho, nm = peopleName(who) || who;
+  const f = wipeFind(who);
+  const row = (k, ic, label, n, note) => '<label class="wz-r' + (n ? '' : ' off') + '">'
+    + '<input type="checkbox"' + (wipePick[k] && n ? ' checked' : '')
+      + (n ? '' : ' disabled') + ' onchange="wipeToggle(\'' + k + '\')">'
+    + '<span class="ic">' + ic + '</span>'
+    + '<span class="nm">' + label + '</span>'
+    + '<span class="ct">' + (n ? '<b>' + n + '</b>' + (note || '') : '없음') + '</span>'
+    + '</label>';
+
+  return '<div class="modal-bg open" onclick="if(event.target===this)wipeClose()">'
+    + '<div class="modal" style="max-width:620px">'
+    + '<h3>🧹 ' + esc(nm) + ' 님이 남긴 자료</h3>'
+    + '<div class="fmeta" style="margin:-4px 0 12px">지울 것을 고르세요. '
+      + '휴지통으로 가니 30일 안에는 되돌릴 수 있습니다.</div>'
+    + '<div class="wz-list">'
+      + row('growth', '📈', '그로스보드', f.growth.length,
+            f.items ? ' <span>· 한 일 ' + f.items + '건</span>' : '')
+      + row('tasks',  '✅', '맡고 있던 할 일', f.tasks.length, '')
+      + row('boards', '🧩', '그로스보드에서 만든 판', f.boards.length, '')
+      + row('perf',   '📊', '성과 정리 (예전 자료)', f.perf.length, '')
+    + '</div>'
+    + '<div class="ainote" style="margin-top:12px">'
+      + '🗣️ <b>회의록 · 일정 · 명함은 건드리지 않습니다.</b> '
+      + '거기 적힌 이름은 계정이 아니라 그냥 적어둔 글자라, '
+      + '누가 쓴 것인지 기계가 확실히 알 수 없기 때문입니다. '
+      + '지우시려면 그 화면에서 하나씩 지워주세요.</div>'
+    + '<div class="modal-actions" style="flex-wrap:wrap;gap:6px">'
+      + '<button class="btn" onclick="wipeClose()">닫기</button>'
+      + '<button class="btn danger" onclick="wipeAccount()">👤 계정도 지우기</button>'
+      + '<button class="btn danger" onclick="wipeGo()"' + (f.total ? '' : ' disabled')
+        + '>🗑 고른 것 휴지통으로 (' + f.total + ')</button>'
+    + '</div></div></div>';
+}
 
 /* ── 그로스보드 안의 화이트보드 ────────────────────────────────
    보드 전체에 하나, 업무마다 하나씩 판을 붙일 수 있습니다.
@@ -16815,6 +16999,11 @@ function trashRestore(tid){
     if(data.boards.some(x => x.id === t.내용.id)){ toast('⚠️ 같은 판이 이미 있습니다'); return; }
     data.boards.unshift(t.내용);
     deletedIds.delete(t.내용.id);
+  }else if(w.kind === 'gbboard'){
+    if(!Array.isArray(data.growth)) data.growth = [];
+    if(data.growth.some(x => x.id === t.내용.id)){ toast('⚠️ 같은 보드가 이미 있습니다'); return; }
+    data.growth.push(t.내용);
+    deletedIds.delete(t.내용.id);
   }else if(w.kind === 'gbstage' || w.kind === 'gbitem'){
     const g = (data.growth || []).find(x => x.id === w.boardId);
     if(!g){
@@ -17907,6 +18096,9 @@ function usersPanel(){
                     + '\'관리자에서 내릴까요?\')">팀원으로</button> '
                   : '<button class="btn sm" onclick="setUser(\'' + jsq(u.id) + '\',{admin:true},'
                     + '\'관리자로 올릴까요? 사람을 넣고 뺄 수 있게 됩니다.\')">관리자로</button> ')
+              + (u['쓸수있음'] ? ''
+                  : '<button class="btn sm danger" onclick="wipeOpen(\'' + jsq(u.id) + '\')" '
+                    + 'title="이 사람이 남긴 보드·할 일을 한 번에 정리합니다">🧹 남긴 자료</button> ')
               + (me ? '' : '<button class="btn sm danger" onclick="delUser(\'' + jsq(u.id) + '\')">지우기</button>')
             + '</td></tr>';
         }).join('')

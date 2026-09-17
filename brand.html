@@ -2446,7 +2446,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-69';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-70';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13631,6 +13631,21 @@ function ruleAreas(b){
 }
 let ruleAt = '';        // 골라 둔 자리 ('' 이면 다 보기)
 function setRuleAt(a){ ruleAt = (ruleAt === a ? '' : a); render(); }
+
+/* 걸어온 길 — 연도로 골라 보기.
+   마디가 쌓이면 스크롤이 길어집니다. 「2025년에 무슨 일이 있었지」 를
+   볼 때 위아래로 훑지 않고 바로 그 해만 보게 합니다. */
+let chapAt = '';
+function setChapAt(y){ chapAt = (chapAt === y ? '' : y); render(); }
+function chapYearList(line){
+  const n = {}, order = [];
+  line.forEach(c => {
+    const y = chapYear(c) || '때 미상';
+    if(n[y] === undefined){ n[y] = 0; order.push(y); }
+    n[y]++;
+  });
+  return order.map(y => ({ name: y, n: n[y] }));   // 이미 때 순서로 세워져 있습니다
+}
 /* 장에 적는 칸 — [열쇠, 이름, 안내글] */
 const PATH_FIELDS = [
   ['body',   '한 일',               '무엇을 했는지 · 어디까지 갔는지 (진행사항)'],
@@ -14586,9 +14601,22 @@ function pathReadHtml(b){
     ? '<div class="pw-meta">' + tag.map(t => '<span>' + esc(t) + '</span>').join('') + '</div>'
     : '';
 
+  // 연도 고르개 — 해가 둘 이상일 때만 띄웁니다
+  const yrs2 = chapYearList(line);
+  const cAt  = yrs2.some(y => y.name === chapAt) ? chapAt : '';
+  const yPick = yrs2.length > 1
+    ? '<div class="ob-at">'
+      + '<button class="' + (cAt ? '' : 'on') + '" onclick="setChapAt(\'\')">'
+        + '전부 <b>' + line.length + '</b></button>'
+      + yrs2.map(y => '<button class="' + (cAt === y.name ? 'on' : '') + '" onclick="setChapAt(\''
+          + jsq(y.name) + '\')">' + esc(y.name) + ' <b>' + y.n + '</b></button>').join('')
+      + '</div>'
+    : '';
+
   let yr = null, rail = '';
   line.forEach((c, k) => {
     const y = chapYear(c);
+    if(cAt && (y || '때 미상') !== cAt) return;      // 고른 해가 아니면 건너뜁니다
     if(y !== yr){
       yr = y;
       rail += '<div class="pw-yr"><b>' + esc(y || '때 미상') + '</b><i></i></div>';
@@ -14600,6 +14628,7 @@ function pathReadHtml(b){
     '기획서가 한 장씩 쌓여 이 줄기가 됩니다 — 위의 규칙이 어디서 왔는지',
     meta
     + (sum ? '<p class="pw-sum">' + esc(sum) + '</p>' : '')
+    + yPick
     + (line.length
         ? '<div class="pw-line">' + rail + '</div>'
         : (sum ? '' : none('아직 없습니다 — 기획서를 올리면 한 장이 한 칸이 됩니다. '

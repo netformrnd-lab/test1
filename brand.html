@@ -1110,6 +1110,21 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-what{margin:0;font-size:15.5px;font-weight:700;line-height:1.85;
   color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
 .pw-none2{margin:0;font-size:13px;color:var(--text-muted);line-height:1.8}
+
+/* 지침서를 글로 붙여넣는 칸 */
+.pt-box{border:1px solid var(--blue);border-radius:12px;background:var(--bg-card);
+  padding:13px 15px;margin:0 0 14px}
+.pt-box .ph{font-size:13.5px;font-weight:800;color:var(--text-primary);margin-bottom:9px}
+.pt-box .ph span{display:block;font-size:11.5px;font-weight:400;color:var(--text-muted);
+  margin-top:2px}
+.pt-box textarea{width:100%;box-sizing:border-box;min-height:200px;font-family:inherit;
+  font-size:14px;line-height:1.85;padding:11px 13px;border-radius:10px;
+  border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);
+  resize:vertical}
+.pt-box textarea:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px var(--blue-soft)}
+.pt-box .pa{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pt-box .pa .hint{font-size:11.5px;color:var(--text-muted);word-break:keep-all}
 .gonecard.stale{border-color:var(--amber,#f59e0b);
   background:rgba(245,158,11,.08);color:var(--text-primary)}
 
@@ -2413,7 +2428,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-67';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-68';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13876,6 +13891,93 @@ function docKindOf(k){ return DOC_KINDS[k] || DOC_KINDS.auto; }
 
 let pathDocTo = '';
 let pathDocKind = 'auto';
+
+/* 지침서는 대개 「문서」 라기보다 그냥 적어 둔 규칙 몇 줄입니다.
+   파일로 만들어 올리게 하면 그것부터 귀찮아서 안 씁니다.
+   그래서 붙여넣기만으로 되게 합니다 — 붙여넣은 글도 .txt 로 남겨
+   나중에 「이 규칙이 어디서 왔나」 를 볼 수 있게 합니다. */
+let pathTextTo = '';
+let pathTextKind = 'guide';
+function pathTextOpen(bid, kind){
+  pathTextTo = bid;
+  pathTextKind = DOC_KINDS[kind] ? kind : 'guide';
+  render();
+  const el = document.getElementById('pathTextBox');
+  if(el){ el.focus(); el.scrollIntoView({ behavior:'smooth', block:'center' }); }
+}
+function pathTextClose(){ pathTextTo = ''; render(); }
+
+function pathStamp(){
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate())
+       + ' ' + z(d.getHours()) + z(d.getMinutes());
+}
+
+async function pathTextGo(bid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const el = document.getElementById('pathTextBox');
+  const txt = el ? String(el.value || '').trim() : '';
+  if(txt.length < 30){ toast('⚠️ 너무 짧습니다 — 규칙을 몇 줄이라도 적어주세요'); return; }
+  const kind = pathTextKind;
+  pathTextTo = '';
+  pathMine[bid] = { busy:true, step:'글을 남기는 중…', err:'', no:'', half:'',
+                    kind: kind, done:null, doc:null, txt:'' };
+  render();
+  try{
+    const nm = docKindOf(kind).name + ' ' + pathStamp() + '.txt';
+    const fd = new FormData();
+    fd.append('brand', b.name); fd.append('sub', '기록부');
+    fd.append('file', new File([txt], nm, { type:'text/plain;charset=utf-8' }));
+    const res  = await fetch('files.php?action=upload', { method:'POST', body: fd });
+    const body = await res.text();
+    let out = null;
+    try{ out = JSON.parse(body); }catch(e){}
+    if(out === null) throw new Error('서버 응답 이상 (HTTP ' + res.status + ') → '
+      + body.slice(0, 200).replace(/\s+/g, ' '));
+    if(!out.ok) throw new Error(out.error || '글을 남기지 못했습니다');
+    pathMine[bid].doc = { id: uid('pd'), name: out.fileName, size: out.fileSize,
+                          filePath: out.filePath || '', at: new Date().toISOString(),
+                          kind: kind, paste: true,
+                          by: (authMe() || {})['이름'] || '' };
+    pathMine[bid].txt = txt;
+    await pathRun(bid);
+  }catch(e){
+    const was = pathMine[bid] || {};
+    pathMine[bid] = { busy:false, err: apiErrText(e), no:'', half:'', done:null,
+                      doc: was.doc || null, txt: was.txt || '' };
+    render();
+  }
+}
+
+/* 붙여넣기 칸 */
+function pathTextHtml(b){
+  if(pathTextTo !== b.id) return '';
+  const bid = jsq(b.id);
+  const K = docKindOf(pathTextKind);
+  return '<div class="pt-box">'
+    + '<div class="ph">' + K.ic + ' ' + esc(K.name) + ' 를 글로 붙여넣기'
+      + '<span>' + esc(K.what) + '</span></div>'
+    + '<textarea id="pathTextBox" placeholder="'
+      + esc(pathTextKind === 'guide'
+          ? '적어 두신 규칙을 그대로 붙여넣으세요. 다듬지 않아도 됩니다.\n\n'
+            + '예)\n말투는 조현식 건축사 1인칭으로 쓴다.\n'
+            + '「국내 유일」, 「10년간 빅데이터」는 쓰지 않는다 — 검증할 수 없어서.\n'
+            + '원고는 자가 점검 15항목을 다 통과한 뒤 임시저장으로 낸다.\n'
+            + '촬영은 단지 동의를 먼저 받는다. 월 2개 단지까지.'
+          : '기획한 것을 그대로 붙여넣으세요.\n\n'
+            + '예)\n블로그 채널 개설 (2026.03)\n'
+            + '관리주체가 감리가 뭔지 몰라 문의 전에 이탈해서 시작했다.\n'
+            + '감리 절차를 설명하는 글을 주 2회 올리기로 했다.\n'
+            + '결과: 6개월 24편. 유입 월 40 → 310. 문의 3건.')
+      + '"></textarea>'
+    + '<div class="pa">'
+      + '<button class="btn sm primary" onclick="pathTextGo(\'' + bid + '\')">'
+        + '🤖 이 글로 채우기</button>'
+      + '<button class="btn sm" onclick="pathTextClose()">닫기</button>'
+      + '<span class="hint">붙여넣은 글은 ' + esc(K.name)
+        + ' 로 NAS 에 남습니다 — 나중에 어디서 온 규칙인지 볼 수 있게</span>'
+    + '</div></div>';
+}
 function pickPathDoc(bid, kind){
   pathDocTo = bid;
   pathDocKind = DOC_KINDS[kind] ? kind : 'auto';
@@ -14327,9 +14429,13 @@ function pathViewHtml(b){
     + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\',\'plan\')" '
       + 'title="기획서 · 제안서 — 무엇을 했고 어떻게 됐는지를 걸어온 길에 쌓습니다">'
       + '📋 기획서 올리기</button>'
-    + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\',\'guide\')" '
-      + 'title="지침서 · 매뉴얼 · 브랜드북 — 어떻게 일하는지를 지킬 것에 쌓습니다">'
-      + '📐 지침서 올리기</button>'
+    + '<button class="btn sm primary' + (pathTextTo === b.id ? ' on' : '') + '" '
+      + 'onclick="pathTextOpen(\'' + bid + '\',\'guide\')" '
+      + 'title="적어 둔 규칙을 그대로 붙여넣으면 됩니다 — 파일로 만들지 않아도 됩니다">'
+      + '📐 지침서 글로 쓰기</button>'
+    + '<button class="btn sm" onclick="pickPathDoc(\'' + bid + '\',\'guide\')" '
+      + 'title="지침서 · 매뉴얼 · 브랜드북 파일이 있으면 올리세요">'
+      + '📎 지침서 파일</button>'
     + '<a class="btn sm" href="기획서양식-v1.1.xlsx" download '
       + 'title="이 양식으로 기획서를 쓰면 결과까지 그대로 온보딩에 쌓입니다">'
       + '📋 기획서 양식</a>'
@@ -14339,7 +14445,7 @@ function pathViewHtml(b){
       + 'onchange="uploadChapImg(this.files); this.value=\'\'">'
     + '<input type="file" id="pathDocInput" style="display:none" '
       + 'onchange="uploadPathDoc(this.files); this.value=\'\'">';
-  return bar + pathMineHtml(b)
+  return bar + pathTextHtml(b) + pathMineHtml(b)
     + (pathEdit ? pathEditHtml(b) : pathReadHtml(b));
 }
 

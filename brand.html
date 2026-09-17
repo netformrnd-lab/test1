@@ -1101,12 +1101,12 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob{padding:22px 0;border-bottom:1px solid var(--border)}
 .ob:last-of-type{border-bottom:none}
 .ob-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:12px}
-.ob-h .no{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--ink);
-  color:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;
+.ob-h .no{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--ink);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;
   font-weight:800;align-self:center}
-.ob-h h3{margin:0;font-size:16.5px;font-weight:800;color:var(--text-primary);
-  letter-spacing:-.024em}
-.ob-h .hn{font-size:11.5px;color:var(--text-muted)}
+.ob-h h3{margin:0;font-size:21px;font-weight:800;color:var(--text-primary);
+  letter-spacing:-.03em}
+.ob-h .hn{font-size:12.5px;color:var(--text-muted)}
 .ob-what{margin:0;font-size:15.5px;font-weight:700;line-height:1.85;
   color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
 .pw-none2{margin:0;font-size:13px;color:var(--text-muted);line-height:1.8}
@@ -1217,15 +1217,27 @@ table.itable tr:hover td{background:var(--bg-hover)}
   background:var(--bg-card);color:var(--text-primary)}
 .pe-rl .rh input.dy:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px var(--blue-soft)}
-.ob-rk{margin-bottom:16px}
+/* 갈래 머리 — 「쓰는 말」 과 「안 쓰는 말」 을 헷갈리면 금지어를 그대로 씁니다.
+   작은 회색 글씨로는 구별이 안 되므로, 크게 쓰고 갈래마다 색을 나눕니다. */
+.ob-rk{margin-bottom:20px;padding:12px 15px;border-radius:12px;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-left:5px solid var(--hue,var(--border))}
 .ob-rk:last-child{margin-bottom:0}
-.ob-rk .kh{font-size:11.5px;font-weight:800;color:var(--text-muted);margin-bottom:7px;
-  letter-spacing:.01em}
-.ob-r{margin-bottom:11px}
-.ob-r:last-child{margin-bottom:0}
-.ob-r .tx{margin:0;font-size:14.5px;font-weight:700;line-height:1.75;
+.ob-rk .kh{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;
+  color:var(--hue,var(--text-primary));margin-bottom:12px;letter-spacing:-.02em}
+.ob-rk .kh b{font-size:12px;font-weight:800;color:#fff;background:var(--hue,var(--ink));
+  border-radius:99px;padding:2px 9px;min-width:20px;text-align:center;
+  font-variant-numeric:tabular-nums}
+.ob-rk.k-tone{--hue:var(--blue)}
+.ob-rk.k-yes {--hue:var(--green)}
+.ob-rk.k-no  {--hue:var(--red);background:rgba(239,68,68,.05)}
+.ob-rk.k-how {--hue:var(--purple)}
+.ob-rk.k-etc {--hue:var(--text-muted)}
+.ob-r{margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed var(--border-light)}
+.ob-r:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.ob-r .tx{margin:0;font-size:15.5px;font-weight:700;line-height:1.8;
   color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
-.ob-r .wy{margin:3px 0 0;font-size:13px;line-height:1.7;color:var(--text-secondary)}
+.ob-r .wy{margin:5px 0 0;font-size:13.5px;line-height:1.75;color:var(--text-secondary)}
 .ob-q{margin-top:6px;padding:7px 11px;border-left:3px solid var(--purple);
   background:var(--bg-input);border-radius:0 9px 9px 0;font-size:12px;
   color:var(--text-secondary);line-height:1.65}
@@ -2446,7 +2458,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-74';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-75';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -13597,11 +13609,11 @@ const PATH_KIND_OLD = { '해낸 것':'해냈다', '접은 것':'접었다' };
 
 /* 2. 여기서 일할 때 지킬 것 — 신입이 첫날 제일 급하게 알아야 하는 것 */
 const RULE_KINDS = [
-  { k:'말투',         ic:'🗣️' },
-  { k:'쓰는 말',      ic:'✔️' },
-  { k:'안 쓰는 말',   ic:'✕'  },
-  { k:'지키는 절차',  ic:'📐' },
-  { k:'그 밖',        ic:'•'  }
+  { k:'말투',         ic:'🗣️', cls:'k-tone' },
+  { k:'쓰는 말',      ic:'✔️',  cls:'k-yes'  },
+  { k:'안 쓰는 말',   ic:'✕',  cls:'k-no'   },
+  { k:'지키는 절차',  ic:'📐', cls:'k-how'  },
+  { k:'그 밖',        ic:'•',  cls:'k-etc'  }
 ];
 function pathKindOf(c){
   const k = PATH_KIND_OLD[c.kind] || c.kind || '';
@@ -14651,7 +14663,9 @@ function pathReadHtml(b){
   const byKind = RULE_KINDS.map(k => {
     const mine = rsAt.filter(r => ruleKindOf(r).k === k.k);
     if(!mine.length) return '';
-    return '<div class="ob-rk"><div class="kh">' + k.ic + ' ' + esc(k.k) + '</div>'
+    return '<div class="ob-rk ' + (k.cls || '') + '">'
+      + '<div class="kh">' + k.ic + ' ' + esc(k.k)
+      + '<b>' + mine.length + '</b></div>'
       + mine.map(r => ruleReadHtml(b, r, quoted, at)).join('') + '</div>';
   }).join('');
   const s2 = sec('2', '여기서 일할 때 지킬 것', '신입이 첫날 제일 급하게 알아야 하는 것',

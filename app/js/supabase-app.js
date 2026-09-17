@@ -2147,9 +2147,19 @@ function cancelSchedEdit() {
   const f = $g('sc-form'); if (f) f.style.display = 'none'
 }
 async function deleteSchedApp(id) {
+  const s = (SCHED_ALL || []).find(x => String(x.id) === String(id))
+  if (s && s.source === 'pour') {
+    alert('이 일정은 POUR 영업시스템에서 온 일정이에요.\nPOUR에서 삭제하면 여기서도 자동으로 사라집니다.\n(여기서 지워도 POUR 원본이 남아 다시 불러와져요.)')
+    return
+  }
   if (!confirm('이 일정을 삭제할까요?')) return
-  const { error } = await sb.from('schedules').delete().eq('id', id)
+  // .select() 로 실제 삭제된 행을 받아, 권한(RLS)에 막혀 0건 삭제된 경우도 감지
+  const { data, error } = await sb.from('schedules').delete().eq('id', id).select('id')
   if (error) { alert('삭제 실패: ' + error.message); return }
+  if (!data || !data.length) {
+    alert('이 일정을 삭제할 권한이 없어요.\n관리자 대시보드에서 삭제하거나, 권한 설정(backend/migration-auditor-delete-schedules.sql)이 필요합니다.')
+    return
+  }
   if (String(editSchedId) === String(id)) cancelSchedEdit()
   loadSchedule()
 }

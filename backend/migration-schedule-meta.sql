@@ -8,3 +8,7 @@
 -- ============================================================
 alter table public.schedules  add column if not exists meta    jsonb;
 alter table public.apartments add column if not exists address text;
+
+-- '예정월/미정' 일정타입은 확정일이 없어 date 가 비어야 함 → date NOT NULL 해제.
+--   (기존엔 date not null 이라 예정월/미정 등록 시 "null value ... violates not-null constraint" 오류)
+alter table public.schedules  alter column date drop not null;

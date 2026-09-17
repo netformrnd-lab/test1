@@ -2411,7 +2411,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-65';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-66';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7529,8 +7529,8 @@ function renderGrowth(){
   const ppl  = gbPeople();
 
   const head = '<h2 class="page-h">📈 그로스보드</h2>'
-    + '<div class="page-sub">브랜드마다 「무엇을 만들려 했고, 무엇을 앞단으로 보고, '
-      + '어떻게 집중해서, 어떻게 됐나」 를 발표 틀 그대로 적습니다</div>';
+    + '<div class="page-sub">브랜드마다 「무엇을 · 왜 했고 · 어떻게 됐나」 를 '
+      + '한 일로 남깁니다</div>';
   const box = h => '<div class="panel' + (gbShot ? ' gb-shot' : '') + '">'
     + '<div class="tabbody">' + head + h + '</div></div>';
 
@@ -8015,17 +8015,17 @@ function gbHelpHtml(){
     + '<div class="steps">'
       + step(1, '올해 목표 한 줄', '올해를 무엇으로 기억할 건가')
       + step(2, '브랜드 고르기',   '위 탭에서 브랜드를 고르면 그 브랜드 것만 나옵니다')
-      + step(3, '성과 정리',      '결과 지표 → 선행 지표 → 왜 → 어떻게 → 달성·인과 → 교훈')
+      + step(3, '한 일 남기기',   '무엇을 · 왜 했고 · 어떻게 됐나')
     + '</div>'
-    + '<div class="four"><div class="fh">성과 정리는 이 순서로 적습니다</div>'
-      + row('결과 지표',      '이 브랜드가 올해 만들어야 할 숫자 (지금 → 목표)')
-      + row('선행 지표',      '그 결과를 만드는 앞단 숫자 + 왜 하필 이 지표를 골랐나')
-      + row('왜 · 어떻게',    '막연한 목표는 감점입니다. 무엇에 어떻게 집중했는지')
-      + row('달성 · 인과',    '선행 지표가 결과로 어떻게 이어졌나 — 숫자로')
-      + row('시행착오 → 교훈', '안 된 것도 그대로. 무엇을 배웠는지가 성장입니다')
+    + '<div class="four"><div class="fh">한 일은 이렇게 적습니다</div>'
+      + row('목표 / 문제',   '무엇을 하려 했나 · 무엇이 막혀 있었나')
+      + row('근거',          '왜 그렇게 판단했나')
+      + row('세부 단계',      '실제로 무엇을 했나 — 한 줄에 하나씩')
+      + row('결과',          '그래서 어떻게 됐나. 숫자가 있으면 숫자로')
+      + row('브랜드',        '어느 브랜드 일인지 꼭 골라주세요')
     + '</div>'
-    + '<div class="tip">다 적으면 <b>[🤖 AI 로 다듬기]</b> 로 발표 톤으로 고치고, '
-      + '<b>[📐 판으로]</b> 로 선행 지표 → 결과 지표 흐름도를 만들 수 있습니다.</div>'
+    + '<div class="tip">한 일마다 브랜드가 붙어야 브랜드별로 갈립니다. '
+      + '안 붙은 것이 있으면 <b>[🏷️ 브랜드 정리]</b> 로 한 번에 고칩니다.</div>'
     + '</div>';
 }
 
@@ -8128,7 +8128,13 @@ function gbTplBar(sid){
 
 const GB_STATUS = ['예정', '진행 중', '완료', '보류'];
 
-/* ── 📣 성과 정리 (발표용) ──────────────────────────────────────
+/* ── 📣 성과 정리 — 화면에서 뺐습니다 (v20260917-66) ─────────────
+   결과 지표 · 선행 지표 · 왜 · 어떻게 · 달성·인과 · 교훈 틀은 쓰지
+   않기로 했습니다. 아래 함수들은 아무 데서도 부르지 않습니다.
+   적어 두셨던 내용은 data.gbperf 에 그대로 있으니, 되살리려면
+   gbMyBrandHtml 에서 gbPerfHtml(gbPbId, g.who) 한 줄만 다시 넣으면 됩니다.
+
+   (예전 설명)
    그로스보드는 「무엇을 했다」 를 나열하는 자리가 아니라,
      ① 결과를 만들 선행 지표를 무엇으로 정했나 (왜 이 지표인가)
      ② 거기에 어떻게 집중했나
@@ -8625,7 +8631,7 @@ function gbMyBrandHtml(g, filter){
       + 'onclick="gbToggle(\'gbdone_' + jsq(gbPbId) + '\')">'
       + '<span class="ar">' + (open ? '▼' : '▶') + '</span>'
       + '<span class="nm">📋 ' + esc(gbPbName()) + '에서 한 일</span>'
-      + '<span class="ds">이 브랜드로 해 온 업무 기록 — 위 성과의 근거로 씁니다</span>'
+      + '<span class="ds">이 브랜드로 해 온 업무 기록</span>'
       + '<span class="ct">' + (rows.length ? rows.length + '건' : '비어 있음') + '</span>'
       + '</button>'
     + (open
@@ -8653,7 +8659,10 @@ function gbMyBrandHtml(g, filter){
       + '<button class="btn sm primary" onclick="gbFixOpen()">🏷️ 브랜드 정리 열기</button>'
       + '</div>'
     : '';
-  return warn + gbPerfHtml(gbPbId, g.who) + (filter || '') + done;
+  /* 성과 정리 칸(결과 지표 · 선행 지표 · 왜 · 어떻게 · 달성 · 교훈)은 뺐습니다.
+     그로스보드는 브랜드마다 「한 일」 을 남기는 곳입니다.
+     적어 두셨던 것은 지우지 않고 data.gbperf 에 그대로 있습니다. */
+  return warn + (filter || '') + done;
 }
 
 /* ── 🏷️ 브랜드 정리 ───────────────────────────────────────

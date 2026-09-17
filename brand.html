@@ -740,6 +740,12 @@ table.itable tr:hover td{background:var(--bg-hover)}
   background:transparent!important;box-shadow:none!important}
 .gb-shot .gb-kpi .cell input{background:transparent!important}
 .gb-shot .gb-item,.gb-shot .gb-stage{break-inside:avoid}
+/* 사진 안에서는 한 일마다 속을 다 펴서 담습니다 */
+.gb-full{display:flex;flex-direction:column;gap:10px}
+.gb-full .gb-item{margin-bottom:0}
+.gb-shot .gb-ih{padding:10px 13px}
+.gb-shot .gb-ih .tt{font-size:15px;word-break:break-word}
+.gb-shot .gb-ih .no{width:22px;height:22px;font-size:12px}
 /* 사진으로 뽑을 때 글자로 보여주는 칸 (입력칸은 긴 글이 잘려 나옵니다) */
 .gb-ro{font-size:14px;line-height:1.65;color:var(--text-primary);white-space:pre-wrap;
   word-break:break-word;padding:8px 11px;border:1px solid var(--border);
@@ -2458,7 +2464,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260917-75';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260917-76';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -8684,10 +8690,17 @@ function gbMyBrandHtml(g, filter){
     + (open
         ? '<div class="gb-sb">'
           + (rows.length
-              ? '<div class="gb-list">'
-                + rows.map((r, i) => gbRowHtml(g, r.st, r.it,
-                    (r.st.items || []).indexOf(r.it), { stage: true, no: i + 1 })).join('')
-                + '</div>'
+              ? (gbShot
+                  /* 사진으로 뽑을 때는 접힌 한 줄이 아니라 속을 다 펴서 담습니다 —
+                     「저기 안에 있는 것」 이 다 나와야 하기 때문입니다. */
+                  ? '<div class="gb-full">'
+                    + rows.map((r, i) => gbItemFullHtml(g, r.st, r.it, i,
+                        { stage: true })).join('')
+                    + '</div>'
+                  : '<div class="gb-list">'
+                    + rows.map((r, i) => gbRowHtml(g, r.st, r.it,
+                        (r.st.items || []).indexOf(r.it), { stage: true, no: i + 1 })).join('')
+                    + '</div>')
               : '<div class="empty" style="padding:14px 0">아직 없습니다.</div>')
           + '<button class="gb-add' + (gbTplAt === 'my' ? ' on' : '') + '" '
             + 'onclick="gbAddMine()">＋ 한 일 추가</button>'
@@ -8971,8 +8984,10 @@ function gbDetailHtml(g){
     + '</div></div>';
 }
 
-/* 사진으로 뽑을 때는 목록 대신 속을 다 펴서 그립니다 */
-function gbItemFullHtml(g, st, it, idx){
+/* 사진으로 뽑을 때는 목록 대신 속을 다 펴서 그립니다.
+   opts.stage 면 브랜드 대신 「어느 단계」 를 붙입니다 (브랜드별로 볼 때). */
+function gbItemFullHtml(g, st, it, idx, opts){
+  opts = opts || {};
   const stt = GB_STATUS.indexOf(it.status) >= 0 ? it.status : '진행 중';
   const br  = gbBrandOf(it);
   const acts = (it.acts || []).map((a2, ai) =>
@@ -8981,9 +8996,11 @@ function gbItemFullHtml(g, st, it, idx){
     + '<div class="gb-ih">'
       + '<span class="no">' + (idx + 1) + '</span>'
       + '<span class="tt">' + esc(it.title || '') + '</span>'
-      + (br ? '<span class="chip"' + (br.color ? ' style="border-color:' + esc(br.color)
-                + ';color:' + esc(br.color) + '"' : '') + '>'
-              + esc(br.icon || '🏷️') + ' ' + esc(br.name) + '</span>' : '')
+      + (opts.stage
+          ? '<span class="chip">' + esc(st.label || '') + '</span>'
+          : (br ? '<span class="chip"' + (br.color ? ' style="border-color:' + esc(br.color)
+                    + ';color:' + esc(br.color) + '"' : '') + '>'
+                  + esc(br.icon || '🏷️') + ' ' + esc(br.name) + '</span>' : ''))
       + '<span class="chip">' + esc(stt) + '</span>'
     + '</div>'
     // 아직 안 적은 업무도 사진에는 나옵니다 (전체가 다 보이게)

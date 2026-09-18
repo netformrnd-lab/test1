@@ -1257,6 +1257,65 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-note{width:100%;margin-bottom:9px}
 /* 항목은 카드로 — 가로를 안 쓰고 한 줄로 늘어놓으니 오른쪽이 텅 비고
    글씨가 다 같은 크기여서 무엇이 중요한지 안 보였습니다 */
+/* ── 📇 온보딩 — 목록 + 카드 ──────────────────────────────────
+   왼쪽에서 고르고 오른쪽 한 장으로 봅니다. 한 화면에 한 가지만 놓여서
+   무엇을 읽는 중인지가 분명합니다. */
+.ob-vw{display:flex;gap:6px;margin-top:10px}
+.ob-vw button{font-family:inherit;font-size:11.5px;font-weight:700;padding:4px 11px;
+  border-radius:99px;border:1px solid var(--border);background:var(--bg-card);
+  color:var(--text-secondary);cursor:pointer;white-space:nowrap}
+.ob-vw button:hover{border-color:var(--blue);color:var(--blue)}
+.ob-vw button.on{background:var(--ink);border-color:var(--ink);color:var(--bg-card)}
+
+.ob-pk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;
+  align-items:start;margin-top:2px}
+@media(max-width:820px){.ob-pk{grid-template-columns:1fr}}
+.ob-pk-l{display:flex;flex-direction:column;gap:12px}
+.ob-gp{padding:14px 15px;border:1px solid var(--border);border-radius:var(--r);
+  background:var(--bg-card)}
+.ob-gp .gh{margin-bottom:10px}
+.ob-gp .gh .bd{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.01em;
+  color:var(--bg-card);background:var(--ink);border-radius:5px;padding:3px 9px}
+.ob-gp .cs{display:flex;flex-wrap:wrap;gap:7px}
+.ob-ch{font-family:inherit;font-size:13.5px;font-weight:700;letter-spacing:-.01em;
+  padding:8px 14px;border-radius:7px;border:1px solid var(--border);
+  background:var(--bg-card);color:var(--text-secondary);cursor:pointer;
+  word-break:keep-all;text-align:left}
+.ob-ch:hover{border-color:var(--blue);color:var(--blue)}
+.ob-ch.on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:800}
+
+/* 오른쪽 한 장 — 어두운 바탕으로 띄웁니다 (두 테마 모두에서 카드로 읽히게) */
+.ob-cd{padding:22px 24px 20px;border-radius:var(--r);background:#191b20;
+  border:1px solid #2b2e35;color:#f1f2f4}
+body.dark-mode .ob-cd{background:#20242c;border-color:#343943}
+.ob-cd .ey{font-size:11px;font-weight:800;letter-spacing:.18em;color:#9aa1ad;
+  margin-bottom:7px}
+.ob-cd h4{margin:0;font-size:23px;font-weight:800;letter-spacing:-.03em;color:#fff;
+  line-height:1.35;word-break:keep-all}
+.ob-cd .ld{margin:9px 0 0;font-size:14.5px;line-height:1.75;color:#c8ced8;
+  word-break:keep-all}
+.ob-cd .rws{margin-top:16px;border-top:1px solid #33373f}
+.ob-cd .rw{display:flex;gap:16px;align-items:baseline;padding:11px 0;
+  border-bottom:1px solid #33373f}
+.ob-cd .rw:last-child{border-bottom:0}
+.ob-cd .rw .k{flex:0 0 74px;font-size:12px;font-weight:700;color:#9aa1ad}
+.ob-cd .rw .v{flex:1 1 auto;min-width:0;font-size:14.5px;font-weight:700;
+  line-height:1.7;color:#f1f2f4;word-break:keep-all}
+.ob-cd .rw.solo .v{font-weight:700}
+.ob-cd .ft{margin:15px 0 0;font-size:12px;line-height:1.65;color:#868d99}
+.ob-cd .ft b{color:#b9c0cb}
+@media(max-width:560px){
+  .ob-cd{padding:18px 17px 16px}
+  .ob-cd h4{font-size:20px}
+  .ob-cd .rw{flex-direction:column;gap:3px}
+  .ob-cd .rw .k{flex:0 0 auto}
+}
+/* 고치기 — 묶음 칸 */
+.ob-it.ed .ih input.gp{flex:0 0 170px;min-width:0;box-sizing:border-box;
+  font-family:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--border);
+  border-radius:8px;background:var(--bg-input);color:var(--text-secondary)}
+.ob-it.ed .ih input.gp:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px var(--blue-soft)}
 .ob-its{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:13px}
 .ob-its.ed{display:flex;flex-direction:column;gap:9px}
 .ob-it{padding:16px 18px;border:1px solid var(--border);border-radius:var(--r);
@@ -3023,7 +3082,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-98';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-99';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3769,16 +3828,22 @@ function inquiryStats(brandName){
 function obSeed(){
   const S = (icon, title, note, items) => ({ id: uid('os'), icon, title, note,
     items: items.map(it => ({ id: uid('oi'), title: it[0], body: it[1] || '',
+      group: it[3] || '',
       kids: (it[2] || []).map(k => ({ id: uid('ok'), title: k[0], body: k[1] || '' })) })) });
   return [
     S('🏢', '운영 브랜드', '제조사가 개발 · 생산 · 브랜드운영 · 마케팅 · 유통 전 과정을 담당합니다', [
-      ['운영 브랜드', '', [
-        ['(법인) 넷폼', 'POUR공법 · POUR솔루션 · 슈어포인트 · 단지온'],
-        ['(법인) 수케이 건축사사무소', '아파트스퀘어']
-      ]],
-      ['OBM', '', [
-        ['POUR공법', ''], ['CNC공법', ''], ['The-K공법', '']
-      ]]
+      ['POUR공법',   '자사 공법 기반 시공 브랜드',
+       [['구분', '운영 브랜드 · 넷폼'], ['고객', 'B2B 시공 · 유통 파트너'],
+        ['담당', '전략마케팅팀 · 기존 브랜드 정리 진행']], '넷폼'],
+      ['POUR솔루션', '', [['구분', '운영 브랜드 · 넷폼']], '넷폼'],
+      ['슈어포인트',  '', [['구분', '운영 브랜드 · 넷폼']], '넷폼'],
+      ['단지온',     '', [['구분', '운영 브랜드 · 넷폼']], '넷폼'],
+      ['아파트스퀘어', '',
+       [['구분', '운영 브랜드 · 수케이 건축사사무소'], ['담당', '전략마케팅팀 · 경선님']],
+       '수케이 건축사사무소'],
+      ['POUR공법(OBM)', '공법 기반 브랜드', [['구분', 'OBM']], 'OBM'],
+      ['CNC공법',   '공법 기반 브랜드', [['구분', 'OBM']], 'OBM'],
+      ['The-K공법', '공법 기반 브랜드', [['구분', 'OBM']], 'OBM']
     ]),
     S('🎯', '브랜드마케팅팀 역할', '', [
       ['① 브랜드 – 고객 연결', '', [
@@ -3829,6 +3894,25 @@ function obOf(){
 }
 let obEdit = false;
 let obAt = '';          // 지금 열어 둔 단 (빈 값이면 첫 단)
+/* ── 목록 + 카드 ─────────────────────────────────────────────
+   항목이 여럿이면 전부 늘어놓지 않고 왼쪽에서 고르고 오른쪽 카드로 봅니다.
+   한 화면에 한 가지만 놓이니 무엇을 읽는 중인지가 분명해집니다.
+   전부 한눈에 보고 싶을 때가 있어서 [▤ 전부] 로 돌릴 수 있게 둡니다.
+   ------------------------------------------------------------ */
+let obAll  = false;     // 참이면 옛 방식(카드를 전부 깔기)
+let obPick = {};        // 단 id → 골라 둔 항목 id
+function obSetAll(v){ obAll = !!v; render(); }
+function obPickGo(sid, iid){ obPick[sid] = iid; render(); }
+/* 항목을 묶음(법인 · 팀 …)으로 나눕니다 — 묶음이 하나도 없으면 한 덩어리 */
+function obGroups(sc){
+  const g = [], by = {};
+  (sc.items || []).forEach(it => {
+    const k = String(it.group || '').trim();
+    if(by[k] === undefined){ by[k] = g.length; g.push({ name: k, items: [] }); }
+    g[by[k]].items.push(it);
+  });
+  return g;
+}
 function obToggleEdit(){ obEdit = !obEdit; render(); }
 function obGo(sid){ obAt = sid; render();
   setTimeout(() => {
@@ -3844,6 +3928,29 @@ function obCount(sc){
   return n + '가지' + (k ? ' · 세부 ' + k : '');
 }
 function obMark(){ const d = data; markDirtyAll(); }
+
+/* 하위 여럿을 「항목」 으로 올립니다 — 원래 항목 이름이 묶음이 됩니다.
+   얼굴이 바뀌기 전에는 「운영 브랜드」 한 항목 밑에 법인을 하위로 적었습니다.
+   목록+카드에서는 브랜드 하나가 칩 하나여야 골라서 볼 수 있습니다.
+   손으로 여덟 줄을 다시 치게 하면 아무도 안 바꿉니다. */
+function obItSplit(sid, iid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const i = sc.items.findIndex(x => x.id === iid); if(i < 0) return;
+  const it = sc.items[i];
+  const ks = (it.kids || []).filter(k => String(k.title || '').trim());
+  if(!ks.length){ toast('하위가 없어서 올릴 것이 없습니다'); return; }
+  if(!confirm('「' + (it.title || '') + '」 의 하위 ' + ks.length + '개를 '
+    + '각각 항목으로 올립니다.\n\n묶음 이름은 「' + (it.title || '') + '」 이 됩니다. '
+    + '읽기 화면에서 하나씩 골라 볼 수 있게 됩니다.')) return;
+  const made = ks.map(k => ({ id: uid('oi'), title: String(k.title || '').trim(),
+    body: String(k.body || '').trim(), group: String(it.title || '').trim(), kids: [] }));
+  sc.items.splice(i, 1, ...made);
+  deletedIds.add(it.id);
+  (it.kids || []).forEach(k => { if(k && k.id) deletedIds.add(k.id); });
+  obPick[sid] = made[0].id;
+  obMark(); render();
+  toast('⤵ ' + made.length + '개를 항목으로 올렸습니다');
+}
 
 function obSecAdd(){
   obOf().push({ id: uid('os'), icon:'📌', title:'새 단', note:'', items:[] });
@@ -3945,8 +4052,23 @@ function renderOnboard(){
         + '<input class="ob-note" value="' + esc(sc.note) + '" placeholder="한 줄 설명 (선택)" '
           + 'oninput="obSecSet(\'' + sid + '\',\'note\', this.value)">'
       : '<div class="ob-sh"><h3>' + esc(sc.icon) + ' ' + esc(sc.title) + '</h3>'
-        + (sc.note ? '<p>' + esc(sc.note) + '</p>' : '') + '</div>';
+        + (sc.note ? '<p>' + esc(sc.note) + '</p>' : '')
+        + (sc.items.length > 1
+            ? '<div class="ob-vw">'
+              + '<button class="' + (obAll ? '' : 'on') + '" onclick="obSetAll(0)" '
+                + 'title="왼쪽에서 고르고 오른쪽 카드로 봅니다">📇 카드로</button>'
+              + '<button class="' + (obAll ? 'on' : '') + '" onclick="obSetAll(1)" '
+                + 'title="전부 한 화면에 늘어놓습니다">▤ 전부</button>'
+              + '</div>'
+            : '')
+        + '</div>';
 
+    const gOpts = obEdit
+      ? '<datalist id="obGroupList">'
+        + obGroups(sc).map(g => g.name).filter(Boolean)
+          .map(v => '<option value="' + esc(v) + '">').join('')
+        + '</datalist>'
+      : '';
     const items = sc.items.map(it => {
       const iid = jsq(it.id);
       const kids = it.kids.map(k => {
@@ -3971,8 +4093,17 @@ function renderOnboard(){
           + '<div class="ih">'
             + '<input class="it" value="' + esc(it.title) + '" placeholder="항목 이름" '
               + 'oninput="obItSet(\'' + sid + '\',\'' + iid + '\',\'title\', this.value)">'
+            /* 같은 묶음 이름을 적은 항목끼리 읽기 화면에서 한 덩어리로 묶입니다 */
+            + '<input class="gp" value="' + esc(it.group || '') + '" '
+              + 'placeholder="묶음 (선택) — 예) 넷폼 · OBM" list="obGroupList" '
+              + 'oninput="obItSet(\'' + sid + '\',\'' + iid + '\',\'group\', this.value)">'
             + '<button class="btn sm" onclick="obKidAdd(\'' + sid + '\',\'' + iid
               + '\')">＋ 하위</button>'
+            + ((it.kids || []).length > 1
+                ? '<button class="btn sm" onclick="obItSplit(\'' + sid + '\',\'' + iid
+                  + '\')" title="하위 하나하나를 항목으로 올립니다 — '
+                  + '읽기 화면에서 골라 볼 수 있게 됩니다">⤵ 하위를 항목으로</button>'
+                : '')
             + '<button class="x" onclick="obItDel(\'' + sid + '\',\'' + iid + '\')">✕</button>'
           + '</div>'
           + '<textarea rows="1" placeholder="설명 (선택)" '
@@ -3988,10 +4119,50 @@ function renderOnboard(){
           + '</div>';
     }).join('');
 
-    return '<section class="ob-sec">' + head
-      + (items
+    /* 📇 목록 + 카드 — 왼쪽에서 고르고 오른쪽 카드로 봅니다 */
+    const mdOn = !obEdit && !obAll && sc.items.length > 1;
+    let md = '';
+    if(mdOn){
+      const pick = sc.items.some(x => x.id === obPick[sc.id])
+        ? obPick[sc.id] : sc.items[0].id;
+      const gs = obGroups(sc);
+      const left = gs.map(g => '<div class="ob-gp">'
+        + (g.name
+            ? '<div class="gh"><span class="bd">' + esc(g.name) + '</span></div>' : '')
+        + '<div class="cs">' + g.items.map(it =>
+            '<button class="ob-ch' + (it.id === pick ? ' on' : '') + '" '
+            + 'onclick="obPickGo(\'' + sid + '\',\'' + jsq(it.id) + '\')">'
+            + esc(String(it.title || '').trim() || '이름 없음') + '</button>').join('')
+        + '</div></div>').join('');
+      const it = sc.items.find(x => x.id === pick) || sc.items[0];
+      const rows = (it.kids || []).map(k => {
+        const kt = String(k.title || '').trim(), kb = String(k.body || '').trim();
+        if(!kt && !kb) return '';
+        /* 이름만 있고 설명이 없으면 이름이 곧 내용입니다 (조직도 줄) */
+        if(!kb) return '<div class="rw solo"><span class="v">' + esc(kt) + '</span></div>';
+        return '<div class="rw">' + (kt ? '<span class="k">' + esc(kt) + '</span>' : '')
+          + '<span class="v">' + esc(kb).replace(/\n/g, '<br>') + '</span></div>';
+      }).join('');
+      md = '<div class="ob-pk">'
+        + '<div class="ob-pk-l">' + left + '</div>'
+        + '<div class="ob-pk-r"><div class="ob-cd">'
+          + '<div class="ey">' + esc(sc.title || '') + '</div>'
+          + '<h4>' + esc(String(it.title || '').trim() || '이름 없음') + '</h4>'
+          + (String(it.body || '').trim()
+              ? '<p class="ld">' + esc(it.body).replace(/\n/g, '<br>') + '</p>' : '')
+          + (rows ? '<div class="rws">' + rows + '</div>' : '')
+          + '<p class="ft">왼쪽에서 눌러 카드를 바꿔 보세요. '
+            + '전부 한눈에 보려면 위의 <b>▤ 전부</b>.</p>'
+        + '</div></div></div>';
+    }
+
+    return '<section class="ob-sec">' + gOpts + head
+      + (mdOn ? md : '')
+      + (!mdOn && items
           ? '<div class="ob-its' + (obEdit ? ' ed' : '') + '">' + items + '</div>'
-          : (obEdit ? '' : '<div class="empty" style="padding:8px 0">아직 비어 있습니다.</div>'))
+          : '')
+      + (!mdOn && !items && !obEdit
+          ? '<div class="empty" style="padding:8px 0">아직 비어 있습니다.</div>' : '')
       + (obEdit ? '<button class="gb-add tiny" onclick="obItAdd(\'' + sid
                   + '\')">＋ 항목</button>' : '')
       + '</section>';

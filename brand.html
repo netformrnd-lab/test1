@@ -2833,6 +2833,10 @@ table.itable tr:hover td{background:var(--bg-hover)}
   border:0;border-radius:999px;background:var(--blue);color:#fff;cursor:pointer;
   transition:.14s var(--ease)}
 .vernew button:disabled{opacity:.55;cursor:default}
+/* 브라우저가 옛 파일을 들고 있을 때 — 새 판 알림보다 급합니다 */
+.vernew.stale{background:rgba(217,59,59,.12);color:var(--red);
+  border:1px solid rgba(217,59,59,.3)}
+.vernew.stale button{background:var(--red);border-color:var(--red);color:#fff}
 .chip.new{background:rgba(217,59,59,.10);border-color:rgba(217,59,59,.3);color:var(--red)}
 .cnt.newdot{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 5px;
   border-radius:999px;background:var(--red);color:#fff;font-size:10.5px;font-weight:700;
@@ -3374,7 +3378,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260919-10';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260919-11';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3874,6 +3878,20 @@ async function checkVersion(force){
   if(force) box.style.display = '', box.innerHTML = '확인 중…';
   try{
     const j = await apiJson('save.php?action=version' + (force ? '&force=1' : ''));
+    /* ── 브라우저가 옛 파일을 들고 있는 경우 ────────────────────────
+       NAS 에 새 brand.html 을 올렸는데도 화면이 그대로일 때가 있습니다.
+       브라우저가 예전에 받아 둔 파일을 계속 쓰기 때문입니다.
+       서버가 말하는 판 번호(NAS 파일)와 지금 돌고 있는 판 번호(APP_VER)가
+       다르면 그게 바로 그 상황입니다. 새 판 알림보다 이게 먼저입니다. */
+    const onNas = String((j && j['지금']) || '').trim();
+    if(j && j.ok && onNas && onNas !== APP_VER){
+      box.style.display = '';
+      box.className = 'vernew stale';
+      box.innerHTML = '올려 둔 판은 ' + esc(onNas) + ' 인데 화면은 ' + esc(APP_VER)
+        + ' <button onclick="reloadFresh()">새로 받기</button>';
+      return;
+    }
+    box.className = 'vernew';
     if(j && j.ok && j['새판있음']){
       box.style.display = '';
       box.innerHTML = '새 판 ' + esc(j['최신'])
@@ -3887,6 +3905,11 @@ async function checkVersion(force){
     box.style.display = 'none';
     if(force) toast('확인하지 못했습니다');
   }finally{ verBusy = false; fitTopbar(); }
+}
+
+/* 브라우저가 기억해 둔 옛 파일을 버리고 다시 받습니다 */
+function reloadFresh(){
+  location.replace(location.pathname + '?v=' + Date.now() + location.hash);
 }
 
 async function pullVersion(btn){

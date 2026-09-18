@@ -1209,13 +1209,37 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pw-gap span{font-size:12.5px;line-height:1.6;color:var(--text-muted)}
 .pw-gap .btn{margin-top:4px}
 /* ═══ 🧭 팀 온보딩 ═══ */
+/* 한눈에 보는 카드 — 누르면 아래에 그 단만 펴집니다 */
+.ob-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px;
+  margin:4px 0 20px}
+.ob-card{position:relative;display:flex;flex-direction:column;gap:5px;text-align:left;
+  padding:15px 16px 14px;min-height:126px;cursor:pointer;font-family:inherit;color:inherit;
+  border:1px solid var(--border);border-radius:var(--r);background:var(--bg-card);
+  transition:border-color .15s,transform .15s,box-shadow .15s}
+.ob-card:hover{transform:translateY(-1px);border-color:var(--blue)}
+.ob-card .no{position:absolute;top:13px;right:14px;width:20px;height:20px;border-radius:50%;
+  background:var(--bg-sunken);color:var(--text-muted);display:flex;align-items:center;
+  justify-content:center;font-size:11px;font-weight:800}
+.ob-card .ic{font-size:24px;line-height:1.1}
+.ob-card .ti{font-size:15.5px;font-weight:800;letter-spacing:-.01em;color:var(--text-primary);
+  word-break:keep-all}
+/* 공지사항이 .nt 를 쓰고 있어서 .ds 로 둡니다 (같은 이름이면 상자가 그려집니다) */
+.ob-card .ds{font-size:12px;line-height:1.55;color:var(--text-muted);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ob-card .ct{margin-top:auto;font-size:12px;font-weight:700;color:var(--text-muted)}
+.ob-card.on{border-color:var(--blue);background:rgba(59,130,246,.06);
+  box-shadow:0 0 0 1px var(--blue) inset}
+.ob-card.on .no{background:var(--blue);color:#fff}
+.ob-card.on .ct{color:var(--blue)}
+/* 고른 단이 아래에 펴집니다 */
+.ob-body{border-top:1px solid var(--border);padding-top:18px}
 .ob-wrap{display:flex;flex-direction:column;gap:22px;margin-top:6px}
-.ob-sec{border-left:3px solid var(--blue);padding-left:15px}
+.ob-sec{border-left:0;padding-left:0}
 .ob-sh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:11px}
 .ob-sh .no{flex:0 0 auto;width:21px;height:21px;border-radius:50%;background:var(--blue);
   color:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;
   font-weight:800}
-.ob-sh h3{margin:0;font-size:17px;letter-spacing:-.01em;color:var(--text-primary)}
+.ob-sh h3{margin:0;font-size:19px;letter-spacing:-.015em;color:var(--text-primary)}
 .ob-sh p{margin:0;font-size:13px;color:var(--text-muted)}
 .ob-sh.ed{gap:6px}
 .ob-sh .ic{flex:0 0 52px;text-align:center}
@@ -2854,7 +2878,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-92';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-93';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3659,7 +3683,21 @@ function obOf(){
   return data.onboard;
 }
 let obEdit = false;
+let obAt = '';          // 지금 열어 둔 단 (빈 값이면 첫 단)
 function obToggleEdit(){ obEdit = !obEdit; render(); }
+function obGo(sid){ obAt = sid; render();
+  setTimeout(() => {
+    const el = document.querySelector('.ob-body');
+    if(el) el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }, 30);
+}
+/* 카드에 띄울 한 줄 — 단마다 세는 것이 다릅니다 */
+function obCount(sc){
+  const n = (sc.items || []).length;
+  const k = (sc.items || []).reduce((a, it) => a + ((it.kids || []).length), 0);
+  if(!n) return '아직 비어 있음';
+  return n + '가지' + (k ? ' · 세부 ' + k : '');
+}
 function obMark(){ const d = data; markDirtyAll(); }
 
 function obSecAdd(){
@@ -3731,7 +3769,21 @@ function renderOnboard(){
     + '<span class="hint">우리 팀이 무슨 팀이고 · 무엇을 맡고 · 올해 뭘 하는지. '
       + '새로 온 사람이 첫날 읽는 자리입니다</span></div>';
 
-  const body = secs.map((sc, si) => {
+  /* 한눈에 보라고 카드로 깔아 둡니다. 누르면 그 단만 아래에 펴집니다 —
+     네 단을 통째로 이어 붙이면 스크롤이 길어서 찾기가 힘들었습니다. */
+  const at = secs.some(x => x.id === obAt) ? obAt : (secs[0] ? secs[0].id : '');
+  const cards = '<div class="ob-cards">' + secs.map((sc, si) =>
+    '<button class="ob-card' + (sc.id === at ? ' on' : '') + '" '
+      + 'onclick="obGo(\'' + jsq(sc.id) + '\')">'
+    + '<span class="no">' + (si + 1) + '</span>'
+    + '<span class="ic">' + esc(sc.icon || '📌') + '</span>'
+    + '<span class="ti">' + esc(sc.title || '이름 없는 단') + '</span>'
+    + (sc.note ? '<span class="ds">' + esc(sc.note) + '</span>' : '')
+    + '<span class="ct">' + esc(obCount(sc)) + '</span>'
+    + '</button>').join('') + '</div>';
+
+  const body = secs.filter(sc => sc.id === at).map((sc, _si) => {
+    const si = secs.findIndex(x => x.id === sc.id);
     const sid = jsq(sc.id);
     const head = obEdit
       ? '<div class="ob-sh ed">'
@@ -3747,8 +3799,7 @@ function renderOnboard(){
         + '</span></div>'
         + '<input class="ob-note" value="' + esc(sc.note) + '" placeholder="한 줄 설명 (선택)" '
           + 'oninput="obSecSet(\'' + sid + '\',\'note\', this.value)">'
-      : '<div class="ob-sh"><span class="no">' + (si + 1) + '</span>'
-        + '<h3>' + esc(sc.icon) + ' ' + esc(sc.title) + '</h3>'
+      : '<div class="ob-sh"><h3>' + esc(sc.icon) + ' ' + esc(sc.title) + '</h3>'
         + (sc.note ? '<p>' + esc(sc.note) + '</p>' : '') + '</div>';
 
     const items = sc.items.map(it => {
@@ -3800,8 +3851,8 @@ function renderOnboard(){
     '<div class="panel"><div class="tabbody">'
     + '<h2 class="page-h">🧭 온보딩</h2>'
     + '<div class="page-sub">브랜드마케팅팀이 무슨 팀이고, 무엇을 맡고, 올해 무엇을 하는지</div>'
-    + bar
-    + '<div class="ob-wrap">' + body + '</div>'
+    + bar + cards
+    + '<div class="ob-wrap ob-body">' + body + '</div>'
     + '</div></div>';
   setTimeout(() => {
     document.querySelectorAll('.ob-wrap textarea').forEach(gbGrow);

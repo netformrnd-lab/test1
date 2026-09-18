@@ -1208,6 +1208,50 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pw-gap .t{font-size:14px;font-weight:600;color:var(--text-primary)}
 .pw-gap span{font-size:12.5px;line-height:1.6;color:var(--text-muted)}
 .pw-gap .btn{margin-top:4px}
+/* ═══ 🧭 팀 온보딩 ═══ */
+.ob-wrap{display:flex;flex-direction:column;gap:22px;margin-top:6px}
+.ob-sec{border-left:3px solid var(--blue);padding-left:15px}
+.ob-sh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:11px}
+.ob-sh .no{flex:0 0 auto;width:21px;height:21px;border-radius:50%;background:var(--blue);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;
+  font-weight:800}
+.ob-sh h3{margin:0;font-size:17px;letter-spacing:-.01em;color:var(--text-primary)}
+.ob-sh p{margin:0;font-size:13px;color:var(--text-muted)}
+.ob-sh.ed{gap:6px}
+.ob-sh .ic{flex:0 0 52px;text-align:center}
+.ob-sh .ti{flex:1 1 180px;font-weight:700}
+.ob-sh .ac{margin-left:auto;display:flex;gap:4px}
+.ob-note{width:100%;margin-bottom:9px}
+.ob-it{margin-bottom:12px}
+.ob-it .ih{display:flex;align-items:center;gap:7px}
+.ob-it .ih b{font-size:15px;font-weight:700;color:var(--text-primary)}
+.ob-it > p{margin:3px 0 0;font-size:14px;line-height:1.75;color:var(--text-secondary);
+  white-space:pre-wrap;word-break:break-word}
+.ob-it.ed{padding:11px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--bg-card)}
+.ob-it.ed .it{flex:1;font-weight:700}
+.ob-ks{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-left:13px;
+  border-left:2px solid var(--border)}
+.ob-k{display:flex;flex-wrap:wrap;gap:2px 12px;align-items:baseline}
+.ob-k b{flex:0 0 auto;font-size:14px;font-weight:700;color:var(--text-primary)}
+.ob-k span{flex:1 1 220px;min-width:0;font-size:13.5px;line-height:1.7;
+  color:var(--text-muted);white-space:pre-wrap;word-break:break-word}
+.ob-k.ed{flex-wrap:wrap;gap:6px}
+.ob-k.ed .kt{flex:0 0 150px}
+.ob-k.ed textarea{flex:1 1 200px;min-width:0}
+/* 이 화면 안 칸도 제대로 입혀 줍니다 (앱에 전역 규칙이 없습니다) */
+.ob-wrap input[type=text],.ob-wrap input:not([type]),.ob-wrap textarea{
+  font:inherit;color:inherit;box-sizing:border-box;border:1px solid var(--border);
+  border-radius:9px;padding:7px 10px;background:var(--bg-card);letter-spacing:normal}
+.ob-wrap textarea{width:100%;resize:vertical;min-height:40px;line-height:1.7}
+.ob-wrap input:focus,.ob-wrap textarea:focus{outline:none;border-color:var(--blue)}
+.ob-wrap .x{border:0;background:none;color:var(--text-muted);padding:2px 7px;
+  border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit;flex:0 0 auto}
+.ob-wrap .x:hover{color:var(--red,#ef4444);background:rgba(239,68,68,.09)}
+@media(max-width:640px){
+  .ob-sh .ac{margin-left:0;flex-basis:100%}
+  .ob-k.ed .kt{flex:1 1 100%}
+}
 /* ═══ 📢 공지사항 ═══ */
 .nt{margin:0 0 20px;padding:15px 17px;border:1px solid var(--border);
   border-left:4px solid var(--blue);border-radius:var(--r);background:var(--bg-card)}
@@ -2668,6 +2712,10 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
       <span class="bar" style="background:var(--text-muted)"></span>
       <span class="em">🏠</span><span>홈</span>
     </button>
+    <button class="brand-item home-item" id="obBtn" onclick="goView('onboard')">
+      <span class="bar" style="background:var(--blue)"></span>
+      <span class="em">🧭</span><span>온보딩</span>
+    </button>
     <button class="brand-item home-item" id="nasBtn" onclick="goNas()">
       <span class="bar" style="background:var(--purple)"></span>
       <span class="em">🗂️</span><span>NAS 자료</span>
@@ -2806,7 +2854,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-91';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-92';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3420,7 +3468,8 @@ function render(){
   if(home) home.classList.toggle('on', view === 'home' && !searchQuery && !currentBrandId);
   if(nas)  nas.classList.toggle('on',  view === 'nas'  && !searchQuery);
   /* 명함은 왼쪽에서 뺐습니다 — 단추가 없어도 아래 if(el) 로 그냥 넘어갑니다 */
-  [['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],['growBtn','growth'],
+  [['obBtn','onboard'],
+   ['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],['growBtn','growth'],
    ['costBtn','costs'],['blogBtn','blog'],
    ['trashBtn','trash']].forEach(([id, v]) => {
     const el = document.getElementById(id);
@@ -3453,6 +3502,7 @@ function render(){
   }, 0);
   if(searchQuery.trim()) renderSearch();
   else if(view === 'nas') renderNas();
+  else if(view === 'onboard') renderOnboard();
   else if(view === 'meetings') renderMeetings();
   else if(view === 'calendar') renderCalendar();
   else if(view === 'tasks') renderTasks();
@@ -3540,6 +3590,222 @@ function inquiryStats(brandName){
   const diff = s.lastMonth > 0
     ? Math.round((s.thisMonth - s.lastMonth) / s.lastMonth * 100) : null;
   return { total: rows.length, thisMonth: s.thisMonth, lastMonth: s.lastMonth, diff, latest: s.latest };
+}
+
+/* ═══════════════ 🧭 팀 온보딩 ═══════════════════════════════════
+   「우리 팀이 무슨 팀이고, 무엇을 맡고, 올해 뭘 하나」 를 두는 자리입니다.
+   브랜드 안의 📖 소개가 브랜드 하나를 설명한다면, 여기는 팀을 설명합니다.
+   단(section) → 항목 → 하위항목 두 겹이면 조직도도 역할도 다 담깁니다.
+   ================================================================= */
+function obSeed(){
+  const S = (icon, title, note, items) => ({ id: uid('os'), icon, title, note,
+    items: items.map(it => ({ id: uid('oi'), title: it[0], body: it[1] || '',
+      kids: (it[2] || []).map(k => ({ id: uid('ok'), title: k[0], body: k[1] || '' })) })) });
+  return [
+    S('🏢', '운영 브랜드', '제조사가 개발 · 생산 · 브랜드운영 · 마케팅 · 유통 전 과정을 담당합니다', [
+      ['운영 브랜드', '', [
+        ['(법인) 넷폼', 'POUR공법 · POUR솔루션 · 슈어포인트 · 단지온'],
+        ['(법인) 수케이 건축사사무소', '아파트스퀘어']
+      ]],
+      ['OBM', '', [
+        ['POUR공법', ''], ['CNC공법', ''], ['The-K공법', '']
+      ]]
+    ]),
+    S('🎯', '브랜드마케팅팀 역할', '', [
+      ['① 브랜드 – 고객 연결', '', [
+        ['브랜드 브랜딩',
+         '톤앤매너 · 철학 · 슬로건 · 메시지 접점\n'
+         + '→ 홈페이지 · 영업 소개 자료 · 필드 아이덴티티 등\n'
+         + '→ 일관된 · 통일감 있는 메시지 전달'],
+        ['마케팅 · 콘텐츠 구축', '각 채널로 고객 여정 깔아주기 (콘텐츠 제작)']
+      ]],
+      ['② PM – 신규 프로젝트',
+       '예) 신규 브랜드 런칭, 서비스 확장, 프로젝트성 업무\n일정 · 범위 관리, 협업 조율', []],
+      ['③ 지원 업무',
+       '영업 지원, 각 부서 자원 및 협업 업무\n예) 명함 · PPT 제작(영업용) · 리플릿', []]
+    ]),
+    S('🧭', '팀 체계 (목표 · 목적)', '', [
+      ['① 전략마케팅팀', '브랜드를 개인의 경험이 아닌 회사의 자산으로', [
+        ['하는 일', '팀 내부 정보 비대칭 해소 · 운영팀과 같은 방향 · 프로젝트 관리 · 팀 병목 해소']
+      ]],
+      ['② 콘텐츠마케팅팀', '신규 고객 유입 및 유입된 고객을 충성고객으로', [
+        ['하는 일', '고객을 이해하고 추적해 고객 여정을 세밀하게 설계.\n'
+          + '필요한 메시지 · 콘텐츠 발행'],
+        ['쌓이는 것', '블로그 · 영상 콘텐츠 · 포트폴리오 정리 → 콘텐츠 자산으로 모아 관리']
+      ]],
+      ['③ 미디어마케팅팀', '브랜드를 영상과 이미지로', [
+        ['하는 일', '미디어가 중요해진 시대. 브랜드 메시지 전달력이 높은 형태로 제작']
+      ]]
+    ]),
+    S('📅', '2026년 목표', '팀마다 누가 어느 브랜드를 맡는지', [
+      ['전략마케팅팀 (PM)', '', [
+        ['소라님', '기존 브랜드 정리 — POUR솔루션 · POUR공법 → OBM 브랜드'],
+        ['경선님', '아파트스퀘어 — 정보 비대칭 풀기'],
+        ['다예님', '슈어포인트']
+      ]],
+      ['콘텐츠마케팅팀', '', [
+        ['B2B', '새로 인력 충원'],
+        ['B2C', '새로 인력 충원']
+      ]],
+      ['미디어마케팅팀', '', [
+        ['상기님', '']
+      ]]
+    ])
+  ];
+}
+
+function obOf(){
+  if(!Array.isArray(data.onboard)) data.onboard = obSeed();
+  return data.onboard;
+}
+let obEdit = false;
+function obToggleEdit(){ obEdit = !obEdit; render(); }
+function obMark(){ const d = data; markDirtyAll(); }
+
+function obSecAdd(){
+  obOf().push({ id: uid('os'), icon:'📌', title:'새 단', note:'', items:[] });
+  obMark(); render();
+}
+function obSecSet(sid, f, v){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  sc[f] = v; markDirtyAll();
+}
+function obSecDel(sid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  if(!confirm('"' + (sc.title || '(이름 없음)') + '" 단을 지울까요?\n\n'
+    + '안에 적은 것도 같이 갑니다.\n휴지통으로 갑니다 — 되돌릴 수 있습니다.')) return;
+  trashPut('온보딩 단', sc.title || '(이름 없음)', sc,
+           { kind:'item', type:'onboard', brandId:'' });
+  data.onboard = obOf().filter(x => x.id !== sid);
+  deletedIds.add(sid);
+  markDirtyAll(); render();
+  toast('🗑️ 휴지통으로 보냈습니다');
+}
+function obSecMove(sid, d){
+  const l = obOf(), i = l.findIndex(x => x.id === sid);
+  if(i < 0) return;
+  const j = i + d; if(j < 0 || j >= l.length) return;
+  const t = l[i]; l[i] = l[j]; l[j] = t;
+  obMark(); render();
+}
+function obItAdd(sid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  sc.items.push({ id: uid('oi'), title:'', body:'', kids:[] });
+  obMark(); render();
+}
+function obItSet(sid, iid, f, v){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const it = sc.items.find(x => x.id === iid); if(!it) return;
+  it[f] = v; markDirtyAll();
+}
+function obItDel(sid, iid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  sc.items = sc.items.filter(x => x.id !== iid);
+  obMark(); render();
+}
+function obKidAdd(sid, iid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const it = sc.items.find(x => x.id === iid); if(!it) return;
+  it.kids.push({ id: uid('ok'), title:'', body:'' });
+  obMark(); render();
+}
+function obKidSet(sid, iid, kid, f, v){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const it = sc.items.find(x => x.id === iid); if(!it) return;
+  const k = it.kids.find(x => x.id === kid); if(!k) return;
+  k[f] = v; markDirtyAll();
+}
+function obKidDel(sid, iid, kid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const it = sc.items.find(x => x.id === iid); if(!it) return;
+  it.kids = it.kids.filter(x => x.id !== kid);
+  obMark(); render();
+}
+
+function renderOnboard(){
+  const secs = obOf();
+  const bar = '<div class="sec-bar">'
+    + '<button class="btn' + (obEdit ? ' primary' : '') + '" onclick="obToggleEdit()">'
+      + (obEdit ? '📖 읽기로' : '✏️ 고치기') + '</button>'
+    + (obEdit ? '<button class="btn sm" onclick="obSecAdd()">＋ 단 추가</button>' : '')
+    + '<span class="hint">우리 팀이 무슨 팀이고 · 무엇을 맡고 · 올해 뭘 하는지. '
+      + '새로 온 사람이 첫날 읽는 자리입니다</span></div>';
+
+  const body = secs.map((sc, si) => {
+    const sid = jsq(sc.id);
+    const head = obEdit
+      ? '<div class="ob-sh ed">'
+        + '<input class="ic" value="' + esc(sc.icon) + '" '
+          + 'oninput="obSecSet(\'' + sid + '\',\'icon\', this.value)">'
+        + '<input class="ti" value="' + esc(sc.title) + '" placeholder="단 이름" '
+          + 'oninput="obSecSet(\'' + sid + '\',\'title\', this.value)">'
+        + '<span class="ac">'
+          + (si > 0 ? '<button class="btn sm" onclick="obSecMove(\'' + sid + '\',-1)">↑</button>' : '')
+          + (si < secs.length - 1
+              ? '<button class="btn sm" onclick="obSecMove(\'' + sid + '\',1)">↓</button>' : '')
+          + '<button class="btn sm danger" onclick="obSecDel(\'' + sid + '\')">단 삭제</button>'
+        + '</span></div>'
+        + '<input class="ob-note" value="' + esc(sc.note) + '" placeholder="한 줄 설명 (선택)" '
+          + 'oninput="obSecSet(\'' + sid + '\',\'note\', this.value)">'
+      : '<div class="ob-sh"><span class="no">' + (si + 1) + '</span>'
+        + '<h3>' + esc(sc.icon) + ' ' + esc(sc.title) + '</h3>'
+        + (sc.note ? '<p>' + esc(sc.note) + '</p>' : '') + '</div>';
+
+    const items = sc.items.map(it => {
+      const iid = jsq(it.id);
+      const kids = it.kids.map(k => {
+        const kid = jsq(k.id);
+        return obEdit
+          ? '<div class="ob-k ed">'
+            + '<input class="kt" value="' + esc(k.title) + '" placeholder="이름" '
+              + 'oninput="obKidSet(\'' + sid + '\',\'' + iid + '\',\'' + kid + '\',\'title\', this.value)">'
+            + '<textarea rows="1" placeholder="설명 (선택)" '
+              + 'oninput="gbGrow(this);obKidSet(\'' + sid + '\',\'' + iid + '\',\'' + kid + '\',\'body\', this.value)">'
+              + esc(k.body) + '</textarea>'
+            + '<button class="x" onclick="obKidDel(\'' + sid + '\',\'' + iid + '\',\'' + kid
+              + '\')">✕</button></div>'
+          : '<div class="ob-k"><b>' + esc(k.title) + '</b>'
+            + (String(k.body || '').trim() ? '<span>' + esc(k.body) + '</span>' : '') + '</div>';
+      }).join('');
+
+      return obEdit
+        ? '<div class="ob-it ed">'
+          + '<div class="ih">'
+            + '<input class="it" value="' + esc(it.title) + '" placeholder="항목 이름" '
+              + 'oninput="obItSet(\'' + sid + '\',\'' + iid + '\',\'title\', this.value)">'
+            + '<button class="btn sm" onclick="obKidAdd(\'' + sid + '\',\'' + iid
+              + '\')">＋ 하위</button>'
+            + '<button class="x" onclick="obItDel(\'' + sid + '\',\'' + iid + '\')">✕</button>'
+          + '</div>'
+          + '<textarea rows="1" placeholder="설명 (선택)" '
+            + 'oninput="gbGrow(this);obItSet(\'' + sid + '\',\'' + iid + '\',\'body\', this.value)">'
+            + esc(it.body) + '</textarea>'
+          + (kids ? '<div class="ob-ks">' + kids + '</div>' : '')
+          + '</div>'
+        : '<div class="ob-it">'
+          + '<div class="ih"><b>' + esc(it.title) + '</b></div>'
+          + (String(it.body || '').trim() ? '<p>' + esc(it.body) + '</p>' : '')
+          + (kids ? '<div class="ob-ks">' + kids + '</div>' : '')
+          + '</div>';
+    }).join('');
+
+    return '<section class="ob-sec">' + head
+      + (items || (obEdit ? '' : '<div class="empty" style="padding:8px 0">아직 비어 있습니다.</div>'))
+      + (obEdit ? '<button class="gb-add tiny" onclick="obItAdd(\'' + sid
+                  + '\')">＋ 항목</button>' : '')
+      + '</section>';
+  }).join('');
+
+  document.getElementById('main').innerHTML =
+    '<div class="panel"><div class="tabbody">'
+    + '<h2 class="page-h">🧭 온보딩</h2>'
+    + '<div class="page-sub">브랜드마케팅팀이 무슨 팀이고, 무엇을 맡고, 올해 무엇을 하는지</div>'
+    + bar
+    + '<div class="ob-wrap">' + body + '</div>'
+    + '</div></div>';
+  setTimeout(() => {
+    document.querySelectorAll('.ob-wrap textarea').forEach(gbGrow);
+  }, 0);
 }
 
 /* ═══════════════ 📢 공지사항 ═══════════════════════════════════
@@ -6790,7 +7056,7 @@ function renderBrand(){
      자료(b.hist · b.book · b.docs · b.masterPrompt)와 코드는 그대로 있습니다.
        ['book','📕 브랜드'],                                                        */
   const tabDefs = [
-    ['path','🧭 온보딩'],
+    ['path','📖 소개'],
     ['inquiries','📞 문의'],
     ['automations','🤖 자동화 · 바로가기'],
     ['channels','📣 마케팅'],
@@ -16234,7 +16500,7 @@ function pathReadHtml(b){
   const goal = String(F.goal || '').trim();
 
   if(!what && !rs.length && !ws.length && !cs.length && !sum){
-    return '<div class="pw"><div class="pw-none">이 브랜드의 온보딩이 아직 비어 있습니다.'
+    return '<div class="pw"><div class="pw-none">이 브랜드 소개가 아직 비어 있습니다.'
       + '<br><span>문서가 있으면 갈래에 맞게 올리면 됩니다 — '
       + '<b>[📋 기획서]</b> 는 걸어온 길에, <b>[📐 지침서]</b> 는 지킬 것에 쌓입니다.<br>'
       + '없으면 [✏️ 고치기] 에서 <b>1. 이 브랜드는 뭘 하나</b> 부터 적어 보세요.</span>'
@@ -16490,7 +16756,7 @@ function pathReadHtml(b){
 
   return '<div class="pw">'
     + '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
-      + esc(b.name) + ' — 신입 온보딩</div></div>'
+      + esc(b.name) + ' — 브랜드 소개</div></div>'
     /* 5단(첫 2주에 해볼 것)은 뺐습니다 (v20260917-71).
        나머지 네 단은 문서를 올리면 저절로 차오르거나 한 번 적으면 끝인데,
        5단만 사람이 손으로 채워야 했고 누가 언제 오느냐에 따라 달라서
@@ -18808,8 +19074,8 @@ function markDirtyAll(){
 }
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels', 'docs']);
-const TOP_LISTS   = ['notices', 'meetings', 'events', 'trash', 'growth', 'boards', 'gbkpis',
-                     'gbperf', 'cards'];  // 브랜드 밖
+const TOP_LISTS   = ['onboard', 'notices', 'meetings', 'events', 'trash', 'growth', 'boards',
+                     'gbkpis', 'gbperf', 'cards'];  // 브랜드 밖
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
 let revived  = 0;                // 되살린 개수 (알려주기 위해)
@@ -19264,6 +19530,21 @@ function normalize(raw){
     return fresh;
   }
   if(typeof raw._rev !== 'number') raw._rev = 0;
+  if(!Array.isArray(raw.onboard))  raw.onboard  = obSeed();   // 팀 온보딩 (단 하나씩)
+  raw.onboard.forEach(sc => {
+    sc.id = sc.id || uid('os');
+    ['icon','title','note'].forEach(k => { if(typeof sc[k] !== 'string') sc[k] = ''; });
+    if(!Array.isArray(sc.items)) sc.items = [];
+    sc.items.forEach(it => {
+      it.id = it.id || uid('oi');
+      ['title','body'].forEach(k => { if(typeof it[k] !== 'string') it[k] = ''; });
+      if(!Array.isArray(it.kids)) it.kids = [];
+      it.kids.forEach(k2 => {
+        k2.id = k2.id || uid('ok');
+        ['title','body'].forEach(k => { if(typeof k2[k] !== 'string') k2[k] = ''; });
+      });
+    });
+  });
   if(!Array.isArray(raw.notices))  raw.notices  = [];   // 공지사항 (홈 맨 위)
   raw.notices.forEach(n => {
     n.id = n.id || uid('nt');

@@ -1219,26 +1219,29 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pe-wipe .btn{margin-top:5px}
 /* ═══ 🧭 팀 온보딩 ═══ */
 /* 한눈에 보는 카드 — 누르면 아래에 그 단만 펴집니다 */
-/* 단 고르개 — 한 줄짜리 탭. 내용에 닿기까지 읽어야 하는 글씨를 줄입니다 */
-.ob-cards{display:flex;flex-wrap:wrap;gap:7px;margin:6px 0 22px;
-  padding-bottom:16px;border-bottom:1px solid var(--border)}
-.ob-card{display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer;
-  font-family:inherit;padding:9px 15px 9px 12px;border-radius:9px;
-  border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);
-  transition:border-color .15s,background .15s,color .15s}
-.ob-card:hover{border-color:var(--blue);color:var(--blue)}
-.ob-card .no{flex:0 0 auto;width:19px;height:19px;border-radius:50%;
+.ob-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px;
+  margin:4px 0 20px}
+.ob-card{position:relative;display:flex;flex-direction:column;gap:5px;text-align:left;
+  padding:15px 16px 14px;min-height:126px;cursor:pointer;font-family:inherit;color:inherit;
+  border:1px solid var(--border);border-radius:var(--r);background:var(--bg-card);
+  transition:border-color .15s,transform .15s,box-shadow .15s}
+.ob-card:hover{transform:translateY(-1px);border-color:var(--blue)}
+.ob-card .no{position:absolute;top:13px;right:14px;width:20px;height:20px;border-radius:50%;
   background:var(--bg-sunken);color:var(--text-muted);display:flex;align-items:center;
-  justify-content:center;font-size:10.5px;font-weight:800}
-.ob-card .ic{font-size:15px;line-height:1}
-.ob-card .ti{font-size:14.5px;font-weight:700;letter-spacing:-.015em;white-space:nowrap}
-.ob-card.on{background:var(--ink);border-color:var(--ink);color:var(--bg-card)}
-.ob-card.on .no{background:transparent;color:inherit;opacity:.65}
-.ob-card.on .ti{font-weight:800}
-@media(max-width:560px){
-  .ob-cards{flex-wrap:nowrap;overflow-x:auto;padding-bottom:14px}
-  .ob-card{flex:0 0 auto}
-}
+  justify-content:center;font-size:11px;font-weight:800}
+.ob-card .ic{font-size:24px;line-height:1.1}
+.ob-card .ti{font-size:15.5px;font-weight:800;letter-spacing:-.01em;color:var(--text-primary);
+  word-break:keep-all}
+/* 공지사항이 .nt 를 쓰고 있어서 .ds 로 둡니다 (같은 이름이면 상자가 그려집니다) */
+.ob-card .ds{font-size:12px;line-height:1.55;color:var(--text-muted);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ob-card .ct{margin-top:auto;font-size:12px;font-weight:700;color:var(--text-muted)}
+.ob-card.on{border-color:var(--blue);background:rgba(59,130,246,.06);
+  box-shadow:0 0 0 1px var(--blue) inset}
+.ob-card.on .no{background:var(--blue);color:#fff}
+.ob-card.on .ct{color:var(--blue)}
+/* 고른 단이 아래에 펴집니다 */
+.ob-body{border-top:1px solid var(--border);padding-top:18px}
 .ob-wrap{display:flex;flex-direction:column;gap:22px;margin-top:6px}
 .ob-sec{border-left:0;padding-left:0}
 .ob-sh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:11px}
@@ -1252,76 +1255,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-sh .ti{flex:1 1 180px;font-weight:700}
 .ob-sh .ac{margin-left:auto;display:flex;gap:4px}
 .ob-note{width:100%;margin-bottom:9px}
-/* 읽기 — 단 이름을 크게, 설명은 그 아래 한 줄로, 보기 고르개는 오른쪽 끝으로 */
-.ob-sh.rd{display:block;margin-bottom:17px}
-.ob-sh.rd .hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.ob-sh.rd h3{font-size:23px;font-weight:800;letter-spacing:-.03em}
-.ob-sh.rd .ob-vw{margin:0 0 0 auto}
-.ob-sh.rd p{margin:7px 0 0;font-size:14px;line-height:1.75;
-  color:var(--text-secondary);max-width:74ch}
-.ob-vw{display:flex;gap:5px;margin-top:10px}
-.ob-vw button{font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 11px;
-  border-radius:99px;border:1px solid var(--border);background:var(--bg-card);
-  color:var(--text-muted);cursor:pointer;white-space:nowrap}
-.ob-vw button:hover{border-color:var(--blue);color:var(--blue)}
-.ob-vw button.on{background:var(--bg-sunken);border-color:var(--border-light);
-  color:var(--text-primary)}
-
-/* 왼쪽 고르개는 좁은 세로 목록, 오른쪽 카드가 넓습니다 — 읽는 것은 카드 쪽이라
-   가로를 카드에 몰아줍니다. 예전에는 반반이라 왼쪽이 텅 비었습니다. */
-.ob-pk{display:grid;grid-template-columns:274px minmax(0,1fr);gap:20px;
-  align-items:start}
-@media(max-width:900px){.ob-pk{grid-template-columns:1fr;gap:14px}}
-.ob-pk-l{padding:7px;border:1px solid var(--border);border-radius:var(--r);
-  background:var(--bg-card)}
-.ob-gp + .ob-gp{margin-top:6px;padding-top:8px;border-top:1px solid var(--border)}
-.ob-gp .gh{display:flex;align-items:center;gap:7px;padding:5px 7px 7px}
-.ob-gp .gh .bd{font-size:11px;font-weight:800;letter-spacing:.03em;
-  color:var(--bg-card);background:var(--ink);border-radius:5px;padding:3px 8px}
-.ob-gp .gh .ct{font-size:11px;font-weight:700;color:var(--text-muted);
-  font-variant-numeric:tabular-nums}
-.ob-gp .cs{display:flex;flex-direction:column;gap:2px}
-.ob-ch{display:block;width:100%;text-align:left;font-family:inherit;font-size:14.5px;
-  font-weight:700;letter-spacing:-.015em;line-height:1.5;padding:10px 12px;
-  border-radius:8px;border:1px solid transparent;background:transparent;
-  color:var(--text-secondary);cursor:pointer;word-break:keep-all}
-.ob-ch:hover{background:var(--bg-hover);color:var(--text-primary)}
-.ob-ch.on{background:var(--ink);color:var(--bg-card);font-weight:800}
-
-/* 오른쪽 한 장 — 어두운 바탕으로 띄웁니다 (두 테마 모두에서 카드로 읽히게) */
-.ob-cd{padding:28px 30px 26px;border-radius:var(--r-md);background:#191b20;
-  border:1px solid #2b2e35;color:#f1f2f4}
-body.dark-mode .ob-cd{background:#20242c;border-color:#343943}
-.ob-cd .ey{font-size:11px;font-weight:800;letter-spacing:.17em;color:#8f96a3;
-  margin-bottom:9px}
-.ob-cd h4{margin:0;font-size:27px;font-weight:800;letter-spacing:-.035em;color:#fff;
-  line-height:1.3;word-break:keep-all}
-.ob-cd .ld{margin:12px 0 0;font-size:16px;line-height:1.8;color:#ccd2dc;
-  word-break:keep-all}
-.ob-cd .rws{margin-top:22px;border-top:1px solid #363a43}
-.ob-cd .rw{display:flex;gap:22px;align-items:baseline;padding:14px 2px;
-  border-bottom:1px solid #363a43}
-.ob-cd .rw:last-child{border-bottom:0}
-.ob-cd .rw .k{flex:0 0 78px;font-size:12.5px;font-weight:700;letter-spacing:.01em;
-  color:#8f96a3}
-.ob-cd .rw .v{flex:1 1 auto;min-width:0;font-size:16px;font-weight:700;
-  line-height:1.8;color:#f4f5f7;word-break:keep-all}
-.ob-cd .rw.solo .v{font-weight:700}
-.ob-cd .ft{margin:16px 0 0;font-size:13px;line-height:1.7;color:#8f96a3}
-@media(max-width:560px){
-  .ob-cd{padding:20px 18px 18px}
-  .ob-cd h4{font-size:22px}
-  .ob-cd .ld{font-size:15px}
-  .ob-cd .rw{flex-direction:column;gap:4px;padding:12px 0}
-  .ob-cd .rw .k{flex:0 0 auto}
-  .ob-cd .rw .v{font-size:15px}
-}
-/* 고치기 — 묶음 칸 */
-.ob-it.ed .ih input.gp{flex:0 0 170px;min-width:0;box-sizing:border-box;
-  font-family:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--border);
-  border-radius:8px;background:var(--bg-input);color:var(--text-secondary)}
-.ob-it.ed .ih input.gp:focus{outline:none;border-color:var(--blue);
-  box-shadow:0 0 0 3px var(--blue-soft)}
+/* 항목은 카드로 — 가로를 안 쓰고 한 줄로 늘어놓으니 오른쪽이 텅 비고
+   글씨가 다 같은 크기여서 무엇이 중요한지 안 보였습니다 */
 .ob-its{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:13px}
 .ob-its.ed{display:flex;flex-direction:column;gap:9px}
 .ob-it{padding:16px 18px;border:1px solid var(--border);border-radius:var(--r);
@@ -3088,7 +3023,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260919-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260919-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3834,22 +3769,16 @@ function inquiryStats(brandName){
 function obSeed(){
   const S = (icon, title, note, items) => ({ id: uid('os'), icon, title, note,
     items: items.map(it => ({ id: uid('oi'), title: it[0], body: it[1] || '',
-      group: it[3] || '',
       kids: (it[2] || []).map(k => ({ id: uid('ok'), title: k[0], body: k[1] || '' })) })) });
   return [
     S('🏢', '운영 브랜드', '제조사가 개발 · 생산 · 브랜드운영 · 마케팅 · 유통 전 과정을 담당합니다', [
-      ['POUR공법',   '자사 공법 기반 시공 브랜드',
-       [['구분', '운영 브랜드 · 넷폼'], ['고객', 'B2B 시공 · 유통 파트너'],
-        ['담당', '전략마케팅팀 · 기존 브랜드 정리 진행']], '넷폼'],
-      ['POUR솔루션', '', [['구분', '운영 브랜드 · 넷폼']], '넷폼'],
-      ['슈어포인트',  '', [['구분', '운영 브랜드 · 넷폼']], '넷폼'],
-      ['단지온',     '', [['구분', '운영 브랜드 · 넷폼']], '넷폼'],
-      ['아파트스퀘어', '',
-       [['구분', '운영 브랜드 · 수케이 건축사사무소'], ['담당', '전략마케팅팀 · 경선님']],
-       '수케이 건축사사무소'],
-      ['POUR공법(OBM)', '공법 기반 브랜드', [['구분', 'OBM']], 'OBM'],
-      ['CNC공법',   '공법 기반 브랜드', [['구분', 'OBM']], 'OBM'],
-      ['The-K공법', '공법 기반 브랜드', [['구분', 'OBM']], 'OBM']
+      ['운영 브랜드', '', [
+        ['(법인) 넷폼', 'POUR공법 · POUR솔루션 · 슈어포인트 · 단지온'],
+        ['(법인) 수케이 건축사사무소', '아파트스퀘어']
+      ]],
+      ['OBM', '', [
+        ['POUR공법', ''], ['CNC공법', ''], ['The-K공법', '']
+      ]]
     ]),
     S('🎯', '브랜드마케팅팀 역할', '', [
       ['① 브랜드 – 고객 연결', '', [
@@ -3900,25 +3829,6 @@ function obOf(){
 }
 let obEdit = false;
 let obAt = '';          // 지금 열어 둔 단 (빈 값이면 첫 단)
-/* ── 목록 + 카드 ─────────────────────────────────────────────
-   항목이 여럿이면 전부 늘어놓지 않고 왼쪽에서 고르고 오른쪽 카드로 봅니다.
-   한 화면에 한 가지만 놓이니 무엇을 읽는 중인지가 분명해집니다.
-   전부 한눈에 보고 싶을 때가 있어서 [▤ 전부] 로 돌릴 수 있게 둡니다.
-   ------------------------------------------------------------ */
-let obAll  = false;     // 참이면 옛 방식(카드를 전부 깔기)
-let obPick = {};        // 단 id → 골라 둔 항목 id
-function obSetAll(v){ obAll = !!v; render(); }
-function obPickGo(sid, iid){ obPick[sid] = iid; render(); }
-/* 항목을 묶음(법인 · 팀 …)으로 나눕니다 — 묶음이 하나도 없으면 한 덩어리 */
-function obGroups(sc){
-  const g = [], by = {};
-  (sc.items || []).forEach(it => {
-    const k = String(it.group || '').trim();
-    if(by[k] === undefined){ by[k] = g.length; g.push({ name: k, items: [] }); }
-    g[by[k]].items.push(it);
-  });
-  return g;
-}
 function obToggleEdit(){ obEdit = !obEdit; render(); }
 function obGo(sid){ obAt = sid; render();
   setTimeout(() => {
@@ -3934,29 +3844,6 @@ function obCount(sc){
   return n + '가지' + (k ? ' · 세부 ' + k : '');
 }
 function obMark(){ const d = data; markDirtyAll(); }
-
-/* 하위 여럿을 「항목」 으로 올립니다 — 원래 항목 이름이 묶음이 됩니다.
-   얼굴이 바뀌기 전에는 「운영 브랜드」 한 항목 밑에 법인을 하위로 적었습니다.
-   목록+카드에서는 브랜드 하나가 칩 하나여야 골라서 볼 수 있습니다.
-   손으로 여덟 줄을 다시 치게 하면 아무도 안 바꿉니다. */
-function obItSplit(sid, iid){
-  const sc = obOf().find(x => x.id === sid); if(!sc) return;
-  const i = sc.items.findIndex(x => x.id === iid); if(i < 0) return;
-  const it = sc.items[i];
-  const ks = (it.kids || []).filter(k => String(k.title || '').trim());
-  if(!ks.length){ toast('하위가 없어서 올릴 것이 없습니다'); return; }
-  if(!confirm('「' + (it.title || '') + '」 의 하위 ' + ks.length + '개를 '
-    + '각각 항목으로 올립니다.\n\n묶음 이름은 「' + (it.title || '') + '」 이 됩니다. '
-    + '읽기 화면에서 하나씩 골라 볼 수 있게 됩니다.')) return;
-  const made = ks.map(k => ({ id: uid('oi'), title: String(k.title || '').trim(),
-    body: String(k.body || '').trim(), group: String(it.title || '').trim(), kids: [] }));
-  sc.items.splice(i, 1, ...made);
-  deletedIds.add(it.id);
-  (it.kids || []).forEach(k => { if(k && k.id) deletedIds.add(k.id); });
-  obPick[sid] = made[0].id;
-  obMark(); render();
-  toast('⤵ ' + made.length + '개를 항목으로 올렸습니다');
-}
 
 function obSecAdd(){
   obOf().push({ id: uid('os'), icon:'📌', title:'새 단', note:'', items:[] });
@@ -4030,15 +3917,14 @@ function renderOnboard(){
   /* 한눈에 보라고 카드로 깔아 둡니다. 누르면 그 단만 아래에 펴집니다 —
      네 단을 통째로 이어 붙이면 스크롤이 길어서 찾기가 힘들었습니다. */
   const at = secs.some(x => x.id === obAt) ? obAt : (secs[0] ? secs[0].id : '');
-  /* 단 고르개는 한 줄짜리 탭입니다. 예전에는 설명과 숫자까지 담은 큰 카드라
-     내용에 닿기 전에 작은 회색 글씨를 네 덩어리 읽어야 했습니다. 설명은 바로
-     아래 단 머리에서 더 크게 다시 나옵니다. */
   const cards = '<div class="ob-cards">' + secs.map((sc, si) =>
     '<button class="ob-card' + (sc.id === at ? ' on' : '') + '" '
       + 'onclick="obGo(\'' + jsq(sc.id) + '\')">'
     + '<span class="no">' + (si + 1) + '</span>'
     + '<span class="ic">' + esc(sc.icon || '📌') + '</span>'
     + '<span class="ti">' + esc(sc.title || '이름 없는 단') + '</span>'
+    + (sc.note ? '<span class="ds">' + esc(sc.note) + '</span>' : '')
+    + '<span class="ct">' + esc(obCount(sc)) + '</span>'
     + '</button>').join('') + '</div>';
 
   const body = secs.filter(sc => sc.id === at).map((sc, _si) => {
@@ -4058,26 +3944,9 @@ function renderOnboard(){
         + '</span></div>'
         + '<input class="ob-note" value="' + esc(sc.note) + '" placeholder="한 줄 설명 (선택)" '
           + 'oninput="obSecSet(\'' + sid + '\',\'note\', this.value)">'
-      : '<div class="ob-sh rd">'
-        + '<div class="hd"><h3>' + esc(sc.icon) + ' ' + esc(sc.title) + '</h3>'
-          + (sc.items.length > 1
-              ? '<div class="ob-vw">'
-                + '<button class="' + (obAll ? '' : 'on') + '" onclick="obSetAll(0)" '
-                  + 'title="왼쪽에서 고르고 오른쪽 카드로 봅니다">📇 카드로</button>'
-                + '<button class="' + (obAll ? 'on' : '') + '" onclick="obSetAll(1)" '
-                  + 'title="전부 한 화면에 늘어놓습니다">▤ 전부</button>'
-                + '</div>'
-              : '')
-        + '</div>'
-        + (sc.note ? '<p>' + esc(sc.note) + '</p>' : '')
-        + '</div>';
+      : '<div class="ob-sh"><h3>' + esc(sc.icon) + ' ' + esc(sc.title) + '</h3>'
+        + (sc.note ? '<p>' + esc(sc.note) + '</p>' : '') + '</div>';
 
-    const gOpts = obEdit
-      ? '<datalist id="obGroupList">'
-        + obGroups(sc).map(g => g.name).filter(Boolean)
-          .map(v => '<option value="' + esc(v) + '">').join('')
-        + '</datalist>'
-      : '';
     const items = sc.items.map(it => {
       const iid = jsq(it.id);
       const kids = it.kids.map(k => {
@@ -4102,17 +3971,8 @@ function renderOnboard(){
           + '<div class="ih">'
             + '<input class="it" value="' + esc(it.title) + '" placeholder="항목 이름" '
               + 'oninput="obItSet(\'' + sid + '\',\'' + iid + '\',\'title\', this.value)">'
-            /* 같은 묶음 이름을 적은 항목끼리 읽기 화면에서 한 덩어리로 묶입니다 */
-            + '<input class="gp" value="' + esc(it.group || '') + '" '
-              + 'placeholder="묶음 (선택) — 예) 넷폼 · OBM" list="obGroupList" '
-              + 'oninput="obItSet(\'' + sid + '\',\'' + iid + '\',\'group\', this.value)">'
             + '<button class="btn sm" onclick="obKidAdd(\'' + sid + '\',\'' + iid
               + '\')">＋ 하위</button>'
-            + ((it.kids || []).length > 1
-                ? '<button class="btn sm" onclick="obItSplit(\'' + sid + '\',\'' + iid
-                  + '\')" title="하위 하나하나를 항목으로 올립니다 — '
-                  + '읽기 화면에서 골라 볼 수 있게 됩니다">⤵ 하위를 항목으로</button>'
-                : '')
             + '<button class="x" onclick="obItDel(\'' + sid + '\',\'' + iid + '\')">✕</button>'
           + '</div>'
           + '<textarea rows="1" placeholder="설명 (선택)" '
@@ -4128,54 +3988,10 @@ function renderOnboard(){
           + '</div>';
     }).join('');
 
-    /* 📇 목록 + 카드 — 왼쪽에서 고르고 오른쪽 카드로 봅니다 */
-    const mdOn = !obEdit && !obAll && sc.items.length > 1;
-    let md = '';
-    if(mdOn){
-      const pick = sc.items.some(x => x.id === obPick[sc.id])
-        ? obPick[sc.id] : sc.items[0].id;
-      const gs = obGroups(sc);
-      const left = gs.map(g => '<div class="ob-gp">'
-        + (g.name
-            ? '<div class="gh"><span class="bd">' + esc(g.name) + '</span>'
-              + '<span class="ct">' + g.items.length + '</span></div>' : '')
-        + '<div class="cs">' + g.items.map(it =>
-            '<button class="ob-ch' + (it.id === pick ? ' on' : '') + '" '
-            + 'onclick="obPickGo(\'' + sid + '\',\'' + jsq(it.id) + '\')">'
-            + esc(String(it.title || '').trim() || '이름 없음') + '</button>').join('')
-        + '</div></div>').join('');
-      const it = sc.items.find(x => x.id === pick) || sc.items[0];
-      const rows = (it.kids || []).map(k => {
-        const kt = String(k.title || '').trim(), kb = String(k.body || '').trim();
-        if(!kt && !kb) return '';
-        /* 이름만 있고 설명이 없으면 이름이 곧 내용입니다 (조직도 줄) */
-        if(!kb) return '<div class="rw solo"><span class="v">' + esc(kt) + '</span></div>';
-        return '<div class="rw">' + (kt ? '<span class="k">' + esc(kt) + '</span>' : '')
-          + '<span class="v">' + esc(kb).replace(/\n/g, '<br>') + '</span></div>';
-      }).join('');
-      md = '<div class="ob-pk">'
-        + '<div class="ob-pk-l">' + left + '</div>'
-        + '<div class="ob-pk-r"><div class="ob-cd">'
-          /* 눈썹줄에 묶음까지 — 「운영 브랜드 · 넷폼」 이라야 어디 것인지 압니다 */
-          + '<div class="ey">' + esc(String(sc.title || '')
-              + (String(it.group || '').trim() ? ' · ' + it.group.trim() : '')) + '</div>'
-          + '<h4>' + esc(String(it.title || '').trim() || '이름 없음') + '</h4>'
-          + (String(it.body || '').trim()
-              ? '<p class="ld">' + esc(it.body).replace(/\n/g, '<br>') + '</p>' : '')
-          + (rows ? '<div class="rws">' + rows + '</div>' : '')
-          + (!String(it.body || '').trim() && !rows
-              ? '<p class="ft">아직 안 적혀 있습니다 — [✏️ 고치기] 에서 채워 주세요.</p>'
-              : '')
-        + '</div></div></div>';
-    }
-
-    return '<section class="ob-sec">' + gOpts + head
-      + (mdOn ? md : '')
-      + (!mdOn && items
+    return '<section class="ob-sec">' + head
+      + (items
           ? '<div class="ob-its' + (obEdit ? ' ed' : '') + '">' + items + '</div>'
-          : '')
-      + (!mdOn && !items && !obEdit
-          ? '<div class="empty" style="padding:8px 0">아직 비어 있습니다.</div>' : '')
+          : (obEdit ? '' : '<div class="empty" style="padding:8px 0">아직 비어 있습니다.</div>'))
       + (obEdit ? '<button class="gb-add tiny" onclick="obItAdd(\'' + sid
                   + '\')">＋ 항목</button>' : '')
       + '</section>';

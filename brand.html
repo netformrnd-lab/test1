@@ -1234,6 +1234,10 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-card.on{background:var(--ink);border-color:var(--ink);color:var(--bg-card)}
 .ob-card.on .no{background:transparent;color:inherit;opacity:.65}
 .ob-card.on .ti{font-weight:800}
+.ob-card.all .ct{font-size:11px;font-weight:800;color:var(--text-muted);
+  font-variant-numeric:tabular-nums}
+.ob-card.all.on .ct{color:inherit;opacity:.7}
+.ob-card.all{margin-right:5px}
 /* 좁은 화면에서도 옆으로 밀지 않고 두 줄로 접습니다 — 밀어야 보이는 목차는
    있는 줄도 모릅니다 */
 @media(max-width:620px){.ob-card{padding:7px 12px 7px 9px}
@@ -1259,7 +1263,7 @@ table.itable tr:hover td{background:var(--bg-hover)}
    상자에 담으면 네 가지가 다 같은 무게로 보여 무엇이 중요한지 안 보입니다. */
 .ob-2{display:grid;grid-template-columns:220px minmax(0,1fr);gap:44px;
   padding:34px 0 38px;border-top:1px solid var(--border)}
-.ob-sec:first-child .ob-2{border-top:0;padding-top:20px}
+.ob-wrap > .ob-sec:first-child .ob-2{border-top:0;padding-top:20px}
 @media(max-width:880px){
   .ob-2{grid-template-columns:1fr;gap:16px;padding:26px 0 30px}
 }
@@ -3061,7 +3065,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260919-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260919-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3868,13 +3872,12 @@ function obOf(){
 let obEdit = false;
 let obAt = '';          // 지금 열어 둔 단 (빈 값이면 첫 단)
 function obToggleEdit(){ obEdit = !obEdit; render(); }
-/* 목차는 「고르개」 가 아니라 「목차」 입니다 — 네 단이 한 페이지에 다 있고,
-   누르면 그 자리로 굴러갑니다. 온보딩은 앱이 아니라 첫날 처음부터 끝까지
-   읽는 글입니다. 네 번 눌러야 다 읽히는 구조가 제일 큰 문제였습니다. */
+/* 카테고리로 나눠 봅니다 — 「전체」 가 처음 자리이고, 하나를 고르면 그 단만
+   보입니다. 첫날은 전체로 쭉 읽고, 나중에 「2026년 목표만」 볼 때 고릅니다. */
 function obGo(sid){
-  obAt = sid; render();
+  obAt = (obAt === sid ? '' : sid); render();
   setTimeout(() => {
-    const el = document.getElementById('obs-' + sid);
+    const el = document.querySelector('.ob-body');
     if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
   }, 30);
 }
@@ -3958,10 +3961,16 @@ function renderOnboard(){
 
   /* 한눈에 보라고 카드로 깔아 둡니다. 누르면 그 단만 아래에 펴집니다 —
      네 단을 통째로 이어 붙이면 스크롤이 길어서 찾기가 힘들었습니다. */
-  const at = secs.some(x => x.id === obAt) ? obAt : (secs[0] ? secs[0].id : '');
+  const at = secs.some(x => x.id === obAt) ? obAt : '';      // '' 이면 전체
   /* 설명과 「3가지 · 세부 4」 는 뺐습니다 — 설명은 바로 아래 단 기둥에서 더
      크게 다시 나오고, 세부 개수는 아무도 안 쓰는 숫자였습니다 */
-  const cards = '<div class="ob-cards">' + secs.map((sc, si) =>
+  const cards = '<div class="ob-cards">'
+    + '<button class="ob-card all' + (at ? '' : ' on') + '" onclick="obGo(\'\')">'
+      + '<span class="ic">▤</span>'
+      + '<span class="ti">전체</span>'
+      + '<span class="ct">' + secs.length + '</span>'
+    + '</button>'
+    + secs.map((sc, si) =>
     '<button class="ob-card' + (sc.id === at ? ' on' : '') + '" '
       + 'onclick="obGo(\'' + jsq(sc.id) + '\')">'
     + '<span class="no">' + (si + 1) + '</span>'
@@ -3969,7 +3978,9 @@ function renderOnboard(){
     + '<span class="ti">' + esc(sc.title || '이름 없는 단') + '</span>'
     + '</button>').join('') + '</div>';
 
-  const body = secs.map((sc, si) => {
+  const body = secs.map((sc, si) => ({ sc: sc, si: si }))
+    .filter(x => !at || x.sc.id === at)
+    .map(({ sc, si }) => {
     const sid = jsq(sc.id);
     const head = obEdit
       ? '<div class="ob-sh ed">'

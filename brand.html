@@ -1246,7 +1246,22 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .tp-new{display:flex;flex-direction:column;gap:7px;padding:13px;min-height:126px;
   border:1px solid var(--text-primary);border-radius:var(--r);background:var(--bg-card)}
 .tp-new .row{margin-top:auto;display:flex;gap:6px}
-/* 상세판 */
+/* 상세판 — 목업 수치를 그대로 따릅니다.
+   앱에 전역 input/textarea 규칙이 없어서 브라우저 기본값(패딩 2px·기본 글꼴)
+   으로 나왔습니다. 여기 안에서만 제대로 입혀 줍니다. */
+.tp-d input[type=text],.tp-d input[type=number],.tp-d input[type=date],
+.tp-d input[type=month],.tp-d select,.tp-d textarea{
+  width:100%;font:inherit;color:inherit;letter-spacing:normal;
+  border:1px solid var(--border);border-radius:9px;padding:7px 10px;
+  background:var(--bg-card);box-sizing:border-box}
+.tp-d input:focus,.tp-d select:focus,.tp-d textarea:focus{
+  outline:none;border-color:var(--blue)}
+.tp-d textarea{resize:vertical;min-height:72px;line-height:1.6}
+.tp-d input[type=checkbox]{width:auto;padding:0;border:0}
+/* ✕ 는 테두리 없는 흐린 글자로 (상자로 그리면 너무 무겁습니다) */
+.tp-d .x{border:0;background:none;color:var(--text-muted);padding:2px 7px;
+  border-radius:6px;font-size:14px;line-height:1.4;cursor:pointer;font-family:inherit}
+.tp-d .x:hover{color:var(--red,#ef4444);background:rgba(239,68,68,.09)}
 .tp-dim{position:fixed;inset:0;background:rgba(22,23,26,.38);z-index:60}
 .tp-d{position:fixed;top:0;right:0;height:100%;width:min(840px,100%);z-index:61;
   background:var(--bg-sunken);display:flex;flex-direction:column;
@@ -1266,26 +1281,41 @@ table.itable tr:hover td{background:var(--bg-hover)}
   font-weight:500;color:var(--text-muted);background:var(--bg-card);letter-spacing:normal}
 .tp-d-head .mod.on{color:var(--text-primary);border-color:var(--text-muted)}
 .tp-d-head .mod input[type=checkbox]{width:14px;height:14px;margin:0;padding:0;flex:0 0 auto}
-.tp-body{overflow:auto;padding:16px 22px 60px;display:flex;flex-direction:column;gap:12px}
+.tp-body{overflow:auto;padding:18px 24px 60px;display:flex;flex-direction:column;gap:14px}
 .tp-s{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);
-  padding:15px 17px}
+  padding:16px 18px}
 .tp-s .sh{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
-  flex-wrap:wrap;margin-bottom:9px}
-.tp-s h4{margin:0;font-size:14px;color:var(--text-primary)}
-.tp-s .sh p{margin:2px 0 0;font-size:12.5px;color:var(--text-muted)}
+  flex-wrap:wrap;margin-bottom:12px}
+.tp-s h4{margin:0 0 4px;font-size:14px;color:var(--text-primary)}
+.tp-s .sh p{margin:0;font-size:12.5px;color:var(--text-muted)}
+/* 비어 있을 때는 큰 회색 상자 대신 한 줄로 (목업처럼) */
+.tp-s .empty{padding:6px 0;font-size:13px;color:var(--text-muted);
+  background:none;border:0;text-align:left}
 .tp-s .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.tp-i3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px}
+.tp-i3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
 .tp-i3 label{display:block;font-size:12px;color:var(--text-muted)}
-.tp-i3 input{margin-top:4px;width:100%}
-/* 앱 기본 input/textarea 는 너비를 안 정해서 칸이 좁게 나옵니다 */
-.tp-s > textarea,.tp-p textarea,.tp-p .ph input{width:100%}
-.tp-s textarea{min-height:52px;line-height:1.65}
-.tp-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px}
-.tp-row input,.tp-row select{flex:1 1 150px;min-width:0}
-.tp-row textarea{min-height:60px}
-.tp-p{border:1px solid var(--border);border-radius:var(--r-sm);padding:11px;margin-bottom:8px}
-.tp-p .ph{display:flex;gap:6px;align-items:center;margin-bottom:7px}
-.tp-p .ph input{flex:1;font-weight:600}
+/* 칸 글씨는 이름표(12px)가 아니라 본문 크기를 따릅니다 */
+.tp-i3 input{margin-top:4px;font-size:14px}
+/* 줄 하나에 늘어놓는 칸들 (접촉 · 언급) */
+.tp-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.tp-row input,.tp-row select{flex:1 1 150px;width:auto;min-width:0}
+.tp-row .btn{flex:0 0 auto}
+/* 여정 넣는 칸 — 글칸은 한 줄을 통째로 */
+.tp-add{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.tp-add .dt{flex:0 0 152px;width:auto}
+.tp-add .jw{flex:1 1 100%;min-height:96px}
+.tp-add .ft{flex:1 1 auto;display:flex;gap:8px;justify-content:flex-end}
+/* 자료 넣는 칸 — 종류 · 날짜 · 이름, 그 아래로 경로와 메모 */
+.tp-docadd{display:grid;grid-template-columns:124px 152px 1fr;gap:8px;margin-bottom:14px}
+.tp-docadd .full{grid-column:1/-1}
+.tp-docadd .foot{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tp-docadd .foot .fn{flex:1 1 auto;font-size:12px;color:var(--text-muted)}
+@media(max-width:640px){.tp-docadd{grid-template-columns:1fr}}
+.tp-p{border:1px solid var(--border);border-radius:11px;padding:12px;margin-bottom:10px}
+.tp-p .ph{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.tp-p .ph input{flex:1;width:auto;font-weight:600}
+.tp-p .ph .btn{flex:0 0 auto;white-space:nowrap}
+.tp-p textarea{min-height:110px;font-size:13px;background:var(--bg-input)}
 .tp-kpi{display:flex;flex-wrap:wrap;gap:20px;margin:2px 0 12px}
 .tp-kpi div{font-size:12.5px;color:var(--text-muted)}
 .tp-kpi b{display:block;font-size:18px;color:var(--text-primary);letter-spacing:-.02em}
@@ -2738,7 +2768,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-89';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-90';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4320,14 +4350,16 @@ function tpPanel(){
   const js = [...t.journey].sort((a, x) => String(x.d).localeCompare(String(a.d)));
   const jour = S('여정',
     '지금까지 어떻게 해왔는지. 바꾼 것 · 시작한 것 · 그만둔 것을 날짜와 함께',
-    '<div class="tp-row">'
-      + '<input type="date" id="tpJd" value="' + esc(todayStr()) + '" style="flex:0 0 150px">'
-      + '<textarea id="tpJt" rows="2" style="flex:1 1 100%" '
+    '<div class="tp-add">'
+      + '<input class="dt" type="date" id="tpJd" value="' + esc(todayStr()) + '">'
+      + '<textarea class="jw" id="tpJt" rows="3" '
         + 'placeholder="무엇을, 왜 바꿨는지 길게 적어도 됩니다&#10;'
         + '예) 키워드 전면 교체&#10;- 문의 없던 12개 정지&#10;- 예산을 감리 키워드로 집중" '
         + 'oninput="gbGrow(this)"></textarea>'
-      + '<button class="btn sm" onclick="tpPhotoPick(\'' + id + '\',\'\')">📷 사진</button>'
-      + '<button class="btn primary" onclick="tpJAdd(\'' + id + '\')">여정 추가</button>'
+      + '<span class="ft">'
+        + '<button class="btn sm" onclick="tpPhotoPick(\'' + id + '\',\'\')">📷 사진</button>'
+        + '<button class="btn primary" onclick="tpJAdd(\'' + id + '\')">여정 추가</button>'
+      + '</span>'
     + '</div>'
     + (js.length
         ? '<ul class="tp-tl">' + js.map(x => {
@@ -4362,15 +4394,22 @@ function tpPanel(){
   /* 자료 */
   const docs = t.mods.docs ? S('자료',
     '기획서 · 결과물 · 계약서 · 보고서처럼 이 접점과 관련해 남겨둘 것',
-    '<div class="tp-row">'
-      + '<select id="tpDk" style="flex:0 0 120px">' + Object.keys(TP_DOCK).map(k =>
+    '<div class="tp-docadd">'
+      + '<select id="tpDk">' + Object.keys(TP_DOCK).map(k =>
           '<option value="' + k + '">' + esc(TP_DOCK[k]) + '</option>').join('') + '</select>'
-      + '<input type="date" id="tpDd" value="' + esc(todayStr()) + '" style="flex:0 0 150px">'
+      + '<input type="date" id="tpDd" value="' + esc(todayStr()) + '">'
       + '<input type="text" id="tpDt" placeholder="자료 이름 (예: 쇼츠 시리즈 기획서)">'
-      + '<input type="text" id="tpDl" placeholder="NAS 경로 또는 링크" style="flex:1 1 100%">'
-      + '<input type="text" id="tpDn" placeholder="메모 (선택)" style="flex:1 1 100%">'
-      + '<button class="btn sm" onclick="tpDocPick(\'' + id + '\')">📎 파일 올리기</button>'
-      + '<button class="btn primary" onclick="tpDocAdd(\'' + id + '\')">자료 추가</button>'
+      + '<input class="full" type="text" id="tpDl" '
+        + 'placeholder="NAS 경로 또는 링크 (파일을 올리면 비워둬도 됩니다)">'
+      + '<input class="full" type="text" id="tpDn" '
+        + 'placeholder="메모 (선택) — 어떤 내용인지, 어떤 결론이 났는지">'
+      + '<span class="foot">'
+        + '<button class="btn sm" onclick="tpDocPick(\'' + id + '\')">📎 파일 올리기</button>'
+        + '<span class="fn" id="tpDfn">'
+          + ((tpDocHold[t.id] && tpDocHold[t.id].name)
+              ? '📎 ' + esc(tpDocHold[t.id].name) : '올린 파일 없음') + '</span>'
+        + '<button class="btn primary" onclick="tpDocAdd(\'' + id + '\')">자료 추가</button>'
+      + '</span>'
     + '</div>'
     + (t.docs.length
         ? '<div class="tp-df">'

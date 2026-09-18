@@ -2738,7 +2738,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-88';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-89';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3030,9 +3030,10 @@ const TYPES = {
     ]
   },
   channels: {
-    label:'채널', icon:'📣', tab:'브랜드 채널',
-    hint:'블로그·카페·유튜브 주소를 모아두고 최근 올린 글을 봅니다',
-    empty:'등록된 채널이 없습니다.',
+    label:'마케팅', icon:'📣', tab:'마케팅',
+    hint:'고객을 만나는 접점을 네 갈래로 모아 둡니다 — '
+       + '직접 운영 · 돈을 내고 확보 · 직접 접촉 · 남을 통한 확산',
+    empty:'등록된 접점이 없습니다.',
     fields:[]
   },
   history: {
@@ -3453,7 +3454,7 @@ function renderSidebar(){
       + ((b._conflicts || []).length
           ? '<span class="cnt clashdot" title="다른 분과 같이 고친 것이 있습니다">⚠</span>' : '')
       + (function(){ const k = brandNewCount(b);
-           return k ? '<span class="cnt newdot" title="채널에 안 본 글 ' + k + '개">'
+           return k ? '<span class="cnt newdot" title="마케팅 접점에 안 본 글 ' + k + '개">'
                       + k + '</span>' : ''; })()
       + '<span class="cnt">' + n + '</span></button>'
       + '<span class="bmove">'
@@ -3629,7 +3630,7 @@ function renderHome(){
     + '<div class="stats">' + stats + '</div>'
     + '<div class="hgrid">' + cards + '</div>'
     + (urgentHtml ? '<div class="hsec">⏰ 기한이 임박한 할 일</div>' + urgentHtml : '')
-    + (postHtml ? '<div class="hsec">📣 채널에 올라온 글</div>' + postHtml : '')
+    + (postHtml ? '<div class="hsec">📣 접점에 올라온 글</div>' + postHtml : '')
     + (recentHtml ? '<div class="hsec">🕘 최근 업데이트</div>' + recentHtml : '')
     + '<div class="hsec">📝 아직 비어 있는 곳</div>' + todoHtml
     + '</div></div>';
@@ -3790,8 +3791,9 @@ async function ensureFiles(navKey, need){
   c.loadingMore = false;
 }
 
-/* ================= 브랜드 채널 =================
-   블로그·카페·유튜브 주소를 모아두고, 최근 올린 글을 함께 보여줍니다.
+/* ============ 최근 글 모아오기 (RSS) ============
+   접점에 적어 둔 주소에서 최근 올린 글을 받아옵니다. 「마케팅」 탭의
+   콘텐츠 목록 칸이 이것을 씁니다.
    가져오는 일은 NAS 가 대신합니다 (사무실 브라우저는 밖으로 못 나갑니다).
    ============================================== */
 const feedCache = {};   // RSS 주소 → {loading} | {error} | 응답
@@ -3918,7 +3920,7 @@ async function pokeChannels(){
 /* 지금 당장 전부 새로 받아옵니다 (NAS 가 인터넷에 나갔다 옵니다 — 조금 걸립니다) */
 async function refreshAllChannels(btn){
   if(btn){ btn.disabled = true; btn.textContent = '받는 중…'; }
-  toast('📡 채널을 전부 돌아보는 중입니다…');
+  toast('📡 접점을 전부 돌아보는 중입니다…');
   try{
     const j = await apiJson('channels.php?action=refreshall');
     Object.keys(feedCache).forEach(k => delete feedCache[k]);
@@ -3926,7 +3928,7 @@ async function refreshAllChannels(btn){
     if(j['실패']) toast('확인 ' + j['확인한채널'] + '곳 · 실패 ' + j['실패'] + '곳');
     else toast('✅ ' + j['확인한채널'] + '곳을 새로 받았습니다');
   }catch(e){ alert(apiErrText(e)); }
-  finally{ if(btn){ btn.disabled = false; btn.textContent = '↻ 전부 새로 받기'; } }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = '↻ 최근 글 전부 새로 받기'; } }
 }
 
 const CH_ICON = { '네이버 블로그':'📗', '네이버 카페':'☕', '유튜브':'📺', '인스타그램':'📷',
@@ -6575,7 +6577,7 @@ function renderBrand(){
     ['path','🧭 온보딩'],
     ['inquiries','📞 문의'],
     ['automations','🤖 자동화 · 바로가기'],
-    ['channels','📣 채널'],
+    ['channels','📣 마케팅'],
     ['blog','✍️ 블로그']
   ];
 
@@ -15009,7 +15011,7 @@ const STEP_REFS = [
   ['links',       '🔗 바로가기'],
   ['automations', '🤖 자동화'],
   ['assets',      '📁 자료'],
-  ['channels',    '📣 채널']
+  ['channels',    '📣 마케팅 접점']
 ];
 function stepRefList(b){
   const out = [];

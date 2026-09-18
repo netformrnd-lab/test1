@@ -2117,6 +2117,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
   margin-right:2px}
 .dn-g span{font-size:11.5px;padding:3px 9px;border-radius:99px;border:1px solid var(--border);
   background:var(--bg-input);color:var(--text-secondary);word-break:break-word}
+.dn-g span.more{font-weight:800;color:var(--text-muted);background:transparent;
+  border-style:dashed}
 .dn-g.put b{color:var(--green)}
 .dn-g.put span{border-color:var(--green);color:var(--text-primary)}
 .dn-g.skip span{opacity:.8}
@@ -3021,7 +3023,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-97';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-98';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16258,6 +16260,26 @@ async function uploadPathDoc(fileList){
                   kind: kind,
                   by: (authMe() || {})['이름'] || '' };
     pathMine[bid].doc  = doc;
+
+    /* 📘 브랜드 기록부 — 우리 소개 양식 그대로 적어 온 문서는 AI 에 물을
+       것이 없습니다. 칸 이름이 이미 우리 칸 이름이라 그대로 옮겨 담습니다.
+       AI 를 거치면 느리고 · 줄여 쓰고 · 가끔 말이 바뀝니다. */
+    if(/\.x?html?$/i.test(String(f.name || ''))){
+      pathMine[bid].step = '기록부인지 보는 중…';
+      render();
+      let raw = '';
+      try{ raw = await f.text(); }catch(e){}
+      const bg = raw ? bookParse(raw) : null;
+      if(bg){
+        const mb = pathMine[bid];
+        mb.busy = false; mb.step = ''; mb.book = true;
+        mb.done = pathAutoFill(b, bg, 'book');
+        if(!pathDocs(b).some(d => d.filePath === doc.filePath)) pathDocs(b).push(doc);
+        markDirty(b.id); pathEdit = false; render(); window.scrollTo({ top:0 });
+        return;
+      }
+    }
+
     pathMine[bid].step = '문서에서 글자를 뽑는 중…';
     render();
 
@@ -16458,6 +16480,241 @@ function pathFixParse(text){
   return out;
 }
 
+/* ── 📘 브랜드 기록부 그대로 넣기 ────────────────────────────
+   우리 소개 양식(1~9단) 그대로 적어 온 문서는 AI 에 물을 것이 없습니다.
+   칸 이름이 이미 우리 칸 이름이니 그대로 옮겨 담으면 됩니다.
+   AI 를 거치면 느리고, 요약되고, 가끔 말이 바뀝니다. 여기서는 한 글자도
+   안 바뀝니다. 우리 양식이 아니면 null 을 돌려주고 원래 길(AI)로 갑니다.
+   ------------------------------------------------------------ */
+function bookTx(el){
+  if(!el) return '';
+  return String(el.textContent || '').replace(/\r/g, '')
+    .split('\n').map(x => x.replace(/[\t ]+/g, ' ').trim()).join('\n')
+    .replace(/\n{3,}/g, '\n\n').trim();
+}
+function bookLines(t){
+  return String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
+}
+function bookBlocks(t){
+  return String(t || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+}
+const BOOK_DASH = /\s*[—–]\s*/;
+/* 「이름 — 설명」 에서 앞뒤를 가릅니다 */
+function bookCut(t){
+  const i = String(t || '').search(BOOK_DASH);
+  if(i < 0) return [String(t || '').trim(), ''];
+  return [t.slice(0, i).trim(), t.slice(i).replace(BOOK_DASH, '').trim()];
+}
+/* 여러 줄을 규칙 여러 줄로 가릅니다.
+   번호 목록은 번호마다 한 줄 · ①②③ 로 이어지는 설명은 한 덩어리로 */
+function bookRuleSplit(v){
+  const out = [];
+  bookBlocks(v).forEach(blk => {
+    const ls = bookLines(blk);
+    if(ls.length > 1 && /^\d+\.\s/.test(ls[0])){
+      let cur = '';
+      ls.forEach(x => {
+        if(/^\d+\.\s/.test(x)){ if(cur) out.push(cur); cur = x.replace(/^\d+\.\s*/, ''); }
+        else cur += '\n' + x;
+      });
+      if(cur) out.push(cur);
+      return;
+    }
+    if(ls.length > 1 && ls.some(x => /^[①②③④⑤⑥⑦⑧⑨]/.test(x))){ out.push(blk); return; }
+    if(ls.length > 1){ ls.forEach(x => out.push(x)); return; }
+    out.push(blk);
+  });
+  return out.filter(x => x.trim());
+}
+/* 「 」 로 묶인 앞머리가 규칙, 그 뒤가 왜 */
+function bookRuleWhy(blk){
+  const m = String(blk || '').match(/^[「『"“](.+?)[」』"”]\s*[—–-]\s*([\s\S]+)$/);
+  return m ? { text: m[1].trim(), why: m[2].trim() }
+           : { text: String(blk || '').trim(), why: '' };
+}
+function bookPersona(v){
+  const ls = bookLines(v);
+  if(!ls.length) return null;
+  const head = ls.shift();
+  const hp = bookCut(head);                       // 「… — 게이트키퍼」
+  const np = hp[0].split(/\s*·\s*/);
+  const name = (np.shift() || '').trim();
+  if(!name) return null;
+  const who = [], want = [], pain = [], where = [];
+  if(hp[1]) who.push(hp[1]);
+  ls.forEach(x => {
+    if(/^반응하는 것\s*[—–-]/.test(x))      want.push(x.replace(/^반응하는 것\s*[—–-]\s*/, ''));
+    else if(/^(원하는 것|바라는 것)\s*[—–-]/.test(x))
+                                            want.push(x.replace(/^\S+\s*\S*\s*[—–-]\s*/, ''));
+    else if(/^(보는 곳|만나는 곳|어디서)\s*[—–-]/.test(x))
+                                            where.push(x.replace(/^[^—–-]+[—–-]\s*/, ''));
+    else if(/^(걱정|불편|두려운|무서운)/.test(x)) pain.push(x.replace(/^[^—–-]+[—–-]\s*/, ''));
+    else who.push(x);
+  });
+  return { name: name, age: np.join(' · ').trim(), who: who.join('\n'),
+           want: want.join('\n'), pain: pain.join('\n'), where: where.join('\n') };
+}
+function bookColor(ln){
+  const m = String(ln || '').match(/^(#[0-9a-fA-F]{3,8})\s+([\s\S]*)$/);
+  if(!m) return null;
+  const c = bookCut(m[2]);
+  return { hex: m[1], name: c[0], use: c[1] };
+}
+function bookFont(ln){
+  const c = bookCut(ln);
+  return c[1] ? { name: c[1], use: c[0] } : { name: c[0], use: '' };
+}
+/* 「2022.11.28 — 문제를 먼저 봤다」 에서 때와 제목을 가릅니다 */
+const BOOK_WHEN = /^\d{4}([.\-/]\d{1,2})?(\s*~\s*\d{1,2})?([.\-/]\d{1,2})?$/;
+function bookChap(head, v, i, n){
+  const c = bookCut(head);
+  let when = '', title = String(head || '').trim();
+  if(c[1] && BOOK_WHEN.test(c[0].replace(/\s+/g, ''))){
+    when = c[0].replace(/\s+/g, ''); title = c[1];
+  }
+  const bag = { body: [], result: [], why: [] };
+  let cur = 'body';
+  bookLines(v).forEach(x => {
+    if(/^(무엇을|한 일)\s*[—–-]/.test(x)){ cur = 'body';   x = x.replace(/^[^—–-]+[—–-]\s*/, ''); }
+    else if(/^(어떻게 됐나|결과)\s*[—–-]/.test(x)){ cur = 'result'; x = x.replace(/^[^—–-]+[—–-]\s*/, ''); }
+    else if(/^(왜|이유)\s*[—–-]/.test(x)){ cur = 'why';    x = x.replace(/^[^—–-]+[—–-]\s*/, ''); }
+    bag[cur].push(x);
+  });
+  const all = title + ' ' + v;
+  let kind = '해봤다';
+  if(/지금|서 있는 자리|현재/.test(title) || i === n - 1) kind = '지금';
+  else if(i === 0) kind = '출발';
+  else if(/폐기|접었|그만|철회/.test(all)) kind = '접었다';
+  else if(/방향|전환|바꿨|바뀌|옮겨|틀었|갈아/.test(all)) kind = '방향을 틀다';
+  return { when: when, title: title, kind: kind,
+           body: bag.body.join('\n'), result: bag.result.join('\n'),
+           why: bag.why.join('\n'), before:'', after:'', bad:'', nogo:'', src:'',
+           plan:'' };
+}
+
+/* 우리 양식인지 보고, 맞으면 칸을 그대로 옮겨 담아 돌려줍니다 */
+function bookParse(raw){
+  let doc = null;
+  try{ doc = new DOMParser().parseFromString(String(raw || ''), 'text/html'); }catch(e){}
+  if(!doc) return null;
+  const secs = Array.from(doc.querySelectorAll('section'));
+  if(!secs.length) return null;
+
+  const G = { what:'', ob1:{}, idv:{}, personas:[], colors:[], fonts:[], words:[],
+              goals:[], rules:[], who:[], chaps:[], samples:[], sum:'', goal:'',
+              steps:[], no:'' };
+  const has = t => String(t || '').trim();
+  let hit = 0;                                   // 우리 칸을 몇 개나 알아봤나
+
+  secs.forEach(sec => {
+    const sn = bookTx(sec.querySelector('.sec-h h2') || sec.querySelector('h2'));
+    const fs = Array.from(sec.querySelectorAll('.f'));
+    const rows = [];
+    fs.forEach(f => {
+      rows.push({ lab: bookTx(f.querySelector('.f-h b')),
+                  tag: bookTx(f.querySelector('.f-h .tag')),
+                  v:   bookTx(f.querySelector('.v')) });
+    });
+    const put = (k, v) => { if(has(v)){ G[k] = v; hit++; } };
+    const put1 = (k, v) => { if(has(v)){ G.ob1[k] = v; hit++; } };
+    const putId = (k, v) => { if(has(v)){ G.idv[k] = v; hit++; } };
+
+    if(sn.indexOf('뭘 하나') >= 0){
+      rows.forEach(r => {
+        if(r.lab.indexOf('한 문단') >= 0)        put('what', r.v);
+        else if(r.lab.indexOf('돈을 주나') >= 0) put1('pay', r.v);
+        else if(r.lab.indexOf('역할') >= 0)      put1('role', r.v);
+        else if(r.lab.indexOf('계약') >= 0)      put1('deal', r.v);
+        else if(r.lab.indexOf('하지 않는') >= 0) put1('nogo1', r.v);
+      });
+    } else if(sn.indexOf('어떤 브랜드') >= 0){
+      rows.forEach(r => {
+        if(r.lab.indexOf('슬로건') >= 0)      putId('slogan', r.v);
+        else if(r.lab.indexOf('성격') >= 0)   putId('character', r.v);
+        else if(r.lab.indexOf('철학') >= 0)   putId('philo', r.v);
+      });
+    } else if(sn.indexOf('누구에게 말하나') >= 0){
+      rows.forEach(r => {
+        if(r.lab.indexOf('타겟') >= 0) putId('target', r.v);
+        else if(r.lab.indexOf('페르소나') >= 0){
+          const x = bookPersona(r.v); if(x){ G.personas.push(x); hit++; }
+        }
+      });
+    } else if(sn.indexOf('보이고 말하나') >= 0){
+      rows.forEach(r => {
+        if(r.lab.indexOf('톤앤매너') >= 0 || r.lab.indexOf('말투') >= 0) putId('tone', r.v);
+        else if(r.lab.indexOf('색') >= 0)
+          bookLines(r.v).forEach(ln => { const c = bookColor(ln); if(c){ G.colors.push(c); hit++; } });
+        else if(r.lab.indexOf('글꼴') >= 0)
+          bookLines(r.v).forEach(ln => { const x = bookFont(ln); if(x.name){ G.fonts.push(x); hit++; } });
+      });
+    } else if(sn.indexOf('쓰는 말') >= 0){
+      rows.forEach(r => {
+        const no = r.lab.indexOf('안 쓰는') >= 0;
+        if(r.lab.indexOf('이유까지') >= 0){
+          bookRuleSplit(r.v).forEach(blk => {
+            const x = bookRuleWhy(blk);
+            if(x.text){ G.rules.push({ kind: no ? '안 쓰는 말' : '쓰는 말',
+              text: x.text, why: x.why, area:'', ref:'', risk:'',
+              tent:false, tentWhy:'' }); hit++; }
+          });
+        } else if(r.lab.indexOf('쓰는 말') >= 0){
+          bookLines(r.v).forEach(ln => {
+            ln.split(/\s*\/\s*/).forEach(w => {
+              const t = w.trim();
+              if(t && t.length <= 40){ G.words.push({ term:t, no:no, instead:'', why:'' }); hit++; }
+            });
+          });
+        }
+      });
+    } else if(sn.indexOf('해마다의 목표') >= 0){
+      rows.forEach(r => {
+        const y = r.tag.replace(/[^0-9]/g, '');
+        if(!y && !has(r.lab)) return;
+        G.goals.push({ year: y, goal: r.lab, why: r.v, result: '' }); hit++;
+      });
+    } else if(sn.indexOf('지킬 것') >= 0){
+      rows.forEach(r => {
+        if(r.lab.indexOf('이렇게 쓴 것') >= 0 || r.lab.indexOf('실물') >= 0){
+          const bs = bookBlocks(r.v);
+          const tt = bookLines(bs[0] || '')[0] || '';
+          if(tt){ G.samples.push({ title: tt, url:'',
+            note: bs.slice(1).join(' / ') }); hit++; }
+          return;
+        }
+        const k = r.lab.indexOf('말투') >= 0 ? '말투'
+                : r.lab.indexOf('절차') >= 0 ? '지키는 절차'
+                : r.lab.indexOf('그 밖') >= 0 ? '그 밖' : '';
+        if(!k) return;
+        bookRuleSplit(r.v).forEach(t => {
+          if(t.trim()){ G.rules.push({ kind:k, text:t.trim(), why:'', area:'',
+            ref:'', risk:'', tent:false, tentWhy:'' }); hit++; }
+        });
+      });
+    } else if(sn.indexOf('막히면 누구에게') >= 0){
+      Array.from(sec.querySelectorAll('tbody tr')).forEach(tr => {
+        const td = Array.from(tr.children);
+        if(td.length < 2) return;
+        const nm = bookTx(td[0].querySelector('b')) || bookLines(bookTx(td[0]))[0] || '';
+        if(!nm) return;
+        const tail = bookTx(td[0]).slice(nm.length).trim();     // 직함
+        let wh = td[2] ? bookTx(td[2]) : '';
+        if(/^[—–-]*$/.test(wh)) wh = '';
+        G.who.push({ name: nm, role: bookTx(td[1]), where: wh || tail }); hit++;
+      });
+    } else if(sn.indexOf('걸어온 길') >= 0){
+      const cs = rows.filter(r => r.lab.indexOf('한 문단') < 0);
+      rows.forEach(r => { if(r.lab.indexOf('한 문단') >= 0) put('sum', r.v); });
+      cs.forEach((r, i) => {
+        const c = bookChap(r.lab, r.v, i, cs.length);
+        if(c.title){ G.chaps.push(c); hit++; }
+      });
+    }
+  });
+
+  return hit >= 3 ? G : null;
+}
+
 /* 나눠 받은 두 답을 하나로 합칩니다 */
 function pathMineMerge(a, z){
   const S = (x, y) => String(x || '').trim() || String(y || '').trim();
@@ -16604,10 +16861,11 @@ function pathAutoFill(b, got, doc){
   };
   addRows('personas', 'ps', got.personas, x => x.name, '페르소나');
   addRows('colors',   'cl', got.colors,   x => x.name || x.hex, '색');
-  addRows('fonts',    'ft', got.fonts,    x => x.name, '글꼴');
+  addRows('fonts',    'ft', got.fonts,    x => x.name + ' ' + (x.use || ''), '글꼴');
   addRows('words',    'wd', got.words,    x => x.term, '용어');
   addRows('goals',    'gl', got.goals,    x => String(x.year || '') + ' ' + (x.goal || ''),
           '해마다의 목표');
+  addRows('samples',  'sm', got.samples,  x => x.title, '이렇게 쓴 것');
 
   // 여정을 먼저 넣습니다 — 규칙이 이걸 근거로 걸어야 하기 때문입니다
   const up = [];                                   // 결과가 새로 채워진 것
@@ -16726,6 +16984,10 @@ function wdTerm(x){
 function ruleToWords(r){
   const no  = ruleKindOf(r).k === '안 쓰는 말';
   const why = String(r.why || '').trim();
+  /* 왜 그런지가 길게 붙은 줄은 이미 제자리입니다 — 짧은 칩으로 옮기면
+     칩 밑에 본문만 한 설명이 매달려 오히려 읽기 나빠집니다.
+     (기록부의 「쓰는 말 — 이유까지」 가 여기에 해당합니다) */
+  if(why.length >= 30) return [];
   let t = String(r.text || '').replace(/\s+/g, ' ').trim();
   if(!t || t.length > 90) return [];
   /* 「A → B」 · 「A 대신 B」 — 바꿔 쓰라는 줄 */
@@ -16958,9 +17220,13 @@ function pathMineHtml(b){
       + '</div></div>';
   }
 
+  const LST_MAX = 40;        // 기록부 한 장에 100줄 넘게 들어오기도 합니다
   const lst = (ttl, arr, cls) => arr.length
     ? '<div class="dn-g ' + cls + '"><b>' + esc(ttl) + ' ' + arr.length + '</b>'
-      + arr.map(x => '<span>' + esc(x) + '</span>').join('') + '</div>'
+      + arr.slice(0, LST_MAX).map(x => '<span>' + esc(x) + '</span>').join('')
+      + (arr.length > LST_MAX
+          ? '<span class="more">외 ' + (arr.length - LST_MAX) + '개</span>' : '')
+      + '</div>'
     : '';
 
   const upl = d.up || [];
@@ -16975,6 +17241,10 @@ function pathMineHtml(b){
       + (m.wipe
           ? '🗑 「' + esc((m.doc && m.doc.name) || '') + '」 의 소개를 비웠습니다'
             + '<span>할 일 · 자료 · 마케팅 · 블로그와 NAS 파일은 그대로입니다</span>'
+          : m.book
+          ? '📘 ' + esc((m.doc && m.doc.name) || '기록부') + ' 을 그대로 옮겨 담았습니다'
+            + '<span>우리 소개 양식대로 적힌 문서라 AI 를 거치지 않았습니다 — '
+              + '한 글자도 바뀌지 않았습니다</span>'
           : m.tidy
           ? '✨ 전에 적어 둔 것 ' + (d.put.length + upl.length) + '개를 새 자리로 옮겼습니다'
             + '<span>옮긴 줄은 「지킬 것」 에서 빠졌습니다 — 같은 말을 두 군데서 '
@@ -17076,8 +17346,9 @@ function pathViewHtml(b){
       + 'title="적어 둔 규칙을 그대로 붙여넣으면 됩니다 — 파일로 만들지 않아도 됩니다">'
       + '📐 지침서 글로 쓰기</button>'
     + '<button class="btn sm" onclick="pickPathDoc(\'' + bid + '\',\'guide\')" '
-      + 'title="지침서 · 매뉴얼 · 브랜드북 파일이 있으면 올리세요">'
-      + '📎 지침서 파일</button>'
+      + 'title="지침서 · 매뉴얼 · 브랜드북 파일이 있으면 올리세요. '
+      + '우리 소개 양식대로 적은 기록부(.html)는 AI 를 거치지 않고 칸 그대로 들어갑니다">'
+      + '📎 지침서 · 기록부 파일</button>'
     + '<a class="btn sm" href="기획서양식-v1.1.xlsx" download '
       + 'title="이 양식으로 기획서를 쓰면 결과까지 그대로 온보딩에 쌓입니다">'
       + '📋 기획서 양식</a>'

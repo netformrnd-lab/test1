@@ -1208,6 +1208,44 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pw-gap .t{font-size:14px;font-weight:600;color:var(--text-primary)}
 .pw-gap span{font-size:12.5px;line-height:1.6;color:var(--text-muted)}
 .pw-gap .btn{margin-top:4px}
+/* ═══ 📢 공지사항 ═══ */
+.nt{margin:0 0 20px;padding:15px 17px;border:1px solid var(--border);
+  border-left:4px solid var(--blue);border-radius:var(--r);background:var(--bg-card)}
+.nt-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.nt-h .ti{font-size:15.5px;font-weight:800;color:var(--text-primary)}
+.nt-h .chip.new{background:rgba(239,68,68,.11);color:#c33636;border-color:transparent;
+  font-weight:700}
+.nt-none{font-size:13px;color:var(--text-muted);padding:4px 0}
+.nt-i{padding:11px 0;border-top:1px dashed var(--border)}
+.nt-i:first-of-type{border-top:0;padding-top:2px}
+.nt-i .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.nt-i .pi{flex:0 0 auto}
+.nt-i .hd b{font-size:15px;color:var(--text-primary);word-break:break-word}
+.nt-i .mt{font-size:12px;color:var(--text-muted);white-space:nowrap}
+.nt-i .ac{margin-left:auto;display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.nt-i:hover .ac,.nt-i:focus-within .ac{opacity:1}
+.nt-i p{margin:5px 0 0;font-size:14px;line-height:1.7;color:var(--text-secondary);
+  white-space:pre-wrap;word-break:break-word}
+.nt-i.pin{background:rgba(59,130,246,.045);margin:0 -17px;padding-left:17px;padding-right:17px}
+.nt-more{display:block;width:100%;margin-top:9px;padding:6px;border:1px dashed var(--border);
+  border-radius:var(--r-sm);background:transparent;color:var(--text-muted);
+  font-family:inherit;font-size:12.5px;cursor:pointer}
+.nt-more:hover{border-color:var(--text-muted);color:var(--text-primary)}
+.nt-w{margin-bottom:11px;padding:12px;border:1px solid var(--blue);border-radius:var(--r-sm);
+  background:var(--bg-input);display:flex;flex-direction:column;gap:8px}
+.nt-w input[type=text],.nt-w textarea{width:100%;font:inherit;color:inherit;
+  box-sizing:border-box;border:1px solid var(--border);border-radius:9px;padding:7px 10px;
+  background:var(--bg-card)}
+.nt-w input[type=text]{font-weight:700}
+.nt-w textarea{resize:vertical;min-height:72px;line-height:1.6}
+.nt-w .ft{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.nt-w .pn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
+  color:var(--text-muted);cursor:pointer}
+.nt-w .pn input{width:15px;height:15px;margin:0}
+@media(max-width:640px){
+  .nt-i .ac{opacity:1;margin-left:0;flex-basis:100%;margin-top:5px}
+  .nt-i .mt{white-space:normal}
+}
 /* ═══ 📣 접점 (채널) ═══ */
 .tp-sum{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--text-muted)}
 .tp-sum b{color:var(--text-primary);font-size:15.5px;margin-right:3px}
@@ -2768,7 +2806,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-90';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-91';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3504,6 +3542,144 @@ function inquiryStats(brandName){
   return { total: rows.length, thisMonth: s.thisMonth, lastMonth: s.lastMonth, diff, latest: s.latest };
 }
 
+/* ═══════════════ 📢 공지사항 ═══════════════════════════════════
+   홈 맨 위에 둡니다. 팀이 제일 먼저 보는 자리라 여기가 아니면 안 읽습니다.
+   📌 붙인 것이 위로 오고, 나머지는 새것부터.
+   「안 읽음」 은 이 컴퓨터에만 남습니다 — 누가 읽었는지는 안 셉니다.
+   ================================================================= */
+function noticesOf(){
+  if(!Array.isArray(data.notices)) data.notices = [];
+  return data.notices;
+}
+/* 붙인 것 먼저, 그다음 새것부터 */
+function noticeLine(){
+  return noticesOf().slice().sort((a, b) => {
+    if(!!b.pin !== !!a.pin) return b.pin ? 1 : -1;
+    return String(b.at || '').localeCompare(String(a.at || ''));
+  });
+}
+function noticeSeen(){
+  try{ return localStorage.getItem('bh_noticeSeen') || ''; }catch(e){ return ''; }
+}
+function noticeMarkSeen(){
+  const top = noticeLine()[0];
+  if(!top) return;
+  try{ localStorage.setItem('bh_noticeSeen', String(top.at || '')); }catch(e){}
+}
+function noticeNew(n){ return String(n.at || '') > noticeSeen(); }
+function noticeNewCount(){ return noticesOf().filter(noticeNew).length; }
+
+let noticeAt = '';        // 고치고 있는 공지 id ('new' 면 새로 쓰는 중)
+let noticeAll = false;    // 지난 공지까지 펼쳐 보나
+
+function noticeWrite(){ noticeAt = 'new'; render();
+  setTimeout(() => { const el = document.getElementById('ntTitle'); if(el) el.focus(); }, 30); }
+function noticeEdit(id){ noticeAt = id; render(); }
+function noticeNo(){ noticeAt = ''; render(); }
+function noticeMore(){ noticeAll = !noticeAll; render(); }
+
+function noticeSave(){
+  const t = (document.getElementById('ntTitle') || {}).value || '';
+  const b = (document.getElementById('ntBody')  || {}).value || '';
+  if(!t.trim()){ toast('⚠️ 공지 제목을 적어주세요'); return; }
+  const pin = !!(document.getElementById('ntPin') || {}).checked;
+  if(noticeAt === 'new'){
+    noticesOf().unshift({ id: uid('nt'), title: t.trim(), body: b.trim(),
+                          at: new Date().toISOString(), by: myName(), pin: pin });
+    toast('📢 공지를 올렸습니다');
+  }else{
+    const n = noticesOf().find(x => x.id === noticeAt);
+    if(!n){ noticeAt = ''; render(); return; }
+    n.title = t.trim(); n.body = b.trim(); n.pin = pin;
+    toast('✅ 공지를 고쳤습니다');
+  }
+  noticeAt = '';
+  noticeMarkSeen();
+  markDirtyAll(); render();
+}
+function noticePin(id){
+  const n = noticesOf().find(x => x.id === id); if(!n) return;
+  n.pin = !n.pin; markDirtyAll(); render();
+  toast(n.pin ? '📌 맨 위에 붙였습니다' : '📌 붙인 것을 뗐습니다');
+}
+function noticeDel(id){
+  const n = noticesOf().find(x => x.id === id); if(!n) return;
+  if(!confirm('"' + (n.title || '(제목 없음)') + '" 공지를 지울까요?\n\n'
+    + '휴지통으로 갑니다 — 업무 → 🗑 휴지통 에서 되돌릴 수 있습니다.')) return;
+  trashPut('공지', n.title || '(제목 없음)', n, { kind:'item', type:'notices', brandId:'' });
+  data.notices = noticesOf().filter(x => x.id !== id);
+  deletedIds.add(id);
+  markDirtyAll(); render();
+  toast('🗑️ 휴지통으로 보냈습니다');
+}
+
+/* 홈 맨 위에 붙는 덩어리 */
+const NOTICE_SHOW = 3;
+function noticeHtml(){
+  const line = noticeLine();
+  const write = noticeAt === 'new' || noticeAt
+    ? (function(){
+        const n = noticeAt === 'new' ? { title:'', body:'', pin:false }
+                                     : (noticesOf().find(x => x.id === noticeAt) || null);
+        if(!n) return '';
+        return '<div class="nt-w">'
+          + '<input type="text" id="ntTitle" value="' + esc(n.title || '') + '" '
+            + 'placeholder="공지 제목 — 예) 9월 마감 일정 안내">'
+          + '<textarea id="ntBody" rows="3" placeholder="내용을 적어주세요 (선택)">'
+            + esc(n.body || '') + '</textarea>'
+          + '<div class="ft">'
+            + '<label class="pn"><input type="checkbox" id="ntPin"'
+              + (n.pin ? ' checked' : '') + '> 📌 맨 위에 붙이기</label>'
+            + '<span style="margin-left:auto;display:flex;gap:6px">'
+              + '<button class="btn sm" onclick="noticeNo()">취소</button>'
+              + '<button class="btn sm primary" onclick="noticeSave()">'
+                + (noticeAt === 'new' ? '올리기' : '고치기') + '</button>'
+            + '</span></div></div>';
+      })()
+    : '';
+
+  const shown = noticeAll ? line : line.slice(0, NOTICE_SHOW);
+  const rows = shown.map(n => {
+    const when = n.at ? new Date(n.at).toLocaleDateString('ko-KR',
+      { year:'numeric', month:'numeric', day:'numeric' }) : '';
+    return '<div class="nt-i' + (n.pin ? ' pin' : '') + (noticeNew(n) ? ' new' : '') + '">'
+      + '<div class="hd">'
+        + (n.pin ? '<span class="pi">📌</span>' : '')
+        + '<b>' + (noticeNew(n) ? '<span class="newtag">NEW</span> ' : '') + esc(n.title) + '</b>'
+        + '<span class="mt">' + esc(when) + (n.by ? ' · ' + esc(n.by) : '') + '</span>'
+        + '<span class="ac">'
+          + '<button class="btn sm" onclick="noticePin(\'' + jsq(n.id) + '\')" '
+            + 'title="맨 위에 붙이거나 뗍니다">' + (n.pin ? '📌 뗌' : '📌 붙임') + '</button>'
+          + '<button class="btn sm" onclick="noticeEdit(\'' + jsq(n.id) + '\')">고치기</button>'
+          + '<button class="btn sm danger" onclick="noticeDel(\'' + jsq(n.id) + '\')">지우기</button>'
+        + '</span>'
+      + '</div>'
+      + (String(n.body || '').trim() ? '<p>' + esc(n.body) + '</p>' : '')
+      + '</div>';
+  }).join('');
+
+  const more = line.length > NOTICE_SHOW
+    ? '<button class="nt-more" onclick="noticeMore()">'
+      + (noticeAll ? '▲ 접기' : '▼ 지난 공지 ' + (line.length - NOTICE_SHOW) + '개 더')
+      + '</button>'
+    : '';
+
+  return '<div class="nt">'
+    + '<div class="nt-h"><span class="ti">📢 공지사항</span>'
+      + (noticeNewCount() ? '<span class="chip new">새 공지 ' + noticeNewCount() + '</span>' : '')
+      + '<span style="margin-left:auto;display:flex;gap:6px">'
+        + (line.length ? '<button class="btn sm" onclick="noticeMarkSeen();render()">'
+                         + '✓ 읽음</button>' : '')
+        + (noticeAt === 'new' ? ''
+            : '<button class="btn sm primary" onclick="noticeWrite()">＋ 공지 쓰기</button>')
+      + '</span></div>'
+    + write
+    + (line.length ? rows + more
+        : (noticeAt ? '' : '<div class="nt-none">아직 공지가 없습니다 — '
+            + '팀이 제일 먼저 보는 자리입니다.</div>'))
+    + '</div>';
+}
+
 function renderHome(){
   const bs = data.brands;
   const all = t => bs.reduce((a, b) => a + b[t].length, 0);
@@ -3655,6 +3831,7 @@ function renderHome(){
 
   document.getElementById('main').innerHTML =
     '<div class="panel"><div class="tabbody">'
+    + noticeHtml()
     + '<h2 class="page-h">브랜드 현황</h2>'
     + '<div class="page-sub">카드를 누르면 해당 브랜드로 이동합니다</div>'
     + '<div class="stats">' + stats + '</div>'
@@ -18631,7 +18808,7 @@ function markDirtyAll(){
 }
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels', 'docs']);
-const TOP_LISTS   = ['meetings', 'events', 'trash', 'growth', 'boards', 'gbkpis',
+const TOP_LISTS   = ['notices', 'meetings', 'events', 'trash', 'growth', 'boards', 'gbkpis',
                      'gbperf', 'cards'];  // 브랜드 밖
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
@@ -19087,6 +19264,13 @@ function normalize(raw){
     return fresh;
   }
   if(typeof raw._rev !== 'number') raw._rev = 0;
+  if(!Array.isArray(raw.notices))  raw.notices  = [];   // 공지사항 (홈 맨 위)
+  raw.notices.forEach(n => {
+    n.id = n.id || uid('nt');
+    ['title','body','by'].forEach(k => { if(typeof n[k] !== 'string') n[k] = ''; });
+    if(typeof n.at !== 'string') n.at = new Date().toISOString();
+    n.pin = !!n.pin;
+  });
   if(!Array.isArray(raw.meetings)) raw.meetings = [];   // 회의록 (브랜드 공통)
   if(!Array.isArray(raw.events))   raw.events   = [];   // 달력 일정 (브랜드 공통)
   if(!Array.isArray(raw.trash))    raw.trash    = [];   // 휴지통 (지운 것)

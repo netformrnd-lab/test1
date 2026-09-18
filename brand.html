@@ -1208,6 +1208,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pw-gap .t{font-size:14px;font-weight:600;color:var(--text-primary)}
 .pw-gap span{font-size:12.5px;line-height:1.6;color:var(--text-muted)}
 .pw-gap .btn{margin-top:4px}
+/* 옮기기 안내는 「빠진 것」 이 아니라 「해 두면 좋은 것」 이라 파랑입니다 */
+.pw-gap.tidy{border-left-color:var(--blue);background:var(--blue-soft);margin-top:4px}
 /* ═══ 🧭 팀 온보딩 ═══ */
 /* 한눈에 보는 카드 — 누르면 아래에 그 단만 펴집니다 */
 .ob-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px;
@@ -3012,7 +3014,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-95';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-96';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16680,15 +16682,164 @@ function pathAutoFill(b, got, doc){
            tied: P.rules.filter(r => r.chapId).length };
 }
 
+/* ── ✨ 전에 적어 둔 것을 새 자리로 옮기기 ────────────────────
+   얼굴 단(톤앤매너 · 용어 · 해마다의 목표)이 생기기 전에는 그 내용을
+   전부 「지킬 것」 과 「걸어온 길」 에 적었습니다. 이미 적어 둔 것을
+   손으로 다시 옮기게 하면 아무도 안 옮깁니다. 그래서 한 번 눌러
+   옮기고, 마음에 안 들면 통째로 되돌립니다.
+   -------------------------------------------------------------- */
+
+/* 「쓰는 말 · 안 쓰는 말」 로 적어 둔 줄에서 용어를 뽑습니다.
+   「하자보수 → 유지보수」 · 「하자보수 대신 유지보수」 · 「"하자보수"(X)」 ·
+   「하자보수, 부실시공」 처럼 적힌 것만 가져오고, 문장으로 풀어 쓴 줄은
+   그대로 규칙으로 둡니다 (짧은 칩으로 줄이면 뜻이 없어지니까). */
+const WD_ARROW  = /\s*(?:→|->|=>|▶|›|»)\s*/;
+const WD_SWAP   = /^(.{1,22}?)\s*(?:대신에|대신|말고|보다는|이 아니라|가 아니라)\s*(.{1,22})$/;
+const WD_TAIL   = /(습니다|합니다|입니다|한다|된다|않는다|하세요|주세요|마세요|십시오)$/;
+const WD_STRIP  = /^[「『“”"'‘’(\[\-•·*\s]+|[」』“”"'‘’)\]\s]+$/g;
+/* 「유지보수(O)」 「하자보수(X)」 처럼 뒤에 달린 표시 — 따옴표·괄호를 떼기
+   <<전에>> 먼저 떼야 합니다 (먼저 괄호를 떼면 「유지보수(O」 가 남습니다) */
+const WD_MARK = /\s*[（(]\s*(?:[OXox○×]|금지|권장|사용|지양|필수)\s*[)）]?\s*$/;
+function wdClean(x){
+  let t = String(x || '').replace(/\s+/g, ' ').trim();
+  for(let i = 0; i < 3; i++){
+    const was = t;
+    t = t.replace(WD_MARK, '').replace(WD_STRIP, '').trim();
+    if(t === was) break;
+  }
+  return t;
+}
+function wdTerm(x){
+  const t = wdClean(x);
+  if(!t || t.length > 22) return '';
+  if(/[.!?]$/.test(t) || WD_TAIL.test(t)) return '';   // 문장은 용어가 아닙니다
+  if(t.split(' ').length > 4) return '';
+  return t;
+}
+function ruleToWords(r){
+  const no  = ruleKindOf(r).k === '안 쓰는 말';
+  const why = String(r.why || '').trim();
+  let t = String(r.text || '').replace(/\s+/g, ' ').trim();
+  if(!t || t.length > 90) return [];
+  /* 「A → B」 · 「A 대신 B」 — 바꿔 쓰라는 줄 */
+  let a = '', z = '';
+  const arr = t.split(WD_ARROW);
+  if(arr.length === 2){ a = arr[0]; z = arr[1]; }
+  else {
+    const m = wdClean(t).match(WD_SWAP);
+    if(m){ a = m[1]; z = m[2]; }
+  }
+  if(a){
+    const term = wdTerm(a), ins = wdTerm(z);
+    return (term && ins) ? [{ term: term, no: no, instead: ins, why: why }] : [];
+  }
+  /* 「가, 나, 다」 — 낱말을 늘어놓은 줄 */
+  if(/[,、·/]/.test(t) && !/[.!?]$/.test(t) && !WD_TAIL.test(wdClean(t))){
+    const ls = t.split(/\s*[,、·/]\s*/).map(wdTerm).filter(Boolean);
+    if(ls.length >= 2 && ls.length <= 8)
+      return ls.map((x, i) => ({ term: x, no: no, instead: '',
+                                 why: i === 0 ? why : '' }));
+  }
+  const one = wdTerm(t);
+  return one ? [{ term: one, no: no, instead: '', why: why }] : [];
+}
+
+/* 무엇을 옮길 수 있는지 미리 세어 봅니다 (없으면 안내를 안 띄웁니다) */
+function pathTidyFind(b){
+  const P = pathOf(b);
+  const tone = String(P.tone || '').trim()
+    ? [] : P.rules.filter(r => ruleKindOf(r).k === '말투' && !ruleBlank(r));
+  const key = t => String(t || '').replace(/\s+/g, '').toLowerCase();
+  let words = 0;
+  P.rules.filter(r => ruleIsWord(r) && !ruleBlank(r)).forEach(r => {
+    ruleToWords(r).forEach(w => {
+      if(!P.words.some(x => key(x.term) === key(w.term) && !!x.no === !!w.no)) words++;
+    });
+  });
+  /* 기획서 마디에서 해마다의 목표 초안 — 이미 적어 둔 해는 건드리지 않습니다 */
+  const has = new Set(goalsOf(b).map(g => String(g.year || '').trim()));
+  const yrs = {};
+  chapsOf(b).filter(c => !chapBlank(c)).forEach(c => {
+    const y = chapYear(c);
+    if(!/^\d{4}$/.test(y || '') || has.has(y)) return;
+    (yrs[y] = yrs[y] || []).push(c);
+  });
+  const goals = Object.keys(yrs);
+  const n = tone.length + words + goals.length;
+  return n ? { n: n, tone: tone, words: words, yrs: yrs, goals: goals } : null;
+}
+
+function pathTidyGo(bid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const f = pathTidyFind(b); if(!f) return;
+  const P = pathOf(b);
+  const before = JSON.parse(JSON.stringify(P));
+  const key = t => String(t || '').replace(/\s+/g, '').toLowerCase();
+  const put = [], skip = [];
+
+  /* 1) 말투 규칙 → 톤앤매너 */
+  if(f.tone.length){
+    P.tone = f.tone.map(r => String(r.text || '').trim()
+      + (String(r.why || '').trim() ? ' (' + r.why.trim() + ')' : '')).join('\n');
+    const gone = new Set(f.tone.map(r => r.id));
+    P.rules = P.rules.filter(r => !gone.has(r.id));
+    gone.forEach(id => deletedIds.add(id));
+    put.push('톤앤매너 ' + f.tone.length + '줄');
+  }
+
+  /* 2) 용어로 적힌 규칙 → 쓰는 말 · 안 쓰는 말 */
+  const moved = new Set();
+  P.rules.filter(r => ruleIsWord(r) && !ruleBlank(r)).forEach(r => {
+    const ws = ruleToWords(r);
+    if(!ws.length){
+      skip.push('「' + gbOneLine(r.text, 22) + '」 — 문장이라 규칙으로 둡니다'); return;
+    }
+    let n = 0;
+    ws.forEach(w => {
+      if(P.words.some(x => key(x.term) === key(w.term) && !!x.no === !!w.no)) return;
+      P.words.push(Object.assign({ id: uid('wd') }, w));
+      put.push('용어 「' + w.term + '」'); n++;
+    });
+    if(n) moved.add(r.id);
+  });
+  if(moved.size){
+    P.rules = P.rules.filter(r => !moved.has(r.id));
+    moved.forEach(id => deletedIds.add(id));
+  }
+
+  /* 3) 기획서 마디 → 해마다의 목표 초안.
+     기획서에는 「그 해에 무엇을 · 왜 」 가 적혀 있으니 초안으로는 맞습니다.
+     결과까지 그대로 옮기고, 다듬는 것은 사람 몫입니다. */
+  f.goals.sort().forEach(y => {
+    const cs = f.yrs[y];
+    const j = (k) => cs.map(c => String(c[k] || '').trim()).filter(Boolean)
+      .filter((v, i, l) => l.indexOf(v) === i).join('\n');
+    goalsOf(b).push({ id: uid('gl'), year: y,
+      goal:   cs.map(c => String(c.title || '').trim()).filter(Boolean).join(' · '),
+      why:    j('why'),
+      result: j('result') });
+    put.push('해마다의 목표 「' + y + '」');
+  });
+
+  markDirty(b.id);
+  pathMine[b.id] = { busy:false, err:'', no:'', half:'', tidy:true,
+                     doc:{ name:'전에 적어 둔 것' },
+                     done:{ put: put, skip: skip, up: [], before: before,
+                            tied: 0 } };
+  render(); window.scrollTo({ top:0 });
+  toast('✨ ' + put.length + '개를 새 자리로 옮겼습니다');
+}
+
 /* 채운 것을 통째로 되돌립니다 */
 function pathUndoFill(bid){
   const b = brandById(bid) || currentBrand(); if(!b) return;
   const m = pathMine[bid]; if(!m || !m.done || !m.done.before) return;
-  if(!confirm('문서에서 채운 것을 모두 되돌립니다.\n\n채우기 직전 모습으로 돌아갑니다.')) return;
+  const t = m.tidy ? '옮긴 것' : '문서에서 채운 것';
+  if(!confirm(t + '을 모두 되돌립니다.\n\n바로 직전 모습으로 돌아갑니다.')) return;
   b.path = JSON.parse(JSON.stringify(m.done.before));
   delete pathMine[bid];
   markDirty(b.id); render();
-  toast('↩︎ 채우기 전으로 되돌렸습니다');
+  toast('↩︎ ' + (m.tidy ? '옮기기' : '채우기') + ' 전으로 되돌렸습니다');
 }
 function pathDoneClose(bid){ delete pathMine[bid]; render(); }
 
@@ -16753,17 +16904,23 @@ function pathMineHtml(b){
     : '';
   return '<div class="dmn ok">'
     + half
-    + '<div class="dmn-hd">✅ ' + esc((m.doc && m.doc.name) || '문서') + ' 에서 '
-      + (d.put.length + upl.length) + '개를 채웠습니다'
-      + (d.tied ? '<span>규칙 ' + d.tied + '개에 근거가 되는 여정을 걸었습니다</span>' : '')
+    + '<div class="dmn-hd">'
+      + (m.tidy
+          ? '✨ 전에 적어 둔 것 ' + (d.put.length + upl.length) + '개를 새 자리로 옮겼습니다'
+            + '<span>옮긴 줄은 「지킬 것」 에서 빠졌습니다 — 같은 말을 두 군데서 '
+              + '읽지 않게</span>'
+          : '✅ ' + esc((m.doc && m.doc.name) || '문서') + ' 에서 '
+            + (d.put.length + upl.length) + '개를 채웠습니다'
+            + (d.tied ? '<span>규칙 ' + d.tied
+                + '개에 근거가 되는 여정을 걸었습니다</span>' : ''))
       + '</div>'
-    + lst('넣은 것', d.put, 'put')
+    + lst(m.tidy ? '옮긴 것' : '넣은 것', d.put, 'put')
     + lst('이어서 채운 것', upl, 'up')
-    + lst('이미 적혀 있어 그대로 둔 것', d.skip, 'skip')
+    + lst(m.tidy ? '그대로 둔 것' : '이미 적혀 있어 그대로 둔 것', d.skip, 'skip')
     + '<div class="dmn-ac">'
       + '<button class="btn sm" onclick="pathDoneClose(\'' + bid + '\')">확인</button>'
       + '<button class="btn sm danger" onclick="pathUndoFill(\'' + bid
-        + '\')">↩︎ 채우기 전으로</button>'
+        + '\')">↩︎ ' + (m.tidy ? '옮기기' : '채우기') + ' 전으로</button>'
       + '<span class="hint">틀린 곳은 [✏️ 고치기] 에서 바로 고칩니다</span>'
     + '</div></div>';
 }
@@ -16856,8 +17013,26 @@ function pathViewHtml(b){
       + 'onchange="uploadChapImg(this.files); this.value=\'\'">'
     + '<input type="file" id="pathDocInput" style="display:none" '
       + 'onchange="uploadPathDoc(this.files); this.value=\'\'">';
-  return bar + pathTextHtml(b) + pathMineHtml(b)
+  return bar + pathTextHtml(b) + pathMineHtml(b) + pathTidyBar(b)
     + (pathEdit ? pathEditHtml(b) : pathReadHtml(b));
+}
+
+/* 옮길 것이 있을 때만 뜹니다 — 한 번 옮기고 나면 사라집니다 */
+function pathTidyBar(b){
+  if(pathMine[b.id]) return '';            // 방금 옮긴 결과를 보고 있는 중
+  const f = pathTidyFind(b); if(!f) return '';
+  const what = [];
+  if(f.tone.length)     what.push('말투 ' + f.tone.length + '줄 → <b>톤앤매너</b>');
+  if(f.words)           what.push('쓰는 말 · 안 쓰는 말 ' + f.words + '개 → <b>용어</b>');
+  if(f.goals.length)    what.push('기획서 ' + f.goals.length + '해 → <b>해마다의 목표</b>');
+  return '<div class="pw-gap tidy">'
+    + '<div class="t">✨ 전에 적어 둔 것을 <b>새 자리</b>로 옮길 수 있습니다</div>'
+    + '<span>얼굴 단이 생기기 전에는 이런 것을 전부 「지킬 것」 과 「걸어온 길」 에 '
+      + '적었습니다.<br>' + what.join(' · ') + '<br>'
+      + '옮긴 줄은 「지킬 것」 에서 빠지고, 마음에 안 들면 통째로 되돌립니다.</span>'
+    + '<button class="btn sm primary" onclick="pathTidyGo(\'' + jsq(b.id) + '\')">'
+      + '✨ 새 자리로 옮기기</button>'
+    + '</div>';
 }
 
 function pathReadHtml(b){

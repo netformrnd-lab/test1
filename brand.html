@@ -2479,19 +2479,14 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
     <div class="brand-list" id="brandList"></div>
     <button class="btn" style="width:100%" onclick="openBrandModal()">＋ 브랜드 추가</button>
 
-    <!-- 브랜드와 상관없이 팀이 같이 쓰는 것들 -->
-    <div class="side-title" style="margin-top:18px">업무</div>
+    <!-- 브랜드와 상관없이 팀이 같이 쓰는 것들.
+         한 덩어리로 여덟 줄이 있으면 찾는 데 시간이 걸려서 세 묶음으로 나눴습니다.
+           업무관리 — 내가 맡은 일이 어디까지 왔나
+           팀운영   — 팀이 같이 굴리는 것 (날짜 · 돈 · 발행)
+           기록·설정 — 자주 안 열지만 있어야 하는 것
+         명함은 뺐습니다 (자료는 data.cards 에 그대로 있습니다). -->
+    <div class="side-title" style="margin-top:18px">업무관리</div>
     <div class="brand-list">
-      <button class="brand-item home-item" id="meetBtn" onclick="goView('meetings')">
-        <span class="bar" style="background:var(--cyan)"></span>
-        <span class="em">🗣️</span><span>회의록</span>
-        <span class="cnt" id="meetCnt"></span>
-      </button>
-      <button class="brand-item home-item" id="calBtn" onclick="goView('calendar')">
-        <span class="bar" style="background:var(--orange)"></span>
-        <span class="em">📅</span><span>달력</span>
-        <span class="cnt" id="calCnt"></span>
-      </button>
       <button class="brand-item home-item" id="taskBtn" onclick="goView('tasks')">
         <span class="bar" style="background:var(--green)"></span>
         <span class="em">✅</span><span>할 일</span>
@@ -2502,10 +2497,19 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="em">📈</span><span>그로스보드</span>
         <span class="cnt" id="growCnt"></span>
       </button>
-      <button class="brand-item home-item" id="cardBtn" onclick="goView('cards')">
+      <button class="brand-item home-item" id="meetBtn" onclick="goView('meetings')">
         <span class="bar" style="background:var(--cyan)"></span>
-        <span class="em">🪪</span><span>명함</span>
-        <span class="cnt" id="cardCnt"></span>
+        <span class="em">🗣️</span><span>회의록</span>
+        <span class="cnt" id="meetCnt"></span>
+      </button>
+    </div>
+
+    <div class="side-title" style="margin-top:18px">팀운영</div>
+    <div class="brand-list">
+      <button class="brand-item home-item" id="calBtn" onclick="goView('calendar')">
+        <span class="bar" style="background:var(--orange)"></span>
+        <span class="em">📅</span><span>달력</span>
+        <span class="cnt" id="calCnt"></span>
       </button>
       <button class="brand-item home-item" id="costBtn" onclick="goView('costs')">
         <span class="bar" style="background:var(--red)"></span>
@@ -2517,6 +2521,10 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="em">✍️</span><span>블로그 발행</span>
         <span class="cnt" id="blogCnt"></span>
       </button>
+    </div>
+
+    <div class="side-title" style="margin-top:18px">기록 · 설정</div>
+    <div class="brand-list">
       <button class="brand-item home-item" id="trashBtn" onclick="goView('trash')">
         <span class="bar" style="background:var(--text-muted)"></span>
         <span class="em">🗑</span><span>휴지통</span>
@@ -2601,7 +2609,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-86';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-87';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3213,8 +3221,9 @@ function render(){
   const nas  = document.getElementById('nasBtn');
   if(home) home.classList.toggle('on', view === 'home' && !searchQuery && !currentBrandId);
   if(nas)  nas.classList.toggle('on',  view === 'nas'  && !searchQuery);
+  /* 명함은 왼쪽에서 뺐습니다 — 단추가 없어도 아래 if(el) 로 그냥 넘어갑니다 */
   [['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],['growBtn','growth'],
-   ['cardBtn','cards'],['costBtn','costs'],['blogBtn','blog'],
+   ['costBtn','costs'],['blogBtn','blog'],
    ['trashBtn','trash']].forEach(([id, v]) => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('on', view === v && !searchQuery);

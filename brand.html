@@ -1310,8 +1310,12 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .modal .wz-r .ct b{font-size:14.5px;color:var(--text-primary)}
 .modal .wz-r .ct span{color:var(--text-muted);font-weight:400}
 .gb-gonebar span{font-size:12.5px;color:var(--text-muted)}
-.gb-shot-br{font-size:15px;font-weight:800;color:var(--text-primary);
-  margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+/* 사진 안 — 브랜드 한 묶음 */
+.gb-shot-bk{margin-bottom:20px;break-inside:avoid}
+.gb-shot-bk:last-child{margin-bottom:0}
+.gb-shot-br .ct{margin-left:9px;font-size:12px;font-weight:600;color:var(--text-muted)}
+.gb-shot-br{font-size:16px;font-weight:800;color:var(--text-primary);
+  margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--hue,var(--ink))}
 @media (max-width:640px){
   .gb-fix .fr{flex-wrap:wrap}
   .gb-fix .fr .tt{flex:1 1 100%;white-space:normal}
@@ -2597,7 +2601,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260918-85';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260918-86';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7945,11 +7949,9 @@ function renderGrowth(){
      예전에는 사진일 때만 유입·전환 같은 단계별로 다시 그려서, 화면에서 보던
      브랜드별 성과와 전혀 다른 그림이 나왔습니다. */
   const tabsHtml = gbBrandTabs(g);              // gbPbId 를 정해 주는 일도 겸합니다
-  const btabs = gbShot
-    ? '<div class="gb-shot-br">' + esc(gbPbIcon()) + ' ' + esc(gbPbName()) + '</div>'
-    : tabsHtml;
-  if(gbShot) gbOpen['gbdone_' + gbPbId] = true;   // 한 일도 펴서 같이 담습니다
-  const stages = gbMyBrandHtml(g, gbShot ? '' : filter);
+  /* 사진일 때는 브랜드 탭 대신 브랜드마다 머리를 달아 전부 이어 붙입니다 */
+  const btabs = gbShot ? '' : tabsHtml;
+  const stages = gbShot ? gbShotAllHtml(g) : gbMyBrandHtml(g, filter);
 
   const paste = gbPasteOpen
     ? '<div class="mbox" style="margin:0 0 14px;border-color:var(--blue)">'
@@ -9329,6 +9331,29 @@ function gbDetailHtml(g){
       + '<button class="gb-add" onclick="gbAddAct(\'' + jsq(st.id) + '\',\'' + jsq(it.id)
         + '\',\'problem\')">＋ 문제</button>'
     + '</div></div>';
+}
+
+/* ── 📷 사진에는 브랜드 전부를 담습니다 ──────────────────────────
+   화면에서는 브랜드를 하나 골라 보지만, 사진은 남겨 두고 돌려 보는 것이라
+   「이 사람이 이 해에 무엇을 했나」 가 한 장에 다 있어야 합니다.
+   브랜드마다 머리를 달고, 그 아래에 속을 편 한 일을 줄줄이 붙입니다.
+   ---------------------------------------------------------------- */
+function gbShotAllHtml(g){
+  const bs = gbMyBrands(g).filter(b => gbMyItems(g, b.id).length);
+  if(!bs.length) return '<div class="empty" style="padding:14px 0">아직 한 일이 없습니다.</div>';
+  return bs.map(b => {
+    const rows = gbMyItems(g, b.id);
+    return '<div class="gb-shot-bk">'
+      + '<div class="gb-shot-br"'
+        + (b.color ? ' style="--hue:' + esc(b.color) + '"' : '') + '>'
+        + esc(b.icon) + ' ' + esc(b.name)
+        + '<span class="ct">한 일 ' + rows.length + '건</span>'
+      + '</div>'
+      + '<div class="gb-full">'
+        + rows.map((r, i) => gbItemFullHtml(g, r.st, r.it, i, { stage: true })).join('')
+      + '</div>'
+      + '</div>';
+  }).join('');
 }
 
 /* 사진으로 뽑을 때는 목록 대신 속을 다 펴서 그립니다.

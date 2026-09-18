@@ -1458,7 +1458,7 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--text-muted);cursor:pointer;white-space:nowrap}
 .ob-vw > button:hover{border-color:var(--blue);color:var(--blue)}
 .ob-vw > button.on{background:var(--ink);border-color:var(--ink);color:var(--bg-card)}
-.ob-vw > input.rt{flex:0 0 190px;box-sizing:border-box;font-family:inherit;font-size:12px;
+.ob-vw > input.rt{flex:0 0 190px;min-width:0;box-sizing:border-box;font-family:inherit;font-size:12px;
   padding:5px 10px;border:1px solid var(--border);border-radius:8px;
   background:var(--bg-input);color:var(--text-primary)}
 .ob-vw > em{font-style:normal;font-size:11px;color:var(--text-muted)}
@@ -1507,7 +1507,7 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-hero.ed .hst{display:flex;flex-direction:column;gap:6px;margin-top:6px;
   background:transparent;border:0;border-radius:0}
 .ob-hero.ed .hs-r{display:flex;gap:6px;align-items:center}
-.ob-hero.ed .hs-r .v{flex:0 0 84px;font-family:var(--f-mono);font-weight:700}
+.ob-hero.ed .hs-r .v{flex:0 0 84px;min-width:0;font-family:var(--f-mono);font-weight:700}
 .ob-hero.ed .hs-r .k{flex:1 1 auto;min-width:0;font-size:13px}
 .ob-hero.ed .hs-r .x{flex:0 0 auto;width:26px;height:26px;border:none;border-radius:7px;
   background:transparent;color:var(--text-muted);font-size:14px;cursor:pointer}
@@ -1519,6 +1519,99 @@ table.itable tr:hover td{background:var(--bg-hover)}
   .ob-sh.rd{gap:11px;margin-bottom:18px}
   .ob-sh.rd h3{font-size:20px}
   .ob-en{padding:17px 16px 19px}
+}
+/* ── 📜 해마다의 히스토리 ────────────────────────────────────── */
+.ob-hist{display:flex;flex-direction:column;gap:2px;padding-left:2px}
+.ob-hist .hy{position:relative;padding:0 0 26px 26px;border-left:2px solid var(--border)}
+.ob-hist .hy:last-child{border-left-color:transparent;padding-bottom:0}
+.ob-hist .hy-h{display:flex;align-items:center;gap:9px;margin:0 0 13px;
+  transform:translateY(-3px)}
+.ob-hist .hy-h .dot{position:absolute;left:-7px;top:0;width:12px;height:12px;
+  border-radius:50%;background:var(--bg-card);border:2px solid var(--border-light)}
+.ob-hist .hy.now .dot{background:var(--blue);border-color:var(--blue)}
+.ob-hist .hy-h b{font-family:var(--f-mono);font-size:19px;font-weight:700;
+  letter-spacing:-.02em;color:var(--text-primary);font-variant-numeric:tabular-nums}
+.ob-hist .hy.now .hy-h b{color:var(--blue)}
+.ob-hist .hy-h em{font-style:normal;font-size:10px;font-weight:800;color:#fff;
+  background:var(--blue);border-radius:99px;padding:2px 8px}
+.ob-hist .hy-b{display:grid;grid-template-columns:repeat(auto-fit,minmax(252px,1fr));
+  gap:1px;background:var(--border);border:1px solid var(--border);border-radius:3px;
+  overflow:hidden}
+.ob-hist .hy-t{background:var(--bg-card);padding:15px 16px 17px}
+.ob-hist .hy-t > b{display:block;font-size:14px;font-weight:800;letter-spacing:-.015em;
+  color:var(--text-primary);margin-bottom:8px;word-break:keep-all}
+.ob-hist .hy-t p{margin:0;font-size:13.5px;line-height:1.7;color:var(--text-secondary);
+  word-break:keep-all}
+.ob-hist .hy-t ul{margin:0;padding:0;list-style:none}
+.ob-hist .hy-t ul li{position:relative;padding-left:12px;margin-bottom:6px;
+  font-size:13.5px;line-height:1.65;color:var(--text-secondary);word-break:keep-all}
+.ob-hist .hy-t ul li:last-child{margin-bottom:0}
+.ob-hist .hy-t ul li::before{content:'';position:absolute;left:0;top:9px;width:5px;
+  height:1.5px;background:var(--blue)}
+.ob-hist .hy-t.non{background:var(--bg-sunken)}
+.ob-hist .hy-t .gap{display:flex;align-items:center;gap:7px;color:var(--text-muted)}
+
+/* ── ✏️ 고치기 ────────────────────────────────────────────────
+   예전에는 칸이 그냥 줄줄이 쌓여서 어디가 어느 단인지 안 보였습니다.
+   단마다 판을 두르고, 줄마다 왼쪽에 이름표를 답니다. */
+.ob-sec.ed{padding:20px;border:1px solid var(--border);border-radius:var(--r);
+  background:var(--bg-secondary);margin-bottom:16px;border-top:1px solid var(--border)}
+.ob-wrap > .ob-sec.ed:first-child{border-top:1px solid var(--border)}
+.ob-eh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.ob-eh .sn{flex:0 0 auto;font-family:var(--f-mono);font-size:12px;font-weight:700;
+  letter-spacing:.1em;color:var(--blue)}
+.ob-wrap .ob-eh input.ic{flex:0 0 46px;min-width:0;text-align:center;padding:8px 4px}
+.ob-wrap .ob-eh input.ti{flex:1 1 200px;min-width:0;font-size:16px;font-weight:800;
+  letter-spacing:-.02em;padding:8px 12px}
+.ob-eh .ac{flex:0 0 auto;display:flex;gap:3px}
+.ob-eh .ac button{width:30px;height:30px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg-card);color:var(--text-muted);font-size:13px;cursor:pointer;
+  font-family:inherit}
+.ob-eh .ac button:hover{border-color:var(--blue);color:var(--blue)}
+.ob-eh .ac button.dl:hover{border-color:var(--red);color:var(--red)}
+.ob-erow{display:flex;align-items:flex-start;gap:11px;margin-bottom:8px}
+.ob-erow > label{flex:0 0 62px;padding-top:8px;font-size:11.5px;font-weight:800;
+  color:var(--text-muted);letter-spacing:.01em}
+.ob-erow > input,.ob-erow > .ob-vw{flex:1 1 auto;min-width:0}
+.ob-erow > .ob-vw{margin:0;padding-top:2px}
+.ob-addit{display:block;width:100%;margin-top:10px;padding:10px;border:1px dashed
+  var(--border-light);border-radius:9px;background:transparent;color:var(--text-muted);
+  font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.ob-addit:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
+
+.ob-its.ed{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.ob-it.ed{padding:13px 14px;border:1px solid var(--border);border-left:3px solid
+  var(--border-light);border-radius:var(--r-sm);background:var(--bg-card)}
+.ob-it.ed .ih{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.ob-it.ed .ih .no{flex:0 0 auto;font-family:var(--f-mono);font-size:10.5px;
+  font-weight:700;letter-spacing:.08em;color:var(--text-muted)}
+.ob-wrap .ob-it.ed .ih input.it{flex:1 1 auto;min-width:0;font-size:14.5px;
+  font-weight:800;letter-spacing:-.015em}
+.ob-it.ed .ih .x{flex:0 0 auto;width:28px;height:28px;border-radius:7px;font-size:13px}
+.ob-it.ed .ih .x:hover{background:rgba(217,59,59,.10)}
+.ob-wrap .ob-it.ed textarea.bd{font-size:13.5px;min-height:38px}
+.ob-it.ed .ob-ks{display:flex;flex-direction:column;gap:5px;margin-top:11px;
+  padding:10px 0 0;border-top:1px dashed var(--border)}
+.ob-it.ed .ob-ks .kh{font-family:var(--f-mono);font-size:10px;font-weight:700;
+  letter-spacing:.1em;color:var(--text-muted);margin-bottom:2px}
+.ob-it.ed .ob-ks .add{align-self:flex-start;margin-top:3px;padding:5px 11px;
+  border:1px dashed var(--border-light);border-radius:8px;background:transparent;
+  color:var(--text-muted);font-family:inherit;font-size:11.5px;font-weight:700;
+  cursor:pointer}
+.ob-it.ed .ob-ks .add:hover{border-color:var(--blue);color:var(--blue)}
+.ob-k.ed{display:flex;flex-direction:row;flex-wrap:nowrap;gap:6px;align-items:flex-start}
+.ob-wrap .ob-k.ed input.kt{flex:0 0 132px;min-width:0;font-size:13px;font-weight:700}
+.ob-wrap .ob-k.ed.yr input.kt{flex:0 0 84px;font-family:var(--f-mono);
+  font-variant-numeric:tabular-nums}
+/* .ob-wrap textarea 에 width:100% 가 걸려 있어 한 줄에 못 섰습니다 */
+.ob-wrap .ob-k.ed textarea{width:auto;flex:1 1 auto;min-width:0;font-size:13px;
+  min-height:36px}
+.ob-k.ed .x{flex:0 0 auto;width:28px;height:28px;border-radius:7px}
+@media(max-width:620px){
+  .ob-erow{flex-direction:column;gap:5px}
+  .ob-erow > label{flex:0 0 auto;padding-top:0}
+  .ob-k.ed{flex-wrap:wrap}
+  .ob-wrap .ob-k.ed input.kt{flex:1 1 100%}
 }
 /* 고치기는 예전 그대로 — 한 줄씩 세로로 */
 .ob-its{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:13px}
@@ -3281,7 +3374,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260919-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260919-10';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4394,21 +4487,28 @@ function renderOnboard(){
     .filter(x => !at || x.sc.id === at)
     .map(({ sc, si }) => {
     const sid = jsq(sc.id);
+    const yearly = sc.items.some(it => (it.kids || []).some(k => obIsYear(k.title)));
     const head = obEdit
-      ? '<div class="ob-sh ed">'
-        + '<input class="ic" value="' + esc(sc.icon) + '" '
+      ? '<div class="ob-eh">'
+        + '<span class="sn">' + String(si + 1).padStart(2, '0') + '</span>'
+        + '<input class="ic" value="' + esc(sc.icon) + '" title="아이콘" '
           + 'oninput="obSecSet(\'' + sid + '\',\'icon\', this.value)">'
         + '<input class="ti" value="' + esc(sc.title) + '" placeholder="단 이름" '
           + 'oninput="obSecSet(\'' + sid + '\',\'title\', this.value)">'
         + '<span class="ac">'
-          + (si > 0 ? '<button class="btn sm" onclick="obSecMove(\'' + sid + '\',-1)">↑</button>' : '')
+          + (si > 0 ? '<button title="위로" onclick="obSecMove(\'' + sid
+              + '\',-1)">↑</button>' : '')
           + (si < secs.length - 1
-              ? '<button class="btn sm" onclick="obSecMove(\'' + sid + '\',1)">↓</button>' : '')
-          + '<button class="btn sm danger" onclick="obSecDel(\'' + sid + '\')">단 삭제</button>'
+              ? '<button title="아래로" onclick="obSecMove(\'' + sid
+                + '\',1)">↓</button>' : '')
+          + '<button class="dl" title="이 단을 지웁니다" onclick="obSecDel(\''
+            + sid + '\')">🗑</button>'
         + '</span></div>'
-        + '<input class="ob-note" value="' + esc(sc.note) + '" placeholder="한 줄 설명 (선택)" '
-          + 'oninput="obSecSet(\'' + sid + '\',\'note\', this.value)">'
-        + '<div class="ob-vw">'
+        + '<div class="ob-erow"><label>한 줄 설명</label>'
+          + '<input class="ob-note" value="' + esc(sc.note) + '" '
+            + 'placeholder="이 단이 무엇인지 (선택)" '
+            + 'oninput="obSecSet(\'' + sid + '\',\'note\', this.value)"></div>'
+        + '<div class="ob-erow"><label>보기 모양</label><div class="ob-vw">'
           + OB_VIEWS.map(v => '<button class="' + (obView(sc) === v[0] ? 'on' : '') + '" '
               + 'onclick="obSecSet(\'' + sid + '\',\'view\',\'' + v[0] + '\',1)">'
               + esc(v[1]) + '</button>').join('')
@@ -4417,25 +4517,28 @@ function renderOnboard(){
                 + 'placeholder="맨 위 이름 (예: 브랜드)" '
                 + 'oninput="obSecSet(\'' + sid + '\',\'root\', this.value)">'
               : '')
-          + '<button class="yr" onclick="obYearAdd(\'' + sid + '\')" '
-            + 'title="항목(팀)마다 그 해 한 줄을 넣습니다">📅 해 추가</button>'
-          + (sc.items.some(it => (it.kids || []).some(k => obIsYear(k.title)))
-              ? ''
-              : (sc.items.some(it => (it.kids || []).length)
-                  ? '<button class="yr" onclick="obToYears(\'' + sid + '\')" '
-                    + 'title="지금 적어 둔 하위를 해 한 줄 밑으로 접습니다">'
-                    + '↩︎ 해마다로 바꾸기</button>'
-                  : ''))
           + '<em>'
             + (String(sc.view || '').trim() ? ''
                 : '자동 → ' + (OB_VIEWS.find(v => v[0] === obAutoView(sc)) || ['','칸'])[1]
                   + ' · ')
-            + (obView(sc) === 'tree'
-              ? '단 → 항목 → 하위 → 하위 본문을 「·」 로 나눈 낱말이 층이 됩니다'
+            + (yearly ? '해가 위에서 아래로 흐르는 히스토리로 나옵니다'
+              : obView(sc) === 'tree'
+              ? '단 → 항목 → 하위 → 하위 본문의 「·」 낱말이 층이 됩니다'
               : obView(sc) === 'matrix'
-              ? '항목이 세로줄, 하위 이름이 가로줄이 됩니다'
-              : '항목을 나란히 깝니다') + '</em>'
-        + '</div>'
+              ? '항목이 세로줄, 하위 이름이 가로줄'
+              : '항목을 나란히') + '</em>'
+        + '</div></div>'
+        + '<div class="ob-erow"><label>해마다</label><div class="ob-vw">'
+          + '<button class="yr" onclick="obYearAdd(\'' + sid + '\')" '
+            + 'title="항목마다 그 해 한 줄을 한 번에 넣습니다">📅 해 추가</button>'
+          + (yearly || !sc.items.some(it => (it.kids || []).length)
+              ? ''
+              : '<button class="yr" onclick="obToYears(\'' + sid + '\')" '
+                + 'title="지금 적어 둔 하위를 해 한 줄 밑으로 접습니다">'
+                + '↩︎ 해마다로 바꾸기</button>')
+          + '<em>' + (yearly ? '해마다 한 줄씩 늘어나는 단입니다'
+              : '해가 바뀌면 다시 쓰는 단이면 눌러 보세요') + '</em>'
+        + '</div></div>'
       : '<div class="ob-sh"><h3>' + esc(sc.icon) + ' ' + esc(sc.title) + '</h3>'
         + (sc.note ? '<p>' + esc(sc.note) + '</p>' : '') + '</div>';
 
@@ -4469,13 +4572,15 @@ function renderOnboard(){
       const kids = obEdit ? it.kids.map(k => {
         const kid = jsq(k.id);
         return obEdit
-          ? '<div class="ob-k ed">'
-            + '<input class="kt" value="' + esc(k.title) + '" placeholder="이름" '
+          ? '<div class="ob-k ed' + (obIsYear(k.title) ? ' yr' : '') + '">'
+            + '<input class="kt" value="' + esc(k.title) + '" '
+              + 'placeholder="' + (obIsYear(k.title) ? '해' : '이름') + '" '
               + 'oninput="obKidSet(\'' + sid + '\',\'' + iid + '\',\'' + kid + '\',\'title\', this.value)">'
-            + '<textarea rows="1" placeholder="설명 (선택)" '
+            + '<textarea rows="1" placeholder="내용 (줄을 바꾸면 줄마다 점이 찍힙니다)" '
               + 'oninput="gbGrow(this);obKidSet(\'' + sid + '\',\'' + iid + '\',\'' + kid + '\',\'body\', this.value)">'
               + esc(k.body) + '</textarea>'
-            + '<button class="x" onclick="obKidDel(\'' + sid + '\',\'' + iid + '\',\'' + kid
+            + '<button class="x" title="이 줄을 지웁니다" '
+              + 'onclick="obKidDel(\'' + sid + '\',\'' + iid + '\',\'' + kid
               + '\')">✕</button></div>'
           : '';
       }).join('') : kidsRead();
@@ -4483,16 +4588,22 @@ function renderOnboard(){
       return obEdit
         ? '<div class="ob-it ed">'
           + '<div class="ih">'
+            + '<span class="no">항목 '
+              + '①②③④⑤⑥⑦⑧⑨⑩'.charAt(Math.min(sc.items.indexOf(it), 9)) + '</span>'
             + '<input class="it" value="' + esc(it.title) + '" placeholder="항목 이름" '
               + 'oninput="obItSet(\'' + sid + '\',\'' + iid + '\',\'title\', this.value)">'
-            + '<button class="btn sm" onclick="obKidAdd(\'' + sid + '\',\'' + iid
-              + '\')">＋ 하위</button>'
-            + '<button class="x" onclick="obItDel(\'' + sid + '\',\'' + iid + '\')">✕</button>'
+            + '<button class="x" title="이 항목을 지웁니다" '
+              + 'onclick="obItDel(\'' + sid + '\',\'' + iid + '\')">🗑</button>'
           + '</div>'
-          + '<textarea rows="1" placeholder="설명 (선택)" '
+          + '<textarea class="bd" rows="1" placeholder="이 항목이 무엇인지 (선택)" '
             + 'oninput="gbGrow(this);obItSet(\'' + sid + '\',\'' + iid + '\',\'body\', this.value)">'
             + esc(it.body) + '</textarea>'
-          + (kids ? '<div class="ob-ks">' + kids + '</div>' : '')
+          + '<div class="ob-ks">'
+            + '<div class="kh">하위 ' + (it.kids || []).length + '</div>'
+            + kids
+            + '<button class="add" onclick="obKidAdd(\'' + sid + '\',\'' + iid
+              + '\')">＋ 하위 넣기</button>'
+          + '</div>'
           + '</div>'
         /* 읽기 — 둥근 상자를 걷어내고 글자 크기와 선으로만 층을 만듭니다.
            상자에 담으면 전부 같은 무게로 보여 무엇이 중요한지 안 보입니다. */
@@ -4559,7 +4670,35 @@ function renderOnboard(){
       /* ▦ 표 — 항목이 세로줄, 하위 이름이 가로줄 */
       else if(vw === 'matrix'){
         const M = obMatrix(sc);
-        if(M){
+        /* 📜 해로 적힌 단은 표가 아니라 히스토리로 — 해가 위에서 아래로
+           흐르고 그 밑에 팀마다 그 해에 한 일이 붙습니다. 표로 깔면
+           해가 가로줄이 되어 「흐름」 이 안 보입니다. */
+        if(M && M.yearly){
+          const now = String(new Date().getFullYear());
+          bodyHtml = '<div class="ob-hist">' + M.rows.map(r => {
+            const on = obYearOf(r) === now;
+            return '<div class="hy' + (on ? ' now' : '') + '">'
+              + '<div class="hy-h"><i class="dot"></i><b>' + esc(r) + '</b>'
+                + (on ? '<em>지금</em>' : '') + '</div>'
+              + '<div class="hy-b">' + M.cols.map(it => {
+                  const k = (it.kids || []).find(x =>
+                    String(x.title || '').trim() === r);
+                  const v = k ? String(k.body || '').trim() : '';
+                  const ls = v.split('\n').map(x => x.trim()).filter(Boolean);
+                  return '<div class="hy-t' + (v ? '' : ' non') + '">'
+                    + '<b>' + esc(it.title) + '</b>'
+                    + (v
+                        ? (ls.length > 1
+                            ? '<ul>' + ls.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>'
+                            : '<p>' + esc(v) + '</p>')
+                        : '<p class="gap">아직 안 적혀 있습니다'
+                          + '<span class="flag">작성 필요</span></p>')
+                    + '</div>';
+                }).join('') + '</div>'
+            + '</div>';
+          }).join('') + '</div>';
+        }
+        else if(M){
           const n = M.cols.length;
           const cell = (it, r) => {
             const k = (it.kids || []).find(x => String(x.title || '').trim() === r);
@@ -4608,9 +4747,9 @@ function renderOnboard(){
         + bodyHtml
         + '</section>';
     }
-    return '<section class="ob-sec" id="obs-' + sid + '">' + head
+    return '<section class="ob-sec ed" id="obs-' + sid + '">' + head
       + (items ? '<div class="ob-its ed">' + items + '</div>' : '')
-      + '<button class="gb-add tiny" onclick="obItAdd(\'' + sid + '\')">＋ 항목</button>'
+      + '<button class="ob-addit" onclick="obItAdd(\'' + sid + '\')">＋ 항목 넣기</button>'
       + '</section>';
   }).join('');
 

@@ -1044,6 +1044,63 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--text-primary);letter-spacing:-.022em;white-space:pre-wrap;word-break:keep-all}
 .pw-sum.no{font-size:14px;font-weight:400;color:var(--text-muted)}
 
+/* ── 🪪 한눈 카드 — 스크롤하기 전에 이 브랜드가 뭔지 3초에 ─────────── */
+.pw-hero{margin:16px 0 26px;padding:22px 24px 20px;border:1px solid var(--border);
+  border-radius:var(--r-md);background:var(--bg-card);box-shadow:var(--shadow-sm)}
+.pw-hero .slg{font-size:26px;font-weight:800;line-height:1.45;letter-spacing:-.035em;
+  color:var(--text-primary);word-break:keep-all}
+.pw-hero .lns{display:flex;flex-direction:column;gap:7px;margin-top:14px}
+.pw-hero .ln{display:flex;gap:13px;align-items:baseline}
+.pw-hero .ln b{flex:0 0 42px;font-size:11.5px;font-weight:800;color:var(--text-muted);
+  letter-spacing:.02em}
+.pw-hero .ln span{flex:1 1 auto;min-width:0;font-size:14.5px;line-height:1.7;
+  color:var(--text-secondary);word-break:keep-all}
+.pw-hero .sws{display:flex;gap:6px;margin-top:15px}
+.pw-hero .sws i{width:26px;height:26px;border-radius:7px;border:1px solid var(--border);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.05)}
+.pw-hero .sws i[data-no]{background:repeating-linear-gradient(45deg,
+  var(--bg-sunken) 0 5px,var(--border-light) 5px 10px)}
+.pw-hero .sts{display:flex;flex-wrap:wrap;gap:8px;margin-top:17px;padding-top:15px;
+  border-top:1px solid var(--border)}
+.pw-hero .sts button{display:flex;flex-direction:column;gap:1px;align-items:flex-start;
+  font-family:inherit;padding:7px 13px;border-radius:9px;border:1px solid var(--border);
+  background:var(--bg-sunken);cursor:pointer;min-width:74px}
+.pw-hero .sts button:hover{border-color:var(--blue);background:var(--blue-soft)}
+.pw-hero .sts b{font-size:19px;font-weight:800;letter-spacing:-.02em;
+  color:var(--text-primary);font-variant-numeric:tabular-nums;line-height:1.15}
+.pw-hero .sts span{font-size:11.5px;font-weight:700;color:var(--text-muted);
+  white-space:nowrap}
+@media(max-width:560px){
+  .pw-hero{padding:18px 16px 16px}
+  .pw-hero .slg{font-size:21px}
+  .pw-hero .sts button{flex:1 1 84px;min-width:0}
+}
+
+/* ── 🕰 가로 연표 — 2022 → 지금이 한 줄로 보이게 ─────────────────── */
+.pw-tl{overflow-x:auto;margin:0 0 16px;padding-bottom:6px}
+.tl-in{display:flex;align-items:flex-start;min-width:min-content}
+.tl-y{flex:0 0 auto;min-width:126px;max-width:196px;padding-right:14px}
+.tl-in{padding-right:4px}
+.tl-y .yn{font-size:12px;font-weight:800;color:var(--text-secondary);
+  font-variant-numeric:tabular-nums;white-space:nowrap;margin-bottom:7px}
+.tl-y .ax{position:relative;height:11px;margin-bottom:9px}
+.tl-y .ax::before{content:'';position:absolute;left:0;right:-14px;top:5px;height:1px;
+  background:var(--border)}
+.tl-y:last-child .ax::before{right:0}
+.tl-y .ax i{position:absolute;left:0;top:1px;width:9px;height:9px;border-radius:50%;
+  background:var(--blue);box-shadow:0 0 0 3px var(--bg-primary)}
+.tl-y .cs{display:flex;flex-direction:column;gap:5px}
+.tl-c{display:flex;align-items:baseline;gap:6px;text-align:left;font-family:inherit;
+  font-size:12.5px;font-weight:700;line-height:1.5;padding:6px 10px;border-radius:8px;
+  border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);
+  cursor:pointer;word-break:keep-all}
+.tl-c:hover{border-color:var(--blue);color:var(--blue)}
+.tl-c i{flex:0 0 auto;font-style:normal;font-size:11px}
+.tl-c span{flex:1 1 auto;min-width:0}
+.tl-c.p-st{border-left:3px solid var(--green)}
+.tl-c.p-tn{border-left:3px solid var(--yellow)}
+.tl-c.p-no{border-left:3px solid var(--red)}
+.tl-c.p-nw{border-left:3px solid var(--blue)}
 .pw-meta{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
 .pw-meta span{font-size:11.5px;font-weight:700;color:var(--text-secondary);
   background:var(--bg-sunken);border:1px solid var(--border-light);border-radius:99px;
@@ -3065,7 +3122,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260919-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260919-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3876,9 +3933,12 @@ function obToggleEdit(){ obEdit = !obEdit; render(); }
    보입니다. 첫날은 전체로 쭉 읽고, 나중에 「2026년 목표만」 볼 때 고릅니다. */
 function obGo(sid){
   obAt = (obAt === sid ? '' : sid); render();
+  /* 카테고리를 눌렀는데 화면이 아래로 끌려 내려가면 안 됩니다.
+     이미 지나쳐 내려와 있을 때만 <<위로>> 되돌립니다. */
   setTimeout(() => {
     const el = document.querySelector('.ob-body');
-    if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+    if(el && el.getBoundingClientRect().top < 0)
+      el.scrollIntoView({ behavior:'smooth', block:'start' });
   }, 30);
 }
 /* 카드에 띄울 한 줄 — 단마다 세는 것이 다릅니다 */
@@ -17355,6 +17415,26 @@ function pathMineHtml(b){
     + '</div></div>';
 }
 
+/* 한눈 카드의 숫자 · 연표의 점에서 그 자리로 뜁니다 */
+function pathJump(key){
+  const el = document.getElementById('pw-' + key);
+  if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function chapJump(id){
+  const go = () => {
+    const el = document.getElementById('ch-' + id);
+    if(!el) return false;
+    el.scrollIntoView({ behavior:'smooth', block:'center' });
+    el.classList.add('hit');
+    setTimeout(() => el.classList.remove('hit'), 1500);
+    return true;
+  };
+  if(go()) return;
+  /* 해로 걸러 두었거나 「첫날 보기」 라 화면에 없으면 먼저 다 펴 줍니다 */
+  chapAt = ''; chapAll = true; render();
+  setTimeout(go, 60);
+}
+
 /* 글로 복사 — 화면에 보이는 그대로 */
 function pathText(b){
   const P = pathOf(b);
@@ -17497,8 +17577,9 @@ function pathReadHtml(b){
   }
 
   let secNo = 0;
-  const sec = (title, hint, body) =>
-    '<section class="ob"><div class="ob-h"><span class="no">' + (++secNo) + '</span>'
+  const sec = (title, hint, body, key) =>
+    '<section class="ob"' + (key ? ' id="pw-' + key + '"' : '')
+    + '><div class="ob-h"><span class="no">' + (++secNo) + '</span>'
     + '<h3>' + esc(title) + '</h3>'
     + (hint ? '<span class="hn">' + esc(hint) + '</span>' : '') + '</div>'
     + '<div class="ob-b">' + body + '</div></section>';
@@ -17572,7 +17653,7 @@ function pathReadHtml(b){
   const sTG = (idv.target || pss.length)
     ? sec('누구에게 말하나', '타겟 — 이 사람이 읽는다고 생각하고 씁니다',
         (idv.target ? '<p class="ob-what">' + esc(idv.target) + '</p>' : '')
-        + (psHtml ? '<div class="id-ps">' + psHtml + '</div>' : ''))
+        + (psHtml ? '<div class="id-ps">' + psHtml + '</div>' : ''), 'target')
     : '';
 
   /* ❹ 어떻게 보이고 말하나 — 톤앤매너 · 색 · 글꼴 */
@@ -17636,7 +17717,7 @@ function pathReadHtml(b){
   const sWD = (wds.length || rsW.length)
     ? sec('쓰는 말 · 안 쓰는 말', '원고를 쓰다 막히면 여기만 봐도 됩니다',
         (wds.length ? '<div class="id-ws">' + wCol(false) + wCol(true) + '</div>' : '')
-        + wRules)
+        + wRules, 'words')
     : '';
 
   /* ❻ 해마다의 목표 — 무엇을 했나가 아니라 무엇을 하려고 했나.
@@ -17658,7 +17739,7 @@ function pathReadHtml(b){
                   ? '<div class="gk"><i>어떻게 됐나</i><span>'
                     + esc(g.result).replace(/\n/g, '<br>') + '</span></div>' : '')
             + '</div></div>';
-        }).join('') + '</div>')
+        }).join('') + '</div>', 'goals')
     : '';
 
   /* 2 — 여기서 일할 때 지킬 것 (걸어온 길이 근거로 붙습니다) */
@@ -17734,7 +17815,7 @@ function pathReadHtml(b){
         + (at ? '<p class="ob-atn">「' + esc(at) + '」 에서 지킬 것만 보고 있습니다 — '
                 + '어디서나 지키는 것도 같이 나옵니다</p>' : '')
         + smBox
-      : smBox)
+      : smBox, 'rules')
     : '';
 
   /* 3 — 막히면 누구에게 */
@@ -17764,7 +17845,7 @@ function pathReadHtml(b){
           + (String(w.where || '').trim() ? '<span class="wr">' + esc(w.where) + '</span>' : '')
         + '</div>').join('') + '</div>'
       : (wgap ? '' : none('아직 없습니다 — 누구에게 물어보면 되는지가 신입에게는 제일 '
-                          + '무섭습니다.'))));
+                          + '무섭습니다.'))), 'who');
 
   /* 4 — 이 브랜드가 걸어온 길 (히스토리)
      기획서 한 장 = 마디 한 칸. 장이 쌓일수록 이 줄기가 길어집니다. */
@@ -17837,17 +17918,45 @@ function pathReadHtml(b){
       + '</div>'
     : '';
 
+  /* 🕰 가로 연표 — 마디를 세로로만 읽으면 2022→지금이 한눈에 안 들어옵니다.
+     해 축 위에 점으로 깔고, 누르면 아래 그 마디로 뜁니다. */
+  const tlY = [];
+  lineAll.forEach(c => {
+    const y = chapYear(c) || '때 미상';
+    const last = tlY[tlY.length - 1];
+    if(last && last.y === y) last.cs.push(c);
+    else tlY.push({ y: y, cs: [c] });
+  });
+  const tl = lineAll.length >= 3
+    ? '<div class="pw-tl"><div class="tl-in">'
+      + tlY.map(g => '<div class="tl-y">'
+          + '<div class="yn">' + esc(g.y) + '</div>'
+          + '<div class="ax"><i></i></div>'
+          + '<div class="cs">' + g.cs.map(c => {
+              const K = pathKindOf(c);
+              return '<button class="tl-c ' + (K.cls || '') + '" '
+                + 'onclick="chapJump(\'' + jsq(c.id || '') + '\')" '
+                + 'title="' + esc(K.k + ' · ' + (c.title || '')) + '">'
+                + '<i>' + K.ic + '</i>'
+                + '<span>' + esc(gbOneLine(String(c.title || '').trim() || '(제목 없음)', 22))
+                + '</span></button>';
+            }).join('') + '</div>'
+        + '</div>').join('')
+      + '</div></div>'
+    : '';
+
   const s4 = sec('이 브랜드가 걸어온 길',
     '처음 · 꺾인 데 · 지금이 한 줄기로 — 위의 규칙이 어디서 왔는지',
     meta
     + gapBar
     + (sum ? '<p class="pw-sum">' + esc(sum) + '</p>' : '')
+    + tl
     + modeBar
-    + yPick
+    + (tl ? '' : yPick)
     + (line.length
         ? '<div class="pw-line">' + rail + '</div>'
         : (sum ? '' : none('아직 없습니다 — [🏁 처음부터 적기] 로 시작점을 놓고, '
-                           + '기획서를 올리면 한 장이 한 칸씩 이어 붙습니다.'))));
+                           + '기획서를 올리면 한 장이 한 칸씩 이어 붙습니다.'))), 'path');
 
   /* 5 — 첫 2주에 해볼 것 (읽고 끝나지 않게) */
   const s5 = sec('첫 2주에 해볼 것', '읽고 끝나지 않게 — 직접 해보는 차례',
@@ -17855,7 +17964,7 @@ function pathReadHtml(b){
     + (ss.length
         ? '<ol class="ob-st">' + ss.map(t => stepReadHtml(b, t)).join('') + '</ol>'
         : none('아직 없습니다 — 신입이 첫 2주에 무엇을 직접 해보면 되는지 적어 두면, '
-               + '읽고 끝나지 않고 내일부터 손을 댑니다.')));
+               + '읽고 끝나지 않고 내일부터 손을 댑니다.')), 'first');
 
   /* 읽어온 문서 — 「이 규칙 어디서 나왔나」 를 확인할 때만 보는 영수증입니다.
      읽으라고 둔 줄이 아닌데 올릴수록 길어져서, 최근 것만 펴고 나머지는 접습니다.
@@ -17877,15 +17986,51 @@ function pathReadHtml(b){
       + '</div>'
     : '';
 
+  /* ── 🪪 한눈 카드 ─────────────────────────────────────────────
+     기록부를 넣으면 용어 87 · 지킬 것 40 · 마디 10칸이 됩니다. 그걸 전부
+     글로 늘어놓으면 첫 화면이 그냥 글 벽입니다. 스크롤하기 전에 이 브랜드가
+     무엇이고 · 누구에게 말하고 · 어떤 색이고 · 무엇이 얼마나 쌓여 있는지를
+     한 장에 먼저 보여 줍니다. 숫자를 누르면 그 단으로 뜁니다.
+     ------------------------------------------------------------ */
+  const nYes = wds.filter(w => !wordNo(w)).length;
+  const nNo  = wds.filter(wordNo).length;
+  const nSm  = samplesOf(b).filter(sampleOk).length;
+  const stat = [
+    ['words', nYes, '쓰는 말'], ['words', nNo, '안 쓰는 말'],
+    ['rules', rs.length, '지킬 것'], ['rules', nSm, '이렇게 쓴 것'],
+    ['path',  cs.length, '마디'],    ['goals', gls.length, '해마다의 목표'],
+    ['target', pss.length, '페르소나'], ['who', ws.length, '물어볼 사람']
+  ].filter(x => x[1] > 0);
+  const heroLn = (nm, v) => String(v || '').trim()
+    ? '<div class="ln"><b>' + esc(nm) + '</b><span>'
+      + esc(gbOneLine(v, 84)) + '</span></div>' : '';
+  const heroOn = idv.slogan || idv.character || idv.target || cls.length || stat.length;
+  const hero = heroOn
+    ? '<div class="pw-hero">'
+      + (idv.slogan
+          ? '<div class="slg">' + esc(idv.slogan).replace(/\n/g, '<br>') + '</div>' : '')
+      + (idv.character || idv.target
+          ? '<div class="lns">' + heroLn('성격', idv.character)
+            + heroLn('타겟', idv.target) + '</div>' : '')
+      + (cls.length
+          ? '<div class="sws">' + cls.slice(0, 8).map(c => {
+              const hx = colorHex(c);
+              return '<i' + (hx ? ' style="background:' + esc(hx) + '"' : ' data-no="1"')
+                + ' title="' + esc(String(c.name || '') + (hx ? ' ' + hx : '')) + '"></i>';
+            }).join('') + '</div>' : '')
+      + (stat.length
+          ? '<div class="sts">' + stat.map(x =>
+              '<button onclick="pathJump(\'' + x[0] + '\')">'
+              + '<b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></button>').join('')
+            + '</div>' : '')
+      + '</div>'
+    : '';
+
   return '<div class="pw">'
     + '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
       + esc(b.name) + ' — 브랜드 소개</div>'
-      /* 슬로건은 단이 아니라 이름 바로 아래 한 줄입니다 — 밖에 내보내는 말이라
-         제일 먼저 눈에 걸려야 합니다 */
-      + (idv.slogan
-          ? '<div class="pw-slg">' + esc(idv.slogan).replace(/\n/g, '<br>') + '</div>'
-          : '')
     + '</div>'
+    + hero
     /* 5단(첫 2주에 해볼 것)은 뺐습니다 (v20260917-71).
        나머지 네 단은 문서를 올리면 저절로 차오르거나 한 번 적으면 끝인데,
        5단만 사람이 손으로 채워야 했고 누가 언제 오느냐에 따라 달라서

@@ -1388,6 +1388,10 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-chart ul{display:flex;justify-content:center;padding-top:22px;position:relative;
   margin:0;list-style:none}
 .ob-chart > ul{padding-top:0}
+/* 뿌리가 없으면 맨 윗줄에는 잇는 선을 긋지 않습니다 */
+.ob-chart.noroot > ul > li{padding-top:0}
+.ob-chart.noroot > ul > li::before,.ob-chart.noroot > ul > li::after{display:none}
+.ob-chart.noroot > ul{gap:26px}
 .ob-chart li{position:relative;padding:22px 7px 0;text-align:center;list-style:none}
 .ob-chart li::before,.ob-chart li::after{content:'';position:absolute;top:0;right:50%;
   border-top:1px solid var(--border-light);width:50%;height:22px}
@@ -3266,7 +3270,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260919-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260919-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4078,20 +4082,43 @@ function obSeed(){
      표   — 같은 항목을 여러 갈래로 견줄 때 (팀마다 목적 · 하는 일 …).
               항목이 세로줄, 하위 이름이 가로줄이 됩니다.
    ------------------------------------------------------------ */
-const OB_VIEWS = [['', '▤ 칸'], ['tree', '🌳 조직도'], ['matrix', '▦ 표']];
+const OB_VIEWS = [['', '⚙︎ 자동'], ['cards', '▤ 칸'],
+                 ['tree', '🌳 조직도'], ['matrix', '▦ 표']];
+/* 손으로 고른 것이 없으면 자료 모양을 보고 고릅니다 — 이미 적어 둔 단은
+   모양 칸이 없어서 전부 「칸」 으로만 나오고 있었습니다 */
 function obView(sc){
   const v = String((sc && sc.view) || '').trim();
-  return OB_VIEWS.some(x => x[0] === v) ? v : '';
+  if(v === 'tree' || v === 'matrix' || v === 'cards') return v;
+  return obAutoView(sc);
 }
-/* 하위 본문을 「·」 로 나눈 낱말 — 조직도의 맨 아래 층 */
+function obAutoView(sc){
+  const its = (sc && sc.items || []).filter(it => String(it.title || '').trim());
+  if(its.length < 2) return 'cards';
+  /* 같은 이름의 하위가 여러 항목에 걸쳐 있으면 견주는 표입니다 */
+  const n = {};
+  its.forEach(it => (it.kids || []).forEach(k => {
+    const t = String(k.title || '').trim();
+    if(t) n[t] = (n[t] || 0) + 1;
+  }));
+  if(Object.keys(n).filter(t => n[t] >= 2).length >= 1
+     && its.filter(it => (it.kids || []).length).length >= 2) return 'matrix';
+  /* 「가 · 나 · 다」 로 늘어놓은 하위가 있으면 층이 하나 더 있는 것입니다 */
+  const listy = it => (it.kids || []).some(k => obLeaves(k.body).length >= 2)
+    || obLeaves(it.body).length >= 2;
+  if(its.some(listy)) return 'tree';
+  return 'cards';
+}
+/* 하위 본문을 「·」 로 나눈 낱말 — 조직도의 맨 아래 층.
+   한 줄짜리 · 짧은 낱말만 목록으로 봅니다. 문장에도 「·」 는 흔합니다. */
 function obLeaves(body){
-  const t = String(body || '').replace(/\s+/g, ' ').trim();
-  if(!t) return [];
-  if(/[·•]/.test(t)){
-    const l = t.split(/\s*[·•]\s*/).map(x => x.trim()).filter(Boolean);
-    if(l.length >= 2) return l;
-  }
-  return [t];
+  const raw = String(body || '');
+  if(raw.indexOf('\n') >= 0) return [];          // 여러 줄이면 글입니다
+  const t = raw.replace(/\s+/g, ' ').trim();
+  if(!t || t.length > 70 || /[→←↔]/.test(t)) return [];
+  if(!/[·•]/.test(t)) return [];
+  const l = t.split(/\s*[·•]\s*/).map(x => x.trim()).filter(Boolean);
+  if(l.length < 2 || l.some(x => x.length > 22)) return [];
+  return l;
 }
 /* 표 — 항목이 세로줄, 하위 이름이 가로줄 */
 function obMatrix(sc){
@@ -4306,8 +4333,12 @@ function renderOnboard(){
                 + 'placeholder="맨 위 이름 (예: 브랜드)" '
                 + 'oninput="obSecSet(\'' + sid + '\',\'root\', this.value)">'
               : '')
-          + '<em>' + (obView(sc) === 'tree'
-              ? '단 → 항목 → 하위 → 하위 본문을 「·」 로 나눈 낱말이 네 층이 됩니다'
+          + '<em>'
+            + (String(sc.view || '').trim() ? ''
+                : '자동 → ' + (OB_VIEWS.find(v => v[0] === obAutoView(sc)) || ['','칸'])[1]
+                  + ' · ')
+            + (obView(sc) === 'tree'
+              ? '단 → 항목 → 하위 → 하위 본문을 「·」 로 나눈 낱말이 층이 됩니다'
               : obView(sc) === 'matrix'
               ? '항목이 세로줄, 하위 이름이 가로줄이 됩니다'
               : '항목을 나란히 깝니다') + '</em>'
@@ -4411,15 +4442,21 @@ function renderOnboard(){
             ? '<ul>' + ls.map(x => '<li><span class="nd leaf">' + esc(x) + '</span></li>').join('')
               + '</ul>' : '';
         };
-        bodyHtml = '<div class="ob-chartbox"><div class="ob-chart"><ul><li>'
-          + '<span class="nd root">'
-            + esc(String(sc.root || '').trim() || sc.title || '브랜드') + '</span>'
-          + '<ul>' + sc.items.filter(it => String(it.title || '').trim())
-              .map(it => '<li><span class="nd lv2">' + esc(it.title) + '</span>'
-                + kidUl(it) + '</li>').join('') + '</ul>'
-          + '</li></ul></div>'
+        const top = sc.items.filter(it => String(it.title || '').trim())
+          .map(it => '<li><span class="nd lv2">' + esc(it.title) + '</span>'
+            + kidUl(it) + '</li>').join('');
+        /* 맨 위 이름을 적었을 때만 뿌리를 세웁니다. 안 적었는데 단 이름을
+           그대로 쓰면 바로 아래 항목과 같은 말이 두 번 나옵니다. */
+        const rootNm = String(sc.root || '').trim();
+        bodyHtml = '<div class="ob-chartbox"><div class="ob-chart'
+          + (rootNm ? '' : ' noroot') + '">'
+          + (rootNm
+              ? '<ul><li><span class="nd root">' + esc(rootNm) + '</span>'
+                + '<ul>' + top + '</ul></li></ul>'
+              : '<ul>' + top + '</ul>')
+          + '</div>'
           + '<div class="ob-lg">'
-            + '<span><i class="lg root"></i>맨 위</span>'
+            + (rootNm ? '<span><i class="lg root"></i>맨 위</span>' : '')
             + '<span><i class="lg lv2"></i>갈래</span>'
             + '<span><i class="lg lv3"></i>주체</span>'
             + '<span><i class="lg leaf"></i>낱낱</span>'

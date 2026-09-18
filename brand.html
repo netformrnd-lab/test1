@@ -1424,7 +1424,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
 
 /* ── ▦ 표 — 같은 항목을 여러 갈래로 견줄 때 ───────────────────── */
 .ob-mxwrap{overflow-x:auto}
-.ob-matrix{display:grid;grid-template-columns:92px repeat(var(--n),minmax(0,1fr));gap:1px;
+.ob-matrix{display:grid;
+  grid-template-columns:minmax(92px,max-content) repeat(var(--n),minmax(0,1fr));gap:1px;
   background:var(--border);border:1px solid var(--border);border-radius:3px;
   overflow:hidden;min-width:calc(92px + var(--n) * 190px)}
 .ob-matrix .mx{background:var(--bg-card);padding:15px 14px;font-size:13.5px;
@@ -1461,6 +1462,16 @@ table.itable tr:hover td{background:var(--bg-hover)}
   padding:5px 10px;border:1px solid var(--border);border-radius:8px;
   background:var(--bg-input);color:var(--text-primary)}
 .ob-vw > em{font-style:normal;font-size:11px;color:var(--text-muted)}
+.ob-vw > button.yr{border-style:dashed;color:var(--text-secondary)}
+.ob-vw > button.yr:hover{border-style:solid}
+/* 표 — 해로 된 가로줄 */
+.ob-matrix .mx.rowhead.yr{font-family:var(--f-mono);font-size:13px;font-weight:700;
+  letter-spacing:0;color:var(--text-primary);font-variant-numeric:tabular-nums;
+  white-space:nowrap;align-items:baseline}
+.ob-matrix .mx.rowhead.yr.now{color:var(--blue)}
+.ob-matrix .mx.rowhead.yr.now::after{content:'지금';margin-left:7px;font-family:inherit;
+  font-size:9.5px;font-weight:800;color:#fff;background:var(--blue);border-radius:99px;
+  padding:1px 6px;letter-spacing:0}
 
 /* 「작성 필요」 딱지 */
 .flag{display:inline-flex;align-items:center;font-family:var(--f-mono);font-size:9.5px;
@@ -3270,7 +3281,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260919-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260919-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4054,20 +4065,20 @@ function obSeed(){
         ['하는 일', '미디어가 중요해진 시대. 브랜드 메시지 전달력이 높은 형태로 제작']
       ]]
     ], 'matrix'),
-    S('📅', '2026년 목표', '팀마다 누가 어느 브랜드를 맡는지', [
+    /* 해가 바뀌면 다시 쓰는 단입니다 — 팀이 세로줄, 해가 가로줄.
+       [📅 해 추가] 로 내년 한 줄을 세 팀에 한 번에 깝니다. */
+    S('📅', '해마다의 팀 목표', '해가 바뀌면 한 줄씩 늘어납니다 — 팀마다 그 해에 무엇을', [
       ['전략마케팅팀 (PM)', '', [
-        ['소라님', '기존 브랜드 정리 — POUR솔루션 · POUR공법 → OBM 브랜드'],
-        ['경선님', '아파트스퀘어 — 정보 비대칭 풀기'],
-        ['다예님', '슈어포인트']
+        ['2026', '소라님 — 기존 브랜드 정리 (POUR솔루션 · POUR공법 → OBM 브랜드)\n'
+               + '경선님 — 아파트스퀘어 · 정보 비대칭 풀기\n다예님 — 슈어포인트']
       ]],
       ['콘텐츠마케팅팀', '', [
-        ['B2B', '새로 인력 충원'],
-        ['B2C', '새로 인력 충원']
+        ['2026', 'B2B — 새로 인력 충원\nB2C — 새로 인력 충원']
       ]],
       ['미디어마케팅팀', '', [
-        ['상기님', '']
+        ['2026', '상기님']
       ]]
-    ])
+    ], 'matrix')
   ];
 }
 
@@ -4124,14 +4135,17 @@ function obLeaves(body){
 function obMatrix(sc){
   const cols = (sc.items || []).filter(it => String(it.title || '').trim());
   if(cols.length < 2) return null;
-  const rows = [];
+  let rows = [];
   cols.forEach(it => (it.kids || []).forEach(k => {
     const t = String(k.title || '').trim();
     if(t && rows.indexOf(t) < 0) rows.push(t);
   }));
   if(!rows.length) return null;
-  const hasBody = cols.some(it => String(it.body || '').trim());
-  return { cols: cols, rows: rows, hasBody: hasBody };
+  /* 해로 적힌 가로줄이면 최근이 위로 옵니다 — 적은 차례가 아니라 때 순서 */
+  const yearly = rows.length > 1 && rows.every(obIsYear);
+  if(yearly) rows = rows.slice().sort((a, b) => Number(obYearOf(b)) - Number(obYearOf(a)));
+  return { cols: cols, rows: rows, hasBody: cols.some(it => String(it.body || '').trim()),
+           yearly: yearly };
 }
 const OB_TCS = ['t-a', 't-b', 't-c', 't-d', 't-e'];
 
@@ -4216,6 +4230,76 @@ function obCount(sc){
   return n + '가지' + (k ? ' · 세부 ' + k : '');
 }
 function obMark(){ const d = data; markDirtyAll(); }
+
+/* ── 📅 해마다 적는 단 ────────────────────────────────────────
+   「2026년 목표」 처럼 해가 바뀌면 다시 쓰는 단이 있습니다. 해를 항목마다
+   손으로 하나씩 더하게 하면 내년에 아무도 안 씁니다.
+   한 번 눌러 해 한 줄을 모든 항목에 깔아 줍니다.
+   표로 보면 팀이 세로줄, 해가 가로줄이 되어 해마다 견줘집니다.
+   ------------------------------------------------------------ */
+function obIsYear(t){ return /^\s*\d{4}\s*년?\s*$/.test(String(t || '')); }
+function obYearOf(t){ const m = String(t || '').match(/\d{4}/); return m ? m[0] : ''; }
+/* 해를 한 줄 더합니다 — 모든 항목에 같은 이름의 하위가 생깁니다 */
+function obYearAdd(sid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const its = sc.items.filter(it => String(it.title || '').trim());
+  if(!its.length){ toast('먼저 항목(팀)을 넣어 주세요'); return; }
+  const have = [];
+  its.forEach(it => (it.kids || []).forEach(k => {
+    const y = obYearOf(k.title);
+    if(y && have.indexOf(y) < 0) have.push(y);
+  }));
+  const next = have.length ? String(Math.max.apply(null, have.map(Number)) + 1)
+                           : String(new Date().getFullYear());
+  const y = (prompt('어느 해를 더할까요?\n\n'
+    + (have.length ? '지금 있는 해 — ' + have.sort().join(' · ') + '\n' : '')
+    + '항목(팀) ' + its.length + '개 모두에 그 해 한 줄이 생깁니다.', next) || '').trim();
+  if(!y) return;
+  const nm = obIsYear(y) ? obYearOf(y) : y;
+  let n = 0;
+  its.forEach(it => {
+    if(!Array.isArray(it.kids)) it.kids = [];
+    if(it.kids.some(k => String(k.title || '').trim() === nm)) return;
+    it.kids.push({ id: uid('ok'), title: nm, body:'' }); n++;
+  });
+  if(!n){ toast('「' + nm + '」 은 이미 있습니다'); return; }
+  obMark(); render();
+  toast('📅 ' + nm + ' 을 항목 ' + n + '개에 넣었습니다');
+}
+/* 지금 적혀 있는 하위를 해 한 줄 밑으로 접어 넣습니다 —
+   「팀 → 사람」 으로 적어 둔 것을 「팀 → 해 → 그 해에 한 일」 로 바꿉니다 */
+function obToYears(sid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const its = sc.items.filter(it => String(it.title || '').trim());
+  if(!its.length) return;
+  const y0 = obYearOf(sc.title) || String(new Date().getFullYear());
+  const y = (prompt('지금 적혀 있는 것을 어느 해의 것으로 볼까요?\n\n'
+    + '항목(팀)마다 하위가 그 해 한 줄 밑으로 접힙니다.\n'
+    + '예) 전략마케팅팀 → ' + y0 + ' → 「소라님 — 기존 브랜드 정리 …」\n\n'
+    + '이 뒤로는 [📅 해 추가] 로 해마다 한 줄씩 늘리면 됩니다.', y0) || '').trim();
+  if(!y) return;
+  const nm = obIsYear(y) ? obYearOf(y) : y;
+  let n = 0;
+  its.forEach(it => {
+    const ks = (it.kids || []).filter(k => String(k.title || '').trim()
+      || String(k.body || '').trim());
+    if(ks.some(k => obIsYear(k.title))) return;          // 이미 해로 적혀 있음
+    const txt = ks.map(k => {
+      const t = String(k.title || '').trim(), b = String(k.body || '').trim();
+      return t && b ? t + ' — ' + b : (t || b);
+    }).filter(Boolean).join('\n')
+      || String(it.body || '').trim();
+    if(!txt) return;
+    ks.forEach(k => { if(k.id) deletedIds.add(k.id); });
+    it.kids = [{ id: uid('ok'), title: nm, body: txt }];
+    if(!ks.length) it.body = '';
+    n++;
+  });
+  if(!n){ toast('바꿀 것이 없습니다 — 이미 해마다로 적혀 있습니다'); return; }
+  sc.view = 'matrix';
+  obMark(); render();
+  toast('📅 항목 ' + n + '개를 ' + nm + ' 밑으로 접었습니다');
+}
 
 function obSecAdd(){
   obOf().push({ id: uid('os'), icon:'📌', title:'새 단', note:'', items:[] });
@@ -4333,6 +4417,15 @@ function renderOnboard(){
                 + 'placeholder="맨 위 이름 (예: 브랜드)" '
                 + 'oninput="obSecSet(\'' + sid + '\',\'root\', this.value)">'
               : '')
+          + '<button class="yr" onclick="obYearAdd(\'' + sid + '\')" '
+            + 'title="항목(팀)마다 그 해 한 줄을 넣습니다">📅 해 추가</button>'
+          + (sc.items.some(it => (it.kids || []).some(k => obIsYear(k.title)))
+              ? ''
+              : (sc.items.some(it => (it.kids || []).length)
+                  ? '<button class="yr" onclick="obToYears(\'' + sid + '\')" '
+                    + 'title="지금 적어 둔 하위를 해 한 줄 밑으로 접습니다">'
+                    + '↩︎ 해마다로 바꾸기</button>'
+                  : ''))
           + '<em>'
             + (String(sc.view || '').trim() ? ''
                 : '자동 → ' + (OB_VIEWS.find(v => v[0] === obAutoView(sc)) || ['','칸'])[1]
@@ -4489,7 +4582,10 @@ function renderOnboard(){
                           ? '<p class="mx-mission">' + esc(it.body) + '</p>'
                           : '<span class="mx-non">—</span>') + '</div>').join('')
                 : '')
-            + M.rows.map(r => '<div class="mx rowhead">' + esc(r) + '</div>'
+            + M.rows.map(r => '<div class="mx rowhead'
+                + (M.yearly ? ' yr' : '')
+                + (M.yearly && obYearOf(r) === String(new Date().getFullYear())
+                    ? ' now' : '') + '">' + esc(r) + '</div>'
                 + M.cols.map((it, ci) => cell(it, r).replace('class="mx"',
                     'class="mx ' + OB_TCS[ci % OB_TCS.length] + '"')).join('')).join('')
             + '</div></div>';

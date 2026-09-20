@@ -111,7 +111,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'version') {
 
     $local = '';
     $lp = __DIR__ . '/brand.html';
-    if (is_file($lp)) $local = $verOfFile($lp);
+    $haveFile = is_file($lp);
+    if ($haveFile) $local = $verOfFile($lp);
 
     $cacheFile = __DIR__ . '/data/version-check.json';
     $force = isset($_GET['force']);
@@ -142,6 +143,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'version') {
         '지금'      => $local ?: '(알 수 없음)',
         '최신'      => $remote ?: '(확인 못함)',
         '새판있음'  => ($local !== '' && $remote !== '' && $local !== $remote),
+        /* 무엇이 잘못됐는지 화면에서 바로 알 수 있게 — 판 번호를 못 읽을 때
+           파일이 아예 없는 것인지, 있는데 못 읽은 것인지 가려 줍니다 */
+        '파일있음'  => $haveFile,
+        '파일경로'  => $lp,
         '확인시각'  => $when ? date('c', $when) : null,
     ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;

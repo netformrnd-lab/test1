@@ -87,15 +87,31 @@ if (isset($_GET['action']) && $_GET['action'] === 'version') {
             "/APP_VER\\s*=\\s*['\"]([^'\"]{1,40})['\"]/", $text, $m)) ? $m[1] : '';
     };
 
+    /* 판 번호를 파일에서 찾습니다.
+       예전에는 앞 200KB 만 읽었습니다. 화면이 커지면서 APP_VER 이 그 뒤로
+       밀려났고(지금은 약 207KB 지점), 그때부터 판 번호를 <<못 읽고>> 있었습니다.
+       그래서 「지금」 이 (알 수 없음) 이 되고, 「새판있음」 도 늘 거짓이라
+       [새 판 받기] 가 한 번도 안 떴습니다.
+       이제는 찾을 때까지 조각씩 읽습니다 — 파일이 더 커져도 안 깨집니다. */
+    $verOfFile = function ($path) use ($ver) {
+        $fp = @fopen($path, 'rb');
+        if (!$fp) return '';
+        $buf = ''; $out = '';
+        while (!feof($fp)) {
+            $chunk = fread($fp, 262144);
+            if ($chunk === false || $chunk === '') break;
+            $buf .= $chunk;
+            $out = $ver($buf);
+            if ($out !== '') break;
+            $buf = substr($buf, -256);   // 조각 경계에서 잘리지 않게 끝만 남깁니다
+        }
+        fclose($fp);
+        return $out;
+    };
+
     $local = '';
     $lp = __DIR__ . '/brand.html';
-    if (is_file($lp)) {
-        $fp = @fopen($lp, 'rb');
-        if ($fp) {                       // 판 번호는 앞부분에 있어서 조금만 읽으면 됩니다
-            $local = $ver(fread($fp, 200000));
-            fclose($fp);
-        }
-    }
+    if (is_file($lp)) $local = $verOfFile($lp);
 
     $cacheFile = __DIR__ . '/data/version-check.json';
     $force = isset($_GET['force']);

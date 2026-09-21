@@ -14,8 +14,6 @@ jobs:
       - name: 의존성 설치
         working-directory: backend/aptsq-sync
         run: npm install --no-audit --no-fund
-      - name: 예정일(date=null) 등록 재현 진단
+      - name: 배포본 반영 확인 진단
         working-directory: backend/aptsq-sync
-        env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node diag-sched.js
+        run: node diag-deploy.js

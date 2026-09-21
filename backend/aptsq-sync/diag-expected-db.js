@@ -6,6 +6,12 @@ const { SUPABASE_URL = 'https://gndktayoicegyqyllybk.supabase.co', SUPABASE_SERV
 if (!SUPABASE_SERVICE_ROLE_KEY) { console.error('키 없음'); process.exit(1); }
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 (async () => {
+  // 전체/소스별 건수 먼저(데이터 유실 여부 확인)
+  const { count: total } = await sb.from('schedules').select('*', { count: 'exact', head: true });
+  const { count: cAptsq } = await sb.from('schedules').select('*', { count: 'exact', head: true }).eq('source', 'aptsq');
+  const { count: cPour } = await sb.from('schedules').select('*', { count: 'exact', head: true }).eq('source', 'pour');
+  const { count: cNull } = await sb.from('schedules').select('*', { count: 'exact', head: true }).is('source', null);
+  console.log(`[전체 schedules] 총 ${total}건 · aptsq ${cAptsq} · pour ${cPour} · null(옛날) ${cNull}`);
   const { data, error } = await sb.from('schedules')
     .select('id,title,category,source,date,meta').eq('source', 'aptsq').order('created_at', { ascending: false }).limit(500);
   if (error) { console.log('조회 오류', error.message); return; }

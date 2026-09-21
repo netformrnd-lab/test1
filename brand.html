@@ -1041,7 +1041,11 @@ table.itable tr:hover td{background:var(--bg-hover)}
 @media(max-width:640px){.hxb .ba > .ar{display:none}}
 
 /* ── 🧭 걸어온 길 ─────────────────────────────────────────────── */
-.pw{max-width:780px}
+/* 780px 은 글을 읽히려고 잡은 폭입니다. 이제 카드와 표가 들어차니
+   그 폭으로는 칸이 셋씩 쪼개집니다. 판은 넓히고, <<줄글만>> 읽기 좋은
+   폭에 묶어 둡니다 — 한 줄이 너무 길면 눈이 다음 줄을 못 찾습니다. */
+.pw{max-width:1040px}
+.ob-what,.pw-sum,.pw-hero .lns,.id-tgt .iv-v{max-width:780px}
 .pw-top{padding:2px 0 22px;margin-bottom:4px;border-bottom:2px solid var(--border)}
 .pw-nm{font-size:12.5px;font-weight:800;color:var(--text-muted);letter-spacing:.02em;
   margin-bottom:11px}
@@ -2038,7 +2042,9 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--text-primary);word-break:keep-all}
 
 /* 페르소나 — 한 사람을 한 칸에 */
-.id-ps{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:12px;
+/* 한 줄에 셋까지 들어가니 안쪽 두 칸이 너무 좁아졌습니다 —
+   카드 밑변을 넓혀 두 장까지만 서게 합니다. */
+.id-ps{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:12px;
   margin-top:12px}
 .id-p{padding:15px 17px;border:1px solid var(--border);border-radius:var(--r);
   background:var(--bg-card)}
@@ -2150,7 +2156,30 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--blue)}
 .id-w .wy{display:block;margin-top:3px;font-size:12.5px;line-height:1.7;
   color:var(--text-muted);word-break:keep-all}
-.id-wr{margin-top:14px}
+/* 이유까지 붙은 말 — 한 장씩. 말은 크게, 까닭은 접어서 */
+.id-wr{margin-top:16px}
+.id-ws2{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:9px}
+.id-wr2{position:relative;padding:13px 15px 13px 40px;border:1px solid var(--border);
+  border-radius:var(--r-sm);background:var(--bg-card)}
+.id-wr2.yes{border-left:4px solid var(--green)}
+.id-wr2.no{border-left:4px solid var(--red)}
+.id-wr2 .n{position:absolute;left:12px;top:13px;width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;
+  font-variant-numeric:tabular-nums;color:var(--text-muted);background:var(--bg-sunken);
+  border:1px solid var(--border)}
+.id-wr2 .q{font-size:15.5px;font-weight:800;line-height:1.7;letter-spacing:-.01em;
+  color:var(--text-primary);word-break:keep-all}
+.id-wr2.no .q{color:var(--text-muted);text-decoration:line-through;
+  text-decoration-color:var(--red);text-decoration-thickness:1.5px}
+.id-wr2 .q.multi{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 7px;
+  text-decoration:none}
+.id-wr2 .q.multi > span{padding:2px 10px;border-radius:99px;border:1px solid var(--border);
+  background:var(--bg-sunken);font-size:14.5px}
+.id-wr2.no .q.multi > span{text-decoration:line-through;text-decoration-color:var(--red)}
+.id-wr2 .q.multi > i{font-style:normal;font-size:11.5px;color:var(--text-muted)}
+.id-wr2 .wy{margin-top:7px;font-size:13px;line-height:1.75;color:var(--text-secondary);
+  word-break:keep-all}
+.id-wr2 .wy .fd-b{max-height:4.4em}
 
 /* 해마다의 목표 */
 /* 해마다의 목표는 연표입니다 — 해마다 점을 찍고 줄기로 잇습니다 */
@@ -3615,7 +3644,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19267,14 +19296,37 @@ function pathReadHtml(b){
         + '</div>'; }).join('')
       + '</div>';
   };
+  /* 이유까지 붙은 말은 <<한 장씩>>이라야 읽힙니다. 스물한 줄을 세로로
+     이어 놓으면 「말 한 줄 → 긴 설명」 이 스물한 번 반복되는 글이 됩니다.
+     말은 큰 인용으로 띄우고 까닭은 접어 둡니다. 「A / B」 로 적은 것은
+     두 말이 같은 뜻이라는 표시라 칩 둘로 나눠 놓습니다. */
+  const wRuleCard = (r, i, no) => {
+    const qs = String(r.text || '').split(/\s+\/\s+/).map(x => x.trim()).filter(Boolean);
+    const one = qs.length < 2;
+    return '<div class="id-wr2' + (no ? ' no' : ' yes') + '">'
+      + '<span class="n">' + (i + 1) + '</span>'
+      + '<div class="q' + (one ? '' : ' multi') + '" data-ed="rule" data-i="' + esc(r.id)
+        + '" data-f="text" data-ml="1">'
+        + (one ? esc(r.text)
+               : qs.map(q => '<span>' + esc(q) + '</span>').join('<i>=</i>'))
+      + '</div>'
+      + (String(r.why || '').trim()
+          ? '<div class="wy">' + fold('<span data-ed="rule" data-i="' + esc(r.id)
+              + '" data-f="why" data-ml="1">' + esc(r.why) + '</span>') + '</div>'
+          : '')
+      + '</div>';
+  };
   const wRules = rsW.length
-    ? '<div class="id-wr">' + RULE_KINDS.filter(k => WORD_KINDS.indexOf(k.k) >= 0).map(k => {
+    ? RULE_KINDS.filter(k => WORD_KINDS.indexOf(k.k) >= 0).map(k => {
         const mine = rsW.filter(r => ruleKindOf(r).k === k.k);
         if(!mine.length) return '';
-        return '<div class="ob-rk ' + (k.cls || '') + '">'
-          + '<div class="kh">' + k.ic + ' ' + esc(k.k) + '<b>' + mine.length + '</b></div>'
-          + mine.map((r, i) => ruleReadHtml(b, r, quoted, '', i + 1)).join('') + '</div>';
-      }).join('') + '</div>'
+        const no = k.k.indexOf('안') >= 0;
+        return '<div class="id-wr">'
+          + '<div class="id-sub">' + k.ic + ' ' + esc(k.k)
+            + ' <b>' + mine.length + '</b></div>'
+          + '<div class="id-ws2">'
+          + mine.map((r, i) => wRuleCard(r, i, no)).join('') + '</div></div>';
+      }).join('')
     : '';
   const sWD = (wds.length || rsW.length)
     ? sec('쓰는 말 · 안 쓰는 말', '원고를 쓰다 막히면 여기만 봐도 됩니다',

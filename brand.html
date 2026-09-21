@@ -2034,6 +2034,64 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--text-secondary)}
 .pe-1l span{display:block;margin-top:2px;font-size:11px;font-weight:400;
   color:var(--text-muted)}
+/* ── 📖 통독하는 문서 (「전체」 일 때) ─────────────────────────
+   표지 · 목차 · 장 번호 · 리드 문단 · 인용구. 신입이 첫날 처음부터
+   끝까지 읽는 자리라, 찾아보는 화면과는 짜임이 달라야 합니다. */
+.pw-cov{padding:34px 0 30px;border-bottom:2px solid var(--ink);margin-bottom:6px}
+.pw-cov .bn{font-size:12.5px;font-weight:800;letter-spacing:.04em;
+  color:var(--text-muted);margin-bottom:18px}
+.pw-cov .ti{font-size:34px;font-weight:800;line-height:1.35;letter-spacing:-.04em;
+  color:var(--text-primary);word-break:keep-all;max-width:880px}
+.pw-cov .sb{margin:16px 0 0;max-width:780px;font-size:16px;line-height:1.85;
+  color:var(--text-secondary);word-break:keep-all}
+.pw-cov .mt{margin-top:22px;font-size:12px;font-weight:700;color:var(--text-muted)}
+.pw-cov .mt span{margin-left:8px;font-weight:400}
+/* 표지의 큰 숫자 — 글보다 먼저 들어옵니다 */
+.pw-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(122px,1fr));
+  gap:1px;margin-top:26px;background:var(--border);
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.pw-nums button{display:flex;flex-direction:column;gap:3px;padding:15px 14px;
+  border:none;background:var(--bg-card);cursor:pointer;font-family:inherit;
+  text-align:left}
+.pw-nums button:hover{background:var(--blue-soft)}
+.pw-nums b{font-size:24px;font-weight:800;letter-spacing:-.03em;
+  color:var(--text-primary);font-variant-numeric:tabular-nums}
+.pw-nums span{font-size:11.5px;font-weight:700;color:var(--text-muted);
+  word-break:keep-all}
+/* 목차 — 번호와 이름만. 누르면 그 장만 펴집니다 */
+.pw-toc{list-style:none;margin:26px 0 0;padding:0;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;
+  background:var(--border);border:1px solid var(--border);border-radius:var(--r-sm);
+  overflow:hidden}
+.pw-toc li{background:var(--bg-card)}
+.pw-toc button{display:flex;align-items:baseline;gap:10px;width:100%;
+  padding:12px 14px;border:none;background:transparent;cursor:pointer;
+  font-family:inherit;text-align:left}
+.pw-toc button:hover{background:var(--blue-soft)}
+.pw-toc i{font-style:normal;font-size:11px;font-weight:800;color:var(--text-muted);
+  font-variant-numeric:tabular-nums}
+.pw-toc b{font-size:14px;font-weight:700;color:var(--text-primary);word-break:keep-all}
+/* 장 — 번호를 크게 위로 올리고 제목을 키웁니다 */
+.pw-doc .ob{padding:38px 0 30px}
+.pw-doc .ob-h{display:block;margin-bottom:16px}
+.pw-doc .ob-h .no{display:block;width:auto;height:auto;border-radius:0;
+  background:transparent;color:var(--text-muted);font-size:12px;font-weight:800;
+  letter-spacing:.08em;margin-bottom:7px}
+.pw-doc .ob-h h3{font-size:25px;letter-spacing:-.03em;line-height:1.35}
+.pw-doc .ob-h .hn{display:block;margin-top:8px;max-width:780px;font-size:14.5px;
+  line-height:1.85;color:var(--text-secondary)}
+.pw-doc .ob-h .ob-ed{position:absolute;right:0;margin-top:-28px}
+.pw-doc .ob-h{position:relative}
+/* 철학은 인용구로 세웁니다 — 통독할 때 숨을 고르는 자리 */
+.pw-doc .id-ph{border:none;border-left:3px solid var(--ink);border-radius:0;
+  background:transparent;padding:4px 0 4px 20px;margin-top:18px}
+.pw-doc .id-ph > b{display:none}
+.pw-doc .id-ph .iv-v,.pw-doc .id-ph span{font-size:18px;line-height:1.8;
+  font-weight:700;letter-spacing:-.015em;color:var(--text-primary)}
+@media(max-width:700px){.pw-cov{padding:24px 0 22px}
+  .pw-cov .ti{font-size:25px}
+  .pw-doc .ob-h h3{font-size:20px}}
+
 /* ── 🎨 이 브랜드는 어떤 얼굴인가 ──────────────────────────────
    슬로건 · 성격 · 철학 · 타겟 · 톤앤매너 · 용어 · 해마다의 목표.
    전부 「읽는 자리」 라 글자 크기로만 위계를 줍니다. */
@@ -3795,7 +3853,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-19';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-20';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19679,7 +19737,8 @@ function pathReadHtml(b){
      옮긴 다음 그 단을 다시 찾아 내려가야 했습니다. */
   const sec = (title, hint, body, key) =>
     '<section class="ob"' + (key ? ' id="pw-' + key + '"' : '')
-    + '><div class="ob-h"><span class="no">' + (++secNo) + '</span>'
+    + '><div class="ob-h"><span class="no">'
+    + String(++secNo).padStart(2, '0') + '</span>'
     + '<h3>' + esc(title) + '</h3>'
     + (hint ? '<span class="hn">' + esc(hint) + '</span>' : '')
     + (key ? '<button class="ob-ed" title="이 단만 고칩니다" onclick="pathEditAt(\''
@@ -20339,12 +20398,47 @@ function pathReadHtml(b){
     : '';
   const pwBody = SECS.filter(x => !pwOn || x[0] === pwOn).map(x => x[3]).join('');
 
-  return '<div class="pw">'
+  /* ── 📖 「전체」 는 통독하는 문서로 ──────────────────────────
+     칩으로 한 단씩 보는 것은 <<찾아보기>> 입니다 — 원고 쓰다 막혔을 때.
+     그런데 신입이 첫날 하는 일은 찾아보기가 아니라 처음부터 끝까지
+     읽는 것입니다. 그래서 「전체」 일 때는 표지 · 목차 · 장 번호가
+     있는 문서로 폅니다. 한 단을 고르면 지금처럼 그 단만 나옵니다.
+     ------------------------------------------------------------ */
+  const docMin = Math.max(1, Math.round(pathText(b).replace(/\s/g, '').length / 400));
+  const cover = pwOn ? '' : '<div class="pw-cov">'
+    + '<div class="bn">' + esc(b.icon || '🏷️') + ' ' + esc(b.name) + '</div>'
+    + '<div class="ti" data-ed="id" data-f="slogan" data-ml="1" '
+      + 'data-ph="밖에 내보내는 한 줄">'
+      + (idv.slogan ? esc(idv.slogan).replace(/\n/g, '<br>')
+                    : '🏷️ 슬로건을 적어 주세요') + '</div>'
+    + (idv.character
+        ? '<p class="sb" data-ed="id" data-f="character" data-ml="1">'
+          + esc(gbOneLine(idv.character, 120)) + '</p>' : '')
+    + '<div class="mt">신입이 첫날 이것만 읽으면 되는 자리입니다'
+      + '<span>· 읽는 데 ' + docMin + '분</span></div>'
+    /* 큰 숫자 — 이 갈래 보고서의 장치입니다. 글을 읽기 전에 이 브랜드가
+       얼마나 쌓여 있는지가 숫자로 먼저 들어옵니다. 누르면 그 장으로. */
+    + (stat.length
+        ? '<div class="pw-nums">' + stat.map(x =>
+            '<button onclick="setPwAt(\'' + x[0] + '\')">'
+            + '<b>' + x[1] + '</b><span>' + esc(x[2]) + '</span></button>').join('')
+          + '</div>' : '')
+    + (SECS.length > 1
+        ? '<ol class="pw-toc">' + SECS.map((x, i) =>
+            '<li><button onclick="setPwAt(\'' + x[0] + '\')">'
+            + '<i>' + String(i + 1).padStart(2, '0') + '</i>'
+            + '<b>' + x[1] + ' ' + esc(x[2]) + '</b></button></li>').join('')
+          + '</ol>' : '')
+    + '</div>';
+
+  return '<div class="pw' + (pwOn ? '' : ' pw-doc') + '">'
     + '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
       + esc(b.name) + ' — 브랜드 소개</div>'
     + '</div>'
-    + hero
-    + cats
+    + (pwOn ? hero : cover)
+    /* 목차와 칩은 같은 일을 합니다 — 통독 화면에는 목차만 두고,
+       한 장을 고른 뒤에 칩(＋ 전체로 돌아가기)을 냅니다. */
+    + (pwOn ? cats : '')
     /* 5단(첫 2주에 해볼 것)은 뺐습니다 (v20260917-71).
        나머지 네 단은 문서를 올리면 저절로 차오르거나 한 번 적으면 끝인데,
        5단만 사람이 손으로 채워야 했고 누가 언제 오느냐에 따라 달라서

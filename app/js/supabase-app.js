@@ -2032,14 +2032,29 @@ function renderCalendar(scheds) {
 function renderSchedList(scheds) {
   // 하단 상시 목록은 없앰 — 날짜를 누르면 그 날 일정만 보여줌
   const el = document.getElementById('s-list'); if (!el) return
-  if (!schedPicked) { el.innerHTML = '<div style="padding:12px 10px;text-align:center;color:#b3bccf;font-size:11px;font-weight:600">달력의 날짜를 누르면 그 날 일정이 여기 보여요</div>'; return }
+  // 📌 날짜 미정(예정월/미정) — date 가 없어 달력엔 안 뜨므로 상단에 항상 표시. 눌러서 수정.
+  const _ym = schedYM ? (schedYM.y + '-' + String(schedYM.m + 1).padStart(2, '0')) : ''
+  const _noDate = (scheds || []).filter(s => { if (s.date) return false; if (!schedMatchCat(s)) return false; const dt = (s.meta && s.meta.dateType) || 'expected'; if (dt === 'tbd') return true; const em = (s.meta && s.meta.expectedMonth) || ''; return em ? em === _ym : true })
+  let pre = ''
+  if (_noDate.length) {
+    pre = '<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:800;color:#3a445e;margin:2px 2px 6px">📌 날짜 미정</div>' + _noDate.map(s => {
+      const dt = (s.meta && s.meta.dateType) || 'expected'; const tag = dt === 'tbd' ? '미정' : '예정'
+      const apt = (s.apartment_id && AUD_APTS[s.apartment_id]) ? AUD_APTS[s.apartment_id].name : ''
+      const nm = (apt ? apt + ' — ' : '') + (s.title || '일정')
+      const base = 'display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;margin:0 6px 6px 0;background:#eef1f6;color:#3a445e'
+      return currentRole === 'auditor'
+        ? '<span onclick="openSchedEdit(\'' + s.id + '\')" style="cursor:pointer;' + base + '">' + tag + ' · ' + escH(nm) + '</span>'
+        : '<span style="' + base + '">' + tag + ' · ' + escH(nm) + '</span>'
+    }).join('') + '</div>'
+  }
+  if (!schedPicked) { el.innerHTML = pre + '<div style="padding:12px 10px;text-align:center;color:#b3bccf;font-size:11px;font-weight:600">달력의 날짜를 누르면 그 날 일정이 여기 보여요</div>'; return }
   const wd = ['일', '월', '화', '수', '목', '금', '토']
   const day = (scheds || []).filter(s => String(s.date || '').slice(0, 10) === schedPicked && schedMatchCat(s))
   const [Y, M, D] = schedPicked.split('-').map(Number)
   const head = M + '/' + D + ' (' + wd[new Date(Y, M - 1, D).getDay()] + ')'
-  if (!day.length) { el.innerHTML = '<div style="padding:12px 10px;text-align:center;color:#9aa3b6;font-size:11.5px;font-weight:600">' + head + ' 일정이 없어요</div>'; return }
+  if (!day.length) { el.innerHTML = pre + '<div style="padding:12px 10px;text-align:center;color:#9aa3b6;font-size:11.5px;font-weight:600">' + head + ' 일정이 없어요</div>'; return }
   const isAud = currentRole === 'auditor'
-  el.innerHTML = '<div style="font-size:11px;font-weight:800;color:#3a445e;margin:2px 2px 6px">' + head + '</div>' + day.map(s => {
+  el.innerHTML = pre + '<div style="font-size:11px;font-weight:800;color:#3a445e;margin:2px 2px 6px">' + head + '</div>' + day.map(s => {
     // 입주민·관리주체: 분류 색/배지 없이 기존 캘린더처럼 (감리사만 분류 표시)
     const isPour = s.source === 'pour'   // POUR 영업시스템에서 온 일정 (색은 종류별)
     const catLab = APP_CAT_LABEL[s.category] || ''

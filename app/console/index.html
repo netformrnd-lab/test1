@@ -838,6 +838,15 @@ function renderCalendar(){
     `<span onclick="setCalCat('전체')" style="cursor:pointer;padding:2px 9px;border-radius:7px;font-weight:800;${calCat==='전체'?'background:#111a33;color:#fff':'background:#eef1f6'}">전체</span>`+
     legChip('방문','방문','var(--blue,#2f6bf6)')+
     CAL_CATS.map(c=>legChip(c[0],c[1],c[2])).join('')+'</div>';
+  // 📌 날짜 미정(예정월/미정) 일정 — date 가 없어 달력 칸엔 안 그려지므로 상단에 따로 표시.
+  //    예정월: 그 달(expectedMonth)에만 표시 · 미정: 항상 표시. 눌러서 수정/삭제.
+  const _ym=`${y}-${String(m+1).padStart(2,'0')}`;
+  const _noDate=(SCHEDULES||[]).filter(s=>{ if(s.date)return false; const ck=(s.category||''); if(calCat!=='전체'&&ck!==calCat)return false; const dt=(s.meta&&s.meta.dateType)||'expected'; if(dt==='tbd')return true; const em=(s.meta&&s.meta.expectedMonth)||''; return em? em===_ym : true; });
+  if(_noDate.length){
+    h+=`<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 4px 12px;margin-bottom:4px;border-bottom:1px dashed var(--line)"><span style="font-size:11px;font-weight:800;color:var(--mut)">📌 날짜 미정</span>`+
+      _noDate.map(s=>{ const isAsq=(s.category==='asq'); const dt=(s.meta&&s.meta.dateType)||'expected'; const tag=dt==='tbd'?'미정':'예정'; const apt=s.apartment_id?(aptName[s.apartment_id]||''):''; const nm=(apt?apt+' — ':'')+(s.title||'일정'); return `<span onclick="openScheduleEdit('${s.id}')" title="눌러서 수정·삭제" style="cursor:pointer;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;${isAsq?'background:#2563eb;color:#fff':'background:#eef1f4;color:#59617a'}">${tag} · ${esc(nm)}</span>`; }).join('')+
+      `</div>`;
+  }
   ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;

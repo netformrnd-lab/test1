@@ -2034,16 +2034,46 @@ table.itable tr:hover td{background:var(--bg-hover)}
   margin-top:12px}
 .id-p{padding:15px 17px;border:1px solid var(--border);border-radius:var(--r);
   background:var(--bg-card)}
-.id-p .ph{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+.id-p .ph{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
   padding-bottom:10px;margin-bottom:11px;border-bottom:1px solid var(--border)}
+/* 사람은 이름표가 아니라 얼굴로 기억됩니다 — 첫 글자를 동그라미에 */
+.id-p .ph .av{flex:0 0 auto;width:34px;height:34px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-style:normal;
+  font-size:15px;font-weight:800;color:var(--bg-card);background:var(--blue)}
 .id-p .ph b{font-size:16.5px;font-weight:800;letter-spacing:-.015em;
   color:var(--text-primary);word-break:keep-all}
 .id-p .ph span{font-size:12px;font-weight:700;color:var(--text-muted);
   background:var(--bg-sunken);border-radius:99px;padding:2px 9px;white-space:nowrap}
-.id-p .pk{display:flex;flex-direction:column;gap:2px;margin-top:9px}
-.id-p .pk i{font-size:12px;font-weight:800;font-style:normal;color:var(--blue)}
-.id-p .pk span{font-size:14.5px;line-height:1.75;color:var(--text-secondary);
+/* 「원하는 것」 과 「걱정」 은 마주 세웁니다 — 나란히 봐야 무엇을 주면
+   되는지가 잡힙니다. 초록은 주고 싶은 것, 주황은 막아야 할 것. */
+/* 이름을 「pv」 로 지었다가 크게 데었습니다 — 이 화면에는 이미 .pv 가
+   있고(사이트 미리보기: width:1280px; transform:scale(.29)), 그 규칙이
+   그대로 얹혀서 페르소나 칸이 1280px 로 커진 채 0.29배로 줄어 있었습니다.
+   글자가 깨알같이 작게 나오던 게 그래서였습니다. 한 낱말짜리 이름은
+   반드시 앞에 무엇인지 붙입니다.
+   두 칸으로 못 박습니다 (좁으면 한 칸). minmax(0,1fr) 이라야 안쪽 글이
+   길어도 칸이 삐져나오지 않습니다. */
+.id-p{min-width:0}
+.id-p .id-pv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.id-p .pk{min-width:0;display:flex;flex-direction:column;gap:3px;padding:9px 11px;
+  border-radius:var(--r-sm);background:var(--bg-sunken);
+  border-left:3px solid var(--border)}
+@media(max-width:620px){.id-p .id-pv{grid-template-columns:1fr}}
+.id-p .pk.yes{border-left-color:var(--green);background:var(--bg-sunken)}
+.id-p .pk.no{border-left-color:var(--yellow)}
+.id-p .pk i{font-size:11.5px;font-weight:800;font-style:normal;color:var(--text-muted)}
+.id-p .pk.yes i{color:var(--green)}
+.id-p .pk.no i{color:var(--yellow)}
+.id-p .pk span{font-size:14px;line-height:1.7;color:var(--text-primary);
   word-break:keep-all}
+/* 타겟 = 과녁 한 칸 */
+.id-tgt{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;margin-bottom:12px;
+  border:1px solid var(--border);border-left:4px solid var(--blue);
+  border-radius:var(--r-sm);background:var(--bg-input)}
+.id-tgt > i{flex:0 0 auto;font-style:normal;font-size:20px;line-height:1.2}
+.id-tgt > div{flex:1 1 auto;min-width:0}
+.id-tgt b{display:block;margin-bottom:5px;font-size:11.5px;font-weight:800;
+  letter-spacing:.01em;color:var(--text-muted)}
 
 /* 색 · 글꼴 */
 .id-cs{display:flex;flex-wrap:wrap;gap:10px}
@@ -2059,13 +2089,31 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .id-c .cn code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
   font-weight:700;color:var(--text-muted)}
 .id-c .cn span{flex:1 1 100%;font-size:12.5px;color:var(--text-secondary)}
-.id-fs{display:flex;flex-direction:column;gap:7px}
-.id-f{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;padding:9px 13px;
-  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-card)}
+/* 글꼴은 이름만 적어 두면 어떻게 생겼는지 모릅니다 — 견본을 같이 씁니다 */
+.id-fs{display:flex;flex-wrap:wrap;gap:8px}
+.id-f{display:flex;align-items:center;gap:12px;flex:1 1 240px;min-width:0;
+  padding:9px 13px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--bg-card)}
+.id-f .spec{flex:0 0 auto;font-size:21px;font-weight:700;letter-spacing:-.01em;
+  color:var(--text-primary);line-height:1.2}
+.id-f .fn{display:flex;flex-direction:column;gap:1px;min-width:0}
 .id-f b{font-size:14.5px;font-weight:800;color:var(--text-primary)}
 .id-f span{font-size:12.5px;color:var(--text-secondary)}
 
 /* 쓰는 말 · 안 쓰는 말 — 두 줄을 나란히 세워서 한눈에 대조합니다 */
+/* 바꿔 쓸 말이 적힌 것은 <<짝>>입니다 — 마주 세우면 원고 쓰다 한 번만
+   찾으면 됩니다. 두 칸에 나눠 두면 「이건 대신 뭐라 쓰더라」 로 또 찾습니다. */
+.id-mp{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.id-mp .m{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;
+  padding:10px 14px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--bg-card)}
+.id-mp .x{font-size:15px;font-weight:800;color:var(--text-muted);
+  text-decoration:line-through;text-decoration-color:var(--red);
+  text-decoration-thickness:1.5px;word-break:keep-all}
+.id-mp .m > i{font-style:normal;font-size:13px;color:var(--text-muted)}
+.id-mp .o{font-size:15.5px;font-weight:800;color:var(--green);word-break:keep-all}
+.id-mp .wy{flex:1 1 100%;font-size:12.5px;line-height:1.7;color:var(--text-muted);
+  word-break:keep-all}
 .id-ws{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:13px}
 .id-wc{padding:13px 15px;border:1px solid var(--border);border-radius:var(--r);
   background:var(--bg-card)}
@@ -2263,11 +2311,18 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-q.again:hover{background:var(--bg-hover)}
 .pw-ch.hit > .bd{background:var(--blue-soft);border-radius:12px;
   box-shadow:0 0 0 8px var(--blue-soft);transition:background .3s}
-.ob-who{display:flex;flex-direction:column;gap:7px}
+/* 막히면 누구에게 — 이름보다 「언제 물어보나」 가 먼저 읽혀야 합니다 */
+.ob-who{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px}
+.ob-who .av{flex:0 0 auto;width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-style:normal;
+  font-size:13.5px;font-weight:800;color:var(--bg-card);background:var(--text-secondary);
+  align-self:center}
 .ob-who .wc{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;padding:9px 12px;
   border:1px solid var(--border);border-radius:10px;background:var(--bg-card)}
 .ob-who .nm{font-size:14.5px;font-weight:800;color:var(--text-primary)}
 .ob-who .rl{font-size:12.5px;color:var(--text-secondary)}
+.ob-who .rl{flex:1 1 100%;padding-left:39px;font-size:12.5px;font-weight:700;
+  color:var(--blue)}
 .ob-who .wr{margin-left:auto;font-size:11.5px;color:var(--text-muted);white-space:nowrap}
 
 /* 결과 — 여정의 핵심이라 눈에 띄게 */
@@ -3533,7 +3588,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16647,6 +16702,17 @@ function colorHex(c){
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v) ? v : '';
 }
 function colorOk(c){ return !!(colorHex(c) || String((c && c.name) || '').trim()); }
+/* 글꼴 견본 — 「Pretendard Bold」 에서 굵기 말을 떼고 글꼴 이름만 씁니다.
+   그 글꼴이 이 컴퓨터에 없으면 기본 글꼴로 보입니다 (그래도 괜찮습니다 —
+   이름과 쓰임이 옆에 적혀 있습니다). 따옴표는 막아 둡니다. */
+function fontFam(name){
+  const t = String(name || '').replace(/["'\\;{}<>]/g, '')
+    .replace(/\s+(Bold|Regular|Medium|Light|SemiBold|Thin|Black|Italic)\b/gi, '').trim();
+  /* 목록 안의 「inherit」 은 통째로 무효라 아예 안 먹습니다 —
+     뒤에는 진짜 글꼴 이름이 와야 합니다 (화면 기본 차례를 그대로). */
+  const FALL = "'Pretendard Variable','Pretendard',system-ui,sans-serif";
+  return t ? "'" + t + "'," + FALL : FALL;
+}
 function fontsOf(b){ return pathRows(b, 'fonts'); }
 function fontOk(f){ return !!String((f && f.name) || '').trim(); }
 function wordsOf(b){ return pathRows(b, 'words'); }
@@ -19035,22 +19101,31 @@ function pathReadHtml(b){
   /* ❸ 누구에게 말하나 — 타겟 · 페르소나 */
   const psA = (x, f, ml) => ' data-ed="row" data-k="personas" data-i="' + esc(x.id)
     + '" data-f="' + f + '"' + (ml ? ' data-ml="1"' : '');
+  /* 사람은 이름표가 아니라 얼굴로 기억됩니다 — 첫 글자를 동그라미에 넣고,
+     「원하는 것」 과 「걱정」 을 초록·주황으로 갈라 마주 세웁니다.
+     둘이 나란히 보여야 「무엇을 주면 되나」 가 한눈에 잡힙니다. */
+  const PS_K = [['who', '🙍', '어떤 사람', ''], ['want', '✅', '원하는 것', 'yes'],
+                ['pain', '⚠️', '걱정 · 불편', 'no'], ['where', '📍', '어디서 만나나', '']];
   const psHtml = pss.map(x => '<div class="id-p">'
-    + '<div class="ph"><b' + psA(x, 'name') + '>' + esc(x.name) + '</b>'
+    + '<div class="ph">'
+      + '<i class="av">' + esc(String(x.name || '?').trim().slice(0, 1)) + '</i>'
+      + '<b' + psA(x, 'name') + '>' + esc(x.name) + '</b>'
       + (String(x.age || '').trim()
           ? '<span' + psA(x, 'age') + '>' + esc(x.age) + '</span>' : '') + '</div>'
-    + [['who', '어떤 사람'], ['want', '원하는 것'], ['pain', '걱정 · 불편'],
-       ['where', '어디서 만나나']].map(k => {
+    + '<div class="id-pv">' + PS_K.map(k => {
         const v = String(x[k[0]] || '').trim();
-        return v ? '<div class="pk"><i>' + esc(k[1]) + '</i><span' + psA(x, k[0], 1) + '>'
+        return v ? '<div class="pk ' + k[3] + '"><i>' + k[1] + ' ' + esc(k[2]) + '</i>'
+          + '<span' + psA(x, k[0], 1) + '>'
           + esc(v).replace(/\n/g, '<br>') + '</span></div>' : '';
-      }).join('')
+      }).join('') + '</div>'
     + '</div>').join('');
   const sTG = (idv.target || pss.length)
     ? sec('누구에게 말하나', '타겟 — 이 사람이 읽는다고 생각하고 씁니다',
         (idv.target
-          ? '<p class="ob-what" data-ed="id" data-f="target" data-ml="1">'
-            + esc(idv.target) + '</p>' : '')
+          ? '<div class="id-tgt"><i>🎯</i>'
+            + '<div><b>이 사람이 읽는다고 생각하고 씁니다</b>'
+            + ivHtml(idv.target, ' data-ed="id" data-f="target" data-ml="1"')
+            + '</div></div>' : '')
         + (psHtml ? '<div class="id-ps">' + psHtml + '</div>' : ''), 'target')
     : '';
 
@@ -19075,11 +19150,14 @@ function pathReadHtml(b){
     : '';
   const ftHtml = fts.length
     ? '<div class="id-fs">' + fts.map(f => '<div class="id-f">'
-        + '<b data-ed="row" data-k="fonts" data-i="' + esc(f.id) + '" data-f="name">'
-        + esc(f.name) + '</b>'
-        + (String(f.use || '').trim()
-            ? '<span data-ed="row" data-k="fonts" data-i="' + esc(f.id) + '" data-f="use">'
-              + esc(f.use) + '</span>' : '')
+        + '<span class="spec" style="font-family:' + esc(fontFam(f.name)) + '">Ag 가나</span>'
+        + '<div class="fn">'
+          + '<b data-ed="row" data-k="fonts" data-i="' + esc(f.id) + '" data-f="name">'
+          + esc(f.name) + '</b>'
+          + (String(f.use || '').trim()
+              ? '<span data-ed="row" data-k="fonts" data-i="' + esc(f.id) + '" data-f="use">'
+                + esc(f.use) + '</span>' : '')
+        + '</div>'
       + '</div>').join('') + '</div>'
     : '';
   const kwHtml = kws.length
@@ -19109,8 +19187,26 @@ function pathReadHtml(b){
 
   /* ❺ 쓰는 말 · 안 쓰는 말 — 원고를 쓰다가 제일 자주 들추는 자리라
      지킬 것에 섞어 두지 않고 따로 세웁니다. */
+  /* 「✕ 하자보수 → ✔️ 유지보수」 처럼 <<바꿔 쓸 말이 적힌 것>>은 짝입니다.
+     두 칸에 따로 늘어놓으면 원고 쓰다 두 번 찾아야 합니다. 짝은 맨 위에
+     한 줄씩 마주 세우고, 짝이 없는 말만 아래 칸에 모읍니다. */
+  const wPair = wds.filter(w => wordNo(w) && String(w.instead || '').trim());
+  const wPaired = new Set(wPair.map(w => w.id));
+  const wMap = wPair.length
+    ? '<div class="id-mp">' + wPair.map(w => {
+        const wa = (f, ml) => ' data-ed="row" data-k="words" data-i="' + esc(w.id)
+          + '" data-f="' + f + '"' + (ml ? ' data-ml="1"' : '');
+        return '<div class="m">'
+          + '<span class="x"' + wa('term') + '>' + esc(w.term) + '</span>'
+          + '<i>→</i>'
+          + '<span class="o"' + wa('instead') + '>' + esc(w.instead) + '</span>'
+          + (String(w.why || '').trim()
+              ? '<span class="wy"' + wa('why', 1) + '>' + esc(w.why) + '</span>' : '')
+        + '</div>';
+      }).join('') + '</div>'
+    : '';
   const wCol = (no) => {
-    const mine = wds.filter(w => wordNo(w) === no);
+    const mine = wds.filter(w => wordNo(w) === no && !wPaired.has(w.id));
     if(!mine.length) return '';
     return '<div class="id-wc' + (no ? ' no' : ' yes') + '">'
       + '<div class="wh">' + (no ? '✕ 안 쓰는 말' : '✔️ 쓰는 말')
@@ -19138,7 +19234,9 @@ function pathReadHtml(b){
     : '';
   const sWD = (wds.length || rsW.length)
     ? sec('쓰는 말 · 안 쓰는 말', '원고를 쓰다 막히면 여기만 봐도 됩니다',
-        (wds.length ? '<div class="id-ws">' + wCol(false) + wCol(true) + '</div>' : '')
+        wMap
+        + (wCol(false) + wCol(true)
+            ? '<div class="id-ws">' + wCol(false) + wCol(true) + '</div>' : '')
         + wRules, 'words')
     : '';
 
@@ -19269,6 +19367,7 @@ function pathReadHtml(b){
     + (ws.length
       ? '<div class="ob-who">' + ws.map(w => '<div class="wc'
           + (whoReal(w) ? '' : ' dim') + '">'
+          + '<i class="av">' + esc(String(w.name || '?').trim().slice(0, 1)) + '</i>'
           + '<span class="nm" data-ed="who" data-i="' + esc(w.id) + '" data-f="name">'
             + esc(w.name) + '</span>'
           + (String(w.role || '').trim()

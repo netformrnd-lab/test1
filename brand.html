@@ -1175,6 +1175,20 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-h h3{margin:0;font-size:21px;font-weight:800;color:var(--text-primary);
   letter-spacing:-.03em}
 .ob-h .hn{font-size:12.5px;color:var(--text-muted)}
+/* ✎ 두 번 눌러 고치는 자리 — 고칠 수 있다는 것이 보여야 눌러 봅니다.
+   늘 밑줄을 그으면 글이 지저분해져서, 얹었을 때만 옅게 깔립니다. */
+[data-ed]{border-radius:5px;transition:background .12s,box-shadow .12s}
+[data-ed]:hover{background:var(--blue-soft);
+  box-shadow:0 0 0 3px var(--blue-soft);cursor:text}
+[data-ed].ed-on{display:block;background:transparent;box-shadow:none;cursor:auto}
+.ed-box{width:100%;box-sizing:border-box;font-family:inherit;font-size:inherit;
+  font-weight:inherit;line-height:1.7;color:var(--text-primary);
+  padding:6px 10px;border:1px solid var(--blue);border-radius:8px;
+  background:var(--bg-input);resize:none;overflow:hidden;min-height:32px}
+.ed-box:focus{outline:none;box-shadow:0 0 0 3px var(--blue-soft)}
+.ed-tip{display:block;margin-top:3px;font-size:10.5px;font-weight:400;
+  color:var(--text-muted);letter-spacing:0}
+@media (hover:none){[data-ed]:hover{background:transparent;box-shadow:none}}
 .ob-what{margin:0;font-size:15.5px;font-weight:700;line-height:1.85;
   color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
 .pw-none2{margin:0;font-size:13px;color:var(--text-muted);line-height:1.8}
@@ -3457,7 +3471,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260920-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260920-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4158,6 +4172,9 @@ function restoreUI(snap){
 }
 
 function render(){
+  /* 두 번 눌러 고치는 중이면 다시 그리지 않습니다 — 그리면 쓰던 칸이
+     사라집니다. 빠져나올 때 한 번 그립니다. (칸이 이미 없으면 그냥 그립니다) */
+  if(edOn && document.getElementById('edBox')){ edSkip = true; return; }
   // 브랜드가 사라졌는데(다른 사람이 지웠다든지) 그 화면을 보고 있으면 홈으로
   if(currentBrandId && !data.brands.some(b => b.id === currentBrandId)){
     currentBrandId = null;
@@ -18545,6 +18562,121 @@ async function pathCopy(bid){
   catch(e){ prompt('아래 내용을 복사해 쓰세요', t); }
 }
 
+
+/* ── ✎ 두 번 눌러 그 자리에서 고치기 ──────────────────────────
+   읽다가 틀린 것을 보면 [고치기] 로 옮겨 가서 그 칸을 다시 찾아야 했습니다.
+   한 글자 고치는 데 화면을 두 번 갈아타는 건 너무 비쌉니다.
+   이제 글을 두 번 누르면 그 자리가 칸이 되고, 빠져나오면 저장됩니다.
+
+   자리마다 「어디에 적히는 글인지」 를 data-ed 로 달아 두고, 문서 전체에
+   귀 하나만 답니다. 자리마다 따로 달면 새 자리를 만들 때마다 잊습니다.
+   -------------------------------------------------------------- */
+let edOn   = '';        // 지금 고치고 있는 자리 (비어 있으면 안 고치는 중)
+let edSkip = false;     // 고치는 동안 미뤄 둔 다시 그리기가 있었나
+let edCur  = null;      // 고치고 있는 자리와 원래 글
+
+/* 이 자리의 지금 글 — 화면 글자가 아니라 자료에서 읽습니다
+   (화면에는 줄바꿈이 <br> 로 바뀌어 있어서 그대로 쓰면 줄이 사라집니다) */
+function edGet(d){
+  const b = currentBrand(); if(!b) return '';
+  const P = pathOf(b);
+  const S = v => String(v == null ? '' : v);
+  if(d.ed === 'what')  return S(P.what);
+  if(d.ed === 'sum')   return S(P.summary);
+  if(d.ed === 'ob1' || d.ed === 'id') return S(P[d.f]);
+  if(d.ed === 'row'){
+    const x = pathRows(b, d.k).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
+  }
+  if(d.ed === 'rule'){ const x = ruleFind(b, d.i); return x ? S(x[d.f]) : ''; }
+  if(d.ed === 'who'){
+    const x = whoOf(b).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
+  }
+  if(d.ed === 'chap'){ const x = chapFind(b, d.i); return x ? S(x[d.f]) : ''; }
+  if(d.ed === 'samp'){
+    const x = samplesOf(b).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
+  }
+  return '';
+}
+function edSet(d, v){
+  const b = currentBrand(); if(!b) return;
+  const bid = b.id;
+  if(d.ed === 'what')      pathWhat(bid, v);
+  else if(d.ed === 'sum')  pathSum(bid, v);
+  else if(d.ed === 'ob1')  path1(bid, d.f, v);
+  else if(d.ed === 'id')   pathId(bid, d.f, v);
+  else if(d.ed === 'row')  pathRowEdit(bid, d.k, d.i, d.f, v);
+  else if(d.ed === 'rule') ruleEdit(bid, d.i, d.f, v);
+  else if(d.ed === 'who')  whoEdit(bid, d.i, d.f, v);
+  else if(d.ed === 'chap') chapEdit(bid, d.i, d.f, v);
+  else if(d.ed === 'samp') sampleEdit(bid, d.i, d.f, v);
+}
+function edData(el){
+  return { ed: el.getAttribute('data-ed') || '',
+           f:  el.getAttribute('data-f')  || '',
+           k:  el.getAttribute('data-k')  || '',
+           i:  el.getAttribute('data-i')  || '',
+           ml: el.getAttribute('data-ml') === '1',
+           ph: el.getAttribute('data-ph') || '' };
+}
+/* 자리 하나를 칸으로 바꿉니다 */
+function edStart(el){
+  if(!el || edOn) return;
+  const d = edData(el);
+  if(!d.ed) return;
+  const v = edGet(d);
+  edOn = '1'; edSkip = false;
+  el.classList.add('ed-on');
+  el.setAttribute('data-was', el.innerHTML);
+  const tag = d.ml ? 'textarea' : 'input';
+  el.innerHTML = '<' + tag + ' id="edBox" class="ed-box"'
+    + (d.ml ? ' rows="1"' : ' type="text"')
+    + ' placeholder="' + esc(d.ph) + '"></' + tag + '>'
+    + '<span class="ed-tip">' + (d.ml ? 'Ctrl+Enter 저장' : 'Enter 저장')
+    + ' · Esc 취소</span>';
+  const box = document.getElementById('edBox');
+  box.value = v;
+  if(d.ml) gbGrow(box);
+  box.focus();
+  try{ box.setSelectionRange(v.length, v.length); }catch(e){}
+  box.addEventListener('input', () => { if(d.ml) gbGrow(box); });
+  box.addEventListener('blur',  () => edStop(true));
+  box.addEventListener('keydown', e => {
+    if(e.key === 'Escape'){ e.preventDefault(); edStop(false); return; }
+    if(e.key === 'Enter' && (!d.ml || e.ctrlKey || e.metaKey)){
+      e.preventDefault(); edStop(true);
+    }
+  });
+  edCur = { el: el, d: d, was: v };
+}
+function edStop(save){
+  if(!edOn) return;
+  const box = document.getElementById('edBox');
+  const cur = edCur;
+  edOn = ''; edCur = null;
+  if(cur && box && save && box.value !== cur.was){
+    edSet(cur.d, box.value);
+    toast('✎ 고쳤습니다 — 그대로 저장됩니다');
+    render(); return;
+  }
+  /* 안 바꿨으면 원래 글자를 그대로 돌려놓습니다 (다시 그리지 않아도 됩니다) */
+  if(cur && cur.el){
+    cur.el.classList.remove('ed-on');
+    const was = cur.el.getAttribute('data-was');
+    if(was !== null) cur.el.innerHTML = was;
+    cur.el.removeAttribute('data-was');
+  }
+  if(edSkip){ edSkip = false; render(); }
+}
+document.addEventListener('dblclick', e => {
+  const t = e.target;
+  if(!t || !t.closest) return;
+  if(t.closest('input,textarea,select,button,a')) return;
+  const el = t.closest('[data-ed]');
+  if(!el) return;
+  e.preventDefault();
+  edStart(el);
+});
+
 /* ── 화면 ── */
 function pathViewHtml(b){
   const bid = jsq(b.id);
@@ -18552,8 +18684,8 @@ function pathViewHtml(b){
     + '<button class="' + (pathEdit ? '' : 'on') + '" onclick="setPathEdit(0)">📖 읽기</button>'
     + '<button class="' + (pathEdit ? 'on' : '') + '" onclick="setPathEdit(1)">✏️ 고치기</button>'
     + '<span class="hint">'
-      + (pathEdit ? '아홉 단을 여기서 고칩니다 — 빈 단은 읽기 화면에 안 나옵니다'
-                  : '신입이 첫날 이것만 읽고 이 브랜드에서 어떻게 일하면 되는지 알게 되는 자리입니다')
+      + (pathEdit ? '단을 골라 고칩니다 — 빈 단은 읽기 화면에 안 나옵니다'
+                  : '✎ 글을 <b>두 번 누르면</b> 그 자리에서 바로 고칩니다')
       + '</span>'
     + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\',\'plan\')" '
       + 'title="기획서 · 제안서 — 무엇을 했고 어떻게 됐는지를 걸어온 길에 쌓습니다">'
@@ -18654,7 +18786,8 @@ function pathReadHtml(b){
     const v = String(P[f[0]] || '').trim();
     if(!v) return '';
     return '<div class="ob-1f"><div class="k">' + f[3] + ' ' + esc(f[1]) + '</div>'
-      + '<div class="v">' + esc(v).replace(/\n/g, '<br>') + '</div></div>';
+      + '<div class="v" data-ed="ob1" data-f="' + f[0] + '" data-ml="1">'
+      + esc(v).replace(/\n/g, '<br>') + '</div></div>';
   }).join('');
   const ob1Miss = OB1_FIELDS.filter(f => !String(P[f[0]] || '').trim());
   /* 역할은 상대마다 다릅니다 — 시공사에게 무엇이고 발주처에게 무엇인지를
@@ -18662,13 +18795,17 @@ function pathReadHtml(b){
   const rlHtml = rls.length
     ? '<div class="id-sub">🤝 누구에게 어떤 역할인가</div>'
       + '<div class="id-rs">' + rls.map(r => '<div class="r">'
-          + '<b>' + esc(String(r.who || '').trim() || '(상대 미상)') + '</b>'
-          + '<span>' + esc(String(r.what || '').trim()).replace(/\n/g, '<br>') + '</span>'
+          + '<b data-ed="row" data-k="roles" data-i="' + esc(r.id) + '" data-f="who" '
+            + 'data-ph="누구에게">'
+            + esc(String(r.who || '').trim() || '(상대 미상)') + '</b>'
+          + '<span data-ed="row" data-k="roles" data-i="' + esc(r.id) + '" data-f="what" '
+            + 'data-ml="1" data-ph="어떤 역할인가">'
+            + esc(String(r.what || '').trim()).replace(/\n/g, '<br>') + '</span>'
         + '</div>').join('') + '</div>'
     : '';
 
   const s1 = sec('이 브랜드는 뭘 하나', '',
-    (what ? '<p class="ob-what">' + esc(what) + '</p>' : '')
+    (what ? '<p class="ob-what" data-ed="what" data-ml="1">' + esc(what) + '</p>' : '')
     + (ob1 ? '<div class="ob-1">' + ob1 + '</div>' : '')
     + rlHtml
     + (!what && !ob1 && !rlHtml
@@ -18707,33 +18844,42 @@ function pathReadHtml(b){
   const ph4Html = ph4.length
     ? '<div class="id-ph4">' + ph4.map(f => '<div class="c">'
         + '<i>' + f[3] + ' ' + esc(f[1]) + '</i>'
-        + '<span>' + esc(idv[f[0]]).replace(/\n/g, '<br>') + '</span>'
+        + '<span data-ed="id" data-f="' + f[0] + '" data-ml="1">'
+        + esc(idv[f[0]]).replace(/\n/g, '<br>') + '</span>'
       + '</div>').join('') + '</div>'
     : '';
   const sID = (idv.character || idv.philo || ph4.length)
     ? sec('어떤 브랜드인가', '성격과 철학 — 판단이 갈릴 때 여기로 돌아옵니다',
-        (idv.character ? '<p class="ob-what">' + esc(idv.character) + '</p>' : '')
+        (idv.character
+          ? '<p class="ob-what" data-ed="id" data-f="character" data-ml="1">'
+            + esc(idv.character) + '</p>' : '')
         + (idv.philo
-            ? '<div class="id-ph"><b>🕯️ 철학</b><span>'
+            ? '<div class="id-ph"><b>🕯️ 철학</b>'
+              + '<span data-ed="id" data-f="philo" data-ml="1">'
               + esc(idv.philo).replace(/\n/g, '<br>') + '</span></div>'
             : '')
         + ph4Html, 'philo')
     : '';
 
   /* ❸ 누구에게 말하나 — 타겟 · 페르소나 */
+  const psA = (x, f, ml) => ' data-ed="row" data-k="personas" data-i="' + esc(x.id)
+    + '" data-f="' + f + '"' + (ml ? ' data-ml="1"' : '');
   const psHtml = pss.map(x => '<div class="id-p">'
-    + '<div class="ph"><b>' + esc(x.name) + '</b>'
-      + (String(x.age || '').trim() ? '<span>' + esc(x.age) + '</span>' : '') + '</div>'
+    + '<div class="ph"><b' + psA(x, 'name') + '>' + esc(x.name) + '</b>'
+      + (String(x.age || '').trim()
+          ? '<span' + psA(x, 'age') + '>' + esc(x.age) + '</span>' : '') + '</div>'
     + [['who', '어떤 사람'], ['want', '원하는 것'], ['pain', '걱정 · 불편'],
        ['where', '어디서 만나나']].map(k => {
         const v = String(x[k[0]] || '').trim();
-        return v ? '<div class="pk"><i>' + esc(k[1]) + '</i><span>'
+        return v ? '<div class="pk"><i>' + esc(k[1]) + '</i><span' + psA(x, k[0], 1) + '>'
           + esc(v).replace(/\n/g, '<br>') + '</span></div>' : '';
       }).join('')
     + '</div>').join('');
   const sTG = (idv.target || pss.length)
     ? sec('누구에게 말하나', '타겟 — 이 사람이 읽는다고 생각하고 씁니다',
-        (idv.target ? '<p class="ob-what">' + esc(idv.target) + '</p>' : '')
+        (idv.target
+          ? '<p class="ob-what" data-ed="id" data-f="target" data-ml="1">'
+            + esc(idv.target) + '</p>' : '')
         + (psHtml ? '<div class="id-ps">' + psHtml + '</div>' : ''), 'target')
     : '';
 
@@ -18744,29 +18890,42 @@ function pathReadHtml(b){
         return '<div class="id-c">'
           + '<i class="sw"' + (hx ? ' style="background:' + esc(hx) + '"' : ' data-no="1"')
             + '></i>'
-          + '<div class="cn"><b>' + esc(String(c.name || '').trim() || hx || '이름 없음') + '</b>'
-            + (hx ? '<code>' + esc(hx.toUpperCase()) + '</code>' : '')
-            + (String(c.use || '').trim() ? '<span>' + esc(c.use) + '</span>' : '')
+          + '<div class="cn"><b data-ed="row" data-k="colors" data-i="' + esc(c.id)
+            + '" data-f="name" data-ph="이름 — 메인 파랑">'
+            + esc(String(c.name || '').trim() || hx || '이름 없음') + '</b>'
+            + (hx ? '<code data-ed="row" data-k="colors" data-i="' + esc(c.id)
+                  + '" data-f="hex" data-ph="#3B82F6">'
+                  + esc(hx.toUpperCase()) + '</code>' : '')
+            + (String(c.use || '').trim()
+                ? '<span data-ed="row" data-k="colors" data-i="' + esc(c.id)
+                  + '" data-f="use" data-ph="어디에 쓰나">' + esc(c.use) + '</span>' : '')
           + '</div></div>';
       }).join('') + '</div>'
     : '';
   const ftHtml = fts.length
     ? '<div class="id-fs">' + fts.map(f => '<div class="id-f">'
-        + '<b>' + esc(f.name) + '</b>'
-        + (String(f.use || '').trim() ? '<span>' + esc(f.use) + '</span>' : '')
+        + '<b data-ed="row" data-k="fonts" data-i="' + esc(f.id) + '" data-f="name">'
+        + esc(f.name) + '</b>'
+        + (String(f.use || '').trim()
+            ? '<span data-ed="row" data-k="fonts" data-i="' + esc(f.id) + '" data-f="use">'
+              + esc(f.use) + '</span>' : '')
       + '</div>').join('') + '</div>'
     : '';
   const kwHtml = kws.length
     ? '<div class="id-sub">🔖 표현 키워드</div>'
-      + '<div class="id-kw">' + kws.map(t => '<span>' + esc(t) + '</span>').join('') + '</div>'
+      + '<div class="id-kw" data-ed="id" data-f="toneWords" '
+        + 'data-ph="정중함 · 기술적 · 데이터 기반" title="두 번 누르면 한 줄로 고칩니다">'
+        + kws.map(t => '<span>' + esc(t) + '</span>').join('') + '</div>'
     : '';
   const sTN = (idv.tone || idv.toneVoice || kws.length || cls.length || fts.length)
     ? sec('어떻게 보이고 말하나', '톤앤매너 — 언어 톤 · 표현 키워드 · 어조 · 색 · 글꼴',
         (idv.tone
-          ? '<div class="id-tn"><b>🗣️ 언어 톤</b><span>'
+          ? '<div class="id-tn"><b>🗣️ 언어 톤</b>'
+            + '<span data-ed="id" data-f="tone" data-ml="1">'
             + esc(idv.tone).replace(/\n/g, '<br>') + '</span></div>' : '')
         + (idv.toneVoice
-          ? '<div class="id-tn"><b>🎚️ 브랜드 어조</b><span>'
+          ? '<div class="id-tn"><b>🎚️ 브랜드 어조</b>'
+            + '<span data-ed="id" data-f="toneVoice" data-ml="1">'
             + esc(idv.toneVoice).replace(/\n/g, '<br>') + '</span></div>' : '')
         + kwHtml
         + (clHtml ? '<div class="id-sub">🎨 색</div>' + clHtml : '')
@@ -18785,13 +18944,16 @@ function pathReadHtml(b){
     return '<div class="id-wc' + (no ? ' no' : ' yes') + '">'
       + '<div class="wh">' + (no ? '✕ 안 쓰는 말' : '✔️ 쓰는 말')
         + '<b>' + mine.length + '</b></div>'
-      + mine.map(w => '<div class="id-w">'
-          + '<b>' + esc(w.term) + '</b>'
+      + mine.map(w => {
+          const wa = (f, ml) => ' data-ed="row" data-k="words" data-i="' + esc(w.id)
+            + '" data-f="' + f + '"' + (ml ? ' data-ml="1"' : '');
+          return '<div class="id-w">'
+          + '<b' + wa('term') + '>' + esc(w.term) + '</b>'
           + (String(w.instead || '').trim()
-              ? '<span class="in">→ ' + esc(w.instead) + '</span>' : '')
+              ? '<span class="in"' + wa('instead') + '>→ ' + esc(w.instead) + '</span>' : '')
           + (String(w.why || '').trim()
-              ? '<span class="wy">' + esc(w.why) + '</span>' : '')
-        + '</div>').join('')
+              ? '<span class="wy"' + wa('why', 1) + '>' + esc(w.why) + '</span>' : '')
+        + '</div>'; }).join('')
       + '</div>';
   };
   const wRules = rsW.length
@@ -18817,15 +18979,22 @@ function pathReadHtml(b){
           const yr = String(g.year || '').trim();
           const on = yr.indexOf(NOW_YEAR) >= 0;
           return '<div class="id-g' + (on ? ' now' : '') + '">'
-            + '<div class="gy">' + esc(yr || '때 미상')
+            + '<div class="gy"><span data-ed="row" data-k="goals" data-i="' + esc(g.id)
+              + '" data-f="year" data-ph="2026">' + esc(yr || '때 미상') + '</span>'
               + (on ? '<i>지금</i>' : '') + '</div>'
             + '<div class="gb">'
-              + '<b>' + esc(String(g.goal || '').trim() || '(목표가 아직 안 적혔습니다)') + '</b>'
+              + '<b data-ed="row" data-k="goals" data-i="' + esc(g.id) + '" data-f="goal" '
+                + 'data-ml="1" data-ph="그 해의 목표">'
+                + esc(String(g.goal || '').trim() || '(목표가 아직 안 적혔습니다)') + '</b>'
               + (String(g.why || '').trim()
-                  ? '<div class="gk"><i>무엇을 위해</i><span>'
+                  ? '<div class="gk"><i>무엇을 위해</i>'
+                    + '<span data-ed="row" data-k="goals" data-i="' + esc(g.id)
+                    + '" data-f="why" data-ml="1">'
                     + esc(g.why).replace(/\n/g, '<br>') + '</span></div>' : '')
               + (String(g.result || '').trim()
-                  ? '<div class="gk"><i>어떻게 됐나</i><span>'
+                  ? '<div class="gk"><i>어떻게 됐나</i>'
+                    + '<span data-ed="row" data-k="goals" data-i="' + esc(g.id)
+                    + '" data-f="result" data-ml="1">'
                     + esc(g.result).replace(/\n/g, '<br>') + '</span></div>' : '')
             + '</div></div>';
         }).join('') + '</div>', 'goals')
@@ -18929,9 +19098,14 @@ function pathReadHtml(b){
     + (ws.length
       ? '<div class="ob-who">' + ws.map(w => '<div class="wc'
           + (whoReal(w) ? '' : ' dim') + '">'
-          + '<span class="nm">' + esc(w.name) + '</span>'
-          + (String(w.role || '').trim() ? '<span class="rl">' + esc(w.role) + '</span>' : '')
-          + (String(w.where || '').trim() ? '<span class="wr">' + esc(w.where) + '</span>' : '')
+          + '<span class="nm" data-ed="who" data-i="' + esc(w.id) + '" data-f="name">'
+            + esc(w.name) + '</span>'
+          + (String(w.role || '').trim()
+              ? '<span class="rl" data-ed="who" data-i="' + esc(w.id) + '" data-f="role" '
+                + 'data-ph="언제 물어보나">' + esc(w.role) + '</span>' : '')
+          + (String(w.where || '').trim()
+              ? '<span class="wr" data-ed="who" data-i="' + esc(w.id) + '" data-f="where">'
+                + esc(w.where) + '</span>' : '')
         + '</div>').join('') + '</div>'
       : (wgap ? '' : none('아직 없습니다 — 누구에게 물어보면 되는지가 신입에게는 제일 '
                           + '무섭습니다.'))), 'who');
@@ -19038,7 +19212,7 @@ function pathReadHtml(b){
     '처음 · 꺾인 데 · 지금이 한 줄기로 — 위의 규칙이 어디서 왔는지',
     meta
     + gapBar
-    + (sum ? '<p class="pw-sum">' + esc(sum) + '</p>' : '')
+    + (sum ? '<p class="pw-sum" data-ed="sum" data-ml="1">' + esc(sum) + '</p>' : '')
     + tl
     + modeBar
     + (tl ? '' : yPick)
@@ -19098,7 +19272,8 @@ function pathReadHtml(b){
   const hero = heroOn
     ? '<div class="pw-hero">'
       + (idv.slogan
-          ? '<div class="slg">' + esc(idv.slogan).replace(/\n/g, '<br>') + '</div>' : '')
+          ? '<div class="slg" data-ed="id" data-f="slogan" data-ml="1">'
+            + esc(idv.slogan).replace(/\n/g, '<br>') + '</div>' : '')
       + (idv.character || idv.target
           ? '<div class="lns">' + heroLn('성격', idv.character)
             + heroLn('타겟', idv.target) + '</div>' : '')
@@ -19179,7 +19354,8 @@ function ruleReadHtml(b, r, quoted, at){
   return '<div class="ob-r' + (tent ? ' tent' : '') + '">'
     + '<p class="tx">'
       + (tent ? '<span class="tn">⚠️ 잠정</span>' : '')
-      + tag + esc(r.text) + '</p>'
+      + tag + '<span data-ed="rule" data-i="' + esc(r.id) + '" data-f="text" data-ml="1">'
+      + esc(r.text) + '</span></p>'
     + (tent
         ? '<p class="tnw">아직 확정이 아닙니다 — '
           + esc(ruleTentWhy(r) || '무엇이 정해지면 확정되는지 적어 주세요')
@@ -19187,8 +19363,10 @@ function ruleReadHtml(b, r, quoted, at){
         : '')
     /* ② 「왜」 가 원칙만 담고 있으면 경력자만 알아듣습니다.
        어기면 무슨 일이 벌어지는지 장면이 하나는 있어야 응용이 됩니다. */
-    + (risk ? '<p class="rk">⚡ 어기면 — ' + esc(risk) + '</p>' : '')
-    + (why ? '<p class="wy">↳ ' + esc(why) + '</p>' : '')
+    + (risk ? '<p class="rk">⚡ 어기면 — <span data-ed="rule" data-i="' + esc(r.id)
+        + '" data-f="risk" data-ml="1">' + esc(risk) + '</span></p>' : '')
+    + (why ? '<p class="wy">↳ <span data-ed="rule" data-i="' + esc(r.id)
+        + '" data-f="why" data-ml="1">' + esc(why) + '</span></p>' : '')
     + (c
         ? '<button type="button" class="ob-q' + (first ? '' : ' again') + '" '
           + 'onclick="goChap(\'' + jsq(c.id) + '\')" '

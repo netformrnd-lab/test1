@@ -1181,10 +1181,16 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-h .hn{font-size:12.5px;color:var(--text-muted)}
 /* ✎ 두 번 눌러 고치는 자리 — 고칠 수 있다는 것이 보여야 눌러 봅니다.
    늘 밑줄을 그으면 글이 지저분해져서, 얹었을 때만 옅게 깔립니다. */
-[data-ed]{border-radius:5px;transition:background .12s,box-shadow .12s}
+/* 고칠 수 있다는 것이 <<얹기 전에>> 보여야 합니다. 얹었을 때만 보이면
+   휴대폰에서는 아예 안 보이고, 마우스로도 우연히 지나야 압니다.
+   옅은 점선을 늘 깔아 둡니다 — 글은 안 가리고 「여기 누르면 된다」 만 남게. */
+[data-ed]{border-radius:5px;cursor:pointer;
+  box-shadow:inset 0 -1px 0 0 var(--border);
+  transition:background .12s,box-shadow .12s}
 [data-ed]:hover{background:var(--blue-soft);
-  box-shadow:0 0 0 3px var(--blue-soft);cursor:text}
+  box-shadow:0 0 0 3px var(--blue-soft)}
 [data-ed].ed-on{display:block;background:transparent;box-shadow:none;cursor:auto}
+[data-ed] .fold,[data-ed] .fd-m{cursor:auto}
 .ed-box{width:100%;box-sizing:border-box;font-family:inherit;font-size:inherit;
   font-weight:inherit;line-height:1.7;color:var(--text-primary);
   padding:6px 10px;border:1px solid var(--blue);border-radius:8px;
@@ -1202,8 +1208,7 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ed-tip{display:block;margin-top:3px;font-size:10.5px;font-weight:400;
   color:var(--text-muted);letter-spacing:0}
 /* 한 번만 눌러도 열리는 칸은 눌러도 된다는 게 보여야 합니다 */
-[data-ed1]{cursor:pointer}
-[data-ed1]:hover{background:var(--blue-soft);box-shadow:0 0 0 4px var(--blue-soft)}
+
 @media (hover:none){[data-ed]:hover{background:transparent;box-shadow:none}}
 .ob-what{margin:0;font-size:15.5px;font-weight:700;line-height:1.85;
   color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
@@ -3763,7 +3768,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-13';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-14';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5319,7 +5324,7 @@ function renderOnboard(){
               const iid = jsq(it.id);
               return '<div class="id-g' + (on ? ' now' : '') + '">'
                 + '<div class="gy">'
-                  + '<span data-ed="obkid0" data-ed1="1" data-g="' + esc(sc.id)
+                  + '<span data-ed="obkid0" data-g="' + esc(sc.id)
                     + '" data-i="' + esc(it.id) + '" data-f="title" '
                     + 'title="눌러서 해를 고칩니다">' + esc(it.title) + '</span>'
                   + (on ? '<i>지금</i>' : '')
@@ -5327,7 +5332,7 @@ function renderOnboard(){
                 + '<div class="gb">'
                   + ks.map(k => {
                       const kid = jsq(k.id);
-                      const ed = f => ' data-ed="obkid" data-ed1="1" data-g="' + esc(sc.id)
+                      const ed = f => ' data-ed="obkid" data-g="' + esc(sc.id)
                         + '" data-i="' + esc(it.id) + '" data-k="' + esc(k.id)
                         + '" data-f="' + f + '"' + (f === 'body' ? ' data-ml="1"' : '');
                       const v = String(k.body || '').trim();
@@ -5395,7 +5400,7 @@ function renderOnboard(){
                      무엇을 했는지는 고치기로 옮겨 가서 찾기엔 너무 잦습니다.
                      아직 안 적힌 칸도 눌러서 바로 채웁니다. */
                   const ed = k
-                    ? ' data-ed="obkid" data-ed1="1" data-g="' + esc(sc.id)
+                    ? ' data-ed="obkid" data-g="' + esc(sc.id)
                       + '" data-i="' + esc(it.id)
                       + '" data-k="' + esc(k.id) + '" data-f="body" data-ml="1"'
                       + ' data-ph="' + esc(it.title + ' 이 ' + r + ' 에 무엇을') + '"'
@@ -19347,24 +19352,35 @@ function edStop(save){
   }
   if(edSkip){ edSkip = false; render(); }
 }
-document.addEventListener('dblclick', e => {
-  const t = e.target;
-  if(!t || !t.closest) return;
-  if(t.closest('input,textarea,select,button,a')) return;
-  const el = t.closest('[data-ed]');
+/* ── 누르면 고쳐집니다 — 한 번만 ────────────────────────────
+   고치는 길을 두 개 만들어 놓고(따로 화면 + 두 번 누르기) 둘 다 눈에
+   안 보이게 해 뒀습니다. 두 번 누르기는 아무도 찾지 못하는 몸짓입니다.
+   이제 <<한 번만>> 누르면 열립니다. 대신 글을 끌어서 고르고 있을 때는
+   열지 않습니다 — 그때 열리면 고르던 글이 날아갑니다. */
+let edDown = null;
+document.addEventListener('mousedown', e => { edDown = [e.clientX, e.clientY]; }, true);
+function edClickable(t){
+  if(!t || !t.closest) return null;
+  if(t.closest('input,textarea,select,button,a,.ed-bar')) return null;
+  return t.closest('[data-ed]');
+}
+document.addEventListener('click', e => {
+  if(edOn) return;
+  const el = edClickable(e.target);
   if(!el) return;
+  /* 끌었으면(=글을 고르는 중이면) 건드리지 않습니다 */
+  if(edDown && (Math.abs(e.clientX - edDown[0]) > 4
+             || Math.abs(e.clientY - edDown[1]) > 4)) return;
+  try{ if(String(window.getSelection() || '').length > 1) return; }catch(err){}
   e.preventDefault();
   edStart(el);
 });
-/* 빈 칸과 연표 칸은 <<한 번만>> 눌러도 열립니다 — 그 자리에 달리 누를
-   것이 없는데 두 번 누르라고 하면 아무도 못 찾습니다. data-ed1 이
-   붙은 자리만 그렇게 합니다 (글 속의 낱말까지 그러면 성가십니다). */
-document.addEventListener('click', e => {
-  const t = e.target;
-  if(!t || !t.closest) return;
-  if(t.closest('input,textarea,select,button,a')) return;
-  const el = t.closest('[data-ed][data-ed1]');
-  if(!el || edOn) return;
+/* 두 번 눌러 온 분들도 그대로 되게 둡니다 (이미 열려 있으면 그냥 지납니다) */
+document.addEventListener('dblclick', e => {
+  if(edOn) return;
+  const el = edClickable(e.target);
+  if(!el) return;
+  e.preventDefault();
   edStart(el);
 });
 
@@ -19376,7 +19392,7 @@ function pathViewHtml(b){
     + '<button class="' + (pathEdit ? 'on' : '') + '" onclick="setPathEdit(1)">✏️ 고치기</button>'
     + '<span class="hint">'
       + (pathEdit ? '단을 골라 고칩니다 — 빈 단은 읽기 화면에 안 나옵니다'
-                  : '✎ 글을 <b>두 번 누르면</b> 그 자리에서 바로 고칩니다')
+                  : '✎ 글을 <b>누르면</b> 그 자리에서 바로 고쳐집니다')
       + '</span>'
     + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\',\'plan\')" '
       + 'title="기획서 · 제안서 — 무엇을 했고 어떻게 됐는지를 걸어온 길에 쌓습니다">'

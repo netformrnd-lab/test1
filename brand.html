@@ -1931,6 +1931,13 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--text-primary);word-break:keep-all}
 .id-sub{margin:16px 0 8px;font-size:12.5px;font-weight:800;color:var(--text-secondary);
   letter-spacing:.01em}
+/* 읽다가 틀린 것을 보면 그 단만 바로 고치러 갑니다 */
+.ob-ed{margin-left:auto;padding:4px 11px;border:1px solid var(--border);border-radius:99px;
+  background:var(--bg-card);font-family:inherit;font-size:11.5px;font-weight:700;
+  color:var(--text-muted);cursor:pointer;white-space:nowrap;opacity:0;transition:opacity .12s}
+.ob:hover .ob-ed,.ob-ed:focus{opacity:1}
+.ob-ed:hover{border-color:var(--blue);color:var(--blue)}
+@media (hover:none){.ob-ed{opacity:1}}
 /* 철학 네 칸 — 한 덩어리 글이면 아무도 안 들춥니다.
    「어느 칸을 보면 되는지」 가 보이도록 이름을 위에 세워 둡니다. */
 .id-ph4{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;
@@ -2198,12 +2205,40 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pw-ch.p-ty .no{border-color:var(--cyan);color:var(--cyan)}
 
 /* 고치기 */
+/* 단 차례 — 아홉 단을 세로로 다 이어 두면 고칠 칸 하나 찾으려고 한참
+   내려야 합니다. 위에서 고르면 그 단만 폅니다. */
+.pe-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:12px 0 14px;
+  border-bottom:1px solid var(--border)}
+.pe-tabs button{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
+  border:1px solid var(--border);border-radius:99px;background:var(--bg-card);
+  font-family:inherit;font-size:12.5px;font-weight:700;color:var(--text-primary);
+  cursor:pointer;word-break:keep-all}
+.pe-tabs button:hover{border-color:var(--blue);color:var(--blue)}
+.pe-tabs button i{font-style:normal;font-size:10.5px;font-weight:800;
+  color:var(--text-muted)}
+.pe-tabs button b{font-size:10.5px;font-weight:800;color:var(--blue);
+  background:var(--blue-soft);border-radius:99px;padding:1px 6px}
+.pe-tabs button.em{color:var(--text-muted)}        /* 아직 아무것도 안 적은 단 */
+.pe-tabs button.em i{opacity:.6}
+.pe-tabs button.on{background:var(--ink);border-color:var(--ink);color:var(--bg-card)}
+.pe-tabs button.on i,.pe-tabs button.on b{color:var(--bg-card);background:transparent}
+/* 이 단만 비우기 — 단 머리 오른쪽 끝에 조용히 */
+.pe-wx{margin-left:auto;padding:4px 10px;border:1px solid var(--border);border-radius:99px;
+  background:transparent;font-family:inherit;font-size:11px;font-weight:700;
+  color:var(--text-muted);cursor:pointer;white-space:nowrap}
+.pe-wx:hover{border-color:var(--red);color:var(--red);background:var(--bg-sunken)}
+/* 선택 칸 펴기 — 한 줄만 적은 규칙에 빈 칸 다섯 개가 붙어 있지 않게 */
+.pe-mo{align-self:flex-start;padding:4px 10px;border:1px dashed var(--border);
+  border-radius:99px;background:transparent;font-family:inherit;font-size:11.5px;
+  font-weight:700;color:var(--text-muted);cursor:pointer}
+.pe-mo:hover{border-color:var(--blue);color:var(--blue)}
 .pe-sec{padding:18px 0;border-bottom:1px solid var(--border)}
 .pe-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:10px}
 .pe-h .no{flex:0 0 auto;width:21px;height:21px;border-radius:50%;background:var(--ink);
   color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;
   font-weight:800;align-self:center}
 .pe-h h3{margin:0;font-size:15px;font-weight:800;color:var(--text-primary)}
+.pe-h{width:100%}
 .pe-h .hn{font-size:11.5px;font-weight:400;color:var(--text-muted)}
 .pe-t{width:100%;box-sizing:border-box;font-family:inherit;font-size:14.5px;font-weight:600;
   line-height:1.8;padding:10px 13px;border:1px solid var(--border);border-radius:10px;
@@ -3422,7 +3457,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260920-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260920-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -9874,7 +9909,7 @@ function gbGrow(el){
   el.style.height = Math.max(26, el.scrollHeight) + 'px';
 }
 function gbGrowAll(){
-  document.querySelectorAll('.gb-act textarea, .gb-perf textarea,\n     .hxb textarea, .dc-no, .hl-now textarea, .gb-dtt, #gbGoal')
+  document.querySelectorAll('.gb-act textarea, .gb-perf textarea,\n     .hxb textarea, .dc-no, .hl-now textarea, .gb-dtt, #gbGoal,\n     .pe-t, .pe-rl textarea, .pe-sum textarea, .pe-ch textarea')
     .forEach(gbGrow);
 }
 function setGbWho(v){
@@ -16837,7 +16872,119 @@ function stepMove(bid, id, d){
 
 let pathEdit = false;      // 읽기 / 고치기
 let pathOpen = '';         // 고치기에서 펼친 장
-function setPathEdit(v){ pathEdit = !!v; pathOpen = ''; render(); window.scrollTo({ top:0 }); }
+function setPathEdit(v){
+  pathEdit = !!v; pathOpen = ''; peAt = '';
+  render(); window.scrollTo({ top:0 });
+}
+/* ── ✏️ 고치기 — 한 단씩 ─────────────────────────────────────
+   아홉 단이 세로로 다 이어져 있으면 고칠 칸 하나 찾으려고 한참 내려야
+   하고, 다 내려간 뒤에는 여기가 몇 단인지도 모릅니다. 그래서 위에
+   단 차례를 세우고 고른 단만 폅니다 (「전체」 도 그대로 있습니다).
+   ------------------------------------------------------------ */
+let peAt = '';                     // '' 이면 전체
+function setPeAt(k){ peAt = (peAt === k ? '' : k); render(); window.scrollTo({ top:0 }); }
+/* 읽다가 틀린 것을 봤을 때 — 그 단의 고치기로 바로 갑니다 */
+function pathEditAt(bid, k){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  currentBrandId = b.id; currentTab = 'path';
+  peAt = k || ''; pathEdit = true; pathOpen = '';
+  render(); window.scrollTo({ top:0 });
+}
+
+/* ── 🗑 이 단만 비우기 ────────────────────────────────────────
+   「소개 전부 비우기」 는 너무 큽니다. 거의 언제나 지우고 싶은 것은
+   한 단입니다 — 남이 적어 둔 걸어온 길이라든지. 되돌리기는 같습니다.
+   ------------------------------------------------------------ */
+const PE_SECS = [
+  ['what',  '1', '이 브랜드는 뭘 하나'],
+  ['philo', '2', '어떤 브랜드인가'],
+  ['target','3', '누구에게 말하나'],
+  ['tone',  '4', '어떻게 보이고 말하나'],
+  ['words', '5', '쓰는 말 · 안 쓰는 말'],
+  ['goals', '6', '해마다의 목표'],
+  ['rules', '7', '여기서 일할 때 지킬 것'],
+  ['who',   '8', '막히면 누구에게'],
+  ['path',  '9', '이 브랜드가 걸어온 길']
+];
+function peSecName(k){ const x = PE_SECS.find(y => y[0] === k); return x ? x[2] : k; }
+/* 이 단을 비우면 무엇이 없어지나 — 누르기 전에 그대로 보여 줍니다 */
+function pathSecWhat(b, k){
+  const P = pathOf(b), L = [];
+  const t = (nm, v) => { if(String(v || '').trim()) L.push(nm); };
+  const n = (nm, l) => { const c = (l || []).length; if(c) L.push(nm + ' ' + c + '개'); };
+  if(k === 'what'){
+    t('한 문단', P.what); OB1_FIELDS.forEach(f => t(f[1], P[f[0]]));
+    n('역할', rolesOf(b).filter(roleOk));
+  } else if(k === 'philo'){
+    ['slogan', 'character', 'philo'].forEach(f =>
+      t(ID_ALL.find(x => x[0] === f)[1], P[f]));
+    PHILO_FIELDS.forEach(f => t(f[1], P[f[0]]));
+  } else if(k === 'target'){
+    t('타겟', P.target); n('페르소나', personasOf(b).filter(personaOk));
+  } else if(k === 'tone'){
+    t('언어 톤', P.tone); TONE_FIELDS.forEach(f => t(f[1], P[f[0]]));
+    n('색', colorsOf(b).filter(colorOk)); n('글꼴', fontsOf(b).filter(fontOk));
+  } else if(k === 'words'){
+    n('용어', wordsOf(b).filter(wordOk));
+    n('이유까지 붙은 줄', rulesOf(b).filter(r => ruleIsWord(r) && !ruleBlank(r)));
+  } else if(k === 'goals'){
+    n('해마다의 목표', goalsOf(b).filter(goalOk));
+  } else if(k === 'rules'){
+    n('지킬 것', rulesOf(b).filter(r => !ruleIsWord(r) && !ruleBlank(r)));
+    n('이렇게 쓴 것', samplesOf(b).filter(sampleOk));
+  } else if(k === 'who'){
+    n('막히면 누구에게', whoOf(b).filter(w => String(w.name || '').trim()));
+  } else if(k === 'path'){
+    t('맨 위 한 문단', P.summary);
+    n('걸어온 길 마디', chapsOf(b).filter(c => !chapBlank(c)));
+  }
+  return L;
+}
+function pathSecWipe(bid, k){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const L = pathSecWhat(b, k);
+  if(!L.length){ toast('「' + peSecName(k) + '」 은 이미 비어 있습니다'); return; }
+  if(!confirm('「' + b.name + '」 의 ' + peSecName(k) + ' 만 비웁니다.\n\n'
+    + L.join(' · ') + '\n\n'
+    + '다른 단 · 할 일 · 자료 · 마케팅 · 블로그와 NAS 파일은 그대로입니다.\n'
+    + '바로 뒤에 [↩︎ 비우기 전으로] 로 되돌릴 수 있습니다.')) return;
+
+  const P = pathOf(b);
+  const before = JSON.parse(JSON.stringify(P));
+  /* 지운 줄은 아이디를 남겨 둬야 같이 쓰는 사람 화면에서 되돌아오지 않습니다 */
+  const drop = (key, keep) => {
+    const l = Array.isArray(P[key]) ? P[key] : [];
+    P[key] = l.filter(x => { if(keep && keep(x)) return true;
+                             if(x && x.id) deletedIds.add(x.id); return false; });
+  };
+  const clr = keys => keys.forEach(f => { P[f] = ''; });
+  if(k === 'what'){
+    clr(['what'].concat(OB1_FIELDS.map(f => f[0]))); drop('roles');
+  } else if(k === 'philo'){
+    clr(['slogan', 'character', 'philo'].concat(PHILO_FIELDS.map(f => f[0])));
+  } else if(k === 'target'){
+    clr(['target']); drop('personas');
+  } else if(k === 'tone'){
+    clr(['tone'].concat(TONE_FIELDS.map(f => f[0]))); drop('colors'); drop('fonts');
+  } else if(k === 'words'){
+    drop('words'); drop('rules', r => !ruleIsWord(r));
+  } else if(k === 'goals'){
+    drop('goals');
+  } else if(k === 'rules'){
+    drop('rules', r => ruleIsWord(r)); drop('samples');
+  } else if(k === 'who'){
+    drop('who');
+  } else if(k === 'path'){
+    clr(['summary']); drop('chapters');
+  }
+  pathOpen = ''; ruleAt = ''; chapAt = ''; chapAll = null;
+  markDirty(b.id);
+  pathMine[b.id] = { busy:false, err:'', no:'', half:'', wipe:true,
+                     doc:{ name: b.name + ' · ' + peSecName(k) },
+                     done:{ put: L, skip: [], up: [], before: before, tied: 0 } };
+  render(); window.scrollTo({ top:0 });
+  toast('🗑 ' + peSecName(k) + ' 을 비웠습니다 — 되돌릴 수 있습니다');
+}
 function chapToggle(id){ pathOpen = (pathOpen === id ? '' : id); render(); }
 
 /* ❶ 의 네 칸 (누가 돈을 주나 · 우리 역할 · 계약·범위 · 하지 않는 것) */
@@ -18453,6 +18600,7 @@ function pathTidyBar(b){
 }
 
 function pathReadHtml(b){
+  const bid = jsq(b.id);
   const P  = pathOf(b);
   const cs = chapsOf(b).filter(c => !chapBlank(c));
   const rsAll = rulesOf(b).filter(r => !ruleBlank(r));
@@ -18485,11 +18633,16 @@ function pathReadHtml(b){
   }
 
   let secNo = 0;
+  /* 읽다가 틀린 것을 보면 그 자리에서 고치러 갑니다 — 전에는 [✏️ 고치기] 로
+     옮긴 다음 그 단을 다시 찾아 내려가야 했습니다. */
   const sec = (title, hint, body, key) =>
     '<section class="ob"' + (key ? ' id="pw-' + key + '"' : '')
     + '><div class="ob-h"><span class="no">' + (++secNo) + '</span>'
     + '<h3>' + esc(title) + '</h3>'
-    + (hint ? '<span class="hn">' + esc(hint) + '</span>' : '') + '</div>'
+    + (hint ? '<span class="hn">' + esc(hint) + '</span>' : '')
+    + (key ? '<button class="ob-ed" title="이 단만 고칩니다" onclick="pathEditAt(\''
+        + bid + '\',\'' + key + '\')">✏️ 고치기</button>' : '')
+    + '</div>'
     + '<div class="ob-b">' + body + '</div></section>';
 
   const none = t => '<p class="pw-none2">' + esc(t) + '</p>';
@@ -19052,7 +19205,7 @@ function ruleReadHtml(b, r, quoted, at){
 
 /* 고치기 화면을 열고 실물 칸으로 내려갑니다 */
 function obEditAt(bid){
-  pathEdit = true; render();
+  pathEdit = true; peAt = 'rules'; render();
   setTimeout(() => {
     const el = document.querySelector('.pe-sm');
     if(el) el.scrollIntoView({ behavior:'smooth', block:'center' });
@@ -19158,6 +19311,15 @@ function pathEditHtml(b){
   const rowTa = (key, id, f, v, ph) => '<textarea rows="1" placeholder="' + esc(ph) + '" '
     + 'oninput="gbGrow(this);pathRowEdit(\'' + bid + '\',\'' + key + '\',\'' + jsq(id)
     + '\',\'' + f + '\', this.value)">' + esc(v || '') + '</textarea>';
+  /* 단 머리 한 벌 — 아홉 군데에 따로 쓰면 아홉 군데가 따로 달라집니다 */
+  const peH = (k, no, title, hint) => '<div class="pe-h"><span class="no">' + no + '</span>'
+    + '<h3>' + esc(title) + '</h3>'
+    + (hint ? '<span class="hn">' + hint + '</span>' : '')
+    + (pathSecWhat(b, k).length
+        ? '<button class="pe-wx" title="이 단만 비웁니다 (되돌리기 됩니다)" '
+          + 'onclick="pathSecWipe(\'' + bid + '\',\'' + k + '\')">🗑 이 단 비우기</button>'
+        : '')
+    + '</div>';
   const e1f = OB1_FIELDS.map(f =>
     '<label class="pe-1l">' + f[3] + ' ' + esc(f[1]) + '<span>' + esc(f[2]) + '</span></label>'
     + '<textarea class="pe-t" rows="2" placeholder="' + esc(OB1_PH[f[0]] || '') + '" '
@@ -19187,10 +19349,10 @@ function pathEditHtml(b){
     + '<button class="x" onclick="pathRowDel(\'' + bid + '\',\'roles\',\'' + jsq(r.id)
       + '\')" title="지우기">×</button>'
     + '</div>').join('');
-  const e1 = '<div class="pe-sec"><div class="pe-h"><span class="no">1</span>'
-    + '<h3>이 브랜드는 뭘 하나</h3>'
-    + '<span class="hn">규칙보다 이게 먼저입니다 — 신입은 아직 우리가 무슨 일을 하는지, '
-      + '누가 돈을 주는지 모릅니다</span></div>'
+  const e1 = '<div class="pe-sec">'
+    + peH('what', 1, '이 브랜드는 뭘 하나',
+        '규칙보다 이게 먼저입니다 — 신입은 아직 우리가 무슨 일을 하는지, '
+        + '누가 돈을 주는지 모릅니다')
     + '<label class="pe-1l">📌 한 문단<span>하는 일을 그대로. 꾸미지 않습니다</span></label>'
     + '<textarea class="pe-t" rows="2" placeholder="예) 아파트 유지보수 공사의 설계·감리를 '
       + '한다. 관리주체를 대신해 도장·방수·에폭시 공사의 전 과정을 본다. 공사는 직접 하지 않는다." '
@@ -19214,10 +19376,10 @@ function pathEditHtml(b){
   };
 
   /* 2 — 어떤 브랜드인가 */
-  const eID = '<div class="pe-sec"><div class="pe-h"><span class="no">2</span>'
-    + '<h3>어떤 브랜드인가</h3>'
-    + '<span class="hn">슬로건 · 성격 · 철학(존재 이유 · 기술 철학 · 해야 할 일 · 목표). '
-      + '원고를 쓰는 사람이 매번 물어보던 것들입니다</span></div>'
+  const eID = '<div class="pe-sec">'
+    + peH('philo', 2, '어떤 브랜드인가',
+        '슬로건 · 성격 · 철학(존재 이유 · 기술 철학 · 해야 할 일 · 목표). '
+        + '원고를 쓰는 사람이 매번 물어보던 것들입니다')
     + idTa('slogan') + idTa('character') + idTa('philo')
     + '<label class="pe-1l">🕯️ 철학을 네 칸으로<span>한 덩어리로 적으면 '
       + '「왜 있나」 와 「무엇을 하겠다」 가 섞여서 아무도 안 들춥니다</span></label>'
@@ -19238,9 +19400,9 @@ function pathEditHtml(b){
     + rowTa('personas', x.id, 'want', x.want, '원하는 것 — 무엇을 얻으려고 우리를 찾나')
     + rowTa('personas', x.id, 'pain', x.pain, '걱정 · 불편 — 무엇이 무서워서 망설이나')
     + '</div>').join('');
-  const eTG = '<div class="pe-sec"><div class="pe-h"><span class="no">3</span>'
-    + '<h3>누구에게 말하나</h3>'
-    + '<span class="hn">타겟과 페르소나 — 이 사람이 읽는다고 생각하고 씁니다</span></div>'
+  const eTG = '<div class="pe-sec">'
+    + peH('target', 3, '누구에게 말하나',
+        '타겟과 페르소나 — 이 사람이 읽는다고 생각하고 씁니다')
     + idTa('target')
     + '<label class="pe-1l">👥 페르소나<span>실제로 있을 법한 사람 한둘. '
       + '「30~50대 남녀」 보다 「40대 아파트 관리소장 한 명」 이 훨씬 쓸모 있습니다</span></label>'
@@ -19267,9 +19429,9 @@ function pathEditHtml(b){
     + '<button class="x" onclick="pathRowDel(\'' + bid + '\',\'fonts\',\'' + jsq(f.id)
       + '\')" title="지우기">×</button>'
     + '</div>').join('');
-  const eTN = '<div class="pe-sec"><div class="pe-h"><span class="no">4</span>'
-    + '<h3>어떻게 보이고 말하나</h3>'
-    + '<span class="hn">톤앤매너 — 언어 톤 · 표현 키워드 · 어조 · 색 · 글꼴</span></div>'
+  const eTN = '<div class="pe-sec">'
+    + peH('tone', 4, '어떻게 보이고 말하나',
+        '톤앤매너 — 언어 톤 · 표현 키워드 · 어조 · 색 · 글꼴')
     + idTa('tone') + TONE_FIELDS.map(f => idTa(f[0])).join('')
     + '<label class="pe-1l">🎨 색<span>색값을 고르면 읽기 화면에 색칸이 함께 나옵니다</span></label>'
     + (eCL ? '<div class="pe-rules">' + eCL + '</div>' : '')
@@ -19296,10 +19458,10 @@ function pathEditHtml(b){
       + '\')" title="지우기">×</button>'
     + '</div>').join('');
   const rsW2 = rulesOf(b).filter(ruleIsWord);
-  const eWD = '<div class="pe-sec"><div class="pe-h"><span class="no">5</span>'
-    + '<h3>쓰는 말 · 안 쓰는 말</h3>'
-    + '<span class="hn">원고를 쓰다 막히면 여기만 봅니다. '
-      + '한 줄 설명이 필요 없는 용어는 아래 표에, 이유까지 붙는 것은 그 밑에</span></div>'
+  const eWD = '<div class="pe-sec">'
+    + peH('words', 5, '쓰는 말 · 안 쓰는 말',
+        '원고를 쓰다 막히면 여기만 봅니다. '
+        + '한 줄 설명이 필요 없는 용어는 아래 표에, 이유까지 붙는 것은 그 밑에')
     + (eWDr ? '<div class="pe-rules">' + eWDr + '</div>' : '')
     + '<div class="pe-add">'
       + '<button class="gb-add tiny" onclick="pathRowAdd(\'' + bid
@@ -19321,10 +19483,10 @@ function pathEditHtml(b){
 
   /* 6 — 해마다의 목표 */
   const gls2 = goalsOf(b);
-  const eGL = '<div class="pe-sec"><div class="pe-h"><span class="no">6</span>'
-    + '<h3>해마다의 목표</h3>'
-    + '<span class="hn">그 해에 무엇을 · 무엇을 위해 했나. '
-      + '읽기 화면에서는 적은 차례가 아니라 「해」 순서로 세워집니다</span></div>'
+  const eGL = '<div class="pe-sec">'
+    + peH('goals', 6, '해마다의 목표',
+        '그 해에 무엇을 · 무엇을 위해 했나. '
+        + '읽기 화면에서는 적은 차례가 아니라 「해」 순서로 세워집니다')
     + (gls2.length
         ? '<div class="pe-rules">' + gls2.map((g, i) => '<div class="pe-rl">'
             + '<div class="rh">'
@@ -19349,10 +19511,10 @@ function pathEditHtml(b){
       .filter((v, i, l) => l.indexOf(v) === i)
       .map(v => '<option value="' + esc(v) + '">').join('')
     + '</datalist>';
-  const e2 = '<div class="pe-sec">' + areaOpts + '<div class="pe-h"><span class="no">7</span>'
-    + '<h3>여기서 일할 때 지킬 것</h3>'
-    + '<span class="hn">신입이 첫날 제일 급하게 알아야 하는 것. '
-      + '근거가 되는 여정을 걸면 아래 「걸어온 길」 에서 끌어와 함께 보여줍니다</span></div>'
+  const e2 = '<div class="pe-sec">' + areaOpts
+    + peH('rules', 7, '여기서 일할 때 지킬 것',
+        '신입이 첫날 제일 급하게 알아야 하는 것. '
+        + '근거가 되는 여정을 걸면 아래 「걸어온 길」 에서 끌어와 함께 보여줍니다')
     + (rs.length
         ? '<div class="pe-rules">' + rs.map((r, i) => ruleEditHtml(b, r, i, rs.length)).join('')
           + '</div>' : '')
@@ -19389,8 +19551,8 @@ function pathEditHtml(b){
 
   /* 3 — 막히면 누구에게 */
   const ws = whoOf(b);
-  const e3 = '<div class="pe-sec"><div class="pe-h"><span class="no">8</span>'
-    + '<h3>막히면 누구에게</h3></div>'
+  const e3 = '<div class="pe-sec">'
+    + peH('who', 8, '막히면 누구에게', '')
     + (ws.length
         ? '<div class="pe-who">' + ws.map(w => '<div class="wr">'
             + '<input value="' + esc(w.name || '') + '" placeholder="이름" '
@@ -19460,11 +19622,11 @@ function pathEditHtml(b){
         + k.k + '\')">' + k.ic + ' ' + esc(k.k) + '</button>').join('')
     + '</div>';
 
-  const e4 = '<div class="pe-sec"><div class="pe-h"><span class="no">9</span>'
-    + '<h3>이 브랜드가 걸어온 길</h3>'
-    + '<span class="hn">무엇을 했고, 어떻게 됐고, 왜 그랬는지 — '
-      + '읽기 화면에서는 여기 적은 차례가 아니라 「때」 순서로 세워집니다'
-      + '</span></div>' + sum + list + add + '</div>';
+  const e4 = '<div class="pe-sec">'
+    + peH('path', 9, '이 브랜드가 걸어온 길',
+        '무엇을 했고, 어떻게 됐고, 왜 그랬는지 — '
+        + '읽기 화면에서는 여기 적은 차례가 아니라 「때」 순서로 세워집니다')
+    + sum + list + add + '</div>';
 
   /* 5 — 첫 2주에 해볼 것 */
   const F     = firstOf(b);
@@ -19500,8 +19662,22 @@ function pathEditHtml(b){
         + '🗑 소개 전부 비우기</button>'
       + '</div>'
     : '';
-  return '<div class="pw">' + e1 + eID + eTG + eTN + eWD + eGL + e2 + e3 + e4 + eW
+  /* 단 차례 — 적은 것이 있는 단에는 동그라미를 찍어 둡니다.
+     어느 단이 비었는지가 한눈에 보여야 「뭘 더 적어야 하나」 가 풀립니다. */
+  const body = { what:e1, philo:eID, target:eTG, tone:eTN, words:eWD,
+                 goals:eGL, rules:e2, who:e3, path:e4 };
+  const tabs = '<div class="pe-tabs">'
+    + '<button class="' + (peAt ? '' : 'on') + '" onclick="setPeAt(\'\')">▤ 전체</button>'
+    + PE_SECS.map(x => {
+        const has = pathSecWhat(b, x[0]).length;
+        return '<button class="' + (peAt === x[0] ? 'on' : '') + (has ? '' : ' em')
+          + '" onclick="setPeAt(\'' + x[0] + '\')">'
+          + '<i>' + x[1] + '</i>' + esc(x[2]) + (has ? '<b>' + has + '</b>' : '')
+          + '</button>';
+      }).join('')
     + '</div>';
+  const shown = peAt ? (body[peAt] || '') : PE_SECS.map(x => body[x[0]]).join('');
+  return '<div class="pw">' + tabs + shown + (peAt ? '' : eW) + '</div>';
 }
 
 /* 해볼 것 한 칸 고치기 */
@@ -19548,9 +19724,23 @@ function stepEditHtml(b, t, i, n, refs, wsOk){
 }
 
 /* 지킬 것 한 줄 고치기 */
+/* 적은 것이 있는 줄은 펴 두고, 빈 줄은 접어 둡니다.
+   손으로 편 줄은 다시 그려도 펴진 채로 있어야 합니다 (안 그러면
+   한 글자 칠 때마다 접힙니다). */
+const ruleMore = new Set();
+function ruleMoreOn(id){
+  if(ruleMore.has(id)) ruleMore.delete(id); else ruleMore.add(id);
+  render();
+}
+function ruleExtra(r){
+  return !!(String(r.why || '').trim() || String(r.risk || '').trim()
+         || String(r.area || '').trim() || String(r.tentWhy || '').trim()
+         || r.chapId || ruleTent(r));
+}
 function ruleEditHtml(b, r, i, n){
   const bid = jsq(b.id), rid = jsq(r.id);
   const cs = chapsOf(b).filter(c => !chapBlank(c));
+  const more = ruleMore.has(r.id) || ruleExtra(r);
   return '<div class="pe-rl">'
     + '<div class="rh">'
       + '<select onchange="ruleEdit(\'' + bid + '\',\'' + rid + '\',\'kind\', this.value, 1)">'
@@ -19569,13 +19759,14 @@ function ruleEditHtml(b, r, i, n){
     + '<textarea rows="1" placeholder="지킬 것을 한 줄로 — 「국내 유일 · 100% 같은 말은 안 쓴다」" '
       + 'oninput="gbGrow(this);ruleEdit(\'' + bid + '\',\'' + rid + '\',\'text\', this.value)">'
       + esc(r.text || '') + '</textarea>'
-    + '<textarea rows="1" placeholder="왜 그런지 한 줄 (선택) — 「근거를 댈 수 없어서」" '
+    + (more ? '' : '<button class="pe-mo" onclick="ruleMoreOn(\'' + rid + '\')">'
+        + '＋ 왜 · 어기면 · 어디에 · 근거 여정</button>')
+    + (more ? '<textarea rows="1" placeholder="왜 그런지 한 줄 (선택) — 「근거를 댈 수 없어서」" '
       + 'oninput="gbGrow(this);ruleEdit(\'' + bid + '\',\'' + rid + '\',\'why\', this.value)">'
-      + esc(r.why || '') + '</textarea>'
+      + esc(r.why || '') + '</textarea>' : '')
     /* 어기면 무슨 일이 벌어지는지 — 장면이 없으면 신입은 응용을 못 합니다 */
-    + '<textarea class="rk" rows="1" placeholder="⚡ 어기면 어떻게 되나 (선택) — '
-      + '신입이 장면을 그릴 수 있게. 「사고가 나면 우리가 쓴 \'막는다\' 한 줄 때문에 '
-      + '우리가 안전 의무자로 몰립니다」" '
+    + (more ? '<textarea class="rk" rows="1" placeholder="⚡ 어기면 어떻게 되나 (선택) — '
+      + '신입이 장면을 그릴 수 있게" '
       + 'oninput="gbGrow(this);ruleEdit(\'' + bid + '\',\'' + rid + '\',\'risk\', this.value)">'
       + esc(r.risk || '') + '</textarea>'
     + '<label class="rc rt"><span>아직 확정 아님</span>'
@@ -19599,8 +19790,8 @@ function ruleEditHtml(b, r, i, n){
             + esc((String(c.when || '').trim() ? c.when + ' · ' : '')
                   + (String(c.title || '').trim() || '(제목 없음)')) + '</option>').join('')
       + '</select>'
-      + (cs.length ? '' : '<em>4단에 여정을 먼저 적으면 여기서 고를 수 있습니다</em>')
-    + '</label>'
+      + (cs.length ? '' : '<em>9단에 여정을 먼저 적으면 여기서 고를 수 있습니다</em>')
+    + '</label>' : '')
     + '</div>';
 }
 

@@ -1950,26 +1950,53 @@ table.itable tr:hover td{background:var(--bg-hover)}
   background:var(--green,#12a150);color:#fff}
 .ob-sm .sh span{display:block;margin-top:2px;font-size:12px;font-weight:400;
   color:var(--text-muted)}
-.ob-sm .si{display:flex;flex-wrap:wrap;align-items:center;gap:4px 9px;
-  padding:9px 12px;margin-bottom:6px;
-  border:1px solid var(--border);border-radius:8px;background:var(--bg-card);
+.ob-sm .si{position:relative;display:block;padding:11px 13px;margin-bottom:8px;
+  border:1px solid var(--border);border-radius:9px;background:var(--bg-card);
   text-decoration:none;color:inherit}
-.ob-sm a.si:hover{border-color:var(--green,#12a150)}
 .ob-sm .si:last-child{margin-bottom:0}
-.ob-sm .si .tt{flex:1 1 auto;min-width:0;font-size:14.5px;font-weight:700;
+.ob-sm .si .tt{display:block;padding-right:22px;font-size:14.5px;font-weight:700;
   color:var(--text-primary);word-break:break-word}
-/* 메모는 아랫줄로 내리고, ↗ 는 첫 줄 오른쪽 끝에 둡니다 */
-/* 「예시 / 왜 그렇게 쓰나」 — 예시는 따옴표 칸으로 띄웁니다.
-   한 줄로 흘리면 어디까지가 예시인지 안 보입니다. */
-.ob-sm .si .ex{flex:1 1 100%;order:8;margin-top:6px;padding:9px 12px;
-  border-left:3px solid var(--green);border-radius:0 9px 9px 0;
-  background:var(--bg-input);font-size:14px;line-height:1.75;
+.ob-sm .si .go{position:absolute;top:10px;right:12px;font-size:13px;
+  color:var(--green,#12a150);font-weight:800;text-decoration:none}
+/* ❌ 와 ✅ 를 나란히 — 어느 쪽인지가 헷갈리는 자리이지,
+   옳은 쪽 하나만 보고는 알아채지 못합니다 */
+.sm-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;margin-top:9px}
+.sm-bad,.sm-good,.sm-why{min-width:0}
+.sm-bad,.sm-good{padding:9px 11px;border-radius:9px;border:1px solid var(--border)}
+.sm-bad{background:rgba(220,38,38,.055);border-color:rgba(220,38,38,.28)}
+.sm-good{background:rgba(18,161,80,.07);border-color:rgba(18,161,80,.3)}
+.sm-lb{display:block;margin-bottom:4px;font-family:var(--f-mono);font-size:10.5px;
+  font-weight:700;letter-spacing:.04em;text-decoration:none;color:var(--text-muted)}
+.sm-bad .sm-lb{color:var(--red,#dc2626)}
+.sm-good .sm-lb{color:var(--green,#12a150)}
+.sm-bad>span,.sm-good>span{display:block;font-size:13.5px;line-height:1.7;
   color:var(--text-primary);word-break:keep-all}
-.ob-sm .si .nt{flex:1 1 100%;margin-top:5px;font-size:12.5px;line-height:1.7;
-  color:var(--text-muted);order:9}
-.ob-sm .si .go{flex:0 0 auto;order:5;margin-left:auto;font-size:13px;
-  color:var(--green,#12a150);font-weight:800}
+.sm-bad>span{color:var(--text-secondary);text-decoration:line-through;
+  text-decoration-color:rgba(220,38,38,.45);text-decoration-thickness:1px}
+.sm-why{margin-top:8px;padding-left:11px;border-left:3px solid var(--border)}
+.sm-why>span{display:block;font-size:12.5px;line-height:1.75;
+  color:var(--text-muted);word-break:keep-all}
+.sm-bad>span.non,.sm-good>span.non,.sm-why>span.non{color:var(--text-muted);
+  text-decoration:none;font-size:12.5px}
+@media(max-width:700px){ .sm-pair{grid-template-columns:1fr} }
 .pe-sm{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)}
+/* 고치기 — 한 쌍이 한 칸으로 보이게 */
+.pe-sm1{margin-bottom:10px;padding:11px 12px;border:1px solid var(--border);
+  border-radius:9px;background:var(--bg-card)}
+.pe-sm1 .r1{display:flex;gap:6px;align-items:center}
+.pe-sm1 .r1 input{flex:1 1 auto;min-width:0}
+.pe-sm1 .r2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;margin-top:8px}
+.pe-sm1 label{display:block;min-width:0}
+.pe-sm1 label>u{display:block;margin-bottom:3px;font-family:var(--f-mono);
+  font-size:10.5px;font-weight:700;text-decoration:none;color:var(--text-muted)}
+.pe-sm1 label.bad>u{color:var(--red,#dc2626)}
+.pe-sm1 label.good>u{color:var(--green,#12a150)}
+.pe-sm1 label.why{margin-top:8px}
+.pe-sm1 textarea{width:100%;box-sizing:border-box;resize:none;overflow:hidden}
+.pe-sm1 input.u{width:100%;box-sizing:border-box;margin-top:8px}
+@media(max-width:700px){ .pe-sm1 .r2{grid-template-columns:1fr} }
 /* ⚠️ 아직 확정이 아닌 규칙 */
 .ob-tent{margin:0 0 14px;padding:12px 14px;border:1px solid var(--border);
   border-left:4px solid var(--amber,#f59e0b);border-radius:var(--r-sm);
@@ -3861,7 +3888,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-21';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-22';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17619,8 +17646,31 @@ function whoPanel(){
 function samplesOf(b){ return pathOf(b).samples; }
 function sampleAdd(bid){
   const b = brandById(bid) || currentBrand(); if(!b) return;
-  samplesOf(b).push({ id: uid('sm'), title:'', url:'', note:'' });
+  samplesOf(b).push({ id: uid('sm'), title:'', url:'', bad:'', good:'', why:'' });
   markDirty(b.id); render();
+}
+/* ── 🧾 실물은 <<둘>> 이 있어야 배웁니다 ──────────────────────
+   옳은 문장 하나만 보여 주면 「그럼 지금 쓰던 건 뭐가 문제였나」 를
+   모릅니다. 원고를 쓰는 사람이 실제로 헷갈리는 자리는 언제나
+   「비슷해 보이는 두 문장 중 어느 쪽인가」 입니다.
+
+     ❌ 아파트스퀘어는 하자 진단부터 시공 감리까지 전 과정을 지원합니다
+     ✅ 원인이 확인되지 않은 상태라면, 업체 선정보다 진단이 먼저입니다
+     왜 — 조건이 앞에 있고, 판단이 들어 있고, 떼어놔도 말이 됩니다.
+            검색은 페이지를 고르지만 AI 는 문장을 고릅니다.
+
+   둘을 나란히 두면 한 번 보고 끝납니다. 전에는 한 칸(note)에
+   「예시 / 왜」 를 「/」 로 이어 붙여 적게 해 두어서, 잘못된 쪽을
+   적을 자리가 아예 없었습니다. 예전에 그렇게 적어 둔 것도 그대로
+   읽히게 둡니다. */
+function sampleParts(x){
+  const S = v => String((x && v) || '').trim();
+  const out = { bad: S(x.bad), good: S(x.good), why: S(x.why) };
+  if(out.good || out.why || out.bad) return out;
+  const ps = S(x.note).split(/\s+\/\s+/);      // 예전 한 칸 적기
+  out.good = ps.shift() || '';
+  out.why  = ps.join(' / ');
+  return out;
 }
 function sampleEdit(bid, id, f, v){
   const b = brandById(bid) || currentBrand(); if(!b) return;
@@ -17633,7 +17683,14 @@ function sampleDel(bid, id){
   deletedIds.add(id);
   markDirty(b.id); render();
 }
-function sampleOk(x){ return !!String((x && x.title) || '').trim(); }
+/* 제목 없이 문장만 적어 둔 것도 살립니다 — 제목이 없다고 카드가
+   통째로 사라지면 적은 사람은 「왜 안 나오지」 만 하게 됩니다 */
+function sampleOk(x){
+  if(!x) return false;
+  if(String(x.title || '').trim()) return true;
+  const q = sampleParts(x);
+  return !!(q.bad || q.good || q.why);
+}
 
 function rulesOf(b){ return pathOf(b).rules; }
 function whoOf(b){ return pathOf(b).who; }
@@ -18787,8 +18844,8 @@ function bookParse(raw){
         if(r.lab.indexOf('이렇게 쓴 것') >= 0 || r.lab.indexOf('실물') >= 0){
           const bs = bookBlocks(r.v);
           const tt = bookLines(bs[0] || '')[0] || '';
-          if(tt){ G.samples.push({ title: tt, url:'',
-            note: bs.slice(1).join(' / ') }); hit++; }
+          if(tt){ G.samples.push({ title: tt, url:'', bad:'',
+            good: bs[1] || '', why: bs.slice(2).join(' / ') }); hit++; }
           return;
         }
         const k = r.lab.indexOf('말투') >= 0 ? '말투'
@@ -18828,7 +18885,17 @@ function bookParse(raw){
 function pathMineMerge(a, z){
   const S = (x, y) => String(x || '').trim() || String(y || '').trim();
   const L = (x, y) => (Array.isArray(x) ? x : []).concat(Array.isArray(y) ? y : []);
+  /* 앞의 답에만 있던 칸을 뒤의 답이 덮어 지우면 안 됩니다 — 얼굴(❶·❷)
+     쪽 칸들이 여기서 통째로 빠져 있어서, 두 번에 나눠 받은 문서는
+     슬로건 · 성격 · 철학 · 페르소나 · 색 · 글꼴 · 용어 · 해마다의 목표가
+     읽히고도 버려지고 있었습니다. */
+  const O = (x, y) => Object.assign({}, y || {}, x || {});
   return { what: S(a.what, z.what), sum: S(a.sum, z.sum), goal: S(a.goal, z.goal),
+           ob1: O(a.ob1, z.ob1), idv: O(a.idv, z.idv),
+           roles: L(a.roles, z.roles), personas: L(a.personas, z.personas),
+           colors: L(a.colors, z.colors), fonts: L(a.fonts, z.fonts),
+           words: L(a.words, z.words), goals: L(a.goals, z.goals),
+           samples: L(a.samples, z.samples),
            rules: L(a.rules, z.rules), who: L(a.who, z.who),
            steps: L(a.steps, z.steps), chaps: L(a.chaps, z.chaps),
            no: S(a.no, z.no) };
@@ -18868,6 +18935,17 @@ function pathMineParse(text){
     // 근거가 되는 여정의 제목 — 넣을 때 제목으로 찾아 걸어 줍니다
     ref:  String((x && (x['근거'] || x.ref)) || '').trim()
   })).filter(r => r.text);
+  /* 🧾 실물 — 「이렇게 쓰지 말고 이렇게」 한 쌍. 규칙이 「하지 마라」 라면
+     이건 「그럼 뭐라고 쓰나」 입니다. 지침서에는 거의 언제나 이 짝이
+     들어 있는데(대조표 · 좋은 예/나쁜 예), 받아 둘 칸이 없어서
+     옳은 쪽 한 줄로 뭉개져 들어오고 있었습니다. */
+  const samples = ((j && (j['실물'] || j.samples)) || []).map(x => ({
+    title: String((x && x.title) || '').trim(),
+    url:   String((x && x.url) || '').trim(),
+    bad:   String((x && (x['말고'] || x.bad)) || '').trim(),
+    good:  String((x && (x['이렇게'] || x.good)) || '').trim(),
+    why:   String((x && (x['왜'] || x.why)) || '').trim()
+  })).filter(x => x.title || x.good || x.bad);
   const who = ((j && (j['사람'] || j.who)) || []).map(x => ({
     name:  String((x && x.name) || '').trim(),
     role:  String((x && x.role) || '').trim(),
@@ -18933,6 +19011,7 @@ function pathMineParse(text){
            steps: steps,
            sum:  String((j && (j['한문단'] || j.summary)) || '').trim(),
            rules: Array.isArray(rules) ? rules : [],
+           samples: Array.isArray(samples) ? samples : [],
            who:   Array.isArray(who) ? who : [],
            chaps: chaps, no: no };
 }
@@ -18985,7 +19064,8 @@ function pathAutoFill(b, got, doc){
   addRows('words',    'wd', got.words,    x => x.term, '용어');
   addRows('goals',    'gl', got.goals,    x => String(x.year || '') + ' ' + (x.goal || ''),
           '해마다의 목표');
-  addRows('samples',  'sm', got.samples,  x => x.title, '이렇게 쓴 것');
+  addRows('samples',  'sm', got.samples,
+          x => x.title || x.good || x.bad, '이렇게 쓴 것');
 
   // 여정을 먼저 넣습니다 — 규칙이 이걸 근거로 걸어야 하기 때문입니다
   const up = [];                                   // 결과가 새로 채워진 것
@@ -20218,17 +20298,32 @@ function pathReadHtml(b){
       + '</div>'
       + sms.map(x => {
           const u = String(x.url || '').trim();
-          /* 「예시 / 왜 그렇게 쓰나」 로 적어 두셨습니다. 한 줄로 흘리면
-             어디까지가 예시인지 안 보입니다 — 예시는 인용 칸으로 띄웁니다. */
-          const ps = String(x.note || '').trim().split(/\s+\/\s+/);
-          const ex = ps.shift() || '';
-          const wy = ps.join(' / ');
-          const inner = '<span class="tt">' + esc(x.title) + '</span>'
-            + (ex ? '<span class="ex">' + esc(ex) + '</span>' : '')
-            + (wy ? '<span class="nt">' + esc(wy) + '</span>' : '');
+          const q = sampleParts(x);
+          const ed = f => ' data-ed="samp" data-i="' + esc(x.id) + '" data-f="' + f
+            + '" data-ml="1"';
+          /* ❌ 와 ✅ 를 나란히 둡니다 — 둘 중 어느 쪽인지가 헷갈리는
+             자리이지, 옳은 쪽 하나만 보고 알아채지는 못합니다. */
+          const cell = (cls, lb, v, f, ph) => '<div class="' + cls + '">'
+            + '<u class="sm-lb">' + lb + '</u>'
+            + (v ? '<span' + ed(f) + '>' + esc(v).replace(/\n/g, '<br>') + '</span>'
+                 : '<span class="non"' + ed(f) + ' data-ph="' + esc(ph) + '">'
+                   + '✏️ 눌러서 적기</span>')
+            + '</div>';
+          const inner = '<span class="tt"' + ' data-ed="samp" data-i="' + esc(x.id)
+              + '" data-f="title" data-ph="무엇을 쓸 때인가">'
+              + esc(String(x.title || '').trim() || '＋ 무엇을 쓸 때인지') + '</span>'
+            + '<div class="sm-pair">'
+              + cell('sm-bad',  '❌ 이렇게 말고', q.bad,  'bad',
+                     '흔히 이렇게 쓰는 것 — 무엇이 문제인지 보이게')
+              + cell('sm-good', '✅ 이렇게',      q.good, 'good',
+                     '옳게 쓴 실물 한 줄')
+            + '</div>'
+            + cell('sm-why', '왜', q.why, 'why',
+                   '왜 그 쪽이 맞는지 — 이게 있어야 다음에도 같은 판단을 합니다');
           return u
-            ? '<a class="si" href="' + esc(u) + '" target="_blank" rel="noopener">'
-              + inner + '<span class="go">↗</span></a>'
+            ? '<div class="si">' + inner
+              + '<a class="go" href="' + esc(u) + '" target="_blank" rel="noopener" '
+                + 'title="실물 보러 가기">↗</a></div>'
             : '<div class="si">' + inner + '</div>';
         }).join('')
       + '</div>'
@@ -20995,24 +21090,41 @@ function pathEditHtml(b){
     + '</div>'
     /* 🧾 실물 — 규칙 바로 아래. 규칙은 「하지 마라」 만 가르칩니다. */
     + '<div class="pe-sm">'
-      + '<label class="pe-1l">🧾 이렇게 쓴 것 <span>완성된 블로그 한 편 · 카드 한 장 · '
-        + '보고서 한 줄. 신입은 규칙 열여섯 줄보다 실물 세 개에서 더 빨리 배웁니다</span></label>'
+      + '<label class="pe-1l">🧾 이렇게 쓴 것 <span>「이렇게 쓰지 말고 이렇게」 한 쌍씩. '
+        + '옳은 쪽만 보여 주면 지금 쓰던 게 왜 문제였는지를 모릅니다 — '
+        + '신입은 규칙 열여섯 줄보다 이 한 쌍에서 더 빨리 배웁니다</span></label>'
       + (sms2.length
-          ? sms2.map(x => '<div class="hf-t">'
-              + '<input type="text" value="' + esc(x.title || '') + '" '
-                + 'placeholder="무엇인가 — 예) 2026-08 도장공사 블로그 (판정까지 들어간 것)" '
-                + 'oninput="sampleEdit(\'' + bid + '\',\'' + jsq(x.id) + '\',\'title\', this.value)">'
-              + '<input type="text" value="' + esc(x.url || '') + '" '
-                + 'placeholder="주소 (선택) — NAS 자료 · 블로그 링크" '
-                + 'oninput="sampleEdit(\'' + bid + '\',\'' + jsq(x.id) + '\',\'url\', this.value)">'
-              + '<input type="text" value="' + esc(x.note || '') + '" '
-                + 'placeholder="어디를 보면 되나 (선택)" '
-                + 'oninput="sampleEdit(\'' + bid + '\',\'' + jsq(x.id) + '\',\'note\', this.value)">'
-              + '<button class="btn sm" onclick="sampleDel(\'' + bid + '\',\'' + jsq(x.id)
-                + '\')" title="빼기">✕</button>'
-            + '</div>').join('')
+          ? sms2.map(x => {
+              const q = sampleParts(x);
+              const sx = jsq(x.id);
+              const ta = (f, v, ph) => '<textarea rows="1" placeholder="' + esc(ph) + '" '
+                + 'oninput="gbGrow(this);sampleEdit(\'' + bid + '\',\'' + sx + '\',\''
+                + f + '\', this.value)">' + esc(v) + '</textarea>';
+              return '<div class="pe-sm1">'
+                + '<div class="r1">'
+                  + '<input type="text" value="' + esc(x.title || '') + '" '
+                    + 'placeholder="무엇을 쓸 때인가 — 예) 블로그 첫 문장 · 감리 사례 카드 사진" '
+                    + 'oninput="sampleEdit(\'' + bid + '\',\'' + sx + '\',\'title\', this.value)">'
+                  + '<button class="btn sm" onclick="sampleDel(\'' + bid + '\',\'' + sx
+                    + '\')" title="빼기">✕</button>'
+                + '</div>'
+                + '<div class="r2">'
+                  + '<label class="bad"><u>❌ 이렇게 말고</u>'
+                    + ta('bad', q.bad, '흔히 이렇게 씁니다') + '</label>'
+                  + '<label class="good"><u>✅ 이렇게</u>'
+                    + ta('good', q.good, '옳게 쓴 실물 한 줄') + '</label>'
+                + '</div>'
+                + '<label class="why"><u>왜</u>'
+                  + ta('why', q.why, '왜 그 쪽이 맞는지 — 이게 있어야 다음에도 같은 판단을 합니다')
+                + '</label>'
+                + '<input type="text" value="' + esc(x.url || '') + '" class="u" '
+                  + 'placeholder="주소 (선택) — NAS 자료 · 블로그 링크" '
+                  + 'oninput="sampleEdit(\'' + bid + '\',\'' + sx + '\',\'url\', this.value)">'
+              + '</div>';
+            }).join('')
           : '')
-      + '<button class="gb-add tiny" onclick="sampleAdd(\'' + bid + '\')">＋ 실물</button>'
+      + '<button class="gb-add tiny" onclick="sampleAdd(\'' + bid + '\')">'
+        + '＋ 이렇게 쓴 것 한 쌍</button>'
     + '</div>'
     + '</div>';
 

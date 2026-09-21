@@ -93,6 +93,24 @@ if (isset($_GET['action']) && $_GET['action'] === 'version') {
        그래서 「지금」 이 (알 수 없음) 이 되고, 「새판있음」 도 늘 거짓이라
        [새 판 받기] 가 한 번도 안 떴습니다.
        이제는 찾을 때까지 조각씩 읽습니다 — 파일이 더 커져도 안 깨집니다. */
+    /* 판 번호는 vYYYYMMDD-N 입니다. 글자로 견주면 「-10」 이 「-9」 보다
+       <<작다>>고 나옵니다 (1 < 9). 그래서 하루에 열 번째 판부터
+       「새 판」 이 거꾸로 떴습니다. 날짜와 번호를 숫자로 가릅니다. */
+    if (!function_exists('ver_cmp')) {
+        function ver_parse($v) {
+            if (!preg_match('/^v(\d{6,8})(?:-(\d+))?/', (string)$v, $m)) return null;
+            return [(int)$m[1], isset($m[2]) ? (int)$m[2] : 0];
+        }
+        /* a 가 b 보다 새것이면 1 · 같으면 0 · 옛것이면 -1.
+           한쪽이라도 못 읽으면 0 — 모르는 것을 새것이라고 하지 않습니다. */
+        function ver_cmp($a, $b) {
+            $x = ver_parse($a); $y = ver_parse($b);
+            if ($x === null || $y === null) return 0;
+            if ($x[0] !== $y[0]) return $x[0] > $y[0] ? 1 : -1;
+            if ($x[1] !== $y[1]) return $x[1] > $y[1] ? 1 : -1;
+            return 0;
+        }
+    }
     $verOfFile = function ($path) use ($ver) {
         $fp = @fopen($path, 'rb');
         if (!$fp) return '';
@@ -147,7 +165,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'version') {
            — 그래서 이 파일만 올려도 그 알림이 멎습니다. */
         '지금'      => $local,
         '최신'      => $remote,
-        '새판있음'  => ($local !== '' && $remote !== '' && $local !== $remote),
+        '새판있음'  => ($local !== '' && $remote !== '' && ver_cmp($remote, $local) > 0),
         /* 무엇이 잘못됐는지 화면에서 바로 알 수 있게 — 판 번호를 못 읽을 때
            파일이 아예 없는 것인지, 있는데 못 읽은 것인지 가려 줍니다 */
         '파일있음'  => $haveFile,

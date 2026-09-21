@@ -3738,7 +3738,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-11';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-12';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4249,6 +4249,23 @@ window.addEventListener('resize', fitTopbar);
    다르면 오른쪽 위에 [받기] 단추가 뜨고, 누르면 파일을 받아 새로 고칩니다.   */
 let verBusy = false;
 
+/* ── 판 번호 견주기 ──────────────────────────────────────────
+   vYYYYMMDD-N 입니다. 글자로 견주면 「-10」 이 「-9」 보다 <<작다>>고
+   나옵니다 (1 < 9). 그래서 하루에 열 번째 판부터 알림이 거꾸로 떴습니다 —
+   더 옛 판을 「새 판」 이라고 내밀었습니다. 날짜와 번호를 숫자로 가릅니다.
+   한쪽이라도 못 읽으면 0 — 모르는 것을 새것이라고 하지 않습니다.
+   -------------------------------------------------------------- */
+function verParse(v){
+  const m = String(v || '').match(/^v(\d{6,8})(?:-(\d+))?/);
+  return m ? [Number(m[1]), m[2] ? Number(m[2]) : 0] : null;
+}
+function verCmp(a, b){
+  const x = verParse(a), y = verParse(b);
+  if(!x || !y) return 0;
+  if(x[0] !== y[0]) return x[0] > y[0] ? 1 : -1;
+  if(x[1] !== y[1]) return x[1] > y[1] ? 1 : -1;
+  return 0;
+}
 async function checkVersion(force){
   const box = document.getElementById('verNew');
   if(!box || verBusy || STORAGE_MODE !== 'nas') return;
@@ -4292,7 +4309,10 @@ async function checkVersion(force){
       return;
     }
 
-    if(j && j.ok && nasOk && onNas !== APP_VER && !verHush){
+    /* NAS 가 <<더 새것>>일 때만 「옛 파일을 들고 있다」 입니다.
+       그냥 다르면 뜨게 해 두었더니, 화면이 NAS 보다 앞서 있을 때도
+       (방금 GitHub 에서 받아 온 직후) 옛 판을 받으라고 내밀었습니다. */
+    if(j && j.ok && nasOk && verCmp(onNas, APP_VER) > 0 && !verHush){
       box.style.display = 'none'; box.innerHTML = '';
       if(bar){
         bar.className = 'verbar show';
@@ -4306,7 +4326,10 @@ async function checkVersion(force){
     }
     box.className = 'vernew';
     box.title = '';
-    if(j && j.ok && j['새판있음']){
+    /* 서버가 「새 판 있음」 이라고 해도 여기서 한 번 더 봅니다 —
+       옛 save.php 가 올라가 있는 NAS 도 있고, 지금 화면이 이미 그보다
+       새것일 수도 있습니다. 옛 판을 「새 판」 이라고 내밀지 않습니다. */
+    if(j && j.ok && j['새판있음'] && verCmp(onGit, APP_VER) > 0){
       box.style.display = '';
       box.innerHTML = '새 판 ' + esc(j['최신'])
         + ' <button onclick="pullVersion(this)">받기</button>';
@@ -4359,8 +4382,10 @@ function verReport(j){
   }else if(nas !== APP_VER){
     L.push('⚠️ 브라우저가 옛 파일을 들고 있습니다.'
       + '\n   [새로 받기] 를 누르거나 Ctrl+Shift+R 을 눌러 주세요.');
-  }else if(git && nas !== git){
+  }else if(git && verCmp(git, nas) > 0){
     L.push('새 판이 나와 있습니다 — 오른쪽 위 [받기] 를 누르세요.');
+  }else if(git && verCmp(nas, git) > 0){
+    L.push('NAS 가 GitHub 보다 앞서 있습니다. 받을 것은 없습니다.');
   }else{
     L.push('✅ 모두 같습니다. 지금이 최신입니다.');
   }

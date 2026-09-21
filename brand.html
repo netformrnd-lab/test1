@@ -1493,7 +1493,15 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--tc)}
 .ob-matrix .mx-mission{margin:0;font-size:14.5px;font-weight:700;line-height:1.55;
   color:var(--text-primary)}
-.ob-matrix .mx-non{color:var(--text-muted)}
+.ob-hist .hy-t .gap.add{display:block;width:100%;text-align:left;border:none;
+  background:transparent;padding:0;cursor:pointer;font-family:inherit;font-size:inherit;
+  color:inherit}
+.ob-1m span[data-ed]{cursor:pointer}
+.ob-1m span[data-ed]:hover{color:var(--text-primary);text-decoration:underline;
+  text-underline-offset:3px}
+.ob-matrix .mx-non.add{padding:0;border:none;background:transparent;cursor:pointer;
+  font-family:inherit;font-size:inherit}
+.mx-non{color:var(--text-muted)}
 .ob-matrix .mx ul{margin:0;padding:0;list-style:none}
 .ob-matrix .mx ul li{position:relative;padding-left:12px;margin-bottom:5px}
 .ob-matrix .mx ul li:last-child{margin-bottom:0}
@@ -3853,7 +3861,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-20';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-21';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5000,6 +5008,32 @@ function obFlipYears(sid){
   obMark(); render();
   toast('🕰 해를 위로 올렸습니다');
 }
+/* 표의 빈 칸 — 그 줄 이름을 가진 하위가 <<아직 없어서>> 비어 있습니다.
+   「—」 로 막아 두면 채울 길이 없습니다. 누르면 그 자리를 만들고
+   바로 칸을 엽니다. */
+function obCellAdd(sid, iid, row){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const it = (sc.items || []).find(x => x.id === iid); if(!it) return;
+  if(!Array.isArray(it.kids)) it.kids = [];
+  let k = it.kids.find(x => String(x.title || '').trim() === row);
+  if(!k){ k = { id: uid('ok'), title: row, own: '', body: '' }; it.kids.push(k); }
+  obMark(); render();
+  setTimeout(() => {
+    const el = document.querySelector('[data-ed="obkid"][data-i="' + it.id
+      + '"][data-k="' + k.id + '"][data-f="body"]');
+    if(el) edStart(el);
+  }, 60);
+}
+/* 표의 줄 이름 — 여러 항목에 같은 이름으로 흩어져 있습니다.
+   하나를 고치면 그 줄 전부를 같이 고쳐야 줄이 안 쪼개집니다. */
+function obRowRename(sid, row, nm){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const t = String(nm || '').trim(); if(!t || t === row) return;
+  (sc.items || []).forEach(it => (it.kids || []).forEach(k => {
+    if(String(k.title || '').trim() === row) k.title = t;
+  }));
+  obMark(); render();
+}
 /* 조직도 맨 아래 층(낱낱) 하나 더 — 낱낱은 본문을 「·」 로 나눈 것이라
    자리가 따로 없습니다. 본문 끝에 한 칸 붙이고 바로 칸을 엽니다.
    하위(주체)가 없는 갈래면 갈래 본문에 붙입니다. */
@@ -5286,7 +5320,9 @@ function renderOnboard(){
               : '해가 바뀌면 다시 쓰는 단이면 눌러 보세요') + '</em>'
         + '</div></div>'
       /* 단 이름과 한 줄 설명도 여기서 바로 고칩니다 */
-      : '<div class="ob-sh"><h3>' + esc(sc.icon) + ' '
+      : '<div class="ob-sh"><h3>'
+          + '<span data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="icon" '
+            + 'data-ph="그림 한 글자 (예: 🏢)">' + esc(sc.icon || '📌') + '</span> '
           + '<span data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="title">'
           + esc(sc.title) + '</span></h3>'
         + '<p data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="note" '
@@ -5304,14 +5340,18 @@ function renderOnboard(){
         const flush = () => {
           if(!run.length) return;
           out.push('<div class="ob-chips">'
-            + run.map(x => '<span class="chip">' + esc(x) + '</span>').join('')
+            /* 칩도 <<자료>> 입니다 — 눌러서 못 고치면 이름 하나 고치려고
+               [고치기] 화면을 다시 찾아 들어가야 합니다 */
+            + run.map(x => '<span class="chip" data-ed="obkid" data-g="' + esc(sc.id)
+                + '" data-i="' + esc(it.id) + '" data-k="' + esc(x.id)
+                + '" data-f="title" data-ph="이름">' + esc(x.t) + '</span>').join('')
             + '</div>');
           run = [];
         };
         it.kids.forEach(k => {
           const t = String(k.title || '').trim(), b = String(k.body || '').trim();
           if(!t && !b) return;
-          if(t && !b){ run.push(t); return; }
+          if(t && !b){ run.push({ id: k.id, t: t }); return; }
           flush();
           out.push('<div class="ob-k">'
             + (t ? '<b data-ed="obkid" data-g="' + esc(sc.id) + '" data-i="' + esc(it.id)
@@ -5410,8 +5450,11 @@ function renderOnboard(){
           const ls = obLeaves(k.body);
           return '<ul>'
             + (ls.length
-                ? '<li><span class="nd leaf"' + edA('obkid', it, k, 'body', 1) + '>'
-                  + ls.join('</span></li><li><span class="nd leaf">') + '</span></li>'
+                /* 낱낱은 한 칸(하위 본문)을 「·」 로 나눈 것입니다. 어느
+                   낱말을 눌러도 그 칸이 열려야 합니다 — 첫 낱말에만 귀를
+                   달아 두어서 둘째부터는 눌러도 아무 일이 없었습니다. */
+                ? ls.map(x => '<li><span class="nd leaf"'
+                    + edA('obkid', it, k, 'body', 1) + '>' + esc(x) + '</span></li>').join('')
                 : '')
             + plus('낱낱', 'obLeafAdd(\'' + sid3 + '\',\'' + jsq(it.id)
                 + '\',\'' + jsq(k.id) + '\')')
@@ -5427,8 +5470,8 @@ function renderOnboard(){
           /* 하위 이름이 없으면 항목 본문의 낱말이 바로 아래 층입니다 */
           const ls = obLeaves(it.body);
           return '<ul>' + (ls.length
-            ? '<li><span class="nd leaf"' + edA('obit', it, null, 'body', 1) + '>'
-              + ls.join('</span></li><li><span class="nd leaf">') + '</span></li>'
+            ? ls.map(x => '<li><span class="nd leaf"'
+                + edA('obit', it, null, 'body', 1) + '>' + esc(x) + '</span></li>').join('')
             : '')
             + plus('낱낱', 'obLeafAdd(\'' + sid3 + '\',\'' + jsq(it.id) + '\',\'\')')
             + add + '</ul>';
@@ -5563,10 +5606,15 @@ function renderOnboard(){
           + '</div>';
           /* 최근이 위로 오니 새 해를 넣는 자리도 위입니다 — 아래에 두면
              해가 쌓일수록 한참 내려가야 보입니다. */
+          const sid3 = jsq(sc.id);
           bodyHtml = '<div class="ob-hist">' + addBar + M.rows.map(r => {
             const on = obYearOf(r) === now;
             return '<div class="hy' + (on ? ' now' : '') + '">'
-              + '<div class="hy-h"><i class="dot"></i><b>' + esc(r) + '</b>'
+              /* 해 이름도 고칠 수 있어야 합니다 — 2025 를 2024 로 잘못
+                 적어 두면 지금은 그 줄을 지우고 다시 넣는 수밖에 없었습니다 */
+              + '<div class="hy-h"><i class="dot"></i>'
+                + '<b data-ed="obrow" data-g="' + esc(sc.id) + '" data-i="' + esc(r)
+                  + '" data-ph="해 (예: 2025)">' + esc(r) + '</b>'
                 + (on ? '<em>지금</em>' : '') + '</div>'
               + '<div class="hy-b">' + M.cols.map(it => {
                   const k = (it.kids || []).find(x =>
@@ -5584,14 +5632,23 @@ function renderOnboard(){
                       + ' title="눌러서 적습니다"'
                     : '';
                   return '<div class="hy-t' + (v ? '' : ' non') + '">'
-                    + '<b>' + esc(it.title) + '</b>'
+                    /* 팀 · 사람 이름도 여기서 고칩니다 */
+                    + '<b data-ed="obit" data-g="' + esc(sc.id) + '" data-i="'
+                      + esc(it.id) + '" data-f="title" data-ph="팀 · 사람 이름">'
+                      + esc(it.title) + '</b>'
                     + (v
                         ? (ls.length > 1
                             ? '<ul' + ed + '>' + ls.map(x => '<li>' + esc(x) + '</li>').join('')
                               + '</ul>'
                             : '<p' + ed + '>' + esc(v) + '</p>')
-                        : '<p class="gap"' + ed + '>✏️ 눌러서 적기'
-                          + '<span class="flag">아직 비어 있음</span></p>')
+                        /* 그 해에 그 줄이 아직 없으면 <<만들면서>> 엽니다 */
+                        : (k
+                            ? '<p class="gap"' + ed + '>✏️ 눌러서 적기'
+                              + '<span class="flag">아직 비어 있음</span></p>'
+                            : '<button class="gap add" onclick="obCellAdd(\'' + sid3
+                              + '\',\'' + jsq(it.id) + '\',\'' + jsq(r) + '\')">'
+                              + '✏️ 눌러서 적기'
+                              + '<span class="flag">아직 비어 있음</span></button>'))
                     + '</div>';
                 }).join('') + '</div>'
             + '</div>';
@@ -5599,14 +5656,21 @@ function renderOnboard(){
         }
         else if(M){
           const n = M.cols.length;
+          const sid4 = jsq(sc.id);
           const cell = (it, r) => {
             const k = (it.kids || []).find(x => String(x.title || '').trim() === r);
             const v = k ? String(k.body || '').trim() : '';
-            const ed = k ? ' data-ed="obkid" data-g="' + esc(sc.id) + '" data-i="'
-                         + esc(it.id) + '" data-k="' + esc(k.id)
-                         + '" data-f="body" data-ml="1"' : '';
-            if(!v) return '<div class="mx"><span class="mx-non"' + ed + '>'
-              + (k ? '✏️ 눌러서 적기' : '—') + '</span></div>';
+            /* 하위가 아직 없는 칸은 <<만들면서>> 엽니다 — 「—」 로 막아
+               두면 그 칸은 영영 못 채웁니다. */
+            if(!k) return '<div class="mx"><button class="mx-non add" '
+              + 'onclick="obCellAdd(\'' + sid4 + '\',\'' + jsq(it.id) + '\',\''
+              + jsq(r) + '\')">✏️ 눌러서 적기</button></div>';
+            const ed = ' data-ed="obkid" data-g="' + esc(sc.id) + '" data-i="'
+                     + esc(it.id) + '" data-k="' + esc(k.id)
+                     + '" data-f="body" data-ml="1"'
+                     + ' data-ph="' + esc(it.title + ' 의 ' + r) + '"';
+            if(!v) return '<div class="mx"><span class="mx-non"' + ed
+              + '>✏️ 눌러서 적기</span></div>';
             const ls = v.split('\n').map(x => x.trim()).filter(Boolean);
             return '<div class="mx"' + ed + '>' + (ls.length > 1
               ? '<ul>' + ls.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>'
@@ -5616,18 +5680,25 @@ function renderOnboard(){
             + '--n:' + n + '">'
             + '<div class="mx rowhead"></div>'
             + M.cols.map((it, ci) => '<div class="mx head ' + OB_TCS[ci % OB_TCS.length] + '">'
-                + '<span class="tname">' + esc(it.title) + '</span></div>').join('')
-            + (M.hasBody
-                ? '<div class="mx rowhead">목적</div>'
-                  + M.cols.map((it, ci) => '<div class="mx ' + OB_TCS[ci % OB_TCS.length] + '">'
-                      + (String(it.body || '').trim()
-                          ? '<p class="mx-mission">' + esc(it.body) + '</p>'
-                          : '<span class="mx-non">—</span>') + '</div>').join('')
-                : '')
+                + '<span class="tname" data-ed="obit" data-g="' + esc(sc.id)
+                  + '" data-i="' + esc(it.id) + '" data-f="title">'
+                  + esc(it.title) + '</span></div>').join('')
+            /* 「목적」 줄도 비어 있으면 못 채우고 있었습니다 */
+            + '<div class="mx rowhead">목적</div>'
+              + M.cols.map((it, ci) => '<div class="mx ' + OB_TCS[ci % OB_TCS.length] + '">'
+                  + (String(it.body || '').trim()
+                      ? '<p class="mx-mission" data-ed="obit" data-g="' + esc(sc.id)
+                        + '" data-i="' + esc(it.id) + '" data-f="body" data-ml="1">'
+                        + esc(it.body) + '</p>'
+                      : '<span class="mx-non" data-ed="obit" data-g="' + esc(sc.id)
+                        + '" data-i="' + esc(it.id) + '" data-f="body" data-ml="1" '
+                        + 'data-ph="이 항목이 무엇인지">✏️ 눌러서 적기</span>') + '</div>').join('')
             + M.rows.map(r => '<div class="mx rowhead'
                 + (M.yearly ? ' yr' : '')
                 + (M.yearly && obYearOf(r) === String(new Date().getFullYear())
-                    ? ' now' : '') + '">' + esc(r) + '</div>'
+                    ? ' now' : '') + '">'
+                + '<span data-ed="obrow" data-g="' + esc(sc.id) + '" data-i="' + esc(r)
+                  + '" data-ph="줄 이름">' + esc(r) + '</span></div>'
                 + M.cols.map((it, ci) => cell(it, r).replace('class="mx"',
                     'class="mx ' + OB_TCS[ci % OB_TCS.length] + '"')).join('')).join('')
             + '</div></div>';
@@ -5645,7 +5716,9 @@ function renderOnboard(){
           + '<div class="sh-b">'
             /* 단 이름과 한 줄 설명도 여기서 바로 고칩니다 — 이것만
                [고치기] 화면으로 넘어가야 하면 그 화면을 계속 쓰게 됩니다 */
-            + '<h3>' + esc(sc.icon || '📌') + ' '
+            + '<h3>'
+            + '<span data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="icon" '
+              + 'data-ph="그림 한 글자 (예: 🏢)">' + esc(sc.icon || '📌') + '</span> '
               + '<span data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="title">'
               + esc(sc.title || '이름 없는 단') + '</span></h3>'
             + '<p data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="note" '
@@ -5684,13 +5757,22 @@ function renderOnboard(){
       + '</div></div>'
     : ((H.eyebrow || H.title || H.sub || H.stats.some(x => String(x.v || '').trim()))
         ? '<div class="ob-hero">'
-          + (H.eyebrow ? '<p class="eyebrow">' + esc(H.eyebrow) + '</p>' : '')
-          + (H.title ? '<h1>' + esc(H.title) + '</h1>' : '')
-          + (H.sub ? '<p class="sub">' + esc(H.sub) + '</p>' : '')
+          /* 머리말도 읽는 자리에서 바로 고칩니다 — 여기만 [고치기] 로
+             넘어가야 하면 그 화면을 계속 쓰게 됩니다 */
+          + (H.eyebrow ? '<p class="eyebrow" data-ed="obhead" data-f="eyebrow">'
+              + esc(H.eyebrow) + '</p>' : '')
+          + (H.title ? '<h1 data-ed="obhead" data-f="title" data-ml="1">'
+              + esc(H.title) + '</h1>' : '')
+          + (H.sub ? '<p class="sub" data-ed="obhead" data-f="sub" data-ml="1">'
+              + esc(H.sub) + '</p>' : '')
           + (H.stats.some(x => String(x.v || '').trim())
               ? '<div class="hst">' + H.stats.filter(x => String(x.v || '').trim())
-                  .map(x => '<div class="st"><span class="v">' + esc(x.v) + '</span>'
-                    + '<span class="k">' + esc(x.k) + '</span></div>').join('')
+                  .map(x => '<div class="st">'
+                    + '<span class="v" data-ed="obstat" data-i="' + esc(x.id)
+                      + '" data-f="v" data-ph="숫자">' + esc(x.v) + '</span>'
+                    + '<span class="k" data-ed="obstat" data-i="' + esc(x.id)
+                      + '" data-f="k" data-ph="무엇의 수인지">' + esc(x.k)
+                    + '</span></div>').join('')
                 + '</div>' : '')
           + '</div>'
         : '');
@@ -19428,6 +19510,7 @@ async function pathCopy(bid){
 let edOn   = '';        // 지금 고치고 있는 자리 (비어 있으면 안 고치는 중)
 let edSkip = false;     // 고치는 동안 미뤄 둔 다시 그리기가 있었나
 let edCur  = null;      // 고치고 있는 자리와 원래 글
+let edAt   = 0;         // 이 칸이 열린 때 (두 번 눌러 열 때의 뒷클릭을 거르려고)
 
 /* 이 자리의 지금 글 — 화면 글자가 아니라 자료에서 읽습니다
    (화면에는 줄바꿈이 <br> 로 바뀌어 있어서 그대로 쓰면 줄이 사라집니다) */
@@ -19446,6 +19529,11 @@ function edGet(d){
   }
   if(d.ed === 'obsec'){                       // 단 자체 (이름 · 한 줄 · 맨 위)
     const sc = obOf().find(x => x.id === d.g); return sc ? S(sc[d.f]) : '';
+  }
+  if(d.ed === 'obrow') return S(d.i);          // 표의 줄 이름 (여러 항목에 걸침)
+  if(d.ed === 'obhead') return S(obHead()[d.f]);       // 온보딩 머리말
+  if(d.ed === 'obstat'){                                // 머리말의 숫자 띠
+    const x = (obHead().stats || []).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
   }
   const b = currentBrand(); if(!b) return '';
   const P = pathOf(b);
@@ -19473,6 +19561,9 @@ function edSet(d, v){
   if(d.ed === 'obkid'){ obKidSet(d.g, d.i, d.k, d.f, v); return; }
   if(d.ed === 'obkid0' || d.ed === 'obit'){ obItSet(d.g, d.i, d.f, v); return; }
   if(d.ed === 'obsec'){ obSecSet(d.g, d.f, v); return; }
+  if(d.ed === 'obrow'){ obRowRename(d.g, d.i, v); return; }
+  if(d.ed === 'obhead'){ obHeadSet(d.f, v); obMark(); return; }
+  if(d.ed === 'obstat'){ obStatSet(d.i, d.f, v); obMark(); return; }
   const b = currentBrand(); if(!b) return;
   const bid = b.id;
   if(d.ed === 'what')      pathWhat(bid, v);
@@ -19501,7 +19592,7 @@ function edStart(el){
   const d = edData(el);
   if(!d.ed) return;
   const v = edGet(d);
-  edOn = '1'; edSkip = false;
+  edOn = '1'; edSkip = false; edAt = Date.now();
   el.classList.add('ed-on');
   el.setAttribute('data-was', el.innerHTML);
   const tag = d.ml ? 'textarea' : 'input';
@@ -19526,7 +19617,13 @@ function edStart(el){
   box.addEventListener('input', () => { if(d.ml) gbGrow(box); });
   /* 단추를 누르는 동안 blur 가 먼저 나면 단추가 사라집니다 —
      단추 쪽은 onmousedown 에서 기본 동작을 막아 두었습니다 */
-  box.addEventListener('blur',  () => setTimeout(() => edStop(true), 0));
+  /* 짧은 글을 <<두 번>> 누르면 첫 클릭이 칸을 열고, 둘째 클릭이 넓어진
+     칸 밖에 떨어져 곧바로 닫혔습니다. 막 연 칸은 한 번 붙잡아 둡니다. */
+  box.addEventListener('blur',  () => setTimeout(() => {
+    const b2 = document.getElementById('edBox');
+    if(b2 === box && Date.now() - edAt < 400){ box.focus(); return; }
+    edStop(true);
+  }, 0));
   box.addEventListener('keydown', e => {
     if(e.key === 'Escape'){ e.preventDefault(); edStop(false); return; }
     if(e.key === 'Enter' && (!d.ml || e.ctrlKey || e.metaKey)){
@@ -19786,8 +19883,12 @@ function pathReadHtml(b){
         ? none('아직 없습니다 — [✏️ 고치기] 에서 적어 주세요. '
                + '규칙보다 이게 먼저입니다.')
         : (ob1Miss.length
+            /* 「아직 안 적은 것」 은 이름만 늘어놓고 적을 자리가 없었습니다.
+               그 이름을 그대로 누르면 그 자리에서 적힙니다. */
             ? '<div class="ob-1m">아직 안 적은 것 · '
-              + ob1Miss.map(f => '<span>' + f[3] + ' ' + esc(f[1]) + '</span>').join('')
+              + ob1Miss.map(f => '<span data-ed="ob1" data-f="' + f[0] + '" data-ml="1"'
+                  + ' data-ph="' + esc(f[1]) + '" title="눌러서 적습니다">'
+                  + f[3] + ' ' + esc(f[1]) + '</span>').join('')
               + '</div>'
             : '')), 'what');
 
@@ -20342,8 +20443,13 @@ function pathReadHtml(b){
     ['path',  cs.length, '마디'],    ['goals', gls.length, '해마다의 목표'],
     ['target', pss.length, '페르소나'], ['who', ws.length, '물어볼 사람']
   ].filter(x => x[1] > 0);
-  const heroLn = (nm, v) => String(v || '').trim()
-    ? '<div class="ln"><b>' + esc(nm) + '</b><span>'
+  /* 맨 위 띠의 「성격 · 타겟」 도 자료입니다. 여기서 못 고치면 제일 먼저
+     눈에 띄는 글을 고치려고 아래 단까지 내려가 찾아야 합니다.
+     (칸에는 줄인 글이 아니라 <<원래 글>> 이 들어옵니다 — edGet 이
+      화면 글자가 아니라 자료에서 읽기 때문입니다.) */
+  const heroLn = (nm, v, f) => String(v || '').trim()
+    ? '<div class="ln"><b>' + esc(nm) + '</b>'
+      + '<span data-ed="id" data-f="' + f + '" data-ml="1">'
       + esc(gbOneLine(v, 84)) + '</span></div>' : '';
   /* 슬로건은 맨 위 큰 글씨 한 자리뿐인데, <<비어 있으면 아예 안 나왔습니다>>.
      그래서 「슬로건은 대체 어디냐」 가 됩니다 — 적을 자리가 화면에
@@ -20358,8 +20464,8 @@ function pathReadHtml(b){
             + 'data-ph="밖에 내보내는 한 줄 — 예) 아파트가 믿을 수 있는 눈">'
             + '🏷️ 슬로건을 적어 주세요</div>')
       + (idv.character || idv.target
-          ? '<div class="lns">' + heroLn('성격', idv.character)
-            + heroLn('타겟', idv.target) + '</div>' : '')
+          ? '<div class="lns">' + heroLn('성격', idv.character, 'character')
+            + heroLn('타겟', idv.target, 'target') + '</div>' : '')
       + (cls.length
           ? '<div class="sws">' + cls.slice(0, 8).map(c => {
               const hx = colorHex(c);

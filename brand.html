@@ -1190,8 +1190,20 @@ table.itable tr:hover td{background:var(--bg-hover)}
   padding:6px 10px;border:1px solid var(--blue);border-radius:8px;
   background:var(--bg-input);resize:none;overflow:hidden;min-height:32px}
 .ed-box:focus{outline:none;box-shadow:0 0 0 3px var(--blue-soft)}
+/* 고침 칸 아래 줄 — 눌러서 저장하는 단추. 「Ctrl+Enter」 만 적어 두면
+   아무도 안 씁니다. */
+.ed-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.ed-bar button{font-family:inherit;font-size:11.5px;font-weight:700;padding:4px 12px;
+  border-radius:99px;border:1px solid var(--border);cursor:pointer;letter-spacing:0}
+.ed-bar .ok{background:var(--blue);border-color:var(--blue);color:#fff}
+.ed-bar .no{background:var(--bg-card);color:var(--text-muted)}
+.ed-bar i{font-style:normal;font-size:10.5px;font-weight:400;color:var(--text-muted);
+  letter-spacing:0}
 .ed-tip{display:block;margin-top:3px;font-size:10.5px;font-weight:400;
   color:var(--text-muted);letter-spacing:0}
+/* 한 번만 눌러도 열리는 칸은 눌러도 된다는 게 보여야 합니다 */
+[data-ed1]{cursor:pointer}
+[data-ed1]:hover{background:var(--blue-soft);box-shadow:0 0 0 4px var(--blue-soft)}
 @media (hover:none){[data-ed]:hover{background:transparent;box-shadow:none}}
 .ob-what{margin:0;font-size:15.5px;font-weight:700;line-height:1.85;
   color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
@@ -1573,7 +1585,14 @@ table.itable tr:hover td{background:var(--bg-hover)}
   height:1.5px;background:var(--blue)}
 /* 읽다가 바로 내년 한 줄 — 고치기로 옮겨 갈 일이 없게 */
 .ob-hist .hy-add{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  padding-left:26px;margin-top:2px}
+  padding:0 0 16px 26px}
+.ob-hist .hy-add .lb{font-size:12px;font-weight:800;color:var(--text-secondary)}
+.ob-hist .hy-add input{box-sizing:border-box;width:76px;font-family:var(--f-mono),inherit;
+  font-size:14px;font-weight:700;text-align:center;padding:6px 8px;
+  border:1px solid var(--border);border-radius:9px;background:var(--bg-input);
+  color:var(--text-primary);font-variant-numeric:tabular-nums}
+.ob-hist .hy-add input:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px var(--blue-soft)}
 .ob-hist .hy-add span{font-size:11.5px;color:var(--text-muted)}
 .ob-hist .hy-t.non{background:var(--bg-sunken)}
 .ob-hist .hy-t .gap{display:flex;align-items:center;gap:7px;color:var(--text-muted)}
@@ -3694,7 +3713,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-10';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4774,21 +4793,35 @@ function obMark(){ const d = data; markDirtyAll(); }
 function obIsYear(t){ return /^\s*\d{4}\s*년?\s*$/.test(String(t || '')); }
 function obYearOf(t){ const m = String(t || '').match(/\d{4}/); return m ? m[0] : ''; }
 /* 해를 한 줄 더합니다 — 모든 항목에 같은 이름의 하위가 생깁니다 */
-function obYearAdd(sid){
-  const sc = obOf().find(x => x.id === sid); if(!sc) return;
-  const its = sc.items.filter(it => String(it.title || '').trim());
-  if(!its.length){ toast('먼저 항목(팀)을 넣어 주세요'); return; }
+/* 이 단에 이미 있는 해들 · 그 다음 해 */
+function obYears(sc){
   const have = [];
-  its.forEach(it => (it.kids || []).forEach(k => {
+  (sc.items || []).forEach(it => (it.kids || []).forEach(k => {
     const y = obYearOf(k.title);
     if(y && have.indexOf(y) < 0) have.push(y);
   }));
-  const next = have.length ? String(Math.max.apply(null, have.map(Number)) + 1)
-                           : String(new Date().getFullYear());
-  const y = (prompt('어느 해를 더할까요?\n\n'
-    + (have.length ? '지금 있는 해 — ' + have.sort().join(' · ') + '\n' : '')
-    + '항목(팀) ' + its.length + '개 모두에 그 해 한 줄이 생깁니다.', next) || '').trim();
-  if(!y) return;
+  return have.sort();
+}
+function obNextYear(sc){
+  const have = obYears(sc);
+  return have.length ? String(Math.max.apply(null, have.map(Number)) + 1)
+                     : String(new Date().getFullYear());
+}
+/* 해를 더합니다. 어느 해인지 넘겨받으면 묻지 않습니다 —
+   브라우저 팝업은 화면 밖에서 튀어나와서 뜬금없습니다. */
+function obYearAdd(sid, year){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const its = sc.items.filter(it => String(it.title || '').trim());
+  if(!its.length){ toast('먼저 항목(팀)을 넣어 주세요'); return; }
+  let y = String(year || '').trim();
+  if(!y){
+    const box = document.getElementById('obYearIn');
+    y = box ? String(box.value || '').trim() : '';
+  }
+  if(!y) y = obNextYear(sc);
+  if(!/^\d{4}$/.test(obYearOf(y) || '')){
+    toast('네 자리 해로 적어 주세요 — 예) 2027'); return;
+  }
   const nm = obIsYear(y) ? obYearOf(y) : y;
   let n = 0;
   its.forEach(it => {
@@ -5116,7 +5149,19 @@ function renderOnboard(){
            해가 가로줄이 되어 「흐름」 이 안 보입니다. */
         if(M && M.yearly){
           const now = String(new Date().getFullYear());
-          bodyHtml = '<div class="ob-hist">' + M.rows.map(r => {
+          const addBar = '<div class="hy-add">'
+            + '<span class="lb">📅 해 넣기</span>'
+            + '<input id="obYearIn" type="text" inputmode="numeric" maxlength="4" '
+              + 'value="' + esc(obNextYear(sc)) + '" '
+              + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();'
+              + 'obYearAdd(\'' + jsq(sc.id) + '\')}">'
+            + '<button class="btn sm primary" onclick="obYearAdd(\''
+              + jsq(sc.id) + '\')">＋ 넣기</button>'
+            + '<span>팀 ' + M.cols.length + '개에 그 해 한 줄이 한 번에 생깁니다</span>'
+          + '</div>';
+          /* 최근이 위로 오니 새 해를 넣는 자리도 위입니다 — 아래에 두면
+             해가 쌓일수록 한참 내려가야 보입니다. */
+          bodyHtml = '<div class="ob-hist">' + addBar + M.rows.map(r => {
             const on = obYearOf(r) === now;
             return '<div class="hy' + (on ? ' now' : '') + '">'
               + '<div class="hy-h"><i class="dot"></i><b>' + esc(r) + '</b>'
@@ -5130,9 +5175,11 @@ function renderOnboard(){
                      무엇을 했는지는 고치기로 옮겨 가서 찾기엔 너무 잦습니다.
                      아직 안 적힌 칸도 눌러서 바로 채웁니다. */
                   const ed = k
-                    ? ' data-ed="obkid" data-g="' + esc(sc.id) + '" data-i="' + esc(it.id)
+                    ? ' data-ed="obkid" data-ed1="1" data-g="' + esc(sc.id)
+                      + '" data-i="' + esc(it.id)
                       + '" data-k="' + esc(k.id) + '" data-f="body" data-ml="1"'
                       + ' data-ph="' + esc(it.title + ' 이 ' + r + ' 에 무엇을') + '"'
+                      + ' title="눌러서 적습니다"'
                     : '';
                   return '<div class="hy-t' + (v ? '' : ' non') + '">'
                     + '<b>' + esc(it.title) + '</b>'
@@ -5141,17 +5188,12 @@ function renderOnboard(){
                             ? '<ul' + ed + '>' + ls.map(x => '<li>' + esc(x) + '</li>').join('')
                               + '</ul>'
                             : '<p' + ed + '>' + esc(v) + '</p>')
-                        : '<p class="gap"' + ed + '>아직 안 적혀 있습니다'
-                          + '<span class="flag">작성 필요</span></p>')
+                        : '<p class="gap"' + ed + '>✏️ 눌러서 적기'
+                          + '<span class="flag">아직 비어 있음</span></p>')
                     + '</div>';
                 }).join('') + '</div>'
             + '</div>';
-          }).join('')
-            + '<div class="hy-add"><button class="btn sm" onclick="obYearAdd(\''
-              + jsq(sc.id) + '\')">📅 해 추가</button>'
-              + '<span>팀 ' + M.cols.length + '개에 그 해 한 줄이 한 번에 생깁니다</span>'
-            + '</div>'
-          + '</div>';
+          }).join('') + '</div>';
         }
         else if(M){
           const n = M.cols.length;
@@ -19031,18 +19073,28 @@ function edStart(el){
   el.classList.add('ed-on');
   el.setAttribute('data-was', el.innerHTML);
   const tag = d.ml ? 'textarea' : 'input';
+  /* 「Ctrl+Enter 로 저장」 이라고 적어 두면 아무도 안 씁니다 — 눌러서
+     저장하는 단추를 놓습니다. 키는 지름길로만 남깁니다. */
   el.innerHTML = '<' + tag + ' id="edBox" class="ed-box"'
     + (d.ml ? ' rows="1"' : ' type="text"')
     + ' placeholder="' + esc(d.ph) + '"></' + tag + '>'
-    + '<span class="ed-tip">' + (d.ml ? 'Ctrl+Enter 저장' : 'Enter 저장')
-    + ' · Esc 취소</span>';
+    + '<span class="ed-bar">'
+      + '<button type="button" class="ok" onmousedown="event.preventDefault()" '
+        + 'onclick="edStop(1)">저장</button>'
+      + '<button type="button" class="no" onmousedown="event.preventDefault()" '
+        + 'onclick="edStop(0)">취소</button>'
+      + '<i>' + (d.ml ? '줄바꿈은 Enter · 다른 데를 눌러도 저장됩니다'
+                      : 'Enter 로도 저장됩니다') + '</i>'
+    + '</span>';
   const box = document.getElementById('edBox');
   box.value = v;
   if(d.ml) gbGrow(box);
   box.focus();
   try{ box.setSelectionRange(v.length, v.length); }catch(e){}
   box.addEventListener('input', () => { if(d.ml) gbGrow(box); });
-  box.addEventListener('blur',  () => edStop(true));
+  /* 단추를 누르는 동안 blur 가 먼저 나면 단추가 사라집니다 —
+     단추 쪽은 onmousedown 에서 기본 동작을 막아 두었습니다 */
+  box.addEventListener('blur',  () => setTimeout(() => edStop(true), 0));
   box.addEventListener('keydown', e => {
     if(e.key === 'Escape'){ e.preventDefault(); edStop(false); return; }
     if(e.key === 'Enter' && (!d.ml || e.ctrlKey || e.metaKey)){
@@ -19077,6 +19129,17 @@ document.addEventListener('dblclick', e => {
   const el = t.closest('[data-ed]');
   if(!el) return;
   e.preventDefault();
+  edStart(el);
+});
+/* 빈 칸과 연표 칸은 <<한 번만>> 눌러도 열립니다 — 그 자리에 달리 누를
+   것이 없는데 두 번 누르라고 하면 아무도 못 찾습니다. data-ed1 이
+   붙은 자리만 그렇게 합니다 (글 속의 낱말까지 그러면 성가십니다). */
+document.addEventListener('click', e => {
+  const t = e.target;
+  if(!t || !t.closest) return;
+  if(t.closest('input,textarea,select,button,a')) return;
+  const el = t.closest('[data-ed][data-ed1]');
+  if(!el || edOn) return;
   edStart(el);
 });
 

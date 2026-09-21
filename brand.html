@@ -1571,6 +1571,10 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-hist .hy-t ul li:last-child{margin-bottom:0}
 .ob-hist .hy-t ul li::before{content:'';position:absolute;left:0;top:9px;width:5px;
   height:1.5px;background:var(--blue)}
+/* 읽다가 바로 내년 한 줄 — 고치기로 옮겨 갈 일이 없게 */
+.ob-hist .hy-add{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding-left:26px;margin-top:2px}
+.ob-hist .hy-add span{font-size:11.5px;color:var(--text-muted)}
 .ob-hist .hy-t.non{background:var(--bg-sunken)}
 .ob-hist .hy-t .gap{display:flex;align-items:center;gap:7px;color:var(--text-muted)}
 
@@ -3690,7 +3694,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4668,8 +4672,11 @@ function obMatrix(sc){
     if(t && rows.indexOf(t) < 0) rows.push(t);
   }));
   if(!rows.length) return null;
-  /* 해로 적힌 가로줄이면 최근이 위로 옵니다 — 적은 차례가 아니라 때 순서 */
-  const yearly = rows.length > 1 && rows.every(obIsYear);
+  /* 해로 적힌 가로줄이면 최근이 위로 옵니다 — 적은 차례가 아니라 때 순서.
+     해가 <<하나뿐일 때도>> 연표입니다. 둘부터로 두었더니, 2026 한 해만
+     적어 둔 단이 표로 깔려서 「히스토리로 안 나온다」 가 됐습니다.
+     한 줄짜리 표는 표도 아니고, 내년 줄이 붙을 자리도 안 보입니다. */
+  const yearly = rows.length >= 1 && rows.every(obIsYear);
   if(yearly) rows = rows.slice().sort((a, b) => Number(obYearOf(b)) - Number(obYearOf(a)));
   return { cols: cols, rows: rows, hasBody: cols.some(it => String(it.body || '').trim()),
            yearly: yearly };
@@ -5119,18 +5126,32 @@ function renderOnboard(){
                     String(x.title || '').trim() === r);
                   const v = k ? String(k.body || '').trim() : '';
                   const ls = v.split('\n').map(x => x.trim()).filter(Boolean);
+                  /* 두 번 누르면 그 자리에서 적습니다 — 팀마다 그 해에
+                     무엇을 했는지는 고치기로 옮겨 가서 찾기엔 너무 잦습니다.
+                     아직 안 적힌 칸도 눌러서 바로 채웁니다. */
+                  const ed = k
+                    ? ' data-ed="obkid" data-g="' + esc(sc.id) + '" data-i="' + esc(it.id)
+                      + '" data-k="' + esc(k.id) + '" data-f="body" data-ml="1"'
+                      + ' data-ph="' + esc(it.title + ' 이 ' + r + ' 에 무엇을') + '"'
+                    : '';
                   return '<div class="hy-t' + (v ? '' : ' non') + '">'
                     + '<b>' + esc(it.title) + '</b>'
                     + (v
                         ? (ls.length > 1
-                            ? '<ul>' + ls.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>'
-                            : '<p>' + esc(v) + '</p>')
-                        : '<p class="gap">아직 안 적혀 있습니다'
+                            ? '<ul' + ed + '>' + ls.map(x => '<li>' + esc(x) + '</li>').join('')
+                              + '</ul>'
+                            : '<p' + ed + '>' + esc(v) + '</p>')
+                        : '<p class="gap"' + ed + '>아직 안 적혀 있습니다'
                           + '<span class="flag">작성 필요</span></p>')
                     + '</div>';
                 }).join('') + '</div>'
             + '</div>';
-          }).join('') + '</div>';
+          }).join('')
+            + '<div class="hy-add"><button class="btn sm" onclick="obYearAdd(\''
+              + jsq(sc.id) + '\')">📅 해 추가</button>'
+              + '<span>팀 ' + M.cols.length + '개에 그 해 한 줄이 한 번에 생깁니다</span>'
+            + '</div>'
+          + '</div>';
         }
         else if(M){
           const n = M.cols.length;
@@ -18946,9 +18967,16 @@ let edCur  = null;      // 고치고 있는 자리와 원래 글
 /* 이 자리의 지금 글 — 화면 글자가 아니라 자료에서 읽습니다
    (화면에는 줄바꿈이 <br> 로 바뀌어 있어서 그대로 쓰면 줄이 사라집니다) */
 function edGet(d){
+  const S = v => String(v == null ? '' : v);
+  /* 온보딩 연표 칸은 브랜드에 딸린 글이 아닙니다 — 브랜드부터 찾고
+     시작하면 온보딩 화면에서는 그 줄에 걸려 빈 값이 나왔습니다. */
+  if(d.ed === 'obkid'){
+    const sc = obOf().find(x => x.id === d.g); if(!sc) return '';
+    const it = (sc.items || []).find(x => x.id === d.i); if(!it) return '';
+    const k = (it.kids || []).find(x => x.id === d.k); return k ? S(k[d.f]) : '';
+  }
   const b = currentBrand(); if(!b) return '';
   const P = pathOf(b);
-  const S = v => String(v == null ? '' : v);
   if(d.ed === 'what')  return S(P.what);
   if(d.ed === 'sum')   return S(P.summary);
   if(d.ed === 'ob1' || d.ed === 'id') return S(P[d.f]);
@@ -18970,6 +18998,7 @@ function edGet(d){
   return '';
 }
 function edSet(d, v){
+  if(d.ed === 'obkid'){ obKidSet(d.g, d.i, d.k, d.f, v); return; }
   const b = currentBrand(); if(!b) return;
   const bid = b.id;
   if(d.ed === 'what')      pathWhat(bid, v);

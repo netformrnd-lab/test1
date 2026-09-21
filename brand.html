@@ -1350,9 +1350,9 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-en .en-a .del:hover{border-color:var(--red);color:var(--red)}
 @media (hover:none){.ob-en .en-a{opacity:1}}
 /* 조직도에서 늘리는 마디 */
-.ob-chart .pl > .nd.add{padding:3px 12px;border:1px dashed var(--border);
-  background:transparent;color:var(--text-muted);cursor:pointer;
-  font-family:inherit;font-size:13px;font-weight:700;box-shadow:none}
+.ob-chart .pl > .nd.add{padding:3px 11px;border:1px dashed var(--border);
+  background:transparent;color:var(--text-muted);cursor:pointer;white-space:nowrap;
+  font-family:inherit;font-size:11.5px;font-weight:700;box-shadow:none}
 .ob-chart .pl > .nd.add:hover{border-color:var(--blue);color:var(--blue);
   border-style:solid}
 .ob-sh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:11px}
@@ -3792,7 +3792,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-17';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-18';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4939,6 +4939,24 @@ function obFlipYears(sid){
   obMark(); render();
   toast('🕰 해를 위로 올렸습니다');
 }
+/* 조직도 맨 아래 층(낱낱) 하나 더 — 낱낱은 본문을 「·」 로 나눈 것이라
+   자리가 따로 없습니다. 본문 끝에 한 칸 붙이고 바로 칸을 엽니다.
+   하위(주체)가 없는 갈래면 갈래 본문에 붙입니다. */
+function obLeafAdd(sid, iid, kid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const it = (sc.items || []).find(x => x.id === iid); if(!it) return;
+  const tgt = kid ? (it.kids || []).find(x => x.id === kid) : it;
+  if(!tgt) return;
+  const cur = String(tgt.body || '').trim();
+  tgt.body = cur ? cur + ' · 새 이름' : '새 이름';
+  obMark(); render();
+  setTimeout(() => {
+    const el = document.querySelector('[data-ed="' + (kid ? 'obkid' : 'obit')
+      + '"][data-i="' + it.id + '"]' + (kid ? '[data-k="' + kid + '"]' : '')
+      + '[data-f="body"]');
+    if(el) edStart(el);
+  }, 60);
+}
 /* 그 해에 줄 하나 (팀 · 사람 · 브랜드 무엇이든) */
 function obRowAdd(sid, iid){
   const sc = obOf().find(x => x.id === sid); if(!sc) return;
@@ -5323,18 +5341,24 @@ function renderOnboard(){
           + '" data-i="' + esc(it.id) + '"'
           + (k ? ' data-k="' + esc(k.id) + '"' : '')
           + ' data-f="' + f + '"' + (ml ? ' data-ml="1"' : '');
-        const plus = (ttl, fn) => '<li class="pl"><button class="nd add" title="' + ttl
-          + '" onclick="' + fn + '">＋</button></li>';
+        /* ＋ 는 <<무엇을>> 더하는지 적어 둡니다. 그냥 ＋ 만 있으면
+           층마다 뭐가 생기는지 눌러 봐야 압니다. */
+        const plus = (lb, fn) => '<li class="pl"><button class="nd add" onclick="'
+          + fn + '">＋ ' + lb + '</button></li>';
         const leafUl = (it, k) => {
           const ls = obLeaves(k.body);
-          return ls.length
-            ? '<ul><li><span class="nd leaf"' + edA('obkid', it, k, 'body', 1) + '>'
-              + ls.join('</span></li><li><span class="nd leaf">') + '</span></li></ul>'
-            : '';
+          return '<ul>'
+            + (ls.length
+                ? '<li><span class="nd leaf"' + edA('obkid', it, k, 'body', 1) + '>'
+                  + ls.join('</span></li><li><span class="nd leaf">') + '</span></li>'
+                : '')
+            + plus('낱낱', 'obLeafAdd(\'' + sid3 + '\',\'' + jsq(it.id)
+                + '\',\'' + jsq(k.id) + '\')')
+          + '</ul>';
         };
         const kidUl = it => {
           const ks = (it.kids || []).filter(k => String(k.title || '').trim());
-          const add = plus('이 밑에 하나 더',
+          const add = plus('주체',
             'obKidAdd(\'' + sid3 + '\',\'' + jsq(it.id) + '\')');
           if(ks.length) return '<ul>' + ks.map(k => '<li><span class="nd lv3"'
             + edA('obkid', it, k, 'title') + '>'
@@ -5344,13 +5368,15 @@ function renderOnboard(){
           return '<ul>' + (ls.length
             ? '<li><span class="nd leaf"' + edA('obit', it, null, 'body', 1) + '>'
               + ls.join('</span></li><li><span class="nd leaf">') + '</span></li>'
-            : '') + add + '</ul>';
+            : '')
+            + plus('낱낱', 'obLeafAdd(\'' + sid3 + '\',\'' + jsq(it.id) + '\',\'\')')
+            + add + '</ul>';
         };
         const top = sc.items.filter(it => String(it.title || '').trim())
           .map(it => '<li><span class="nd lv2"' + edA('obit', it, null, 'title') + '>'
             + esc(it.title) + '</span>'
             + kidUl(it) + '</li>').join('')
-          + plus('갈래 하나 더', 'obItAdd(\'' + sid3 + '\')');
+          + plus('갈래', 'obItAdd(\'' + sid3 + '\')');
         /* 맨 위 이름을 적었을 때만 뿌리를 세웁니다. 안 적었는데 단 이름을
            그대로 쓰면 바로 아래 항목과 같은 말이 두 번 나옵니다. */
         const rootNm = String(sc.root || '').trim();
@@ -19479,9 +19505,26 @@ function edClickable(t){
   if(t.closest('input,textarea,select,button,a,.ed-bar')) return null;
   return t.closest('[data-ed]');
 }
+/* 고치는 중에 다른 칸을 누르면 — 지금 것을 저장하고 <<그 칸을 바로>>
+   엽니다. 전에는 닫히기만 해서 한 번 더 눌러야 했습니다.
+   다시 그리면 그 칸은 새로 만들어지므로 표시로 다시 찾습니다. */
+function edJump(el){
+  const d = edData(el);
+  const sel = '[data-ed="' + d.ed + '"]'
+    + (d.f ? '[data-f="' + d.f + '"]' : '')
+    + (d.k ? '[data-k="' + d.k + '"]' : '')
+    + (d.g ? '[data-g="' + d.g + '"]' : '')
+    + (d.i ? '[data-i="' + d.i + '"]' : '');
+  edStop(true);
+  setTimeout(() => { const nx = document.querySelector(sel); if(nx) edStart(nx); }, 40);
+}
 document.addEventListener('click', e => {
-  if(edOn) return;
-  const el = edClickable(e.target);
+  const el0 = edClickable(e.target);
+  if(edOn){
+    if(el0 && !el0.classList.contains('ed-on')){ e.preventDefault(); edJump(el0); }
+    return;
+  }
+  const el = el0;
   if(!el) return;
   /* 끌었으면(=글을 고르는 중이면) 건드리지 않습니다 */
   if(edDown && (Math.abs(e.clientX - edDown[0]) > 4

@@ -1924,6 +1924,29 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-1f .k{flex:0 0 132px;font-size:13px;font-weight:800;color:var(--text-secondary)}
 .ob-1f .v{flex:1 1 220px;min-width:0;font-size:15px;line-height:1.7;
   color:var(--text-primary);word-break:break-word}
+/* ── 인포 — 「이름 — 내용」 을 표찰과 내용으로 세웁니다 ─────────
+   같은 글인데 한 문단으로 흘리면 읽히지 않고, 갈라 세우면 훑힙니다. */
+.iv-rows{display:flex;flex-direction:column;gap:6px}
+.iv-r{display:flex;gap:10px;align-items:baseline}
+.iv-rows.plain .iv-r{display:block}
+.iv-k{flex:0 0 auto;min-width:76px;max-width:150px;padding:2px 9px;
+  border-radius:99px;background:var(--bg-card);border:1px solid var(--border);
+  font-size:11.5px;font-weight:800;color:var(--text-secondary);
+  text-align:center;word-break:keep-all}
+.iv-k.em{background:transparent;border-color:transparent;min-width:76px}
+.iv-v{flex:1 1 auto;min-width:0;font-size:14.5px;line-height:1.75;
+  color:var(--text-primary);word-break:keep-all}
+/* ❶ 네 칸을 판으로 — 세로로 네 줄 쌓으면 그게 다시 글줄이 됩니다 */
+.ob-1g{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:10px}
+.ob-1g .ob-1f{flex-direction:column;gap:9px;background:var(--bg-card)}
+.ob-1g .ob-1f.no{border-left-color:var(--red)}
+.ob-1g .ob-1f .k{flex:0 0 auto;display:flex;align-items:center;gap:7px;
+  font-size:12.5px;letter-spacing:.01em}
+.ob-1g .ob-1f .k i{font-style:normal;font-size:17px;line-height:1}
+.ob-1g .ob-1f > .fold{flex:1 1 auto;width:100%}
+.ob-1g .fold .fd-b{max-height:10.6em}
+/* 역할 — 상대 ▸ 우리가 무엇 */
+.id-rs .r .ar{flex:0 0 auto;font-style:normal;font-size:13px;color:var(--text-muted)}
 .ob-1m{margin-top:9px;font-size:11.5px;color:var(--text-muted)}
 .ob-1m span{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:99px;
   border:1px dashed var(--border);background:var(--bg-sunken)}
@@ -1974,14 +1997,24 @@ table.itable tr:hover td{background:var(--bg-hover)}
 @media (hover:none){.ob-ed{opacity:1}}
 /* 철학 네 칸 — 한 덩어리 글이면 아무도 안 들춥니다.
    「어느 칸을 보면 되는지」 가 보이도록 이름을 위에 세워 둡니다. */
-.id-ph4{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;
+/* 철학 넷은 흐름입니다 — 왜 있나 ▸ 무엇을 믿나 ▸ 무엇을 하나 ▸ 어디까지.
+   나란히 세우고 사이에 화살표를 놓으면 「따로 적은 네 칸」 이 아니라
+   한 줄기로 읽힙니다. */
+.id-ph4{display:grid;grid-template-columns:repeat(auto-fit,minmax(186px,1fr));gap:10px;
   margin-top:12px}
-.id-ph4 .c{padding:13px 15px;border:1px solid var(--border);border-radius:var(--r-sm);
-  background:var(--bg-card)}
-.id-ph4 .c i{display:block;margin-bottom:6px;font-style:normal;font-size:12px;
-  font-weight:800;letter-spacing:.01em;color:var(--text-muted)}
-.id-ph4 .c span{display:block;font-size:14.5px;line-height:1.75;
-  color:var(--text-primary);word-break:keep-all}
+.id-ph4 .c{position:relative;padding:13px 15px;border:1px solid var(--border);
+  border-radius:var(--r-sm);background:var(--bg-card)}
+.id-ph4 .c + .c::before{content:'▸';position:absolute;left:-11px;top:15px;
+  font-size:13px;color:var(--text-muted)}
+.id-ph4 .ch{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;
+  padding-bottom:8px;margin-bottom:9px;border-bottom:1px solid var(--border)}
+.id-ph4 .ch b{font-size:16px;line-height:1}
+.id-ph4 .ch span{font-size:13px;font-weight:800;letter-spacing:-.01em;
+  color:var(--text-primary)}
+.id-ph4 .ch em{margin-left:auto;font-style:normal;font-size:10.5px;font-weight:700;
+  color:var(--text-muted);white-space:nowrap}
+.id-ph4 .c .iv-v{font-size:14px}
+@media(max-width:700px){.id-ph4 .c + .c::before{content:'▾';left:50%;top:-12px}}
 /* 역할 — 상대마다 한 줄. 왼쪽이 상대, 오른쪽이 그 상대에게 우리가 무엇인가 */
 .id-rs{display:flex;flex-direction:column;gap:7px;margin-top:2px}
 .id-rs .r{display:flex;gap:11px;align-items:baseline;padding:10px 14px;
@@ -2055,6 +2088,15 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .id-wr{margin-top:14px}
 
 /* 해마다의 목표 */
+/* 해마다의 목표는 연표입니다 — 해마다 점을 찍고 줄기로 잇습니다 */
+.id-gs.rail{position:relative;padding-left:20px}
+.id-gs.rail::before{content:'';position:absolute;left:5px;top:12px;bottom:12px;
+  width:2px;background:var(--border)}
+.id-gs.rail .id-g::before{content:'';position:absolute;left:-19px;top:20px;
+  width:9px;height:9px;border-radius:50%;background:var(--border);
+  box-shadow:0 0 0 3px var(--bg-card)}
+.id-gs.rail .id-g.now::before{background:var(--blue)}
+.id-gs.rail .id-g{position:relative}
 .id-gs{display:flex;flex-direction:column;gap:11px}
 .id-g{display:flex;gap:15px;padding:14px 16px;border:1px solid var(--border);
   border-radius:var(--r);background:var(--bg-card)}
@@ -3491,7 +3533,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18860,6 +18902,38 @@ function pathReadHtml(b){
     + '<div class="ob-b">' + body + '</div></section>';
 
   const none = t => '<p class="pw-none2">' + esc(t) + '</p>';
+  /* ── 적어 둔 글을 인포로 ────────────────────────────────────
+     적는 사람들은 이미 「돈을 내는 쪽 — 입주자대표회의」 처럼 <<이름과
+     내용>>을 나눠 적고 있었습니다. 그걸 한 문단으로 흘려 보여 주니까
+     글이 많아 보였을 뿐입니다. 줄마다 갈라서 이름은 왼쪽 표찰로,
+     내용은 오른쪽으로 세우면 같은 글이 표가 됩니다.
+     나눠지지 않는 줄은 그냥 한 줄로 둡니다 — 억지로 못 나눕니다.
+     ------------------------------------------------------------ */
+  const ivRows = t => String(t || '').split(/\n+/).map(x => x.trim()).filter(Boolean)
+    .map(ln => {
+      const m = ln.match(/^(.{1,14}?)\s*[—–]\s*(.+)$/);      // 「이름 — 내용」
+      /* 앞쪽이 <<이름>>일 때만 표찰로 뗍니다. 문장이 앞에 온 줄
+         (「본 것을 수치로 남긴다 — 추정은…」) 까지 떼면 문장 하나가
+         표찰로 둔갑해서 더 안 읽힙니다. 이름은 맺음말로 안 끝나고,
+         마침표·쉼표가 없고, 서너 낱말을 넘지 않습니다. */
+      const ok = m && !/[.,!?]/.test(m[1])
+        && !/(다|요|음|함|죠|네|까|서|고)$/.test(m[1].trim())
+        && m[1].trim().split(/\s+/).length <= 4;
+      return ok ? { k: m[1].trim(), v: m[2].trim() } : { k: '', v: ln };
+    });
+  /* 표찰이 하나라도 붙는 글만 표로 세웁니다 (전부 맨 줄이면 그냥 글입니다) */
+  const ivHtml = (t, attr) => {
+    const rs = ivRows(t);
+    const tag = rs.some(r => r.k);
+    if(!tag) return '<div class="iv-rows plain"' + (attr || '') + '>'
+      + rs.map(r => '<div class="iv-r"><span class="iv-v">'
+          + esc(r.v) + '</span></div>').join('') + '</div>';
+    return '<div class="iv-rows"' + (attr || '') + '>'
+      + rs.map(r => '<div class="iv-r">'
+          + (r.k ? '<span class="iv-k">' + esc(r.k) + '</span>' : '<span class="iv-k em"></span>')
+          + '<span class="iv-v">' + esc(r.v) + '</span></div>').join('')
+      + '</div>';
+  };
   /* 긴 글 한 덩어리 — 접어 두고 [＋ 더 보기] 로 폅니다 */
   const fold = inner => '<div class="fold"><div class="fd-b">' + inner + '</div>'
     + '<button class="fd-m" onclick="foldMore(this)">＋ 더 보기</button></div>';
@@ -18870,10 +18944,11 @@ function pathReadHtml(b){
   const ob1 = OB1_FIELDS.map(f => {
     const v = String(P[f[0]] || '').trim();
     if(!v) return '';
-    return '<div class="ob-1f"><div class="k">' + f[3] + ' ' + esc(f[1]) + '</div>'
+    return '<div class="ob-1f' + (f[0] === 'nogo1' ? ' no' : '') + '">'
+      + '<div class="k"><i>' + f[3] + '</i>' + esc(f[1]) + '</div>'
       + '<div class="fold"><div class="fd-b">'
-      + '<div class="v" data-ed="ob1" data-f="' + f[0] + '" data-ml="1">'
-      + esc(v).replace(/\n/g, '<br>') + '</div></div>'
+      + ivHtml(v, ' data-ed="ob1" data-f="' + f[0] + '" data-ml="1"')
+      + '</div>'
       + '<button class="fd-m" onclick="foldMore(this)">＋ 더 보기</button></div>'
       + '</div>';
   }).join('');
@@ -18886,6 +18961,7 @@ function pathReadHtml(b){
           + '<b data-ed="row" data-k="roles" data-i="' + esc(r.id) + '" data-f="who" '
             + 'data-ph="누구에게">'
             + esc(String(r.who || '').trim() || '(상대 미상)') + '</b>'
+          + '<i class="ar">▸</i>'
           + '<span data-ed="row" data-k="roles" data-i="' + esc(r.id) + '" data-f="what" '
             + 'data-ml="1" data-ph="어떤 역할인가">'
             + esc(String(r.what || '').trim()).replace(/\n/g, '<br>') + '</span>'
@@ -18894,7 +18970,7 @@ function pathReadHtml(b){
 
   const s1 = sec('이 브랜드는 뭘 하나', '',
     (what ? fold('<p class="ob-what" data-ed="what" data-ml="1">' + esc(what) + '</p>') : '')
-    + (ob1 ? '<div class="ob-1">' + ob1 + '</div>' : '')
+    + (ob1 ? '<div class="ob-1 ob-1g">' + ob1 + '</div>' : '')
     + rlHtml
     + (!what && !ob1 && !rlHtml
         ? none('아직 없습니다 — [✏️ 고치기] 에서 적어 주세요. '
@@ -18930,11 +19006,15 @@ function pathReadHtml(b){
   /* ❷ 어떤 브랜드인가 — 성격 · 철학(존재 이유 · 기술 철학 · 해야 할 일 · 목표) */
   const ph4 = PHILO_FIELDS.filter(f => idv[f[0]]);
   const ph4Html = ph4.length
-    ? '<div class="id-ph4">' + ph4.map(f => '<div class="c">'
-        + '<i>' + f[3] + ' ' + esc(f[1]) + '</i>'
-        + '<span data-ed="id" data-f="' + f[0] + '" data-ml="1">'
-        + esc(idv[f[0]]).replace(/\n/g, '<br>') + '</span>'
-      + '</div>').join('') + '</div>'
+    ? '<div class="id-ph4">' + PHILO_FIELDS.map((f, i) => {
+        if(!idv[f[0]]) return '';
+        return '<div class="c">'
+          + '<div class="ch"><b>' + f[3] + '</b>'
+            + '<span>' + esc(f[1]) + '</span>'
+            + '<em>' + ['왜 있나', '무엇을 믿나', '무엇을 하나', '어디까지'][i] + '</em></div>'
+          + ivHtml(idv[f[0]], ' data-ed="id" data-f="' + f[0] + '" data-ml="1"')
+        + '</div>';
+      }).join('') + '</div>'
     : '';
   const sID = (idv.character || idv.philo || ph4.length)
     ? sec('어떤 브랜드인가', '성격과 철학 — 판단이 갈릴 때 여기로 돌아옵니다',
@@ -19066,7 +19146,7 @@ function pathReadHtml(b){
      걸어온 길이 「무슨 일이 있었나」 라면 여기는 「무엇을 노렸나」 입니다. */
   const sGL = gls.length
     ? sec('해마다의 목표', '그 해에 무엇을 · 무엇을 위해 했나',
-        '<div class="id-gs">' + gls.map(g => {
+        '<div class="id-gs rail">' + gls.map(g => {
           const yr = String(g.year || '').trim();
           const on = yr.indexOf(NOW_YEAR) >= 0;
           return '<div class="id-g' + (on ? ' now' : '') + '">'

@@ -1343,6 +1343,18 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-wrap{display:flex;flex-direction:column;margin-top:0}
 .ob-sec{border-left:0;padding:38px 0 42px;border-top:1px solid var(--border)}
 .ob-wrap > .ob-sec:first-child{border-top:0}
+/* 카드 밑 단추 — 얹었을 때만 나옵니다 (읽을 때는 글만 보이게) */
+.ob-en .en-a{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px;
+  opacity:0;transition:opacity .12s}
+.ob-en:hover .en-a{opacity:1}
+.ob-en .en-a .del:hover{border-color:var(--red);color:var(--red)}
+@media (hover:none){.ob-en .en-a{opacity:1}}
+/* 조직도에서 늘리는 마디 */
+.ob-chart .pl > .nd.add{padding:3px 12px;border:1px dashed var(--border);
+  background:transparent;color:var(--text-muted);cursor:pointer;
+  font-family:inherit;font-size:13px;font-weight:700;box-shadow:none}
+.ob-chart .pl > .nd.add:hover{border-color:var(--blue);color:var(--blue);
+  border-style:solid}
 .ob-sh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:11px}
 .ob-sh .no{flex:0 0 auto;width:21px;height:21px;border-radius:50%;background:var(--blue);
   color:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;
@@ -3768,7 +3780,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-14';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-15';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5089,11 +5101,16 @@ function obKidDel(sid, iid, kid){
 function renderOnboard(){
   const secs = obOf();
   const bar = '<div class="sec-bar">'
+    /* 글자는 화면에서 바로 고칩니다. 이 단추는 <<단을 더하고 차례를
+       바꾸는>> 일에만 씁니다 — 「고치기」 라고만 써 두면 글자 하나
+       고치려고도 딴 화면으로 넘어가게 됩니다. */
     + '<button class="btn' + (obEdit ? ' primary' : '') + '" onclick="obToggleEdit()">'
-      + (obEdit ? '📖 읽기로' : '✏️ 고치기') + '</button>'
+      + (obEdit ? '📖 읽기로 돌아가기' : '⚙︎ 단 · 차례 바꾸기') + '</button>'
     + (obEdit ? '<button class="btn sm" onclick="obSecAdd()">＋ 단 추가</button>' : '')
-    + '<span class="hint">우리 팀이 무슨 팀이고 · 무엇을 맡고 · 올해 뭘 하는지. '
-      + '새로 온 사람이 첫날 읽는 자리입니다</span></div>';
+    + '<span class="hint">'
+      + (obEdit ? '단을 더하고 차례를 바꿉니다 — 글자는 읽기 화면에서 눌러서 고칩니다'
+                : '✎ 글을 <b>누르면</b> 그 자리에서 바로 고쳐집니다')
+      + '</span></div>';
 
   /* 한눈에 보라고 카드로 깔아 둡니다. 누르면 그 단만 아래에 펴집니다 —
      네 단을 통째로 이어 붙이면 스크롤이 길어서 찾기가 힘들었습니다. */
@@ -5170,8 +5187,14 @@ function renderOnboard(){
           + '<em>' + (yearly ? '해마다 한 줄씩 늘어나는 단입니다'
               : '해가 바뀌면 다시 쓰는 단이면 눌러 보세요') + '</em>'
         + '</div></div>'
-      : '<div class="ob-sh"><h3>' + esc(sc.icon) + ' ' + esc(sc.title) + '</h3>'
-        + (sc.note ? '<p>' + esc(sc.note) + '</p>' : '') + '</div>';
+      /* 단 이름과 한 줄 설명도 여기서 바로 고칩니다 */
+      : '<div class="ob-sh"><h3>' + esc(sc.icon) + ' '
+          + '<span data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="title">'
+          + esc(sc.title) + '</span></h3>'
+        + '<p data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="note" '
+          + 'data-ph="이 단이 무엇인지 (선택)">'
+          + (sc.note ? esc(sc.note) : '✏️ 한 줄 설명') + '</p>'
+        + '</div>';
 
     const items = sc.items.map(it => {
       const iid = jsq(it.id);
@@ -5193,8 +5216,11 @@ function renderOnboard(){
           if(t && !b){ run.push(t); return; }
           flush();
           out.push('<div class="ob-k">'
-            + (t ? '<b>' + esc(t) + '</b>' : '')
-            + '<span>' + esc(b) + '</span></div>');
+            + (t ? '<b data-ed="obkid" data-g="' + esc(sc.id) + '" data-i="' + esc(it.id)
+                 + '" data-k="' + esc(k.id) + '" data-f="title">' + esc(t) + '</b>' : '')
+            + '<span data-ed="obkid" data-g="' + esc(sc.id) + '" data-i="' + esc(it.id)
+              + '" data-k="' + esc(k.id) + '" data-f="body" data-ml="1">'
+              + esc(b) + '</span></div>');
 
         });
         flush();
@@ -5242,12 +5268,21 @@ function renderOnboard(){
           + '<div class="en-h"><span class="en-no">항목 '
             + '①②③④⑤⑥⑦⑧⑨⑩'.charAt(Math.min(sc.items.indexOf(it), 9))
             + '</span>'
-            + '<h4>' + esc(it.title) + '</h4></div>'
+            + '<h4 data-ed="obit" data-g="' + esc(sc.id) + '" data-i="' + esc(it.id)
+              + '" data-f="title">' + esc(it.title) + '</h4></div>'
           + (String(it.body || '').trim()
-              ? '<p class="lead">' + esc(it.body) + '</p>'
-              : (kids ? '' : '<p class="lead dim">아직 안 적혀 있습니다'
-                  + '<span class="flag">작성 필요</span></p>'))
+              ? '<p class="lead" data-ed="obit" data-g="' + esc(sc.id) + '" data-i="'
+                + esc(it.id) + '" data-f="body" data-ml="1">' + esc(it.body) + '</p>'
+              : (kids ? '' : '<p class="lead dim" data-ed="obit" data-g="' + esc(sc.id)
+                  + '" data-i="' + esc(it.id) + '" data-f="body" data-ml="1">'
+                  + '✏️ 눌러서 적기</p>'))
           + (kids ? '<div class="ob-ks">' + kids + '</div>' : '')
+          + '<div class="en-a">'
+            + '<button class="gb-add tiny" onclick="obKidAdd(\'' + jsq(sc.id) + '\',\''
+              + jsq(it.id) + '\')">＋ 하위 넣기</button>'
+            + '<button class="gb-add tiny del" onclick="obItDel(\'' + jsq(sc.id) + '\',\''
+              + jsq(it.id) + '\')">🗑 이 항목</button>'
+          + '</div>'
           + '</article>';
     }).join('');
 
@@ -5261,32 +5296,50 @@ function renderOnboard(){
 
       /* 🌳 조직도 — 단 → 항목 → 하위 → 하위 본문의 낱말, 네 층 */
       if(vw === 'tree' && sc.items.length){
-        const leafUl = k => {
+        /* 마디마다 눌러서 고칩니다 — [고치기] 로 옮겨 가면 조직도가
+           통째로 딴 화면이 되어 「어디가 어디였는지」 를 다시 찾아야 합니다.
+           틀은 그대로 두고 그 위에서 고치는 것이 맞습니다. */
+        const sid3 = jsq(sc.id);
+        const edA = (ed, it, k, f, ml) => ' data-ed="' + ed + '" data-g="' + esc(sc.id)
+          + '" data-i="' + esc(it.id) + '"'
+          + (k ? ' data-k="' + esc(k.id) + '"' : '')
+          + ' data-f="' + f + '"' + (ml ? ' data-ml="1"' : '');
+        const plus = (ttl, fn) => '<li class="pl"><button class="nd add" title="' + ttl
+          + '" onclick="' + fn + '">＋</button></li>';
+        const leafUl = (it, k) => {
           const ls = obLeaves(k.body);
           return ls.length
-            ? '<ul>' + ls.map(x => '<li><span class="nd leaf">' + esc(x) + '</span></li>').join('')
-              + '</ul>' : '';
+            ? '<ul><li><span class="nd leaf"' + edA('obkid', it, k, 'body', 1) + '>'
+              + ls.join('</span></li><li><span class="nd leaf">') + '</span></li></ul>'
+            : '';
         };
         const kidUl = it => {
           const ks = (it.kids || []).filter(k => String(k.title || '').trim());
-          if(ks.length) return '<ul>' + ks.map(k => '<li><span class="nd lv3">'
-            + esc(k.title) + '</span>' + leafUl(k) + '</li>').join('') + '</ul>';
+          const add = plus('이 밑에 하나 더',
+            'obKidAdd(\'' + sid3 + '\',\'' + jsq(it.id) + '\')');
+          if(ks.length) return '<ul>' + ks.map(k => '<li><span class="nd lv3"'
+            + edA('obkid', it, k, 'title') + '>'
+            + esc(k.title) + '</span>' + leafUl(it, k) + '</li>').join('') + add + '</ul>';
           /* 하위 이름이 없으면 항목 본문의 낱말이 바로 아래 층입니다 */
           const ls = obLeaves(it.body);
-          return ls.length
-            ? '<ul>' + ls.map(x => '<li><span class="nd leaf">' + esc(x) + '</span></li>').join('')
-              + '</ul>' : '';
+          return '<ul>' + (ls.length
+            ? '<li><span class="nd leaf"' + edA('obit', it, null, 'body', 1) + '>'
+              + ls.join('</span></li><li><span class="nd leaf">') + '</span></li>'
+            : '') + add + '</ul>';
         };
         const top = sc.items.filter(it => String(it.title || '').trim())
-          .map(it => '<li><span class="nd lv2">' + esc(it.title) + '</span>'
-            + kidUl(it) + '</li>').join('');
+          .map(it => '<li><span class="nd lv2"' + edA('obit', it, null, 'title') + '>'
+            + esc(it.title) + '</span>'
+            + kidUl(it) + '</li>').join('')
+          + plus('갈래 하나 더', 'obItAdd(\'' + sid3 + '\')');
         /* 맨 위 이름을 적었을 때만 뿌리를 세웁니다. 안 적었는데 단 이름을
            그대로 쓰면 바로 아래 항목과 같은 말이 두 번 나옵니다. */
         const rootNm = String(sc.root || '').trim();
         bodyHtml = '<div class="ob-chartbox"><div class="ob-chart'
           + (rootNm ? '' : ' noroot') + '">'
           + (rootNm
-              ? '<ul><li><span class="nd root">' + esc(rootNm) + '</span>'
+              ? '<ul><li><span class="nd root" data-ed="obsec" data-g="' + esc(sc.id)
+                + '" data-f="root">' + esc(rootNm) + '</span>'
                 + '<ul>' + top + '</ul></li></ul>'
               : '<ul>' + top + '</ul>')
           + '</div>'
@@ -5425,9 +5478,13 @@ function renderOnboard(){
           const cell = (it, r) => {
             const k = (it.kids || []).find(x => String(x.title || '').trim() === r);
             const v = k ? String(k.body || '').trim() : '';
-            if(!v) return '<div class="mx"><span class="mx-non">—</span></div>';
+            const ed = k ? ' data-ed="obkid" data-g="' + esc(sc.id) + '" data-i="'
+                         + esc(it.id) + '" data-k="' + esc(k.id)
+                         + '" data-f="body" data-ml="1"' : '';
+            if(!v) return '<div class="mx"><span class="mx-non"' + ed + '>'
+              + (k ? '✏️ 눌러서 적기' : '—') + '</span></div>';
             const ls = v.split('\n').map(x => x.trim()).filter(Boolean);
-            return '<div class="mx">' + (ls.length > 1
+            return '<div class="mx"' + ed + '>' + (ls.length > 1
               ? '<ul>' + ls.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>'
               : esc(v)) + '</div>';
           };
@@ -5462,8 +5519,14 @@ function renderOnboard(){
         + '<div class="ob-sh rd">'
           + '<span class="sn">' + String(si + 1).padStart(2, '0') + '</span>'
           + '<div class="sh-b">'
-            + '<h3>' + esc(sc.icon || '📌') + ' ' + esc(sc.title || '이름 없는 단') + '</h3>'
-            + (sc.note ? '<p>' + esc(sc.note) + '</p>' : '')
+            /* 단 이름과 한 줄 설명도 여기서 바로 고칩니다 — 이것만
+               [고치기] 화면으로 넘어가야 하면 그 화면을 계속 쓰게 됩니다 */
+            + '<h3>' + esc(sc.icon || '📌') + ' '
+              + '<span data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="title">'
+              + esc(sc.title || '이름 없는 단') + '</span></h3>'
+            + '<p data-ed="obsec" data-g="' + esc(sc.id) + '" data-f="note" '
+              + 'data-ph="이 단이 무엇인지 (선택)">'
+              + (sc.note ? esc(sc.note) : '✏️ 한 줄 설명') + '</p>'
           + '</div>'
         + '</div>'
         + bodyHtml
@@ -19242,9 +19305,12 @@ function edGet(d){
     const it = (sc.items || []).find(x => x.id === d.i); if(!it) return '';
     const k = (it.kids || []).find(x => x.id === d.k); return k ? S(k[d.f]) : '';
   }
-  if(d.ed === 'obkid0'){        // 해 칸 자체 (항목의 이름)
+  if(d.ed === 'obkid0' || d.ed === 'obit'){   // 항목 (해 칸도 항목입니다)
     const sc = obOf().find(x => x.id === d.g); if(!sc) return '';
     const it = (sc.items || []).find(x => x.id === d.i); return it ? S(it[d.f]) : '';
+  }
+  if(d.ed === 'obsec'){                       // 단 자체 (이름 · 한 줄 · 맨 위)
+    const sc = obOf().find(x => x.id === d.g); return sc ? S(sc[d.f]) : '';
   }
   const b = currentBrand(); if(!b) return '';
   const P = pathOf(b);
@@ -19270,7 +19336,8 @@ function edGet(d){
 }
 function edSet(d, v){
   if(d.ed === 'obkid'){ obKidSet(d.g, d.i, d.k, d.f, v); return; }
-  if(d.ed === 'obkid0'){ obItSet(d.g, d.i, d.f, v); return; }
+  if(d.ed === 'obkid0' || d.ed === 'obit'){ obItSet(d.g, d.i, d.f, v); return; }
+  if(d.ed === 'obsec'){ obSecSet(d.g, d.f, v); return; }
   const b = currentBrand(); if(!b) return;
   const bid = b.id;
   if(d.ed === 'what')      pathWhat(bid, v);

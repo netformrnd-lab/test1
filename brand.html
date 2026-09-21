@@ -1925,12 +1925,35 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .id-ph,.id-tn{display:flex;gap:12px;margin-top:12px;padding:13px 15px;
   border:1px solid var(--border);border-left:4px solid var(--blue);
   border-radius:var(--r-sm);background:var(--bg-input)}
-.id-ph > b,.id-tn > b{flex:0 0 74px;font-size:13px;font-weight:800;
-  color:var(--text-secondary)}
+.id-ph > b,.id-tn > b{flex:0 0 88px;font-size:13px;font-weight:800;
+  color:var(--text-secondary);word-break:keep-all}
 .id-ph > span,.id-tn > span{flex:1 1 auto;min-width:0;font-size:15px;line-height:1.8;
   color:var(--text-primary);word-break:keep-all}
 .id-sub{margin:16px 0 8px;font-size:12.5px;font-weight:800;color:var(--text-secondary);
   letter-spacing:.01em}
+/* 철학 네 칸 — 한 덩어리 글이면 아무도 안 들춥니다.
+   「어느 칸을 보면 되는지」 가 보이도록 이름을 위에 세워 둡니다. */
+.id-ph4{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;
+  margin-top:12px}
+.id-ph4 .c{padding:13px 15px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--bg-card)}
+.id-ph4 .c i{display:block;margin-bottom:6px;font-style:normal;font-size:12px;
+  font-weight:800;letter-spacing:.01em;color:var(--text-muted)}
+.id-ph4 .c span{display:block;font-size:14.5px;line-height:1.75;
+  color:var(--text-primary);word-break:keep-all}
+/* 역할 — 상대마다 한 줄. 왼쪽이 상대, 오른쪽이 그 상대에게 우리가 무엇인가 */
+.id-rs{display:flex;flex-direction:column;gap:7px;margin-top:2px}
+.id-rs .r{display:flex;gap:11px;align-items:baseline;padding:10px 14px;
+  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-input)}
+.id-rs .r b{flex:0 0 auto;min-width:78px;font-size:13.5px;font-weight:800;
+  color:var(--blue);word-break:keep-all}
+.id-rs .r span{flex:1 1 auto;min-width:0;font-size:14.5px;line-height:1.7;
+  color:var(--text-primary);word-break:keep-all}
+/* 표현 키워드 — 짧은 낱말은 줄글보다 칩이 빨리 읽힙니다 */
+.id-kw{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+.id-kw span{padding:5px 12px;border:1px solid var(--border);border-radius:99px;
+  background:var(--bg-sunken);font-size:13px;font-weight:700;
+  color:var(--text-primary);word-break:keep-all}
 
 /* 페르소나 — 한 사람을 한 칸에 */
 .id-ps{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:12px;
@@ -3399,7 +3422,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260920-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260920-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16394,7 +16417,9 @@ function chapYearList(line){
    슬로건 · 성격 · 철학 · 타겟 · 톤앤매너 — 원고를 쓰는 사람이 매번
    팀장에게 물어보던 것들이라, 적어 두면 그 질문이 사라집니다.
    ------------------------------------------------------------ */
-const ID_TEXTS = ['slogan', 'character', 'philo', 'target', 'tone'];
+const ID_TEXTS = ['slogan', 'character', 'philo', 'target', 'tone',
+                 'philoWhy', 'philoTech', 'philoDo', 'philoGoal',
+                 'toneWords', 'toneVoice'];
 /* 한 줄짜리 칸 — [열쇠, 이름, 안내글, 아이콘, 줄수] */
 const ID_FIELDS = [
   ['slogan',    '슬로건',      '밖에 내보내는 한 줄. 여러 개면 줄을 바꿔 적으세요', '🏷️', 2],
@@ -16404,9 +16429,31 @@ const ID_FIELDS = [
                              + '여기로 돌아옵니다', '🕯️', 3],
   ['target',    '타겟',        '누구에게 말하나 — 한 줄로. 자세한 사람은 아래 '
                              + '페르소나에 적습니다', '🎯', 2],
-  ['tone',      '톤앤매너',    '어떤 말투로 쓰나 — 존댓말인지 · 감탄사를 쓰는지 · '
-                             + '얼마나 딱딱한지', '🗣️', 3]
+  ['tone',      '언어 톤',     '어떤 말투로 쓰나 — 예) 정중하고 단정한 기술 언어',
+                             '🗣️', 3]
 ];
+/* 철학 한 덩어리로는 「왜 있나」 와 「무엇을 하겠다」 가 섞입니다.
+   네 칸으로 나눠 적으면 판단이 갈릴 때 어느 칸을 보면 되는지가 분명합니다. */
+const PHILO_FIELDS = [
+  ['philoWhy',  '존재 이유',  '이 브랜드가 왜 있어야 하나 — 없으면 무엇이 안 되나', '🌱', 2],
+  ['philoTech', '기술 철학',  '기술을 어떻게 다루나 — 무엇을 믿고 무엇을 안 하나', '🔧', 2],
+  ['philoDo',   '해야 할 일', '그래서 우리가 실제로 하는 일', '🧭', 2],
+  ['philoGoal', '목표',       '어디까지 가려고 하나', '🏁', 2]
+];
+/* 톤앤매너도 한 덩어리로는 안 지켜집니다 — 말투 · 쓰는 낱말 · 어조를 갈라 둡니다 */
+const TONE_FIELDS = [
+  ['toneWords', '표현 키워드', '늘 붙이는 낱말 — 「·」 로 나눠 적으면 칩으로 나옵니다. '
+                             + '예) 정중함 · 기술적 · 데이터 기반', '🔖', 2],
+  ['toneVoice', '브랜드 어조', '무엇으로 말하나 — 예) 감성이 아니라 데이터로 말한다', '🎚️', 2]
+];
+/* 비우기 · 글로 복사 · 문서에서 채우기는 「큰 칸이냐 작은 칸이냐」 를
+   가리지 않습니다. 세 곳에서 따로 세면 한 곳에서 빠뜨립니다. */
+const ID_ALL = ID_FIELDS.concat(PHILO_FIELDS, TONE_FIELDS);
+/* 표현 키워드는 「·」 · 「,」 · 줄바꿈 아무거나로 나눠 적어도 칩이 됩니다 */
+function toneWordList(b){
+  return String(pathOf(b).toneWords || '').split(/[·,\n\/]/)
+    .map(t => t.trim()).filter(Boolean).slice(0, 24);
+}
 function pathId(bid, f, v){
   const b = brandById(bid) || currentBrand(); if(!b) return;
   if(ID_TEXTS.indexOf(f) < 0) return;
@@ -16442,6 +16489,11 @@ function pathRowMove(bid, key, id, d){
 }
 function personasOf(b){ return pathRows(b, 'personas'); }
 function personaOk(p){ return !!String((p && p.name) || '').trim(); }
+/* 역할은 상대가 누구냐에 따라 달라집니다 — 「시공사에게는 기술의 신뢰 자산」 */
+function rolesOf(b){ return pathRows(b, 'roles'); }
+function roleOk(r){
+  return !!(String((r && r.who) || '').trim() || String((r && r.what) || '').trim());
+}
 function colorsOf(b){ return pathRows(b, 'colors'); }
 function colorHex(c){
   const v = String((c && c.hex) || '').trim();
@@ -16472,7 +16524,8 @@ const NOW_YEAR = String(new Date().getFullYear());
 const OB1_FIELDS = [
   ['pay',   '누가 돈을 주나',   '우리에게 일을 맡기고 돈을 내는 쪽 — 실제로 쓰는 사람과 '
                                + '다르면 둘 다 적어 주세요', '💰'],
-  ['role',  '우리 역할',        '이 일에서 우리가 맡는 자리 — 여러 개면 줄을 바꿔 적으세요',
+  ['role',  '우리 역할',        '이 일에서 우리가 맡는 자리 — 여러 개면 줄을 바꿔 적으세요. '
+                               + '상대마다 다르면 아래 「누구에게 어떤 역할인가」 에 나눠 적습니다',
                                '🎭'],
   ['deal',  '계약·범위',        '어떤 계약인지 · 어디까지가 우리 몫인지 — 신입이 첫날 '
                                + '모르면 사고가 나는 조건', '📄'],
@@ -16511,6 +16564,9 @@ function pathOf(b){
   if(!Array.isArray(P.fonts))    P.fonts    = [];     // 톤앤매너 — 글꼴
   if(!Array.isArray(P.words))    P.words    = [];     // 쓰는 말 · 안 쓰는 말
   if(!Array.isArray(P.goals))    P.goals    = [];     // 해마다의 목표
+  /* 역할은 상대마다 다릅니다 — 시공사에게는 「기술의 신뢰 자산」,
+     발주처에게는 또 다른 것. 한 덩어리로 적으면 누구 얘기인지 안 보입니다. */
+  if(!Array.isArray(P.roles))    P.roles    = [];     // 누구에게 무엇인가
   if(!Array.isArray(P.rules))    P.rules = [];        // 2. 지킬 것
   if(!Array.isArray(P.who))      P.who = [];          // 3. 막히면 누구에게
   if(!Array.isArray(P.chapters)) P.chapters = [];     // 4. 여정
@@ -17441,6 +17497,15 @@ function bookBlocks(t){
   return String(t || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
 }
 const BOOK_DASH = /\s*[—–]\s*/;
+/* 「시공사 : 기술의 신뢰 자산 — 입찰경쟁력」 — 쌍점으로 먼저 가릅니다.
+   설명 쪽에 줄표가 들어 있어서, 줄표로 자르면 상대가 잘못 잡힙니다. */
+function bookRoleCut(t){
+  const v = String(t || '').trim();
+  const m = v.match(/^([^:：]{1,24})\s*[:：]\s*(.+)$/);
+  if(m) return [m[1].trim(), m[2].trim()];
+  const c = bookCut(v);
+  return [c[0], c[1]];
+}
 /* 「이름 — 설명」 에서 앞뒤를 가릅니다 */
 function bookCut(t){
   const i = String(t || '').search(BOOK_DASH);
@@ -17542,7 +17607,7 @@ function bookParse(raw){
   const secs = Array.from(doc.querySelectorAll('section'));
   if(!secs.length) return null;
 
-  const G = { what:'', ob1:{}, idv:{}, personas:[], colors:[], fonts:[], words:[],
+  const G = { what:'', ob1:{}, idv:{}, roles:[], personas:[], colors:[], fonts:[], words:[],
               goals:[], rules:[], who:[], chaps:[], samples:[], sum:'', goal:'',
               steps:[], no:'' };
   const has = t => String(t || '').trim();
@@ -17565,6 +17630,13 @@ function bookParse(raw){
       rows.forEach(r => {
         if(r.lab.indexOf('한 문단') >= 0)        put('what', r.v);
         else if(r.lab.indexOf('돈을 주나') >= 0) put1('pay', r.v);
+        /* 「어떤 역할」 이 「역할」 보다 먼저여야 합니다 — 뒤에 두면
+           「누구에게 어떤 역할인가」 가 한 덩어리 칸으로 빨려 들어갑니다 */
+        else if(r.lab.indexOf('어떤 역할') >= 0)
+          bookLines(r.v).forEach(ln => {
+            const c = bookRoleCut(ln);
+            if(c[0]){ G.roles.push({ who: c[0], what: c[1] }); hit++; }
+          });
         else if(r.lab.indexOf('역할') >= 0)      put1('role', r.v);
         else if(r.lab.indexOf('계약') >= 0)      put1('deal', r.v);
         else if(r.lab.indexOf('하지 않는') >= 0) put1('nogo1', r.v);
@@ -17573,6 +17645,9 @@ function bookParse(raw){
       rows.forEach(r => {
         if(r.lab.indexOf('슬로건') >= 0)      putId('slogan', r.v);
         else if(r.lab.indexOf('성격') >= 0)   putId('character', r.v);
+        else if(r.lab.indexOf('존재 이유') >= 0) putId('philoWhy', r.v);
+        else if(r.lab.indexOf('기술 철학') >= 0) putId('philoTech', r.v);
+        else if(r.lab.indexOf('해야 할 일') >= 0) putId('philoDo', r.v);
         else if(r.lab.indexOf('철학') >= 0)   putId('philo', r.v);
       });
     } else if(sn.indexOf('누구에게 말하나') >= 0){
@@ -17584,7 +17659,10 @@ function bookParse(raw){
       });
     } else if(sn.indexOf('보이고 말하나') >= 0){
       rows.forEach(r => {
-        if(r.lab.indexOf('톤앤매너') >= 0 || r.lab.indexOf('말투') >= 0) putId('tone', r.v);
+        if(r.lab.indexOf('표현 키워드') >= 0) putId('toneWords', r.v);
+        else if(r.lab.indexOf('어조') >= 0)  putId('toneVoice', r.v);
+        else if(r.lab.indexOf('톤앤매너') >= 0 || r.lab.indexOf('말투') >= 0
+             || r.lab.indexOf('언어 톤') >= 0) putId('tone', r.v);
         else if(r.lab.indexOf('색') >= 0)
           bookLines(r.v).forEach(ln => { const c = bookColor(ln); if(c){ G.colors.push(c); hit++; } });
         else if(r.lab.indexOf('글꼴') >= 0)
@@ -17722,13 +17800,17 @@ function pathMineParse(text){
   /* ── 🎨 얼굴 — 슬로건 · 성격 · 철학 · 타겟 · 톤앤매너 · 페르소나 ·
         색 · 글꼴 · 용어 · 해마다의 목표 ───────────────────────── */
   const ID_KEY = { slogan:'슬로건', character:'성격', philo:'철학',
-                   target:'타겟', tone:'톤앤매너' };
+                   target:'타겟', tone:'톤앤매너',
+                   philoWhy:'존재이유', philoTech:'기술철학', philoDo:'해야할일',
+                   philoGoal:'철학목표', toneWords:'표현키워드', toneVoice:'브랜드어조' };
   const idv = {};
   ID_TEXTS.forEach(k => {
     idv[k] = String((j && (j[ID_KEY[k]] || j[k])) || '').trim();
   });
   const jArr = (a, b2) => { const l = (j && (j[a] || j[b2])) || []; return Array.isArray(l) ? l : []; };
   const S = (x, k) => String((x && x[k]) || '').trim();
+  const roles = jArr('역할', 'roles').map(x => ({ who: S(x, 'who'), what: S(x, 'what') }))
+    .filter(x => x.who || x.what);
   const personas = jArr('페르소나', 'personas').map(x => ({
     name: S(x, 'name'), age: S(x, 'age'), who: S(x, 'who'),
     want: S(x, 'want'), pain: S(x, 'pain'), where: S(x, 'where')
@@ -17750,7 +17832,7 @@ function pathMineParse(text){
   })).filter(x => x.year || x.goal);
 
   return { what: String((j && (j['무엇'] || j.what)) || '').trim(),
-           ob1: ob1, idv: idv, personas: personas, colors: colors,
+           ob1: ob1, idv: idv, roles: roles, personas: personas, colors: colors,
            fonts: fonts, words: words, goals: goals,
            goal: String((fj && (fj['첫달목표'] || fj.goal)) || '').trim(),
            steps: steps,
@@ -17783,7 +17865,7 @@ function pathAutoFill(b, got, doc){
   });
 
   /* 🎨 얼굴 — 빈 칸만 채웁니다 */
-  ID_FIELDS.forEach(f => {
+  ID_ALL.forEach(f => {
     const v = String((got.idv || {})[f[0]] || '').trim();
     if(!v) return;
     if(String(P[f[0]] || '').trim()) skip.push(f[1]);
@@ -17801,6 +17883,7 @@ function pathAutoFill(b, got, doc){
       put.push(label + ' 「' + gbOneLine(nm, 20) + '」');
     });
   };
+  addRows('roles',    'rl', got.roles,    x => x.who + ' ' + (x.what || ''), '역할');
   addRows('personas', 'ps', got.personas, x => x.name, '페르소나');
   addRows('colors',   'cl', got.colors,   x => x.name || x.hex, '색');
   addRows('fonts',    'ft', got.fonts,    x => x.name + ' ' + (x.use || ''), '글꼴');
@@ -17956,6 +18039,17 @@ function ruleToWords(r){
 }
 
 /* 무엇을 옮길 수 있는지 미리 세어 봅니다 (없으면 안내를 안 띄웁니다) */
+/* 「우리 역할」 을 한 덩어리로 적어 두었는데 그 안이 이미 상대별로
+   갈라져 있는 경우 — 「시공사 : ~ / 발주처 : ~」. 줄마다 상대가 보이면
+   역할 줄로 옮길 수 있습니다. 이미 역할 줄이 있으면 건드리지 않습니다. */
+function roleSplit(b){
+  const P = pathOf(b);
+  if(rolesOf(b).filter(roleOk).length) return [];
+  return String(P.role || '').split(/\n+/).map(t => t.trim()).filter(Boolean)
+    .map(ln => { const m = ln.match(/^[·\-*\s]*([^:：]{1,24})\s*[:：]\s*(.+)$/);
+                 return m ? { who: m[1].trim(), what: m[2].trim() } : null; })
+    .filter(Boolean);
+}
 function pathTidyFind(b){
   const P = pathOf(b);
   const tone = String(P.tone || '').trim()
@@ -17976,8 +18070,10 @@ function pathTidyFind(b){
     (yrs[y] = yrs[y] || []).push(c);
   });
   const goals = Object.keys(yrs);
-  const n = tone.length + words + goals.length;
-  return n ? { n: n, tone: tone, words: words, yrs: yrs, goals: goals } : null;
+  const roles = roleSplit(b);
+  const n = tone.length + words + goals.length + roles.length;
+  return n ? { n: n, tone: tone, words: words, yrs: yrs, goals: goals,
+               roles: roles } : null;
 }
 
 function pathTidyGo(bid){
@@ -17987,6 +18083,15 @@ function pathTidyGo(bid){
   const before = JSON.parse(JSON.stringify(P));
   const key = t => String(t || '').replace(/\s+/g, '').toLowerCase();
   const put = [], skip = [];
+
+  /* 0) 한 덩어리 「우리 역할」 → 상대별 역할 줄 */
+  if((f.roles || []).length){
+    f.roles.forEach(r => {
+      pathRows(b, 'roles').push({ id: uid('rl'), who: r.who, what: r.what });
+      put.push('역할 「' + r.who + '」');
+    });
+    P.role = '';               // 같은 말이 두 군데 있으면 둘이 어긋납니다
+  }
 
   /* 1) 말투 규칙 → 톤앤매너 */
   if(f.tone.length){
@@ -18051,12 +18156,13 @@ function pathWipeWhat(b){
   const P = pathOf(b);
   const L = [];
   const t = (nm, v) => { if(String(v || '').trim()) L.push(nm); };
-  ID_FIELDS.forEach(f => t(f[1], P[f[0]]));
+  ID_ALL.forEach(f => t(f[1], P[f[0]]));
   t('이 브랜드는 뭘 하나', P.what);
   OB1_FIELDS.forEach(f => t(f[1], P[f[0]]));
   t('맨 위 한 문단', P.summary);
   t('첫 달에 이건 해냈으면', (P.first || {}).goal);
   const n = (nm, l) => { const k = (l || []).length; if(k) L.push(nm + ' ' + k + '개'); };
+  n('역할',      rolesOf(b).filter(roleOk));
   n('페르소나',  personasOf(b));
   n('색',        colorsOf(b));
   n('글꼴',      fontsOf(b));
@@ -18084,7 +18190,7 @@ function pathWipe(bid){
   const before = JSON.parse(JSON.stringify(P));
   /* 지운 줄은 아이디를 남겨 둬야 합니다 — 안 그러면 같이 쓰는 사람의
      화면에서 되돌아와 다시 붙습니다 (합치기가 「상대가 새로 넣은 줄」 로 봅니다) */
-  ['chapters', 'rules', 'who', 'samples', 'personas', 'colors',
+  ['chapters', 'rules', 'who', 'samples', 'personas', 'roles', 'colors',
    'fonts', 'words', 'goals', 'docs'].forEach(k => {
     (Array.isArray(P[k]) ? P[k] : []).forEach(x => { if(x && x.id) deletedIds.add(x.id); });
   });
@@ -18236,9 +18342,11 @@ function pathText(b){
   const P = pathOf(b);
   const L = ['# ' + b.name + ' — 브랜드 소개', ''];
   const put = (t, v) => { const x = String(v || '').trim(); if(x) L.push(t + ': ' + x); };
-  ID_FIELDS.forEach(f => put(f[1], P[f[0]]));
+  ID_ALL.forEach(f => put(f[1], P[f[0]]));
   put('이 브랜드는 뭘 하나', P.what);
   OB1_FIELDS.forEach(f => put(f[1], P[f[0]]));
+  rolesOf(b).filter(roleOk).forEach(r => put('   역할 · ' + (String(r.who || '').trim()
+    || '(상대 미상)'), r.what));
   personasOf(b).filter(personaOk).forEach(x => {
     L.push('', '· 페르소나 ' + x.name + (String(x.age || '').trim() ? ' (' + x.age + ')' : ''));
     [['who', '어떤 사람'], ['want', '원하는 것'], ['pain', '걱정·불편'],
@@ -18329,6 +18437,8 @@ function pathTidyBar(b){
   if(pathMine[b.id]) return '';            // 방금 옮긴 결과를 보고 있는 중
   const f = pathTidyFind(b); if(!f) return '';
   const what = [];
+  if((f.roles || []).length)
+    what.push('우리 역할 ' + f.roles.length + '줄 → <b>누구에게 어떤 역할인가</b>');
   if(f.tone.length)     what.push('말투 ' + f.tone.length + '줄 → <b>톤앤매너</b>');
   if(f.words)           what.push('쓰는 말 · 안 쓰는 말 ' + f.words + '개 → <b>용어</b>');
   if(f.goals.length)    what.push('기획서 ' + f.goals.length + '해 → <b>해마다의 목표</b>');
@@ -18355,7 +18465,9 @@ function pathReadHtml(b){
   const ss   = stepsOf(b).filter(x => !stepBlank(x));
   const goal = String(F.goal || '').trim();
   const idv  = {};
-  ID_FIELDS.forEach(f => { idv[f[0]] = String(P[f[0]] || '').trim(); });
+  ID_ALL.forEach(f => { idv[f[0]] = String(P[f[0]] || '').trim(); });
+  const rls = rolesOf(b).filter(roleOk);
+  const kws = toneWordList(b);
   const pss = personasOf(b).filter(personaOk);
   const cls = colorsOf(b).filter(colorOk);
   const fts = fontsOf(b).filter(fontOk);
@@ -18363,7 +18475,7 @@ function pathReadHtml(b){
   const gls = goalLine(b);
 
   if(!what && !rsAll.length && !ws.length && !cs.length && !sum
-     && !ID_FIELDS.some(f => idv[f[0]]) && !pss.length && !cls.length
+     && !ID_ALL.some(f => idv[f[0]]) && !rls.length && !pss.length && !cls.length
      && !fts.length && !wds.length && !gls.length){
     return '<div class="pw"><div class="pw-none">이 브랜드 소개가 아직 비어 있습니다.'
       + '<br><span>문서가 있으면 갈래에 맞게 올리면 됩니다 — '
@@ -18392,27 +18504,39 @@ function pathReadHtml(b){
       + '<div class="v">' + esc(v).replace(/\n/g, '<br>') + '</div></div>';
   }).join('');
   const ob1Miss = OB1_FIELDS.filter(f => !String(P[f[0]] || '').trim());
+  /* 역할은 상대마다 다릅니다 — 시공사에게 무엇이고 발주처에게 무엇인지를
+     한 덩어리 글로 적으면 누구 얘기인지 안 보입니다. */
+  const rlHtml = rls.length
+    ? '<div class="id-sub">🤝 누구에게 어떤 역할인가</div>'
+      + '<div class="id-rs">' + rls.map(r => '<div class="r">'
+          + '<b>' + esc(String(r.who || '').trim() || '(상대 미상)') + '</b>'
+          + '<span>' + esc(String(r.what || '').trim()).replace(/\n/g, '<br>') + '</span>'
+        + '</div>').join('') + '</div>'
+    : '';
 
   const s1 = sec('이 브랜드는 뭘 하나', '',
     (what ? '<p class="ob-what">' + esc(what) + '</p>' : '')
     + (ob1 ? '<div class="ob-1">' + ob1 + '</div>' : '')
-    + (!what && !ob1
+    + rlHtml
+    + (!what && !ob1 && !rlHtml
         ? none('아직 없습니다 — [✏️ 고치기] 에서 적어 주세요. '
                + '규칙보다 이게 먼저입니다.')
         : (ob1Miss.length
             ? '<div class="ob-1m">아직 안 적은 것 · '
               + ob1Miss.map(f => '<span>' + f[3] + ' ' + esc(f[1]) + '</span>').join('')
               + '</div>'
-            : '')));
+            : '')), 'what');
 
   /* ── 아직 안 채운 얼굴 ──────────────────────────────────────
      아래 단들은 비면 아예 안 나옵니다 (「아직 없습니다」 를 다섯 번 읽히지
      않으려고). 그래서 무엇이 비었는지 한 줄로만 짚어 줍니다. */
   const idGaps = [];
   if(!idv.character) idGaps.push('🎭 브랜드 성격');
-  if(!idv.philo)     idGaps.push('🕯️ 철학');
+  if(!idv.philo && !PHILO_FIELDS.some(f => idv[f[0]])) idGaps.push('🕯️ 철학');
+  if(!rls.length)    idGaps.push('🤝 누구에게 어떤 역할인가');
   if(!idv.target && !pss.length) idGaps.push('🎯 타겟');
-  if(!idv.tone && !cls.length && !fts.length) idGaps.push('🗣️ 톤앤매너');
+  if(!idv.tone && !TONE_FIELDS.some(f => idv[f[0]]) && !cls.length && !fts.length)
+    idGaps.push('🗣️ 톤앤매너');
   if(!wds.length && !rsW.length) idGaps.push('🔤 쓰는 말 · 안 쓰는 말');
   if(!gls.length)    idGaps.push('🎯 해마다의 목표');
   const idGapBar = idGaps.length
@@ -18425,14 +18549,22 @@ function pathReadHtml(b){
       + '</div>'
     : '';
 
-  /* ❷ 어떤 브랜드인가 — 성격 · 철학 */
-  const sID = (idv.character || idv.philo)
+  /* ❷ 어떤 브랜드인가 — 성격 · 철학(존재 이유 · 기술 철학 · 해야 할 일 · 목표) */
+  const ph4 = PHILO_FIELDS.filter(f => idv[f[0]]);
+  const ph4Html = ph4.length
+    ? '<div class="id-ph4">' + ph4.map(f => '<div class="c">'
+        + '<i>' + f[3] + ' ' + esc(f[1]) + '</i>'
+        + '<span>' + esc(idv[f[0]]).replace(/\n/g, '<br>') + '</span>'
+      + '</div>').join('') + '</div>'
+    : '';
+  const sID = (idv.character || idv.philo || ph4.length)
     ? sec('어떤 브랜드인가', '성격과 철학 — 판단이 갈릴 때 여기로 돌아옵니다',
         (idv.character ? '<p class="ob-what">' + esc(idv.character) + '</p>' : '')
         + (idv.philo
             ? '<div class="id-ph"><b>🕯️ 철학</b><span>'
               + esc(idv.philo).replace(/\n/g, '<br>') + '</span></div>'
-            : ''))
+            : '')
+        + ph4Html, 'philo')
     : '';
 
   /* ❸ 누구에게 말하나 — 타겟 · 페르소나 */
@@ -18471,13 +18603,21 @@ function pathReadHtml(b){
         + (String(f.use || '').trim() ? '<span>' + esc(f.use) + '</span>' : '')
       + '</div>').join('') + '</div>'
     : '';
-  const sTN = (idv.tone || cls.length || fts.length)
-    ? sec('어떻게 보이고 말하나', '톤앤매너 — 색 · 글꼴 · 말투',
+  const kwHtml = kws.length
+    ? '<div class="id-sub">🔖 표현 키워드</div>'
+      + '<div class="id-kw">' + kws.map(t => '<span>' + esc(t) + '</span>').join('') + '</div>'
+    : '';
+  const sTN = (idv.tone || idv.toneVoice || kws.length || cls.length || fts.length)
+    ? sec('어떻게 보이고 말하나', '톤앤매너 — 언어 톤 · 표현 키워드 · 어조 · 색 · 글꼴',
         (idv.tone
-          ? '<div class="id-tn"><b>🗣️ 말투</b><span>'
+          ? '<div class="id-tn"><b>🗣️ 언어 톤</b><span>'
             + esc(idv.tone).replace(/\n/g, '<br>') + '</span></div>' : '')
+        + (idv.toneVoice
+          ? '<div class="id-tn"><b>🎚️ 브랜드 어조</b><span>'
+            + esc(idv.toneVoice).replace(/\n/g, '<br>') + '</span></div>' : '')
+        + kwHtml
         + (clHtml ? '<div class="id-sub">🎨 색</div>' + clHtml : '')
-        + (ftHtml ? '<div class="id-sub">🔠 글꼴</div>' + ftHtml : ''))
+        + (ftHtml ? '<div class="id-sub">🔠 글꼴</div>' + ftHtml : ''), 'tone')
     : '';
 
   /* 같은 여정이 여러 줄의 근거면, 결과까지 붙이는 것은 처음 한 번뿐입니다
@@ -18792,6 +18932,7 @@ function pathReadHtml(b){
   const nNo  = wds.filter(wordNo).length;
   const nSm  = samplesOf(b).filter(sampleOk).length;
   const stat = [
+    ['what', rls.length, '역할'],
     ['words', nYes, '쓰는 말'], ['words', nNo, '안 쓰는 말'],
     ['rules', rs.length, '지킬 것'], ['rules', nSm, '이렇게 쓴 것'],
     ['path',  cs.length, '마디'],    ['goals', gls.length, '해마다의 목표'],
@@ -18999,36 +19140,9 @@ function pathEditHtml(b){
          + '(계약 유형 확인 전까지 잠정)',
     nogo1: '예) 시공은 하지 않는다. 안전보건조치 의무자는 시공자다 — 우리가 아니다.'
   };
-  const e1f = OB1_FIELDS.map(f =>
-    '<label class="pe-1l">' + f[3] + ' ' + esc(f[1]) + '<span>' + esc(f[2]) + '</span></label>'
-    + '<textarea class="pe-t" rows="2" placeholder="' + esc(OB1_PH[f[0]] || '') + '" '
-      + 'oninput="gbGrow(this);path1(\'' + bid + '\',\'' + f[0] + '\', this.value)">'
-    + esc(P[f[0]] || '') + '</textarea>').join('');
-
-  const ID_PH = {
-    slogan:    '예) 아파트가 믿을 수 있는 눈',
-    character: '예) 말을 보태지 않는 사람. 본 것만 적고, 모르면 모른다고 한다.',
-    philo:     '예) 발주자가 비전문가라서 생기는 손해를 줄인다.\n'
-             + '공사를 늘리는 쪽이 아니라 필요한 만큼만 하게 만드는 쪽에 선다.',
-    target:    '예) 아파트 관리주체 — 입주자대표회의와 관리사무소. '
-             + '공사를 자주 하지 않아서 무엇이 정상인지 모르는 사람들.',
-    tone:      '예) 존댓말. 감탄사와 느낌표는 쓰지 않는다.\n'
-             + '단정할 수 있는 것만 단정하고, 나머지는 「~로 보입니다」 로 쓴다.'
-  };
-  const e1 = '<div class="pe-sec"><div class="pe-h"><span class="no">1</span>'
-    + '<h3>이 브랜드는 뭘 하나</h3>'
-    + '<span class="hn">규칙보다 이게 먼저입니다 — 신입은 아직 우리가 무슨 일을 하는지, '
-      + '누가 돈을 주는지 모릅니다</span></div>'
-    + '<label class="pe-1l">📌 한 문단<span>하는 일을 그대로. 꾸미지 않습니다</span></label>'
-    + '<textarea class="pe-t" rows="2" placeholder="예) 아파트 유지보수 공사의 설계·감리를 '
-      + '한다. 관리주체를 대신해 도장·방수·에폭시 공사의 전 과정을 본다. 공사는 직접 하지 않는다." '
-      + 'oninput="gbGrow(this);pathWhat(\'' + bid + '\', this.value)">'
-    + esc(P.what || '') + '</textarea>'
-    + e1f + '</div>';
-
-  /* ── 2~6 — 이 브랜드의 얼굴 ─────────────────────────────────
-     한 줄 목록(페르소나 · 색 · 글꼴 · 용어 · 해목표)은 생김새만 다르고
-     하는 일이 같아서, 줄 하나를 그리는 틀을 한 번만 씁니다. */
+  /* 줄 하나를 그리는 틀 — 역할 · 페르소나 · 색 · 글꼴 · 용어 · 해목표가
+     생김새만 다르고 하는 일이 같습니다. 여섯 벌을 따로 쓰면 여섯 곳에서
+     따로 틀립니다. */
   const rowX = (key, id, i, n) => '<span class="tl-x">'
     + (i > 0 ? '<button onclick="pathRowMove(\'' + bid + '\',\'' + key + '\',\''
         + jsq(id) + '\',-1)" title="위로">↑</button>' : '')
@@ -19044,8 +19158,54 @@ function pathEditHtml(b){
   const rowTa = (key, id, f, v, ph) => '<textarea rows="1" placeholder="' + esc(ph) + '" '
     + 'oninput="gbGrow(this);pathRowEdit(\'' + bid + '\',\'' + key + '\',\'' + jsq(id)
     + '\',\'' + f + '\', this.value)">' + esc(v || '') + '</textarea>';
+  const e1f = OB1_FIELDS.map(f =>
+    '<label class="pe-1l">' + f[3] + ' ' + esc(f[1]) + '<span>' + esc(f[2]) + '</span></label>'
+    + '<textarea class="pe-t" rows="2" placeholder="' + esc(OB1_PH[f[0]] || '') + '" '
+      + 'oninput="gbGrow(this);path1(\'' + bid + '\',\'' + f[0] + '\', this.value)">'
+    + esc(P[f[0]] || '') + '</textarea>').join('');
+
+  const ID_PH = {
+    slogan:    '예) 아파트가 믿을 수 있는 눈',
+    character: '예) 말을 보태지 않는 사람. 본 것만 적고, 모르면 모른다고 한다.',
+    philo:     '예) 발주자가 비전문가라서 생기는 손해를 줄인다.\n'
+             + '공사를 늘리는 쪽이 아니라 필요한 만큼만 하게 만드는 쪽에 선다.',
+    target:    '예) 아파트 관리주체 — 입주자대표회의와 관리사무소. '
+             + '공사를 자주 하지 않아서 무엇이 정상인지 모르는 사람들.',
+    tone:      '예) 존댓말. 감탄사와 느낌표는 쓰지 않는다.\n'
+             + '단정할 수 있는 것만 단정하고, 나머지는 「~로 보입니다」 로 쓴다.',
+    philoWhy:  '예) 발주자가 비전문가라서 생기는 손해를 줄인다.',
+    philoTech: '예) 눈으로 본 것을 수치로 남긴다. 추정은 추정이라고 적는다.',
+    philoDo:   '예) 도장·방수·에폭시 공사의 설계와 감리를 맡는다.',
+    philoGoal: '예) 아파트 공사에서 「이 회사 보고서면 믿는다」 가 되는 것.',
+    toneWords: '예) 정중함 · 기술적 · 데이터 기반 · 단정함',
+    toneVoice: '예) 감성이 아니라 데이터로 말한다. 형용사보다 수치를 앞에 둔다.'
+  };
+  const rls2 = rolesOf(b);
+  const eRL = rls2.map(r => '<div class="pe-cl">'
+    + rowIn('roles', r.id, 'who', r.who, '누구에게 — 예) 시공사', 'tt')
+    + rowIn('roles', r.id, 'what', r.what, '어떤 역할인가 — 예) 기술의 신뢰 자산 · 입찰경쟁력')
+    + '<button class="x" onclick="pathRowDel(\'' + bid + '\',\'roles\',\'' + jsq(r.id)
+      + '\')" title="지우기">×</button>'
+    + '</div>').join('');
+  const e1 = '<div class="pe-sec"><div class="pe-h"><span class="no">1</span>'
+    + '<h3>이 브랜드는 뭘 하나</h3>'
+    + '<span class="hn">규칙보다 이게 먼저입니다 — 신입은 아직 우리가 무슨 일을 하는지, '
+      + '누가 돈을 주는지 모릅니다</span></div>'
+    + '<label class="pe-1l">📌 한 문단<span>하는 일을 그대로. 꾸미지 않습니다</span></label>'
+    + '<textarea class="pe-t" rows="2" placeholder="예) 아파트 유지보수 공사의 설계·감리를 '
+      + '한다. 관리주체를 대신해 도장·방수·에폭시 공사의 전 과정을 본다. 공사는 직접 하지 않는다." '
+      + 'oninput="gbGrow(this);pathWhat(\'' + bid + '\', this.value)">'
+    + esc(P.what || '') + '</textarea>'
+    + e1f
+    + '<label class="pe-1l">🤝 누구에게 어떤 역할인가<span>상대마다 다릅니다 — '
+      + '「시공사 : 기술의 신뢰 자산 — 입찰경쟁력」 처럼 상대와 역할을 나눠 적습니다</span></label>'
+    + (eRL ? '<div class="pe-rules">' + eRL + '</div>' : '')
+    + '<div class="pe-add"><button class="gb-add tiny" onclick="pathRowAdd(\'' + bid
+      + '\',\'roles\',\'rl\')">＋ 역할</button></div>'
+    + '</div>';
+
   const idTa = (f) => {
-    const D = ID_FIELDS.find(x => x[0] === f);
+    const D = ID_ALL.find(x => x[0] === f);
     return '<label class="pe-1l">' + D[3] + ' ' + esc(D[1])
       + '<span>' + esc(D[2]) + '</span></label>'
       + '<textarea class="pe-t" rows="' + D[4] + '" placeholder="' + esc(ID_PH[f] || '') + '" '
@@ -19056,9 +19216,12 @@ function pathEditHtml(b){
   /* 2 — 어떤 브랜드인가 */
   const eID = '<div class="pe-sec"><div class="pe-h"><span class="no">2</span>'
     + '<h3>어떤 브랜드인가</h3>'
-    + '<span class="hn">슬로건 · 성격 · 철학. 원고를 쓰는 사람이 매번 '
-      + '물어보던 것들입니다</span></div>'
-    + idTa('slogan') + idTa('character') + idTa('philo') + '</div>';
+    + '<span class="hn">슬로건 · 성격 · 철학(존재 이유 · 기술 철학 · 해야 할 일 · 목표). '
+      + '원고를 쓰는 사람이 매번 물어보던 것들입니다</span></div>'
+    + idTa('slogan') + idTa('character') + idTa('philo')
+    + '<label class="pe-1l">🕯️ 철학을 네 칸으로<span>한 덩어리로 적으면 '
+      + '「왜 있나」 와 「무엇을 하겠다」 가 섞여서 아무도 안 들춥니다</span></label>'
+    + PHILO_FIELDS.map(f => idTa(f[0])).join('') + '</div>';
 
   /* 3 — 누구에게 말하나 */
   const pss = personasOf(b);
@@ -19106,8 +19269,8 @@ function pathEditHtml(b){
     + '</div>').join('');
   const eTN = '<div class="pe-sec"><div class="pe-h"><span class="no">4</span>'
     + '<h3>어떻게 보이고 말하나</h3>'
-    + '<span class="hn">톤앤매너 — 말투 · 색 · 글꼴</span></div>'
-    + idTa('tone')
+    + '<span class="hn">톤앤매너 — 언어 톤 · 표현 키워드 · 어조 · 색 · 글꼴</span></div>'
+    + idTa('tone') + TONE_FIELDS.map(f => idTa(f[0])).join('')
     + '<label class="pe-1l">🎨 색<span>색값을 고르면 읽기 화면에 색칸이 함께 나옵니다</span></label>'
     + (eCL ? '<div class="pe-rules">' + eCL + '</div>' : '')
     + '<div class="pe-add"><button class="gb-add tiny" onclick="pathRowAdd(\'' + bid
@@ -21474,7 +21637,7 @@ function mergePath(mineB, srvB){
      상대가 넣은 줄이 사라집니다. 한 줄씩 아이디로 맞춥니다.
      (samples 는 빠져 있어서 실물이 서로 지워지고 있었습니다) */
   ['chapters', 'rules', 'who', 'samples',
-   'personas', 'colors', 'fonts', 'words', 'goals']
+   'personas', 'roles', 'colors', 'fonts', 'words', 'goals']
     .forEach(k => { out[k] = mergeList(mp[k], sp[k]); });
 
   const mf = obj(mp.first), sf = obj(sp.first);

@@ -2311,6 +2311,17 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .id-g .gk > .x:hover{border-color:var(--red);color:var(--red)}
 @media (hover:none){.id-g .gk > .x{opacity:1}}
 .id-g .gk .non{color:var(--text-muted)}
+/* 「맡은 것」 과 「그 해 목표」 — 한 줄 안에서 갈라 둡니다.
+   맡은 것은 한눈에 훑는 표이고, 목표는 읽는 글이라 결이 다릅니다. */
+.id-g .gk .ow,.id-g .gk .gl2{display:flex;align-items:baseline;gap:9px;margin-top:5px}
+.id-g .gk u{flex:0 0 74px;text-decoration:none;font-size:11px;font-weight:800;
+  color:var(--text-muted);word-break:keep-all}
+.id-g .gk .ow > span,.id-g .gk .gl2 > span{flex:1 1 auto;min-width:0;
+  font-size:14px;line-height:1.7;color:var(--text-primary);word-break:keep-all}
+.id-g .gk .ow .ch{display:flex;flex-wrap:wrap;gap:5px}
+.id-g .gk .ow .ch b{padding:2px 9px;border-radius:99px;border:1px solid var(--border);
+  background:var(--bg-sunken);font-size:12.5px;font-weight:700;
+  color:var(--text-primary);word-break:keep-all}
 /* 온보딩 연표 — 소개와 같은 연표를 쓰고, 넣고 빼는 단추만 붙입니다 */
 .ob-yr .hy-add{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:0 0 16px 20px}
@@ -3780,7 +3791,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-15';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-16';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4932,7 +4943,7 @@ function obRowAdd(sid, iid){
   const sc = obOf().find(x => x.id === sid); if(!sc) return;
   const it = (sc.items || []).find(x => x.id === iid); if(!it) return;
   if(!Array.isArray(it.kids)) it.kids = [];
-  it.kids.push({ id: uid('ok'), title: '', body: '' });
+  it.kids.push({ id: uid('ok'), title: '', own: '', body: '' });
   obMark(); render();
   setTimeout(() => {
     const l = document.querySelectorAll('[data-ed="obkid"][data-i="' + it.id + '"]');
@@ -5082,7 +5093,7 @@ function obItDel(sid, iid){
 function obKidAdd(sid, iid){
   const sc = obOf().find(x => x.id === sid); if(!sc) return;
   const it = sc.items.find(x => x.id === iid); if(!it) return;
-  it.kids.push({ id: uid('ok'), title:'', body:'' });
+  it.kids.push({ id: uid('ok'), title:'', own:'', body:'' });
   obMark(); render();
 }
 function obKidSet(sid, iid, kid, f, v){
@@ -5389,18 +5400,35 @@ function renderOnboard(){
                         + '" data-i="' + esc(it.id) + '" data-k="' + esc(k.id)
                         + '" data-f="' + f + '"' + (f === 'body' ? ' data-ml="1"' : '');
                       const v = String(k.body || '').trim();
+                      /* 한 줄에 「누가 맡았나」 와 「그래서 뭘 하려 했나」 가
+                         섞여 있었습니다. 둘은 다른 것입니다 — 맡은 것은
+                         한눈에 훑는 표이고, 목표는 읽는 글입니다. 갈라 둡니다.
+                         맡은 것은 「·」 로 나눠 적으면 칩으로 섭니다. */
+                      const own = String(k.own || '').trim();
+                      const ows = own.split(/[·,\/]/).map(x => x.trim()).filter(Boolean);
                       return '<div class="gk">'
-                        + '<i' + ed('title') + ' data-ph="누가 맡나 — 팀 · 사람 · 브랜드">'
+                        + '<i' + ed('title') + ' data-ph="누가 — 팀 · 사람">'
                           + esc(String(k.title || '').trim() || '＋ 이름을 적어 주세요')
                         + '</i>'
                         + '<button class="x" title="이 줄을 지웁니다" '
                           + 'onclick="obKidDel(\'' + sid2 + '\',\'' + iid
                           + '\',\'' + kid + '\')">×</button>'
-                        + (v
-                            ? '<span' + ed('body') + '>'
-                              + esc(v).replace(/\n/g, '<br>') + '</span>'
-                            : '<span class="non"' + ed('body')
-                              + ' data-ph="그 해에 무엇을">✏️ 눌러서 적기</span>')
+                        + '<div class="ow"><u>🏷 맡은 것</u>'
+                          + (ows.length
+                              ? '<span class="ch"' + ed('own')
+                                + ' data-ph="맡은 브랜드 — 「·」 로 나눠 적으세요">'
+                                + ows.map(x => '<b>' + esc(x) + '</b>').join('') + '</span>'
+                              : '<span class="non"' + ed('own')
+                                + ' data-ph="맡은 브랜드 — 「·」 로 나눠 적으세요">'
+                                + '✏️ 눌러서 적기</span>')
+                        + '</div>'
+                        + '<div class="gl2"><u>🎯 그 해 목표</u>'
+                          + (v
+                              ? '<span' + ed('body') + '>'
+                                + esc(v).replace(/\n/g, '<br>') + '</span>'
+                              : '<span class="non"' + ed('body')
+                                + ' data-ph="그 해에 무엇을 이루려 했나">✏️ 눌러서 적기</span>')
+                        + '</div>'
                       + '</div>';
                     }).join('')
                   + '<div class="hy-ra"><button class="gb-add tiny" onclick="obRowAdd(\''

@@ -2102,7 +2102,7 @@ async function addSchedule() {
   const desc = (cat === 'sales') ? gv('sc-content') : note
   const pub = !!((document.getElementById('sc-public') || {}).checked)
   const row = { date: (dateType === 'confirmed' ? date : null) || null, title, description: desc || null, category: cat, source: 'aptsq', assignee_name: asg[0] || null, assignee_id: null, meta }
-  if (aptId) { row.apartment_id = aptId; row.owner_id = null; row.resident_visible = pub }
+  if (aptId) { row.apartment_id = aptId; row.owner_id = null; row.resident_visible = pub && (dateType === 'confirmed') }
   else { row.owner_id = user.id; row.apartment_id = null; row.resident_visible = false }
   if (editSchedId) {
     const { error } = await sb.from('schedules').update(row).eq('id', editSchedId)

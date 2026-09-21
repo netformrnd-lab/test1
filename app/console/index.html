@@ -761,8 +761,9 @@ function auditorList(){ return MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=
 function audNameC(id){ if(!id)return ''; const a=MEMBERS.find(m=>String(m.id)===String(id)); return a?(a.name||loginId(a)):''; }
 // 영업(POUR) 담당자 이름 목록: 알려진 팀 + POUR 일정 설명에서 '담당 XX' 추출
 function pourAssignees(){
+  // POUR 일정 설명에서 이름을 자동 수집하던 로직 제거(목록이 수백 개로 불어나던 원인).
+  //  우리 팀(아래 고정 명단) + 우리 감리사(schedRoster)만 담당자 후보로 노출.
   const set=new Set(['이승우','황윤선','한준엽','조재연','이필선','한인규','정정훈','김성민','조현식']);
-  (SCHEDULES||[]).forEach(s=>{ if(s.source!=='pour')return; const md=String(s.description||'').match(/담당\s+([^·]+)/); if(md){ md[1].split(/[,、\/]/).forEach(n=>{ const t=n.trim().replace(/\s*님$/,''); if(t&&t.length<=12)set.add(t); }); } });
   return [...set].sort((a,b)=>a.localeCompare(b,'ko'));
 }
 // 담당 드롭다운 옵션 (감리사=id 값, 영업담당=이름 값). selId/selName 으로 현재값 선택 표시
@@ -827,7 +828,7 @@ function renderCalendar(){
   const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), todayStr=isoDate(now);
   const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
   const byDay={};
-  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({id:s.id,t,visit:isV,color:isP?(meta[2]||'#888'):(isV?null:meta[2]),cat:isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:''))}); }});
+  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({id:s.id,t,visit:isV,color:isP?(meta[2]||'#888'):(isV?null:meta[2]),cat:isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')),asq:(!isP&&s.category==='asq')}); }});
   // 예상(계획) 방문은 달력에 자동으로 그리지 않음 — 실제 저장된 일정만 표시.
   // (방문 배치는 아래 표에서 관리하고, '🔄 이 달 방문 일정 생성'을 누르면 실제 일정으로 만들어짐)
   // 색상 범례 = 클릭하면 그 종류만 보기 (다시 누르면 전체)
@@ -840,7 +841,7 @@ function renderCalendar(){
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const _selSt=date===calPickedDay?'box-shadow:0 0 0 2px #111a33 inset':(date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':'');
-    h+=`<div class="cell" onclick="pickCalDay('${date}')" style="cursor:pointer;${_selSt}"><div class="dn">${d}</div>${ev.map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="event.stopPropagation();openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}</div>`;
+    h+=`<div class="cell" onclick="pickCalDay('${date}')" style="cursor:pointer;${_selSt}"><div class="dn">${d}</div>${ev.map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="event.stopPropagation();openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.asq?'background:#ffe1e5;color:#be123c;font-weight:800;border-left:3px solid #e11d48;padding-left:6px':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:''))}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}</div>`;
   }
   $('calGrid').innerHTML=h;
   // 날짜 선택 전 = 방문 배치표, 날짜 클릭 = 그 날 일정 목록 (서로 토글)
@@ -860,7 +861,7 @@ function renderCalDayList(){
   const wd=['일','월','화','수','목','금','토'][new Date(Y,M-1,D).getDay()];
   let h=`<div class="card" style="margin-top:12px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📅 ${M}/${D} (${wd}) 일정 <span style="font-size:12px;color:var(--mut);font-weight:600">${items.length}건</span><span style="flex:1"></span><button class="b blue sm" onclick="openScheduleAdd('${calPickedDay}')">➕ 이 날 일정 추가</button><button class="b line sm" onclick="pickCalDay('${calPickedDay}')">닫기</button></h3>`;
   if(!items.length){ h+='<div class="empty">이 날 일정이 없어요</div>'; }
-  else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const asg=(s.category==='asq'&&!isP)?schedAsgName(s):''; const apt=s.apartment_id?aptName[s.apartment_id]:''; return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${col};background:#f8faff;border-radius:0 8px 8px 0;margin-bottom:6px"><b style="font-size:10px;font-weight:800;color:#fff;background:${col};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b><span style="font-weight:700;font-size:13px">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:var(--mut)">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
+  else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const isAsq=(s.category==='asq'&&!isP); const asg=isAsq?schedAsgName(s):''; const apt=s.apartment_id?aptName[s.apartment_id]:''; return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${col};background:${isAsq?'#fff1f2':'#f8faff'};border-radius:0 8px 8px 0;margin-bottom:6px"><b style="font-size:10px;font-weight:800;color:#fff;background:${col};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b><span style="font-weight:${isAsq?800:700};font-size:13px;${isAsq?'color:#be123c':''}">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:var(--mut)">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
   h+='</div>';
   box.innerHTML=h;
 }
@@ -2063,7 +2064,8 @@ async function submitSched(id){
   }
   const desc=(cat==='sales')?g('sm-content'):note;
   const row={date:(dateType==='confirmed'?date:null)||null,title,category:cat,source:'aptsq',description:desc||null,assignee_name:asg[0]||null,assignee_id:null,meta};
-  if(aptId){ row.apartment_id=aptId; row.owner_id=null; row.resident_visible=true; } else { row.apartment_id=null; row.owner_id=null; row.resident_visible=false; }
+  // 확정일 일정만 입주민에게 공개. 예정월/미정은 내부(콘솔·감리사)만 보이고 입주민에겐 숨김.
+  if(aptId){ row.apartment_id=aptId; row.owner_id=null; row.resident_visible=(dateType==='confirmed'); } else { row.apartment_id=null; row.owner_id=null; row.resident_visible=false; }
   let error;
   if(id){ ({error}=await sb.from('schedules').update(row).eq('id',id)); }
   else { ({error}=await sb.from('schedules').insert(row)); }

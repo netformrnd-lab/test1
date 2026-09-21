@@ -53,5 +53,22 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
   // 3) 남은 테스트 흔적 정리(혹시 select 실패로 안 지워졌을 경우)
   await sb.from('schedules').delete().like('title', MARK + '%');
+
+  // 4) 실제로 사용자가 등록한 '예정/미정'(date=null) 일정이 DB에 있는지 확인
+  //    → 있으면: 저장은 되고 있고 '화면에 안 보이는' 문제. 없으면: 저장 자체가 안 됨.
+  console.log('\n[3] DB에 저장된 예정/미정(date=null) 일정 조회…');
+  const { data: nulls, error: nerr } = await sb.from('schedules')
+    .select('id,title,category,source,apartment_id,meta,created_at')
+    .is('date', null).order('created_at', { ascending: false }).limit(20);
+  if (nerr) { console.log('   조회 에러:', nerr.message); }
+  else {
+    console.log('   date=null 일정 총 ' + (nulls ? nulls.length : 0) + '건(최근 20):');
+    (nulls || []).forEach(r => {
+      const dt = r.meta && r.meta.dateType ? r.meta.dateType : '?';
+      console.log(`     · [${r.source}/${r.category}] "${String(r.title || '').slice(0, 24)}" dateType=${dt} em=${r.meta && r.meta.expectedMonth || '-'} ${String(r.created_at || '').slice(0, 16)}`);
+    });
+    if (nulls && nulls.length) console.log('   ⇒ 저장은 정상! 캘린더가 날짜없는 일정을 안 그려서 "안 보이는" 문제로 확정.');
+    else console.log('   ⇒ date=null 일정이 하나도 없음 → 저장 자체가 막히는 중(RLS 등).');
+  }
   console.log('\n✅ 진단 완료');
 })().catch(e => { console.error(e); process.exit(1); });

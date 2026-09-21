@@ -1056,6 +1056,9 @@ table.itable tr:hover td{background:var(--bg-hover)}
 /* ── 🪪 한눈 카드 — 스크롤하기 전에 이 브랜드가 뭔지 3초에 ─────────── */
 .pw-hero{margin:16px 0 26px;padding:22px 24px 20px;border:1px solid var(--border);
   border-radius:var(--r-md);background:var(--bg-card);box-shadow:var(--shadow-sm)}
+/* 비어 있는 슬로건 자리 — 크기는 줄이고 「적어 주세요」 로만 남깁니다 */
+.pw-hero .slg.non{font-size:18px;font-weight:700;letter-spacing:-.01em;
+  color:var(--text-muted)}
 .pw-hero .slg{font-size:26px;font-weight:800;line-height:1.45;letter-spacing:-.035em;
   color:var(--text-primary);word-break:keep-all}
 .pw-hero .lns{display:flex;flex-direction:column;gap:7px;margin-top:14px}
@@ -3792,7 +3795,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-18';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-19';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19733,6 +19736,7 @@ function pathReadHtml(b){
      아래 단들은 비면 아예 안 나옵니다 (「아직 없습니다」 를 다섯 번 읽히지
      않으려고). 그래서 무엇이 비었는지 한 줄로만 짚어 줍니다. */
   const idGaps = [];
+  if(!idv.slogan)    idGaps.push('🏷️ 슬로건');
   if(!idv.character) idGaps.push('🎭 브랜드 성격');
   if(!idv.philo && !PHILO_FIELDS.some(f => idv[f[0]])) idGaps.push('🕯️ 철학');
   if(!rls.length)    idGaps.push('🤝 누구에게 어떤 역할인가');
@@ -20282,12 +20286,18 @@ function pathReadHtml(b){
   const heroLn = (nm, v) => String(v || '').trim()
     ? '<div class="ln"><b>' + esc(nm) + '</b><span>'
       + esc(gbOneLine(v, 84)) + '</span></div>' : '';
+  /* 슬로건은 맨 위 큰 글씨 한 자리뿐인데, <<비어 있으면 아예 안 나왔습니다>>.
+     그래서 「슬로건은 대체 어디냐」 가 됩니다 — 적을 자리가 화면에
+     없었던 것입니다. 자리는 늘 두고, 비면 적으라고 말합니다. */
   const heroOn = idv.slogan || idv.character || idv.target || cls.length || stat.length;
   const hero = heroOn
     ? '<div class="pw-hero">'
       + (idv.slogan
           ? '<div class="slg" data-ed="id" data-f="slogan" data-ml="1">'
-            + esc(idv.slogan).replace(/\n/g, '<br>') + '</div>' : '')
+            + esc(idv.slogan).replace(/\n/g, '<br>') + '</div>'
+          : '<div class="slg non" data-ed="id" data-f="slogan" data-ml="1" '
+            + 'data-ph="밖에 내보내는 한 줄 — 예) 아파트가 믿을 수 있는 눈">'
+            + '🏷️ 슬로건을 적어 주세요</div>')
       + (idv.character || idv.target
           ? '<div class="lns">' + heroLn('성격', idv.character)
             + heroLn('타겟', idv.target) + '</div>' : '')

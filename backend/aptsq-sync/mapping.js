@@ -85,15 +85,25 @@ function supabaseToPour(row) {
   // meta(POUR 상세 폼)가 있으면 그대로 POUR 모양으로 전송 (id/_origin/date 만 보정)
   if (row.meta && typeof row.meta === 'object') {
     const m = Object.assign({}, row.meta);
-    // POUR 프론트 실제 규칙: dateType 'monthOnly'=예정, 'pending'=미정, 'confirmed'=확정.
-    //   (우리 'expected'→POUR 'monthOnly', 우리 'tbd'→POUR 'pending')
+    // ★ POUR 달력은 dateType==="confirmed"&&date 만 그림(monthOnly/pending은 안 그림).
+    //   그래서 '예정'을 POUR 달력에 띄우려면 confirmed 로 보내되 제목에 [예정] 표식을 단다.
     if (m.dateType === 'expected') {
-      m.dateType = 'monthOnly';
-      m.status = '예정';
-      if (!m.expectedMonth && (m.date || row.date)) m.expectedMonth = String(m.date || row.date).slice(0, 7);
+      const theDate = m.date || row.date || '';
+      const tag = '[예정] ';
+      if (theDate) {
+        m.dateType = 'confirmed';
+        m.status = '월예정';
+        m.date = theDate;
+        if (!m.expectedMonth) m.expectedMonth = String(theDate).slice(0, 7);
+        if (m.siteName) m.siteName = String(m.siteName).startsWith(tag) ? m.siteName : tag + m.siteName;
+        if (m.title) m.title = String(m.title).startsWith(tag) ? m.title : tag + m.title;
+        if (!m.siteName && !m.title) m.title = tag.trim();
+      } else {
+        m.dateType = 'monthOnly'; m.status = '월예정';   // 날짜 없으면 달력에 못 놓음(예정월 목록만)
+      }
     } else if (m.dateType === 'tbd') {
       m.dateType = 'pending';
-      m.status = '미정';
+      m.status = '일정조율중';
     }
     return Object.assign(m, {
       id: rtdbId, _origin: 'aptsq', _aptsqId: String(row.id),

@@ -1569,6 +1569,31 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-hist .hy.now .hy-h b{color:var(--blue)}
 .ob-hist .hy-h em{font-style:normal;font-size:10px;font-weight:800;color:#fff;
   background:var(--blue);border-radius:99px;padding:2px 8px}
+.ob-hist .hy-h .ct{font-size:11px;font-weight:700;color:var(--text-muted)}
+.ob-hist .hy-h .del{margin-left:auto;padding:3px 9px;border:1px solid var(--border);
+  border-radius:99px;background:transparent;font-size:11px;color:var(--text-muted);
+  cursor:pointer;opacity:0;transition:opacity .12s}
+.ob-hist .hy:hover .del{opacity:1}
+.ob-hist .hy-h .del:hover{border-color:var(--red);color:var(--red)}
+@media (hover:none){.ob-hist .hy-h .del{opacity:1}}
+/* 그 해의 줄 — 이름과 「무엇을」. 이름 칸도 눌러서 고칩니다 */
+.ob-hist .hy-t .th{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.ob-hist .hy-t .th b{flex:1 1 auto;min-width:0;margin:0}
+.ob-hist .hy-t .th .x{flex:0 0 auto;padding:1px 7px;border:1px solid var(--border);
+  border-radius:99px;background:transparent;font-size:12px;color:var(--text-muted);
+  cursor:pointer;opacity:0;transition:opacity .12s}
+.ob-hist .hy-t:hover .th .x{opacity:1}
+.ob-hist .hy-t .th .x:hover{border-color:var(--red);color:var(--red)}
+@media (hover:none){.ob-hist .hy-t .th .x{opacity:1}}
+.ob-hist .hy-ra{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:9px}
+.ob-hist .hy-ra span{font-size:11.5px;color:var(--text-muted)}
+/* 팀이 위에 있는 옛 모양에는 「해를 위로」 를 권합니다 */
+.ob-hist .hy-flip{display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+  padding:13px 15px;margin-bottom:14px;border:1px solid var(--border);
+  border-left:4px solid var(--blue);border-radius:var(--r-sm);background:var(--blue-soft)}
+.ob-hist .hy-flip b{font-size:13.5px;font-weight:800;color:var(--text-primary)}
+.ob-hist .hy-flip span{font-size:12px;line-height:1.65;color:var(--text-secondary)}
+.ob-hist .hy-flip .btn{margin-top:4px}
 .ob-hist .hy-b{display:grid;grid-template-columns:repeat(auto-fit,minmax(252px,1fr));
   gap:1px;background:var(--border);border:1px solid var(--border);border-radius:3px;
   overflow:hidden}
@@ -3713,7 +3738,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-10';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-11';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4644,16 +4669,31 @@ function obSeed(){
               항목이 세로줄, 하위 이름이 가로줄이 됩니다.
    ------------------------------------------------------------ */
 const OB_VIEWS = [['', '⚙︎ 자동'], ['cards', '▤ 칸'],
-                 ['tree', '🌳 조직도'], ['matrix', '▦ 표']];
+                 ['tree', '🌳 조직도'], ['matrix', '▦ 표'], ['hist', '🕰 연표']];
+/* ── 🕰 해가 <<항목>> 인 단 ───────────────────────────────────
+   팀을 항목으로 두고 해를 그 밑에 달면, 모든 해가 <<같은 팀 목록>>을
+   쓰게 됩니다. 실제로는 해마다 팀 수도 다르고, 어느 해는 사람이나
+   브랜드로 나눠 맡습니다. 그래서 해를 항목으로 올립니다 —
+   해마다 그 해의 줄을 제 마음대로 넣고 뺄 수 있어야 합니다.
+     단 → 2026 → [전략마케팅팀 · 소라님 · 아파트스퀘어 …] → 무엇을
+   ------------------------------------------------------------ */
+function obYearRows(sc){
+  const its = (sc && sc.items || []).filter(it => String(it.title || '').trim());
+  if(!its.length || !its.every(it => obIsYear(it.title))) return null;
+  return its.slice().sort((a, c) =>
+    Number(obYearOf(c.title)) - Number(obYearOf(a.title)));
+}
 /* 손으로 고른 것이 없으면 자료 모양을 보고 고릅니다 — 이미 적어 둔 단은
    모양 칸이 없어서 전부 「칸」 으로만 나오고 있었습니다 */
 function obView(sc){
   const v = String((sc && sc.view) || '').trim();
+  if(v === 'hist') return obYearRows(sc) ? 'hist' : 'matrix';
   if(v === 'tree' || v === 'matrix' || v === 'cards') return v;
   return obAutoView(sc);
 }
 function obAutoView(sc){
   const its = (sc && sc.items || []).filter(it => String(it.title || '').trim());
+  if(obYearRows(sc)) return 'hist';          // 항목이 해면 연표입니다
   if(its.length < 2) return 'cards';
   /* 같은 이름의 하위가 여러 항목에 걸쳐 있으면 견주는 표입니다 */
   const n = {};
@@ -4793,13 +4833,64 @@ function obMark(){ const d = data; markDirtyAll(); }
 function obIsYear(t){ return /^\s*\d{4}\s*년?\s*$/.test(String(t || '')); }
 function obYearOf(t){ const m = String(t || '').match(/\d{4}/); return m ? m[0] : ''; }
 /* 해를 한 줄 더합니다 — 모든 항목에 같은 이름의 하위가 생깁니다 */
+/* 팀→해 로 적어 둔 단을 해→줄 로 뒤집습니다. 해마다 줄이 달라질 수
+   있게 되려면 해가 위에 와야 합니다. 적어 둔 글은 그대로 옮깁니다. */
+function obFlipYears(sid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  if(obYearRows(sc)){ toast('이미 해가 위에 있습니다'); return; }
+  const out = {};            // 해 → [{title(팀), body}]
+  (sc.items || []).forEach(it => {
+    const nm = String(it.title || '').trim();
+    (it.kids || []).forEach(k => {
+      const y = obYearOf(k.title);
+      if(!y) return;
+      (out[y] = out[y] || []).push({ id: uid('ok'), title: nm,
+                                     body: String(k.body || '') });
+    });
+  });
+  const ys = Object.keys(out);
+  if(!ys.length){ toast('해로 적힌 줄이 없습니다'); return; }
+  if(!confirm('해를 위로 올립니다.\n\n'
+    + ys.sort().join(' · ') + ' — 해마다 그 해의 줄만 남습니다.\n'
+    + '이 뒤로는 해마다 팀·사람·브랜드를 다르게 넣을 수 있습니다.\n\n'
+    + '적어 두신 글은 그대로 옮겨집니다.')) return;
+  sc.items = ys.sort((a, b) => Number(b) - Number(a))
+    .map(y => ({ id: uid('oi'), title: y, body: '', kids: out[y] }));
+  sc.view = 'hist';
+  obMark(); render();
+  toast('🕰 해를 위로 올렸습니다');
+}
+/* 그 해에 줄 하나 (팀 · 사람 · 브랜드 무엇이든) */
+function obRowAdd(sid, iid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const it = (sc.items || []).find(x => x.id === iid); if(!it) return;
+  if(!Array.isArray(it.kids)) it.kids = [];
+  it.kids.push({ id: uid('ok'), title: '', body: '' });
+  obMark(); render();
+  setTimeout(() => {
+    const l = document.querySelectorAll('[data-ed="obkid"][data-i="' + it.id + '"]');
+    if(l.length) edStart(l[l.length - 2] || l[l.length - 1]);
+  }, 60);
+}
+/* 해 한 칸을 통째로 (그 해의 줄까지) */
+function obYearDel(sid, iid){
+  const sc = obOf().find(x => x.id === sid); if(!sc) return;
+  const it = (sc.items || []).find(x => x.id === iid); if(!it) return;
+  const nm = String(it.title || '').trim() || '이 해';
+  const kn = (it.kids || []).length;
+  if(!confirm('「' + nm + '」 을 지웁니다' + (kn ? ' — 그 해의 줄 ' + kn + '개까지' : '')
+    + '.\n\n되돌릴 수 없습니다.')) return;
+  sc.items = (sc.items || []).filter(x => x.id !== iid);
+  obMark(); render();
+}
 /* 이 단에 이미 있는 해들 · 그 다음 해 */
 function obYears(sc){
   const have = [];
-  (sc.items || []).forEach(it => (it.kids || []).forEach(k => {
-    const y = obYearOf(k.title);
-    if(y && have.indexOf(y) < 0) have.push(y);
-  }));
+  const put = t => { const y = obYearOf(t); if(y && have.indexOf(y) < 0) have.push(y); };
+  (sc.items || []).forEach(it => {
+    put(it.title);                                   // 해가 항목일 때
+    (it.kids || []).forEach(k => put(k.title));      // 해가 하위일 때
+  });
   return have.sort();
 }
 function obNextYear(sc){
@@ -4823,6 +4914,17 @@ function obYearAdd(sid, year){
     toast('네 자리 해로 적어 주세요 — 예) 2027'); return;
   }
   const nm = obIsYear(y) ? obYearOf(y) : y;
+  /* 해가 항목인 단 — 빈 해 한 칸을 만듭니다. 줄은 그 해에 맞게
+     사람이 넣습니다 (해마다 팀도 사람도 다르니까요). */
+  if(obYearRows(sc)){
+    if(sc.items.some(it => String(it.title || '').trim() === nm)){
+      toast('「' + nm + '」 은 이미 있습니다'); return;
+    }
+    sc.items.push({ id: uid('oi'), title: nm, body: '', kids: [] });
+    obMark(); render();
+    toast('📅 ' + nm + ' 을 넣었습니다 — 그 해의 줄을 넣어 주세요');
+    return;
+  }
   let n = 0;
   its.forEach(it => {
     if(!Array.isArray(it.kids)) it.kids = [];
@@ -5142,6 +5244,72 @@ function renderOnboard(){
       }
 
       /* ▦ 표 — 항목이 세로줄, 하위 이름이 가로줄 */
+      /* 🕰 해가 항목인 연표 — 해마다 그 해의 줄만. 해마다 팀 수도,
+         나누는 기준(팀 · 사람 · 브랜드)도 다를 수 있습니다. */
+      else if(vw === 'hist'){
+        const ys = obYearRows(sc) || [];
+        const now = String(new Date().getFullYear());
+        const sid2 = jsq(sc.id);
+        bodyHtml = '<div class="ob-hist">'
+          + '<div class="hy-add">'
+            + '<span class="lb">📅 해 넣기</span>'
+            + '<input id="obYearIn" type="text" inputmode="numeric" maxlength="4" '
+              + 'value="' + esc(obNextYear(sc)) + '" '
+              + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();'
+              + 'obYearAdd(\'' + sid2 + '\')}">'
+            + '<button class="btn sm primary" onclick="obYearAdd(\'' + sid2
+              + '\')">＋ 넣기</button>'
+            + '<span>그 해 한 칸이 생깁니다 — 줄은 그 해에 맞게 넣으세요</span>'
+          + '</div>'
+          + ys.map(it => {
+              const on = obYearOf(it.title) === now;
+              const ks = (it.kids || []);
+              const iid = jsq(it.id);
+              return '<div class="hy' + (on ? ' now' : '') + '">'
+                + '<div class="hy-h"><i class="dot"></i>'
+                  + '<b data-ed="obkid0" data-ed1="1" data-g="' + esc(sc.id)
+                    + '" data-i="' + esc(it.id) + '" data-f="title" '
+                    + 'title="눌러서 해를 고칩니다">' + esc(it.title) + '</b>'
+                  + (on ? '<em>지금</em>' : '')
+                  + '<span class="ct">' + ks.length + '줄</span>'
+                  + '<button class="del" title="이 해를 지웁니다" onclick="obYearDel(\''
+                    + sid2 + '\',\'' + iid + '\')">🗑</button>'
+                + '</div>'
+                + (ks.length
+                    ? '<div class="hy-b">' + ks.map(k => {
+                        const kid = jsq(k.id);
+                        const ed = f => ' data-ed="obkid" data-ed1="1" data-g="' + esc(sc.id)
+                          + '" data-i="' + esc(it.id) + '" data-k="' + esc(k.id)
+                          + '" data-f="' + f + '"' + (f === 'body' ? ' data-ml="1"' : '');
+                        const v = String(k.body || '').trim();
+                        const ls = v.split('\n').map(x => x.trim()).filter(Boolean);
+                        return '<div class="hy-t">'
+                          + '<div class="th">'
+                            + '<b' + ed('title') + ' data-ph="누가 맡나 — 팀 · 사람 · 브랜드">'
+                              + esc(String(k.title || '').trim() || '＋ 이름을 적어 주세요')
+                            + '</b>'
+                            + '<button class="x" title="이 줄을 지웁니다" '
+                              + 'onclick="obKidDel(\'' + sid2 + '\',\'' + iid
+                              + '\',\'' + kid + '\')">×</button>'
+                          + '</div>'
+                          + (v
+                              ? (ls.length > 1
+                                  ? '<ul' + ed('body') + '>'
+                                    + ls.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>'
+                                  : '<p' + ed('body') + '>' + esc(v) + '</p>')
+                              : '<p class="gap"' + ed('body')
+                                + ' data-ph="그 해에 무엇을">✏️ 눌러서 적기</p>')
+                        + '</div>';
+                      }).join('') + '</div>'
+                    : '')
+                + '<div class="hy-ra"><button class="gb-add tiny" onclick="obRowAdd(\''
+                  + sid2 + '\',\'' + iid + '\')">＋ 줄 넣기 (팀 · 사람 · 브랜드)</button>'
+                  + (ks.length ? '' : '<span>이 해에 누가 무엇을 맡는지 넣어 주세요</span>')
+                + '</div>'
+              + '</div>';
+            }).join('')
+          + '</div>';
+      }
       else if(vw === 'matrix'){
         const M = obMatrix(sc);
         /* 📜 해로 적힌 단은 표가 아니라 히스토리로 — 해가 위에서 아래로
@@ -5149,7 +5317,14 @@ function renderOnboard(){
            해가 가로줄이 되어 「흐름」 이 안 보입니다. */
         if(M && M.yearly){
           const now = String(new Date().getFullYear());
-          const addBar = '<div class="hy-add">'
+          const addBar = '<div class="hy-flip">'
+            + '<b>해마다 팀·사람이 달라지나요?</b>'
+            + '<span>지금은 팀이 위에 있어서 모든 해가 같은 팀 목록을 씁니다. '
+              + '해를 위로 올리면 해마다 다르게 넣을 수 있습니다.</span>'
+            + '<button class="btn sm primary" onclick="obFlipYears(\''
+              + jsq(sc.id) + '\')">🕰 해를 위로 올리기</button>'
+          + '</div>'
+          + '<div class="hy-add">'
             + '<span class="lb">📅 해 넣기</span>'
             + '<input id="obYearIn" type="text" inputmode="numeric" maxlength="4" '
               + 'value="' + esc(obNextYear(sc)) + '" '
@@ -19017,6 +19192,10 @@ function edGet(d){
     const it = (sc.items || []).find(x => x.id === d.i); if(!it) return '';
     const k = (it.kids || []).find(x => x.id === d.k); return k ? S(k[d.f]) : '';
   }
+  if(d.ed === 'obkid0'){        // 해 칸 자체 (항목의 이름)
+    const sc = obOf().find(x => x.id === d.g); if(!sc) return '';
+    const it = (sc.items || []).find(x => x.id === d.i); return it ? S(it[d.f]) : '';
+  }
   const b = currentBrand(); if(!b) return '';
   const P = pathOf(b);
   if(d.ed === 'what')  return S(P.what);
@@ -19041,6 +19220,7 @@ function edGet(d){
 }
 function edSet(d, v){
   if(d.ed === 'obkid'){ obKidSet(d.g, d.i, d.k, d.f, v); return; }
+  if(d.ed === 'obkid0'){ obItSet(d.g, d.i, d.f, v); return; }
   const b = currentBrand(); if(!b) return;
   const bid = b.id;
   if(d.ed === 'what')      pathWhat(bid, v);

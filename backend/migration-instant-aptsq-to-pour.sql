@@ -78,6 +78,17 @@ begin
       'id', sid, '_origin', 'aptsq', '_aptsqId', NEW.id::text, '_syncedAt', ts,
       'date', coalesce(nullif(NEW.meta->>'date', ''), dt)
     );
+    -- 예정(우리 'expected') → POUR는 'pending' 으로 저장/렌더(POUR 실데이터 확인).
+    --   dateType='pending' + date + expectedMonth 가 있어야 POUR 달력에 예정으로 뜸.
+    if (NEW.meta->>'dateType') = 'expected' then
+      obj := obj || jsonb_build_object(
+        'dateType', 'pending',
+        'status', '일정조율중',
+        'originalType', node,
+        'expectedMonth', coalesce(nullif(NEW.meta->>'expectedMonth', ''),
+                                  left(coalesce(nullif(NEW.meta->>'date',''), dt), 7))
+      );
+    end if;
     perform net.http_post(
       url := url, body := obj,
       headers := '{"Content-Type":"application/json","X-HTTP-Method-Override":"PUT"}'::jsonb

@@ -3471,7 +3471,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260920-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260920-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -8734,14 +8734,25 @@ async function setUpRoot(path){
 }
 
 /* 파일 자리가 바뀌었을 때 대시보드에 적힌 자리도 같이 고칩니다.
-   자료와 자동화 도구 두 군데가 filePath 를 들고 있습니다. */
+   전에는 자료와 자동화 도구 두 군데만 봤습니다. 그런데 filePath 를 들고
+   있는 곳은 여덟 군데입니다 — 명함 · 소개에 읽어온 문서 · 연혁 사진 ·
+   문서함 판 · 회의록 사진…. 폴더 이름이 통째로 바뀌면(「아파트스퀘어」 →
+   「5. 아파트스퀘어」) 안 고친 쪽은 전부 「파일 없음」 이 됩니다.
+   그래서 자료 전체를 훑어 filePath 라는 이름이 붙은 자리를 다 고칩니다.
+   새 자리가 생겨도 여기를 또 고칠 일이 없습니다. */
 function fixFilePath(oldP, newP){
   if(!oldP || !newP || oldP === newP) return 0;
   let n = 0;
-  data.brands.forEach(b => {
-    (b.assets || []).forEach(a => { if(a.filePath === oldP){ a.filePath = newP; n++; } });
-    (b.tools  || []).forEach(t => { if(t.filePath === oldP){ t.filePath = newP; n++; } });
-  });
+  const seen = new Set();
+  const walk = x => {
+    if(!x || typeof x !== 'object') return;
+    if(seen.has(x)) return;                 // 서로를 가리켜도 맴돌지 않게
+    seen.add(x);
+    if(Array.isArray(x)){ x.forEach(walk); return; }
+    if(x.filePath === oldP){ x.filePath = newP; n++; }
+    Object.keys(x).forEach(k => { if(k !== 'filePath') walk(x[k]); });
+  };
+  walk(data);
   return n;
 }
 

@@ -130,9 +130,47 @@ function use_year($f) {
 }
 $USE_YEAR = use_year($UPOPT_FILE);
 
+/* ── 브랜드 폴더 찾기 ────────────────────────────────────────
+   탐색기에서 폴더를 「5. 아파트스퀘어」 처럼 번호 붙여 정리해 두는 일이
+   흔합니다. 그런데 앱은 브랜드 이름 그대로 「아파트스퀘어」 를 찾다가
+   없으니 옆에 새 폴더를 하나 더 만들었습니다. 같은 브랜드 파일이 두
+   폴더로 갈라집니다.
+
+   그래서 앞의 번호(「5.」「05)」「5 -」…)를 떼고 견줍니다. 띄어쓰기와
+   괄호·마침표는 원래부터 무시합니다(norm_name).
+   새로 만들 때는 옆 폴더들이 번호를 쓰고 있으면 그 다음 번호를 답니다.
+   ------------------------------------------------------------ */
+function brand_key($s) {
+    $s = preg_replace('/^[\s]*\d+[\s]*[.)\-_][\s]*/u', '', (string)$s);
+    return norm_name($s);
+}
+/* 번호가 붙어 있으면 그 번호 (없으면 0) */
+function brand_no($s) {
+    return preg_match('/^[\s]*(\d+)[\s]*[.)\-_]/u', (string)$s, $m) ? (int)$m[1] : 0;
+}
+/* 이 브랜드의 폴더 경로 — 이미 있는 폴더를 먼저 씁니다 */
+function brand_dir($root, $name) {
+    $name = safe_name($name, '_공통');
+    $want = brand_key($name);
+    $hit = null; $max = 0;
+    foreach ((array)@scandir($root) as $e) {
+        if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+        if (!is_dir($root . '/' . $e)) continue;
+        $no = brand_no($e);
+        if ($no > $max) $max = $no;
+        /* 번호가 붙은 쪽을 먼저 씁니다 — 번호 없는 짝은 정리할 때 합쳐집니다 */
+        if (brand_key($e) === $want && ($hit === null || ($no > 0 && brand_no($hit) === 0))) {
+            $hit = $e;
+        }
+    }
+    if ($hit !== null) return $root . '/' . $hit;
+    if (substr($name, 0, 1) === '_') return $root . '/' . $name;   // _공통 은 번호 없이
+    return $root . '/' . ($max > 0 ? ($max + 1) . '. ' . $name : $name);
+}
+
 /* 파일 하나가 들어갈 자리 — <브랜드>/<종류>[/<연도>] */
 function dest_dir($root, $brand, $sub, $useYear, $when = null) {
-    $d = $root . '/' . $brand . '/' . $sub;
+    $d = brand_dir($root, $brand) . '/' . $sub;
     if ($useYear) $d .= '/' . date('Y', $when ?: time());
     return $d;
 }
@@ -408,6 +446,15 @@ if ($action === 'uploadroot') {
     $untidy = 0;
     if ($set !== null && is_dir($FILE_DIR)) {
         $subsNow = array_values(SUBDIRS);
+        /* 같은 브랜드가 두 폴더로 갈라져 있으면 그것도 정리 대상입니다 */
+        $seen = [];
+        foreach ((array)@scandir($FILE_DIR) as $e) {
+            if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+            if (substr($e, 0, 1) === '_' || substr($e, 0, 1) === '.') continue;
+            if (!is_dir($FILE_DIR . '/' . $e)) continue;
+            $k = brand_key($e);
+            if (isset($seen[$k])) $untidy++; else $seen[$k] = 1;
+        }
         foreach ((array)@scandir($FILE_DIR) as $brand) {
             if ($brand === '.' || $brand === '..' || $brand === '@eaDir') continue;
             if (substr($brand, 0, 1) === '_' || substr($brand, 0, 1) === '.') continue;
@@ -595,17 +642,35 @@ if ($action === 'tidy') {
         $moved++;
     };
 
+    /* 같은 브랜드가 두 폴더로 갈라져 있으면 (「아파트스퀘어」 와
+       「5. 아파트스퀘어」) 번호가 붙은 쪽으로 모읍니다 — 앱이 쓰는 쪽이
+       그쪽이라, 안 모으면 옛 폴더의 파일은 아무도 다시 안 봅니다. */
+    $canon = []; $merged = [];
+    foreach ((array)@scandir($root) as $e) {
+        if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
+        if (substr($e, 0, 1) === '_' || substr($e, 0, 1) === '.') continue;
+        if (!is_dir($root . '/' . $e)) continue;
+        $k = brand_key($e);
+        if (!isset($canon[$k]) || (brand_no($e) > 0 && brand_no($canon[$k]) === 0)) {
+            $canon[$k] = $e;
+        }
+    }
+
     foreach ((array)@scandir($root) as $brand) {
         if ($brand === '.' || $brand === '..' || $brand === '@eaDir') continue;
         if (substr($brand, 0, 1) === '_' || substr($brand, 0, 1) === '.') continue;
-        $brandDir = $root . '/' . $brand;
-        if (!is_dir($brandDir)) continue;
+        $srcDir = $root . '/' . $brand;
+        if (!is_dir($srcDir)) continue;
         if (microtime(true) > $deadline) break;
+        /* 모아 갈 곳 — 갈라져 있지 않으면 자기 자신입니다 */
+        $to = $canon[brand_key($brand)] ?? $brand;
+        $brandDir = $root . '/' . $to;
+        if ($to !== $brand) $merged[$brand] = $to;
 
-        foreach ((array)@scandir($brandDir) as $e) {
+        foreach ((array)@scandir($srcDir) as $e) {
             if ($e === '.' || $e === '..' || $e === '@eaDir') continue;
             if (microtime(true) > $deadline) break;
-            $path = $brandDir . '/' . $e;
+            $path = $srcDir . '/' . $e;
             $rel  = $brand . '/' . $e;
 
             // ① 브랜드 폴더에 그냥 있던 파일 → 이름 보고 종류 폴더로
@@ -628,16 +693,27 @@ if ($action === 'tidy') {
             };
             $walk($path, $rel);
         }
-        drop_empty($brandDir, $brandDir);
+        drop_empty($srcDir, $srcDir);
+        if ($to !== $brand) {
+            drop_empty($brandDir, $brandDir);
+            /* 다 옮겨서 빈 껍데기가 됐으면 치웁니다 — 남겨 두면 다음에
+               또 「어느 쪽이 진짜지」 가 됩니다 (비었을 때만 지웁니다) */
+            $left = array_diff((array)@scandir($srcDir), ['.', '..', '@eaDir']);
+            if (!count($left)) { @rmdir($srcDir); clearstatcache(true, $srcDir); }
+            else $merged[$brand] .= ' (' . count($left) . '개가 남아 옛 폴더를 두었습니다)';
+        }
     }
 
     write_guide($root, $USE_YEAR);
 
+    $mg = [];
+    foreach ($merged as $from => $to) $mg[] = $from . ' → ' . $to;
     jout(['ok' => true, '옮긴수' => $moved, '자리바뀜' => $map,
+          '합친폴더' => $mg,
           '못한것' => array_slice($failed, 0, 20),
           '더있음' => microtime(true) > $deadline,
-          '안내' => $moved ? ($moved . '개 파일을 제자리로 옮겼습니다')
-                          : '이미 잘 정리돼 있습니다']);
+          '안내' => ($moved ? ($moved . '개 파일을 제자리로 옮겼습니다') : '이미 잘 정리돼 있습니다')
+                  . ($mg ? ' · 갈라져 있던 폴더 ' . count($mg) . '개를 합쳤습니다' : '')]);
 }
 
 /* 대시보드 안(data/files)에 쌓여 있던 파일을 공유폴더로 옮깁니다 */
@@ -707,7 +783,7 @@ if ($action === 'branddir') {
     if ($name === '') jout(['ok' => false, 'error' => '브랜드 이름이 없습니다'], 400);
     if (!is_dir($FILE_DIR)) jout(['ok' => false, 'error' => '저장 폴더가 없습니다'], 404);
 
-    $dir  = $FILE_DIR . '/' . $name;
+    $dir  = brand_dir($FILE_DIR, $name);
     $make = !empty($_GET['make']);
     if (!is_dir($dir) && $make) {
         if (!@mkdir($dir, 0775, true) && !is_dir($dir)) {
@@ -717,7 +793,8 @@ if ($action === 'branddir') {
         foreach (SUBDIRS as $sub) @mkdir($dir . '/' . $sub, 0775, true);
     }
     jout(['ok' => true, '경로' => $dir, '있음' => is_dir($dir),
-          '이름' => $name, '뿌리' => $FILE_DIR, '연도폴더' => $USE_YEAR]);
+          '이름' => $name, '폴더이름' => basename($dir),
+          '뿌리' => $FILE_DIR, '연도폴더' => $USE_YEAR]);
 }
 
 if ($action === 'setuploadroot') {

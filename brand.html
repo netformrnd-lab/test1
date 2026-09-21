@@ -2284,8 +2284,33 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .id-g .g1 span{flex:1 1 auto;min-width:0;font-size:14px;line-height:1.7;
   color:var(--text-primary);word-break:keep-all}
 .id-g .g1.ok span{color:var(--text-muted)}
-.id-g .gk{display:flex;flex-direction:column;gap:2px;margin-top:9px}
+.id-g .gk{position:relative;display:flex;flex-direction:column;gap:2px;margin-top:9px}
 .id-g .gk i{font-size:12px;font-weight:800;font-style:normal;color:var(--blue)}
+/* 줄 하나 지우기 — 이름 오른쪽 끝에 조용히 */
+.id-g .gk > .x{position:absolute;right:0;top:-2px;padding:1px 7px;border-radius:99px;
+  border:1px solid var(--border);background:transparent;font-size:12px;
+  color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .12s}
+.id-g .gk:hover > .x{opacity:1}
+.id-g .gk > .x:hover{border-color:var(--red);color:var(--red)}
+@media (hover:none){.id-g .gk > .x{opacity:1}}
+.id-g .gk .non{color:var(--text-muted)}
+/* 온보딩 연표 — 소개와 같은 연표를 쓰고, 넣고 빼는 단추만 붙입니다 */
+.ob-yr .hy-add{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:0 0 16px 20px}
+.ob-yr .hy-add .lb{font-size:12px;font-weight:800;color:var(--text-secondary)}
+.ob-yr .hy-add input{box-sizing:border-box;width:76px;font-family:var(--f-mono),inherit;
+  font-size:14px;font-weight:700;text-align:center;padding:6px 8px;
+  border:1px solid var(--border);border-radius:9px;background:var(--bg-input);
+  color:var(--text-primary);font-variant-numeric:tabular-nums}
+.ob-yr .hy-add input:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px var(--blue-soft)}
+.ob-yr .hy-add span{font-size:11.5px;color:var(--text-muted)}
+.ob-yr .hy-ra{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:12px;
+  padding-top:11px;border-top:1px dashed var(--border)}
+.ob-yr .hy-ra .del{opacity:0;transition:opacity .12s}
+.ob-yr .id-g:hover .hy-ra .del{opacity:1}
+.ob-yr .hy-ra .del:hover{border-color:var(--red);color:var(--red)}
+@media (hover:none){.ob-yr .hy-ra .del{opacity:1}}
 .id-g .gk span{font-size:14px;line-height:1.75;color:var(--text-secondary);
   word-break:keep-all}
 @media(max-width:560px){.id-g{flex-direction:column;gap:7px}
@@ -3738,7 +3763,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-12';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-13';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5270,12 +5295,14 @@ function renderOnboard(){
 
       /* ▦ 표 — 항목이 세로줄, 하위 이름이 가로줄 */
       /* 🕰 해가 항목인 연표 — 해마다 그 해의 줄만. 해마다 팀 수도,
-         나누는 기준(팀 · 사람 · 브랜드)도 다를 수 있습니다. */
+         나누는 기준(팀 · 사람 · 브랜드)도 다를 수 있습니다.
+         생김새는 소개의 「해마다의 목표」 와 <<같은 것>>을 씁니다 —
+         같은 것이 두 화면에서 다르게 생기면 다른 것으로 읽힙니다. */
       else if(vw === 'hist'){
         const ys = obYearRows(sc) || [];
         const now = String(new Date().getFullYear());
         const sid2 = jsq(sc.id);
-        bodyHtml = '<div class="ob-hist">'
+        bodyHtml = '<div class="ob-yr">'
           + '<div class="hy-add">'
             + '<span class="lb">📅 해 넣기</span>'
             + '<input id="obYearIn" type="text" inputmode="numeric" maxlength="4" '
@@ -5286,54 +5313,47 @@ function renderOnboard(){
               + '\')">＋ 넣기</button>'
             + '<span>그 해 한 칸이 생깁니다 — 줄은 그 해에 맞게 넣으세요</span>'
           + '</div>'
-          + ys.map(it => {
+          + '<div class="id-gs rail">' + ys.map(it => {
               const on = obYearOf(it.title) === now;
               const ks = (it.kids || []);
               const iid = jsq(it.id);
-              return '<div class="hy' + (on ? ' now' : '') + '">'
-                + '<div class="hy-h"><i class="dot"></i>'
-                  + '<b data-ed="obkid0" data-ed1="1" data-g="' + esc(sc.id)
+              return '<div class="id-g' + (on ? ' now' : '') + '">'
+                + '<div class="gy">'
+                  + '<span data-ed="obkid0" data-ed1="1" data-g="' + esc(sc.id)
                     + '" data-i="' + esc(it.id) + '" data-f="title" '
-                    + 'title="눌러서 해를 고칩니다">' + esc(it.title) + '</b>'
-                  + (on ? '<em>지금</em>' : '')
-                  + '<span class="ct">' + ks.length + '줄</span>'
-                  + '<button class="del" title="이 해를 지웁니다" onclick="obYearDel(\''
-                    + sid2 + '\',\'' + iid + '\')">🗑</button>'
+                    + 'title="눌러서 해를 고칩니다">' + esc(it.title) + '</span>'
+                  + (on ? '<i>지금</i>' : '')
                 + '</div>'
-                + (ks.length
-                    ? '<div class="hy-b">' + ks.map(k => {
-                        const kid = jsq(k.id);
-                        const ed = f => ' data-ed="obkid" data-ed1="1" data-g="' + esc(sc.id)
-                          + '" data-i="' + esc(it.id) + '" data-k="' + esc(k.id)
-                          + '" data-f="' + f + '"' + (f === 'body' ? ' data-ml="1"' : '');
-                        const v = String(k.body || '').trim();
-                        const ls = v.split('\n').map(x => x.trim()).filter(Boolean);
-                        return '<div class="hy-t">'
-                          + '<div class="th">'
-                            + '<b' + ed('title') + ' data-ph="누가 맡나 — 팀 · 사람 · 브랜드">'
-                              + esc(String(k.title || '').trim() || '＋ 이름을 적어 주세요')
-                            + '</b>'
-                            + '<button class="x" title="이 줄을 지웁니다" '
-                              + 'onclick="obKidDel(\'' + sid2 + '\',\'' + iid
-                              + '\',\'' + kid + '\')">×</button>'
-                          + '</div>'
-                          + (v
-                              ? (ls.length > 1
-                                  ? '<ul' + ed('body') + '>'
-                                    + ls.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>'
-                                  : '<p' + ed('body') + '>' + esc(v) + '</p>')
-                              : '<p class="gap"' + ed('body')
-                                + ' data-ph="그 해에 무엇을">✏️ 눌러서 적기</p>')
-                        + '</div>';
-                      }).join('') + '</div>'
-                    : '')
-                + '<div class="hy-ra"><button class="gb-add tiny" onclick="obRowAdd(\''
-                  + sid2 + '\',\'' + iid + '\')">＋ 줄 넣기 (팀 · 사람 · 브랜드)</button>'
-                  + (ks.length ? '' : '<span>이 해에 누가 무엇을 맡는지 넣어 주세요</span>')
+                + '<div class="gb">'
+                  + ks.map(k => {
+                      const kid = jsq(k.id);
+                      const ed = f => ' data-ed="obkid" data-ed1="1" data-g="' + esc(sc.id)
+                        + '" data-i="' + esc(it.id) + '" data-k="' + esc(k.id)
+                        + '" data-f="' + f + '"' + (f === 'body' ? ' data-ml="1"' : '');
+                      const v = String(k.body || '').trim();
+                      return '<div class="gk">'
+                        + '<i' + ed('title') + ' data-ph="누가 맡나 — 팀 · 사람 · 브랜드">'
+                          + esc(String(k.title || '').trim() || '＋ 이름을 적어 주세요')
+                        + '</i>'
+                        + '<button class="x" title="이 줄을 지웁니다" '
+                          + 'onclick="obKidDel(\'' + sid2 + '\',\'' + iid
+                          + '\',\'' + kid + '\')">×</button>'
+                        + (v
+                            ? '<span' + ed('body') + '>'
+                              + esc(v).replace(/\n/g, '<br>') + '</span>'
+                            : '<span class="non"' + ed('body')
+                              + ' data-ph="그 해에 무엇을">✏️ 눌러서 적기</span>')
+                      + '</div>';
+                    }).join('')
+                  + '<div class="hy-ra"><button class="gb-add tiny" onclick="obRowAdd(\''
+                    + sid2 + '\',\'' + iid + '\')">＋ 줄 넣기 (팀 · 사람 · 브랜드)</button>'
+                    + '<button class="gb-add tiny del" onclick="obYearDel(\''
+                      + sid2 + '\',\'' + iid + '\')">🗑 이 해 지우기</button>'
+                  + '</div>'
                 + '</div>'
               + '</div>';
-            }).join('')
-          + '</div>';
+            }).join('') + '</div>'
+        + '</div>';
       }
       else if(vw === 'matrix'){
         const M = obMatrix(sc);

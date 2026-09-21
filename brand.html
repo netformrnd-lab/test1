@@ -3471,7 +3471,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260920-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7829,7 +7829,28 @@ function folderBrowserHtml(navKey, startDir, opts){
 
   if(!c){ setTimeout(() => loadBrowse(dir), 10); return '<div class="fmeta">불러오는 중…</div>'; }
   if(c.loading) return '<div class="fmeta">불러오는 중…</div>';
-  if(c.error)   return '<div class="fmeta">⚠️ ' + esc(c.error) + '</div>';
+  /* 못 찾았을 때도 빠져나올 길은 있어야 합니다. 전에는 경고 한 줄만
+     남기고 단추를 통째로 안 그려서, 들어간 사람이 갇혔습니다. */
+  if(c.error){
+    const up = String(dir || '').replace(/\/+$/, '').replace(/\/[^\/]+$/, '');
+    const home = startDir || '';
+    const gone = /그런 폴더가 없습니다|찾지 못/.test(String(c.error));
+    return '<div class="sec-bar" style="margin:0 0 10px">'
+      + (dir && up !== dir
+          ? '<button class="btn sm" onclick="gotoFolder(\'' + jsq(navKey) + '\',\''
+            + jsq(up) + '\')">⬆ 상위 폴더</button>' : '')
+      + (dir !== home
+          ? '<button class="btn sm" onclick="gotoFolder(\'' + jsq(navKey) + '\',\''
+            + jsq(home) + '\')">⬅ 처음으로</button>' : '')
+      + '<button class="btn sm" onclick="reloadFolder(\'' + jsq(navKey) + '\',\''
+        + jsq(home) + '\')">↻ 다시</button>'
+      + '</div>'
+      + '<div class="fmeta" style="white-space:pre-wrap">⚠️ ' + esc(c.error)
+      + (gone ? '\n\n폴더 이름을 바꾸셨다면 (예: 「아파트스퀘어」 → 「5. 아파트스퀘어」) '
+              + '[🧹 파일 정리] 를 한 번 누르면 갈라진 폴더를 합치고 적어 둔 자리도 맞춥니다.'
+              : '')
+      + '</div>';
+  }
 
   // parent 가 '' 이면 「전체」 화면(공유폴더 두 개가 나란히 보이는 곳)입니다
   const canUp = c.parent !== null && c.parent !== undefined && (!startDir || c.dir !== startDir);

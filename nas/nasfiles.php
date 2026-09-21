@@ -130,6 +130,14 @@ function nas_name_key($s) {
     if (function_exists('mb_strtolower')) $s = mb_strtolower($s, 'UTF-8');
     return preg_replace('/[\s_\-()\[\].]+/u', '', $s);
 }
+/* 앞에 붙인 번호까지 뗀 이름 — 「5. 아파트스퀘어」 ↔ 「아파트스퀘어」.
+   탐색기에서 번호를 붙여 정리해 두면 적어 둔 옛 주소로는 못 찾습니다.
+   다만 이건 <<두 번째로>> 씁니다. 「01. 자료」 와 「02. 자료」 가 나란히
+   있을 때 번호를 먼저 떼면 엉뚱한 쪽을 잡습니다. */
+function nas_base_key($s) {
+    $s = preg_replace('/^[\s]*\d+[\s]*[.)\-_][\s]*/u', '', (string)$s);
+    return nas_name_key($s);
+}
 
 /* 어디부터 찾아볼지 — 공유폴더와 그 위 단계, 그리고 볼륨들 */
 function nas_search_bases() {
@@ -186,13 +194,16 @@ function resolve_nas_dir($p) {
             $cur = ($b === '' ? '' : $b);
             $ok  = true;
             foreach (array_slice($parts, $skip) as $want) {
-                $next = null;
+                $next = null; $loose = null;
                 foreach ((array)@scandir($cur === '' ? '/' : $cur) as $e) {
                     if ($e === '.' || $e === '..') continue;
                     $try = ($cur === '' ? '' : $cur) . '/' . $e;
                     if (!is_dir($try)) continue;
                     if (nas_name_key($e) === nas_name_key($want)) { $next = $try; break; }
+                    /* 똑같은 이름이 없을 때를 대비해 번호만 다른 것도 챙겨 둡니다 */
+                    if ($loose === null && nas_base_key($e) === nas_base_key($want)) $loose = $try;
                 }
+                if ($next === null) $next = $loose;
                 if ($next === null) { $ok = false; break; }
                 $cur = $next;
             }

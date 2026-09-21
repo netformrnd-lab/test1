@@ -1879,7 +1879,14 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-sm .si .tt{flex:1 1 auto;min-width:0;font-size:14.5px;font-weight:700;
   color:var(--text-primary);word-break:break-word}
 /* 메모는 아랫줄로 내리고, ↗ 는 첫 줄 오른쪽 끝에 둡니다 */
-.ob-sm .si .nt{flex:1 1 100%;font-size:12.5px;color:var(--text-muted);order:9}
+/* 「예시 / 왜 그렇게 쓰나」 — 예시는 따옴표 칸으로 띄웁니다.
+   한 줄로 흘리면 어디까지가 예시인지 안 보입니다. */
+.ob-sm .si .ex{flex:1 1 100%;order:8;margin-top:6px;padding:9px 12px;
+  border-left:3px solid var(--green);border-radius:0 9px 9px 0;
+  background:var(--bg-input);font-size:14px;line-height:1.75;
+  color:var(--text-primary);word-break:keep-all}
+.ob-sm .si .nt{flex:1 1 100%;margin-top:5px;font-size:12.5px;line-height:1.7;
+  color:var(--text-muted);order:9}
 .ob-sm .si .go{flex:0 0 auto;order:5;margin-left:auto;font-size:13px;
   color:var(--green,#12a150);font-weight:800}
 .pe-sm{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)}
@@ -1928,7 +1935,8 @@ table.itable tr:hover td{background:var(--bg-hover)}
    같은 글인데 한 문단으로 흘리면 읽히지 않고, 갈라 세우면 훑힙니다. */
 .iv-rows{display:flex;flex-direction:column;gap:6px}
 .iv-r{display:flex;gap:10px;align-items:baseline}
-.iv-rows.plain .iv-r{display:block}
+.iv-rows.plain .iv-r,.iv-r.lead{display:block}
+.iv-r.lead + .iv-r{margin-top:2px}
 .iv-k{flex:0 0 auto;min-width:76px;max-width:150px;padding:2px 9px;
   border-radius:99px;background:var(--bg-card);border:1px solid var(--border);
   font-size:11.5px;font-weight:800;color:var(--text-secondary);
@@ -2114,6 +2122,15 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .id-mp .o{font-size:15.5px;font-weight:800;color:var(--green);word-break:keep-all}
 .id-mp .wy{flex:1 1 100%;font-size:12.5px;line-height:1.7;color:var(--text-muted);
   word-break:keep-all}
+/* 낱말만 적힌 것은 칩으로 빽빽하게 — 서른 개를 한 줄씩 세로로 쌓으면
+   그 자체가 한 화면짜리 글이 됩니다. 원고 쓰다 훑는 자리인데 못 훑습니다. */
+.id-wq{display:flex;flex-wrap:wrap;gap:5px;padding:9px 0 4px}
+.id-wq span{padding:4px 10px;border-radius:99px;border:1px solid var(--border);
+  background:var(--bg-sunken);font-size:13px;font-weight:700;
+  color:var(--text-primary);word-break:keep-all}
+.id-wc.yes .id-wq span{border-color:var(--green);color:var(--green)}
+.id-wc.no .id-wq span{border-color:var(--border);color:var(--text-muted);
+  text-decoration:line-through;text-decoration-color:var(--red)}
 .id-ws{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:13px}
 .id-wc{padding:13px 15px;border:1px solid var(--border);border-radius:var(--r);
   background:var(--bg-card)}
@@ -2292,11 +2309,21 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .ob-rk.k-no  {--hue:var(--red);background:rgba(239,68,68,.05)}
 .ob-rk.k-how {--hue:var(--purple)}
 .ob-rk.k-etc {--hue:var(--text-muted)}
-.ob-r{margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed var(--border-light)}
+/* 규칙은 <<차례>>가 있는 것들입니다 — 절차 아홉 줄에 번호가 없으면
+   「몇 번째까지 했더라」 가 안 됩니다. 갈래 안에서 번호를 답니다. */
+.ob-r{position:relative;margin-bottom:14px;padding-bottom:14px;padding-left:30px;
+  border-bottom:1px dashed var(--border-light)}
 .ob-r:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.ob-r .rn{position:absolute;left:0;top:1px;width:21px;height:21px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;
+  color:var(--text-muted);background:var(--bg-sunken);border:1px solid var(--border)}
 .ob-r .tx{margin:0;font-size:15.5px;font-weight:700;line-height:1.8;
-  color:var(--text-primary);white-space:pre-wrap;word-break:keep-all}
+  color:var(--text-primary);word-break:keep-all}
+.ob-r .tx .iv-v{font-size:15.5px;font-weight:700;line-height:1.8}
+.ob-r .tx .iv-k{font-weight:800}
 .ob-r .wy{margin:5px 0 0;font-size:13.5px;line-height:1.75;color:var(--text-secondary)}
+.ob-r .wy .fd-b{max-height:4.4em}
 .ob-q{margin-top:6px;padding:7px 11px;border-left:3px solid var(--purple);
   background:var(--bg-input);border-radius:0 9px 9px 0;font-size:12px;
   color:var(--text-secondary);line-height:1.65}
@@ -3588,7 +3615,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18921,6 +18948,48 @@ function pathTidyBar(b){
     + '</div>';
 }
 
+/* ── 적어 둔 글을 인포로 ──────────────────────────────────────
+   적는 사람들은 이미 「돈을 내는 쪽 — 입주자대표회의」 처럼 <<이름과
+   내용>>을 나눠 적고 있었습니다. 그걸 한 문단으로 흘려 보여 주니까
+   글이 많아 보였을 뿐입니다. 줄마다 갈라서 이름은 왼쪽 표찰로, 내용은
+   오른쪽으로 세우면 같은 글이 표가 됩니다.
+   나눠지지 않는 줄은 그냥 한 줄로 둡니다 — 억지로 못 나눕니다.
+   소개 화면과 규칙 줄이 같이 씁니다. 두 벌로 두면 한쪽만 고쳐집니다.
+   -------------------------------------------------------------- */
+function ivRows(t){
+  return String(t || '').split(/\n+/).map(x => x.trim()).filter(Boolean)
+    .map(ln => {
+      const m = ln.match(/^(.{1,14}?)\s*[—–]\s*(.+)$/);      // 「이름 — 내용」
+      /* 앞쪽이 <<이름>>일 때만 표찰로 뗍니다. 문장이 앞에 온 줄
+         (「본 것을 수치로 남긴다 — 추정은…」) 까지 떼면 문장 하나가
+         표찰로 둔갑해서 더 안 읽힙니다. 이름은 맺음말로 안 끝나고,
+         마침표·쉼표가 없고, 서너 낱말을 넘지 않습니다. */
+      const ok = m && !/[.,!?]/.test(m[1])
+        && !/(다|요|음|함|죠|네|까|서|고)$/.test(m[1].trim())
+        && m[1].trim().split(/\s+/).length <= 4;
+      return ok ? { k: m[1].trim(), v: m[2].trim() } : { k: '', v: ln };
+    });
+}
+/* 표찰이 하나라도 붙는 글만 표로 세웁니다 (전부 맨 줄이면 그냥 글입니다) */
+function ivHtml(t, attr){
+  const rs = ivRows(t);
+  if(!rs.some(r => r.k)) return '<div class="iv-rows plain"' + (attr || '') + '>'
+    + rs.map(r => '<div class="iv-r"><span class="iv-v">'
+        + esc(r.v) + '</span></div>').join('') + '</div>';
+  return '<div class="iv-rows"' + (attr || '') + '>'
+    /* 표찰 없는 줄은 머리글입니다 — 빈 표찰만큼 들여쓰면 표의 일부처럼
+       보여서 「어? 이 칸 이름이 뭐지」 가 됩니다. 통째로 폅니다. */
+    + rs.map(r => '<div class="iv-r' + (r.k ? '' : ' lead') + '">'
+        + (r.k ? '<span class="iv-k">' + esc(r.k) + '</span>' : '')
+        + '<span class="iv-v">' + esc(r.v) + '</span></div>').join('')
+    + '</div>';
+}
+/* 긴 글 한 덩어리 — 접어 두고 [＋ 더 보기] 로 폅니다 */
+function fold(inner){
+  return '<div class="fold"><div class="fd-b">' + inner + '</div>'
+    + '<button class="fd-m" onclick="foldMore(this)">＋ 더 보기</button></div>';
+}
+
 function pathReadHtml(b){
   const bid = jsq(b.id);
   const P  = pathOf(b);
@@ -18968,41 +19037,6 @@ function pathReadHtml(b){
     + '<div class="ob-b">' + body + '</div></section>';
 
   const none = t => '<p class="pw-none2">' + esc(t) + '</p>';
-  /* ── 적어 둔 글을 인포로 ────────────────────────────────────
-     적는 사람들은 이미 「돈을 내는 쪽 — 입주자대표회의」 처럼 <<이름과
-     내용>>을 나눠 적고 있었습니다. 그걸 한 문단으로 흘려 보여 주니까
-     글이 많아 보였을 뿐입니다. 줄마다 갈라서 이름은 왼쪽 표찰로,
-     내용은 오른쪽으로 세우면 같은 글이 표가 됩니다.
-     나눠지지 않는 줄은 그냥 한 줄로 둡니다 — 억지로 못 나눕니다.
-     ------------------------------------------------------------ */
-  const ivRows = t => String(t || '').split(/\n+/).map(x => x.trim()).filter(Boolean)
-    .map(ln => {
-      const m = ln.match(/^(.{1,14}?)\s*[—–]\s*(.+)$/);      // 「이름 — 내용」
-      /* 앞쪽이 <<이름>>일 때만 표찰로 뗍니다. 문장이 앞에 온 줄
-         (「본 것을 수치로 남긴다 — 추정은…」) 까지 떼면 문장 하나가
-         표찰로 둔갑해서 더 안 읽힙니다. 이름은 맺음말로 안 끝나고,
-         마침표·쉼표가 없고, 서너 낱말을 넘지 않습니다. */
-      const ok = m && !/[.,!?]/.test(m[1])
-        && !/(다|요|음|함|죠|네|까|서|고)$/.test(m[1].trim())
-        && m[1].trim().split(/\s+/).length <= 4;
-      return ok ? { k: m[1].trim(), v: m[2].trim() } : { k: '', v: ln };
-    });
-  /* 표찰이 하나라도 붙는 글만 표로 세웁니다 (전부 맨 줄이면 그냥 글입니다) */
-  const ivHtml = (t, attr) => {
-    const rs = ivRows(t);
-    const tag = rs.some(r => r.k);
-    if(!tag) return '<div class="iv-rows plain"' + (attr || '') + '>'
-      + rs.map(r => '<div class="iv-r"><span class="iv-v">'
-          + esc(r.v) + '</span></div>').join('') + '</div>';
-    return '<div class="iv-rows"' + (attr || '') + '>'
-      + rs.map(r => '<div class="iv-r">'
-          + (r.k ? '<span class="iv-k">' + esc(r.k) + '</span>' : '<span class="iv-k em"></span>')
-          + '<span class="iv-v">' + esc(r.v) + '</span></div>').join('')
-      + '</div>';
-  };
-  /* 긴 글 한 덩어리 — 접어 두고 [＋ 더 보기] 로 폅니다 */
-  const fold = inner => '<div class="fold"><div class="fd-b">' + inner + '</div>'
-    + '<button class="fd-m" onclick="foldMore(this)">＋ 더 보기</button></div>';
 
   /* 1 — 이 브랜드는 뭘 하나 */
   /* ❶ 은 규칙보다 먼저 와야 합니다. 신입은 아직 우리가 무슨 일을 하는지,
@@ -19205,13 +19239,23 @@ function pathReadHtml(b){
         + '</div>';
       }).join('') + '</div>'
     : '';
+  /* 낱말만 적힌 것은 <<칩>>으로 빽빽하게 놓습니다. 서른 개를 한 줄씩
+     세로로 쌓으면 그 자체가 한 화면짜리 글이 됩니다 — 원고 쓰다 훑는
+     자리인데 훑을 수가 없습니다. 설명이 붙은 것만 줄로 둡니다. */
   const wCol = (no) => {
     const mine = wds.filter(w => wordNo(w) === no && !wPaired.has(w.id));
     if(!mine.length) return '';
+    const chip = mine.filter(w => !String(w.why || '').trim()
+                              && !String(w.instead || '').trim());
+    const rich = mine.filter(w => chip.indexOf(w) < 0);
     return '<div class="id-wc' + (no ? ' no' : ' yes') + '">'
       + '<div class="wh">' + (no ? '✕ 안 쓰는 말' : '✔️ 쓰는 말')
         + '<b>' + mine.length + '</b></div>'
-      + mine.map(w => {
+      + (chip.length
+          ? '<div class="id-wq">' + chip.map(w => '<span data-ed="row" data-k="words" '
+              + 'data-i="' + esc(w.id) + '" data-f="term">' + esc(w.term) + '</span>').join('')
+            + '</div>' : '')
+      + rich.map(w => {
           const wa = (f, ml) => ' data-ed="row" data-k="words" data-i="' + esc(w.id)
             + '" data-f="' + f + '"' + (ml ? ' data-ml="1"' : '');
           return '<div class="id-w">'
@@ -19229,7 +19273,7 @@ function pathReadHtml(b){
         if(!mine.length) return '';
         return '<div class="ob-rk ' + (k.cls || '') + '">'
           + '<div class="kh">' + k.ic + ' ' + esc(k.k) + '<b>' + mine.length + '</b></div>'
-          + mine.map(r => ruleReadHtml(b, r, quoted, '')).join('') + '</div>';
+          + mine.map((r, i) => ruleReadHtml(b, r, quoted, '', i + 1)).join('') + '</div>';
       }).join('') + '</div>'
     : '';
   const sWD = (wds.length || rsW.length)
@@ -19257,14 +19301,12 @@ function pathReadHtml(b){
                 + esc(String(g.goal || '').trim() || '(목표가 아직 안 적혔습니다)') + '</b>'
               + (String(g.why || '').trim()
                   ? '<div class="gk"><i>무엇을 위해</i>'
-                    + '<span data-ed="row" data-k="goals" data-i="' + esc(g.id)
-                    + '" data-f="why" data-ml="1">'
-                    + esc(g.why).replace(/\n/g, '<br>') + '</span></div>' : '')
+                    + fold(ivHtml(g.why, ' data-ed="row" data-k="goals" data-i="'
+                      + esc(g.id) + '" data-f="why" data-ml="1"')) + '</div>' : '')
               + (String(g.result || '').trim()
                   ? '<div class="gk"><i>어떻게 됐나</i>'
-                    + '<span data-ed="row" data-k="goals" data-i="' + esc(g.id)
-                    + '" data-f="result" data-ml="1">'
-                    + esc(g.result).replace(/\n/g, '<br>') + '</span></div>' : '')
+                    + fold(ivHtml(g.result, ' data-ed="row" data-k="goals" data-i="'
+                      + esc(g.id) + '" data-f="result" data-ml="1"')) + '</div>' : '')
             + '</div></div>';
         }).join('') + '</div>', 'goals')
     : '';
@@ -19303,7 +19345,7 @@ function pathReadHtml(b){
     return '<div class="ob-rk ' + (k.cls || '') + '">'
       + '<div class="kh">' + k.ic + ' ' + esc(k.k)
       + '<b>' + mine.length + '</b></div>'
-      + mine.map(r => ruleReadHtml(b, r, quoted, at)).join('') + '</div>';
+      + mine.map((r, i) => ruleReadHtml(b, r, quoted, at, i + 1)).join('') + '</div>';
   }).join('');
   /* 🧾 실물 — 규칙 바로 옆에 둡니다. 「하지 마라」 열여섯 줄을 읽은
      신입에게 「이렇게 하면 된다」 를 세 개 보여주는 자리입니다. */
@@ -19315,9 +19357,14 @@ function pathReadHtml(b){
       + '</div>'
       + sms.map(x => {
           const u = String(x.url || '').trim();
+          /* 「예시 / 왜 그렇게 쓰나」 로 적어 두셨습니다. 한 줄로 흘리면
+             어디까지가 예시인지 안 보입니다 — 예시는 인용 칸으로 띄웁니다. */
+          const ps = String(x.note || '').trim().split(/\s+\/\s+/);
+          const ex = ps.shift() || '';
+          const wy = ps.join(' / ');
           const inner = '<span class="tt">' + esc(x.title) + '</span>'
-            + (String(x.note || '').trim()
-                ? '<span class="nt">' + esc(x.note) + '</span>' : '');
+            + (ex ? '<span class="ex">' + esc(ex) + '</span>' : '')
+            + (wy ? '<span class="nt">' + esc(wy) + '</span>' : '');
           return u
             ? '<a class="si" href="' + esc(u) + '" target="_blank" rel="noopener">'
               + inner + '<span class="go">↗</span></a>'
@@ -19634,7 +19681,7 @@ function stepReadHtml(b, t){
 function ruleTent(r){ return !!(r && r.tent); }
 function ruleTentWhy(r){ return String((r && r.tentWhy) || '').trim(); }
 
-function ruleReadHtml(b, r, quoted, at){
+function ruleReadHtml(b, r, quoted, at, no){
   const c = String(r.chapId || '').trim() ? chapFind(b, r.chapId) : null;
   const why = String(r.why || '').trim();
   const K = c ? pathKindOf(c) : null;
@@ -19647,10 +19694,14 @@ function ruleReadHtml(b, r, quoted, at){
   const risk = String(r.risk || '').trim();
   const tent = ruleTent(r);
   return '<div class="ob-r' + (tent ? ' tent' : '') + '">'
-    + '<p class="tx">'
+    + (no ? '<span class="rn">' + no + '</span>' : '')
+    + '<div class="tx">'
       + (tent ? '<span class="tn">⚠️ 잠정</span>' : '')
-      + tag + '<span data-ed="rule" data-i="' + esc(r.id) + '" data-f="text" data-ml="1">'
-      + esc(r.text) + '</span></p>'
+      + tag
+      /* ①②③ 이나 「이름 — 내용」 으로 적은 줄은 표로 섭니다.
+         말투 규칙처럼 한 칸에 세 단이 들어 있는 것이 제일 안 읽혔습니다. */
+      + ivHtml(r.text, ' data-ed="rule" data-i="' + esc(r.id) + '" data-f="text" data-ml="1"')
+      + '</div>'
     + (tent
         ? '<p class="tnw">아직 확정이 아닙니다 — '
           + esc(ruleTentWhy(r) || '무엇이 정해지면 확정되는지 적어 주세요')
@@ -19660,8 +19711,8 @@ function ruleReadHtml(b, r, quoted, at){
        어기면 무슨 일이 벌어지는지 장면이 하나는 있어야 응용이 됩니다. */
     + (risk ? '<p class="rk">⚡ 어기면 — <span data-ed="rule" data-i="' + esc(r.id)
         + '" data-f="risk" data-ml="1">' + esc(risk) + '</span></p>' : '')
-    + (why ? '<p class="wy">↳ <span data-ed="rule" data-i="' + esc(r.id)
-        + '" data-f="why" data-ml="1">' + esc(why) + '</span></p>' : '')
+    + (why ? '<div class="wy">' + fold('<span data-ed="rule" data-i="' + esc(r.id)
+        + '" data-f="why" data-ml="1">↳ ' + esc(why) + '</span>') + '</div>' : '')
     + (c
         ? '<button type="button" class="ob-q' + (first ? '' : ' again') + '" '
           + 'onclick="goChap(\'' + jsq(c.id) + '\')" '

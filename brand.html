@@ -1142,8 +1142,25 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pw-ch.p-nw .no{border-color:var(--ink);background:var(--ink);color:#fff}
 .pw-ch .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .pw-ch .hd .wn{font-size:12.5px;font-weight:800;color:var(--text-primary)}
-.pw-ch .hd .kd{font-size:10.5px;font-weight:700;color:var(--text-muted);
-  background:var(--bg-sunken);border-radius:99px;padding:2px 9px}
+.pw-ch .hd .wn.non{font-weight:600;color:var(--text-muted)}
+/* 갈래는 눌러서 고르는 단추입니다 — 글칸을 열면 오타가 들어가고
+   그 마디는 색도 아이콘도 잃습니다 */
+.pw-ch .hd .kd{font-family:inherit;font-size:10.5px;font-weight:700;
+  color:var(--text-muted);background:var(--bg-sunken);border:1px solid transparent;
+  border-radius:99px;padding:2px 9px;cursor:pointer}
+.pw-ch .hd .kd:hover{border-color:var(--border);color:var(--text-primary)}
+.kd-pk{display:inline-flex;flex-wrap:wrap;gap:4px}
+.kd-pk button{font-family:inherit;font-size:10.5px;font-weight:700;
+  color:var(--text-secondary);background:var(--bg-card);border:1px solid var(--border);
+  border-radius:99px;padding:3px 9px;cursor:pointer}
+.kd-pk button:hover{border-color:var(--ink);color:var(--text-primary)}
+.kd-pk button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+/* 아직 안 적은 칸 — 이름만 보여 주고 적을 자리가 없으면 못 적습니다 */
+.pw-chm{display:flex;flex-wrap:wrap;align-items:center;gap:4px 7px;margin-top:9px;
+  font-size:11.5px;color:var(--text-muted)}
+.pw-chm span{padding:2px 8px;border:1px dashed var(--border);border-radius:99px;
+  cursor:pointer}
+.pw-chm span:hover{border-style:solid;border-color:var(--ink);color:var(--text-primary)}
 .pw-ch h3{margin:0 0 8px;font-size:17px;font-weight:800;line-height:1.5;
   color:var(--text-primary);letter-spacing:-.024em;word-break:keep-all}
 .pw-ch p{margin:0 0 6px;font-size:14.5px;line-height:1.85;color:var(--text-primary);
@@ -1155,7 +1172,12 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pw-ch p.sc{font-size:11.5px;color:var(--text-muted)}
 .pw-turn{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
   font-size:15.5px!important;font-weight:800!important;margin-bottom:8px!important}
-.pw-turn span{color:var(--purple);font-size:17px}
+/* 화살표만 보라색입니다 — 앞뒤 글까지 물들면 읽는 글이 아니라
+   장식이 됩니다 (둘 다 눌러서 고치는 칸입니다) */
+.pw-turn > span:not(.b4):not(.af){color:var(--purple);font-size:17px}
+.pw-turn .b4,.pw-turn .af{min-width:0;word-break:keep-all}
+.pw-turn .b4:empty::before,.pw-turn .af:empty::before{content:'＋';
+  color:var(--text-muted)}
 .pw-ph{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 8px}
 .pw-ph a{display:block;max-width:280px;border:1px solid var(--border);border-radius:10px;
   overflow:hidden;background:var(--bg-sunken);line-height:0}
@@ -3888,7 +3910,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-22';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-23';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20691,8 +20713,11 @@ function ruleReadHtml(b, r, quoted, at, no){
   if(c && quoted) quoted.add(c.id);
   const a = ruleArea(r);
   // 다 보고 있을 때만 자리를 붙입니다 (그 자리만 볼 때는 다 같은 자리라 군더더기)
+  const rd = (f, ml, ph) => ' data-ed="rule" data-i="' + esc(r.id) + '" data-f="' + f
+    + '"' + (ml ? ' data-ml="1"' : '') + (ph ? ' data-ph="' + esc(ph) + '"' : '');
   const tag = (!at && a !== AREA_ALL)
-    ? '<span class="ar">' + esc(a) + '</span>' : '';
+    ? '<span class="ar"' + rd('area', 0, '어디에서 쓰는 규칙인가 — 블로그 · 촬영 …')
+      + '>' + esc(a) + '</span>' : '';
   const risk = String(r.risk || '').trim();
   const tent = ruleTent(r);
   return '<div class="ob-r' + (tent ? ' tent' : '') + '">'
@@ -20705,9 +20730,12 @@ function ruleReadHtml(b, r, quoted, at, no){
       + ivHtml(r.text, ' data-ed="rule" data-i="' + esc(r.id) + '" data-f="text" data-ml="1"')
       + '</div>'
     + (tent
+        /* 「무엇이 정해지면 확정되는지」 는 읽다가 정해지는 것입니다 —
+           그때 바로 못 고치면 잠정인 채로 남습니다 */
         ? '<p class="tnw">아직 확정이 아닙니다 — '
+          + '<span' + rd('tentWhy', 1, '무엇이 정해지면 확정되나') + '>'
           + esc(ruleTentWhy(r) || '무엇이 정해지면 확정되는지 적어 주세요')
-          + '. 그대로 외부 문서에 쓰지 마세요.</p>'
+          + '</span>. 그대로 외부 문서에 쓰지 마세요.</p>'
         : '')
     /* ② 「왜」 가 원칙만 담고 있으면 경력자만 알아듣습니다.
        어기면 무슨 일이 벌어지는지 장면이 하나는 있어야 응용이 됩니다. */
@@ -20715,6 +20743,14 @@ function ruleReadHtml(b, r, quoted, at, no){
         + '" data-f="risk" data-ml="1">' + esc(risk) + '</span></p>' : '')
     + (why ? '<div class="wy">' + fold('<span data-ed="rule" data-i="' + esc(r.id)
         + '" data-f="why" data-ml="1">↳ ' + esc(why) + '</span>') + '</div>' : '')
+    + ((!risk || !why)
+        ? '<div class="pw-chm">아직 안 적은 것 · '
+          + (!risk ? '<span' + rd('risk', 1, '어겼을 때 무슨 일이 벌어지나')
+                     + ' title="눌러서 적습니다">⚡ 어기면</span>' : '')
+          + (!why  ? '<span' + rd('why', 1, '왜 이 규칙이 생겼나')
+                     + ' title="눌러서 적습니다">↳ 왜</span>' : '')
+          + '</div>'
+        : '')
     + (c
         ? '<button type="button" class="ob-q' + (first ? '' : ' again') + '" '
           + 'onclick="goChap(\'' + jsq(c.id) + '\')" '
@@ -20750,16 +20786,51 @@ function goChap(id){
 /* yr — 그 마디가 속한 연도 머리. 「2022」 아래 다시 「2022」 를 적지 않습니다. */
 /* 첫날 보기일 때만 「✕ 안 된 것」 을 접습니다 — 그리는 쪽에서 정해 줍니다 */
 let chapFold = true;
+/* 갈래는 여섯 중 하나입니다 — 글칸을 열어 주면 「방향을튼다」 같은
+   오타가 들어가고, 그 마디는 색도 아이콘도 잃습니다. 그래서 갈래만은
+   글칸이 아니라 여섯 개를 그 자리에 펴 놓고 고르게 합니다. */
+let chapKindAt = '';
+function chapKindOpen(id){ chapKindAt = (chapKindAt === id ? '' : id); render(); }
+function chapKindSet(bid, id, k){
+  chapKindAt = '';
+  chapEdit(bid, id, 'kind', k, 1);
+}
 function chapReadHtml(b, c, i, yr){
   const K = pathKindOf(c);
   const imgs = chapImgs(c);
-  const line = (key, label, cls) => {
+  const bid = jsq(b.id);
+  const cid = jsq(c.id || '');
+  /* 읽다가 틀린 것을 보면 그 자리에서 고칩니다 — 마디는 [고치기] 로
+     넘어가면 그 마디를 다시 찾아 내려가야 해서 특히 비쌉니다. */
+  const ed = (f, ml, ph) => ' data-ed="chap" data-i="' + esc(c.id || '')
+    + '" data-f="' + f + '"' + (ml ? ' data-ml="1"' : '')
+    + (ph ? ' data-ph="' + esc(ph) + '"' : '');
+  const line = (key, label, cls, ph) => {
     const v = String(c[key] || '').trim();
-    return v ? '<p class="' + (cls || '') + '"><b>' + esc(label) + '</b>' + esc(v) + '</p>' : '';
+    return v ? '<p class="' + (cls || '') + '"' + ed(key, 1, ph) + '>'
+               + '<b>' + esc(label) + '</b>' + esc(v).replace(/\n/g, '<br>') + '</p>' : '';
   };
+  /* 아직 안 적은 칸은 이름만 늘어놓습니다 — 누르면 그 자리가 칸이 됩니다.
+     비면 아예 안 그려서, 지금까지는 적을 길이 [고치기] 뿐이었습니다. */
+  const MISS = [['before', '무엇이었나'], ['after', '무엇이 됐나'],
+                ['body', '한 일'], ['why', '왜 그렇게 됐나'],
+                ['bad', '✕ 안 된 것'], ['nogo', '✕ 하지 않기로 한 것'],
+                ['src', '출처 · 기준일']];
+  const miss = MISS.filter(f => !String(c[f[0]] || '').trim());
+  const missBar = miss.length
+    ? '<div class="pw-chm">아직 안 적은 것 · '
+      + miss.map(f => '<span' + ed(f[0], 1, f[1]) + ' title="눌러서 적습니다">'
+          + esc(f[1]) + '</span>').join('')
+      + '</div>'
+    : '';
   const turn = (String(c.before || '').trim() || String(c.after || '').trim())
-    ? '<p class="pw-turn">' + esc(String(c.before || '').trim())
-      + '<span>→</span>' + esc(String(c.after || '').trim()) + '</p>'
+    ? '<p class="pw-turn">'
+      + '<span class="b4"' + ed('before', 1, '바뀌기 전에는 무엇이었나') + '>'
+        + esc(String(c.before || '').trim() || '＋ 무엇이었나') + '</span>'
+      + '<span>→</span>'
+      + '<span class="af"' + ed('after', 1, '바뀌고 나서 무엇이 됐나') + '>'
+        + esc(String(c.after || '').trim() || '＋ 무엇이 됐나') + '</span>'
+      + '</p>'
     : '';
 
   return '<section class="pw-ch ' + K.cls + '" id="ch-' + esc(c.id || '') + '">'
@@ -20767,29 +20838,41 @@ function chapReadHtml(b, c, i, yr){
     + '<div class="bd">'
       + '<div class="hd">'
         + (String(c.when || '').trim() && String(c.when).trim() !== String(yr || '')
-            ? '<span class="wn">' + esc(c.when) + '</span>' : '')
-        + '<span class="kd">' + K.ic + ' ' + esc(K.k) + '</span>'
+            ? '<span class="wn"' + ed('when', 0, '때 — 예) 2026.08.31') + '>'
+              + esc(c.when) + '</span>'
+            : '<span class="wn non"' + ed('when', 0, '때 — 예) 2026.08.31') + '>'
+              + '＋ 때</span>')
+        + (chapKindAt === c.id
+            ? '<span class="kd-pk">' + PATH_KINDS.map(x =>
+                '<button class="' + (x.k === K.k ? 'on' : '') + '" onclick="chapKindSet(\''
+                + bid + '\',\'' + cid + '\',\'' + jsq(x.k) + '\')">'
+                + x.ic + ' ' + esc(x.k) + '</button>').join('') + '</span>'
+            : '<button class="kd" onclick="chapKindOpen(\'' + cid + '\')" '
+              + 'title="눌러서 갈래를 바꿉니다">' + K.ic + ' ' + esc(K.k) + '</button>')
         + (String(c.plan || '').trim()
             ? '<span class="pl">📋 기획서</span>' : '')
       + '</div>'
-      + (String(c.title || '').trim()
-          ? '<h3>' + esc(c.title) + '</h3>' : '')
+      + '<h3' + ed('title', 0, '이 마디를 한 줄로') + '>'
+        + esc(String(c.title || '').trim() || '＋ 이 마디를 한 줄로') + '</h3>'
       + turn
-      + line('body', '')
+      + line('body', '', '', '무엇을 했는지 · 어디까지 갔는지')
       + (String(c.result || '').trim()
-          ? '<p class="pw-res"><b>결과</b>' + esc(c.result.trim()) + '</p>'
+          ? '<p class="pw-res"' + ed('result', 1, '그래서 어떻게 됐나') + '>'
+            + '<b>결과</b>' + esc(c.result.trim()).replace(/\n/g, '<br>') + '</p>'
           : (K.k === '지금' ? ''
-              : '<p class="pw-res on"><b>결과</b>아직 하는 중입니다 — '
+              : '<p class="pw-res on"' + ed('result', 1, '그래서 어떻게 됐나 — 숫자가 있으면 숫자로') + '>'
+                + '<b>결과</b>아직 하는 중입니다 — '
                 + '끝나면 어떻게 됐는지 적어 주세요</p>'))
-      + line('why', '왜 — ', 'wy')
+      + line('why', '왜 — ', 'wy', '무엇 때문에 그런 결과가 났나')
       /* 첫날에는 못 한 것을 접어 둡니다 — 첫 화면이 미완료 목록이 되지 않게.
          숨기는 것이 아니라 한 번 누르면 나옵니다. */
       + (chapFold
-          ? line('bad', '✕ 안 된 것 — ', 'nx') + line('nogo', '✕ 하지 않는 것 — ', 'nx')
+          ? line('bad', '✕ 안 된 것 — ', 'nx', '무엇이 안 됐나')
+            + line('nogo', '✕ 하지 않는 것 — ', 'nx', '그래서 지금도 하지 않는 것')
           : ((String(c.bad || '').trim() || String(c.nogo || '').trim())
               ? '<details class="pw-nxd"><summary>✕ 안 된 것 · 하지 않는 것</summary>'
-                + line('bad', '✕ 안 된 것 — ', 'nx')
-                + line('nogo', '✕ 하지 않는 것 — ', 'nx')
+                + line('bad', '✕ 안 된 것 — ', 'nx', '무엇이 안 됐나')
+                + line('nogo', '✕ 하지 않는 것 — ', 'nx', '그래서 지금도 하지 않는 것')
                 + '</details>'
               : ''))
       + (imgs.length
@@ -20800,7 +20883,8 @@ function chapReadHtml(b, c, i, yr){
                   : '<span class="file">📄 ' + esc(f.name || '') + '</span>')
               + '</a>').join('') + '</div>'
           : '')
-      + line('src', '', 'sc')
+      + line('src', '', 'sc', '어디에 남아 있나 · 언제 일인가')
+      + missBar
     + '</div></section>';
 }
 

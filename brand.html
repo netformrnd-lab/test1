@@ -3396,7 +3396,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260920-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260920-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3982,8 +3982,8 @@ function verReport(j){
   const git = String(j['최신'] || '').trim();
   const nasOk = /^v\d{6,}/.test(nas);
   const L = ['화면이 돌리는 판 : ' + APP_VER,
-             'NAS 파일의 판    : ' + (nas || '(모름)'),
-             'GitHub 의 판     : ' + (git || '(모름)'), ''];
+             'NAS 파일의 판    : ' + (nas || '(못 읽음)'),
+             'GitHub 의 판     : ' + (git || '(못 받음)'), ''];
   if(!nasOk){
     L.push(j['파일있음'] === false
       ? '⚠️ save.php 옆에 brand.html 이 없습니다.'

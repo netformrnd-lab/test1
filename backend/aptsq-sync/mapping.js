@@ -85,13 +85,15 @@ function supabaseToPour(row) {
   // meta(POUR 상세 폼)가 있으면 그대로 POUR 모양으로 전송 (id/_origin/date 만 보정)
   if (row.meta && typeof row.meta === 'object') {
     const m = Object.assign({}, row.meta);
-    // 예정(우리 'expected') → POUR는 'pending' 으로 저장/렌더한다(POUR 실데이터 확인).
-    //   POUR 달력이 그리려면 dateType='pending' + date + expectedMonth 가 필요.
+    // POUR 프론트 실제 규칙: dateType 'monthOnly'=예정, 'pending'=미정, 'confirmed'=확정.
+    //   (우리 'expected'→POUR 'monthOnly', 우리 'tbd'→POUR 'pending')
     if (m.dateType === 'expected') {
-      m.dateType = 'pending';
-      m.status = '일정조율중';
-      if (!m.originalType) m.originalType = node;
+      m.dateType = 'monthOnly';
+      m.status = '예정';
       if (!m.expectedMonth && (m.date || row.date)) m.expectedMonth = String(m.date || row.date).slice(0, 7);
+    } else if (m.dateType === 'tbd') {
+      m.dateType = 'pending';
+      m.status = '미정';
     }
     return Object.assign(m, {
       id: rtdbId, _origin: 'aptsq', _aptsqId: String(row.id),

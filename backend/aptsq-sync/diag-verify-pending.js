@@ -14,11 +14,12 @@ const isOurs = (k, v) => k.startsWith('asq_') || (v && v._origin === 'aptsq');
     const freq = {};
     ours.forEach(([, v]) => { const d = (v && v.dateType) || '(없음)'; freq[d] = (freq[d] || 0) + 1; });
     console.log(`\n###### ${node}: 우리것 ${ours.length}건 · dateType=${JSON.stringify(freq)}`);
-    ours.filter(([, v]) => v && v.dateType === 'pending').forEach(([k, v]) => {
+    ours.filter(([, v]) => v && (v.dateType === 'monthOnly' || v.dateType === 'pending')).forEach(([k, v]) => {
       pendingTotal++;
-      console.log(`   [예정/pending] ${k} date=${v.date} expectedMonth=${v.expectedMonth} status=${v.status} title=${v.title || v.siteName || ''}`);
+      const lab = v.dateType === 'monthOnly' ? '예정' : '미정';
+      console.log(`   [${lab}/${v.dateType}] ${k} date=${v.date} expectedMonth=${v.expectedMonth} status=${v.status} title=${v.title || v.siteName || ''}`);
     });
   }
-  console.log(`\n⇒ 우리가 POUR에 넣은 예정(pending) 총 ${pendingTotal}건`);
-  console.log(pendingTotal ? '✅ 예정이 POUR에 pending 으로 반영됨(POUR 달력에 표시).' : '⚠️ pending 항목이 아직 없음(배치 재실행/SQL 확인 필요).');
+  console.log(`\n⇒ 우리가 POUR에 넣은 예정(monthOnly)/미정(pending) 총 ${pendingTotal}건`);
+  console.log(pendingTotal ? '✅ POUR에 예정/미정 반영됨.' : '⚠️ 아직 없음(배치 재실행/SQL 확인 필요).');
 })().catch(e => { console.log('오류:', e.message); process.exit(1); });

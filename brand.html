@@ -2214,6 +2214,28 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .id-g .gb{flex:1 1 auto;min-width:0}
 .id-g .gb > b{display:block;font-size:15.5px;font-weight:800;line-height:1.7;
   letter-spacing:-.015em;color:var(--text-primary);word-break:keep-all}
+/* 그 해 안의 눈금 — 몇 개 중 몇 개를 해냈나 */
+.id-g .gp{display:flex;align-items:center;gap:9px;margin-top:10px}
+.id-g .gp > i{flex:1 1 auto;height:6px;border-radius:99px;background:var(--border);
+  position:relative;overflow:hidden;font-style:normal}
+/* 채운 만큼은 --p 로 넘겨받습니다 — i 자체의 width 는 flex 가 정합니다 */
+.id-g .gp > i::before{content:'';position:absolute;inset:0 auto 0 0;width:var(--p,0%);
+  background:var(--green);border-radius:99px;transition:width .2s}
+.id-g .gp span{flex:0 0 auto;font-size:11.5px;font-weight:800;color:var(--text-muted);
+  font-variant-numeric:tabular-nums}
+/* 세부 목표 줄 — 상태 · 때 · 무엇을 */
+.id-g .gi{display:flex;flex-direction:column;gap:5px;margin-top:9px}
+.id-g .g1{display:flex;align-items:baseline;gap:9px;padding:7px 11px;
+  border-radius:var(--r-sm);background:var(--bg-sunken)}
+.id-g .g1.ok{background:transparent}
+.id-g .g1.on{background:var(--blue-soft)}
+.id-g .g1 .st{flex:0 0 auto;padding:0;border:none;background:transparent;cursor:pointer;
+  font-size:13px;line-height:1.6}
+.id-g .g1 u{flex:0 0 auto;min-width:54px;text-decoration:none;font-size:11.5px;
+  font-weight:800;color:var(--text-muted);word-break:keep-all}
+.id-g .g1 span{flex:1 1 auto;min-width:0;font-size:14px;line-height:1.7;
+  color:var(--text-primary);word-break:keep-all}
+.id-g .g1.ok span{color:var(--text-muted)}
 .id-g .gk{display:flex;flex-direction:column;gap:2px;margin-top:9px}
 .id-g .gk i{font-size:12px;font-weight:800;font-style:normal;color:var(--blue)}
 .id-g .gk span{font-size:14px;line-height:1.75;color:var(--text-secondary);
@@ -2454,6 +2476,19 @@ table.itable tr:hover td{background:var(--bg-hover)}
   background:var(--bg-input);color:var(--text-primary);resize:none;overflow:hidden;
   min-height:36px}
 .pe-rl textarea:focus,.pe-rl select:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px var(--blue-soft)}
+/* 해마다의 목표 안쪽 줄 — 이 화면에는 input 을 한꺼번에 꾸미는 규칙이
+   없어서, 새 칸은 제 생김새를 스스로 적어야 합니다 */
+.pe-gi{display:flex;flex-direction:column;gap:5px;margin-top:7px;
+  padding-left:11px;border-left:2px solid var(--border)}
+.pe-gi .gr{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pe-gi select,.pe-gi input{box-sizing:border-box;font-family:inherit;font-size:13px;
+  padding:6px 10px;border:1px solid var(--border);border-radius:9px;
+  background:var(--bg-input);color:var(--text-primary)}
+.pe-gi select{flex:0 0 auto}
+.pe-gi input.wn{flex:0 0 130px;min-width:0}
+.pe-gi input.tx{flex:1 1 220px;min-width:0}
+.pe-gi select:focus,.pe-gi input:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px var(--blue-soft)}
 .pe-rl .rc{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .pe-rl .rc > span{font-size:11px;font-weight:800;color:var(--text-muted)}
@@ -3655,7 +3690,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260921-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16786,6 +16821,66 @@ function wordsOf(b){ return pathRows(b, 'words'); }
 function wordOk(w){ return !!String((w && w.term) || '').trim(); }
 function wordNo(w){ return !!(w && w.no); }          // 참이면 「안 쓰는 말」
 function goalsOf(b){ return pathRows(b, 'goals'); }
+/* ── 🎯 그 해 안의 세부 목표 ──────────────────────────────────
+   한 해에 한 줄만 적으면 「사람이 바뀌어도 같은 품질이 나오게」 처럼
+   큰 말 하나로 끝나고, 그 해에 <<무엇을 몇 개 했는지>>가 안 남습니다.
+   해마다 몇 개로 갈라 두면 어디까지 왔는지가 눈금으로 보입니다.
+   때(1분기 · 3월)는 선택입니다 — 적으면 그 해 안에서 또 줄이 섭니다.
+   ------------------------------------------------------------ */
+const GOAL_ST = [['', '⬜', '아직'], ['중', '🔄', '하는 중'], ['함', '✅', '해냄']];
+function goalSt(x){
+  const v = String((x && x.done) || '');
+  return GOAL_ST.find(k => k[0] === v) || GOAL_ST[0];
+}
+function goalItems(g){
+  if(!g || typeof g !== 'object') return [];
+  if(!Array.isArray(g.items)) g.items = [];
+  return g.items;
+}
+function goalItemOk(x){ return !!String((x && x.text) || '').trim(); }
+/* 몇 개 중 몇 개를 해냈나 — 눈금의 바탕이 됩니다 */
+function goalDone(g){
+  const l = goalItems(g).filter(goalItemOk);
+  return { n: l.length, done: l.filter(x => goalSt(x)[0] === '함').length };
+}
+function goalFind(b, id){ return goalsOf(b).find(g => g.id === id) || null; }
+function goalItemAdd(bid, gid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const g = goalFind(b, gid); if(!g) return;
+  goalItems(g).push({ id: uid('gi'), when: '', text: '', done: '' });
+  markDirty(b.id); render();
+}
+function goalItemSet(bid, gid, iid, f, v, draw){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const g = goalFind(b, gid); if(!g) return;
+  const x = goalItems(g).find(y => y.id === iid); if(!x) return;
+  x[f] = v; markDirty(b.id);
+  if(draw) render();
+}
+function goalItemDel(bid, gid, iid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const g = goalFind(b, gid); if(!g) return;
+  g.items = goalItems(g).filter(y => y.id !== iid);
+  deletedIds.add(iid);
+  markDirty(b.id); render();
+}
+function goalItemMove(bid, gid, iid, d){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const g = goalFind(b, gid); if(!g) return;
+  const l = goalItems(g), i = l.findIndex(y => y.id === iid), j = i + d;
+  if(i < 0 || j < 0 || j >= l.length) return;
+  l.splice(j, 0, l.splice(i, 1)[0]);
+  markDirty(b.id); render();
+}
+/* 다음 칸으로 상태를 한 칸 돌립니다 (아직 → 하는 중 → 해냄 → 아직) */
+function goalItemTurn(bid, gid, iid){
+  const b = brandById(bid) || currentBrand(); if(!b) return;
+  const g = goalFind(b, gid); if(!g) return;
+  const x = goalItems(g).find(y => y.id === iid); if(!x) return;
+  const i = GOAL_ST.findIndex(k => k[0] === String(x.done || ''));
+  x.done = GOAL_ST[(i + 1) % GOAL_ST.length][0];
+  markDirty(b.id); render();
+}
 function goalOk(g){
   return !!(String((g && g.year) || '').trim() || String((g && g.goal) || '').trim());
 }
@@ -17201,6 +17296,8 @@ function pathSecWhat(b, k){
     n('이유까지 붙은 줄', rulesOf(b).filter(r => ruleIsWord(r) && !ruleBlank(r)));
   } else if(k === 'goals'){
     n('해마다의 목표', goalsOf(b).filter(goalOk));
+    n('세부 목표', goalsOf(b).reduce((a, g) =>
+      a.concat(goalItems(g).filter(goalItemOk)), []));
   } else if(k === 'rules'){
     n('지킬 것', rulesOf(b).filter(r => !ruleIsWord(r) && !ruleBlank(r)));
     n('이렇게 쓴 것', samplesOf(b).filter(sampleOk));
@@ -17227,7 +17324,12 @@ function pathSecWipe(bid, k){
   const drop = (key, keep) => {
     const l = Array.isArray(P[key]) ? P[key] : [];
     P[key] = l.filter(x => { if(keep && keep(x)) return true;
-                             if(x && x.id) deletedIds.add(x.id); return false; });
+                             if(x && x.id) deletedIds.add(x.id);
+                             /* 해마다의 목표 안쪽 줄도 아이디를 남겨야
+                                같이 쓰는 사람 화면에서 안 되돌아옵니다 */
+                             (Array.isArray(x && x.items) ? x.items : [])
+                               .forEach(y => { if(y && y.id) deletedIds.add(y.id); });
+                             return false; });
   };
   const clr = keys => keys.forEach(f => { P[f] = ''; });
   if(k === 'what'){
@@ -18247,7 +18349,13 @@ function pathMineParse(text){
   })).filter(x => x.term);
   const goals = jArr('해목표', 'goals').map(x => ({
     year: String((x && (x['해'] || x.year)) || '').trim(),
-    goal: S(x, 'goal'), why: S(x, 'why'), result: S(x, 'result')
+    goal: S(x, 'goal'), why: S(x, 'why'), result: S(x, 'result'),
+    /* 그 해 안에서 갈라 적힌 것들 — 때는 선택입니다 */
+    items: (Array.isArray(x && (x['세부'] || x.items)) ? (x['세부'] || x.items) : [])
+      .map(y => ({ id: uid('gi'), when: String((y && (y['때'] || y.when)) || '').trim(),
+                   text: String((y && (y['무엇'] || y.text)) || '').trim(),
+                   done: (y && (y['됨'] || y.done)) ? '함' : '' }))
+      .filter(y => y.text)
   })).filter(x => x.year || x.goal);
 
   return { what: String((j && (j['무엇'] || j.what)) || '').trim(),
@@ -18793,6 +18901,9 @@ function pathText(b){
     gls.forEach(g => {
       L.push('   ' + (String(g.year || '').trim() || '때 미상') + ' — '
         + String(g.goal || '').trim());
+      goalItems(g).filter(goalItemOk).forEach(x => L.push('      '
+        + goalSt(x)[1] + ' ' + (String(x.when || '').trim() ? x.when + ' · ' : '')
+        + String(x.text || '').trim()));
       put('      무엇을 위해', g.why);
       put('      어떻게 됐나', g.result);
     });
@@ -18845,6 +18956,10 @@ function edGet(d){
     const x = pathRows(b, d.k).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
   }
   if(d.ed === 'rule'){ const x = ruleFind(b, d.i); return x ? S(x[d.f]) : ''; }
+  if(d.ed === 'gitem'){
+    const g = goalFind(b, d.g); if(!g) return '';
+    const x = goalItems(g).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
+  }
   if(d.ed === 'who'){
     const x = whoOf(b).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
   }
@@ -18863,6 +18978,7 @@ function edSet(d, v){
   else if(d.ed === 'id')   pathId(bid, d.f, v);
   else if(d.ed === 'row')  pathRowEdit(bid, d.k, d.i, d.f, v);
   else if(d.ed === 'rule') ruleEdit(bid, d.i, d.f, v);
+  else if(d.ed === 'gitem') goalItemSet(bid, d.g, d.i, d.f, v);
   else if(d.ed === 'who')  whoEdit(bid, d.i, d.f, v);
   else if(d.ed === 'chap') chapEdit(bid, d.i, d.f, v);
   else if(d.ed === 'samp') sampleEdit(bid, d.i, d.f, v);
@@ -18871,6 +18987,7 @@ function edData(el){
   return { ed: el.getAttribute('data-ed') || '',
            f:  el.getAttribute('data-f')  || '',
            k:  el.getAttribute('data-k')  || '',
+           g:  el.getAttribute('data-g')  || '',
            i:  el.getAttribute('data-i')  || '',
            ml: el.getAttribute('data-ml') === '1',
            ph: el.getAttribute('data-ph') || '' };
@@ -19365,6 +19482,29 @@ function pathReadHtml(b){
               + '<b data-ed="row" data-k="goals" data-i="' + esc(g.id) + '" data-f="goal" '
                 + 'data-ml="1" data-ph="그 해의 목표">'
                 + esc(String(g.goal || '').trim() || '(목표가 아직 안 적혔습니다)') + '</b>'
+              + (() => {
+                  const its = goalItems(g).filter(goalItemOk);
+                  if(!its.length) return '';
+                  const d = goalDone(g);
+                  return '<div class="gp"><i style="--p:'
+                      + Math.round(d.done / d.n * 100) + '%"></i>'
+                      + '<span>' + d.done + ' / ' + d.n + ' 해냄</span></div>'
+                    + '<div class="gi">' + its.map(x => {
+                        const st = goalSt(x);
+                        return '<div class="g1' + (st[0] === '함' ? ' ok' : '')
+                          + (st[0] === '중' ? ' on' : '') + '">'
+                          + '<button class="st" title="' + esc(st[2])
+                            + ' — 누르면 다음 칸으로" onclick="goalItemTurn(\'' + bid
+                            + '\',\'' + jsq(g.id) + '\',\'' + jsq(x.id) + '\')">'
+                            + st[1] + '</button>'
+                          + (String(x.when || '').trim()
+                              ? '<u data-ed="gitem" data-g="' + esc(g.id) + '" data-i="'
+                                + esc(x.id) + '" data-f="when">' + esc(x.when) + '</u>' : '')
+                          + '<span data-ed="gitem" data-g="' + esc(g.id) + '" data-i="'
+                            + esc(x.id) + '" data-f="text">' + esc(x.text) + '</span>'
+                        + '</div>';
+                      }).join('') + '</div>';
+                })()
               + (String(g.why || '').trim()
                   ? '<div class="gk"><i>무엇을 위해</i>'
                     + fold(ivHtml(g.why, ' data-ed="row" data-k="goals" data-i="'
@@ -20088,6 +20228,40 @@ function pathEditHtml(b){
             + rowTa('goals', g.id, 'why', g.why,
                 '무엇을 위해 — 왜 그 목표였나 (예: 영업 문의가 전화뿐이라 근거가 없었다)')
             + rowTa('goals', g.id, 'result', g.result, '어떻게 됐나 (선택) — 숫자가 있으면 숫자로')
+            /* 그 해 안에서 갈라 둘 것들 — 때는 선택입니다 */
+            + (goalItems(g).length
+                ? '<div class="pe-gi">' + goalItems(g).map((x, j) => {
+                    const gid = jsq(g.id), iid = jsq(x.id);
+                    const set = (f, draw) => 'goalItemSet(\'' + bid + '\',\'' + gid
+                      + '\',\'' + iid + '\',\'' + f + '\', this.value'
+                      + (draw ? ', 1' : '') + ')';
+                    return '<div class="gr">'
+                      + '<select onchange="goalItemSet(\'' + bid + '\',\'' + gid
+                        + '\',\'' + iid + '\',\'done\', this.value, 1)">'
+                        + GOAL_ST.map(k => '<option value="' + k[0] + '"'
+                            + (goalSt(x)[0] === k[0] ? ' selected' : '') + '>'
+                            + k[1] + ' ' + k[2] + '</option>').join('')
+                      + '</select>'
+                      + '<input type="text" class="wn" value="' + esc(x.when || '') + '" '
+                        + 'placeholder="때 (선택) — 1분기 · 3월" '
+                        + 'oninput="' + set('when') + '">'
+                      + '<input type="text" class="tx" value="' + esc(x.text || '') + '" '
+                        + 'placeholder="무엇을 — 예) 앱과 관제센터를 한 화면으로" '
+                        + 'oninput="' + set('text') + '">'
+                      + '<span class="tl-x">'
+                        + (j > 0 ? '<button onclick="goalItemMove(\'' + bid + '\',\''
+                            + gid + '\',\'' + iid + '\',-1)" title="위로">↑</button>' : '')
+                        + (j < goalItems(g).length - 1
+                            ? '<button onclick="goalItemMove(\'' + bid + '\',\'' + gid
+                              + '\',\'' + iid + '\',1)" title="아래로">↓</button>' : '')
+                        + '<button class="x" onclick="goalItemDel(\'' + bid + '\',\''
+                          + gid + '\',\'' + iid + '\')" title="지우기">×</button>'
+                      + '</span>'
+                    + '</div>';
+                  }).join('') + '</div>'
+                : '')
+            + '<div class="pe-add"><button class="gb-add tiny" onclick="goalItemAdd(\''
+              + bid + '\',\'' + jsq(g.id) + '\')">＋ 세부 목표</button></div>'
           + '</div>').join('') + '</div>'
         : '')
     + '<div class="pe-add"><button class="gb-add tiny" onclick="pathRowAdd(\'' + bid

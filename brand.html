@@ -2804,6 +2804,9 @@ table.itable tr:hover td{background:var(--bg-hover)}
   padding:13px 16px;border-radius:var(--r-md);border:1px solid rgba(217,59,59,.4);
   background:rgba(217,59,59,.07)}
 .verbar.show{display:flex}
+/* 고장이 아니라 「고칠 수 있음」 — 빨강 대신 호박색 */
+.verbar.warn{border-color:rgba(192,119,8,.4);background:rgba(192,119,8,.07)}
+.verbar.warn .t{color:var(--yellow)}
 .verbar .t{font-weight:800;font-size:13.5px;letter-spacing:-.02em;color:var(--red)}
 .verbar .m{flex:1 1 320px;min-width:0;font-size:12.5px;line-height:1.6;
   color:var(--text-secondary)}
@@ -3396,7 +3399,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260920-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260920-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -3928,6 +3931,28 @@ async function checkVersion(force){
        띠에 깝니다 — 저장 실패 띠와 같은 자리입니다. */
     const bar = document.getElementById('verBar');
     if(bar) bar.className = 'verbar';
+    const onGit = String((j && j['최신']) || '').trim();
+
+    /* ── 스스로 고치기 ──────────────────────────────────────────
+       NAS 의 판 번호를 못 읽는데 GitHub 판 번호는 읽힌다 = save.php 가
+       옛것이라는 뜻입니다. 그런데 옛 save.php 는 「새 판 있음」 을 늘 거짓으로
+       내보내서 [받기] 단추가 안 떴습니다 — 고칠 단추를 고장난 쪽이 숨기고
+       있었던 셈입니다. 그래서 이 경우에는 단추를 따로 띄웁니다.
+       누르면 bootstrap 이 돌아 save.php 를 포함해 파일을 다시 받습니다. */
+    if(j && j.ok && !nasOk && /^v\d{6,}/.test(onGit) && !verHush){
+      box.style.display = 'none'; box.innerHTML = '';
+      if(bar){
+        bar.className = 'verbar show warn';
+        bar.innerHTML = '<div class="t">⚙️ NAS 쪽 판 번호를 못 읽습니다</div>'
+          + '<div class="m">NAS 의 <b>save.php</b> 가 옛것일 때 그렇습니다. '
+            + '아래를 누르면 GitHub(<b>' + esc(onGit) + '</b>)에서 파일을 다시 받아 '
+            + '스스로 고칩니다 — 손으로 올리실 것 없습니다.</div>'
+          + '<button class="btn sm primary" onclick="pullVersion(this)">고쳐서 받기</button>'
+          + '<button class="btn sm" onclick="verHushOn()">닫기</button>';
+      }
+      return;
+    }
+
     if(j && j.ok && nasOk && onNas !== APP_VER && !verHush){
       box.style.display = 'none'; box.innerHTML = '';
       if(bar){
@@ -3989,8 +4014,9 @@ function verReport(j){
       ? '⚠️ save.php 옆에 brand.html 이 없습니다.'
         + '\n   찾아본 곳 — ' + (j['파일경로'] || '(모름)')
         + '\n   두 파일은 같은 폴더에 있어야 합니다.'
-      : '⚠️ NAS 의 brand.html 에서 판 번호를 못 읽었습니다.'
-        + '\n   save.php 가 옛것입니다 — 새 save.php 를 같이 올려 주세요.');
+      : '⚠️ NAS 의 save.php 가 옛것이라 판 번호를 못 읽습니다.'
+        + '\n   윗줄 아래 [고쳐서 받기] 를 누르면 스스로 고칩니다.'
+        + '\n   (단추가 안 보이면 주소창에 save.php?action=bootstrap 을 한 번 여세요)');
   }else if(nas !== APP_VER){
     L.push('⚠️ 브라우저가 옛 파일을 들고 있습니다.'
       + '\n   [새로 받기] 를 누르거나 Ctrl+Shift+R 을 눌러 주세요.');

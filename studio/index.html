@@ -172,6 +172,19 @@
     background:var(--surface);font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;
     line-height:1.75;resize:vertical;white-space:pre;overflow:auto}
   .tip{font-size:11.5px;color:var(--ink-3);margin-top:7px;line-height:1.6}
+  .pipebox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:10px}
+  .steps{display:flex;flex-direction:column;gap:5px}
+  .st{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-3);line-height:1.5}
+  .st i{width:18px;height:18px;border-radius:50%;flex:none;display:grid;place-items:center;
+    font-size:10.5px;font-style:normal;font-weight:700;background:var(--sunk);color:var(--ink-3)}
+  .st.now{color:var(--accent);font-weight:600}
+  .st.now i{background:var(--accent);color:#fff;animation:pulse 1.4s ease-in-out infinite}
+  .st.done{color:var(--ink-2)}
+  .st.done i{background:var(--g1);color:#fff}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .stamp{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:6px;display:inline-block}
+  .stamp.raw{background:var(--sunk);color:var(--ink-3)}
+  .stamp.done{background:rgba(63,113,89,.13);color:var(--g1)}
 
   /* ── 검수 ───────────────────────────────── */
   .passes{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:12px}
@@ -336,8 +349,16 @@
     </div>
     <div class="out">
       <div class="oh">
-        <h3>헤이젠에 넣을 프롬프트</h3><div class="grow"></div>
+        <h3>헤이젠에 넣을 프롬프트</h3><span id="promptStamp"></span><div class="grow"></div>
         <button class="btn sm" id="copyBtn">복사</button>
+      </div>
+      <div class="pipebox">
+        <div class="row" style="margin-bottom:9px">
+          <button class="btn go" id="genBtn">프롬프트 생성하기</button>
+          <button class="btn" id="genStop" hidden>중단</button>
+          <span class="tip" id="pipeMsg" style="margin:0;flex:1;min-width:120px"></span>
+        </div>
+        <div class="steps" id="pipe"></div>
       </div>
       <textarea class="code" id="out" readonly spellcheck="false" aria-label="생성된 프롬프트"></textarea>
       <p class="tip">칸을 누르면 전체가 선택됩니다. 그 상태에서 <b>Ctrl+C</b> (맥 <b>⌘C</b>).</p>
@@ -581,9 +602,15 @@ function scenes(sp){
 
 function avatarScenes(sc){ return sc.length > 1 ? [0, sc.length-1] : [0]; }
 
-function buildPrompt(sp){
+// 완성본이 지금 뼈대와 맞는가. 장면 수가 달라졌으면 다시 써야 한다.
+function fitsSkeleton(sp, content){
+  return !!(content && content.장면 && content.장면.length === scenes(sp).length);
+}
+
+function buildPrompt(sp, content){
   var kw = sp.kw.trim() || '(키워드를 입력하세요)';
   var tr = trade(sp), au = aud(sp), sc = scenes(sp), av = avatarScenes(sc);
+  if (!fitsSkeleton(sp, content)) content = null;
   var total = LENS[sp.len];
   var b = [];
 
@@ -706,13 +733,21 @@ function buildPrompt(sp){
   }
   b.push('');
 
-  b.push('# 스스로 정할 것');
-  b.push('- 위 자료를 근거로, 이 주제에서 시청자가 확인해야 할 판단 기준을 정확히 3개로 정하세요.');
-  b.push('  세 기준은 서로 겹치지 않아야 하고, 각각 한 문장으로 요약되어야 합니다.');
-  b.push('  기준마다 시각 근거를 하나씩 정하세요 (비교 표 · 카운트업 · 단계 다이어그램 중 하나).');
-  b.push('- 세 기준이 실제 단지 상황에서 쓰이는 장면을 구체적으로 정하세요. 실존 업체명은 쓰지 마세요.');
-  b.push('- 확정한 내용을 표로 먼저 보여 주고, 승인을 받은 뒤 영상을 생성하세요.');
-  b.push('');
+  if (content){
+    b.push('# 이 영상이 말할 것');
+    if (content.한줄요약) b.push('- 한 줄로: ' + content.한줄요약);
+    (content.기준 || []).forEach(function(x, i){ b.push('- 기준 ' + (i+1) + ': ' + x); });
+    b.push('- 아래 장면마다 할 말이 이미 정해져 있습니다. 내용을 바꾸지 말고 그대로 영상으로 만드세요.');
+    b.push('');
+  } else {
+    b.push('# 스스로 정할 것');
+    b.push('- 위 자료를 근거로, 이 주제에서 시청자가 확인해야 할 판단 기준을 정확히 3개로 정하세요.');
+    b.push('  세 기준은 서로 겹치지 않아야 하고, 각각 한 문장으로 요약되어야 합니다.');
+    b.push('  기준마다 시각 근거를 하나씩 정하세요 (비교 표 · 카운트업 · 단계 다이어그램 중 하나).');
+    b.push('- 세 기준이 실제 단지 상황에서 쓰이는 장면을 구체적으로 정하세요. 실존 업체명은 쓰지 마세요.');
+    b.push('- 확정한 내용을 표로 먼저 보여 주고, 승인을 받은 뒤 영상을 생성하세요.');
+    b.push('');
+  }
 
   b.push('# 장면 구성 — 아래 ' + sc.length + '개 장면을 순서대로 하나씩 만들어 주세요');
   b.push('장면을 합치거나 줄이지 마세요. 한 장면이 20초를 넘으면 안 됩니다.');
@@ -723,7 +758,9 @@ function buildPrompt(sp){
     b.push('장면 ' + (i+1) + ' [' + s.from + '~' + s.to + '초] ' + s.name +
            (av.indexOf(i) >= 0 ? '  ← 아바타 등장' : ''));
     b.push('  화면: ' + s.screen);
-    b.push('  내용: ' + s.note);
+    var w = content && content.장면 && content.장면[i];
+    b.push('  내용: ' + ((w && w.내용) ? w.내용 : s.note));
+    if (w && w.자막) b.push('  자막: ' + w.자막);
     if (s.carry) b.push('  이어받기: ' + s.carry);
   });
   b.push('');
@@ -736,7 +773,7 @@ function buildPrompt(sp){
     b.push('');
   }
   b.push('# 마무리 문구');
-  b.push(au.마무리문구);
+  b.push((content && content.마무리) ? content.마무리 : au.마무리문구);
   b.push('');
   // 짧게 남긴다. 화면에 대한 '넣지 마라'는 위에서 이미 긍정으로 말했다.
   // 여기 남는 것은 내용과 표현에 대한 규칙뿐이다.
@@ -860,13 +897,187 @@ function findings(r){
   return out.slice(0, 6);
 }
 
+// ── 집필 ──────────────────────────────────────────────────
+// 뼈대(장면 수·구간·화면 지시)는 코드가 정한다. 헤이젠-메모의 규칙이라 흔들리면 안 된다.
+// 할 말은 클로드가 쓴다. 그래야 "기준 1을 설명한다" 같은 빈칸이 안 남는다.
+
+function writeInput(sp, fixes){
+  var sc = scenes(sp), df = defectOf(sp), au = aud(sp), b = [];
+
+  b.push('당신은 아파트 유지보수 감리회사의 영상 작가입니다.');
+  b.push('아래 [자료]만 근거로, [장면 뼈대]의 각 장면에서 실제로 할 말을 써 주세요.');
+  b.push('장면 수와 구간은 이미 정해져 있습니다. 늘리거나 줄이지 마세요.');
+  b.push('');
+  b.push('지켜야 할 것');
+  b.push('- 시청자는 ' + au.이름 + '입니다. ' + au.어휘수준);
+  b.push('- [자료]에 없는 수치·연도·통계를 만들지 마세요.');
+  b.push('- 업체명·제품명·공법명·단지명을 쓰지 마세요.');
+  b.push('- 첫 장면은 시청자가 지금 겪는 장면으로 시작합니다. 회사 소개로 시작하지 않습니다.');
+  b.push('- 각 장면의 내용은 2~3문장, 내레이션으로 읽어서 그 장면 길이에 맞아야 합니다.');
+  b.push('  (한국어 내레이션은 1초에 약 5~6자입니다. 13초 장면이면 70자 안팎.)');
+  b.push('- 자막은 그 장면에서 화면 가운데 크게 띄울 한 문장입니다. 15자 이내.');
+  b.push('');
+  b.push('# 주제');
+  b.push(sp.kw.trim());
+  b.push('');
+  b.push('# 자료');
+  b.push(knowledgeText(sp));
+  if (df){
+    b.push('');
+    b.push('# 이번 영상이 다루는 하자');
+    b.push('- 무엇이 보이나: ' + df.보임);
+    df.두면.forEach(function(r){ b.push('- 그대로 두면: ' + r); });
+    b.push('- 왜 생기나: ' + df.원인);
+    b.push('- 보수의 관건: ' + df.관건);
+  }
+  b.push('');
+  b.push('# 장면 뼈대 (' + sc.length + '개)');
+  sc.forEach(function(x, i){
+    b.push((i+1) + '. ' + x.name + ' [' + (x.to - x.from) + '초] — 화면: ' + x.screen);
+  });
+
+  if (fixes && fixes.length){
+    b.push('');
+    b.push('# 앞서 나온 지적 — 이번에 고쳐 주세요');
+    fixes.forEach(function(f){
+      b.push('- (' + f.where + ') ' + f.problem + ' → ' + f.fix);
+    });
+  }
+
+  b.push('');
+  b.push('답은 JSON 하나만. 다른 말은 쓰지 마세요.');
+  b.push('{"한줄요약":"이 영상이 말하는 것 한 문장",');
+  b.push(' "기준":["...","...","..."],');
+  b.push(' "장면":[{"내용":"이 장면에서 할 말 2~3문장","자막":"화면에 크게 띄울 한 문장"}],');
+  b.push(' "마무리":"마지막에 시청자에게 건넬 한 문장"}');
+  b.push('"장면" 배열은 정확히 ' + sc.length + '개여야 합니다.');
+  b.push(df ? '"기준"은 이 하자에서 단지가 확인해야 할 것 3개로 채우세요.'
+            : '"기준"은 시청자가 확인해야 할 판단 기준 3개입니다. 서로 겹치면 안 됩니다.');
+
+  var t = b.join('\n');
+  return t.length > 58000 ? t.slice(0, 58000) : t;
+}
+
+function normContent(r, n){
+  if (!r || typeof r !== 'object') return null;
+  var list = (Object.prototype.toString.call(r.장면) === '[object Array]') ? r.장면 : [];
+  var out = [];
+  for (var i = 0; i < n; i++){
+    var x = list[i] || {};
+    out.push({내용:String(x.내용 || x.narration || '').slice(0, 600),
+              자막:String(x.자막 || x.caption || '').slice(0, 60)});
+  }
+  return {
+    한줄요약:String(r.한줄요약 || '').slice(0, 200),
+    기준:(Object.prototype.toString.call(r.기준) === '[object Array]' ? r.기준 : [])
+          .slice(0, 3).map(function(x){ return String(x).slice(0, 200); }),
+    장면:out,
+    마무리:String(r.마무리 || '').slice(0, 200),
+    빈장면:out.filter(function(x){ return !x.내용.trim(); }).length
+  };
+}
+
+// ── 한 번에 가기 ──────────────────────────────────────────
+// 집필 → 1차 검수 → 2차 검수 → 반영. 중간에 사람이 누를 것은 없다.
+
+var STEPS = ['클로드가 프롬프트를 씁니다',
+             '1차 검수 — 사실과 규정',
+             '2차 검수 — 연출과 리듬',
+             '지적을 반영해 다시 씁니다'];
+
+function pipeUI(step, msg){
+  var el = document.getElementById('pipe');
+  el.innerHTML = STEPS.map(function(t, i){
+    var cls = step > i ? 'done' : (step === i ? 'now' : '');
+    return '<div class="st ' + cls + '"><i>' + (step > i ? '✓' : (i+1)) + '</i>' + esc(t) + '</div>';
+  }).join('');
+  document.getElementById('pipeMsg').textContent = msg || '';
+}
+
+function runPipeline(){
+  if (revBusy) return;
+  var v = cur();
+  if (!v){ toast('먼저 「현황판에 등록」을 눌러 주세요'); return; }
+  if (!SAMPLE){ toast('이 화면에서는 클로드를 쓸 수 없습니다'); return; }
+  if (!v.spec.kw.trim()){ toast('키워드를 먼저 넣어 주세요'); return; }
+
+  var n = scenes(v.spec).length;
+  revCtl = new AbortController();
+  revBusy = true;
+  v.review = {at:Date.now(), passes:[], running:-1};
+  pipeBusy(true); pipeUI(0, '2~3분 걸립니다. 이 화면을 열어 두세요.');
+  save(); renderReview();
+
+  function ask(input){
+    return SAMPLE.json(input, {modelTier:'default', cache:false, signal:revCtl.signal});
+  }
+  function review(i, target, prior){
+    return ask(reviewInput(i, v.spec, target, prior)).then(function(r){
+      var f = findings(r);
+      return {verdict:(r && r.verdict === 'pass' && !f.length) ? 'pass' : 'fix',
+              summary:String((r && r.summary) || '').slice(0, 240), items:f};
+    }, function(e){
+      if (e && e.code === 'cancelled') throw e;
+      return {verdict:'fix', summary:'', items:[], error:ERR[e && e.code] || '검수 중 문제가 생겼습니다.'};
+    });
+  }
+  function bump(){ S.settings.reviewCalls = (S.settings.reviewCalls|0) + 1; }
+  function alive(){ var c = cur(); return c && c.id === v.id; }
+
+  ask(writeInput(v.spec, null)).then(function(r){
+    if (!alive()) throw {code:'cancelled'};
+    var c = normContent(r, n);
+    if (!c || c.빈장면 > n / 2) throw {code:'invalid_json'};
+    c.낡음 = false; v.content = c; bump(); save(); renderPlan();
+    pipeUI(1, '쓴 내용을 자료와 대조합니다');
+    return review(0, buildPrompt(v.spec, c), null).then(function(p1){
+      if (!alive()) throw {code:'cancelled'};
+      v.review.passes = [p1]; bump(); save(); renderReview();
+      pipeUI(2, '영상이 지루해질 곳을 봅니다');
+      return review(1, buildPrompt(v.spec, c), p1.items).then(function(p2){
+        if (!alive()) throw {code:'cancelled'};
+        v.review.passes = [p1, p2]; bump(); save(); renderReview();
+        var fixes = p1.items.concat(p2.items).filter(function(f){ return f.severity !== 'low'; });
+        if (!fixes.length){
+          pipeUI(4, '두 번 다 통과했습니다. 그대로 쓰셔도 됩니다.');
+          revBusy = false; pipeBusy(false); renderAll();
+          toast('검수 통과 — 제작 탭으로 가세요');
+          return;
+        }
+        pipeUI(3, '고칠 곳 ' + fixes.length + '개를 반영합니다');
+        return ask(writeInput(v.spec, fixes)).then(function(r2){
+          if (!alive()) throw {code:'cancelled'};
+          var c2 = normContent(r2, n);
+          if (c2 && c2.빈장면 <= n / 2){ c2.낡음 = false; v.content = c2; }
+          bump(); save(); renderAll();
+          pipeUI(4, '반영까지 끝났습니다. 제작 탭에서 영상을 만드세요.');
+          revBusy = false; pipeBusy(false);
+          toast('프롬프트가 완성됐습니다');
+        });
+      });
+    });
+  }).catch(function(e){
+    revBusy = false; pipeBusy(false);
+    if (v.review) { v.review.running = -1; save(); }
+    renderAll();
+    pipeUI(-1, e && e.code === 'cancelled' ? '중단했습니다.'
+      : (ERR[e && e.code] || '문제가 생겼습니다. 다시 눌러 주세요.'));
+  });
+}
+
+function pipeBusy(on){
+  document.getElementById('genBtn').disabled = on;
+  document.getElementById('genStop').hidden = !on;
+  document.getElementById('revBtn').disabled = on || !SAMPLE;
+}
+
 function runReview(){
   if (revBusy) return;
   var v = cur();
   if (!v){ toast('먼저 「현황판에 등록」을 눌러 주세요'); return; }
   if (!SAMPLE){ toast('이 화면에서는 검수를 쓸 수 없습니다'); return; }
 
-  var target = buildPrompt(v.spec);
+  var target = buildPrompt(v.spec, v.content || null);
   v.review = {at:Date.now(), passes:[], running:0};
   save(); renderReview();
 
@@ -954,7 +1165,8 @@ function renderBoard(){
     var mine = S.videos.filter(function(v){ return (v.stage|0) === gi; });
     var cards = mine.map(function(v){
       var tr = REF.공종[v.spec.trade], rv = v.review && v.review.passes ? v.review.passes.length : 0;
-      var mark = v.made && v.made.seconds ? '제작 ' + v.made.seconds + '초' : (rv ? '검수 ' + rv + '/2' : '');
+      var mark = v.made && v.made.seconds ? '제작 ' + v.made.seconds + '초'
+        : (rv === 2 && v.content ? '프롬프트 완성' : (rv ? '검수 ' + rv + '/2' : ''));
       var dv = REF.하자.filter(function(d){ return d.키 === v.spec.defect; })[0];
       var meta = [tr ? tr.이름 : '', secLabel(LENS[v.spec.len]),
                   dv ? '하자 지정' : '', mark].filter(Boolean).join(' · ');
@@ -1051,8 +1263,22 @@ function renderPlan(){
     ' 어휘는 <b>' + esc(au.이름) + '</b> 기준.' +
     (df ? '<br>하자 <b>' + esc(df.이름) + '</b> 의 네 박자로 대본을 짭니다.' : '');
 
+  var content = (v && fitsSkeleton(sp, v.content)) ? v.content : null;
+  var stale = !!(content && content.낡음);
   var out = document.getElementById('out');
-  if (document.activeElement !== out) out.value = buildPrompt(sp);
+  if (document.activeElement !== out) out.value = buildPrompt(sp, content);
+
+  document.getElementById('promptStamp').innerHTML =
+    !content ? '<span class="stamp raw">아직 뼈대입니다 — 아래 버튼을 누르세요</span>'
+    : stale ? '<span class="stamp raw">설정을 바꿨습니다 — 다시 생성하세요</span>'
+    : '<span class="stamp done">클로드가 쓴 완성본</span>';
+
+  if (!revBusy) pipeUI(content && !stale ? 4 : -1,
+    !content ? ''
+    : stale ? '내용은 이전 설정으로 쓴 것입니다.'
+    : '완성됐습니다. 제작 탭에서 영상을 만드세요.');
+
+  document.getElementById('genBtn').textContent = content ? '다시 생성하기' : '프롬프트 생성하기';
   renderReview();
 }
 
@@ -1114,7 +1340,8 @@ function renderMake(){
       '</div>' +
       '<div class="panel"><h4 style="font-size:12.5px;margin-bottom:8px">헤이젠에 넣기</h4>' +
         '<p class="tip" style="margin:0 0 10px">복사한 뒤 헤이젠 Video Agent 입력칸에 그대로 붙여넣으세요.' +
-          (rv < 2 ? '<br><b>아직 검수를 안 받았습니다.</b> 기획 탭에서 먼저 돌리는 편이 안전합니다.' : '') + '</p>' +
+          (!v.content ? '<br><b>아직 뼈대입니다.</b> 기획 탭에서 「프롬프트 생성하기」를 먼저 누르세요.'
+            : (rv < 2 ? '<br><b>검수를 아직 안 받았습니다.</b>' : '')) + '</p>' +
         '<div class="row"><button class="btn go" id="mkCopy">프롬프트 복사</button>' +
         '<a class="btn" href="https://app.heygen.com/" target="_blank" rel="noopener">헤이젠 열기 ↗</a></div>' +
       '</div>' +
@@ -1132,10 +1359,11 @@ function renderMake(){
       '</div>' +
     '</div>' +
     '<textarea class="code" id="mkOut" readonly spellcheck="false" aria-label="이 영상의 프롬프트">' +
-      esc(buildPrompt(sp)) + '</textarea>';
+      esc(buildPrompt(sp, v.content || null)) + '</textarea>';
 
   document.getElementById('mkOut').onclick = function(){ this.select(); };
-  document.getElementById('mkCopy').onclick = function(){ copy(buildPrompt(sp), '프롬프트를 복사했습니다'); };
+  document.getElementById('mkCopy').onclick = function(){
+    copy(buildPrompt(sp, v.content || null), '프롬프트를 복사했습니다'); };
   document.getElementById('mkSave').onclick = function(){
     var s = Math.max(1, +document.getElementById('mkSec').value || LENS[sp.len]);
     v.made = {seconds:s, url:document.getElementById('mkUrl').value.trim(), at:Date.now()};
@@ -1260,7 +1488,12 @@ function copy(text, msg){
 
 function touch(){                       // 설정을 바꿨다 — 편집 중인 카드에도 반영
   var v = cur();
-  if (v){ v.spec.kw = v.spec.kw.trim(); v.title = v.spec.kw || '제목 없는 영상'; save(); }
+  if (v){
+    v.spec.kw = v.spec.kw.trim();
+    v.title = v.spec.kw || '제목 없는 영상';
+    if (v.content) v.content.낡음 = true;   // 뼈대가 바뀌었으니 다시 써야 한다
+    save();
+  }
   renderPlan(); renderTiles(); renderBoard();
 }
 
@@ -1358,8 +1591,11 @@ document.getElementById('pickMake').onclick = function(e){
   var b = e.target.closest('[data-mk]'); if (!b) return; mkId = b.dataset.mk; renderMake(); };
 
 document.getElementById('out').onclick = function(){ this.select(); };
-document.getElementById('copyBtn').onclick = function(){ copy(buildPrompt(spec()), '프롬프트를 복사했습니다'); };
+document.getElementById('copyBtn').onclick = function(){
+  var v = cur(); copy(buildPrompt(spec(), v && v.content), '프롬프트를 복사했습니다'); };
 
+document.getElementById('genBtn').onclick = runPipeline;
+document.getElementById('genStop').onclick = function(){ if (revCtl) revCtl.abort(); };
 document.getElementById('revBtn').onclick = runReview;
 document.getElementById('revStop').onclick = function(){ if (revCtl) revCtl.abort(); };
 document.getElementById('gptBtn').onclick = function(){
@@ -1369,7 +1605,7 @@ document.getElementById('gptBtn').onclick = function(){
     '(1) 자료에 없는 수치·등급 오류·금지 표현\n' +
     '(2) 실제 영상이 지루해지거나 앞뒤가 모순되는 지점\n\n' +
     '고칠 곳마다 [어느 부분 / 무엇이 잘못됐는지 / 어떻게 고칠지] 세 줄로 적어 주세요.\n\n' +
-    '# 자료\n' + knowledgeText(sp) + '\n\n# 검수 대상\n' + buildPrompt(sp),
+    '# 자료\n' + knowledgeText(sp) + '\n\n# 검수 대상\n' + buildPrompt(sp, (cur()||{}).content),
     'ChatGPT에 붙여넣을 요청문을 복사했습니다');
 };
 document.getElementById('passes').onclick = function(e){
@@ -1417,6 +1653,7 @@ function normalize(d){
       v.spec.len = Math.max(0, Math.min(LENS.length-1, v.spec.len|0));
       v.spec.kw = String(v.spec.kw || '');
       v.spec.defect = String(v.spec.defect || '');
+      if (v.content && !(v.content.장면 && v.content.장면.length)) v.content = null;
       if (v.spec.defect && !REF.하자.some(function(d){ return d.키 === v.spec.defect; })) v.spec.defect = '';
       v.title = String(v.title || v.spec.kw || '제목 없는 영상');
       return v;

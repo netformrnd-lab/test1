@@ -310,6 +310,15 @@ const server = createServer(async (req, res) => {
 
     if (path === '/data/store.json') return json(res, 200, store);
 
+    if (path === '/data/reference.json') {
+      for (const p2 of [join(DATA, 'reference.json'), resolve(HERE, '..', 'studio', 'data', 'reference.json')]) {
+        if (!existsSync(p2)) continue;
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(await readFile(p2, 'utf8'));
+      }
+      return json(res, 404, { error: 'reference.json 을 찾지 못했습니다.' });
+    }
+
     if (path === '/api/store' && req.method === 'POST') {
       store = await readBody(req);
       await saveStore();

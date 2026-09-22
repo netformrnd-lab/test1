@@ -238,6 +238,13 @@
   .dfx:first-of-type{border-top:0;padding-top:0}
   .dfx b{display:block;font-size:12.5px;font-weight:600;margin-bottom:2px}
   .dfx span{display:block;font-size:11.5px;color:var(--ink-3);line-height:1.55}
+  .keyrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:11px}
+  .kf{display:flex;flex-direction:column;gap:5px}
+  .kf label{font-size:11.5px;font-weight:700;color:var(--ink-2)}
+  .kf label span{font-weight:400;color:var(--ink-3)}
+  .kf input,.kf select{padding:9px 11px;border-radius:8px;border:1px solid var(--line);
+    background:var(--sunk);font-size:13px;font-family:'IBM Plex Mono',monospace}
+  .kf input:focus,.kf select:focus{background:var(--surface);border-color:var(--accent);outline:none}
   .scroll{overflow-x:auto}
 
   /* ── 기타 ───────────────────────────────── */
@@ -401,6 +408,40 @@
     <h1 class="pt">자료</h1>
     <p class="lead">여기 있는 내용만 영상에 쓰입니다. 검수할 때도 그대로 전달됩니다.</p>
   </div>
+  <section id="keysBox" hidden>
+    <div class="sh"><h3>API 키</h3>
+      <span class="sub">이 PC 안에만 저장됩니다. 화면에는 끝 네 자리만 보입니다</span></div>
+    <div class="ref">
+      <div class="keyrow">
+        <div class="kf"><label for="kHeygen">헤이젠 <span>영상 제작</span></label>
+          <input type="password" id="kHeygen" autocomplete="off" placeholder="헤이젠 → Settings → API"></div>
+        <div class="kf"><label for="kClaude">클로드 <span>대본 작성 · 1차 검수</span></label>
+          <input type="password" id="kClaude" autocomplete="off" placeholder="console.anthropic.com → API Keys"></div>
+        <div class="kf"><label for="kOpenai">ChatGPT <span>2차 검수</span></label>
+          <input type="password" id="kOpenai" autocomplete="off" placeholder="platform.openai.com → API keys"></div>
+      </div>
+      <div class="row" style="margin-top:11px">
+        <button class="btn go" id="keySave">키 저장</button>
+        <span class="tip" id="keyState" style="margin:0"></span>
+      </div>
+      <details style="margin-top:12px">
+        <summary class="tip" style="cursor:pointer;margin:0">헤이젠 주소가 안 맞을 때</summary>
+        <p class="tip">제작 버튼에서 <b>HTTP 404</b> 나 <b>400</b> 이 뜨면, 새 탭에서
+          <a href="/api/heygen/discover" target="_blank" rel="noopener">주소 확인</a> 을 열어
+          <b>200</b> 이나 <b>400</b> 이 뜬 줄의 주소를 아래에 넣고 제작실을 껐다 켜세요.</p>
+        <div class="keyrow">
+          <div class="kf"><label for="kCreate">영상 만들기 주소</label>
+            <input type="text" id="kCreate" autocomplete="off"></div>
+          <div class="kf"><label for="kStatus">상태 확인 주소</label>
+            <input type="text" id="kStatus" autocomplete="off"></div>
+          <div class="kf"><label for="kBody">보내는 형식</label>
+            <select id="kBody"><option value="agent">agent — 프롬프트 한 덩어리</option>
+              <option value="avatar">avatar — 아바타와 대본</option></select></div>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <section>
     <div class="sh"><h3>직접 넣은 자료</h3>
       <span class="sub">검수에서 나온 지적도 “지식으로 저장”을 누르면 여기 쌓입니다</span></div>
@@ -437,6 +478,7 @@ var GRADE_COLOR = {'경미':'var(--g1)','보통':'var(--g2)','심각':'var(--g3)
 
 /* ══ 상태 ══════════════════════════════════════════════════ */
 
+var LOCAL = (window.APTSQ_LOCAL && typeof window.APTSQ_LOCAL === 'object') ? window.APTSQ_LOCAL : null;
 var S = {videos:[], settings:{credTotal:100, credSec:60, reviewCalls:0}, notes:[]};
 var draft = {kw:'', aud:0, trade:0, len:1, defect:''};   // 아직 등록하지 않은 영상
 var sel = null;                                // 편집 중인 영상 id
@@ -499,7 +541,7 @@ function flush(){
   saveNote('저장 중', true);
   ART.publish({'data/store.json': JSON.stringify(S)}).then(function(){
     saving = false;
-    saveNote(dirty ? '저장 대기' : '저장됨', dirty);
+    saveNote(dirty ? '저장 대기' : (LOCAL ? '이 PC 에 저장됨' : '저장됨'), dirty);
     if (dirty) { clearTimeout(saveTimer); saveTimer = setTimeout(flush, 1200); }
   }, function(e){
     saving = false;
@@ -797,8 +839,14 @@ function buildPrompt(sp, content){
 
 var SAMPLE = null, revCtl = null, revBusy = false;
 
+function passName(i){
+  var base = i === 0 ? '사실과 규정' : '연출과 리듬';
+  var who = LOCAL && (i === 0 ? LOCAL.reviewer1 : LOCAL.reviewer2);
+  return (i+1) + '차 — ' + (who ? who + ' · ' + base : base);
+}
+
 var PASSES = [
-  {k:'1차 — 사실과 규정',
+  {k:passName(0),
    role:'자료에 없는 숫자, 등급과 다른 설명, 금지 표현, 앞뒤 모순을 찾습니다.',
    ask:'당신은 아파트 유지보수 감리회사의 자료 검수자입니다.\n' +
        '[자료]에 적힌 것만 참입니다. [검수 대상]은 AI 영상 생성기에 넣을 제작 지시문입니다.\n\n' +
@@ -809,7 +857,7 @@ var PASSES = [
        '4. 지정된 시청 대상에게 맞지 않는 어휘를 썼는가\n' +
        '5. 앞뒤가 서로 모순되는 지시가 있는가\n\n' +
        '연출·재미·리듬은 이번 검수 대상이 아닙니다. 지적하지 마세요.'},
-  {k:'2차 — 연출과 리듬',
+  {k:passName(1),
    role:'실제로 만들어질 영상이 지루하거나 어색해질 지점을 찾습니다.',
    ask:'당신은 정보형 유튜브 영상의 연출 감독입니다.\n' +
        '[검수 대상]대로 영상을 만들었을 때 시청자가 이탈할 지점을 찾으세요.\n\n' +
@@ -981,8 +1029,8 @@ function normContent(r, n){
 // 집필 → 1차 검수 → 2차 검수 → 반영. 중간에 사람이 누를 것은 없다.
 
 var STEPS = ['클로드가 프롬프트를 씁니다',
-             '1차 검수 — 사실과 규정',
-             '2차 검수 — 연출과 리듬',
+             '1차 검수 — ' + (LOCAL && LOCAL.reviewer1 ? LOCAL.reviewer1 + ' · 사실과 규정' : '사실과 규정'),
+             '2차 검수 — ' + (LOCAL && LOCAL.reviewer2 ? LOCAL.reviewer2 + ' · 연출과 리듬' : '연출과 리듬'),
              '지적을 반영해 다시 씁니다'];
 
 function pipeUI(step, msg){
@@ -1008,11 +1056,11 @@ function runPipeline(){
   pipeBusy(true); pipeUI(0, '2~3분 걸립니다. 이 화면을 열어 두세요.');
   save(); renderReview();
 
-  function ask(input){
-    return SAMPLE.json(input, {modelTier:'default', cache:false, signal:revCtl.signal});
+  function ask(input, role){
+    return SAMPLE.json(input, {modelTier:'default', cache:false, signal:revCtl.signal, role:role});
   }
   function review(i, target, prior){
-    return ask(reviewInput(i, v.spec, target, prior)).then(function(r){
+    return ask(reviewInput(i, v.spec, target, prior), 'review' + (i+1)).then(function(r){
       var f = findings(r);
       return {verdict:(r && r.verdict === 'pass' && !f.length) ? 'pass' : 'fix',
               summary:String((r && r.summary) || '').slice(0, 240), items:f};
@@ -1024,7 +1072,7 @@ function runPipeline(){
   function bump(){ S.settings.reviewCalls = (S.settings.reviewCalls|0) + 1; }
   function alive(){ var c = cur(); return c && c.id === v.id; }
 
-  ask(writeInput(v.spec, null)).then(function(r){
+  ask(writeInput(v.spec, null), 'write').then(function(r){
     if (!alive()) throw {code:'cancelled'};
     var c = normContent(r, n);
     if (!c || c.빈장면 > n / 2) throw {code:'invalid_json'};
@@ -1045,7 +1093,7 @@ function runPipeline(){
           return;
         }
         pipeUI(3, '고칠 곳 ' + fixes.length + '개를 반영합니다');
-        return ask(writeInput(v.spec, fixes)).then(function(r2){
+        return ask(writeInput(v.spec, fixes), 'write').then(function(r2){
           if (!alive()) throw {code:'cancelled'};
           var c2 = normContent(r2, n);
           if (c2 && c2.빈장면 <= n / 2){ c2.낡음 = false; v.content = c2; }
@@ -1086,7 +1134,7 @@ function runReview(){
 
   function step(i, prior){
     return SAMPLE.json(reviewInput(i, v.spec, target, prior),
-      {modelTier:'default', cache:false, signal:revCtl.signal}
+      {modelTier:'default', cache:false, signal:revCtl.signal, role:'review' + (i+1)}
     ).then(function(r){
       var f = findings(r);
       return {verdict:(r && r.verdict === 'pass' && !f.length) ? 'pass' : 'fix',
@@ -1195,7 +1243,8 @@ function renderCredits(){
   var made = S.videos.filter(function(v){ return v.made && v.made.seconds; }).length;
   var left = Math.max(0, S.settings.credTotal - used);
   document.getElementById('credTiles').innerHTML = [
-    {k:'보유', v:one(S.settings.credTotal), f:'헤이젠 요금제 기준'},
+    {k:'보유', v:REMOTE_QUOTA == null ? one(S.settings.credTotal) : one(REMOTE_QUOTA),
+     f:REMOTE_QUOTA == null ? '헤이젠 요금제 기준 (직접 입력)' : '헤이젠에서 읽어 온 실제 잔액'},
     {k:'사용', v:one(used), f:made ? made + '편 · 편당 평균 ' + one(used/made) : '아직 기록 없음'},
     {k:'남음', v:one(left), f:S.settings.credTotal > 0 ? Math.round(left/S.settings.credTotal*100) + '% 남음' : '—'},
     {k:'예정', v:one(plan), f:'아직 안 만든 영상에 필요한 양'}
@@ -1342,8 +1391,12 @@ function renderMake(){
         '<p class="tip" style="margin:0 0 10px">복사한 뒤 헤이젠 Video Agent 입력칸에 그대로 붙여넣으세요.' +
           (!v.content ? '<br><b>아직 뼈대입니다.</b> 기획 탭에서 「프롬프트 생성하기」를 먼저 누르세요.'
             : (rv < 2 ? '<br><b>검수를 아직 안 받았습니다.</b>' : '')) + '</p>' +
-        '<div class="row"><button class="btn go" id="mkCopy">프롬프트 복사</button>' +
-        '<a class="btn" href="https://app.heygen.com/" target="_blank" rel="noopener">헤이젠 열기 ↗</a></div>' +
+        '<div class="row">' +
+          (LOCAL && LOCAL.heygen ? '<button class="btn go" id="mkGo">영상 만들기</button>' : '') +
+          '<button class="btn' + (LOCAL && LOCAL.heygen ? '' : ' go') + '" id="mkCopy">프롬프트 복사</button>' +
+          '<a class="btn" href="https://app.heygen.com/" target="_blank" rel="noopener">헤이젠 열기 ↗</a>' +
+        '</div>' +
+        '<p class="tip" id="mkProg">' + esc(mkMsg) + '</p>' +
       '</div>' +
       '<div class="panel"><h4 style="font-size:12.5px;margin-bottom:8px">나온 영상 기록</h4>' +
         '<p class="tip" style="margin:0">헤이젠이 실제로 뽑아 준 길이를 초로 적으면 크레딧이 차감됩니다.</p>' +
@@ -1364,6 +1417,20 @@ function renderMake(){
   document.getElementById('mkOut').onclick = function(){ this.select(); };
   document.getElementById('mkCopy').onclick = function(){
     copy(buildPrompt(sp, v.content || null), '프롬프트를 복사했습니다'); };
+
+  var go = document.getElementById('mkGo');
+  if (go) go.onclick = function(){
+    if (!v.content && !confirm('아직 클로드가 쓴 대본이 아닙니다.\n기획 탭에서 「프롬프트 생성하기」를 먼저 누르는 편이 좋습니다.\n\n그래도 만들까요? 헤이젠 크레딧이 실제로 차감됩니다.')) return;
+    go.disabled = true; mkSay('헤이젠에 보내는 중입니다…');
+    fetch('/api/heygen/create', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:buildPrompt(sp, v.content || null), title:v.title})})
+      .then(function(r){ return r.json(); }).then(function(j){
+        if (j.error){ go.disabled = false; mkSay('보내지 못했습니다 — ' + j.error + (j.hint ? ' / ' + j.hint : '')); return; }
+        mkSay('만들기 시작했습니다. 영상 번호 ' + j.id + ' · 보통 3~10분 걸립니다.');
+        toast('헤이젠이 만들기 시작했습니다');
+        mkPoll(j.id, LENS[sp.len]);
+      }).catch(function(e){ go.disabled = false; mkSay('보내지 못했습니다 — ' + e.message); });
+  };
   document.getElementById('mkSave').onclick = function(){
     var s = Math.max(1, +document.getElementById('mkSec').value || LENS[sp.len]);
     v.made = {seconds:s, url:document.getElementById('mkUrl').value.trim(), at:Date.now()};
@@ -1639,6 +1706,76 @@ document.getElementById('noteList').onclick = function(e){
   };
 });
 
+// ── PC 제작실에서만 도는 것들 ──────────────────────────────
+var KEY_FIELDS = [['kHeygen','heygen'],['kClaude','claude'],['kOpenai','openai'],
+                  ['kCreate','heygenCreate'],['kStatus','heygenStatus'],['kBody','heygenBody']];
+
+function loadKeys(){
+  fetch('/api/keys').then(function(r){ return r.json(); }).then(function(j){
+    KEY_FIELDS.forEach(function(f){
+      var el = document.getElementById(f[0]);
+      if (el && typeof j[f[1]] === 'string') el.value = j[f[1]];
+    });
+    var n = ['heygen','claude','openai'].filter(function(k){ return j.has && j.has[k]; }).length;
+    document.getElementById('keyState').textContent =
+      n === 3 ? '세 개 다 들어 있습니다.'
+      : n ? n + '개 들어 있습니다. 나머지도 넣으면 전 과정이 자동으로 돕니다.'
+      : '아직 하나도 없습니다.';
+  }).catch(function(){});
+}
+
+function saveKeysNow(){
+  var body = {};
+  KEY_FIELDS.forEach(function(f){
+    var el = document.getElementById(f[0]);
+    if (el) body[f[1]] = el.value;
+  });
+  document.getElementById('keyState').textContent = '저장 중…';
+  fetch('/api/keys', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)}).then(function(r){ return r.json(); }).then(function(j){
+    if (j && j.ok){
+      document.getElementById('keyState').textContent = '저장했습니다. 화면을 새로 불러옵니다…';
+      toast('키를 저장했습니다');
+      loadKeys();
+      // 키가 늘면 쓸 수 있는 기능도 늘어난다. 화면을 다시 받아야 그게 보인다.
+      if (dirty) flush();
+      setTimeout(function(){ location.reload(); }, 1200);
+    } else {
+      document.getElementById('keyState').textContent = '저장하지 못했습니다.';
+    }
+  }).catch(function(e){
+    document.getElementById('keyState').textContent = '저장하지 못했습니다 — ' + e.message;
+  });
+}
+
+var REMOTE_QUOTA = null, mkMsg = '', mkTimer = null;
+function mkSay(t){ mkMsg = t; var el = document.getElementById('mkProg'); if (el) el.textContent = t; }
+
+function mkPoll(id, fallbackSec){
+  clearTimeout(mkTimer);
+  mkTimer = setTimeout(function(){
+    fetch('/api/heygen/status?id=' + encodeURIComponent(id))
+      .then(function(r){ return r.json(); }).then(function(j){
+        if (j.error){ mkSay('상태 확인 실패 — ' + j.error); return; }
+        var st = String(j.status || '').toLowerCase();
+        if (st === 'completed' || st === 'success' || st === 'done'){
+          var v = S.videos.filter(function(x){ return x.id === mkId; })[0];
+          if (v){
+            v.made = {seconds:Math.max(1, j.duration || fallbackSec), url:j.url || '', at:Date.now()};
+            if ((v.stage|0) < 1) v.stage = 1;
+            save(); renderAll();
+          }
+          mkSay('영상이 나왔습니다.'); toast('영상이 완성됐습니다'); return;
+        }
+        if (st === 'failed' || st === 'error'){
+          mkSay('헤이젠이 실패했습니다 — ' + (j.error || '사유 없음')); return;
+        }
+        mkSay('만드는 중입니다… (' + (j.status || '대기') + ') 이 창을 열어 두세요.');
+        mkPoll(id, fallbackSec);
+      }).catch(function(e){ mkSay('상태 확인 실패 — ' + e.message); });
+  }, 10000);
+}
+
 window.addEventListener('beforeunload', function(){ if (dirty) flush(); });
 
 /* ══ 시작 ══════════════════════════════════════════════════ */
@@ -1667,9 +1804,19 @@ function normalize(d){
 function boot(){
   document.getElementById('credTotal').value = S.settings.credTotal;
   document.getElementById('credSec').value = S.settings.credSec;
+  if (LOCAL){
+    document.getElementById('keysBox').hidden = false;
+    document.getElementById('keySave').onclick = saveKeysNow;
+    loadKeys();
+    if (LOCAL.heygen){
+      fetch('/api/heygen/quota').then(function(r){ return r.json(); }).then(function(j){
+        if (j && typeof j.remaining === 'number'){ REMOTE_QUOTA = j.remaining; renderCredits(); }
+      }).catch(function(){});
+    }
+  }
   if (!S.videos.length) draft.kw = REF.주제후보[0] || '';
   renderAll(); renderRef();
-  saveNote(ART ? '저장됨' : '');
+  saveNote(ART ? (LOCAL ? '이 PC 에 저장됨' : '저장됨') : '');
 }
 
 // 저장된 데이터 파일을 먼저, 없으면 이 브라우저에 남은 사본을 쓴다.
@@ -1683,7 +1830,8 @@ fetch('data/store.json', {cache:'no-store'})
   });
 
 if (window.claude && window.claude.use){
-  window.claude.use('artifact').then(function(a){ ART = a || null; saveNote(ART ? '저장됨' : ''); },
+  window.claude.use('artifact').then(function(a){
+    ART = a || null; saveNote(ART ? (LOCAL ? '이 PC 에 저장됨' : '저장됨') : ''); },
     function(){});
   window.claude.use('sample').then(function(f){
     SAMPLE = f || null;

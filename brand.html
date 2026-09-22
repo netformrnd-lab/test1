@@ -1335,6 +1335,114 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pe-rl .rc input.ar:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px var(--blue-soft)}
 
+/* 🖨 인쇄 — 한 장이 종이 한 쪽이 됩니다 */
+.bk-print{max-width:none}
+.bk-print .pp{display:none}            /* 화면에서는 안 보입니다 (인쇄용) */
+@media print{
+  /* 왼쪽 차림표 · 위쪽 줄 · 단추는 종이에 필요 없습니다 */
+  .side,.topbar,.st-mode,.pt-get,.pt-box,.pw-gap,.ob-at,.pw-cards,
+  .bk-nav,.bk-th,.bk-hint,.bk-ft,.pw-top,#usersLayer,#errBar,.toast,
+  .fd-m,.tidybar,.pm-box,
+  /* 브랜드 머리(이름·수정·삭제) 와 탭 줄은 화면의 것입니다 */
+  .bhead,.tabs,.sec-bar,.ob-todo,.clashbar,.pw-tl{display:none!important}
+  /* 장 안에 있는 단추도 종이에는 필요 없습니다 (✏️ 고치기 · ＋ 넣기 …) */
+  .bk-print button,.bk-print .ob-q,.bk-print .pw-chm,
+  .bk-print .ct-ed,.bk-print .cd-non,.bk-print .non{display:none!important}
+  /* 목차와 큰 숫자는 <<단추로 만들어 두었을 뿐>> 표지의 알맹이입니다.
+     종이책에 목차가 없으면 그건 책이 아닙니다 — 글자로 되살립니다. */
+  .bk-print .pw-toc button,.bk-print .pw-nums button{display:flex!important;
+    border:none!important;background:none!important;box-shadow:none!important;
+    padding:0!important;cursor:default}
+  .bk-print .pw-nums button{flex-direction:column;gap:2px}
+  .bk-print .pw-toc li{page-break-inside:avoid}
+  .layout{display:block!important}
+  main{margin:0!important;padding:0!important;width:auto!important}
+  .panel{border:none!important;box-shadow:none!important;background:#fff!important}
+  .tabbody{padding:0!important}
+  body{background:#fff!important}
+  /* 접어 둔 글은 종이에서는 다 펴 둡니다 — 종이는 누를 수 없습니다 */
+  .fold .fd-b{max-height:none!important;-webkit-mask-image:none!important;
+    mask-image:none!important}
+  details{display:block!important}
+  details > *{display:revert!important}
+  .bk-print .pp{display:block!important;page-break-after:always;break-after:page;
+    padding:0 0 10mm}
+  .bk-print .pp:last-child{page-break-after:auto;break-after:auto}
+  .bk-print .pph{display:flex;align-items:center;gap:8px;margin-bottom:7mm;
+    padding-bottom:2.5mm;border-bottom:1px solid #d4d7dd;
+    font-size:9pt;font-weight:700;color:#5a5e66}
+  .bk-print .pph i{margin-left:auto;font-style:normal;font-family:var(--f-mono);
+    color:#16181d}
+  .bk-print .ppf{display:flex;align-items:center;gap:8px;margin-top:6mm;
+    padding-top:2.5mm;border-top:1px solid #e3e5ea;font-size:8.5pt;color:#8a8f98}
+  .bk-print .ppf i{margin-left:auto;font-style:normal;font-family:var(--f-mono)}
+  /* 색과 배경을 그대로 (브랜드 색이 회색으로 빠지지 않게) */
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  a[href]:after{content:''!important}
+  @page{size:A4;margin:14mm 13mm}
+}
+
+/* 📚 책으로 보기 — 한 장씩 넘겨 봅니다 (카탈로그 넘기듯) */
+.pw-bk .pw-top{display:flex;align-items:center;gap:10px}
+.pw-bk .bk-n{margin-left:auto;font-family:var(--f-mono);font-size:12px;font-weight:700;
+  color:var(--text-muted);letter-spacing:.04em}
+.bk-wrap{display:flex;align-items:stretch;gap:12px;margin-top:10px}
+/* 넘기는 단추는 글 <<바깥>> 에 둡니다 — 글 위에 겹치면 고치려다 넘어갑니다 */
+.bk-nav{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:4px;border:1px solid var(--border);border-radius:12px;
+  background:var(--bg-secondary);font-family:inherit;font-size:19px;font-weight:700;
+  color:var(--text-muted);cursor:pointer;transition:.16s var(--ease)}
+.bk-nav span{font-size:11px;font-weight:700;letter-spacing:-.01em}
+.bk-nav:hover:not(:disabled){background:var(--bg-card);border-color:var(--ink);
+  color:var(--text-primary);box-shadow:var(--shadow-sm)}
+.bk-nav:disabled{opacity:.28;cursor:default}
+/* 한 장 — 종이처럼 */
+.bk-pg{flex:1 1 auto;min-width:0;position:relative;border:1px solid var(--border);
+  border-radius:14px;background:var(--bg-card);box-shadow:var(--shadow-md);
+  padding:26px 30px 14px;overflow:hidden}
+.bk-pg::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;
+  background:linear-gradient(90deg,rgba(0,0,0,.07),transparent)}
+.bk-in{min-height:340px}
+.bk-in > .ob:first-child{margin-top:0}
+.bk-in > .pw-cov{margin:0}
+.bk-ft{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:9px;
+  border-top:1px solid var(--border);font-size:11px;color:var(--text-muted)}
+.bk-ft span{font-weight:700}
+.bk-ft i{margin-left:auto;font-family:var(--f-mono);font-style:normal;font-weight:700}
+@keyframes bkFwd{from{opacity:0;transform:translateX(16px) rotateY(-2deg)}
+                 to{opacity:1;transform:none}}
+@keyframes bkBwd{from{opacity:0;transform:translateX(-16px) rotateY(2deg)}
+                 to{opacity:1;transform:none}}
+.bk-pg.fwd{animation:bkFwd .26s var(--ease)}
+.bk-pg.bwd{animation:bkBwd .26s var(--ease)}
+@media(prefers-reduced-motion:reduce){ .bk-pg.fwd,.bk-pg.bwd{animation:none} }
+.bk-hint{margin:10px 0 0;text-align:center;font-size:11.5px;color:var(--text-muted)}
+.bk-hint b{font-family:var(--f-mono);font-weight:700;color:var(--text-secondary)}
+/* 아래의 작은 장들 — 어디쯤인지 · 어디로 갈지 */
+.bk-th{display:flex;gap:8px;margin-top:14px;padding:4px 2px 8px;overflow-x:auto}
+.bk-th .t1{flex:0 0 118px;display:flex;flex-direction:column;gap:3px;min-width:0;
+  padding:9px 10px;border:1px solid var(--border);border-radius:9px;
+  background:var(--bg-secondary);cursor:pointer;text-align:left;font-family:inherit;
+  transition:.16s var(--ease)}
+.bk-th .t1:hover{border-color:var(--ink);background:var(--bg-card)}
+.bk-th .t1.on{border-color:var(--ink);background:var(--bg-card);
+  box-shadow:var(--shadow-sm)}
+.bk-th .t1 .tn{font-family:var(--f-mono);font-size:9.5px;font-weight:700;
+  letter-spacing:.06em;color:var(--text-muted)}
+.bk-th .t1.on .tn{color:var(--blue)}
+.bk-th .t1 .te{font-size:14px;line-height:1}
+.bk-th .t1 .tt{font-size:11.5px;font-weight:800;color:var(--text-primary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bk-th .t1 .tx{font-size:10px;line-height:1.45;color:var(--text-muted);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  word-break:keep-all}
+@media(max-width:720px){
+  .bk-wrap{flex-wrap:wrap}
+  .bk-pg{flex:1 1 100%;order:1;padding:20px 17px 12px}
+  .bk-nav{flex:1 1 0;order:2;flex-direction:row;padding:9px 0;font-size:16px}
+  .bk-in{min-height:260px}
+}
+
 /* 📥 문서에서 가져오기 — 갈래 셋이 어디로 들어가는지까지 */
 .pt-get{border:1px solid var(--blue);border-radius:12px;background:var(--bg-card);
   padding:14px 16px 13px;margin:0 0 14px}
@@ -4013,7 +4121,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260922-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260922-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18489,7 +18597,14 @@ let peAt = '';                     // '' 이면 전체
 /* 읽기 화면도 같습니다 — 온보딩처럼 단을 골라 봅니다.
    소개 아홉 단을 세로로 다 펴 두면 ❶ 의 글만으로도 한 화면이 넘습니다. */
 let pwAt = '';
+/* 책으로 보는 중에 목차·큰 숫자를 누르면 그 <<장>> 으로 넘어갑니다.
+   책을 닫고 그 단만 보여 주면 「넘기다 말고 왜 나가지」 가 됩니다. */
+let pwKeys = [];         // 지금 책의 장 차례 (표지는 '')
 function setPwAt(k){
+  if(pwBook){
+    const i = pwKeys.indexOf(k);
+    if(i >= 0){ pwGoTo(i); return; }
+  }
   pwAt = (pwAt === k ? '' : k);
   /* 누르면 화면이 밑으로 내려가지 않게 — 고른 단이 맨 위에 서야 합니다 */
   render(); window.scrollTo({ top: 0 });
@@ -20491,15 +20606,84 @@ document.addEventListener('dblclick', e => {
   edStart(el);
 });
 
+/* ═══════════════ 📚 책으로 보기 ══════════════════════════════════
+   소개는 아홉 단짜리 문서입니다. 죽 내려 읽는 것도 되지만, 신입에게
+   <<한 장씩 넘겨 보여 주는>> 쪽이 훨씬 잘 읽힙니다 — 한 화면에 한 가지만
+   있으니 어디까지 읽었는지가 몸으로 남습니다. 카탈로그를 넘겨 보는 것과
+   같은 모양입니다.
+
+   넘기는 단추를 글 <<위에>> 겹쳐 두지 않았습니다. 겹쳐 두면 글을 눌러
+   고치려다 장이 넘어갑니다. 글 바깥 양옆에 세웁니다.
+   ================================================================= */
+let pwBook = false;      // 책으로 보고 있나
+let pwPg   = 0;          // 몇 장째
+let pwDir  = 1;          // 어느 쪽으로 넘겼나 (넘어가는 모양을 위해)
+let pwPgN  = 1;          // 모두 몇 장인지 (넘기기를 가둘 때 씁니다)
+let pwPrint = false;     // 인쇄용으로 한 번만 통째로 펴는 중인가
+
+/* 🖨 인쇄 — 보고 있는 한 장이 아니라 <<처음부터 끝까지>> 를 냅니다.
+   한 장이 종이 한 쪽이 되게 끊어 둡니다. 브라우저의 인쇄 창에서
+   「PDF 로 저장」 을 고르면 그대로 PDF 가 됩니다. */
+function pathPrint(){
+  if(pwPrint) return;
+  pwPrint = true;
+  render();
+  const back = () => {
+    if(!pwPrint) return;
+    pwPrint = false; render();
+  };
+  window.addEventListener('afterprint', back, { once:true });
+  /* afterprint 를 안 주는 브라우저가 있어 시간으로도 한 번 되돌립니다 */
+  setTimeout(() => {
+    try{ window.print(); }catch(e){}
+    setTimeout(back, 1500);
+  }, 80);
+}
+
+function setPwBook(on){
+  pwBook = !!on;
+  if(pwBook){ pwAt = ''; pwPg = 0; pwDir = 1; }
+  render();
+  if(pwBook) window.scrollTo({ top:0, behavior:'smooth' });
+}
+function pwGo(d){
+  const to = Math.min(Math.max(0, pwPg + d), Math.max(0, pwPgN - 1));
+  if(to === pwPg) return;
+  pwDir = d > 0 ? 1 : -1;
+  pwPg = to;
+  render();
+}
+function pwGoTo(i){
+  const to = Math.min(Math.max(0, Number(i) || 0), Math.max(0, pwPgN - 1));
+  pwDir = to >= pwPg ? 1 : -1;
+  pwPg = to;
+  render();
+}
+/* 글을 벗겨 몇 글자만 — 작은 장 그림에 넣을 맛보기입니다 */
+function pwPlain(html, cut){
+  let t = String(html || '').replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+                            .replace(/<[^>]+>/g, ' ');
+  t = t.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+       .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  t = t.replace(/\s+/g, ' ').trim();
+  return t.length > cut ? t.slice(0, cut) + '…' : t;
+}
+
 /* ── 화면 ── */
 function pathViewHtml(b){
   const bid = jsq(b.id);
   const bar = '<div class="st-mode">'
-    + '<button class="' + (pathEdit ? '' : 'on') + '" onclick="setPathEdit(0)">📖 읽기</button>'
-    + '<button class="' + (pathEdit ? 'on' : '') + '" onclick="setPathEdit(1)">✏️ 고치기</button>'
+    + '<button class="' + (!pathEdit && !pwBook ? 'on' : '') + '" '
+      + 'onclick="setPwBook(0);setPathEdit(0)">📖 읽기</button>'
+    /* 📚 책 — 한 장씩 넘겨 봅니다. 신입에게 보여 줄 때 쓰는 자리입니다 */
+    + '<button class="' + (!pathEdit && pwBook ? 'on' : '') + '" '
+      + 'onclick="setPathEdit(0);setPwBook(1)">📚 책으로</button>'
+    + '<button class="' + (pathEdit ? 'on' : '') + '" '
+      + 'onclick="setPwBook(0);setPathEdit(1)">✏️ 고치기</button>'
     + '<span class="hint">'
       + (pathEdit ? '단을 골라 고칩니다 — 빈 단은 읽기 화면에 안 나옵니다'
-                  : '✎ 글을 <b>누르면</b> 그 자리에서 바로 고쳐집니다')
+          : pwBook ? '한 장씩 넘겨 봅니다 — 글은 그대로 눌러 고칩니다'
+                   : '✎ 글을 <b>누르면</b> 그 자리에서 바로 고쳐집니다')
       + '</span>'
     /* 전에는 여기 단추가 다섯이었습니다 — 「기획서 올리기」 「지침서 글로
        쓰기」 「지침서·기록부 파일」 「기획서 양식」 「글로 복사」.
@@ -20508,6 +20692,10 @@ function pathViewHtml(b){
        「무엇이고 · 어디로 들어가는지」 와 함께 나옵니다. */
     + '<button class="btn sm primary' + (pathGetTo === b.id ? ' on' : '') + '" '
       + 'onclick="pathGetOpen(\'' + bid + '\')">📥 문서에서 가져오기</button>'
+    /* 인쇄 창에서 「PDF 로 저장」 을 고르면 그대로 PDF 가 됩니다 */
+    + '<button class="btn sm" onclick="pathPrint()" '
+      + 'title="처음부터 끝까지 한 장씩 끊어 냅니다 — 인쇄 창에서 PDF 로 저장해도 됩니다">'
+      + '🖨 인쇄 · PDF</button>'
     + '<button class="btn sm" onclick="pathCopy(\'' + bid + '\')">📋 글로 복사</button>'
     + '</div>'
     + pathGetHtml(b)
@@ -21338,6 +21526,64 @@ function pathReadHtml(b){
             + '<b>' + x[1] + ' ' + esc(x[2]) + '</b></button></li>').join('')
           + '</ol>' : '')
     + '</div>';
+
+  /* ── 📚 책으로 보기 ──────────────────────────────────────────
+     표지 한 장 + 단 하나에 한 장. 넘기는 단추는 글 바깥 양옆에 둡니다
+     (글 위에 겹치면 고치려다 장이 넘어갑니다). 밑에는 작은 장 그림을
+     깔아 어디쯤인지 · 어디로 갈지를 한눈에 보게 합니다.
+     ------------------------------------------------------------ */
+  /* 🖨 인쇄 — 한 장이 종이 한 쪽이 되게 끊어 냅니다. 화면에서 보던
+     모양(표지 · 01 … 09)을 그대로 종이로 옮깁니다. */
+  if(pwPrint){
+    const PP = [['📕', '표지', cover || hero]]
+      .concat(SECS.map((x, i) => [x[1], x[2], x[3], i + 1]));
+    return '<div class="pw pw-doc bk-print">'
+      + PP.map((x, i) => '<section class="pp">'
+          + '<div class="pph">' + esc(b.icon || '🏷️') + ' ' + esc(b.name)
+            + ' — 브랜드 소개<i>' + (i === 0 ? '표지'
+                : String(i).padStart(2, '0') + ' ' + esc(x[1])) + '</i></div>'
+          + '<div class="ppb">' + x[2] + '</div>'
+          + '<div class="ppf"><span>' + esc(b.name) + ' · 브랜드 소개</span>'
+            + '<i>' + (i + 1) + ' / ' + PP.length + '</i></div>'
+        + '</section>').join('')
+      + '</div>';
+  }
+
+  if(pwBook){
+    const PG = [['', '📕', '표지', cover || hero]]
+      .concat(SECS.map((x, i) => [x[0], x[1], x[2], x[3], i + 1]));
+    pwKeys = PG.map(x => x[0]);
+    pwPgN  = PG.length;
+    const at = Math.min(Math.max(0, pwPg), PG.length - 1);
+    const cur = PG[at];
+    const nm = (x, i) => (i === 0 ? '표지' : String(i).padStart(2, '0') + ' ' + x[2]);
+    return '<div class="pw pw-bk">'
+      + '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
+        + esc(b.name) + ' — 브랜드 소개</div>'
+        + '<div class="bk-n">' + (at + 1) + ' / ' + PG.length + '</div></div>'
+      + '<div class="bk-wrap">'
+        + '<button class="bk-nav" ' + (at <= 0 ? 'disabled' : '')
+          + ' onclick="pwGo(-1)" title="앞 장 (← 키)">‹<span>이전</span></button>'
+        + '<div class="bk-pg ' + (pwDir > 0 ? 'fwd' : 'bwd') + '" id="bkPg">'
+          + '<div class="bk-in">' + cur[3] + '</div>'
+          + '<div class="bk-ft"><span>' + esc(nm(cur, at)) + '</span>'
+            + '<i>' + (at + 1) + ' / ' + PG.length + '</i></div>'
+        + '</div>'
+        + '<button class="bk-nav" ' + (at >= PG.length - 1 ? 'disabled' : '')
+          + ' onclick="pwGo(1)" title="다음 장 (→ 키)"><span>다음</span>›</button>'
+      + '</div>'
+      + '<div class="bk-hint">👆 양옆 단추나 <b>← →</b> 키로 넘깁니다 · '
+        + '글은 그대로 <b>눌러서</b> 고칩니다</div>'
+      + '<div class="bk-th">' + PG.map((x, i) =>
+          '<button class="t1' + (i === at ? ' on' : '') + '" onclick="pwGoTo(' + i + ')" '
+          + 'title="' + esc(nm(x, i)) + '">'
+          + '<span class="tn">' + (i === 0 ? '표지' : String(i).padStart(2, '0')) + '</span>'
+          + '<span class="te">' + x[1] + '</span>'
+          + '<span class="tt">' + esc(x[2]) + '</span>'
+          + '<span class="tx">' + esc(pwPlain(x[3], 46)) + '</span>'
+          + '</button>').join('') + '</div>'
+      + '</div>';
+  }
 
   return '<div class="pw' + (pwOn ? '' : ' pw-doc') + '">'
     + '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
@@ -24725,6 +24971,15 @@ document.addEventListener('keydown', e => {
   const el = document.activeElement;
   const typing = el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
   if(typing) return;
+  /* 📚 책으로 보는 중 — 화살표로 넘깁니다. 고치는 칸이 열려 있으면
+     그 칸의 화살표가 먼저입니다 (위에서 이미 걸러집니다). */
+  if(pwBook && !document.getElementById('edBox')
+     && !e.ctrlKey && !e.metaKey && !e.altKey){
+    if(e.key === 'ArrowLeft'){ e.preventDefault(); pwGo(-1); return; }
+    if(e.key === 'ArrowRight'){ e.preventDefault(); pwGo(1); return; }
+    if(e.key === 'Home'){ e.preventDefault(); pwGoTo(0); return; }
+    if(e.key === 'End'){ e.preventDefault(); pwGoTo(pwPgN - 1); return; }
+  }
   if((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')){
     e.preventDefault();
     if(e.shiftKey) redoStep(); else undoStep();

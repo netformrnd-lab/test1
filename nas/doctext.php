@@ -400,10 +400,25 @@ function pdf_streams($raw, $maxBody, $deadline) {
         $chunk = substr($raw, $from, $e - $from);
         $pos = $e + 9; $n++;
         if ($chunk === '' || strlen($chunk) > 4 * 1024 * 1024) continue;   // 그림 덩어리는 건너뜁니다
+        /* 그림은 아예 건드리지 않습니다. 사진이 든 PDF 에서 JPEG 덩어리를
+           본문인 줄 알고 섞어 버리면, 60KB 짜리 이진 덩어리 안에 우연히
+           「Tj」 가 들어 있어 통과합니다. 그러면 본문이 깨진 기호에 묻혀
+           「글자가 거의 안 읽힙니다」 로 끝납니다 (실제로 그랬습니다). */
+        if (substr($chunk, 0, 3) === "\xFF\xD8\xFF") continue;             // JPEG
+        if (substr($chunk, 0, 4) === "\x89PNG") continue;                   // PNG
+        if (substr($chunk, 0, 2) === 'BM' || substr($chunk, 0, 4) === 'II*'
+            || substr($chunk, 0, 4) === 'MM' . chr(0) . '*') continue;      // BMP · TIFF
         $d = nf_uncompress($chunk);
         if ($d === false) $d = nf_inflate($chunk);
         if ($d === false) $d = nf_inflate(substr($chunk, 2));
-        if ($d === false) $d = $chunk;
+        /* 못 푼 덩어리는 본문이 아닙니다 (본문 스트림은 눌려 있거나 글자입니다).
+           눌리지 않은 본문만 살리려고, 읽을 수 있는 글자가 대부분일 때만 씁니다. */
+        if ($d === false) {
+            $head = substr($chunk, 0, 400);
+            $okn  = strlen(preg_replace('/[^\x09\x0A\x0D\x20-\x7E]/', '', $head));
+            if (strlen($head) < 1 || $okn / strlen($head) < 0.9) continue;
+            $d = $chunk;
+        }
         if (strpos($d, 'Tj') === false && strpos($d, 'TJ') === false) continue;
         $out .= $d;
         if (strlen($out) > $maxBody) break;

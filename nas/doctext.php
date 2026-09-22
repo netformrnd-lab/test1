@@ -436,14 +436,232 @@ function pdf_strings($body, $max) {
     return $txt;
 }
 
+/* ── 한글 PDF ─────────────────────────────────────────────────
+   한글이 든 PDF 는 거의 다 글자를 ( … ) 가 아니라 <0041 0042> 처럼
+   <<번호>> 로 적습니다 (Identity-H). 그 번호가 무슨 글자인지는 문서
+   안의 ToUnicode 표를 봐야 알 수 있습니다. 표를 안 보면 번호만 나오고,
+   그래서 지금까지 한글 PDF 는 「글자가 거의 안 읽힙니다」 로 끝났습니다.
+
+   여기서 하는 일
+     ① 문서 안의 「N 0 obj … endobj」 를 번호별로 훑습니다
+     ② 글꼴마다 달려 있는 ToUnicode 표를 풀어 번호 → 글자로 만듭니다
+     ③ 본문을 읽으며 /F1 Tf 로 글꼴을 따라가고, <…> 는 그 글꼴의
+        표로, ( … ) 는 예전처럼 그대로 읽습니다
+   ------------------------------------------------------------ */
+
+/* 「N 0 obj … endobj」 를 번호 → 알맹이로 */
+function pdf_objs($raw) {
+    $out = []; $pos = 0; $len = strlen($raw); $n = 0;
+    while ($n < 4000 && $pos < $len) {
+        if (!preg_match('/(\d{1,7})\s+(\d{1,5})\s+obj\b/', $raw, $m, PREG_OFFSET_CAPTURE, $pos)) break;
+        $at = $m[0][1]; $num = (int)$m[1][0];
+        $from = $at + strlen($m[0][0]);
+        $end = strpos($raw, 'endobj', $from);
+        if ($end === false) break;
+        $out[$num] = substr($raw, $from, $end - $from);
+        $pos = $end + 6; $n++;
+    }
+    return $out;
+}
+
+/* 객체 알맹이 안의 stream 을 풀어 돌려줍니다 */
+function pdf_stream_body($body) {
+    $s = strpos($body, 'stream');
+    if ($s === false) return '';
+    $from = $s + 6;
+    if (isset($body[$from]) && $body[$from] === "\r") $from++;
+    if (isset($body[$from]) && $body[$from] === "\n") $from++;
+    $e = strpos($body, 'endstream', $from);
+    if ($e === false) return '';
+    $chunk = substr($body, $from, $e - $from);
+    if ($chunk === '') return '';
+    if (strpos($body, 'FlateDecode') === false) return $chunk;   // 안 눌린 것
+    $d = nf_uncompress($chunk);
+    if ($d === false) $d = nf_inflate($chunk);
+    if ($d === false) $d = nf_inflate(substr($chunk, 2));
+    return $d === false ? '' : $d;
+}
+
+/* UTF-16BE 로 적힌 hex 를 글자로 (뒤에 붙는 조합 글자까지 같이) */
+function pdf_hex_utf($hex) {
+    $hex = preg_replace('/[^0-9A-Fa-f]/', '', (string)$hex);
+    if ($hex === '' || strlen($hex) % 4 !== 0) {
+        if ($hex !== '' && strlen($hex) % 2 === 0) $hex = str_pad($hex, 4, '0', STR_PAD_LEFT);
+        else return '';
+    }
+    $bin = @pack('H*', $hex);
+    if ($bin === false || $bin === '') return '';
+    $t = @mb_convert_encoding($bin, 'UTF-8', 'UTF-16BE');
+    return is_string($t) ? $t : '';
+}
+
+/* ToUnicode 표 한 장 → [번호 => 글자] */
+function pdf_cmap($txt) {
+    $map = [];
+    /* <0001> <AC00>  꼴 */
+    if (preg_match_all('/beginbfchar(.*?)endbfchar/s', $txt, $bs)) {
+        foreach ($bs[1] as $blk) {
+            if (preg_match_all('/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/', $blk, $m, PREG_SET_ORDER)) {
+                foreach ($m as $x) {
+                    $c = hexdec($x[1]); $u = pdf_hex_utf($x[2]);
+                    if ($u !== '') $map[$c] = $u;
+                }
+            }
+        }
+    }
+    /* <0001> <0005> <AC00>  ·  <0001> <0003> [<AC00> <AC01> <AC02>] 꼴 */
+    if (preg_match_all('/beginbfrange(.*?)endbfrange/s', $txt, $bs)) {
+        foreach ($bs[1] as $blk) {
+            if (preg_match_all('/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*(\[[^\]]*\]|<[0-9A-Fa-f]+>)/s',
+                               $blk, $m, PREG_SET_ORDER)) {
+                foreach ($m as $x) {
+                    $lo = hexdec($x[1]); $hi = hexdec($x[2]);
+                    if ($hi < $lo || $hi - $lo > 65535) continue;
+                    $dst = trim($x[3]);
+                    if ($dst[0] === '[') {
+                        if (preg_match_all('/<([0-9A-Fa-f]+)>/', $dst, $ds)) {
+                            $i = 0;
+                            foreach ($ds[1] as $h) {
+                                $u = pdf_hex_utf($h);
+                                if ($u !== '') $map[$lo + $i] = $u;
+                                $i++;
+                                if ($lo + $i > $hi) break;
+                            }
+                        }
+                    } else {
+                        $base = trim($dst, '<>');
+                        $b0 = hexdec($base);
+                        for ($i = $lo; $i <= $hi; $i++) {
+                            $u = pdf_hex_utf(sprintf('%04X', $b0 + ($i - $lo)));
+                            if ($u !== '') $map[$i] = $u;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return $map;
+}
+
+/* 글꼴 이름(F1 …) → 번호표. 같은 이름이 여러 장에서 다른 글꼴을 가리키는
+   일은 드물어서, 먼저 나온 것을 씁니다. */
+function pdf_fontmaps($raw, $objs, $deadline) {
+    $byObj = [];      // 글꼴 객체 번호 → 표
+    $byName = [];     // /F1 → 표
+    /* /ToUnicode 를 가진 객체를 먼저 풉니다 */
+    foreach ($objs as $num => $body) {
+        if (microtime(true) > $deadline) break;
+        if (strpos($body, '/ToUnicode') === false) continue;
+        if (!preg_match('/\/ToUnicode\s+(\d+)\s+\d+\s+R/', $body, $m)) continue;
+        $tu = (int)$m[1];
+        if (!isset($objs[$tu])) continue;
+        $cm = pdf_stream_body($objs[$tu]);
+        if ($cm === '') continue;
+        $map = pdf_cmap($cm);
+        if ($map) $byObj[$num] = $map;
+    }
+    if (!$byObj) return [];
+    /* /Font << /F1 4 0 R /F2 9 0 R >> 에서 이름을 이어 줍니다 */
+    if (preg_match_all('/\/Font\s*<<(.*?)>>/s', $raw, $fs)) {
+        foreach ($fs[1] as $blk) {
+            if (preg_match_all('/\/([A-Za-z0-9#._-]+)\s+(\d+)\s+\d+\s+R/', $blk, $m, PREG_SET_ORDER)) {
+                foreach ($m as $x) {
+                    $nm = $x[1]; $on = (int)$x[2];
+                    if (isset($byObj[$on]) && !isset($byName[$nm])) $byName[$nm] = $byObj[$on];
+                }
+            }
+        }
+    }
+    /* 이름을 못 이은 표는 「이름 없는 것」 으로 모아 둡니다 (글꼴이 하나뿐인
+       문서에서 흔합니다) */
+    $rest = [];
+    foreach ($byObj as $on => $map) $rest += $map;
+    return ['byName' => $byName, 'any' => $rest];
+}
+
+/* 번호 묶음(hex)을 표로 풀어 글자로. 표의 번호가 255 를 넘으면 두 바이트씩 */
+function pdf_decode_hex($hex, $map, $two) {
+    $hex = preg_replace('/[^0-9A-Fa-f]/', '', (string)$hex);
+    $step = $two ? 4 : 2;
+    if (strlen($hex) % $step !== 0) $hex = substr($hex, 0, strlen($hex) - (strlen($hex) % $step));
+    $out = '';
+    for ($i = 0; $i < strlen($hex); $i += $step) {
+        $c = hexdec(substr($hex, $i, $step));
+        if (isset($map[$c])) $out .= $map[$c];
+        else if (!$two && $c >= 32 && $c < 127) $out .= chr($c);
+    }
+    return $out;
+}
+
+/* 본문을 읽으며 글꼴을 따라갑니다 */
+function pdf_text_cid($body, $fonts, $max) {
+    $byName = isset($fonts['byName']) ? $fonts['byName'] : [];
+    $any    = isset($fonts['any']) ? $fonts['any'] : [];
+    $cur = $any;
+    $two = true;
+    $setFont = function ($nm) use (&$cur, &$two, $byName, $any) {
+        $cur = isset($byName[$nm]) ? $byName[$nm] : $any;
+        $two = true;
+        if ($cur) { $mx = 0; foreach (array_keys($cur) as $k) { if ($k > $mx) $mx = $k; }
+                    $two = ($mx > 255); }
+    };
+    $out = ''; $len = strlen($body); $i = 0;
+    while ($i < $len && strlen($out) < $max) {
+        $ch = $body[$i];
+        if ($ch === '/') {
+            if (preg_match('/^\/([A-Za-z0-9#._-]+)\s+[\d.]+\s+Tf/', substr($body, $i, 64), $m)) {
+                $setFont($m[1]); $i += strlen($m[0]); continue;
+            }
+            $i++; continue;
+        }
+        if ($ch === '<' && isset($body[$i + 1]) && $body[$i + 1] !== '<') {
+            $e = strpos($body, '>', $i + 1);
+            if ($e === false) break;
+            $out .= pdf_decode_hex(substr($body, $i + 1, $e - $i - 1), $cur, $two);
+            $i = $e + 1; continue;
+        }
+        if ($ch === '(') {
+            $j = $i + 1; $depth = 1; $buf = '';
+            while ($j < $len) {
+                $c = $body[$j];
+                if ($c === '\\') {
+                    $nx = $j + 1 < $len ? $body[$j + 1] : '';
+                    $buf .= ($nx === 'n' || $nx === 'r' || $nx === 't') ? ' ' : $nx;
+                    $j += 2; continue;
+                }
+                if ($c === '(') { $depth++; $buf .= $c; $j++; continue; }
+                if ($c === ')') { $depth--; if ($depth === 0) { $j++; break; } $buf .= $c; $j++; continue; }
+                $buf .= $c; $j++;
+            }
+            $out .= $buf; $i = max($j, $i + 1); continue;
+        }
+        /* 줄이 바뀌는 자리에는 빈칸을 둡니다 — 안 그러면 줄이 다 붙습니다 */
+        if ($ch === 'T' && isset($body[$i + 1])
+            && ($body[$i + 1] === '*' || $body[$i + 1] === 'd' || $body[$i + 1] === 'D')) {
+            $out .= ' '; $i += 2; continue;
+        }
+        if ($ch === ']') { $out .= ''; $i++; continue; }
+        $i++;
+    }
+    return $out;
+}
+
 function pdf_text($file, $max, $deadline = null) {
     if ($deadline === null) $deadline = microtime(true) + 8;
     $raw = @file_get_contents($file, false, null, 0, 12 * 1024 * 1024);
     if ($raw === false) return null;
     $body = pdf_streams($raw, $max * 3, $deadline);
+    if ($body === '') { unset($raw); return ''; }
+    /* ① 먼저 예전 길 — ( … ) 로 적힌 문서는 이게 제일 정확합니다 */
+    $plain = pdf_strings($body, $max);
+    if (text_quality($plain) >= 0.55) { unset($raw); return $plain; }
+    /* ② 글자가 안 읽히면 ToUnicode 표를 보고 다시 읽습니다 (한글 PDF) */
+    $objs = pdf_objs($raw);
+    $fonts = $objs ? pdf_fontmaps($raw, $objs, $deadline) : [];
     unset($raw);
-    if ($body === '') return '';
-    return pdf_strings($body, $max);
+    if (!$fonts) return $plain;
+    $cid = pdf_text_cid($body, $fonts, $max);
+    return (text_quality($cid) > text_quality($plain)) ? $cid : $plain;
 }
 
 /* ---------- 형식에 맞게 글자 뽑기 ---------- */

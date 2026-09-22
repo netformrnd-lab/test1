@@ -199,6 +199,31 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
   font-size:13.5px;font-weight:600;color:var(--text-secondary);
   text-align:left;width:100%;white-space:nowrap;letter-spacing:-.012em}
 .brand-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+/* 📑 묶음마다 목록을 하나 더 — 평소엔 조용히, 그 묶음에 손을 올리면 */
+.pg-new{display:block;width:100%;margin:1px 0 0;padding:5px 11px 5px 24px;
+  border:none;background:transparent;font-family:inherit;font-size:11.5px;
+  font-weight:600;color:var(--text-muted);text-align:left;cursor:pointer;
+  border-radius:var(--r);opacity:.42;transition:.14s var(--ease)}
+.brand-list:hover .pg-new,.pg-new:focus-visible{opacity:1}
+.pg-new:hover{background:var(--bg-hover);color:var(--text-primary)}
+/* 📑 목록 화면 — 탭 옆의 [＋ 탭], 칸의 주소줄, 탭 옮기기 */
+.tab.pg-add{color:var(--text-muted);font-weight:600}
+.tab.pg-add:hover{color:var(--text-primary)}
+.card .pg-u{margin-top:5px;display:flex;align-items:center;gap:6px;min-width:0}
+.card .pg-u a{font-family:var(--f-mono);font-size:11.5px;color:var(--blue);
+  text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .pg-u a:hover{text-decoration:underline}
+.card .pg-u .cd-non{font-size:11.5px;color:var(--text-muted);cursor:pointer;
+  opacity:0;transition:.16s var(--ease)}
+.card:hover .pg-u .cd-non{opacity:.8}
+.card .pg-u .cd-non:hover{opacity:1;color:var(--text-secondary)}
+.card .pg-u .ct-ed{font-size:11px;color:var(--text-muted);cursor:pointer;
+  opacity:0;transition:.16s var(--ease)}
+.card:hover .pg-u .ct-ed{opacity:.75}
+.card .pg-u .ct-ed:hover{opacity:1;color:var(--ink)}
+.card .ca .pg-mv{font-family:inherit;font-size:11px;padding:2px 4px;
+  border:1px solid var(--border);border-radius:6px;background:var(--bg-card);
+  color:var(--text-secondary);max-width:96px}
 .brand-item.on{background:var(--bg-card);border-color:var(--border);
   color:var(--text-primary);box-shadow:var(--shadow-sm);font-weight:700}
 .brand-item .bar{width:3px;height:16px;border-radius:99px;flex-shrink:0;
@@ -234,6 +259,9 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
   border-radius:2px 2px 0 0;background:transparent;transition:.16s var(--ease)}
 .tab:hover{color:var(--text-primary)}
 .tab.on{color:var(--text-primary);font-weight:700}
+/* 보고 있는 탭은 <div> 입니다 (단추가 아니라 이름을 눌러 고치는 자리) */
+div.tab.on{display:inline-flex;align-items:center;cursor:default}
+div.tab.on > span[data-ed]{cursor:pointer}
 .tab.on::after{background:var(--text-primary)}
 .tab .n{font-size:10.5px;font-weight:600;opacity:.6;margin-left:4px;
   font-variant-numeric:tabular-nums}
@@ -3823,6 +3851,7 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="cnt" id="meetCnt"></span>
       </button>
     </div>
+    <div class="brand-list" id="pgList-업무관리"></div>
 
     <div class="side-title" style="margin-top:18px">팀운영</div>
     <div class="brand-list">
@@ -3842,6 +3871,7 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="cnt" id="blogCnt"></span>
       </button>
     </div>
+    <div class="brand-list" id="pgList-팀운영"></div>
 
     <div class="side-title" style="margin-top:18px">기록 · 설정</div>
     <div class="brand-list">
@@ -3851,6 +3881,7 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="cnt" id="trashCnt"></span>
       </button>
     </div>
+    <div class="brand-list" id="pgList-기록 · 설정"></div>
   </aside>
   <main id="main"></main>
 </div>
@@ -3929,7 +3960,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260922-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260922-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4728,6 +4759,7 @@ function render(){
   else if(view === 'costs') renderCosts();
   else if(view === 'blog') renderBlog();
   else if(view === 'trash') renderTrash();
+  else if(view === 'page') renderPage();
   else if(!currentBrandId) renderHome();
   else renderBrand();
   restoreUI(snap);
@@ -4751,6 +4783,252 @@ function closeNav(){
 }
 
 /* 브랜드와 상관없는 화면(회의록·달력)으로 갑니다 */
+/* ═══════════════ 📑 손수 만드는 목록 ═════════════════════════════
+   왼쪽 묶음(업무관리 · 팀운영 · 기록·설정)은 우리가 정해 둔 줄만
+   있었습니다. 팀이 실제로 쓰는 것은 그때그때 생기는데, 새 줄 하나를
+   넣으려면 이 파일을 고쳐야 했습니다.
+
+   이제 묶음마다 [＋ 목록] 이 있고, 만든 목록은 그 자리에 섭니다.
+   목록 안은 <<탭>> 으로 또 나뉩니다 — 「AI 모음」 안에 프롬프트 · 도구 ·
+   쓰는 법이 섞여 있으면 찾는 데 시간이 걸립니다.
+     목록 → 탭 → 칸
+   ================================================================= */
+const PAGE_GROUPS = ['업무관리', '팀운영', '기록 · 설정'];
+const PAGE_HUES = ['var(--blue)', 'var(--purple)', 'var(--green)', 'var(--orange)',
+                   'var(--cyan)', 'var(--red)', 'var(--amber,#f59e0b)'];
+let pageAt = '';          // 보고 있는 목록
+let pageTab = {};         // 목록마다 보고 있는 탭 (id → tabId)
+
+function pagesOf(){
+  if(!Array.isArray(data.pages)) data.pages = [];
+  return data.pages;
+}
+function pageFind(id){ return pagesOf().find(x => x.id === id) || null; }
+function pageTabsOf(pg){
+  if(!pg) return [];
+  if(!Array.isArray(pg.tabs)) pg.tabs = [];
+  return pg.tabs;
+}
+function pageItemsOf(pg){
+  if(!pg) return [];
+  if(!Array.isArray(pg.items)) pg.items = [];
+  return pg.items;
+}
+/* 지금 보고 있는 탭 — 지운 탭을 보고 있었으면 첫 탭으로 돌아옵니다 */
+function pageTabAt(pg){
+  const ts = pageTabsOf(pg);
+  if(!ts.length) return '';
+  const w = pageTab[pg.id];
+  return ts.some(t => t.id === w) ? w : ts[0].id;
+}
+function setPageTab(pid, tid){ pageTab[pid] = tid; render(); }
+function goPage(id){
+  closeNav(); clearSearchQuietly();
+  view = 'page'; pageAt = id; currentBrandId = null;
+  render(); window.scrollTo({ top:0, behavior:'smooth' });
+}
+function pageAdd(group){
+  const pg = { id: uid('pg'), name: '새 목록', icon: '📑', group: group,
+               color: PAGE_HUES[pagesOf().length % PAGE_HUES.length],
+               tabs: [{ id: uid('pt'), name: '전체' }], items: [] };
+  pagesOf().push(pg);
+  markDirtyAll();
+  goPage(pg.id);
+  /* 만들자마자 이름 칸을 엽니다 — 「새 목록」 이 그대로 남으면
+     두 개째부터 어느 게 어느 건지 모릅니다 */
+  setTimeout(() => {
+    const el = document.querySelector('[data-ed="pg"][data-i="' + pg.id + '"][data-f="name"]');
+    if(el) edStart(el);
+  }, 120);
+}
+function pageDel(id){
+  const pg = pageFind(id); if(!pg) return;
+  if(!confirm('「' + (pg.name || '이름 없음') + '」 목록을 지웁니다.\n\n'
+    + '안에 적어 둔 ' + pageItemsOf(pg).length + '칸도 같이 갑니다. '
+    + '휴지통에서 되돌릴 수 있습니다.')) return;
+  trashPut('목록', pg.name || '이름 없음', JSON.parse(JSON.stringify(pg)),
+           { kind:'top', type:'pages' });
+  data.pages = pagesOf().filter(x => x.id !== id);
+  deletedIds.add(id);
+  pageAt = ''; view = 'home';
+  markDirtyAll(); render();
+}
+function pageSet(id, f, v){
+  const pg = pageFind(id); if(!pg) return;
+  pg[f] = v; markDirtyAll();
+}
+function pageTabAdd(pid){
+  const pg = pageFind(pid); if(!pg) return;
+  const t = { id: uid('pt'), name: '새 탭' };
+  pageTabsOf(pg).push(t);
+  pageTab[pid] = t.id;
+  markDirtyAll(); render();
+  setTimeout(() => {
+    const el = document.querySelector('[data-ed="pgtab"][data-g="' + pid
+      + '"][data-i="' + t.id + '"]');
+    if(el) edStart(el);
+  }, 120);
+}
+function pageTabDel(pid, tid){
+  const pg = pageFind(pid); if(!pg) return;
+  const ts = pageTabsOf(pg);
+  if(ts.length <= 1){ toast('⚠️ 탭이 하나는 있어야 합니다'); return; }
+  const mine = pageItemsOf(pg).filter(x => x.tab === tid);
+  if(mine.length && !confirm('이 탭에 적어 둔 ' + mine.length + '칸도 같이 지웁니다.')) return;
+  pg.tabs = ts.filter(t => t.id !== tid);
+  pg.items = pageItemsOf(pg).filter(x => x.tab !== tid);
+  mine.forEach(x => deletedIds.add(x.id));
+  deletedIds.add(tid);
+  markDirtyAll(); render();
+}
+function pageTabSet(pid, tid, v){
+  const pg = pageFind(pid); if(!pg) return;
+  const t = pageTabsOf(pg).find(x => x.id === tid); if(!t) return;
+  t.name = v; markDirtyAll();
+}
+function pageItemAdd(pid, tid){
+  const pg = pageFind(pid); if(!pg) return;
+  const it = { id: uid('pi'), tab: tid || pageTabAt(pg), title: '', url: '', body: '' };
+  pageItemsOf(pg).push(it);
+  markDirtyAll(); render();
+  setTimeout(() => {
+    const el = document.querySelector('[data-ed="pgit"][data-g="' + pid
+      + '"][data-i="' + it.id + '"][data-f="title"]');
+    if(el) edStart(el);
+  }, 120);
+}
+function pageItemDel(pid, iid){
+  const pg = pageFind(pid); if(!pg) return;
+  pg.items = pageItemsOf(pg).filter(x => x.id !== iid);
+  deletedIds.add(iid);
+  markDirtyAll(); render();
+}
+function pageItemSet(pid, iid, f, v){
+  const pg = pageFind(pid); if(!pg) return;
+  const it = pageItemsOf(pg).find(x => x.id === iid); if(!it) return;
+  it[f] = v; markDirtyAll();
+}
+/* 탭을 옮깁니다 — 한 칸이 엉뚱한 탭에 들어가는 일이 제일 흔합니다 */
+function pageItemMove(pid, iid, tid){
+  pageItemSet(pid, iid, 'tab', tid); render();
+}
+/* 🤖 AI 모음 — 처음 한 번만 세워 둡니다. 지우면 다시 생기지 않습니다
+   (「지웠는데 자꾸 살아난다」 가 제일 나쁩니다). */
+function pageSeed(){
+  if(!Array.isArray(data.pages)) data.pages = [];
+  if(data.pagesSeeded) return;
+  data.pagesSeeded = true;
+  if(data.pages.some(x => x.id === 'pg_ai')) return;
+  data.pages.push({
+    id:'pg_ai', name:'AI 모음', icon:'🤖', group:'팀운영', color:'var(--purple)',
+    tabs:[{ id:'pt_ai_p', name:'프롬프트' }, { id:'pt_ai_t', name:'도구' },
+          { id:'pt_ai_r', name:'쓰는 법' }],
+    items:[]
+  });
+}
+/* ── 📑 목록 화면 ─────────────────────────────────────────────
+   브랜드 화면과 같은 틀을 씁니다 — 머리 · 탭 · 칸. 두 화면이 달라
+   보이면 「여기는 또 다른 데구나」 하고 헤맵니다. */
+function renderPage(){
+  const pg = pageFind(pageAt);
+  if(!pg){ pageAt = ''; view = 'home'; renderHome(); return; }
+  const pid = jsq(pg.id);
+  const ts  = pageTabsOf(pg);
+  const at  = pageTabAt(pg);
+  const items = pageItemsOf(pg).filter(x => x.tab === at);
+  const cnt = t => pageItemsOf(pg).filter(x => x.tab === t.id).length;
+
+  const head = '<div class="bhead">'
+    + '<div class="icon" data-ed="pg" data-i="' + esc(pg.id) + '" data-f="icon" '
+      + 'data-ph="그림 한 글자">' + esc(pg.icon || '📑') + '</div>'
+    + '<div><h2 data-ed="pg" data-i="' + esc(pg.id) + '" data-f="name" '
+        + 'data-ph="목록 이름">' + esc(pg.name || '이름 없음') + '</h2>'
+      + '<div class="meta" data-ed="pg" data-i="' + esc(pg.id) + '" data-f="note" '
+        + 'data-ph="이 목록이 무엇인지 (선택)">'
+        + esc(String(pg.note || '').trim() || '＋ 한 줄 설명') + '</div></div>'
+    + '<div class="ba">'
+      + '<button class="btn sm" onclick="pageMoveGroup(\'' + pid + '\')" '
+        + 'title="왼쪽의 어느 묶음에 둘지">📂 ' + esc(pg.group || '팀운영') + '</button>'
+      + '<button class="btn sm danger" onclick="pageDel(\'' + pid + '\')">삭제</button>'
+    + '</div></div>';
+
+  /* 보고 있는 탭만 단추가 아닙니다 — 이미 와 있는 탭을 다시 누를 일은
+     없고, 단추 안에 있으면 이름을 눌러도 탭 바꾸기가 먹어서 못 고칩니다.
+     그래서 보고 있는 탭은 이름을 그대로 눌러 고칩니다. */
+  const tabs = '<div class="tabs">'
+    + ts.map(t => {
+        const num = cnt(t) ? '<span class="n">' + cnt(t) + '</span>' : '';
+        return t.id === at
+          ? '<div class="tab on"><span data-ed="pgtab" data-g="' + esc(pg.id)
+            + '" data-i="' + esc(t.id) + '" data-ph="탭 이름" '
+            + 'title="눌러서 탭 이름을 고칩니다">'
+            + esc(t.name || '이름 없음') + '</span>' + num + '</div>'
+          : '<button class="tab" onclick="setPageTab(\'' + pid + '\',\''
+            + jsq(t.id) + '\')">' + esc(t.name || '이름 없음') + num + '</button>';
+      }).join('')
+    + '<button class="tab pg-add" onclick="pageTabAdd(\'' + pid + '\')" '
+      + 'title="탭을 하나 더 만듭니다">＋ 탭</button>'
+    + '</div>';
+
+  const bar = '<div class="sec-bar">'
+    + '<button class="btn primary" onclick="pageItemAdd(\'' + pid + '\',\''
+      + jsq(at) + '\')">＋ 넣기</button>'
+    + (ts.length > 1
+        ? '<button class="btn sm danger" onclick="pageTabDel(\'' + pid + '\',\''
+          + jsq(at) + '\')">🗑 이 탭 지우기</button>' : '')
+    + '<span class="hint">✎ 글을 <b>누르면</b> 그 자리에서 바로 고쳐집니다</span>'
+    + '</div>';
+
+  const body = items.length
+    ? '<div class="cards">' + items.map(it => {
+        const iid = jsq(it.id);
+        const ed = (f, ml, ph) => ' data-ed="pgit" data-g="' + esc(pg.id)
+          + '" data-i="' + esc(it.id) + '" data-f="' + f + '"'
+          + (ml ? ' data-ml="1"' : '') + (ph ? ' data-ph="' + esc(ph) + '"' : '');
+        const u = String(it.url || '').trim();
+        return '<div class="card">'
+          + '<div class="ca">'
+            + (ts.length > 1
+                ? '<select class="pg-mv" title="다른 탭으로 옮기기" '
+                  + 'onchange="pageItemMove(\'' + pid + '\',\'' + iid + '\', this.value)">'
+                  + ts.map(t => '<option value="' + esc(t.id) + '"'
+                      + (t.id === it.tab ? ' selected' : '') + '>'
+                      + esc(t.name || '탭') + '</option>').join('')
+                  + '</select>' : '')
+            + '<button class="btn sm danger" onclick="pageItemDel(\'' + pid + '\',\''
+              + iid + '\')">삭제</button>'
+          + '</div>'
+          + '<div class="ct"' + ed('title', 0, '무엇인가') + '>'
+            + esc(String(it.title || '').trim() || '＋ 이름을 적어 주세요') + '</div>'
+          + (u
+              ? '<div class="pg-u"><a href="' + esc(u) + '" target="_blank" rel="noopener">'
+                + esc(u.replace(/^https?:\/\//, '').slice(0, 52)) + ' ↗</a>'
+                + '<span class="ct-ed"' + ed('url', 0, '주소') + ' title="주소를 고칩니다">✎</span>'
+                + '</div>'
+              : '<div class="pg-u"><span class="cd-non"' + ed('url', 0,
+                  '주소 (선택) — https:// 또는 NAS 경로') + '>＋ 주소</span></div>')
+          + (String(it.body || '').trim()
+              ? '<div class="cd"' + ed('body', 1, '적어 둘 것') + '>'
+                + esc(it.body) + '</div>'
+              : '<div class="cd cd-non"' + ed('body', 1, '적어 둘 것') + '>＋ 적기</div>')
+          + '</div>';
+      }).join('') + '</div>'
+    : '<div class="empty">이 탭은 아직 비어 있습니다.<br>'
+      + '<span style="color:var(--text-muted)">[＋ 넣기] 로 하나 만들어 보세요. '
+      + '프롬프트 · 도구 주소 · 쓰는 법처럼 흩어지기 쉬운 것을 모아 둡니다.</span></div>';
+
+  document.getElementById('main').innerHTML =
+    '<div class="panel">' + head + tabs
+    + '<div class="tabbody">' + bar + body + '</div></div>';
+}
+/* 어느 묶음에 둘지 — 묶음이 셋뿐이라 눌러서 돌립니다 */
+function pageMoveGroup(id){
+  const pg = pageFind(id); if(!pg) return;
+  const i = PAGE_GROUPS.indexOf(pg.group || '팀운영');
+  pg.group = PAGE_GROUPS[(i + 1) % PAGE_GROUPS.length];
+  markDirtyAll(); render();
+  toast('📂 「' + esc(pg.group) + '」 묶음으로 옮겼습니다');
+}
 function goView(v){
   closeNav();
   clearSearchQuietly();
@@ -4778,7 +5056,28 @@ function goHome(){
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 
+/* 묶음마다 만든 목록을 세우고, 그 밑에 [＋ 목록] 을 답니다.
+   단추를 묶음 제목 옆에 두면 안 보여서 아무도 안 씁니다 — 줄로 둡니다. */
+function renderPageNav(){
+  PAGE_GROUPS.forEach(g => {
+    const box = document.getElementById('pgList-' + g);
+    if(!box) return;
+    const mine = pagesOf().filter(x => (x.group || '팀운영') === g);
+    box.innerHTML = mine.map(pg => '<button class="brand-item home-item'
+        + (view === 'page' && pageAt === pg.id && !searchQuery ? ' on' : '') + '" '
+        + 'onclick="goPage(\'' + jsq(pg.id) + '\')">'
+        + '<span class="bar" style="background:' + esc(pg.color || 'var(--blue)') + '"></span>'
+        + '<span class="em">' + esc(pg.icon || '📑') + '</span>'
+        + '<span>' + esc(pg.name || '이름 없음') + '</span>'
+        + (pageItemsOf(pg).length
+            ? '<span class="cnt">' + pageItemsOf(pg).length + '</span>' : '')
+        + '</button>').join('')
+      + '<button class="pg-new" onclick="pageAdd(\'' + jsq(g) + '\')" '
+        + 'title="이 묶음에 목록을 하나 더 만듭니다">＋ 목록</button>';
+  });
+}
 function renderSidebar(){
+  renderPageNav();
   document.getElementById('brandList').innerHTML = data.brands.map((b, i) => {
     const n = itemCount(b);
     return '<div class="bwrap"><button class="brand-item'
@@ -19710,6 +20009,15 @@ function edGet(d){
     const box = d.g ? (brandById(d.g) || {})[d.k] : data[d.k];
     const x = (box || []).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
   }
+  if(d.ed === 'pg'){ const pg = pageFind(d.i); return pg ? S(pg[d.f]) : ''; }
+  if(d.ed === 'pgtab'){
+    const pg = pageFind(d.g); if(!pg) return '';
+    const t = pageTabsOf(pg).find(x => x.id === d.i); return t ? S(t.name) : '';
+  }
+  if(d.ed === 'pgit'){
+    const pg = pageFind(d.g); if(!pg) return '';
+    const x = pageItemsOf(pg).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
+  }
   if(d.ed === 'obhead') return S(obHead()[d.f]);       // 온보딩 머리말
   if(d.ed === 'obstat'){                                // 머리말의 숫자 띠
     const x = (obHead().stats || []).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
@@ -19742,6 +20050,9 @@ function edSet(d, v){
   if(d.ed === 'obsec'){ obSecSet(d.g, d.f, v); return; }
   if(d.ed === 'obrow'){ obRowRename(d.g, d.i, v); return; }
   if(d.ed === 'item'){ itemFieldSet(d.g, d.k, d.i, d.f, v); return; }
+  if(d.ed === 'pg'){ pageSet(d.i, d.f, v); return; }
+  if(d.ed === 'pgtab'){ pageTabSet(d.g, d.i, v); return; }
+  if(d.ed === 'pgit'){ pageItemSet(d.g, d.i, d.f, v); return; }
   if(d.ed === 'obhead'){ obHeadSet(d.f, v); obMark(); return; }
   if(d.ed === 'obstat'){ obStatSet(d.i, d.f, v); obMark(); return; }
   const b = currentBrand(); if(!b) return;
@@ -23416,7 +23727,7 @@ function markDirtyAll(){
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels', 'docs']);
 const TOP_LISTS   = ['onboard', 'notices', 'meetings', 'events', 'trash', 'growth', 'boards',
-                     'gbkpis', 'gbperf', 'cards'];  // 브랜드 밖
+                     'gbkpis', 'gbperf', 'cards', 'pages'];  // 브랜드 밖
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
 let revived  = 0;                // 되살린 개수 (알려주기 위해)
@@ -23884,6 +24195,28 @@ function normalize(raw){
   }
   if(typeof raw._rev !== 'number') raw._rev = 0;
   if(!Array.isArray(raw.onboard))  raw.onboard  = obSeed();   // 팀 온보딩 (단 하나씩)
+  /* 📑 손수 만드는 목록 — 모양을 맞춰 둡니다. 한 칸이라도 빠지면
+     그 목록을 열 때 화면이 통째로 빕니다. */
+  if(!Array.isArray(raw.pages)) raw.pages = [];
+  raw.pages.forEach(pg => {
+    pg.id = pg.id || uid('pg');
+    ['name','icon','group','color','note'].forEach(k => {
+      if(typeof pg[k] !== 'string') pg[k] = ''; });
+    if(PAGE_GROUPS.indexOf(pg.group) < 0) pg.group = '팀운영';
+    if(!pg.icon) pg.icon = '📑';
+    if(!pg.color) pg.color = 'var(--blue)';
+    if(!Array.isArray(pg.tabs) || !pg.tabs.length) pg.tabs = [{ id: uid('pt'), name:'전체' }];
+    pg.tabs.forEach(t => { t.id = t.id || uid('pt');
+      if(typeof t.name !== 'string') t.name = ''; });
+    if(!Array.isArray(pg.items)) pg.items = [];
+    pg.items.forEach(it => {
+      it.id = it.id || uid('pi');
+      ['title','url','body','tab'].forEach(k => {
+        if(typeof it[k] !== 'string') it[k] = ''; });
+      /* 탭이 지워진 칸은 첫 탭으로 — 안 그러면 어느 탭에서도 안 보입니다 */
+      if(!pg.tabs.some(t => t.id === it.tab)) it.tab = pg.tabs[0].id;
+    });
+  });
   raw.onboard.forEach(sc => {
     sc.id = sc.id || uid('os');
     ['icon','title','note'].forEach(k => { if(typeof sc[k] !== 'string') sc[k] = ''; });
@@ -24472,6 +24805,10 @@ async function init(){
       setBadge('error', 'NAS 연결 실패 — 이 브라우저 데이터 표시 중');
     }
   }
+
+  /* 🤖 AI 모음 은 처음 한 번만 세웁니다 — 불러오기가 끝난 뒤에 해야
+     이미 NAS 에 있는 것을 두 번 만들지 않습니다 */
+  pageSeed();
 
   currentBrandId = null;   // 처음에는 홈부터 보여줍니다
   updateSubtitle();

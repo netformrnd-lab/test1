@@ -14,8 +14,8 @@ jobs:
       - name: 의존성 설치
         working-directory: backend/aptsq-sync
         run: npm install --no-audit --no-fund
-      - name: 우리 DB 예정 일정 + 매핑 확인
+      - name: 테이블 건수 확인
         working-directory: backend/aptsq-sync
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node diag-expected-db.js
+        run: node diag-counts.js

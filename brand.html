@@ -206,6 +206,37 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
   border-radius:var(--r);opacity:.42;transition:.14s var(--ease)}
 .brand-list:hover .pg-new,.pg-new:focus-visible{opacity:1}
 .pg-new:hover{background:var(--bg-hover);color:var(--text-primary)}
+/* 📎 올리는 중 — 큰 파일은 몇 분 걸려서 얼마나 갔는지가 보여야 합니다 */
+.pg-up{margin:10px 0 0;padding:11px 13px;border:1px solid var(--blue);
+  border-radius:10px;background:var(--bg-card)}
+.pg-up.bad{border-color:var(--red)}
+.pg-up .uh{display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  font-size:12.5px;font-weight:700;color:var(--text-primary)}
+.pg-up .uh b{font-weight:800;word-break:break-all;min-width:0}
+.pg-up .uh span{font-family:var(--f-mono);font-size:11.5px;font-weight:600;
+  color:var(--text-muted)}
+.pg-up .uh .btn{margin-left:auto}
+.pg-up .ub{height:7px;margin-top:9px;border-radius:99px;background:var(--bg-sunken);
+  overflow:hidden}
+.pg-up .ub i{display:block;height:100%;background:var(--blue);border-radius:99px;
+  transition:width .2s var(--ease)}
+.pg-up .ut{margin-top:5px;font-family:var(--f-mono);font-size:11.5px;font-weight:600;
+  color:var(--blue)}
+.pg-up .un{margin-top:3px;font-size:11px;color:var(--text-muted)}
+.pg-up .ue{margin-top:7px;font-size:12px;line-height:1.7;color:var(--red);
+  white-space:pre-wrap;word-break:keep-all}
+/* 📎 올려 둔 파일 칸 */
+.card.pg-f .fh{display:flex;align-items:flex-start;gap:9px;padding-right:70px}
+.card.pg-f .fe{font-size:22px;line-height:1.1;flex:0 0 auto}
+.card.pg-f .fn{display:flex;flex-direction:column;gap:2px;min-width:0}
+.card.pg-f .fn b{font-size:13.5px;font-weight:700;color:var(--text-primary);
+  word-break:break-all;line-height:1.45}
+.card.pg-f .fn span{font-family:var(--f-mono);font-size:11px;font-weight:600;
+  color:var(--text-muted)}
+.card.pg-f .fd{display:inline-block;margin-top:9px;padding:4px 10px;border-radius:8px;
+  border:1px solid var(--border);background:var(--bg-card);font-size:11.5px;
+  font-weight:700;color:var(--text-secondary);text-decoration:none}
+.card.pg-f .fd:hover{border-color:var(--ink);color:var(--text-primary)}
 /* 📑 목록 화면 — 탭 옆의 [＋ 탭], 칸의 주소줄, 탭 옮기기 */
 .tab.pg-add{color:var(--text-muted);font-weight:600}
 .tab.pg-add:hover{color:var(--text-primary)}
@@ -3982,7 +4013,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260922-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260922-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4675,7 +4706,12 @@ function captureUI(){
       if(n.scrollTop) snap.scrolls.push([i, n.scrollTop]);
     });
     // 지금 글을 쓰고 있던 칸
-    if(el && main.contains(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)){
+    /* 파일 고르개는 값을 돌려놓을 수 없습니다 — 브라우저가 막습니다
+       (value 에는 빈 글자만 넣을 수 있음). 파일을 고른 뒤 다시 그리면
+       여기서 걸려 스크롤 되돌리기까지 통째로 멈췄습니다. */
+    const isFile = el && el.tagName === 'INPUT'
+                && String(el.type || '').toLowerCase() === 'file';
+    if(el && !isFile && main.contains(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)){
       const all = Array.prototype.slice.call(main.querySelectorAll('input,textarea,select'));
       snap.field = { id: el.id, idx: all.indexOf(el), value: el.value,
                      s: el.selectionStart, e: el.selectionEnd, top: el.scrollTop };
@@ -4697,8 +4733,10 @@ function restoreUI(snap){
     if(!el && f.idx >= 0 && main){        // 이름표가 없으면 몇 번째 칸이었는지로 찾습니다
       el = main.querySelectorAll('input,textarea,select')[f.idx] || null;
     }
+    if(el && el.type === 'file') el = null;          // 여기에도 한 겹 (자리로 찾았을 때)
     if(el){
-      if(el.value !== f.value) el.value = f.value;   // 쓰던 글 그대로
+      /* 값을 못 넣는 칸이 있어도 나머지는 돌려놓아야 합니다 */
+      try{ if(el.value !== f.value) el.value = f.value; }catch(e){}
       try{ el.focus({ preventScroll:true }); }catch(e){ el.focus(); }
       try{ if(f.s !== null && f.s !== undefined) el.setSelectionRange(f.s, f.e); }catch(e){}
       el.scrollTop = f.top;
@@ -4908,6 +4946,135 @@ function pageTabSet(pid, tid, v){
   const t = pageTabsOf(pg).find(x => x.id === tid); if(!t) return;
   t.name = v; markDirtyAll();
 }
+/* ── 📎 큰 파일 올리기 ────────────────────────────────────────
+   알집 · 영상처럼 1GB 가 넘는 것도 올립니다. PHP 는 한 번에 받는 크기가
+   정해져 있어서(기본 8~64MB) 통째로 보내면 <<서버에 닿기도 전에>> 잘립니다.
+   그래서 잘라서 여러 번 보냅니다. 조각 크기는 서버가 「이만큼씩 보내라」 고
+   알려 주는 값을 씁니다 — 화면이 정해 두면 한도가 작은 NAS 에서 그대로
+   실패합니다.
+   ------------------------------------------------------------ */
+const pgUp = {};       // 올리는 중인 것 (목록 id → {name, pct, n, of, err})
+
+function bytesText(n){
+  n = Number(n) || 0;
+  if(n >= 1073741824) return (n / 1073741824).toFixed(n >= 10737418240 ? 0 : 1) + 'GB';
+  if(n >= 1048576)    return Math.round(n / 1048576) + 'MB';
+  if(n >= 1024)       return Math.round(n / 1024) + 'KB';
+  return n + 'B';
+}
+/* 이름 끝을 보고 그림 하나 — 무엇인지 한눈에 보이게 */
+function fileEmo(nm){
+  const e = String(nm || '').toLowerCase().split('.').pop();
+  if(['alz','egg','zip','7z','rar','tar','gz'].indexOf(e) >= 0) return '🗜';
+  if(['mp4','mov','avi','mkv','webm','wmv'].indexOf(e) >= 0)    return '🎬';
+  if(['mp3','wav','m4a','flac'].indexOf(e) >= 0)                return '🎵';
+  if(['png','jpg','jpeg','gif','webp','svg','heic'].indexOf(e) >= 0) return '🖼';
+  if(e === 'pdf') return '📕';
+  if(['doc','docx','hwp','hwpx'].indexOf(e) >= 0) return '📄';
+  if(['xls','xlsx','csv'].indexOf(e) >= 0) return '📊';
+  if(['ppt','pptx'].indexOf(e) >= 0) return '📽';
+  if(['psd','ai','sketch','fig','xd'].indexOf(e) >= 0) return '🎨';
+  return '📎';
+}
+async function pgPost(action, form){
+  const res = await fetch('files.php?action=' + action, { method:'POST', body: form });
+  const txt = await res.text();
+  let j = null;
+  try{ j = JSON.parse(txt); }catch(e){}
+  if(!j) throw new Error('서버 응답 이상 (HTTP ' + res.status + ') → '
+    + txt.slice(0, 160).replace(/\s+/g, ' '));
+  if(!j.ok) throw new Error(j.error || '올리지 못했습니다');
+  return j;
+}
+/* 파일 하나를 쪼개 올립니다. onStep 으로 얼마나 갔는지 알려 줍니다. */
+async function pgUploadOne(file, where, onStep){
+  const f0 = new FormData();
+  f0.append('name', file.name); f0.append('size', String(file.size));
+  f0.append('brand', where.brand); f0.append('sub', where.sub);
+  f0.append('sub2', where.sub2 || ''); f0.append('sub3', where.sub3 || '');
+  const st = await pgPost('chunkstart', f0);
+  const ch = Math.max(65536, Number(st.chunk) || 1048576);
+  const of = Math.max(1, Math.ceil(file.size / ch));
+  try{
+    for(let i = 0, off = 0; off < file.size; i++, off += ch){
+      /* 1GB 를 보내면 조각이 백 번 넘게 오갑니다. 그중 한 번만 끊겨도
+         처음부터 다시 하게 두면 터널 너머에서는 거의 못 올립니다.
+         같은 조각을 세 번까지 다시 보냅니다 — 서버는 차례가 맞는 것만
+         받으므로 두 번 들어가는 일은 없습니다. */
+      let last = null;
+      for(let t = 0; t < 3; t++){
+        const fd = new FormData();
+        fd.append('up', st.up); fd.append('i', String(i));
+        fd.append('blob', file.slice(off, Math.min(off + ch, file.size)), 'b');
+        try{ await pgPost('chunk', fd); last = null; break; }
+        catch(e){
+          last = e;
+          /* 서버가 「그 조각은 이미 받았다」 면 다음으로 넘어갑니다 */
+          if(/차례가 어긋/.test(String(e.message || ''))) { last = null; break; }
+          if(t < 2) await new Promise(r => setTimeout(r, 700 * (t + 1)));
+        }
+      }
+      if(last) throw last;
+      if(onStep) onStep(i + 1, of);
+    }
+    const fd = new FormData(); fd.append('up', st.up);
+    return await pgPost('chunkdone', fd);
+  }catch(e){
+    /* 그만둘 때 조각을 치웁니다 — 안 치우면 NAS 에 반쪽이 쌓입니다 */
+    try{ const fa = new FormData(); fa.append('up', st.up);
+         await fetch('files.php?action=chunkabort', { method:'POST', body: fa }); }catch(e2){}
+    throw e;
+  }
+}
+function pgFilePick(pid, tid){
+  const el = document.getElementById('pgFileInput');
+  if(!el) return;
+  el.dataset.pid = pid; el.dataset.tid = tid;
+  el.click();
+}
+async function pgFileGot(fileList, pid, tid){
+  const files = Array.from(fileList || []);
+  if(!files.length) return;
+  /* 어느 목록 · 어느 탭인지는 [📎 파일 올리기] 가 적어 둡니다. 끌어다 놓기처럼
+     그 길을 안 거치고 들어오면 지금 보고 있는 자리로 넣습니다. */
+  const pg = pageFind(pid) || pageFind(pageAt); if(!pg) return;
+  pid = pg.id;
+  const tab = pageTabsOf(pg).find(t => t.id === tid) || pageTabsOf(pg).find(t => t.id === pageTabAt(pg))
+            || pageTabsOf(pg)[0];
+  tid = tab ? tab.id : '';
+  const where = { brand:'_팀자료', sub:'팀자료',
+                  sub2: pg.name || '목록', sub3: (tab && tab.name) || '' };
+  for(const f of files){
+    pgUp[pid] = { name: f.name, size: f.size, pct: 0, n: 0, of: 0, err: '' };
+    render();
+    try{
+      const out = await pgUploadOne(f, where, (n, of) => {
+        const u = pgUp[pid]; if(!u) return;
+        u.n = n; u.of = of; u.pct = Math.round(n / of * 100);
+        const bar = document.getElementById('pgUpBar');
+        const txt = document.getElementById('pgUpTxt');
+        if(bar) bar.style.width = u.pct + '%';
+        if(txt) txt.textContent = u.pct + '% · ' + n + '/' + of + ' 조각';
+      });
+      const it = { id: uid('pi'), tab: tid || pageTabAt(pg), title: out.fileName,
+                   url:'', body:'',
+                   file: { name: out.fileName, path: out.filePath,
+                           size: out.fileSize, at: new Date().toISOString() } };
+      pageItemsOf(pg).push(it);
+      markDirtyAll();
+      toast('📎 ' + out.fileName + ' (' + bytesText(out.fileSize) + ') 올렸습니다');
+    }catch(e){
+      pgUp[pid] = { name: f.name, size: f.size, pct: 0, n: 0, of: 0,
+                    err: String((e && e.message) || e) };
+      render();
+      return;                       // 하나가 막히면 거기서 멈춥니다
+    }
+  }
+  delete pgUp[pid];
+  render();
+}
+function pgUpClose(pid){ delete pgUp[pid]; render(); }
+
 function pageItemAdd(pid, tid){
   const pg = pageFind(pid); if(!pg) return;
   const it = { id: uid('pi'), tab: tid || pageTabAt(pg), title: '', url: '', body: '' };
@@ -5005,14 +5172,33 @@ function renderPage(){
       + 'title="탭을 하나 더 만듭니다">＋ 탭</button>'
     + '</div>';
 
+  const up = pgUp[pg.id];
+  const upBar = up
+    ? '<div class="pg-up' + (up.err ? ' bad' : '') + '">'
+      + '<div class="uh">' + (up.err ? '⚠️ 못 올렸습니다' : '📎 올리는 중')
+        + ' <b>' + esc(up.name) + '</b> <span>' + bytesText(up.size) + '</span>'
+        + '<button class="btn sm" onclick="pgUpClose(\'' + pid + '\')">닫기</button></div>'
+      + (up.err
+          ? '<div class="ue">' + esc(up.err) + '</div>'
+          : '<div class="ub"><i id="pgUpBar" style="width:' + up.pct + '%"></i></div>'
+            + '<div class="ut" id="pgUpTxt">' + up.pct + '% · '
+              + up.n + '/' + up.of + ' 조각</div>'
+            + '<div class="un">큰 파일은 잘라서 보냅니다 — '
+              + '이 화면을 닫지 말고 두세요</div>')
+      + '</div>'
+    : '';
   const bar = '<div class="sec-bar">'
-    + '<button class="btn primary" onclick="pageItemAdd(\'' + pid + '\',\''
-      + jsq(at) + '\')">＋ 넣기</button>'
+    /* 파일은 이 <<탭>> 으로 들어갑니다. NAS 에도 목록 → 탭 으로 나눠 둡니다 */
+    + '<button class="btn primary" onclick="pgFilePick(\'' + pid + '\',\''
+      + jsq(at) + '\')">📎 파일 올리기</button>'
+    + '<button class="btn sm" onclick="pageItemAdd(\'' + pid + '\',\''
+      + jsq(at) + '\')">＋ 글로 넣기</button>'
     + (ts.length > 1
         ? '<button class="btn sm danger" onclick="pageTabDel(\'' + pid + '\',\''
           + jsq(at) + '\')">🗑 이 탭 지우기</button>' : '')
-    + '<span class="hint">✎ 글을 <b>누르면</b> 그 자리에서 바로 고쳐집니다</span>'
-    + '</div>';
+    + '<span class="hint">알집 · 영상 무엇이든 · 한 개 <b>8GB</b> 까지 · '
+      + '✎ 글을 누르면 그 자리에서 고쳐집니다</span>'
+    + '</div>' + upBar;
 
   const body = items.length
     ? '<div class="cards">' + items.map(it => {
@@ -5021,6 +5207,29 @@ function renderPage(){
           + '" data-i="' + esc(it.id) + '" data-f="' + f + '"'
           + (ml ? ' data-ml="1"' : '') + (ph ? ' data-ph="' + esc(ph) + '"' : '');
         const u = String(it.url || '').trim();
+        const fl = (it.file && String(it.file.path || '').trim()) ? it.file : null;
+        if(fl) return '<div class="card pg-f">'
+          + '<div class="ca">'
+            + (ts.length > 1
+                ? '<select class="pg-mv" title="다른 탭으로 옮기기" '
+                  + 'onchange="pageItemMove(\'' + pid + '\',\'' + iid + '\', this.value)">'
+                  + ts.map(t => '<option value="' + esc(t.id) + '"'
+                      + (t.id === it.tab ? ' selected' : '') + '>'
+                      + esc(t.name || '탭') + '</option>').join('')
+                  + '</select>' : '')
+            + '<button class="btn sm danger" onclick="pageItemDel(\'' + pid + '\',\''
+              + iid + '\')" title="목록에서 뺍니다 (NAS 파일은 그대로 있습니다)">빼기</button>'
+          + '</div>'
+          + '<div class="fh"><span class="fe">' + fileEmo(fl.name) + '</span>'
+            + '<div class="fn"><b' + ed('title', 0, '이름') + '>'
+              + esc(String(it.title || fl.name)) + '</b>'
+              + '<span>' + bytesText(fl.size) + '</span></div></div>'
+          + '<a class="fd" href="files.php?action=dl&path=' + encodeURIComponent(fl.path) + '" '
+            + 'download>⬇ 내려받기</a>'
+          + (String(it.body || '').trim()
+              ? '<div class="cd"' + ed('body', 1, '적어 둘 것') + '>' + esc(it.body) + '</div>'
+              : '<div class="cd cd-non"' + ed('body', 1, '적어 둘 것') + '>＋ 적기</div>')
+          + '</div>';
         return '<div class="card">'
           + '<div class="ca">'
             + (ts.length > 1
@@ -5049,12 +5258,16 @@ function renderPage(){
           + '</div>';
       }).join('') + '</div>'
     : '<div class="empty">이 탭은 아직 비어 있습니다.<br>'
-      + '<span style="color:var(--text-muted)">[＋ 넣기] 로 하나 만들어 보세요. '
-      + '프롬프트 · 도구 주소 · 쓰는 법처럼 흩어지기 쉬운 것을 모아 둡니다.</span></div>';
+      + '<span style="color:var(--text-muted)">'
+      + '[📎 파일 올리기] 로 알집 · 영상 · 문서를 그대로 올리거나, '
+      + '[＋ 글로 넣기] 로 프롬프트 · 주소를 적어 두세요.</span></div>';
 
   document.getElementById('main').innerHTML =
     '<div class="panel">' + head + tabs
-    + '<div class="tabbody">' + bar + body + '</div></div>';
+    + '<div class="tabbody">' + bar + body + '</div></div>'
+    /* 무엇이든 받습니다 — accept 를 걸면 알집(.alz · .egg)이 회색으로 막힙니다 */
+    + '<input type="file" id="pgFileInput" multiple style="display:none" '
+      + 'onchange="pgFileGot(this.files, this.dataset.pid, this.dataset.tid); this.value=\'\'">';
 }
 /* 어느 묶음에 둘지 — 묶음이 셋뿐이라 눌러서 돌립니다 */
 function pageMoveGroup(id){
@@ -24296,6 +24509,13 @@ function normalize(raw){
       it.id = it.id || uid('pi');
       ['title','url','body','tab'].forEach(k => {
         if(typeof it[k] !== 'string') it[k] = ''; });
+      /* 올린 파일 — 자리가 깨져 있으면 아예 없던 것으로 둡니다 */
+      if(it.file && typeof it.file === 'object'){
+        ['name','path','at'].forEach(k => {
+          if(typeof it.file[k] !== 'string') it.file[k] = ''; });
+        it.file.size = Number(it.file.size) || 0;
+        if(!it.file.path) delete it.file;
+      }else if(it.file !== undefined) delete it.file;
       /* 탭이 지워진 칸은 첫 탭으로 — 안 그러면 어느 탭에서도 안 보입니다 */
       if(!pg.tabs.some(t => t.id === it.tab)) it.tab = pg.tabs[0].id;
     });

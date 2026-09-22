@@ -114,6 +114,7 @@ const SUBDIRS = [
     '도구'   => '03_자동화도구',
     '명함'   => '04_명함',
     '연혁'   => '05_연혁',
+    '팀자료' => '06_팀자료',        // 손수 만든 목록(AI 모음 …)에 올린 것
 ];
 /* 예전에 쓰던 이름 → 지금 이름 (정리할 때 옮깁니다) */
 const OLDSUBS = [
@@ -838,6 +839,206 @@ if ($action === 'setuploadroot') {
     }
     jout(['ok' => true, '지금폴더' => $found, '공유폴더로' => true,
           '안내' => '앞으로 올리는 파일은 이 폴더에 저장됩니다']);
+}
+
+/* ═══════════ 큰 파일을 쪼개서 올리기 ═══════════════════════════════
+   PHP 는 한 번에 받는 크기가 정해져 있습니다 (upload_max_filesize ·
+   post_max_size). 기본값은 대개 8MB~64MB 라, 1GB 짜리 알집은 <<요청이
+   서버에 닿기도 전에>> 잘립니다. Nginx 의 client_max_body_size 도 같이
+   막습니다. 그래서 한도를 올리는 대신, 파일을 작은 조각으로 잘라
+   여러 번 보냅니다. 한 번에 보내는 양이 늘 작으니 어떤 설정에서도 됩니다.
+
+     chunkstart → 자리를 잡고 「한 조각에 몇 바이트씩 보낼지」 를 알려줍니다
+     chunk      → 조각을 차례대로 이어 붙입니다 (순서가 어긋나면 거절)
+     chunkdone  → 다 모이면 제자리로 옮깁니다
+     chunkabort → 그만둘 때 치웁니다
+
+   조각 크기는 <<서버가 정해서>> 알려줍니다. 화면이 8MB 라고 정해 두면
+   한도가 2MB 인 NAS 에서 그대로 실패합니다.
+   ================================================================= */
+$UP_TMP  = $DATA_DIR . '/_up';                 // 조각을 모으는 곳
+$UP_MAX  = 8 * 1024 * 1024 * 1024;             // 한 파일 8GB 까지
+
+function up_meta_path($dir, $id) { return $dir . '/' . $id . '.json'; }
+function up_part_path($dir, $id) { return $dir . '/' . $id . '.part'; }
+
+/* 한 조각에 몇 바이트씩 보낼지 — 이 서버가 받을 수 있는 크기에서 정합니다 */
+function up_chunk_size() {
+    $lim = php_limit_bytes();                   // upload_max · post_max 중 작은 쪽
+    if ($lim <= 0) $lim = 2 * 1024 * 1024;
+    $c = (int)floor($lim * 0.7);                // 여백 — 폼 다른 칸도 같이 갑니다
+    $c = min($c, 16 * 1024 * 1024);       // 1GB 면 조각이 64개 — 오가는 횟수를 줄입니다
+    $c = max($c, 128 * 1024);
+    return $c;
+}
+
+/* 하다 만 조각을 이따금 치웁니다 (하루 지난 것) */
+function up_sweep($dir) {
+    if (!is_dir($dir)) return;
+    $cut = time() - 86400;
+    foreach ((array)@scandir($dir) as $f) {
+        if ($f === '.' || $f === '..') continue;
+        $p = $dir . '/' . $f;
+        if (is_file($p) && @filemtime($p) < $cut) @unlink($p);
+    }
+}
+
+function up_id_ok($id) { return (bool)preg_match('/^[0-9a-f]{32}$/', (string)$id); }
+
+if ($action === 'chunkstart') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
+    }
+    if (!is_dir($UP_TMP) && !@mkdir($UP_TMP, 0775, true) && !is_dir($UP_TMP)) {
+        jout(['ok' => false, 'error' => '조각을 모아 둘 폴더를 만들지 못했습니다: ' . $UP_TMP], 500);
+    }
+    up_sweep($UP_TMP);
+    $name = safe_name($_POST['name'] ?? '', 'file');
+    $size = (int)($_POST['size'] ?? 0);
+    if ($size <= 0)        jout(['ok' => false, 'error' => '파일 크기를 알 수 없습니다'], 400);
+    if ($size > $UP_MAX)   jout(['ok' => false, 'error' =>
+        '파일이 너무 큽니다 (한 개 ' . round($UP_MAX / 1073741824) . 'GB 까지)'], 413);
+
+    $id = bin2hex(random_bytes(16));
+    $meta = [
+        'id' => $id, 'name' => $name, 'size' => $size, 'got' => 0, 'next' => 0,
+        'brand' => (string)($_POST['brand'] ?? ''),
+        'sub'   => (string)($_POST['sub'] ?? ''),
+        'sub2'  => (string)($_POST['sub2'] ?? ''),
+        'sub3'  => (string)($_POST['sub3'] ?? ''),
+        'at' => time(),
+    ];
+    if (@file_put_contents(up_meta_path($UP_TMP, $id), json_encode($meta, 320)) === false
+        || @file_put_contents(up_part_path($UP_TMP, $id), '') === false) {
+        jout(['ok' => false, 'error' => '조각을 쓸 수 없습니다 (폴더 권한을 확인해 주세요)'], 500);
+    }
+    jout(['ok' => true, 'up' => $id, 'chunk' => up_chunk_size(),
+          '안내' => '한 번에 ' . round(up_chunk_size() / 1024) . 'KB 씩 보냅니다']);
+}
+
+if ($action === 'chunk') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
+    }
+    $id = (string)($_POST['up'] ?? '');
+    if (!up_id_ok($id)) jout(['ok' => false, 'error' => '올리는 중인 파일이 아닙니다'], 400);
+    $mp = up_meta_path($UP_TMP, $id);
+    $meta = is_file($mp) ? json_decode((string)@file_get_contents($mp), true) : null;
+    if (!is_array($meta)) jout(['ok' => false, 'error' =>
+        '올리던 자리가 없어졌습니다 (오래 두면 하루 뒤 지워집니다). 다시 올려주세요.'], 404);
+
+    /* 조각이 통째로 안 왔으면 PHP 한도에 걸린 것입니다 — 그대로 알려 줍니다 */
+    if (empty($_FILES) && empty($_POST)) {
+        jout(['ok' => false, 'error' =>
+            '조각이 서버 한도보다 큽니다 (' . ini_get('post_max_size') . ')'], 413);
+    }
+    if (!isset($_FILES['blob']) || $_FILES['blob']['error'] !== UPLOAD_ERR_OK) {
+        jout(['ok' => false, 'error' => '조각이 오지 않았습니다'], 400);
+    }
+    $i = (int)($_POST['i'] ?? -1);
+    if ($i !== (int)$meta['next']) {
+        jout(['ok' => false, 'error' => '조각 차례가 어긋났습니다 ('
+            . $i . ' 번이 왔는데 ' . $meta['next'] . ' 번을 기다리고 있었습니다)',
+            'next' => (int)$meta['next']], 409);
+    }
+    $part = up_part_path($UP_TMP, $id);
+    $blob = @file_get_contents($_FILES['blob']['tmp_name']);
+    if ($blob === false) jout(['ok' => false, 'error' => '조각을 읽지 못했습니다'], 500);
+    if ($meta['got'] + strlen($blob) > $meta['size']) {
+        jout(['ok' => false, 'error' => '보낸 양이 처음 말한 크기보다 큽니다'], 400);
+    }
+    if (@file_put_contents($part, $blob, FILE_APPEND) === false) {
+        jout(['ok' => false, 'error' => '조각을 이어 붙이지 못했습니다 (디스크가 가득 찼을 수 있습니다)'], 500);
+    }
+    $meta['got']  += strlen($blob);
+    $meta['next'] = $i + 1;
+    @file_put_contents($mp, json_encode($meta, 320));
+    jout(['ok' => true, 'got' => $meta['got'], 'next' => $meta['next'], 'size' => $meta['size']]);
+}
+
+if ($action === 'chunkdone') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
+    }
+    $id = (string)($_POST['up'] ?? '');
+    if (!up_id_ok($id)) jout(['ok' => false, 'error' => '올리는 중인 파일이 아닙니다'], 400);
+    $mp = up_meta_path($UP_TMP, $id);
+    $meta = is_file($mp) ? json_decode((string)@file_get_contents($mp), true) : null;
+    if (!is_array($meta)) jout(['ok' => false, 'error' => '올리던 자리가 없어졌습니다'], 404);
+    $part = up_part_path($UP_TMP, $id);
+    $have = is_file($part) ? (int)filesize($part) : -1;
+    if ($have !== (int)$meta['size']) {
+        jout(['ok' => false, 'error' => '조각이 다 오지 않았습니다 ('
+            . $have . ' / ' . $meta['size'] . ' 바이트)'], 400);
+    }
+
+    $sub = SUBDIRS[trim((string)$meta['sub'])] ?? SUBDIRS['자료'];
+    $dir = dest_dir($FILE_DIR, safe_name($meta['brand'], '_공통'), $sub, $USE_YEAR);
+    /* 목록 → 탭 으로 한 겹씩 더 나눠 둡니다. 탐색기에서도 그대로 찾게. */
+    foreach (['sub2', 'sub3'] as $k) {
+        $x = trim((string)($meta[$k] ?? ''));
+        if ($x !== '') $dir .= '/' . safe_name($x, '기타');
+    }
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        @unlink($part); @unlink($mp);
+        jout(['ok' => false, 'error' => '저장 폴더를 만들 수 없습니다: ' . $dir], 500);
+    }
+    $orig = safe_name($meta['name'], 'file');
+    $stamped = preg_match('/^\d{4}-\d{2}-\d{2}_/', $orig) ? $orig : (date('Y-m-d') . '_' . $orig);
+    $fileName = unique_path($dir, $stamped);
+    $dest = $dir . '/' . $fileName;
+    if (!@rename($part, $dest)) {
+        /* 다른 디스크면 rename 이 안 됩니다 — 복사해서 옮깁니다 */
+        if (!@copy($part, $dest)) {
+            jout(['ok' => false, 'error' => 'NAS 에 옮기지 못했습니다 / 폴더 쓰기가능='
+                . (is_writable($dir) ? '예' : '아니오')], 500);
+        }
+        @unlink($part);
+    }
+    @chmod($dest, 0664);
+    @unlink($mp);
+
+    jout([
+        'ok'       => true,
+        'fileId'   => bin2hex(random_bytes(16)),
+        'fileName' => $fileName,
+        'filePath' => substr($dir, strlen($FILE_DIR) + 1) . '/' . $fileName,
+        '둔곳'     => $dir,
+        'fileSize' => (int)$meta['size'],
+        'mime'     => 'application/octet-stream',
+    ]);
+}
+
+if ($action === 'chunkabort') {
+    $id = (string)($_POST['up'] ?? $_GET['up'] ?? '');
+    if (up_id_ok($id)) { @unlink(up_meta_path($UP_TMP, $id)); @unlink(up_part_path($UP_TMP, $id)); }
+    jout(['ok' => true]);
+}
+
+/* ---------------- 경로로 바로 내려받기 ----------------
+   목록에 적어 둔 filePath 로 곧장 받습니다. 알집·영상처럼 브라우저가
+   못 여는 것은 id 가 아니라 경로로 가리키는 편이 단순합니다.
+   ---------------------------------------------------- */
+if ($action === 'dl') {
+    $rel = trim($_GET['path'] ?? '');
+    if ($rel === '') jout(['ok' => false, 'error' => '파일 경로가 없습니다'], 400);
+    [$real, $now] = resolve_rel($FILE_DIRS, $rel);
+    if (!$real) jout(['ok' => false, 'error' => '그런 파일이 없습니다: ' . $rel,
+        '안내' => '폴더에서 지웠거나 이름이 바뀐 것 같습니다.'], 404);
+    $name = basename($real);
+    $name = str_replace(["\r", "\n", '"', '\\'], '', $name);
+    $ascii = preg_replace('/[^\x20-\x7E]/', '_', $name);
+    if (trim($ascii, '_ ') === '') $ascii = 'download';
+    header('Content-Type: application/octet-stream');
+    header('Content-Length: ' . filesize($real));
+    header('Content-Disposition: attachment; filename="' . $ascii . '"; '
+         . "filename*=UTF-8''" . rawurlencode($name));
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: private, max-age=0');
+    if ($now !== $rel) header('X-Moved-To: ' . rawurlencode($now));
+    while (ob_get_level()) ob_end_flush();
+    readfile($real);
+    exit;
 }
 
 if ($action === 'upload') {

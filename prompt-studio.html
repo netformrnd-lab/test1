@@ -186,7 +186,7 @@
     letter-spacing:-.5px;line-height:1.25;font-variant-numeric:tabular-nums}
   .kpi .f{font-size:11px;color:var(--ink-3);line-height:1.45}
 
-  .board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;align-items:start}
+  .board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;align-items:start}
   .col{background:var(--surface-2);border-radius:12px;padding:9px;display:flex;flex-direction:column;gap:7px;min-height:92px}
   .col > .ch{display:flex;align-items:center;gap:6px;padding:1px 3px 0}
   .col > .ch .dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--tint)}
@@ -233,6 +233,117 @@
     .board{grid-template-columns:1fr}
     .col{min-height:0}
   }
+  /* ── 상단 탭 ───────────────────────────────── */
+  .nav{max-width:1020px;margin:0 auto;padding:0 24px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  .nav button{flex:none;padding:9px 16px 10px;border:0;border-bottom:2px solid transparent;background:none;
+    color:var(--ink-3);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .nav button:hover{color:var(--ink-2)}
+  .nav button[aria-selected="true"]{color:var(--brand);border-bottom-color:var(--brand)}
+  .nav .b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;
+    min-width:17px;height:17px;padding:0 5px;border-radius:9px;background:var(--surface-2);color:var(--ink-3);
+    display:grid;place-items:center;font-variant-numeric:tabular-nums}
+  .nav button[aria-selected="true"] .b{background:var(--brand-soft);color:var(--brand)}
+  .view[hidden]{display:none}
+
+  .sec-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+  .sec-hd h2{font-size:15px;font-weight:700;letter-spacing:-.2px}
+  .sec-hd .note{font-size:12px;color:var(--ink-3);margin:0;background:none;padding:0}
+  .sec-hd .spacer{flex:1}
+  section.blk{margin:0 0 22px}
+
+  /* ── 크레딧 ───────────────────────────────── */
+  .credset{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-top:10px;
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .credset .f{display:flex;flex-direction:column;gap:4px}
+  .credset label{font-size:11.5px;color:var(--ink-3);font-weight:600}
+  .credset input{width:110px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;
+    font-family:'JetBrains Mono',ui-monospace,monospace}
+  .credset .f.wide input{width:auto;min-width:180px;font-family:inherit}
+  .credset .hint{font-size:11.5px;color:var(--ink-3);flex:1;min-width:160px;line-height:1.5}
+  .meter{height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;margin-top:9px}
+  .meter i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-2))}
+  .meter.hot i{background:linear-gradient(90deg,var(--warn),#d2483f)}
+
+  /* ── 지식 ───────────────────────────────── */
+  .know{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .autofeed{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .autofeed span{font-size:11px;padding:4px 9px;border-radius:7px;background:var(--ok-soft);color:var(--ok);font-weight:600}
+  .notes{display:flex;flex-direction:column;gap:7px;margin-bottom:11px}
+  .note-it{display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border:1px solid var(--line-soft);
+    border-radius:9px;background:var(--surface-2)}
+  .note-it .tx{flex:1;font-size:12.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+  .note-it .src{font-size:10.5px;color:var(--ink-3);display:block;margin-top:3px}
+  .note-it button{flex:none;width:23px;height:23px;border-radius:6px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink-3);font:inherit;font-size:11px;cursor:pointer;padding:0}
+  .note-it button:hover{border-color:#d2483f;color:#d2483f}
+  .know .empty{font-size:12.5px;color:var(--ink-3);padding:10px 0 14px}
+  .know textarea{width:100%;min-height:78px;padding:10px 12px;border-radius:9px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;line-height:1.6;resize:vertical}
+
+  /* ── 검수 ───────────────────────────────── */
+  .revacts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .revacts .note{font-size:12px;color:var(--ink-3);background:none;padding:0}
+  .revpass{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}
+  .pass{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+  .pass > h3{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:3px}
+  .pass > h3 .n{width:19px;height:19px;border-radius:50%;background:var(--brand-soft);color:var(--brand);
+    font-size:11px;display:grid;place-items:center;flex:none}
+  .pass > .role{font-size:11.5px;color:var(--ink-3);margin:0 0 10px;line-height:1.5}
+  .pass .verdict{font-size:12px;font-weight:700;padding:5px 10px;border-radius:8px;display:inline-block;margin-bottom:9px}
+  .pass .verdict.ok{background:var(--ok-soft);color:var(--ok)}
+  .pass .verdict.fix{background:var(--warn-soft);color:var(--warn)}
+  .pass .thinking{font-size:12.5px;color:var(--ink-3);padding:6px 0}
+  .find{border-top:1px solid var(--line-soft);padding:10px 0 2px}
+  .find:first-of-type{border-top:0}
+  .find .hd{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+  .sev{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.03em;flex:none}
+  .sev.high{background:rgba(210,72,63,.13);color:#d2483f}
+  .sev.med{background:var(--warn-soft);color:var(--warn)}
+  .sev.low{background:var(--surface-2);color:var(--ink-3)}
+  .find .where{font-size:11.5px;color:var(--ink-3);font-weight:600}
+  .find .pb{font-size:12.5px;line-height:1.6;word-break:keep-all}
+  .find .fx{font-size:12.5px;line-height:1.6;color:var(--ink-2);margin-top:4px;padding-left:11px;
+    border-left:2px solid var(--brand);word-break:keep-all}
+  .find .keep{margin-top:7px;padding:4px 9px;font-size:11.5px;border-radius:7px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink-3);font:inherit;font-weight:600;cursor:pointer}
+  .find .keep:hover{border-color:var(--ok);color:var(--ok)}
+  .find .keep[disabled]{opacity:.45;cursor:default;border-color:var(--line)}
+  .gptback{margin-top:14px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+  .gptback > summary{padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+  .gptback .bd{padding:0 14px 13px;display:flex;flex-direction:column;gap:9px}
+  .gptback textarea{width:100%;min-height:90px;padding:10px 12px;border-radius:9px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--ink);font:inherit;font-size:12.5px;line-height:1.6;resize:vertical}
+
+  /* ── 제작 · 완료 ───────────────────────────── */
+  .mkgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:14px}
+  .mkbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+  .mkbox h3{font-size:12.5px;font-weight:700;margin-bottom:8px}
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:12.5px;border-top:1px solid var(--line-soft)}
+  .kv:first-of-type{border-top:0}
+  .kv .k{color:var(--ink-3)}
+  .kv .v{font-weight:600;font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  .logrow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:10px}
+  .logrow .f{display:flex;flex-direction:column;gap:4px}
+  .logrow label{font-size:11.5px;color:var(--ink-3);font-weight:600}
+  .logrow input{padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);font:inherit;font-size:13px}
+  .logrow input.sec{width:92px;font-family:'JetBrains Mono',ui-monospace,monospace}
+  .logrow input.url{min-width:210px}
+  .picker{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:13px}
+  .picker button{padding:7px 12px;border-radius:9px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink-2);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .picker button[aria-pressed="true"]{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+  .blank{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:26px 18px;
+    text-align:center;color:var(--ink-3);font-size:13px;line-height:1.7}
+  .dtable{width:100%;border-collapse:collapse;font-size:12.5px}
+  .dtable th{text-align:left;font-size:11px;color:var(--ink-3);font-weight:700;letter-spacing:.04em;
+    padding:8px 10px;border-bottom:1px solid var(--line)}
+  .dtable td{padding:9px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  .dtable td.num{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right}
+  .dtable tr:last-child td{border-bottom:0}
 </style>
 
 <header>
@@ -245,11 +356,19 @@
     <div class="spacer"></div>
     <button class="btn" id="themeBtn">테마 전환</button>
   </div>
+  <nav class="nav" id="navMain" role="tablist" aria-label="작업 단계">
+    <button type="button" role="tab" data-v="home" aria-selected="true">홈</button>
+    <button type="button" role="tab" data-v="plan" aria-selected="false">기획<span class="b" id="nb0">0</span></button>
+    <button type="button" role="tab" data-v="make" aria-selected="false">제작<span class="b" id="nb1">0</span></button>
+    <button type="button" role="tab" data-v="done" aria-selected="false">완료<span class="b" id="nb2">0</span></button>
+  </nav>
 </header>
 
 <div class="wrap">
 
-  <section class="dash">
+<main class="view" id="v-home">
+
+  <section class="dash blk">
     <div class="dash-hd">
       <h2>제작 현황</h2>
       <p class="note">카드를 누르면 그 영상의 설정이 아래 편집기로 올라옵니다</p>
@@ -263,6 +382,63 @@
       <span class="hint" id="addHint"></span>
     </div>
   </section>
+
+  <section class="blk">
+    <div class="sec-hd">
+      <h2>크레딧</h2>
+      <p class="note">헤이젠은 만들어진 영상 길이만큼 차감됩니다. 제작 탭에서 기록하면 여기에 쌓입니다.</p>
+    </div>
+    <div class="kpis" id="credKpis"></div>
+    <div class="meter" id="credMeter"><i style="width:0%"></i></div>
+    <div class="credset">
+      <div class="f"><label for="credTotal">보유 크레딧</label>
+        <input type="number" id="credTotal" min="0" step="1" value="100"></div>
+      <div class="f"><label for="credSec">1크레딧 = 몇 초</label>
+        <input type="number" id="credSec" min="1" step="1" value="60"></div>
+      <div class="hint">헤이젠 요금제 화면의 숫자를 그대로 넣으세요. 남은 크레딧은 기록한 영상 길이로 계산합니다.</div>
+    </div>
+  </section>
+
+  <section class="blk">
+    <div class="sec-hd">
+      <h2>AI가 아는 내용</h2>
+      <p class="note">검수할 때마다 클로드에게 그대로 전달됩니다</p>
+    </div>
+    <div class="know">
+      <div class="autofeed" id="autoFeed"></div>
+      <div class="notes" id="noteList"></div>
+      <textarea id="noteNew" placeholder="예) 재도장은 고압세척과 바인더가 빠지면 도막이 2년 안에 들뜹니다. 견적서에 두 항목이 없으면 반드시 지적할 것."></textarea>
+      <div class="addrow">
+        <button class="btn solid" id="noteAdd">자료 추가</button>
+        <span class="hint">검수에서 나온 지적도 “지식으로 저장”을 누르면 여기에 쌓입니다</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="refbox">
+    <h3>레퍼런스 두 편, 헤이젠으로 어디까지 되나</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>레퍼런스에서 관찰된 요소</th><th>헤이젠</th><th>대응</th></tr></thead>
+        <tbody>
+          <tr><td>딥 네이비 + 오렌지·하늘색 화면 톤</td><td><span class="pill y">가능</span></td><td>프롬프트의 색 지정으로 전달</td></tr>
+          <tr><td>B-roll 위 내레이션, 생활 장면</td><td><span class="pill y">가능</span></td><td>씬별 B롤 지시를 프롬프트에 명시</td></tr>
+          <tr><td>2D 차트·아이콘·일러스트</td><td><span class="pill y">가능</span></td><td>막대 성장·카운트업 모션 지원</td></tr>
+          <tr><td>챕터 전환의 전체 화면 타이틀</td><td><span class="pill y">가능</span></td><td>씬 구성에 타이틀 카드로 포함</td></tr>
+          <tr><td>하단 자막 + 중앙 대형 인용문</td><td><span class="pill y">가능</span></td><td>자막 스타일 선택으로 지정</td></tr>
+          <tr><td>차트 눈금과 실제 수치의 일치</td><td><span class="pill n">검산 필요</span></td><td>렌더 후 사람이 대조</td></tr>
+          <tr><td>2~4초 하드컷의 일정한 리듬</td><td><span class="pill n">부분</span></td><td>지정해도 편차가 남음</td></tr>
+          <tr><td>글리치·와이프 전환</td><td><span class="pill n">불가</span></td><td>후편집으로 보강</td></tr>
+          <tr><td>공식 영상·역사 자료 아카이브</td><td><span class="pill n">불가</span></td><td>권리 확보한 소스를 직접 삽입</td></tr>
+          <tr><td>8분 30초 / 11분 길이</td><td><span class="pill n">분할 필요</span></td><td>3분 이하 조각으로 나눠 생성 후 결합</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<main class="view" id="v-plan" hidden>
 
   <div class="ctx free" id="ctxBar"></div>
 
@@ -412,26 +588,51 @@
     </div>
   </div>
 
-  <div class="refbox">
-    <h3>레퍼런스 두 편, 헤이젠으로 어디까지 되나</h3>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th>레퍼런스에서 관찰된 요소</th><th>헤이젠</th><th>대응</th></tr></thead>
-        <tbody>
-          <tr><td>딥 네이비 + 오렌지·하늘색 화면 톤</td><td><span class="pill y">가능</span></td><td>프롬프트의 색 지정으로 전달</td></tr>
-          <tr><td>B-roll 위 내레이션, 생활 장면</td><td><span class="pill y">가능</span></td><td>씬별 B롤 지시를 프롬프트에 명시</td></tr>
-          <tr><td>2D 차트·아이콘·일러스트</td><td><span class="pill y">가능</span></td><td>막대 성장·카운트업 모션 지원</td></tr>
-          <tr><td>챕터 전환의 전체 화면 타이틀</td><td><span class="pill y">가능</span></td><td>씬 구성에 타이틀 카드로 포함</td></tr>
-          <tr><td>하단 자막 + 중앙 대형 인용문</td><td><span class="pill y">가능</span></td><td>자막 스타일 선택으로 지정</td></tr>
-          <tr><td>차트 눈금과 실제 수치의 일치</td><td><span class="pill n">검산 필요</span></td><td>렌더 후 사람이 대조</td></tr>
-          <tr><td>2~4초 하드컷의 일정한 리듬</td><td><span class="pill n">부분</span></td><td>지정해도 편차가 남음</td></tr>
-          <tr><td>글리치·와이프 전환</td><td><span class="pill n">불가</span></td><td>후편집으로 보강</td></tr>
-          <tr><td>공식 영상·역사 자료 아카이브</td><td><span class="pill n">불가</span></td><td>권리 확보한 소스를 직접 삽입</td></tr>
-          <tr><td>8분 30초 / 11분 길이</td><td><span class="pill n">분할 필요</span></td><td>3분 이하 조각으로 나눠 생성 후 결합</td></tr>
-        </tbody>
-      </table>
+  <section class="blk" id="revBox" style="margin-top:22px">
+    <div class="sec-hd">
+      <h2>검수 2단계</h2>
+      <p class="note">1차는 사실과 규정, 2차는 연출과 리듬 — 서로 다른 눈으로 두 번 봅니다</p>
     </div>
-  </div>
+    <div class="revacts">
+      <button class="btn solid" id="revBtn">검수 시작</button>
+      <button class="btn" id="revStop" hidden>중단</button>
+      <button class="btn" id="gptBtn">ChatGPT용 검수 요청문 복사</button>
+      <span class="note" id="revState"></span>
+    </div>
+    <div class="revpass" id="revOut"></div>
+    <details class="gptback">
+      <summary>ChatGPT 검수 결과를 받아 왔다면 여기에 붙여넣으세요</summary>
+      <div class="bd">
+        <textarea id="gptPaste" placeholder="ChatGPT가 답한 내용을 그대로 붙여넣으세요"></textarea>
+        <div><button class="btn" id="gptSave">검수 메모로 저장</button></div>
+      </div>
+    </details>
+  </section>
+
+</main>
+
+<main class="view" id="v-make" hidden>
+  <section class="blk">
+    <div class="sec-hd">
+      <h2>제작</h2>
+      <p class="note">프롬프트를 복사해 헤이젠에 넣고, 나온 영상의 길이와 링크를 여기에 기록하세요</p>
+    </div>
+    <div class="picker" id="mkPick"></div>
+    <div id="mkBody"></div>
+  </section>
+</main>
+
+<main class="view" id="v-done" hidden>
+  <section class="blk">
+    <div class="sec-hd">
+      <h2>완료</h2>
+      <p class="note">발행한 영상과 실제로 쓴 크레딧</p>
+    </div>
+    <div class="kpis" id="doneKpis"></div>
+    <div id="doneBody"></div>
+  </section>
+</main>
+
 </div>
 
 <div class="toast" id="toast">복사했습니다</div>
@@ -1029,7 +1230,7 @@
       b.setAttribute('aria-selected',String(+b.dataset.tab===st.tab));
     });
     save();
-    if(!suspendWB) writeBack();
+    if(!suspendWB){ writeBack(); renderNotes(); }
   }
 
   document.querySelector('.tabs').addEventListener('click',function(e){
@@ -1050,6 +1251,21 @@
     document.getElementById('cta').value=a.cta;
     render();
   });
+
+  function copyText(t,msg){
+    var ta=document.createElement('textarea');
+    ta.value=t; ta.setAttribute('readonly','');
+    ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,ta.value.length);
+    var ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+    if(!ok && navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){ flash(msg); },
+        function(){ flash('복사가 막혀 있습니다. 아래 칸을 눌러 Ctrl+C 를 쓰세요'); });
+    } else {
+      flash(ok?msg:'복사가 막혀 있습니다. 아래 칸을 눌러 Ctrl+C 를 쓰세요');
+    }
+    document.body.removeChild(ta);
+  }
 
   var toast=document.getElementById('toast'), tid;
   function flash(m){ toast.textContent=m; toast.classList.add('on');
@@ -1092,12 +1308,11 @@
   /* ── 제작 현황판 ────────────────────────────────────────────── */
 
   var STAGES=[
-    {k:'기획',        c:'var(--ink-3)',  d:'키워드와 대상만 정해진 상태'},
-    {k:'프롬프트 완성', c:'var(--brand)',  d:'복사해서 헤이젠에 넣으면 됩니다'},
-    {k:'헤이젠 제작',   c:'var(--brand-2)',d:'헤이젠이 영상을 만드는 중'},
-    {k:'검수',        c:'var(--warn)',   d:'수치·자막·인물을 사람이 대조'},
-    {k:'발행 완료',    c:'var(--ok)',     d:'유튜브에 올라갔습니다'}
+    {k:'기획', c:'var(--brand)', d:'키워드를 잡고 검수를 받는 단계'},
+    {k:'제작', c:'var(--warn)',  d:'헤이젠이 영상을 만드는 단계'},
+    {k:'완료', c:'var(--ok)',    d:'발행까지 끝난 영상'}
   ];
+  var OLD5=[0,0,1,1,2];   // 이전 5단계 기록을 3단계로 옮김
 
   var LSI='ytprompt.items.r1';
   var items=[], selId=null, DB=null, suspendWB=false, wbT=null, migrated=false;
@@ -1123,12 +1338,22 @@
     } finally { suspendWB=false; }
   }
 
-  function localRead(){ try{ var a=JSON.parse(localStorage.getItem(LSI)||'[]'); return a&&a.length?a:[]; }catch(e){ return []; } }
+  function fixStage(it){
+    var g=it.stage|0;
+    if(g>2) g=OLD5[g]!=null?OLD5[g]:2;
+    it.stage=Math.max(0,Math.min(2,g));
+    return it;
+  }
+  function localRead(){
+    try{ var a=JSON.parse(localStorage.getItem(LSI)||'[]'); return a&&a.length?a.map(fixStage):[]; }
+    catch(e){ return []; }
+  }
   function localWrite(){ try{ localStorage.setItem(LSI,JSON.stringify(items)); }catch(e){} }
 
   function body(it){
     return {title:it.title, stage:it.stage|0, createdAt:it.createdAt||Date.now(),
-            updatedAt:it.updatedAt||Date.now(), cfg:it.cfg||{}};
+            updatedAt:it.updatedAt||Date.now(), cfg:it.cfg||{},
+            review:it.review||null, made:it.made||null};
   }
   function putItem(it){
     it.updatedAt=Date.now();
@@ -1156,23 +1381,22 @@
     },700);
   }
 
+  function stageCount(g){ return items.filter(function(it){ return (it.stage|0)===g; }).length; }
+  function itemLen(it){ return LENS[((it.cfg&&it.cfg.st&&it.cfg.st.len)|0)]||0; }
+
   function renderKpis(){
-    var n=items.length, ready=0, run=0, done=0;
-    items.forEach(function(it){
-      var g=it.stage|0;
-      if(g<=1) ready++; else if(g<=3) run++; else done++;
-    });
-    var total=items.reduce(function(a,it){
-      var li=(it.cfg&&it.cfg.st&&it.cfg.st.len)|0; return a+(LENS[li]||0); },0);
+    var n=items.length, rev=items.filter(function(it){ return it.review&&it.review.passes&&it.review.passes.length===2; }).length;
+    var total=items.reduce(function(a,it){ return a+itemLen(it); },0);
     var tiles=[
-      {k:'등록된 영상', v:n+'편',      f:n?'총 길이 '+lenLabel(total):'아래 버튼으로 첫 영상을 등록하세요'},
-      {k:'준비 중',    v:ready+'편',   f:'기획 · 프롬프트 완성'},
-      {k:'진행 중',    v:run+'편',     f:'헤이젠 제작 · 검수'},
-      {k:'발행 완료',  v:done+'편',    f:n?Math.round(done/n*100)+'% 완료':'—'}
+      {k:'등록된 영상', v:n+'편', f:n?'기획된 총 길이 '+lenLabel(total):'아래 버튼으로 첫 영상을 등록하세요'},
+      {k:'기획', v:stageCount(0)+'편', f:rev+'편 검수 완료'},
+      {k:'제작', v:stageCount(1)+'편', f:'헤이젠에 넣을 차례'},
+      {k:'완료', v:stageCount(2)+'편', f:n?Math.round(stageCount(2)/n*100)+'% 발행':'—'}
     ];
     document.getElementById('kpis').innerHTML=tiles.map(function(t){
       return '<div class="kpi"><div class="k">'+t.k+'</div><div class="v">'+t.v+'</div>'+
              '<div class="f">'+esc(t.f)+'</div></div>'; }).join('');
+    for(var g=0;g<3;g++) document.getElementById('nb'+g).textContent=stageCount(g);
   }
 
   function renderBoard(){
@@ -1182,7 +1406,10 @@
       var cards=mine.map(function(it){
         var c=it.cfg||{}, cst=c.st||{}, f=c.f||{};
         var tr=TRADES[cst.trade|0], ln=LENS[cst.len|0];
-        var meta=[tr?tr.k:'공종 미지정', ln?lenLabel(ln):'', (f.audience||'').trim()]
+        var mark = it.made&&it.made.seconds ? '제작 '+it.made.seconds+'초'
+                 : (it.review&&it.review.passes&&it.review.passes.length===2 ? '검수 2/2'
+                 : (it.review&&it.review.passes&&it.review.passes.length===1 ? '검수 1/2' : ''));
+        var meta=[tr?tr.k:'공종 미지정', ln?lenLabel(ln):'', mark]
           .filter(Boolean).join(' · ');
         return '<div class="vcard" role="button" tabindex="0" data-open="'+it.id+'"'+
           (selId===it.id?' aria-current="true"':'')+'>'+
@@ -1200,7 +1427,7 @@
         (mine.length?'':'<div class="cd">'+sg.d+'</div>')+cards+'</div>';
     }).join('');
     document.getElementById('board').innerHTML=cols;
-    renderCtx();
+    renderCtx(); renderCredits(); renderMake(); renderDone();
   }
 
   function renderCtx(){
@@ -1214,6 +1441,7 @@
         '<span class="stg">아래에서 설정한 뒤 <b>영상 등록</b>을 누르면 현황판에 올라갑니다</span>';
       document.getElementById('addHint').textContent=
         items.length?'지금 편집기의 내용이 새 카드로 등록됩니다':'';
+      renderReview();
       return;
     }
     var it=items[i], sg=STAGES[it.stage|0]||STAGES[0];
@@ -1224,12 +1452,12 @@
       '<button type="button" class="btn" data-stage="1">다음 단계로 →</button>'+
       '<button type="button" class="btn" data-clear="1">선택 해제</button>';
     document.getElementById('addHint').textContent='현재 카드와 별개로 새 카드가 하나 더 만들어집니다';
+    renderReview();
   }
 
   function openItem(id){
     var i=idxOf(id); if(i<0) return;
-    selId=id; setCfg(items[i].cfg); renderBoard();
-    document.querySelector('.hero').scrollIntoView({behavior:'smooth',block:'start'});
+    selId=id; setCfg(items[i].cfg); renderBoard(); goView('plan');
   }
 
   document.getElementById('board').addEventListener('click',function(e){
@@ -1270,8 +1498,481 @@
     selId=it.id; putItem(it); flash('“'+it.title+'” 등록했습니다');
   });
 
+
+  /* ── 탭 이동 ─────────────────────────────────────────────── */
+  var VIEWS=['home','plan','make','done'], curView='home';
+  function goView(v){
+    if(VIEWS.indexOf(v)<0) v='home';
+    curView=v;
+    VIEWS.forEach(function(x){ document.getElementById('v-'+x).hidden = (x!==v); });
+    Array.prototype.forEach.call(document.querySelectorAll('#navMain button'),function(b){
+      b.setAttribute('aria-selected', String(b.dataset.v===v));
+    });
+    if(v==='make') renderMake();
+    if(v==='done') renderDone();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  document.getElementById('navMain').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(b) goView(b.dataset.v);
+  });
+
+  /* ── 설정과 지식 (AI가 아는 내용) ──────────────────────────── */
+  var LSC='ytprompt.cfg.r1', LSK='ytprompt.know.r1';
+  var CFG={credTotal:100, credSec:60, reviewCalls:0};
+  var NOTES=[];
+
+  function readLS(k,dflt){ try{ var v=JSON.parse(localStorage.getItem(k)||'null'); return v==null?dflt:v; }catch(e){ return dflt; } }
+  function writeLS(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+  function saveCfg(){
+    writeLS(LSC,CFG);
+    if(DB) DB.doc('config/settings').set(CFG).catch(function(){});
+  }
+  function saveNotes(){
+    writeLS(LSK,NOTES);
+    if(DB) DB.doc('config/knowledge').set({notes:NOTES}).catch(function(){});
+  }
+  function addNote(text,src){
+    text=String(text||'').trim(); if(!text) return false;
+    if(NOTES.some(function(n){ return n.text===text; })) return false;
+    NOTES.unshift({id:newId(), text:text, src:src||'직접 입력', at:Date.now()});
+    if(NOTES.length>60) NOTES.length=60;
+    saveNotes(); renderNotes(); return true;
+  }
+
+  function renderNotes(){
+    var tr=TRADES[st.trade];
+    document.getElementById('autoFeed').innerHTML=
+      ['회사·감리 업무 사실', tr.k+' 자료',
+       tr.grades.length?'등급표 '+tr.grades.length+'줄':null,
+       tr.figures.length?'검증 수치 '+tr.figures.length+'개':null,
+       tr.checks.length?'확인 항목 '+tr.checks.length+'개':null,
+       '금지 사항 전체'].filter(Boolean)
+      .map(function(x){ return '<span>'+esc(x)+' 자동 포함</span>'; }).join('');
+
+    var el=document.getElementById('noteList');
+    if(!NOTES.length){
+      el.innerHTML='<div class="empty">아직 추가한 자료가 없습니다. 위에 표시된 내용은 자동으로 들어갑니다.</div>';
+      return;
+    }
+    el.innerHTML=NOTES.map(function(n){
+      return '<div class="note-it"><div class="tx">'+esc(n.text)+
+        '<span class="src">'+esc(n.src)+' · '+new Date(n.at||0).toLocaleDateString('ko-KR')+'</span></div>'+
+        '<button type="button" data-note="'+n.id+'" title="삭제">✕</button></div>';
+    }).join('');
+  }
+  document.getElementById('noteList').addEventListener('click',function(e){
+    var b=e.target.closest('[data-note]'); if(!b) return;
+    NOTES=NOTES.filter(function(n){ return n.id!==b.dataset.note; });
+    saveNotes(); renderNotes(); flash('자료를 지웠습니다');
+  });
+  document.getElementById('noteAdd').addEventListener('click',function(){
+    var ta=document.getElementById('noteNew');
+    if(addNote(ta.value,'직접 입력')){ ta.value=''; flash('자료를 추가했습니다'); }
+    else flash('이미 있는 내용이거나 비어 있습니다');
+  });
+
+  /* ── 크레딧 ───────────────────────────────────────────────── */
+  function usedCredits(){
+    var sec=CFG.credSec>0?CFG.credSec:60;
+    return items.reduce(function(a,it){
+      return a + (it.made && it.made.seconds ? it.made.seconds/sec : 0); },0);
+  }
+  function plannedCredits(){
+    var sec=CFG.credSec>0?CFG.credSec:60;
+    return items.filter(function(it){ return (it.stage|0)<2 && !(it.made&&it.made.seconds); })
+                .reduce(function(a,it){ return a+itemLen(it)/sec; },0);
+  }
+  function c1(n){ return (Math.round(n*10)/10).toFixed(1); }
+
+  function renderCredits(){
+    var box=document.getElementById('credKpis'); if(!box) return;
+    var used=usedCredits(), left=Math.max(0,CFG.credTotal-used), plan=plannedCredits();
+    var madeN=items.filter(function(it){ return it.made&&it.made.seconds; }).length;
+    box.innerHTML=[
+      {k:'보유', v:c1(CFG.credTotal), f:'헤이젠 요금제 기준'},
+      {k:'사용', v:c1(used), f:madeN?madeN+'편 기록 · 편당 평균 '+c1(used/madeN):'아직 기록 없음'},
+      {k:'남음', v:c1(left), f:CFG.credTotal>0?Math.round(left/CFG.credTotal*100)+'% 남음':'—'},
+      {k:'예정', v:c1(plan), f:'아직 안 만든 영상에 필요한 양'}
+    ].map(function(t){
+      return '<div class="kpi"><div class="k">'+t.k+' 크레딧</div><div class="v">'+t.v+'</div>'+
+             '<div class="f">'+esc(t.f)+'</div></div>'; }).join('');
+    var pct=CFG.credTotal>0?Math.min(100,used/CFG.credTotal*100):0;
+    var m=document.getElementById('credMeter');
+    m.className='meter'+(pct>80?' hot':'');
+    m.firstElementChild.style.width=pct+'%';
+  }
+  ['credTotal','credSec'].forEach(function(id){
+    document.getElementById(id).addEventListener('input',function(){
+      var v=+this.value; if(!isFinite(v)||v<0) return;
+      CFG[id]= id==='credSec' ? Math.max(1,v) : v;
+      saveCfg(); renderCredits();
+    });
+  });
+
+  /* ── 임시로 다른 영상의 설정을 적용해 결과만 뽑기 ──────────── */
+  function applyRaw(c){
+    if(c && c.f) FIELDS.forEach(function(k){
+      if(typeof c.f[k]==='string') document.getElementById(k).value=c.f[k]; });
+    if(c && c.st) Object.keys(st).forEach(function(k){
+      if(typeof c.st[k]==='number') st[k]=c.st[k]|0; });
+  }
+  function withCfg(cfg,fn){
+    var keep=getCfg(), was=suspendWB; suspendWB=true;
+    try{ applyRaw(cfg); return fn(); }
+    finally{ applyRaw(keep); suspendWB=was; }
+  }
+
+  /* ── AI에게 넘길 자료 ─────────────────────────────────────── */
+  function knowledgeText(){
+    var tr=TRADES[st.trade], b=[];
+    b.push('## 회사 사실 (이것만 참입니다)');
+    lns('company').forEach(function(x){ b.push('- '+x); });
+    if(tr.grades.length){
+      b.push(''); b.push('## '+tr.k+' 등급별 판단 기준');
+      tr.grades.forEach(function(g){ b.push('- '+g[0]+' / '+g[1]+' / '+g[2]); });
+    }
+    if(tr.checks.length){
+      b.push(''); b.push('## 단지가 확인할 항목');
+      tr.checks.forEach(function(c){ b.push('- '+c); });
+    }
+    if(tr.figures.length){
+      b.push(''); b.push('## 검증된 수치 (이 범위 밖의 숫자는 전부 오류)');
+      tr.figures.forEach(function(f){ b.push('- '+f); });
+    } else {
+      b.push(''); b.push('## 검증된 수치');
+      b.push('- 이 공종은 확인된 수치가 없습니다. 구체적인 숫자가 나오면 전부 오류입니다.');
+    }
+    var fx=lns('facts');
+    if(fx.length){ b.push(''); b.push('## 추가로 확인된 수치'); fx.forEach(function(f){ b.push('- '+f); }); }
+    b.push(''); b.push('## 절대 금지');
+    b.push('- 자료에 없는 수치·통계·연도');
+    b.push('- 특정 업체의 실명, 공법명, 제품명, 업체 간 비교');
+    b.push('- 실제 단지명, 세대수, 설계 금액, 계약 금액');
+    b.push('- 시공을 직접 하는 회사처럼 서술하는 것 (감리·진단·입찰 지원이 하는 일)');
+    b.push('- 결정을 대신 내려 주는 듯한 표현');
+    b.push('- 1부·2부 같은 회차 표현');
+    lns('brand').forEach(function(x){ b.push('- '+x); });
+    if(NOTES.length){
+      b.push(''); b.push('## 사내에 쌓인 자료');
+      NOTES.forEach(function(n){ b.push('- '+n.text); });
+    }
+    return b.join('\n');
+  }
+
+  var PASSES=[
+    {k:'1차 — 사실과 규정', role:'자료에 없는 숫자, 등급과 다른 설명, 금지 표현을 찾습니다.',
+     ask:'당신은 아파트 유지보수 감리회사의 자료 검수자입니다.\n'+
+         '[자료]에 적힌 것만 참입니다. [검수 대상]은 AI 영상 생성기에 넣을 제작 지시문입니다.\n\n'+
+         '이 기준으로만 보세요.\n'+
+         '1. [자료]에 없는 수치·통계·연도가 들어갔는가\n'+
+         '2. [자료]의 등급·기준과 다르게 서술했는가\n'+
+         '3. 금지 사항을 어겼는가\n'+
+         '4. 지정된 시청 대상에게 맞지 않는 어휘를 썼는가\n'+
+         '5. 앞뒤가 서로 모순되는 지시가 있는가\n\n'+
+         '연출·재미·리듬은 이번 검수 대상이 아닙니다. 지적하지 마세요.'},
+    {k:'2차 — 연출과 리듬', role:'실제로 만들어질 영상이 지루하거나 어색해질 지점을 찾습니다.',
+     ask:'당신은 정보형 유튜브 영상의 연출 감독입니다.\n'+
+         '[검수 대상]대로 영상을 만들었을 때 시청자가 이탈할 지점을 찾으세요.\n\n'+
+         '이 기준으로만 보세요.\n'+
+         '1. 장면 목록 안에 서로 반대되는 연출 지시가 있는가\n'+
+         '2. 한 장면이 너무 길거나, 같은 화면이 반복되는가\n'+
+         '3. 할 말이 없는데 시간만 채우는 구간이 있는가\n'+
+         '4. 처음 10초가 시청자를 붙잡는가\n'+
+         '5. 마지막 행동 유도가 억지스럽지 않은가\n\n'+
+         '사실 관계와 수치는 1차에서 이미 봤습니다. 같은 지적을 반복하지 마세요.'}
+  ];
+  var FORMAT='\n\n답은 JSON 하나만. 다른 말은 쓰지 마세요.\n'+
+    '{"verdict":"pass"|"fix","summary":"한 문장 총평","items":[{"severity":"high"|"med"|"low",'+
+    '"where":"어느 부분인지","problem":"무엇이 잘못됐는지","fix":"어떻게 고칠지"}]}\n'+
+    '문제가 없으면 items는 빈 배열로 두고 verdict는 "pass".\n'+
+    'high는 그대로 두면 영상이 잘못 나가는 것, med는 고치는 편이 나은 것, low는 사소한 것.\n'+
+    '지적은 최대 6개까지. 한국어로 쓰세요.';
+
+  function reviewInput(passIdx, target, prior){
+    var p=PASSES[passIdx], b=[p.ask];
+    b.push('\n\n# 자료\n'+knowledgeText());
+    b.push('\n\n# 검수 대상\n'+target);
+    if(prior && prior.length){
+      b.push('\n\n# 1차에서 이미 나온 지적 (반복 금지)\n'+
+        prior.map(function(f){ return '- '+f.problem; }).join('\n'));
+    }
+    b.push(FORMAT);
+    var t=b.join('');
+    if(t.length>58000) t=t.slice(0,58000)+'\n…(이하 생략)';
+    return t;
+  }
+
+  /* ── 검수 실행 ────────────────────────────────────────────── */
+  var SAMPLE=null, revCtl=null, revBusy=false;
+
+  function sevOrder(x){ return x==='high'?0:(x==='med'?1:2); }
+  function normFindings(r){
+    var out=[];
+    if(r && Array.isArray(r.items)) r.items.forEach(function(f){
+      if(!f) return;
+      var sev=String(f.severity||'low').toLowerCase();
+      if(sev!=='high'&&sev!=='med'&&sev!=='low') sev='low';
+      out.push({severity:sev, where:String(f.where||'').slice(0,120),
+                problem:String(f.problem||'').slice(0,400), fix:String(f.fix||'').slice(0,400)});
+    });
+    out.sort(function(a,b){ return sevOrder(a.severity)-sevOrder(b.severity); });
+    return out.slice(0,6);
+  }
+
+  var SAMPLE_ERR={
+    not_granted:'이 페이지가 클로드를 쓰도록 허용되지 않았습니다. 새로고침 후 다시 눌러 주세요.',
+    sampling_disabled:'이 계정에서는 클로드 검수를 쓸 수 없습니다.',
+    not_declared:'검수 기능이 꺼져 있습니다.',
+    rate_limited:'요청이 몰렸습니다. 잠시 뒤 다시 눌러 주세요.',
+    session_expired:'로그인이 풀렸습니다. 다시 로그인한 뒤 눌러 주세요.',
+    prompt_too_large:'자료가 너무 깁니다. “AI가 아는 내용”에서 몇 줄 줄여 주세요.',
+    invalid_json:'답이 형식에 맞지 않게 왔습니다. 한 번 더 눌러 주세요.',
+    refused:'클로드가 이 내용을 검수하지 않았습니다. 키워드를 바꿔 보세요.',
+    empty_completion:'답이 비어 있습니다. 한 번 더 눌러 주세요.',
+    cancelled:'검수를 중단했습니다.'
+  };
+  function errMsg(e){
+    var c=e&&e.code;
+    return SAMPLE_ERR[c] || '검수 중 문제가 생겼습니다. 잠시 뒤 다시 눌러 주세요.';
+  }
+
+  function setRevBusy(on,msg){
+    revBusy=on;
+    document.getElementById('revBtn').disabled=on;
+    document.getElementById('revStop').hidden=!on;
+    document.getElementById('revState').textContent=msg||'';
+  }
+
+  function renderReview(){
+    var box=document.getElementById('revOut');
+    var it = selId?items[idxOf(selId)]:null;
+    var rv = it && it.review;
+    box.innerHTML=PASSES.map(function(p,i){
+      var pass = rv && rv.passes && rv.passes[i];
+      var bd;
+      if(rv && rv.running===i){
+        bd='<div class="thinking">읽는 중입니다… 30초에서 1분쯤 걸립니다.</div>';
+      } else if(!pass){
+        bd='<div class="thinking">아직 검수하지 않았습니다.</div>';
+      } else if(pass.error){
+        bd='<div class="thinking">'+esc(pass.error)+'</div>';
+      } else {
+        var v=pass.verdict==='pass';
+        bd='<div class="verdict '+(v?'ok':'fix')+'">'+(v?'통과':'고칠 곳 '+pass.items.length+'개')+'</div>'+
+           (pass.summary?'<div class="pb" style="margin-bottom:8px;color:var(--ink-2)">'+esc(pass.summary)+'</div>':'')+
+           pass.items.map(function(f,j){
+             var sl=f.severity==='high'?'꼭 고칠 것':(f.severity==='med'?'고치는 게 좋음':'참고');
+             return '<div class="find">'+
+               '<div class="hd"><span class="sev '+f.severity+'">'+sl+'</span>'+
+                 (f.where?'<span class="where">'+esc(f.where)+'</span>':'')+'</div>'+
+               '<div class="pb">'+esc(f.problem)+'</div>'+
+               (f.fix?'<div class="fx">'+esc(f.fix)+'</div>':'')+
+               '<button type="button" class="keep" data-keep="'+i+':'+j+'">지식으로 저장</button>'+
+             '</div>';
+           }).join('');
+      }
+      return '<div class="pass"><h3><span class="n">'+(i+1)+'</span>'+esc(p.k)+'</h3>'+
+             '<p class="role">'+esc(p.role)+'</p>'+bd+'</div>';
+    }).join('');
+  }
+
+  document.getElementById('revOut').addEventListener('click',function(e){
+    var b=e.target.closest('[data-keep]'); if(!b) return;
+    var it=selId?items[idxOf(selId)]:null; if(!it||!it.review) return;
+    var pr=b.dataset.keep.split(':'), f=((it.review.passes[+pr[0]]||{}).items||[])[+pr[1]];
+    if(!f) return;
+    var txt=f.problem+(f.fix?' → '+f.fix:'');
+    if(addNote(txt, PASSES[+pr[0]].k+' 검수')){ b.disabled=true; b.textContent='저장했습니다'; flash('다음 검수부터 이 내용을 반영합니다'); }
+    else flash('이미 저장된 내용입니다');
+  });
+
+  function runReview(){
+    if(revBusy) return;
+    if(!selId){ flash('먼저 현황판에서 영상을 고르거나 등록해 주세요'); goView('home'); return; }
+    var it=items[idxOf(selId)]; if(!it) return;
+    if(!SAMPLE){ flash('이 화면에서는 클로드 검수를 쓸 수 없습니다'); return; }
+
+    var target=masterPrompt();
+    it.review={at:Date.now(), passes:[], running:0};
+    putItem(it); renderReview();
+
+    revCtl=new AbortController();
+    setRevBusy(true,'1차 검수 중');
+
+    function step(i,prior){
+      return SAMPLE.json(reviewInput(i,target,prior),
+        {modelTier:'default', cache:false, signal:revCtl.signal}
+      ).then(function(r){
+        var f=normFindings(r);
+        return {verdict:(r&&r.verdict==='pass'&&!f.length)?'pass':'fix',
+                summary:String((r&&r.summary)||'').slice(0,240), items:f};
+      },function(e){
+        if(e&&e.code==='cancelled') throw e;
+        return {verdict:'fix', summary:'', items:[], error:errMsg(e)};
+      });
+    }
+
+    step(0,null).then(function(p1){
+      var cur=items[idxOf(selId)]; if(!cur||!cur.review) throw {code:'cancelled'};
+      cur.review.passes=[p1]; cur.review.running=1;
+      CFG.reviewCalls=(CFG.reviewCalls|0)+1; saveCfg();
+      putItem(cur); renderReview(); setRevBusy(true,'2차 검수 중');
+      return step(1, p1.items).then(function(p2){
+        var c2=items[idxOf(selId)]; if(!c2||!c2.review) return;
+        c2.review.passes=[p1,p2]; c2.review.running=-1;
+        CFG.reviewCalls=(CFG.reviewCalls|0)+1; saveCfg();
+        putItem(c2); renderReview();
+        var n=p1.items.length+p2.items.length;
+        setRevBusy(false, n?('검수 끝 — 고칠 곳 '+n+'개'):'검수 끝 — 두 번 다 통과');
+        flash(n?('고칠 곳 '+n+'개를 찾았습니다'):'두 번 다 통과했습니다');
+      });
+    }).catch(function(e){
+      var cur=selId?items[idxOf(selId)]:null;
+      if(cur&&cur.review){ cur.review.running=-1; putItem(cur); }
+      renderReview();
+      setRevBusy(false, e&&e.code==='cancelled'?'중단했습니다':errMsg(e));
+    });
+  }
+  document.getElementById('revBtn').addEventListener('click',runReview);
+  document.getElementById('revStop').addEventListener('click',function(){ if(revCtl) revCtl.abort(); });
+
+  document.getElementById('gptBtn').addEventListener('click',function(){
+    var t='아래 [자료]를 기준으로 [검수 대상]을 검수해 주세요.\n'+
+      '두 가지를 모두 봐 주세요.\n'+
+      '(1) 자료에 없는 수치·등급 오류·금지 표현\n'+
+      '(2) 실제 영상이 지루해지거나 앞뒤가 모순되는 지점\n\n'+
+      '고칠 곳마다 [어느 부분 / 무엇이 잘못됐는지 / 어떻게 고칠지] 세 줄로 적어 주세요.\n\n'+
+      '# 자료\n'+knowledgeText()+'\n\n# 검수 대상\n'+masterPrompt();
+    copyText(t,'ChatGPT에 붙여넣을 요청문을 복사했습니다');
+  });
+  document.getElementById('gptSave').addEventListener('click',function(){
+    var ta=document.getElementById('gptPaste'), v=ta.value.trim();
+    if(!v){ flash('붙여넣은 내용이 없습니다'); return; }
+    if(addNote(v.slice(0,1200),'ChatGPT 검수')){ ta.value=''; flash('검수 메모로 저장했습니다'); }
+    else flash('이미 저장된 내용입니다');
+  });
+
+  /* ── 제작 탭 ─────────────────────────────────────────────── */
+  var mkId=null;
+  function renderMake(){
+    var pick=document.getElementById('mkPick'), body=document.getElementById('mkBody');
+    if(!pick) return;
+    var pool=items.filter(function(it){ return (it.stage|0)<2; });
+    if(!pool.length){
+      pick.innerHTML=''; 
+      body.innerHTML='<div class="blank">아직 만들 영상이 없습니다.<br>홈에서 영상을 등록하고 기획 탭에서 프롬프트를 뽑아 오세요.</div>';
+      return;
+    }
+    if(!pool.some(function(it){ return it.id===mkId; })) mkId=pool[0].id;
+    pick.innerHTML=pool.map(function(it){
+      return '<button type="button" data-mk="'+it.id+'" aria-pressed="'+(it.id===mkId)+'">'+esc(it.title)+'</button>';
+    }).join('');
+
+    var it=items[idxOf(mkId)]; if(!it) return;
+    var out=withCfg(it.cfg,function(){
+      var len=LENS[st.len], sc=scenes(len,lns('msgs'),lns('scene'));
+      return {prompt:masterPrompt(), len:len, scenes:sc.length, chaps:chapters(sc).length,
+              trade:TRADES[st.trade].k};
+    });
+    var sec=CFG.credSec>0?CFG.credSec:60;
+    var rv=it.review&&it.review.passes?it.review.passes.length:0;
+    var openIssues=0;
+    if(it.review&&it.review.passes) it.review.passes.forEach(function(p){ openIssues+=(p.items||[]).length; });
+
+    body.innerHTML=
+      '<div class="mkgrid">'+
+        '<div class="mkbox"><h3>이 영상</h3>'+
+          '<div class="kv"><span class="k">공종</span><span class="v">'+esc(out.trade)+'</span></div>'+
+          '<div class="kv"><span class="k">길이</span><span class="v">'+lenLabel(out.len)+'</span></div>'+
+          '<div class="kv"><span class="k">장면</span><span class="v">'+out.scenes+'개</span></div>'+
+          (out.chaps>1?'<div class="kv"><span class="k">조각</span><span class="v">'+out.chaps+'개로 나눠 생성</span></div>':'')+
+          '<div class="kv"><span class="k">검수</span><span class="v">'+rv+'/2'+(rv===2&&openIssues?' · 지적 '+openIssues:'')+'</span></div>'+
+          '<div class="kv"><span class="k">예상 크레딧</span><span class="v">'+c1(out.len/sec)+'</span></div>'+
+        '</div>'+
+        '<div class="mkbox"><h3>헤이젠에 넣기</h3>'+
+          '<p class="role" style="font-size:12px;color:var(--ink-3);line-height:1.6;margin:0 0 10px">'+
+            '복사 버튼을 누른 뒤 헤이젠 Video Agent의 입력칸에 그대로 붙여넣으세요.'+
+            (rv<2?'<br><b>아직 검수를 안 받았습니다.</b> 기획 탭에서 검수를 먼저 돌리는 편이 안전합니다.':'')+
+          '</p>'+
+          '<div class="revacts">'+
+            '<button class="btn solid" id="mkCopy">프롬프트 복사</button>'+
+            '<a class="btn" href="https://app.heygen.com/" target="_blank" rel="noopener">헤이젠 열기 ↗</a>'+
+          '</div>'+
+        '</div>'+
+        '<div class="mkbox"><h3>만들어진 영상 기록</h3>'+
+          '<p style="font-size:12px;color:var(--ink-3);line-height:1.6;margin:0">'+
+            '헤이젠이 실제로 뽑아 준 길이를 초로 적으면 크레딧이 차감됩니다.</p>'+
+          '<div class="logrow">'+
+            '<div class="f"><label for="mkSec">실제 길이(초)</label>'+
+              '<input type="number" class="sec" id="mkSec" min="1" step="1" value="'+
+                ((it.made&&it.made.seconds)||out.len)+'"></div>'+
+            '<div class="f"><label for="mkUrl">영상 링크</label>'+
+              '<input type="url" class="url" id="mkUrl" placeholder="헤이젠 또는 유튜브 주소" value="'+
+                esc((it.made&&it.made.url)||'')+'"></div>'+
+            '<button class="btn solid" id="mkDone">'+(it.stage|0?'기록 수정':'제작 완료로 기록')+'</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+      '<textarea id="mkOut" readonly spellcheck="false" aria-label="이 영상의 프롬프트"'+
+        ' style="width:100%;min-height:260px;padding:14px;border-radius:12px;border:1px solid var(--line);'+
+        'background:var(--code-bg);color:var(--ink);font-family:\'JetBrains Mono\',ui-monospace,monospace;'+
+        'font-size:12.5px;line-height:1.75;resize:vertical">'+esc(out.prompt)+'</textarea>';
+
+    document.getElementById('mkOut').addEventListener('click',function(){ this.select(); });
+    document.getElementById('mkCopy').addEventListener('click',function(){
+      copyText(out.prompt,'프롬프트를 복사했습니다');
+    });
+    document.getElementById('mkDone').addEventListener('click',function(){
+      var cur=items[idxOf(mkId)]; if(!cur) return;
+      var secs=Math.max(1, +document.getElementById('mkSec').value||out.len);
+      cur.made={seconds:secs, url:document.getElementById('mkUrl').value.trim(), at:Date.now()};
+      if((cur.stage|0)<1) cur.stage=1;
+      putItem(cur); flash('기록했습니다 · 크레딧 '+c1(secs/sec)+' 사용');
+    });
+  }
+  document.getElementById('mkPick').addEventListener('click',function(e){
+    var b=e.target.closest('[data-mk]'); if(!b) return;
+    mkId=b.dataset.mk; renderMake();
+  });
+
+  /* ── 완료 탭 ─────────────────────────────────────────────── */
+  function renderDone(){
+    var box=document.getElementById('doneBody'), kp=document.getElementById('doneKpis');
+    if(!box) return;
+    var done=items.filter(function(it){ return (it.stage|0)===2; });
+    var sec=CFG.credSec>0?CFG.credSec:60;
+    var secs=done.reduce(function(a,it){ return a+((it.made&&it.made.seconds)||0); },0);
+    kp.innerHTML=[
+      {k:'발행한 영상', v:done.length+'편', f:done.length?'총 '+lenLabel(secs):'아직 없습니다'},
+      {k:'쓴 크레딧', v:c1(secs/sec), f:done.length?'편당 평균 '+c1(secs/sec/done.length):'—'},
+      {k:'검수 호출', v:(CFG.reviewCalls|0)+'회', f:'클로드 검수 누적'},
+      {k:'남은 크레딧', v:c1(Math.max(0,CFG.credTotal-usedCredits())), f:'보유 '+c1(CFG.credTotal)+' 기준'}
+    ].map(function(t){
+      return '<div class="kpi"><div class="k">'+t.k+'</div><div class="v">'+t.v+'</div>'+
+             '<div class="f">'+esc(t.f)+'</div></div>'; }).join('');
+
+    if(!done.length){
+      box.innerHTML='<div class="blank">발행한 영상이 아직 없습니다.<br>제작 탭에서 기록한 뒤 현황판에서 <b>완료</b>로 옮기면 여기에 쌓입니다.</div>';
+      return;
+    }
+    box.innerHTML='<div class="tablewrap"><table class="dtable"><thead><tr>'+
+      '<th>영상</th><th>공종</th><th class="num">길이</th><th class="num">크레딧</th><th>링크</th><th>기록일</th>'+
+      '</tr></thead><tbody>'+
+      done.map(function(it){
+        var tr=TRADES[((it.cfg&&it.cfg.st&&it.cfg.st.trade)|0)];
+        var s=(it.made&&it.made.seconds)||0;
+        var u=(it.made&&it.made.url)||'';
+        return '<tr><td>'+esc(it.title)+'</td><td>'+esc(tr?tr.k:'—')+'</td>'+
+          '<td class="num">'+(s?lenLabel(s):'—')+'</td>'+
+          '<td class="num">'+(s?c1(s/sec):'—')+'</td>'+
+          '<td>'+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener">열기 ↗</a>':'—')+'</td>'+
+          '<td>'+(it.made&&it.made.at?new Date(it.made.at).toLocaleDateString('ko-KR'):'—')+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }
+
   var SEED=[
-    {kw:'균열 3mm, 왜 기준이 되나',            trade:1, stage:1},
+    {kw:'균열 3mm, 왜 기준이 되나',            trade:1, stage:0},
     {kw:'옥상 방수, 어느 등급인지부터',         trade:2, stage:0},
     {kw:'지하주차장은 구간마다 달라야 합니다',   trade:3, stage:0}
   ];
@@ -1290,17 +1991,53 @@
   }
 
   function bootBoard(){
-    items=localRead(); seedIfEmpty(); renderBoard();
+    var c=readLS(LSC,null);
+    if(c) Object.keys(CFG).forEach(function(k){ if(typeof c[k]==='number') CFG[k]=c[k]; });
+    document.getElementById('credTotal').value=CFG.credTotal;
+    document.getElementById('credSec').value=CFG.credSec;
+    NOTES=readLS(LSK,[])||[];
+    renderNotes();
+
+    items=localRead(); seedIfEmpty(); renderBoard(); renderReview();
+
     var note=document.getElementById('storeNote');
     note.textContent='이 브라우저에 저장됩니다';
     if(!(window.claude && window.claude.use)) return;
+
+    window.claude.use('sample').then(function(fn){
+      SAMPLE=fn||null;
+      if(!SAMPLE){
+        document.getElementById('revBtn').disabled=true;
+        document.getElementById('revState').textContent=
+          '이 화면에서는 클로드 검수를 쓸 수 없습니다. ChatGPT용 요청문은 그대로 쓸 수 있습니다.';
+      }
+    }).catch(function(){});
+
     window.claude.use('db').then(function(db){
       if(!db) return;
       DB=db;
+      db.doc('config/settings').onSnapshot(function(d){
+        var v=d.exists&&d.data(); if(!v) return;
+        Object.keys(CFG).forEach(function(k){ if(typeof v[k]==='number') CFG[k]=v[k]; });
+        var a=document.getElementById('credTotal'), b=document.getElementById('credSec');
+        if(document.activeElement!==a) a.value=CFG.credTotal;
+        if(document.activeElement!==b) b.value=CFG.credSec;
+        writeLS(LSC,CFG); renderCredits(); renderDone();
+      },function(){});
+      db.doc('config/knowledge').onSnapshot(function(d){
+        var v=d.exists&&d.data();
+        if(!v || !Array.isArray(v.notes)){
+          if(NOTES.length) db.doc('config/knowledge').set({notes:NOTES}).catch(function(){});
+          return;
+        }
+        NOTES=v.notes; writeLS(LSK,NOTES); renderNotes();
+      },function(){});
+
       db.collection('videos').onSnapshot(function(snap){
         var next=snap.docs.map(function(d){
-          var v=d.data()||{}; return {id:d.id, title:v.title||'제목 없는 영상',
-            stage:v.stage|0, createdAt:v.createdAt||0, updatedAt:v.updatedAt||0, cfg:v.cfg||{}};
+          var v=d.data()||{}; return fixStage({id:d.id, title:v.title||'제목 없는 영상',
+            stage:v.stage|0, createdAt:v.createdAt||0, updatedAt:v.updatedAt||0, cfg:v.cfg||{},
+            review:v.review||null, made:v.made||null});
         }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); });
 
         if(!migrated){

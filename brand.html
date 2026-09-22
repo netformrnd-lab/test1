@@ -1443,6 +1443,29 @@ table.itable tr:hover td{background:var(--bg-hover)}
   .bk-in{min-height:260px}
 }
 
+/* 📗 브랜드북 — 평소에 올리는 것은 이것 하나입니다 */
+.pt-get .bbk{display:grid;grid-template-columns:1fr auto;gap:10px 16px;
+  align-items:start}
+.pt-get .bbl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}
+.pt-get .bbl b{font-size:11.5px;font-weight:600;line-height:1.6;color:var(--text-secondary);
+  word-break:keep-all}
+.pt-get .bbk > .btn{grid-row:1 / span 1;white-space:nowrap}
+.pt-get .bbn{grid-column:1 / -1;font-size:11px;line-height:1.75;color:var(--text-muted);
+  word-break:keep-all}
+.pt-get .bbn b{color:var(--text-secondary);font-weight:700}
+.pt-get .gx{margin-top:11px;padding-top:10px;border-top:1px dashed var(--border)}
+.pt-get .gx > summary{font-size:11.5px;font-weight:600;color:var(--text-muted);
+  cursor:pointer;list-style:none}
+.pt-get .gx > summary::-webkit-details-marker{display:none}
+.pt-get .gx > summary::before{content:'▸ ';color:var(--text-muted)}
+.pt-get .gx[open] > summary::before{content:'▾ '}
+.pt-get .gx > summary:hover{color:var(--text-primary)}
+.pt-get .gx .gk{margin-top:9px}
+@media(max-width:820px){
+  .pt-get .bbk{grid-template-columns:1fr}
+  .pt-get .bbl{grid-template-columns:1fr}
+}
+
 /* 📥 문서에서 가져오기 — 갈래 셋이 어디로 들어가는지까지 */
 .pt-get{border:1px solid var(--blue);border-radius:12px;background:var(--bg-card);
   padding:14px 16px 13px;margin:0 0 14px}
@@ -4121,7 +4144,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260922-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260922-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18586,6 +18609,7 @@ let pathEdit = false;      // 읽기 / 고치기
 let pathOpen = '';         // 고치기에서 펼친 장
 function setPathEdit(v){
   pathEdit = !!v; pathOpen = ''; peAt = '';
+  if(!pathEdit) pwBook = true;      // 고치기에서 나오면 늘 책입니다
   render(); window.scrollTo({ top:0 });
 }
 /* ── ✏️ 고치기 — 한 단씩 ─────────────────────────────────────
@@ -19024,6 +19048,8 @@ function pathDocs(b){
 /* 문서 갈래 — 어느 문서가 어느 단을 채우는지 나눕니다.
    전에는 갈래를 모른 채 한 번에 다 뽑아서, 채널 실무 쪽으로 쏠렸습니다. */
 const DOC_KINDS = {
+  bbook: { ic:'📗', name:'브랜드북',
+           what:'우리가 만드는 여덟 장짜리 — AI 를 거치지 않고 칸 그대로' },
   plan:  { ic:'📋', name:'기획서',
            what:'무엇을 했고 어떻게 됐는지 → 4단 걸어온 길' },
   guide: { ic:'📐', name:'지침서',
@@ -19112,38 +19138,57 @@ function pathGetOpen(bid){
 function pathGetHtml(b){
   if(pathGetTo !== b.id) return '';
   const bid = jsq(b.id);
-  const KIND = [
-    ['plan',  '📋', '기획서', '무엇을 했고 어떻게 됐는지 — 기획서 · 제안서 · 결과보고',
-     '❾ 걸어온 길 에 마디로 쌓입니다', 1],
-    ['guide', '📐', '지침서', '어떻게 일하는지 — 규칙 · 매뉴얼 · 브랜드북',
-     '❼ 지킬 것 · ❶ 이 브랜드는 뭘 하나 로 들어갑니다', 1],
-    ['book',  '📘', '기록부', '우리 소개 양식 그대로 적어 온 것 (.html)',
-     'AI 를 거치지 않고 칸 그대로 옮겨 담습니다', 0]
+  /* 평소에 올리는 것은 <<브랜드북 하나>> 입니다. 나머지 갈래는 접어 둡니다 —
+     화면에 넷을 늘어놓으면 매번 「뭐가 뭐지」 를 다시 읽게 됩니다. */
+  const ETC = [
+    ['plan',  '📋', '기획서', '무엇을 했고 어떻게 됐는지',
+     '❾ 걸어온 길 에 마디로', 1],
+    ['guide', '📐', '지침서', '어떻게 일하는지 — 규칙 · 매뉴얼',
+     '❼ 지킬 것 · ❶ 뭘 하나 로', 1],
+    ['book',  '📘', '기록부', '우리 소개 양식 그대로 (.html)',
+     'AI 없이 칸 그대로', 0]
   ];
   return '<div class="pt-get">'
-    + '<div class="ph">📥 문서에서 가져오기'
-      + '<span>갈래마다 <b>들어가는 단이 다릅니다</b>. '
-        + '파일이 있으면 [📎 파일], 적어 둔 글만 있으면 [✍ 글] 로 넣으세요.</span>'
+    + '<div class="ph">📗 브랜드북 올리기'
+      + '<span>여덟 장 틀을 그대로 읽어 칸에 넣습니다 — '
+        + '<b>AI 를 거치지 않습니다</b>. 넣고 나서 글은 그대로 눌러 고칩니다.</span>'
       + '<button class="btn sm x" onclick="pathGetOpen(\'' + bid + '\')">닫기</button>'
     + '</div>'
-    + '<div class="gk">' + KIND.map(k =>
-        '<div class="g1">'
-        + '<div class="gh"><b>' + k[1] + ' ' + esc(k[2]) + '</b>'
-          + '<span>' + esc(k[3]) + '</span></div>'
-        + '<div class="gw">→ ' + esc(k[4]) + '</div>'
-        + '<div class="gb">'
-          + '<button class="btn sm primary" onclick="pickPathDoc(\'' + bid + '\',\''
-            + (k[0] === 'book' ? 'guide' : k[0]) + '\')">📎 파일</button>'
-          + (k[5] ? '<button class="btn sm' + (pathTextTo === b.id && pathTextKind === k[0]
-                ? ' on' : '') + '" onclick="pathTextOpen(\'' + bid + '\',\'' + k[0]
-              + '\')">✍ 글</button>' : '')
-        + '</div></div>').join('') + '</div>'
-    + '<div class="gf">📄 받는 파일 — <b>PDF</b> · 워드(.docx) · 엑셀(.xlsx) · '
-      + '파워포인트(.pptx) · .txt · .html<br>'
-      + '한글(.hwp)은 아직 못 읽습니다 — <b>PDF 로 내보내</b> 올려 주세요. '
-      + '그림으로 스캔한 PDF 는 글자가 없어서 못 읽습니다.<br>'
-      + '<a href="기획서양식-v1.1.xlsx" download>📋 기획서 양식 받기</a> — '
-      + '이 양식으로 쓰면 결과까지 그대로 쌓입니다.</div>'
+    + '<div class="bbk">'
+      + '<div class="bbl">'
+        + '<b>01 브랜드 정의 → ❶ 뭘 하나</b>'
+        + '<b>02 배경 → ❾ 걸어온 길</b>'
+        + '<b>03 슬로건 &amp; 철학 → 슬로건 · 철학</b>'
+        + '<b>04 브랜드 목표 → ❻ 해마다의 목표</b>'
+        + '<b>05 타겟 → ❸ 누구에게 · 페르소나</b>'
+        + '<b>06 포지셔닝 → ❷ 성격</b>'
+        + '<b>07 핵심 기술 자산 → 🧾 이렇게 쓴 것</b>'
+        + '<b>08 디자인 &amp; 톤앤매너 → ❹ 언어 톤 · 색</b>'
+      + '</div>'
+      + '<button class="btn primary" onclick="pickPathDoc(\'' + bid + '\',\'bbook\')">'
+        + '📗 브랜드북 올리기</button>'
+      + '<div class="bbn"><b>PDF · HTML</b> 둘 다 됩니다. '
+        + 'HTML 이면 표와 목록이 <b>진짜 표와 목록</b> 이라 더 정확히 들어갑니다 — '
+        + 'PDF 는 디자인 도구가 글자를 그림처럼 늘어놓아 표 안의 칸이 붙어 나옵니다.<br>'
+        + '한글(.hwp)은 못 읽습니다 — PDF 로 내보내 주세요. '
+        + '그림으로 스캔한 PDF 도 글자가 없어 못 읽습니다.</div>'
+    + '</div>'
+    + '<details class="gx"><summary>다른 갈래로 넣기 — 기획서 · 지침서 · 기록부</summary>'
+      + '<div class="gk">' + ETC.map(k =>
+          '<div class="g1">'
+          + '<div class="gh"><b>' + k[1] + ' ' + esc(k[2]) + '</b>'
+            + '<span>' + esc(k[3]) + '</span></div>'
+          + '<div class="gw">→ ' + esc(k[4]) + '</div>'
+          + '<div class="gb">'
+            + '<button class="btn sm" onclick="pickPathDoc(\'' + bid + '\',\''
+              + (k[0] === 'book' ? 'guide' : k[0]) + '\')">📎 파일</button>'
+            + (k[5] ? '<button class="btn sm' + (pathTextTo === b.id && pathTextKind === k[0]
+                  ? ' on' : '') + '" onclick="pathTextOpen(\'' + bid + '\',\'' + k[0]
+                + '\')">✍ 글</button>' : '')
+          + '</div></div>').join('') + '</div>'
+      + '<div class="gf"><a href="기획서양식-v1.1.xlsx" download>📋 기획서 양식 받기</a> — '
+        + '이 양식으로 쓰면 결과까지 그대로 쌓입니다.</div>'
+      + '</details>'
     + '</div>';
 }
 
@@ -19237,6 +19282,28 @@ async function uploadPathDoc(fileList){
       + encodeURIComponent(doc.filePath));
     const txt = String(t['글자'] || '').trim();
     if(!txt) throw new Error('이 문서에서 글자를 뽑지 못했습니다.');
+
+    /* 📗 브랜드북 — 틀이 정해져 있으니 AI 에게 물을 것이 없습니다.
+       장 이름을 보고 그 자리에 넣습니다 (빠르고 · 돈 안 들고 · 말이 안 바뀝니다). */
+    if(kind === 'bbook' || kind === 'auto' || kind === 'guide'){
+      pathMine[bid].step = '브랜드북인지 보는 중…';
+      render();
+      let bg = null;
+      try{ bg = bbParse(txt); }catch(e){}
+      if(bg){
+        const mb = pathMine[bid];
+        mb.busy = false; mb.step = ''; mb.bbook = true;
+        mb.done = pathAutoFill(b, bg, 'bbook');
+        if(!pathDocs(b).some(d => d.filePath === doc.filePath)) pathDocs(b).push(doc);
+        markDirty(b.id); pathEdit = false; render(); window.scrollTo({ top:0 });
+        return;
+      }
+      if(kind === 'bbook') throw new Error(
+        '브랜드북 틀을 찾지 못했습니다.\n\n'
+        + '「01 브랜드 정의 · 02 배경 · 03 슬로건 & 철학 …」 처럼 번호가 붙은 '
+        + '여덟 장이 있어야 합니다.\n'
+        + '틀이 다른 문서면 아래 [다른 갈래로 넣기] 에서 기획서 · 지침서로 넣어 주세요.');
+    }
 
     pathMine[bid].txt = txt;
     pathMine[bid].kind = kind;
@@ -19552,6 +19619,314 @@ function bookChap(head, v, i, n){
 }
 
 /* 우리 양식인지 보고, 맞으면 칸을 그대로 옮겨 담아 돌려줍니다 */
+/* ═══════════════ 📗 브랜드북 읽기 ════════════════════════════════
+   우리가 만드는 브랜드북은 <<틀이 정해져 있습니다>> — 여덟 장이 늘
+   같은 차례로 옵니다. 틀이 정해져 있으면 AI 에게 「이게 무슨 칸이냐」 고
+   물을 이유가 없습니다. 장 이름을 보고 그 자리에 넣으면 됩니다.
+   AI 를 안 거치니 빠르고 · 돈이 안 들고 · 줄여 쓰거나 말을 바꾸지도
+   않습니다 (📘 기록부가 이미 그렇게 돕니다).
+
+     01 브랜드 정의   → ❶ 이 브랜드는 뭘 하나
+     02 배경          → ❾ 걸어온 길 · 출발
+     03 슬로건 & 철학  → 슬로건 · 철학 네 칸
+     04 브랜드 목표    → ❻ 해마다의 목표
+     05 타겟          → ❸ 누구에게 · 페르소나
+     06 포지셔닝       → ❷ 성격 · 걸어온 길 · 방향
+     07 핵심 기술 자산 → ❶ 기술 자산
+     08 디자인 & 톤앤매너 → ❹ 언어 톤 · 색 · 글꼴
+
+   PDF 로 넣어도 되고 HTML 로 넣어도 됩니다. HTML 이면 표와 목록이
+   <<진짜 표와 목록>> 이라 훨씬 정확히 들어갑니다 — PDF 는 디자인 도구가
+   글자를 그림처럼 늘어놓아서 표 안의 칸이 줄줄이 붙어 나옵니다.
+   ================================================================= */
+const BB_CH = [
+  ['01', '브랜드 정의'], ['02', '배경'], ['03', '슬로건 & 철학'],
+  ['04', '브랜드 목표'], ['05', '타겟'], ['06', '포지셔닝'],
+  ['07', '핵심 기술 자산'], ['08', '디자인 & 톤앤매너']
+];
+/* 장 제목은 디자인에서 글자마다 사이를 벌려 둡니다 (브 랜 드 정 의).
+   그래서 글자 사이에 빈칸이 있어도 잡히게 만듭니다. 「&」 와 「·」 는
+   목차와 본문이 서로 다르게 쓰고 있어서 둘 다 받습니다. */
+function bbRe(no, nm){
+  const body = nm.split('').map(c => {
+    if(c === ' ') return '\\s*';
+    if(c === '&' || c === '·') return '\\s*[&·]\\s*';
+    return c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*';
+  }).join('');
+  return new RegExp(no.split('').join('\\s*') + '\\s*' + body);
+}
+/* 브랜드북에서 쓰는 영문 소제목 — 이걸로 장 안을 다시 나눕니다 */
+function bbCut(body, key, from){
+  const re = new RegExp(key.split('').map(c =>
+    c === ' ' ? '\\s*' : c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*').join(''), 'i');
+  const off = Math.max(0, from || 0);
+  const m = re.exec(body.slice(off));
+  return m ? { at: off + m.index, end: off + m.index + m[0].length } : null;
+}
+/* 소제목 다음부터 그다음 소제목 전까지 */
+function bbPart(body, key, nexts, from){
+  const a = bbCut(body, key, from); if(!a) return '';
+  let e = body.length;
+  (nexts || []).forEach(k => {
+    const b = bbCut(body.slice(a.end), k);
+    if(b && a.end + b.at < e) e = a.end + b.at;
+  });
+  return bbVal(body.slice(a.end, e));
+}
+
+/* 장 머리를 떼어 냅니다.
+   브랜드북은 장마다 머리가 <<세 번>> 나옵니다 —
+     03슬로건&철학 · 0 5 0 3 · SLOGAN & PHILOSOPHY · 슬로건&철학 · (본문)
+   그냥 두면 「슬 로 건 & 철 학」 과 쪽번호가 본문 앞에 붙어 들어갑니다.
+   장 이름이 두 번째로 나온 자리 뒤부터가 본문입니다. */
+function bbBody(chap, nm){
+  const t = String(chap || '');
+  const head = t.slice(0, 260);
+  const a = bbCut(head, nm, 0);
+  if(!a) return bbVal(t);
+  const b = bbCut(head, nm, a.end);
+  /* 두 번째로 나온 제목이 <<본문 속의 같은 말>> 일 수 있습니다.
+     「05 타겟 … 함께 타겟으로 합니다」 에서 뒤의 「타겟」 을 제목으로 보면
+     본문이 「으로 합니다」 만 남습니다 (실제로 그랬습니다).
+     사이에 한글 문장이 없을 때만 — 그러니까 쪽번호와 영문 제목뿐일 때만
+     제목이 되풀이된 것으로 봅니다. */
+  if(b){
+    const gap = t.slice(a.end, b.at);
+    if(/^[\s0-9A-Za-z&'.,·—–:()\/-]*$/.test(gap)) return bbVal(t.slice(b.end));
+  }
+  return bbVal(t.slice(a.end));
+}
+/* 칸에 넣기 전에 한 번 더 — 앞에 남은 (P.P) 같은 딱지와
+   대문자 영문 소제목, 쪽번호를 떼어 냅니다 */
+function bbVal(t){
+  let x = bbTidy(t);
+  for(let i = 0; i < 4; i++){
+    const b = x;
+    x = x.replace(/^[\s·—–\-:]+/, '');
+    x = x.replace(/^\([^)]{0,14}\)\s*/, '');        // (P.P)
+    x = x.replace(/^[0-9]{1,2}\s*(?=[가-힣A-Za-z])/, '');  // 쪽번호
+    /* 대문자 덩어리는 떼지 않습니다 — POUR공법 · NETFORM 처럼 <<브랜드
+       이름>> 이 대문자라 같이 잘려 나갑니다 (실제로 그랬습니다).
+       영문 소제목은 장 머리를 떼는 쪽에서 이미 걸러집니다. */
+    if(x === b) break;
+  }
+  /* 「- 」 로 이어 붙인 낱낱은 줄로 끊어 둡니다 */
+  x = x.replace(/\s*-\s+(?=[가-힣A-Za-z0-9])/g, '\n');
+  return x.trim();
+}
+/* 글자마다 벌려 둔 제목이 섞여 들어오면 「브 랜 드」 처럼 남습니다.
+   한 글자 + 빈칸이 넉 자 넘게 이어지면 그건 벌려 쓴 제목입니다. */
+function bbTidy(t){
+  /* 줄바꿈은 살립니다 — 낱낱을 줄로 끊어 둔 것이 여기서 지워지면
+     「가 나 다」 처럼 한 줄로 붙어 버립니다 */
+  let x = String(t || '').replace(/[ \t\r\f\v]+/g, ' ')
+                         .replace(/ *\n */g, '\n').trim();
+  x = x.replace(/(?:(?:[가-힣A-Za-z0-9]) ){4,}[가-힣A-Za-z0-9]/g,
+                m => m.replace(/ /g, ''));
+  return x.replace(/\n{3,}/g, '\n\n').trim();
+}
+/* 「01. 무엇 설명…」 처럼 번호가 붙은 것을 줄로 끊습니다 */
+function bbNums(t){
+  const out = [];
+  const re = /(^|[^0-9])(0[1-9]|1[0-9])\s*[.·]?\s*(?=[가-힣A-Za-z“‘(])/g;
+  const idx = [];
+  let m;
+  while((m = re.exec(t))){ idx.push([m.index + m[1].length, m[0].length - m[1].length]); }
+  idx.forEach((v, i) => {
+    const from = v[0] + v[1];
+    const to = i + 1 < idx.length ? idx[i + 1][0] : t.length;
+    const body = bbTidy(t.slice(from, to));
+    if(body) out.push({ no: t.substr(v[0], 2), text: body });
+  });
+  return out;
+}
+/* HTML 로 받으면 표·목록이 살아 있습니다 — 그대로 씁니다.
+   PDF 글자면 통글이라 소제목으로만 나눕니다. */
+function bbFromHtml(raw){
+  let doc = null;
+  try{ doc = new DOMParser().parseFromString(String(raw || ''), 'text/html'); }catch(e){}
+  if(!doc || !doc.body) return null;
+  /* 안 보이는 것은 덜어냅니다 */
+  Array.from(doc.querySelectorAll('script,style,noscript')).forEach(e => e.remove());
+  /* 표는 「머리 — 값」 으로 펴 둡니다. 안 그러면 칸이 줄줄이 붙습니다. */
+  Array.from(doc.querySelectorAll('table')).forEach(tb => {
+    const rows = Array.from(tb.querySelectorAll('tr')).map(tr =>
+      Array.from(tr.querySelectorAll('th,td'))
+        .map(c => (c.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean).join(' — '));
+    const p = doc.createElement('div');
+    p.textContent = rows.filter(Boolean).join('\n');
+    tb.parentNode.replaceChild(p, tb);
+  });
+  Array.from(doc.querySelectorAll('li')).forEach(li => {
+    li.textContent = '- ' + (li.textContent || '').replace(/\s+/g, ' ').trim();
+  });
+  /* 덩어리 사이에 줄바꿈을 넣어 붙지 않게 */
+  Array.from(doc.querySelectorAll('h1,h2,h3,h4,h5,p,div,li,tr,br,section'))
+    .forEach(e => e.insertAdjacentText('beforebegin', '\n'));
+  const t = (doc.body.textContent || '').replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n').trim();
+  return t || null;
+}
+/* 브랜드북 한 권 → 우리 칸. 못 알아본 장은 억지로 넣지 않고 그냥 둡니다. */
+function bbParse(raw){
+  const isHtml = /<\s*(html|body|section|div|h[1-6]|table|p)\b/i.test(String(raw || ''));
+  const text = isHtml ? (bbFromHtml(raw) || String(raw)) : String(raw || '');
+  if(!text.trim()) return null;
+
+  /* 장을 끊습니다. 목차에도 같은 말이 있으므로 <<마지막에 나온 것>> 이
+     본문 시작입니다 (목차가 앞에 있으니까). */
+  const marks = BB_CH.map(([no, nm]) => {
+    const re = bbRe(no, nm);
+    let at = -1, from = 0, m;
+    while((m = re.exec(text.slice(from)))){
+      at = from + m.index; from = at + Math.max(1, m[0].length);
+      if(from >= text.length) break;
+    }
+    return { no: no, nm: nm, at: at };
+  });
+  const found = marks.filter(x => x.at >= 0).sort((a, c) => a.at - c.at);
+  if(found.length < 4) return null;         // 브랜드북이 아닙니다
+  const CH = {};
+  found.forEach((x, i) => {
+    const e = i + 1 < found.length ? found[i + 1].at : text.length;
+    /* 장 머리(번호 · 쪽번호 · 영문 제목 · 한글 제목)를 떼고 본문만 */
+    CH[x.no] = bbBody(bbTidy(text.slice(x.at, e)), x.nm);
+  });
+
+  const G = { what:'', ob1:{}, idv:{}, roles:[], personas:[], colors:[], fonts:[], words:[],
+              goals:[], rules:[], who:[], chaps:[], samples:[], sum:'', goal:'',
+              steps:[], no:'' };
+  let hit = 0;
+  const put  = (o, k, v) => { v = bbTidy(v); if(v){ o[k] = v; hit++; } };
+
+  /* ❶ 01 브랜드 정의 → 뭘 하나 */
+  if(CH['01']){
+    const one = bbPart(CH['01'], '브랜드 한 줄 요약', ['STRUCTURE', '넷폼 브랜드 구조']);
+    put(G, 'what', one || CH['01'].split(/STRUCTURE/)[0]);
+    const st = bbPart(CH['01'], '넷폼 브랜드 구조', ['KEY FIGURES', 'BASIC INFO']);
+    if(st) put(G.ob1, 'role', st);
+    const bi = bbPart(CH['01'], 'BASIC INFO', ['0 2', '02 배경']);
+    if(bi) put(G.ob1, 'deal', bi);
+  }
+  /* ❾ 02 배경 → 걸어온 길의 첫 마디 */
+  if(CH['02']){
+    const body = bbPart(CH['02'], '배경', ['FROM GAP TO STANDARD', '문제에서 표준까지'])
+              || CH['02'];
+    if(bbTidy(body)){
+      G.chaps.push({ when:'', kind:'출발', title:'브랜드북 — 배경', plan:'',
+                     body: bbTidy(body), result:'', before:'', after:'',
+                     why:'', bad:'', nogo:'', src:'브랜드북 02 배경' });
+      hit++;
+    }
+  }
+  /* 03 슬로건 & 철학 → 슬로건 · 철학 네 칸 */
+  if(CH['03']){
+    /* 머리를 떼었으므로 이제 SLOGAN 은 <<진짜 소제목>> 입니다.
+       바로 뒤에 「슬로건」 이라는 딱지가 한 번 더 붙습니다 — 그것도 뗍니다. */
+    /* 슬로건 줄은 디자인에서 한 덩어리로 앉혀 두어 띄어쓰기가 없습니다
+       (건축물리노베이션기술소재전문브랜드). 그 뒤부터는 설명문이라
+       띄어쓰기가 돌아옵니다 — 그 경계에서 끊습니다. */
+    let sl = bbPart(CH['03'], 'SLOGAN', ['PHILOSOPHY', 'TECHNOLOGY'])
+               .replace(/^슬\s*로\s*건\s*/, '');
+    const solid = (sl.match(/^[^\s]{8,}/) || [])[0];
+    put(G.idv, 'slogan', solid || gbOneLine(sl, 90));
+    put(G.idv, 'philo', bbPart(CH['03'], 'PHILOSOPHY', ['TECHNOLOGY', 'MISSION'])
+                          .replace(/^브\s*랜\s*드\s*철\s*학\s*/, ''));
+    put(G.idv, 'philoTech', bbPart(CH['03'], 'TECHNOLOGY', ['MISSION', 'VALUE'])
+                              .replace(/^브\s*랜\s*드\s*철\s*학\s*/, ''));
+    put(G.idv, 'philoDo',   bbPart(CH['03'], 'MISSION', ['VALUE'])
+                              .replace(/^브\s*랜\s*드\s*미\s*션\s*/, ''));
+    /* VALUE 01..04 — 지키는 것이니 「지킬 것」 으로 */
+    const vs = bbPart(CH['03'], '브랜드가 지키는', ['0 4', '04 브랜드 목표']);
+    bbNums(vs).forEach(v => {
+      G.rules.push({ kind:'그 밖', text: v.text, why:'', risk:'', area:'전체',
+                     ref:'', tent:false, tentWhy:'' });
+      hit++;
+    });
+  }
+  /* ❻ 04 브랜드 목표 → 해마다의 목표 */
+  if(CH['04']){
+    const yr = (CH['04'].match(/(20\d\d)\s*브랜드\s*목표/) || [])[1]
+            || (CH['04'].match(/(20\d\d)/) || [])[1]
+            || String(new Date().getFullYear());
+    const gs = bbPart(CH['04'], 'BRAND GOAL', ['0 5', '05 타겟']) || CH['04'];
+    const items = bbNums(gs).map(v => ({ id: uid('gi'), text: gbOneLine(v.text, 120), st:'' }));
+    const al = bbPart(CH['04'], 'ALIGNMENT', ['BRAND GOAL']);
+    if(items.length){
+      G.goals.push({ year: yr, goal: gbOneLine(items[0].text, 60),
+                     why: bbTidy(al), result:'', items: items });
+      hit++;
+    }
+  }
+  /* ❸ 05 타겟 → 타겟 한 줄 + 페르소나 둘 */
+  if(CH['05']){
+    put(G.idv, 'target', CH['05'].split(/시\s*공\s*사/)[0]);
+    [['시공사', 'B2B'], ['일반인', 'B2C']].forEach(([nm, tag]) => {
+      const blk = bbPart(CH['05'], nm, tag === 'B2B' ? ['일반인', 'COMMON NEED']
+                                                     : ['COMMON NEED', '0 6']);
+      if(!bbTidy(blk)) return;
+      G.personas.push({ name: nm + ' (' + tag + ')', age:'', job:'',
+        pain:  bbPart(blk, '주요 고민', ['브랜드 역할']),
+        want:  bbPart(blk, '브랜드 역할', ['핵심 메시지']),
+        quote: bbPart(blk, '핵심 메시지', ['전달 방식']),
+        where: bbPart(blk, '전달 방식', ['일반인', 'COMMON NEED']) });
+      hit++;
+    });
+  }
+  /* ❷ 06 포지셔닝 → 성격 + 걸어온 길 한 마디 */
+  if(CH['06']){
+    put(G.idv, 'character', gbOneLine(CH['06'].split(/DIFFERENTIATION/)[0], 220));
+    const df = bbPart(CH['06'], 'DIFFERENTIATION', ['BRAND ROLE']);
+    if(bbTidy(df)){
+      G.chaps.push({ when:'', kind:'방향을 틀다', title:'브랜드북 — 포지셔닝', plan:'',
+                     body: bbTidy(df), result:'', before:'', after:'', why:'',
+                     bad:'', nogo:'', src:'브랜드북 06 포지셔닝' });
+      hit++;
+    }
+    const role = bbPart(CH['06'], 'BRAND ROLE', ['0 7', '07 핵심']);
+    if(bbTidy(role)){ G.roles.push({ who:'POUR솔루션과의 구분', what: bbTidy(role) }); hit++; }
+  }
+  /* ❶ 07 핵심 기술 자산 → 우리 역할 · 계약·범위 옆칸 */
+  if(CH['07']){
+    const as = bbPart(CH['07'], '핵심 기술 자산', ['COMPETITIVE EDGE']) || CH['07'];
+    bbNums(as).slice(0, 8).forEach(v => {
+      G.samples.push({ title: gbOneLine(v.text, 34), url:'', bad:'',
+                       good: v.text, why:'' });
+      hit++;
+    });
+  }
+  /* ❹ 08 디자인 & 톤앤매너 → 언어 톤 · 색 · 글꼴 */
+  if(CH['08']){
+    /* 「언어 톤」 은 머리글 설명문에도 한 번 나옵니다 (로고·컬러·서체는 …
+       언어 톤은 …). 진짜 소제목은 COLOR · 서체 <<뒤>> 에 있습니다. */
+    const aft = (bbCut(CH['08'], 'COLOR', 0) || { end: 0 }).end;
+    put(G.idv, 'tone', bbPart(CH['08'], '언어 톤', ['DO', "DON'T", 'BRAND'], aft)
+                    || bbPart(CH['08'], 'TONE OF VOICE', ['DO'], aft));
+    if(!bbTidy(G.idv.tone || ''))
+      put(G.idv, 'tone', CH['08'].split(/BRAND\s*IDENTITY/)[0]);
+    /* 색은 #RRGGBB 가 그대로 적혀 있습니다 — 앞의 이름과 함께 집습니다 */
+    const seen = {};
+    const cre = /([가-힣A-Za-z][가-힣A-Za-z0-9 ]{0,18}?)\s*[—–:\-]*\s*(#[0-9A-Fa-f]{6})/g;
+    let m;
+    while((m = cre.exec(CH['08']))){
+      const hex = m[2].toUpperCase();
+      if(seen[hex]) continue;
+      seen[hex] = 1;
+      /* 「COLOR브랜드 컬러포인트 오렌지 #EF7712」 처럼 소제목이 앞에
+         붙어 옵니다 — 끝의 두 낱말만 이름으로 씁니다 */
+      let nm2 = bbTidy(m[1]).replace(/^[A-Z][A-Z ]{2,}/, '')
+                            .replace(/브\s*랜\s*드\s*컬\s*러/, ' ').trim();
+      nm2 = nm2.split(/\s+/).slice(-2).join(' ').trim();
+      G.colors.push({ name: nm2 || hex, hex: hex, use:'' });
+      hit++;
+    }
+    const ft = bbPart(CH['08'], '서체', ['언어 톤', 'TONE']);
+    if(bbTidy(ft)){ G.fonts.push({ name: gbOneLine(ft, 40), use: bbTidy(ft) }); hit++; }
+  }
+  return hit >= 3 ? G : null;
+}
+
 function bookParse(raw){
   let doc = null;
   try{ doc = new DOMParser().parseFromString(String(raw || ''), 'text/html'); }catch(e){}
@@ -20615,7 +20990,10 @@ document.addEventListener('dblclick', e => {
    넘기는 단추를 글 <<위에>> 겹쳐 두지 않았습니다. 겹쳐 두면 글을 눌러
    고치려다 장이 넘어갑니다. 글 바깥 양옆에 세웁니다.
    ================================================================= */
-let pwBook = false;      // 책으로 보고 있나
+/* 소개는 <<늘 책>> 입니다. 죽 내려 읽는 화면과 책 화면을 둘 다 두면
+   「둘이 뭐가 다르지」 를 매번 고르게 됩니다. 한 장씩 넘기는 쪽이 더 잘
+   읽히므로 그쪽만 둡니다 (인쇄는 여전히 처음부터 끝까지 한 번에 냅니다). */
+let pwBook = true;       // 책으로 보고 있나
 let pwPg   = 0;          // 몇 장째
 let pwDir  = 1;          // 어느 쪽으로 넘겼나 (넘어가는 모양을 위해)
 let pwPgN  = 1;          // 모두 몇 장인지 (넘기기를 가둘 때 씁니다)
@@ -20673,17 +21051,14 @@ function pwPlain(html, cut){
 function pathViewHtml(b){
   const bid = jsq(b.id);
   const bar = '<div class="st-mode">'
-    + '<button class="' + (!pathEdit && !pwBook ? 'on' : '') + '" '
-      + 'onclick="setPwBook(0);setPathEdit(0)">📖 읽기</button>'
-    /* 📚 책 — 한 장씩 넘겨 봅니다. 신입에게 보여 줄 때 쓰는 자리입니다 */
-    + '<button class="' + (!pathEdit && pwBook ? 'on' : '') + '" '
-      + 'onclick="setPathEdit(0);setPwBook(1)">📚 책으로</button>'
+    /* 📚 책 — 소개를 보는 유일한 모양입니다 */
+    + '<button class="' + (pathEdit ? '' : 'on') + '" '
+      + 'onclick="setPathEdit(0);setPwBook(1)">📚 책</button>'
     + '<button class="' + (pathEdit ? 'on' : '') + '" '
-      + 'onclick="setPwBook(0);setPathEdit(1)">✏️ 고치기</button>'
+      + 'onclick="setPathEdit(1)">✏️ 고치기</button>'
     + '<span class="hint">'
-      + (pathEdit ? '단을 골라 고칩니다 — 빈 단은 읽기 화면에 안 나옵니다'
-          : pwBook ? '한 장씩 넘겨 봅니다 — 글은 그대로 눌러 고칩니다'
-                   : '✎ 글을 <b>누르면</b> 그 자리에서 바로 고쳐집니다')
+      + (pathEdit ? '단을 골라 고칩니다 — 빈 단은 책에 안 나옵니다'
+                  : '한 장씩 넘겨 봅니다 — ✎ 글은 <b>그대로 눌러</b> 고칩니다')
       + '</span>'
     /* 전에는 여기 단추가 다섯이었습니다 — 「기획서 올리기」 「지침서 글로
        쓰기」 「지침서·기록부 파일」 「기획서 양식」 「글로 복사」.
@@ -20691,7 +21066,7 @@ function pathViewHtml(b){
        <<뭐가 뭔지>> 알 수 없었습니다. 하나로 접어 두고, 열면 세 갈래가
        「무엇이고 · 어디로 들어가는지」 와 함께 나옵니다. */
     + '<button class="btn sm primary' + (pathGetTo === b.id ? ' on' : '') + '" '
-      + 'onclick="pathGetOpen(\'' + bid + '\')">📥 문서에서 가져오기</button>'
+      + 'onclick="pathGetOpen(\'' + bid + '\')">📗 브랜드북 올리기</button>'
     /* 인쇄 창에서 「PDF 로 저장」 을 고르면 그대로 PDF 가 됩니다 */
     + '<button class="btn sm" onclick="pathPrint()" '
       + 'title="처음부터 끝까지 한 장씩 끊어 냅니다 — 인쇄 창에서 PDF 로 저장해도 됩니다">'

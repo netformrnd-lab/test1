@@ -2913,14 +2913,8 @@ function startChatPoll() { stopChatPoll(); CHAT_POLL = setInterval(() => { const
 function stopChatPoll() { if (CHAT_POLL) { clearInterval(CHAT_POLL); CHAT_POLL = null } }
 // 하단 '채팅' 탭 진입: 로그인=담당 감리사와 / 비로그인=관리자(손님 상담)
 function chatFromNav() {
-  if (currentRole === 'auditor') { openAuditorChatList(); return }
-  if (!currentRole) { window.open(INQUIRY_URL, '_blank', 'noopener'); return } // 로그인 전 → 카카오톡 채널
-  if (RES_APT && RES_APT.id) {
-    openChat({ thread: 'apt:' + RES_APT.id, aptId: RES_APT.id, role: (currentRole === 'manager' ? 'manager' : 'resident'), name: MY_NAME, title: RES_AUD_NAME ? (RES_AUD_NAME + ' 감리사') : '담당 감리사', sub: '우리 단지 감리 상담' })
-  } else {
-    // 배정 단지가 없는 사용자는 단지 채팅이 없으므로 카카오 채널로 안내
-    window.open(INQUIRY_URL, '_blank', 'noopener')
-  }
+  // 인앱 채팅 제거 — 모든 문의는 공식 아파트스퀘어 카카오톡 채널로 연결.
+  window.open(INQUIRY_URL, '_blank', 'noopener')
 }
 window.chatFromNav = chatFromNav
 
@@ -2992,6 +2986,8 @@ function setChatNavBadge(n) {
   })
 }
 async function refreshChatBadge() {
+  // 인앱 채팅 제거(카카오톡으로 대체) — 채팅 안 읽음 배지 표시 안 함.
+  setChatNavBadge(0); return
   // 감리사: 담당 단지 전체의 안 읽음 합산
   if (currentRole === 'auditor') {
     try {
@@ -3224,16 +3220,7 @@ function navigateFromPush(data) {
     // 알림으로 앱을 갓 열었으면 로그인·라우팅이 끝날 때까지 재시도 (최대 ~10초)
     if (!currentRole && tries < 20) { setTimeout(attempt, 500); return }
     try {
-      if (kind === 'chat') {
-        if (currentRole === 'auditor') { openAuditorChatList(); return }
-        // 입주민·소장: 담당 단지 정보가 준비되면 그 단지 채팅을 연다 (카톡으로 새지 않게)
-        if (RES_APT && RES_APT.id) {
-          openChat({ thread: 'apt:' + RES_APT.id, aptId: RES_APT.id, role: (currentRole === 'manager' ? 'manager' : 'resident'), name: MY_NAME, title: RES_AUD_NAME ? (RES_AUD_NAME + ' 감리사') : '담당 감리사', sub: '우리 단지 감리 상담' })
-          return
-        }
-        if (tries < 20) { setTimeout(attempt, 500); return }  // 아직 단지 로딩 중이면 잠시 후 재시도
-        return
-      }
+      if (kind === 'chat') { window.open(INQUIRY_URL, '_blank', 'noopener'); return }  // 인앱 채팅 제거 → 카카오톡 채널
       if (kind === 'field_new') { window.showScreen('s26'); loadFieldUpdates() }
       else if (kind === 'report_pub') { window.showScreen('s12'); loadResidentReports() }
       else if (kind === 'notice') { openNoticeList() }

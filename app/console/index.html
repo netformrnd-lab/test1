@@ -279,7 +279,7 @@ tbody tr:hover{background:#f8fafc}
       <a data-s="history" onclick="go('history')"><span class="ic">🗂️</span>활동기록</a>
       <div class="lbl">앱 관리</div>
       <a data-s="members" onclick="go('members')"><span class="ic">👤</span>회원<span class="cnt red" id="c-pending">0</span></a>
-      <a data-s="comm" onclick="go('comm')"><span class="ic">💬</span>입주민소통/NPS<span class="cnt red" id="c-chat" style="display:none">0</span></a>
+      <a data-s="comm" onclick="go('comm')"><span class="ic">💬</span>입주민소통/NPS</a>
       <a data-s="promo" onclick="go('promo')"><span class="ic">🏅</span>홍보·자료</a>
       <div class="lbl">기타</div>
       <a data-s="tools" onclick="go('tools')"><span class="ic">🧰</span>데이터 도구</a>
@@ -355,10 +355,9 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-comm">
-      <div class="head"><div><h2>입주민소통/NPS</h2><div class="desc">공지사항 · 채팅 · NPS · 아파트알림</div></div></div>
+      <div class="head"><div><h2>입주민소통/NPS</h2><div class="desc">공지사항 · NPS · 아파트알림 · 상담은 카카오톡 채널로 운영</div></div></div>
       <div class="seg" id="commTabs">
         <button class="on" onclick="commTab('notice',this)">📢 공지사항</button>
-        <button id="commChatBtn" onclick="commTab('chat',this)">💬 채팅</button>
         <button onclick="commTab('nps',this)">⭐ NPS</button>
         <button onclick="commTab('alarm',this)">🔔 아파트알림</button>
       </div>
@@ -526,7 +525,7 @@ async function loadAll(){
   initSeen();
   await loadRoadmapManual();
   renderAll();
-  startPoll(); startChatPoll(); startConsoleRealtime(); maybeAutoSyncGSheet();
+  startPoll(); startConsoleRealtime(); maybeAutoSyncGSheet();
   if(!WON_MATED){ WON_MATED=true; materializeWonApts(null); }  // 성사 딜 → 단지관리 자동 편입(세션 1회)
 }
 let WON_MATED=false;

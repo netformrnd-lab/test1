@@ -249,8 +249,27 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
 .card:hover{box-shadow:var(--shadow-md);border-color:var(--border-light)}
 .card .ct{font-size:14px;font-weight:700;margin-bottom:3px;padding-right:70px;
   letter-spacing:-.018em}
+/* 단추가 셋인 칸(할 일)은 더 비워 둡니다. 70px 로는 제목 끝이 단추
+   밑으로 들어가, 제목을 누르려다 [삭제] 가 눌립니다. */
+.card.ca3 .ct,.card.ca3 .ct-w{padding-right:152px}
 .card .cd{font-size:12.5px;color:var(--text-secondary);white-space:pre-wrap;
   word-break:break-word;margin-top:6px;line-height:1.65}
+/* 빈 메모 자리 — 48칸이 「＋ 메모」 로 도배되지 않게 손을 올렸을 때만
+   보입니다. 자리는 늘 있으니 눌러서 바로 적을 수 있습니다. */
+.card .cd.cd-non{color:var(--text-muted);opacity:0;transition:.16s var(--ease)}
+.card:hover .cd.cd-non{opacity:.8}
+.card .cd.cd-non:hover{opacity:1;color:var(--text-secondary)}
+.costtable .cd-non{color:var(--text-muted);opacity:0;transition:.16s var(--ease);
+  cursor:pointer}
+.costtable tr:hover .cd-non{opacity:.8}
+.costtable .cd-non:hover{opacity:1;color:var(--text-secondary)}
+/* 바로가기는 제목이 링크라 누르면 새 탭이 열립니다 — 고치는 자리를 옆에 */
+.card .ct-w{display:flex;align-items:flex-start;gap:6px;padding-right:70px}
+.card .ct-w .ct{flex:1 1 auto;min-width:0;padding-right:0}
+.card .ct-w .ct-ed{flex:0 0 auto;font-size:12px;color:var(--text-muted);cursor:pointer;
+  opacity:0;transition:.16s var(--ease);line-height:1.5}
+.card:hover .ct-w .ct-ed{opacity:.75}
+.card .ct-w .ct-ed:hover{opacity:1;color:var(--ink)}
 .card .ca{position:absolute;top:11px;right:11px;display:flex;gap:3px;opacity:0;
   transition:.16s var(--ease)}
 .card:hover .ca{opacity:1}
@@ -3910,7 +3929,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260921-23';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260922-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -9199,6 +9218,32 @@ function secBar(type){
     + '<span class="hint">' + t.hint + '</span></div>';
 }
 
+/* ── ✎ 칸 카드도 그 자리에서 ─────────────────────────────────
+   할 일 · 자동화 · 바로가기 · 자료 · 연혁 · 비용은 줄마다 [수정] 을
+   눌러 <<화면을 덮는 모달>> 을 열어야 했습니다. 이름 한 글자를 고치려고
+   뒤의 목록이 가려지고, 저장을 눌러야 돌아옵니다. 읽던 자리에서 바로
+   고치게 합니다 — 모달은 여러 칸을 한꺼번에 채울 때만 씁니다. */
+function itemFieldSet(bid, type, id, f, v){
+  const b = bid ? brandById(bid) : null;
+  const box = b ? b[type] : data[type];
+  const x = (box || []).find(y => y.id === id); if(!x) return;
+  x[f] = v;
+  x.updatedAt = new Date().toISOString();
+  if(b) markDirty(b.id); else markDirtyAll();
+}
+/* 메모는 비면 안 그려져서 적을 길이 모달뿐이었습니다. 자리는 늘 두되
+   48칸이 「＋ 메모」 로 도배되지 않게 손을 올렸을 때만 보입니다. */
+function itemEdAttr(bid, type, id, f, ml, ph){
+  return ' data-ed="item" data-g="' + esc(bid) + '" data-k="' + esc(type)
+    + '" data-i="' + esc(id) + '" data-f="' + f + '"'
+    + (ml ? ' data-ml="1"' : '') + (ph ? ' data-ph="' + esc(ph) + '"' : '');
+}
+function itemMemoHtml(bid, type, id, f, v){
+  const t = String(v || '').trim();
+  return t
+    ? '<div class="cd"' + itemEdAttr(bid, type, id, f, 1, '메모') + '>' + esc(t) + '</div>'
+    : '<div class="cd cd-non"' + itemEdAttr(bid, type, id, f, 1, '메모') + '>＋ 메모</div>';
+}
 function viewCards(b, type){
   const t = TYPES[type];
   const list = b[type];
@@ -9219,15 +9264,21 @@ function viewCards(b, type){
           + '<button class="btn sm" title="경로를 복사해 탐색기 주소창에 붙여넣으세요" '
           + 'onclick="copyPath(\'' + type + '\',\'' + it.id + '\')">📋 경로 복사</button>');
     }
-    const text = it.desc || it.note || '';
+    /* 메모가 desc 인 갈래와 note 인 갈래가 섞여 있습니다 —
+       적혀 있는 쪽, 없으면 그 갈래가 쓰는 쪽에 적습니다 */
+    const dk = String(it.desc || '').trim() ? 'desc'
+             : String(it.note || '').trim() ? 'note'
+             : ((t.fields || []).some(f => f.key === 'desc') ? 'desc' : 'note');
     return '<div class="card">'
       + '<div class="ca">'
-        + '<button class="btn sm" onclick="openItemModal(\'' + type + '\',\'' + it.id + '\')">수정</button>'
+        + '<button class="btn sm" onclick="openItemModal(\'' + type + '\',\'' + it.id + '\')" '
+          + 'title="칸을 한꺼번에 채웁니다 — 한 칸만 고칠 때는 그 글을 바로 누르세요">수정</button>'
         + '<button class="btn sm danger" onclick="deleteItem(\'' + type + '\',\'' + it.id + '\')">삭제</button>'
       + '</div>'
-      + '<div class="ct">' + esc(it.title) + '</div>'
+      + '<div class="ct"' + itemEdAttr(b.id, type, it.id, 'title', 0, t.label + ' 이름')
+        + '>' + esc(it.title) + '</div>'
       + (bits.length ? '<div class="row">' + bits.join('') + '</div>' : '')
-      + (text ? '<div class="cd">' + esc(text) + '</div>' : '')
+      + itemMemoHtml(b.id, type, it.id, dk, it[dk])
       + '</div>';
   }).join('') + '</div>';
 }
@@ -13531,19 +13582,21 @@ function taskCard(t, b, opts){
     : '<span class="chip' + (authOn() && authMe() && t.uid === authMe().id ? ' on' : '') + '">👤 '
       + esc(taskOwnerName(taskOwnerKey(t))) + '</span>';
 
-  return '<div class="card' + (t.status === '완료' ? ' done' : '') + '">'
+  return '<div class="card ca3' + (t.status === '완료' ? ' done' : '') + '">'
     + '<div class="ca">'
       + '<button class="btn sm" title="' + (t.status === '완료' ? '다시 진행' : '완료 처리') + '" '
         + 'onclick="toggleTask(\'' + jsq(t.id) + '\',\'' + bid + '\')">'
         + (t.status === '완료' ? '되돌리기' : '✓ 완료') + '</button>'
       + '<button class="btn sm" onclick="openItemModal(\'tasks\',\'' + jsq(t.id)
-        + '\',null,\'' + bid + '\')">수정</button>'
+        + '\',null,\'' + bid + '\')" '
+        + 'title="칸을 한꺼번에 채웁니다 — 한 칸만 고칠 때는 그 글을 바로 누르세요">수정</button>'
       + '<button class="btn sm danger" onclick="deleteItem(\'tasks\',\'' + jsq(t.id)
         + '\',\'' + bid + '\')">삭제</button>'
     + '</div>'
-    + '<div class="ct">' + esc(t.title) + '</div>'
+    + '<div class="ct"' + itemEdAttr(b.id, 'tasks', t.id, 'title', 0, '할 일')
+      + '>' + esc(t.title) + '</div>'
     + '<div class="row">' + taskStChip(t.status) + taskDueChip(t) + whoChip + brandChip + '</div>'
-    + (t.note ? '<div class="cd">' + esc(t.note) + '</div>' : '')
+    + itemMemoHtml(b.id, 'tasks', t.id, 'note', t.note)
     + '</div>';
 }
 
@@ -14213,14 +14266,23 @@ function viewCosts(b){
     const off = !costLive(c);
     const pm  = costPerMonth(c);
     return '<tr' + (off ? ' class="dim"' : '') + '>'
+      /* 이름 · 메모 · 금액은 표에서 바로 고칩니다 — 금액 하나 바꾸려고
+         모달을 열어 아홉 칸을 지나치게 하지 않습니다. 종류 · 주기처럼
+         고른 것 중 하나인 칸은 모달에 둡니다 (글칸이면 오타가 들어갑니다). */
       + '<td><span class="vz-sw" style="background:' + (COST_HUE[c.kind] || 'var(--text-muted)')
         + ';display:inline-block;margin-right:7px"></span>'
-        + '<b>' + esc(c.title || '(이름 없음)') + '</b>'
+        + '<b' + itemEdAttr(bid, 'costs', c.id, 'title', 0, '무엇에 쓰는 돈인가') + '>'
+        + esc(c.title || '(이름 없음)') + '</b>'
         + (off ? '<span class="chip off" style="margin-left:6px">해지</span>' : '')
-        + (c.desc ? '<div class="fmeta" style="margin-top:3px">' + esc(c.desc) + '</div>' : '')
+        + (String(c.desc || '').trim()
+            ? '<div class="fmeta" style="margin-top:3px"'
+              + itemEdAttr(bid, 'costs', c.id, 'desc', 1, '메모') + '>' + esc(c.desc) + '</div>'
+            : '<div class="fmeta cd-non" style="margin-top:3px"'
+              + itemEdAttr(bid, 'costs', c.id, 'desc', 1, '메모') + '>＋ 메모</div>')
         + '</td>'
       + '<td>' + esc(c.kind || '기타') + '</td>'
-      + '<td class="num">' + won(costWon(c))
+      + '<td class="num"><span' + itemEdAttr(bid, 'costs', c.id, 'amount', 0,
+            '숫자만 — 예) 300000') + '>' + won(costWon(c)) + '</span>'
         + (c.cur === '달러'
             ? '<div class="fmeta">$' + esc(String(c.amount || '')) + '</div>' : '')
         + '</td>'
@@ -14681,9 +14743,13 @@ function viewLinks(b){
                 + 'referrerpolicy="no-referrer" scrolling="no" tabindex="-1"></iframe>'
               + '<span class="pvmask"></span></a>'
             : '')
-        + '<a class="ct" href="' + esc(l.url) + '" target="_blank" rel="noopener">'
-          + esc(l.title) + ' <span class="go">↗</span></a>'
-        + (l.desc ? '<div class="cd">' + esc(l.desc) + '</div>' : '')
+        /* 제목이 링크라 누르면 새 탭이 열립니다 — 고치는 자리는 옆에
+           ✎ 로 따로 둡니다 (링크를 못 쓰게 만들면 더 나쁩니다) */
+        + '<div class="ct-w"><a class="ct" href="' + esc(l.url) + '" target="_blank" '
+          + 'rel="noopener">' + esc(l.title) + ' <span class="go">↗</span></a>'
+          + '<span class="ct-ed"' + itemEdAttr(b.id, 'links', l.id, 'title', 0, '이름')
+            + ' title="눌러서 이름을 고칩니다">✎</span></div>'
+        + itemMemoHtml(b.id, 'links', l.id, 'desc', l.desc)
         + '<div class="fmeta" style="margin-top:8px">'
           + esc(l.url.replace(/^https?:\/\//,'').slice(0,60)) + '</div>'
         + '</div>';
@@ -16345,7 +16411,8 @@ function viewMeetings(list){
     const busy = aiState.busy === m.id;
     return '<div class="mtbox">'
       + '<div class="mt-head">'
-        + '<span class="mt-title">' + esc(m.title || '(제목 없음)') + '</span>'
+        + '<span class="mt-title"' + itemEdAttr('', 'meetings', m.id, 'title', 0, '회의 제목')
+          + '>' + esc(m.title || '(제목 없음)') + '</span>'
         + (m.date ? '<span class="chip">' + esc(fmtYMD(m.date)) + '</span>' : '')
         + (m.brand ? '<span class="chip on">' + esc(m.brand) + '</span>' : '')
         + (m.attendees ? '<span class="fmeta">👥 ' + esc(m.attendees) + '</span>' : '')
@@ -16358,7 +16425,10 @@ function viewMeetings(list){
 
       + '<details class="mt-raw"' + (ai ? '' : ' open') + '>'
         + '<summary>회의 내용 원문' + (ai ? ' (접힘)' : '') + '</summary>'
-        + '<div class="mt-body">' + esc(m.body || '(비어 있음)') + '</div>'
+        /* 회의 내용은 들은 대로 적어 둔 글입니다 — 한 줄 고치려고
+           모달을 열면 긴 글을 통째로 다시 마주하게 됩니다 */
+        + '<div class="mt-body"' + itemEdAttr('', 'meetings', m.id, 'body', 1,
+            '들은 대로 편하게') + '>' + esc(m.body || '(비어 있음)') + '</div>'
       + '</details>'
 
       // AI 를 아직 안 붙였으면 「공짜로 되는 길」 을 대표 단추로 내놓습니다.
@@ -19633,6 +19703,13 @@ function edGet(d){
     const sc = obOf().find(x => x.id === d.g); return sc ? S(sc[d.f]) : '';
   }
   if(d.ed === 'obrow') return S(d.i);          // 표의 줄 이름 (여러 항목에 걸침)
+  /* 칸 카드 — 할 일 · 자동화 · 바로가기 · 자료 · 연혁 · 비용.
+     여섯 화면이 같은 칸을 쓰므로 여기 하나만 답니다. */
+  if(d.ed === 'item'){
+    /* 회의록 · 일정은 브랜드에 딸리지 않고 data 에 통째로 있습니다 */
+    const box = d.g ? (brandById(d.g) || {})[d.k] : data[d.k];
+    const x = (box || []).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
+  }
   if(d.ed === 'obhead') return S(obHead()[d.f]);       // 온보딩 머리말
   if(d.ed === 'obstat'){                                // 머리말의 숫자 띠
     const x = (obHead().stats || []).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
@@ -19664,6 +19741,7 @@ function edSet(d, v){
   if(d.ed === 'obkid0' || d.ed === 'obit'){ obItSet(d.g, d.i, d.f, v); return; }
   if(d.ed === 'obsec'){ obSecSet(d.g, d.f, v); return; }
   if(d.ed === 'obrow'){ obRowRename(d.g, d.i, v); return; }
+  if(d.ed === 'item'){ itemFieldSet(d.g, d.k, d.i, d.f, v); return; }
   if(d.ed === 'obhead'){ obHeadSet(d.f, v); obMark(); return; }
   if(d.ed === 'obstat'){ obStatSet(d.i, d.f, v); obMark(); return; }
   const b = currentBrand(); if(!b) return;

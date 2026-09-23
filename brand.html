@@ -21309,13 +21309,17 @@ async function pdfPaint(){
     cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
     cv.style.width = '100%'; cv.style.height = 'auto';
     await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
-    box.innerHTML = ''; box.appendChild(cv);
+    /* 그리는 사이에 화면이 다시 섰으면 자리가 바뀌어 있습니다 — 옛 자리에
+       붙이면 아무 데도 안 보입니다. 붙이기 직전에 다시 찾습니다. */
+    const now = document.getElementById('pdfBox') || box;
+    now.innerHTML = ''; now.appendChild(cv);
     pdfLast = { key, cv, no, n: doc.numPages };
     const nm = document.getElementById('pdfNo');
     if(nm) nm.textContent = no + ' / ' + doc.numPages;
     pdfTh(no, doc.numPages);
   }catch(e){
-    box.innerHTML = '<div class="pdf-err">📄 원본을 펴지 못했습니다<span>'
+    const now = document.getElementById('pdfBox') || box;
+    now.innerHTML = '<div class="pdf-err">📄 원본을 펴지 못했습니다<span>'
       + esc(String((e && e.message) || e)) + '</span>'
       + '<i>pdf.min.js · pdf.worker.min.js 가 brand.html 옆에 있어야 합니다 — '
       + 'save.php?action=bootstrap 을 한 번 열어 주세요.</i></div>';
@@ -21361,10 +21365,9 @@ function bookOrigHtml(b, bk){
      만든 그대로 삽니다. 안의 스크립트는 서버(files.php)와 sandbox 두 겹으로
      막습니다. 한 장씩 넘기는 것은 PDF 만 됩니다 (HTML 은 쪽이 없습니다). */
   if(!bookIsPdf(bk)){
-    /* 화면이 서자마자 끼웁니다 — 한 박자 늦으면 빈 자리가 한 번 번쩍입니다.
-       늦게 서는 화면을 위해 시간으로도 한 번 더 부릅니다 (두 번 불러도
-       같은 틀이면 그대로 두므로 헛일이 되지 않습니다). */
-    queueMicrotask(bookFrame); setTimeout(bookFrame, 30);
+    /* 화면이 선 <<뒤에>> 끼웁니다. 더 일찍 부르면 지금 지워지는 중인 옛 자리에
+       끼워 넣게 되어, 새 자리는 빈 채로 남습니다. */
+    setTimeout(bookFrame, 30);
     return '<div class="pw pw-bk pw-orig">'
       + top + '</div>'
       + srcBar
@@ -21375,10 +21378,9 @@ function bookOrigHtml(b, bk){
       + '</div>';
   }
 
-  /* 그림은 화면이 서자마자 넣습니다 (늦으면 읽던 쪽이 한 번 번쩍입니다).
-     늦게 서는 화면을 위해 시간으로도 한 번 더 부릅니다 — 같은 쪽이면
-     그려 둔 그림을 그대로 쓰므로 두 번 불러도 헛일이 아닙니다. */
-  queueMicrotask(pdfPaint); setTimeout(pdfPaint, 30);
+  /* 그림은 화면이 선 <<뒤에>> 넣습니다. 더 일찍 부르면 지금 지워지는 중인
+     옛 자리에 그려 넣고, 새 자리는 「펴는 중…」 인 채로 남습니다. */
+  setTimeout(pdfPaint, 30);
   /* 이름이 pw-orig 인 까닭: .pw-src 는 이미 「출처」 줄이 쓰고 있습니다 */
   return '<div class="pw pw-bk pw-orig">'
     + top + '<div class="bk-n" id="pdfNo">…</div></div>'

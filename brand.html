@@ -4238,7 +4238,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260923-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260923-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4314,7 +4314,9 @@ async function pullLive(by){
   data._rev = srv._rev | 0;
   baseIds   = snapshotIds(srv);
   updateSubtitle();
-  render();
+  /* 브랜드북을 펴 놓고 있으면 다시 그리지 않습니다 — 책이 한 번 사라졌다
+     나옵니다. 옆 사람이 <<책을 바꿔 올렸으면>> 그때는 그립니다. */
+  bgRender();
 
   const who = (by && by !== myName()) ? by + '님이 ' : '';
   if(by !== myName()) toast('🔄 ' + who + '방금 고친 내용을 가져왔습니다');
@@ -5018,6 +5020,29 @@ function restoreUI(snap){
   if(Math.abs(window.scrollY - snap.y) > 2) window.scrollTo(0, snap.y);
 }
 
+/* ── 곁다리 새로고침은 책을 건드리지 않습니다 ───────────────────────
+   문의 기록 · 접점 요약 · 옆 사람 저장 — 1 분에 한 번씩 돌아가는 것들이
+   화면을 통째로 다시 그렸습니다. 그러면 브랜드북을 끼워 둔 틀이 DOM 에서
+   떨어졌다 붙으면서 문서를 <<처음부터 다시 읽습니다>> — 읽던 책이 한 번
+   사라졌다 나오는 까닭입니다.
+   브랜드북을 펴 놓고 보는 중이면 다시 그리지 않습니다. 옆의 숫자 하나가
+   잠깐 늦을 뿐이고, 아무 데나 한 번 누르면 바로 맞춰집니다.
+   책 <<자체>> 가 바뀌었을 때(옆 사람이 새로 올렸다든지)는 그립니다.
+   ------------------------------------------------------------------ */
+function bgRender(){
+  const live = document.getElementById('bkIfr') || document.getElementById('pdfBox');
+  if(live){
+    /* 펴 놓은 책이 그대로면 그냥 둡니다 */
+    const b = currentBrand();
+    const bk = b ? pathBook(b) : null;
+    const now = bk ? bookUrl(bk) : '';
+    const was = (bookIfr && bookIfr.dataset.url) ? bookIfr.dataset.url.split('&v=')[0] : pdfShown;
+    if(now && was && now === was) return;
+    if(!now && !was) return;
+  }
+  render();
+}
+let pdfShown = '';
 function render(){
   /* 두 번 눌러 고치는 중이면 다시 그리지 않습니다 — 그리면 쓰던 칸이
      사라집니다. 빠져나올 때 한 번 그립니다. (칸이 이미 없으면 그냥 그립니다) */
@@ -7239,7 +7264,7 @@ async function loadChannelSummary(){
       if(r.feed && r.items && r.items.length && !feedCache[r.feed])
         feedCache[r.feed] = { ok:true, title:r['이름'], items:r.items };
     });
-    render();
+    bgRender();
 
     // 받아둔 게 오래됐으면 대시보드가 직접 NAS 에게 돌아보라고 시킵니다.
     // 작업 스케줄러를 걸어두지 않아도 대시보드를 켜 두는 동안은 최신이 됩니다.
@@ -15818,7 +15843,7 @@ async function inquiryTick(){
       if(st.updatedAt && st.updatedAt !== inquiryCache.updatedAt){
         inquiryCache.loaded = false;
         await loadInquiries(true);
-        render();
+        bgRender();
         toast('📮 문의 기록이 바뀌었습니다 (새 문의 또는 다른 분이 고침)');
       }
       // NAS 가 가진 것 자체가 오래됐으면 시트에서 새로 가져오게 합니다
@@ -19453,6 +19478,7 @@ async function pdfPaint(){
   pdfBusy = key;
   try{
     const doc = await pdfOpen(url);
+    pdfShown = url;               // 지금 펴 둔 책 (곁다리 새로고침이 견줍니다)
     /* 쪽수는 PDF 가 압니다 — 다 펴 보고 나서야 「다음」을 열고 닫습니다 */
     pwPgN = doc.numPages;
     pdfNav();

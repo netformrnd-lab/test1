@@ -1405,7 +1405,7 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pw-orig .bk-pg{padding:0;background:none;border:0;border-radius:0;box-shadow:none;
   display:flex;align-items:flex-start;justify-content:center;overflow:visible}
 .pw-orig .bk-pg::before{display:none}
-.pw-orig .bk-wrap{display:block;gap:0}
+.pw-orig .bk-wrap{display:flex;align-items:stretch;gap:6px}
 .pdf-box{width:100%;max-width:none;min-height:340px;display:flex;
   align-items:center;justify-content:center}
 .pdf-box canvas{display:block;border-radius:2px;box-shadow:var(--shadow-md)}
@@ -1429,21 +1429,19 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .bk-turn button:hover:not(:disabled){border-color:var(--ink);color:var(--text-primary)}
 .bk-turn button:disabled{opacity:.35;cursor:default}
 .bk-turn .bk-n{margin:0 4px}
-/* 📖 책장이 넘어가듯 — 한 번 들렸다 놓입니다 */
+/* 📖 새 장이 조용히 들어와 놓입니다.
+   전에는 한 번 들렸다 <<반대로 젖혔다>> 돌아와서 촐싹거렸습니다 —
+   왕복을 없애고 한 방향으로만, 짧고 부드럽게. */
 @keyframes bkflipF{
-  0%  {transform:perspective(1800px) rotateY(0deg);opacity:1}
-  42% {transform:perspective(1800px) rotateY(-13deg) translateX(-1.5%);opacity:.45}
-  58% {transform:perspective(1800px) rotateY(9deg) translateX(1.5%);opacity:.5}
-  100%{transform:none;opacity:1}
+  0%  {opacity:.2;transform:translateX(14px)}
+  100%{opacity:1;transform:none}
 }
 @keyframes bkflipB{
-  0%  {transform:perspective(1800px) rotateY(0deg);opacity:1}
-  42% {transform:perspective(1800px) rotateY(13deg) translateX(1.5%);opacity:.45}
-  58% {transform:perspective(1800px) rotateY(-9deg) translateX(-1.5%);opacity:.5}
-  100%{transform:none;opacity:1}
+  0%  {opacity:.2;transform:translateX(-14px)}
+  100%{opacity:1;transform:none}
 }
-.turn-f{animation:bkflipF .44s cubic-bezier(.4,0,.2,1);transform-origin:left center}
-.turn-b{animation:bkflipB .44s cubic-bezier(.4,0,.2,1);transform-origin:right center}
+.turn-f{animation:bkflipF .26s cubic-bezier(.22,.61,.36,1)}
+.turn-b{animation:bkflipB .26s cubic-bezier(.22,.61,.36,1)}
 @media(prefers-reduced-motion:reduce){ .turn-f,.turn-b{animation:none} }
 /* ✎ 이대로 고치기 — 원본 모양 그대로 손보는 줄 */
 .bk-ed{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -1473,6 +1471,16 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pw-bk .bk-n{margin-left:auto;font-family:var(--f-mono);font-size:12px;font-weight:700;
   color:var(--text-muted);letter-spacing:.04em}
 .bk-wrap{display:flex;align-items:stretch;gap:12px;margin-top:10px}
+/* 📖 원본 — 종이 양옆의 넘김 단추. 큰 빈 상자로 보이지 않게 얇게 두고,
+   바탕은 손을 올렸을 때만 옅게 비칩니다. */
+.pw-orig .bk-nav{flex:0 0 44px;align-self:stretch;display:flex;align-items:center;
+  justify-content:center;gap:0;border:0;border-radius:12px;background:none;
+  box-shadow:none;font-size:26px;line-height:1;color:var(--text-muted);
+  cursor:pointer;transition:.15s var(--ease)}
+.pw-orig .bk-nav span{display:none}
+.pw-orig .bk-nav:hover:not(:disabled){background:var(--bg-hover);color:var(--text-primary)}
+.pw-orig .bk-nav:disabled{opacity:.22;cursor:default;background:none}
+@media(max-width:720px){ .pw-orig .bk-nav{flex:0 0 30px;font-size:21px} }
 /* 넘기는 단추는 글 <<바깥>> 에 둡니다 — 글 위에 겹치면 고치려다 넘어갑니다 */
 .bk-nav{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:4px;border:1px solid var(--border);border-radius:12px;
@@ -4230,7 +4238,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260923-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260923-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19056,6 +19064,14 @@ function bookPaintBar(){
 }
 /* 쪽수 양옆의 작은 넘김 단추. 전에는 종이 양옆에 큰 칸이 서 있어
    빈 상자 둘이 붙어 있는 것처럼 보였습니다 — 자리만 차지했습니다. */
+/* 종이 양옆의 넘김 단추 — 얇게, 손을 올렸을 때만 바탕이 비칩니다 */
+function bookSideBtn(d){
+  const off = d < 0 ? (pwPg <= 0) : (pwPg >= pwPgN - 1);
+  return '<button class="bk-nav" id="' + (d < 0 ? 'bkSideP' : 'bkSideN') + '"'
+    + (off ? ' disabled' : '')
+    + ' onclick="pwGo(' + d + ')" title="' + (d < 0 ? '앞 장 (← 키)' : '다음 장 (→ 키)') + '">'
+    + (d < 0 ? '‹' : '›') + '</button>';
+}
 function bookTurnBar(id){
   return '<div class="bk-turn">'
     + '<button id="bkPrev" onclick="pwGo(-1)" title="앞 장 (← 키)">‹</button>'
@@ -19232,9 +19248,13 @@ function bookFit(){
 }
 /* 넘기기 단추를 지금 쪽수에 맞춥니다 (다시 그리지 않고 단추만) */
 function bookNav(){
-  const a = document.getElementById('bkPrev'), z = document.getElementById('bkNext');
-  if(a) a.disabled = pwPg <= 0;
-  if(z) z.disabled = pwPg >= pwPgN - 1;
+  const first = pwPg <= 0, last = pwPg >= pwPgN - 1;
+  ['bkPrev', 'bkSideP'].forEach(k => {
+    const e = document.getElementById(k); if(e) e.disabled = first;
+  });
+  ['bkNext', 'bkSideN'].forEach(k => {
+    const e = document.getElementById(k); if(e) e.disabled = last;
+  });
 }
 function bookTh(no, n){
   const el = document.getElementById('bkTh');
@@ -19501,8 +19521,13 @@ function bookOrigHtml(b, bk){
       + top + bookTurnBar('bkNo') + '</div>'
       + edBar
       /* PDF 와 똑같이 — 양옆 단추로 한 장씩 넘깁니다 */
-      + '<div class="bk-ifr" id="bkIfr"></div>'
-      + '<div class="bk-hint">👆 <b>옆으로 밀거나</b> <b>← →</b> 키로 넘깁니다 · '
+      + '<div class="bk-wrap">'
+        + bookSideBtn(-1)
+        + '<div class="bk-ifr" id="bkIfr"></div>'
+        + bookSideBtn(1)
+      + '</div>'
+      + '<div class="bk-hint">👆 <b>양옆 단추</b>나 <b>← →</b> 키로 넘깁니다 · '
+        + '옆으로 밀어도 넘어갑니다 · '
         + (bookEdit
             ? '고친 뒤에는 <b>[💾 저장]</b> 을 눌러 주세요 — 올린 파일을 그 자리에서 '
               + '고쳐 씁니다 (고치기 전 것은 🗑 휴지통에 남습니다)'
@@ -19519,11 +19544,14 @@ function bookOrigHtml(b, bk){
   return '<div class="pw pw-bk pw-orig">'
     + top + bookTurnBar('pdfNo') + '</div>'
     + '<div class="bk-wrap">'
+      + bookSideBtn(-1)
       + '<div class="bk-pg">'
         + '<div class="pdf-box" id="pdfBox"><div class="pdf-wait">📄 펴는 중…</div></div>'
       + '</div>'
+      + bookSideBtn(1)
     + '</div>'
-    + '<div class="bk-hint">👆 <b>옆으로 밀거나</b> <b>← →</b> 키로 넘깁니다 · '
+    + '<div class="bk-hint">👆 <b>양옆 단추</b>나 <b>← →</b> 키로 넘깁니다 · '
+      + '옆으로 밀어도 넘어갑니다 · '
       + 'PDF 는 <b>글을 고칠 수 없습니다</b> — 고치려면 같은 책을 HTML 로 올려 주세요</div>'
     + '<div class="pdf-th" id="pdfTh"></div>'
     + '</div>';

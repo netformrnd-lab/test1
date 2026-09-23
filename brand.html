@@ -1413,9 +1413,11 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pdf-err i{display:block;margin-top:9px;font-size:11.5px;font-style:normal;
   color:var(--text-muted);word-break:keep-all}
 /* HTML 브랜드북 — 통째로 끼워 넣습니다 (쪽이 없어 안에서 밀어 내립니다) */
-.bk-ifr{display:block;width:100%;height:78vh;min-height:420px;margin-top:12px;
+.bk-ifr{display:block;flex:1;min-width:0;height:78vh;min-height:420px;
   border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}
 .bk-ifr iframe{display:block;width:100%;height:100%;border:0;background:#fff}
+/* 틀 높이는 그 쪽 높이에 맞춰 코드가 정해 줍니다 */
+.bk-ifr-wrap .bk-ifr{height:auto;min-height:200px}
 /* ✎ 이대로 고치기 — 원본 모양 그대로 손보는 줄 */
 .bk-ed{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px}
 .bk-ed button{padding:6px 11px;border:1px solid var(--border);border-radius:8px;
@@ -4201,7 +4203,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260923-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260923-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19084,15 +19086,90 @@ function bookDoc(){
   const f = bookIfr;
   try{ return (f && f.contentDocument) || null; }catch(e){ return null; }
 }
+/* ── HTML 브랜드북도 <<한 장씩>> 넘깁니다 ─────────────────────────
+   PDF 는 애초에 쪽이 나뉘어 있지만 HTML 은 한 줄로 길게 이어집니다.
+   그런데 브랜드북 HTML 은 대개 장(章)마다 한 덩어리로 짜여 있습니다.
+   그 덩어리를 찾아 쪽으로 삼고, 한 장만 보이게 자리를 잡아 줍니다.
+   ------------------------------------------------------------------ */
+function bookPages(){
+  const d = bookDoc(); if(!d || !d.body) return [];
+  const tall = e => e.nodeType === 1 && e.getBoundingClientRect().height > 120;
+  /* ① 만든 사람이 이름을 붙여 두었으면 그것이 가장 정확합니다 */
+  let ps = Array.from(d.querySelectorAll(
+    '.page,.pg,.sheet,.slide,.pp,[data-page]')).filter(tall);
+  if(ps.length >= 2) return ps;
+  /* ② 없으면 <<장이 늘어선 자리>> 를 찾아 내려갑니다. 겉을 한 겹씩
+     벗기다가 형제가 둘 이상 나오는 곳이 쪽이 늘어선 자리입니다. */
+  let box = d.body;
+  for(let k = 0; k < 5 && box; k++){
+    const kids = Array.from(box.children).filter(tall);
+    if(kids.length >= 2) return kids;
+    if(kids.length === 1) box = kids[0]; else break;
+  }
+  return d.body ? [d.body] : [];
+}
+/* 지금 쪽만 보이게 자리를 잡습니다 (틀 높이 = 그 쪽 높이) */
+function bookFit(){
+  const d = bookDoc(), f = bookIfr;
+  if(!d || !f || !d.body) return;
+  const ps = bookPages();
+  if(!ps.length) return;
+  pwPgN = ps.length;
+  const i = Math.min(Math.max(0, pwPg), ps.length - 1);
+  const el = ps[i];
+  /* 넘길 때 옆 쪽이 비어져 보이지 않게 — 한 장만 남기고 잘라 둡니다.
+     이 자국은 저장할 때 걷어냅니다 (bookHtml). */
+  let st = d.getElementById('__bhpg');
+  if(!st){
+    st = d.createElement('style'); st.id = '__bhpg';
+    (d.head || d.documentElement).appendChild(st);
+  }
+  st.textContent = 'html{overflow:hidden !important}';
+  const r = el.getBoundingClientRect();
+  const win = d.defaultView;
+  const top = r.top + (win ? win.scrollY : 0);
+  /* 틀(칸)을 그 쪽 높이에 맞춥니다 — 틀 자체를 줄여야 한 장만 보입니다 */
+  const h = Math.max(200, Math.ceil(r.height));
+  const box = document.getElementById('bkIfr');
+  if(box) box.style.height = h + 'px';
+  f.style.height = '100%';
+  try{ win.scrollTo(0, Math.max(0, Math.round(top))); }catch(e){}
+  const nm = document.getElementById('bkNo');
+  if(nm) nm.textContent = (i + 1) + ' / ' + ps.length;
+  bookNav(); bookTh(i + 1, ps.length);
+}
+/* 넘기기 단추를 지금 쪽수에 맞춥니다 (다시 그리지 않고 단추만) */
+function bookNav(){
+  const ns = document.querySelectorAll('.pw-orig .bk-ifr-wrap .bk-nav');
+  if(ns.length !== 2) return;
+  ns[0].disabled = pwPg <= 0;
+  ns[1].disabled = pwPg >= pwPgN - 1;
+}
+function bookTh(no, n){
+  const el = document.getElementById('bkTh');
+  if(!el) return;
+  let h = '';
+  for(let i = 1; i <= n; i++){
+    h += '<button class="' + (i === no ? 'on' : '') + '" onclick="pwGoTo(' + (i - 1) + ')"'
+       + ' title="' + i + '쪽">' + i + '</button>';
+  }
+  el.innerHTML = h;
+}
 /* 글을 눌러 고칠 수 있게 열어 둡니다 (틀·색·표 모양은 그대로) */
 function bookArm(){
   const d = bookDoc(); if(!d || !d.body) return;
   try{ d.designMode = bookEdit ? 'on' : 'off'; }catch(e){}
   if(bookEdit && !d.__armed){
     d.__armed = true;
-    d.addEventListener('input', () => { if(!bookDirty){ bookDirty = true; bookBtns(); } });
+    d.addEventListener('input', () => {
+      if(!bookDirty){ bookDirty = true; bookBtns(); }
+      /* 글이 늘거나 줄면 쪽 높이도 달라집니다 — 뒤늦게 한 번 맞춥니다 */
+      clearTimeout(bookFitAt); bookFitAt = setTimeout(bookFit, 400);
+    });
   }
+  bookFit();
 }
+let bookFitAt = 0;
 /* 단추 모양만 손봅니다 — 고칠 때마다 화면을 통째로 다시 그리면
    쓰던 자리가 튑니다 */
 function bookBtns(){
@@ -19152,6 +19229,8 @@ function bookHtml(){
   try{ d.designMode = 'off'; }catch(e){}
   Array.from(d.querySelectorAll('[contenteditable]'))
     .forEach(e => e.removeAttribute('contenteditable'));
+  /* 한 장씩 보이게 하려고 넣어 둔 자국은 파일에 남기지 않습니다 */
+  const st = d.getElementById('__bhpg'); if(st) st.remove();
   const dt = d.doctype ? '<!doctype ' + d.doctype.name + '>\n' : '';
   const out = dt + d.documentElement.outerHTML;
   try{ d.designMode = was; }catch(e){}
@@ -19279,15 +19358,23 @@ function bookOrigHtml(b, bk){
           + '<span>보이는 이 모양 그대로 글을 고칩니다</span>')
       + '</div>';
     return '<div class="pw pw-bk pw-orig' + (bookEdit ? ' bk-on' : '') + '">'
-      + top + '</div>'
+      + top + '<div class="bk-n" id="bkNo">…</div></div>'
       + edBar
-      + '<div class="bk-ifr" id="bkIfr"></div>'
-      + '<div class="bk-hint">👆 안에서 밀어 내립니다 · '
+      /* PDF 와 똑같이 — 양옆 단추로 한 장씩 넘깁니다 */
+      + '<div class="bk-wrap bk-ifr-wrap">'
+        + '<button class="bk-nav" ' + (pwPg <= 0 ? 'disabled' : '')
+          + ' onclick="pwGo(-1)" title="앞 장 (← 키)">‹<span>이전</span></button>'
+        + '<div class="bk-ifr" id="bkIfr"></div>'
+        + '<button class="bk-nav" ' + (pwPg >= pwPgN - 1 ? 'disabled' : '')
+          + ' onclick="pwGo(1)" title="다음 장 (→ 키)"><span>다음</span>›</button>'
+      + '</div>'
+      + '<div class="bk-hint">👆 양옆 단추나 <b>← →</b> 키로 넘깁니다 · '
         + (bookEdit
             ? '고친 뒤에는 <b>[💾 저장]</b> 을 눌러 주세요 — 올린 파일을 그 자리에서 '
               + '고쳐 씁니다 (고치기 전 것은 🗑 휴지통에 남습니다)'
             : '<b>[✎ 이대로 고치기]</b> 로 이 모양 그대로 고칠 수 있습니다')
         + ' · <a href="' + esc(bookUrl(bk)) + '" target="_blank" rel="noopener">새 창으로 크게</a></div>'
+      + '<div class="pdf-th" id="bkTh"></div>'
       + '</div>';
   }
 
@@ -21771,7 +21858,7 @@ document.addEventListener('keydown', e => {
   if(typing) return;
   /* 📄 브랜드북을 펴 놓고 보는 중 — 화살표로 넘깁니다.
      (원본을 고치는 중이면 그 안의 화살표가 먼저라 건드리지 않습니다) */
-  if(document.getElementById('pdfBox') && !bookEdit
+  if((document.getElementById('pdfBox') || document.getElementById('bkIfr')) && !bookEdit
      && !e.ctrlKey && !e.metaKey && !e.altKey){
     if(e.key === 'ArrowLeft'){ e.preventDefault(); pwGo(-1); return; }
     if(e.key === 'ArrowRight'){ e.preventDefault(); pwGo(1); return; }

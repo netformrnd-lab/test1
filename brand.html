@@ -1413,11 +1413,34 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .pdf-err i{display:block;margin-top:9px;font-size:11.5px;font-style:normal;
   color:var(--text-muted);word-break:keep-all}
 /* HTML 브랜드북 — 통째로 끼워 넣습니다 (쪽이 없어 안에서 밀어 내립니다) */
-.bk-ifr{display:block;flex:1;min-width:0;height:78vh;min-height:420px;
+/* 높이는 그 쪽 높이에 맞춰 코드가 정해 줍니다 (한 장만 보이게) */
+.bk-ifr{display:block;width:100%;height:auto;min-height:200px;margin-top:12px;
   border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}
 .bk-ifr iframe{display:block;width:100%;height:100%;border:0;background:#fff}
-/* 틀 높이는 그 쪽 높이에 맞춰 코드가 정해 줍니다 */
-.bk-ifr-wrap .bk-ifr{height:auto;min-height:200px}
+/* 쪽수 양옆의 작은 넘김 단추 (종이 옆의 큰 빈 칸을 없앴습니다) */
+.bk-turn{margin-left:auto;display:flex;align-items:center;gap:2px}
+.bk-turn button{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--border);border-radius:7px;background:var(--bg-secondary);
+  font-size:15px;line-height:1;color:var(--text-muted);cursor:pointer}
+.bk-turn button:hover:not(:disabled){border-color:var(--ink);color:var(--text-primary)}
+.bk-turn button:disabled{opacity:.35;cursor:default}
+.bk-turn .bk-n{margin:0 4px}
+/* 📖 책장이 넘어가듯 — 한 번 들렸다 놓입니다 */
+@keyframes bkflipF{
+  0%  {transform:perspective(1800px) rotateY(0deg);opacity:1}
+  42% {transform:perspective(1800px) rotateY(-13deg) translateX(-1.5%);opacity:.45}
+  58% {transform:perspective(1800px) rotateY(9deg) translateX(1.5%);opacity:.5}
+  100%{transform:none;opacity:1}
+}
+@keyframes bkflipB{
+  0%  {transform:perspective(1800px) rotateY(0deg);opacity:1}
+  42% {transform:perspective(1800px) rotateY(13deg) translateX(1.5%);opacity:.45}
+  58% {transform:perspective(1800px) rotateY(-9deg) translateX(-1.5%);opacity:.5}
+  100%{transform:none;opacity:1}
+}
+.turn-f{animation:bkflipF .44s cubic-bezier(.4,0,.2,1);transform-origin:left center}
+.turn-b{animation:bkflipB .44s cubic-bezier(.4,0,.2,1);transform-origin:right center}
+@media(prefers-reduced-motion:reduce){ .turn-f,.turn-b{animation:none} }
 /* ✎ 이대로 고치기 — 원본 모양 그대로 손보는 줄 */
 .bk-ed{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px}
 .bk-ed button{padding:6px 11px;border:1px solid var(--border);border-radius:8px;
@@ -4203,7 +4226,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260923-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260923-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18942,19 +18965,35 @@ function pathPrint(){
   window.open(bookUrl(bk), '_blank', 'noopener');
 }
 
+/* ── 쪽 넘기기 ──────────────────────────────────────────────────
+   전에는 넘길 때마다 화면을 통째로 다시 그렸습니다. 그러면 끼워 둔 틀
+   (iframe)이 DOM 에서 떨어졌다 붙으면서 <<문서를 새로 읽습니다>> —
+   그게 「꺼졌다 켜졌다」 하던 까닭입니다. 이제 쪽만 옮깁니다.
+   ------------------------------------------------------------- */
 function pwGo(d){
   const to = Math.min(Math.max(0, pwPg + d), Math.max(0, pwPgN - 1));
   if(to === pwPg) return;
-  pwDir = d > 0 ? 1 : -1;
-  pwPg = to;
-  render();
+  pwGoTo(to);
 }
 function pwGoTo(i){
   const to = Math.min(Math.max(0, Number(i) || 0), Math.max(0, pwPgN - 1));
+  if(to === pwPg && document.getElementById('bkIfr')) return;
   pwDir = to >= pwPg ? 1 : -1;
   pwPg = to;
-  render();
+  /* 📖 책장이 넘어가듯 — 한 번 들렸다 놓입니다 */
+  const sheet = document.getElementById('bkIfr') || document.getElementById('pdfBox');
+  if(sheet){
+    sheet.classList.remove('turn-f', 'turn-b');
+    void sheet.offsetWidth;                       // 애니메이션을 다시 태웁니다
+    sheet.classList.add(pwDir > 0 ? 'turn-f' : 'turn-b');
+    clearTimeout(pwTurnAt);
+    pwTurnAt = setTimeout(() => sheet.classList.remove('turn-f', 'turn-b'), 460);
+  }
+  if(document.getElementById('bkIfr')) bookFit();
+  else if(document.getElementById('pdfBox')) pdfPaint();
+  else render();
 }
+let pwTurnAt = 0;
 
 /* ── 화면 ── */
 function pathViewHtml(b){
@@ -18989,6 +19028,37 @@ function pathViewHtml(b){
 }
 
 /* 올린 브랜드북을 폅니다 — 없으면 올리라고 합니다 */
+function bookEdHtml(){
+  return bookEdit
+    ? '<button class="sv" id="bkSave" disabled onclick="bookSave()">💾 저장됨</button>'
+      + '<button onclick="bookRowAdd()" title="이 줄 밑에 빈 줄을 하나 넣습니다">'
+        + '＋ 줄 더하기</button>'
+      + '<button onclick="bookRowDel()" title="커서가 놓인 줄을 지웁니다">'
+        + '－ 이 줄 지우기</button>'
+      + '<button onclick="bookRevert()">↩︎ 고치기 전으로</button>'
+      + '<button class="dn" onclick="setBookEdit(0)">✔ 다 고쳤어요</button>'
+      + '<span>글을 <b>그대로 눌러</b> 고칩니다 — 틀 · 색 · 표 모양은 그대로입니다</span>'
+    : '<button class="go" onclick="setBookEdit(1)">✎ 이대로 고치기</button>'
+      + '<span>글을 <b>두 번 눌러도</b> 바로 고칠 수 있습니다</span>';
+}
+/* 단추 줄만 갈아 끼웁니다 — 화면을 다시 그리면 끼워 둔 틀이 문서를
+   새로 읽어, 읽던 쪽도 커서도 날아갑니다. */
+function bookPaintBar(){
+  const el = document.getElementById('bkEd');
+  if(el){ el.innerHTML = bookEdHtml(); el.classList.toggle('on', bookEdit); }
+  const pw = document.querySelector('.pw-orig');
+  if(pw) pw.classList.toggle('bk-on', bookEdit);
+  bookBtns();
+}
+/* 쪽수 양옆의 작은 넘김 단추. 전에는 종이 양옆에 큰 칸이 서 있어
+   빈 상자 둘이 붙어 있는 것처럼 보였습니다 — 자리만 차지했습니다. */
+function bookTurnBar(id){
+  return '<div class="bk-turn">'
+    + '<button id="bkPrev" onclick="pwGo(-1)" title="앞 장 (← 키)">‹</button>'
+    + '<span class="bk-n" id="' + id + '">…</span>'
+    + '<button id="bkNext" onclick="pwGo(1)" title="다음 장 (→ 키)">›</button>'
+    + '</div>';
+}
 function bookViewHtml(b, bk){
   if(!bk){
     return '<div class="pw"><div class="pw-none">브랜드북이 아직 없습니다.'
@@ -19140,10 +19210,9 @@ function bookFit(){
 }
 /* 넘기기 단추를 지금 쪽수에 맞춥니다 (다시 그리지 않고 단추만) */
 function bookNav(){
-  const ns = document.querySelectorAll('.pw-orig .bk-ifr-wrap .bk-nav');
-  if(ns.length !== 2) return;
-  ns[0].disabled = pwPg <= 0;
-  ns[1].disabled = pwPg >= pwPgN - 1;
+  const a = document.getElementById('bkPrev'), z = document.getElementById('bkNext');
+  if(a) a.disabled = pwPg <= 0;
+  if(z) z.disabled = pwPg >= pwPgN - 1;
 }
 function bookTh(no, n){
   const el = document.getElementById('bkTh');
@@ -19167,9 +19236,61 @@ function bookArm(){
       clearTimeout(bookFitAt); bookFitAt = setTimeout(bookFit, 400);
     });
   }
+  bookArmHand(d);
   bookFit();
 }
 let bookFitAt = 0;
+
+/* ── 옆으로 밀어 넘기기 ──────────────────────────────────────────
+   손가락 · 트랙패드 · 마우스 끌기 — 어느 쪽으로 밀어도 넘어갑니다.
+   틀 안은 남의 문서라 바깥 손짓이 닿지 않으므로 그 문서에 직접 답니다
+   (같은 자리에서 읽어 온 것이라 들여다볼 수 있습니다).
+   고치는 중에는 끄지 않습니다 — 글을 고르려고 끄는 손짓과 헷갈립니다.
+   ------------------------------------------------------------- */
+function bookSwipe(t){
+  if(!t || t.__hand) return;
+  t.__hand = true;
+  let x0 = 0, y0 = 0, t0 = 0, on = false;
+  const start = (x, y) => { x0 = x; y0 = y; t0 = Date.now(); on = true; };
+  const end = (x, y) => {
+    if(!on) return; on = false;
+    if(bookEdit) return;                       // 고치는 중에는 안 넘깁니다
+    const dx = x - x0, dy = y - y0;
+    /* 옆으로 크게 · 위아래로는 조금 · 빠르게 민 것만 「넘기기」 입니다 */
+    if(Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2) return;
+    if(Date.now() - t0 > 900) return;
+    pwGo(dx < 0 ? 1 : -1);
+  };
+  t.addEventListener('pointerdown', e => { if(e.button === 0) start(e.clientX, e.clientY); }, true);
+  t.addEventListener('pointerup',   e => end(e.clientX, e.clientY), true);
+  /* 손가락 · 포인터를 안 주는 브라우저 */
+  t.addEventListener('touchstart', e => { const q = e.touches[0]; if(q) start(q.clientX, q.clientY); },
+    { capture:true, passive:true });
+  t.addEventListener('touchend',   e => { const q = e.changedTouches[0]; if(q) end(q.clientX, q.clientY); },
+    { capture:true, passive:true });
+  t.addEventListener('mousedown', e => { if(e.button === 0 && !on) start(e.clientX, e.clientY); }, true);
+  t.addEventListener('mouseup',   e => end(e.clientX, e.clientY), true);
+  /* 트랙패드 두 손가락 — 옆으로 쓸면 넘깁니다 */
+  let wx = 0, wt = 0;
+  t.addEventListener('wheel', e => {
+    if(bookEdit) return;
+    if(Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;   // 위아래로 미는 것은 그대로
+    const now = Date.now();
+    if(now - wt > 600) wx = 0;
+    wt = now; wx += e.deltaX;
+    if(Math.abs(wx) >= 120){ const d = wx > 0 ? 1 : -1; wx = 0; wt = now + 420; pwGo(d); }
+  }, { capture:true, passive:true });
+}
+/* 틀 안 — 밀어 넘기기 + 두 번 눌러 바로 고치기 */
+function bookArmHand(d){
+  if(!d) return;
+  bookSwipe(d);
+  if(d.__dbl) return;
+  d.__dbl = true;
+  /* 두 번 누르면 [✎ 이대로 고치기] 를 찾아 누르지 않아도 그 자리에서
+     바로 고쳐집니다. 커서는 누른 자리에 그대로 섭니다. */
+  d.addEventListener('dblclick', () => { if(!bookEdit) setBookEdit(1); }, true);
+}
 /* 단추 모양만 손봅니다 — 고칠 때마다 화면을 통째로 다시 그리면
    쓰던 자리가 튑니다 */
 function bookBtns(){
@@ -19187,9 +19308,20 @@ function setBookEdit(on){
   on = !!on;
   if(!on && bookDirty
      && !confirm('고친 것이 아직 저장되지 않았습니다.\n\n그냥 닫으면 고친 내용이 사라집니다.')) return;
-  if(!on && bookDirty){ bookDirty = false; bookVer++; bookIfr = null; }   // 원래대로 다시 읽어옵니다
+  /* 고친 것을 버리고 닫을 때만 다시 읽어옵니다 */
+  if(!on && bookDirty){
+    bookDirty = false; bookVer++; bookIfr = null; bookEdit = false; render(); return;
+  }
   bookEdit = on;
-  render();
+  /* 두 번 눌러 켰을 때 누른 자리에 커서가 그대로 서 있게 합니다 */
+  const d = bookDoc();
+  let keep = null;
+  try{ const sel = d && d.getSelection();
+       if(sel && sel.rangeCount) keep = sel.getRangeAt(0).cloneRange(); }catch(e){}
+  bookArm();
+  bookPaintBar();
+  if(keep){ try{ const sel = d.getSelection(); sel.removeAllRanges(); sel.addRange(keep);
+                 if(d.body) d.body.focus(); }catch(e){} }
 }
 /* 지금 커서가 놓인 줄(표의 한 줄 · 목록의 한 칸) 을 찾습니다 */
 function bookRowAt(){
@@ -19267,6 +19399,7 @@ async function pdfPaint(){
   const b = currentBrand(); if(!b) return;
   const d = pathBook(b); if(!d || !bookIsPdf(d)) return;
   const box = document.getElementById('pdfBox'); if(!box) return;
+  bookSwipe(box);                 // PDF 도 옆으로 밀어 넘깁니다
   const url = bookUrl(d);
   const wide = Math.max(320, box.clientWidth || 720);
   /* 옆에서 누가 저장하면 화면이 통째로 다시 그려집니다. 그때마다 PDF 를
@@ -19326,12 +19459,7 @@ function pdfTh(no, n){
   el.innerHTML = h;
 }
 /* 넘기기 단추를 지금 쪽수에 맞춥니다 (다시 그리지 않고 단추만 손봅니다) */
-function pdfNav(){
-  const ns = document.querySelectorAll('.pw-orig .bk-nav');
-  if(ns.length !== 2) return;
-  ns[0].disabled = pwPg <= 0;
-  ns[1].disabled = pwPg >= pwPgN - 1;
-}
+function pdfNav(){ bookNav(); }
 function bookOrigHtml(b, bk){
   const top = '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
     + esc(b.name) + ' — ' + esc(bk.name) + '</div>';
@@ -19345,30 +19473,13 @@ function bookOrigHtml(b, bk){
     setTimeout(bookFrame, 30);
     /* HTML 은 진짜 문서라 보이는 그대로 고칠 수 있습니다 */
     const edBar = '<div class="bk-ed' + (bookEdit ? ' on' : '') + '" id="bkEd">'
-      + (bookEdit
-        ? '<button class="sv" id="bkSave" disabled onclick="bookSave()">💾 저장됨</button>'
-          + '<button onclick="bookRowAdd()" title="이 줄 밑에 빈 줄을 하나 넣습니다">'
-            + '＋ 줄 더하기</button>'
-          + '<button onclick="bookRowDel()" title="커서가 놓인 줄을 지웁니다">'
-            + '－ 이 줄 지우기</button>'
-          + '<button onclick="bookRevert()">↩︎ 고치기 전으로</button>'
-          + '<button class="dn" onclick="setBookEdit(0)">✔ 다 고쳤어요</button>'
-          + '<span>글을 <b>그대로 눌러</b> 고칩니다 — 틀 · 색 · 표 모양은 그대로입니다</span>'
-        : '<button class="go" onclick="setBookEdit(1)">✎ 이대로 고치기</button>'
-          + '<span>보이는 이 모양 그대로 글을 고칩니다</span>')
-      + '</div>';
+      + bookEdHtml() + '</div>';
     return '<div class="pw pw-bk pw-orig' + (bookEdit ? ' bk-on' : '') + '">'
-      + top + '<div class="bk-n" id="bkNo">…</div></div>'
+      + top + bookTurnBar('bkNo') + '</div>'
       + edBar
       /* PDF 와 똑같이 — 양옆 단추로 한 장씩 넘깁니다 */
-      + '<div class="bk-wrap bk-ifr-wrap">'
-        + '<button class="bk-nav" ' + (pwPg <= 0 ? 'disabled' : '')
-          + ' onclick="pwGo(-1)" title="앞 장 (← 키)">‹<span>이전</span></button>'
-        + '<div class="bk-ifr" id="bkIfr"></div>'
-        + '<button class="bk-nav" ' + (pwPg >= pwPgN - 1 ? 'disabled' : '')
-          + ' onclick="pwGo(1)" title="다음 장 (→ 키)"><span>다음</span>›</button>'
-      + '</div>'
-      + '<div class="bk-hint">👆 양옆 단추나 <b>← →</b> 키로 넘깁니다 · '
+      + '<div class="bk-ifr" id="bkIfr"></div>'
+      + '<div class="bk-hint">👆 <b>옆으로 밀거나</b> <b>← →</b> 키로 넘깁니다 · '
         + (bookEdit
             ? '고친 뒤에는 <b>[💾 저장]</b> 을 눌러 주세요 — 올린 파일을 그 자리에서 '
               + '고쳐 씁니다 (고치기 전 것은 🗑 휴지통에 남습니다)'
@@ -19383,17 +19494,13 @@ function bookOrigHtml(b, bk){
   setTimeout(pdfPaint, 30);
   /* 이름이 pw-orig 인 까닭: .pw-src 는 이미 「출처」 줄이 쓰고 있습니다 */
   return '<div class="pw pw-bk pw-orig">'
-    + top + '<div class="bk-n" id="pdfNo">…</div></div>'
+    + top + bookTurnBar('pdfNo') + '</div>'
     + '<div class="bk-wrap">'
-      + '<button class="bk-nav" ' + (pwPg <= 0 ? 'disabled' : '')
-        + ' onclick="pwGo(-1)" title="앞 장 (← 키)">‹<span>이전</span></button>'
-      + '<div class="bk-pg ' + (pwDir > 0 ? 'fwd' : 'bwd') + '">'
+      + '<div class="bk-pg">'
         + '<div class="pdf-box" id="pdfBox"><div class="pdf-wait">📄 펴는 중…</div></div>'
       + '</div>'
-      + '<button class="bk-nav" ' + (pwPg >= pwPgN - 1 ? 'disabled' : '')
-        + ' onclick="pwGo(1)" title="다음 장 (→ 키)"><span>다음</span>›</button>'
     + '</div>'
-    + '<div class="bk-hint">👆 양옆 단추나 <b>← →</b> 키로 넘깁니다 · '
+    + '<div class="bk-hint">👆 <b>옆으로 밀거나</b> <b>← →</b> 키로 넘깁니다 · '
       + 'PDF 는 <b>글을 고칠 수 없습니다</b> — 고치려면 같은 책을 HTML 로 올려 주세요</div>'
     + '<div class="pdf-th" id="pdfTh"></div>'
     + '</div>';

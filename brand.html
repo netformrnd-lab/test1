@@ -1382,6 +1382,49 @@ table.itable tr:hover td{background:var(--bg-hover)}
   @page{size:A4;margin:14mm 13mm}
 }
 
+/* 📄 원본 / ✎ 우리 칸 — 같은 파일의 두 얼굴 */
+.bk-src{display:flex;align-items:stretch;gap:7px;margin-top:10px}
+.bk-src button{flex:0 1 auto;display:flex;flex-direction:column;gap:1px;
+  padding:7px 13px;border:1px solid var(--border);border-radius:10px;
+  background:var(--bg-secondary);font-family:inherit;font-size:12.5px;font-weight:700;
+  color:var(--text-muted);cursor:pointer;text-align:left;transition:.16s var(--ease)}
+.bk-src button span{font-size:10.5px;font-weight:500;color:var(--text-muted)}
+.bk-src button:hover{border-color:var(--ink);color:var(--text-primary)}
+.bk-src button.on{background:var(--bg-card);border-color:var(--ink);
+  color:var(--text-primary);box-shadow:var(--shadow-sm)}
+.bk-src button.on span{color:var(--text-secondary)}
+.bk-src .dl{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;
+  padding:0 13px;border:1px solid var(--border);border-radius:10px;
+  background:var(--bg-secondary);font-size:15px;color:var(--text-muted);
+  text-decoration:none}
+.bk-src .dl:hover{border-color:var(--ink);color:var(--text-primary)}
+/* 📄 원본 한 쪽 — 종이처럼 가운데에 */
+.pw-orig .bk-pg{padding:0;background:var(--bg-sunken);display:flex;
+  align-items:flex-start;justify-content:center;overflow:auto}
+.pw-orig .bk-pg::before{display:none}
+.pdf-box{width:100%;max-width:840px;min-height:340px;display:flex;
+  align-items:center;justify-content:center}
+.pdf-box canvas{display:block;border-radius:2px;box-shadow:var(--shadow-md)}
+.pdf-wait{padding:80px 0;font-size:13px;color:var(--text-muted)}
+.pdf-err{padding:26px 22px;text-align:center;font-size:13.5px;font-weight:700;
+  color:var(--red);line-height:1.8}
+.pdf-err span{display:block;margin-top:6px;font-size:12px;font-weight:400;
+  color:var(--text-secondary);word-break:break-all}
+.pdf-err i{display:block;margin-top:9px;font-size:11.5px;font-style:normal;
+  color:var(--text-muted);word-break:keep-all}
+/* HTML 브랜드북 — 통째로 끼워 넣습니다 (쪽이 없어 안에서 밀어 내립니다) */
+.bk-ifr{display:block;width:100%;height:78vh;min-height:420px;margin-top:12px;
+  border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}
+.bk-ifr iframe{display:block;width:100%;height:100%;border:0;background:#fff}
+/* 쪽 고르기 — 11 장이 넘어가면 한 장씩 넘기기가 답답합니다 */
+.pdf-th{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:12px}
+.pdf-th button{min-width:31px;padding:5px 7px;border:1px solid var(--line);
+  border-radius:6px;background:var(--bg-page);cursor:pointer;
+  font-family:var(--f-mono);font-size:11px;font-weight:700;color:var(--text-muted)}
+.pdf-th button:hover{border-color:var(--ink);color:var(--text-primary)}
+.pdf-th button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+@media(max-width:720px){ .bk-src{flex-wrap:wrap} .bk-src button{flex:1 1 40%} }
+
 /* 📚 책으로 보기 — 한 장씩 넘겨 봅니다 (카탈로그 넘기듯) */
 .pw-bk .pw-top{display:flex;align-items:center;gap:10px}
 .pw-bk .bk-n{margin-left:auto;font-family:var(--f-mono);font-size:12px;font-weight:700;
@@ -4144,7 +4187,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260922-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260922-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19255,6 +19298,11 @@ async function uploadPathDoc(fileList){
                   kind: kind,
                   by: (authMe() || {})['이름'] || '' };
     pathMine[bid].doc  = doc;
+    /* 올라간 파일은 <<읽어내기 전에>> 먼저 기억해 둡니다. 틀이 조금 달라
+       칸으로 못 옮기더라도 [📄 원본] 으로 만든 그대로는 볼 수 있어야 합니다. */
+    if(!pathDocs(b).some(d => d.filePath === doc.filePath)){
+      pathDocs(b).push(doc); markDirty(b.id);
+    }
 
     /* 📘 브랜드 기록부 — 우리 소개 양식 그대로 적어 온 문서는 AI 에 물을
        것이 없습니다. 칸 이름이 이미 우리 칸 이름이라 그대로 옮겨 담습니다.
@@ -19264,11 +19312,21 @@ async function uploadPathDoc(fileList){
       render();
       let raw = '';
       try{ raw = await f.text(); }catch(e){}
-      const bg = raw ? bookParse(raw) : null;
+      /* ① 우리 기록부 양식이면 칸 이름이 그대로라 바로 옮겨 담고,
+         ② 브랜드북 틀이면 장 이름을 보고 넣습니다. 둘 다 <<원본 HTML 그대로>>
+            읽습니다 — 서버에서 태그만 떼어 오면 &amp; 같은 기호가 글자로
+            남고 표·목록이 한 줄로 뭉개집니다. */
+      let bg = raw ? bookParse(raw) : null;
+      let how = 'book';
+      if(!bg && raw){
+        try{ bg = bbParse(raw); }catch(e){}
+        if(bg) how = 'bbook';
+      }
       if(bg){
         const mb = pathMine[bid];
-        mb.busy = false; mb.step = ''; mb.book = true;
-        mb.done = pathAutoFill(b, bg, 'book');
+        mb.busy = false; mb.step = '';
+        if(how === 'bbook') mb.bbook = true; else mb.book = true;
+        mb.done = pathAutoFill(b, bg, how);
         if(!pathDocs(b).some(d => d.filePath === doc.filePath)) pathDocs(b).push(doc);
         markDirty(b.id); pathEdit = false; render(); window.scrollTo({ top:0 });
         return;
@@ -19299,9 +19357,10 @@ async function uploadPathDoc(fileList){
         return;
       }
       if(kind === 'bbook') throw new Error(
-        '브랜드북 틀을 찾지 못했습니다.\n\n'
+        '브랜드북 틀을 찾지 못해 <<칸으로는>> 옮기지 못했습니다.\n\n'
         + '「01 브랜드 정의 · 02 배경 · 03 슬로건 & 철학 …」 처럼 번호가 붙은 '
-        + '여덟 장이 있어야 합니다.\n'
+        + '여덟 장이 있어야 칸을 채웁니다.\n'
+        + '파일은 그대로 올라가 있으니 [📄 원본] 으로 만든 그대로 보실 수 있습니다.\n'
         + '틀이 다른 문서면 아래 [다른 갈래로 넣기] 에서 기획서 · 지침서로 넣어 주세요.');
     }
 
@@ -21003,6 +21062,13 @@ let pwPrint = false;     // 인쇄용으로 한 번만 통째로 펴는 중인�
    한 장이 종이 한 쪽이 되게 끊어 둡니다. 브라우저의 인쇄 창에서
    「PDF 로 저장」 을 고르면 그대로 PDF 가 됩니다. */
 function pathPrint(){
+  /* 📄 원본을 보고 있다면 — 원본 그대로 인쇄해야 맞습니다.
+     화면에 그린 그림을 인쇄하면 흐려집니다. 올린 파일을 그대로 열어
+     브라우저가 가진 인쇄를 쓰면 만든 그대로 종이에 나옵니다. */
+  if(pwSrc){
+    const bk = pathBook(currentBrand());
+    if(bk){ window.open(bookUrl(bk), '_blank', 'noopener'); return; }
+  }
   if(pwPrint) return;
   pwPrint = true;
   render();
@@ -21020,7 +21086,9 @@ function pathPrint(){
 
 function setPwBook(on){
   pwBook = !!on;
-  if(pwBook){ pwAt = ''; pwPg = 0; pwDir = 1; }
+  /* [📚 책] 은 고치기에서 빠져나올 때 같이 눌립니다. 그때는 방금 고친 글이
+     보여야 하므로 우리 칸을 폅니다 (원본은 고쳐도 그대로이니까요). */
+  if(pwBook){ pwAt = ''; pwPg = 0; pwDir = 1; pwSrc = false; pwSrcAt = currentBrandId; }
   render();
   if(pwBook) window.scrollTo({ top:0, behavior:'smooth' });
 }
@@ -21146,9 +21214,213 @@ function fold(inner){
     + '<button class="fd-m" onclick="foldMore(this)">＋ 더 보기</button></div>';
 }
 
+/* ═══════════════ 📄 만든 그대로 펴 보기 ═══════════════════════════
+   브랜드북은 이미 잘 만들어 둔 책입니다. 칸으로 옮기면 글은 남지만
+   디자인 — 글꼴 · 여백 · 색 · 도표 — 이 사라집니다. 그래서 올린 PDF 를
+   <<그 모양 그대로>> 넘겨 보는 자리를 따로 둡니다.
+     📄 원본   — 만든 그대로. 디자인이 살아 있습니다. 글은 못 고칩니다.
+     ✎ 우리 칸 — 칸으로 옮긴 것. 고치고 · 찾고 · 다른 화면에서 씁니다.
+   둘은 같은 파일의 두 얼굴입니다. 하나만 두면 늘 아쉬운 쪽이 생깁니다.
+   ================================================================= */
+let pwSrc = false;          // 📄 원본을 보고 있나
+let pwSrcAt = '';           // 어느 브랜드에서 고른 것인가 (한 번 고르면 그대로 둡니다)
+let pdfLib = null;          // pdf.js (쓸 때 한 번만 불러옵니다)
+const pdfDoc = {};          // 주소 → 펼쳐 둔 PDF
+let pdfBusy = '';
+let pdfLast = null;         // 마지막으로 그린 그림 — 다시 그릴 때 깜박이지 않게
+
+/* 브랜드북으로 올린 것 가운데 <<만든 그대로>> 펼 수 있는 마지막 파일.
+   PDF 와 HTML 둘 다 됩니다. 한글(.hwp) · 워드는 그려 낼 길이 없어 뺍니다. */
+function pathBook(b){
+  const ds = pathDocs(b).filter(d =>
+    /\.(pdf|html?)$/i.test(String(d.name || '')) && String(d.filePath || '').trim());
+  return ds.length ? ds[ds.length - 1] : null;
+}
+function bookIsPdf(d){ return /\.pdf$/i.test(String((d && d.name) || '')); }
+
+/* HTML 브랜드북을 끼워 넣습니다. 끼운 틀은 한 번 만들어 두고 다시 씁니다 —
+   화면이 다시 그려질 때마다 새로 끼우면 읽던 자리가 맨 위로 튑니다. */
+let bookIfr = null;
+function bookFrame(){
+  const box = document.getElementById('bkIfr'); if(!box) return;
+  const b = currentBrand(); if(!b) return;
+  const d = pathBook(b); if(!d || bookIsPdf(d)) return;
+  const url = bookUrl(d);
+  if(!bookIfr || bookIfr.dataset.url !== url){
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', '');      // 안의 스크립트는 돌지 않습니다
+    f.title = d.name || '브랜드북';
+    f.dataset.url = url;
+    f.src = url;
+    bookIfr = f;
+  }
+  if(box.firstChild !== bookIfr){ box.innerHTML = ''; box.appendChild(bookIfr); }
+}
+/* 올린 그대로 펴 보는 주소 (내려받지 않고 그 자리에서 봅니다) */
+function bookUrl(d){ return 'files.php?action=view&path=' + encodeURIComponent(d.filePath); }
+
+/* pdf.js 는 1.8MB 라 <<볼 때>> 한 번만 받아 옵니다 */
+async function pdfLoad(){
+  if(pdfLib) return pdfLib;
+  const m = await import('./pdf.min.js');
+  m.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
+  pdfLib = m;
+  return m;
+}
+async function pdfOpen(url){
+  if(pdfDoc[url]) return pdfDoc[url];
+  const lib = await pdfLoad();
+  pdfDoc[url] = await lib.getDocument(url).promise;
+  return pdfDoc[url];
+}
+/* 지금 쪽을 그려 넣습니다. 화면 너비에 맞춰 크기를 잡습니다. */
+async function pdfPaint(){
+  const b = currentBrand(); if(!b) return;
+  const d = pathBook(b); if(!d || !bookIsPdf(d)) return;
+  const box = document.getElementById('pdfBox'); if(!box) return;
+  const url = bookUrl(d);
+  const wide = Math.max(320, box.clientWidth || 720);
+  /* 옆에서 누가 저장하면 화면이 통째로 다시 그려집니다. 그때마다 PDF 를
+     새로 그리면 읽던 쪽이 깜박입니다 — 같은 쪽·같은 너비면 그려 둔
+     그림을 그대로 다시 붙입니다. */
+  const key = url + '#' + pwPg + '@' + Math.round(wide);
+  if(pdfLast && pdfLast.key === key){
+    if(box.firstChild !== pdfLast.cv){ box.innerHTML = ''; box.appendChild(pdfLast.cv); }
+    const nm0 = document.getElementById('pdfNo');
+    if(nm0) nm0.textContent = pdfLast.no + ' / ' + pdfLast.n;
+    pdfTh(pdfLast.no, pdfLast.n); pdfNav();
+    return;
+  }
+  if(pdfBusy === key) return;
+  pdfBusy = key;
+  try{
+    const doc = await pdfOpen(url);
+    /* 쪽수는 PDF 가 압니다 — 다 펴 보고 나서야 「다음」을 열고 닫습니다 */
+    pwPgN = doc.numPages;
+    pdfNav();
+    const no = Math.min(Math.max(1, pwPg + 1), doc.numPages);
+    const pg = await doc.getPage(no);
+    const v1 = pg.getViewport({ scale: 1 });
+    /* 또렷하게 — 화면 배율까지 셈합니다 (레티나에서 흐려 보이지 않게) */
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const sc = (wide / v1.width) * dpr;
+    const vp = pg.getViewport({ scale: sc });
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+    cv.style.width = '100%'; cv.style.height = 'auto';
+    await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    box.innerHTML = ''; box.appendChild(cv);
+    pdfLast = { key, cv, no, n: doc.numPages };
+    const nm = document.getElementById('pdfNo');
+    if(nm) nm.textContent = no + ' / ' + doc.numPages;
+    pdfTh(no, doc.numPages);
+  }catch(e){
+    box.innerHTML = '<div class="pdf-err">📄 원본을 펴지 못했습니다<span>'
+      + esc(String((e && e.message) || e)) + '</span>'
+      + '<i>pdf.min.js · pdf.worker.min.js 가 brand.html 옆에 있어야 합니다 — '
+      + 'save.php?action=bootstrap 을 한 번 열어 주세요.</i></div>';
+  }finally{ pdfBusy = ''; }
+}
+/* 쪽 고르기 줄 — 몇 장인지는 PDF 를 펴 봐야 알기에 여기서 채웁니다 */
+function pdfTh(no, n){
+  const el = document.getElementById('pdfTh');
+  if(!el) return;
+  let h = '';
+  for(let i = 1; i <= n; i++){
+    h += '<button class="' + (i === no ? 'on' : '') + '" onclick="pwGoTo(' + (i - 1) + ')"'
+       + ' title="' + i + '쪽">' + i + '</button>';
+  }
+  el.innerHTML = h;
+}
+/* 넘기기 단추를 지금 쪽수에 맞춥니다 (다시 그리지 않고 단추만 손봅니다) */
+function pdfNav(){
+  const ns = document.querySelectorAll('.pw-orig .bk-nav');
+  if(ns.length !== 2) return;
+  ns[0].disabled = pwPg <= 0;
+  ns[1].disabled = pwPg >= pwPgN - 1;
+}
+/* 📄 원본 — 올린 브랜드북을 만든 그대로 폅니다. 칸이 한 줄도 안 채워졌어도
+   이 자리는 나와야 합니다 (틀이 달라 못 읽었을 때가 바로 그렇습니다). */
+function bookBar(bk, src){
+  if(!bk) return '';
+  return '<div class="bk-src">'
+    + '<button class="' + (src ? '' : 'on') + '" onclick="setPwSrc(0)">'
+      + '✎ 우리 칸<span>고치고 · 찾을 수 있습니다</span></button>'
+    + '<button class="' + (src ? 'on' : '') + '" onclick="setPwSrc(1)">'
+      + '📄 원본<span>만든 그대로 — 디자인이 삽니다</span></button>'
+    + '<a class="dl" href="files.php?action=dl&path=' + encodeURIComponent(bk.filePath)
+      + '" download title="' + esc(bk.name) + '">⬇</a>'
+    + '</div>';
+}
+function bookOrigHtml(b, bk){
+  const srcBar = bookBar(bk, true);
+  const top = '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
+    + esc(b.name) + ' — ' + esc(bk.name) + '</div>';
+
+  /* HTML 브랜드북은 그대로 끼워 넣기만 하면 됩니다 — 글꼴도 색도 표도
+     만든 그대로 삽니다. 안의 스크립트는 서버(files.php)와 sandbox 두 겹으로
+     막습니다. 한 장씩 넘기는 것은 PDF 만 됩니다 (HTML 은 쪽이 없습니다). */
+  if(!bookIsPdf(bk)){
+    /* 화면이 서자마자 끼웁니다 — 한 박자 늦으면 빈 자리가 한 번 번쩍입니다.
+       늦게 서는 화면을 위해 시간으로도 한 번 더 부릅니다 (두 번 불러도
+       같은 틀이면 그대로 두므로 헛일이 되지 않습니다). */
+    queueMicrotask(bookFrame); setTimeout(bookFrame, 30);
+    return '<div class="pw pw-bk pw-orig">'
+      + top + '</div>'
+      + srcBar
+      + '<div class="bk-ifr" id="bkIfr"></div>'
+      + '<div class="bk-hint">👆 안에서 밀어 내립니다 · '
+        + '원본은 <b>글을 고칠 수 없습니다</b> — 고치려면 [✎ 우리 칸] 으로 · '
+        + '<a href="' + esc(bookUrl(bk)) + '" target="_blank" rel="noopener">새 창으로 크게</a></div>'
+      + '</div>';
+  }
+
+  /* 그림은 화면이 서자마자 넣습니다 (늦으면 읽던 쪽이 한 번 번쩍입니다).
+     늦게 서는 화면을 위해 시간으로도 한 번 더 부릅니다 — 같은 쪽이면
+     그려 둔 그림을 그대로 쓰므로 두 번 불러도 헛일이 아닙니다. */
+  queueMicrotask(pdfPaint); setTimeout(pdfPaint, 30);
+  /* 이름이 pw-orig 인 까닭: .pw-src 는 이미 「출처」 줄이 쓰고 있습니다 */
+  return '<div class="pw pw-bk pw-orig">'
+    + top + '<div class="bk-n" id="pdfNo">…</div></div>'
+    + srcBar
+    + '<div class="bk-wrap">'
+      + '<button class="bk-nav" ' + (pwPg <= 0 ? 'disabled' : '')
+        + ' onclick="pwGo(-1)" title="앞 장 (← 키)">‹<span>이전</span></button>'
+      + '<div class="bk-pg ' + (pwDir > 0 ? 'fwd' : 'bwd') + '">'
+        + '<div class="pdf-box" id="pdfBox"><div class="pdf-wait">📄 펴는 중…</div></div>'
+      + '</div>'
+      + '<button class="bk-nav" ' + (pwPg >= pwPgN - 1 ? 'disabled' : '')
+        + ' onclick="pwGo(1)" title="다음 장 (→ 키)"><span>다음</span>›</button>'
+    + '</div>'
+    + '<div class="bk-hint">👆 양옆 단추나 <b>← →</b> 키로 넘깁니다 · '
+      + '원본은 <b>글을 고칠 수 없습니다</b> — 고치려면 [✎ 우리 칸] 으로</div>'
+    + '<div class="pdf-th" id="pdfTh"></div>'
+    + '</div>';
+}
+function setPwSrc(on){
+  pwSrc = !!on; pwSrcAt = currentBrandId; pwPg = 0; pwDir = 1;
+  render();
+}
+/* 브랜드북을 올려 두었다면 <<처음에는 원본부터>> 폅니다.
+   만들어 둔 그대로가 먼저 보여야 맞습니다. 고칠 때만 [✎ 우리 칸] 으로
+   건너가면 됩니다. 한 번 고르고 나면 그 뜻을 그대로 지킵니다. */
+function pwSrcOn(b, bk){
+  if(!bk) return false;
+  if(pwSrcAt !== b.id){ pwSrcAt = b.id; pwSrc = true; pwPg = 0; pwDir = 1; }
+  return pwSrc;
+}
+
 function pathReadHtml(b){
   const bid = jsq(b.id);
   const P  = pathOf(b);
+
+  /* 📄 원본이 먼저입니다. 칸을 한 줄도 못 채운 문서라도 <<만든 그대로>> 는
+     보여야 합니다 — 틀이 조금 다르다고 올린 책이 사라지면 안 됩니다. */
+  const bk  = pathBook(b);
+  const src = pwBook && pwSrcOn(b, bk);
+  const srcBar = bookBar(bk, src);
+  if(src) return bookOrigHtml(b, bk);
+
   const cs = chapsOf(b).filter(c => !chapBlank(c));
   const rsAll = rulesOf(b).filter(r => !ruleBlank(r));
   const rsW = rsAll.filter(ruleIsWord);            // 용어 단으로 갑니다
@@ -21172,7 +21444,7 @@ function pathReadHtml(b){
   if(!what && !rsAll.length && !ws.length && !cs.length && !sum
      && !ID_ALL.some(f => idv[f[0]]) && !rls.length && !pss.length && !cls.length
      && !fts.length && !wds.length && !gls.length){
-    return '<div class="pw"><div class="pw-none">이 브랜드 소개가 아직 비어 있습니다.'
+    return '<div class="pw">' + srcBar + '<div class="pw-none">이 브랜드 소개가 아직 비어 있습니다.'
       + '<br><span>문서가 있으면 갈래에 맞게 올리면 됩니다 — '
       + '<b>[📋 기획서]</b> 는 걸어온 길에, <b>[📐 지침서]</b> 는 지킬 것에 쌓입니다.<br>'
       + '없으면 [✏️ 고치기] 에서 <b>1. 이 브랜드는 뭘 하나</b> 부터 적어 보세요.</span>'
@@ -21936,6 +22208,7 @@ function pathReadHtml(b){
       + '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
         + esc(b.name) + ' — 브랜드 소개</div>'
         + '<div class="bk-n">' + (at + 1) + ' / ' + PG.length + '</div></div>'
+      + srcBar
       + '<div class="bk-wrap">'
         + '<button class="bk-nav" ' + (at <= 0 ? 'disabled' : '')
           + ' onclick="pwGo(-1)" title="앞 장 (← 키)">‹<span>이전</span></button>'

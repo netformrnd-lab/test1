@@ -1349,6 +1349,8 @@ if ($action === 'view') {
         'htm'  => 'text/html; charset=utf-8',
         'txt'  => 'text/plain; charset=utf-8',
         'md'   => 'text/plain; charset=utf-8',
+        // 📗 브랜드북 — 만든 그대로 펴 보려면 화면이 PDF 를 직접 읽어야 합니다
+        'pdf'  => 'application/pdf',
     ];
     if (!isset($types[$ext])) {
         jout(['ok' => false, 'error' =>
@@ -1357,6 +1359,16 @@ if ($action === 'view') {
 
     // 문서 안의 스크립트는 실행되지 않게 막습니다. 글꼴과 그림은 허용합니다.
     header('Content-Type: ' . $types[$ext]);
+    // PDF 는 내려받지 말고 그 자리에서 펴 보게 합니다.
+    // 머리글에는 한글을 그대로 못 싣습니다 — 옛 브라우저에 줄 이름은
+    // 영문·숫자만 남기고, 진짜 이름은 filename* (RFC 5987) 으로 따로 답니다.
+    if ($ext === 'pdf') {
+        $fn   = $name ?: basename($path);
+        $safe = preg_replace('/[^A-Za-z0-9._-]+/', '_', $fn);
+        if (trim($safe, '_') === '') $safe = 'brandbook.pdf';
+        header('Content-Disposition: inline; filename="' . $safe . '"; '
+             . "filename*=UTF-8''" . rawurlencode($fn));
+    }
     header("Content-Security-Policy: script-src 'none'; object-src 'none'; base-uri 'none'");
     header('X-Content-Type-Options: nosniff');
     header('Content-Length: ' . filesize($path));

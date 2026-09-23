@@ -695,8 +695,15 @@ function extract_text($file, $ext, $max, $deadline = null) {
         }
         $t = mb_strcut($t, 0, $max * 3, 'UTF-8');
         if ($ext === 'html' || $ext === 'htm' || $ext === 'xml') {
+            // 스타일·스크립트는 <<속까지>> 덜어냅니다. 태그만 떼면 CSS 가
+            // 본문인 척 섞여 들어와 엉뚱한 칸이 채워집니다.
+            $r = preg_replace('#<(script|style|noscript)\b[^>]*>.*?</\1\s*>#uis', ' ', $t);
+            if ($r !== null) $t = $r;
             $r = preg_replace('#<[^>]+>#u', ' ', $t);
             if ($r !== null) $t = $r;
+            // &amp; &nbsp; 같은 기호는 글자로 돌려놓습니다 (안 그러면 그대로 남습니다)
+            $t = html_entity_decode($t, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $t = str_replace("\xC2\xA0", ' ', $t);   // 줄바꿈 없는 빈칸
         }
         return $t;
     }

@@ -1416,6 +1416,20 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .bk-ifr{display:block;width:100%;height:78vh;min-height:420px;margin-top:12px;
   border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}
 .bk-ifr iframe{display:block;width:100%;height:100%;border:0;background:#fff}
+/* ✎ 이대로 고치기 — 원본 모양 그대로 손보는 줄 */
+.bk-ed{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px}
+.bk-ed button{padding:6px 11px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg-secondary);font-family:inherit;font-size:12px;font-weight:700;
+  color:var(--text-secondary);cursor:pointer}
+.bk-ed button:hover:not(:disabled){border-color:var(--ink);color:var(--text-primary)}
+.bk-ed button:disabled{opacity:.5;cursor:default}
+.bk-ed .go,.bk-ed .dn{background:var(--ink);border-color:var(--ink);color:#fff}
+.bk-ed .sv{background:var(--blue);border-color:var(--blue);color:#fff}
+.bk-ed.dirty .sv{animation:bkpulse 1.6s ease-in-out infinite}
+@keyframes bkpulse{50%{opacity:.62}}
+.bk-ed span{font-size:11.5px;font-weight:500;color:var(--text-muted)}
+.bk-ed span b{color:var(--text-secondary)}
+.pw-orig.bk-on .bk-ifr{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.14)}
 /* 쪽 고르기 — 11 장이 넘어가면 한 장씩 넘기기가 답답합니다 */
 .pdf-th{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:12px}
 .pdf-th button{min-width:31px;padding:5px 7px;border:1px solid var(--line);
@@ -4187,7 +4201,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260922-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260923-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5166,6 +5180,8 @@ async function pgUploadOne(file, where, onStep){
   f0.append('name', file.name); f0.append('size', String(file.size));
   f0.append('brand', where.brand); f0.append('sub', where.sub);
   f0.append('sub2', where.sub2 || ''); f0.append('sub3', where.sub3 || '');
+  /* 새로 쌓지 않고 있던 파일을 그 자리에서 고쳐 쓸 때 (브랜드북 원본 고치기) */
+  f0.append('over', where.over || '');
   const st = await pgPost('chunkstart', f0);
   const ch = Math.max(65536, Number(st.chunk) || 1048576);
   const of = Math.max(1, Math.ceil(file.size / ch));
@@ -21245,16 +21261,23 @@ function bookFrame(){
   const box = document.getElementById('bkIfr'); if(!box) return;
   const b = currentBrand(); if(!b) return;
   const d = pathBook(b); if(!d || bookIsPdf(d)) return;
-  const url = bookUrl(d);
+  /* 저장하고 나면 번호를 올려 새로 읽어옵니다 (브라우저가 옛것을 쥐고
+     있으면 방금 고친 것이 안 보입니다) */
+  const url = bookUrl(d) + (bookVer ? '&v=' + bookVer : '');
   if(!bookIfr || bookIfr.dataset.url !== url){
     const f = document.createElement('iframe');
-    f.setAttribute('sandbox', '');      // 안의 스크립트는 돌지 않습니다
+    /* allow-same-origin 만 켭니다 — 우리가 안을 들여다보며 고칠 수 있되,
+       문서 안의 스크립트는 그대로 막혀 있습니다 (서버도 CSP 로 막습니다) */
+    f.setAttribute('sandbox', 'allow-same-origin');
     f.title = d.name || '브랜드북';
     f.dataset.url = url;
+    f.addEventListener('load', bookArm);
     f.src = url;
     bookIfr = f;
   }
   if(box.firstChild !== bookIfr){ box.innerHTML = ''; box.appendChild(bookIfr); }
+  bookArm();          // 이미 읽어 둔 것이면 load 가 다시 오지 않습니다
+  bookBtns();
 }
 /* 올린 그대로 펴 보는 주소 (내려받지 않고 그 자리에서 봅니다) */
 function bookUrl(d){ return 'files.php?action=view&path=' + encodeURIComponent(d.filePath); }
@@ -21273,6 +21296,120 @@ async function pdfOpen(url){
   pdfDoc[url] = await lib.getDocument(url).promise;
   return pdfDoc[url];
 }
+/* ═══════════════ ✎ 원본을 그 모양 그대로 고치기 ═══════════════════
+   PDF 는 글자를 그림으로 찍어 둔 것이라 그 자리에서 못 고칩니다.
+   HTML 은 진짜 문서라 <<보이는 그대로>> 눌러서 고칠 수 있습니다.
+   저장하면 올린 파일을 그 자리에서 고쳐 씁니다 — 파일이 늘어나지
+   않습니다. 고치기 전 것은 _휴지통 에 한 벌 남으니 되돌릴 수 있습니다.
+   ================================================================= */
+let bookEdit  = false;      // 지금 고치는 중인가
+let bookDirty = false;      // 고쳐 놓고 아직 저장 안 한 것이 있나
+let bookBusy  = false;      // 저장하는 중
+let bookVer   = 0;          // 저장한 뒤 새로 읽어오게 하는 번호
+
+function bookDoc(){
+  const f = bookIfr;
+  try{ return (f && f.contentDocument) || null; }catch(e){ return null; }
+}
+/* 글을 눌러 고칠 수 있게 열어 둡니다 (틀·색·표 모양은 그대로) */
+function bookArm(){
+  const d = bookDoc(); if(!d || !d.body) return;
+  try{ d.designMode = bookEdit ? 'on' : 'off'; }catch(e){}
+  if(bookEdit && !d.__armed){
+    d.__armed = true;
+    d.addEventListener('input', () => { if(!bookDirty){ bookDirty = true; bookBtns(); } });
+  }
+}
+/* 단추 모양만 손봅니다 — 고칠 때마다 화면을 통째로 다시 그리면
+   쓰던 자리가 튑니다 */
+function bookBtns(){
+  const el = document.getElementById('bkEd');
+  if(!el) return;
+  el.classList.toggle('on', bookEdit);
+  el.classList.toggle('dirty', bookDirty);
+  const sv = document.getElementById('bkSave');
+  if(sv){
+    sv.disabled = !bookDirty || bookBusy;
+    sv.textContent = bookBusy ? '저장하는 중…' : (bookDirty ? '💾 저장' : '💾 저장됨');
+  }
+}
+function setBookEdit(on){
+  on = !!on;
+  if(!on && bookDirty
+     && !confirm('고친 것이 아직 저장되지 않았습니다.\n\n그냥 닫으면 고친 내용이 사라집니다.')) return;
+  if(!on && bookDirty){ bookDirty = false; bookVer++; bookIfr = null; }   // 원래대로 다시 읽어옵니다
+  bookEdit = on;
+  render();
+}
+/* 지금 커서가 놓인 줄(표의 한 줄 · 목록의 한 칸) 을 찾습니다 */
+function bookRowAt(){
+  const d = bookDoc(); if(!d) return null;
+  let n = null;
+  try{ const s = d.getSelection(); n = s && s.anchorNode; }catch(e){}
+  while(n && n.nodeType !== 1) n = n.parentNode;
+  while(n && n !== d.body && !/^(TR|LI)$/.test(n.tagName)) n = n.parentNode;
+  return (n && n !== d.body) ? n : null;
+}
+function bookRowAdd(){
+  const r = bookRowAt();
+  if(!r){ toast('표의 줄이나 목록의 칸 안을 먼저 눌러 주세요'); return; }
+  const n = r.cloneNode(true);
+  /* 새 줄은 비워서 넣습니다 — 베껴 둔 글이 그대로 남으면 헷갈립니다 */
+  const cs = n.querySelectorAll ? n.querySelectorAll('th,td') : [];
+  if(cs.length) Array.from(cs).forEach(c => { c.textContent = ''; });
+  else n.textContent = '';
+  r.parentNode.insertBefore(n, r.nextSibling);
+  bookDirty = true; bookBtns();
+  try{ const d = bookDoc(); const s = d.getSelection(); const g = d.createRange();
+       g.selectNodeContents(cs.length ? n.querySelector('th,td') : n); g.collapse(true);
+       s.removeAllRanges(); s.addRange(g); }catch(e){}
+}
+function bookRowDel(){
+  const r = bookRowAt();
+  if(!r){ toast('지울 줄 안을 먼저 눌러 주세요'); return; }
+  const p = r.parentNode;
+  if(p && p.children.length <= 1){ toast('마지막 한 줄은 지울 수 없습니다'); return; }
+  r.parentNode.removeChild(r);
+  bookDirty = true; bookBtns();
+}
+/* 고친 그대로를 글로 되돌려 냅니다 (고치는 중 표시는 빼고) */
+function bookHtml(){
+  const d = bookDoc(); if(!d || !d.documentElement) return '';
+  const was = d.designMode;
+  try{ d.designMode = 'off'; }catch(e){}
+  Array.from(d.querySelectorAll('[contenteditable]'))
+    .forEach(e => e.removeAttribute('contenteditable'));
+  const dt = d.doctype ? '<!doctype ' + d.doctype.name + '>\n' : '';
+  const out = dt + d.documentElement.outerHTML;
+  try{ d.designMode = was; }catch(e){}
+  return out;
+}
+async function bookSave(){
+  if(bookBusy) return;
+  const b = currentBrand(); if(!b) return;
+  const bk = pathBook(b); if(!bk || bookIsPdf(bk)) return;
+  const html = bookHtml();
+  if(!html){ toast('고친 내용을 읽지 못했습니다'); return; }
+  bookBusy = true; bookBtns();
+  try{
+    const f = new File([html], bk.name || 'brandbook.html', { type: 'text/html' });
+    const r = await pgUploadOne(f, { brand:'', sub:'', over: bk.filePath });
+    if(!r || r.ok === false) throw new Error((r && r.error) || '저장하지 못했습니다');
+    /* 자리가 옮겨졌으면 새 자리를 적어 둡니다 (폴더 정리·이름 바뀜) */
+    if(r.filePath && r.filePath !== bk.filePath){ bk.filePath = r.filePath; markDirty(b.id); }
+    bk.size = html.length;
+    bookDirty = false; bookBtns();
+    toast('💾 브랜드북을 고쳐 썼습니다 — 고치기 전 것은 🗑 휴지통에 있습니다');
+  }catch(e){
+    alert('저장하지 못했습니다.\n\n' + apiErrText(e));
+  }finally{ bookBusy = false; bookBtns(); }
+}
+function bookRevert(){
+  if(!confirm('고친 것을 버리고 저장된 것을 다시 불러옵니다.')) return;
+  bookDirty = false; bookVer++; bookIfr = null;
+  render();
+}
+
 /* 지금 쪽을 그려 넣습니다. 화면 너비에 맞춰 크기를 잡습니다. */
 async function pdfPaint(){
   const b = currentBrand(); if(!b) return;
@@ -21368,13 +21505,31 @@ function bookOrigHtml(b, bk){
     /* 화면이 선 <<뒤에>> 끼웁니다. 더 일찍 부르면 지금 지워지는 중인 옛 자리에
        끼워 넣게 되어, 새 자리는 빈 채로 남습니다. */
     setTimeout(bookFrame, 30);
-    return '<div class="pw pw-bk pw-orig">'
+    /* HTML 은 진짜 문서라 보이는 그대로 고칠 수 있습니다 */
+    const edBar = '<div class="bk-ed' + (bookEdit ? ' on' : '') + '" id="bkEd">'
+      + (bookEdit
+        ? '<button class="sv" id="bkSave" disabled onclick="bookSave()">💾 저장됨</button>'
+          + '<button onclick="bookRowAdd()" title="이 줄 밑에 빈 줄을 하나 넣습니다">'
+            + '＋ 줄 더하기</button>'
+          + '<button onclick="bookRowDel()" title="커서가 놓인 줄을 지웁니다">'
+            + '－ 이 줄 지우기</button>'
+          + '<button onclick="bookRevert()">↩︎ 고치기 전으로</button>'
+          + '<button class="dn" onclick="setBookEdit(0)">✔ 다 고쳤어요</button>'
+          + '<span>글을 <b>그대로 눌러</b> 고칩니다 — 틀 · 색 · 표 모양은 그대로입니다</span>'
+        : '<button class="go" onclick="setBookEdit(1)">✎ 이대로 고치기</button>'
+          + '<span>보이는 이 모양 그대로 글을 고칩니다</span>')
+      + '</div>';
+    return '<div class="pw pw-bk pw-orig' + (bookEdit ? ' bk-on' : '') + '">'
       + top + '</div>'
       + srcBar
+      + edBar
       + '<div class="bk-ifr" id="bkIfr"></div>'
       + '<div class="bk-hint">👆 안에서 밀어 내립니다 · '
-        + '원본은 <b>글을 고칠 수 없습니다</b> — 고치려면 [✎ 우리 칸] 으로 · '
-        + '<a href="' + esc(bookUrl(bk)) + '" target="_blank" rel="noopener">새 창으로 크게</a></div>'
+        + (bookEdit
+            ? '고친 뒤에는 <b>[💾 저장]</b> 을 눌러 주세요 — 올린 파일을 그 자리에서 '
+              + '고쳐 씁니다 (고치기 전 것은 🗑 휴지통에 남습니다)'
+            : '<b>[✎ 이대로 고치기]</b> 로 이 모양 그대로 고칠 수 있습니다')
+        + ' · <a href="' + esc(bookUrl(bk)) + '" target="_blank" rel="noopener">새 창으로 크게</a></div>'
       + '</div>';
   }
 
@@ -21400,6 +21555,11 @@ function bookOrigHtml(b, bk){
     + '</div>';
 }
 function setPwSrc(on){
+  /* 고쳐 놓고 저장 안 한 것이 있으면 그냥 떠나지 않습니다 */
+  if(!on && bookEdit && bookDirty
+     && !confirm('브랜드북을 고쳐 놓고 아직 저장하지 않았습니다.\n\n'
+               + '그냥 떠나면 고친 내용이 사라집니다.')) return;
+  if(!on){ bookEdit = false; bookDirty = false; bookIfr = null; }
   pwSrc = !!on; pwSrcAt = currentBrandId; pwPg = 0; pwDir = 1;
   render();
 }

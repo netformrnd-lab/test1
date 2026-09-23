@@ -906,6 +906,9 @@ if ($action === 'chunkstart') {
         'sub'   => (string)($_POST['sub'] ?? ''),
         'sub2'  => (string)($_POST['sub2'] ?? ''),
         'sub3'  => (string)($_POST['sub3'] ?? ''),
+        /* 새로 쌓지 않고 <<있던 파일을 그 자리에서>> 고쳐 쓸 때 씁니다
+           (브랜드북을 원본 모양 그대로 고친 뒤 저장하는 길입니다). */
+        'over'  => (string)($_POST['over'] ?? ''),
         'at' => time(),
     ];
     if (@file_put_contents(up_meta_path($UP_TMP, $id), json_encode($meta, 320)) === false
@@ -970,6 +973,55 @@ if ($action === 'chunkdone') {
     if ($have !== (int)$meta['size']) {
         jout(['ok' => false, 'error' => '조각이 다 오지 않았습니다 ('
             . $have . ' / ' . $meta['size'] . ' 바이트)'], 400);
+    }
+
+    /* ── 있던 파일 그 자리에 덮어쓰기 ──────────────────────────────
+       고치기 전 것은 버리지 않고 _휴지통 으로 한 번 옮겨 둡니다. 잘못
+       고쳤어도 휴지통에서 되돌릴 수 있습니다. 글로 된 문서(html)만
+       허용합니다 — 아무 파일이나 이 길로 바꿔치기하지 못하게 합니다. */
+    $over = trim((string)($meta['over'] ?? ''));
+    if ($over !== '') {
+        [$real, $now] = resolve_rel($FILE_DIRS, $over);
+        if (!$real || !is_file($real)) {
+            @unlink($part); @unlink($mp);
+            jout(['ok' => false, 'error' => '고쳐 쓸 파일이 없습니다: ' . $over,
+                  '안내' => '폴더에서 지웠거나 이름이 바뀐 것 같습니다. 다시 올려 주세요.'], 404);
+        }
+        $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
+        if ($ext !== 'html' && $ext !== 'htm') {
+            @unlink($part); @unlink($mp);
+            jout(['ok' => false, 'error' =>
+                '이 형식(' . $ext . ')은 그 자리에서 고쳐 쓸 수 없습니다'], 400);
+        }
+        if (function_exists('bh_trash')) {
+            [$tok, ] = bh_trash($real, function_exists('guard_name') ? guard_name() : '');
+            if (!$tok && is_file($real) && !@unlink($real)) {
+                @unlink($part); @unlink($mp);
+                jout(['ok' => false, 'error' => '예전 것을 치우지 못했습니다 (쓰기 권한 확인)'], 500);
+            }
+        } elseif (is_file($real) && !@unlink($real)) {
+            @unlink($part); @unlink($mp);
+            jout(['ok' => false, 'error' => '예전 것을 치우지 못했습니다 (쓰기 권한 확인)'], 500);
+        }
+        if (!@rename($part, $real)) {
+            if (!@copy($part, $real)) {
+                @unlink($part); @unlink($mp);
+                jout(['ok' => false, 'error' => '고친 내용을 쓰지 못했습니다: ' . $real], 500);
+            }
+            @unlink($part);
+        }
+        @chmod($real, 0664);
+        @unlink($mp);
+        jout([
+            'ok'       => true,
+            'fileId'   => bin2hex(random_bytes(16)),
+            'fileName' => basename($real),
+            'filePath' => $now,
+            '둔곳'     => dirname($real),
+            'fileSize' => (int)$meta['size'],
+            '덮어씀'   => true,
+            'mime'     => 'text/html',
+        ]);
     }
 
     $sub = SUBDIRS[trim((string)$meta['sub'])] ?? SUBDIRS['자료'];

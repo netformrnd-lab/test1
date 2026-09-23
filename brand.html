@@ -455,6 +455,26 @@ mark{background:rgba(192,119,8,.26);color:inherit;border-radius:3px;padding:0 2p
 .recent .rb{font-size:11.5px;color:var(--text-muted);margin-left:auto;white-space:nowrap}
 .hsec{font-size:12.5px;font-weight:700;margin:26px 0 10px;display:flex;align-items:center;
   gap:7px;color:var(--text-secondary);letter-spacing:.02em}
+.hsec span{font-size:11.5px;font-weight:500;color:var(--text-muted)}
+/* 📖 브랜드북 히스토리 — 누가 · 언제 · 무엇을 */
+.blog-h .ri{display:flex;align-items:center;gap:10px;font-size:13px;padding:9px 10px;
+  cursor:pointer;border-radius:var(--r-sm);transition:.13s var(--ease);position:relative}
+.blog-h .ri::after{content:'';position:absolute;left:10px;right:10px;bottom:0;height:1px;
+  background:var(--border)}
+.blog-h .ri:last-child::after{display:none}
+.blog-h .ri:hover{background:var(--bg-hover)}
+.blog-h .ri strong{font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;max-width:36%}
+.blog-h .bh-w{font-size:12px;color:var(--text-muted);white-space:nowrap}
+.blog-h .bh-by{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:650;
+  color:var(--text-secondary);white-space:nowrap}
+.blog-h .bh-by i{font-style:normal;font-size:10.5px;font-weight:600;padding:1px 6px;
+  border-radius:999px;background:var(--bg-page);border:1px solid var(--border);
+  color:var(--text-muted)}
+.blog-h .rb{font-size:11.5px;color:var(--text-muted);margin-left:auto;white-space:nowrap}
+.blog-h .rb b{color:var(--blue)}
+.blog-h .ri.last{background:var(--bg-card)}
+@media(max-width:720px){ .blog-h .bh-w{display:none} .blog-h .ri strong{max-width:50%} }
 .page-h{font-size:19px;font-weight:750;letter-spacing:-.032em;margin-bottom:3px}
 .page-sub{font-size:12.5px;color:var(--text-muted);margin-bottom:20px}
 .dm{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -4238,7 +4258,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260923-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260923-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6943,45 +6963,40 @@ function renderHome(){
         + '</div>').join('') + '</div>'
     : '';
 
-  // 아직 비어 있는 곳을 짚어줍니다
-  const todos = [];
-  bs.forEach(b => {
-    if(!(b.masterPrompt || '').trim())
-      todos.push(['✨', b, 'prompt', '마스터프롬프트가 비어 있습니다']);
-    if(!b.automations.length)
-      todos.push(['🤖', b, 'automations', '등록된 자동화가 없습니다']);
+  /* ── 📖 브랜드북 히스토리 ────────────────────────────────────
+     전에는 「최근 업데이트」 와 「아직 비어 있는 곳」 이 있었습니다.
+     앞엣것은 무엇이 바뀌었는지는 보여도 <<누가>> 했는지가 없었고,
+     뒤엣것은 채울 칸이 사라진 지금은 가리킬 데가 없습니다.
+     팀이 같이 고치는 파일이라, 정작 궁금한 것은 「마지막에 누가
+     무엇을 올렸나」 입니다. */
+  const logs = [];
+  bs.forEach(b => bookLogOf(b).forEach(x => logs.push({ b: b, x: x })));
+  logs.sort((m, n) => String(n.x.at || '').localeCompare(String(m.x.at || '')));
 
-  });
-
-  const todoHtml = todos.length
-    ? '<div class="todo">' + todos.slice(0, 12).map(([ic, b, tab, msg]) =>
-        '<div class="ti" onclick="gotoResult(\'' + b.id + '\',\'' + tab + '\')">'
-        + '<span>' + ic + '</span><strong>' + esc(b.name) + '</strong>'
-        + '<span style="color:var(--text-muted)">' + msg + '</span></div>').join('')
-      + (todos.length > 12 ? '<div class="ti" style="color:var(--text-muted);cursor:default">'
-          + '외 ' + (todos.length - 12) + '건</div>' : '')
+  const when = iso => {
+    if(!iso) return '';
+    const d = new Date(iso);
+    if(isNaN(d)) return '';
+    const day = d.toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' });
+    const hm  = d.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+    return day + ' ' + hm;
+  };
+  const logHtml = logs.length
+    ? '<div class="todo blog-h">' + logs.slice(0, 14).map((r, i) =>
+        '<div class="ri' + (i === 0 ? ' last' : '') + '"'
+        + ' onclick="gotoResult(\'' + r.b.id + '\',\'path\')">'
+        + '<span>' + (r.x.act === '고침' ? '✎' : '📗') + '</span>'
+        + '<strong>' + esc(r.x.name || '브랜드북') + '</strong>'
+        + '<span class="bh-w">' + esc(r.b.name) + '</span>'
+        + '<span class="bh-by">' + (r.x.by ? esc(r.x.by) : '이름 없음')
+          + '<i>' + (r.x.act === '고침' ? '고침' : '올림') + '</i></span>'
+        + '<span class="rb">' + (i === 0 ? '<b>마지막</b> · ' : '') + esc(when(r.x.at)) + '</span>'
+        + '</div>').join('')
+      + (logs.length > 14 ? '<div class="ri" style="color:var(--text-muted);cursor:default">'
+          + '외 ' + (logs.length - 14) + '건</div>' : '')
       + '</div>'
-    : '<div class="todo" style="color:var(--text-muted)">모든 브랜드가 채워져 있습니다 👏</div>';
-
-  // 최근에 손댄 항목
-  const recent = [];
-  bs.forEach(b => ITEM_KEYS.forEach(t =>
-    b[t].forEach(it => {
-      const when = it.updatedAt || it.uploadedAt;
-      if(when) recent.push({ b, t, it, when });
-    })));
-  recent.sort((x, y) => String(y.when).localeCompare(String(x.when)));
-
-  const recentHtml = recent.length
-    ? '<div class="todo recent">' + recent.slice(0, 8).map(r =>
-        '<div class="ri" onclick="gotoResult(\'' + r.b.id + '\',\'' + r.t + '\')">'
-        + '<span>' + TYPES[r.t].icon + '</span>'
-        + '<strong>' + esc(r.it.title) + '</strong>'
-        + '<span style="color:var(--text-muted)">' + esc(r.b.name) + '</span>'
-        + '<span class="rb">' + esc(new Date(r.when)
-            .toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' })) + '</span>'
-        + '</div>').join('') + '</div>'
-    : '';
+    : '<div class="todo blog-h" style="color:var(--text-muted);padding:14px 12px">'
+      + '아직 올린 브랜드북이 없습니다 — 브랜드를 열고 [📗 브랜드북 올리기] 로 올려 보세요</div>';
 
   // 채널에 새로 올라온 글 (NAS 가 미리 받아둔 것)
   const posts = [];
@@ -7014,8 +7029,8 @@ function renderHome(){
     + '<div class="hgrid">' + cards + '</div>'
     + (urgentHtml ? '<div class="hsec">⏰ 기한이 임박한 할 일</div>' + urgentHtml : '')
     + (postHtml ? '<div class="hsec">📣 접점에 올라온 글</div>' + postHtml : '')
-    + (recentHtml ? '<div class="hsec">🕘 최근 업데이트</div>' + recentHtml : '')
-    + '<div class="hsec">📝 아직 비어 있는 곳</div>' + todoHtml
+    + '<div class="hsec">📖 브랜드북 히스토리<span>누가 · 언제 · 무엇을 '
+      + '올리고 고쳤나</span></div>' + logHtml
     + '</div></div>';
 }
 
@@ -18288,6 +18303,8 @@ function pathOf(b){
      색 · 글꼴 … 파일에 이미 있는 것을 다시 적어 두는 자리였습니다.
      같은 글이 두 군데 있으면 어느 쪽이 진짜인지 늘 헷갈립니다. */
   if(!Array.isArray(P.docs)) P.docs = [];
+  /* 누가 · 언제 · 무엇을 올리고 고쳤는지 (히스토리) */
+  if(!Array.isArray(P.log)) P.log = [];
   return P;
 }
 /* ── 👤 「막히면 누구에게」 가 정말 채워졌나 ────────────────────
@@ -18664,9 +18681,10 @@ async function uploadPathDoc(fileList){
     const doc = { id: uid('pd'), name: out.fileName, size: out.fileSize,
                   filePath: out.filePath || '', at: new Date().toISOString(),
                   kind: 'bbook',
-                  by: (authMe() || {})['이름'] || '' };
+                  by: myName() || '' };
     /* 브랜드북은 한 권입니다 — 새로 올리면 그 한 권이 바뀝니다 */
     if(!pathDocs(b).some(d => d.filePath === doc.filePath)) pathDocs(b).push(doc);
+    bookLogAdd(b, '올림', doc.name);
     pathMine[bid] = { busy:false, step:'', err:'', up:true, doc: doc };
     markDirty(b.id);
     /* 올린 책을 바로 폅니다 */
@@ -19135,6 +19153,34 @@ const pdfDoc = {};          // 주소 → 펼쳐 둔 PDF
 let pdfBusy = '';
 let pdfLast = null;         // 마지막으로 그린 그림 — 다시 그릴 때 깜박이지 않게
 
+/* ── 📖 히스토리 ────────────────────────────────────────────────
+   누가 · 언제 · 무엇을 올리고 고쳤는지 한 줄씩 남깁니다. 브랜드북은
+   팀이 같이 고치는 파일이라, 마지막에 손댄 사람이 누구인지가 자주
+   궁금해집니다. 파일 목록만으로는 「고친 것」 이 안 보입니다.
+   --------------------------------------------------------------- */
+function bookLogAdd(b, act, name){
+  if(!b) return;
+  const P = pathOf(b);
+  /* 로그인을 안 켠 팀도 있습니다 — 그때는 화면에 적어 둔 이름을 씁니다 */
+  P.log.push({ id: uid('bl'), at: new Date().toISOString(),
+               by: myName() || '', act: act, name: String(name || '') });
+  if(P.log.length > 200) P.log = P.log.slice(-200);   // 오래된 것부터 접습니다
+  markDirty(b.id);
+}
+/* 예전에 올린 것은 기록이 없습니다 — 파일 목록에서 되살려 씁니다 */
+function bookLogOf(b){
+  const P = pathOf(b);
+  const out = P.log.slice();
+  const seen = {};
+  out.forEach(x => { if(x.act === '올림') seen[x.name + '|' + String(x.at).slice(0, 10)] = 1; });
+  pathDocs(b).forEach(d => {
+    const k = (d.name || '') + '|' + String(d.at || '').slice(0, 10);
+    if(seen[k]) return;
+    seen[k] = 1;
+    out.push({ id: 'd_' + d.id, at: d.at, by: d.by || '', act: '올림', name: d.name || '' });
+  });
+  return out.sort((x, y) => String(y.at || '').localeCompare(String(x.at || '')));
+}
 /* 브랜드북으로 올린 것 가운데 <<만든 그대로>> 펼 수 있는 마지막 파일.
    PDF 와 HTML 둘 다 됩니다. 한글(.hwp) · 워드는 그려 낼 길이 없어 뺍니다. */
 function pathBook(b){
@@ -19443,6 +19489,7 @@ async function bookSave(){
     /* 자리가 옮겨졌으면 새 자리를 적어 둡니다 (폴더 정리·이름 바뀜) */
     if(r.filePath && r.filePath !== bk.filePath){ bk.filePath = r.filePath; markDirty(b.id); }
     bk.size = html.length;
+    bookLogAdd(b, '고침', bk.name);
     bookDirty = false; bookBtns();
     toast('💾 브랜드북을 고쳐 썼습니다 — 고치기 전 것은 🗑 휴지통에 있습니다');
   }catch(e){
@@ -21502,6 +21549,7 @@ function mergePath(mineB, srvB){
   /* 올린 파일 목록만 한 건씩 맞춥니다 — 통째로 덮으면 둘이 같은 브랜드를
      만졌을 때 상대가 올린 것이 사라집니다. */
   out.docs = mergeList(mp.docs, sp.docs);
+  out.log  = mergeList(mp.log,  sp.log);
   return out;
 }
 

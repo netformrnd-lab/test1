@@ -4201,7 +4201,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260923-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260923-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4792,15 +4792,23 @@ async function checkVersion(force){
     /* 서버가 「새 판 있음」 이라고 해도 여기서 한 번 더 봅니다 —
        옛 save.php 가 올라가 있는 NAS 도 있고, 지금 화면이 이미 그보다
        새것일 수도 있습니다. 옛 판을 「새 판」 이라고 내밀지 않습니다. */
-    if(j && j.ok && j['새판있음'] && verCmp(onGit, APP_VER) > 0){
+    /* 판 번호가 같아도 <<내용>> 이 다르면 받을 것이 있는 것입니다.
+       (번호를 안 올린 채 내용만 바뀐 판이 올라갈 수 있습니다) */
+    const nasH = String((j && j['지금지문']) || '').trim();
+    const gitH = String((j && j['최신지문']) || '').trim();
+    const diff = nasH && gitH && nasH !== gitH;
+    if(j && j.ok && ((j['새판있음'] && verCmp(onGit, APP_VER) > 0) || diff)){
       box.style.display = '';
-      box.innerHTML = '새 판 ' + esc(j['최신'])
+      box.innerHTML = (diff && verCmp(onGit, onNas) <= 0 ? '고친 판' : '새 판 ')
+        + esc(j['최신'])
         + ' <button onclick="pullVersion(this)">받기</button>';
     }else{
       box.style.display = 'none';
       box.innerHTML = '';
-      if(force) verReport(j);
     }
+    /* 눌러서 확인했을 때는 <<언제나>> 무슨 상황인지 말해 줍니다 —
+       받을 것이 있을 때 아무 말 없이 단추만 바뀌면 눌러 본 뜻이 없습니다. */
+    if(force) verReport(j);
   }catch(e){
     box.style.display = 'none';
     if(force) toast('확인하지 못했습니다');
@@ -4825,11 +4833,25 @@ function reloadFresh(){
 
 /* 판 번호를 눌렀을 때 — 세 군데 판 번호를 그대로 보여 줍니다.
    「확인하지 못했습니다」 한 줄로는 무엇이 잘못됐는지 알 수가 없습니다. */
-function verReport(j){
+/* 지금 이 화면이 돌리고 있는 brand.html 의 지문.
+   브라우저가 옛 파일을 들고 있는지는 <<판 번호로는 알 수 없습니다>> —
+   번호를 안 올린 채 내용만 바뀐 판이 있기 때문입니다. 내용을 직접 잽니다. */
+async function myFingerprint(){
+  try{
+    const r = await fetch('brand.html?t=' + Date.now(), { cache:'no-store' });
+    const buf = await r.arrayBuffer();
+    const h = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(h)).map(x => x.toString(16).padStart(2,'0'))
+      .join('').slice(0, 16);
+  }catch(e){ return ''; }
+}
+async function verReport(j){
   if(!j || !j.ok){ toast('확인하지 못했습니다'); return; }
   verHush = false;
   const nas = String(j['지금'] || '').trim();
   const git = String(j['최신'] || '').trim();
+  const nasH = String(j['지금지문'] || '').trim();
+  const gitH = String(j['최신지문'] || '').trim();
   const nasOk = /^v\d{6,}/.test(nas);
   const L = ['화면이 돌리는 판 : ' + APP_VER,
              'NAS 파일의 판    : ' + (nas || '(못 읽음)'),
@@ -4842,15 +4864,41 @@ function verReport(j){
       : '⚠️ NAS 의 save.php 가 옛것이라 판 번호를 못 읽습니다.'
         + '\n   윗줄 아래 [고쳐서 받기] 를 누르면 스스로 고칩니다.'
         + '\n   (단추가 안 보이면 주소창에 save.php?action=bootstrap 을 한 번 여세요)');
+    alert(L.join('\n')); return;
+  }
+  /* ── 번호 말고 <<내용>> 으로 견줍니다 ───────────────────────────
+     판 번호를 안 올린 채 내용만 바뀐 판이 올라갈 수 있습니다. 그때
+     번호만 보면 「모두 같습니다」 라고 말하게 됩니다 — 화면은 옛것인데.
+     걸리는 것이 둘일 수도 있으니 하나만 말하고 그치지 않습니다. */
+  const mine = nasH ? await myFingerprint() : '';
+  let hit = 0;
+  if(mine && nasH && mine !== nasH){
+    hit++;
+    L.push('⚠️ 브라우저가 옛 파일을 들고 있습니다 — 이것부터 고치세요.'
+      + '\n   화면 : ' + mine + '\n   NAS  : ' + nasH
+      + '\n   [새로 받기] 를 누르거나 Ctrl+Shift+R 을 눌러 주세요.'
+      + '\n   그래도 그대로면 주소 끝에 ?x=1 을 붙여 한 번 여세요.');
   }else if(nas !== APP_VER){
+    hit++;
     L.push('⚠️ 브라우저가 옛 파일을 들고 있습니다.'
       + '\n   [새로 받기] 를 누르거나 Ctrl+Shift+R 을 눌러 주세요.');
-  }else if(git && verCmp(git, nas) > 0){
+  }
+  if(nasH && gitH && nasH !== gitH){
+    hit++;
+    L.push((hit > 1 ? '\n' : '')
+      + '⚠️ NAS 파일이 GitHub 것과 <<내용이 다릅니다>> (판 번호는 같아도).'
+      + '\n   NAS : ' + nasH + '\n   Git : ' + gitH
+      + '\n   주소창에 save.php?action=bootstrap 을 한 번 열어 주세요.');
+  }else if(!hit && git && verCmp(git, nas) > 0){
+    hit++;
     L.push('새 판이 나와 있습니다 — 오른쪽 위 [받기] 를 누르세요.');
-  }else if(git && verCmp(nas, git) > 0){
+  }else if(!hit && git && verCmp(nas, git) > 0){
+    hit++;
     L.push('NAS 가 GitHub 보다 앞서 있습니다. 받을 것은 없습니다.');
-  }else{
-    L.push('✅ 모두 같습니다. 지금이 최신입니다.');
+  }
+  if(!hit){
+    L.push('✅ 모두 같습니다 — 판 번호도, 파일 내용도.'
+      + (nasH ? '\n   지문 ' + nasH : ''));
   }
   alert(L.join('\n'));
 }

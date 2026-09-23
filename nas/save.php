@@ -134,12 +134,15 @@ if (isset($_GET['action']) && $_GET['action'] === 'version') {
 
     $cacheFile = __DIR__ . '/data/version-check.json';
     $force = isset($_GET['force']);
-    $remote = ''; $when = 0;
+    /* 판 번호만 견주면 <<번호를 안 올린 채 내용만 바뀐 판>> 을 「같다」 고
+       말하게 됩니다. 그래서 파일 내용 자체의 지문도 같이 보냅니다. */
+    $remote = ''; $rhash = ''; $when = 0;
     if (!$force && is_file($cacheFile)) {
         $c = json_decode((string)@file_get_contents($cacheFile), true);
         if (is_array($c) && isset($c['최신'], $c['확인시각'])
             && (time() - (int)$c['확인시각']) < 600) {
             $remote = (string)$c['최신'];
+            $rhash  = (string)($c['최신지문'] ?? '');
             $when   = (int)$c['확인시각'];
         }
     }
@@ -148,10 +151,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'version') {
         $body = bh_fetch(bh_base() . '/brand.html', $why);
         $remote = $ver($body);
         if ($remote !== '') {
+            $rhash = substr(hash('sha256', (string)$body), 0, 16);
             $when = time();
             @mkdir(__DIR__ . '/data', 0775, true);
-            @file_put_contents($cacheFile,
-                json_encode(['최신' => $remote, '확인시각' => $when], JSON_UNESCAPED_UNICODE));
+            @file_put_contents($cacheFile, json_encode(
+                ['최신' => $remote, '최신지문' => $rhash, '확인시각' => $when],
+                JSON_UNESCAPED_UNICODE));
         }
     }
 
@@ -168,6 +173,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'version') {
         '새판있음'  => ($local !== '' && $remote !== '' && ver_cmp($remote, $local) > 0),
         /* 무엇이 잘못됐는지 화면에서 바로 알 수 있게 — 판 번호를 못 읽을 때
            파일이 아예 없는 것인지, 있는데 못 읽은 것인지 가려 줍니다 */
+        /* 파일 내용의 지문 — 판 번호가 같아도 내용이 다르면 여기서 드러납니다 */
+        '지금지문'  => $haveFile ? substr((string)@hash_file('sha256', $lp), 0, 16) : '',
+        '최신지문'  => $rhash,
         '파일있음'  => $haveFile,
         '파일경로'  => $lp,
         '확인시각'  => $when ? date('c', $when) : null,

@@ -1399,10 +1399,14 @@ table.itable tr:hover td{background:var(--bg-hover)}
   text-decoration:none}
 .bk-src .dl:hover{border-color:var(--ink);color:var(--text-primary)}
 /* 📄 원본 한 쪽 — 종이처럼 가운데에 */
-.pw-orig .bk-pg{padding:0;background:var(--bg-sunken);display:flex;
-  align-items:flex-start;justify-content:center;overflow:auto}
+/* 종이만 놓습니다 — 바탕 칸(테두리 · 회색 · 그림자)은 두지 않습니다.
+   전에는 종이가 840px 에서 멎는데 바탕 칸은 폭을 다 써서, 양옆에
+   회색 띠 둘이 서 있는 것처럼 보였습니다. */
+.pw-orig .bk-pg{padding:0;background:none;border:0;border-radius:0;box-shadow:none;
+  display:flex;align-items:flex-start;justify-content:center;overflow:visible}
 .pw-orig .bk-pg::before{display:none}
-.pdf-box{width:100%;max-width:840px;min-height:340px;display:flex;
+.pw-orig .bk-wrap{display:block;gap:0}
+.pdf-box{width:100%;max-width:none;min-height:340px;display:flex;
   align-items:center;justify-content:center}
 .pdf-box canvas{display:block;border-radius:2px;box-shadow:var(--shadow-md)}
 .pdf-wait{padding:80px 0;font-size:13px;color:var(--text-muted)}
@@ -1414,7 +1418,7 @@ table.itable tr:hover td{background:var(--bg-hover)}
   color:var(--text-muted);word-break:keep-all}
 /* HTML 브랜드북 — 통째로 끼워 넣습니다 (쪽이 없어 안에서 밀어 내립니다) */
 /* 높이는 그 쪽 높이에 맞춰 코드가 정해 줍니다 (한 장만 보이게) */
-.bk-ifr{display:block;width:100%;height:auto;min-height:200px;margin-top:12px;
+.bk-ifr{display:block;width:100%;height:auto;min-height:200px;margin:12px auto 0;
   border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}
 .bk-ifr iframe{display:block;width:100%;height:100%;border:0;background:#fff}
 /* 쪽수 양옆의 작은 넘김 단추 (종이 옆의 큰 빈 칸을 없앴습니다) */
@@ -4226,7 +4230,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260923-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260923-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19204,6 +19208,24 @@ function bookFit(){
   if(box) box.style.height = h + 'px';
   f.style.height = '100%';
   try{ win.scrollTo(0, Math.max(0, Math.round(top))); }catch(e){}
+  /* 종이가 틀보다 좁으면 양옆에 문서의 바탕색(대개 회색)이 비어져
+     나옵니다. 틀을 종이 폭에 맞춰 줄이고 가운데에 놓습니다.
+     문서가 폭에 따라 모양을 바꾸는(반응형) 것이면 줄인 뒤 폭이 또
+     달라집니다 — 그때는 건드리지 않고 그대로 둡니다. */
+  if(box && !bookFitW){
+    bookFitW = 1;
+    try{
+      box.style.maxWidth = '';
+      const full = box.getBoundingClientRect().width;
+      const pw = ps[i].getBoundingClientRect().width;
+      if(pw > 40 && full - pw > 8){
+        box.style.maxWidth = Math.ceil(pw) + 'px';
+        const now = ps[i].getBoundingClientRect().width;
+        if(Math.abs(now - pw) > 2) box.style.maxWidth = '';   // 모양이 바뀌면 되돌립니다
+      }
+    }catch(e){}
+    bookFitW = 0;
+  }
   const nm = document.getElementById('bkNo');
   if(nm) nm.textContent = (i + 1) + ' / ' + ps.length;
   bookNav(); bookTh(i + 1, ps.length);
@@ -19240,6 +19262,7 @@ function bookArm(){
   bookFit();
 }
 let bookFitAt = 0;
+let bookFitW = 0;
 
 /* ── 옆으로 밀어 넘기기 ──────────────────────────────────────────
    손가락 · 트랙패드 · 마우스 끌기 — 어느 쪽으로 밀어도 넘어갑니다.

@@ -1463,6 +1463,23 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .turn-f{animation:bkflipF .26s cubic-bezier(.22,.61,.36,1)}
 .turn-b{animation:bkflipB .26s cubic-bezier(.22,.61,.36,1)}
 @media(prefers-reduced-motion:reduce){ .turn-f,.turn-b{animation:none} }
+/* 맨 위 — 누가 · 언제 고쳤나 */
+.bk-whowrap{margin-top:8px}
+.bk-who{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:7px 11px;
+  border:1px solid var(--border);border-radius:9px;background:var(--bg-secondary);
+  font-size:12px;color:var(--text-secondary)}
+.bk-who b{font-weight:750;color:var(--text-primary)}
+.bk-who i{font-style:normal;font-size:10.5px;font-weight:650;padding:1px 7px;
+  border-radius:999px;background:var(--bg-page);border:1px solid var(--border);
+  color:var(--text-muted)}
+.bk-who .qt{color:var(--text-muted)}
+/* 옆 사람이 방금 고쳤다는 알림 */
+.bk-new{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px;
+  padding:8px 11px;border:1px solid var(--blue);border-radius:9px;
+  background:rgba(59,130,246,.08);font-size:12.5px;color:var(--text-primary)}
+.bk-new.warn{border-color:var(--red);background:rgba(239,68,68,.09)}
+.bk-new b{font-weight:750}
+.bk-new button{margin-left:4px}
 /* ✎ 이대로 고치기 — 원본 모양 그대로 손보는 줄 */
 .bk-ed{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px}
 .bk-ed button{padding:6px 11px;border:1px solid var(--border);border-radius:8px;
@@ -4258,7 +4275,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260923-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260927-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5051,6 +5068,8 @@ function restoreUI(snap){
    ------------------------------------------------------------------ */
 function bgRender(){
   const live = document.getElementById('bkIfr') || document.getElementById('pdfBox');
+  /* 옆 사람이 이 책을 고쳤으면 그것부터 처리합니다 */
+  if(live && bookWatch()) return;
   if(live){
     /* 펴 놓은 책이 그대로면 그냥 둡니다 */
     const b = currentBrand();
@@ -19123,6 +19142,8 @@ function bookTurnBar(id){
     + '</div>';
 }
 function bookViewHtml(b, bk){
+  /* 이 브랜드를 열 때, 지금이 어느 기록까지인지 적어 둡니다 */
+  if(bk && bookSeenAt !== b.id){ bookSeenAt = b.id; bookSeen = bookLastId(); bookAlert = null; }
   if(!bk){
     return '<div class="pw"><div class="pw-none">브랜드북이 아직 없습니다.'
       + '<br><span>위 <b>[📗 브랜드북 올리기]</b> 로 PDF 나 HTML 을 올리면 '
@@ -19490,7 +19511,8 @@ async function bookSave(){
     if(r.filePath && r.filePath !== bk.filePath){ bk.filePath = r.filePath; markDirty(b.id); }
     bk.size = html.length;
     bookLogAdd(b, '고침', bk.name);
-    bookDirty = false; bookBtns();
+    bookDirty = false; bookAlert = null; bookSeen = bookLastId();
+    bookBtns(); bookWhoPaint();
     toast('💾 브랜드북을 고쳐 썼습니다 — 고치기 전 것은 🗑 휴지통에 있습니다');
   }catch(e){
     alert('저장하지 못했습니다.\n\n' + apiErrText(e));
@@ -19569,9 +19591,113 @@ function pdfTh(no, n){
 }
 /* 넘기기 단추를 지금 쪽수에 맞춥니다 (다시 그리지 않고 단추만 손봅니다) */
 function pdfNav(){ bookNav(); }
+/* ── 옆 사람이 고치면 바로 알려 줍니다 ─────────────────────────
+   같은 파일을 여럿이 고치므로, 모르고 읽거나 모르고 덮어쓰는 일이
+   생깁니다. 옆 사람의 저장이 들어오면 (1) 읽고만 있으면 새 것으로
+   조용히 갈아 끼우고, (2) 고치는 중이면 <<덮어쓰지 않게>> 붙잡습니다.
+   --------------------------------------------------------------- */
+let bookSeen  = '';     // 지금 화면에 반영된 마지막 기록
+let bookAlert = null;   // {by, at, act} — 옆 사람이 방금 한 일
+let bookSeenAt = '';    // 어느 브랜드에 대해 적어 둔 것인가
+
+function bookAlertHtml(){
+  const a = bookAlert; if(!a) return '';
+  return '<div class="bk-new' + (bookDirty ? ' warn' : '') + '">'
+    + '<b>' + esc(a.by || '다른 분') + '</b> 님이 ' + esc(bookWhenText(a.at))
+    + ' 브랜드북을 ' + (a.act === '고침' ? '고쳤습니다' : '새로 올렸습니다')
+    + (bookDirty
+        ? ' — 지금 저장하면 <b>그분이 고친 것을 덮어씁니다</b>.'
+          + '<button class="btn sm" onclick="bookTakeNew()">그분 것으로 받기</button>'
+          + '<button class="btn sm" onclick="bookAlertOff()">그래도 내 것으로</button>'
+        : '<button class="btn sm primary" onclick="bookTakeNew()">새로 보기</button>')
+    + '</div>';
+}
+function bookAlertOff(){ bookAlert = null; bookSeen = bookLastId(); bookWhoPaint(); }
+function bookTakeNew(){
+  if(bookDirty && !confirm('내가 고친 것을 버리고 그분이 고친 것을 받아옵니다.')) return;
+  bookAlert = null; bookEdit = false; bookDirty = false;
+  bookVer++; bookIfr = null; bookSeen = bookLastId();
+  render();
+  toast('📖 방금 고친 것으로 새로 폈습니다');
+}
+function bookLastId(){
+  const b = currentBrand(); if(!b) return '';
+  const L = bookLogOf(b);
+  return L.length ? String(L[0].id) : '';
+}
+/* 옆 사람 저장이 들어왔을 때 부릅니다 (bgRender 가 가려 냅니다) */
+function bookWatch(){
+  const b = currentBrand(); if(!b) return false;
+  const L = bookLogOf(b);
+  const now = L.length ? String(L[0].id) : '';
+  if(!now || now === bookSeen) return false;
+  /* 내가 방금 한 일이면 알릴 것이 없습니다 */
+  if(L[0].by && L[0].by === myName() && !bookSeen){ bookSeen = now; return false; }
+  if(!bookSeen){ bookSeen = now; return false; }     // 처음 열 때
+  if(L[0].by === myName()){ bookSeen = now; return false; }
+  /* 읽고만 있으면 조용히 새 것으로 */
+  if(!bookEdit && !bookDirty){
+    bookAlert = { by: L[0].by, at: L[0].at, act: L[0].act };
+    bookSeen = now;
+    bookVer++; bookIfr = null;
+    render();
+    toast('📖 ' + (L[0].by || '다른 분') + '님이 방금 브랜드북을 '
+      + (L[0].act === '고침' ? '고쳤습니다' : '새로 올렸습니다') + ' — 새로 폈습니다');
+    return true;
+  }
+  /* 고치는 중이면 붙잡습니다 — 모르고 덮어쓰면 그분 것이 사라집니다 */
+  bookAlert = { by: L[0].by, at: L[0].at, act: L[0].act };
+  bookSeen = now;
+  bookWhoPaint();
+  toast('⚠️ ' + (L[0].by || '다른 분') + '님이 방금 같은 브랜드북을 고쳤습니다');
+  return true;
+}
+/* ── 맨 위 「누가 · 언제 고쳤나」 줄 ─────────────────────────────
+   같은 파일을 여럿이 고칩니다. 열었을 때 이것이 언제 것인지 · 마지막에
+   누가 손댔는지를 모르면, 옆 사람이 방금 바꿔 놓은 것을 모르고 읽거나
+   덮어쓰게 됩니다. 그래서 책 맨 위에 늘 적어 둡니다.
+   --------------------------------------------------------------- */
+function bookWhenText(iso){
+  if(!iso) return '';
+  const t = new Date(iso);
+  if(isNaN(t)) return '';
+  const gap = Math.floor((Date.now() - t.getTime()) / 1000);
+  if(gap < 60)    return '방금';
+  if(gap < 3600)  return Math.floor(gap / 60) + '분 전';
+  if(gap < 86400) return Math.floor(gap / 3600) + '시간 전';
+  return sinceText(iso);
+}
+function bookWhoHtml(b){
+  const L = bookLogOf(b);
+  const x = L[0];
+  if(!x) return '<div class="bk-who" id="bkWho"><span class="qt">아직 손댄 기록이 없습니다</span></div>';
+  const t = new Date(x.at);
+  const when = isNaN(t) ? ''
+    : t.toLocaleString('ko-KR', { month:'numeric', day:'numeric',
+                                  hour:'2-digit', minute:'2-digit' });
+  return '<div class="bk-who" id="bkWho" data-log="' + esc(x.id) + '">'
+    + '<b>' + (x.act === '고침' ? '✎' : '📗') + ' ' + esc(x.by || '이름 없음') + '</b>'
+    + '<span>님이 ' + esc(when) + ' 에 '
+      + (x.act === '고침' ? '고쳤습니다' : '올렸습니다') + '</span>'
+    + '<i>' + esc(bookWhenText(x.at)) + '</i>'
+    + (L.length > 1 ? '<span class="qt">· 이 책에 손댄 기록 ' + L.length + '번</span>' : '')
+    + '</div>';
+}
+/* 줄만 갈아 끼웁니다 — 화면을 다시 그리면 읽던 책이 새로 열립니다 */
+function bookWhoPaint(){
+  const el = document.getElementById('bkWho');
+  const b = currentBrand();
+  if(!el || !b) return;
+  const box = el.parentNode;
+  if(box) box.innerHTML = bookWhoHtml(b)
+    + (bookAlert ? bookAlertHtml() : '');
+}
 function bookOrigHtml(b, bk){
   const top = '<div class="pw-top"><div class="pw-nm">' + esc(b.icon || '🏷️') + ' '
     + esc(b.name) + ' — ' + esc(bk.name) + '</div>';
+  /* 맨 위 — 누가 · 언제 고쳤나 (+ 옆 사람이 방금 고쳤다는 알림) */
+  const whoBar = '<div class="bk-whowrap">' + bookWhoHtml(b)
+    + (bookAlert ? bookAlertHtml() : '') + '</div>';
 
   /* HTML 브랜드북은 그대로 끼워 넣기만 하면 됩니다 — 글꼴도 색도 표도
      만든 그대로 삽니다. 안의 스크립트는 서버(files.php)와 sandbox 두 겹으로
@@ -19585,6 +19711,7 @@ function bookOrigHtml(b, bk){
       + bookEdHtml() + '</div>';
     return '<div class="pw pw-bk pw-orig' + (bookEdit ? ' bk-on' : '') + '">'
       + top + bookTurnBar('bkNo') + '</div>'
+      + whoBar
       + edBar
       /* PDF 와 똑같이 — 양옆 단추로 한 장씩 넘깁니다 */
       + '<div class="bk-wrap">'
@@ -19609,6 +19736,7 @@ function bookOrigHtml(b, bk){
   /* 이름이 pw-orig 인 까닭: .pw-src 는 이미 「출처」 줄이 쓰고 있습니다 */
   return '<div class="pw pw-bk pw-orig">'
     + top + bookTurnBar('pdfNo') + '</div>'
+    + whoBar
     + '<div class="bk-wrap">'
       + bookSideBtn(-1)
       + '<div class="bk-pg">'

@@ -24,10 +24,11 @@ const CLAUDE_PRICE = [
 ]
 const MAX_SOURCE_CHARS = 300000       // 자료 1개 본문 최대 글자 수 (PDF·PPT 에서 뽑은 글자 포함)
 const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
-const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'submitting', 'rendering']
+const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
 const DEFAULT_SETTINGS = {
   avatarId: '', avatarType: 'avatar', voiceId: 'fdd91d5eb0654e45a8b216b3f2c86eca',
   avatarName: '조현식 이사', consent: false, consentAt: '', maxDailyJobs: 5,
+  imageModel: 'gpt-image-1', autoRender: true,
 }
 
 export default {
@@ -96,7 +97,7 @@ const ACTIONS = {
     const prev = await getSettings(env)
     const consent = s.consent === true
     const data = {
-      builtinOff: prev.builtinOff || [],
+      builtinOff: prev.builtinOff || [], imageModel: prev.imageModel || DEFAULT_SETTINGS.imageModel, autoRender: prev.autoRender !== false,
       avatarId, voiceId, maxDailyJobs: max, consent,
       avatarType: s.avatarType === 'talking_photo' ? 'talking_photo' : 'avatar',
       avatarName: String(s.avatarName || DEFAULT_SETTINGS.avatarName).slice(0, 80),
@@ -156,6 +157,71 @@ const ACTIONS = {
     return { url: env.SUPABASE_URL + '/storage/v1' + signed + '&download=' + encodeURIComponent(src.file.name || '') }
   },
 
+  // ── 사진 자료실 ──
+  // 브라우저가 uploadUrl 로 사진을 올린 뒤 호출 → AI(Claude)가 사진 설명을 자동으로 붙인다
+  async photo(env, { path, name }) {
+    if (!/^files\/[0-9a-f-]{36}\/file\.(jpg|jpeg|png|webp)$/.test(String(path))) throw new HttpError(400, '사진 경로가 올바르지 않습니다.')
+    let desc = '', tags = []
+    try {
+      const url = await signedUrl(env, path, 600)
+      const st = await state(env, { raw: true })
+      if (st.readiness.claude) {
+        const r = await callClaudeContent(await getKey(env, 'claude'), st.secrets.claude.model, PHOTO_SYSTEM,
+          [{ type: 'image', source: { type: 'url', url } }, { type: 'text', text: '이 사진을 설명해 주세요.' }], PHOTO_SCHEMA)
+        desc = String(r.desc || '').slice(0, 300); tags = (r.tags || []).map(String).slice(0, 10)
+      }
+    } catch (e) { desc = '' }
+    const item = { id: 'p' + crypto.randomUUID().replace(/-/g, '').slice(0, 10), path, name: String(name || '').slice(0, 200), desc, tags, source: 'upload', created: now() }
+    await mutate(env, 'photos', [], (list) => { list.unshift(item) })
+    return { photo: item, state: await state(env) }
+  },
+  async photoUpdate(env, { id, desc }) {
+    await mutate(env, 'photos', [], (list) => {
+      const p = list.find((x) => x.id === id)
+      if (!p) throw new HttpError(404, '사진을 찾을 수 없습니다.')
+      p.desc = String(desc || '').slice(0, 300)
+    })
+    return state(env)
+  },
+  async photoDelete(env, { id }) {
+    let path = ''
+    await mutate(env, 'photos', [], (list) => {
+      const i = list.findIndex((x) => x.id === id)
+      if (i < 0) throw new HttpError(404, '사진을 찾을 수 없습니다.')
+      path = list[i].path; list.splice(i, 1)
+    })
+    await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${encodePath(path)}`, { method: 'DELETE', headers: storageHeaders(env) }).catch(() => {})
+    return state(env)
+  },
+  // 화면 표시용 사진 주소 (1시간)
+  async photoUrls(env, { ids }) {
+    const photos = await readJSON(env, 'photos', [])
+    const want = new Set((ids || []).slice(0, 300))
+    const out = {}
+    await Promise.all(photos.filter((p) => want.has(p.id)).map(async (p) => { out[p.id] = await signedUrl(env, p.path, 3600).catch(() => '') }))
+    return { urls: out }
+  },
+  // 영상 구성 설정 (AI 이미지 모델, 검수 통과 후 자동 제작 여부)
+  async prefs(env, { imageModel, autoRender }) {
+    await mutate(env, 'settings', {}, (st) => {
+      st.imageModel = String(imageModel || DEFAULT_SETTINGS.imageModel).trim().slice(0, 60)
+      st.autoRender = autoRender !== false
+    })
+    return state(env)
+  },
+  // '미리보기 후 제작' 모드에서 준비가 끝난 작업을 HeyGen 제작으로 넘긴다
+  async render(env, { id }) {
+    let row = null
+    await mutate(env, 'jobs', [], (list) => {
+      row = list.find((j) => j.id === id)
+      if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
+      if (row.status !== 'ready') throw new HttpError(409, '제작 대기 상태의 작업만 제작을 요청할 수 있습니다.')
+      row.status = 'submitting'; row.step = 6
+      row.data.events.push(ev('HeyGen 제작 요청 (미리보기 확인 후)'))
+    })
+    return { job: toJob(row) }
+  },
+
   // HeyGen 남은 크레딧
   async quota(env) {
     return { heygen: await heygenQuota(await getKey(env, 'heygen')) }
@@ -200,7 +266,8 @@ const ACTIONS = {
     const row = {
       id: crypto.randomUUID(), request_id: rid, status: 'queued', step: 0, revision: 0, input: inp, created_by: user.id,
       created_at: now(), locked_until: null,
-      data: { models, memory, promptVersion: PROMPT_VERSION, events: [ev('제작 요청 접수 · 승인 자료 검색 대기')] },
+      data: { models, memory, promptVersion: PROMPT_VERSION, events: [ev('제작 요청 접수 · 승인 자료 검색 대기')],
+        photoCatalog: (st.photos || []).map((p) => ({ id: p.id, desc: p.desc, name: p.name })) },
     }
     await mutate(env, 'jobs', [], (list) => { list.unshift(row); list.splice(100) })
     return { job: toJob(row) }
@@ -290,7 +357,7 @@ async function runStep(env, job) {
     const issues = allIssues(d)
     if (!issues.length) {
       d.events.push(ev('교차 검수 통과: 양쪽 4항목 90점 이상 · 지적 0건 · 인용 원문 일치'))
-      job.step = 5; job.status = 'submitting'
+      job.step = 5; job.status = 'preparing'
     } else if (job.revision < MAX_REVISIONS) {
       d.pendingIssues = issues
       d.events.push(ev(`검수 미통과(지적 ${issues.length}건) → 자동 수정 ${job.revision + 1}/${MAX_REVISIONS}`))
@@ -315,8 +382,32 @@ async function runStep(env, job) {
     return
   }
 
-  // 5) HeyGen 제작 요청 (중복 제작 방지: 요청 전에 '시도함'을 먼저 저장)
-  if (job.step === 5) {
+  // 5) 장면 이미지 준비 — 사진 자료실에 맞는 사진이 없는 컷은 AI 이미지를 한 장씩 만든다 (한 번 호출에 1장)
+  if (job.status === 'preparing') {
+    const cut = allCuts(d.plan).find((c) => !c.photoId && c.imagePrompt && !c.aiPhotoId && !c.imageFailed)
+    if (cut) {
+      try {
+        const photo = await generateImage(env, openaiKey, st.settings.imageModel || DEFAULT_SETTINGS.imageModel, cut.imagePrompt, job.input.ratio, d)
+        cut.aiPhotoId = photo.id
+        d.events.push(ev(`AI 이미지 생성: ${cut.imagePrompt.slice(0, 40)}…`))
+      } catch (e) {
+        cut.imageFailed = String((e && e.message) || e).slice(0, 200)
+        d.events.push(ev('AI 이미지 생성 실패 → 이 컷은 브랜드 카드로 표시: ' + cut.imageFailed))
+      }
+      d.prompt = heygenPrompt(job, d.plan, st.photos)
+      return
+    }
+    d.events.push(ev(`장면 이미지 준비 완료: 컷 ${allCuts(d.plan).length}개 (사진 ${allCuts(d.plan).filter((c) => c.photoId).length} · AI 이미지 ${allCuts(d.plan).filter((c) => c.aiPhotoId).length} · 브랜드 카드 ${allCuts(d.plan).filter((c) => !c.photoId && !c.aiPhotoId).length})`))
+    job.step = 6
+    if (st.settings.autoRender === false) {
+      job.status = 'ready'
+      d.events.push(ev('미리보기 후 제작 모드: 무료 미리보기로 확인한 뒤 ‘HeyGen 제작 요청’을 눌러 주세요.'))
+    } else job.status = 'submitting'
+    return
+  }
+
+  // 6) HeyGen 제작 요청 (중복 제작 방지: 요청 전에 '시도함'을 먼저 저장)
+  if (job.status === 'submitting') {
     if (!st.settings.consent || !st.settings.avatarId || !st.settings.voiceId) throw new Error('아바타 사용 동의·아바타·음성 설정이 필요합니다.')
     if (allIssues(d).length) throw new Error('검수 통과 기록이 없어 제작을 요청하지 않았습니다.')
     if (d.submitAttempted && !d.videoId) {
@@ -335,7 +426,7 @@ async function runStep(env, job) {
       res = await fetch('https://api.heygen.com/v2/video/generate', {
         method: 'POST',
         headers: { 'X-Api-Key': heygenKey, 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify(heygenPayload(job, st.settings)),
+        body: JSON.stringify(heygenPayload(job, st.settings, await cutMedia(env, d.plan, st.photos, 7 * 86400))),
       })
     } catch (e) {
       job.status = 'uncertain'
@@ -353,12 +444,12 @@ async function runStep(env, job) {
     }
     d.videoId = videoId
     d.events.push(ev(`HeyGen 제작 접수 (video_id ${videoId})`))
-    job.step = 6; job.status = 'rendering'
+    job.step = 7; job.status = 'rendering'
     return
   }
 
-  // 6) 렌더링 상태 확인
-  if (job.step === 6) {
+  // 7) 렌더링 상태 확인
+  if (job.status === 'rendering') {
     const heygenKey = await getKey(env, 'heygen')
     const res = await fetch('https://api.heygen.com/v1/video_status.get?video_id=' + encodeURIComponent(d.videoId), {
       headers: { 'X-Api-Key': heygenKey, accept: 'application/json' },
@@ -374,7 +465,7 @@ async function runStep(env, job) {
       d.videoUrl = v.video_url
       d.actualSeconds = v.duration ? Math.round(Number(v.duration)) : null
       d.events.push(ev(`영상 생성 완료${d.actualSeconds ? ` · 실제 길이 ${d.actualSeconds}초` : ''}`))
-      job.step = 7; job.status = 'rendered'
+      job.step = 8; job.status = 'rendered'
     } else if (v.status === 'failed') {
       job.status = 'failed'
       d.error = 'HeyGen 영상 생성 실패: ' + ((v.error && (v.error.message || v.error.detail || v.error.code)) || '원인 미상')
@@ -392,9 +483,26 @@ function applyPlan(job, plan, st) {
   plan.title = String(plan.title || job.input.keywords).slice(0, 120)
   plan.blockers = (plan.blockers || []).map(String).filter(Boolean)
   if (plan.scenes.length < 2 || plan.scenes.length > 16) problems.push(`장면 수는 2~16개여야 합니다(현재 ${plan.scenes.length}개).`)
+  const photoIds = new Set((st.photos || []).map((p) => p.id))
+  const useCount = {}
+  let lastPhoto = ''
   plan.scenes.forEach((s, i) => {
     s.seconds = Math.max(1, Math.min(120, Math.round(Number(s.seconds) || 0)))
-    s.narration = String(s.narration || '').slice(0, 1600)
+    // 컷: 대사 일부 + 화면 1개(사진 자료실 사진 / AI 생성 이미지 / 브랜드 카드)
+    s.cuts = (Array.isArray(s.cuts) && s.cuts.length ? s.cuts : [{ narration: s.narration || '', photoId: '', imagePrompt: '' }]).map((c) => ({
+      narration: String(c.narration || '').slice(0, 800), photoId: String(c.photoId || ''), imagePrompt: String(c.imagePrompt || '').slice(0, 600),
+    }))
+    if (s.cuts.length > 6) problems.push(`장면 ${i + 1}: 컷은 6개까지만 가능합니다(현재 ${s.cuts.length}개).`)
+    s.cuts.forEach((c, k) => {
+      if (!c.narration) problems.push(`장면 ${i + 1} 컷 ${k + 1}: 대사가 비어 있습니다.`)
+      if (c.photoId && !photoIds.has(c.photoId)) { problems.push(`장면 ${i + 1} 컷 ${k + 1}: 사진 자료실에 없는 사진 id(${c.photoId})입니다.`); c.photoId = '' }
+      if (c.photoId) {
+        if (c.photoId === lastPhoto) problems.push(`장면 ${i + 1} 컷 ${k + 1}: 같은 사진을 연속 컷에 썼습니다.`)
+        useCount[c.photoId] = (useCount[c.photoId] || 0) + 1
+      }
+      lastPhoto = c.photoId
+    })
+    s.narration = s.cuts.map((c) => c.narration).join(' ').slice(0, 1600)
     s.onScreen = String(s.onScreen || '').slice(0, 100)
     s.visual = String(s.visual || '').slice(0, 500)
     s.citations = Array.isArray(s.citations) ? s.citations : []
@@ -406,13 +514,16 @@ function applyPlan(job, plan, st) {
       else if (String(c.quote || '').length < 12 || !norm(src.content).includes(norm(c.quote))) problems.push(`장면 ${i + 1} 근거 ${k + 1}: 인용문이 원문과 일치하지 않습니다.`)
     })
   })
+  Object.entries(useCount).filter(([, n]) => n > 2).forEach(([id]) => problems.push(`같은 사진(${id})을 3번 이상 썼습니다.`))
+  if (allCuts(plan).length > 45) problems.push(`컷이 너무 많습니다(${allCuts(plan).length}개, 최대 45개).`)
   const total = plan.scenes.reduce((a, s) => a + s.seconds, 0)
   if (Math.abs(total - job.input.seconds) > Math.max(15, job.input.seconds * 0.25)) problems.push(`장면 길이 합계(${total}초)가 목표 ${job.input.seconds}초와 크게 다릅니다.`)
   problems.push(...termIssues(plan))
   d.plan = plan
   d.groundingIssues = problems
-  d.prompt = heygenPrompt(job, plan)
+  d.prompt = heygenPrompt(job, plan, st.photos)
 }
+function allCuts(plan) { return plan ? plan.scenes.flatMap((s) => s.cuts || []) : [] }
 
 function allIssues(d) {
   const out = []
@@ -446,11 +557,24 @@ function draftSystem() {
     '2. 모든 장면에 citations 를 1개 이상 달고, quote 는 해당 자료 원문에서 12자 이상을 글자 그대로 복사합니다(띄어쓰기 포함, 요약·수정 금지). sourceId 는 자료의 id 를 그대로 씁니다.',
     '3. 자료가 "계획/목표/기획"이라고 표시한 내용은 현재 제공 중인 실적처럼 말하지 말고 계획으로 표현합니다.',
     '4. 장면 seconds 합계가 목표 길이에 가깝게 합니다. 한국어 발화는 1초에 약 4~5글자로 계산합니다.',
-    '5. onScreen 은 화면 자막(짧은 핵심 문구, 30자 이내), visual 은 화면 구성 지시입니다.',
+    '5. onScreen 은 장면의 핵심 문구(30자 이내, 브랜드 카드에 크게 표시), visual 은 장면 전체의 화면 구성 설명입니다.',
     '6. 근거가 부족해 목표 길이·주제를 정직하게 채울 수 없으면 blockers 에 이유를 적습니다(억지로 채우지 않음).',
     '7. 과장·단정적 효과 보장·타사 비방·확인되지 않은 법적 판단은 쓰지 않습니다.',
     termRules(),
+    cutRules(),
   ].join('\n')
+}
+function cutRules() {
+  return [
+    '11. [컷 구성] 각 장면을 대사 흐름에 맞춰 1~5개 cuts 로 나눕니다. 컷마다 화면(그림) 하나가 나오고, 대사가 넘어가는 지점에서 그림이 바뀝니다. 컷 하나의 대사는 2~6초 분량입니다. 장면의 대사 전체는 컷 대사를 이어 붙인 것입니다.',
+    '12. [사진 배정] [사진 자료실] 목록에서 컷 대사와 정확히 맞는 사진이 있으면 photoId 에 그 id 를 넣고 imagePrompt 는 빈 문자열로 둡니다. 같은 사진을 연속 컷에 쓰지 않고, 한 영상에서 같은 사진은 2번까지만 씁니다. 설명이 맞지 않는 사진을 억지로 쓰지 않습니다.',
+    '13. [AI 이미지] 맞는 사진이 없고 구체적인 모습(현장·하자·장비·서류·회의 등)이 필요하면 photoId 는 빈 문자열, imagePrompt 에 만들 이미지를 한국어로 구체적으로 적습니다: 실사 사진 스타일, 한국 아파트, 글자·숫자·로고·워터마크 없음, 사람 얼굴은 알아볼 수 없게, [하자 실제 크기·모습 기준]과 [하자 현상 물리 지식]의 실제 크기·모습을 지킵니다. AI 이미지를 실제 사례·현장 사진이라고 말하지 않습니다.',
+    '14. [브랜드 카드] 인사·브랜드 메시지·정체 표기·연락처·마무리처럼 그림이 필요 없는 컷은 photoId 와 imagePrompt 를 모두 빈 문자열로 둡니다. 이 컷은 브랜드북 기준(화이트 배경, 네이비 글자, Pretendard)으로 장면의 onScreen 문구를 크게 보여 줍니다.',
+  ].join('\n')
+}
+function photoBlock(photos) {
+  const list = (photos || []).slice(0, 300)
+  return list.length ? list.map((p) => `- ${p.id}: ${(p.desc || p.name || '설명 없음').replace(/\s+/g, ' ').slice(0, 160)}`).join('\n') : '(등록된 사진 없음 — 필요한 컷은 imagePrompt 로 AI 이미지를 요청하세요)'
 }
 function termRules() {
   const sp = T.spelling.map((x) => `${x.wrong}→${x.right}`).join(', ')
@@ -481,7 +605,7 @@ function briefBlock(job) {
 }
 function draftUser(job, d) {
   const mem = (d.memory || []).length ? `\n\n[지난 제작 형식 참고(사실은 가져오지 말 것)]\n${d.memory.join('\n')}` : ''
-  return `${briefBlock(job)}${mem}\n\n[승인 자료]\n${contextBlock(d)}\n\n위 규칙에 따라 영상 제목과 장면별 대본을 작성하세요.`
+  return `${briefBlock(job)}${mem}\n\n[승인 자료]\n${contextBlock(d)}\n\n[사진 자료실] (id: 설명)\n${photoBlock(d.photoCatalog)}\n\n위 규칙에 따라 영상 제목과 장면별 대본·컷을 작성하세요.`
 }
 function reviseUser(job, d) {
   return `${draftUser(job, d)}\n\n[직전 대본]\n${JSON.stringify(d.plan)}\n\n[검수 지적 사항 — 모두 해결하세요]\n${(d.pendingIssues || []).map((x) => '- ' + x).join('\n')}\n\n지적 사항을 반영해 대본 전체를 다시 작성하세요. 해결할 수 없으면 blockers 에 이유를 적으세요.`
@@ -493,7 +617,7 @@ function reviewSystem() {
     '- grounding: 모든 주장·수치가 [승인 자료]로 뒷받침되는가. 자료에 없는 사실이 하나라도 있으면 60점 이하.',
     '- brand: 아파트스퀘어(감리 전문, 신뢰·정확성)와 발표자(조현식 이사) 어조에 맞고 과장·보장·비방이 없는가. 사내 용어 사전의 표기·금지어를 지켰는가. POUR 등 다른 회사·브랜드를 언급하면 60점 이하.',
     '- clarity: 시청 대상이 이해하기 쉽고 논리적 비약 없이 전달되는가.',
-    '- production: HeyGen 아바타 영상으로 바로 제작 가능한가(장면 길이 합계, 발화량, 자막 길이, 화면 지시).',
+    '- production: HeyGen 아바타 영상으로 바로 제작 가능한가(장면 길이 합계, 발화량, 컷 길이). 컷마다 배정한 사진 설명·AI 이미지 요청이 그 컷 대사와 정확히 맞는가, 같은 그림이 반복되지 않는가, AI 이미지 요청이 하자 실제 크기·모습 기준을 지키는가.',
     'issues 에는 반드시 고쳐야 하는 중대 지적만 한국어로 적습니다(없으면 빈 배열). 사소한 취향은 적지 않습니다.',
     'pass 는 네 항목이 모두 90점 이상이고 issues 가 비어 있을 때만 true 입니다.',
     '브랜드 점수는 아래 브랜드북 규칙을 기준으로 매기고, 어긴 규칙은 issues 에 적습니다.',
@@ -501,9 +625,10 @@ function reviewSystem() {
   ].join('\n')
 }
 function reviewUser(job, d) {
-  return `${briefBlock(job)}\n\n[승인 자료]\n${contextBlock(d)}\n\n[검수 대상 대본]\n${JSON.stringify(d.plan)}\n\n[HeyGen 에 전달할 프롬프트]\n${d.prompt}\n\n위 대본과 프롬프트를 평가하세요.`
+  return `${briefBlock(job)}\n\n[승인 자료]\n${contextBlock(d)}\n\n[사진 자료실] (id: 설명)\n${photoBlock(d.photoCatalog)}\n\n[검수 대상 대본]\n${JSON.stringify(d.plan)}\n\n[컷 구성 요약]\n${d.prompt}\n\n위 대본과 컷 구성을 평가하세요.`
 }
-function heygenPrompt(job, plan) {
+function heygenPrompt(job, plan, photos) {
+  const byId = Object.fromEntries((photos || []).map((p) => [p.id, p]))
   const i = job.input
   const lines = [
     `# ${plan.title}`,
@@ -516,25 +641,48 @@ function heygenPrompt(job, plan) {
     lines.push(`## 장면 ${k + 1} (${s.seconds}초)`)
     lines.push(`자막: ${s.onScreen}`)
     lines.push(`화면: ${s.visual}`)
-    lines.push(`대사: ${s.narration}`)
+    ;(s.cuts || []).forEach((c, j) => {
+      const pic = c.photoId ? `사진 ${c.photoId}: ${(byId[c.photoId] || {}).desc || ''}` : c.aiPhotoId ? `AI 생성 이미지: ${c.imagePrompt}` : c.imagePrompt ? `AI 이미지 생성 예정: ${c.imagePrompt}` : `브랜드 카드: ${s.onScreen}`
+      lines.push(`- 컷 ${j + 1} [${pic}] ${c.narration}`)
+    })
     lines.push('')
   })
   return lines.join('\n').trim()
 }
-function heygenPayload(job, settings) {
+// 컷마다 video_input 하나: 사진이 있으면 배경 사진 + 아바타를 작게(가로형 왼쪽 아래 / 세로형 아래), 없으면 브랜드 카드(화이트) + 아바타
+function heygenPayload(job, settings, media) {
   const plan = job.data.plan
-  const character = settings.avatarType === 'talking_photo'
+  const vertical = job.input.ratio === '9:16'
+  const base = settings.avatarType === 'talking_photo'
     ? { type: 'talking_photo', talking_photo_id: settings.avatarId }
     : { type: 'avatar', avatar_id: settings.avatarId, avatar_style: 'normal' }
+  const inputs = []
+  plan.scenes.forEach((s, i) => (s.cuts || []).forEach((c, j) => {
+    const url = media[`${i}-${j}`]
+    inputs.push({
+      character: url ? { ...base, scale: vertical ? 0.5 : 0.45, offset: vertical ? { x: 0, y: 0.26 } : { x: -0.33, y: 0.22 } } : base,
+      voice: { type: 'text', input_text: c.narration, voice_id: settings.voiceId },
+      background: url ? { type: 'image', url, fit: 'cover' } : { type: 'color', value: '#FFFFFF' },
+    })
+  }))
   return {
     title: `[아파트스퀘어] ${plan.title}`.slice(0, 120),
     caption: true,
-    dimension: job.input.ratio === '9:16' ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 },
-    video_inputs: plan.scenes.map((s) => ({
-      character,
-      voice: { type: 'text', input_text: s.narration, voice_id: settings.voiceId },
-    })),
+    dimension: vertical ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 },
+    video_inputs: inputs,
   }
+}
+// 컷별 그림 주소 (key = '장면-컷')
+async function cutMedia(env, plan, photos, seconds) {
+  const byId = Object.fromEntries((photos || []).map((p) => [p.id, p]))
+  const out = {}
+  const jobs = []
+  ;(plan ? plan.scenes : []).forEach((s, i) => (s.cuts || []).forEach((c, j) => {
+    const p = byId[c.photoId] || byId[c.aiPhotoId]
+    if (p) jobs.push(signedUrl(env, p.path, seconds).then((u) => { out[`${i}-${j}`] = u }).catch(() => {}))
+  }))
+  await Promise.all(jobs)
+  return out
 }
 
 const REVIEW_SCHEMA = {
@@ -550,6 +698,13 @@ const REVIEW_SCHEMA = {
   required: ['pass', 'grounding', 'brand', 'clarity', 'production', 'issues'],
   additionalProperties: false,
 }
+const PHOTO_SYSTEM = '아파트 유지보수 감리 회사의 영상 제작용 사진 자료실입니다. 사진에 보이는 것을 한국어 한두 문장으로 구체적으로 설명합니다(무엇·어디·상태·촬영 방식: 예) 드론으로 찍은 아파트 외벽 전경, 도막이 들뜬 외벽 근접 사진, 앱 화면 캡처, 회의실 서류). 보이지 않는 사실은 추측하지 않습니다. tags 는 짧은 키워드 3~8개.'
+const PHOTO_SCHEMA = {
+  type: 'object',
+  properties: { desc: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } } },
+  required: ['desc', 'tags'],
+  additionalProperties: false,
+}
 const PLAN_SCHEMA = {
   type: 'object',
   properties: {
@@ -560,9 +715,17 @@ const PLAN_SCHEMA = {
         type: 'object',
         properties: {
           seconds: { type: 'integer' },
-          narration: { type: 'string' },
           onScreen: { type: 'string' },
           visual: { type: 'string' },
+          cuts: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: { narration: { type: 'string' }, photoId: { type: 'string' }, imagePrompt: { type: 'string' } },
+              required: ['narration', 'photoId', 'imagePrompt'],
+              additionalProperties: false,
+            },
+          },
           citations: {
             type: 'array',
             items: {
@@ -573,7 +736,7 @@ const PLAN_SCHEMA = {
             },
           },
         },
-        required: ['seconds', 'narration', 'onScreen', 'visual', 'citations'],
+        required: ['seconds', 'onScreen', 'visual', 'cuts', 'citations'],
         additionalProperties: false,
       },
     },
@@ -608,6 +771,53 @@ async function callClaude(key, model, system, user, schema, d) {
   if (out.stop_reason === 'max_tokens') throw new Error('Claude 응답이 길이 제한으로 잘렸습니다.')
   const text = (out.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')
   try { return JSON.parse(text) } catch (e) { throw new Error('Claude 응답을 해석하지 못했습니다(구조화 출력을 지원하는 모델인지 확인해 주세요).') }
+}
+
+async function callClaudeContent(key, model, system, content, schema) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': ANTHROPIC_VERSION, 'content-type': 'application/json' },
+    body: JSON.stringify({ model, max_tokens: 2000, system, messages: [{ role: 'user', content }], output_config: { format: { type: 'json_schema', schema } } }),
+  })
+  const out = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error('Claude 요청 실패: ' + apiError(out, res.status))
+  const text = (out.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')
+  return JSON.parse(text)
+}
+
+// AI 이미지 생성(OpenAI) → 비공개 저장소에 저장 → 사진 자료실에 'AI 생성' 으로 추가(다음 영상에서 재사용)
+async function generateImage(env, key, model, prompt, ratio, d) {
+  const vertical = ratio === '9:16'
+  const dalle = /^dall-e/.test(model)
+  const body = { model, n: 1, prompt: `${prompt}\n\n실사 사진 스타일, 한국 아파트, 자연광. 이미지 안에 글자·숫자·로고·워터마크를 넣지 않습니다. 사람 얼굴은 알아볼 수 없게.`,
+    size: dalle ? (vertical ? '1024x1792' : '1792x1024') : (vertical ? '1024x1536' : '1536x1024') }
+  if (dalle) body.response_format = 'b64_json'
+  const res = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST', headers: { authorization: 'Bearer ' + key, 'content-type': 'application/json' }, body: JSON.stringify(body),
+  })
+  const out = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error('OpenAI 이미지 생성 실패: ' + apiError(out, res.status))
+  const b64 = out.data && out.data[0] && out.data[0].b64_json
+  if (!b64) throw new Error('OpenAI 이미지 응답에 그림이 없습니다.')
+  addUsage(d, 'image', out.usage && out.usage.input_tokens, out.usage && out.usage.output_tokens)
+  const path = `files/${crypto.randomUUID()}/file.png`
+  await ensureBucket(env)
+  const up = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${encodePath(path)}`, {
+    method: 'POST', headers: storageHeaders(env, { 'content-type': 'image/png', 'x-upsert': 'true' }), body: unb64(b64),
+  })
+  if (!up.ok) throw new Error('AI 이미지 저장 실패(' + up.status + ')')
+  const item = { id: 'p' + crypto.randomUUID().replace(/-/g, '').slice(0, 10), path, name: 'AI 생성 이미지', desc: '[AI 생성] ' + prompt.slice(0, 280), tags: ['AI 생성'], source: 'ai', model, created: now() }
+  await mutate(env, 'photos', [], (list) => { list.unshift(item) })
+  return item
+}
+async function signedUrl(env, path, seconds) {
+  const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${encodePath(path)}`, {
+    method: 'POST', headers: storageHeaders(env, { 'content-type': 'application/json' }), body: JSON.stringify({ expiresIn: seconds }),
+  })
+  const out = await r.json().catch(() => ({}))
+  const signed = out.signedURL || out.signedUrl
+  if (!r.ok || !signed) throw new Error('파일 주소 발급 실패: ' + apiError(out, r.status))
+  return env.SUPABASE_URL + '/storage/v1' + signed
 }
 
 async function callOpenAI(key, model, system, user, schema, d) {
@@ -749,8 +959,8 @@ function memoryFrom(jobs) {
 
 // ─────────────────────────── 상태 조회 ───────────────────────────
 async function state(env, opt = {}) {
-  const [secretsObj, settingsObj, sources, jobs] = await Promise.all([
-    readJSON(env, 'secrets', {}), readJSON(env, 'settings', {}), readJSON(env, 'sources', []), readJSON(env, 'jobs', []),
+  const [secretsObj, settingsObj, sources, jobs, photos] = await Promise.all([
+    readJSON(env, 'secrets', {}), readJSON(env, 'settings', {}), readJSON(env, 'sources', []), readJSON(env, 'jobs', []), readJSON(env, 'photos', []),
   ])
   const secrets = Object.entries(secretsObj).map(([provider, v]) => ({ provider, model: v.model, checked_at: v.checked_at }))
   const settingsRows = [{ data: settingsObj }]
@@ -769,11 +979,12 @@ async function state(env, opt = {}) {
   const off = new Set(settings.builtinOff || [])
   const builtins = K.map((k) => ({ ...k, approved: !off.has(k.id), builtin: true, created_at: '' }))
   const all = [...sources, ...builtins]
-  if (opt.raw) return { secrets: sec, readiness, settings, sourcesFull: all, sources: all, jobs }
+  if (opt.raw) return { secrets: sec, readiness, settings, sourcesFull: all, sources: all, jobs, photos }
   return {
     connections: sec, readiness, settings,
     sources: all.map((s) => ({ id: s.id, title: s.title, provenance: s.provenance, content: s.content, file: s.file ? { name: s.file.name, size: s.file.size } : null, approved: s.approved ? 1 : 0, builtin: !!s.builtin, created: s.created_at })),
     usageTotal: totalUsage(jobs),
+    photos: photos.map((p) => ({ id: p.id, name: p.name, desc: p.desc, tags: p.tags || [], source: p.source, created: p.created })),
     jobs: jobs.map(toJob),
     learningCount: jobs.filter((j) => j.status === 'rendered').length,
     terms: T,
@@ -810,16 +1021,18 @@ function usageView(d) {
   return {
     claude: u.claude ? { ...u.claude, usd: claudeCost(d.models && d.models.claude, u.claude) } : null,
     openai: u.openai || null,
+    image: u.image || null,
     heygen: u.heygen || null,
   }
 }
 function totalUsage(jobs) {
-  const t = { claude: { input: 0, output: 0, usd: 0 }, openai: { input: 0, output: 0 }, heygen: 0, jobs: 0 }
+  const t = { claude: { input: 0, output: 0, usd: 0 }, openai: { input: 0, output: 0 }, images: 0, heygen: 0, jobs: 0 }
   for (const j of jobs) {
     const v = usageView(j.data || {})
     if (v.claude) { t.claude.input += v.claude.input; t.claude.output += v.claude.output; t.claude.usd += v.claude.usd || 0 }
     if (v.openai) { t.openai.input += v.openai.input; t.openai.output += v.openai.output }
     if (v.heygen && v.heygen.used) t.heygen += v.heygen.used
+    if (v.image) t.images += v.image.calls
     if (v.claude || v.openai) t.jobs++
   }
   t.claude.usd = Math.round(t.claude.usd * 100) / 100

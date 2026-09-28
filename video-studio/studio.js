@@ -28,6 +28,7 @@
     copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     key: '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
     library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
   }
   function icon(name, size = 24, cls = '') {
@@ -38,9 +39,10 @@
   // ── 상수 (원본과 동일) ──
   const STATUS = {
     queued: '자료 검색', drafting: '대본 작성', reviewing: '교차 검수', revising: '자동 수정', submitting: '제작 요청',
+    preparing: '장면 이미지 준비', ready: '미리보기 · 제작 대기',
     rendering: 'HeyGen 제작 중', rendered: '영상 생성 완료', held: '자동 보류', failed: '처리 실패', uncertain: '중복 방지로 중단',
   }
-  const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'submitting', 'rendering']
+  const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
   const DEFAULT_SETTINGS = { avatarId: '', avatarType: 'avatar', voiceId: 'fdd91d5eb0654e45a8b216b3f2c86eca', avatarName: '조현식 이사', consent: false, consentAt: '', maxDailyJobs: 5 }
   const SAMPLE_SOURCE = {
     title: '아파트스퀘어 핵심 고객·공종·서비스 기획',
@@ -79,8 +81,8 @@
   const PIPELINE = [
     ['아파트스퀘어 자료 검색', '승인 원문과 문장별 근거 확보', 0, 1],
     ['Claude × OpenAI 교차 검수', '같은 대본·프롬프트를 독립 평가', 1, 5],
-    ['HeyGen 전용 프롬프트', '대본·장면·자막·브랜드 지시 고정', 5, 6],
-    ['이사님 아바타 영상 생성', '선택한 외형·음성으로 실제 제작', 6, 7],
+    ['컷별 장면 이미지 준비', '사진 자료실 배정 · 부족한 컷은 AI 이미지 생성', 5, 6],
+    ['이사님 아바타 영상 생성', '컷마다 배경 사진 + 아바타·음성으로 실제 제작', 6, 8],
   ]
   const PROVIDERS = [['claude', 'Claude'], ['openai', 'ChatGPT · OpenAI'], ['heygen', 'HeyGen']]
 
@@ -155,7 +157,7 @@
 
   // ── 렌더링 ──
   function renderAll() {
-    renderTabs(); renderMessages(); renderCreate(); renderKnowledge(); renderHistory(); renderSettings()
+    renderTabs(); renderMessages(); renderCreate(); renderKnowledge(); renderHistory(); renderSettings(); renderPhotos()
     ensurePolling()
   }
 
@@ -163,6 +165,7 @@
     document.querySelectorAll('[data-tab]').forEach((b) => b.setAttribute('data-state', b.dataset.tab === S.tab ? 'active' : 'inactive'))
     document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== S.tab })
     $('tab-src-count').textContent = S.data ? S.data.sources.length : 0
+    $('tab-photo-count').textContent = S.data && S.data.photos ? S.data.photos.length : 0
   }
 
   function renderMessages() {
@@ -227,10 +230,48 @@
     return `<div class="review-card"><div class="between"><strong>${name}</strong>${tag}</div>${body}</div>`
   }
 
+  // ── 사진 주소 캐시 (1시간짜리 주소를 50분 동안 재사용) ──
+  const urlCache = {}
+  let urlPending = new Set(), urlTimer = null
+  function photoUrl(id) {
+    if (!id) return ''
+    const c = urlCache[id]
+    if (c && c.exp > Date.now()) return c.url
+    if (!urlPending.has(id)) { urlPending.add(id); clearTimeout(urlTimer); urlTimer = setTimeout(fetchUrls, 50) }
+    return ''
+  }
+  async function fetchUrls() {
+    const ids = [...urlPending]; urlPending = new Set()
+    if (!ids.length) return
+    try {
+      const r = await api({ action: 'photoUrls', ids })
+      for (const id of ids) urlCache[id] = { url: r.urls[id] || '', exp: Date.now() + 50 * 60000 }
+      renderCreate(); renderHistory(); renderPhotos()
+    } catch (e) { /* 다음 렌더링 때 다시 시도 */ }
+  }
+  function cutVisual(c, s) {
+    const id = c.photoId || c.aiPhotoId
+    if (id) { const u = photoUrl(id); return u ? `<img src="${esc(u)}" alt="" loading="lazy">` : '<div class="cut-ph">사진 불러오는 중</div>' }
+    if (c.imagePrompt && !c.imageFailed) return `<div class="cut-ph ai">AI 이미지<br>생성 예정</div>`
+    return `<div class="cut-ph brand">${esc(s.onScreen || '아파트스퀘어')}</div>`
+  }
+  function cutLabel(c) {
+    const p = (S.data.photos || []).find((x) => x.id === (c.photoId || c.aiPhotoId))
+    if (c.photoId) return `사진 자료실 · ${esc((p && p.desc) || c.photoId)}`
+    if (c.aiPhotoId) return `AI 생성 이미지 · ${esc(c.imagePrompt)}`
+    if (c.imagePrompt) return `${c.imageFailed ? 'AI 이미지 생성 실패 → 브랜드 카드' : 'AI 이미지 생성 예정'} · ${esc(c.imagePrompt)}`
+    return '브랜드 카드 (브랜드북 기준)'
+  }
+  function cutsHtml(s) {
+    const cuts = s.cuts && s.cuts.length ? s.cuts : [{ narration: s.narration, photoId: '', imagePrompt: '' }]
+    return `<div class="cut-list">${cuts.map((c, j) => `<div class="cut"><div class="cut-thumb">${cutVisual(c, s)}</div><div><span class="cut-no">컷 ${j + 1}</span><p>${esc(c.narration)}</p><small>${cutLabel(c)}</small></div></div>`).join('')}</div>`
+  }
+
   function jobHtml(e) {
     let h = `<div class="job-result"><div class="between"><div><h3>${esc((e.plan && e.plan.title) || e.input.keywords)}</h3>
       <p>${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
+    if (e.plan) h += `<div class="job-actions"><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button>${e.status === 'ready' ? `<button type="button" class="btn" data-render="${e.id}">HeyGen 제작 요청</button>` : ''}</div>`
     if (e.plan && e.plan.blockers && e.plan.blockers.length) {
       h += `<div class="issue-box"><strong>대본 작성 중단 사유 (AI가 근거 부족으로 쓰지 못한 부분)</strong><ul>${e.plan.blockers.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
         <p>이 내용을 뒷받침하는 확정 자료(서비스 소개서·시방서·실제 사례 등)를 브랜드 자료실에 올리고 ‘영상 제작 근거로 사용’을 체크한 뒤 다시 제작해 주세요.</p></div>`
@@ -245,7 +286,7 @@
     if (e.plan) {
       h += `<details open><summary>최종 대본 · 장면 구성</summary><div class="scene-list">${e.plan.scenes.map((s, i) => `<div>
         <span class="scene-label">SCENE ${String(i + 1).padStart(2, '0')} <small>${s.seconds}초</small></span>
-        <h4>${esc(s.onScreen)}</h4><p>${esc(s.narration)}</p><small>화면: ${esc(s.visual)}</small>
+        <h4>${esc(s.onScreen)}</h4>${cutsHtml(s)}<small>화면: ${esc(s.visual)}</small>
         <details><summary>원문 근거 ${s.citations.length}개</summary>${s.citations.map((c) => `<blockquote>
           <b>${esc((e.sources.find((x) => x.id === c.sourceId) || {}).title || '출처 확인 필요')}</b><p>${esc(c.quote)}</p><small>${esc(c.claim)}</small></blockquote>`).join('')}</details>
       </div>`).join('')}</div></details>`
@@ -262,11 +303,12 @@
 
   const n0 = (x) => Number(x || 0).toLocaleString()
   function usageHtml(u, models) {
-    if (!u || (!u.claude && !u.openai && !u.heygen)) return ''
+    if (!u || (!u.claude && !u.openai && !u.heygen && !u.image)) return ''
     const row = (name, v, extra) => `<div><span>${name}</span><b>${extra}</b><small>${v ? `입력 ${n0(v.input)} · 출력 ${n0(v.output)} 토큰 · ${v.calls}회` : ''}</small></div>`
     let h = '<details open><summary>사용량 (크레딧)</summary><div class="usage-grid">'
     if (u.claude) h += row(`Claude <small>${esc(models.claude)}</small>`, u.claude, u.claude.usd != null ? `약 $${u.claude.usd.toFixed(3)}` : '요금표 없는 모델')
-    if (u.openai) h += row(`OpenAI <small>${esc(models.openai)}</small>`, u.openai, '토큰 기준')
+    if (u.openai) h += row(`OpenAI 검수 <small>${esc(models.openai)}</small>`, u.openai, '토큰 기준')
+    if (u.image) h += row('OpenAI 이미지 생성', u.image, `${u.image.calls}장 생성`)
     if (u.heygen) h += `<div><span>HeyGen</span><b>${u.heygen.used != null ? n0(u.heygen.used) + ' 크레딧' : '측정 중'}</b><small>${u.heygen.before != null ? `제작 전 ${n0(u.heygen.before)} → 후 ${u.heygen.after != null ? n0(u.heygen.after) : '…'}` : '잔액 조회 불가'}</small></div>`
     return h + '</div><p class="fineprint">Claude 금액은 공개 요금표 기준 예상치입니다(부가세·할인 제외). OpenAI 금액은 모델별 요금이 달라 토큰만 표시합니다. HeyGen은 제작 전후 잔액 차이라 같은 시간에 다른 사용이 있으면 함께 잡힙니다.</p></details>'
   }
@@ -405,6 +447,8 @@
   }
 
   function syncSettingsForm() {
+    $('image-model').value = S.settings.imageModel || 'gpt-image-1'
+    $('auto-render').checked = S.settings.autoRender !== false
     $('voice-id').value = S.settings.voiceId || ''
     $('avatar-confirm').checked = !!S.settings.consent
     $('daily-limit').value = S.settings.maxDailyJobs
@@ -467,7 +511,7 @@
     } catch (e) { S.error = e.message }
     advancing = false
     const next = activeJob()
-    if (next) pollTimer = setTimeout(tick, next.step === 6 ? 15000 : 1200)
+    if (next) pollTimer = setTimeout(tick, next.status === 'rendering' ? 15000 : 1200)
     renderAll()
   }
 
@@ -488,6 +532,120 @@
       S.requestId = null
     } catch (e) { S.error = e.message } finally { S.busy = false; renderAll() }
   }
+
+  // ── 사진 자료실 ──
+  function renderPhotos() {
+    const list = (S.data && S.data.photos) || []
+    $('photo-count').textContent = list.length
+    $('photo-ai-count').textContent = `AI 생성 ${list.filter((p) => p.source === 'ai').length}장`
+    $('photo-grid').innerHTML = list.length ? list.map((p) => { const u = photoUrl(p.id); return `<div class="photo-card">
+        <div class="photo-img">${u ? `<img src="${esc(u)}" alt="" loading="lazy">` : '<div class="cut-ph">불러오는 중</div>'}${p.source === 'ai' ? '<span class="tag">AI 생성</span>' : ''}</div>
+        <textarea class="textarea photo-desc" data-desc="${p.id}" rows="3" placeholder="사진 설명 (AI 가 컷을 고를 때 사용)">${esc(p.desc)}</textarea>
+        <div class="between"><button type="button" class="btn outline sm" data-desc-save="${p.id}">설명 저장</button><button type="button" class="text-link" data-photo-del="${p.id}">삭제</button></div>
+      </div>` }).join('') : `<div class="empty-result small">${icon('image', 28)}<h3>아직 등록된 사진이 없습니다</h3><p>현장 사진·드론 촬영·전후 비교·앱 화면·서류 사진을 올려 주세요. 사진이 없으면 필요한 컷을 AI 이미지로 만듭니다.</p></div>`
+  }
+  function toJpeg(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const k = Math.min(1, 1920 / Math.max(img.width, img.height))
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k)
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+        c.toBlob((b) => (b ? resolve(b) : reject(new Error('사진 변환 실패'))), 'image/jpeg', 0.88)
+        URL.revokeObjectURL(img.src)
+      }
+      img.onerror = () => reject(new Error('사진을 읽지 못했습니다'))
+      img.src = URL.createObjectURL(file)
+    })
+  }
+  async function uploadPhotos(files) {
+    const list = files.filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type))
+    if (!list.length) { S.error = 'JPG·PNG·WEBP 사진만 올릴 수 있습니다.'; renderMessages(); return }
+    const prog = $('photo-progress'); prog.hidden = false
+    let ok = 0
+    for (const [i, f] of list.entries()) {
+      prog.textContent = `사진 올리는 중 ${i + 1}/${list.length} — ${f.name} (AI 설명 작성 포함)`
+      try {
+        const blob = await toJpeg(f)
+        const up = await api({ action: 'uploadUrl', name: 'photo.jpg', size: blob.size })
+        const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'x-upsert': 'false' }, body: blob })
+        if (!put.ok) throw new Error('업로드 실패 HTTP ' + put.status)
+        const r = await api({ action: 'photo', path: up.path, name: f.name })
+        S.data = r.state; ok++
+        renderPhotos(); renderTabs()
+      } catch (e) { S.error = `${f.name}: ${e.message}`; renderMessages() }
+    }
+    prog.textContent = `사진 ${ok}장을 올렸습니다.`
+    setTimeout(() => { prog.hidden = true }, 4000)
+  }
+  $('photo-file').addEventListener('change', (ev) => { const fs = [...(ev.target.files || [])]; ev.target.value = ''; uploadPhotos(fs) })
+  ;['dragenter', 'dragover'].forEach((t) => $('photo-drop').addEventListener(t, () => $('photo-drop').classList.add('drag')))
+  ;['dragleave', 'drop'].forEach((t) => $('photo-drop').addEventListener(t, () => $('photo-drop').classList.remove('drag')))
+  $('photo-grid').addEventListener('click', async (ev) => {
+    const sv = ev.target.closest('[data-desc-save]')
+    if (sv) {
+      const id = sv.dataset.descSave
+      const desc = document.querySelector(`[data-desc="${id}"]`).value
+      try { S.data = await api({ action: 'photoUpdate', id, desc }); S.success = '사진 설명을 저장했습니다.' } catch (e) { S.error = e.message }
+      renderMessages(); return
+    }
+    const del = ev.target.closest('[data-photo-del]')
+    if (del && confirm('이 사진을 삭제할까요? 이미 만든 영상에는 영향이 없습니다.')) {
+      try { S.data = await api({ action: 'photoDelete', id: del.dataset.photoDel }); renderAll() } catch (e) { S.error = e.message; renderMessages() }
+    }
+  })
+  $('prefs-save').addEventListener('click', async () => {
+    try {
+      S.data = await api({ action: 'prefs', imageModel: $('image-model').value, autoRender: $('auto-render').checked })
+      S.settings = { ...DEFAULT_SETTINGS, ...S.data.settings }; syncSettingsForm()
+      $('prefs-ok').textContent = '영상 구성 설정을 저장했습니다.'; $('prefs-ok').hidden = false
+    } catch (e) { S.error = e.message; renderMessages() }
+  })
+
+  // ── 무료 미리보기: 컷 순서대로 그림·자막을 보여 주고 브라우저 음성으로 읽는다 ──
+  const PV = { cuts: [], i: 0, playing: false, timer: null, ratio: '16:9' }
+  function openPreview(job) {
+    PV.cuts = []
+    job.plan.scenes.forEach((s, si) => (s.cuts && s.cuts.length ? s.cuts : [{ narration: s.narration }]).forEach((c, ci) => PV.cuts.push({ ...c, scene: si + 1, cut: ci + 1, onScreen: s.onScreen })))
+    PV.i = 0; PV.ratio = job.input.ratio; PV.playing = false
+    $('preview-title').textContent = '무료 미리보기 · ' + (job.plan.title || '')
+    $('preview-modal').hidden = false
+    drawPreview()
+  }
+  function drawPreview() {
+    const c = PV.cuts[PV.i]
+    if (!c) return
+    const id = c.photoId || c.aiPhotoId
+    const u = id ? photoUrl(id) : ''
+    const bg = id ? (u ? `<img class="pv-bg" src="${esc(u)}" alt="">` : '<div class="pv-card"><small>사진 불러오는 중</small></div>')
+      : c.imagePrompt && !c.imageFailed ? `<div class="pv-card ai"><small>AI 이미지 생성 예정</small><p>${esc(c.imagePrompt)}</p></div>`
+      : `<div class="pv-card brand"><span class="pv-label">공동주택 유지보수 전문감리기관</span><h3>${esc(c.onScreen || '아파트스퀘어')}</h3><span class="pv-logo">아파트스퀘어</span></div>`
+    $('preview-stage').className = 'preview-stage ' + (PV.ratio === '9:16' ? 'vertical' : '')
+    $('preview-stage').innerHTML = `${bg}<div class="pv-avatar ${id ? 'small' : ''}">${icon('user', 28)}<span>조현식 이사</span></div><div class="pv-sub">${esc(c.narration)}</div>`
+    $('preview-pos').textContent = `장면 ${c.scene} · 컷 ${c.cut} (${PV.i + 1}/${PV.cuts.length})`
+    $('preview-play').textContent = PV.playing ? '❚❚ 멈춤' : '▶ 재생'
+  }
+  function speakCut() {
+    clearTimeout(PV.timer)
+    const c = PV.cuts[PV.i]
+    if (!PV.playing || !c) return
+    const next = () => { if (!PV.playing) return; if (PV.i < PV.cuts.length - 1) { PV.i++; drawPreview(); speakCut() } else { PV.playing = false; drawPreview() } }
+    const ms = Math.max(1500, (c.narration || '').length / 4.5 * 1000)
+    if (window.speechSynthesis) {
+      speechSynthesis.cancel()
+      const u = new SpeechSynthesisUtterance(c.narration || '')
+      u.lang = 'ko-KR'; u.rate = 1.05
+      let done = false
+      u.onend = () => { if (!done) { done = true; next() } }
+      speechSynthesis.speak(u)
+      PV.timer = setTimeout(() => { if (!done) { done = true; next() } }, ms + 4000)   // 음성이 멈춰도 넘어가도록
+    } else PV.timer = setTimeout(next, ms)
+  }
+  function stopPreview() { PV.playing = false; clearTimeout(PV.timer); if (window.speechSynthesis) speechSynthesis.cancel() }
+  $('preview-play').addEventListener('click', () => { if (PV.playing) stopPreview(); else { PV.playing = true; speakCut() } drawPreview() })
+  $('preview-prev').addEventListener('click', () => { stopPreview(); PV.i = Math.max(0, PV.i - 1); drawPreview() })
+  $('preview-next').addEventListener('click', () => { stopPreview(); PV.i = Math.min(PV.cuts.length - 1, PV.i + 1); drawPreview() })
+  $('preview-close').addEventListener('click', () => { stopPreview(); $('preview-modal').hidden = true })
 
   // ── 이벤트 ──
   $('topics').innerHTML = ['외벽 재도장', '옥상 방수', '공사 전 진단'].map((t) => `<button type="button" data-topic="${t}">${icon('plus', 13)}${t}</button>`).join('')
@@ -603,6 +761,14 @@
     if (t.closest('[data-quota]')) {
       try { const q = await api({ action: 'quota' }); S.quota = q.heygen; if (q.heygen == null) S.error = 'HeyGen 남은 크레딧을 조회하지 못했습니다.' } catch (e) { S.error = e.message }
       renderHistory(); renderMessages(); return
+    }
+    const pv = t.closest('[data-preview]')
+    if (pv) { const job = S.data.jobs.find((j) => j.id === pv.dataset.preview); if (job && job.plan) openPreview(job); return }
+    const rd = t.closest('[data-render]')
+    if (rd) {
+      if (!confirm('HeyGen 영상 제작을 요청할까요? HeyGen 크레딧이 사용됩니다.')) return
+      try { const r = await api({ action: 'render', id: rd.dataset.render }); S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); renderAll() } catch (e) { S.error = e.message; renderMessages() }
+      return
     }
     const fl = t.closest('[data-file]')
     if (fl) {

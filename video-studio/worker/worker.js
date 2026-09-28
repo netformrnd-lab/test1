@@ -23,6 +23,9 @@ const CLAUDE_PRICE = [
   ['claude-sonnet-5', 2, 10], ['claude-sonnet-4-6', 3, 15], ['claude-sonnet-4-5', 3, 15], ['claude-haiku-4-5', 1, 5],
 ]
 const MAX_SOURCE_CHARS = 300000       // 자료 1개 본문 최대 글자 수 (PDF·PPT 에서 뽑은 글자 포함)
+// 사진·영상 업로드 일시 중지 (저장 위치를 Supabase 에서 옮기기 전까지)
+const PHOTO_UPLOAD_OFF = true
+const PHOTO_OFF_MSG = '사진 업로드 중지됨 — 저장 위치를 옮기는 중입니다.'
 const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
 const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
 const DEFAULT_SETTINGS = {
@@ -132,6 +135,7 @@ const ACTIONS = {
 
   // 원본 파일 업로드용 1회성 주소 (브라우저가 파일을 Supabase Storage 에 직접 올림 — 큰 파일도 서버를 거치지 않음)
   async uploadUrl(env, { name, size }) {
+    if (PHOTO_UPLOAD_OFF && /^(photo\.jpg|thumb\.jpg|video\.)/i.test(String(name || ''))) throw new HttpError(403, PHOTO_OFF_MSG)
     const n = Number(size) || 0
     if (n <= 0 || n > MAX_FILE_BYTES) throw new HttpError(400, `파일은 ${Math.round(MAX_FILE_BYTES / 1048576)}MB 이하만 올릴 수 있습니다.`)
     // Supabase Storage 경로는 영문·숫자만 허용(한글 이름은 400) → 저장 이름은 file.확장자, 원래 이름은 자료에 따로 기록
@@ -162,6 +166,7 @@ const ACTIONS = {
   // ── 사진 자료실 ──
   // 브라우저가 uploadUrl 로 사진을 올린 뒤 호출 → AI(Claude)가 사진 설명을 자동으로 붙인다
   async photo(env, { path, name, size, kind, thumbPath, duration }) {
+    if (PHOTO_UPLOAD_OFF) throw new HttpError(403, PHOTO_OFF_MSG)
     const isVideo = kind === 'video'
     const okPath = (x, re) => new RegExp('^files\\/[0-9a-f-]{36}\\/file\\.(' + re + ')$').test(String(x || ''))
     if (!okPath(path, isVideo ? 'mp4|mov|webm|m4v' : 'jpg|jpeg|png|webp')) throw new HttpError(400, '파일 경로가 올바르지 않습니다.')

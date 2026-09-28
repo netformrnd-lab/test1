@@ -729,6 +729,7 @@
       S.data.photos = [r.photo, ...(S.data.photos || []).filter((x) => x.id !== r.photo.id)]
       UP.ok++
     } catch (e) {
+      if (/업로드 중지됨/.test(e.message)) { UP.fail++; UP.total -= UP.queue.length; UP.queue.length = 0; UP.errors.push(e.message) } else
       if (e.small) { UP.skip.small++; UP.total-- } else if (e.long) { UP.skip.longVideo++; UP.total-- } else { UP.fail++; UP.errors.push(`${f.name} — ${e.message}`); logServer([{ kind: 'fail', msg: e.message, ext: extOf(f.name) + (f._convert ? '/' + f._convert : '') }]) }
     } finally {
       UP.current.delete(f.name)

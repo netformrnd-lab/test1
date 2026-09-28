@@ -1,5 +1,5 @@
 // 아파트스퀘어 영상 제작 작업실 (원본 reelty-ai-video-studio 화면·흐름을 바닐라 JS로 재현)
-// 서버: worker/worker.js (functions/api/studio.js 로 연결)  ·  설정: config.js
+// 서버: worker/worker.js (build.mjs 로 화면과 합쳐 deploy/worker.js 로 배포)  ·  설정: config.js
 ;(function () {
   const CFG = window.STUDIO_CONFIG || {}
   const API = CFG.STUDIO_API || '/api/studio'

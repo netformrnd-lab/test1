@@ -1,10 +1,9 @@
 // 아파트스퀘어 영상 제작 작업실 API
 // 화면: ../index.html  ·  테이블: ../db/schema.sql
 //
-// 배포 방법 2가지 중 하나:
-//  A) (권장) video-studio 폴더 전체를 Cloudflare Pages 프로젝트로 배포 → functions/api/studio.js 가 이 파일을 /api/studio 로 연결
-//  B) 이 파일만 독립 Cloudflare Worker 로 배포 → config.js 의 STUDIO_API 에 Worker 주소 입력
-// 환경변수(Pages/Worker → Settings → Variables and Secrets, 모두 Secret 권장):
+// 배포: `node build.mjs` 로 화면까지 합친 deploy/worker.js 를 만들고, 그 파일을 Cloudflare Worker 에 붙여넣는다.
+//   (화면 + API 가 Worker 주소 하나에서 동작. 이 원본 파일만 올리면 API 만 동작)
+// 환경변수(Worker → Settings → Variables and Secrets, 모두 Secret 권장):
 //   SUPABASE_URL           = https://gndktayoicegyqyllybk.supabase.co
 //   SUPABASE_SERVICE_ROLE  = (Supabase service_role 키)
 //   STUDIO_ENC_KEY         = (아무 긴 비밀문자열 — API 키 암호화용. 바꾸면 저장된 키를 다시 등록해야 함)
@@ -27,6 +26,9 @@ const DEFAULT_SETTINGS = {
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
+    // 화면 파일(deploy/worker.js 로 빌드했을 때만 포함): /api 가 아닌 GET 요청은 화면을 돌려준다
+    const path = new URL(request.url).pathname
+    if (typeof STATIC_FILES !== 'undefined' && request.method === 'GET' && !path.startsWith('/api')) return serveStatic(path)
     try {
       if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE) throw new HttpError(500, '서버 환경변수(SUPABASE_URL / SUPABASE_SERVICE_ROLE)가 설정되지 않았습니다.')
       const user = await requireAdmin(request, env)
@@ -758,6 +760,13 @@ async function decrypt(env, cipher, iv) {
 }
 
 // ─────────────────────────── 공통 ───────────────────────────
+function serveStatic(path) {
+  const name = path === '/' || path === '' ? 'index.html' : path.replace(/^\/+/, '')
+  const body = STATIC_FILES[name]
+  if (body == null) return new Response('Not found', { status: 404 })
+  const type = name.endsWith('.css') ? 'text/css' : name.endsWith('.js') ? 'text/javascript' : 'text/html'
+  return new Response(body, { headers: { 'content-type': type + '; charset=utf-8', 'cache-control': 'no-cache' } })
+}
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, POST, OPTIONS',

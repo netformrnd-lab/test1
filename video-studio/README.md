@@ -2,31 +2,32 @@
 
 원본 화면: `https://reelty-ai-video-studio.pour-9320.chatgpt.site/`. 이 사이트의 화면·문구·흐름을 옮겼습니다.
 
-기존 아파트스퀘어 앱(`app/`)과 **분리된 독립 프로젝트**입니다. 이 폴더 하나만 따로 배포합니다.
+기존 아파트스퀘어 앱(`app/`)과 **분리된 독립 프로젝트**입니다. Cloudflare Worker 하나로 배포합니다.
 로그인만 기존 아파트스퀘어 Supabase의 관리자 계정을 함께 씁니다.
 
 ```
 video-studio/
-├─ index.html · studio.css · studio.js · config.js   화면
-├─ functions/api/studio.js                            Cloudflare Pages → /api/studio 연결
-├─ worker/worker.js                                   서버 API (파이프라인 전체)
+├─ deploy/worker.js                                   ★ Cloudflare 에 붙여넣을 파일 (화면+API 합본, 자동 생성)
+├─ index.html · studio.css · studio.js · config.js   화면 원본
+├─ worker/worker.js                                   서버 API 원본
+├─ build.mjs                                          원본 → deploy/worker.js 합치기 (node build.mjs)
 └─ db/schema.sql                                      Supabase 테이블
 ```
 
 ## 설치 (한 번만)
 
 1. **Supabase**: SQL Editor에서 `db/schema.sql`을 실행합니다.
-2. **Cloudflare Pages 새 프로젝트**: Workers & Pages → Create → Pages에서 새 프로젝트를 만듭니다.
-   - Git 연결로 만들 때는 Root directory를 `video-studio`로 두고 Build command는 비워 둡니다.
-   - 또는 이 폴더를 `wrangler pages deploy video-studio`로 직접 올립니다. 대시보드 드래그 업로드는 `functions/`가 빠지므로 쓰지 마세요.
-3. 그 Pages 프로젝트의 Settings → Variables and Secrets에 아래 3개를 Secret으로 추가하고 다시 배포합니다.
+2. **Cloudflare Worker 만들기**: Workers & Pages → Create → Worker(Hello World) → Deploy 순서로 누른 뒤 **Edit code**를 누릅니다.
+   편집기에 있는 내용을 모두 지우고 `deploy/worker.js` 내용 전체를 붙여 넣은 다음 **Deploy**를 누릅니다. Pages가 아니라 Worker로 만들어야 합니다.
+3. 그 Worker의 Settings → Variables and Secrets에서 아래 3개를 Secret으로 추가합니다.
    - `SUPABASE_URL` = `https://gndktayoicegyqyllybk.supabase.co`
    - `SUPABASE_SERVICE_ROLE` = Supabase service_role 키
    - `STUDIO_ENC_KEY` = 아무 긴 비밀 문자열. API 키 암호화에 쓰며, 바꾸면 저장된 키를 다시 등록해야 합니다.
-4. 배포 주소(`https://….pages.dev`)에 관리자 계정으로 로그인합니다. **연결 설정** 탭에서 Claude·OpenAI·HeyGen 키를 저장하고, 아바타를 선택한 뒤 사용 동의에 체크하고 저장합니다.
+4. Worker 주소(`https://이름.계정.workers.dev`)를 열고 관리자 계정으로 로그인합니다. 화면과 API가 이 주소 하나에서 같이 동작합니다.
+   **연결 설정** 탭에서 Claude·OpenAI·HeyGen 키를 저장하고, 아바타를 선택한 뒤 사용 동의에 체크하고 저장합니다.
 5. **브랜드 자료실**에 근거 자료를 등록하고 "영상 제작 근거로 사용"을 체크합니다.
 
-`config.js`의 `STUDIO_API`는 비워 두면 됩니다(같은 주소의 `/api/studio` 사용). `worker/worker.js`를 별도 Worker로 배포한 경우에만 그 주소를 넣습니다.
+코드를 고친 뒤에는 `node build.mjs`를 실행해 `deploy/worker.js`를 다시 만들고, Worker에 다시 붙여 넣습니다.
 
 ## 제작 흐름
 

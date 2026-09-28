@@ -1,12 +1,7 @@
 // 아파트스퀘어 영상 제작 작업실 API
-// 화면: ../index.html  ·  테이블: ../db/schema.sql
-//
-// 배포: `node build.mjs` 로 화면까지 합친 deploy/worker.js 를 만들고, 그 파일을 Cloudflare Worker 에 붙여넣는다.
-//   (화면 + API 가 Worker 주소 하나에서 동작. 이 원본 파일만 올리면 API 만 동작)
-// 환경변수(Worker → Settings → Variables and Secrets, 모두 Secret 권장):
-//   SUPABASE_URL           = https://gndktayoicegyqyllybk.supabase.co
-//   SUPABASE_SERVICE_ROLE  = (Supabase service_role 키)
-//   STUDIO_ENC_KEY         = (아무 긴 비밀문자열 — API 키 암호화용. 바꾸면 저장된 키를 다시 등록해야 함)
+// 화면: ../index.html  ·  Firebase 연결: ../firebase/functions/index.js  ·  자동 배포: .github/workflows/deploy-studio.yml
+// 데이터: Supabase Storage 비공개 버킷 'studio' (secrets/settings/sources/jobs .json) — SQL 실행 불필요
+// 필요한 값: SUPABASE_URL, SUPABASE_SERVICE_ROLE (배포 워크플로가 GitHub Secret 에서 자동 주입)
 //
 // 흐름(한 번의 advance 요청 = 한 단계):
 //   0 자료 검색 → 1 대본 작성(Claude) → 2 Claude 검수 → 3 OpenAI 검수 → 4 판정(미통과 시 최대 2회 수정)
@@ -62,15 +57,14 @@ const ACTIONS = {
       if (!models.some((m) => m.id === model)) throw new HttpError(400, '이 API 키로 사용할 수 없는 모델입니다.')
     }
     const { cipher, iv } = await encrypt(env, apiKey)
-    await sb(env, 'studio_secrets?on_conflict=provider', {
-      method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
-      body: { provider, cipher, iv, model: provider === 'heygen' ? '' : model, checked_at: now(), updated_at: now() },
+    await mutate(env, 'secrets', {}, (sec) => {
+      sec[provider] = { cipher, iv, model: provider === 'heygen' ? '' : model, checked_at: now() }
     })
     return { ok: true }
   },
 
   async disconnect(env, { provider }) {
-    await sb(env, 'studio_secrets?provider=eq.' + encodeURIComponent(provider), { method: 'DELETE', prefer: 'return=minimal' })
+    await mutate(env, 'secrets', {}, (sec) => { delete sec[provider] })
     return { ok: true }
   },
 
@@ -95,10 +89,7 @@ const ACTIONS = {
       avatarName: String(s.avatarName || DEFAULT_SETTINGS.avatarName).slice(0, 80),
       consentAt: consent ? (prev.consent && prev.avatarId === avatarId && prev.voiceId === voiceId && prev.consentAt ? prev.consentAt : now()) : '',
     }
-    await sb(env, 'studio_settings?on_conflict=id', {
-      method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
-      body: { id: 1, data, updated_at: now() },
-    })
+    await writeJSON(env, 'settings', data)
     return state(env)
   },
 
@@ -110,16 +101,17 @@ const ACTIONS = {
     if (title.length < 2 || title.length > 150) throw new HttpError(400, '자료 제목은 2~150자로 입력해 주세요.')
     if (provenance.length < 2 || provenance.length > 500) throw new HttpError(400, '출처·작성일·버전을 입력해 주세요.')
     if (content.length < 30 || content.length > 60000) throw new HttpError(400, '자료 본문은 30자 이상 60,000자 이하로 입력해 주세요.')
-    await sb(env, 'studio_sources', {
-      method: 'POST', prefer: 'return=minimal',
-      body: { title, provenance, content, approved: s.approved === true, created_by: user.id },
+    await mutate(env, 'sources', [], (list) => {
+      list.unshift({ id: crypto.randomUUID(), title, provenance, content, approved: s.approved === true, created_by: user.id, created_at: now() })
     })
     return state(env)
   },
 
   async approval(env, { id, approved }) {
-    await sb(env, 'studio_sources?id=eq.' + encodeURIComponent(id), {
-      method: 'PATCH', prefer: 'return=minimal', body: { approved: approved === true },
+    await mutate(env, 'sources', [], (list) => {
+      const src = list.find((x) => x.id === id)
+      if (!src) throw new HttpError(404, '자료를 찾을 수 없습니다.')
+      src.approved = approved === true
     })
     return state(env)
   },
@@ -128,8 +120,8 @@ const ACTIONS = {
     const rid = String(requestId || '').trim()
     if (rid.length < 8 || rid.length > 80) throw new HttpError(400, '요청 번호가 올바르지 않습니다.')
     // 같은 요청 번호가 이미 접수됐으면 새로 만들지 않고 그 작업을 돌려준다(중복 클릭·재전송 방지)
-    const dup = await sb(env, 'studio_jobs?select=*&request_id=eq.' + encodeURIComponent(rid))
-    if (dup.length) return { job: toJob(dup[0]) }
+    const dup = (await readJSON(env, 'jobs', [])).find((j) => j.request_id === rid)
+    if (dup) return { job: toJob(dup) }
 
     const inp = validateInput(input)
     const st = await state(env, { raw: true })
@@ -142,29 +134,27 @@ const ACTIONS = {
 
     const models = { claude: st.secrets.claude.model, openai: st.secrets.openai.model }
     const memory = memoryFrom(st.jobs)
-    const rows = await sb(env, 'studio_jobs', {
-      method: 'POST', prefer: 'return=representation',
-      body: {
-        request_id: rid, status: 'queued', step: 0, revision: 0, input: inp, created_by: user.id,
-        data: { models, memory, promptVersion: PROMPT_VERSION, events: [ev('제작 요청 접수 · 승인 자료 검색 대기')] },
-      },
-    })
-    return { job: toJob(rows[0]) }
+    const row = {
+      id: crypto.randomUUID(), request_id: rid, status: 'queued', step: 0, revision: 0, input: inp, created_by: user.id,
+      created_at: now(), locked_until: null,
+      data: { models, memory, promptVersion: PROMPT_VERSION, events: [ev('제작 요청 접수 · 승인 자료 검색 대기')] },
+    }
+    await mutate(env, 'jobs', [], (list) => { list.unshift(row); list.splice(100) })
+    return { job: toJob(row) }
   },
 
   // 진행 중인 작업을 한 단계 진행한다(화면이 주기적으로 호출)
   async advance(env, { id }) {
-    const rows = await sb(env, 'studio_jobs?select=*&id=eq.' + encodeURIComponent(id))
-    if (!rows.length) throw new HttpError(404, '작업을 찾을 수 없습니다.')
-    let row = rows[0]
-    if (!ACTIVE.includes(row.status)) return { job: toJob(row) }
-    // 동시에 두 창이 같은 단계를 처리하지 않도록 잠금 (최대 3분)
-    const locked = await sb(env, `studio_jobs?id=eq.${row.id}&or=(locked_until.is.null,locked_until.lt.${encodeURIComponent('"' + now() + '"')})`, {
-      method: 'PATCH', prefer: 'return=representation',
-      body: { locked_until: new Date(Date.now() + 180000).toISOString() },
+    // 동시에 두 창이 같은 단계를 처리하지 않도록 잠금 (최대 10분)
+    let row = null, busy = false
+    await mutate(env, 'jobs', [], (list) => {
+      row = list.find((j) => j.id === id)
+      if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
+      if (!ACTIVE.includes(row.status)) return
+      if (row.locked_until && row.locked_until > now()) { busy = true; return }
+      row.locked_until = new Date(Date.now() + 600000).toISOString()
     })
-    if (!locked.length) return { job: toJob(row) }
-    row = locked[0]
+    if (!ACTIVE.includes(row.status) || busy) return { job: toJob(row) }
     const job = { id: row.id, status: row.status, step: row.step, revision: row.revision, input: row.input, data: row.data || {} }
     job.data.events = job.data.events || []
     try {
@@ -175,11 +165,8 @@ const ACTIONS = {
       job.data.error = msg
       job.status = 'failed'
     }
-    const saved = await sb(env, 'studio_jobs?id=eq.' + row.id, {
-      method: 'PATCH', prefer: 'return=representation',
-      body: { status: job.status, step: job.step, revision: job.revision, data: job.data, locked_until: null },
-    })
-    return { job: toJob(saved[0]) }
+    const saved = await saveJob(env, job, { locked_until: null })
+    return { job: toJob(saved) }
   },
 }
 
@@ -275,7 +262,7 @@ async function runStep(env, job) {
       return
     }
     d.submitAttempted = true
-    await sb(env, 'studio_jobs?id=eq.' + job.id, { method: 'PATCH', prefer: 'return=minimal', body: { data: d } }).catch(() => {})
+    await saveJob(env, job)
     const heygenKey = await getKey(env, 'heygen')
     let res
     try {
@@ -644,12 +631,12 @@ function memoryFrom(jobs) {
 
 // ─────────────────────────── 상태 조회 ───────────────────────────
 async function state(env, opt = {}) {
-  const [secrets, settingsRows, sources, jobs] = await Promise.all([
-    sb(env, 'studio_secrets?select=provider,model,checked_at'),
-    sb(env, 'studio_settings?select=data&id=eq.1'),
-    sb(env, 'studio_sources?select=*&order=created_at.desc'),
-    sb(env, 'studio_jobs?select=*&order=created_at.desc&limit=50'),
+  const [secretsObj, settingsObj, sources, jobs] = await Promise.all([
+    readJSON(env, 'secrets', {}), readJSON(env, 'settings', {}), readJSON(env, 'sources', []), readJSON(env, 'jobs', []),
   ])
+  const secrets = Object.entries(secretsObj).map(([provider, v]) => ({ provider, model: v.model, checked_at: v.checked_at }))
+  const settingsRows = [{ data: settingsObj }]
+  jobs.splice(50)
   const sec = {}
   for (const p of ['claude', 'openai', 'heygen']) {
     const r = secrets.find((x) => x.provider === p)
@@ -701,8 +688,7 @@ function validateInput(i) {
   return { keywords, audience, seconds, ratio: i.ratio }
 }
 async function getSettings(env) {
-  const rows = await sb(env, 'studio_settings?select=data&id=eq.1')
-  return { ...DEFAULT_SETTINGS, ...((rows[0] && rows[0].data) || {}) }
+  return { ...DEFAULT_SETTINGS, ...(await readJSON(env, 'settings', {})) }
 }
 
 // ─────────────────────────── 인증 · 저장 · 암호화 ───────────────────────────
@@ -725,14 +711,60 @@ async function sb(env, path, { method = 'GET', body, prefer } = {}) {
   const r = await fetch(env.SUPABASE_URL + '/rest/v1/' + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
   const text = await r.text()
   if (!r.ok) {
-    if (/studio_/.test(text) && /does not exist|schema cache/.test(text)) throw new HttpError(500, '작업실 테이블이 없습니다. db/schema.sql 을 먼저 실행해 주세요.')
     throw new Error('DB 오류(' + r.status + '): ' + text.slice(0, 300))
   }
   return text ? JSON.parse(text) : null
 }
 
+// 작업실 데이터는 Supabase Storage 의 비공개 버킷(studio)에 JSON 파일로 보관한다 → SQL 실행 불필요
+const BUCKET = 'studio'
+let bucketReady = false
+function storageHeaders(env, extra = {}) {
+  return { apikey: env.SUPABASE_SERVICE_ROLE, authorization: 'Bearer ' + env.SUPABASE_SERVICE_ROLE, ...extra }
+}
+async function ensureBucket(env) {
+  if (bucketReady) return
+  const r = await fetch(env.SUPABASE_URL + '/storage/v1/bucket', {
+    method: 'POST', headers: storageHeaders(env, { 'content-type': 'application/json' }),
+    body: JSON.stringify({ id: BUCKET, name: BUCKET, public: false }),
+  })
+  const t = await r.text()
+  if (!r.ok && !/already exists|Duplicate|409/i.test(t + r.status)) throw new Error('저장소 준비 실패: ' + t.slice(0, 200))
+  bucketReady = true
+}
+async function readJSON(env, name, dflt) {
+  const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${name}.json?t=${Date.now()}`, { headers: storageHeaders(env, { 'cache-control': 'no-cache' }) })
+  if (r.status === 400 || r.status === 404) { await r.text(); return JSON.parse(JSON.stringify(dflt)) }
+  if (!r.ok) throw new Error('저장소 읽기 실패(' + r.status + '): ' + (await r.text()).slice(0, 200))
+  return r.json()
+}
+async function writeJSON(env, name, data) {
+  await ensureBucket(env)
+  const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${name}.json`, {
+    method: 'POST', headers: storageHeaders(env, { 'content-type': 'application/json', 'x-upsert': 'true', 'cache-control': 'no-cache' }),
+    body: JSON.stringify(data),
+  })
+  if (!r.ok) throw new Error('저장소 쓰기 실패(' + r.status + '): ' + (await r.text()).slice(0, 200))
+}
+// 최신 파일을 다시 읽어 고친 뒤 저장 (오래 걸리는 AI 호출 동안 다른 변경을 덮어쓰지 않도록)
+async function mutate(env, name, dflt, fn) {
+  const data = await readJSON(env, name, dflt)
+  await fn(data)
+  await writeJSON(env, name, data)
+  return data
+}
+async function saveJob(env, job, extra = {}) {
+  let saved = null
+  await mutate(env, 'jobs', [], (list) => {
+    saved = list.find((j) => j.id === job.id)
+    if (!saved) throw new Error('작업을 찾을 수 없습니다.')
+    Object.assign(saved, { status: job.status, step: job.step, revision: job.revision, data: job.data }, extra)
+  })
+  return saved
+}
+
 async function getKey(env, provider, required = true) {
-  const rows = await sb(env, 'studio_secrets?select=cipher,iv&provider=eq.' + provider)
+  const rows = [(await readJSON(env, 'secrets', {}))[provider]].filter(Boolean)
   if (!rows.length) {
     if (required) throw new HttpError(400, `${provider === 'claude' ? 'Claude' : provider === 'openai' ? 'OpenAI' : 'HeyGen'} API 연결을 먼저 저장해 주세요.`)
     return ''
@@ -740,8 +772,9 @@ async function getKey(env, provider, required = true) {
   return decrypt(env, rows[0].cipher, rows[0].iv)
 }
 async function aesKey(env) {
-  if (!env.STUDIO_ENC_KEY) throw new HttpError(500, '서버 암호화 키(STUDIO_ENC_KEY)가 설정되지 않았습니다.')
-  const raw = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(env.STUDIO_ENC_KEY))
+  // STUDIO_ENC_KEY 가 없으면 service_role 키에서 파생 (별도 설정 불필요)
+  const secret = env.STUDIO_ENC_KEY || 'aptsq-video-studio:' + env.SUPABASE_SERVICE_ROLE
+  const raw = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret))
   return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt'])
 }
 async function encrypt(env, text) {

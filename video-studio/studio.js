@@ -2,7 +2,7 @@
 // 서버: worker/worker.js (build.mjs 로 화면과 합쳐 deploy/worker.js 로 배포)  ·  설정: config.js
 ;(function () {
   const CFG = window.STUDIO_CONFIG || {}
-  const API = CFG.STUDIO_API || '/api/studio'
+  const API = CFG.STUDIO_API || 'api/studio'
   const sbc = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY)
   const $ = (id) => document.getElementById(id)
   const esc = (s) => (s == null ? '' : String(s)).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))

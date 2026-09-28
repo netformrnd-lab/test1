@@ -1,0 +1,57 @@
+name: 영상 제작 작업실 배포 (Firebase)
+
+# video-studio/ 가 바뀌어 push 되면 자동 배포. (수동 실행도 가능)
+# 주소: https://asia-southeast1-test-168a4.cloudfunctions.net/studio/
+# 준비물(GitHub Secrets, 이미 등록됨): FIREBASE_SERVICE_ACCOUNT (test-168a4), SUPABASE_SERVICE_ROLE_KEY
+# 기존 POUR·즉시연동 함수는 건드리지 않음 (별도 codebase 'vstudio' 만 배포)
+on:
+  push:
+    branches: ["claude/bold-mayer-pylpse"]
+    paths: ["video-studio/**", ".github/workflows/deploy-studio.yml"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 화면 + API 합치기
+        run: |
+          node video-studio/build.mjs
+          cp video-studio/deploy/worker.js video-studio/firebase/functions/worker.js
+
+      - name: 함수 환경변수
+        run: |
+          echo "SUPABASE_URL=https://gndktayoicegyqyllybk.supabase.co" > video-studio/firebase/functions/.env
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> video-studio/firebase/functions/.env
+
+      - name: 의존성 설치
+        working-directory: video-studio/firebase/functions
+        run: npm install --no-audit --no-fund
+
+      - name: firebase-tools 설치 · 서비스계정
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          npm install -g firebase-tools@13
+          printf '%s' "$SA" > "$HOME/sa.json"
+
+      - name: 배포 (vstudio 함수만)
+        working-directory: video-studio/firebase
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /home/runner/sa.json
+        run: firebase deploy --only functions:vstudio --project test-168a4 --non-interactive --force
+
+      - name: 접속 확인
+        run: |
+          sleep 10
+          URL=https://asia-southeast1-test-168a4.cloudfunctions.net/studio/
+          code=$(curl -s -o /tmp/page.html -w '%{http_code}' "$URL")
+          echo "화면 $URL → HTTP $code"
+          grep -o '<title>[^<]*' /tmp/page.html || true
+          echo "API → $(curl -s "${URL}api/studio")"
+          test "$code" = "200"

@@ -437,7 +437,7 @@ function termIssues(plan) {
   const parts = [['제목', plan.title], ...plan.scenes.flatMap((s, i) => [[`장면 ${i + 1} 대사`, s.narration], [`장면 ${i + 1} 자막`, s.onScreen]])]
   for (const [where, text] of parts) {
     const low = String(text || '').toLowerCase()
-    for (const b of T.banned) if (low.includes(b.word.toLowerCase())) out.push(`${where}: 금지어 '${b.word}' — ${b.why}${b.instead && b.instead !== '삭제' ? ` (대신: ${b.instead})` : ' (삭제)'}`)
+    for (const b of T.banned) if ((b.allow || []).reduce((t, ok) => t.split(ok.toLowerCase()).join(' '), low).includes(b.word.toLowerCase())) out.push(`${where}: 금지어 '${b.word}' — ${b.why}${b.instead && b.instead !== '삭제' ? ` (대신: ${b.instead})` : ' (삭제)'}`)
     for (const x of T.spelling) if (String(text || '').includes(x.wrong)) out.push(`${where}: 표기 통일 '${x.wrong}' → '${x.right}'`)
   }
   return out

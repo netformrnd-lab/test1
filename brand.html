@@ -1526,6 +1526,21 @@ body.bk-edit .panel{overflow:clip}
 .bk-ed span{font-size:11.5px;font-weight:500;color:var(--text-muted)}
 .bk-ed .at{flex:1 0 100%;margin-top:2px;padding:4px 8px;border-radius:7px;
   background:rgba(26,63,139,.07);color:var(--ink);font-weight:600}
+/* 🎨 색판 — 적지 않고 <<보고 고릅니다>> */
+.bk-pal{display:none;flex:1 0 100%;flex-wrap:wrap;align-items:center;gap:5px;
+  margin-top:5px;padding:7px 9px;border:1px solid var(--border);border-radius:9px;
+  background:var(--bg-secondary)}
+.bk-pal.on{display:flex}
+.bk-pal b{font-size:11.5px;font-weight:600;color:var(--text-secondary);margin-right:4px}
+.bk-pal .gap{width:1px;height:18px;background:var(--border);margin:0 4px}
+.bk-pal .sw{width:22px;height:22px;padding:0;border:1px solid rgba(0,0,0,.16);
+  border-radius:6px;cursor:pointer;transition:transform .12s}
+.bk-pal .sw:hover{transform:scale(1.15);border-color:var(--ink)}
+.bk-pal input[type=color]{width:32px;height:24px;padding:0;border:1px solid var(--border);
+  border-radius:6px;background:none;cursor:pointer}
+.bk-pal .off{padding:4px 9px;border:1px solid var(--border);border-radius:7px;
+  background:var(--bg-primary);font-size:11.5px;color:var(--text-secondary);cursor:pointer}
+.bk-pal .off:hover{border-color:var(--ink);color:var(--text-primary)}
 .bk-ed span b{color:var(--text-secondary)}
 .pw-orig.bk-on .bk-ifr{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.14)}
 /* 쪽 고르기 — 11 장이 넘어가면 한 장씩 넘기기가 답답합니다 */
@@ -4309,7 +4324,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260928-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260928-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19176,8 +19191,8 @@ function bookEdHtml(){
     + '<button onclick="bookCmd(\'bold\')" title="굵게"><b>B</b></button>'
     + '<button onclick="bookCmd(\'italic\')" title="기울임"><i>I</i></button>'
     + '<button onclick="bookCmd(\'underline\')" title="밑줄"><u>U</u></button>'
-    + '<button onclick="bookColor(\'fore\')" title="글자 색">🎨</button>'
-    + '<button onclick="bookColor(\'back\')" title="형광펜">🖍</button>'
+    + '<button onclick="bookColor(\'fore\')" title="글자 색 — 색판이 펴집니다">🎨 글자 색</button>'
+    + '<button onclick="bookColor(\'back\')" title="형광펜 — 색판이 펴집니다">🖍 형광펜</button>'
     + '<button onclick="bookCmd(\'removeFormat\')" title="꾸밈을 지우고 처음 모양으로">서식 지우기</button>'
     + '<span class="bar"></span>'
     /* 고른 것 하나에 모든 것을 합니다 — 「칸」 「줄」 을 나눠 짐작하다
@@ -19199,7 +19214,9 @@ function bookEdHtml(){
     + '<button onclick="bookRevert()">↩︎ 고치기 전으로</button>'
     + '<button class="dn" onclick="setBookEdit(0)">✔ 다 고쳤어요</button>'
     /* 지금 무엇을 골랐는지 — 누르기 전에 눈으로 봅니다 */
-    + '<span class="at" id="bkAt">고칠 곳을 한 번 눌러 주세요</span>';
+    + '<span class="at" id="bkAt">고칠 곳을 한 번 눌러 주세요</span>'
+    /* 🎨 · 🖍 을 누르면 여기에 색판이 펴집니다 */
+    + '<div class="bk-pal" id="bkPal"></div>';
 }
 /* 연장 단추를 누를 때 틀 안의 초점이 빠져나가지 않게 막습니다 */
 function bookEdArm(el){
@@ -19214,8 +19231,9 @@ function bookEdArm(el){
    새로 읽어, 읽던 쪽도 커서도 날아갑니다. */
 function bookPaintBar(){
   const el = document.getElementById('bkEd');
+  if(!bookEdit) bookPalKind = '';
   if(el){ el.innerHTML = bookEdHtml(); el.classList.toggle('on', bookEdit); bookEdArm(el);
-          bookMark(); }
+          bookMark(); bookPalPaint(); }
   tbHeight();
   const pw = document.querySelector('.pw-orig');
   if(pw) pw.classList.toggle('bk-on', bookEdit);
@@ -20026,14 +20044,86 @@ function bookBoxAdd(){
   }catch(e){}
   bookTouched(); bookMark();
 }
+/* ── 🎨 색은 <<보고 고릅니다>> ───────────────────────────────────
+   전에는 「#1a3f8b 처럼 적어 주세요」 라고 물었습니다. 색을 아는 사람은
+   없습니다 — 그건 컴퓨터가 쓰는 말입니다. 이제 색판을 펴 보입니다.
+   맨 앞줄은 <<이 책에 이미 쓰인 색>> 입니다. 브랜드 색을 그대로
+   골라 쓰면 되니, 색을 알 필요가 없습니다.
+   ------------------------------------------------------------- */
+const BOOK_INK = [
+  ['#1a1a1a', '검정'], ['#444b56', '진회색'], ['#8a93a2', '회색'],
+  ['#c0392b', '빨강'], ['#ef7712', '주황'], ['#d9a400', '노랑'],
+  ['#2e9e5b', '초록'], ['#1f6fd0', '파랑'], ['#0f2038', '남색'],
+  ['#7b4bc9', '보라'], ['#d6468a', '분홍'], ['#7a5230', '갈색'],
+  ['#ffffff', '흰색']
+];
+const BOOK_HI = [
+  ['#fff3b0', '노랑'], ['#ffe0c2', '주황'], ['#ffd6de', '분홍'],
+  ['#d9f2d9', '초록'], ['#d6e9ff', '하늘'], ['#e6ddff', '보라'],
+  ['#eceff3', '회색']
+];
+/* 읽기 쉬운 여섯 자리로 바꿉니다 (rgb(26, 63, 139) → #1a3f8b) */
+function bookHex(c){
+  const m = /^rgba?\(([^)]+)\)/.exec(String(c || ''));
+  if(!m) return String(c || '');
+  const n = m[1].split(',').map(x => parseFloat(x));
+  if(n.length >= 4 && n[3] < 0.1) return '';
+  const h = x => ('0' + Math.max(0, Math.min(255, Math.round(x))).toString(16)).slice(-2);
+  return '#' + h(n[0]) + h(n[1]) + h(n[2]);
+}
+/* 지금 펴 놓은 종이에 <<이미 쓰인>> 글자 색을 많이 쓰인 차례로 */
+function bookInkUsed(){
+  const d = bookDoc(); if(!d) return [];
+  const pg = d.querySelector('[data-bhp="on"]') || d.body;
+  if(!pg) return [];
+  const win = d.defaultView;
+  const cnt = {};
+  Array.from(pg.querySelectorAll('*')).slice(0, 800).forEach(e => {
+    if(!String(e.textContent || '').trim()) return;
+    let c = '';
+    try{ c = bookHex(win.getComputedStyle(e).color); }catch(x){}
+    if(!c || c === '#ffffff') return;
+    cnt[c] = (cnt[c] || 0) + 1;
+  });
+  return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 8);
+}
+let bookPalKind = '';
 function bookColor(kind){
-  const v = prompt(kind === 'fore' ? '글자 색을 적어 주세요 (예: #1a3f8b, red)'
-                                   : '형광펜 색을 적어 주세요 (예: #fff3b0, yellow)',
-                   kind === 'fore' ? '#1a3f8b' : '#fff3b0');
-  if(v === null) return;
-  const t = String(v).trim();
-  if(!t){ bookCmd(kind === 'fore' ? 'foreColor' : 'hiliteColor', 'inherit'); return; }
-  bookCmd(kind === 'fore' ? 'foreColor' : 'hiliteColor', t);
+  bookPalKind = (bookPalKind === kind) ? '' : kind;
+  bookPalPaint();
+}
+function bookSw(v, name){
+  return '<button class="sw" style="background:' + esc(v) + '" title="' + esc(name) + '"'
+    + ' onclick="bookPalPick(\'' + esc(v) + '\')"></button>';
+}
+function bookPalHtml(kind){
+  const mine = kind === 'fore' ? bookInkUsed() : [];
+  const list = kind === 'fore' ? BOOK_INK : BOOK_HI;
+  return '<b>' + (kind === 'fore' ? '글자 색' : '형광펜') + '</b>'
+    + (mine.length
+        ? mine.map(v => bookSw(v, '이 책에 쓰인 색 ' + v)).join('') + '<span class="gap"></span>'
+        : '')
+    + list.map(c => bookSw(c[0], c[1])).join('')
+    + '<input type="color" value="' + (kind === 'fore' ? '#1a3f8b' : '#fff3b0') + '"'
+      + ' title="다른 색 고르기" onchange="bookPalPick(this.value)">'
+    + '<button class="off" onclick="bookPalPick(\'none\')">색 없애기</button>';
+}
+function bookPalPaint(){
+  const el = document.getElementById('bkPal');
+  if(!el) return;
+  el.innerHTML = bookPalKind ? bookPalHtml(bookPalKind) : '';
+  el.classList.toggle('on', !!bookPalKind);
+}
+function bookPalPick(v){
+  const kind = bookPalKind;
+  bookPalKind = ''; bookPalPaint();
+  if(!kind) return;
+  const cmd = kind === 'fore' ? 'foreColor' : 'hiliteColor';
+  if(v === 'none'){ bookCmd(cmd, kind === 'fore' ? 'inherit' : 'transparent'); return; }
+  /* 고른 글이 있으면 style 로 감쌉니다 — 옛 <font> 태그보다 깔끔하고,
+     execCommand 가 안 먹는 문서에서도 됩니다 */
+  if(bookWrap(kind === 'fore' ? 'color' : 'backgroundColor', v)) return;
+  bookCmd(cmd, v);
 }
 /* ── 빈 칸에도 글이 들어가게 ──────────────────────────────────
    글줄 속의 칸(<span>)을 <<완전히>> 비우면 커서가 설 자리가 없어져

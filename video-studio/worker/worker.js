@@ -12,6 +12,8 @@
 const PROMPT_VERSION = 'studio-v1'
 const ANTHROPIC_VERSION = '2023-06-01'
 const MAX_REVISIONS = 2
+// 공사 용어 사전(terms.json — build.mjs 가 TERMS 로 넣어 줌): 동의어·표기 통일·금지어
+const T = typeof TERMS !== 'undefined' ? TERMS : { synonyms: [], spelling: [], banned: [], soften: {} }
 const MAX_SOURCE_CHARS = 300000       // 자료 1개 본문 최대 글자 수 (PDF·PPT 에서 뽑은 글자 포함)
 const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
 const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'submitting', 'rendering']
@@ -376,6 +378,7 @@ function applyPlan(job, plan, st) {
   })
   const total = plan.scenes.reduce((a, s) => a + s.seconds, 0)
   if (Math.abs(total - job.input.seconds) > Math.max(15, job.input.seconds * 0.25)) problems.push(`장면 길이 합계(${total}초)가 목표 ${job.input.seconds}초와 크게 다릅니다.`)
+  problems.push(...termIssues(plan))
   d.plan = plan
   d.groundingIssues = problems
   d.prompt = heygenPrompt(job, plan)
@@ -383,7 +386,7 @@ function applyPlan(job, plan, st) {
 
 function allIssues(d) {
   const out = []
-  ;(d.groundingIssues || []).forEach((x) => out.push('[서버 근거 검사] ' + x))
+  ;(d.groundingIssues || []).forEach((x) => out.push('[서버 검사] ' + x))
   ;((d.plan && d.plan.blockers) || []).forEach((x) => out.push('[대본 작성 중단 사유] ' + x))
   if (!passes(d.claude)) out.push(...reviewIssues('Claude', d.claude))
   if (!passes(d.openai)) out.push(...reviewIssues('OpenAI', d.openai))
@@ -416,7 +419,24 @@ function draftSystem() {
     '5. onScreen 은 화면 자막(짧은 핵심 문구, 30자 이내), visual 은 화면 구성 지시입니다.',
     '6. 근거가 부족해 목표 길이·주제를 정직하게 채울 수 없으면 blockers 에 이유를 적습니다(억지로 채우지 않음).',
     '7. 과장·단정적 효과 보장·타사 비방·확인되지 않은 법적 판단은 쓰지 않습니다.',
+    termRules(),
   ].join('\n')
+}
+function termRules() {
+  const sp = T.spelling.map((x) => `${x.wrong}→${x.right}`).join(', ')
+  const bn = T.banned.map((x) => (x.instead && x.instead !== '삭제' ? `${x.word}(→${x.instead})` : x.word)).join(', ')
+  return `8. [사내 용어 사전] 대사·자막에 다음 표기를 지킵니다: ${sp}\n9. [금지어] 대사·자막·제목에 쓰지 않습니다(괄호는 대신 쓸 표현): ${bn}`
+}
+// 대사·자막·제목의 금지어·잘못된 표기를 서버에서 직접 찾는다 (인용문은 원문 그대로라 검사하지 않음)
+function termIssues(plan) {
+  const out = []
+  const parts = [['제목', plan.title], ...plan.scenes.flatMap((s, i) => [[`장면 ${i + 1} 대사`, s.narration], [`장면 ${i + 1} 자막`, s.onScreen]])]
+  for (const [where, text] of parts) {
+    const low = String(text || '').toLowerCase()
+    for (const b of T.banned) if (low.includes(b.word.toLowerCase())) out.push(`${where}: 금지어 '${b.word}' — ${b.why}${b.instead && b.instead !== '삭제' ? ` (대신: ${b.instead})` : ' (삭제)'}`)
+    for (const x of T.spelling) if (String(text || '').includes(x.wrong)) out.push(`${where}: 표기 통일 '${x.wrong}' → '${x.right}'`)
+  }
+  return out
 }
 function contextBlock(d) {
   return (d.context || []).map((c, i) => `<자료 단락 ${i + 1} id="${c.sourceId}" 제목="${c.title}" 출처="${c.provenance}">\n${c.text}\n</자료 단락>`).join('\n\n')
@@ -437,7 +457,7 @@ function reviewSystem() {
     '당신은 아파트스퀘어 영상 대본의 독립 검수자입니다. 작성자와 별개로 엄격하게 평가합니다.',
     '각 항목을 0~100점으로 채점합니다:',
     '- grounding: 모든 주장·수치가 [승인 자료]로 뒷받침되는가. 자료에 없는 사실이 하나라도 있으면 60점 이하.',
-    '- brand: 아파트스퀘어(감리 전문, 신뢰·정확성)와 발표자(조현식 이사) 어조에 맞고 과장·보장·비방이 없는가.',
+    '- brand: 아파트스퀘어(감리 전문, 신뢰·정확성)와 발표자(조현식 이사) 어조에 맞고 과장·보장·비방이 없는가. 사내 용어 사전의 표기·금지어를 지켰는가. POUR 등 다른 회사·브랜드를 언급하면 60점 이하.',
     '- clarity: 시청 대상이 이해하기 쉽고 논리적 비약 없이 전달되는가.',
     '- production: HeyGen 아바타 영상으로 바로 제작 가능한가(장면 길이 합계, 발화량, 자막 길이, 화면 지시).',
     'issues 에는 반드시 고쳐야 하는 중대 지적만 한국어로 적습니다(없으면 빈 배열). 사소한 취향은 적지 않습니다.',
@@ -627,7 +647,12 @@ async function listAvatars(key, token) {
 // ─────────────────────────── 자료 검색 ───────────────────────────
 // 승인 자료를 단락으로 나눠 키워드(단어 + 한글 2글자 조각) 겹침으로 점수를 매긴다.
 function retrieve(sources, keywords) {
-  const terms = String(keywords).split(/[\s,·/]+/).map((t) => t.trim()).filter((t) => t.length >= 2)
+  const base = String(keywords).split(/[\s,·/]+/).map((t) => t.trim()).filter((t) => t.length >= 2)
+  // 동의어 확장: '크랙' 으로 찾아도 '균열' 자료가 나오게
+  const terms = [...new Set(base.flatMap((t) => {
+    const g = T.synonyms.find((x) => [x.canonical, ...x.terms].some((w) => w.length >= 2 && (t.includes(w) || w.includes(t))))
+    return g ? [t, g.canonical, ...g.terms.filter((w) => w.length >= 2)] : [t]
+  }))]
   const grams = new Set()
   terms.forEach((t) => { for (let i = 0; i < t.length - 1; i++) grams.add(t.slice(i, i + 2)) })
   const chunks = []
@@ -692,6 +717,7 @@ async function state(env, opt = {}) {
     sources: sources.map((s) => ({ id: s.id, title: s.title, provenance: s.provenance, content: s.content, file: s.file ? { name: s.file.name, size: s.file.size } : null, approved: s.approved ? 1 : 0, created: s.created_at })),
     jobs: jobs.map(toJob),
     learningCount: jobs.filter((j) => j.status === 'rendered').length,
+    terms: T,
   }
 }
 function readinessProblems(st) {

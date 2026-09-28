@@ -258,6 +258,16 @@
     $('src-count').textContent = srcs.length
     $('src-approved').textContent = `승인 ${srcs.filter((s) => s.approved === 1).length}개`
     $('learning-count').textContent = (n && n.learningCount) || 0
+    const T = n && n.terms
+    $('terms-card').hidden = !T
+    if (T) {
+      $('terms-card').innerHTML = `${icon('book', 20)}<h3>공사 용어 사전 · 자동 적용</h3>
+        <p>동의어 ${T.synonyms.length}묶음 · 표기 통일 ${T.spelling.length}개 · 금지어 ${T.banned.length}개. 자료 검색에서 같은 뜻의 말을 함께 찾고, 대본에 금지어나 틀린 표기가 있으면 검수에서 자동으로 고칩니다.</p>
+        <details><summary>동의어 (검색에 함께 사용)</summary><ul class="terms-list">${T.synonyms.map((x) => `<li><b>${esc(x.canonical)}</b> = ${x.terms.map(esc).join(', ')}</li>`).join('')}</ul></details>
+        <details><summary>표기 통일</summary><ul class="terms-list">${T.spelling.map((x) => `<li>${esc(x.wrong)} → <b>${esc(x.right)}</b> <small>${esc(x.why)}</small></li>`).join('')}</ul></details>
+        <details><summary>금지어</summary><ul class="terms-list">${T.banned.map((x) => `<li><b>${esc(x.word)}</b> — ${esc(x.why)}${x.instead ? ` <small>(대신: ${esc(x.instead)})</small>` : ''}</li>`).join('')}</ul></details>
+        <small>${esc(T.source)}</small>`
+    }
     $('sources-list').innerHTML = srcs.length ? srcs.map((s) => `<article class="source-card">
         <div class="between"><h3>${esc(s.title)}</h3><span class="${s.approved ? 'tag green' : 'tag'}">${s.approved ? '사용 중' : '승인 대기'}</span></div>
         <p class="source-meta">${esc(s.provenance)}</p>

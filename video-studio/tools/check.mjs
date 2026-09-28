@@ -16,3 +16,6 @@ console.log('== 저장소 파일 폴더(files/) 수 ==', Array.isArray(list) ? l
 console.log('== 브랜드 자료 ==', arr(sources).length, '| 원본 파일 있음', arr(sources).filter((s) => s.file).length)
 const J = arr(jobs)
 console.log('== 제작 작업 ==', J.length, JSON.stringify(J.reduce((a, j) => ((a[j.status] = (a[j.status] || 0) + 1), a), {})))
+const logs = await json('logs')
+console.log('== 화면 기록 (최근 40건, 파일 이름 없음) ==', Array.isArray(logs) ? logs.length + '건' : JSON.stringify(logs))
+for (const l of arr(logs).slice(0, 40)) console.log(l.time, `[${l.kind}]`, l.ext ? `(.${l.ext})` : '', l.msg, l.kind === 'js' || l.kind === 'scan' ? '| ' + l.ua : '')

@@ -621,6 +621,11 @@
     const ex = Object.entries(k.exts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([e, n]) => `.${e} ${n}`).join(', ')
     return [k.notImage && `사진 아님 ${k.notImage}${ex ? ` (${ex})` : ''}`, k.small && `작은 이미지 ${k.small}`, k.dup && `이미 올린 사진 ${k.dup}`, k.hidden && `숨김 파일 ${k.hidden}`].filter(Boolean).join(' · ')
   }
+  // 원인 파악용: 업로드 오류·요약을 서버에 기록 (파일 이름은 보내지 않음)
+  const extOf = (n) => ((String(n).match(/\.([^.]+)$/) || [])[1] || '').toLowerCase()
+  function logServer(entries) { api({ action: 'log', entries: entries.map((e) => ({ ...e, ua: navigator.userAgent })) }).catch(() => {}) }
+  window.addEventListener('error', (e) => logServer([{ kind: 'js', msg: `${e.message} @${(e.filename || '').split('/').pop()}:${e.lineno}` }]))
+  window.addEventListener('unhandledrejection', (e) => logServer([{ kind: 'js', msg: 'promise: ' + String((e.reason && e.reason.message) || e.reason) }]))
   function renderUpload() {
     const el = $('upload-dock')
     if (!UP.open) { el.hidden = true; return }
@@ -649,7 +654,7 @@
       S.data.photos = [r.photo, ...(S.data.photos || []).filter((x) => x.id !== r.photo.id)]
       UP.ok++
     } catch (e) {
-      if (e.small) { UP.skip.small++; UP.total-- } else { UP.fail++; UP.errors.push(`${f.name} — ${e.message}`) }
+      if (e.small) { UP.skip.small++; UP.total-- } else { UP.fail++; UP.errors.push(`${f.name} — ${e.message}`); logServer([{ kind: 'fail', msg: e.message, ext: extOf(f.name) + (f._convert ? '/' + f._convert : '') }]) }
     } finally {
       UP.current.delete(f.name)
       renderUpload(); renderPhotos(); renderTabs()
@@ -657,13 +662,17 @@
   }
   async function pump() {
     UP.running++
-    try { while (UP.queue.length) await uploadOne(UP.queue.shift()) } finally { UP.running--; renderUpload() }
+    try { while (UP.queue.length) await uploadOne(UP.queue.shift()) } finally {
+      UP.running--; renderUpload()
+      if (!UP.running && !UP.queue.length && UP.total) logServer([{ kind: 'done', msg: `성공 ${UP.ok} · 실패 ${UP.fail} · 작은이미지 ${UP.skip.small}` }])
+    }
   }
   async function uploadPhotos(files) {
     if (!(UP.running || UP.queue.length)) { Object.assign(UP, { total: 0, ok: 0, fail: 0, errors: [], skip: newSkip() }) }
     UP.open = true; UP.scanning = true; renderUpload()
     const { images, skip } = await collectImages([...files])
     UP.scanning = false
+    logServer([{ kind: 'scan', msg: `파일 ${files.length}개 → 사진 ${images.length} · 사진아님 ${skip.notImage} · 중복 ${skip.dup} · 숨김 ${skip.hidden} · 확장자 ${JSON.stringify(skip.exts).slice(0, 200)} · 받은형식 ${JSON.stringify(images.reduce((a, f) => ((a[extOf(f.name)] = (a[extOf(f.name)] || 0) + 1), a), {})).slice(0, 150)}` }])
     for (const k of ['notImage', 'dup', 'hidden']) UP.skip[k] += skip[k]
     for (const [e, n] of Object.entries(skip.exts)) UP.skip.exts[e] = (UP.skip.exts[e] || 0) + n
     if (!images.length) { renderUpload(); return }

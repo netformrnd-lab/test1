@@ -222,6 +222,15 @@ const ACTIONS = {
     return { job: toJob(row) }
   },
 
+  // 화면에서 생긴 업로드 오류·건너뛴 형식 기록 (파일 이름 없이 확장자·문구만, 최근 300건)
+  async log(env, { entries }) {
+    const list = (Array.isArray(entries) ? entries : []).slice(0, 50).map((e) => ({
+      time: now(), kind: String(e.kind || '').slice(0, 30), msg: String(e.msg || '').slice(0, 300), ext: String(e.ext || '').slice(0, 20), ua: String(e.ua || '').slice(0, 120),
+    }))
+    if (list.length) await mutate(env, 'logs', [], (l) => { l.unshift(...list); l.splice(300) })
+    return { ok: true }
+  },
+
   // HeyGen 남은 크레딧
   async quota(env) {
     return { heygen: await heygenQuota(await getKey(env, 'heygen')) }

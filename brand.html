@@ -1473,6 +1473,12 @@ table.itable tr:hover td{background:var(--bg-hover)}
   border-radius:999px;background:var(--bg-page);border:1px solid var(--border);
   color:var(--text-muted)}
 .bk-who .qt{color:var(--text-muted)}
+/* 🔔 바탕화면 알림 받기 */
+.bk-noti{margin-left:auto;padding:3px 10px;border:1px solid var(--border);border-radius:999px;
+  background:var(--bg-page);font-family:inherit;font-size:11px;font-weight:650;
+  color:var(--text-muted);cursor:pointer;white-space:nowrap}
+.bk-noti:hover{border-color:var(--ink);color:var(--text-primary)}
+.bk-noti.on{border-color:var(--blue);color:var(--blue)}
 /* 옆 사람이 방금 고쳤다는 알림 */
 .bk-new{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px;
   padding:8px 11px;border:1px solid var(--blue);border-radius:9px;
@@ -4275,7 +4281,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260927-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260928-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5068,6 +5074,8 @@ function restoreUI(snap){
    ------------------------------------------------------------------ */
 function bgRender(){
   const live = document.getElementById('bkIfr') || document.getElementById('pdfBox');
+  /* 어느 브랜드의 책이든 바뀌었으면 먼저 알립니다 (바탕화면 알림) */
+  bookNotifyScan();
   /* 옆 사람이 이 책을 고쳤으면 그것부터 처리합니다 */
   if(live && bookWatch()) return;
   if(live){
@@ -19591,6 +19599,90 @@ function pdfTh(no, n){
 }
 /* 넘기기 단추를 지금 쪽수에 맞춥니다 (다시 그리지 않고 단추만 손봅니다) */
 function pdfNav(){ bookNav(); }
+/* ── 🔔 브라우저 알림 ──────────────────────────────────────────
+   대시보드를 닫아 두거나 다른 탭을 보고 있어도, 누가 브랜드북을 고치면
+   바탕화면에 알림이 뜹니다. 브라우저가 물어보는 허락을 한 번 받아야
+   하고, 그 허락은 <<사람이 누른 순간>> 에만 물어볼 수 있습니다.
+   (아이폰 사파리는 홈 화면에 추가해 두어야 알림이 옵니다)
+   --------------------------------------------------------------- */
+const NOTI_KEY = 'brandHubNoti';
+function notiCan(){ return typeof Notification !== 'undefined'; }
+function notiOn(){
+  if(!notiCan() || Notification.permission !== 'granted') return false;
+  try{ return localStorage.getItem(NOTI_KEY) !== 'off'; }catch(e){ return true; }
+}
+function notifyChip(){
+  if(!notiCan()) return '';
+  if(Notification.permission === 'denied')
+    return '<span class="qt" title="브라우저 설정에서 이 사이트의 알림을 막아 두었습니다">'
+      + '🔕 알림 막힘</span>';
+  if(Notification.permission === 'granted')
+    return '<button class="bk-noti' + (notiOn() ? ' on' : '') + '" onclick="notiToggle()"'
+      + ' title="브랜드북이 바뀌면 바탕화면에 알려 줍니다">'
+      + (notiOn() ? '🔔 알림 켜짐' : '🔕 알림 꺼짐') + '</button>';
+  return '<button class="bk-noti" onclick="notiAsk()"'
+    + ' title="다른 분이 브랜드북을 고치면 바탕화면에 알려 줍니다">🔔 알림 받기</button>';
+}
+async function notiAsk(){
+  if(!notiCan()){ toast('이 브라우저는 알림을 못 씁니다'); return; }
+  let r = Notification.permission;
+  if(r === 'default'){
+    try{ r = await Notification.requestPermission(); }catch(e){ r = 'denied'; }
+  }
+  if(r === 'granted'){
+    try{ localStorage.setItem(NOTI_KEY, 'on'); }catch(e){}
+    notiShow('🔔 알림을 켰습니다', '이제 누가 브랜드북을 고치면 여기로 알려 드립니다');
+    toast('🔔 알림을 켰습니다');
+  }else{
+    toast('알림이 막혔습니다 — 주소창 왼쪽 자물쇠에서 풀 수 있습니다');
+  }
+  bookWhoPaint();
+}
+function notiToggle(){
+  const on = !notiOn();
+  try{ localStorage.setItem(NOTI_KEY, on ? 'on' : 'off'); }catch(e){}
+  toast(on ? '🔔 알림을 켰습니다' : '🔕 알림을 껐습니다');
+  bookWhoPaint();
+}
+function notiShow(title, body){
+  if(!notiOn()) return;
+  try{
+    const n = new Notification(title, { body: body, tag: 'brandhub-book', renotify: true });
+    n.onclick = () => { try{ window.focus(); n.close(); }catch(e){} };
+  }catch(e){}
+}
+
+/* ── 어느 브랜드의 책이든 바뀌면 알립니다 ───────────────────────
+   그 브랜드를 보고 있지 않아도 · 다른 탭을 보고 있어도 알아야 합니다. */
+const bookSeenAll = {};
+let bookSeenInit = false;
+function bookNotifyScan(){
+  const first = !bookSeenInit;
+  bookSeenInit = true;
+  const hits = [];
+  data.brands.forEach(b => {
+    const L = bookLogOf(b);
+    const id = L.length ? String(L[0].id) : '';
+    const was = bookSeenAll[b.id];
+    bookSeenAll[b.id] = id;
+    if(first || !id || id === was) return;
+    if(L[0].by && L[0].by === myName()) return;      // 내가 한 일은 안 알립니다
+    hits.push({ b: b, x: L[0] });
+  });
+  if(!hits.length) return;
+  const h = hits[0];
+  const what = h.x.act === '고침' ? '고쳤습니다' : '새로 올렸습니다';
+  const more = hits.length > 1 ? ' 외 ' + (hits.length - 1) + '건' : '';
+  notiShow('📖 ' + h.b.name + ' 브랜드북이 바뀌었습니다',
+    (h.x.by || '다른 분') + '님이 ' + what + more);
+  /* 그 브랜드를 보고 있지 않을 때만 여기서 알립니다 —
+     보고 있으면 bookWatch 가 더 자세히 말해 줍니다 */
+  const here = currentBrand();
+  if(!here || here.id !== h.b.id || !document.getElementById('bkIfr')
+     && !document.getElementById('pdfBox')){
+    toast('📖 ' + h.b.name + ' — ' + (h.x.by || '다른 분') + '님이 브랜드북을 ' + what + more);
+  }
+}
 /* ── 옆 사람이 고치면 바로 알려 줍니다 ─────────────────────────
    같은 파일을 여럿이 고치므로, 모르고 읽거나 모르고 덮어쓰는 일이
    생깁니다. 옆 사람의 저장이 들어오면 (1) 읽고만 있으면 새 것으로
@@ -19680,7 +19772,7 @@ function bookWhoHtml(b){
     + '<span>님이 ' + esc(when) + ' 에 '
       + (x.act === '고침' ? '고쳤습니다' : '올렸습니다') + '</span>'
     + '<i>' + esc(bookWhenText(x.at)) + '</i>'
-    + (L.length > 1 ? '<span class="qt">· 이 책에 손댄 기록 ' + L.length + '번</span>' : '')
+    + notifyChip()
     + '</div>';
 }
 /* 줄만 갈아 끼웁니다 — 화면을 다시 그리면 읽던 책이 새로 열립니다 */

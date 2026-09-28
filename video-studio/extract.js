@@ -131,5 +131,21 @@
     return r
   }
 
-  window.StudioExtract = { extract, ext }
+  // zip 안의 사진만 File 로 꺼낸다 (사진 자료실 폴더·zip 올리기용)
+  const IMG_EXT = /\.(jpe?g|png|webp|gif|bmp|avif)$/i
+  async function zipImages(file) {
+    const JSZip = await load(CDN.jszip, 'JSZip')
+    const zip = await JSZip.loadAsync(await file.arrayBuffer())
+    const out = []
+    for (const [name, entry] of Object.entries(zip.files)) {
+      const base = name.split('/').pop()
+      if (entry.dir || !IMG_EXT.test(base) || base.startsWith('.') || name.includes('__MACOSX')) continue
+      const blob = await entry.async('blob')
+      const e = base.split('.').pop().toLowerCase()
+      out.push(new File([blob], base, { type: e === 'jpg' || e === 'jpeg' ? 'image/jpeg' : 'image/' + e }))
+    }
+    return out
+  }
+
+  window.StudioExtract = { extract, ext, zipImages }
 })()

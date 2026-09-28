@@ -159,7 +159,7 @@ const ACTIONS = {
 
   // ── 사진 자료실 ──
   // 브라우저가 uploadUrl 로 사진을 올린 뒤 호출 → AI(Claude)가 사진 설명을 자동으로 붙인다
-  async photo(env, { path, name }) {
+  async photo(env, { path, name, size }) {
     if (!/^files\/[0-9a-f-]{36}\/file\.(jpg|jpeg|png|webp)$/.test(String(path))) throw new HttpError(400, '사진 경로가 올바르지 않습니다.')
     let desc = '', tags = []
     try {
@@ -171,7 +171,7 @@ const ACTIONS = {
         desc = String(r.desc || '').slice(0, 300); tags = (r.tags || []).map(String).slice(0, 10)
       }
     } catch (e) { desc = '' }
-    const item = { id: 'p' + crypto.randomUUID().replace(/-/g, '').slice(0, 10), path, name: String(name || '').slice(0, 200), desc, tags, source: 'upload', created: now() }
+    const item = { id: 'p' + crypto.randomUUID().replace(/-/g, '').slice(0, 10), path, name: String(name || '').slice(0, 200), size: Number(size) || 0, desc, tags, source: 'upload', created: now() }
     await mutate(env, 'photos', [], (list) => { list.unshift(item) })
     return { photo: item, state: await state(env) }
   },
@@ -984,7 +984,7 @@ async function state(env, opt = {}) {
     connections: sec, readiness, settings,
     sources: all.map((s) => ({ id: s.id, title: s.title, provenance: s.provenance, content: s.content, file: s.file ? { name: s.file.name, size: s.file.size } : null, approved: s.approved ? 1 : 0, builtin: !!s.builtin, created: s.created_at })),
     usageTotal: totalUsage(jobs),
-    photos: photos.map((p) => ({ id: p.id, name: p.name, desc: p.desc, tags: p.tags || [], source: p.source, created: p.created })),
+    photos: photos.map((p) => ({ id: p.id, name: p.name, size: p.size || 0, desc: p.desc, tags: p.tags || [], source: p.source, created: p.created })),
     jobs: jobs.map(toJob),
     learningCount: jobs.filter((j) => j.status === 'rendered').length,
     terms: T,

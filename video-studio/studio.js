@@ -548,6 +548,7 @@
     return new Promise((resolve, reject) => {
       const img = new Image()
       img.onload = () => {
+        if (Math.min(img.width, img.height) < 300) { URL.revokeObjectURL(img.src); reject(Object.assign(new Error('작은 이미지'), { small: true })); return }
         const k = Math.min(1, 1920 / Math.max(img.width, img.height))
         const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k)
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
@@ -558,29 +559,85 @@
       img.src = URL.createObjectURL(file)
     })
   }
+  // 폴더·zip·여러 파일 → 사진만 골라 올린다 (3장씩 동시에)
+  const IMG_NAME = /\.(jpe?g|png|webp|gif|bmp|avif)$/i
+  async function collectImages(files) {
+    const skip = { notImage: 0, heic: 0, dup: 0, hidden: 0 }
+    const out = []
+    const seen = new Set(((S.data && S.data.photos) || []).map((p) => `${p.name}|${p.size || ''}`))
+    for (const f of files) {
+      const name = f.name || ''
+      const path = f.webkitRelativePath || f._path || name
+      if (name.startsWith('.') || path.includes('__MACOSX') || /(^|\/)\./.test(path)) { skip.hidden++; continue }
+      if (/\.zip$/i.test(name)) {
+        try { for (const z of await window.StudioExtract.zipImages(f)) files.push(z) } catch (e) { S.error = `${name}: zip 을 열지 못했습니다.`; renderMessages() }
+        continue
+      }
+      if (/\.(heic|heif)$/i.test(name)) { skip.heic++; continue }
+      if (!IMG_NAME.test(name) && !/^image\//.test(f.type)) { skip.notImage++; continue }
+      const key = `${name}|${f.size}`
+      if (seen.has(key)) { skip.dup++; continue }
+      seen.add(key); out.push(f)
+    }
+    return { images: out, skip }
+  }
+  // 끌어다 놓은 폴더를 하위 폴더까지 읽는다
+  async function filesFromDrop(dt) {
+    const items = [...(dt.items || [])].map((it) => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean)
+    if (!items.length) return [...(dt.files || [])]
+    const out = []
+    const walk = async (entry, prefix) => {
+      if (entry.isFile) {
+        const f = await new Promise((res, rej) => entry.file(res, rej)).catch(() => null)
+        if (f) { f._path = prefix + f.name; out.push(f) }
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader()
+        let batch
+        do {
+          batch = await new Promise((res) => reader.readEntries(res, () => res([])))
+          for (const e of batch) await walk(e, prefix + entry.name + '/')
+        } while (batch.length)
+      }
+    }
+    for (const e of items) await walk(e, '')
+    return out
+  }
   async function uploadPhotos(files) {
-    const list = files.filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type))
-    if (!list.length) { S.error = 'JPG·PNG·WEBP 사진만 올릴 수 있습니다.'; renderMessages(); return }
     const prog = $('photo-progress'); prog.hidden = false
-    let ok = 0
-    for (const [i, f] of list.entries()) {
-      prog.textContent = `사진 올리는 중 ${i + 1}/${list.length} — ${f.name} (AI 설명 작성 포함)`
+    prog.textContent = `파일 ${files.length}개에서 사진을 고르는 중…`
+    const { images, skip } = await collectImages([...files])
+    const skipText = () => [skip.notImage && `사진 아님 ${skip.notImage}`, skip.small && `작은 이미지 ${skip.small}`, skip.dup && `이미 올린 사진 ${skip.dup}`, skip.heic && `HEIC ${skip.heic}(JPG 로 바꿔 올려 주세요)`, skip.hidden && `숨김 파일 ${skip.hidden}`].filter(Boolean).join(' · ')
+    if (!images.length) { prog.textContent = `올릴 사진이 없습니다. ${skipText()}`; return }
+    if (images.length > 300 && !confirm(`사진 ${images.length}장을 올릴까요? 장마다 AI 설명(Claude)을 붙이므로 시간이 걸리고 소량의 비용이 듭니다.`)) { prog.hidden = true; return }
+    skip.small = 0
+    let ok = 0, fail = 0, next = 0
+    const one = async (f) => {
       try {
         const blob = await toJpeg(f)
         const up = await api({ action: 'uploadUrl', name: 'photo.jpg', size: blob.size })
         const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'x-upsert': 'false' }, body: blob })
         if (!put.ok) throw new Error('업로드 실패 HTTP ' + put.status)
-        const r = await api({ action: 'photo', path: up.path, name: f.name })
+        const r = await api({ action: 'photo', path: up.path, name: f.name, size: f.size })
         S.data = r.state; ok++
-        renderPhotos(); renderTabs()
-      } catch (e) { S.error = `${f.name}: ${e.message}`; renderMessages() }
+      } catch (e) {
+        if (e.small) skip.small++
+        else { fail++; S.error = `${f.name}: ${e.message}` }
+      }
+      prog.textContent = `사진 올리는 중 ${ok + fail + (skip.small || 0)}/${images.length} (AI 설명 작성 포함)${fail ? ` · 실패 ${fail}` : ''}`
     }
-    prog.textContent = `사진 ${ok}장을 올렸습니다.`
-    setTimeout(() => { prog.hidden = true }, 4000)
+    const worker = async () => { while (next < images.length) { const f = images[next++]; await one(f); renderPhotos(); renderTabs() } }
+    await Promise.all([worker(), worker(), worker()])
+    prog.textContent = `사진 ${ok}장을 올렸습니다.${fail ? ` 실패 ${fail}장.` : ''}${skipText() ? ' 건너뜀: ' + skipText() : ''}`
+    if (fail) renderMessages()
   }
-  $('photo-file').addEventListener('change', (ev) => { const fs = [...(ev.target.files || [])]; ev.target.value = ''; uploadPhotos(fs) })
-  ;['dragenter', 'dragover'].forEach((t) => $('photo-drop').addEventListener(t, () => $('photo-drop').classList.add('drag')))
-  ;['dragleave', 'drop'].forEach((t) => $('photo-drop').addEventListener(t, () => $('photo-drop').classList.remove('drag')))
+  ;['photo-file', 'photo-folder'].forEach((id) => $(id).addEventListener('change', (ev) => { const fs = [...(ev.target.files || [])]; ev.target.value = ''; if (fs.length) uploadPhotos(fs) }))
+  ;['dragenter', 'dragover'].forEach((t) => $('photo-drop').addEventListener(t, (ev) => { ev.preventDefault(); $('photo-drop').classList.add('drag') }))
+  $('photo-drop').addEventListener('dragleave', () => $('photo-drop').classList.remove('drag'))
+  $('photo-drop').addEventListener('drop', async (ev) => {
+    ev.preventDefault(); $('photo-drop').classList.remove('drag')
+    const fs = await filesFromDrop(ev.dataTransfer)
+    if (fs.length) uploadPhotos(fs)
+  })
   $('photo-grid').addEventListener('click', async (ev) => {
     const sv = ev.target.closest('[data-desc-save]')
     if (sv) {

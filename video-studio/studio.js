@@ -232,6 +232,7 @@
 
   // ── 사진 주소 캐시 (1시간짜리 주소를 50분 동안 재사용) ──
   const urlCache = {}
+  const vidCache = {}
   let urlPending = new Set(), urlTimer = null
   function photoUrl(id) {
     if (!id) return ''
@@ -245,11 +246,27 @@
     if (!ids.length) return
     try {
       const r = await api({ action: 'photoUrls', ids })
-      for (const id of ids) urlCache[id] = { url: r.urls[id] || '', exp: Date.now() + 50 * 60000 }
+      for (const id of ids) {
+        urlCache[id] = { url: r.urls[id] || '', exp: Date.now() + 50 * 60000 }
+        if (r.videos && r.videos[id]) vidCache[id] = r.videos[id]
+      }
       renderCreate(); renderHistory(); renderPhotos()
+      if (!$('preview-modal').hidden) drawPreview()
     } catch (e) { /* 다음 렌더링 때 다시 시도 */ }
   }
+  // 컷에서 실제로 움직이는 영상 주소 (AI 영상 > 자동 움직임 클립 > 자료실 영상)
+  function cutVideo(c) {
+    const clip = c.aiVideoPath || c.clipPath
+    if (clip) { photoUrl('clip:' + clip); return vidCache['clip:' + clip] || '' }
+    const p = photoOf(c.photoId)
+    if (p && p.kind === 'video') { photoUrl(p.id); return vidCache[p.id] || '' }
+    return ''
+  }
+  const photoOf = (id) => (id ? (S.data && S.data.photos || []).find((x) => x.id === id) : null)
   function cutVisual(c, s) {
+    const v = cutVideo(c)
+    if (v) return `<video src="${esc(v)}" muted loop playsinline autoplay preload="metadata"></video><span class="cut-badge">${c.aiVideoPath ? 'AI 영상' : c.clipPath ? '움직임' : '영상'}</span>`
+    if (c.videoPrompt && !c.aiVideoPath && !c.videoFailed) return `<div class="cut-ph ai">AI 영상<br>생성 예정</div>`
     const id = c.photoId || c.aiPhotoId
     if (id) { const u = photoUrl(id); return u ? `<img src="${esc(u)}" alt="" loading="lazy">` : '<div class="cut-ph">사진 불러오는 중</div>' }
     if (c.imagePrompt && !c.imageFailed) return `<div class="cut-ph ai">AI 이미지<br>생성 예정</div>`
@@ -257,6 +274,13 @@
   }
   function cutLabel(c) {
     const p = (S.data.photos || []).find((x) => x.id === (c.photoId || c.aiPhotoId))
+    if (c.aiVideoPath) return `AI 영상 (Sora) · ${esc(c.videoPrompt)}`
+    if (c.videoPrompt && !c.videoFailed) return `AI 영상 생성 예정 · ${esc(c.videoPrompt)}`
+    const mv = c.clipPath ? ' · 자동 움직임' : ''
+    if (c.videoFailed && c.videoPrompt) return `AI 영상 실패 → ${c.aiPhotoId ? 'AI 이미지' : c.photoId ? '자료실 사진' : '대체 화면'}${mv} · ${esc(c.videoPrompt)}`
+    if (p && p.kind === 'video') return `영상 자료실 · ${esc(p.desc || c.photoId)}`
+    if (c.photoId && mv) return `사진 자료실${mv} · ${esc((p && p.desc) || c.photoId)}`
+    if (c.aiPhotoId && mv) return `AI 생성 이미지${mv} · ${esc(c.imagePrompt)}`
     if (c.photoId) return `사진 자료실 · ${esc((p && p.desc) || c.photoId)}`
     if (c.aiPhotoId) return `AI 생성 이미지 · ${esc(c.imagePrompt)}`
     if (c.imagePrompt) return `${c.imageFailed ? 'AI 이미지 생성 실패 → 브랜드 카드' : 'AI 이미지 생성 예정'} · ${esc(c.imagePrompt)}`
@@ -303,12 +327,13 @@
 
   const n0 = (x) => Number(x || 0).toLocaleString()
   function usageHtml(u, models) {
-    if (!u || (!u.claude && !u.openai && !u.heygen && !u.image)) return ''
+    if (!u || (!u.claude && !u.openai && !u.heygen && !u.image && !u.video)) return ''
     const row = (name, v, extra) => `<div><span>${name}</span><b>${extra}</b><small>${v ? `입력 ${n0(v.input)} · 출력 ${n0(v.output)} 토큰 · ${v.calls}회` : ''}</small></div>`
     let h = '<details open><summary>사용량 (크레딧)</summary><div class="usage-grid">'
     if (u.claude) h += row(`Claude <small>${esc(models.claude)}</small>`, u.claude, u.claude.usd != null ? `약 $${u.claude.usd.toFixed(3)}` : '요금표 없는 모델')
     if (u.openai) h += row(`OpenAI 검수 <small>${esc(models.openai)}</small>`, u.openai, '토큰 기준')
     if (u.image) h += row('OpenAI 이미지 생성', u.image, `${u.image.calls}장 생성`)
+    if (u.video) h += `<div><span>AI 영상 (Sora)</span><b>약 $${(u.video.usd || 0).toFixed(2)}</b><small>${u.video.calls}개 · 총 ${u.video.seconds}초 (공개 요금 기준 예상치)</small></div>`
     if (u.heygen) h += `<div><span>HeyGen</span><b>${u.heygen.used != null ? n0(u.heygen.used) + ' 크레딧' : '측정 중'}</b><small>${u.heygen.before != null ? `제작 전 ${n0(u.heygen.before)} → 후 ${u.heygen.after != null ? n0(u.heygen.after) : '…'}` : '잔액 조회 불가'}</small></div>`
     return h + '</div><p class="fineprint">Claude 금액은 공개 요금표 기준 예상치입니다(부가세·할인 제외). OpenAI 금액은 모델별 요금이 달라 토큰만 표시합니다. HeyGen은 제작 전후 잔액 차이라 같은 시간에 다른 사용이 있으면 함께 잡힙니다.</p></details>'
   }
@@ -348,6 +373,7 @@
     if (!t) { $('usage-total').innerHTML = ''; return }
     $('usage-total').innerHTML = `<div class="usage-total"><div><span>Claude 누적</span><b>약 $${t.claude.usd.toFixed(2)}</b><small>입력 ${n0(t.claude.input)} · 출력 ${n0(t.claude.output)} 토큰</small></div>
       <div><span>OpenAI 누적</span><b>${n0(t.openai.input + t.openai.output)} 토큰</b><small>입력 ${n0(t.openai.input)} · 출력 ${n0(t.openai.output)}</small></div>
+      ${t.images || t.videos ? `<div><span>AI 이미지·영상 누적</span><b>${n0(t.images)}장 · ${n0(t.videos)}개</b><small>AI 영상 약 $${(t.videoUsd || 0).toFixed(2)}</small></div>` : ''}
       <div><span>HeyGen 누적 사용</span><b>${n0(t.heygen)} 크레딧</b><small>남은 크레딧: ${S.quota == null ? `<button class="text-link" data-quota>조회</button>` : n0(S.quota) + ' 크레딧'}</small></div></div>
       <p class="fineprint">최근 50개 제작 기준 합계입니다. 정확한 청구 금액은 각 서비스(Anthropic·OpenAI·HeyGen) 사용량 페이지에서 확인해 주세요.</p>`
   }
@@ -449,6 +475,10 @@
   function syncSettingsForm() {
     $('image-model').value = S.settings.imageModel || 'gpt-image-1'
     $('auto-render').checked = S.settings.autoRender !== false
+    $('motion').checked = S.settings.motion !== false
+    $('ai-video').checked = S.settings.aiVideo !== false
+    $('video-model').value = S.settings.videoModel || 'sora-2'
+    $('max-ai-videos').value = S.settings.maxAiVideos != null ? S.settings.maxAiVideos : 2
     $('voice-id').value = S.settings.voiceId || ''
     $('avatar-confirm').checked = !!S.settings.consent
     $('daily-limit').value = S.settings.maxDailyJobs
@@ -537,9 +567,9 @@
   function renderPhotos() {
     const list = (S.data && S.data.photos) || []
     $('photo-count').textContent = list.length
-    $('photo-ai-count').textContent = `AI 생성 ${list.filter((p) => p.source === 'ai').length}장`
+    $('photo-ai-count').textContent = `영상 ${list.filter((p) => p.kind === 'video').length}개 · AI 생성 ${list.filter((p) => p.source === 'ai').length}장`
     $('photo-grid').innerHTML = list.length ? list.map((p) => { const u = photoUrl(p.id); return `<div class="photo-card">
-        <div class="photo-img">${u ? `<img src="${esc(u)}" alt="" loading="lazy">` : '<div class="cut-ph">불러오는 중</div>'}${p.source === 'ai' ? '<span class="tag">AI 생성</span>' : ''}</div>
+        <div class="photo-img">${u ? `<img src="${esc(u)}" alt="" loading="lazy">` : '<div class="cut-ph">불러오는 중</div>'}${p.kind === 'video' ? `<span class="vid-badge">▶ ${p.duration || '?'}초</span>` : ''}${p.source === 'ai' ? '<span class="tag">AI 생성</span>' : ''}</div>
         <textarea class="textarea photo-desc" data-desc="${p.id}" rows="3" placeholder="사진 설명 (AI 가 컷을 고를 때 사용)">${esc(p.desc)}</textarea>
         <div class="between"><button type="button" class="btn outline sm" data-desc-save="${p.id}">설명 저장</button><button type="button" class="text-link" data-photo-del="${p.id}">삭제</button></div>
       </div>` }).join('') : `<div class="empty-result small">${icon('image', 28)}<h3>아직 등록된 사진이 없습니다</h3><p>현장 사진·드론 촬영·전후 비교·앱 화면·서류 사진을 올려 주세요. 사진이 없으면 필요한 컷을 AI 이미지로 만듭니다.</p></div>`
@@ -563,6 +593,8 @@
   const IMG_NAME = /\.(jpe?g|jfif|jpe|pjpeg|png|webp|gif|bmp|avif)$/i
   const CONVERT = { heic: 'heic', heif: 'heic', tif: 'tiff', tiff: 'tiff', dng: 'raw', cr2: 'raw', cr3: 'raw', nef: 'raw', arw: 'raw', rw2: 'raw', orf: 'raw', raf: 'raw', srw: 'raw', pef: 'raw' }
   const DOCS = /\.(pptx|docx|xlsx|hwpx)$/i
+  const VID_NAME = /\.(mp4|mov|m4v|webm)$/i
+  const VID_MAX = 50 * 1048576
   async function collectImages(files) {
     const skip = { notImage: 0, dup: 0, hidden: 0, exts: {} }
     const out = []
@@ -579,6 +611,10 @@
         if (DOCS.test(name)) { for (const z of await window.StudioExtract.docImages(f)) push(z); continue }
       } catch (err) { skip.notImage++; skip.exts[ext + '(열 수 없음)'] = (skip.exts[ext + '(열 수 없음)'] || 0) + 1; continue }
       if (CONVERT[ext]) { f._convert = CONVERT[ext]; push(f); continue }
+      if (VID_NAME.test(name) || /^video\//.test(f.type)) {
+        if (f.size > VID_MAX) { skip.bigVideo = (skip.bigVideo || 0) + 1; continue }
+        f._video = true; push(f); continue
+      }
       if (!IMG_NAME.test(name) && !/^image\/(jpeg|png|webp|gif|bmp|avif)$/.test(f.type)) { skip.notImage++; skip.exts[ext] = (skip.exts[ext] || 0) + 1; continue }
       push(f)
     }
@@ -614,12 +650,12 @@
     return out
   }
   // ── 업로드 대기열: 고르는 즉시 시작, 올리는 중에 더 고르면 뒤에 이어 붙는다 (3장씩 동시에) ──
-  const newSkip = () => ({ notImage: 0, dup: 0, hidden: 0, small: 0, exts: {} })
+  const newSkip = () => ({ notImage: 0, dup: 0, hidden: 0, small: 0, bigVideo: 0, longVideo: 0, exts: {} })
   const UP = { queue: [], total: 0, ok: 0, fail: 0, skip: newSkip(), errors: [], current: new Set(), running: 0, open: false, scanning: false }
   const skipText = () => {
     const k = UP.skip
     const ex = Object.entries(k.exts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([e, n]) => `.${e} ${n}`).join(', ')
-    return [k.notImage && `사진 아님 ${k.notImage}${ex ? ` (${ex})` : ''}`, k.small && `작은 이미지 ${k.small}`, k.dup && `이미 올린 사진 ${k.dup}`, k.hidden && `숨김 파일 ${k.hidden}`].filter(Boolean).join(' · ')
+    return [k.notImage && `사진 아님 ${k.notImage}${ex ? ` (${ex})` : ''}`, k.small && `작은 이미지 ${k.small}`, k.bigVideo && `50MB 넘는 영상 ${k.bigVideo}`, k.longVideo && `60초 넘는 영상 ${k.longVideo}`, k.dup && `이미 올린 사진 ${k.dup}`, k.hidden && `숨김 파일 ${k.hidden}`].filter(Boolean).join(' · ')
   }
   // 원인 파악용: 업로드 오류·요약을 서버에 기록 (파일 이름은 보내지 않음)
   const extOf = (n) => ((String(n).match(/\.([^.]+)$/) || [])[1] || '').toLowerCase()
@@ -643,9 +679,48 @@
       ${UP.errors.length ? `<details ${busy ? '' : 'open'}><summary>실패한 파일 ${UP.errors.length}개</summary><ul>${UP.errors.slice(-20).map((e) => `<li>${esc(e)}</li>`).join('')}</ul></details>` : ''}`
     const c = $('upload-close'); if (c) c.onclick = () => { UP.open = false; renderUpload() }
   }
+  // 영상: 길이와 첫 화면(미리보기 JPG)을 브라우저에서 뽑는다
+  function videoInfo(file) {
+    return new Promise((resolve, reject) => {
+      const v = document.createElement('video')
+      const url = URL.createObjectURL(file)
+      const fail = (m) => { URL.revokeObjectURL(url); reject(new Error(m)) }
+      const t = setTimeout(() => fail('영상을 읽지 못했습니다 (시간 초과)'), 20000)
+      v.muted = true; v.playsInline = true; v.preload = 'auto'
+      v.onloadedmetadata = () => { v.currentTime = Math.min(1, (v.duration || 0) / 3) }
+      v.onseeked = () => {
+        clearTimeout(t)
+        const k = Math.min(1, 1280 / Math.max(v.videoWidth || 1, v.videoHeight || 1))
+        const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * k) || 640; c.height = Math.round(v.videoHeight * k) || 360
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height)
+        c.toBlob((b) => { URL.revokeObjectURL(url); b ? resolve({ duration: v.duration, thumb: b }) : reject(new Error('영상 미리보기 실패')) }, 'image/jpeg', 0.85)
+      }
+      v.onerror = () => { clearTimeout(t); fail('이 브라우저에서 열 수 없는 영상 형식입니다 (MP4 권장)') }
+      v.src = url
+    })
+  }
+  async function putFile(name, blob, type) {
+    const up = await api({ action: 'uploadUrl', name, size: blob.size })
+    const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': type, 'x-upsert': 'false' }, body: blob })
+    if (!put.ok) throw new Error('저장소 업로드 실패 (HTTP ' + put.status + ')')
+    return up.path
+  }
+  async function uploadVideo(f) {
+    const info = await videoInfo(f)
+    if (info.duration > 60.5) throw Object.assign(new Error('60초 넘는 영상'), { long: true })
+    const ext = (extOf(f.name).match(/^(mp4|mov|m4v|webm)$/) || ['mp4'])[0]
+    const thumbPath = await putFile('thumb.jpg', info.thumb, 'image/jpeg')
+    const path = await putFile('video.' + ext, f, f.type || (ext === 'webm' ? 'video/webm' : ext === 'mov' ? 'video/quicktime' : 'video/mp4'))
+    return api({ action: 'photo', path, name: f.name, size: f.size, kind: 'video', thumbPath, duration: info.duration })
+  }
   async function uploadOne(f) {
     UP.current.add(f.name); renderUpload()
     try {
+      if (f._video) {
+        const r = await uploadVideo(f)
+        S.data.photos = [r.photo, ...(S.data.photos || []).filter((x) => x.id !== r.photo.id)]
+        UP.ok++; return
+      }
       const blob = await toJpeg(await toOpenable(f))
       const up = await api({ action: 'uploadUrl', name: 'photo.jpg', size: blob.size })
       const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'x-upsert': 'false' }, body: blob })
@@ -654,7 +729,7 @@
       S.data.photos = [r.photo, ...(S.data.photos || []).filter((x) => x.id !== r.photo.id)]
       UP.ok++
     } catch (e) {
-      if (e.small) { UP.skip.small++; UP.total-- } else { UP.fail++; UP.errors.push(`${f.name} — ${e.message}`); logServer([{ kind: 'fail', msg: e.message, ext: extOf(f.name) + (f._convert ? '/' + f._convert : '') }]) }
+      if (e.small) { UP.skip.small++; UP.total-- } else if (e.long) { UP.skip.longVideo++; UP.total-- } else { UP.fail++; UP.errors.push(`${f.name} — ${e.message}`); logServer([{ kind: 'fail', msg: e.message, ext: extOf(f.name) + (f._convert ? '/' + f._convert : '') }]) }
     } finally {
       UP.current.delete(f.name)
       renderUpload(); renderPhotos(); renderTabs()
@@ -673,7 +748,7 @@
     const { images, skip } = await collectImages([...files])
     UP.scanning = false
     logServer([{ kind: 'scan', msg: `파일 ${files.length}개 → 사진 ${images.length} · 사진아님 ${skip.notImage} · 중복 ${skip.dup} · 숨김 ${skip.hidden} · 확장자 ${JSON.stringify(skip.exts).slice(0, 200)} · 받은형식 ${JSON.stringify(images.reduce((a, f) => ((a[extOf(f.name)] = (a[extOf(f.name)] || 0) + 1), a), {})).slice(0, 150)}` }])
-    for (const k of ['notImage', 'dup', 'hidden']) UP.skip[k] += skip[k]
+    for (const k of ['notImage', 'dup', 'hidden', 'bigVideo']) UP.skip[k] += skip[k] || 0
     for (const [e, n] of Object.entries(skip.exts)) UP.skip.exts[e] = (UP.skip.exts[e] || 0) + n
     if (!images.length) { renderUpload(); return }
     if (images.length > 300 && !confirm(`사진 ${images.length}장을 올릴까요? 장마다 AI 설명(Claude)을 붙이므로 시간이 걸리고 소량의 비용이 듭니다.`)) { renderUpload(); return }
@@ -701,13 +776,14 @@
       renderMessages(); return
     }
     const del = ev.target.closest('[data-photo-del]')
-    if (del && confirm('이 사진을 삭제할까요? 이미 만든 영상에는 영향이 없습니다.')) {
+    if (del && confirm('이 자료를 삭제할까요? 이미 만든 영상에는 영향이 없습니다.')) {
       try { S.data = await api({ action: 'photoDelete', id: del.dataset.photoDel }); renderAll() } catch (e) { S.error = e.message; renderMessages() }
     }
   })
   $('prefs-save').addEventListener('click', async () => {
     try {
-      S.data = await api({ action: 'prefs', imageModel: $('image-model').value, autoRender: $('auto-render').checked })
+      S.data = await api({ action: 'prefs', imageModel: $('image-model').value, autoRender: $('auto-render').checked,
+        motion: $('motion').checked, aiVideo: $('ai-video').checked, videoModel: $('video-model').value, maxAiVideos: $('max-ai-videos').value })
       S.settings = { ...DEFAULT_SETTINGS, ...S.data.settings }; syncSettingsForm()
       $('prefs-ok').textContent = '영상 구성 설정을 저장했습니다.'; $('prefs-ok').hidden = false
     } catch (e) { S.error = e.message; renderMessages() }
@@ -728,11 +804,17 @@
     if (!c) return
     const id = c.photoId || c.aiPhotoId
     const u = id ? photoUrl(id) : ''
-    const bg = id ? (u ? `<img class="pv-bg" src="${esc(u)}" alt="">` : '<div class="pv-card"><small>사진 불러오는 중</small></div>')
+    const v = cutVideo(c)
+    const kb = ['kb-in', 'kb-out', 'kb-left', 'kb-right'][PV.i % 4]
+    const bg = v ? `<video class="pv-bg" src="${esc(v)}" autoplay muted loop playsinline></video>`
+      : c.videoPrompt && !c.aiVideoPath && !c.videoFailed ? `<div class="pv-card ai"><small>AI 영상 생성 예정</small><p>${esc(c.videoPrompt)}</p></div>`
+      : id ? (u ? `<img class="pv-bg ${S.settings.motion !== false ? 'kb ' + kb : ''}" src="${esc(u)}" alt="">` : '<div class="pv-card"><small>사진 불러오는 중</small></div>')
+      : null
+    const bg0 = id ? (u ? `<img class="pv-bg" src="${esc(u)}" alt="">` : '<div class="pv-card"><small>사진 불러오는 중</small></div>')
       : c.imagePrompt && !c.imageFailed ? `<div class="pv-card ai"><small>AI 이미지 생성 예정</small><p>${esc(c.imagePrompt)}</p></div>`
       : `<div class="pv-card brand"><span class="pv-label">공동주택 유지보수 전문감리기관</span><h3>${esc(c.onScreen || '아파트스퀘어')}</h3><span class="pv-logo">아파트스퀘어</span></div>`
     $('preview-stage').className = 'preview-stage ' + (PV.ratio === '9:16' ? 'vertical' : '')
-    $('preview-stage').innerHTML = `${bg}<div class="pv-avatar ${id ? 'small' : ''}">${icon('user', 28)}<span>조현식 이사</span></div><div class="pv-sub">${esc(c.narration)}</div>`
+    $('preview-stage').innerHTML = `${bg || bg0}<div class="pv-avatar ${id || v ? 'small' : ''}">${icon('user', 28)}<span>조현식 이사</span></div><div class="pv-sub">${esc(c.narration)}</div>`
     $('preview-pos').textContent = `장면 ${c.scene} · 컷 ${c.cut} (${PV.i + 1}/${PV.cuts.length})`
     $('preview-play').textContent = PV.playing ? '❚❚ 멈춤' : '▶ 재생'
   }

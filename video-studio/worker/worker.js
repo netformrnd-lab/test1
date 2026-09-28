@@ -425,7 +425,11 @@ function draftSystem() {
 function termRules() {
   const sp = T.spelling.map((x) => `${x.wrong}→${x.right}`).join(', ')
   const bn = T.banned.map((x) => (x.instead && x.instead !== '삭제' ? `${x.word}(→${x.instead})` : x.word)).join(', ')
-  return `8. [사내 용어 사전] 대사·자막에 다음 표기를 지킵니다: ${sp}\n9. [금지어] 대사·자막·제목에 쓰지 않습니다(괄호는 대신 쓸 표현): ${bn}`
+  return `8. [사내 용어 사전] 대사·자막에 다음 표기를 지킵니다: ${sp}\n9. [금지어] 대사·자막·제목에 쓰지 않습니다(괄호는 대신 쓸 표현): ${bn}\n${brandRules()}`
+}
+function brandRules() {
+  const b = T.brand
+  return b ? `10. [아파트스퀘어 브랜드북 규칙]\n${b.rules.map((r) => '- ' + r).join('\n')}` : ''
 }
 // 대사·자막·제목의 금지어·잘못된 표기를 서버에서 직접 찾는다 (인용문은 원문 그대로라 검사하지 않음)
 function termIssues(plan) {
@@ -462,6 +466,8 @@ function reviewSystem() {
     '- production: HeyGen 아바타 영상으로 바로 제작 가능한가(장면 길이 합계, 발화량, 자막 길이, 화면 지시).',
     'issues 에는 반드시 고쳐야 하는 중대 지적만 한국어로 적습니다(없으면 빈 배열). 사소한 취향은 적지 않습니다.',
     'pass 는 네 항목이 모두 90점 이상이고 issues 가 비어 있을 때만 true 입니다.',
+    '브랜드 점수는 아래 브랜드북 규칙을 기준으로 매기고, 어긴 규칙은 issues 에 적습니다.',
+    brandRules(),
   ].join('\n')
 }
 function reviewUser(job, d) {
@@ -473,7 +479,7 @@ function heygenPrompt(job, plan) {
     `# ${plan.title}`,
     `발표자: 아파트스퀘어 조현식 이사 (등록된 전용 아바타·음성 사용)`,
     `시청 대상: ${i.audience} · 목표 ${i.seconds}초 · ${i.ratio === '9:16' ? '세로형 1080×1920' : '가로형 1920×1080'} · 자막 켜기`,
-    `브랜드 지시: 차분하고 신뢰감 있는 전문가 어조, 과장 표현·효과 보장 금지, 아파트스퀘어 브랜드 컬러(레드 #DC3042, 네이비 #181C35) 사용`,
+    `브랜드 지시: 차분하고 신뢰감 있는 전문가 어조, 결과 약속·과장 표현 금지. ${(T.brand && T.brand.visual) || '아파트스퀘어 브랜드 컬러(네이비 #1F2C5C, 블루 #4A6FB5, 화이트) 사용'}`,
     '',
   ]
   plan.scenes.forEach((s, k) => {

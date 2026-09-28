@@ -19,3 +19,14 @@ console.log('== 제작 작업 ==', J.length, JSON.stringify(J.reduce((a, j) => (
 const logs = await json('logs')
 console.log('== 화면 기록 (최근 40건, 파일 이름 없음) ==', Array.isArray(logs) ? logs.length + '건' : JSON.stringify(logs))
 for (const l of arr(logs).slice(0, 40)) console.log(l.time, `[${l.kind}]`, l.ext ? `(.${l.ext})` : '', l.msg, l.kind === 'js' || l.kind === 'scan' ? '| ' + l.ua : '')
+
+// 삭제 대상 확인용 (읽기만): files/ 폴더 전체를 세고, 브랜드 자료 원본 / 사진 기록 / 기록 없는 업로드로 나눈다
+const all = []
+for (let offset = 0; ; offset += 1000) {
+  const a = await fetch(`${URL_}/storage/v1/object/list/studio`, { method: 'POST', headers: { ...h, 'content-type': 'application/json' }, body: JSON.stringify({ prefix: 'files/', limit: 1000, offset }) }).then((r) => r.json())
+  if (!Array.isArray(a)) { console.log('목록 실패', JSON.stringify(a).slice(0, 200)); break }
+  all.push(...a.map((x) => x.name)); if (a.length < 1000) break
+}
+const srcDirs = new Set(arr(sources).filter((s) => s.file && s.file.path).map((s) => s.file.path.split('/')[1]))
+const photoDirs = new Set(P.flatMap((p) => [p.path, p.thumbPath]).filter(Boolean).map((x) => x.split('/')[1]))
+console.log('== 삭제 대상 확인 == files/ 폴더 전체', all.length, '| 브랜드 자료 원본(보존)', all.filter((d) => srcDirs.has(d)).length, '| 사진 기록 있음', all.filter((d) => photoDirs.has(d)).length, '| 기록 없음', all.filter((d) => !srcDirs.has(d) && !photoDirs.has(d)).length)

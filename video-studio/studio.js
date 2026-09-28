@@ -476,6 +476,7 @@
     $('image-model').value = S.settings.imageModel || 'gpt-image-1'
     $('auto-render').checked = S.settings.autoRender !== false
     $('motion').checked = S.settings.motion !== false
+    $('heygen-mode').value = S.settings.heygenMode === 'scenes' ? 'scenes' : 'agent'
     $('ai-video').checked = S.settings.aiVideo !== false
     $('video-model').value = S.settings.videoModel || 'sora-2'
     $('max-ai-videos').value = S.settings.maxAiVideos != null ? S.settings.maxAiVideos : 2
@@ -784,7 +785,7 @@
   $('prefs-save').addEventListener('click', async () => {
     try {
       S.data = await api({ action: 'prefs', imageModel: $('image-model').value, autoRender: $('auto-render').checked,
-        motion: $('motion').checked, aiVideo: $('ai-video').checked, videoModel: $('video-model').value, maxAiVideos: $('max-ai-videos').value })
+        motion: $('motion').checked, aiVideo: $('ai-video').checked, videoModel: $('video-model').value, maxAiVideos: $('max-ai-videos').value, heygenMode: $('heygen-mode').value })
       S.settings = { ...DEFAULT_SETTINGS, ...S.data.settings }; syncSettingsForm()
       $('prefs-ok').textContent = '영상 구성 설정을 저장했습니다.'; $('prefs-ok').hidden = false
     } catch (e) { S.error = e.message; renderMessages() }
@@ -795,7 +796,7 @@
   function openPreview(job) {
     PV.cuts = []
     job.plan.scenes.forEach((s, si) => (s.cuts && s.cuts.length ? s.cuts : [{ narration: s.narration }]).forEach((c, ci) => PV.cuts.push({ ...c, scene: si + 1, cut: ci + 1, onScreen: s.onScreen })))
-    PV.i = 0; PV.ratio = job.input.ratio; PV.playing = false
+    PV.i = 0; PV.ratio = job.input.ratio; PV.playing = false; PV.agent = (job.mode || S.settings.heygenMode) !== 'scenes'
     $('preview-title').textContent = '무료 미리보기 · ' + (job.plan.title || '')
     $('preview-modal').hidden = false
     drawPreview()
@@ -816,7 +817,7 @@
       : `<div class="pv-card brand"><span class="pv-label">공동주택 유지보수 전문감리기관</span><h3>${esc(c.onScreen || '아파트스퀘어')}</h3><span class="pv-logo">아파트스퀘어</span></div>`
     $('preview-stage').className = 'preview-stage ' + (PV.ratio === '9:16' ? 'vertical' : '')
     $('preview-stage').innerHTML = `${bg || bg0}<div class="pv-avatar ${id || v ? 'small' : ''}">${icon('user', 28)}<span>조현식 이사</span></div><div class="pv-sub">${esc(c.narration)}</div>`
-    $('preview-pos').textContent = `장면 ${c.scene} · 컷 ${c.cut} (${PV.i + 1}/${PV.cuts.length})`
+    $('preview-pos').textContent = `장면 ${c.scene} · 컷 ${c.cut} (${PV.i + 1}/${PV.cuts.length})${PV.agent ? ' · 화면은 HeyGen 자동 구성 (여기서는 대사·순서·길이만 확인)' : ''}`
     $('preview-play').textContent = PV.playing ? '❚❚ 멈춤' : '▶ 재생'
   }
   function speakCut() {

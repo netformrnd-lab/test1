@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS = {
   avatarName: '조현식 이사', consent: false, consentAt: '', maxDailyJobs: 5,
   imageModel: 'gpt-image-1', autoRender: true,
   motion: true, aiVideo: true, videoModel: 'sora-2', maxAiVideos: 2,
+  heygenMode: 'agent',   // agent = HeyGen Video Agent 가 화면 구성까지 자동 / scenes = 컷마다 우리 사진·영상 지정
 }
 
 export default {
@@ -103,6 +104,7 @@ const ACTIONS = {
     const data = {
       builtinOff: prev.builtinOff || [], imageModel: prev.imageModel || DEFAULT_SETTINGS.imageModel, autoRender: prev.autoRender !== false,
       motion: prev.motion !== false, aiVideo: prev.aiVideo !== false, videoModel: prev.videoModel || DEFAULT_SETTINGS.videoModel, maxAiVideos: prev.maxAiVideos != null ? prev.maxAiVideos : DEFAULT_SETTINGS.maxAiVideos,
+      heygenMode: prev.heygenMode || DEFAULT_SETTINGS.heygenMode,
       avatarId, voiceId, maxDailyJobs: max, consent,
       avatarType: s.avatarType === 'talking_photo' ? 'talking_photo' : 'avatar',
       avatarName: String(s.avatarName || DEFAULT_SETTINGS.avatarName).slice(0, 80),
@@ -222,7 +224,7 @@ const ACTIONS = {
     return { urls: out, videos: vids }
   },
   // 영상 구성 설정 (AI 이미지 모델, 검수 통과 후 자동 제작 여부)
-  async prefs(env, { imageModel, autoRender, motion, aiVideo, videoModel, maxAiVideos }) {
+  async prefs(env, { imageModel, autoRender, motion, aiVideo, videoModel, maxAiVideos, heygenMode }) {
     await mutate(env, 'settings', {}, (st) => {
       st.imageModel = String(imageModel || DEFAULT_SETTINGS.imageModel).trim().slice(0, 60)
       st.autoRender = autoRender !== false
@@ -230,6 +232,7 @@ const ACTIONS = {
       st.aiVideo = aiVideo !== false
       st.videoModel = String(videoModel || DEFAULT_SETTINGS.videoModel).trim().slice(0, 60)
       st.maxAiVideos = Math.max(0, Math.min(10, Math.round(Number(maxAiVideos)) || 0))
+      if (heygenMode != null) st.heygenMode = heygenMode === 'scenes' ? 'scenes' : 'agent'
     })
     return state(env)
   },
@@ -416,6 +419,17 @@ async function runStep(env, job) {
   }
 
   // 5) 장면 준비 — 한 번 호출에 한 가지씩: ① AI 영상(요청·확인) ② AI 이미지 ③ 사진 컷 자동 줌·이동 클립
+  if (job.status === 'preparing' && isAgent(st.settings)) {
+    // HeyGen 자동 구성: 화면은 HeyGen 이 만들므로 AI 이미지·영상·움직임 클립을 만들지 않는다 (비용 절약)
+    d.prompt = promptFor(job, d.plan, st)
+    d.events.push(ev('HeyGen 자동 구성 모드: 화면 구성은 HeyGen Video Agent 가 만듭니다.'))
+    job.step = 6
+    if (st.settings.autoRender === false) {
+      job.status = 'ready'
+      d.events.push(ev('미리보기 후 제작 모드: 무료 미리보기로 대사·순서를 확인한 뒤 ‘HeyGen 제작 요청’을 눌러 주세요.'))
+    } else job.status = 'submitting'
+    return
+  }
   if (job.status === 'preparing') {
     const cuts = allCuts(d.plan)
     const byId = Object.fromEntries((st.photos || []).map((p) => [p.id, p]))
@@ -439,7 +453,7 @@ async function runStep(env, job) {
         if (!vcut.imagePrompt && !vcut.photoId) vcut.imagePrompt = vcut.videoPrompt
       }
       d.prepStarted = d.prepStarted || now()
-      d.prompt = heygenPrompt(job, d.plan, st.photos)
+      d.prompt = promptFor(job, d.plan, st)
       return
     }
     // ② AI 이미지
@@ -453,7 +467,7 @@ async function runStep(env, job) {
         cut.imageFailed = String((e && e.message) || e).slice(0, 200)
         d.events.push(ev('AI 이미지 생성 실패 → 이 컷은 브랜드 카드로 표시: ' + cut.imageFailed))
       }
-      d.prompt = heygenPrompt(job, d.plan, st.photos)
+      d.prompt = promptFor(job, d.plan, st)
       return
     }
     // ③ 사진 컷 → 천천히 확대·이동하는 클립 (서버에 ffmpeg 가 있을 때만)
@@ -493,12 +507,20 @@ async function runStep(env, job) {
     await saveJob(env, job)
     const heygenKey = await getKey(env, 'heygen')
     let res
+    const agent = isAgent(st.settings)
+    d.mode = agent ? 'agent' : 'scenes'
     try {
-      res = await fetch('https://api.heygen.com/v2/video/generate', {
-        method: 'POST',
-        headers: { 'X-Api-Key': heygenKey, 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify(heygenPayload(job, st.settings, await cutMedia(env, d.plan, st.photos, 7 * 86400))),
-      })
+      res = agent
+        ? await fetch('https://api.heygen.com/v1/video_agent/generate', {
+          method: 'POST',
+          headers: { 'X-Api-Key': heygenKey, 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify(agentPayload(job, st.settings)),
+        })
+        : await fetch('https://api.heygen.com/v2/video/generate', {
+          method: 'POST',
+          headers: { 'X-Api-Key': heygenKey, 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify(heygenPayload(job, st.settings, await cutMedia(env, d.plan, st.photos, 7 * 86400))),
+        })
     } catch (e) {
       job.status = 'uncertain'
       d.error = 'HeyGen 제작 요청 중 연결이 끊겨 결과를 확인하지 못했습니다. 중복 비용을 막기 위해 재요청하지 않았습니다. HeyGen 대시보드를 확인해 주세요.'
@@ -509,12 +531,12 @@ async function runStep(env, job) {
     const videoId = out && out.data && out.data.video_id
     if (!res.ok || !videoId) {
       job.status = 'failed'
-      d.error = 'HeyGen 제작 요청 실패: ' + apiError(out, res.status)
+      d.error = `HeyGen ${agent ? '자동 구성(Video Agent)' : ''} 제작 요청 실패: ` + apiError(out, res.status)
       d.events.push(ev(d.error))
       return
     }
     d.videoId = videoId
-    d.events.push(ev(`HeyGen 제작 접수 (video_id ${videoId})`))
+    d.events.push(ev(`HeyGen ${agent ? '자동 구성 ' : ''}제작 접수 (video_id ${videoId})`))
     job.step = 7; job.status = 'rendering'
     return
   }
@@ -596,7 +618,7 @@ function applyPlan(job, plan, st) {
   problems.push(...termIssues(plan))
   d.plan = plan
   d.groundingIssues = problems
-  d.prompt = heygenPrompt(job, plan, st.photos)
+  d.prompt = promptFor(job, plan, st)
 }
 function allCuts(plan) { return plan ? plan.scenes.flatMap((s) => s.cuts || []) : [] }
 
@@ -725,6 +747,40 @@ function heygenPrompt(job, plan, photos) {
   })
   return lines.join('\n').trim()
 }
+function promptFor(job, plan, st) { return isAgent(st.settings) ? agentPrompt(job, plan) : heygenPrompt(job, plan, st.photos) }
+// HeyGen Video Agent 용 프롬프트: 대사는 검수 통과본 그대로, 화면은 HeyGen 이 만들되 브랜드·현장 규칙을 강하게 지시
+function agentPrompt(job, plan) {
+  const i = job.input
+  const lines = [
+    `# ${plan.title}`,
+    `발표자: 아파트스퀘어 조현식 이사 (지정한 전용 아바타·음성 사용, 다른 발표자 금지)`,
+    `시청 대상: ${i.audience} · 목표 ${i.seconds}초 · ${i.ratio === '9:16' ? '세로형 1080×1920' : '가로형 1920×1080'} · 한국어 자막 켜기`,
+    '',
+    '[대사 규칙] 아래 장면별 대사를 한 글자도 바꾸지 말고, 순서대로 그대로 읽습니다. 문장을 추가·삭제·요약하지 않습니다.',
+    '[화면 규칙]',
+    '- 건물·현장 화면은 한국 아파트 단지(판상형·탑상형 공동주택)만 사용합니다. 외국 도시·고층 오피스 빌딩·유럽식 건물 금지.',
+    '- 화면 속 글자는 한국어만 사용합니다. 영어 문구가 적힌 자료 화면·문서(예: "OUR PERFORMANCE") 금지.',
+    '- 자막·제목 글자가 다른 글자나 사진 위에 겹치지 않게 배치합니다. 한 화면에 제목은 하나만 둡니다.',
+    `- 브랜드: ${(T.brand && T.brand.visual) || '네이비 #1F2C5C, 포인트 블루 #4A6FB5(제한적으로), 화이트 #FFFFFF, 그레이 #F4F5F7, 서체 Pretendard'}`,
+    '- 배경 색은 네이비 #1F2C5C 또는 화이트·연그레이만 사용합니다. 밝은 원색 파랑 배경 금지.',
+    '- 수치·공정률·가격·결과 약속을 화면에 새로 만들어 넣지 않습니다. 대사와 자막에 있는 내용만 보여 줍니다.',
+    '- 로고 색·비율 변경, 회전, 그림자·외곽선 효과, 복잡한 이미지 위 로고 사용 금지.',
+    '',
+  ]
+  plan.scenes.forEach((s, k) => {
+    lines.push(`## 장면 ${k + 1} (${s.seconds}초)`)
+    lines.push(`자막: ${s.onScreen}`)
+    lines.push(`화면: ${s.visual}`)
+    lines.push(`대사: ${(s.cuts && s.cuts.length ? s.cuts.map((c) => c.narration).join(' ') : s.narration)}`)
+    lines.push('')
+  })
+  return lines.join('\n').trim()
+}
+function agentPayload(job, settings) {
+  const config = { duration_sec: Math.max(10, Math.min(300, Number(job.input.seconds) || 60)), orientation: job.input.ratio === '9:16' ? 'portrait' : 'landscape' }
+  if (settings.avatarId) config.avatar_id = settings.avatarId
+  return { prompt: agentPrompt(job, job.data.plan), config }
+}
 // 컷마다 video_input 하나: 배경(영상 자료·AI 영상·움직임 클립 → 영상 / 사진 → 이미지 / 없으면 브랜드 카드) + 아바타(배경이 있으면 작게)
 function heygenPayload(job, settings, media) {
   const plan = job.data.plan
@@ -762,7 +818,8 @@ async function cutMedia(env, plan, photos, seconds) {
   await Promise.all(jobs)
   return out
 }
-function aiVideoMax(set) { return set.aiVideo === false ? 0 : set.maxAiVideos != null ? set.maxAiVideos : DEFAULT_SETTINGS.maxAiVideos }
+function isAgent(set) { return (set && set.heygenMode) !== 'scenes' }
+function aiVideoMax(set) { return isAgent(set) || set.aiVideo === false ? 0 : set.maxAiVideos != null ? set.maxAiVideos : DEFAULT_SETTINGS.maxAiVideos }
 function cutSeconds(c) { return Math.max(2, Math.min(12, Math.round((String(c.narration || '').replace(/\s/g, '').length / 4.5 + 0.8) * 10) / 10)) }
 
 // ── 자동 줌·이동 (Ken Burns): 사진 → 짧은 mp4 (Firebase 함수에 들어 있는 ffmpeg 사용) ──
@@ -1151,7 +1208,7 @@ function toJob(r) {
   return {
     id: r.id, created: r.created_at, status: r.status, step: r.step, revision: r.revision, input: r.input,
     plan: d.plan || null, prompt: d.prompt || '', claude: d.claude || null, openai: d.openai || null,
-    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '',
+    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '',
     events: d.events || [], sources: d.sources || [], memory: d.memory || [],
     models: d.models || { claude: '', openai: '' }, promptVersion: d.promptVersion || PROMPT_VERSION,
     issues: d.pendingIssues && d.pendingIssues.length ? d.pendingIssues : d.lastIssues || [],

@@ -4309,7 +4309,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260928-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260928-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19180,19 +19180,25 @@ function bookEdHtml(){
     + '<button onclick="bookColor(\'back\')" title="형광펜">🖍</button>'
     + '<button onclick="bookCmd(\'removeFormat\')" title="꾸밈을 지우고 처음 모양으로">서식 지우기</button>'
     + '<span class="bar"></span>'
-    /* 칸 — 더하고 지우기 */
-    + '<button onclick="bookBoxAdd()" title="커서 자리 밑에 새 칸을 하나 넣습니다">＋ 칸</button>'
-    + '<button id="bkRowAdd" onclick="bookRowAdd()" '
-      + 'title="같은 모양이 여럿 늘어선 자리에 줄을 하나 더합니다">＋ 줄</button>'
-    + '<button id="bkRowDel" onclick="bookRowDel()" title="커서가 놓인 줄을 지웁니다">－ 줄</button>'
-    + '<button class="dl" onclick="bookBlockDel()" title="커서가 놓인 칸을 통째로 지웁니다">'
-      + '🗑 이 칸</button>'
+    /* 고른 것 하나에 모든 것을 합니다 — 「칸」 「줄」 을 나눠 짐작하다
+       보니 엉뚱한 데 줄이 생겼습니다. 이제 <<파란 테가 쳐진 그것>> 에만
+       일이 일어나고, 테는 [⬆ 넓게] [⬇ 좁게] 로 옮겨 잡습니다. */
+    + '<button id="bkWide" onclick="bookPickWide()" title="고른 테를 한 겹 바깥으로 넓힙니다">⬆ 넓게</button>'
+    + '<button id="bkNarrow" onclick="bookPickNarrow()" title="고른 테를 한 겹 안으로 좁힙니다">⬇ 좁게</button>'
+    + '<button id="bkCopy" onclick="bookPickCopy()" '
+      + 'title="고른 것을 바로 밑에 똑같이 하나 더 놓습니다 (색·테두리 그대로, 글만 비움)">'
+      + '⧉ 똑같이 하나 더</button>'
+    + '<button id="bkUp" onclick="bookPickMove(-1)" title="고른 것을 위로 옮깁니다">↑</button>'
+    + '<button id="bkDown" onclick="bookPickMove(1)" title="고른 것을 아래로 옮깁니다">↓</button>'
+    + '<button onclick="bookBoxAdd()" title="고른 것 바로 밑에 빈 칸을 하나 넣습니다">＋ 빈 칸</button>'
+    + '<button class="dl" id="bkDel" onclick="bookPickDel()" title="고른 것을 통째로 지웁니다">'
+      + '🗑 지우기</button>'
     + '<span class="bar"></span>'
     + '<button onclick="bookCmd(\'undo\')" title="되돌리기 (Ctrl+Z)">↶</button>'
     + '<button onclick="bookCmd(\'redo\')" title="다시 (Ctrl+Shift+Z)">↷</button>'
     + '<button onclick="bookRevert()">↩︎ 고치기 전으로</button>'
     + '<button class="dn" onclick="setBookEdit(0)">✔ 다 고쳤어요</button>'
-    /* 지금 어디에 손대는지 — 누르기 전에 눈으로 봅니다 */
+    /* 지금 무엇을 골랐는지 — 누르기 전에 눈으로 봅니다 */
     + '<span class="at" id="bkAt">고칠 곳을 한 번 눌러 주세요</span>';
 }
 /* 연장 단추를 누를 때 틀 안의 초점이 빠져나가지 않게 막습니다 */
@@ -19827,45 +19833,158 @@ function bookRowAt(){
   }
   return null;
 }
-/* 같은 줄이 모두 몇이고 이것이 몇째인지 */
+/* ── 「고른 것」 하나로 모읍니다 ─────────────────────────────────
+   전에는 「칸」 과 「줄」 을 따로 짐작해서, 누르는 단추마다 무엇이
+   바뀔지 알 수 없었습니다 — 엉뚱한 자리에 줄이 생기기도 했습니다.
+   이제 고른 것은 <<언제나 하나>> 이고, 파란 테로 보입니다.
+   테가 잘못 잡혔으면 [⬆ 넓게] [⬇ 좁게] 로 옮겨 잡으면 됩니다.
+   커서를 옮기면 그 자리의 것으로 다시 잡힙니다.
+   ------------------------------------------------------------- */
+let bookPick = null;
+/* 커서가 놓인 자리에서 고를 것을 정합니다 — 같은 모양이 늘어선
+   자리(줄)가 있으면 그것을, 없으면 커서가 놓인 칸을 고릅니다.
+   더하고 지우고 옮기는 일은 거의 언제나 「줄」 단위입니다. */
+function bookPickOf(){
+  return bookRowAt() || bookCellAt();
+}
+function bookPickAt(){
+  const d = bookDoc(); if(!d) return null;
+  const n = bookNodeAt();
+  /* 골라 둔 것이 아직 살아 있고 커서도 그 안이면 그대로 둡니다 */
+  if(bookPick && bookPick.isConnected && d.contains(bookPick)
+     && (!n || bookPick === n || bookPick.contains(n))) return bookPick;
+  bookPick = bookPickOf();
+  return bookPick;
+}
+function bookPickSet(el){
+  const d = bookDoc(); if(!d || !el || el === d.body) return;
+  if(el.hasAttribute && el.hasAttribute('data-bhp')) return;   // 종이 자체는 안 고릅니다
+  bookPick = el;
+  bookMark();
+}
+function bookPickWide(){
+  const el = bookPickAt();
+  if(!el || !el.parentNode){ toast('고칠 곳을 먼저 눌러 주세요'); return; }
+  const d = bookDoc();
+  const up = el.parentNode;
+  if(!up || up === d.body || (up.hasAttribute && up.hasAttribute('data-bhp'))){
+    toast('여기가 종이 끝입니다 — 더 넓힐 수 없습니다'); return;
+  }
+  bookPickSet(up);
+}
+function bookPickNarrow(){
+  const el = bookPickAt(); if(!el) return;
+  const n = bookNodeAt();
+  /* 커서가 든 자식이 있으면 그리로, 없으면 첫 자식으로 */
+  let to = null;
+  Array.from(el.children || []).forEach(c => {
+    if(!to && n && (c === n || c.contains(n))) to = c;
+  });
+  if(!to) to = (el.children && el.children[0]) || null;
+  if(!to){ toast('더 좁힐 수 없습니다 — 여기가 가장 작은 칸입니다'); return; }
+  bookPickSet(to);
+}
+/* 같은 모양이 모두 몇이고 이것이 몇째인지 */
 function bookRowNo(r){
   if(!r || !r.parentNode) return null;
   const all = Array.from(r.parentNode.children).filter(e => bookSame(e, r));
   const i = all.indexOf(r);
   return (i < 0 || all.length < 2) ? null : { no: i + 1, n: all.length, all: all };
 }
-/* ── 어디에 손대는지 <<보여 줍니다>> ──────────────────────────────
-   연장을 눌렀는데 엉뚱한 데가 바뀌면 「너무 어렵다」 가 됩니다.
-   커서를 옮길 때마다 지금 칸에 테를 두르고, 그 이름을 단추 줄에
-   적어 둡니다 — 누르기 전에 어디가 바뀔지 눈으로 봅니다. */
-function bookWhereText(c, r){
-  if(!c) return '고칠 곳을 한 번 눌러 주세요';
-  const t = String(c.textContent || '').replace(/\s+/g, ' ').trim();
-  let s = '지금 이 칸' + (t ? ' 「' + (t.length > 16 ? t.slice(0, 16) + '…' : t) + '」' : '');
-  const q = r ? bookRowNo(r) : null;
-  if(q) s += ' · ' + q.n + '줄 가운데 ' + q.no + '째';
+function bookPickName(el){
+  if(!el) return '고칠 곳을 한 번 눌러 주세요';
+  /* 칸이 여럿이면 칸 사이를 띄워 읽습니다 — 안 띄우면
+     「01브랜드 정의한 줄 요약」 처럼 붙어 나옵니다 */
+  const kid = Array.from(el.children || []);
+  const t = (kid.length
+      ? kid.map(c => String(c.textContent || '').trim()).filter(Boolean).join(' ')
+      : String(el.textContent || '')).replace(/\s+/g, ' ').trim();
+  let s = '고른 것: ' + (t ? '「' + (t.length > 20 ? t.slice(0, 20) + '…' : t) + '」'
+                          : '〈빈 칸〉');
+  const q = bookRowNo(el);
+  if(q) s += ' · 같은 것 ' + q.n + '개 가운데 ' + q.no + '째';
   return s;
 }
-let bookMarkAt = 0;
+/* 테를 옮겨 그리고, 할 수 있는 단추만 열어 둡니다 */
 function bookMark(){
   const d = bookDoc(); if(!d) return;
   Array.from(d.querySelectorAll('[data-bhc],[data-bhr]')).forEach(e => {
     e.removeAttribute('data-bhc'); e.removeAttribute('data-bhr');
   });
   const at = document.getElementById('bkAt');
-  if(!bookEdit){ if(at) at.textContent = ''; return; }
-  const c = bookCellAt(), r = bookRowAt();
-  if(r && r !== c) r.setAttribute('data-bhr', '1');
-  if(c) c.setAttribute('data-bhc', '1');
-  if(at) at.textContent = bookWhereText(c, r);
-  const dl = document.getElementById('bkRowDel');
-  if(dl) dl.disabled = !r;
-  const ad = document.getElementById('bkRowAdd');
-  if(ad) ad.disabled = !r;
+  if(!bookEdit){ bookPick = null; if(at) at.textContent = ''; return; }
+  const el = bookPickAt();
+  const c = bookCellAt();
+  if(c && c !== el) c.setAttribute('data-bhr', '1');     // 커서가 든 칸은 점선
+  if(el) el.setAttribute('data-bhc', '1');               // 고른 것은 파란 테
+  if(at) at.textContent = bookPickName(el);
+  const q = el ? bookRowNo(el) : null;
+  const set = (id, off) => { const b = document.getElementById(id); if(b) b.disabled = !!off; };
+  set('bkWide',   !el || !el.parentNode || (el.parentNode.hasAttribute
+                    && el.parentNode.hasAttribute('data-bhp')));
+  set('bkNarrow', !el || !el.children || !el.children.length);
+  set('bkCopy',   !el);
+  set('bkDel',    !el);
+  set('bkUp',     !q || q.no <= 1);
+  set('bkDown',   !q || q.no >= q.n);
 }
+let bookMarkAt = 0;
 function bookMarkSoon(){
   clearTimeout(bookMarkAt);
   bookMarkAt = setTimeout(bookMark, 60);
+}
+/* ⧉ 고른 것을 바로 밑에 똑같이 하나 더 — 색 · 테두리 · 짜임새는
+   그대로 두고 글만 비웁니다. 번호는 다음 번호로 이어 매깁니다. */
+function bookPickCopy(){
+  const d = bookFocus(); if(!d) return;
+  const el = bookPickAt();
+  if(!el || !el.parentNode){ toast('하나 더 놓을 것을 먼저 눌러 주세요'); return; }
+  const n = el.cloneNode(true);
+  n.removeAttribute('data-bhc'); n.removeAttribute('data-bhr'); n.removeAttribute('data-bhbr');
+  Array.from(n.querySelectorAll('[data-bhc],[data-bhr],[data-bhbr]')).forEach(e => {
+    e.removeAttribute('data-bhc'); e.removeAttribute('data-bhr'); e.removeAttribute('data-bhbr');
+  });
+  const first = bookRowBlank(n, d);
+  el.parentNode.insertBefore(n, el.nextSibling);
+  bookPick = n;
+  bookTouched();
+  try{ const s = d.getSelection(); const g = d.createRange();
+       g.selectNodeContents(first); g.collapse(true);
+       s.removeAllRanges(); s.addRange(g); bookRange = g.cloneRange();
+       if(d.body) d.body.focus(); }catch(e){}
+  bookMark();
+  toast('바로 밑에 똑같이 하나 놓았습니다 — 바로 적으시면 됩니다');
+}
+/* ↑ ↓ 고른 것을 같은 줄 안에서 위아래로 옮깁니다 */
+function bookPickMove(dir){
+  const d = bookFocus(); if(!d) return;
+  const el = bookPickAt();
+  if(!el || !el.parentNode){ toast('옮길 것을 먼저 눌러 주세요'); return; }
+  const p = el.parentNode;
+  const sib = dir < 0 ? el.previousElementSibling : el.nextElementSibling;
+  if(!sib){ toast(dir < 0 ? '맨 위입니다' : '맨 아래입니다'); return; }
+  if(dir < 0) p.insertBefore(el, sib);
+  else p.insertBefore(sib, el);
+  bookTouched(); bookMark();
+}
+/* 🗑 고른 것을 통째로 지웁니다 */
+function bookPickDel(){
+  const d = bookFocus(); if(!d) return;
+  const el = bookPickAt();
+  if(!el || !el.parentNode){ toast('지울 것을 먼저 눌러 주세요'); return; }
+  const q = bookRowNo(el);
+  if(q && q.n <= 1 && false){ return; }
+  const what = String(el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 30);
+  if(!confirm('고른 것을 통째로 지웁니다.'
+    + (q ? '\n\n(같은 것 ' + q.n + '개 가운데 ' + q.no + '째)' : '')
+    + (what ? '\n「' + what + (what.length >= 30 ? '…' : '') + '」' : ''))) return;
+  const up = el.parentNode;
+  up.removeChild(el);
+  bookPick = null;
+  try{ const s = d.getSelection(); const g = d.createRange();
+       g.selectNodeContents(up); g.collapse(true);
+       s.removeAllRanges(); s.addRange(g); bookRange = g.cloneRange(); }catch(e){}
+  bookTouched(); bookMark();
 }
 function bookBoxAdd(){
   const d = bookFocus(); if(!d) return;
@@ -19875,30 +19994,23 @@ function bookBoxAdd(){
   box.setAttribute('style', 'margin:14px 0;padding:14px 16px;border:1px solid #d9dee7;'
     + 'border-radius:10px;background:#f7f9fc;line-height:1.7');
   box.textContent = '여기에 적으세요 — 이 칸도 눌러서 고치고, 지울 수 있습니다';
-  const at = bookCellAt();
+  const at = bookPickAt();
   if(at && at.parentNode){
     at.parentNode.insertBefore(box, at.nextSibling);
   }else{
-    /* 칸을 못 고르면 지금 보고 있는 종이 끝에 붙입니다 */
+    /* 고른 것이 없으면 지금 보고 있는 종이 끝에 붙입니다 */
     const ps = bookPages();
     const pg = ps[Math.min(Math.max(0, pwPg), ps.length - 1)];
     if(!pg){ toast('넣을 자리를 먼저 눌러 주세요'); return; }
     pg.appendChild(box);
   }
+  bookPick = box;                       // 넣자마자 그것을 고른 것으로
   try{
     const sel = d.getSelection();
     const g = d.createRange(); g.selectNodeContents(box);
     sel.removeAllRanges(); sel.addRange(g); bookRange = g.cloneRange();
   }catch(e){}
-  bookTouched();
-}
-function bookBlockDel(){
-  const el = bookCellAt();
-  if(!el){ toast('지울 칸 안을 먼저 눌러 주세요'); return; }
-  const what = (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 30);
-  if(!confirm('이 칸을 지웁니다.' + (what ? '\n\n「' + what + (what.length >= 30 ? '…' : '') + '」' : ''))) return;
-  el.parentNode.removeChild(el);
-  bookTouched();
+  bookTouched(); bookMark();
 }
 function bookColor(kind){
   const v = prompt(kind === 'fore' ? '글자 색을 적어 주세요 (예: #1a3f8b, red)'
@@ -19927,64 +20039,44 @@ function bookBrClear(d){
     e.removeAttribute('data-bhbr');
   });
 }
-/* 베낀 줄의 글만 비웁니다 — 테두리 · 색 · 자리는 그대로 두어야
-   새 줄이 옆 줄과 똑같이 생깁니다.
-   번호 칸(01 · 02 …)은 비우지 않고 <<다음 번호로 이어 매깁니다>> —
-   비워 두면 줄이 무너져 보이고, 번호는 어차피 다음 것입니다. */
+/* 베낀 것의 글만 비웁니다 — 테두리 · 색 · 짜임새는 그대로 두어야
+   새 것이 옆의 것과 똑같이 생깁니다.
+   글은 <<한 조각도 남기지 않고>> 비웁니다. 전에는 가장 안쪽 칸만
+   비워서, 칸 속에 글과 작은 칸이 섞여 있으면 (<div>건설기술 R&D
+   <span>연구 개발</span>· 자재 제조</div>) 바깥 글이 그대로 남았습니다.
+   번호 칸(01 · 02 …)만은 비우지 않고 다음 번호로 이어 매깁니다. */
 function bookRowBlank(n, d){
   const leafy = e => !Array.from(e.children || []).some(c => c.tagName !== 'BR');
   const all = n.querySelectorAll ? Array.from(n.querySelectorAll('*')) : [];
-  const leaf = all.filter(e => leafy(e) && String(e.textContent || '').trim());
-  if(!leaf.length){
-    n.textContent = '';
-    bookFillable(n, d);
-    return n;
-  }
-  let first = null;
-  leaf.forEach(e => {
-    const was = String(e.textContent || '').trim();
-    const num = /^[0-9]{1,3}$/.test(was);
-    if(num){
-      const next = String(Number(was) + 1);
-      e.textContent = was.length > 1 && next.length < was.length
-        ? next.padStart(was.length, '0') : next;
-      return;                              // 번호 칸에는 커서를 안 둡니다
-    }
-    e.textContent = '';
-    bookFillable(e, d);
-    if(!first) first = e;
+  /* ① 번호 칸은 다음 번호로 — 비워 두면 줄이 무너져 보입니다 */
+  all.filter(e => leafy(e) && /^[0-9]{1,3}$/.test(String(e.textContent || '').trim()))
+     .forEach(e => {
+       const was = String(e.textContent || '').trim();
+       const next = String(Number(was) + 1);
+       e.textContent = (was.length > 1 && next.length < was.length)
+         ? next.padStart(was.length, '0') : next;
+       e.setAttribute('data-bhnum', '1');
+     });
+  /* ② 나머지 글은 모두 비웁니다 — 비운 자리를 적어 둡니다 */
+  const hold = [];
+  const walk = d.createTreeWalker(n, 4 /* SHOW_TEXT */, null);
+  const txt = [];
+  while(walk.nextNode()) txt.push(walk.currentNode);
+  txt.forEach(t => {
+    if(!String(t.nodeValue || '').trim()) return;
+    const up = t.parentNode;
+    if(up && up.closest && up.closest('[data-bhnum]')) return;   // 번호 칸은 그대로
+    if(up && hold.indexOf(up) < 0) hold.push(up);
+    t.nodeValue = '';
   });
-  return first || leaf[0];
-}
-function bookRowAdd(){
-  const d = bookFocus(); if(!d) return;
-  const r = bookRowAt();
-  if(!r){ toast('줄을 더할 자리를 먼저 눌러 주세요 — 같은 모양이 여럿 늘어선 곳입니다'); return; }
-  const n = r.cloneNode(true);
-  n.removeAttribute('data-bhc'); n.removeAttribute('data-bhr');
-  Array.from(n.querySelectorAll('[data-bhc],[data-bhr],[data-bhbr]')).forEach(e => {
-    e.removeAttribute('data-bhc'); e.removeAttribute('data-bhr'); e.removeAttribute('data-bhbr');
-  });
-  const first = bookRowBlank(n, d);
-  r.parentNode.insertBefore(n, r.nextSibling);
-  bookTouched();
-  try{ const s = d.getSelection(); const g = d.createRange();
-       g.selectNodeContents(first); g.collapse(true);
-       s.removeAllRanges(); s.addRange(g); bookRange = g.cloneRange();
-       if(d.body) d.body.focus(); }catch(e){}
-  bookMark();
-  toast('줄을 하나 더했습니다 — 바로 적으시면 됩니다');
-}
-function bookRowDel(){
-  const r = bookRowAt();
-  if(!r){ toast('지울 줄 안을 먼저 눌러 주세요'); return; }
-  const q = bookRowNo(r);
-  if(q && q.n <= 1){ toast('마지막 한 줄은 지울 수 없습니다'); return; }
-  const what = String(r.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 24);
-  if(!confirm('이 줄을 지웁니다.' + (q ? '\n\n(' + q.n + '줄 가운데 ' + q.no + '째)' : '')
-    + (what ? '\n「' + what + '」' : ''))) return;
-  r.parentNode.removeChild(r);
-  bookTouched(); bookMark();
+  Array.from(n.querySelectorAll('[data-bhnum]')).forEach(e => e.removeAttribute('data-bhnum'));
+  /* ③ 비운 칸마다 커서가 설 자리를 만들어 둡니다.
+     겉칸과 속칸이 겹쳐 있으면 <<가장 안쪽>> 에만 둡니다 — 두 겹으로
+     넣으면 줄바꿈이 겹쳐 칸이 쓸데없이 키가 커집니다. */
+  if(!hold.length){ bookFillable(n, d); return n; }
+  const inner = hold.filter(e => !hold.some(o => o !== e && e.contains(o)));
+  inner.forEach(e => bookFillable(e, d));
+  return inner[0] || hold[0];
 }
 /* 고친 그대로를 글로 되돌려 냅니다 (고치는 중 표시는 빼고) */
 function bookHtml(){

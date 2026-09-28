@@ -630,7 +630,34 @@
     prog.textContent = `사진 ${ok}장을 올렸습니다.${fail ? ` 실패 ${fail}장.` : ''}${skipText() ? ' 건너뜀: ' + skipText() : ''}`
     if (fail) renderMessages()
   }
-  ;['photo-file', 'photo-folder'].forEach((id) => $(id).addEventListener('change', (ev) => { const fs = [...(ev.target.files || [])]; ev.target.value = ''; if (fs.length) uploadPhotos(fs) }))
+  $('photo-file').addEventListener('change', (ev) => { const fs = [...(ev.target.files || [])]; ev.target.value = ''; if (fs.length) uploadPhotos(fs) })
+  // 폴더 선택 창은 한 번에 폴더 하나만 고를 수 있어서, 고를 때마다 목록에 쌓았다가 한꺼번에 올린다
+  const folderQueue = []
+  function renderFolderQueue() {
+    $('folder-btn-text').textContent = folderQueue.length ? '폴더 더 추가' : '폴더 선택'
+    if (!folderQueue.length) { $('folder-queue').innerHTML = ''; return }
+    const total = folderQueue.reduce((a, f) => a + f.images, 0)
+    $('folder-queue').innerHTML = `<div class="folder-queue">${folderQueue.map((f, i) => `<span class="folder-chip">${icon('upload', 13)}${esc(f.name)} <small>사진 ${f.images}장</small><button type="button" data-folder-rm="${i}" aria-label="빼기">×</button></span>`).join('')}</div>
+      <button type="button" class="btn" id="folder-upload" ${total ? '' : 'disabled'}>폴더 ${folderQueue.length}개 모두 올리기 (사진 ${total}장)</button>`
+  }
+  $('photo-folder').addEventListener('change', (ev) => {
+    const fs = [...(ev.target.files || [])]; ev.target.value = ''
+    if (!fs.length) return
+    const name = (fs[0].webkitRelativePath || '').split('/')[0] || '폴더'
+    const images = fs.filter((f) => (IMG_NAME.test(f.name) || /^image\//.test(f.type)) && !f.name.startsWith('.')).length
+    if (folderQueue.some((f) => f.name === name && f.files.length === fs.length)) { S.error = `'${name}' 폴더는 이미 목록에 있습니다.`; renderMessages(); return }
+    folderQueue.push({ name, files: fs, images })
+    renderFolderQueue()
+  })
+  $('folder-queue').addEventListener('click', (ev) => {
+    const rm = ev.target.closest('[data-folder-rm]')
+    if (rm) { folderQueue.splice(Number(rm.dataset.folderRm), 1); renderFolderQueue(); return }
+    if (ev.target.closest('#folder-upload')) {
+      const all = folderQueue.flatMap((f) => f.files)
+      folderQueue.length = 0; renderFolderQueue()
+      uploadPhotos(all)
+    }
+  })
   ;['dragenter', 'dragover'].forEach((t) => $('photo-drop').addEventListener(t, (ev) => { ev.preventDefault(); $('photo-drop').classList.add('drag') }))
   $('photo-drop').addEventListener('dragleave', () => $('photo-drop').classList.remove('drag'))
   $('photo-drop').addEventListener('drop', async (ev) => {

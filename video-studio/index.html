@@ -125,8 +125,9 @@
             <div class="field"><label for="source-title">자료 제목</label><input class="input" id="source-title" maxlength="150"></div>
             <div class="field"><label for="source-origin">출처·작성일·버전</label><input class="input" id="source-origin" maxlength="500" placeholder="예: 외벽 재도장 표준 시방서 · 2026-09 · 2차 개정"></div>
             <div class="field"><label for="source-content">자료 본문</label><textarea class="textarea source-input" id="source-content" maxlength="60000" placeholder="검증된 자료의 본문을 그대로 붙여 넣어 주세요. 목표·계획과 실제 실적은 구분해 주세요."></textarea></div>
-            <label class="file-picker"><i data-icon="upload" data-size="16"></i> TXT / MD 파일 불러오기<input type="file" id="source-file" accept=".txt,.md,text/plain,text/markdown"></label>
-            <p class="fineprint">PDF·PPT·한글 문서는 본문을 복사해 등록해 주세요. 현재 파일 자동 추출은 TXT·MD만 지원합니다.</p>
+            <label class="file-picker" id="file-drop"><i data-icon="upload" data-size="16"></i> 파일 올리기 (여러 개 가능 · 끌어다 놓기 가능)<input type="file" id="source-file" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.hwp,.hwpx,.html,.htm,.txt,.md,.json,.xml,.rtf"></label>
+            <p class="fineprint">PDF · PPT(X) · 워드(DOCX) · 엑셀(XLSX·CSV) · 한글(HWPX) · HTML · TXT·MD 파일에서 글자를 자동으로 뽑아 등록합니다. 원본 파일도 비공개로 함께 보관합니다. (파일당 50MB 이하)</p>
+            <div id="file-queue"></div>
             <div class="check-row"><input type="checkbox" data-slot="checkbox" id="source-approve"><label for="source-approve">최신 내용과 외부 영상 활용 가능 여부를 확인했습니다.</label></div>
             <button type="button" class="btn w-full" id="source-save" disabled>자료 저장</button>
             <button type="button" class="text-link" id="source-sample">기존 킥오프 자료 발췌 불러오기 <i data-icon="external" data-size="14"></i></button>
@@ -216,6 +217,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="extract.js"></script>
 <script src="studio.js"></script>
 </body>
 </html>

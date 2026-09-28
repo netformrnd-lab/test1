@@ -88,7 +88,7 @@
   const S = {
     data: null, tab: 'create', error: '', success: '', busy: false, selectedId: null, requestId: null,
     settings: { ...DEFAULT_SETTINGS }, avatars: [], nextToken: '', avatarsLoaded: false, settingsBusy: false,
-    providerUi: {},
+    providerUi: {}, queue: [],
   }
 
   // ── API ──
@@ -261,6 +261,7 @@
     $('sources-list').innerHTML = srcs.length ? srcs.map((s) => `<article class="source-card">
         <div class="between"><h3>${esc(s.title)}</h3><span class="${s.approved ? 'tag green' : 'tag'}">${s.approved ? '사용 중' : '승인 대기'}</span></div>
         <p class="source-meta">${esc(s.provenance)}</p>
+        ${s.file ? `<button type="button" class="text-link file-link" data-file="${s.id}">${icon('external', 14)}원본 파일 열기 (${esc(s.file.name)})</button>` : ''}
         <details><summary>본문 확인</summary><pre>${esc(s.content)}</pre></details>
         <div class="check-row"><input type="checkbox" data-slot="checkbox" id="src-${s.id}" data-approve="${s.id}" ${s.approved === 1 ? 'checked' : ''} ${S.busy ? 'disabled' : ''}><label for="src-${s.id}">영상 제작 근거로 사용</label></div>
       </article>`).join('')
@@ -463,13 +464,74 @@
     $('source-title').value = SAMPLE_SOURCE.title; $('source-origin').value = SAMPLE_SOURCE.provenance
     $('source-content').value = SAMPLE_SOURCE.content; $('source-approve').checked = false; updateSourceSave()
   })
-  $('source-file').addEventListener('change', async (ev) => {
-    const f = ev.target.files && ev.target.files[0]; ev.target.value = ''
-    if (!f) return
-    if (!/\.(txt|md)$/i.test(f.name) || f.size > 180000) { S.error = '180KB 이하의 TXT 또는 MD 파일을 선택해 주세요. PDF·PPT·한글 문서는 본문 텍스트를 붙여 넣어 주세요.'; renderMessages(); return }
-    const text = await f.text()
-    $('source-title').value = f.name; $('source-origin').value = f.name; $('source-content').value = text; $('source-approve').checked = false; updateSourceSave()
+  // ── 파일 올리기: 글자 추출 → 확인 → 원본 업로드 + 자료 등록 ──
+  const fmtSize = (n) => (n > 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB')
+  const today = () => new Date().toISOString().slice(0, 10)
+  function queueFiles(files) {
+    for (const f of files) {
+      const item = { id: Math.random().toString(36).slice(2), file: f, name: f.name, status: 'reading', text: '', note: '', error: '' }
+      if (f.size > 50 * 1048576) { item.status = 'error'; item.error = '50MB 를 넘는 파일은 올릴 수 없습니다.' }
+      S.queue.push(item)
+      if (item.status === 'reading') {
+        window.StudioExtract.extract(f).then((r) => {
+          item.text = r.text.length > 300000 ? r.text.slice(0, 300000) : r.text
+          item.note = [r.note, r.text.length > 300000 ? '앞 30만 자만 등록' : ''].filter(Boolean).join(' · ')
+          item.status = 'ready'
+        }).catch((e) => { item.status = 'error'; item.error = e.message }).finally(renderQueue)
+      }
+    }
+    renderQueue()
+  }
+  function renderQueue() {
+    const q = S.queue
+    if (!q.length) { $('file-queue').innerHTML = ''; return }
+    const ready = q.filter((x) => x.status === 'ready').length
+    const label = { reading: '글자 추출 중…', ready: '등록 준비', error: '확인 필요', saving: '저장 중…', saved: '저장 완료' }
+    $('file-queue').innerHTML = `<div class="file-queue">${q.map((x) => `<div class="file-item">
+        <div class="between"><strong>${esc(x.name)}</strong><span class="${x.status === 'saved' ? 'tag green' : 'tag'}">${x.status === 'reading' || x.status === 'saving' ? icon('loader', 12, 'animate-spin') : ''}${label[x.status]}</span></div>
+        <p class="source-meta">${fmtSize(x.file.size)}${x.text ? ` · 글자 ${x.text.length.toLocaleString()}자` : ''}${x.note ? ' · ' + esc(x.note) : ''}</p>
+        ${x.error ? `<p class="file-error">${esc(x.error)}</p>` : ''}
+        ${x.text ? `<details><summary>뽑은 글자 미리보기</summary><pre>${esc(x.text.slice(0, 3000))}${x.text.length > 3000 ? '\n…' : ''}</pre></details>` : ''}
+        ${x.status !== 'saving' && x.status !== 'saved' ? `<button type="button" class="text-link" data-unqueue="${x.id}">목록에서 빼기</button>` : ''}
+      </div>`).join('')}
+      ${ready || S.busy ? `<button type="button" class="btn w-full" id="queue-save" ${!ready || S.busy ? 'disabled' : ''}>파일 ${ready}개 자료로 저장</button>
+      <p class="fineprint">아래 ‘최신 내용과 외부 영상 활용 가능 여부를 확인했습니다’를 체크하고 저장하면 바로 영상 제작 근거로 사용됩니다.</p>` : ''}</div>`
+  }
+  async function saveQueue() {
+    const approved = $('source-approve').checked
+    S.busy = true; S.error = ''; S.success = ''; renderAll(); renderQueue()
+    let saved = 0
+    for (const x of S.queue.filter((i) => i.status === 'ready')) {
+      x.status = 'saving'; renderQueue()
+      try {
+        const up = await api({ action: 'uploadUrl', name: x.name, size: x.file.size })
+        const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': x.file.type || 'application/octet-stream', 'x-upsert': 'false' }, body: x.file })
+        if (!put.ok) throw new Error('원본 파일 업로드 실패 (' + put.status + ')')
+        S.data = await api({
+          action: 'source',
+          source: {
+            title: x.name.replace(/\.[^.]+$/, '').slice(0, 150) || x.name, content: x.text, approved,
+            provenance: `${x.name} · ${today()} 업로드 · ${fmtSize(x.file.size)}${x.note ? ' · ' + x.note : ''}`.slice(0, 500),
+            file: { path: up.path, name: x.name, size: x.file.size, type: x.file.type },
+          },
+        })
+        x.status = 'saved'; saved++
+      } catch (e) { x.status = 'error'; x.error = e.message }
+      renderQueue()
+    }
+    S.busy = false
+    if (saved) S.success = `파일 ${saved}개를 자료로 저장했습니다.`
+    S.queue = S.queue.filter((x) => x.status !== 'saved')
+    renderAll(); renderQueue()
+  }
+  $('source-file').addEventListener('change', (ev) => { const fs = [...(ev.target.files || [])]; ev.target.value = ''; queueFiles(fs) })
+  $('file-queue').addEventListener('click', (ev) => {
+    const rm = ev.target.closest('[data-unqueue]')
+    if (rm) { S.queue = S.queue.filter((x) => x.id !== rm.dataset.unqueue); renderQueue(); return }
+    if (ev.target.closest('#queue-save')) saveQueue()
   })
+  ;['dragenter', 'dragover'].forEach((t) => $('file-drop').addEventListener(t, () => $('file-drop').classList.add('drag')))
+  ;['dragleave', 'drop'].forEach((t) => $('file-drop').addEventListener(t, () => $('file-drop').classList.remove('drag')))
   $('avatar-load').addEventListener('click', () => loadAvatars(false))
   $('avatar-more').addEventListener('click', () => loadAvatars(true))
   $('avatar-grid').addEventListener('click', (ev) => {
@@ -492,6 +554,12 @@
     const close = t.closest('[data-close]'); if (close) { S[close.dataset.close] = ''; renderMessages(); return }
     const topic = t.closest('[data-topic]'); if (topic) { $('keywords').value = topic.dataset.topic; S.requestId = null; renderCreate(); return }
     const sel = t.closest('[data-select-job]'); if (sel) { S.selectedId = sel.dataset.selectJob; renderCreate(); renderHistory(); return }
+    const fl = t.closest('[data-file]')
+    if (fl) {
+      const w = window.open('', '_blank')
+      try { const r = await api({ action: 'fileUrl', id: fl.dataset.file }); if (w) w.location = r.url; else location.href = r.url } catch (e) { if (w) w.close(); S.error = e.message; renderMessages() }
+      return
+    }
     const cp = t.closest('[data-copy-prompt]')
     if (cp) {
       const job = S.data.jobs.find((j) => j.id === cp.dataset.copyPrompt)

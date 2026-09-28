@@ -12,6 +12,8 @@
 const PROMPT_VERSION = 'studio-v1'
 const ANTHROPIC_VERSION = '2023-06-01'
 const MAX_REVISIONS = 2
+const MAX_SOURCE_CHARS = 300000       // 자료 1개 본문 최대 글자 수 (PDF·PPT 에서 뽑은 글자 포함)
+const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
 const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'submitting', 'rendering']
 const DEFAULT_SETTINGS = {
   avatarId: '', avatarType: 'avatar', voiceId: 'fdd91d5eb0654e45a8b216b3f2c86eca',
@@ -100,11 +102,46 @@ const ACTIONS = {
     const content = String(s.content || '').trim()
     if (title.length < 2 || title.length > 150) throw new HttpError(400, '자료 제목은 2~150자로 입력해 주세요.')
     if (provenance.length < 2 || provenance.length > 500) throw new HttpError(400, '출처·작성일·버전을 입력해 주세요.')
-    if (content.length < 30 || content.length > 60000) throw new HttpError(400, '자료 본문은 30자 이상 60,000자 이하로 입력해 주세요.')
+    if (content.length < 30 || content.length > MAX_SOURCE_CHARS) throw new HttpError(400, `자료 본문은 30자 이상 ${MAX_SOURCE_CHARS.toLocaleString()}자 이하로 입력해 주세요.`)
+    // 원본 파일(선택): 브라우저가 upload URL 로 먼저 올린 뒤 경로만 넘긴다
+    let file = null
+    if (s.file && s.file.path) {
+      const path = String(s.file.path)
+      if (!/^files\/[0-9a-f-]{36}\/[^/]{1,200}$/.test(path)) throw new HttpError(400, '원본 파일 경로가 올바르지 않습니다.')
+      file = { path, name: String(s.file.name || '').slice(0, 200), size: Number(s.file.size) || 0, type: String(s.file.type || '').slice(0, 120) }
+    }
     await mutate(env, 'sources', [], (list) => {
-      list.unshift({ id: crypto.randomUUID(), title, provenance, content, approved: s.approved === true, created_by: user.id, created_at: now() })
+      list.unshift({ id: crypto.randomUUID(), title, provenance, content, file, approved: s.approved === true, created_by: user.id, created_at: now() })
     })
     return state(env)
+  },
+
+  // 원본 파일 업로드용 1회성 주소 (브라우저가 파일을 Supabase Storage 에 직접 올림 — 큰 파일도 서버를 거치지 않음)
+  async uploadUrl(env, { name, size }) {
+    const n = Number(size) || 0
+    if (n <= 0 || n > MAX_FILE_BYTES) throw new HttpError(400, `파일은 ${Math.round(MAX_FILE_BYTES / 1048576)}MB 이하만 올릴 수 있습니다.`)
+    const safe = String(name || 'file').replace(/[\\/:*?"<>|#%\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim().slice(-120) || 'file'
+    const path = `files/${crypto.randomUUID()}/${safe}`
+    await ensureBucket(env)
+    const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/upload/sign/${BUCKET}/${encodePath(path)}`, {
+      method: 'POST', headers: storageHeaders(env, { 'content-type': 'application/json' }), body: '{}',
+    })
+    const out = await r.json().catch(() => ({}))
+    if (!r.ok || !out.url) throw new Error('업로드 주소 발급 실패: ' + apiError(out, r.status))
+    return { path, url: env.SUPABASE_URL + '/storage/v1' + out.url }
+  },
+
+  // 원본 파일 내려받기용 임시 주소 (1시간)
+  async fileUrl(env, { id }) {
+    const src = (await readJSON(env, 'sources', [])).find((x) => x.id === id)
+    if (!src || !src.file) throw new HttpError(404, '원본 파일이 없습니다.')
+    const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${encodePath(src.file.path)}`, {
+      method: 'POST', headers: storageHeaders(env, { 'content-type': 'application/json' }), body: JSON.stringify({ expiresIn: 3600 }),
+    })
+    const out = await r.json().catch(() => ({}))
+    const signed = out.signedURL || out.signedUrl
+    if (!r.ok || !signed) throw new Error('파일 주소 발급 실패: ' + apiError(out, r.status))
+    return { url: env.SUPABASE_URL + '/storage/v1' + signed + '&download=' + encodeURIComponent(src.file.name || '') }
   },
 
   async approval(env, { id, approved }) {
@@ -651,7 +688,7 @@ async function state(env, opt = {}) {
   if (opt.raw) return { secrets: sec, readiness, settings, sourcesFull: sources, sources, jobs }
   return {
     connections: sec, readiness, settings,
-    sources: sources.map((s) => ({ id: s.id, title: s.title, provenance: s.provenance, content: s.content, approved: s.approved ? 1 : 0, created: s.created_at })),
+    sources: sources.map((s) => ({ id: s.id, title: s.title, provenance: s.provenance, content: s.content, file: s.file ? { name: s.file.name, size: s.file.size } : null, approved: s.approved ? 1 : 0, created: s.created_at })),
     jobs: jobs.map(toJob),
     learningCount: jobs.filter((j) => j.status === 'rendered').length,
   }
@@ -812,6 +849,7 @@ function json(obj, status = 200) {
 }
 function now() { return new Date().toISOString() }
 function ev(text) { return { time: now(), text } }
+function encodePath(p) { return p.split('/').map(encodeURIComponent).join('/') }
 function norm(s) { return String(s || '').replace(/\s+/g, ' ').trim() }
 function apiError(out, status) {
   const e = out && (out.error || out.message)

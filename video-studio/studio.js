@@ -560,26 +560,37 @@
     })
   }
   // 폴더·zip·여러 파일 → 사진만 골라 올린다 (3장씩 동시에)
-  const IMG_NAME = /\.(jpe?g|png|webp|gif|bmp|avif)$/i
+  const IMG_NAME = /\.(jpe?g|jfif|jpe|pjpeg|png|webp|gif|bmp|avif)$/i
+  const CONVERT = { heic: 'heic', heif: 'heic', tif: 'tiff', tiff: 'tiff', dng: 'raw', cr2: 'raw', cr3: 'raw', nef: 'raw', arw: 'raw', rw2: 'raw', orf: 'raw', raf: 'raw', srw: 'raw', pef: 'raw' }
+  const DOCS = /\.(pptx|docx|xlsx|hwpx)$/i
   async function collectImages(files) {
-    const skip = { notImage: 0, heic: 0, dup: 0, hidden: 0 }
+    const skip = { notImage: 0, dup: 0, hidden: 0, exts: {} }
     const out = []
     const seen = new Set(((S.data && S.data.photos) || []).map((p) => `${p.name}|${p.size || ''}`))
+    const push = (f) => { const key = `${f.name}|${f.size}`; if (seen.has(key)) { skip.dup++; return } seen.add(key); out.push(f) }
     for (const f of files) {
       const name = f.name || ''
       const path = f.webkitRelativePath || f._path || name
-      if (name.startsWith('.') || path.includes('__MACOSX') || /(^|\/)\./.test(path)) { skip.hidden++; continue }
-      if (/\.zip$/i.test(name)) {
-        try { for (const z of await window.StudioExtract.zipImages(f)) files.push(z) } catch (e) { S.error = `${name}: zip 을 열지 못했습니다.`; renderMessages() }
-        continue
-      }
-      if (/\.(heic|heif)$/i.test(name)) { skip.heic++; continue }
-      if (!IMG_NAME.test(name) && !/^image\//.test(f.type)) { skip.notImage++; continue }
-      const key = `${name}|${f.size}`
-      if (seen.has(key)) { skip.dup++; continue }
-      seen.add(key); out.push(f)
+      const e = (name.match(/\.([^.]+)$/) || [])[1]
+      const ext = e ? e.toLowerCase() : '(확장자 없음)'
+      if (name.startsWith('.') || path.includes('__MACOSX') || /(^|\/)\./.test(path) || /^thumbs\.db$/i.test(name)) { skip.hidden++; continue }
+      try {
+        if (ext === 'zip') { for (const z of await window.StudioExtract.zipImages(f)) files.push(z); continue }
+        if (DOCS.test(name)) { for (const z of await window.StudioExtract.docImages(f)) push(z); continue }
+      } catch (err) { skip.notImage++; skip.exts[ext + '(열 수 없음)'] = (skip.exts[ext + '(열 수 없음)'] || 0) + 1; continue }
+      if (CONVERT[ext]) { f._convert = CONVERT[ext]; push(f); continue }
+      if (!IMG_NAME.test(name) && !/^image\/(jpeg|png|webp|gif|bmp|avif)$/.test(f.type)) { skip.notImage++; skip.exts[ext] = (skip.exts[ext] || 0) + 1; continue }
+      push(f)
     }
     return { images: out, skip }
+  }
+  // 변환이 필요한 형식(HEIC·TIFF·RAW)을 브라우저가 여는 사진으로 바꾼다
+  async function toOpenable(f) {
+    const X = window.StudioExtract
+    if (f._convert === 'heic') return X.heicToJpeg(f)
+    if (f._convert === 'tiff') return X.tiffToJpeg(f)
+    if (f._convert === 'raw') return X.rawPreview(f)
+    return f
   }
   // 끌어다 놓은 폴더를 하위 폴더까지 읽는다
   async function filesFromDrop(dt) {
@@ -603,8 +614,13 @@
     return out
   }
   // ── 업로드 대기열: 고르는 즉시 시작, 올리는 중에 더 고르면 뒤에 이어 붙는다 (3장씩 동시에) ──
-  const UP = { queue: [], total: 0, ok: 0, fail: 0, skip: { notImage: 0, heic: 0, dup: 0, hidden: 0, small: 0 }, errors: [], current: new Set(), running: 0, open: false, startedAt: 0 }
-  const skipText = () => { const k = UP.skip; return [k.notImage && `사진 아님 ${k.notImage}`, k.small && `작은 이미지 ${k.small}`, k.dup && `이미 올린 사진 ${k.dup}`, k.heic && `HEIC ${k.heic}(JPG 로 바꿔 올려 주세요)`, k.hidden && `숨김 파일 ${k.hidden}`].filter(Boolean).join(' · ') }
+  const newSkip = () => ({ notImage: 0, dup: 0, hidden: 0, small: 0, exts: {} })
+  const UP = { queue: [], total: 0, ok: 0, fail: 0, skip: newSkip(), errors: [], current: new Set(), running: 0, open: false, scanning: false }
+  const skipText = () => {
+    const k = UP.skip
+    const ex = Object.entries(k.exts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([e, n]) => `.${e} ${n}`).join(', ')
+    return [k.notImage && `사진 아님 ${k.notImage}${ex ? ` (${ex})` : ''}`, k.small && `작은 이미지 ${k.small}`, k.dup && `이미 올린 사진 ${k.dup}`, k.hidden && `숨김 파일 ${k.hidden}`].filter(Boolean).join(' · ')
+  }
   function renderUpload() {
     const el = $('upload-dock')
     if (!UP.open) { el.hidden = true; return }
@@ -612,7 +628,8 @@
     const done = UP.ok + UP.fail
     const busy = UP.running > 0 || UP.queue.length > 0
     const pct = UP.total ? Math.round((done / UP.total) * 100) : 0
-    el.innerHTML = `<div class="between"><strong>${busy ? `${icon('loader', 16, 'animate-spin')} 사진 올리는 중` : UP.total ? '✓ 사진 올리기 완료' : '사진 고르는 중'}</strong>
+    const head = UP.scanning ? `${icon('loader', 16, 'animate-spin')} 파일에서 사진을 찾는 중` : busy ? `${icon('loader', 16, 'animate-spin')} 사진 올리는 중` : UP.total ? '✓ 사진 올리기 완료' : '올릴 사진을 찾지 못했습니다'
+    el.innerHTML = `<div class="between"><strong>${head}</strong>
         ${busy ? '' : '<button type="button" class="btn ghost sm" id="upload-close">닫기 ×</button>'}</div>
       <div class="up-bar"><span style="width:${pct}%"></span></div>
       <p class="up-count"><b>${done} / ${UP.total}장</b> 완료 · 성공 ${UP.ok}${UP.fail ? ` · <span class="up-fail">실패 ${UP.fail}</span>` : ''}${UP.queue.length ? ` · 대기 ${UP.queue.length}` : ''}</p>
@@ -624,7 +641,7 @@
   async function uploadOne(f) {
     UP.current.add(f.name); renderUpload()
     try {
-      const blob = await toJpeg(f)
+      const blob = await toJpeg(await toOpenable(f))
       const up = await api({ action: 'uploadUrl', name: 'photo.jpg', size: blob.size })
       const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'x-upsert': 'false' }, body: blob })
       if (!put.ok) throw new Error('저장소 업로드 실패 (HTTP ' + put.status + ')')
@@ -643,10 +660,12 @@
     try { while (UP.queue.length) await uploadOne(UP.queue.shift()) } finally { UP.running--; renderUpload() }
   }
   async function uploadPhotos(files) {
-    if (!(UP.running || UP.queue.length)) { Object.assign(UP, { total: 0, ok: 0, fail: 0, errors: [], skip: { notImage: 0, heic: 0, dup: 0, hidden: 0, small: 0 } }) }
-    UP.open = true; renderUpload()
+    if (!(UP.running || UP.queue.length)) { Object.assign(UP, { total: 0, ok: 0, fail: 0, errors: [], skip: newSkip() }) }
+    UP.open = true; UP.scanning = true; renderUpload()
     const { images, skip } = await collectImages([...files])
-    for (const k of Object.keys(skip)) UP.skip[k] = (UP.skip[k] || 0) + skip[k]
+    UP.scanning = false
+    for (const k of ['notImage', 'dup', 'hidden']) UP.skip[k] += skip[k]
+    for (const [e, n] of Object.entries(skip.exts)) UP.skip.exts[e] = (UP.skip.exts[e] || 0) + n
     if (!images.length) { renderUpload(); return }
     if (images.length > 300 && !confirm(`사진 ${images.length}장을 올릴까요? 장마다 AI 설명(Claude)을 붙이므로 시간이 걸리고 소량의 비용이 듭니다.`)) { renderUpload(); return }
     UP.queue.push(...images); UP.total += images.length

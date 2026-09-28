@@ -147,5 +147,62 @@
     return out
   }
 
-  window.StudioExtract = { extract, ext, zipImages }
+  // ── 일반 브라우저가 못 여는 사진 형식 → JPG Blob ──
+  CDN.heic = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'
+  CDN.utif = 'https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js'
+  const canvasJpeg = (w, h, draw) => new Promise((res, rej) => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h
+    draw(c.getContext('2d'))
+    c.toBlob((b) => (b ? res(b) : rej(new Error('변환 실패'))), 'image/jpeg', 0.9)
+  })
+  async function heicToJpeg(file) {
+    const conv = await load(CDN.heic, 'heic2any')
+    const out = await conv({ blob: file, toType: 'image/jpeg', quality: 0.9 })
+    return Array.isArray(out) ? out[0] : out
+  }
+  async function tiffToJpeg(file) {
+    const U = await load(CDN.utif, 'UTIF')
+    const buf = await file.arrayBuffer()
+    const ifds = U.decode(buf)
+    const page = ifds.reduce((a, b) => ((b.width || 0) * (b.height || 0) > (a.width || 0) * (a.height || 0) ? b : a), ifds[0])
+    U.decodeImage(buf, page)
+    const rgba = U.toRGBA8(page)
+    return canvasJpeg(page.width, page.height, (ctx) => ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba.buffer), page.width, page.height), 0, 0))
+  }
+  // 카메라 RAW(DNG·CR2·NEF·ARW 등) 안에 들어 있는 가장 큰 미리보기 JPG 를 꺼낸다
+  async function rawPreview(file) {
+    const b = new Uint8Array(await file.arrayBuffer())
+    let best = null
+    for (let i = 0; i < b.length - 3; i++) {
+      if (b[i] !== 0xff || b[i + 1] !== 0xd8 || b[i + 2] !== 0xff) continue
+      let depth = 0, j = i + 2
+      for (; j < b.length - 1; j++) {
+        if (b[j] !== 0xff) continue
+        if (b[j + 1] === 0xd8) depth++
+        else if (b[j + 1] === 0xd9) { if (depth === 0) break; depth-- }
+      }
+      const len = j + 2 - i
+      if (len > 60000 && (!best || len > best[1])) best = [i, len]
+      i = j
+    }
+    if (!best) throw new Error('RAW 안에 미리보기 사진이 없습니다')
+    return new Blob([b.subarray(best[0], best[0] + best[1])], { type: 'image/jpeg' })
+  }
+  // PPTX·DOCX·XLSX·HWPX 문서 안의 사진을 꺼낸다 (작은 로고는 올릴 때 크기 검사로 빠짐)
+  const MEDIA = /\.(jpe?g|png|gif|bmp|webp|tiff?)$/i
+  async function docImages(file) {
+    const JSZip = await load(CDN.jszip, 'JSZip')
+    const zip = await JSZip.loadAsync(await file.arrayBuffer())
+    const base = file.name.replace(/\.[^.]+$/, '')
+    const out = []
+    for (const [name, entry] of Object.entries(zip.files)) {
+      if (entry.dir || !/(^|\/)(media|BinData)\//i.test(name) || !MEDIA.test(name)) continue
+      const blob = await entry.async('blob')
+      const e = name.split('.').pop().toLowerCase()
+      out.push(new File([blob], `${base}_${name.split('/').pop()}`, { type: /tif/.test(e) ? 'image/tiff' : e === 'jpg' || e === 'jpeg' ? 'image/jpeg' : 'image/' + e }))
+    }
+    return out
+  }
+
+  window.StudioExtract = { extract, ext, zipImages, heicToJpeg, tiffToJpeg, rawPreview, docImages }
 })()

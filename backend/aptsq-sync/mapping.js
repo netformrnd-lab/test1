@@ -65,6 +65,7 @@ function pourToSupabase(node, id, s) {
     date: pickDate(s),
     title: String(title).slice(0, 300),
     description: parts.join(' · ').slice(0, 1000) || null,
+    assignee_name: who || null,  // 담당자 — 캘린더/앱에서 담당 표시에 사용
     apartment_id: null,          // POUR 일정은 특정 단지에 매이지 않음
     resident_visible: false,     // 영업일정은 입주민에게 비공개가 기본
     ext_updated_at: new Date().toISOString(),

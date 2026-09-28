@@ -1,0 +1,22 @@
+name: 영상 작업실 사진 전체 삭제
+
+on:
+  push:
+    branches: ["claude/bold-mayer-pylpse"]
+    paths: ["video-studio/tools/delete-photos.mjs", ".github/workflows/studio-delete-photos.yml"]
+  workflow_dispatch:
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 삭제
+        env:
+          SUPABASE_URL: https://gndktayoicegyqyllybk.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WAIT_SECONDS: '150'
+        run: node video-studio/tools/delete-photos.mjs

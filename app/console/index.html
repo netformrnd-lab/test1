@@ -331,7 +331,7 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-projects">
       <div class="head"><div><h2>공사관리</h2><div class="desc">단계(계약 → 착공 → 공사중 → 준공처리 → 준공)를 눌러 바로 이동 · 단지 클릭 → 상세(감리일지·작업사진·계약서·방문이력)</div></div></div>
       <div id="projList">
-        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openAptAdd()">➕ 단지 추가</button><span style="flex:1"></span><div class="seg" style="margin:0"><button id="pv-list" onclick="setProjView('list')">📋 리스트</button><button id="pv-kanban" onclick="setProjView('kanban')">🗂️ 칸반</button></div></div>
+        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openAptAdd()">➕ 단지 추가</button><button class="b line" onclick="openBulkAssign()">👥 감리사 일괄배정</button><span style="flex:1"></span><div class="seg" style="margin:0"><button id="pv-list" onclick="setProjView('list')">📋 리스트</button><button id="pv-kanban" onclick="setProjView('kanban')">🗂️ 칸반</button></div></div>
         <div class="stgfilter" id="projStageFilter"></div>
         <div id="projTableWrap" style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:1000px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리사</th><th>감리비</th><th>미수금</th><th>감리일지</th><th>방문</th><th>공정률</th><th style="min-width:190px">단계 <span style="font-weight:600;color:var(--mut)">(클릭 이동)</span></th></tr></thead><tbody id="projRows"></tbody></table></div></div>
         <div id="projKanbanWrap" class="kbwrap" style="display:none"><div class="kbboard" id="projKanban"></div></div>
@@ -1287,6 +1287,65 @@ async function saveAuditors(aptId){
   try{ await sb.from('apartment_auditors').delete().eq('apartment_id',aptId); if(ids.length) await sb.from('apartment_auditors').insert(ids.map(x=>({apartment_id:aptId,auditor_id:x}))); }catch(e){}
   const a=APTS.find(x=>x.id===aptId); if(a)a.auditor_id=rep; APT_AUD[aptId]=ids;
   renderProj(); renderProjList(); renderOrgs(); renderDash(); alert('감리사 배정을 저장했어요');
+}
+
+/* ===== 감리사 일괄 배정 (여러 단지에 한 번에) ===== */
+function openBulkAssign(){
+  const auds=auditorList();
+  if(!auds.length){ alert('먼저 회원에서 ‘감리사’를 등록·승인하세요'); return; }
+  const audOpts=auds.map(a=>`<option value="${a.id}">${esc(a.name||loginId(a))}</option>`).join('');
+  openModal(mHead('👥 감리사 일괄 배정')+`
+    <div class="frow"><div class="fld"><label>감리사 선택</label><select id="ba-aud">${audOpts}</select></div>
+      <div class="fld"><label>배정 방식</label><select id="ba-mode">
+        <option value="add">추가 배정 (기존 담당 유지)</option>
+        <option value="rep">대표 감리사로 지정 (기존 대표 교체)</option>
+      </select></div></div>
+    <div style="display:flex;gap:8px;align-items:center;margin:6px 0 8px">
+      <input class="inp" id="ba-q" placeholder="🔍 단지명·지역 검색" style="flex:1" oninput="baRender()">
+      <label style="font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer"><input type="checkbox" id="ba-all" onchange="baToggleAll(this.checked)"> 보이는 단지 전체선택</label>
+    </div>
+    <div id="ba-list" style="max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:2px 12px"></div>
+    <div class="mmsg" id="ba-msg"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="bulkAssignSave()">선택 단지에 배정</button></div>
+  `,true);
+  baRender();
+}
+function baRender(){
+  const q=((($('ba-q')||{}).value)||'').trim().toLowerCase();
+  const list=APTS.filter(a=>!q||((a.name||'').toLowerCase().includes(q)||(a.region||'').toLowerCase().includes(q)))
+    .sort((x,y)=>(x.name||'').localeCompare(y.name||'','ko'));
+  const box=$('ba-list'); if(!box)return;
+  box.innerHTML=list.length?list.map(a=>{
+    const cur=aptAuditors(a).map(auditorName).filter(n=>n&&n!=='-');
+    return `<label style="display:flex;align-items:center;gap:9px;padding:7px 2px;border-bottom:1px solid var(--line);cursor:pointer">
+      <input type="checkbox" class="ba-chk" value="${a.id}">
+      <span style="font-weight:700;font-size:13px">${esc(a.name)}</span>
+      <span style="color:var(--mut);font-size:11px">${esc(a.region)||''}</span>
+      <span style="margin-left:auto;font-size:11px;color:${cur.length?'var(--blue,#2f6bf6)':'#b8710a'}">${cur.length?'담당: '+esc(cur.join(', ')):'미배정'}</span>
+    </label>`;
+  }).join(''):'<div class="empty">단지가 없어요</div>';
+  const all=$('ba-all'); if(all)all.checked=false;
+}
+function baToggleAll(on){ document.querySelectorAll('#ba-list .ba-chk').forEach(c=>c.checked=on); }
+async function bulkAssignSave(){
+  const aud=($('ba-aud')||{}).value; const mode=($('ba-mode')||{}).value||'add';
+  const ids=[...document.querySelectorAll('#ba-list .ba-chk:checked')].map(c=>c.value);
+  const msg=$('ba-msg');
+  if(!aud){ if(msg){msg.textContent='감리사를 선택하세요';msg.style.color='var(--red)';} return; }
+  if(!ids.length){ if(msg){msg.textContent='배정할 단지를 하나 이상 선택하세요';msg.style.color='var(--red)';} return; }
+  if(msg){msg.textContent='배정 중…';msg.style.color='var(--mut)';}
+  // 1) apartment_auditors 에 아직 없는 (단지,감리사)만 추가
+  const toIns=ids.filter(id=>!(APT_AUD[id]||[]).includes(aud)).map(id=>({apartment_id:id,auditor_id:aud}));
+  if(toIns.length){ const {error}=await sb.from('apartment_auditors').insert(toIns); if(error){ if(msg){msg.textContent='배정 실패: '+error.message;msg.style.color='var(--red)';} return; } }
+  // 2) 대표 감리사 지정: 'rep'면 선택 단지 전부, 'add'면 대표가 비어있는 단지만
+  const repIds = (mode==='rep') ? ids : ids.filter(id=>{ const a=APTS.find(x=>x.id===id); return a&&!a.auditor_id; });
+  if(repIds.length){ const {error}=await sb.from('apartments').update({auditor_id:aud}).in('id',repIds); if(error){ if(msg){msg.textContent='대표 지정 실패: '+error.message;msg.style.color='var(--red)';} return; } }
+  // 3) 로컬 상태 갱신 + 화면 새로고침
+  ids.forEach(id=>{ APT_AUD[id]=Array.from(new Set([...(APT_AUD[id]||[]),aud])); });
+  repIds.forEach(id=>{ const a=APTS.find(x=>x.id===id); if(a)a.auditor_id=aud; });
+  closeModal();
+  renderProjList(); renderOrgs(); renderDash();
+  alert(`${auditorName(aud)} 감리사를 ${ids.length}개 단지에 배정했어요.`+(mode==='rep'?' (대표로 지정)':''));
 }
 /* ===== 현장개요 / 히스토리 ===== */
 async function saveOverview(aptId){

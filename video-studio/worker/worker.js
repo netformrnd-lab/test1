@@ -107,7 +107,7 @@ const ACTIONS = {
     let file = null
     if (s.file && s.file.path) {
       const path = String(s.file.path)
-      if (!/^files\/[0-9a-f-]{36}\/[^/]{1,200}$/.test(path)) throw new HttpError(400, '원본 파일 경로가 올바르지 않습니다.')
+      if (!/^files\/[0-9a-f-]{36}\/file(\.[a-z0-9]{1,8})?$/.test(path)) throw new HttpError(400, '원본 파일 경로가 올바르지 않습니다.')
       file = { path, name: String(s.file.name || '').slice(0, 200), size: Number(s.file.size) || 0, type: String(s.file.type || '').slice(0, 120) }
     }
     await mutate(env, 'sources', [], (list) => {
@@ -120,8 +120,9 @@ const ACTIONS = {
   async uploadUrl(env, { name, size }) {
     const n = Number(size) || 0
     if (n <= 0 || n > MAX_FILE_BYTES) throw new HttpError(400, `파일은 ${Math.round(MAX_FILE_BYTES / 1048576)}MB 이하만 올릴 수 있습니다.`)
-    const safe = String(name || 'file').replace(/[\\/:*?"<>|#%\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim().slice(-120) || 'file'
-    const path = `files/${crypto.randomUUID()}/${safe}`
+    // Supabase Storage 경로는 영문·숫자만 허용(한글 이름은 400) → 저장 이름은 file.확장자, 원래 이름은 자료에 따로 기록
+    const ext = (String(name || '').toLowerCase().match(/\.([a-z0-9]{1,8})$/) || [])[1]
+    const path = `files/${crypto.randomUUID()}/file${ext ? '.' + ext : ''}`
     await ensureBucket(env)
     const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/upload/sign/${BUCKET}/${encodePath(path)}`, {
       method: 'POST', headers: storageHeaders(env, { 'content-type': 'application/json' }), body: '{}',

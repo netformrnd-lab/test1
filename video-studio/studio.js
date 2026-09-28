@@ -504,15 +504,20 @@
     for (const x of S.queue.filter((i) => i.status === 'ready')) {
       x.status = 'saving'; renderQueue()
       try {
-        const up = await api({ action: 'uploadUrl', name: x.name, size: x.file.size })
-        const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': x.file.type || 'application/octet-stream', 'x-upsert': 'false' }, body: x.file })
-        if (!put.ok) throw new Error('원본 파일 업로드 실패 (' + put.status + ')')
+        // 원본 보관은 실패해도 글자(자료)는 저장한다
+        let file = null
+        try {
+          const up = await api({ action: 'uploadUrl', name: x.name, size: x.file.size })
+          const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': x.file.type || 'application/octet-stream', 'x-upsert': 'false' }, body: x.file })
+          if (!put.ok) throw new Error('HTTP ' + put.status + ' ' + (await put.text()).slice(0, 120))
+          file = { path: up.path, name: x.name, size: x.file.size, type: x.file.type }
+        } catch (e) { x.warn = '원본 파일 보관 실패(글자는 저장됨): ' + e.message }
         S.data = await api({
           action: 'source',
           source: {
             title: x.name.replace(/\.[^.]+$/, '').slice(0, 150) || x.name, content: x.text, approved,
             provenance: `${x.name} · ${today()} 업로드 · ${fmtSize(x.file.size)}${x.note ? ' · ' + x.note : ''}`.slice(0, 500),
-            file: { path: up.path, name: x.name, size: x.file.size, type: x.file.type },
+            file,
           },
         })
         x.status = 'saved'; saved++
@@ -521,6 +526,8 @@
     }
     S.busy = false
     if (saved) S.success = `파일 ${saved}개를 자료로 저장했습니다.`
+    const warns = S.queue.filter((x) => x.status === 'saved' && x.warn).map((x) => x.name + ' — ' + x.warn)
+    if (warns.length) S.error = warns.join(' / ')
     S.queue = S.queue.filter((x) => x.status !== 'saved')
     renderAll(); renderQueue()
   }

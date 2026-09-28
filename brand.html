@@ -4309,7 +4309,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260928-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260928-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19944,16 +19944,22 @@ function bookPickCopy(){
   Array.from(n.querySelectorAll('[data-bhc],[data-bhr],[data-bhbr]')).forEach(e => {
     e.removeAttribute('data-bhc'); e.removeAttribute('data-bhr'); e.removeAttribute('data-bhbr');
   });
+  /* 벌이기 전에, 1씩 늘어나던 번호 칸을 적어 둡니다 */
+  const runs = bookNumRuns(bookGroupOf(el) || []);
   const first = bookRowBlank(n, d);
   el.parentNode.insertBefore(n, el.nextSibling);
+  bookRenumber(bookGroupOf(n), runs);            // 01 02 03 04 · STEP 01 STEP 02 …
   bookPick = n;
   bookTouched();
+  /* 번호를 다시 매기면서 채워진 칸 말고, 아직 <<빈 칸>> 에 커서를 둡니다 */
+  const tgt = n.querySelector('[data-bhbr]') || first;
   try{ const s = d.getSelection(); const g = d.createRange();
-       g.selectNodeContents(first); g.collapse(true);
+       g.selectNodeContents(tgt); g.collapse(true);
        s.removeAllRanges(); s.addRange(g); bookRange = g.cloneRange();
        if(d.body) d.body.focus(); }catch(e){}
   bookMark();
-  toast('바로 밑에 똑같이 하나 놓았습니다 — 바로 적으시면 됩니다');
+  toast(runs.length ? '바로 밑에 하나 놓고 번호도 이어 매겼습니다 — 바로 적으시면 됩니다'
+                    : '바로 밑에 똑같이 하나 놓았습니다 — 바로 적으시면 됩니다');
 }
 /* ↑ ↓ 고른 것을 같은 줄 안에서 위아래로 옮깁니다 */
 function bookPickMove(dir){
@@ -19963,8 +19969,10 @@ function bookPickMove(dir){
   const p = el.parentNode;
   const sib = dir < 0 ? el.previousElementSibling : el.nextElementSibling;
   if(!sib){ toast(dir < 0 ? '맨 위입니다' : '맨 아래입니다'); return; }
+  const runs = bookNumRuns(bookGroupOf(el) || []);
   if(dir < 0) p.insertBefore(el, sib);
   else p.insertBefore(sib, el);
+  bookRenumber(bookGroupOf(el), runs);           // 자리를 바꿨으면 번호도 따라갑니다
   bookTouched(); bookMark();
 }
 /* 🗑 고른 것을 통째로 지웁니다 */
@@ -19979,7 +19987,13 @@ function bookPickDel(){
     + (q ? '\n\n(같은 것 ' + q.n + '개 가운데 ' + q.no + '째)' : '')
     + (what ? '\n「' + what + (what.length >= 30 ? '…' : '') + '」' : ''))) return;
   const up = el.parentNode;
+  const grp = bookGroupOf(el) || [];
+  const runs = bookNumRuns(grp);
   up.removeChild(el);
+  if(runs.length){
+    const left = grp.filter(e => e !== el && e.isConnected);
+    bookRenumber(left, runs);                    // 가운데를 지워도 번호가 안 비웁니다
+  }
   bookPick = null;
   try{ const s = d.getSelection(); const g = d.createRange();
        g.selectNodeContents(up); g.collapse(true);
@@ -20038,6 +20052,59 @@ function bookBrClear(d){
     Array.from(e.querySelectorAll('br')).forEach(b => b.parentNode.removeChild(b));
     e.removeAttribute('data-bhbr');
   });
+}
+/* ── 차례를 <<이어서>> 매깁니다 ─────────────────────────────────
+   줄을 하나 더 놓으면 잇는 화살표는 저절로 따라옵니다 (그 파일의
+   CSS 가 「마지막 것 빼고 화살표」 처럼 짜여 있어, 베낀 것에도 그대로
+   붙습니다). 그런데 <<번호>> 는 안 따라와서 STEP 01 · 〈빈칸〉 ·
+   STEP 02 처럼 차례가 끊겼습니다.
+   그래서 1씩 늘어나고 있던 번호 칸을 찾아, 더하거나 지우거나 옮긴
+   뒤 <<처음부터 다시>> 매깁니다 — 01 02 03 04, STEP 01 STEP 02 …
+   늘어나고 있지 <<않던>> 숫자(280만 세대 같은 것)는 건드리지 않습니다.
+   ------------------------------------------------------------- */
+function bookLeaves(r){
+  const leafy = e => !Array.from(e.children || []).some(c => c.tagName !== 'BR');
+  const out = Array.from(r.querySelectorAll ? r.querySelectorAll('*') : []).filter(leafy);
+  return out.length ? out : [r];
+}
+function bookNumOf(e){
+  const t = String((e && e.textContent) || '').trim();
+  const m = /^(\D{0,10}?)([0-9]{1,3})(\D{0,10})$/.exec(t);
+  return m ? { pre: m[1], num: Number(m[2]), pad: m[2].length, post: m[3] } : null;
+}
+/* 일을 벌이기 <<전>> 에, 어느 칸이 1씩 늘어나고 있었는지 적어 둡니다 */
+function bookNumRuns(group){
+  if(!group || group.length < 2) return [];
+  const rows = group.map(bookLeaves);
+  let w = 99;
+  rows.forEach(a => { if(a.length < w) w = a.length; });
+  const runs = [];
+  for(let k = 0; k < w; k++){
+    const col = rows.map(a => bookNumOf(a[k]));
+    if(col.some(c => !c)) continue;
+    const p = col[0];
+    if(col.some(c => c.pre !== p.pre || c.post !== p.post)) continue;
+    let ok = true;
+    for(let i = 1; i < col.length; i++) if(col[i].num !== p.num + i) ok = false;
+    if(ok) runs.push({ k: k, pre: p.pre, post: p.post, pad: p.pad, start: p.num });
+  }
+  return runs;
+}
+function bookRenumber(group, runs){
+  if(!group || !runs || !runs.length) return;
+  const rows = group.map(bookLeaves);
+  runs.forEach(run => {
+    rows.forEach((a, i) => {
+      const e = a[run.k]; if(!e) return;
+      const v = String(run.start + i);
+      e.textContent = run.pre + (v.length < run.pad ? v.padStart(run.pad, '0') : v) + run.post;
+      e.removeAttribute('data-bhbr');
+    });
+  });
+}
+function bookGroupOf(el){
+  const q = bookRowNo(el);
+  return q ? q.all : null;
 }
 /* 베낀 것의 글만 비웁니다 — 테두리 · 색 · 짜임새는 그대로 두어야
    새 것이 옆의 것과 똑같이 생깁니다.

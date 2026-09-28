@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>아파트스퀘어 | 영상 제작 작업실</title>
+<meta name="description" content="아파트스퀘어 자료 기반 대본, Claude·OpenAI 교차 검수, HeyGen 아바타 영상 제작 작업실">
+<link rel="stylesheet" href="studio.css">
+</head>
+<body class="antialiased">
+<main class="studio">
+  <header class="masthead">
+    <div class="brand">
+      <span class="brand-mark"><span></span></span>
+      <div><strong>아파트스퀘어</strong><small>VIDEO STUDIO</small></div>
+    </div>
+    <div class="header-right">
+      <span class="tag"><i data-icon="lock" data-size="13"></i>비공개 작업실</span>
+      <span class="edition">조현식 이사 · AI 아바타</span>
+      <button type="button" class="btn ghost sm" id="logout-btn" hidden>로그아웃</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- 로그인 (관리자 전용) -->
+    <section class="panel login-card" id="login-view" hidden>
+      <h2>관리자 로그인</h2>
+      <p class="body-note">영상 제작 작업실은 아파트스퀘어 관리자 계정만 사용할 수 있습니다.</p>
+      <div class="field"><label for="li-id">아이디 또는 이메일</label><input class="input" id="li-id" autocomplete="username"></div>
+      <div class="field"><label for="li-pw">비밀번호</label><input class="input" id="li-pw" type="password" autocomplete="current-password"></div>
+      <button type="button" class="btn" id="login-btn">로그인</button>
+      <p class="fineprint" id="login-msg" role="status"></p>
+    </section>
+
+    <div id="studio-view" hidden>
+      <div class="nav-row">
+        <div role="tablist" class="nav-tabs" aria-label="작업실 메뉴">
+          <button type="button" role="tab" data-slot="tabs-trigger" data-tab="create" data-state="active"><i data-icon="film"></i>영상 제작</button>
+          <button type="button" role="tab" data-slot="tabs-trigger" data-tab="knowledge" data-state="inactive"><i data-icon="book"></i>브랜드 자료실 <span class="count" id="tab-src-count">0</span></button>
+          <button type="button" role="tab" data-slot="tabs-trigger" data-tab="history" data-state="inactive"><i data-icon="history"></i>제작 이력</button>
+          <button type="button" role="tab" data-slot="tabs-trigger" data-tab="settings" data-state="inactive"><i data-icon="settings"></i>연결 설정</button>
+        </div>
+        <span class="nav-note">APARTMENT MAINTENANCE · KNOWLEDGE TO VIDEO</span>
+      </div>
+
+      <div id="msg-area"></div>
+
+      <!-- 01 영상 제작 -->
+      <div role="tabpanel" data-panel="create">
+        <section class="page-heading">
+          <div>
+            <span class="eyebrow">CONTENT PRODUCTION</span>
+            <h1>전문 지식을, 신뢰할 수 있는 영상으로.</h1>
+            <p>키워드와 시청자를 정하면, 자료 검색부터 이중 검수·아바타 영상 제작까지 이어집니다.</p>
+          </div>
+          <span class="heading-number">01—04</span>
+        </section>
+        <div id="setup-banner"></div>
+        <div class="production-grid">
+          <section class="panel brief-panel">
+            <div class="section-label"><span>01</span><h2>이번 영상의 주제</h2><span class="tag">매번 입력하는 항목</span></div>
+            <div class="field">
+              <label for="keywords">키워드</label>
+              <textarea class="textarea keyword-input" id="keywords" maxlength="1000" placeholder="예: 외벽 재도장, 바탕면 처리, 감리가 필요한 이유"></textarea>
+              <small>사실·수치는 승인된 아파트스퀘어 자료에서만 가져옵니다.</small>
+            </div>
+            <div class="topics" id="topics"></div>
+            <div class="field">
+              <label for="audience">시청 대상</label>
+              <select class="select" id="audience">
+                <option>입주자대표회의</option><option>관리사무소장</option><option>아파트 입주민</option><option>시공사 담당자</option>
+              </select>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="ratio">화면 비율</label>
+                <select class="select" id="ratio"><option value="16:9">가로형 16:9</option><option value="9:16">세로형 9:16</option></select>
+              </div>
+              <div class="field">
+                <label for="seconds">목표 영상 길이</label>
+                <select class="select" id="seconds">
+                  <option value="30">30초</option><option value="60" selected>1분</option><option value="90">1.5분</option>
+                  <option value="120">2분</option><option value="180">3분</option><option value="300">5분</option>
+                </select>
+              </div>
+            </div>
+            <div class="presenter">
+              <div class="presenter-icon"><i data-icon="user" data-size="24"></i></div>
+              <div><strong>조현식 이사</strong><p>아파트스퀘어 전용 아바타</p></div>
+              <span class="tag" id="presenter-tag">본인·동의 확인 전</span>
+            </div>
+            <div id="readiness"></div>
+            <button type="button" class="btn create-button" id="create-btn" disabled></button>
+            <p class="fineprint">실제 제작 시 각 서비스 사용료가 발생합니다. 목표 길이는 음성과 편집에 따라 달라질 수 있습니다. 자료 검색·검수 중에는 이 창을 열어 두세요.</p>
+          </section>
+          <aside class="pipeline-panel">
+            <div class="pipeline-heading"><span class="eyebrow">QUALITY PIPELINE</span><h2>만들기 전에, 두 번 확인합니다.</h2></div>
+            <div id="pipeline-steps"></div>
+            <div class="quality-rule">
+              <i data-icon="shield" data-size="20"></i>
+              <p><strong>근거가 없으면, 만들지 않습니다.</strong><br>양쪽 검수 항목 90점 이상 · 중대 지적 0건<br>미통과 시 최대 2회 수정 후 자동 보류</p>
+            </div>
+            <p class="pipeline-foot">검수 점수는 모델의 평가이며 사실 정확도나 완성 영상의 품질 보증이 아닙니다.</p>
+          </aside>
+        </div>
+        <section class="result-section">
+          <div class="section-label"><span>RESULT</span><h2>제작 결과</h2><span class="tag" id="result-tag" hidden></span></div>
+          <div id="result-body"></div>
+        </section>
+      </div>
+
+      <!-- 02 브랜드 자료실 -->
+      <div role="tabpanel" data-panel="knowledge" hidden>
+        <section class="page-heading">
+          <div>
+            <span class="eyebrow">BRAND KNOWLEDGE</span>
+            <h1>아파트스퀘어가 말할 수 있는 근거.</h1>
+            <p>운영 초기에 자료를 등록하고 승인합니다. 이후 영상 제작에는 키워드·대상·비율·길이만 필요합니다.</p>
+          </div>
+        </section>
+        <div class="knowledge-grid">
+          <section class="panel">
+            <div class="section-label"><i data-icon="book" data-size="20"></i><h2>근거 자료 등록</h2></div>
+            <div class="field"><label for="source-title">자료 제목</label><input class="input" id="source-title" maxlength="150"></div>
+            <div class="field"><label for="source-origin">출처·작성일·버전</label><input class="input" id="source-origin" maxlength="500" placeholder="예: 외벽 재도장 표준 시방서 · 2026-09 · 2차 개정"></div>
+            <div class="field"><label for="source-content">자료 본문</label><textarea class="textarea source-input" id="source-content" maxlength="60000" placeholder="검증된 자료의 본문을 그대로 붙여 넣어 주세요. 목표·계획과 실제 실적은 구분해 주세요."></textarea></div>
+            <label class="file-picker"><i data-icon="upload" data-size="16"></i> TXT / MD 파일 불러오기<input type="file" id="source-file" accept=".txt,.md,text/plain,text/markdown"></label>
+            <p class="fineprint">PDF·PPT·한글 문서는 본문을 복사해 등록해 주세요. 현재 파일 자동 추출은 TXT·MD만 지원합니다.</p>
+            <div class="check-row"><input type="checkbox" data-slot="checkbox" id="source-approve"><label for="source-approve">최신 내용과 외부 영상 활용 가능 여부를 확인했습니다.</label></div>
+            <button type="button" class="btn w-full" id="source-save" disabled>자료 저장</button>
+            <button type="button" class="text-link" id="source-sample">기존 킥오프 자료 발췌 불러오기 <i data-icon="external" data-size="14"></i></button>
+          </section>
+          <section>
+            <div class="between mb-5"><h2>등록 자료 <span class="muted" id="src-count">0</span></h2><span class="tag" id="src-approved">승인 0개</span></div>
+            <div id="sources-list"></div>
+            <div class="learning-card">
+              <i data-icon="sparkles" data-size="20"></i>
+              <h3>반복 제작을 통해 축적하는 것</h3>
+              <p>실제 생성 완료 <span id="learning-count">0</span>건의 검수 통과 장면 수와 발화량을 다음 대본의 형식에 참고합니다. 새 사실은 원문 자료에서만 가져옵니다.</p>
+              <small>현재 방식은 자료 검색·제작 패턴 재사용입니다. 모델 자체의 재학습이나 자동 품질 향상을 보장하지 않습니다.</small>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- 03 제작 이력 -->
+      <div role="tabpanel" data-panel="history" hidden>
+        <section class="page-heading">
+          <div>
+            <span class="eyebrow">PRODUCTION LOG</span>
+            <h1>무엇을 근거로, 어떻게 만들었는지.</h1>
+            <p>최근 50개 작업을 표시합니다. 창을 다시 열면 진행 중인 작업을 자동으로 이어갑니다.</p>
+          </div>
+          <button type="button" class="btn outline" data-refresh><i data-icon="refresh"></i>새로고침</button>
+        </section>
+        <div id="history-body"></div>
+      </div>
+
+      <!-- 04 연결 설정 -->
+      <div role="tabpanel" data-panel="settings" hidden>
+        <section class="page-heading">
+          <div>
+            <span class="eyebrow">CONNECTION SETTINGS</span>
+            <h1>API를 연결하고 기존 아바타를 선택하세요.</h1>
+            <p>최초 한 번 저장하면 다음 제작부터 같은 연결을 사용합니다.</p>
+          </div>
+        </section>
+        <div class="security-note">
+          <i data-icon="key" data-size="20"></i>
+          <div>
+            <strong>API 키는 아래 입력란에 등록하세요.</strong>
+            <p>키는 서버에서 암호화해 저장하며 화면으로 다시 보내지 않습니다. 연결 확인은 계정·모델 조회만 하며 영상을 생성하지 않습니다.</p>
+          </div>
+        </div>
+        <div class="provider-grid" id="provider-grid"></div>
+        <section class="panel avatar-panel">
+          <div class="between">
+            <div>
+              <h2>HeyGen에 등록된 조현식 이사님 아바타</h2>
+              <p class="body-note">기존 아바타를 그대로 사용합니다. 사진을 선택하면 등록된 기본 음성을 함께 가져옵니다.</p>
+            </div>
+            <button type="button" class="btn" id="avatar-load" disabled>내 HeyGen 아바타 불러오기</button>
+          </div>
+          <p class="body-note" id="avatar-need-key">위에서 HeyGen API 키를 저장하면 목록을 불러올 수 있습니다.</p>
+          <p class="body-note" id="avatar-empty" hidden>이 API 계정에서 조회되는 개인 아바타가 없습니다. 아바타가 등록된 HeyGen 워크스페이스의 키인지 확인해 주세요.</p>
+          <div class="avatar-grid" id="avatar-grid"></div>
+          <button type="button" class="btn outline" id="avatar-more" hidden>아바타 더 불러오기</button>
+          <p class="body-note" id="avatar-selected" hidden></p>
+          <div class="field">
+            <label for="voice-id">음성 ID</label>
+            <input class="input" id="voice-id">
+            <small>아바타의 기본 음성을 자동 입력합니다. 기본 음성이 없으면 HeyGen의 해당 음성 ID를 입력해 주세요.</small>
+          </div>
+          <div class="check-row"><input type="checkbox" data-slot="checkbox" id="avatar-confirm"><label for="avatar-confirm">선택한 아바타·음성이 조현식 이사님 것이며 사용 권한이 있습니다.</label></div>
+          <div class="field">
+            <label for="daily-limit">하루 최대 제작 접수 건수 (UTC 기준)</label>
+            <input class="input" id="daily-limit" type="number" min="1" max="20">
+          </div>
+          <button type="button" class="btn" id="settings-save" disabled>아바타·음성 설정 저장</button>
+          <p role="status" id="settings-ok" hidden></p>
+          <p class="message error" role="alert" id="settings-err" hidden></p>
+        </section>
+        <div class="boundary-note">
+          <p>자료 검색·대본·검수 단계에서는 창을 열어 두세요. HeyGen 접수 후 렌더링은 창을 닫아도 계속됩니다. 완성 영상의 화면·발음·자막 품질 자동검증은 아직 제공되지 않습니다.</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <span>아파트스퀘어 · 영상 제작 작업실</span>
+      <span>출처 중심 생성 / 독립 교차 검수 / 승인된 아바타</span>
+    </footer>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="studio.js"></script>
+</body>
+</html>

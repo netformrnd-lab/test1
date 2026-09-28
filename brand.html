@@ -1499,6 +1499,27 @@ table.itable tr:hover td{background:var(--bg-hover)}
 .bk-ed button:hover:not(:disabled){border-color:var(--ink);color:var(--text-primary)}
 .bk-ed button:disabled{opacity:.5;cursor:default}
 .bk-ed .go,.bk-ed .dn{background:var(--ink);border-color:var(--ink);color:#fff}
+.bk-ed .dl{color:var(--red)}
+.bk-ed .dl:hover:not(:disabled){border-color:var(--red);color:var(--red)}
+.bk-ed .bar{width:1px;height:18px;background:var(--border);margin:0 2px}
+.bk-ed .ft{padding:6px 8px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg-secondary);font-family:inherit;font-size:12px;font-weight:650;
+  color:var(--text-secondary);cursor:pointer;max-width:130px}
+/* 판(.panel)이 overflow:hidden 이라 붙박이 줄이 그 안에서 잘립니다.
+   clip 은 <<자르되 스크롤 칸을 만들지 않아>> 붙박이가 화면 기준으로
+   섭니다. 고치는 동안에만 바꿉니다 (모양은 똑같이 잘립니다). */
+body.bk-edit .panel{overflow:clip}
+/* 고치는 중에는 연장 줄이 <<따라다닙니다>> — 7쪽을 보다 글씨를 키우려고
+   맨 위까지 올라갔다 내려오는 일이 없게. 위 띠(.topbar) 밑에 붙습니다. */
+.bk-ed.on{position:sticky;top:var(--tbh,112px);z-index:20;
+  padding:7px 9px;border:1px solid var(--border);border-radius:10px;
+  background:var(--bg-card);
+  background:color-mix(in srgb,var(--bg-card) 94%,transparent);
+  -webkit-backdrop-filter:saturate(180%) blur(12px);
+  backdrop-filter:saturate(180%) blur(12px);
+  box-shadow:var(--shadow-sm)}
+.bk-ed.on button{padding:5px 9px}
+/* 단추를 눌러도 틀 안의 초점을 뺏지 않습니다 */
 .bk-ed .sv{background:var(--blue);border-color:var(--blue);color:#fff}
 .bk-ed.dirty .sv{animation:bkpulse 1.6s ease-in-out infinite}
 @keyframes bkpulse{50%{opacity:.62}}
@@ -4286,7 +4307,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260928-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260928-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -4765,7 +4786,15 @@ function paintTools(){
   }
 }
 
+/* 위 띠 높이를 재어 둡니다 — 고치는 중의 연장 줄이 그 밑에 붙습니다 */
+function tbHeight(){
+  const t = document.querySelector('.topbar');
+  if(!t) return;
+  const h = Math.round(t.getBoundingClientRect().height);
+  if(h > 0) document.documentElement.style.setProperty('--tbh', h + 'px');
+}
 function fitTopbar(){
+  tbHeight();
   const bar = document.querySelector('.topbar');
   const grp = document.querySelector('.statusgrp');
   if(!bar || !grp) return;
@@ -19130,25 +19159,55 @@ function pathViewHtml(b){
 
 /* 올린 브랜드북을 폅니다 — 없으면 올리라고 합니다 */
 function bookEdHtml(){
-  return bookEdit
-    ? '<button class="sv" id="bkSave" disabled onclick="bookSave()">💾 저장됨</button>'
-      + '<button onclick="bookRowAdd()" title="이 줄 밑에 빈 줄을 하나 넣습니다">'
-        + '＋ 줄 더하기</button>'
-      + '<button onclick="bookRowDel()" title="커서가 놓인 줄을 지웁니다">'
-        + '－ 이 줄 지우기</button>'
-      + '<button onclick="bookRevert()">↩︎ 고치기 전으로</button>'
-      + '<button class="dn" onclick="setBookEdit(0)">✔ 다 고쳤어요</button>'
-      + '<span>글을 <b>그대로 눌러</b> 고칩니다 — 틀 · 색 · 표 모양은 그대로입니다</span>'
-    : '<button class="go" onclick="setBookEdit(1)">✎ 이대로 고치기</button>'
+  if(!bookEdit)
+    return '<button class="go" onclick="setBookEdit(1)">✎ 이대로 고치기</button>'
       + '<span>글을 <b>두 번 눌러도</b> 바로 고칠 수 있습니다</span>';
+  return '<button class="sv" id="bkSave" disabled onclick="bookSave()">💾 저장됨</button>'
+    + '<span class="bar"></span>'
+    /* 글씨 — 고른 글에, 고른 것이 없으면 커서가 놓인 칸에 */
+    + '<select class="ft" onchange="bookFont(this.value);this.selectedIndex=0"'
+      + ' title="글씨체를 바꿉니다">'
+      + BOOK_FONTS.map(f => '<option value="' + esc(f[0]) + '">' + esc(f[1]) + '</option>').join('')
+      + '</select>'
+    + '<button onclick="bookSize(2)" title="글씨 크게">A＋</button>'
+    + '<button onclick="bookSize(-2)" title="글씨 작게">A－</button>'
+    + '<button onclick="bookCmd(\'bold\')" title="굵게"><b>B</b></button>'
+    + '<button onclick="bookCmd(\'italic\')" title="기울임"><i>I</i></button>'
+    + '<button onclick="bookCmd(\'underline\')" title="밑줄"><u>U</u></button>'
+    + '<button onclick="bookColor(\'fore\')" title="글자 색">🎨</button>'
+    + '<button onclick="bookColor(\'back\')" title="형광펜">🖍</button>'
+    + '<button onclick="bookCmd(\'removeFormat\')" title="꾸밈을 지우고 처음 모양으로">서식 지우기</button>'
+    + '<span class="bar"></span>'
+    /* 칸 — 더하고 지우기 */
+    + '<button onclick="bookBoxAdd()" title="커서 자리 밑에 새 칸을 하나 넣습니다">＋ 칸</button>'
+    + '<button onclick="bookRowAdd()" title="표의 줄 · 목록의 칸을 하나 더합니다">＋ 줄</button>'
+    + '<button onclick="bookRowDel()" title="커서가 놓인 줄을 지웁니다">－ 줄</button>'
+    + '<button class="dl" onclick="bookBlockDel()" title="커서가 놓인 칸을 통째로 지웁니다">'
+      + '🗑 이 칸</button>'
+    + '<span class="bar"></span>'
+    + '<button onclick="bookCmd(\'undo\')" title="되돌리기 (Ctrl+Z)">↶</button>'
+    + '<button onclick="bookCmd(\'redo\')" title="다시 (Ctrl+Shift+Z)">↷</button>'
+    + '<button onclick="bookRevert()">↩︎ 고치기 전으로</button>'
+    + '<button class="dn" onclick="setBookEdit(0)">✔ 다 고쳤어요</button>';
+}
+/* 연장 단추를 누를 때 틀 안의 초점이 빠져나가지 않게 막습니다 */
+function bookEdArm(el){
+  if(!el || el.__armed) return;
+  el.__armed = true;
+  el.addEventListener('mousedown', e => {
+    const t = e.target;
+    if(t && t.tagName === 'BUTTON') e.preventDefault();   // 초점은 틀 안에 둡니다
+  });
 }
 /* 단추 줄만 갈아 끼웁니다 — 화면을 다시 그리면 끼워 둔 틀이 문서를
    새로 읽어, 읽던 쪽도 커서도 날아갑니다. */
 function bookPaintBar(){
   const el = document.getElementById('bkEd');
-  if(el){ el.innerHTML = bookEdHtml(); el.classList.toggle('on', bookEdit); }
+  if(el){ el.innerHTML = bookEdHtml(); el.classList.toggle('on', bookEdit); bookEdArm(el); }
+  tbHeight();
   const pw = document.querySelector('.pw-orig');
   if(pw) pw.classList.toggle('bk-on', bookEdit);
+  document.body.classList.toggle('bk-edit', bookEdit);
   bookBtns();
 }
 /* 쪽수 양옆의 작은 넘김 단추. 전에는 종이 양옆에 큰 칸이 서 있어
@@ -19261,6 +19320,9 @@ function bookFrame(){
   }
   if(box.firstChild !== bookIfr){ box.innerHTML = ''; box.appendChild(bookIfr); }
   bookArm();          // 이미 읽어 둔 것이면 load 가 다시 오지 않습니다
+  bookEdArm(document.getElementById('bkEd'));
+  document.body.classList.toggle('bk-edit', bookEdit);
+  tbHeight();
   bookBtns();
 }
 /* 올린 그대로 펴 보는 주소 (내려받지 않고 그 자리에서 봅니다) */
@@ -19317,6 +19379,22 @@ function bookPages(){
   }
   return d.body ? [d.body] : [];
 }
+/* 종이와 그 위쪽 줄기에만 자국을 남깁니다 — 옆에 선 것은 가려집니다 */
+function bookOnlyPages(d, ps){
+  if(!d || !ps || !ps.length) return;
+  Array.from(d.querySelectorAll('[data-bhk],[data-bhp]')).forEach(e => {
+    e.removeAttribute('data-bhk'); e.removeAttribute('data-bhp');
+  });
+  ps.forEach(e => e.setAttribute('data-bhp', '1'));
+  /* 종이들이 놓인 자리부터 몸통까지 거슬러 올라가며 자국을 답니다 */
+  let n = ps[0].parentNode;
+  for(let k = 0; k < 8 && n && n.nodeType === 1; k++){
+    n.setAttribute('data-bhk', '1');
+    if(n === d.body) break;
+    n = n.parentNode;
+  }
+  if(d.body) d.body.setAttribute('data-bhk', '1');
+}
 /* 지금 쪽만 보이게 자리를 잡습니다.
    ① 틀 높이 = 그 쪽 높이 — 한 장만 보입니다
    ② 종이가 화면보다 좁으면 <<화면 폭에 맞춰 키웁니다>> — PDF 는 이미
@@ -19344,9 +19422,18 @@ function bookFit(){
   let k = (w0 > 40 && W > 40) ? (W / w0) : 1;
   if(!(k > 1.02)) k = 1;
   k = Math.min(k, 2.4);                       // 너무 키우면 글이 깨져 보입니다
+  /* ③ 종이 <<말고>> 는 가립니다 ─────────────────────────────────
+     브랜드북 HTML 가운데는 제 나름의 툴바 · 탭바를 달고 있는 것이
+     있습니다 (「편집모드 켜기」 「HTML 저장」 같은 단추들). 그대로 두면
+     우리 화면 위에 남의 단추가 겹쳐 나옵니다. 종이가 놓인 자리까지만
+     남기고 그 옆에 선 것들은 가립니다 — 어떤 파일을 올려도 종이만
+     보입니다. 이 자국은 저장할 때 걷어냅니다. */
+  bookOnlyPages(d, ps);
   st.textContent = 'html{overflow:hidden !important'
-    + (k !== 1 ? ';zoom:' + (Math.round(k * 1000) / 1000) : '') + '}';
-  /* ③ 키운 뒤 다시 재서 자리를 잡습니다 */
+    + (k !== 1 ? ';zoom:' + (Math.round(k * 1000) / 1000) : '') + '}'
+    + '[data-bhk]>*:not([data-bhk]):not([data-bhp]){display:none !important}'
+    + '[data-bhk]{position:static !important}';
+  /* ④ 키운 뒤 다시 재서 자리를 잡습니다 */
   ps = bookPages();
   const el = ps[Math.min(i, ps.length - 1)];
   const r = el.getBoundingClientRect();
@@ -19383,8 +19470,13 @@ function bookTh(no, n){
 function bookArm(){
   const d = bookDoc(); if(!d || !d.body) return;
   try{ d.designMode = bookEdit ? 'on' : 'off'; }catch(e){}
+  if(bookEdit) bookCeOpen(d); else bookCeClose(d);
   if(bookEdit && !d.__armed){
     d.__armed = true;
+    d.addEventListener('selectionchange', () => {
+      try{ const s = d.getSelection();
+           if(s && s.rangeCount) bookRange = s.getRangeAt(0).cloneRange(); }catch(e){}
+    });
     d.addEventListener('input', () => {
       if(!bookDirty){ bookDirty = true; bookBtns(); }
       /* 글이 늘거나 줄면 쪽 높이도 달라집니다 — 뒤늦게 한 번 맞춥니다 */
@@ -19478,11 +19570,187 @@ function setBookEdit(on){
   if(keep){ try{ const sel = d.getSelection(); sel.removeAllRanges(); sel.addRange(keep);
                  if(d.body) d.body.focus(); }catch(e){} }
 }
+/* ── ✎ 손보는 연장들 ────────────────────────────────────────────
+   글자만 고치는 것으로는 모자랍니다. 글씨체 · 크기 · 굵기 · 색을
+   바꾸고, 칸을 더하고 지울 수 있어야 「그 모양 그대로 고친다」 가
+   됩니다. 브라우저가 가진 편집 기능(execCommand)을 씁니다 —
+   오래된 방식이지만 어느 브라우저에서나 그대로 돕니다.
+   --------------------------------------------------------------- */
+const BOOK_FONTS = [
+  ['', '글씨체 (그대로)'],
+  ['Pretendard, system-ui, sans-serif', '프리텐다드'],
+  ['system-ui, -apple-system, sans-serif', '기본 고딕'],
+  ['"Noto Serif KR", serif', '명조'],
+  ['"Nanum Gothic", sans-serif', '나눔고딕'],
+  ['"Nanum Myeongjo", serif', '나눔명조'],
+  ['ui-monospace, "D2Coding", monospace', '고정폭']
+];
+/* ── 잠가 둔 칸을 풀어 줍니다 ───────────────────────────────────
+   브랜드북 HTML 가운데는 칸마다 contenteditable="false" 를 달아 두고,
+   제 편집기 단추로 켜고 끄게 만든 것이 있습니다 (POUR 브랜드북이 그렇고,
+   470 군데가 잠겨 있었습니다). 그 단추는 우리가 가려 두었고 그 파일의
+   스크립트도 막아 두었으니, 잠긴 채로는 글자 하나 못 고칩니다.
+   고치는 <<동안만>> 풀고, 저장할 때 원래대로 되돌립니다 — 그래야 그
+   파일을 따로 열었을 때도 예전처럼 돕니다.
+   --------------------------------------------------------------- */
+function bookCeOpen(d){
+  if(!d) return;
+  Array.from(d.querySelectorAll('[contenteditable]')).forEach(e => {
+    const v = e.getAttribute('contenteditable');
+    if(String(v).toLowerCase() !== 'false') return;
+    e.setAttribute('data-bhce', v);
+    e.setAttribute('contenteditable', 'true');
+  });
+}
+function bookCeClose(d){
+  if(!d) return;
+  Array.from(d.querySelectorAll('[data-bhce]')).forEach(e => {
+    e.setAttribute('contenteditable', e.getAttribute('data-bhce'));
+    e.removeAttribute('data-bhce');
+  });
+}
+/* 고르던 자리를 붙잡아 둡니다 ─────────────────────────────────
+   연장 단추는 틀 <<바깥>> 에 있습니다. 누르는 순간 초점이 빠져나가
+   고르던 글을 잃어버리고, 그러면 아무 일도 일어나지 않습니다.
+   그래서 고를 때마다 자리를 적어 두었다가, 연장을 쓸 때 되돌립니다. */
+let bookRange = null;
+function bookFocus(){
+  const d = bookDoc(); if(!d) return null;
+  try{ d.defaultView.focus(); }catch(e){}
+  try{
+    const s = d.getSelection();
+    /* 지금 고른 것이 살아 있으면 그것이 먼저입니다 — 적어 둔 것은
+       초점이 빠져나가 고른 것을 잃었을 때만 씁니다 */
+    const live = s && s.rangeCount && s.anchorNode && d.contains(s.anchorNode);
+    if(live && !s.isCollapsed) return d;
+    const r = bookRange;
+    if(r && r.startContainer && r.startContainer.isConnected){
+      s.removeAllRanges(); s.addRange(r);
+    }
+  }catch(e){}
+  return d;
+}
+function bookCmd(name, val){
+  const d = bookFocus(); if(!d) return false;
+  try{ d.execCommand(name, false, val === undefined ? null : val); }catch(e){ return false; }
+  try{ const s = d.getSelection(); if(s && s.rangeCount) bookRange = s.getRangeAt(0).cloneRange(); }catch(e){}
+  bookTouched();
+  return true;
+}
+function bookTouched(){
+  bookDirty = true; bookBtns();
+  clearTimeout(bookFitAt); bookFitAt = setTimeout(bookFit, 350);
+}
+/* 고른 글을 style 로 감쌉니다 — execCommand 가 안 먹는 문서에서도 됩니다 */
+function bookWrap(css, val){
+  const d = bookFocus(); if(!d) return false;
+  const sel = d.getSelection();
+  if(!sel || !sel.rangeCount || sel.isCollapsed) return false;
+  const r = sel.getRangeAt(0);
+  const sp = d.createElement('span');
+  sp.style[css] = val;
+  try{ r.surroundContents(sp); }
+  catch(e){
+    try{ sp.appendChild(r.extractContents()); r.insertNode(sp); }
+    catch(e2){ return false; }
+  }
+  try{
+    const g = d.createRange(); g.selectNodeContents(sp);
+    sel.removeAllRanges(); sel.addRange(g); bookRange = g.cloneRange();
+  }catch(e){}
+  bookTouched();
+  return true;
+}
+function bookFont(v){
+  const d = bookFocus(); if(!d) return;
+  if(!v){ bookCmd('removeFormat'); return; }
+  if(bookWrap('fontFamily', v)) return;
+  const el = bookBlockAt();
+  if(!el){ toast('글씨체를 바꿀 글을 먼저 골라 주세요'); return; }
+  el.style.fontFamily = v;
+  bookTouched();
+}
+/* 글씨 크기 — 고른 곳이 있으면 그 글만, 없으면 커서가 놓인 칸 전체 */
+function bookSize(step){
+  const d = bookFocus(); if(!d) return;
+  const sel = d.getSelection();
+  if(sel && sel.rangeCount && !sel.isCollapsed){
+    const r = sel.getRangeAt(0);
+    const at = r.commonAncestorContainer;
+    const base = parseFloat(d.defaultView.getComputedStyle(
+      at.nodeType === 1 ? at : at.parentNode).fontSize) || 16;
+    if(bookWrap('fontSize', Math.min(96, Math.max(8, Math.round(base + step))) + 'px')) return;
+  }
+  const el = bookBlockAt();
+  if(!el){ toast('크기를 바꿀 글을 먼저 눌러 주세요'); return; }
+  const now = parseFloat(d.defaultView.getComputedStyle(el).fontSize) || 16;
+  el.style.fontSize = Math.min(96, Math.max(8, Math.round(now + step))) + 'px';
+  bookTouched();
+}
+/* 커서가 놓인 <<칸>> — 종이 자체는 고르지 않습니다 */
+function bookBlockAt(){
+  const d = bookDoc(); if(!d) return null;
+  let n = null;
+  try{ const s = d.getSelection();
+       n = (s && s.anchorNode) || (bookRange && bookRange.startContainer); }catch(e){}
+  while(n && n.nodeType !== 1) n = n.parentNode;
+  while(n && n !== d.body){
+    if(n.hasAttribute && n.hasAttribute('data-bhp')) return null;   // 종이 자체
+    const t = n.tagName;
+    if(/^(P|DIV|SECTION|ARTICLE|LI|TR|TABLE|BLOCKQUOTE|H1|H2|H3|H4|H5|H6|FIGURE|IMG)$/.test(t))
+      return n;
+    n = n.parentNode;
+  }
+  return null;
+}
+function bookBoxAdd(){
+  const d = bookFocus(); if(!d) return;
+  /* insertHTML 은 <p> 안에서 <div> 를 넣으려 하면 브라우저가 지워
+     버립니다. 그래서 자리를 직접 잡아 넣습니다. */
+  const box = d.createElement('div');
+  box.setAttribute('style', 'margin:14px 0;padding:14px 16px;border:1px solid #d9dee7;'
+    + 'border-radius:10px;background:#f7f9fc;line-height:1.7');
+  box.textContent = '여기에 적으세요 — 이 칸도 눌러서 고치고, 지울 수 있습니다';
+  const at = bookBlockAt();
+  if(at && at.parentNode){
+    at.parentNode.insertBefore(box, at.nextSibling);
+  }else{
+    /* 칸을 못 고르면 지금 보고 있는 종이 끝에 붙입니다 */
+    const ps = bookPages();
+    const pg = ps[Math.min(Math.max(0, pwPg), ps.length - 1)];
+    if(!pg){ toast('넣을 자리를 먼저 눌러 주세요'); return; }
+    pg.appendChild(box);
+  }
+  try{
+    const sel = d.getSelection();
+    const g = d.createRange(); g.selectNodeContents(box);
+    sel.removeAllRanges(); sel.addRange(g); bookRange = g.cloneRange();
+  }catch(e){}
+  bookTouched();
+}
+function bookBlockDel(){
+  const el = bookBlockAt();
+  if(!el){ toast('지울 칸 안을 먼저 눌러 주세요'); return; }
+  const what = (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 30);
+  if(!confirm('이 칸을 지웁니다.' + (what ? '\n\n「' + what + (what.length >= 30 ? '…' : '') + '」' : ''))) return;
+  el.parentNode.removeChild(el);
+  bookTouched();
+}
+function bookColor(kind){
+  const v = prompt(kind === 'fore' ? '글자 색을 적어 주세요 (예: #1a3f8b, red)'
+                                   : '형광펜 색을 적어 주세요 (예: #fff3b0, yellow)',
+                   kind === 'fore' ? '#1a3f8b' : '#fff3b0');
+  if(v === null) return;
+  const t = String(v).trim();
+  if(!t){ bookCmd(kind === 'fore' ? 'foreColor' : 'hiliteColor', 'inherit'); return; }
+  bookCmd(kind === 'fore' ? 'foreColor' : 'hiliteColor', t);
+}
 /* 지금 커서가 놓인 줄(표의 한 줄 · 목록의 한 칸) 을 찾습니다 */
 function bookRowAt(){
   const d = bookDoc(); if(!d) return null;
   let n = null;
-  try{ const s = d.getSelection(); n = s && s.anchorNode; }catch(e){}
+  try{ const s = d.getSelection();
+       n = (s && s.anchorNode) || (bookRange && bookRange.startContainer); }catch(e){}
   while(n && n.nodeType !== 1) n = n.parentNode;
   while(n && n !== d.body && !/^(TR|LI)$/.test(n.tagName)) n = n.parentNode;
   return (n && n !== d.body) ? n : null;
@@ -19514,13 +19782,18 @@ function bookHtml(){
   const d = bookDoc(); if(!d || !d.documentElement) return '';
   const was = d.designMode;
   try{ d.designMode = 'off'; }catch(e){}
+  bookCeClose(d);                       // 잠가 두었던 칸을 원래대로
   Array.from(d.querySelectorAll('[contenteditable]'))
     .forEach(e => e.removeAttribute('contenteditable'));
   /* 한 장씩 보이게 하려고 넣어 둔 자국은 파일에 남기지 않습니다 */
   const st = d.getElementById('__bhpg'); if(st) st.remove();
+  Array.from(d.querySelectorAll('[data-bhk],[data-bhp]')).forEach(e => {
+    e.removeAttribute('data-bhk'); e.removeAttribute('data-bhp');
+  });
   const dt = d.doctype ? '<!doctype ' + d.doctype.name + '>\n' : '';
   const out = dt + d.documentElement.outerHTML;
   try{ d.designMode = was; }catch(e){}
+  if(bookEdit) bookCeOpen(d);           // 고치던 중이면 다시 풀어 둡니다
   return out;
 }
 async function bookSave(){
@@ -22032,10 +22305,6 @@ function logSig(x){
     else if(Array.isArray(v)) out += k + '#' + v.length + ';';
   });
   return out.slice(0, 600);
-}
-function logTitle(x){
-  if(!x || typeof x !== 'object') return '';
-  return String(x.title || x.name || x['이름'] || x.label || x.text || '').slice(0, 60);
 }
 /* 지금 모습을 통째로 훑어 둡니다 — 다음에 견줄 기준입니다 */
 function logShape(){

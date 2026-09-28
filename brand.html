@@ -1998,6 +1998,47 @@ body.bk-edit .panel{overflow:clip}
   color:var(--text-muted)}
 
 /* 고치기 — 머리말 칸 */
+/* ── 🧭 처음에 이것부터 ── */
+.ob-stp{margin-top:28px}
+.ob-stp .cap{margin:0 0 10px;font-family:var(--f-mono);font-size:10.5px;font-weight:700;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--text-muted)}
+.ob-stp ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.ob-stp li{display:flex;align-items:center;gap:12px;padding:11px 2px 12px;
+  border-bottom:1px solid var(--border)}
+.ob-stp li .bx{flex:0 0 auto;width:21px;height:21px;padding:0;display:flex;
+  align-items:center;justify-content:center;border:1.5px solid var(--border-light);
+  border-radius:6px;background:var(--bg-card);color:#fff;font-size:12px;font-weight:800;
+  cursor:pointer;transition:background .12s,border-color .12s}
+.ob-stp li .bx:hover{border-color:var(--blue)}
+.ob-stp li.on .bx{background:var(--blue);border-color:var(--blue)}
+.ob-stp li .go{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;
+  gap:4px 10px;padding:0;border:0;background:none;text-align:left;cursor:pointer}
+.ob-stp li .go b{font-size:15px;font-weight:600;color:var(--text-primary);
+  word-break:keep-all}
+.ob-stp li .go .n{font-size:12.5px;color:var(--text-muted);word-break:keep-all}
+.ob-stp li .go:hover b{color:var(--blue)}
+.ob-stp li.on .go b{color:var(--text-muted);text-decoration:line-through}
+.ob-stp li.on .go .n{opacity:.55}
+.ob-stp li .to{flex:0 0 auto;font-size:11.5px;color:var(--text-muted);white-space:nowrap}
+.ob-stp .pg{margin:12px 0 0;font-size:12.5px;font-weight:600;color:var(--text-secondary)}
+.ob-stp.ed{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.ob-stp.ed .sp-r{display:flex;gap:6px;align-items:center}
+.ob-stp.ed .sp-r .t{flex:1 1 40%;min-width:0}
+.ob-stp.ed .sp-r .n{flex:1 1 46%;min-width:0;font-size:13px}
+.ob-stp.ed .sp-r .g{flex:0 0 150px;min-width:0;font-family:inherit;font-size:12.5px;
+  padding:8px 9px;border:1px solid var(--border);border-radius:9px;
+  background:var(--bg-input);color:var(--text-primary)}
+.ob-stp.ed .sp-r .x{flex:0 0 auto;width:26px;height:26px;border:none;border-radius:7px;
+  background:transparent;color:var(--text-muted);font-size:14px;cursor:pointer}
+.ob-stp.ed .sp-r .x:hover{background:var(--bg-sunken);color:var(--red)}
+@media(max-width:640px){
+  .ob-stp li{flex-wrap:wrap}
+  .ob-stp li .to{width:100%;padding-left:33px}
+  .ob-stp.ed .sp-r{flex-wrap:wrap}
+  .ob-stp.ed .sp-r .t,.ob-stp.ed .sp-r .n{flex:1 1 100%}
+  .ob-stp.ed .sp-r .g{flex:1 1 auto}
+}
+
 .ob-hero.ed{display:flex;flex-direction:column;gap:8px}
 .ob-hero.ed input,.ob-hero.ed textarea{width:100%;box-sizing:border-box;
   font-family:inherit;padding:9px 12px;border:1px solid var(--border);border-radius:9px;
@@ -4329,7 +4370,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260929-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260929-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5826,6 +5867,38 @@ function obSeed(){
 /* ── 🪧 머리말 — 첫 화면에서 「우리가 왜 있는 팀인지」 한 문장 ──────
    단 목록부터 들이밀면 신입은 무엇부터 봐야 하는지 모릅니다.
    큰 한 문장과 숫자 몇 개가 먼저 와야 합니다. */
+/* 읽는 화면의 「처음에 이것부터」 — 누르면 그 자리로, 한 것은 체크로 */
+function obStepHtml(){
+  const ss = obHead().steps.filter(x => String(x.t || '').trim());
+  if(!ss.length) return '';
+  const done = obDone();
+  const did = x => !!done[obDoneKey(x.t)];
+  const n = ss.filter(did).length;
+  const goName = g => {
+    const f = OB_GO.find(o => o[0] === String(g || ''));
+    return f ? f[1] : '';
+  };
+  return '<div class="ob-stp">'
+    + '<p class="cap">처음에 이것부터</p>'
+    + '<ol>' + ss.map(x => {
+        const on = did(x);
+        return '<li' + (on ? ' class="on"' : '') + '>'
+          + '<button class="bx" title="' + (on ? '안 한 것으로 되돌리기' : '했다고 표시')
+            + '" onclick="obDoneFlip(\'' + jsq(x.t) + '\')">'
+            + (on ? '✓' : '') + '</button>'
+          + '<button class="go" onclick="obStepGo(\'' + jsq(x.go || '') + '\')">'
+            + '<b>' + esc(x.t) + '</b>'
+            + (x.n ? '<span class="n">' + esc(x.n) + '</span>' : '')
+          + '</button>'
+          + '<span class="to">' + esc(goName(x.go)) + '</span>'
+        + '</li>';
+      }).join('') + '</ol>'
+    + '<p class="pg">' + (n >= ss.length
+        ? '다 하셨습니다 — 이제 팀에 오신 걸 환영합니다'
+        : ss.length + '가지 가운데 ' + n + '가지 했습니다')
+      + '</p>'
+  + '</div>';
+}
 /* ── 단을 어떤 모양으로 보여줄까 ────────────────────────────────
    같은 자료라도 모양이 다르면 읽는 속도가 다릅니다.
      칸   — 항목을 나란히. 대부분 여기가 맞습니다.
@@ -5908,6 +5981,40 @@ function obMatrix(sc){
 }
 const OB_TCS = ['t-a', 't-b', 't-c', 't-d', 't-e'];
 
+/* ── 🧭 처음에 이것부터 ─────────────────────────────────────────
+   머리말 자리에는 숫자 다섯을 세워 두었습니다. 그런데 신입이 이 화면에서
+   제일 먼저 알아야 하는 것은 「우리가 몇 개를 굴리는가」 가 아니라
+   「나는 무엇부터 하면 되는가」 입니다. 그래서 그 자리를 <<처음에 할 일>>
+   로 바꿉니다 — 누르면 그 자리로 바로 가고, 한 것은 체크가 남습니다.
+   체크는 사람마다 따로입니다 (이 브라우저에만 남습니다) — 남이 다 해
+   놓았다고 내 것이 지워져 있으면 안 됩니다.
+   ------------------------------------------------------------- */
+const OB_GO = [
+  ['',         '이 화면 아래로'],
+  ['home',     '🏠 브랜드 목록'],
+  ['book',     '📗 브랜드북'],
+  ['meetings', '📝 회의록'],
+  ['tasks',    '✅ 할 일'],
+  ['calendar', '📅 달력'],
+  ['growth',   '📈 그로스보드'],
+  ['nas',      '🗂 NAS 자료']
+];
+const OB_STEP_SEED = [
+  ['이 장을 끝까지 읽기',   '우리가 무슨 팀이고, 무엇을 맡고, 올해 뭘 하는지', ''],
+  ['브랜드 지도 보기',      '우리가 어떤 브랜드를 굴리고 있는지',              'home'],
+  ['브랜드북 펴 보기',      '브랜드가 밖에서 어떤 얼굴인지',                   'book'],
+  ['이번 주 회의록 훑기',   '요즘 무슨 얘기가 오가는지',                       'meetings'],
+  ['내 할 일 보기',         '나에게 맡겨진 것이 무엇인지',                     'tasks']
+];
+/* 처음에 깔아 둔 숫자 다섯 — 손대지 않은 것이면 걷어냅니다.
+   손수 고쳐 두신 숫자는 그대로 둡니다. */
+const OB_STAT_SEED = [['5','직접 담당하는 공정 단계'], ['2','운영 브랜드 축'],
+  ['7','하위 제품 · 공법 브랜드'], ['3','브랜드마케팅 소속 팀'], ['6','2026년 진행 과제']];
+function obStatSeeded(a){
+  if(!Array.isArray(a) || a.length !== OB_STAT_SEED.length) return false;
+  return a.every((x, i) => String(x.v || '').trim() === OB_STAT_SEED[i][0]
+                        && String(x.k || '').trim() === OB_STAT_SEED[i][1]);
+}
 function obHead(){
   const d = data;
   if(!d.onboardHead || typeof d.onboardHead !== 'object' || Array.isArray(d.onboardHead))
@@ -5915,18 +6022,61 @@ function obHead(){
       eyebrow: '신입 온보딩 · 브랜드마케팅팀',
       title:   '우리는 만들기만 하는 회사가 아닙니다',
       sub:     '개발부터 유통까지 직접 합니다. 그래서 이 회사 안에 브랜드를 굴리는 팀이 있습니다.',
-      stats: [
-        { id: uid('ot'), v:'5', k:'직접 담당하는 공정 단계' },
-        { id: uid('ot'), v:'2', k:'운영 브랜드 축' },
-        { id: uid('ot'), v:'7', k:'하위 제품 · 공법 브랜드' },
-        { id: uid('ot'), v:'3', k:'브랜드마케팅 소속 팀' },
-        { id: uid('ot'), v:'6', k:'2026년 진행 과제' }
-      ]
+      stats: []
     };
   const h = d.onboardHead;
   ['eyebrow', 'title', 'sub'].forEach(k => { if(typeof h[k] !== 'string') h[k] = ''; });
   if(!Array.isArray(h.stats)) h.stats = [];
+  if(obStatSeeded(h.stats)) h.stats = [];
+  if(!Array.isArray(h.steps))
+    h.steps = OB_STEP_SEED.map(x => ({ id: uid('op'), t: x[0], n: x[1], go: x[2] }));
   return h;
+}
+/* 내가 한 것 — 사람마다 따로, 이 브라우저에만 남습니다.
+   <<글로>> 적어 둡니다. 번호(id)로 적어 두면, 처음 깔리는 다섯 줄은
+   화면을 열 때마다 번호가 새로 붙으므로 체크가 매번 날아갑니다.
+   글이 바뀌면 그건 다른 할 일이니 체크가 풀리는 편이 맞습니다. */
+const OB_DONE_KEY = 'brandHubObDone';
+function obDoneKey(t){ return String(t || '').replace(/\s+/g, ' ').trim(); }
+function obDone(){
+  try{ return JSON.parse(localStorage.getItem(OB_DONE_KEY) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+function obDoneFlip(t){
+  const k = obDoneKey(t); if(!k) return;
+  const m = obDone();
+  if(m[k]) delete m[k]; else m[k] = 1;
+  try{ localStorage.setItem(OB_DONE_KEY, JSON.stringify(m)); }catch(e){}
+  render();
+}
+function obStepAdd(){
+  obHead().steps.push({ id: uid('op'), t:'', n:'', go:'' }); obMark(); render();
+}
+function obStepSet(id, f, v){
+  const x = obHead().steps.find(y => y.id === id); if(!x) return;
+  x[f] = v; markDirtyAll();
+}
+function obStepDel(id){
+  const h = obHead();
+  h.steps = h.steps.filter(y => y.id !== id);
+  deletedIds.add(id); obMark(); render();
+}
+/* 누르면 그 자리로 갑니다 — 읽고 나서 어디로 가야 하는지 찾지 않게 */
+function obStepGo(go){
+  const g = String(go || '');
+  if(!g){
+    const el = document.querySelector('.ob-wrap.ob-body');
+    if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+    return;
+  }
+  if(g === 'book'){
+    const b = (data.brands || [])[0];
+    if(!b){ toast('아직 브랜드가 없습니다'); return; }
+    selectBrand(b.id);
+    window.scrollTo({ top:0, behavior:'smooth' });
+    return;
+  }
+  goView(g);
 }
 function obHeadSet(f, v){ obHead()[f] = v; markDirtyAll(); }
 function obStatAdd(){ obHead().stats.push({ id: uid('ot'), v:'', k:'' }); obMark(); render(); }
@@ -6772,8 +6922,25 @@ function renderOnboard(){
             + '<button class="x" onclick="obStatDel(\'' + jsq(x.id) + '\')">✕</button>'
           + '</div>').join('')
         + '<button class="gb-add tiny" onclick="obStatAdd()">＋ 숫자</button>'
+      + '</div>'
+      /* 처음에 할 일 — 글 · 한 줄 설명 · 어디로 갈지 */
+      + '<div class="ob-stp ed"><p class="cap">처음에 할 일</p>'
+        + H.steps.map(x => '<div class="sp-r">'
+            + '<input class="t" value="' + esc(x.t) + '" placeholder="무엇을 하면 되는지" '
+              + 'oninput="obStepSet(\'' + jsq(x.id) + '\',\'t\', this.value)">'
+            + '<input class="n" value="' + esc(x.n) + '" placeholder="왜 (한 줄, 선택)" '
+              + 'oninput="obStepSet(\'' + jsq(x.id) + '\',\'n\', this.value)">'
+            + '<select class="g" onchange="obStepSet(\'' + jsq(x.id) + '\',\'go\', this.value)">'
+              + OB_GO.map(g => '<option value="' + esc(g[0]) + '"'
+                  + (String(x.go || '') === g[0] ? ' selected' : '') + '>'
+                  + esc(g[1]) + '</option>').join('')
+            + '</select>'
+            + '<button class="x" onclick="obStepDel(\'' + jsq(x.id) + '\')">✕</button>'
+          + '</div>').join('')
+        + '<button class="gb-add tiny" onclick="obStepAdd()">＋ 할 일</button>'
       + '</div></div>'
-    : ((H.eyebrow || H.title || H.sub || H.stats.some(x => String(x.v || '').trim()))
+    : ((H.eyebrow || H.title || H.sub || H.stats.some(x => String(x.v || '').trim())
+        || H.steps.some(x => String(x.t || '').trim()))
         ? '<div class="ob-hero">'
           /* 머리말도 읽는 자리에서 바로 고칩니다 — 여기만 [고치기] 로
              넘어가야 하면 그 화면을 계속 쓰게 됩니다 */
@@ -6797,6 +6964,7 @@ function renderOnboard(){
                       + '" data-f="v" data-ph="숫자">' + esc(x.v)
                     + '</span></div>').join('')
                 + '</div>' : '')
+          + obStepHtml()
           + '</div>'
         : '');
 

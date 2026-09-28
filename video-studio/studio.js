@@ -602,62 +602,61 @@
     for (const e of items) await walk(e, '')
     return out
   }
+  // ── 업로드 대기열: 고르는 즉시 시작, 올리는 중에 더 고르면 뒤에 이어 붙는다 (3장씩 동시에) ──
+  const UP = { queue: [], total: 0, ok: 0, fail: 0, skip: { notImage: 0, heic: 0, dup: 0, hidden: 0, small: 0 }, errors: [], current: new Set(), running: 0, open: false, startedAt: 0 }
+  const skipText = () => { const k = UP.skip; return [k.notImage && `사진 아님 ${k.notImage}`, k.small && `작은 이미지 ${k.small}`, k.dup && `이미 올린 사진 ${k.dup}`, k.heic && `HEIC ${k.heic}(JPG 로 바꿔 올려 주세요)`, k.hidden && `숨김 파일 ${k.hidden}`].filter(Boolean).join(' · ') }
+  function renderUpload() {
+    const el = $('upload-dock')
+    if (!UP.open) { el.hidden = true; return }
+    el.hidden = false
+    const done = UP.ok + UP.fail
+    const busy = UP.running > 0 || UP.queue.length > 0
+    const pct = UP.total ? Math.round((done / UP.total) * 100) : 0
+    el.innerHTML = `<div class="between"><strong>${busy ? `${icon('loader', 16, 'animate-spin')} 사진 올리는 중` : UP.total ? '✓ 사진 올리기 완료' : '사진 고르는 중'}</strong>
+        ${busy ? '' : '<button type="button" class="btn ghost sm" id="upload-close">닫기 ×</button>'}</div>
+      <div class="up-bar"><span style="width:${pct}%"></span></div>
+      <p class="up-count"><b>${done} / ${UP.total}장</b> 완료 · 성공 ${UP.ok}${UP.fail ? ` · <span class="up-fail">실패 ${UP.fail}</span>` : ''}${UP.queue.length ? ` · 대기 ${UP.queue.length}` : ''}</p>
+      ${UP.current.size ? `<p class="up-now">지금: ${[...UP.current].map(esc).join(', ')} <small>(사진마다 AI 설명 작성 포함, 몇 초씩 걸립니다)</small></p>` : ''}
+      ${skipText() ? `<p class="up-skip">건너뜀: ${skipText()}</p>` : ''}
+      ${UP.errors.length ? `<details ${busy ? '' : 'open'}><summary>실패한 파일 ${UP.errors.length}개</summary><ul>${UP.errors.slice(-20).map((e) => `<li>${esc(e)}</li>`).join('')}</ul></details>` : ''}`
+    const c = $('upload-close'); if (c) c.onclick = () => { UP.open = false; renderUpload() }
+  }
+  async function uploadOne(f) {
+    UP.current.add(f.name); renderUpload()
+    try {
+      const blob = await toJpeg(f)
+      const up = await api({ action: 'uploadUrl', name: 'photo.jpg', size: blob.size })
+      const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'x-upsert': 'false' }, body: blob })
+      if (!put.ok) throw new Error('저장소 업로드 실패 (HTTP ' + put.status + ')')
+      const r = await api({ action: 'photo', path: up.path, name: f.name, size: f.size })
+      S.data.photos = [r.photo, ...(S.data.photos || []).filter((x) => x.id !== r.photo.id)]
+      UP.ok++
+    } catch (e) {
+      if (e.small) { UP.skip.small++; UP.total-- } else { UP.fail++; UP.errors.push(`${f.name} — ${e.message}`) }
+    } finally {
+      UP.current.delete(f.name)
+      renderUpload(); renderPhotos(); renderTabs()
+    }
+  }
+  async function pump() {
+    UP.running++
+    try { while (UP.queue.length) await uploadOne(UP.queue.shift()) } finally { UP.running--; renderUpload() }
+  }
   async function uploadPhotos(files) {
-    const prog = $('photo-progress'); prog.hidden = false
-    prog.textContent = `파일 ${files.length}개에서 사진을 고르는 중…`
+    if (!(UP.running || UP.queue.length)) { Object.assign(UP, { total: 0, ok: 0, fail: 0, errors: [], skip: { notImage: 0, heic: 0, dup: 0, hidden: 0, small: 0 } }) }
+    UP.open = true; renderUpload()
     const { images, skip } = await collectImages([...files])
-    const skipText = () => [skip.notImage && `사진 아님 ${skip.notImage}`, skip.small && `작은 이미지 ${skip.small}`, skip.dup && `이미 올린 사진 ${skip.dup}`, skip.heic && `HEIC ${skip.heic}(JPG 로 바꿔 올려 주세요)`, skip.hidden && `숨김 파일 ${skip.hidden}`].filter(Boolean).join(' · ')
-    if (!images.length) { prog.textContent = `올릴 사진이 없습니다. ${skipText()}`; return }
-    if (images.length > 300 && !confirm(`사진 ${images.length}장을 올릴까요? 장마다 AI 설명(Claude)을 붙이므로 시간이 걸리고 소량의 비용이 듭니다.`)) { prog.hidden = true; return }
-    skip.small = 0
-    let ok = 0, fail = 0, next = 0
-    const one = async (f) => {
-      try {
-        const blob = await toJpeg(f)
-        const up = await api({ action: 'uploadUrl', name: 'photo.jpg', size: blob.size })
-        const put = await fetch(up.url, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'x-upsert': 'false' }, body: blob })
-        if (!put.ok) throw new Error('업로드 실패 HTTP ' + put.status)
-        const r = await api({ action: 'photo', path: up.path, name: f.name, size: f.size })
-        S.data = r.state; ok++
-      } catch (e) {
-        if (e.small) skip.small++
-        else { fail++; S.error = `${f.name}: ${e.message}` }
-      }
-      prog.textContent = `사진 올리는 중 ${ok + fail + (skip.small || 0)}/${images.length} (AI 설명 작성 포함)${fail ? ` · 실패 ${fail}` : ''}`
-    }
-    const worker = async () => { while (next < images.length) { const f = images[next++]; await one(f); renderPhotos(); renderTabs() } }
-    await Promise.all([worker(), worker(), worker()])
-    prog.textContent = `사진 ${ok}장을 올렸습니다.${fail ? ` 실패 ${fail}장.` : ''}${skipText() ? ' 건너뜀: ' + skipText() : ''}`
-    if (fail) renderMessages()
+    for (const k of Object.keys(skip)) UP.skip[k] = (UP.skip[k] || 0) + skip[k]
+    if (!images.length) { renderUpload(); return }
+    if (images.length > 300 && !confirm(`사진 ${images.length}장을 올릴까요? 장마다 AI 설명(Claude)을 붙이므로 시간이 걸리고 소량의 비용이 듭니다.`)) { renderUpload(); return }
+    UP.queue.push(...images); UP.total += images.length
+    renderUpload()
+    while (UP.running < 3 && UP.queue.length) pump()
   }
+  window.addEventListener('beforeunload', (ev) => { if (UP.running || UP.queue.length) { ev.preventDefault(); ev.returnValue = '' } })
   $('photo-file').addEventListener('change', (ev) => { const fs = [...(ev.target.files || [])]; ev.target.value = ''; if (fs.length) uploadPhotos(fs) })
-  // 폴더 선택 창은 한 번에 폴더 하나만 고를 수 있어서, 고를 때마다 목록에 쌓았다가 한꺼번에 올린다
-  const folderQueue = []
-  function renderFolderQueue() {
-    $('folder-btn-text').textContent = folderQueue.length ? '폴더 더 추가' : '폴더 선택'
-    if (!folderQueue.length) { $('folder-queue').innerHTML = ''; return }
-    const total = folderQueue.reduce((a, f) => a + f.images, 0)
-    $('folder-queue').innerHTML = `<div class="folder-queue">${folderQueue.map((f, i) => `<span class="folder-chip">${icon('upload', 13)}${esc(f.name)} <small>사진 ${f.images}장</small><button type="button" data-folder-rm="${i}" aria-label="빼기">×</button></span>`).join('')}</div>
-      <button type="button" class="btn" id="folder-upload" ${total ? '' : 'disabled'}>폴더 ${folderQueue.length}개 모두 올리기 (사진 ${total}장)</button>`
-  }
-  $('photo-folder').addEventListener('change', (ev) => {
-    const fs = [...(ev.target.files || [])]; ev.target.value = ''
-    if (!fs.length) return
-    const name = (fs[0].webkitRelativePath || '').split('/')[0] || '폴더'
-    const images = fs.filter((f) => (IMG_NAME.test(f.name) || /^image\//.test(f.type)) && !f.name.startsWith('.')).length
-    if (folderQueue.some((f) => f.name === name && f.files.length === fs.length)) { S.error = `'${name}' 폴더는 이미 목록에 있습니다.`; renderMessages(); return }
-    folderQueue.push({ name, files: fs, images })
-    renderFolderQueue()
-  })
-  $('folder-queue').addEventListener('click', (ev) => {
-    const rm = ev.target.closest('[data-folder-rm]')
-    if (rm) { folderQueue.splice(Number(rm.dataset.folderRm), 1); renderFolderQueue(); return }
-    if (ev.target.closest('#folder-upload')) {
-      const all = folderQueue.flatMap((f) => f.files)
-      folderQueue.length = 0; renderFolderQueue()
-      uploadPhotos(all)
-    }
-  })
+  // 폴더 선택 창은 한 번에 하나만 고를 수 있다 → 고르는 즉시 올리고, 올리는 중에 또 고르면 대기열에 이어 붙는다
+  $('photo-folder').addEventListener('change', (ev) => { const fs = [...(ev.target.files || [])]; ev.target.value = ''; if (fs.length) uploadPhotos(fs) })
   ;['dragenter', 'dragover'].forEach((t) => $('photo-drop').addEventListener(t, (ev) => { ev.preventDefault(); $('photo-drop').classList.add('drag') }))
   $('photo-drop').addEventListener('dragleave', () => $('photo-drop').classList.remove('drag'))
   $('photo-drop').addEventListener('drop', async (ev) => {

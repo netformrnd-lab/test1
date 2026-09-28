@@ -173,7 +173,7 @@ const ACTIONS = {
     } catch (e) { desc = '' }
     const item = { id: 'p' + crypto.randomUUID().replace(/-/g, '').slice(0, 10), path, name: String(name || '').slice(0, 200), size: Number(size) || 0, desc, tags, source: 'upload', created: now() }
     await mutate(env, 'photos', [], (list) => { list.unshift(item) })
-    return { photo: item, state: await state(env) }
+    return { photo: { id: item.id, name: item.name, size: item.size, desc: item.desc, tags: item.tags, source: item.source, created: item.created } }
   },
   async photoUpdate(env, { id, desc }) {
     await mutate(env, 'photos', [], (list) => {

@@ -1,0 +1,21 @@
+name: 영상 작업실 저장소 점검 (개수만)
+
+on:
+  push:
+    branches: ["claude/bold-mayer-pylpse"]
+    paths: ["video-studio/tools/check.mjs", ".github/workflows/studio-check.yml"]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 점검
+        env:
+          SUPABASE_URL: https://gndktayoicegyqyllybk.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node video-studio/tools/check.mjs

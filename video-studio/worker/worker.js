@@ -14,6 +14,14 @@ const ANTHROPIC_VERSION = '2023-06-01'
 const MAX_REVISIONS = 2
 // 공사 용어 사전(terms.json — build.mjs 가 TERMS 로 넣어 줌): 동의어·표기 통일·금지어
 const T = typeof TERMS !== 'undefined' ? TERMS : { synonyms: [], spelling: [], banned: [], soften: {} }
+// 기본 제공 자료(knowledge.json — build.mjs 가 KNOWLEDGE 로 넣어 줌): 건축 기본 지식·하자 실제 모습·하자 현상 원리
+const K = typeof KNOWLEDGE !== 'undefined' ? KNOWLEDGE : []
+// Claude 요금(1M 토큰당 USD, 입력/출력) — 예상 비용 표시용. 목록에 없는 모델은 토큰만 표시
+const CLAUDE_PRICE = [
+  ['claude-fable-5-1', 10, 50], ['claude-fable-5', 10, 50], ['claude-opus-5-5', 4, 20], ['claude-opus-5', 5, 25],
+  ['claude-opus-4-8', 5, 25], ['claude-opus-4-7', 5, 25], ['claude-opus-4-6', 5, 25], ['claude-opus-4-5', 5, 25],
+  ['claude-sonnet-5', 2, 10], ['claude-sonnet-4-6', 3, 15], ['claude-sonnet-4-5', 3, 15], ['claude-haiku-4-5', 1, 5],
+]
 const MAX_SOURCE_CHARS = 300000       // 자료 1개 본문 최대 글자 수 (PDF·PPT 에서 뽑은 글자 포함)
 const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
 const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'submitting', 'rendering']
@@ -88,6 +96,7 @@ const ACTIONS = {
     const prev = await getSettings(env)
     const consent = s.consent === true
     const data = {
+      builtinOff: prev.builtinOff || [],
       avatarId, voiceId, maxDailyJobs: max, consent,
       avatarType: s.avatarType === 'talking_photo' ? 'talking_photo' : 'avatar',
       avatarName: String(s.avatarName || DEFAULT_SETTINGS.avatarName).slice(0, 80),
@@ -147,7 +156,21 @@ const ACTIONS = {
     return { url: env.SUPABASE_URL + '/storage/v1' + signed + '&download=' + encodeURIComponent(src.file.name || '') }
   },
 
+  // HeyGen 남은 크레딧
+  async quota(env) {
+    return { heygen: await heygenQuota(await getKey(env, 'heygen')) }
+  },
+
   async approval(env, { id, approved }) {
+    if (String(id).startsWith('builtin-')) {
+      if (!K.some((k) => k.id === id)) throw new HttpError(404, '자료를 찾을 수 없습니다.')
+      await mutate(env, 'settings', {}, (st) => {
+        const off = new Set(st.builtinOff || [])
+        if (approved === true) off.delete(id); else off.add(id)
+        st.builtinOff = [...off]
+      })
+      return state(env)
+    }
     await mutate(env, 'sources', [], (list) => {
       const src = list.find((x) => x.id === id)
       if (!src) throw new HttpError(404, '자료를 찾을 수 없습니다.')
@@ -238,7 +261,7 @@ async function runStep(env, job) {
 
   // 1) 대본·장면 작성
   if (job.step === 1) {
-    const plan = await callClaude(claudeKey, d.models.claude, draftSystem(), draftUser(job, d), PLAN_SCHEMA)
+    const plan = await callClaude(claudeKey, d.models.claude, draftSystem(), draftUser(job, d), PLAN_SCHEMA, d)
     applyPlan(job, plan, st)
     d.events.push(ev(`대본 작성 완료: 장면 ${plan.scenes.length}개 · Claude ${d.models.claude}`))
     job.step = 2; job.status = 'reviewing'
@@ -247,7 +270,7 @@ async function runStep(env, job) {
 
   // 2) Claude 독립 검수
   if (job.step === 2) {
-    d.claude = await callClaude(claudeKey, d.models.claude, reviewSystem(), reviewUser(job, d), REVIEW_SCHEMA)
+    d.claude = await callClaude(claudeKey, d.models.claude, reviewSystem(), reviewUser(job, d), REVIEW_SCHEMA, d)
     d.claude = normReview(d.claude)
     d.events.push(ev(`Claude 검수: ${passes(d.claude) ? '통과' : '미통과'} (근거 ${d.claude.grounding} · 브랜드 ${d.claude.brand} · 전달 ${d.claude.clarity} · 제작 ${d.claude.production})`))
     job.step = 3
@@ -256,7 +279,7 @@ async function runStep(env, job) {
 
   // 3) OpenAI 독립 검수
   if (job.step === 3) {
-    d.openai = normReview(await callOpenAI(openaiKey, d.models.openai, reviewSystem(), reviewUser(job, d), REVIEW_SCHEMA))
+    d.openai = normReview(await callOpenAI(openaiKey, d.models.openai, reviewSystem(), reviewUser(job, d), REVIEW_SCHEMA, d))
     d.events.push(ev(`OpenAI 검수: ${passes(d.openai) ? '통과' : '미통과'} (근거 ${d.openai.grounding} · 브랜드 ${d.openai.brand} · 전달 ${d.openai.clarity} · 제작 ${d.openai.production})`))
     job.step = 4
     return
@@ -274,6 +297,7 @@ async function runStep(env, job) {
       job.status = 'revising'
     } else {
       job.status = 'held'
+      d.lastIssues = issues
       d.error = `수정 ${MAX_REVISIONS}회 후에도 검수 기준을 통과하지 못해 자동 보류했습니다. 영상은 제작하지 않았습니다.`
       d.events.push(ev('검수 기준 미통과 → 자동 보류 (HeyGen 제작 요청 안 함)'))
     }
@@ -282,7 +306,7 @@ async function runStep(env, job) {
 
   // 4-수정) 지적 사항을 반영해 대본 수정 → 다시 양쪽 검수
   if (job.status === 'revising') {
-    const plan = await callClaude(claudeKey, d.models.claude, draftSystem(), reviseUser(job, d), PLAN_SCHEMA)
+    const plan = await callClaude(claudeKey, d.models.claude, draftSystem(), reviseUser(job, d), PLAN_SCHEMA, d)
     job.revision += 1
     applyPlan(job, plan, st)
     d.claude = null; d.openai = null; d.pendingIssues = []
@@ -301,6 +325,8 @@ async function runStep(env, job) {
       d.events.push(ev('제작 요청 결과 불명 → 중복 방지로 중단'))
       return
     }
+    d.usage = d.usage || {}
+    d.usage.heygen = { before: await heygenQuota(await getKey(env, 'heygen')) }
     d.submitAttempted = true
     await saveJob(env, job)
     const heygenKey = await getKey(env, 'heygen')
@@ -341,6 +367,10 @@ async function runStep(env, job) {
     if (!res.ok) throw new Error('HeyGen 상태 확인 실패: ' + apiError(out, res.status))
     const v = out.data || {}
     if (v.status === 'completed' && v.video_url) {
+      const hq = (d.usage && d.usage.heygen) || {}
+      hq.after = await heygenQuota(heygenKey)
+      if (hq.before != null && hq.after != null) hq.used = Math.round((hq.before - hq.after) * 100) / 100
+      d.usage = { ...(d.usage || {}), heygen: hq }
       d.videoUrl = v.video_url
       d.actualSeconds = v.duration ? Math.round(Number(v.duration)) : null
       d.events.push(ev(`영상 생성 완료${d.actualSeconds ? ` · 실제 길이 ${d.actualSeconds}초` : ''}`))
@@ -554,7 +584,14 @@ const PLAN_SCHEMA = {
 }
 
 // ─────────────────────────── 외부 API ───────────────────────────
-async function callClaude(key, model, system, user, schema) {
+// 제작별 사용량 누적 (d.usage)
+function addUsage(d, who, input, output) {
+  if (!d) return
+  d.usage = d.usage || {}
+  const u = d.usage[who] = d.usage[who] || { input: 0, output: 0, calls: 0 }
+  u.input += input || 0; u.output += output || 0; u.calls += 1
+}
+async function callClaude(key, model, system, user, schema, d) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': ANTHROPIC_VERSION, 'content-type': 'application/json' },
@@ -566,13 +603,14 @@ async function callClaude(key, model, system, user, schema) {
   })
   const out = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error('Claude 요청 실패: ' + apiError(out, res.status))
+  if (out.usage) addUsage(d, 'claude', (out.usage.input_tokens || 0) + (out.usage.cache_read_input_tokens || 0) + (out.usage.cache_creation_input_tokens || 0), out.usage.output_tokens)
   if (out.stop_reason === 'refusal') throw new Error('Claude 가 요청 처리를 거절했습니다.')
   if (out.stop_reason === 'max_tokens') throw new Error('Claude 응답이 길이 제한으로 잘렸습니다.')
   const text = (out.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')
   try { return JSON.parse(text) } catch (e) { throw new Error('Claude 응답을 해석하지 못했습니다(구조화 출력을 지원하는 모델인지 확인해 주세요).') }
 }
 
-async function callOpenAI(key, model, system, user, schema) {
+async function callOpenAI(key, model, system, user, schema, d) {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { authorization: 'Bearer ' + key, 'content-type': 'application/json' },
@@ -584,9 +622,20 @@ async function callOpenAI(key, model, system, user, schema) {
   })
   const out = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error('OpenAI 요청 실패: ' + apiError(out, res.status))
+  if (out.usage) addUsage(d, 'openai', out.usage.prompt_tokens, out.usage.completion_tokens)
   const msg = (out.choices && out.choices[0] && out.choices[0].message) || {}
   if (msg.refusal) throw new Error('OpenAI 가 요청 처리를 거절했습니다: ' + msg.refusal)
   try { return JSON.parse(msg.content || '') } catch (e) { throw new Error('OpenAI 응답을 해석하지 못했습니다(구조화 출력을 지원하는 모델인지 확인해 주세요).') }
+}
+
+// HeyGen 남은 크레딧 (API 값 ÷ 60 = 크레딧)
+async function heygenQuota(key) {
+  try {
+    const r = await fetch('https://api.heygen.com/v2/user/remaining_quota', { headers: { 'X-Api-Key': key, accept: 'application/json' } })
+    const o = await r.json().catch(() => ({}))
+    const q = o && o.data && Number(o.data.remaining_quota)
+    return Number.isFinite(q) ? Math.round((q / 60) * 100) / 100 : null
+  } catch (e) { return null }
 }
 
 async function listModels(provider, key) {
@@ -682,7 +731,7 @@ function retrieve(sources, keywords) {
   const out = []
   let size = 0
   for (const c of hits) {
-    if (out.length >= 12 || size + c.text.length > 12000) break
+    if (out.length >= 30 || size + c.text.length > 40000) break
     out.push({ sourceId: c.sourceId, title: c.title, provenance: c.provenance, text: c.text })
     size += c.text.length
   }
@@ -717,10 +766,14 @@ async function state(env, opt = {}) {
     openai: sec.openai.configured && !!sec.openai.model,
     heygen: sec.heygen.configured,
   }
-  if (opt.raw) return { secrets: sec, readiness, settings, sourcesFull: sources, sources, jobs }
+  const off = new Set(settings.builtinOff || [])
+  const builtins = K.map((k) => ({ ...k, approved: !off.has(k.id), builtin: true, created_at: '' }))
+  const all = [...sources, ...builtins]
+  if (opt.raw) return { secrets: sec, readiness, settings, sourcesFull: all, sources: all, jobs }
   return {
     connections: sec, readiness, settings,
-    sources: sources.map((s) => ({ id: s.id, title: s.title, provenance: s.provenance, content: s.content, file: s.file ? { name: s.file.name, size: s.file.size } : null, approved: s.approved ? 1 : 0, created: s.created_at })),
+    sources: all.map((s) => ({ id: s.id, title: s.title, provenance: s.provenance, content: s.content, file: s.file ? { name: s.file.name, size: s.file.size } : null, approved: s.approved ? 1 : 0, builtin: !!s.builtin, created: s.created_at })),
+    usageTotal: totalUsage(jobs),
     jobs: jobs.map(toJob),
     learningCount: jobs.filter((j) => j.status === 'rendered').length,
     terms: T,
@@ -744,7 +797,34 @@ function toJob(r) {
     videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '',
     events: d.events || [], sources: d.sources || [], memory: d.memory || [],
     models: d.models || { claude: '', openai: '' }, promptVersion: d.promptVersion || PROMPT_VERSION,
+    issues: d.pendingIssues && d.pendingIssues.length ? d.pendingIssues : d.lastIssues || [],
+    usage: usageView(d),
   }
+}
+function claudeCost(model, u) {
+  const p = CLAUDE_PRICE.find(([id]) => String(model || '').startsWith(id))
+  return p && u ? Math.round(((u.input * p[1] + u.output * p[2]) / 1e6) * 10000) / 10000 : null
+}
+function usageView(d) {
+  const u = d.usage || {}
+  return {
+    claude: u.claude ? { ...u.claude, usd: claudeCost(d.models && d.models.claude, u.claude) } : null,
+    openai: u.openai || null,
+    heygen: u.heygen || null,
+  }
+}
+function totalUsage(jobs) {
+  const t = { claude: { input: 0, output: 0, usd: 0 }, openai: { input: 0, output: 0 }, heygen: 0, jobs: 0 }
+  for (const j of jobs) {
+    const v = usageView(j.data || {})
+    if (v.claude) { t.claude.input += v.claude.input; t.claude.output += v.claude.output; t.claude.usd += v.claude.usd || 0 }
+    if (v.openai) { t.openai.input += v.openai.input; t.openai.output += v.openai.output }
+    if (v.heygen && v.heygen.used) t.heygen += v.heygen.used
+    if (v.claude || v.openai) t.jobs++
+  }
+  t.claude.usd = Math.round(t.claude.usd * 100) / 100
+  t.heygen = Math.round(t.heygen * 100) / 100
+  return t
 }
 function validateInput(i) {
   i = i || {}

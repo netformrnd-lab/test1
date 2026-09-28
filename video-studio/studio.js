@@ -193,6 +193,8 @@
       const title = act ? '진행 중인 제작이 있습니다' : miss.length || kw.length < 2 ? '제작을 시작하려면' : '제작 준비 완료'
       let h = `<div class="creation-readiness" aria-live="polite"><div class="between"><strong>${title}</strong><button class="btn ghost sm" data-refresh>상태 새로고침</button></div>`
       miss.forEach((m) => { h += `<div class="readiness-item"><span>${esc(m.label)}</span><button class="btn outline sm" data-goto="${m.tab}">${esc(m.action)}</button></div>` })
+      const pending = n.sources.filter((x) => !x.approved && !x.builtin).length
+      if (pending) h += `<div class="readiness-item"><span>승인 대기 자료 ${pending}개는 제작에 쓰이지 않습니다. 자료실에서 ‘영상 제작 근거로 사용’을 체크해 주세요.</span><button class="btn outline sm" data-goto="knowledge">자료실 열기</button></div>`
       if (kw.length < 2) h += `<div class="readiness-item"><span>영상 주제 키워드를 2자 이상 입력해 주세요.</span><button class="btn outline sm" data-focus-keywords>키워드 입력</button></div>`
       if (act) h += `<div class="readiness-item"><span>현재 작업이 끝난 뒤 새 영상을 시작할 수 있습니다.</span><button class="btn outline sm" data-goto="history">제작 이력</button></div>`
       $('readiness').innerHTML = h + '</div>'
@@ -229,6 +231,11 @@
     let h = `<div class="job-result"><div class="between"><div><h3>${esc((e.plan && e.plan.title) || e.input.keywords)}</h3>
       <p>${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
+    if (e.plan && e.plan.blockers && e.plan.blockers.length) {
+      h += `<div class="issue-box"><strong>대본 작성 중단 사유 (AI가 근거 부족으로 쓰지 못한 부분)</strong><ul>${e.plan.blockers.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+        <p>이 내용을 뒷받침하는 확정 자료(서비스 소개서·시방서·실제 사례 등)를 브랜드 자료실에 올리고 ‘영상 제작 근거로 사용’을 체크한 뒤 다시 제작해 주세요.</p></div>`
+    }
+    if (e.issues && e.issues.length) h += `<details ${['held', 'revising'].includes(e.status) ? 'open' : ''}><summary>검수 지적 사항 · ${e.issues.length}건</summary><ul class="issue-list">${e.issues.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></details>`
     if (e.videoUrl) {
       h += `<div class="video-output"><video controls playsinline preload="metadata" src="${esc(e.videoUrl)}"></video>
         <div class="between"><span>실제 길이 ${e.actualSeconds || '미확인'}초</span><a href="${esc(e.videoUrl)}" target="_blank" rel="noreferrer">영상 열기 ${icon('external', 14)}</a></div>
@@ -248,10 +255,21 @@
     }
     h += `<details><summary>제작 기록 · ${e.events.length}건</summary><ol class="event-list">${e.events.map((x) => `<li><time>${fmt(x.time)}</time><span>${esc(x.text)}</span></li>`).join('')}</ol>
       <small>프롬프트 ${esc(e.promptVersion)} · Claude ${esc(e.models.claude)} · OpenAI ${esc(e.models.openai)}</small></details>`
+    h += usageHtml(e.usage, e.models)
     if (e.memory.length) h += `<details><summary>이번 제작에 참고한 누적 패턴</summary>${e.memory.map((m) => `<p>${esc(m)}</p>`).join('')}</details>`
     return h + '</div>'
   }
 
+  const n0 = (x) => Number(x || 0).toLocaleString()
+  function usageHtml(u, models) {
+    if (!u || (!u.claude && !u.openai && !u.heygen)) return ''
+    const row = (name, v, extra) => `<div><span>${name}</span><b>${extra}</b><small>${v ? `입력 ${n0(v.input)} · 출력 ${n0(v.output)} 토큰 · ${v.calls}회` : ''}</small></div>`
+    let h = '<details open><summary>사용량 (크레딧)</summary><div class="usage-grid">'
+    if (u.claude) h += row(`Claude <small>${esc(models.claude)}</small>`, u.claude, u.claude.usd != null ? `약 $${u.claude.usd.toFixed(3)}` : '요금표 없는 모델')
+    if (u.openai) h += row(`OpenAI <small>${esc(models.openai)}</small>`, u.openai, '토큰 기준')
+    if (u.heygen) h += `<div><span>HeyGen</span><b>${u.heygen.used != null ? n0(u.heygen.used) + ' 크레딧' : '측정 중'}</b><small>${u.heygen.before != null ? `제작 전 ${n0(u.heygen.before)} → 후 ${u.heygen.after != null ? n0(u.heygen.after) : '…'}` : '잔액 조회 불가'}</small></div>`
+    return h + '</div><p class="fineprint">Claude 금액은 공개 요금표 기준 예상치입니다(부가세·할인 제외). OpenAI 금액은 모델별 요금이 달라 토큰만 표시합니다. HeyGen은 제작 전후 잔액 차이라 같은 시간에 다른 사용이 있으면 함께 잡힙니다.</p></details>'
+  }
   function renderKnowledge() {
     const n = S.data
     const srcs = (n && n.sources) || []
@@ -270,7 +288,7 @@
         <small>${esc(T.source)}</small>`
     }
     $('sources-list').innerHTML = srcs.length ? srcs.map((s) => `<article class="source-card">
-        <div class="between"><h3>${esc(s.title)}</h3><span class="${s.approved ? 'tag green' : 'tag'}">${s.approved ? '사용 중' : '승인 대기'}</span></div>
+        <div class="between"><h3>${esc(s.title)}${s.builtin ? ' <span class="tag">기본 제공</span>' : ''}</h3><span class="${s.approved ? 'tag green' : 'tag warn'}">${s.approved ? '사용 중' : '승인 대기 · 제작에 안 쓰임'}</span></div>
         <p class="source-meta">${esc(s.provenance)}</p>
         ${s.file ? `<button type="button" class="text-link file-link" data-file="${s.id}">${icon('external', 14)}원본 파일 열기 (${esc(s.file.name)})</button>` : ''}
         <details><summary>본문 확인</summary><pre>${esc(s.content)}</pre></details>
@@ -283,7 +301,16 @@
     $('source-save').disabled = S.busy || $('source-content').value.length < 30 || !$('source-title').value || !$('source-origin').value
   }
 
+  function renderUsageTotal() {
+    const t = S.data && S.data.usageTotal
+    if (!t) { $('usage-total').innerHTML = ''; return }
+    $('usage-total').innerHTML = `<div class="usage-total"><div><span>Claude 누적</span><b>약 $${t.claude.usd.toFixed(2)}</b><small>입력 ${n0(t.claude.input)} · 출력 ${n0(t.claude.output)} 토큰</small></div>
+      <div><span>OpenAI 누적</span><b>${n0(t.openai.input + t.openai.output)} 토큰</b><small>입력 ${n0(t.openai.input)} · 출력 ${n0(t.openai.output)}</small></div>
+      <div><span>HeyGen 누적 사용</span><b>${n0(t.heygen)} 크레딧</b><small>남은 크레딧: ${S.quota == null ? `<button class="text-link" data-quota>조회</button>` : n0(S.quota) + ' 크레딧'}</small></div></div>
+      <p class="fineprint">최근 50개 제작 기준 합계입니다. 정확한 청구 금액은 각 서비스(Anthropic·OpenAI·HeyGen) 사용량 페이지에서 확인해 주세요.</p>`
+  }
   function renderHistory() {
+    renderUsageTotal()
     const n = S.data
     if (!n || !n.jobs.length) { $('history-body').innerHTML = `<div class="empty-result">${icon('history', 30)}<h3>아직 제작 이력이 없습니다</h3></div>`; return }
     const I = currentJob()
@@ -483,6 +510,7 @@
       const item = { id: Math.random().toString(36).slice(2), file: f, name: f.name, status: 'reading', text: '', note: '', error: '' }
       if (f.size > 50 * 1048576) { item.status = 'error'; item.error = '50MB 를 넘는 파일은 올릴 수 없습니다.' }
       S.queue.push(item)
+      $('source-approve').checked = true
       if (item.status === 'reading') {
         window.StudioExtract.extract(f).then((r) => {
           item.text = r.text.length > 300000 ? r.text.slice(0, 300000) : r.text
@@ -572,6 +600,10 @@
     const close = t.closest('[data-close]'); if (close) { S[close.dataset.close] = ''; renderMessages(); return }
     const topic = t.closest('[data-topic]'); if (topic) { $('keywords').value = topic.dataset.topic; S.requestId = null; renderCreate(); return }
     const sel = t.closest('[data-select-job]'); if (sel) { S.selectedId = sel.dataset.selectJob; renderCreate(); renderHistory(); return }
+    if (t.closest('[data-quota]')) {
+      try { const q = await api({ action: 'quota' }); S.quota = q.heygen; if (q.heygen == null) S.error = 'HeyGen 남은 크레딧을 조회하지 못했습니다.' } catch (e) { S.error = e.message }
+      renderHistory(); renderMessages(); return
+    }
     const fl = t.closest('[data-file]')
     if (fl) {
       const w = window.open('', '_blank')

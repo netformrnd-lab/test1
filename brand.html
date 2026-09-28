@@ -1818,15 +1818,20 @@ body.bk-edit .panel{overflow:clip}
   word-break:keep-all}
 .ob-hero .sub{margin:14px 0 0;max-width:52ch;font-size:15.5px;line-height:1.75;
   color:var(--text-secondary);word-break:keep-all}
-.ob-hero .hst{display:grid;grid-template-columns:repeat(auto-fit,minmax(122px,1fr));
-  gap:1px;background:var(--border);border:1px solid var(--border);border-radius:3px;
-  overflow:hidden;margin-top:30px}
-.ob-hero .hst .st{background:var(--bg-card);padding:15px 15px 17px;display:flex;
-  flex-direction:column}
-.ob-hero .hst .v{font-family:var(--f-mono);font-size:29px;font-weight:600;line-height:1;
-  letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--text-primary)}
-.ob-hero .hst .k{margin-top:8px;font-size:11.5px;line-height:1.5;color:var(--text-muted);
-  word-break:keep-all}
+/* 다섯 칸을 나란히 세워 놓으니 표 같아서 눈이 어디를 봐야 할지
+   몰랐습니다. 한 줄에 하나씩, 이름을 먼저 읽고 숫자로 눈이 가게
+   늘어놓습니다 — 넓은 화면에서는 두 단으로 접힙니다. */
+.ob-hero .hst{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));
+  gap:0 40px;margin-top:26px}
+.ob-hero .hst .st{display:flex;align-items:baseline;gap:11px;
+  padding:12px 1px 13px;border-bottom:1px solid var(--border)}
+.ob-hero .hst .k{flex:0 1 auto;font-size:14px;line-height:1.55;
+  color:var(--text-secondary);word-break:keep-all}
+.ob-hero .hst .ln{flex:1 1 auto;min-width:16px;height:0;align-self:center;
+  border-bottom:1px dotted var(--border)}
+.ob-hero .hst .v{flex:0 0 auto;font-family:var(--f-mono);font-size:21px;font-weight:700;
+  line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+  color:var(--text-primary)}
 
 /* 단 머리 */
 .ob-sh.rd{display:flex;gap:15px;align-items:baseline;margin-bottom:24px}
@@ -4324,7 +4329,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260928-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260929-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6780,11 +6785,16 @@ function renderOnboard(){
               + esc(H.sub) + '</p>' : '')
           + (H.stats.some(x => String(x.v || '').trim())
               ? '<div class="hst">' + H.stats.filter(x => String(x.v || '').trim())
+                  /* 이름이 <<먼저>>, 숫자가 뒤입니다 — 「5」 만 큼직하게
+                     띄워 놓고 밑에 깨알 같은 글씨를 달아 두니, 무엇의
+                     수인지 읽으려고 눈을 찡그려야 했습니다.
+                     「직접 담당하는 공정 단계 …… 5」 는 그냥 읽힙니다. */
                   .map(x => '<div class="st">'
-                    + '<span class="v" data-ed="obstat" data-i="' + esc(x.id)
-                      + '" data-f="v" data-ph="숫자">' + esc(x.v) + '</span>'
                     + '<span class="k" data-ed="obstat" data-i="' + esc(x.id)
-                      + '" data-f="k" data-ph="무엇의 수인지">' + esc(x.k)
+                      + '" data-f="k" data-ph="무엇의 수인지">' + esc(x.k) + '</span>'
+                    + '<i class="ln"></i>'
+                    + '<span class="v" data-ed="obstat" data-i="' + esc(x.id)
+                      + '" data-f="v" data-ph="숫자">' + esc(x.v)
                     + '</span></div>').join('')
                 + '</div>' : '')
           + '</div>'

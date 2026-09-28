@@ -1,12 +1,13 @@
-// 아파트스퀘어 영상 제작 작업실 API (독립 Cloudflare Worker)
-// 화면: app/studio/  ·  테이블: backend/migration-video-studio.sql
+// 아파트스퀘어 영상 제작 작업실 API
+// 화면: ../index.html  ·  테이블: ../db/schema.sql
 //
-// Cloudflare 대시보드 → Workers & Pages → Create → Worker 로 만들고 이 코드를 붙여넣기.
-// Settings → Variables and Secrets 에 아래 3개를 추가(모두 Secret 권장):
+// 배포 방법 2가지 중 하나:
+//  A) (권장) video-studio 폴더 전체를 Cloudflare Pages 프로젝트로 배포 → functions/api/studio.js 가 이 파일을 /api/studio 로 연결
+//  B) 이 파일만 독립 Cloudflare Worker 로 배포 → config.js 의 STUDIO_API 에 Worker 주소 입력
+// 환경변수(Pages/Worker → Settings → Variables and Secrets, 모두 Secret 권장):
 //   SUPABASE_URL           = https://gndktayoicegyqyllybk.supabase.co
 //   SUPABASE_SERVICE_ROLE  = (Supabase service_role 키)
 //   STUDIO_ENC_KEY         = (아무 긴 비밀문자열 — API 키 암호화용. 바꾸면 저장된 키를 다시 등록해야 함)
-// 그다음 Worker 주소(https://xxx.workers.dev)를 app/studio/config.js 의 STUDIO_API 에 넣으세요.
 //
 // 흐름(한 번의 advance 요청 = 한 단계):
 //   0 자료 검색 → 1 대본 작성(Claude) → 2 Claude 검수 → 3 OpenAI 검수 → 4 판정(미통과 시 최대 2회 수정)
@@ -722,7 +723,7 @@ async function sb(env, path, { method = 'GET', body, prefer } = {}) {
   const r = await fetch(env.SUPABASE_URL + '/rest/v1/' + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
   const text = await r.text()
   if (!r.ok) {
-    if (/studio_/.test(text) && /does not exist|schema cache/.test(text)) throw new HttpError(500, '작업실 테이블이 없습니다. backend/migration-video-studio.sql 을 먼저 실행해 주세요.')
+    if (/studio_/.test(text) && /does not exist|schema cache/.test(text)) throw new HttpError(500, '작업실 테이블이 없습니다. db/schema.sql 을 먼저 실행해 주세요.')
     throw new Error('DB 오류(' + r.status + '): ' + text.slice(0, 300))
   }
   return text ? JSON.parse(text) : null

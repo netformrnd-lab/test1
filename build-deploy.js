@@ -85,16 +85,6 @@ let ldemo = fs.readFileSync(APP + "/live-demo/index.html", "utf8");
 ldemo = ldemo.replace("</head>", NOCACHE + "\n</head>");
 fs.writeFileSync(OUT + "/live-demo/index.html", ldemo);
 
-// --- 영상 제작 작업실 (studio/) — 관리자 전용, API는 cloudflare-studio-worker ---
-cp.execSync(`mkdir -p "${OUT}/studio"`);
-let studio = fs.readFileSync(APP + "/studio/index.html", "utf8");
-studio = studio.replace("</head>", NOCACHE + "\n</head>");
-studio = studio.replace('href="studio.css"', 'href="studio.css?v=' + V + '"');
-studio = studio.replace('src="config.js"', 'src="config.js?v=' + V + '"');
-studio = studio.replace('src="studio.js"', 'src="studio.js?v=' + V + '"');
-fs.writeFileSync(OUT + "/studio/index.html", studio);
-for (const f of ["studio.css", "studio.js", "config.js"]) fs.copyFileSync(APP + "/studio/" + f, OUT + "/studio/" + f);
-
 // --- assets: 이미지만 (woff/woff2 폰트는 CDN 사용하므로 제외) ---
 let kept = 0, dropped = 0;
 for (const f of fs.readdirSync(APP + "/assets")) {

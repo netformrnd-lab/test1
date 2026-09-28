@@ -1,4 +1,4 @@
--- 영상 제작 작업실(app/studio + cloudflare-studio-worker) 테이블
+-- 영상 제작 작업실(video-studio) 테이블
 -- Supabase SQL Editor 에서 한 번 실행하세요.
 --
 -- · 모든 테이블은 RLS 를 켜고 정책을 두지 않습니다 → 브라우저(anon/로그인 사용자)는 직접 읽기·쓰기 불가.
@@ -56,4 +56,4 @@ alter table studio_sources  enable row level security;
 alter table studio_jobs     enable row level security;
 -- (정책 없음 = service_role 외 접근 불가)
 
--- 완료! 다음: cloudflare-studio-worker/worker.js 를 Worker 로 배포하고 환경변수를 넣으세요.
+-- 완료! 다음: video-studio 폴더를 Cloudflare Pages 로 배포하고 환경변수 3개를 넣으세요 (README.md 참고).

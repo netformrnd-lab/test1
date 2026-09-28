@@ -2,24 +2,31 @@
 
 원본 화면: `https://reelty-ai-video-studio.pour-9320.chatgpt.site/`. 이 사이트의 화면·문구·흐름을 옮겼습니다.
 
-| 구성 | 위치 |
-|---|---|
-| 화면 (관리자 전용) | `app/studio/` → 배포 후 `/studio/` |
-| 서버 API | `cloudflare-studio-worker/worker.js` (독립 Cloudflare Worker) |
-| DB 테이블 | `backend/migration-video-studio.sql` |
+기존 아파트스퀘어 앱(`app/`)과 **분리된 독립 프로젝트**입니다. 이 폴더 하나만 따로 배포합니다.
+로그인만 기존 아파트스퀘어 Supabase의 관리자 계정을 함께 씁니다.
+
+```
+video-studio/
+├─ index.html · studio.css · studio.js · config.js   화면
+├─ functions/api/studio.js                            Cloudflare Pages → /api/studio 연결
+├─ worker/worker.js                                   서버 API (파이프라인 전체)
+└─ db/schema.sql                                      Supabase 테이블
+```
 
 ## 설치 (한 번만)
 
-1. **Supabase**: SQL Editor에서 `backend/migration-video-studio.sql`을 실행합니다.
-2. **Worker**: Cloudflare → Workers & Pages → Create → Worker를 만들고 `worker.js`를 붙여 넣습니다.
-   Settings → Variables and Secrets에 아래 3개를 Secret으로 추가합니다.
+1. **Supabase**: SQL Editor에서 `db/schema.sql`을 실행합니다.
+2. **Cloudflare Pages 새 프로젝트**: Workers & Pages → Create → Pages에서 새 프로젝트를 만듭니다.
+   - Git 연결로 만들 때는 Root directory를 `video-studio`로 두고 Build command는 비워 둡니다.
+   - 또는 이 폴더를 `wrangler pages deploy video-studio`로 직접 올립니다. 대시보드 드래그 업로드는 `functions/`가 빠지므로 쓰지 마세요.
+3. 그 Pages 프로젝트의 Settings → Variables and Secrets에 아래 3개를 Secret으로 추가하고 다시 배포합니다.
    - `SUPABASE_URL` = `https://gndktayoicegyqyllybk.supabase.co`
    - `SUPABASE_SERVICE_ROLE` = Supabase service_role 키
    - `STUDIO_ENC_KEY` = 아무 긴 비밀 문자열. API 키 암호화에 쓰며, 바꾸면 저장된 키를 다시 등록해야 합니다.
-   - Worker Settings에서 **CPU/요청 시간 제한이 기본값이어도** 동작합니다. AI 응답을 기다리는 시간은 CPU 시간에 포함되지 않습니다.
-3. **화면**: `app/studio/config.js`의 `STUDIO_API`에 Worker 주소(`https://….workers.dev`)를 넣은 뒤 `node build-deploy.js`로 배포합니다.
-4. 관리자 계정으로 `/studio/`에 로그인하고 **연결 설정** 탭에서 Claude·OpenAI·HeyGen 키를 저장합니다. 이어서 아바타를 선택하고 사용 동의에 체크한 뒤 저장합니다.
+4. 배포 주소(`https://….pages.dev`)에 관리자 계정으로 로그인합니다. **연결 설정** 탭에서 Claude·OpenAI·HeyGen 키를 저장하고, 아바타를 선택한 뒤 사용 동의에 체크하고 저장합니다.
 5. **브랜드 자료실**에 근거 자료를 등록하고 "영상 제작 근거로 사용"을 체크합니다.
+
+`config.js`의 `STUDIO_API`는 비워 두면 됩니다(같은 주소의 `/api/studio` 사용). `worker/worker.js`를 별도 Worker로 배포한 경우에만 그 주소를 넣습니다.
 
 ## 제작 흐름
 

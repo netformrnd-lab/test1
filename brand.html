@@ -474,6 +474,11 @@ mark{background:rgba(192,119,8,.26);color:inherit;border-radius:3px;padding:0 2p
 .blog-h .rb{font-size:11.5px;color:var(--text-muted);margin-left:auto;white-space:nowrap}
 .blog-h .rb b{color:var(--blue)}
 .blog-h .ri.last{background:var(--bg-card)}
+.blog-h .ri.flat{cursor:default}
+.blog-h .ri.flat:hover{background:none}
+.blog-h .ri.ver{cursor:default}
+.blog-h .ri.ver:hover{background:none}
+.blog-h .ri.ver strong{color:var(--blue)}
 @media(max-width:720px){ .blog-h .bh-w{display:none} .blog-h .ri strong{max-width:50%} }
 .page-h{font-size:19px;font-weight:750;letter-spacing:-.032em;margin-bottom:3px}
 .page-sub{font-size:12.5px;color:var(--text-muted);margin-bottom:20px}
@@ -4281,7 +4286,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20260928-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20260928-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6990,40 +6995,54 @@ function renderHome(){
         + '</div>').join('') + '</div>'
     : '';
 
-  /* ── 📖 브랜드북 히스토리 ────────────────────────────────────
-     전에는 「최근 업데이트」 와 「아직 비어 있는 곳」 이 있었습니다.
-     앞엣것은 무엇이 바뀌었는지는 보여도 <<누가>> 했는지가 없었고,
-     뒤엣것은 채울 칸이 사라진 지금은 가리킬 데가 없습니다.
-     팀이 같이 고치는 파일이라, 정작 궁금한 것은 「마지막에 누가
-     무엇을 올렸나」 입니다. */
+  /* ── 🕘 무엇이 바뀌었나 ──────────────────────────────────────
+     브랜드북만이 아니라 대시보드에서 바뀐 것 <<전부>> 입니다 —
+     할 일 · 회의록 · 일정 · 비용 · 자동화 · 온보딩 · 목록 · 브랜드,
+     그리고 판이 바뀐 것까지. 누가 · 언제 · 무엇을 이 한 줄에 있습니다. */
   const logs = [];
-  bs.forEach(b => bookLogOf(b).forEach(x => logs.push({ b: b, x: x })));
-  logs.sort((m, n) => String(n.x.at || '').localeCompare(String(m.x.at || '')));
+  (data.log || []).forEach(x => logs.push({
+    at: x.at, by: x.by, act: x.act, what: x.what, n: x.n || 0,
+    brand: x.brand || '', from: x.from || '' }));
+  bs.forEach(b => bookLogOf(b).forEach(x => logs.push({
+    at: x.at, by: x.by, act: x.act, what: '📖 브랜드북', n: 0,
+    brand: b.name, bid: b.id, name: x.name })));
+  logs.sort((m, n) => String(n.at || '').localeCompare(String(m.at || '')));
 
   const when = iso => {
     if(!iso) return '';
     const d = new Date(iso);
     if(isNaN(d)) return '';
-    const day = d.toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' });
-    const hm  = d.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
-    return day + ' ' + hm;
+    return d.toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }) + ' '
+         + d.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+  };
+  const ACT = { '추가':'늘었습니다', '고침':'고쳤습니다', '지움':'지웠습니다',
+                '올림':'올렸습니다' };
+  const logRow = (r, i) => {
+    /* 판이 바뀐 것 — 사람이 한 일이 아니라 따로 적습니다 */
+    if(r.act === '판'){
+      return '<div class="ri ver' + (i === 0 ? ' last' : '') + '">'
+        + '<span>⬆️</span><strong>판 ' + esc(r.what) + '</strong>'
+        + '<span class="bh-w">' + (r.from ? esc(r.from) + ' 에서 바뀜' : '처음 적음') + '</span>'
+        + '<span class="rb">' + (i === 0 ? '<b>마지막</b> · ' : '') + esc(when(r.at)) + '</span>'
+        + '</div>';
+    }
+    const go = r.bid ? ' onclick="gotoResult(\'' + r.bid + '\',\'path\')"' : '';
+    return '<div class="ri' + (i === 0 ? ' last' : '') + (go ? '' : ' flat') + '"' + go + '>'
+      + '<span>' + esc(String(r.what || '').slice(0, 2).trim() || '•') + '</span>'
+      + '<strong>' + esc(r.name || String(r.what || '').replace(/^\S+\s*/, '')) + '</strong>'
+      + (r.brand ? '<span class="bh-w">' + esc(r.brand) + '</span>' : '')
+      + '<span class="bh-by">' + (r.by ? esc(r.by) : '이름 없음')
+        + '<i>' + (r.n > 1 ? r.n + '개 ' : '') + esc(ACT[r.act] || r.act) + '</i></span>'
+      + '<span class="rb">' + (i === 0 ? '<b>마지막</b> · ' : '') + esc(when(r.at)) + '</span>'
+      + '</div>';
   };
   const logHtml = logs.length
-    ? '<div class="todo blog-h">' + logs.slice(0, 14).map((r, i) =>
-        '<div class="ri' + (i === 0 ? ' last' : '') + '"'
-        + ' onclick="gotoResult(\'' + r.b.id + '\',\'path\')">'
-        + '<span>' + (r.x.act === '고침' ? '✎' : '📗') + '</span>'
-        + '<strong>' + esc(r.x.name || '브랜드북') + '</strong>'
-        + '<span class="bh-w">' + esc(r.b.name) + '</span>'
-        + '<span class="bh-by">' + (r.x.by ? esc(r.x.by) : '이름 없음')
-          + '<i>' + (r.x.act === '고침' ? '고침' : '올림') + '</i></span>'
-        + '<span class="rb">' + (i === 0 ? '<b>마지막</b> · ' : '') + esc(when(r.x.at)) + '</span>'
-        + '</div>').join('')
-      + (logs.length > 14 ? '<div class="ri" style="color:var(--text-muted);cursor:default">'
-          + '외 ' + (logs.length - 14) + '건</div>' : '')
+    ? '<div class="todo blog-h">' + logs.slice(0, 16).map(logRow).join('')
+      + (logs.length > 16 ? '<div class="ri flat" style="color:var(--text-muted)">'
+          + '외 ' + (logs.length - 16) + '건</div>' : '')
       + '</div>'
     : '<div class="todo blog-h" style="color:var(--text-muted);padding:14px 12px">'
-      + '아직 올린 브랜드북이 없습니다 — 브랜드를 열고 [📗 브랜드북 올리기] 로 올려 보세요</div>';
+      + '아직 바뀐 것이 없습니다 — 무언가를 고치면 여기에 한 줄씩 쌓입니다</div>';
 
   // 채널에 새로 올라온 글 (NAS 가 미리 받아둔 것)
   const posts = [];
@@ -7056,8 +7075,8 @@ function renderHome(){
     + '<div class="hgrid">' + cards + '</div>'
     + (urgentHtml ? '<div class="hsec">⏰ 기한이 임박한 할 일</div>' + urgentHtml : '')
     + (postHtml ? '<div class="hsec">📣 접점에 올라온 글</div>' + postHtml : '')
-    + '<div class="hsec">📖 브랜드북 히스토리<span>누가 · 언제 · 무엇을 '
-      + '올리고 고쳤나</span></div>' + logHtml
+    + '<div class="hsec">🕘 무엇이 바뀌었나<span>누가 · 언제 · 무엇을 '
+      + '— 브랜드북부터 할 일 · 회의록 · 판 번호까지</span></div>' + logHtml
     + '</div></div>';
 }
 
@@ -21650,7 +21669,8 @@ function markDirtyAll(){
 
 const MERGE_LISTS = ITEM_KEYS.concat(['tools', 'channels', 'docs']);
 const TOP_LISTS   = ['onboard', 'notices', 'meetings', 'events', 'trash', 'growth', 'boards',
-                     'gbkpis', 'gbperf', 'cards', 'pages'];  // 브랜드 밖
+                     'gbkpis', 'gbperf', 'cards', 'pages',
+                     'log'];  // 브랜드 밖 (log = 🕘 무엇이 바뀌었나)
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
 let revived  = 0;                // 되살린 개수 (알려주기 위해)
@@ -21985,6 +22005,122 @@ function setSaveState(state){
   el.title = tip || '';
 }
 
+/* ═══════════════ 🕘 무엇이 바뀌었나 (전체 기록) ═══════════════════
+   브랜드북만이 아니라 <<대시보드에서 바뀐 것 전부>> 를 적습니다.
+   칸마다 손대는 자리가 수백 군데라 하나하나 적어 넣을 수는 없습니다.
+   그래서 저장하기 <<직전에>> 지난번 모습과 지금 모습을 견주어, 늘고 ·
+   줄고 · 바뀐 것을 스스로 찾아 적습니다. 빠지는 데가 없습니다.
+   ================================================================= */
+const LOG_B = [                      // 브랜드 안의 목록
+  ['tasks', '✅ 할 일'], ['automations', '🤖 자동화'], ['links', '🔗 바로가기'],
+  ['assets', '📁 자료'], ['costs', '💳 비용'], ['channels', '📣 마케팅 접점'],
+  ['history', '📜 여정'], ['plans', '📋 기획서']
+];
+const LOG_G = [                      // 브랜드 밖의 목록
+  ['meetings', '🗣️ 회의록'], ['events', '📅 일정'], ['cards', '💳 명함'],
+  ['growth', '📈 그로스보드'], ['pages', '📂 목록']
+];
+/* 한 건의 「모습」 — 글자만 추려 짧게 줄입니다 (그림·큰 덩어리는 뺍니다) */
+function logSig(x){
+  if(!x || typeof x !== 'object') return String(x == null ? '' : x).slice(0, 80);
+  let out = '';
+  Object.keys(x).forEach(k => {
+    if(k === 'id' || k.charAt(0) === '_') return;
+    const v = x[k];
+    if(typeof v === 'string') out += k + '=' + v.slice(0, 120) + ';';
+    else if(typeof v === 'number' || typeof v === 'boolean') out += k + '=' + v + ';';
+    else if(Array.isArray(v)) out += k + '#' + v.length + ';';
+  });
+  return out.slice(0, 600);
+}
+function logTitle(x){
+  if(!x || typeof x !== 'object') return '';
+  return String(x.title || x.name || x['이름'] || x.label || x.text || '').slice(0, 60);
+}
+/* 지금 모습을 통째로 훑어 둡니다 — 다음에 견줄 기준입니다 */
+function logShape(){
+  const m = {};
+  (data.brands || []).forEach(b => {
+    m['B|' + b.id] = logSig({ name: b.name, icon: b.icon, desc: b.desc });
+    LOG_B.forEach(([k]) => (b[k] || []).forEach(x => {
+      if(x && x.id) m['b|' + b.id + '|' + k + '|' + x.id] = logSig(x);
+    }));
+  });
+  LOG_G.forEach(([k]) => (data[k] || []).forEach(x => {
+    if(x && x.id) m['g||' + k + '|' + x.id] = logSig(x);
+  }));
+  /* 온보딩은 단 → 항목 두 겹입니다 */
+  ((data.onboard && data.onboard.secs) || []).forEach(sc => {
+    if(!sc || !sc.id) return;
+    m['o||onboard|' + sc.id] = logSig({ name: sc.name, one: sc.one });
+    (sc.items || []).forEach(it => {
+      if(it && it.id) m['o||onboard|' + sc.id + '.' + it.id] = logSig(it);
+    });
+  });
+  return m;
+}
+function logName(b){ return b ? (b.name || '') : ''; }
+function logWhatOf(key){
+  const p = key.split('|');
+  if(p[0] === 'B') return ['🏷️ 브랜드', ''];
+  if(p[0] === 'o') return ['🧭 온보딩', ''];
+  const tab = p[2];
+  const row = (p[0] === 'b' ? LOG_B : LOG_G).find(x => x[0] === tab);
+  return [row ? row[1] : tab, p[0] === 'b' ? p[1] : ''];
+}
+/* 지난번과 견주어 바뀐 것을 줄로 만듭니다 */
+function logDiff(was, now){
+  const out = [], seen = {};
+  Object.keys(now).forEach(k => {
+    seen[k] = 1;
+    const [what, bid] = logWhatOf(k);
+    if(!(k in was)) out.push({ act: '추가', what: what, bid: bid, sig: now[k] });
+    else if(was[k] !== now[k]) out.push({ act: '고침', what: what, bid: bid, sig: now[k] });
+  });
+  Object.keys(was).forEach(k => {
+    if(seen[k]) return;
+    const [what, bid] = logWhatOf(k);
+    out.push({ act: '지움', what: what, bid: bid, sig: was[k] });
+  });
+  return out;
+}
+/* 줄을 묶어 적습니다 — 한 번 저장에 스무 건이 바뀌어도 줄 몇 개로 */
+let logBase = null;
+function logWrite(){
+  if(!Array.isArray(data.log)) data.log = [];
+  const now = logShape();
+  if(!logBase){ logBase = now; return; }      // 처음은 기준만 잡습니다
+  const ds = logDiff(logBase, now);
+  logBase = now;
+  if(!ds.length) return;
+  const by = myName() || '';
+  const at = new Date().toISOString();
+  /* 「어느 브랜드 · 무엇을 · 어떻게」 로 묶습니다 */
+  const box = {};
+  ds.forEach(d => {
+    const key = d.bid + '|' + d.what + '|' + d.act;
+    (box[key] = box[key] || { bid: d.bid, what: d.what, act: d.act, n: 0 }).n++;
+  });
+  Object.keys(box).slice(0, 12).forEach(k => {
+    const d = box[k];
+    const b = d.bid ? (data.brands || []).find(x => x.id === d.bid) : null;
+    data.log.push({ id: uid('lg'), at: at, by: by, act: d.act,
+                    what: d.what, n: d.n, brand: logName(b) });
+  });
+  if(data.log.length > 400) data.log = data.log.slice(-400);
+}
+/* 판이 바뀌면 그것도 한 줄 — 「우리가 고친 것」 은 이것으로 보입니다 */
+function logVer(){
+  if(!Array.isArray(data.log)) data.log = [];
+  const last = data.log.filter(x => x.act === '판').pop();
+  if(last && last.what === APP_VER) return;
+  data.log.push({ id: uid('lg'), at: new Date().toISOString(), by: '',
+                  act: '판', what: APP_VER, n: 0, brand: '',
+                  from: last ? last.what : '' });
+  markDirtyAll();
+}
+
+
 async function saveAll(silent){
   if(saving){ saveAgain = true; return; }   // 겹쳐 저장하지 않습니다
   clearTimeout(saveTimer);
@@ -22004,6 +22140,7 @@ async function saveAll(silent){
   setSaveState('saving');
   data.savedAt = new Date().toISOString();
   data.schema = SCHEMA;
+  logWrite();              // 🕘 무엇이 바뀌었는지 적어 둡니다 (보내기 직전에)
 
   try{
     let tries = 0, mergedOnce = false;
@@ -22703,6 +22840,8 @@ async function init(){
   render();
   loadInquiries();         // 홈에도 문의 수치를 띄우기 위해 미리 불러옵니다
   notiAuto();              // 🔔 처음 아무거나 누르는 순간 허락을 물어봅니다
+  logVer();                // ⬆️ 판이 바뀌었으면 한 줄 적습니다
+  logBase = logShape();    // 🕘 지금 모습을 기준으로 잡습니다
   if(STORAGE_MODE === 'nas'){
     nasCheck();
     checkVersion(false);

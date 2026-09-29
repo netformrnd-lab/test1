@@ -1534,6 +1534,13 @@ function renderPhotoGrid() {
   const thumbs = W_PHOTOS.map((u, i) => `<div style="aspect-ratio:1;border-radius:8px;background:url('${u}') center/cover;position:relative"><span data-rmphoto="${i}" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#d94b4b;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer">×</span></div>`).join('')
   const add = '<label style="aspect-ratio:1;border-radius:8px;border:2px dashed #c3ccdb;background:#fff;display:flex;align-items:center;justify-content:center;color:#9aa3b6;font-size:17px;cursor:pointer">＋<input id="w-photo-input" type="file" accept="image/*" multiple style="display:none"></label>'
   grid.innerHTML = thumbs + add
+  // 갤러리(삼성 갤러리) 안내 — 그리드 바로 아래에 한 번만 삽입
+  if (grid.parentNode && !document.getElementById('w-photo-hint')) {
+    const hint = document.createElement('div'); hint.id = 'w-photo-hint'
+    hint.style.cssText = 'font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:7px;line-height:1.55'
+    hint.innerHTML = '💡 <b>갤러리(삼성 갤러리)</b>로 올리려면 ＋를 누른 뒤 선택창에서 <b>갤러리</b>를 고르세요. 구글 포토로 바로 열리면 <b>설정 → 앱 → Google 포토 → 기본으로 설정 → 기본값 지우기</b> 후 다시 누르면 선택창이 떠요.'
+    grid.parentNode.insertBefore(hint, grid.nextSibling)
+  }
   const inp = document.getElementById('w-photo-input')
   if (inp) inp.onchange = (e) => handlePhotoSelect(e.target.files)
   grid.querySelectorAll('[data-rmphoto]').forEach(x => x.onclick = () => { W_PHOTOS.splice(+x.dataset.rmphoto, 1); renderPhotoGrid() })

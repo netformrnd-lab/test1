@@ -52,9 +52,9 @@ export async function onRequest() { return json({ ok: false, error: 'POST only' 
 async function buildPlan(env, table, type, rec, old) {
   if (table === 'reports') {
     if (type === 'INSERT') {
-      // 감리사가 감리일지 등록 → 관리자에게 "확인해주세요"
+      // 감리원이 감리일지 등록 → 관리자에게 "확인해주세요"
       const aptName = await aptName_(env, rec.apartment_id)
-      return { title: '🔔 새 감리일지 확인 요청', body: (aptName ? aptName + ' · ' : '') + (rec.title || '') + ' — 감리사가 올렸어요', userIds: await admins_(env), data: { kind: 'report_new', apartment_id: rec.apartment_id || '' } }
+      return { title: '🔔 새 감리일지 확인 요청', body: (aptName ? aptName + ' · ' : '') + (rec.title || '') + ' — 감리원이 올렸어요', userIds: await admins_(env), data: { kind: 'report_new', apartment_id: rec.apartment_id || '' } }
     }
     if (type === 'UPDATE' && !old.published && rec.published) {
       // 관리자가 감리일지 공개 → 입주민·소장에게

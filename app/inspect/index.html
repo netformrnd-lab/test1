@@ -2314,7 +2314,7 @@ clock();
   var APT_ID = QS.get('apt')||'';
   var APT_NAME = QS.get('name')||'';
   /* 발표용 데모(?sess=...): 메인 앱과 같은 세션 저장소 키를 써서 로그인 세션을 공유한다
-     → 감리일지 전송 시 "로그인이 필요" 대신 데모 감리사로 정상 전송되어 대시보드에 실시간 반영 */
+     → 감리일지 전송 시 "로그인이 필요" 대신 데모 감리원으로 정상 전송되어 대시보드에 실시간 반영 */
   var DEMO_SESS = QS.get('sess')||'';
   var _sbOpts = DEMO_SESS ? { auth: { storageKey: 'sb-aptsq-demo-' + DEMO_SESS } } : undefined;
   var sb = (window.supabase && window.supabase.createClient)
@@ -2404,7 +2404,7 @@ clock();
   }
   if(typeof renderStep==='function'){ var _renderStep=renderStep; renderStep=function(){ _renderStep.apply(this,arguments); try{ addMics(); }catch(e){} }; }
 
-  /* ---- 데이터 로드: 로그인 감리사, 감리사 목록, 담당 감리사 ---- */
+  /* ---- 데이터 로드: 로그인 감리원, 감리원 목록, 담당 감리원 ---- */
   function loadIntegData(){
     if(!sb) return;
     sb.auth.getUser().then(function(r){
@@ -2431,7 +2431,7 @@ clock();
     }
   }
 
-  /* ---- 메타 입력 보정: 자동채움만(입력은 자유) · 감리원은 감리사 목록에서 선택 ----
+  /* ---- 메타 입력 보정: 자동채움만(입력은 자유) · 감리원은 감리원 목록에서 선택 ----
      현장명은 store.meta.site(=단지명)를 앱의 bindMeta가 자동으로 채운다. 여기선 덮어쓰지 않는다. */
   function applyMeta(){
     var insp=document.getElementById('m-insp');
@@ -2440,13 +2440,13 @@ clock();
       if(!dl){ dl=document.createElement('datalist'); dl.id='integAuditors'; document.body.appendChild(dl); }
       dl.innerHTML = INTEG.auditors.map(function(n){return '<option value="'+String(n).replace(/"/g,'&quot;')+'"></option>';}).join('');
       insp.setAttribute('list','integAuditors');
-      insp.placeholder='감리사 선택 또는 직접 입력';
-      /* 앱 기본값 '김성민'이면 로그인 감리사로 교체(있을 때) */
+      insp.placeholder='감리원 선택 또는 직접 입력';
+      /* 앱 기본값 '김성민'이면 로그인 감리원으로 교체(있을 때) */
       if(insp.value==='김성민'){ insp.value = INTEG.me || ''; store.meta.insp = insp.value; }
     }
     var boss=document.getElementById('m-boss');
     if(boss){
-      /* 앱 기본값 '조현식'이면 담당 감리사로 교체(있을 때) */
+      /* 앱 기본값 '조현식'이면 담당 감리원으로 교체(있을 때) */
       if(boss.value==='조현식'){ boss.value = INTEG.boss || ''; store.meta.boss = boss.value; }
       else if(!boss.value && INTEG.boss){ boss.value = INTEG.boss; store.meta.boss = INTEG.boss; }
     }

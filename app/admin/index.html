@@ -241,7 +241,7 @@
       <div class="tiles">
         <div class="tile"><span class="edge"></span><div class="v" id="t-members">0</div><div class="k">전체 회원</div></div>
         <div class="tile warn"><span class="edge"></span><div class="v" id="t-pending">0</div><div class="k">승인 대기</div></div>
-        <div class="tile good"><span class="edge"></span><div class="v" id="t-auditors">0</div><div class="k">감리사</div></div>
+        <div class="tile good"><span class="edge"></span><div class="v" id="t-auditors">0</div><div class="k">감리원</div></div>
         <div class="tile"><span class="edge"></span><div class="v" id="t-apts">0</div><div class="k">등록 단지</div></div>
       </div>
       <div class="grid2">
@@ -256,7 +256,7 @@
       </div>
       <div class="grid2">
         <div class="card">
-          <h3>🧑‍🔧 감리사별 담당 단지</h3>
+          <h3>🧑‍🔧 감리원별 담당 단지</h3>
           <div id="assign-list"></div>
         </div>
         <div class="card">
@@ -294,7 +294,7 @@
 
     <!-- 단지 관리 -->
     <section id="sec-apts">
-      <div class="head"><div><h2>🏗️ 공사관리</h2><div class="desc">단지 등록·감리사 배정·공법/공정 설정 · 각 단지의 “상세 →”에서 감리일지·현장·계약 관리</div></div></div>
+      <div class="head"><div><h2>🏗️ 공사관리</h2><div class="desc">단지 등록·감리원 배정·공법/공정 설정 · 각 단지의 “상세 →”에서 감리일지·현장·계약 관리</div></div></div>
       <div class="alert info"><div class="ah">🏗️ 단지별 상세</div>단지 카드의 <b>“📂 상세 →”</b>를 누르면 그 단지만 필터링해서 <b>감리일지·현장 현황·계약서</b>를 탭으로 볼 수 있어요.</div>
       <div class="card">
         <h3>➕ 단지 추가</h3>
@@ -302,7 +302,7 @@
           <input id="na-name" placeholder="단지명 (예: 힐스테이트)" style="width:190px">
           <input id="na-region" placeholder="지역 (예: 서울 노원)" style="width:150px">
           <input id="na-type" placeholder="공사종류 (예: 외벽 재도장)" style="width:180px">
-          <select id="na-auditor" class="f"><option value="">담당 감리사</option></select>
+          <select id="na-auditor" class="f"><option value="">담당 감리원</option></select>
           <button class="b save" onclick="addApt()">추가</button>
         </div>
       </div>
@@ -327,9 +327,9 @@
       <div id="notices"></div>
     </section>
 
-    <!-- 감리일지 (감리사 작성 → 관리자 재작성 → 입주민 공개) -->
+    <!-- 감리일지 (감리원 작성 → 관리자 재작성 → 입주민 공개) -->
     <section id="sec-reports">
-      <div class="head"><div><h2>📄 감리일지</h2><div class="desc">감리사가 올린 보고서를 다듬어 입주민에게 공개하세요. ‘입주민 공개’를 켜야 입주민 앱에 보여요</div></div></div>
+      <div class="head"><div><h2>📄 감리일지</h2><div class="desc">감리원이 올린 보고서를 다듬어 입주민에게 공개하세요. ‘입주민 공개’를 켜야 입주민 앱에 보여요</div></div></div>
       <div class="card" style="border:1.5px dashed #b9c6e0;background:#f7faff">
         <h3>📁 감리일지 PDF 여러 개 올리기</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 12px">단지를 고르고 <b>감리일지 PDF들(폴더 안 파일 전체 선택)</b>을 올리면, <b>파일 하나가 감리일지 하나</b>로 등록돼요. 파일명이 제목이 되고, 파일명에 <b>날짜(20260401)·동(927동)</b>이 있으면 자동으로 잡아요.</div>
@@ -351,7 +351,7 @@
 
     <!-- 현장 현황 (단지별 현장 사진·글) -->
     <section id="sec-field">
-      <div class="head"><div><h2>📷 현장 현황</h2><div class="desc">단지별 현장 사진·글을 올리세요. 입주민·감리사 앱의 ‘현장 현황’에 바로 보입니다</div></div></div>
+      <div class="head"><div><h2>📷 현장 현황</h2><div class="desc">단지별 현장 사진·글을 올리세요. 입주민·감리원 앱의 ‘현장 현황’에 바로 보입니다</div></div></div>
       <div class="card" style="border:1.5px dashed #b9c6e0;background:#f7faff">
         <h3>📥 아임웹 게시판 엑셀 가져오기</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 12px">아임웹에서 내보낸 게시판 엑셀(.xlsx)을 선택하면 <b>카테고리(단지)별로</b> 현장 현황에 자동 등록돼요. <b>여러 파일을 한 번에</b> 선택해도 됩니다. 사진은 아임웹 링크를 그대로 쓰고, 이미 등록된 글은 자동으로 건너뜁니다.</div>
@@ -410,7 +410,7 @@
 
     <!-- 공사 일정 -->
     <section id="sec-schedules">
-      <div class="head"><div><h2>🗓️ 공사 일정</h2><div class="desc">단지별 방문·점검·공사 일정을 등록하세요 (입주민·감리사 앱 ‘공사 일정’에 바로 보입니다)</div></div></div>
+      <div class="head"><div><h2>🗓️ 공사 일정</h2><div class="desc">단지별 방문·점검·공사 일정을 등록하세요 (입주민·감리원 앱 ‘공사 일정’에 바로 보입니다)</div></div></div>
       <div class="card">
         <h3>➕ 일정 추가</h3>
         <div class="add-form" style="flex-wrap:wrap;gap:8px">
@@ -420,7 +420,7 @@
           <input id="sa-desc" placeholder="상세 설명 (선택)" style="width:240px">
           <button class="b save" onclick="addScheduleAdmin()">일정 추가</button>
         </div>
-        <div id="sa-msg" style="font-size:12px;font-weight:700;margin-top:8px;min-height:16px;color:var(--mut)">날짜·단지·일정 내용을 입력하면 해당 단지 입주민·감리사에게 바로 보여요</div>
+        <div id="sa-msg" style="font-size:12px;font-weight:700;margin-top:8px;min-height:16px;color:var(--mut)">날짜·단지·일정 내용을 입력하면 해당 단지 입주민·감리원에게 바로 보여요</div>
       </div>
       <div class="add-form" style="margin-bottom:16px"><input id="sch-q" placeholder="🔍 단지명·일정 내용으로 검색" style="width:320px" oninput="renderSchedules()"></div>
       <div id="schedules"></div>
@@ -428,7 +428,7 @@
 
     <!-- 계약서 -->
     <section id="sec-contract">
-      <div class="head"><div><h2>📑 계약서</h2><div class="desc">단지별 계약서(PDF·사진)를 등록·보관하세요. 감리사 앱에서도 열람됩니다 (입주민 열람 불가)</div></div></div>
+      <div class="head"><div><h2>📑 계약서</h2><div class="desc">단지별 계약서(PDF·사진)를 등록·보관하세요. 감리원 앱에서도 열람됩니다 (입주민 열람 불가)</div></div></div>
       <div class="card">
         <h3>➕ 계약서 등록</h3>
         <div class="add-form" style="flex-wrap:wrap;gap:8px">
@@ -440,7 +440,7 @@
       </div>
       <div class="card" style="border:1.5px dashed #e0a94b;background:#fffaf0;margin-bottom:14px">
         <h3>🔒 계약서 비공개 전환 <span style="font-size:11px;font-weight:800;color:#b26a00;background:#ffedcc;padding:2px 8px;border-radius:99px">출시 전 1회</span></h3>
-        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 10px">예전에 올린 계약서는 <b>공개 저장소</b>에 있어서 링크만 알면 열려요. 이 버튼을 누르면 <b>비공개 저장소로 옮기고 공개본은 삭제</b>해, 감리사·관리자만 임시 링크로 열 수 있게 돼요. (새로 올리는 계약서는 자동으로 비공개예요)</div>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin:6px 0 10px">예전에 올린 계약서는 <b>공개 저장소</b>에 있어서 링크만 알면 열려요. 이 버튼을 누르면 <b>비공개 저장소로 옮기고 공개본은 삭제</b>해, 감리원·관리자만 임시 링크로 열 수 있게 돼요. (새로 올리는 계약서는 자동으로 비공개예요)</div>
         <div style="font-size:11.5px;color:var(--mut);margin-bottom:10px">※ 먼저 <b>backend/migration-security-contracts.sql</b> 을 Supabase에서 실행한 뒤 눌러주세요.</div>
         <button id="ctmig-btn" class="b save" onclick="if(confirm('기존 계약서를 비공개로 옮기고 공개본을 삭제합니다. 계속할까요?'))migrateContracts()">기존 계약서 비공개로 옮기기</button>
         <div id="ctmig-log" style="margin-top:12px;font-size:12px;line-height:1.7;max-height:220px;overflow:auto;font-family:monospace;color:var(--mut2);white-space:pre-wrap"></div>
@@ -451,7 +451,7 @@
 
     <!-- 채팅 -->
     <section id="sec-chat">
-      <div class="head"><div><h2>💬 채팅</h2><div class="desc">손님(비로그인) 상담과 입주민·감리사 대화에 답하세요. 손님 문의는 여기서 관리합니다</div></div></div>
+      <div class="head"><div><h2>💬 채팅</h2><div class="desc">손님(비로그인) 상담과 입주민·감리원 대화에 답하세요. 손님 문의는 여기서 관리합니다</div></div></div>
       <div class="add-form" style="margin-bottom:14px"><input id="chat-q" placeholder="🔍 단지·손님·대화 내용으로 검색" style="width:340px" oninput="renderChatThreads()"></div>
       <div style="display:flex;gap:14px;align-items:flex-start">
         <div class="card" style="width:300px;flex-shrink:0;max-height:72vh;overflow:auto;padding:0"><div id="chat-threads"></div></div>
@@ -522,9 +522,9 @@
       <div id="creds-list"></div>
     </section>
 
-    <!-- 리플렛 (감리사 앱에서 태블릿으로 보여주거나 다운로드·공유) -->
+    <!-- 리플렛 (감리원 앱에서 태블릿으로 보여주거나 다운로드·공유) -->
     <section id="sec-leaflets">
-      <div class="head"><div><h2>📁 리플렛</h2><div class="desc">리플렛 이미지를 올리면 감리사 앱 하단 ‘리플렛’ 탭에 표시됩니다. 감리사가 태블릿에서 확대해 보여주거나, 다운받아 공유할 수 있어요</div></div></div>
+      <div class="head"><div><h2>📁 리플렛</h2><div class="desc">리플렛 이미지를 올리면 감리원 앱 하단 ‘리플렛’ 탭에 표시됩니다. 감리원이 태블릿에서 확대해 보여주거나, 다운받아 공유할 수 있어요</div></div></div>
       <div class="card">
         <h3>➕ 리플렛 추가</h3>
         <div class="add-form" style="flex-direction:column;align-items:stretch;gap:10px">
@@ -555,14 +555,14 @@ const SUPABASE_KEY='sb_publishable_J61d8JvrlkNVRyjmAhFwjQ_wExNoZbE';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=(id)=>document.getElementById(id);
 let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],MGRFORMS=[],APT_AUD={};
-// 단지의 감리사 목록: 조인(APT_AUD) 있으면 그걸, 없으면 대표(auditor_id) 하나
+// 단지의 감리원 목록: 조인(APT_AUD) 있으면 그걸, 없으면 대표(auditor_id) 하나
 function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return a.auditor_id?[a.auditor_id]:[]; }
 let RPHOTOS={}; // 보고서별 편집중 사진 목록 {reportId:[url,...]}
 let OPEN_REP_GROUPS=new Set(); // 펼쳐둔 단지 그룹 (저장/업로드 후에도 유지)
 let OPEN_APT_EDITS=new Set(); // 펼쳐둔 단지 '설정' 패널 (저장 후에도 유지)
 let FPHOTOS={}; // 현장기록별 편집중 사진 목록 {fieldId:[url,...]}
 let FNEW=[];    // 새 현장기록 작성용 사진 목록
-const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};
+const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리원',admin:'관리자'};
 const esc=(s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // 내부 이메일(아이디@aptsquare.app)에서 아이디만 표시
 const dispId=(email)=>{const e=(email||'');return e.endsWith('@aptsquare.app')?e.slice(0,-'@aptsquare.app'.length):e;};
@@ -706,7 +706,7 @@ function siteProg(a){ const t=+a.progress_total||0,c=+a.progress_current||0; ret
 function renderSiteList(){
   const box=$('site-list'); if(!box) return;
   if(!APTS||!APTS.length){ box.innerHTML='<div class="empty">등록된 단지가 없어요. 왼쪽 \'단지 관리\'에서 먼저 추가하세요.</div>'; return; }
-  box.innerHTML='<div class="card" style="padding:6px 20px"><table><thead><tr><th>단지명</th><th>지역</th><th>공종</th><th>담당 감리사</th><th>공정률</th><th></th></tr></thead><tbody>'+
+  box.innerHTML='<div class="card" style="padding:6px 20px"><table><thead><tr><th>단지명</th><th>지역</th><th>공종</th><th>담당 감리원</th><th>공정률</th><th></th></tr></thead><tbody>'+
     APTS.map(a=>{const p=siteProg(a);return `<tr>
       <td style="font-weight:700"><span class="link" onclick="openSite('${a.id}')">${esc(a.name)||'-'}</span></td>
       <td>${esc(a.region)||'-'}</td><td>${esc(siteType(a))}</td><td>${esc(siteAuditor(a))}</td>
@@ -785,7 +785,7 @@ async function loadAll(){
   startDataPoll();
   startAdminRealtime();
 }
-// 실시간: 감리사가 단지를 추가/수정/삭제하거나 새 가입·감리일지가 생기면 즉시 대시보드 반영 (폴링 대기 없이)
+// 실시간: 감리원이 단지를 추가/수정/삭제하거나 새 가입·감리일지가 생기면 즉시 대시보드 반영 (폴링 대기 없이)
 let ADMIN_RT=null;
 function startAdminRealtime(){
   try{
@@ -1443,7 +1443,7 @@ function reportCardHtml(r){
     <div style="font-size:11px;color:var(--mut);margin:-2px 0 10px;line-height:1.5">💡 위 사진을 <b>⬇ 다운로드</b>한 뒤, <b>현장 현황</b> 탭 → “➕ 현장 기록 추가”에서 단지·제목·내용을 적어 올리세요.</div>
     <div style="border-top:1px solid var(--line);margin-top:8px;padding-top:11px">
       <div style="font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:3px">📄 입주민 공개 (PDF 문서)</div>
-      <div style="font-size:11px;color:var(--mut);margin-bottom:9px">감리사 작성 내용을 확인하고, <b>문서화한 PDF를 올려 공개</b>하세요. 입주민에겐 <b>동·작업 미리보기 + 이 PDF</b>만 보여요 (점검내용 원문은 안 보임).</div>
+      <div style="font-size:11px;color:var(--mut);margin-bottom:9px">감리원 작성 내용을 확인하고, <b>문서화한 PDF를 올려 공개</b>하세요. 입주민에겐 <b>동·작업 미리보기 + 이 PDF</b>만 보여요 (점검내용 원문은 안 보임).</div>
       <input class="rf-pubtitle" value="${esc(r.pub_title)||''}" placeholder="입주민에게 보일 제목 (예: 106동 외벽 상도 점검)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;margin-bottom:9px;font-family:inherit;outline:none">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         ${r.pdf_url?`<a href="${r.pdf_url}" target="_blank" class="b" style="background:#eef4ff;color:#2F6BF6;font-size:12px">📄 ${esc(r.pdf_name||'PDF')} 보기</a>`:'<span style="font-size:12px;color:var(--mut)">아직 PDF 없음</span>'}
@@ -1462,7 +1462,7 @@ function renderReports(){
   const nn=$('nav-r');if(nn)nn.textContent=REPORTS.length;
   const box=$('reports');if(!box)return;
   RPHOTOS={};
-  if(!REPORTS.length){box.innerHTML='<div class="empty">감리사가 올린 보고서가 아직 없어요.</div>';return;}
+  if(!REPORTS.length){box.innerHTML='<div class="empty">감리원이 올린 보고서가 아직 없어요.</div>';return;}
   const q=(($('rep-q')||{}).value||'').trim().toLowerCase();
   const filtered=REPORTS.filter(r=>{
     if(!q)return true;
@@ -1733,7 +1733,7 @@ function setPubMode(btn){
     if(on){b.style.background='';b.style.color='';}else{b.style.background='#eef1f7';b.style.color='#5a6480';}
   });
 }
-// 관리자가 감리사 작성 내용을 검토/수정 저장 (공개 여부는 별도 토글)
+// 관리자가 감리원 작성 내용을 검토/수정 저장 (공개 여부는 별도 토글)
 async function saveReportAdmin(id){
   const row=document.querySelector(`.card[data-rid="${id}"]`);
   const title=row.querySelector('.rf-title').value.trim();if(!title)return alert('제목을 입력하세요');
@@ -2459,7 +2459,7 @@ function renderApts(){
     const repBadge=nrc>0?`<span title="새 감리일지 ${nrc}건" style="background:#e4544b;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:20px;margin-left:6px;vertical-align:middle">${nrc>99?'99+':nrc}</span>`:'';
     return `<div class="apt" data-id="${a.id}">
       <div class="nm" style="cursor:pointer" onclick="openSite('${a.id}')">${esc(a.name)||'<span style="color:#c3ccdb">(이름없음)</span>'}${repBadge}</div>
-      <div class="meta">${esc(a.region)||'지역 미정'} · ${esc(a.construction_type)||'공종 미정'} · 감리사 ${esc(audNm)}</div>
+      <div class="meta">${esc(a.region)||'지역 미정'} · ${esc(a.construction_type)||'공종 미정'} · 감리원 ${esc(audNm)}</div>
       <div class="bar"><i style="width:${pct}%"></i></div>
       <div class="prog"><span>${now}</span><span>${pc} / ${pt}</span></div>
       <div style="display:flex;gap:8px;margin-top:11px">
@@ -2476,8 +2476,8 @@ function renderApts(){
         <div class="edit"><label>공정</label><select class="f f-stage">${stageOpts(a.method,pc)}</select></div>
         <div class="edit"><label>상태</label><select class="f f-status"><option value="scheduled" ${(!a.status||a.status==='scheduled')?'selected':''}>점검 예정</option><option value="in_progress" ${a.status==='in_progress'?'selected':''}>감리 진행 중</option><option value="done" ${a.status==='done'?'selected':''}>완료 (타 단지 피드엔 숨김)</option></select></div>
         <div class="aud"><label style="min-width:34px;font-size:12px;color:var(--mut2);font-weight:700">대표</label><select class="f f-aud">${audOpts(a.auditor_id)}</select><button class="b save" onclick="saveApt('${a.id}')">저장</button></div>
-        <div style="margin-top:9px;font-size:11.5px;color:var(--mut2);font-weight:700">함께 담당 감리사 <span style="color:var(--mut);font-weight:600">(여러 명 가능 · 입주민에겐 대표만 표시)</span></div>
-        <div style="display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:6px">${auds.length?auds.map(m=>`<label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" class="f-aud-team" value="${m.id}" ${aptAuditors(a).includes(m.id)?'checked':''}> ${esc(m.name||m.email)}</label>`).join(''):'<span style="color:var(--mut);font-size:12px">등록된 감리사 없음</span>'}</div>
+        <div style="margin-top:9px;font-size:11.5px;color:var(--mut2);font-weight:700">함께 담당 감리원 <span style="color:var(--mut);font-weight:600">(여러 명 가능 · 입주민에겐 대표만 표시)</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:6px">${auds.length?auds.map(m=>`<label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" class="f-aud-team" value="${m.id}" ${aptAuditors(a).includes(m.id)?'checked':''}> ${esc(m.name||m.email)}</label>`).join(''):'<span style="color:var(--mut);font-size:12px">등록된 감리원 없음</span>'}</div>
         ${dongProgHtml(a)}
         <div style="text-align:right;margin-top:9px"><button class="b" style="background:#fdecea;color:#e4544b" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button></div>
       </div>
@@ -2500,12 +2500,12 @@ function renderNewReports(){
   if(!list.length){ box.innerHTML='<div class="empty">새로 올라온 감리일지가 없어요 👍</div>'; return; }
   box.innerHTML='<table><tbody>'+list.map(x=>`<tr style="cursor:pointer" onclick="openSite('${x.a.id}')"><td style="font-weight:700">🏢 ${esc(x.a.name)}</td><td style="color:var(--mut);font-size:11px">눌러서 보기</td><td style="text-align:right"><span style="background:#e4544b;color:#fff;font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px">${x.n}건</span></td></tr>`).join('')+'</tbody></table>';
 }
-// 대시보드 홈: 감리사별 담당 단지 + 미배정 단지
+// 대시보드 홈: 감리원별 담당 단지 + 미배정 단지
 function renderAssignments(){
   const auds=(MEMBERS||[]).filter(m=>m.role==='auditor');
   const box=$('assign-list');
   if(box){
-    box.innerHTML = !auds.length ? '<div class="empty">등록된 감리사가 없어요.</div>' :
+    box.innerHTML = !auds.length ? '<div class="empty">등록된 감리원이 없어요.</div>' :
       '<table><tbody>'+auds.map(m=>{
         const mine=(APTS||[]).filter(a=>aptAuditors(a).includes(m.id));
         const chips=mine.length?mine.map(a=>`<span class="pill blue" style="cursor:pointer;margin:2px 4px 2px 0;display:inline-block" onclick="openSite('${a.id}')">${esc(a.name)}</span>`).join(''):'<span style="color:var(--mut);font-size:12px">담당 단지 없음</span>';
@@ -2516,10 +2516,10 @@ function renderAssignments(){
   const ubadge=$('unassigned-badge'); if(ubadge){ ubadge.textContent=un.length; ubadge.style.background=un.length?'#e4544b':''; ubadge.style.color=un.length?'#fff':''; }
   const ubox=$('unassigned-list');
   if(ubox){
-    ubox.innerHTML = un.length ? '<table><tbody>'+un.map(a=>`<tr style="cursor:pointer" onclick="assignApt('${a.id}')"><td style="font-weight:700">🏢 ${esc(a.name)}</td><td style="color:var(--mut)">${esc(a.region)||''}</td><td style="text-align:right"><span class="pill no">배정하기 →</span></td></tr>`).join('')+'</tbody></table>' : '<div class="empty">모든 단지에 감리사가 배정됐어요 👍</div>';
+    ubox.innerHTML = un.length ? '<table><tbody>'+un.map(a=>`<tr style="cursor:pointer" onclick="assignApt('${a.id}')"><td style="font-weight:700">🏢 ${esc(a.name)}</td><td style="color:var(--mut)">${esc(a.region)||''}</td><td style="text-align:right"><span class="pill no">배정하기 →</span></td></tr>`).join('')+'</tbody></table>' : '<div class="empty">모든 단지에 감리원이 배정됐어요 👍</div>';
   }
 }
-// 미배정 단지 클릭 → 공사관리에서 그 단지 설정(감리사 배정) 열기
+// 미배정 단지 클릭 → 공사관리에서 그 단지 설정(감리원 배정) 열기
 function assignApt(id){
   showSection('apts');
   setTimeout(()=>{ const e=$('aptedit-'+id); if(e){ e.style.display='block'; const card=e.closest('.apt'); if(card){ const b=card.querySelector('button[onclick^="toggleAptEdit"]'); if(b) b.innerHTML='⚙️ 설정 ▴'; card.scrollIntoView({behavior:'smooth',block:'center'}); } } }, 70);
@@ -2542,7 +2542,7 @@ function onMethodChange(sel){
 }
 function fillAuditorSelect(){
   const auds=MEMBERS.filter(m=>m.role==='auditor');
-  $('na-auditor').innerHTML='<option value="">담당 감리사</option>'+auds.map(a=>`<option value="${a.id}">${esc(a.name||a.email)}</option>`).join('');
+  $('na-auditor').innerHTML='<option value="">담당 감리원</option>'+auds.map(a=>`<option value="${a.id}">${esc(a.name||a.email)}</option>`).join('');
 }
 
 async function approve(id){const{error}=await sb.from('profiles').update({approved:true}).eq('id',id);if(error)return alert('오류: '+error.message);loadAll();}
@@ -2580,7 +2580,7 @@ async function saveApt(id){
   // 감독 상태: 관리자가 드롭다운으로 직접 지정 (없으면 점검 예정)
   const statusEl=row.querySelector('.f-status');
   const status=statusEl?statusEl.value:'scheduled';
-  // 함께 담당 감리사(체크) + 대표 = 팀 전체
+  // 함께 담당 감리원(체크) + 대표 = 팀 전체
   const team=[...row.querySelectorAll('.f-aud-team:checked')].map(c=>c.value);
   const all=[...new Set([aud,...team].filter(Boolean))];
   const btn=row.querySelector('.save');if(btn){btn.textContent='저장 중…';btn.disabled=true;}

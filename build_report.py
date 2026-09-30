@@ -481,6 +481,14 @@ ondo_cards = [
          [{"path": "온습도계1.png", "label": "제품 이미지"}],
          url="https://www.coupang.com/vp/products/8277606310?itemId=23861888087",
          url_text="쿠팡 링크", decided="3차 회의 전 직원 지급"),
+    card("②", "미니 소형 디지털 온습도계 (무소음 · 4개 세트)",
+         [("구성", "4개 세트 (4cm 미니)"),
+          ("타입", "디지털 · 무소음 · 온도/습도"),
+          ("상품평", "23개 / 평점 5.0"),
+          ("단가", "<strong>3,750원</strong> (4개 세트) · 배송 3,000원")],
+         [{"path": "온습도계2.png", "label": "제품 이미지"}],
+         url="https://www.coupang.com/vp/products/8901993099?itemId=27595442065",
+         url_text="쿠팡 링크"),
 ]
 
 sections_html = "".join([
@@ -491,7 +499,7 @@ sections_html = "".join([
     section("5", "드론 조종기", "현장 운용 장비", dji_cards, decision="미구매 (고가 장비 예시)"),
     section("6", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),
     section("7", "열화상 카메라", "2종 비교", thermal_cards, decision="저가형 1개 구매"),
-    section("8", "온습도계", "전 직원 휴대용", ondo_cards, decision="저가형 전 직원 지급"),
+    section("8", "온습도계", "2종 비교", ondo_cards, decision="저가형 전 직원 지급"),
     section("9", "쌍안경", "2종 비교", bino_cards, decision="고·저배율 각 1개 구매 확정 (테스트용)"),
     section("10", "겨울 유니폼", "2종 검토", uniform_cards, decision="로고 기존 여름·춘추 디자인 유지"),
     section("11", "여름 유니폼", "2종 — 춘하/여름", summer_cards, decision="로고 기존 여름·춘추 디자인 유지"),
@@ -504,7 +512,7 @@ sections_html = "".join([
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("15", "검토 카테고리"), ("36", "검토 항목"),
+summary_cards = [("15", "검토 카테고리"), ("37", "검토 항목"),
                  ("42", "확보 이미지"), ("24", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'

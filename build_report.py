@@ -113,15 +113,16 @@ def images_block(imgs, alt, cols=1, stack=False):
 
 
 def card(number, title, specs, imgs, url=None, url_text="제품 링크", pending=False,
-         stack=False, cols=1, span=False, badge=None):
+         stack=False, cols=1, span=False, badge=None, decided=None):
     badge_text = badge or ("정보 확인 예정" if pending else None)
     badge = f'<span class="pend-badge">{badge_text}</span>' if badge_text else ""
     is_pending = pending or bool(badge_text)
-    cls = "product-card" + (" pending" if is_pending else "") + (" fullspan" if span else "")
+    cls = "product-card" + (" pending" if is_pending else "") + (" fullspan" if span else "") + (" decided" if decided else "")
+    dec_html = f'<span class="decided-badge">✅ {decided}</span>' if decided else ""
     return f"""<div class="{cls}">
   <div class="product-card-header">
     <h3>{number} {title}</h3>
-    {link_btn(url, url_text)}
+    {dec_html}{link_btn(url, url_text)}
   </div>
   <div class="product-card-body">
     {images_block(imgs, title, cols=cols, stack=stack)}
@@ -133,15 +134,17 @@ def card(number, title, specs, imgs, url=None, url_text="제품 링크", pending
 </div>"""
 
 
-def section(num, title, badge, cards):
+def section(num, title, badge, cards, decision=None):
     grid = "\n".join(cards)
     badge_html = f'<span class="section-badge">{badge}</span>' if badge else ""
+    dec_html = (f'<span class="decided-badge">✅ 3차 회의 결정 · {decision}</span>'
+                if decision else "")
     return f"""<!-- ===== {num}. {title} ===== -->
 <section class="report-section">
   <div class="section-header">
     <div class="section-num">{num}</div>
     <div class="section-title">{title}</div>
-    {badge_html}
+    {badge_html}{dec_html}
   </div>
   <div class="product-grid">
 {grid}
@@ -461,19 +464,19 @@ idcard_cards = [
 ]
 
 sections_html = "".join([
-    section("1", "볼펜 / 젤펜", "4종 검토", pen_cards),
-    section("2", "손전등 / 랜턴", "4종 비교", flash_cards),
-    section("3", "함수율 측정기", "4종 비교", moist_cards),
+    section("1", "볼펜 / 젤펜", "4종 검토", pen_cards, decision="1,820원 흑백 볼펜 잠정 선정"),
+    section("2", "손전등 / 랜턴", "4종 비교", flash_cards, decision="대량 구매 안 함 (휴대폰으로 충분)"),
+    section("3", "함수율 측정기", "4종 비교", moist_cards, decision="저가형 1개 구매"),
     section("4", "칫솔치약세트", "4종 비교", tooth_cards),
-    section("5", "드론 조종기", "현장 운용 장비", dji_cards),
+    section("5", "드론 조종기", "현장 운용 장비", dji_cards, decision="미구매 (고가 장비 예시)"),
     section("6", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),
-    section("7", "열화상 카메라", "2종 비교", thermal_cards),
-    section("8", "쌍안경", "2종 비교", bino_cards),
-    section("9", "겨울 유니폼", "2종 검토", uniform_cards),
-    section("10", "여름 유니폼", "2종 — 춘하/여름", summer_cards),
+    section("7", "열화상 카메라", "2종 비교", thermal_cards, decision="저가형 1개 구매"),
+    section("8", "쌍안경", "2종 비교", bino_cards, decision="고·저배율 각 1개 구매 확정 (테스트용)"),
+    section("9", "겨울 유니폼", "2종 검토", uniform_cards, decision="로고 기존 여름·춘추 디자인 유지"),
+    section("10", "여름 유니폼", "2종 — 춘하/여름", summer_cards, decision="로고 기존 여름·춘추 디자인 유지"),
     section("11", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
     section("12", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards),
-    section("13", "제안서", "클릭 시 원본 PDF", proposal_cards),
+    section("13", "제안서", "클릭 시 원본 PDF", proposal_cards, decision="페이퍼용/PT용 이원화"),
     section("14", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards),
 ])
 
@@ -591,15 +594,12 @@ DOC = f"""<!DOCTYPE html>
   .link-btn.secondary {{ background:#e0f2fe; color:var(--brand-dark); border:1px solid #bae6fd; }}
   .link-btn.secondary:hover {{ background:#bae6fd; }}
 
-  .decision-box {{ background:#f0fdf4; border:1px solid #bbf7d0; border-left:5px solid #22c55e;
-    border-radius:14px; padding:20px 24px; margin-bottom:36px; box-shadow:var(--shadow); }}
-  .decision-head {{ font-size:18px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:10px; }}
-  .decision-date {{ background:#dcfce7; color:#166534; font-size:12px; font-weight:700; padding:2px 10px; border-radius:999px; }}
-  .decision-sub {{ margin:6px 0 12px; font-size:13px; color:var(--muted); }}
-  .decision-list {{ margin:0; padding-left:20px; display:grid; grid-template-columns:1fr 1fr; gap:6px 28px; }}
-  .decision-list li {{ font-size:13.5px; line-height:1.55; color:var(--ink); }}
-  .decision-list b {{ color:#15803d; }}
-  @media (max-width:820px) {{ .decision-list {{ grid-template-columns:1fr; }} }}
+  .decided-badge {{ background:#dcfce7; color:#166534; border:1px solid #86efac;
+    padding:5px 12px; border-radius:999px; font-size:12.5px; font-weight:700; white-space:nowrap; }}
+  .section-header .decided-badge {{ margin-left:8px; }}
+  .product-card.decided {{ border-color:#86efac; box-shadow:0 0 0 2px #dcfce7 inset, var(--shadow); }}
+  .product-card.decided .product-card-header {{ background:#f0fdf4; }}
+  .product-card-header .decided-badge {{ margin-left:auto; }}
   .report-footer {{ margin-top:48px; padding:24px; background:var(--card); border:1px solid var(--line);
     border-radius:14px; font-size:13px; color:var(--muted); line-height:1.8; }}
   .report-footer strong {{ color:var(--ink); }}
@@ -643,21 +643,6 @@ DOC = f"""<!DOCTYPE html>
 </div>
 
 <main class="content">
-  <div class="decision-box">
-    <div class="decision-head">📋 3차 운영회의 결정사항 <span class="decision-date">2026-09-22</span></div>
-    <p class="decision-sub">아래 항목은 3차 회의에서 결정된 사항으로, 본 검토보고서 범위에 해당합니다.</p>
-    <ul class="decision-list">
-      <li><b>볼펜(판촉물)</b> — 1,820원 흑백 볼펜으로 <b>잠정 선정</b> (입주자대표회의 등 일회성 브랜드 각인용, 절감액은 타 항목에 투자)</li>
-      <li><b>쌍안경</b> — 고배율·저배율 <b>각 1개 구매 확정</b> (테스트용, 휴대폰 확대로는 균열 식별 한계)</li>
-      <li><b>열화상 카메라</b> — 사용 빈도 낮아 <b>저가형 1개</b> 구매</li>
-      <li><b>함수율 측정기</b> — <b>저가형 1개 추가</b> (약 2만 원대)</li>
-      <li><b>온습도계</b> — 저가형 <b>전 직원 지급</b> (습도 85%↑ 작업중지 규정 확인용)</li>
-      <li><b>손전등</b> — <b>대량 구매하지 않음</b> (휴대폰으로 충분)</li>
-      <li><b>드론</b> — 고가 장비(약 121만 원) <b>예시로만 언급 · 미구매</b></li>
-      <li><b>현장 복장(유니폼)</b> — 로고는 <b>기존 여름·춘추 디자인과 동일하게 유지</b></li>
-      <li><b>제안서</b> — 페이퍼 전달용(상세) / PT용(발췌) <b>이원화</b></li>
-    </ul>
-  </div>
 {sections_html}
   <div class="report-footer">
     <strong>안내</strong><br>

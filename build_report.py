@@ -260,6 +260,14 @@ moist_cards = [
           ("단가", "<strong>153,200원</strong>")],
          [{"path": "14_CT-7822S_수분계.jpg", "label": "제품 이미지"}],
          url="https://www.coupang.com/vp/products/8906011099?itemId=26203505510", url_text="쿠팡 링크"),
+    card("⑤", "다솔 — 멀티 함수율 측정기 (GM605)",
+         [("모델", "GM605 (판매자 다솔)"),
+          ("대상", "목재 · 나무 · 콘크리트 수분 측정"),
+          ("상품평", "13개"),
+          ("단가", "<strong>27,000원</strong> (22% 할인, 정가 35,000원) · 배송 2,500원")],
+         [{"path": "함수율5_GM605.png", "label": "제품 이미지"}],
+         url="https://www.coupang.com/vp/products/7324088438?itemId=18790807866",
+         url_text="쿠팡 링크", decided="3차 회의 저가형 구매"),
 ]
 
 # ----- 4. 칫솔치약세트 -----
@@ -466,7 +474,7 @@ idcard_cards = [
 sections_html = "".join([
     section("1", "볼펜 / 젤펜", "4종 검토", pen_cards, decision="1,820원 흑백 볼펜 잠정 선정"),
     section("2", "손전등 / 랜턴", "4종 비교", flash_cards, decision="대량 구매 안 함 (휴대폰으로 충분)"),
-    section("3", "함수율 측정기", "4종 비교", moist_cards, decision="저가형 1개 구매"),
+    section("3", "함수율 측정기", "5종 비교", moist_cards, decision="저가형(GM605) 구매"),
     section("4", "칫솔치약세트", "4종 비교", tooth_cards),
     section("5", "드론 조종기", "현장 운용 장비", dji_cards, decision="미구매 (고가 장비 예시)"),
     section("6", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),

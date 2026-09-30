@@ -471,6 +471,18 @@ idcard_cards = [
          [{"path": "사원증_목업2.png", "label": "실물 목업 · 클릭 시 크게 보기", "mock": True, "hifi": True}]),
 ]
 
+# ----- 온습도계 -----
+ondo_cards = [
+    card("①", "바헤르츠 포켓 디지털 온습도계",
+         [("타입", "디지털 · 화이트 · 벽걸이 가능"),
+          ("용도", "온도·습도 확인 (습도 85%↑ 작업중지 규정 확인용)"),
+          ("상품평", "312개 · 200명+ 만족"),
+          ("단가", "<strong>18,900원</strong> (로켓배송)")],
+         [{"path": "온습도계1.png", "label": "제품 이미지"}],
+         url="https://www.coupang.com/vp/products/8277606310?itemId=23861888087",
+         url_text="쿠팡 링크", decided="3차 회의 전 직원 지급"),
+]
+
 sections_html = "".join([
     section("1", "볼펜 / 젤펜", "4종 검토", pen_cards, decision="1,820원 흑백 볼펜 잠정 선정"),
     section("2", "손전등 / 랜턴", "4종 비교", flash_cards, decision="대량 구매 안 함 (휴대폰으로 충분)"),
@@ -479,19 +491,20 @@ sections_html = "".join([
     section("5", "드론 조종기", "현장 운용 장비", dji_cards, decision="미구매 (고가 장비 예시)"),
     section("6", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),
     section("7", "열화상 카메라", "2종 비교", thermal_cards, decision="저가형 1개 구매"),
-    section("8", "쌍안경", "2종 비교", bino_cards, decision="고·저배율 각 1개 구매 확정 (테스트용)"),
-    section("9", "겨울 유니폼", "2종 검토", uniform_cards, decision="로고 기존 여름·춘추 디자인 유지"),
-    section("10", "여름 유니폼", "2종 — 춘하/여름", summer_cards, decision="로고 기존 여름·춘추 디자인 유지"),
-    section("11", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
-    section("12", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards),
-    section("13", "제안서", "클릭 시 원본 PDF", proposal_cards, decision="페이퍼용/PT용 이원화"),
-    section("14", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards),
+    section("8", "온습도계", "전 직원 휴대용", ondo_cards, decision="저가형 전 직원 지급"),
+    section("9", "쌍안경", "2종 비교", bino_cards, decision="고·저배율 각 1개 구매 확정 (테스트용)"),
+    section("10", "겨울 유니폼", "2종 검토", uniform_cards, decision="로고 기존 여름·춘추 디자인 유지"),
+    section("11", "여름 유니폼", "2종 — 춘하/여름", summer_cards, decision="로고 기존 여름·춘추 디자인 유지"),
+    section("12", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
+    section("13", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards),
+    section("14", "제안서", "클릭 시 원본 PDF", proposal_cards, decision="페이퍼용/PT용 이원화"),
+    section("15", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("14", "검토 카테고리"), ("32", "검토 항목"),
+summary_cards = [("15", "검토 카테고리"), ("36", "검토 항목"),
                  ("42", "확보 이미지"), ("24", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -638,10 +651,10 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 14개 카테고리</span>
+    <span class="chip">총 15개 카테고리</span>
     <span class="chip">35개 항목 검토</span>
   </div>
 </header>

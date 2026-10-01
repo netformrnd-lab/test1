@@ -4293,16 +4293,6 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   .pj-sub{grid-template-columns:22px 1fr auto 26px}
   .pj-sub .pj-sb{display:none}
 }
-/* 카드 속 프로젝트 줄 */
-.tp-o{flex:0 0 auto;font-size:10px}
-.tp-n2{flex:0 0 auto;font-size:10px;font-weight:700;color:var(--text-muted);cursor:pointer}
-.tp-e{flex:0 0 auto;width:20px;height:20px;padding:0;border:none;border-radius:6px;
-  background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;opacity:.5}
-.tp-i:hover .tp-e{opacity:1}
-.tp-e:hover{background:var(--bg-sunken);color:var(--blue)}
-.tp-b{height:6px;margin:6px 0 3px;border-radius:99px;background:var(--bg-sunken);
-  overflow:hidden;cursor:pointer}
-.tp-b i{display:block;height:100%;border-radius:99px;background:var(--tc);transition:width .25s}
 /* 📊 위쪽 넷 — 오늘 루틴 · 진행중 프로젝트 · 마감 임박 · 이번 주 완료 */
 .tq-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;
   margin:0 0 14px}
@@ -4342,13 +4332,6 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tw-w,.tw-g{flex:0 0 auto;font-size:11.5px;color:var(--text-muted);white-space:nowrap}
 .tw-p{flex:0 0 auto;font-size:11.5px;font-weight:700;color:var(--text-secondary)}
-/* 어느 브랜드에 넣을지 — 누른 그 자리에서 묻습니다 */
-.tt-pick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 10px;
-  padding:9px 10px;border:1px solid var(--blue);border-radius:10px;
-  background:color-mix(in srgb,var(--blue) 6%,transparent)}
-.tt-pick>span{font-size:12px;font-weight:600;color:var(--text-secondary);flex:0 0 auto}
-.tt-pick.in{margin:0 0 8px}
-.tt-pick.in .btn.sm{font-size:11.5px;padding:4px 9px}
 /* 오늘 잡힌 일이 없는 카드 */
 .tt-zero{padding:16px}
 .tt-zero p{margin:0 0 10px;font-size:12.5px;color:var(--text-muted);text-align:center}
@@ -4369,17 +4352,33 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   border-radius:6px;background:var(--bg-card);color:var(--text-muted);font-size:12px;
   line-height:1;cursor:pointer}
 .tt-p:hover{border-color:var(--tc);color:var(--tc)}
-.tp-i{padding:7px 8px 4px;border-radius:8px}
-.tp-i:hover{background:var(--bg-hover)}
-.tp-i.slow{background:color-mix(in srgb,var(--red) 5%,transparent)}
-.tp-h{display:flex;align-items:center;gap:8px}
-.tp-t{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;color:var(--text-primary);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
-.tp-t:hover{color:var(--blue)}
-.tp-s{flex:0 0 auto;font-size:10px;font-weight:700;color:var(--red)}
-.tp-v{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--text-secondary);
-  min-width:30px;text-align:right}
-.tp-r{width:100%;margin:5px 0 2px;accent-color:var(--tc);cursor:pointer}
+/* 🚀 프로젝트 칸 — 할 일 한 줄보다 크게 섭니다 */
+.tt-pj{padding:10px 11px 9px 13px;margin-bottom:6px;border-radius:9px;
+  border:1px solid var(--border);border-left:3px solid var(--tc);background:var(--bg-secondary);
+  cursor:pointer;transition:.14s var(--ease)}
+.tt-pj:last-child{margin-bottom:0}
+.tt-pj:hover{background:var(--bg-card);box-shadow:var(--shadow-sm);border-color:var(--tc)}
+.tt-pj.slow{border-left-color:var(--red);
+  background:color-mix(in srgb,var(--red) 5%,var(--bg-secondary))}
+.tt-pj-h{display:flex;align-items:center;gap:7px}
+.tt-pj-h b{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:700;letter-spacing:-.01em;
+  color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tt-pj-o{flex:0 0 auto;font-size:10px}
+.tt-pj-s{flex:0 0 auto;font-size:10px;font-weight:700;color:var(--red)}
+.tt-pj-e{flex:0 0 auto;font-size:11px;color:var(--text-muted);opacity:0;transition:opacity .14s}
+.tt-pj:hover .tt-pj-e{opacity:1}
+.tt-pj-m{display:flex;align-items:center;gap:9px;margin-top:7px}
+.tt-pj-b{flex:1 1 auto;height:7px;border-radius:99px;background:var(--bg-sunken);overflow:hidden}
+.tt-pj-b i{display:block;height:100%;border-radius:99px;background:var(--tc);transition:width .25s}
+.tt-pj.slow .tt-pj-b i{background:var(--red)}
+.tt-pj-v{flex:0 0 auto;min-width:38px;text-align:right;font-size:13px;font-weight:800;
+  letter-spacing:-.02em;color:var(--text-primary)}
+.tt-pj-v em{font-style:normal;font-size:10px;font-weight:700;color:var(--text-muted);
+  margin-left:1px}
+.tt-pj-f{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:6px;
+  font-size:10.5px;color:var(--text-muted)}
+.tt-pj-f i{font-style:normal;opacity:.5}
+.tt-pj-f .late{color:var(--red);font-weight:700}
 .tt-sect{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   margin:26px 0 14px;font-size:17px;font-weight:800;letter-spacing:-.02em;
   color:var(--text-primary)}
@@ -4690,7 +4689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261001-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261001-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5060,7 +5059,9 @@ const TYPES = {
         def: () => { const m = authMe(); return m ? m.id : ''; } },
       { key:'owner',  label:'담당자',  type:'text',     ph:'예: 김담당 매니저',
         when: () => !authOn() },
-      { key:'due',    label:'기한',    type:'date' },
+      /* 기한은 <<비워 둡니다>>. 저절로 오늘이 박히는 바람에, 새로 적은
+         할 일이 곧바로 「⏰ 마감 임박」 · 「오늘까지」 로 올라갔습니다. */
+      { key:'due',    label:'기한 (선택)', type:'date', noDefault:true },
       { key:'note',   label:'메모',    type:'textarea', ph:'배경이나 참고할 내용' }
     ]
   },
@@ -11319,6 +11320,19 @@ function taskPeople(){
   }
   // 아직 사람 목록을 못 받아왔으면 적어도 나는 고를 수 있게 합니다
   if(!listed && me) opts.push({ value:me.id, label:me['이름'] + ' (나)' });
+  /* ── 계정이 없는 팀원도 고를 수 있어야 합니다 ──────────────────
+     ✅ 할 일 화면은 팀원 이름으로 카드를 세웁니다. 그 가운데 계정이
+     아직 없는 분이 있으면 고를 수가 없었고, 그러면 창이 「나」 로
+     기본값을 잡아 <<내 할 일>> 이 되어 버렸습니다. 이름만으로도
+     맡길 수 있게 「nm:이름」 으로 넣어 둡니다. */
+  const has = {};
+  (people.list || []).forEach(u => { has[String(u['이름'] || '').trim()] = 1; });
+  if(me) has[String(me['이름'] || '').trim()] = 1;
+  memNames().forEach(nm => {
+    if(!nm || has[nm]) return;
+    has[nm] = 1;
+    opts.push({ value:'nm:' + nm, label: nm + ' (팀원)' });
+  });
   return opts;
 }
 
@@ -15012,11 +15026,14 @@ function evPeople(){
 
 /* 이 할 일을 맡은 사람 — 계정을 쓰면 아이디, 안 쓰면 적어둔 이름 */
 function taskOwnerKey(t){
-  if(authOn()) return t.uid || '__pub';
+  /* 계정이 있으면 그 아이디로, 없으면 적어 둔 이름으로 가립니다 */
+  if(authOn()) return t.uid || (String(t.owner || '').trim()
+    ? 'nm:' + String(t.owner).trim() : '__pub');
   return (t.owner || '').trim() || '__pub';
 }
 function taskOwnerName(key){
   if(key === '__pub') return '공용 (맡은 사람 없음)';
+  if(String(key).indexOf('nm:') === 0) return String(key).slice(3);
   return authOn() ? (peopleName(key) || key) : key;
 }
 
@@ -15163,18 +15180,6 @@ function projStale(t){
   return isFinite(d) ? Math.max(0, d) : 0;
 }
 const PROJ_STALE = 7;                 // 이레 넘게 안 움직이면 「더딘 일」
-function projSet(id, bid, v){
-  const b = brandById(bid);
-  const t = b && (b.tasks || []).find(x => x.id === id);
-  if(!t) return;
-  const was = projPct(t);
-  t.pct = String(v);
-  if(projPct(t) !== was) t.pctAt = todayStr();     // 움직인 날을 적어 둡니다
-  if(projPct(t) >= 100) t.status = '완료';
-  else if(t.status === '완료') t.status = '진행 중';
-  t.updatedAt = new Date().toISOString();
-  markDirty(b.id); render();
-}
 /* ── 🚀 프로젝트 고치기 창 ───────────────────────────────────────
    할 일 창으로는 프로젝트가 잘 안 보였습니다. 프로젝트는 <<쪼개서>>
    굴러갑니다 — 보조 업무마다 몇 %인지가 있고, 그 평균이 메인 진척률
@@ -15417,7 +15422,9 @@ function taskAddWho(name){
     pre.owner = name;
     if(authOn()){
       const u = (people.list || []).find(x => String(x['이름'] || '').trim() === name);
-      if(u) pre.uid = u.id;
+      /* 계정이 없으면 이름으로 — 안 그러면 창이 「나」 로 잡아
+         남의 카드에서 넣은 일이 내 할 일이 됩니다 */
+      pre.uid = u ? u.id : 'nm:' + name;
     }
   }
   openItemModal('tasks', null, pre, projBrandOf(name));
@@ -15605,31 +15612,39 @@ function memCard(m, t, hue, rows){
     + (r.t.due ? '<span class="tt-d' + (r.t.due < iso ? ' late' : '') + '">'
         + esc(String(r.t.due).slice(5)) + '</span>' : '')
     + '</div>';
-  /* 프로젝트 한 줄 — 진척률 막대를 그 자리에서 끌어 올립니다 */
+  /* ── 🚀 프로젝트는 <<칸>> 으로 세웁니다 ──────────────────────
+     할 일과 똑같은 한 줄로 두니 묻혀 보였습니다. 프로젝트는 여러 날
+     굴러가는 큰 덩어리라 제 자리를 차지해야 합니다 — 왼쪽에 빛깔 띠,
+     이름을 크게, 그 밑에 굵은 막대와 %, 마지막 줄에 며칠째인지 ·
+     보조 업무 · 기한 · 어느 브랜드.
+     (클래스 이름은 .tt-pj* 입니다 — .tp-* 는 마케팅 접점이 이미 씁니다) */
   const prow = r => {
     const v = projPct(r.t), st = projStale(r.t);
     const ss = projSubs(r.t);
     const sd = ss.filter(x => x.st === '끝').length;
     const go = 'projOpen(\'' + jsq(r.t.id) + '\',\'' + jsq(r.b.id) + '\')';
-    return '<div class="tp-i' + (st >= PROJ_STALE ? ' slow' : '') + '">'
-      + '<div class="tp-h">'
+    const days = r.t.start
+      ? Math.max(0, Math.round((new Date(iso) - new Date(r.t.start)) / 86400000)) : null;
+    const foot = [];
+    if(days !== null) foot.push('<span title="시작한 지">' + days + '일째</span>');
+    if(ss.length) foot.push('<span title="보조 업무">📎 ' + sd + '/' + ss.length + '</span>');
+    if(r.t.due) foot.push('<span class="' + (r.t.due < iso ? 'late' : '')
+      + '" title="기한">⏰ ' + esc(String(r.t.due).slice(5)) + '</span>');
+    foot.push('<span title="어느 브랜드">' + esc(r.b.icon || '🏷️') + ' ' + esc(r.b.name) + '</span>');
+    return '<div class="tt-pj' + (st >= PROJ_STALE ? ' slow' : '') + '" onclick="' + go + '"'
+      + ' title="눌러서 고치기">'
+      + '<div class="tt-pj-h">'
         + (r.t.prio && r.t.prio !== '보통'
-            ? '<span class="tp-o" title="먼저 할 것: ' + esc(r.t.prio) + '">'
+            ? '<span class="tt-pj-o" title="먼저 할 것: ' + esc(r.t.prio) + '">'
               + (r.t.prio === '높음' ? '🔴' : '🟢') + '</span>' : '')
-        + '<span class="tp-t" onclick="' + go + '" title="눌러서 고치기 — ' + esc(r.t.title) + '">'
-          + esc(r.t.title) + '</span>'
-        + (ss.length ? '<span class="tp-n2" onclick="' + go + '" title="보조 업무">📎 '
-            + sd + '/' + ss.length + '</span>' : '')
-        + (st >= PROJ_STALE ? '<span class="tp-s" title="' + st + '일째 그대로">🐢 ' + st + '일</span>' : '')
-        + '<span class="tp-v">' + v + '%</span>'
-        + '<button class="tp-e" onclick="' + go + '" title="프로젝트 고치기">✎</button>'
+        + '<b>' + esc(r.t.title) + '</b>'
+        + (st >= PROJ_STALE
+            ? '<span class="tt-pj-s" title="' + st + '일째 그대로">🐢 ' + st + '일</span>' : '')
+        + '<span class="tt-pj-e">✎</span>'
       + '</div>'
-      + (ss.length
-          ? '<div class="tp-b" title="보조 업무 ' + ss.length + '개의 평균입니다 — 눌러서 고칩니다"'
-            + ' onclick="' + go + '"><i style="width:' + v + '%"></i></div>'
-          : '<input type="range" class="tp-r" min="0" max="100" step="10" value="' + v + '"'
-            + ' oninput="this.parentNode.querySelector(\'.tp-v\').textContent=this.value+\'%\'"'
-            + ' onchange="projSet(\'' + jsq(r.t.id) + '\',\'' + jsq(r.b.id) + '\', this.value)">')
+      + '<div class="tt-pj-m"><div class="tt-pj-b"><i style="width:' + v + '%"></i></div>'
+        + '<span class="tt-pj-v">' + v + '<em>%</em></span></div>'
+      + (foot.length ? '<div class="tt-pj-f">' + foot.join('<i>·</i>') + '</div>' : '')
       + '</div>';
   };
   /* [＋] 를 누르면 그 자리에서 <<바로 창>> 이 뜹니다 — 브랜드도 창 안에서 */
@@ -23176,7 +23191,12 @@ function submitItem(){
   }
   // 할 일은 맡은 사람 이름도 같이 적어둡니다 (계정을 안 쓰게 되어도 남게)
   if(itemType === 'tasks' && authOn()){
-    payload.owner = payload.uid ? (peopleName(payload.uid) || payload.owner || '') : '';
+    if(String(payload.uid || '').indexOf('nm:') === 0){
+      payload.owner = String(payload.uid).slice(3);   // 계정이 없는 팀원
+      payload.uid = '';
+    }else{
+      payload.owner = payload.uid ? (peopleName(payload.uid) || payload.owner || '') : '';
+    }
   }
   // 끝나는 날이 시작보다 앞이면 잘못 고른 것입니다
   if(payload.until && payload.date && payload.until < payload.date){

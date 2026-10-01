@@ -4379,6 +4379,29 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   font-size:10.5px;color:var(--text-muted)}
 .tt-pj-f i{font-style:normal;opacity:.5}
 .tt-pj-f .late{color:var(--red);font-weight:700}
+/* 📈 그로스보드를 옮겨 오라는 띠 */
+.tt-gb{display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:12px 15px;
+  border:1px solid var(--border);border-left:4px solid var(--green,#2e7d52);
+  border-radius:12px;background:var(--bg-card)}
+.tt-gb .i{font-size:17px;flex:0 0 auto}
+.tt-gb div{flex:1 1 auto;min-width:0}
+.tt-gb b{display:block;font-size:13.5px;font-weight:800;color:var(--text-primary)}
+.tt-gb span:not(.i){display:block;margin-top:2px;font-size:11.5px;color:var(--text-muted)}
+/* 🗺️ 마인드맵 */
+.mm-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.mm-sel{font-family:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--border);
+  border-radius:8px;background:var(--bg-input);color:var(--text-primary)}
+.mm-n{font-size:12px;color:var(--text-muted);margin-right:auto}
+.mm-box{overflow:auto;border:1px solid var(--border);border-radius:12px;background:#fff;
+  padding:6px}
+.mm-box svg{display:block;max-width:none}
+.mm-leg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:9px;
+  font-size:11.5px;font-weight:700}
+.mm-leg .hint{margin-left:auto;font-weight:500;color:var(--text-muted)}
+@media print{
+  .topbar,.side,.tt-sect,.mm-bar,.mm-leg,.tt-gb,.tq-row,.tk-row,.tw{display:none !important}
+  .mm-box{border:0;overflow:visible}
+}
 .tt-sect{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   margin:26px 0 14px;font-size:17px;font-weight:800;letter-spacing:-.02em;
   color:var(--text-primary)}
@@ -4689,7 +4712,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261001-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261001-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -15502,6 +15525,286 @@ function teamKpiHtml(){
         + ' onkeydown="if(event.key===\'Enter\')this.blur()">'
       + '</div>').join('') + '</div>';
 }
+/* ═══════════════ 📈 그로스보드를 할 일로 ═══════════════════════
+   그로스보드는 「사람 × 해 → 단계 → 업무 → 실행/가설 → 줄」 이었고,
+   할 일은 「팀 → 사람 → 프로젝트 → 보조 업무」 입니다. 두 곳에 같은
+   일을 따로 적고 있었습니다. 그로스보드의 업무를 <<프로젝트 그대로>>
+   옮겨 담습니다 — 단계(유입 · 전환 …)는 꼬리표로 남기고, 실행 줄은
+   보조 업무가 됩니다. 한 번 옮긴 것은 자국(gbFrom)을 남겨 두 번
+   들어오지 않습니다.
+   ================================================================= */
+function gbSteps(it){
+  const out = [];
+  (it.acts || []).forEach(a => {
+    const head = String(a.text || '').replace(/\s+/g, ' ').trim();
+    if(head) out.push(head);
+    (a.steps || []).forEach(r => {
+      const t = String(r.text || '').replace(/\s+/g, ' ').trim();
+      if(t) out.push(t);
+      (r.subs || []).forEach(x => {
+        const u = String((x && x.text) || x || '').replace(/\s+/g, ' ').trim();
+        if(u) out.push(u);
+      });
+    });
+  });
+  return out.slice(0, 20);
+}
+/* 아직 안 옮긴 그로스보드 업무 */
+function gbToMove(){
+  const done = {};
+  (data.brands || []).forEach(b => (b.tasks || []).forEach(t => {
+    if(t.gbFrom) done[t.gbFrom] = 1;
+  }));
+  const out = [];
+  (data.growth || []).forEach(g => (g.stages || []).forEach(st => (st.items || []).forEach(it => {
+    if(!it || !it.id || done[it.id]) return;
+    if(!String(it.title || '').trim()) return;
+    out.push({ g: g, st: st, it: it });
+  })));
+  return out;
+}
+function gbMove(){
+  const list = gbToMove();
+  if(!list.length){ toast('옮길 그로스보드 업무가 없습니다'); return; }
+  if(!confirm('그로스보드의 업무 ' + list.length + '건을 할 일의 <<프로젝트>> 로 옮겨 담습니다.\n\n'
+    + '· 단계(유입 · 전환 …)는 꼬리표로 남습니다\n'
+    + '· 실행 · 가설로 적어 둔 줄은 보조 업무가 됩니다\n'
+    + '· 그로스보드의 원래 내용은 <<지우지 않습니다>>\n'
+    + '· 한 번 옮긴 것은 다시 들어오지 않습니다')) return;
+  const first = (data.brands || [])[0];
+  let n = 0;
+  list.forEach(x => {
+    const b = brandById(x.it.brandId) || first;
+    if(!b) return;
+    if(!Array.isArray(b.tasks)) b.tasks = [];
+    const steps = gbSteps(x.it);
+    const nm = gbName(x.g.who) || String(x.g.who || '');
+    const st = String(x.it.status || '진행 중');
+    b.tasks.unshift({
+      id: uid('i'), kind:'프로젝트', gbFrom: x.it.id,
+      title: String(x.it.title || '').trim(),
+      owner: nm, uid: (authOn() && peopleName(x.g.who) !== x.g.who) ? x.g.who : '',
+      stage: String(x.st.label || ''), year: String(x.g.year || ''),
+      status: st, pct: st === '완료' ? '100' : '0', pctAt: todayStr(),
+      start: String(x.g.createdAt || '').slice(0, 10) || todayStr(),
+      prio: '보통',
+      subs: steps.map(t => ({ id: uid('sb'), title: t, st:'할일', pct:'0' })),
+      updatedAt: new Date().toISOString()
+    });
+    markDirty(b.id);
+    n++;
+  });
+  markDirtyAll(); render();
+  toast('📈 그로스보드 업무 ' + n + '건을 프로젝트로 옮겼습니다');
+}
+
+/* ═══════════════ 🗺️ 업무 마인드맵 ═══════════════════════════════
+   팀 → 사람 → 업무 → 보조 업무가 한 장에 펴집니다. 누가 무엇을 얼마나
+   들고 있는지, 어디가 비어 있는지가 글로는 안 보입니다.
+   ================================================================= */
+let mmOn   = false;     // 지도로 보는 중인가
+let mmWho  = '';        // '' = 모두
+let mmKind = '';        // '' = 모두 · 'proj' · 'rout' · 'live'
+function mmToggle(){ mmOn = !mmOn; render(); }
+function mmSet(k, v){ if(k === 'who') mmWho = v; else mmKind = v; render(); }
+function mmEsc(x){
+  return String(x == null ? '' : x).replace(/[<>&"']/g,
+    c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+/* 글자 폭을 어림잡습니다 — 한글은 넓고 알파벳은 좁습니다 */
+function mmW(t, fs){
+  let w = 0;
+  String(t || '').split('').forEach(ch => { w += /[가-힣ㄱ-ㅎ]/.test(ch) ? fs : fs * 0.56; });
+  return w + 8;
+}
+function mmTree(rows){
+  const iso = todayStr();
+  let nTask = 0, nSub = 0;
+  const root = { t:'root', nm:'우리 팀 업무', kids: [] };
+  teamsOf().forEach((tm, i) => {
+    const hue = teamHue(i);
+    const tn = { t:'team', nm: tm.name, hue: hue, kpi: tm.kpi || '', kids: [] };
+    tm.members.forEach(m => {
+      const nm = String(m.name || '').trim();
+      if(mmWho && mmWho !== nm) return;
+      const mn = { t:'mem', nm: nm + (m.role ? ' · ' + m.role : ''), hue: hue,
+                   kpi: m.kpi || '', kids: [] };
+      /* 루틴 */
+      if(mmKind === '' || mmKind === 'rout'){
+        routOf(m).forEach(r => {
+          nTask++;
+          mn.kids.push({ t:'rout', nm: r.title, pct: routDone(r, iso) ? 100 : 0,
+                         done: routDone(r, iso), tag: r.freq || '매일', kids: [] });
+        });
+      }
+      /* 프로젝트 · 할 일 */
+      memRows(m, rows).forEach(r => {
+        const pj = isProj(r.t);
+        if(mmKind === 'proj' && !pj) return;
+        if(mmKind === 'rout') return;
+        if(mmKind === 'live' && r.t.status === '완료') return;
+        nTask++;
+        const n2 = { t: pj ? 'proj' : 'job', nm: r.t.title,
+                     pct: pj ? projPct(r.t) : (r.t.status === '완료' ? 100 : 0),
+                     done: r.t.status === '완료', hold: r.t.status === '보류',
+                     tag: r.t.stage || '', kids: [] };
+        projSubs(r.t).forEach(x => {
+          nSub++;
+          n2.kids.push({ t:'sub', nm: x.title, pct: parseInt(x.pct, 10) || 0,
+                         done: x.st === '끝', kids: [] });
+        });
+        mn.kids.push(n2);
+      });
+      if(mn.kids.length || mmWho) tn.kids.push(mn);
+    });
+    if(tn.kids.length) root.kids.push(tn);
+  });
+  root.nTask = nTask; root.nSub = nSub;
+  return root;
+}
+/* 색 — 갈래와 상태를 글자 빛깔로 가립니다 */
+function mmSkin(n){
+  if(n.t === 'root')  return { bg:'#1b2430', bd:'#1b2430', fg:'#ffffff' };
+  if(n.t === 'team')  return { bg:n.hue, bd:n.hue, fg:'#ffffff' };
+  if(n.t === 'mem')   return { bg:'#fbfbfa', bd:n.hue, fg:'#1b2430' };
+  if(n.done)          return { bg:'#f3faf6', bd:'#a8d4bc', fg:'#2e7d52' };
+  if(n.hold)          return { bg:'#fdf5f4', bd:'#e8b5ae', fg:'#b83a2e' };
+  if(n.t === 'rout')  return { bg:'#fbfaff', bd:'#c9bfde', fg:'#5b4b8a' };
+  if(n.t === 'sub')   return { bg:'#fafafa', bd:'#dcdcda', fg:'#5a5e66' };
+  if(n.t === 'job')   return { bg:'#f7faff', bd:'#bdd4f2', fg:'#1a4f9c' };
+  return { bg:'#fdfbf5', bd:'#d9c9a3', fg:'#6e5530' };      // 프로젝트
+}
+function mmSvg(root){
+  if(!root.kids.length){
+    return '<svg viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg">'
+      + '<text x="380" y="120" text-anchor="middle" font-size="15" fill="#8a8f98">'
+      + '보여 줄 업무가 없습니다</text></svg>';
+  }
+  const LX = [30, 250, 530, 900, 1300], W = 1760;
+  const prep = (n, d) => {
+    n.d = d; n.x = LX[Math.min(d, LX.length - 1)];
+    n.fs = n.t === 'root' ? 14 : (n.t === 'team' || n.t === 'mem') ? 13
+         : n.t === 'sub' ? 11 : 12;
+    n.fw = (n.t === 'root' || n.t === 'team' || n.t === 'mem') ? 800
+         : n.t === 'sub' ? 500 : 650;
+    let lb = String(n.nm || '');
+    if(n.t === 'rout')  lb = '[루틴] ' + lb + (n.tag ? ' · ' + n.tag : '');
+    if(n.t === 'proj')  lb = '[프로젝트] ' + lb + ' (' + n.pct + '%)';
+    if(n.t === 'job')   lb = '[할 일] ' + lb;
+    if(n.t === 'sub')   lb = '└ ' + lb + ' (' + n.pct + '%)';
+    const nx = LX[Math.min(d + 1, LX.length - 1)];
+    const col = d < LX.length - 1 ? (nx - LX[d] - 30) : 420;
+    let lw = mmW(lb, n.fs);
+    while(lw > col && lb.length > 6){ lb = lb.slice(0, lb.length - 2) + '…'; lw = mmW(lb, n.fs); }
+    n.lb = lb; n.lw = lw;
+    let kp = '', kw = 0;
+    if((n.t === 'team' || n.t === 'mem') && n.kpi){
+      kp = n.kpi; kw = mmW('🎯 ' + kp, 10);
+      while(kw > col && kp.length > 4){ kp = kp.slice(0, kp.length - 2) + '…'; kw = mmW('🎯 ' + kp, 10); }
+    }
+    n.kp = kp; n.kw = kw;
+    n.bw = Math.max(lw, kw) + 20;
+    n.bh = kp ? (n.fs + 10 + 10 + 12) : (n.fs + 12);
+    n.kids.forEach(c => prep(c, d + 1));
+  };
+  prep(root, 0);
+  let cur = 46;
+  const setY = n => {
+    if(!n.kids.length){
+      n.y = cur + n.bh / 2;
+      cur = n.y + n.bh / 2 + ((n.t === 'mem') ? 14 : 6);
+      return n.y;
+    }
+    const ys = n.kids.map(setY);
+    n.y = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
+    return n.y;
+  };
+  setY(root);
+  const H = Math.max(360, cur + 30);
+  const all = [], par = [];
+  const walk = n => { all.push(n); if(n.kids.length) par.push(n); n.kids.forEach(walk); };
+  walk(root);
+  let line = '';
+  par.forEach(n => {
+    const x0 = n.x + n.bw, kx = n.kids[0].x, tx = x0 + (kx - x0) * 0.45;
+    const ys = n.kids.map(c => c.y);
+    const d = ['M ' + x0 + ' ' + n.y + ' L ' + tx + ' ' + n.y,
+               'M ' + tx + ' ' + Math.min(n.y, Math.min.apply(null, ys))
+                 + ' L ' + tx + ' ' + Math.max(n.y, Math.max.apply(null, ys))];
+    n.kids.forEach(c => d.push('M ' + tx + ' ' + c.y + ' L ' + c.x + ' ' + c.y));
+    line += '<path d="' + d.join(' ') + '" stroke="#c9ccd2" stroke-width="1" fill="none"/>';
+  });
+  const box = all.map(n => {
+    const k = mmSkin(n);
+    const by = n.y - n.bh / 2;
+    let inner = '<text x="' + (n.x + 10) + '" y="' + (by + 6 + n.fs - 2) + '"'
+      + ' font-size="' + n.fs + '" font-weight="' + n.fw + '" fill="' + k.fg + '">'
+      + mmEsc(n.lb) + '</text>';
+    if(n.kp) inner += '<text x="' + (n.x + 10) + '" y="' + (by + 6 + n.fs + 14) + '"'
+      + ' font-size="10" font-weight="500" fill="'
+      + (n.t === 'team' ? '#ffe3b0' : '#8a6e3a') + '">🎯 ' + mmEsc(n.kp) + '</text>';
+    return '<g><rect x="' + n.x + '" y="' + by + '" width="' + n.bw + '" height="' + n.bh + '"'
+      + ' rx="5" ry="5" fill="' + k.bg + '" stroke="' + k.bd + '" stroke-width="1"/>'
+      + inner + '</g>';
+  }).join('');
+  return '<svg id="mmSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '"'
+    + ' width="' + W + '" height="' + H + '" style="background:#fff">'
+    + '<style>text{font-family:Pretendard,-apple-system,"Malgun Gothic",sans-serif}</style>'
+    + '<text x="20" y="24" font-size="13" font-weight="800" fill="#1b2430">🗺️ 업무 마인드맵</text>'
+    + '<text x="20" y="39" font-size="10" fill="#8a8f98">'
+    + mmEsc(new Date().toLocaleDateString('ko-KR')) + ' 기준 · 업무 ' + root.nTask
+    + '건 · 보조 ' + root.nSub + '개</text>'
+    + line + box + '</svg>';
+}
+/* 그림으로 내려받기 — 글꼴까지 그대로 담깁니다 */
+function mmPng(){
+  const el = document.getElementById('mmSvg');
+  if(!el){ toast('지도가 아직 없습니다'); return; }
+  const w = el.viewBox.baseVal.width, h = el.viewBox.baseVal.height;
+  const src = new XMLSerializer().serializeToString(el);
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(w * 2); cv.height = Math.round(h * 2);
+    const g = cv.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+    g.drawImage(img, 0, 0, cv.width, cv.height);
+    const a = document.createElement('a');
+    a.href = cv.toDataURL('image/png');
+    a.download = '업무지도_' + todayStr() + '.png';
+    a.click();
+    toast('🖼 그림으로 내려받았습니다');
+  };
+  img.onerror = () => toast('그림으로 바꾸지 못했습니다');
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+}
+function mmHtml(rows){
+  const root = mmTree(rows);
+  const names = [];
+  teamsOf().forEach(t => t.members.forEach(m => {
+    const nm = String(m.name || '').trim(); if(nm) names.push(nm);
+  }));
+  const sel = (id, v, opts, on) => '<select class="mm-sel" onchange="mmSet(\'' + id + '\', this.value)">'
+    + opts.map(o => '<option value="' + esc(o[0]) + '"' + (o[0] === v ? ' selected' : '') + '>'
+        + esc(o[1]) + '</option>').join('') + '</select>';
+  return '<div class="mm-bar">'
+    + sel('who', mmWho, [['', '팀원 모두']].concat(names.map(n => [n, n])))
+    + sel('kind', mmKind, [['', '업무 모두'], ['proj', '🚀 프로젝트만'],
+        ['rout', '🔄 루틴만'], ['live', '아직 안 끝난 것만']])
+    + '<span class="mm-n">업무 ' + root.nTask + '건 · 보조 ' + root.nSub + '개</span>'
+    + '<button class="btn sm" onclick="mmPng()">🖼 그림으로</button>'
+    + '<button class="btn sm" onclick="window.print()">🖨 인쇄</button>'
+    + '</div>'
+    + '<div class="mm-box">' + mmSvg(root) + '</div>'
+    + '<div class="mm-leg">'
+      + '<span style="color:#6e5530">[프로젝트]</span>'
+      + '<span style="color:#5b4b8a">[루틴]</span>'
+      + '<span style="color:#1a4f9c">[할 일]</span>'
+      + '<span style="color:#2e7d52">끝남</span>'
+      + '<span style="color:#b83a2e">보류</span>'
+      + '<span class="hint">글자 빛깔로 갈래와 상태를 가립니다</span>'
+    + '</div>';
+}
 /* ── 📊 위쪽 넷 — 오늘 루틴 · 진행중 프로젝트 · 마감 임박 · 이번 주 완료 */
 function taskKpiHtml(rows){
   const iso = todayStr();
@@ -15793,17 +16096,32 @@ function renderTasks(){
         }).join('') + '</div></div>'
     : '';
 
+  /* 아직 안 옮긴 그로스보드 업무가 있으면 한 번 알려 줍니다 */
+  const mv = gbToMove().length;
+  const mvHtml = mv
+    ? '<div class="tt-gb"><span class="i">📈</span>'
+      + '<div><b>그로스보드에 적어 둔 업무 ' + mv + '건</b>'
+      + '<span>여기 프로젝트로 옮겨 담으면 한 곳에서 봅니다 — '
+      + '단계는 꼬리표로, 실행 줄은 보조 업무로 들어갑니다</span></div>'
+      + '<button class="btn sm primary" onclick="gbMove()">여기로 옮기기</button></div>'
+    : '';
+
   main.innerHTML = box(
       teamKpiHtml()
     + taskKpiHtml(rows)
     + staleHtml(rows)
-    + '<div class="tt-sect">팀 멤버별 오늘 할 일'
+    + mvHtml
+    + '<div class="tt-sect">' + (mmOn ? '🗺️ 업무 마인드맵' : '팀 멤버별 오늘 할 일')
       + '<span class="tt-day">' + esc(dayText) + '</span>'
-      + '<button class="tt-edb' + (taskDone ? ' on' : '') + '" onclick="toggleTaskDone()">'
-        + (taskDone ? '✅ 끝난 일도 보는 중' : '끝난 일 보기') + '</button>'
-      + '<button class="tt-edb' + (teamEdit ? ' on' : '') + '" onclick="teamEditToggle()">'
-      + (teamEdit ? '✔ 다 고쳤어요' : '✎ 팀 고치기') + '</button></div>'
-    + teams + restHtml);
+      + '<button class="tt-edb' + (mmOn ? ' on' : '') + '" onclick="mmToggle()">'
+        + (mmOn ? '🗂 카드로 보기' : '🗺️ 지도로 보기') + '</button>'
+      + (mmOn ? ''
+          : '<button class="tt-edb' + (taskDone ? ' on' : '') + '" onclick="toggleTaskDone()">'
+            + (taskDone ? '✅ 끝난 일도 보는 중' : '끝난 일 보기') + '</button>'
+          + '<button class="tt-edb' + (teamEdit ? ' on' : '') + '" onclick="teamEditToggle()">'
+            + (teamEdit ? '✔ 다 고쳤어요' : '✎ 팀 고치기') + '</button>')
+      + '</div>'
+    + (mmOn ? mmHtml(rows) : teams + restHtml));
 }
 
 /* ═══════════════ 🪪 명함 ═════════════════════════════════════════

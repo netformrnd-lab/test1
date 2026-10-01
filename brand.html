@@ -4862,11 +4862,6 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
         <span class="em">✅</span><span>할 일</span>
         <span class="cnt" id="taskCnt"></span>
       </button>
-      <button class="brand-item home-item" id="growBtn" onclick="goView('growth')">
-        <span class="bar" style="background:var(--purple)"></span>
-        <span class="em">📈</span><span>그로스보드</span>
-        <span class="cnt" id="growCnt"></span>
-      </button>
       <button class="brand-item home-item" id="meetBtn" onclick="goView('meetings')">
         <span class="bar" style="background:var(--cyan)"></span>
         <span class="em">🗣️</span><span>회의록</span>
@@ -5044,7 +5039,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261002-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261002-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5925,7 +5920,7 @@ function render(){
   if(nas)  nas.classList.toggle('on',  view === 'nas'  && !searchQuery);
   /* 명함은 왼쪽에서 뺐습니다 — 단추가 없어도 아래 if(el) 로 그냥 넘어갑니다 */
   [['obBtn','onboard'],
-   ['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],['growBtn','growth'],
+   ['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],
    ['costBtn','costs'],['blogBtn','blog'],['acctBtn','accounts'],
    ['trashBtn','trash']].forEach(([id, v]) => {
     const el = document.getElementById(id);
@@ -5940,9 +5935,6 @@ function render(){
   const kc = document.getElementById('taskCnt');
   if(kc) kc.textContent = data.brands.reduce((a, b) =>
     a + (b.tasks || []).filter(t => t.status !== '완료').length, 0) || '';
-  const gc = document.getElementById('growCnt');
-  if(gc) gc.textContent = (data.growth || []).reduce((a, g) =>
-    a + (g.stages || []).reduce((x, st) => x + (st.items || []).length, 0), 0) || '';
   const nc = document.getElementById('cardCnt');
   if(nc) nc.textContent = (data.cards || []).length || '';
   const sc = document.getElementById('costCnt');
@@ -5964,10 +5956,15 @@ function render(){
   else if(view === 'meetings') renderMeetings();
   else if(view === 'calendar') renderCalendar();
   else if(view === 'tasks') renderTasks();
-  else if(view === 'growth') renderGrowth();
   else if(view === 'cards') renderCards();
   else if(view === 'costs') renderCosts();
   else if(view === 'blog') renderBlog();
+  /* ── 📈 그로스보드는 닫았습니다 ─────────────────────────────────
+     적어 둔 것은 ✅ 할 일 의 프로젝트로 옮겨 봅니다. 저장된 내용은
+     지우지 않았습니다 — 아직 안 옮긴 것이 있으면 할 일 화면 위에
+     띠로 떠서 [여기로 옮기기] 로 가져올 수 있습니다.
+     옛 주소나 즐겨찾기로 들어오면 할 일로 보냅니다. */
+  else if(view === 'growth'){ view = 'tasks'; renderTasks(); }
   else if(view === 'accounts') renderAccounts();
   else if(view === 'trash') renderTrash();
   else if(view === 'page') renderPage();
@@ -6705,7 +6702,6 @@ const OB_GO = [
   ['meetings', '📝 회의록'],
   ['tasks',    '✅ 할 일'],
   ['calendar', '📅 달력'],
-  ['growth',   '📈 그로스보드'],
   ['nas',      '🗂 NAS 자료']
 ];
 const OB_STEP_SEED = [
@@ -16791,8 +16787,8 @@ function renderTasks(){
   const mv = gbToMove().length;
   const mvHtml = mv
     ? '<div class="tt-gb"><span class="i">📈</span>'
-      + '<div><b>그로스보드에 적어 둔 업무 ' + mv + '건</b>'
-      + '<span>여기로 옮기면 할 일에서 같이 봅니다. '
+      + '<div><b>그로스보드에 적어 둔 업무 ' + mv + '건이 남아 있습니다</b>'
+      + '<span>그로스보드는 닫았습니다 — 아직 안 옮긴 것이 여기 ' + mv + '건 있습니다. '
       + '업무 하나가 <b>프로젝트 한 칸</b>이 되고, 그 밑에 적어 둔 '
       + '<b>행동·가설이 체크하는 줄</b>로 들어갑니다 '
       + '(유입·전환 같은 단계는 이름표로 붙습니다)</span></div>'

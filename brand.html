@@ -4455,6 +4455,10 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 .jr-dw.now{background:color-mix(in srgb,var(--tc) 14%,transparent);color:var(--tc)}
 .jr-dw.late{background:color-mix(in srgb,var(--red) 13%,transparent);color:var(--red)}
 .jr-dw.none{background:transparent;border:1px dashed var(--border);opacity:.8}
+.jr-dw.fin{background:color-mix(in srgb,var(--green,#2e7d52) 13%,transparent);color:#2e7d52}
+/* 끝낸 줄은 흐리게 — 지우지는 않습니다 (한 일이 보여야 일지입니다) */
+.jr.done{opacity:.62}
+.jr.done:hover{opacity:1}
 .jr.late{border-left:2px solid var(--red);padding-left:7px;margin-left:-9px;
   border-radius:0 0 0 2px}
 /* 🗓 창 안에서 「2026 상반기 프로젝트로 적힙니다」 */
@@ -4804,7 +4808,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261001-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261001-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16101,12 +16105,24 @@ function memCard(m, t, hue, rows){
      칸이 넷이 되니 어디를 봐야 하는지 알기 어려웠고, 기한을 안 적은
      일은 밑에 처박혀 잊혔습니다. 이제 할 일은 모두 일지 한 칸에 모으고,
      급한 차례대로 세웁니다 — 지난 것 → 오늘 → 앞으로 → 기한 없음.
+
+     ── 끝낸 일은 <<그날 하루는 남습니다>> ──────────────────────────
+     전에는 ✓ 를 누르는 <<순간>> 줄이 사라졌습니다. 일지인데 한 일이
+     안 보이니 거꾸로였습니다 — 고리는 「3건 가운데 2건」 이라는데
+     화면에는 한 줄만 남아 셈이 안 맞았고, 일을 할수록 칸이 비었습니다.
+     이제 오늘 끝낸 것은 줄 그어서 그 자리에 두고, 어제까지 끝낸 것만
+     접습니다. ([끝난 일 보기] 는 그 묵은 것을 펴 보는 단추입니다)
      ------------------------------------------------------------- */
-  const jrank = r => !r.t.due ? 3 : r.t.due < iso ? 0 : r.t.due === iso ? 1 : 2;
-  const jobsS = jobs.slice().sort((a, b) => (jrank(a) - jrank(b))
+  const doneJob = mine.filter(r => !isProj(r.t) && r.t.status === '완료');
+  const doneTd  = doneJob.filter(r => String(r.t.updatedAt || '').slice(0, 10) === iso);
+  const jrank = r => r.t.status === '완료' ? 4
+    : !r.t.due ? 3 : r.t.due < iso ? 0 : r.t.due === iso ? 1 : 2;
+  const jobsS = jobs.concat(doneTd).sort((a, b) => (jrank(a) - jrank(b))
     || String(a.t.due || '~').localeCompare(String(b.t.due || '~')));
   const now   = jobs.filter(r => r.t.due && r.t.due <= iso);   /* 고리(%) 는 오늘 치만 */
-  const shown = taskDone ? mine.filter(r => r.t.status === '완료') : [];
+  /* 묵은 것만 따로 — 오늘 끝낸 것은 이미 일지에 서 있습니다 */
+  const shown = taskDone
+    ? mine.filter(r => r.t.status === '완료' && doneTd.indexOf(r) < 0) : [];
   /* 오늘 할 루틴 */
   const rs = routOf(m).filter(r => routToday(r, iso));
   const rd = rs.filter(r => routDone(r, iso)).length;
@@ -16157,7 +16173,10 @@ function memCard(m, t, hue, rows){
         + (nd ? '<span class="jr-n" title="일지를 적어 둔 날 ' + nd + '일">📓 ' + nd + '</span>' : '')
         + '<span class="tt-bd" title="' + esc(r.b.name) + '">' + esc(r.b.icon || '🏷️') + '</span>'
         /* 기한을 <<말로>> 보여 줍니다 — 날짜만 있으면 급한지가 안 보입니다 */
-        + (!r.t.due
+        + (r.t.status === '완료'
+            ? '<span class="jr-dw fin" title="오늘 끝냈습니다 — 내일이면 접힙니다">'
+              + '✓ 오늘 끝냄</span>'
+            : !r.t.due
             ? '<span class="jr-dw none" title="기한을 안 적었습니다">기한 없음</span>'
             : r.t.due < iso
               ? '<span class="jr-dw late" title="기한이 지났습니다 — ' + esc(r.t.due) + '">'
@@ -16251,7 +16270,7 @@ function memCard(m, t, hue, rows){
     + '</div>';
   const q = "'" + jsq(nm) + "'";
   /* 루틴도 · 프로젝트도 · 할 일도 하나 없는 카드 */
-  const empty = !rs.length && !projs.length && !jobsS.length && !shown.length;
+  const empty = !rs.length && !projs.length && !jobsS.length && !shown.length;  /* jobsS 에 오늘 끝낸 것도 들어 있습니다 */
 
   return '<div class="tt-card" style="--tc:' + hue + '">'
     + '<div class="tt-head">'
@@ -16312,7 +16331,9 @@ function memCard(m, t, hue, rows){
          굴러가는 프로젝트를 봅니다. 큰 덩어리를 위에 올려 두면 정작
          오늘 할 일이 밑으로 밀립니다. */
       + sec('📓 업무일지 <em class="jr-dt">' + esc(jrHead(iso)) + '</em>',
-          jobsS.length + '건', jobsS, '적어 둔 할 일이 없습니다',
+          '<span title="오늘 끝낸 ' + doneTd.length + '건 / 적어 둔 ' + jobsS.length + '건">'
+            + doneTd.length + '/' + jobsS.length + '</span>',
+          jobsS, '적어 둔 할 일이 없습니다',
           jrow, 'taskAddWho(' + q + ')')
       + sec('🚀 진행중 프로젝트', projs.length + '건', projs, '진행 중인 프로젝트가 없습니다',
           prow, 'projAdd(' + q + ')')

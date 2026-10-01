@@ -865,6 +865,174 @@ if ($action === 'one') {
           '읽힌정도' => round($q, 3), '파일' => basename($file)]);
 }
 
+/* ══════════ 📊 엑셀을 <<표 그대로>> 읽습니다 ══════════════════════
+   ?action=sheet&path=공유폴더/계정.xlsx
+   ?action=sheet&path=...&root=upload      (올린 파일 폴더 기준)
+
+   글자만 뽑는 extract_text 와 다릅니다. 그쪽은 찾아보기용이라 줄과
+   칸이 뭉개집니다. 계정 목록은 「몇 번째 칸이 비밀번호인가」 가 전부라
+   표 모양을 그대로 지켜야 합니다.
+
+   엑셀은 글자를 두 군데에 둡니다 — 공유 문자열표(sharedStrings)와
+   칸 안(inlineStr). 둘 다 읽습니다. 빈 칸은 r="C5" 처럼 자리만 적고
+   건너뛰므로, 칸 이름(A·B·…·AA)을 번호로 바꿔 제자리에 넣습니다.
+   원본은 읽기만 하며 고치지 않습니다.
+   ================================================================= */
+/* "AB" → 27 (0부터) */
+function xl_col($ref) {
+    if (!preg_match('/^([A-Z]+)/', strtoupper((string)$ref), $m)) return -1;
+    $n = 0;
+    for ($i = 0; $i < strlen($m[1]); $i++) $n = $n * 26 + (ord($m[1][$i]) - 64);
+    return $n - 1;
+}
+function xl_txt($x) {
+    $x = preg_replace('#<[^>]+>#', '', (string)$x);
+    return trim(html_entity_decode((string)$x, ENT_QUOTES | ENT_XML1, 'UTF-8'));
+}
+function xl_grid($file, $maxRows, $deadline) {
+    global $OFFICE_WHY;
+    $parts = office_parts($file, $deadline);
+    if ($parts === null) return null;
+    $shared = [];
+    $sheet  = '';
+    $first  = '';
+    foreach ($parts as $pt) {
+        list($nm, $x) = $pt;
+        if (strpos($nm, 'xl/sharedStrings') === 0) {
+            /* <si> 하나가 글자 하나입니다. 안에 <t> 가 여러 개일 수 있어
+               (서식이 중간에 바뀐 글자) 합쳐야 원래 글자가 됩니다. */
+            if (preg_match_all('#<si\b.*?</si>#s', $x, $mm)) {
+                foreach ($mm[0] as $si) {
+                    $t = '';
+                    if (preg_match_all('#<t(?:\s[^>]*)?>(.*?)</t>#s', $si, $tt)) {
+                        $t = implode('', $tt[1]);
+                    }
+                    $shared[] = xl_txt($t);
+                }
+            }
+        } elseif (strpos($nm, 'xl/worksheets/sheet') === 0) {
+            if ($first === '') { $first = $nm; $sheet = $x; }
+        }
+    }
+    if ($sheet === '') {
+        $OFFICE_WHY = '엑셀 안에서 시트를 찾지 못했습니다.';
+        return null;
+    }
+    $grid = [];
+    if (!preg_match_all('#<row\b[^>]*>.*?</row>#s', $sheet, $rr)) return [];
+    foreach ($rr[0] as $row) {
+        if (microtime(true) > $deadline) break;
+        if (count($grid) >= $maxRows) break;
+        $cells = [];
+        if (preg_match_all('#<c\b([^>]*)>(.*?)</c>#s', $row, $cc, PREG_SET_ORDER)) {
+            foreach ($cc as $c) {
+                $att = $c[1]; $in = $c[2];
+                $ci = preg_match('/r="([A-Z]+)/i', $att, $rm) ? xl_col($rm[1]) : count($cells);
+                if ($ci < 0 || $ci > 255) continue;
+                $ty = preg_match('/t="([^"]+)"/', $att, $tm) ? $tm[1] : '';
+                $v  = '';
+                if ($ty === 's') {
+                    if (preg_match('#<v>(.*?)</v>#s', $in, $vm)) {
+                        $k = (int)trim($vm[1]);
+                        $v = isset($shared[$k]) ? $shared[$k] : '';
+                    }
+                } elseif ($ty === 'inlineStr') {
+                    if (preg_match_all('#<t(?:\s[^>]*)?>(.*?)</t>#s', $in, $tt)) {
+                        $v = xl_txt(implode('', $tt[1]));
+                    }
+                } else {
+                    /* 숫자·날짜·수식 결과 — <f> 는 수식이라 빼고 <v> 만 봅니다 */
+                    if (preg_match('#<v>(.*?)</v>#s', $in, $vm)) $v = xl_txt($vm[1]);
+                    if ($v === '' && preg_match_all('#<t(?:\s[^>]*)?>(.*?)</t>#s', $in, $tt)) {
+                        $v = xl_txt(implode('', $tt[1]));
+                    }
+                }
+                $cells[$ci] = $v;
+            }
+        }
+        if (!$cells) { $grid[] = []; continue; }
+        $w = max(array_keys($cells)) + 1;
+        $line = [];
+        for ($i = 0; $i < $w; $i++) $line[] = isset($cells[$i]) ? $cells[$i] : '';
+        $grid[] = $line;
+    }
+    /* 아래쪽 빈 줄은 버립니다 (엑셀은 쓴 적 있는 줄을 빈 채로 남깁니다) */
+    while ($grid && !array_filter(end($grid), function ($v) { return $v !== ''; })) array_pop($grid);
+    return $grid;
+}
+/* csv · tsv 도 같은 모양으로 */
+function xl_grid_csv($file, $maxRows) {
+    $raw = (string)@file_get_contents($file, false, null, 0, 4 * 1024 * 1024);
+    if ($raw === '') return [];
+    if (substr($raw, 0, 3) === "\xEF\xBB\xBF") $raw = substr($raw, 3);     // 엑셀 BOM
+    if (!preg_match('//u', $raw)) {                                        // 한글 CSV 는 EUC-KR 이 흔합니다
+        $c = @iconv('CP949', 'UTF-8//IGNORE', $raw);
+        if ($c !== false && $c !== '') $raw = $c;
+    }
+    $tab  = strpos(strtok($raw, "\n"), "\t") !== false;
+    $grid = [];
+    $fh = @fopen('php://memory', 'r+');
+    if (!$fh) return [];
+    fwrite($fh, $raw); rewind($fh);
+    while (($r = fgetcsv($fh, 0, $tab ? "\t" : ',')) !== false) {
+        if (count($grid) >= $maxRows) break;
+        if ($r === [null]) { $grid[] = []; continue; }
+        $grid[] = array_map(function ($v) { return trim((string)$v); }, $r);
+    }
+    fclose($fh);
+    while ($grid && !array_filter(end($grid), function ($v) { return $v !== ''; })) array_pop($grid);
+    return $grid;
+}
+
+if ($action === 'sheet') {
+    $which = ($_GET['root'] ?? '') === 'upload' ? 'uploadroot.txt' : 'nasroot.txt';
+    $rf    = $DATA . '/' . $which;
+    $base  = is_file($rf) ? rtrim(trim((string)@file_get_contents($rf)), '/') : '';
+    if ($base === '' || !is_dir($base)) {
+        jout(['ok' => false, 'error' => ($which === 'nasroot.txt'
+            ? 'NAS 공유폴더를 아직 정하지 않았습니다. [🗂 NAS 자료] 에서 먼저 정해 주세요.'
+            : '올린 파일 폴더를 아직 정하지 않았습니다.')], 400);
+    }
+    $rel = str_replace('\\', '/', trim((string)($_GET['path'] ?? '')));
+    if ($rel === '' || strpos($rel, '..') !== false) {
+        jout(['ok' => false, 'error' => '파일 경로가 올바르지 않습니다.'], 400);
+    }
+    /* 파일 찾기는 전체 경로(/volume1/…)를 돌려주고, 폴더 보기는 공유폴더
+       안쪽 경로를 돌려줍니다. 둘 다 받아 줍니다 — 어느 쪽이든 공유폴더
+       <<안>> 인지는 아래 realpath 로 다시 확인합니다. */
+    $root = @realpath($base);
+    $file = (substr($rel, 0, 1) === '/')
+          ? @realpath($rel)
+          : @realpath($base . '/' . ltrim($rel, '/'));
+    if (!$file || !$root || strpos($file, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($file)) {
+        jout(['ok' => false, 'error' => '그런 파일이 없거나, 공유폴더 바깥입니다: ' . $rel], 404);
+    }
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    $MAXR = 2000;
+    if ($ext === 'csv' || $ext === 'tsv' || $ext === 'txt') {
+        $grid = xl_grid_csv($file, $MAXR);
+    } elseif ($ext === 'xlsx' || $ext === 'xlsm') {
+        $grid = xl_grid($file, $MAXR, microtime(true) + 20);
+    } else {
+        jout(['ok' => false, 'error' => '.' . $ext . ' 은 표로 읽을 수 없습니다.' . "\n\n"
+            . '읽을 수 있는 것: xlsx · xlsm · csv · tsv' . "\n"
+            . '예전 .xls 는 엑셀에서 [다른 이름으로 저장] → xlsx 로 바꿔 주세요.'], 415);
+    }
+    if ($grid === null) {
+        $why = (string)($GLOBALS['OFFICE_WHY'] ?? '');
+        jout(['ok' => false, 'error' => '이 파일을 열지 못했습니다.'
+            . ($why !== '' ? "\n\n" . $why : '')], 422);
+    }
+    if (!$grid) {
+        jout(['ok' => false, 'error' => '표가 비어 있습니다. 칸에 글자로 적힌 파일인지 확인해 주세요.'
+            . "\n\n" . '(글자가 그림으로 들어가 있으면 읽을 수 없습니다)'], 422);
+    }
+    $w = 0;
+    foreach ($grid as $r) $w = max($w, count($r));
+    jout(['ok' => true, '표' => $grid, '줄수' => count($grid), '칸수' => $w,
+          '파일' => basename($file), '잘림' => count($grid) >= $MAXR]);
+}
+
 /* ---------------- 목록 상태 ---------------- */
 if ($action === 'check') {
     jout([

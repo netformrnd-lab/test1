@@ -4277,6 +4277,34 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 .pj-f{position:relative}
 /* ── 엑셀 넣기 ─────────────────────────────────────────────── */
 .ac-step{font-size:12.5px;line-height:1.7;color:var(--text-secondary);margin-bottom:10px}
+/* 📂 공유폴더에서 엑셀 고르기 */
+.ac-find{display:flex;gap:7px;margin-bottom:11px}
+.ac-find input{flex:1 1 auto;min-width:0;font-family:inherit;font-size:13px;padding:8px 12px;
+  border:1px solid var(--border);border-radius:9px;background:var(--bg-input);
+  color:var(--text-primary)}
+.ac-find input:focus{outline:none;border-color:var(--purple)}
+.ac-files{max-height:330px;overflow:auto;border:1px solid var(--border);border-radius:9px}
+.ac-file{display:grid;grid-template-columns:22px 1.3fr 1.7fr auto;gap:10px;align-items:center;
+  width:100%;padding:9px 12px;border:0;border-bottom:1px solid var(--border);
+  background:var(--bg-card);font-family:inherit;font-size:12px;text-align:left;cursor:pointer}
+.ac-file:last-child{border-bottom:none}
+.ac-file:hover{background:color-mix(in srgb,var(--purple) 7%,var(--bg-card))}
+.ac-file .e{font-size:14px}
+.ac-file .n{font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.ac-file .d,.ac-file .s{font-size:11px;color:var(--text-muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.ac-file .s{text-align:right}
+.ac-wait{padding:22px;text-align:center;font-size:12.5px;color:var(--text-secondary);
+  border:1px dashed var(--border);border-radius:9px}
+.ac-err{padding:14px;border-radius:9px;font-size:12px;line-height:1.7;
+  border:1px solid color-mix(in srgb,var(--red) 30%,var(--border));
+  background:color-mix(in srgb,var(--red) 5%,transparent);color:var(--text-secondary);
+  white-space:pre-wrap}
+.ac-or{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);
+  font-size:11.5px;line-height:1.7;color:var(--text-muted)}
+.lnk{border:0;background:none;padding:0;font-family:inherit;font-size:inherit;font-weight:700;
+  color:var(--purple);cursor:pointer;text-decoration:underline}
 #aiPaste{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;
   padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg-input);
   color:var(--text-primary);resize:vertical}
@@ -4912,10 +4940,10 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 <div class="modal-bg" id="accImpModal" onclick="if(event.target===this)closeModal('accImpModal')">
   <div class="pjm wide">
     <div class="pjm-h">
-      <span class="pjm-ic">📋</span>
+      <span class="pjm-ic">📗</span>
       <div class="pjm-ti">
-        <div class="pjm-t">엑셀에서 가져오기</div>
-        <div class="pjm-s">붙여 넣으면 AI 가 칸을 맞춰 줍니다 — 비밀번호는 가려서 보냅니다</div>
+        <div class="pjm-t">엑셀 읽어 오기</div>
+        <div class="pjm-s">공유폴더의 엑셀을 그대로 읽어 AI 가 정리합니다 — 비밀번호는 가려서 보냅니다</div>
       </div>
       <button class="pjm-x" onclick="closeModal('accImpModal')" title="닫기">×</button>
     </div>
@@ -4973,7 +5001,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261001-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261002-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17038,16 +17066,66 @@ function accDel(){
   accEdit = null; closeModal('accModal');
   deleteItem('accounts', d.id);
 }
-/* ── 📋 엑셀에서 가져오기 ─────────────────────────────────────────
+/* ── 📗 엑셀 읽어 오기 ───────────────────────────────────────────
    엑셀에서 긁어다 붙여 넣으면 탭으로 나뉜 글이 들어옵니다. 파일을
    올릴 필요도, NAS 를 거칠 필요도 없습니다 — 브라우저 안에서 끝납니다.
    ---------------------------------------------------------------- */
 function accImport(){
-  accImp = { raw:'', grid:[], map:null, rows:null, step:1, busy:false, preview:'' };
+  accImp = { raw:'', grid:[], rows:null, step:0, busy:false,
+             q:'', hits:null, find:false, err:'', file:'', paste:false };
   accImpPaint();
   document.getElementById('accImpModal').classList.add('open');
-  setTimeout(() => { const e = document.getElementById('aiPaste'); if(e) e.focus(); }, 30);
+  accImpFind();                                   /* 바로 엑셀을 찾아 둡니다 */
+  setTimeout(() => { const e = document.getElementById('acFq'); if(e) e.focus(); }, 40);
 }
+/* ── 📂 NAS 에서 엑셀을 <<직접>> 찾습니다 ──────────────────────────
+   붙여 넣으라고 시키는 건 사람한테 일을 떠넘기는 것입니다. 공유폴더에
+   이미 파일이 있으니 그걸 집어서 읽으면 됩니다.
+   ---------------------------------------------------------------- */
+const ACC_SHEET_EXT = ['xlsx', 'xlsm', 'csv', 'tsv'];
+async function accImpFind(q){
+  if(q !== undefined) accImp.q = q;
+  accImp.find = true; accImp.err = ''; accImpPaint();
+  try{
+    const hits = [];
+    for(const ex of ACC_SHEET_EXT){
+      const out = await apiJson('nasfiles.php?action=search&limit=120&ext=' + ex
+        + '&q=' + encodeURIComponent(accImp.q || ''));
+      (out.results || []).forEach(r => hits.push(r));
+    }
+    /* 계정 목록처럼 보이는 이름을 앞으로 올립니다 */
+    const good = /계정|비번|비밀|아이디|로그인|account|password|login|id/i;
+    hits.sort((a, b) => (good.test(b.name) - good.test(a.name))
+      || String(b.date || '').localeCompare(String(a.date || '')));
+    accImp.hits = hits.slice(0, 60);
+  }catch(e){
+    accImp.hits = [];
+    accImp.err = apiErrText(e);
+  }finally{
+    accImp.find = false; accImpPaint();
+  }
+}
+/* 고른 파일을 서버가 <<표 그대로>> 읽어 옵니다 */
+async function accImpPick(path, name){
+  accImp.busy = true; accImp.err = ''; accImpPaint();
+  try{
+    const out = await apiJson('doctext.php?action=sheet&path=' + encodeURIComponent(path));
+    const g = (out['표'] || []).map(r => (r || []).map(c => String(c == null ? '' : c)));
+    /* 줄마다 칸 수가 다를 수 있어 (엑셀은 빈 칸을 안 적습니다) 맞춰 둡니다 */
+    const w = g.reduce((a, r) => Math.max(a, r.length), 0);
+    accImp.grid = g.filter(r => r.some(c => c !== ''))
+                   .map(r => { const x = r.slice(); while(x.length < w) x.push(''); return x; });
+    accImp.file = name || out['파일'] || path;
+    if(accImp.grid.length < 2) throw new Error('읽을 줄이 없습니다 (머리줄 + 한 줄은 있어야 합니다)');
+    accImp.step = 1;
+  }catch(e){
+    accImp.err = apiErrText(e);
+  }finally{
+    accImp.busy = false; accImpPaint();
+  }
+}
+function accImpBack(){ accImp.step = 0; accImp.grid = []; accImp.file = ''; accImpPaint(); }
+function accImpPasteOn(){ accImp.paste = true; accImp.step = 1; accImp.grid = []; accImpPaint(); }
 /* 붙여 넣은 글을 표로 — 탭이 없으면 쉼표로도 나눠 봅니다 */
 function accGrid(text){
   const lines = String(text || '').replace(/\r/g, '').split('\n').filter(x => x.trim() !== '');
@@ -17137,14 +17215,51 @@ function accImpPaste(v){
 function accImpPaint(){
   const d = accImp; if(!d) return;
   const el = document.getElementById('accImpBody'); if(!el) return;
+  if(d.step === 0){
+    /* 0단계 — 공유폴더에서 엑셀 고르기 */
+    const hits = d.hits;
+    el.innerHTML =
+        '<div class="ac-step">공유폴더에 있는 <b>엑셀을 고르면 그대로 읽습니다</b>. '
+        + '옮겨 적거나 붙여 넣지 않아도 됩니다.</div>'
+      + '<div class="ac-find">'
+        + '<input id="acFq" value="' + esc(d.q) + '" placeholder="파일 이름으로 좁히기 — 예: 계정"'
+          + ' onkeydown="if(event.key===\'Enter\')accImpFind(this.value)">'
+        + '<button class="btn" onclick="accImpFind(document.getElementById(\'acFq\').value)">찾기</button>'
+      + '</div>'
+      + (d.busy
+          ? '<div class="ac-wait">⏳ <b>' + esc(d.file || '파일') + '</b> 을 읽는 중…</div>'
+          : d.find
+            ? '<div class="ac-wait">⏳ 공유폴더에서 엑셀을 찾는 중…</div>'
+            : d.err
+              ? '<div class="ac-err">⚠️ ' + esc(d.err) + '</div>'
+              : !hits ? ''
+                : !hits.length
+                  ? '<div class="ac-err">엑셀(xlsx · csv)을 못 찾았습니다.<br>'
+                    + '파일 목록을 아직 안 만들었으면 [🗂 NAS 자료] 에서 한 번 훑어 주세요.</div>'
+                  : '<div class="ac-files">' + hits.map(h =>
+                      '<button class="ac-file" onclick="accImpPick(\''
+                        + jsq(h.path) + '\',\'' + jsq(h.name) + '\')">'
+                      + '<span class="e">' + (h.ext === 'csv' || h.ext === 'tsv' ? '📄' : '📗') + '</span>'
+                      + '<span class="n">' + esc(h.name) + '</span>'
+                      + '<span class="d">' + esc(h.dir || '') + '</span>'
+                      + '<span class="s">' + esc(h.size || '') + '</span></button>').join('')
+                    + '</div>')
+      + '<div class="ac-or">파일이 여기 없나요? '
+        + '<button class="lnk" onclick="accImpPasteOn()">엑셀에서 긁어다 붙여 넣기</button>'
+        + ' — 구글 시트처럼 NAS 밖에 있는 것은 이쪽입니다.</div>';
+    return;
+  }
   if(d.step === 1){
     const g = d.grid;
     const m = g.length ? accMask(g) : null;
     el.innerHTML =
-        '<div class="ac-step">엑셀에서 <b>표를 긁어서(Ctrl+C) 아래에 붙여 넣으세요(Ctrl+V)</b>. '
-        + '머리줄(서비스·아이디·비번 …)까지 같이 넣어 주세요.</div>'
-      + '<textarea id="aiPaste" rows="7" placeholder="여기에 붙여 넣기"'
-        + ' oninput="accImpPaste(this.value)">' + esc(d.raw) + '</textarea>'
+        (d.paste
+          ? '<div class="ac-step">엑셀에서 <b>표를 긁어서(Ctrl+C) 아래에 붙여 넣으세요(Ctrl+V)</b>. '
+            + '머리줄(서비스·아이디·비번 …)까지 같이 넣어 주세요.</div>'
+            + '<textarea id="aiPaste" rows="7" placeholder="여기에 붙여 넣기"'
+            + ' oninput="accImpPaste(this.value)">' + esc(d.raw) + '</textarea>'
+          : '<div class="ac-step">📗 <b>' + esc(d.file) + '</b> 을 읽었습니다. '
+            + '<button class="lnk" onclick="accImpBack()">다른 파일 고르기</button></div>')
       + (g.length
           ? '<div class="ac-read">📊 <b>' + (g.length - 1) + '줄 · ' + g[0].length + '칸</b> 을 읽었습니다</div>'
             + accImpTable(g, null)
@@ -17285,7 +17400,7 @@ function renderAccounts(){
   const olds = all.filter(a => accAge(a) >= ACC_OLD);
   const head = '<h2 class="page-h">🔐 내부계정</h2>'
     + '<div class="page-sub">팀이 같이 쓰는 서비스 계정을 한곳에 — '
-      + '엑셀에 흩어져 있던 것을 붙여 넣으면 AI 가 칸을 맞춰 줍니다</div>';
+      + '공유폴더의 엑셀을 AI 가 직접 읽어 정리합니다</div>';
   const main = document.getElementById('main');
 
   /* 금고를 걸어 두면 대시보드 문이 열려 있어도 이 칸만은 안전합니다 */
@@ -17337,7 +17452,7 @@ function renderAccounts(){
           + '</option>').join('') + '</select>'
     + (Object.keys(accSeen).length
         ? '<button class="tt-edb" onclick="accHideAll()">🔒 다시 가리기</button>' : '')
-    + '<button class="tt-edb" onclick="accImport()">📋 엑셀에서 가져오기</button>'
+    + '<button class="tt-edb" onclick="accImport()">📗 엑셀 읽어 오기</button>'
     + '<button class="btn primary sm" onclick="accOpen(\'\')">＋ 계정</button>'
     + '</div>';
 
@@ -17377,9 +17492,9 @@ function renderAccounts(){
   /* 분류별로 묶어 보여 줍니다 */
   const body = !all.length
     ? '<div class="ac-zero"><p>아직 모아 둔 계정이 없습니다.</p>'
-      + '<p class="s">엑셀에 적어 두신 것이 있으면 그대로 긁어다 붙여 넣으면 됩니다 — '
-      + 'AI 가 어느 칸이 무엇인지 맞춰 줍니다.</p>'
-      + '<div class="tt-zb"><button onclick="accImport()">📋 엑셀에서 가져오기</button>'
+      + '<p class="s">공유폴더에 엑셀로 적어 두신 것이 있으면 그 파일을 고르기만 하면 됩니다 — '
+      + '열어 보고 어느 칸이 무엇인지 AI 가 맞춰 줍니다.</p>'
+      + '<div class="tt-zb"><button onclick="accImport()">📗 엑셀 읽어 오기</button>'
       + '<button onclick="accOpen(\'\')">＋ 하나씩 넣기</button></div></div>'
     : !rows.length
       ? '<div class="empty">찾는 계정이 없습니다.</div>'

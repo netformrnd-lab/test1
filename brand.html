@@ -185,6 +185,13 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
 .layout{display:grid;grid-template-columns:242px minmax(0,1fr);gap:26px;
   max-width:1520px;margin:0 auto;padding:24px}
 @media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr);gap:16px;padding:16px}}
+/* ── ✅ 할 일 화면만 <<넓게>> 씁니다 ───────────────────────────────
+   사람 카드 한 장에는 루틴 · 업무일지 · 프로젝트가 다 들어갑니다.
+   1520px 로 묶어 두니 카드가 370px 로 쪼그라들어 글자가 치였습니다.
+   이 화면에서만 테두리를 1820px 로 풀어 카드를 460px 넘게 세웁니다.
+   (다른 화면은 글줄이 너무 길어지면 되레 읽기 나쁘니 그대로 둡니다) */
+body.tt-wide .layout{max-width:1820px}
+@media(min-width:1500px){ body.tt-wide .layout{gap:30px;padding:24px 30px} }
 
 /* ---------- 왼쪽 목록 ---------- */
 .side{align-self:start;position:sticky;top:84px}
@@ -4442,6 +4449,14 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 .jr.has .jr-p{opacity:1;color:var(--tc)}
 .jr-dt{font-style:normal;font-size:10.5px;font-weight:600;color:var(--text-muted);
   margin-left:5px}
+/* 기한을 말로 — 「오늘까지」 · 「10-01 지남」 · 「기한 없음」 */
+.jr-dw{flex:0 0 auto;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;
+  background:var(--bg-sunken);color:var(--text-muted);white-space:nowrap}
+.jr-dw.now{background:color-mix(in srgb,var(--tc) 14%,transparent);color:var(--tc)}
+.jr-dw.late{background:color-mix(in srgb,var(--red) 13%,transparent);color:var(--red)}
+.jr-dw.none{background:transparent;border:1px dashed var(--border);opacity:.8}
+.jr.late{border-left:2px solid var(--red);padding-left:7px;margin-left:-9px;
+  border-radius:0 0 0 2px}
 /* 🗓 창 안에서 「2026 상반기 프로젝트로 적힙니다」 */
 .pj-term{margin:-2px 0 0;padding:8px 11px;border-radius:8px;
   background:color-mix(in srgb,var(--ink,#1a3f8b) 7%,transparent);
@@ -4475,9 +4490,13 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   color:var(--text-primary)}
 .tt-sect::before{content:'';width:4px;height:16px;background:var(--ink);flex:0 0 auto}
 .tt-day{font-size:12px;font-weight:600;color:var(--text-muted);letter-spacing:0}
-.tt-edb{margin-left:auto;padding:5px 11px;border:1px solid var(--border);border-radius:8px;
+/* 단추마다 margin-left:auto 가 붙어 있어서 <<저마다>> 오른쪽으로 밀려
+   났습니다 — 그래서 머리줄에 단추가 띄엄띄엄 흩어져 보였습니다.
+   맨 앞 단추 하나만 밀고 나머지는 그 옆에 붙입니다. */
+.tt-edb{padding:5px 11px;border:1px solid var(--border);border-radius:8px;
   background:var(--bg-secondary);font-size:12px;font-weight:600;color:var(--text-secondary);
-  cursor:pointer}
+  cursor:pointer;white-space:nowrap}
+.tt-edb:first-of-type{margin-left:auto}
 .tt-edb:hover{border-color:var(--ink);color:var(--text-primary)}
 .tt-edb.on{background:var(--ink);border-color:var(--ink);color:#fff}
 .tt-team{margin-bottom:22px}
@@ -4488,7 +4507,12 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 .tt-add{margin-left:auto;padding:3px 10px;border:1px solid var(--border);border-radius:99px;
   background:var(--bg-secondary);font-size:11.5px;color:var(--text-secondary);cursor:pointer}
 .tt-add:hover{border-color:var(--tc);color:var(--tc)}
-.tt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+/* 래퍼런스는 카드 한 장이 465px 입니다 — 우리는 370px 이라 작았습니다.
+   align-items:start 가 없으면 한 줄의 카드가 <<제일 긴 카드>> 만큼
+   늘어나서, 일이 적은 사람 카드에 빈 데가 길게 남습니다. */
+.tt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(392px,1fr));gap:16px;
+  align-items:start}
+@media(max-width:860px){ .tt-grid{grid-template-columns:minmax(0,1fr)} }
 .tt-card{background:var(--bg-card);border:1px solid var(--border);border-top:3px solid var(--tc);
   border-radius:13px;overflow:hidden;display:flex;flex-direction:column}
 .tt-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -4780,7 +4804,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261001-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261001-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5649,6 +5673,8 @@ function render(){
     return;
   }
   document.body.classList.remove('locked');
+  /* 할 일 화면은 사람 카드가 커야 읽힙니다 — 이때만 테두리를 풉니다 */
+  document.body.classList.toggle('tt-wide', view === 'tasks' && !currentBrandId);
 
   paintVersion();
   paintTools();
@@ -16070,8 +16096,16 @@ function memCard(m, t, hue, rows){
   const live  = mine.filter(r => r.t.status !== '완료');
   const projs = live.filter(r => isProj(r.t));
   const jobs  = live.filter(r => !isProj(r.t));
-  const now   = jobs.filter(r => r.t.due && r.t.due <= iso);
-  const later = jobs.filter(r => !(r.t.due && r.t.due <= iso));
+  /* ── 📓 업무일지는 <<한 칸>> 입니다 ──────────────────────────────
+     전에는 「오늘까지」 와 「아직 기한이 안 된 일」 로 갈라져 있었습니다.
+     칸이 넷이 되니 어디를 봐야 하는지 알기 어려웠고, 기한을 안 적은
+     일은 밑에 처박혀 잊혔습니다. 이제 할 일은 모두 일지 한 칸에 모으고,
+     급한 차례대로 세웁니다 — 지난 것 → 오늘 → 앞으로 → 기한 없음.
+     ------------------------------------------------------------- */
+  const jrank = r => !r.t.due ? 3 : r.t.due < iso ? 0 : r.t.due === iso ? 1 : 2;
+  const jobsS = jobs.slice().sort((a, b) => (jrank(a) - jrank(b))
+    || String(a.t.due || '~').localeCompare(String(b.t.due || '~')));
+  const now   = jobs.filter(r => r.t.due && r.t.due <= iso);   /* 고리(%) 는 오늘 치만 */
   const shown = taskDone ? mine.filter(r => r.t.status === '완료') : [];
   /* 오늘 할 루틴 */
   const rs = routOf(m).filter(r => routToday(r, iso));
@@ -16113,7 +16147,7 @@ function memCard(m, t, hue, rows){
     const txt = jrGet(r.t, iso), nd = jrDays(r.t);
     const q2 = '\'' + jsq(r.t.id) + '\',\'' + jsq(r.b.id) + '\'';
     return '<div class="jr' + (r.t.status === '완료' ? ' done' : '')
-      + (txt ? ' has' : '') + '">'
+      + (txt ? ' has' : '') + (r.t.due && r.t.due < iso ? ' late' : '') + '">'
       + '<div class="jr-h">'
         + '<button class="tt-c" title="' + (r.t.status === '완료' ? '다시 진행' : '끝냈다고 표시')
           + '" onclick="toggleTask(' + q2 + ')"></button>'
@@ -16122,8 +16156,16 @@ function memCard(m, t, hue, rows){
           + esc(r.t.title) + '</span>'
         + (nd ? '<span class="jr-n" title="일지를 적어 둔 날 ' + nd + '일">📓 ' + nd + '</span>' : '')
         + '<span class="tt-bd" title="' + esc(r.b.name) + '">' + esc(r.b.icon || '🏷️') + '</span>'
-        + (r.t.due ? '<span class="tt-d' + (r.t.due < iso ? ' late' : '') + '">'
-            + esc(String(r.t.due).slice(5)) + '</span>' : '')
+        /* 기한을 <<말로>> 보여 줍니다 — 날짜만 있으면 급한지가 안 보입니다 */
+        + (!r.t.due
+            ? '<span class="jr-dw none" title="기한을 안 적었습니다">기한 없음</span>'
+            : r.t.due < iso
+              ? '<span class="jr-dw late" title="기한이 지났습니다 — ' + esc(r.t.due) + '">'
+                + esc(String(r.t.due).slice(5)) + ' 지남</span>'
+              : r.t.due === iso
+                ? '<span class="jr-dw now" title="오늘까지입니다">오늘까지</span>'
+                : '<span class="jr-dw" title="기한 ' + esc(r.t.due) + '">'
+                  + esc(String(r.t.due).slice(5)) + '</span>')
       + '</div>'
       + '<div class="jr-w"><span class="jr-p">✎</span>'
         + '<input value="' + esc(txt) + '" placeholder="오늘 한 일을 한 줄로 — 예: 도면 3장 넘김"'
@@ -16209,7 +16251,7 @@ function memCard(m, t, hue, rows){
     + '</div>';
   const q = "'" + jsq(nm) + "'";
   /* 루틴도 · 프로젝트도 · 할 일도 하나 없는 카드 */
-  const empty = !rs.length && !projs.length && !now.length && !later.length && !shown.length;
+  const empty = !rs.length && !projs.length && !jobsS.length && !shown.length;
 
   return '<div class="tt-card" style="--tc:' + hue + '">'
     + '<div class="tt-head">'
@@ -16270,10 +16312,8 @@ function memCard(m, t, hue, rows){
          굴러가는 프로젝트를 봅니다. 큰 덩어리를 위에 올려 두면 정작
          오늘 할 일이 밑으로 밀립니다. */
       + sec('📓 업무일지 <em class="jr-dt">' + esc(jrHead(iso)) + '</em>',
-          now.length + '건', now, '오늘까지 할 일이 없습니다',
+          jobsS.length + '건', jobsS, '적어 둔 할 일이 없습니다',
           jrow, 'taskAddWho(' + q + ')')
-      /* 기한이 아직 안 왔거나, 기한을 안 적어 둔 할 일입니다 */
-      + (later.length ? sec('📋 아직 기한이 안 된 일', later.length + '건', later, '', null, '') : '')
       + sec('🚀 진행중 프로젝트', projs.length + '건', projs, '진행 중인 프로젝트가 없습니다',
           prow, 'projAdd(' + q + ')')
       + (shown.length ? sec('✅ 끝낸 일', shown.length + '건', shown, '', null, '') : ''))

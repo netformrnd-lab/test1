@@ -5044,7 +5044,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261002-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261002-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16112,10 +16112,14 @@ function gbToMove(){
 function gbMove(){
   const list = gbToMove();
   if(!list.length){ toast('옮길 그로스보드 업무가 없습니다'); return; }
-  if(!confirm('그로스보드의 업무 ' + list.length + '건을 할 일의 <<프로젝트>> 로 옮겨 담습니다.\n\n'
-    + '· 단계(유입 · 전환 …)는 꼬리표로 남습니다\n'
-    + '· 실행 · 가설로 적어 둔 줄은 보조 업무가 됩니다\n'
-    + '· 그로스보드의 원래 내용은 <<지우지 않습니다>>\n'
+  if(!confirm('그로스보드의 업무 ' + list.length + '건을 할 일의 프로젝트로 옮겨 담습니다.\n\n'
+    + '이렇게 들어갑니다 —\n\n'
+    + '  [그로스보드]            [할 일]\n'
+    + '  유입                 →  🏷 이름표 「유입」\n'
+    + '   └ 블로그 유입 두 배  →  🚀 프로젝트 「블로그 유입 두 배」\n'
+    + '      · 행동 1. 월 4편 발행  →  └ 체크하는 줄\n'
+    + '      · 행동 2. 소재 모으기  →  └ 체크하는 줄\n\n'
+    + '· 그로스보드의 원래 내용은 지우지 않습니다\n'
     + '· 한 번 옮긴 것은 다시 들어오지 않습니다')) return;
   const first = (data.brands || [])[0];
   let n = 0;
@@ -16788,8 +16792,10 @@ function renderTasks(){
   const mvHtml = mv
     ? '<div class="tt-gb"><span class="i">📈</span>'
       + '<div><b>그로스보드에 적어 둔 업무 ' + mv + '건</b>'
-      + '<span>여기 프로젝트로 옮겨 담으면 한 곳에서 봅니다 — '
-      + '단계는 꼬리표로, 실행 줄은 보조 업무로 들어갑니다</span></div>'
+      + '<span>여기로 옮기면 할 일에서 같이 봅니다. '
+      + '업무 하나가 <b>프로젝트 한 칸</b>이 되고, 그 밑에 적어 둔 '
+      + '<b>행동·가설이 체크하는 줄</b>로 들어갑니다 '
+      + '(유입·전환 같은 단계는 이름표로 붙습니다)</span></div>'
       + '<button class="btn sm primary" onclick="gbMove()">여기로 옮기기</button></div>'
     : '';
 

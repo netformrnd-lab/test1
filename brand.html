@@ -4983,6 +4983,10 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 
 <div id="usersLayer"></div>
 <input type="file" id="nasUpInput" multiple style="display:none" onchange="onNasUpload(this)">
+<!-- 📁 폴더째 올리기 — webkitdirectory 를 켠 칸은 따로 둡니다
+     (한 칸에 켰다 껐다 하면 크롬이 앞서 고른 것을 기억해 엉킵니다) -->
+<input type="file" id="nasUpDir" multiple webkitdirectory directory
+       style="display:none" onchange="onNasUpload(this)">
 <input type="file" id="wbMediaInput" multiple accept="image/*,video/*" style="display:none"
        onchange="onWbMedia(this)">
 
@@ -5016,7 +5020,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261002-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261002-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -9999,10 +10003,10 @@ async function nasMkdirGo(navKey, startDir){
 }
 
 /* 이 폴더에 파일 올리기 */
-function nasUpload(navKey, startDir){
+function nasUpload(navKey, startDir, asDir){
   const dir = currentDirOf(navKey, startDir);
   if(!dir){ toast('⚠️ 폴더를 먼저 열어주세요'); return; }
-  const el = document.getElementById('nasUpInput');
+  const el = document.getElementById(asDir ? 'nasUpDir' : 'nasUpInput');
   if(!el) return;
   el.dataset.dir = dir;
   el.dataset.nav = navKey;
@@ -10010,6 +10014,8 @@ function nasUpload(navKey, startDir){
   el.value = '';
   el.click();
 }
+/* 📁 폴더째 올리기 */
+function nasUploadDir(navKey, startDir){ nasUpload(navKey, startDir, 1); }
 
 async function onNasUpload(input){
   const dir = input.dataset.dir || '';
@@ -10017,31 +10023,51 @@ async function onNasUpload(input){
   //    반드시 먼저 베껴두고 나서 비워야 합니다. (안 그러면 아무것도 안 올라갑니다)
   const files = [...(input.files || [])];
   input.value = '';
-  await nasPutFiles(dir, files);
+  /* 폴더로 고르면 파일마다 webkitRelativePath 에 「폴더/안/파일」 이 들어 있습니다.
+     그대로 들고 가야 NAS 에도 같은 모양으로 쌓입니다. */
+  await nasPutFiles(dir, files.map(f => ({ file: f, rel: f.webkitRelativePath || '' })));
 }
 
-/* 파일 여러 개를 한 폴더에 올립니다 (창에서 고르거나, 끌어다 놓거나) */
-async function nasPutFiles(dir, files){
-  files = [...(files || [])];
+/* ── 파일·폴더를 올립니다 (창에서 고르거나, 끌어다 놓거나) ────────
+   항목은 File 이거나 { file, rel } 입니다. rel 이 있으면 「폴더/안/파일」
+   이라는 뜻이고, NAS 에도 그 모양 그대로 쌓입니다.
+   ---------------------------------------------------------------- */
+async function nasPutFiles(dir, items){
+  const list = [...(items || [])].map(x => (x && x.file) ? x : { file: x, rel: '' })
+    .filter(x => x.file);
   if(!dir){ toast('⚠️ 올릴 폴더를 먼저 열어주세요'); return; }
-  if(!files.length){ toast('⚠️ 고른 파일이 없습니다'); return; }
+  if(!list.length){ toast('⚠️ 고른 파일이 없습니다'); return; }
+  const folders = new Set();
+  list.forEach(x => { const d = String(x.rel || '').split('/').slice(0, -1).join('/');
+                      if(d) folders.add(d); });
   let done = 0; const failed = [];
-  toast('⬆ ' + files.length + '개 올리는 중…');
-  for(const f of files){
+  const what = folders.size
+    ? list.length + '개 · 폴더 ' + folders.size + '개' : list.length + '개';
+  toast('⬆ ' + what + ' 올리는 중…');
+  for(let i = 0; i < list.length; i++){
+    const x = list[i], f = x.file;
+    /* 오래 걸리면 어디쯤인지 알려 줍니다 (폴더는 파일이 많습니다) */
+    if(list.length > 8 && i % 10 === 0 && i) toast('⬆ ' + i + '/' + list.length + '…');
     const fd = new FormData();
     fd.append('dir', dir);
+    if(x.rel) fd.append('rel', x.rel);
     fd.append('file', f, f.name);
     try{
       const r = await fetch('nasfiles.php?action=upload', { method:'POST', body: fd });
       const o = JSON.parse(await r.text());
       if(!o.ok) throw new Error(o.error || '올리지 못했습니다');
       done++;
-    }catch(e){ failed.push(f.name + ' — ' + (e.message || e)); }
+    }catch(e){ failed.push((x.rel || f.name) + ' — ' + (e.message || e)); }
   }
   delete browseCache[dir];
   await loadBrowse(dir);
-  if(!failed.length) toast('✅ ' + done + '개를 올렸습니다');
-  else alert(done + '개 올렸고 ' + failed.length + '개는 실패했습니다.\n\n' + failed.join('\n'));
+  if(!failed.length){
+    toast('✅ ' + done + '개를 올렸습니다' + (folders.size ? ' (폴더 ' + folders.size + '개째)' : ''));
+  }else{
+    alert(done + '개 올렸고 ' + failed.length + '개는 실패했습니다.\n\n'
+      + failed.slice(0, 12).join('\n')
+      + (failed.length > 12 ? '\n… 그 밖 ' + (failed.length - 12) + '개' : ''));
+  }
 }
 
 /* 큰 판 — 컴퓨터에서 파일을 끌어다 놓는 자리 */
@@ -10053,15 +10079,68 @@ function nasDropAllow(ev){
   ev.currentTarget.classList.add('dragover');
 }
 function nasDropLeave(ev){ ev.currentTarget.classList.remove('dragover'); }
+/* ── 📁 끌어다 놓은 것이 <<폴더>> 일 때 ──────────────────────────
+   dataTransfer.files 에는 폴더가 0바이트짜리 하나로 들어옵니다. 그대로
+   올리면 빈 파일이 생기거나 조용히 아무 일도 안 일어납니다.
+   그래서 webkitGetAsEntry 로 폴더를 열어 안쪽까지 훑습니다.
+   (크롬·엣지·사파리가 다 됩니다. 안 되는 브라우저면 파일만 올립니다)
+   ---------------------------------------------------------------- */
+function nasEntryFile(entry){
+  return new Promise(res => entry.file(f => res(f), () => res(null)));
+}
+async function nasWalk(entry, base, out, depth){
+  if(!entry || out.length > 800 || depth > 12) return;
+  const rel = base ? base + '/' + entry.name : entry.name;
+  if(entry.isFile){
+    const f = await nasEntryFile(entry);
+    if(f) out.push({ file: f, rel: rel });
+    return;
+  }
+  if(!entry.isDirectory) return;
+  const rd = entry.createReader();
+  /* readEntries 는 한 번에 100개까지만 줍니다 — 빌 때까지 물어봅니다 */
+  for(;;){
+    const batch = await new Promise(res => rd.readEntries(e => res(e || []), () => res([])));
+    if(!batch.length) break;
+    for(const e of batch) await nasWalk(e, rel, out, depth + 1);
+    if(out.length > 800) break;
+  }
+}
 async function nasDropFiles(ev, navKey, startDir){
   ev.currentTarget.classList.remove('dragover');
   if(nasDrag) return;
-  const fs = ev.dataTransfer ? ev.dataTransfer.files : null;
-  if(!fs || !fs.length) return;
+  const dt = ev.dataTransfer;
+  if(!dt) return;
+  const items = dt.items ? [...dt.items] : [];
+  const fs = dt.files ? [...dt.files] : [];
+  if(!items.length && !fs.length) return;
   ev.preventDefault(); ev.stopPropagation();
   const dir = currentDirOf(navKey, startDir);
   if(!dir){ toast('⚠️ 올릴 폴더를 먼저 열어주세요'); return; }
-  await nasPutFiles(dir, fs);
+  /* 폴더가 섞여 있는지 먼저 봅니다 */
+  let entries = [];
+  try{
+    entries = items.filter(i => i.kind === 'file')
+      .map(i => (i.webkitGetAsEntry ? i.webkitGetAsEntry() : null)).filter(Boolean);
+  }catch(e){ entries = []; }
+  if(entries.some(e => e.isDirectory)){
+    toast('📁 폴더를 펼쳐 보는 중…');
+    const out = [];
+    for(const e of entries) await nasWalk(e, '', out, 0);
+    if(!out.length){ toast('⚠️ 폴더가 비어 있습니다'); return; }
+    if(out.length > 800){
+      alert('한 번에 800개까지만 올립니다.\n\n폴더를 나눠서 올려 주세요.');
+      return;
+    }
+    await nasPutFiles(dir, out);
+    return;
+  }
+  if(entries.length){
+    const out = [];
+    for(const e of entries) await nasWalk(e, '', out, 0);
+    if(out.length){ await nasPutFiles(dir, out.map(x => ({ file:x.file, rel:'' }))); return; }
+  }
+  if(fs.length) await nasPutFiles(dir, fs);
 }
 /* 큰 판을 눌러도 파일 고르기 창이 열립니다 */
 function nasPickHere(navKey, startDir){ nasUpload(navKey, startDir); }
@@ -10531,6 +10610,9 @@ function folderBrowserHtml(navKey, startDir, opts){
       + jsq(startDir || '') + '\')" title="이 폴더 안에 새 폴더를 만듭니다">＋ 새 폴더</button>'
     + '<button class="btn sm" onclick="nasUpload(\'' + jsq(navKey) + '\',\''
       + jsq(startDir || '') + '\')" title="이 폴더에 파일을 올립니다">⬆ 여기에 올리기</button>'
+    + '<button class="btn sm" onclick="nasUploadDir(\'' + jsq(navKey) + '\',\''
+      + jsq(startDir || '') + '\')" title="폴더를 통째로 올립니다 — 안쪽 폴더까지 그대로">'
+      + '📁 폴더째 올리기</button>'
     + '<button class="btn sm" onclick="openTrash()" '
       + 'title="지운 것을 보고 되돌립니다">🗑 휴지통</button>'
     + '<span class="hint">이 폴더 ' + (c.fileCount || 0).toLocaleString('ko-KR') + '개'
@@ -10548,14 +10630,18 @@ function folderBrowserHtml(navKey, startDir, opts){
         + jsq(startDir || '') + '\')">⬆</span>'
       + '<span class="tx" onclick="nasPickHere(\'' + jsq(navKey) + '\',\''
         + jsq(startDir || '') + '\')">'
-        + '<span class="t"><span class="here">' + esc(hereName) + '</span> 안에 파일 올리기</span>'
+        + '<span class="t"><span class="here">' + esc(hereName) + '</span> 안에 '
+          + '파일 · <b>폴더</b> 올리기</span>'
         + '<span class="s">컴퓨터에서 끌어다 놓거나, 눌러서 고르세요 · '
-        + '고른 파일이 <b>이 폴더에 그대로</b> 들어갑니다 '
-        + '(폴더를 저절로 만들거나 다른 데로 옮기지 않습니다)</span>'
+        + '<b>폴더를 통째로</b> 끌어다 놓으면 안쪽 폴더까지 그대로 들어갑니다 · '
+        + '여기 말고 다른 데로는 가지 않습니다</span>'
       + '</span>'
+      + '<button class="btn sm mk" onclick="event.stopPropagation();nasUploadDir(\'' + jsq(navKey)
+        + '\',\'' + jsq(startDir || '') + '\')" '
+        + 'title="폴더를 골라 통째로 올립니다">📁 폴더 고르기</button>'
       + '<button class="btn sm mk" onclick="event.stopPropagation();nasMkdirGo(\'' + jsq(navKey)
         + '\',\'' + jsq(startDir || '') + '\')" '
-        + 'title="여기에 새 폴더를 만들고 그 안으로 들어갑니다">📁 새 폴더</button>'
+        + 'title="여기에 새 폴더를 만들고 그 안으로 들어갑니다">＋ 새 폴더</button>'
       + '</div>'
     : '';
 

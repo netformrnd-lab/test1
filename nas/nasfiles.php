@@ -466,16 +466,53 @@ if ($action === 'upload') {
     if ((int)$f['size'] > 200 * 1024 * 1024) {
         jout(['ok' => false, 'error' => '파일이 너무 큽니다 (최대 200MB)'], 413);
     }
+    /* ── 📁 폴더째 올리기 ────────────────────────────────────────
+       rel 에 「2026/계약/계정.xlsx」 처럼 폴더 안쪽 길이 같이 옵니다.
+       없는 폴더는 여기서 만들어 둡니다 — 브라우저가 폴더마다 따로
+       물어보면 파일 수만큼 왔다 갔다 해서 느립니다.
+       한 칸 한 칸 name_ok 로 거르므로 .. 이나 / 로 빠져나갈 수 없고,
+       마지막에 realpath 로 올릴 폴더 <<안>> 인지 다시 확인합니다.
+       ---------------------------------------------------------- */
+    $rel  = str_replace('\\', '/', (string)($_POST['rel'] ?? ''));
+    $into = $dir;
+    $sub  = '';
+    if ($rel !== '') {
+        $parts = array_slice(array_values(array_filter(explode('/', $rel), 'strlen')), 0, 12);
+        array_pop($parts);                       // 마지막은 파일 이름입니다
+        foreach ($parts as $seg) {
+            $seg = name_ok($seg);
+            if ($seg === null) jout(['ok' => false, 'error' =>
+                '폴더 이름에 쓸 수 없는 글자가 있습니다: ' . $rel], 400);
+            $next = $into . '/' . $seg;
+            if (!is_dir($next)) {
+                if (file_exists($next)) jout(['ok' => false, 'error' =>
+                    '같은 이름의 파일이 이미 있어 폴더를 만들지 못했습니다: ' . $seg], 409);
+                if (!@mkdir($next, 0775)) jout(['ok' => false, 'error' =>
+                    '폴더를 만들지 못했습니다: ' . $seg . '. ' . perm_help($into)], 500);
+                @chmod($next, 0775);
+            }
+            $into = $next;
+            $sub .= ($sub === '' ? '' : '/') . $seg;
+        }
+        /* 만들어 둔 곳이 정말 올릴 폴더 안쪽인지 다시 봅니다 */
+        $r1 = @realpath($into); $r0 = @realpath($dir);
+        if (!$r1 || !$r0 || ($r1 !== $r0 && strpos($r1, $r0 . DIRECTORY_SEPARATOR) !== 0)) {
+            jout(['ok' => false, 'error' => '올릴 수 없는 곳입니다: ' . $rel], 403);
+        }
+        $into = $r1;
+        if (!is_writable($into)) jout(['ok' => false, 'error' => perm_help($into)], 403);
+    }
     $name = name_ok(basename((string)$f['name']));
     if ($name === null) $name = 'file-' . date('Ymd-His');
-    $name = free_name($dir, $name);
+    $name = free_name($into, $name);
 
-    if (!@move_uploaded_file($f['tmp_name'], $dir . '/' . $name)) {
-        jout(['ok' => false, 'error' => '저장하지 못했습니다. ' . perm_help($dir)], 500);
+    if (!@move_uploaded_file($f['tmp_name'], $into . '/' . $name)) {
+        jout(['ok' => false, 'error' => '저장하지 못했습니다. ' . perm_help($into)], 500);
     }
-    @chmod($dir . '/' . $name, 0664);
-    jout(['ok' => true, '이름' => $name, '경로' => $dir . '/' . $name,
-          '크기' => human((int)$f['size']), '안내' => '「' . $name . '」 을(를) 올렸습니다']);
+    @chmod($into . '/' . $name, 0664);
+    jout(['ok' => true, '이름' => $name, '경로' => $into . '/' . $name, '폴더' => $sub,
+          '크기' => human((int)$f['size']),
+          '안내' => '「' . ($sub !== '' ? $sub . '/' : '') . $name . '」 을(를) 올렸습니다']);
 }
 
 

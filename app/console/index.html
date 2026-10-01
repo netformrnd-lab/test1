@@ -1527,29 +1527,33 @@ async function submitReportAdd(aptId){
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();
 }
-/* 감리일지 작성(단지 선택형) — 영업/감리원이 PC에서 바로 작성. 마지막 단지를 기억해 매번 안 골라도 됨 */
+/* 감리일지 작성 — 실제 '체크리스트(inspect)' 양식으로 연결(앱과 동일). 마지막 단지 기억 */
+function inspectWorkSub(method){
+  if(method==='repaint') return {work:'외벽 재도장',sub:''};
+  if(method==='metalroof') return {work:'옥상방수',sub:'금속기와'};
+  if(method==='shingle') return {work:'옥상방수',sub:'싱글'};
+  if(method==='epoxy') return {work:'지하주차장',sub:''};
+  return {work:'',sub:''};
+}
 function openReportAddPick(){
-  MPHOTOS=[]; MBUCKET='report-photos'; MPREFIX='';
   const last=lsGet('aptsq_lastReportApt')||'';
   const apts=[...APTS].sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   const opts=apts.map(a=>`<option value="${a.id}" ${a.id===last?'selected':''}>${esc(a.name)}</option>`).join('');
-  openModal(mHead('📝 감리일지 작성')+`
-    <div class="fld"><label>단지 *</label><select id="m-apt-pick">${opts||'<option value="">먼저 단지를 등록하세요</option>'}</select><div style="font-size:11px;color:var(--mut);margin-top:4px">마지막에 작성한 단지가 기본 선택돼요 — 같은 단지면 그대로 쓰면 됩니다.</div></div>
-    <div class="fld"><label>제목 *</label><input id="m-title" placeholder="예: 106동 외벽 상도 1차"></div>
-    <div class="frow"><div class="fld"><label>동 (쉼표로 구분)</label><input id="m-dongs" placeholder="예: 106동, 107동"></div></div>
-    <div class="fld"><label>점검 내용 (감리원 원문)</label><textarea id="m-content" placeholder="점검 내용을 적으세요"></textarea></div>
-    <div class="fld"><label>현장 사진</label>${mPhotoBox()}</div>
+  openModal(mHead('📝 감리일지 작성 (체크리스트)')+`
+    <div class="fld"><label>단지 *</label><select id="m-apt-pick">${opts||'<option value="">먼저 단지를 등록하세요</option>'}</select>
+      <div style="font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.6">단지를 고르고 아래 버튼을 누르면 <b>우리가 쓰는 체크리스트 감리일지</b>가 새 탭에서 열립니다. 체크리스트 작성·전송하면 이 단지 감리일지로 저장돼요.<br>마지막에 작성한 단지가 기본 선택됩니다.</div></div>
     <div class="mmsg" id="m-msg"></div>
-    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitReportAddPick()">등록</button></div>`);
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="startInspectReport()">➡️ 체크리스트 작성 시작</button></div>`);
 }
-async function submitReportAddPick(){
-  const aptId=($('m-apt-pick')||{}).value; if(!aptId){$('m-msg').textContent='단지를 선택하세요';$('m-msg').style.color='var(--red)';return;}
-  const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const {data:{user}}=await sb.auth.getUser();
-  const {error}=await sb.from('reports').insert({apartment_id:aptId,title,dongs:$('m-dongs').value.trim()||null,content:$('m-content').value.trim()||null,photos:MPHOTOS.slice(),published:false,author_id:user?user.id:null});
-  if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+function startInspectReport(){
+  const sel=$('m-apt-pick'); const aptId=sel&&sel.value;
+  if(!aptId){$('m-msg').textContent='단지를 선택하세요';$('m-msg').style.color='var(--red)';return;}
+  const a=APTS.find(x=>x.id===aptId); const nm=a?(a.name||''):''; const ws=inspectWorkSub(a&&a.method);
   lsSet('aptsq_lastReportApt',aptId);
-  closeModal(); await loadAll();
+  const url='../inspect/?apt='+encodeURIComponent(aptId)+'&name='+encodeURIComponent(nm)
+    +(ws.work?'&work='+encodeURIComponent(ws.work):'')+(ws.sub?'&sub='+encodeURIComponent(ws.sub):'');
+  window.open(url,'_blank','noopener');
+  closeModal();
 }
 function openReportEdit(id){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;

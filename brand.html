@@ -4625,14 +4625,14 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
     <div class="pjm-h">
       <span class="pjm-ic">🚀</span>
       <div class="pjm-ti">
-        <div class="pjm-t">프로젝트 수정</div>
+        <div class="pjm-t" id="pjmT">프로젝트 수정</div>
         <div class="pjm-s">메인 프로젝트와 보조 업무를 한 번에 등록</div>
       </div>
       <button class="pjm-x" onclick="closeModal('projModal')" title="닫기">×</button>
     </div>
     <div class="pjm-b" id="pjBody"></div>
     <div class="pjm-f">
-      <button class="pjm-btn danger" onclick="projDel()">🗑 삭제</button>
+      <button class="pjm-btn danger" id="pjDel" onclick="projDel()">🗑 삭제</button>
       <span class="pjm-sp"></span>
       <button class="pjm-btn" onclick="closeModal('projModal')">취소</button>
       <button class="pjm-btn primary" onclick="projSave()">저장</button>
@@ -4690,7 +4690,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261001-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261001-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5043,6 +5043,10 @@ const TYPES = {
     empty:'등록된 할 일이 없습니다.',
     fields:[
       { key:'title',  label:'할 일',   type:'text',     required:true, ph:'예: 관리사무소용 영업자료 정비' },
+      /* 어느 브랜드 것인지 — 전에는 창을 열기 <<전>> 에 따로 물었습니다 */
+      { key:'bid',    label:'🏷️ 브랜드', type:'select', required:true,
+        options: () => (data.brands || []).map(b => ({ value:b.id,
+          label:(b.icon || '🏷️') + ' ' + b.name })) },
       /* 프로젝트는 여러 날에 걸쳐 굴러가는 일입니다 — 진척률로 봅니다.
          그냥 할 일은 끝냈나 안 끝냈나만 보면 됩니다. */
       { key:'kind',   label:'갈래',    type:'select',   options:['할 일','프로젝트'] },
@@ -14979,7 +14983,6 @@ async function gbCopyText(){
    누가 무엇을 맡고 있는지 사람별로 묶어서 봅니다.
    ================================================================= */
 let taskDone  = false;    // 끝난 일도 보여줄까
-let taskAdd   = false;    // 「어느 브랜드에 넣을까」 고르는 중
 
 function toggleTaskDone(){ taskDone = !taskDone; render(); }
 
@@ -15188,21 +15191,39 @@ function projAvg(d){
   if(!ss.length) return Math.max(0, Math.min(100, parseInt(d.pct, 10) || 0));
   return Math.round(ss.reduce((a, x) => a + (parseInt(x.pct, 10) || 0), 0) / ss.length);
 }
+/* 그 사람이 가장 가까이 손댄 브랜드 — 새로 만들 때 미리 골라 둡니다 */
+function projBrandOf(name){
+  const nm = String(name || '').trim();
+  let hit = null, at = '';
+  (data.brands || []).forEach(b => (b.tasks || []).forEach(t => {
+    if(String(t.owner || '').trim() !== nm) return;
+    const u = String(t.updatedAt || '');
+    if(!hit || u > at){ hit = b; at = u; }
+  }));
+  return (hit || (data.brands || [])[0] || {}).id || '';
+}
+function projShow(){
+  projPaint();
+  const dl = document.getElementById('pjDel');
+  if(dl) dl.style.display = (projAt && projAt.id) ? '' : 'none';
+  const ti = document.getElementById('pjmT');
+  if(ti) ti.textContent = (projAt && projAt.id) ? '프로젝트 수정' : '프로젝트 등록';
+  document.getElementById('projModal').classList.add('open');
+  setTimeout(() => { const el = document.getElementById('pjTitle'); if(el) el.focus(); }, 30);
+}
 function projOpen(id, bid){
   const b = brandById(bid);
   const t = b && (b.tasks || []).find(x => x.id === id);
   if(!t){ render(); return; }
   projAt = { id: id, bid: bid };
   projDraft = {
-    title: t.title || '', owner: t.owner || '', uid: t.uid || '',
+    title: t.title || '', owner: t.owner || '', uid: t.uid || '', bid: bid,
     start: t.start || '', due: t.due || '', prio: t.prio || '보통',
     pct: String(parseInt(t.pct, 10) || 0), note: t.note || '',
     subs: projSubs(t).map(x => ({ id: x.id || uid('sb'), title: x.title || '',
                                  st: x.st || '할일', pct: String(parseInt(x.pct, 10) || 0) }))
   };
-  projPaint();
-  document.getElementById('projModal').classList.add('open');
-  setTimeout(() => { const el = document.getElementById('pjTitle'); if(el) el.focus(); }, 30);
+  projShow();
 }
 /* 0~100 을 숫자로도 · ▲▼ 로도 — 래퍼런스의 그 칸입니다 */
 function pjPct(v, js, big){
@@ -15235,6 +15256,13 @@ function projPaint(){
         + '<select onchange="projDraft.owner=this.value">'
         + names.map(n => '<option' + (n === d.owner ? ' selected' : '') + ' value="' + esc(n) + '">'
             + (n ? esc(n) : '— 없음 —') + '</option>').join('')
+        + '</select></div>'
+      /* 어느 브랜드 것인지 — 전에는 창을 열기 <<전>> 에 따로 물었습니다 */
+      + '<div class="pj-f"><label>🏷️ 브랜드 *</label>'
+        + '<select onchange="projDraft.bid=this.value">'
+        + (data.brands || []).map(b => '<option' + (b.id === d.bid ? ' selected' : '')
+            + ' value="' + esc(b.id) + '">' + esc(b.icon || '🏷️') + ' ' + esc(b.name)
+            + '</option>').join('')
         + '</select></div>'
       + '<div class="pj-f"><label>📅 시작일</label>'
         + '<input type="date" value="' + esc(d.start) + '" onchange="projDraft.start=this.value"></div>'
@@ -15325,9 +15353,25 @@ function projSave(){
   const d = projDraft, at = projAt;
   if(!d || !at) return;
   if(!String(d.title || '').trim()){ toast('⚠️ 프로젝트 이름을 적어 주세요'); return; }
-  const b = brandById(at.bid);
-  const t = b && (b.tasks || []).find(x => x.id === at.id);
-  if(!t){ closeModal('projModal'); render(); toast('그 사이 다른 분이 지웠습니다'); return; }
+  const nb = brandById(d.bid) || (data.brands || [])[0];
+  if(!nb){ toast('⚠️ 브랜드를 골라 주세요'); return; }
+  let b = at.id ? brandById(at.bid) : null;
+  let t = (b && (b.tasks || []).find(x => x.id === at.id)) || null;
+  if(at.id && !t){ closeModal('projModal'); render(); toast('그 사이 다른 분이 지웠습니다'); return; }
+  if(!t){
+    /* 새로 만드는 중입니다 */
+    t = { id: uid('i'), kind:'프로젝트', status:'진행 중' };
+    if(!Array.isArray(nb.tasks)) nb.tasks = [];
+    nb.tasks.unshift(t);
+    b = nb;
+  }else if(nb.id !== b.id){
+    /* 브랜드를 옮겼습니다 */
+    b.tasks = (b.tasks || []).filter(x => x.id !== t.id);
+    markDirty(b.id);
+    if(!Array.isArray(nb.tasks)) nb.tasks = [];
+    nb.tasks.unshift(t);
+    b = nb;
+  }
   const avg = projAvg(d);
   t.title = d.title.trim();
   t.owner = d.owner; t.start = d.start; t.due = d.due;
@@ -15344,10 +15388,11 @@ function projSave(){
     const u = (people.list || []).find(x => String(x['이름'] || '').trim() === d.owner);
     t.uid = u ? u.id : '';
   }
+  const made = !at.id;
   projAt = null; projDraft = null;
   closeModal('projModal');
   markDirty(b.id); render();
-  toast('🚀 저장했습니다');
+  toast(made ? '🚀 프로젝트를 넣었습니다' : '🚀 저장했습니다');
 }
 function projDel(){
   const at = projAt; if(!at) return;
@@ -15355,31 +15400,29 @@ function projDel(){
   projAt = null; projDraft = null;
   deleteItem('tasks', at.id, at.bid);
 }
+/* [＋] 를 누르면 <<바로 창>> 이 뜹니다 — 브랜드는 창 안에서 고릅니다 */
 function projAdd(name){
-  taskAddFor = { who: name || '', kind:'프로젝트' };
-  taskAdd = true; render();
+  if(authOn()) loadPeople();
+  if(!(data.brands || []).length){ toast('브랜드를 먼저 만들어 주세요'); return; }
+  projAt = { id:'', bid:'' };
+  projDraft = { title:'', owner: name || '', uid:'', bid: projBrandOf(name),
+                start: todayStr(), due:'', prio:'보통', pct:'0', note:'', subs: [] };
+  projShow();
 }
 function taskAddWho(name){
-  taskAddFor = { who: name || '', kind:'할 일' };
-  taskAdd = true; render();
-}
-let taskAddFor = null;
-/* 「어느 브랜드에」 를 고르면 그 사람 · 그 갈래로 창이 열립니다 */
-function addTaskTo2(bid){
-  const f = taskAddFor || {};
-  taskAdd = false; taskAddFor = null;
   if(authOn()) loadPeople();
-  const pre = { kind: f.kind || '할 일' };
-  if(f.who){
-    pre.owner = f.who;
+  if(!(data.brands || []).length){ toast('브랜드를 먼저 만들어 주세요'); return; }
+  const pre = { kind:'할 일' };
+  if(name){
+    pre.owner = name;
     if(authOn()){
-      const u = (people.list || []).find(x => String(x['이름'] || '').trim() === f.who);
+      const u = (people.list || []).find(x => String(x['이름'] || '').trim() === name);
       if(u) pre.uid = u.id;
     }
   }
-  if(pre.kind === '프로젝트'){ pre.status = '진행 중'; pre.pct = '0'; pre.start = todayStr(); }
-  openItemModal('tasks', null, pre, bid);
+  openItemModal('tasks', null, pre, projBrandOf(name));
 }
+/* 「어느 브랜드에」 를 고르면 그 사람 · 그 갈래로 창이 열립니다 */
 const TEAM_SEED = [
   ['브랜드전략팀',   [['김소라', '팀장'], ['최경선', ''], ['김다예', '']]],
   ['컨텐츠마케팅팀', [['김지학', ''], ['민경소', '']]],
@@ -15589,23 +15632,11 @@ function memCard(m, t, hue, rows){
             + ' onchange="projSet(\'' + jsq(r.t.id) + '\',\'' + jsq(r.b.id) + '\', this.value)">')
       + '</div>';
   };
-  /* ── [＋] 를 누르면 <<그 자리에서>> 어느 브랜드인지 묻습니다 ──
-     전에는 화면 맨 위에 띠가 떴습니다. 카드는 한참 밑에 있으니
-     눌러도 아무 일이 없는 것처럼 보였습니다. */
-  const pick = (kind) => {
-    const f = taskAddFor || {};
-    if(!taskAdd || f.who !== nm || f.kind !== kind) return '';
-    return '<div class="tt-pick in"><span>어느 브랜드 것인가요?</span>'
-      + data.brands.map(b => '<button class="btn sm" onclick="addTaskTo2(\'' + jsq(b.id) + '\')">'
-          + esc(b.icon || '🏷️') + ' ' + esc(b.name) + '</button>').join('')
-      + '<button class="btn sm" onclick="taskAdd=false;taskAddFor=null;render()">취소</button>'
-      + '</div>';
-  };
-  const sec = (lb, n, list, none, draw, add, kind) => '<div class="tt-s">'
+  /* [＋] 를 누르면 그 자리에서 <<바로 창>> 이 뜹니다 — 브랜드도 창 안에서 */
+  const sec = (lb, n, list, none, draw, add) => '<div class="tt-s">'
     + '<div class="tt-lb"><span>' + lb + '</span>'
       + '<span class="tt-n">' + n + (add ? '<button class="tt-p" onclick="' + add
           + '" title="새로 만들기">＋</button>' : '') + '</span></div>'
-    + (kind ? pick(kind) : '')
     + (list.length ? '<div class="tt-l">' + list.map(draw || row).join('') + '</div>'
                    : (none ? '<div class="tt-e">' + none + '</div>' : ''))
     + '</div>';
@@ -15652,15 +15683,12 @@ function memCard(m, t, hue, rows){
        앞에 내놓습니다. */
     + (empty
       ? '<div class="tt-zero">'
-        + (taskAdd && (taskAddFor || {}).who === nm
-            ? pick((taskAddFor || {}).kind)
-            : '<p>오늘 잡힌 일이 없습니다 — 무엇부터 넣을까요?</p>'
-              + '<div class="tt-zb">'
-              + '<button onclick="routAdd(' + q + ')">🔄 루틴</button>'
-              + '<button onclick="projAdd(' + q + ')">🚀 프로젝트</button>'
-              + '<button onclick="taskAddWho(' + q + ')">⏰ 할 일</button>'
-              + '</div>')
-        + '</div>'
+        + '<p>오늘 잡힌 일이 없습니다 — 무엇부터 넣을까요?</p>'
+        + '<div class="tt-zb">'
+        + '<button onclick="routAdd(' + q + ')">🔄 루틴</button>'
+        + '<button onclick="projAdd(' + q + ')">🚀 프로젝트</button>'
+        + '<button onclick="taskAddWho(' + q + ')">⏰ 할 일</button>'
+        + '</div></div>'
       : sec('🔄 오늘 루틴', rd + '/' + rs.length, rs, '오늘 할 루틴이 없습니다',
           r => '<div class="tt-i' + (routDone(r, iso) ? ' done' : '') + '">'
             + '<button class="tt-c" onclick="routFlip(\'' + jsq(r.id) + '\')"'
@@ -15669,11 +15697,11 @@ function memCard(m, t, hue, rows){
               + ' title="' + esc(r.title) + '">' + esc(r.title) + '</span>'
             + '<span class="tt-fq ' + (r.freq === '매일' ? 'd' : r.freq === '주간' ? 'w' : 'm') + '">'
               + esc(r.freq || '매일') + '</span></div>',
-          'routAdd(' + q + ')', '루틴')
+          'routAdd(' + q + ')')
       + sec('🚀 진행중 프로젝트', projs.length + '건', projs, '진행 중인 프로젝트가 없습니다',
-          prow, 'projAdd(' + q + ')', '프로젝트')
+          prow, 'projAdd(' + q + ')')
       + sec('⏰ 오늘까지', now.length + '건', now, '오늘까지 할 일이 없습니다',
-          null, 'taskAddWho(' + q + ')', '할 일')
+          null, 'taskAddWho(' + q + ')')
       /* 기한이 아직 안 왔거나, 기한을 안 적어 둔 할 일입니다 */
       + (later.length ? sec('📋 아직 기한이 안 된 일', later.length + '건', later, '', null, '') : '')
       + (shown.length ? sec('✅ 끝낸 일', shown.length + '건', shown, '', null, '') : ''))
@@ -23091,6 +23119,9 @@ function openItemModal(type, id, preset, brandId){
     // 값을 정하는 순서: 고치는 항목 → 눌러서 넘겨준 값(preset) → 기본값
     let v = it ? (it[f.key] || '') : '';
     if(!it && preset && preset[f.key] != null) v = preset[f.key];
+    /* 할 일의 브랜드 칸은 지금 열려 있는 브랜드를 기본으로 (안 그러면
+       창을 열었다 저장하는 것만으로 다른 브랜드로 옮겨집니다) */
+    if(itemType === 'tasks' && f.key === 'bid' && !v) v = itemBrandId;
     else if(!it && !v && f.def) v = f.def();
     else if(!it && !v && f.type === 'date' && !f.noDefault) v = todayStr();
 
@@ -23152,6 +23183,13 @@ function submitItem(){
     toast('⚠️ 끝나는 날이 시작하는 날보다 앞입니다');
     return;
   }
+  /* 🏷️ 브랜드 — 할 일은 창에서 고른 브랜드로 들어가거나 옮겨갑니다 */
+  let toBid = itemBrandId;
+  if(itemType === 'tasks'){
+    if(payload.bid) toBid = payload.bid;
+    delete payload.bid;
+  }
+  const dest = (toBid && toBid !== itemBrandId) ? listOf(itemType, toBid) : arr;
   const target = editing ? arr.find(x => x.id === editing.id) : null;
   if(editing && !target){
     // 내가 수정창을 열어둔 사이에 다른 분이 이 항목을 지웠습니다.
@@ -23170,16 +23208,22 @@ function submitItem(){
     if(itemType === 'tasks' && String(payload.pct || '') !== String(target.pct || ''))
       payload.pctAt = todayStr();
     Object.assign(target, payload, { updatedAt: new Date().toISOString() });
+    if(dest !== arr && dest){            // 브랜드를 옮겼습니다
+      const i = arr.indexOf(target);
+      if(i >= 0) arr.splice(i, 1);
+      dest.unshift(target);
+      markDirty(itemBrandId || undefined);
+    }
   }else{
     if(itemType === 'tasks' && payload.pct) payload.pctAt = todayStr();
     const item = Object.assign({ id: uid('i'), updatedAt: new Date().toISOString() }, payload);
     // 여정은 시간 순으로 읽어야 하므로 아래에 쌓고, 나머지는 최신이 위로 옵니다
-    if(itemType === 'history') arr.push(item);
-    else arr.unshift(item);
+    if(itemType === 'history') (dest || arr).push(item);
+    else (dest || arr).unshift(item);
   }
   editing = null;
   closeModal('itemModal');
-  render(); markDirty(itemBrandId || undefined);
+  render(); markDirty(toBid || itemBrandId || undefined);
 }
 
 /* ═══════════════ 휴지통 (대시보드에서 지운 것) ═══════════════════

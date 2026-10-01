@@ -4352,21 +4352,29 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   border-radius:6px;background:var(--bg-card);color:var(--text-muted);font-size:12px;
   line-height:1;cursor:pointer}
 .tt-p:hover{border-color:var(--tc);color:var(--tc)}
-/* 🚀 프로젝트 칸 — 할 일 한 줄보다 크게 섭니다 */
-.tt-pj{padding:10px 11px 9px 13px;margin-bottom:6px;border-radius:9px;
+/* 🚀 프로젝트 칸 — 할 일 한 줄보다 크게 섭니다 (누르면 펼쳐집니다) */
+.tt-pj{margin-bottom:6px;border-radius:9px;overflow:hidden;
   border:1px solid var(--border);border-left:3px solid var(--tc);background:var(--bg-secondary);
-  cursor:pointer;transition:.14s var(--ease)}
+  transition:.14s var(--ease)}
 .tt-pj:last-child{margin-bottom:0}
+.tt-pj-t{padding:10px 11px 9px 13px;cursor:pointer}
 .tt-pj:hover{background:var(--bg-card);box-shadow:var(--shadow-sm);border-color:var(--tc)}
+.tt-pj.op{background:var(--bg-card);border-color:var(--tc);box-shadow:var(--shadow-sm)}
 .tt-pj.slow{border-left-color:var(--red);
   background:color-mix(in srgb,var(--red) 5%,var(--bg-secondary))}
 .tt-pj-h{display:flex;align-items:center;gap:7px}
+/* ▸ 펼침 표시 — 펼치면 ▾ 로 돌아갑니다 */
+.tt-pj-k{flex:0 0 auto;font-size:9px;color:var(--text-muted);transition:transform .16s var(--ease)}
+.tt-pj.op .tt-pj-k{transform:rotate(90deg);color:var(--tc)}
 .tt-pj-h b{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:700;letter-spacing:-.01em;
   color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tt-pj-o{flex:0 0 auto;font-size:10px}
 .tt-pj-s{flex:0 0 auto;font-size:10px;font-weight:700;color:var(--red)}
-.tt-pj-e{flex:0 0 auto;font-size:11px;color:var(--text-muted);opacity:0;transition:opacity .14s}
-.tt-pj:hover .tt-pj-e{opacity:1}
+.tt-pj-e{flex:0 0 auto;width:21px;height:21px;padding:0;border:1px solid transparent;
+  border-radius:6px;background:transparent;font-size:11px;color:var(--text-muted);
+  line-height:1;cursor:pointer;opacity:0;transition:opacity .14s}
+.tt-pj:hover .tt-pj-e,.tt-pj.op .tt-pj-e{opacity:1}
+.tt-pj-e:hover{border-color:var(--tc);color:var(--tc);background:var(--bg-secondary)}
 .tt-pj-m{display:flex;align-items:center;gap:9px;margin-top:7px}
 .tt-pj-b{flex:1 1 auto;height:7px;border-radius:99px;background:var(--bg-sunken);overflow:hidden}
 .tt-pj-b i{display:block;height:100%;border-radius:99px;background:var(--tc);transition:width .25s}
@@ -4379,6 +4387,66 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   font-size:10.5px;color:var(--text-muted)}
 .tt-pj-f i{font-style:normal;opacity:.5}
 .tt-pj-f .late{color:var(--red);font-weight:700}
+.tt-pj-f .trm{font-weight:700;color:var(--tc)}
+/* ── 🚀 펼친 속 (아코디언) ───────────────────────────────────── */
+.pja{padding:2px 11px 10px 13px;border-top:1px dashed var(--border);margin-top:1px}
+.pja-l{display:flex;flex-direction:column;gap:3px;margin-top:8px}
+.pja-s{display:flex;align-items:center;gap:7px;padding:4px 6px 4px 0;border-radius:6px}
+.pja-s:hover{background:var(--bg-secondary)}
+.pja-s.done .pja-t{text-decoration:line-through;color:var(--text-muted)}
+.pja-st{flex:0 0 auto;width:19px;height:19px;padding:0;border-radius:50%;
+  border:1.5px solid var(--border);background:var(--bg-card);font-size:9px;line-height:1;
+  color:var(--text-muted);cursor:pointer;transition:.12s}
+.pja-st:hover{border-color:var(--tc);color:var(--tc)}
+.pja-st.s1{border-color:var(--tc);color:var(--tc);font-weight:800}
+.pja-st.s2{border-color:var(--tc);background:var(--tc);color:#fff}
+.pja-t{flex:1 1 auto;min-width:0;font-size:12px;font-weight:600;color:var(--text-primary);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pja-b{flex:0 0 54px;height:4px;border-radius:99px;background:var(--bg-sunken);overflow:hidden}
+.pja-b i{display:block;height:100%;border-radius:99px;background:var(--tc)}
+.pja-v{flex:0 0 auto;min-width:30px;text-align:right;font-size:10.5px;font-weight:700;
+  color:var(--text-muted)}
+.pja-n{margin-top:8px;padding:9px 10px;border-radius:7px;background:var(--bg-secondary);
+  font-size:11.5px;color:var(--text-muted);text-align:center}
+.pja-m{margin-top:8px;padding:8px 10px;border-radius:7px;background:var(--bg-secondary);
+  font-size:11.5px;line-height:1.55;color:var(--text-secondary);white-space:pre-wrap}
+.pja-f{display:flex;align-items:center;gap:5px;margin-top:9px}
+.pja-f input{flex:1 1 auto;min-width:0;font-family:inherit;font-size:11.5px;padding:6px 9px;
+  border:1px solid var(--border);border-radius:7px;background:var(--bg-input);
+  color:var(--text-primary)}
+.pja-f input:focus{outline:none;border-color:var(--tc)}
+.pja-f button{flex:0 0 auto;font-family:inherit;font-size:11.5px;font-weight:700;padding:6px 9px;
+  border:1px solid var(--border);border-radius:7px;background:var(--bg-card);
+  color:var(--text-secondary);cursor:pointer;white-space:nowrap}
+.pja-f button:hover{border-color:var(--tc);color:var(--tc)}
+.pja-f .go{background:var(--bg-secondary)}
+/* ── 📓 업무일지 한 줄 ──────────────────────────────────────── */
+.jr{padding:6px 2px 7px;border-bottom:1px dashed var(--border)}
+.jr:last-child{border-bottom:none;padding-bottom:2px}
+.jr-h{display:flex;align-items:center;gap:7px}
+.jr-t{flex:1 1 auto;min-width:0;font-size:12.5px;font-weight:600;color:var(--text-primary);
+  cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jr-t:hover{color:var(--tc)}
+.jr.done .jr-t{text-decoration:line-through;color:var(--text-muted)}
+.jr-n{flex:0 0 auto;font-size:10px;font-weight:700;color:var(--tc);
+  padding:1px 5px;border-radius:5px;background:color-mix(in srgb,var(--tc) 11%,transparent)}
+.jr-w{display:flex;align-items:center;gap:5px;margin:5px 0 0 26px}
+.jr-p{flex:0 0 auto;font-size:9.5px;color:var(--text-muted);opacity:.6}
+.jr-w input{flex:1 1 auto;min-width:0;font-family:inherit;font-size:11.5px;padding:5px 8px;
+  border:1px solid transparent;border-radius:6px;background:var(--bg-secondary);
+  color:var(--text-primary)}
+.jr-w input::placeholder{color:var(--text-muted);opacity:.75}
+.jr-w input:hover{border-color:var(--border)}
+.jr-w input:focus{outline:none;border-color:var(--tc);background:var(--bg-input)}
+.jr.has .jr-w input{background:color-mix(in srgb,var(--tc) 7%,transparent);font-weight:600}
+.jr.has .jr-p{opacity:1;color:var(--tc)}
+.jr-dt{font-style:normal;font-size:10.5px;font-weight:600;color:var(--text-muted);
+  margin-left:5px}
+/* 🗓 창 안에서 「2026 상반기 프로젝트로 적힙니다」 */
+.pj-term{margin:-2px 0 0;padding:8px 11px;border-radius:8px;
+  background:color-mix(in srgb,var(--ink,#1a3f8b) 7%,transparent);
+  font-size:11.5px;color:var(--text-secondary)}
+.pj-term b{color:var(--text-primary)}
 /* 📈 그로스보드를 옮겨 오라는 띠 */
 .tt-gb{display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:12px 15px;
   border:1px solid var(--border);border-left:4px solid var(--green,#2e7d52);
@@ -4712,7 +4780,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261001-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261001-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -15203,6 +15271,103 @@ function projStale(t){
   return isFinite(d) ? Math.max(0, d) : 0;
 }
 const PROJ_STALE = 7;                 // 이레 넘게 안 움직이면 「더딘 일」
+/* ── 🗓 년도 · 반기 ───────────────────────────────────────────────
+   프로젝트는 반기로 세우고 반기로 돌아봅니다. 「2026 상반기」 처럼
+   적어 두면 그 칸이 언제 치 일인지 한눈에 보이고, 묵은 해의 일을
+   가려 둘 수도 있습니다. 반기를 안 고르면 「연간」 입니다.
+   ---------------------------------------------------------------- */
+const PROJ_HALF = ['상반기', '하반기', '연간'];
+function projYears(){
+  const y = new Date().getFullYear(), out = [];
+  for(let i = y - 2; i <= y + 2; i++) out.push(String(i));
+  return out;
+}
+function halfNow(){ return (new Date().getMonth() + 1) <= 6 ? '상반기' : '하반기'; }
+/* 「2026 상반기」 — 둘 가운데 하나만 적혀 있어도 그것만 내보냅니다 */
+function projTerm(t){
+  const y = String(t.year || '').trim(), h = String(t.half || '').trim();
+  return y && h ? y + ' ' + h : (y || h);
+}
+/* ── 🚀 프로젝트 칸을 <<펼쳐>> 보기 (아코디언) ───────────────────
+   전에는 칸을 누르면 바로 고치는 창이 떴습니다. 그런데 대부분은
+   「어디까지 됐나」 를 <<보려고>> 누릅니다 — 고치려고 누르는 게
+   아닙니다. 그래서 누르면 그 자리에서 아래로 펼쳐지고, 보조 업무의
+   ○ ▶ ✓ 는 펼친 자리에서 바로 넘길 수 있게 했습니다.
+   창이 꼭 필요할 때는 오른쪽 [✎] 입니다.
+   ---------------------------------------------------------------- */
+let pjOpen = {};                      // { 프로젝트id: true } — 펼쳐 둔 것
+function pjAcc(id){
+  if(pjOpen[id]) delete pjOpen[id]; else pjOpen[id] = 1;
+  render();
+}
+/* 펼친 자리에서 보조 업무 상태를 넘깁니다 — 창을 열지 않고 바로 */
+function projSubFlip(tid, bid, i){
+  const b = brandById(bid);
+  const t = b && (b.tasks || []).find(x => x.id === tid);
+  const x = t && projSubs(t)[i];
+  if(!x){ render(); return; }
+  const k = SUB_ST.findIndex(y => y[0] === x.st);
+  x.st = SUB_ST[(k + 1) % SUB_ST.length][0];
+  x.pct = x.st === '끝' ? '100' : x.st === '할일' ? '0' : String(parseInt(x.pct, 10) || 50);
+  projReflow(t);
+  markDirty(b.id); render();
+}
+/* 펼친 자리에서 보조 업무를 하나 더합니다 */
+function projSubQuick(tid, bid){
+  const el = document.getElementById('pjq_' + tid);
+  const v = el ? el.value.trim() : '';
+  if(!v){ if(el) el.focus(); return; }
+  const b = brandById(bid);
+  const t = b && (b.tasks || []).find(x => x.id === tid);
+  if(!t){ render(); return; }
+  if(!Array.isArray(t.subs)) t.subs = [];
+  t.subs.push({ id: uid('sb'), title: v, st:'할일', pct:'0' });
+  projReflow(t);
+  markDirty(b.id); render();
+  const n = document.getElementById('pjq_' + tid); if(n) n.focus();
+}
+/* 보조 업무가 움직이면 메인 % · 끝났는지를 다시 셉니다 */
+function projReflow(t){
+  const ss = projSubs(t);
+  const avg = ss.length
+    ? Math.round(ss.reduce((a, x) => a + (parseInt(x.pct, 10) || 0), 0) / ss.length)
+    : (parseInt(t.pct, 10) || 0);
+  if(String(avg) !== String(parseInt(t.pct, 10) || 0)) t.pctAt = todayStr();
+  t.pct = String(avg);
+  if(avg >= 100) t.status = '완료';
+  else if(t.status === '완료') t.status = '진행 중';
+  t.updatedAt = new Date().toISOString();
+}
+/* ── 📓 업무일지 ─────────────────────────────────────────────────
+   「오늘까지」 는 기한이 닥친 일을 줄로 세워 둔 것뿐이었습니다. 그런데
+   하루를 닫을 때 적어 둬야 하는 것은 「무엇이 남았나」 가 아니라
+   「무엇을 했나」 입니다. 그래서 줄마다 그날 한 일을 적는 칸을 붙여
+   업무일지로 만들었습니다 — 날짜별로 따로 쌓입니다.
+   ---------------------------------------------------------------- */
+function jrGet(t, iso){
+  const d = t && t.diary;
+  return (d && typeof d === 'object' && d[iso]) ? String(d[iso]) : '';
+}
+function jrSet(tid, bid, v){
+  const b = brandById(bid);
+  const t = b && (b.tasks || []).find(x => x.id === tid);
+  if(!t) return;
+  if(!t.diary || typeof t.diary !== 'object') t.diary = {};
+  const iso = todayStr(), s = String(v || '').trim();
+  if(s) t.diary[iso] = s; else delete t.diary[iso];
+  t.updatedAt = new Date().toISOString();
+  markDirty(b.id);          /* 적는 중이라 다시 그리지는 않습니다 */
+}
+/* 적어 둔 날이 며칠인지 — 줄 끝에 「📓 3일」 로 보여 줍니다 */
+function jrDays(t){
+  const d = t && t.diary;
+  return (d && typeof d === 'object') ? Object.keys(d).filter(k => d[k]).length : 0;
+}
+const JR_WD = ['일','월','화','수','목','금','토'];
+function jrHead(iso){
+  const d = new Date(iso);
+  return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + JR_WD[d.getDay()] + ')';
+}
 /* ── 🚀 프로젝트 고치기 창 ───────────────────────────────────────
    할 일 창으로는 프로젝트가 잘 안 보였습니다. 프로젝트는 <<쪼개서>>
    굴러갑니다 — 보조 업무마다 몇 %인지가 있고, 그 평균이 메인 진척률
@@ -15247,6 +15412,7 @@ function projOpen(id, bid){
   projDraft = {
     title: t.title || '', owner: t.owner || '', uid: t.uid || '', bid: bid,
     start: t.start || '', due: t.due || '', prio: t.prio || '보통',
+    year: String(t.year || ''), half: String(t.half || ''),
     pct: String(parseInt(t.pct, 10) || 0), note: t.note || '',
     subs: projSubs(t).map(x => ({ id: x.id || uid('sb'), title: x.title || '',
                                  st: x.st || '할일', pct: String(parseInt(x.pct, 10) || 0) }))
@@ -15301,7 +15467,22 @@ function projPaint(){
         + PROJ_PRIO.map(x => '<option' + (x[0] === d.prio ? ' selected' : '') + ' value="' + x[0] + '">'
             + x[1] + ' ' + x[0] + '</option>').join('')
         + '</select></div>'
+      /* 🗓 언제 치 일인지 — 반기로 세우고 반기로 돌아봅니다 */
+      + '<div class="pj-f"><label>🗓 년도</label>'
+        + '<select onchange="projDraft.year=this.value">'
+        + '<option value=""' + (d.year ? '' : ' selected') + '>— 안 정함 —</option>'
+        + projYears().map(y => '<option' + (y === String(d.year) ? ' selected' : '')
+            + ' value="' + y + '">' + y + '년</option>').join('')
+        + '</select></div>'
+      + '<div class="pj-f"><label>반기</label>'
+        + '<select onchange="projDraft.half=this.value">'
+        + '<option value=""' + (d.half ? '' : ' selected') + '>— 안 정함 —</option>'
+        + PROJ_HALF.map(h => '<option' + (h === String(d.half) ? ' selected' : '')
+            + ' value="' + h + '">' + h + '</option>').join('')
+        + '</select></div>'
     + '</div>'
+    + (projTerm(d) ? '<div class="pj-term">🗓 <b>' + esc(projTerm(d)) + '</b> 프로젝트로 적힙니다'
+        + '</div>' : '')
     /* 📊 메인 진척률 */
     + '<div class="pj-f"><label>📊 메인 진척률</label>'
       + '<div class="pj-main">'
@@ -15404,6 +15585,7 @@ function projSave(){
   t.title = d.title.trim();
   t.owner = d.owner; t.start = d.start; t.due = d.due;
   t.prio = d.prio; t.note = d.note;
+  t.year = String(d.year || ''); t.half = String(d.half || '');
   t.subs = d.subs.map(x => ({ id:x.id, title:x.title, st:x.st, pct:x.pct }));
   if(String(avg) !== String(parseInt(t.pct, 10) || 0)) t.pctAt = todayStr();
   t.pct = String(avg);
@@ -15434,7 +15616,9 @@ function projAdd(name){
   if(!(data.brands || []).length){ toast('브랜드를 먼저 만들어 주세요'); return; }
   projAt = { id:'', bid:'' };
   projDraft = { title:'', owner: name || '', uid:'', bid: projBrandOf(name),
-                start: todayStr(), due:'', prio:'보통', pct:'0', note:'', subs: [] };
+                start: todayStr(), due:'', prio:'보통',
+                year: String(new Date().getFullYear()), half: halfNow(),
+                pct:'0', note:'', subs: [] };
   projShow();
 }
 function taskAddWho(name){
@@ -15584,7 +15768,7 @@ function gbMove(){
       id: uid('i'), kind:'프로젝트', gbFrom: x.it.id,
       title: String(x.it.title || '').trim(),
       owner: nm, uid: (authOn() && peopleName(x.g.who) !== x.g.who) ? x.g.who : '',
-      stage: String(x.st.label || ''), year: String(x.g.year || ''),
+      stage: String(x.st.label || ''), year: String(x.g.year || ''), half: '연간',
       status: st, pct: st === '완료' ? '100' : '0', pctAt: todayStr(),
       start: String(x.g.createdAt || '').slice(0, 10) || todayStr(),
       prio: '보통',
@@ -15921,33 +16105,98 @@ function memCard(m, t, hue, rows){
      이름을 크게, 그 밑에 굵은 막대와 %, 마지막 줄에 며칠째인지 ·
      보조 업무 · 기한 · 어느 브랜드.
      (클래스 이름은 .tt-pj* 입니다 — .tp-* 는 마케팅 접점이 이미 씁니다) */
+  /* ── 📓 업무일지 한 줄 ────────────────────────────────────────
+     기한이 닥친 일은 그냥 줄로 세우는 게 아니라 <<그날 한 일을 적는>>
+     칸을 붙여 둡니다. 적어 둔 날이 쌓이면 줄 끝에 「📓 3일」 이 섭니다.
+     적는 중에 화면을 다시 그리면 글씨가 끊기니 저장만 걸어 둡니다. */
+  const jrow = r => {
+    const txt = jrGet(r.t, iso), nd = jrDays(r.t);
+    const q2 = '\'' + jsq(r.t.id) + '\',\'' + jsq(r.b.id) + '\'';
+    return '<div class="jr' + (r.t.status === '완료' ? ' done' : '')
+      + (txt ? ' has' : '') + '">'
+      + '<div class="jr-h">'
+        + '<button class="tt-c" title="' + (r.t.status === '완료' ? '다시 진행' : '끝냈다고 표시')
+          + '" onclick="toggleTask(' + q2 + ')"></button>'
+        + '<span class="jr-t" onclick="openItemModal(\'tasks\',\'' + jsq(r.t.id)
+          + '\',null,\'' + jsq(r.b.id) + '\')" title="' + esc(r.t.title) + '">'
+          + esc(r.t.title) + '</span>'
+        + (nd ? '<span class="jr-n" title="일지를 적어 둔 날 ' + nd + '일">📓 ' + nd + '</span>' : '')
+        + '<span class="tt-bd" title="' + esc(r.b.name) + '">' + esc(r.b.icon || '🏷️') + '</span>'
+        + (r.t.due ? '<span class="tt-d' + (r.t.due < iso ? ' late' : '') + '">'
+            + esc(String(r.t.due).slice(5)) + '</span>' : '')
+      + '</div>'
+      + '<div class="jr-w"><span class="jr-p">✎</span>'
+        + '<input value="' + esc(txt) + '" placeholder="오늘 한 일을 한 줄로 — 예: 도면 3장 넘김"'
+          + ' onchange="jrSet(' + q2 + ', this.value)"'
+          + ' onkeydown="if(event.key===\'Enter\')this.blur()"></div>'
+      + '</div>';
+  };
+  /* ── 🚀 프로젝트는 <<칸>> 으로 세우고, 누르면 <<펼쳐집니다>> ──────
+     할 일과 똑같은 한 줄로 두니 묻혀 보였습니다. 프로젝트는 여러 날
+     굴러가는 큰 덩어리라 제 자리를 차지해야 합니다 — 왼쪽에 빛깔 띠,
+     이름을 크게, 그 밑에 굵은 막대와 %, 마지막 줄에 언제 치인지 ·
+     며칠째인지 · 보조 업무 · 기한 · 어느 브랜드.
+     칸을 누르면 아래로 펼쳐져 보조 업무가 그대로 보이고, 그 자리에서
+     ○ ▶ ✓ 를 넘길 수 있습니다. 창은 오른쪽 [✎] 로 엽니다.
+     (클래스 이름은 .tt-pj* 입니다 — .tp-* 는 마케팅 접점이 이미 씁니다) */
   const prow = r => {
     const v = projPct(r.t), st = projStale(r.t);
     const ss = projSubs(r.t);
     const sd = ss.filter(x => x.st === '끝').length;
-    const go = 'projOpen(\'' + jsq(r.t.id) + '\',\'' + jsq(r.b.id) + '\')';
+    const op = !!pjOpen[r.t.id];
+    const q2 = '\'' + jsq(r.t.id) + '\',\'' + jsq(r.b.id) + '\'';
+    const ed = 'projOpen(' + q2 + ')';
     const days = r.t.start
       ? Math.max(0, Math.round((new Date(iso) - new Date(r.t.start)) / 86400000)) : null;
     const foot = [];
+    const tm = projTerm(r.t);
+    if(tm) foot.push('<span class="trm" title="언제 치 일인지">🗓 ' + esc(tm) + '</span>');
     if(days !== null) foot.push('<span title="시작한 지">' + days + '일째</span>');
     if(ss.length) foot.push('<span title="보조 업무">📎 ' + sd + '/' + ss.length + '</span>');
     if(r.t.due) foot.push('<span class="' + (r.t.due < iso ? 'late' : '')
       + '" title="기한">⏰ ' + esc(String(r.t.due).slice(5)) + '</span>');
     foot.push('<span title="어느 브랜드">' + esc(r.b.icon || '🏷️') + ' ' + esc(r.b.name) + '</span>');
-    return '<div class="tt-pj' + (st >= PROJ_STALE ? ' slow' : '') + '" onclick="' + go + '"'
-      + ' title="눌러서 고치기">'
-      + '<div class="tt-pj-h">'
-        + (r.t.prio && r.t.prio !== '보통'
-            ? '<span class="tt-pj-o" title="먼저 할 것: ' + esc(r.t.prio) + '">'
-              + (r.t.prio === '높음' ? '🔴' : '🟢') + '</span>' : '')
-        + '<b>' + esc(r.t.title) + '</b>'
-        + (st >= PROJ_STALE
-            ? '<span class="tt-pj-s" title="' + st + '일째 그대로">🐢 ' + st + '일</span>' : '')
-        + '<span class="tt-pj-e">✎</span>'
-      + '</div>'
-      + '<div class="tt-pj-m"><div class="tt-pj-b"><i style="width:' + v + '%"></i></div>'
-        + '<span class="tt-pj-v">' + v + '<em>%</em></span></div>'
-      + (foot.length ? '<div class="tt-pj-f">' + foot.join('<i>·</i>') + '</div>' : '')
+    /* 펼친 속 — 보조 업무 · 메모 · 더하는 칸 */
+    const body = !op ? '' : '<div class="pja">'
+      + (ss.length
+          ? '<div class="pja-l">' + ss.map((x, i) => {
+              const m  = SUB_ST.find(y => y[0] === x.st) || SUB_ST[0];
+              const k  = SUB_ST.indexOf(m);
+              const sp = Math.max(0, Math.min(100, parseInt(x.pct, 10) || 0));
+              return '<div class="pja-s' + (x.st === '끝' ? ' done' : '') + '">'
+                + '<button class="pja-st s' + k + '" title="상태 넘기기 — 할일 → 진행 → 끝"'
+                  + ' onclick="projSubFlip(' + q2 + ',' + i + ')">' + m[1] + '</button>'
+                + '<span class="pja-t" title="' + esc(x.title) + '">'
+                  + esc(x.title || '이름 없음') + '</span>'
+                + '<span class="pja-b"><i style="width:' + sp + '%"></i></span>'
+                + '<span class="pja-v">' + sp + '%</span></div>';
+            }).join('') + '</div>'
+          : '<div class="pja-n">보조 업무가 아직 없습니다 — 쪼개 두면 진척률이 저절로 셉니다</div>')
+      + (r.t.note ? '<div class="pja-m">📝 ' + esc(r.t.note) + '</div>' : '')
+      + '<div class="pja-f">'
+        + '<input id="pjq_' + esc(r.t.id) + '" placeholder="보조 업무 더하기 — 예: 도면 5건 재작업"'
+          + ' onkeydown="if(event.key===\'Enter\')projSubQuick(' + q2 + ')">'
+        + '<button class="add" onclick="projSubQuick(' + q2 + ')" title="더하기">＋</button>'
+        + '<button class="go" onclick="' + ed + '">✎ 자세히 고치기</button>'
+      + '</div></div>';
+    return '<div class="tt-pj' + (st >= PROJ_STALE ? ' slow' : '') + (op ? ' op' : '') + '">'
+      + '<div class="tt-pj-t" onclick="pjAcc(\'' + jsq(r.t.id) + '\')"'
+        + ' title="' + (op ? '눌러서 접기' : '눌러서 펼치기') + '">'
+        + '<div class="tt-pj-h">'
+          + '<span class="tt-pj-k">▸</span>'
+          + (r.t.prio && r.t.prio !== '보통'
+              ? '<span class="tt-pj-o" title="먼저 할 것: ' + esc(r.t.prio) + '">'
+                + (r.t.prio === '높음' ? '🔴' : '🟢') + '</span>' : '')
+          + '<b>' + esc(r.t.title) + '</b>'
+          + (st >= PROJ_STALE
+              ? '<span class="tt-pj-s" title="' + st + '일째 그대로">🐢 ' + st + '일</span>' : '')
+          + '<button class="tt-pj-e" title="창에서 자세히 고치기"'
+            + ' onclick="event.stopPropagation();' + ed + '">✎</button>'
+        + '</div>'
+        + '<div class="tt-pj-m"><div class="tt-pj-b"><i style="width:' + v + '%"></i></div>'
+          + '<span class="tt-pj-v">' + v + '<em>%</em></span></div>'
+        + (foot.length ? '<div class="tt-pj-f">' + foot.join('<i>·</i>') + '</div>' : '')
+      + '</div>' + body
       + '</div>';
   };
   /* [＋] 를 누르면 그 자리에서 <<바로 창>> 이 뜹니다 — 브랜드도 창 안에서 */
@@ -16004,8 +16253,8 @@ function memCard(m, t, hue, rows){
         + '<p>오늘 잡힌 일이 없습니다 — 무엇부터 넣을까요?</p>'
         + '<div class="tt-zb">'
         + '<button onclick="routAdd(' + q + ')">🔄 루틴</button>'
+        + '<button onclick="taskAddWho(' + q + ')">📓 할 일</button>'
         + '<button onclick="projAdd(' + q + ')">🚀 프로젝트</button>'
-        + '<button onclick="taskAddWho(' + q + ')">⏰ 할 일</button>'
         + '</div></div>'
       : sec('🔄 오늘 루틴', rd + '/' + rs.length, rs, '오늘 할 루틴이 없습니다',
           r => '<div class="tt-i' + (routDone(r, iso) ? ' done' : '') + '">'
@@ -16016,12 +16265,17 @@ function memCard(m, t, hue, rows){
             + '<span class="tt-fq ' + (r.freq === '매일' ? 'd' : r.freq === '주간' ? 'w' : 'm') + '">'
               + esc(r.freq || '매일') + '</span></div>',
           'routAdd(' + q + ')')
-      + sec('🚀 진행중 프로젝트', projs.length + '건', projs, '진행 중인 프로젝트가 없습니다',
-          prow, 'projAdd(' + q + ')')
-      + sec('⏰ 오늘까지', now.length + '건', now, '오늘까지 할 일이 없습니다',
-          null, 'taskAddWho(' + q + ')')
+      /* ── 순서: 🔄 루틴 → 📓 업무 → 🚀 프로젝트 ──────────────────
+         하루는 루틴으로 열고, 그날 치 업무를 적고, 그다음에 여러 날
+         굴러가는 프로젝트를 봅니다. 큰 덩어리를 위에 올려 두면 정작
+         오늘 할 일이 밑으로 밀립니다. */
+      + sec('📓 업무일지 <em class="jr-dt">' + esc(jrHead(iso)) + '</em>',
+          now.length + '건', now, '오늘까지 할 일이 없습니다',
+          jrow, 'taskAddWho(' + q + ')')
       /* 기한이 아직 안 왔거나, 기한을 안 적어 둔 할 일입니다 */
       + (later.length ? sec('📋 아직 기한이 안 된 일', later.length + '건', later, '', null, '') : '')
+      + sec('🚀 진행중 프로젝트', projs.length + '건', projs, '진행 중인 프로젝트가 없습니다',
+          prow, 'projAdd(' + q + ')')
       + (shown.length ? sec('✅ 끝낸 일', shown.length + '건', shown, '', null, '') : ''))
     + '</div>';
 }

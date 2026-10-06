@@ -5042,7 +5042,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261005-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261006-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5820,10 +5820,15 @@ function captureUI(){
     field: null
   };
   if(main){
-    // 표·목록 안에서 스크롤해 둔 위치
-    main.querySelectorAll('.table-wrap,.flist,.tidylist,.doc-body').forEach((n, i) => {
-      if(n.scrollTop) snap.scrolls.push([i, n.scrollTop]);
-    });
+    /* ── 스크롤을 지키는 자리 ──────────────────────────────────────
+       전에는 이름이 박힌 네 가지(.table-wrap · .flist · .tidylist ·
+       .doc-body)만 지켰습니다. 그런데 접점 상세판은 .tp-body 로
+       따로 굴러서, 다시 그릴 때마다 <<맨 위로 튀었습니다>> —
+       「여정 추가를 누르면 위로 한 번 갔다가 다시 눌러야 한다」 의
+       까닭입니다.
+       이제 이름을 가리지 않고, <<실제로 내려둔 자리>> 를 모두 적어
+       둡니다. 되돌릴 때는 「그 클래스의 몇 번째」 로 찾습니다. */
+    uiScrollSnap(snap);
     // 지금 글을 쓰고 있던 칸
     /* 파일 고르개는 값을 돌려놓을 수 없습니다 — 브라우저가 막습니다
        (value 에는 빈 글자만 넣을 수 있음). 파일을 고른 뒤 다시 그리면
@@ -5862,6 +5867,30 @@ function uiStamp(){
   }));
 }
 
+/* 내려둔 자리를 모두 적어 둡니다 (이름을 가리지 않고) */
+function uiScrollSnap(snap){
+  uiRoots().forEach(root => {
+    root.querySelectorAll('div,aside,section,ul,ol,table,pre').forEach(n => {
+      if(!n.scrollTop) return;
+      const cls = (n.className && typeof n.className === 'string')
+        ? n.className.trim().split(/\s+/)[0] : '';
+      if(!cls) return;                       // 이름이 없으면 되찾을 길이 없습니다
+      const same = root.querySelectorAll('.' + CSS.escape(cls));
+      snap.scrolls.push([root.id, cls, Array.prototype.indexOf.call(same, n), n.scrollTop]);
+    });
+  });
+}
+function uiScrollBack(snap){
+  (snap.scrolls || []).forEach(x => {
+    if(!Array.isArray(x) || x.length !== 4) return;
+    const root = document.getElementById(x[0]);
+    if(!root) return;
+    let list;
+    try{ list = root.querySelectorAll('.' + CSS.escape(x[1])); }catch(e){ return; }
+    const n = list[x[2]];
+    if(n && n.scrollTop !== x[3]) n.scrollTop = x[3];
+  });
+}
 function restoreUI(snap){
   if(!snap) return;
   const main = document.getElementById('main');
@@ -5874,10 +5903,7 @@ function restoreUI(snap){
       try{ n.value = d.value; }catch(e){}
     });
   }
-  if(main && snap.scrolls.length){
-    const nodes = main.querySelectorAll('.table-wrap,.flist,.tidylist,.doc-body');
-    snap.scrolls.forEach(([i, top]) => { if(nodes[i]) nodes[i].scrollTop = top; });
-  }
+  uiScrollBack(snap);
   const f = snap.field;
   if(f){
     let el = f.id ? document.getElementById(f.id) : null;
@@ -5958,11 +5984,19 @@ document.addEventListener('input', e => {
   if(uiTextEl(e.target)) uiTypedAt = Date.now();
 }, true);
 /* 칸에서 손을 떼면, 미뤄 둔 새로고침을 그때 합니다 */
+/* 단추를 누르는 중에는 끼어들지 않습니다 ─────────────────────────
+   누르면 먼저 글칸에서 커서가 빠지고(focusout), 그 다음에 click 이
+   옵니다. 그 사이에 화면을 다시 그려 버리면 누르려던 단추가 새것으로
+   바뀌어서 <<한 번 더 눌러야>> 했습니다. 누른 뒤 잠깐은 비켜 줍니다. */
+let uiClickAt = 0;
+['pointerdown', 'mousedown', 'touchstart', 'click'].forEach(ev =>
+  document.addEventListener(ev, () => { uiClickAt = Date.now(); }, true));
+function uiBusy(){ return uiTyping() || (Date.now() - uiClickAt < 500); }
 document.addEventListener('focusout', e => {
   if(!uiTextEl(e.target) || !bgWanted) return;
-  setTimeout(() => { if(bgWanted && !uiTyping()) bgFlush(); }, 60);
+  setTimeout(() => { if(bgWanted && !uiBusy()) bgFlush(); }, 600);
 }, true);
-setInterval(() => { if(bgWanted && !uiTyping()) bgFlush(); }, 1500);
+setInterval(() => { if(bgWanted && !uiBusy()) bgFlush(); }, 1500);
 function bgFlush(){
   if(!bgWanted) return;
   bgWanted = false;
@@ -6077,6 +6111,9 @@ function render(){
   uiStamp();     // 「그렸을 때의 값」 을 칸마다 적어 둡니다 (고쳤는지 보려고)
   gbGrowAll();   // 글 칸 높이를 내용에 맞춥니다 (한 줄이면 한 줄로)
   foldAll();     // 접어 둘 만큼 긴 글에만 [＋ 더 보기] 를 답니다
+  /* 위 둘이 글칸 높이를 바꿔서 자리가 밀립니다 — 그 뒤에 한 번 더 */
+  uiScrollBack(snap);
+  if(Math.abs(window.scrollY - snap.y) > 2) window.scrollTo(0, snap.y);
 }
 
 /* ── 휴대폰 메뉴 ────────────────────────────────────────────────

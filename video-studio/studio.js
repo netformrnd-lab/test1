@@ -39,7 +39,7 @@
   // ── 상수 (원본과 동일) ──
   const STATUS = {
     queued: '자료 검색', drafting: '대본 작성', reviewing: '교차 검수', revising: '자동 수정', submitting: '제작 요청',
-    preparing: '장면 이미지 준비', ready: '미리보기 · 제작 대기',
+    preparing: '장면 이미지 준비', ready: '검수 완료 · 제작 대기',
     rendering: 'HeyGen 제작 중', rendered: '영상 생성 완료', held: '자동 보류', failed: '처리 실패', uncertain: '중복 방지로 중단',
   }
   const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
@@ -295,7 +295,12 @@
     let h = `<div class="job-result"><div class="between"><div><h3>${esc((e.plan && e.plan.title) || e.input.keywords)}</h3>
       <p>${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
-    if (e.plan) h += `<div class="job-actions"><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button>${e.status === 'ready' ? `<button type="button" class="btn" data-render="${e.id}">HeyGen 제작 요청</button>` : ''}</div>`
+    if (e.status === 'ready' && e.prompt) {
+      h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — 아래 프롬프트를 확인하세요</strong>
+        <p>Claude·OpenAI 검수를 통과했습니다. 프롬프트와 무료 미리보기를 확인한 뒤 ‘영상 제작 시작’을 누르면 그때 HeyGen 크레딧이 쓰입니다. 마음에 들지 않으면 제작하지 말고 키워드를 바꿔 다시 만드세요(대본·검수 비용만 듭니다).</p>
+        <pre class="approve-prompt">${esc(e.prompt)}</pre>
+        <div class="job-actions"><button type="button" class="btn outline" data-copy-prompt="${e.id}">${icon('copy', 14)}프롬프트 복사</button><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button><button type="button" class="btn" data-render="${e.id}">영상 제작 시작 (HeyGen 크레딧 사용)</button></div></div>`
+    } else if (e.plan) h += `<div class="job-actions"><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button></div>`
     if (e.plan && e.plan.blockers && e.plan.blockers.length) {
       h += `<div class="issue-box"><strong>대본 작성 중단 사유 (AI가 근거 부족으로 쓰지 못한 부분)</strong><ul>${e.plan.blockers.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
         <p>이 내용을 뒷받침하는 확정 자료(서비스 소개서·시방서·실제 사례 등)를 브랜드 자료실에 올리고 ‘영상 제작 근거로 사용’을 체크한 뒤 다시 제작해 주세요.</p></div>`
@@ -474,7 +479,6 @@
 
   function syncSettingsForm() {
     $('image-model').value = S.settings.imageModel || 'gpt-image-1'
-    $('auto-render').checked = S.settings.autoRender !== false
     $('motion').checked = S.settings.motion !== false
     $('heygen-mode').value = S.settings.heygenMode === 'scenes' ? 'scenes' : 'agent'
     $('ai-video').checked = S.settings.aiVideo !== false
@@ -784,7 +788,7 @@
   })
   $('prefs-save').addEventListener('click', async () => {
     try {
-      S.data = await api({ action: 'prefs', imageModel: $('image-model').value, autoRender: $('auto-render').checked,
+      S.data = await api({ action: 'prefs', imageModel: $('image-model').value, autoRender: false,
         motion: $('motion').checked, aiVideo: $('ai-video').checked, videoModel: $('video-model').value, maxAiVideos: $('max-ai-videos').value, heygenMode: $('heygen-mode').value })
       S.settings = { ...DEFAULT_SETTINGS, ...S.data.settings }; syncSettingsForm()
       $('prefs-ok').textContent = '영상 구성 설정을 저장했습니다.'; $('prefs-ok').hidden = false
@@ -961,7 +965,7 @@
     if (pv) { const job = S.data.jobs.find((j) => j.id === pv.dataset.preview); if (job && job.plan) openPreview(job); return }
     const rd = t.closest('[data-render]')
     if (rd) {
-      if (!confirm('HeyGen 영상 제작을 요청할까요? HeyGen 크레딧이 사용됩니다.')) return
+      { const jb = S.data.jobs.find((j) => j.id === rd.dataset.render); if (!confirm(`이 프롬프트로 HeyGen 영상을 만들까요?\n\n목표 길이 ${jb ? jb.input.seconds : '?'}초 · HeyGen 크레딧이 사용되며 되돌릴 수 없습니다.`)) return }
       try { const r = await api({ action: 'render', id: rd.dataset.render }); S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); renderAll() } catch (e) { S.error = e.message; renderMessages() }
       return
     }

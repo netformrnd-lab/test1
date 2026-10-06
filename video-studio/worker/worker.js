@@ -26,6 +26,8 @@ const MAX_SOURCE_CHARS = 300000       // 자료 1개 본문 최대 글자 수 (P
 // 사진·영상 업로드 일시 중지 (저장 위치를 Supabase 에서 옮기기 전까지)
 const PHOTO_UPLOAD_OFF = true
 const PHOTO_OFF_MSG = '사진 업로드 중지됨 — 저장 위치를 옮기는 중입니다.'
+// 검수 통과 후에는 항상 멈추고, 사람이 프롬프트를 확인한 뒤 '영상 제작'을 눌러야 HeyGen 크레딧을 쓴다
+const READY_MSG = '검수 통과 · 제작 대기: 프롬프트와 무료 미리보기를 확인한 뒤 ‘영상 제작 시작’을 눌러 주세요. 누르기 전에는 HeyGen 크레딧을 쓰지 않습니다.'
 const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
 const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
 const DEFAULT_SETTINGS = {
@@ -244,7 +246,7 @@ const ACTIONS = {
       if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
       if (row.status !== 'ready') throw new HttpError(409, '제작 대기 상태의 작업만 제작을 요청할 수 있습니다.')
       row.status = 'submitting'; row.step = 6
-      row.data.events.push(ev('HeyGen 제작 요청 (미리보기 확인 후)'))
+      row.data.events.push(ev('영상 제작 시작 (프롬프트 확인 후 직접 요청)'))
     })
     return { job: toJob(row) }
   },
@@ -424,10 +426,8 @@ async function runStep(env, job) {
     d.prompt = promptFor(job, d.plan, st)
     d.events.push(ev('HeyGen 자동 구성 모드: 화면 구성은 HeyGen Video Agent 가 만듭니다.'))
     job.step = 6
-    if (st.settings.autoRender === false) {
-      job.status = 'ready'
-      d.events.push(ev('미리보기 후 제작 모드: 무료 미리보기로 대사·순서를 확인한 뒤 ‘HeyGen 제작 요청’을 눌러 주세요.'))
-    } else job.status = 'submitting'
+    job.status = 'ready'
+    d.events.push(ev(READY_MSG))
     return
   }
   if (job.status === 'preparing') {
@@ -484,10 +484,8 @@ async function runStep(env, job) {
     }
     d.events.push(ev(`장면 준비 완료: 컷 ${cuts.length}개 (사진 ${cuts.filter((c) => c.photoId && (byId[c.photoId] || {}).kind !== 'video').length} · 영상 자료 ${cuts.filter((c) => (byId[c.photoId] || {}).kind === 'video').length} · AI 이미지 ${cuts.filter((c) => c.aiPhotoId).length} · AI 영상 ${cuts.filter((c) => c.aiVideoPath).length} · 움직임 클립 ${cuts.filter((c) => c.clipPath).length} · 브랜드 카드 ${cuts.filter((c) => !c.photoId && !c.aiPhotoId && !c.aiVideoPath).length})`))
     job.step = 6
-    if (set.autoRender === false) {
-      job.status = 'ready'
-      d.events.push(ev('미리보기 후 제작 모드: 무료 미리보기로 확인한 뒤 ‘HeyGen 제작 요청’을 눌러 주세요.'))
-    } else job.status = 'submitting'
+    job.status = 'ready'
+    d.events.push(ev(READY_MSG))
     return
   }
 

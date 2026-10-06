@@ -5042,7 +5042,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261005-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261005-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5830,18 +5830,50 @@ function captureUI(){
        여기서 걸려 스크롤 되돌리기까지 통째로 멈췄습니다. */
     const isFile = el && el.tagName === 'INPUT'
                 && String(el.type || '').toLowerCase() === 'file';
-    if(el && !isFile && main.contains(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)){
-      const all = Array.prototype.slice.call(main.querySelectorAll('input,textarea,select'));
+    if(el && !isFile && uiIn(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)){
+      const host = uiRoots().find(r => r.contains(el)) || main;
+      const all = Array.prototype.slice.call(host.querySelectorAll('input,textarea,select'));
+      snap.host  = host.id;
       snap.field = { id: el.id, idx: all.indexOf(el), value: el.value,
                      s: el.selectionStart, e: el.selectionEnd, top: el.scrollTop };
     }
+    /* ── 커서가 없는 칸도 지킵니다 ────────────────────────────────
+       전에는 <<커서가 있던 칸 하나>> 만 베껴 뒀습니다. 그래서 칸 셋에
+       나눠 적다가 다시 그려지면 나머지 둘이 날아갔습니다.
+       이름표(id)가 있는 칸만 다룹니다 — 이름표가 없으면 몇 번째
+       칸인지로 찾아야 하는데, 옆 사람이 줄을 더하면 번호가 밀려서
+       <<남의 칸에>> 글을 집어넣게 됩니다. 그것보다는 안 하는 게 낫습니다. */
+    snap.dirty = [];
+    uiRoots().forEach(r => r.querySelectorAll('input[id],textarea[id]').forEach(n => {
+      if(String(n.type || '').toLowerCase() === 'file') return;
+      const v0 = n.dataset ? n.dataset.v0 : undefined;
+      if(v0 === undefined || String(n.value) === v0) return;    // 안 고친 칸
+      snap.dirty.push({ id: n.id, value: n.value });
+    }));
   }
   return snap;
+}
+/* 다 그린 뒤, 칸마다 「그렸을 때의 값」 을 적어 둡니다.
+   나중에 이것과 다르면 사람이 고친 것입니다. */
+function uiStamp(){
+  uiRoots().forEach(r => r.querySelectorAll('input[id],textarea[id]').forEach(n => {
+    if(String(n.type || '').toLowerCase() === 'file') return;
+    try{ n.dataset.v0 = String(n.value); }catch(e){}
+  }));
 }
 
 function restoreUI(snap){
   if(!snap) return;
   const main = document.getElementById('main');
+  /* ① 고쳐 두었던 칸을 먼저 되돌립니다 (커서가 없던 칸까지) */
+  if(main && snap.dirty && snap.dirty.length){
+    snap.dirty.forEach(d => {
+      const n = document.getElementById(d.id);
+      if(!n || !('value' in n)) return;
+      if(String(n.value) === String(d.value)) return;
+      try{ n.value = d.value; }catch(e){}
+    });
+  }
   if(main && snap.scrolls.length){
     const nodes = main.querySelectorAll('.table-wrap,.flist,.tidylist,.doc-body');
     snap.scrolls.forEach(([i, top]) => { if(nodes[i]) nodes[i].scrollTop = top; });
@@ -5849,8 +5881,9 @@ function restoreUI(snap){
   const f = snap.field;
   if(f){
     let el = f.id ? document.getElementById(f.id) : null;
-    if(!el && f.idx >= 0 && main){        // 이름표가 없으면 몇 번째 칸이었는지로 찾습니다
-      el = main.querySelectorAll('input,textarea,select')[f.idx] || null;
+    const host = (snap.host && document.getElementById(snap.host)) || main;
+    if(!el && f.idx >= 0 && host){        // 이름표가 없으면 몇 번째 칸이었는지로 찾습니다
+      el = host.querySelectorAll('input,textarea,select')[f.idx] || null;
     }
     if(el && el.type === 'file') el = null;          // 여기에도 한 겹 (자리로 찾았을 때)
     if(el){
@@ -5873,7 +5906,71 @@ function restoreUI(snap){
    잠깐 늦을 뿐이고, 아무 데나 한 번 누르면 바로 맞춰집니다.
    책 <<자체>> 가 바뀌었을 때(옆 사람이 새로 올렸다든지)는 그립니다.
    ------------------------------------------------------------------ */
+/* ═══ ✍️ 글 쓰는 동안은 화면을 다시 그리지 않습니다 ═══════════════
+   「마케팅 접점에 글을 쓰고 있는데 옆 사람이 저장을 누르면 쓰던 게
+   사라지고 되돌아간다」 — 1분에 한 번 도는 곁다리 새로고침이 화면을
+   통째로 다시 그려서, 아직 저장 안 된 글자가 날아간 것입니다.
+
+   두 겹으로 막습니다.
+    ① 쓰는 중이면 곁다리 새로고침은 <<미뤘다가>>, 손을 떼면 그때 그립니다
+       (내가 직접 누른 것 — 검색·단추 — 은 그대로 바로 그립니다)
+    ② 그래도 그려야 할 때는, 이름표가 있는 칸 가운데 <<내가 고친 것>> 을
+       모두 베껴 두었다가 되돌려 놓습니다 (전에는 커서가 있던 칸 하나만)
+   ---------------------------------------------------------------- */
+let uiTypedAt  = 0;        // 마지막으로 자판을 두드린 때
+let bgWanted   = false;    // 미뤄 둔 곁다리 새로고침이 있나
+let bgInBg     = false;    // 지금 그리려는 것이 곁다리인가
+const UI_IDLE  = 2500;     // 손 뗀 뒤 이만큼 지나면 그려도 됩니다
+
+/* ── 지켜야 할 자리는 #main 하나가 아니었습니다 ──────────────────
+   접점 상세판 · 사용자 목록 · 정리 · 연혁 · 붙여넣기 … 아홉 개 판이
+   #usersLayer 라는 <<딴 칸>> 에 들어 있고, 다시 그릴 때마다 통째로
+   갈아 끼워집니다. 그런데 글칸을 지키는 코드는 #main 만 보고 있어서,
+   그 판들에 쓰던 글은 <<하나도>> 지켜지지 않았습니다 —
+   「마케팅 접점에 쓰다가 날아간다」 의 진짜 까닭입니다.
+   ---------------------------------------------------------------- */
+function uiRoots(){
+  return ['main', 'usersLayer'].map(id => document.getElementById(id)).filter(Boolean);
+}
+function uiIn(el){
+  return !!el && uiRoots().some(r => r.contains(el));
+}
+function uiTextEl(el){
+  if(!el) return false;
+  if(el.isContentEditable) return true;
+  const t = el.tagName;
+  if(t === 'TEXTAREA') return true;
+  if(t !== 'INPUT') return false;
+  return !/^(button|submit|reset|checkbox|radio|file|range|color)$/i
+    .test(String(el.type || 'text'));
+}
+/* 지금 사람이 글을 쓰는 중인가 — 커서가 글칸에 있고, 최근에 두드렸거나
+   아직 저장 안 된 글자가 들어 있으면 쓰는 중으로 봅니다 */
+function uiTyping(){
+  const el = document.activeElement;
+  if(!uiTextEl(el)) return false;
+  if(!uiIn(el)) return false;
+  if(Date.now() - uiTypedAt < UI_IDLE) return true;
+  const v0 = el.dataset ? el.dataset.v0 : undefined;
+  return v0 !== undefined && String(el.value) !== v0;      // 고쳐 둔 채 멈춰 있음
+}
+document.addEventListener('input', e => {
+  if(uiTextEl(e.target)) uiTypedAt = Date.now();
+}, true);
+/* 칸에서 손을 떼면, 미뤄 둔 새로고침을 그때 합니다 */
+document.addEventListener('focusout', e => {
+  if(!uiTextEl(e.target) || !bgWanted) return;
+  setTimeout(() => { if(bgWanted && !uiTyping()) bgFlush(); }, 60);
+}, true);
+setInterval(() => { if(bgWanted && !uiTyping()) bgFlush(); }, 1500);
+function bgFlush(){
+  if(!bgWanted) return;
+  bgWanted = false;
+  bgRender();
+}
 function bgRender(){
+  /* 글 쓰는 중이면 미뤄 둡니다 — 손을 떼면 저절로 그려집니다 */
+  if(uiTyping()){ bgWanted = true; return; }
   const live = document.getElementById('bkIfr') || document.getElementById('pdfBox');
   /* 어느 브랜드의 책이든 바뀌었으면 먼저 알립니다 (바탕화면 알림) */
   bookNotifyScan();
@@ -5910,6 +6007,7 @@ function render(){
     const lay = document.getElementById('usersLayer');
     if(lay) lay.innerHTML = '';
     restoreUI(snap);
+    uiStamp();
     return;
   }
   document.body.classList.remove('locked');
@@ -5976,6 +6074,7 @@ function render(){
   else if(!currentBrandId) renderHome();
   else renderBrand();
   restoreUI(snap);
+  uiStamp();     // 「그렸을 때의 값」 을 칸마다 적어 둡니다 (고쳤는지 보려고)
   gbGrowAll();   // 글 칸 높이를 내용에 맞춥니다 (한 줄이면 한 줄로)
   foldAll();     // 접어 둘 만큼 긴 글에만 [＋ 더 보기] 를 답니다
 }
@@ -16673,7 +16772,8 @@ function memCard(m, t, hue, rows){
         + '<button class="x" onclick="memDel(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\')">✕</button>'
         + '</div>'
       : '<div class="tt-kpi"><span>🎯</span>'
-        + '<input value="' + esc(m.kpi || '') + '" placeholder="이 사람의 올해 KPI 한 줄"'
+        + '<input id="kpi_' + esc(m.id) + '" value="' + esc(m.kpi || '') + '"'
+          + ' placeholder="이 사람의 올해 KPI 한 줄"'
           + ' onchange="memSet(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\',\'kpi\', this.value)"'
           + ' onkeydown="if(event.key===\'Enter\')this.blur()">'
         + '</div>')
@@ -17775,7 +17875,7 @@ function renderAccounts(){
       + '<button class="btn sm" onclick="accSync(1)">↻ 다시 풀어 오기</button></div>'
     : '';
   const bar = '<div class="ac-bar">'
-    + '<input class="ac-q" value="' + esc(accQ) + '" placeholder="🔍 서비스 · 아이디 · 담당자로 찾기"'
+    + '<input class="ac-q" id="accQ" value="' + esc(accQ) + '" placeholder="🔍 서비스 · 아이디 · 담당자로 찾기"'
       + ' oninput="accSet(\'q\', this.value)">'
     + (accVaultOn()
         ? '<button class="tt-edb" onclick="accLock()" title="지금 바로 잠그기">🔒 잠그기</button>'

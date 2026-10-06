@@ -4207,10 +4207,17 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 .ac-warn span:not(.i){display:block;margin-top:4px;font-size:12px;line-height:1.65;
   color:var(--text-secondary)}
 .ac-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0 16px}
-.ac-q{flex:1 1 240px;min-width:0;font-family:inherit;font-size:13px;padding:8px 12px;
+.ac-qw{position:relative;flex:1 1 240px;min-width:0;display:flex}
+.ac-q{flex:1 1 auto;min-width:0;font-family:inherit;font-size:13px;padding:8px 12px;
   border:1px solid var(--border);border-radius:9px;background:var(--bg-input);
   color:var(--text-primary)}
 .ac-q:focus{outline:none;border-color:var(--purple)}
+/* 크롬이 붙이는 기본 ✕ 는 숨기고 우리 것을 씁니다 */
+.ac-q::-webkit-search-cancel-button,.ac-q::-webkit-search-decoration{display:none}
+.ac-qx{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:20px;height:20px;
+  padding:0;border:0;border-radius:50%;background:var(--bg-sunken);font-size:10px;
+  color:var(--text-muted);cursor:pointer;line-height:1}
+.ac-qx:hover{background:var(--red);color:#fff}
 /* 분류 칩 — 눌러서 고릅니다 */
 .ac-chips{display:flex;gap:6px;flex-wrap:wrap;margin:-6px 0 16px}
 .ac-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:99px;
@@ -5063,7 +5070,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261006-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261006-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5860,7 +5867,11 @@ function captureUI(){
       const host = uiRoots().find(r => r.contains(el)) || main;
       const all = Array.prototype.slice.call(host.querySelectorAll('input,textarea,select'));
       snap.host  = host.id;
+      /* 「몇 번째 칸」 으로 되찾을 때 <<정말 그 칸인지>> 가려내려고
+         생김새도 같이 적어 둡니다 — 자리만 맞고 다른 칸이면 안 넣습니다 */
       snap.field = { id: el.id, idx: all.indexOf(el), value: el.value,
+                     tag: el.tagName, tp: String(el.type || ''),
+                     ph: String(el.placeholder || ''), nm: String(el.name || ''),
                      s: el.selectionStart, e: el.selectionEnd, top: el.scrollTop };
     }
     /* ── 커서가 없는 칸도 지킵니다 ────────────────────────────────
@@ -5874,7 +5885,10 @@ function captureUI(){
       if(String(n.type || '').toLowerCase() === 'file') return;
       const v0 = n.dataset ? n.dataset.v0 : undefined;
       if(v0 === undefined || String(n.value) === v0) return;    // 안 고친 칸
-      snap.dirty.push({ id: n.id, value: n.value });
+      /* v0 = 「그렸을 때의 값」 도 같이 들고 갑니다. 되돌릴 때 새로 그린
+         값이 이것과 다르면, 코드가 <<일부러 바꾼 것>> 이므로 손대지
+         않습니다 (찾는 칸을 비웠는데 되살아나던 까닭). */
+      snap.dirty.push({ id: n.id, value: n.value, v0: v0 });
     }));
   }
   return snap;
@@ -5921,6 +5935,8 @@ function restoreUI(snap){
       const n = document.getElementById(d.id);
       if(!n || !('value' in n)) return;
       if(String(n.value) === String(d.value)) return;
+      /* 코드가 일부러 다른 값을 그렸으면 그대로 둡니다 */
+      if(d.v0 !== undefined && String(n.value) !== String(d.v0)) return;
       try{ n.value = d.value; }catch(e){}
     });
   }
@@ -5929,8 +5945,16 @@ function restoreUI(snap){
   if(f){
     let el = f.id ? document.getElementById(f.id) : null;
     const host = (snap.host && document.getElementById(snap.host)) || main;
-    if(!el && f.idx >= 0 && host){        // 이름표가 없으면 몇 번째 칸이었는지로 찾습니다
-      el = host.querySelectorAll('input,textarea,select')[f.idx] || null;
+    /* ── 「몇 번째 칸」 으로 찾을 때는 <<정말 그 칸인지>> 봅니다 ──────
+       화면이 바뀌면 그 자리에 전혀 다른 칸이 옵니다. 그대로 넣으면
+       <<엉뚱한 칸에>> 글이 들어갑니다 — 실제로 내부계정을 나갔다
+       들어오면 찾는 칸에 전에 친 글이 되살아났습니다.
+       생김새(종류 · 안내문 · 이름)가 다르면 다른 칸으로 보고 둡니다. */
+    if(!el && f.idx >= 0 && host){
+      const c = host.querySelectorAll('input,textarea,select')[f.idx] || null;
+      const fits = c && c.tagName === f.tag && String(c.type || '') === f.tp
+        && String(c.placeholder || '') === f.ph && String(c.name || '') === f.nm;
+      el = fits ? c : null;
     }
     if(el && el.type === 'file') el = null;          // 여기에도 한 겹 (자리로 찾았을 때)
     if(el){
@@ -6593,6 +6617,12 @@ function goView(v){
   closeNav();
   clearSearchQuietly();
   if(v !== 'growth'){ gbWb = null; wbId = ''; }   // 그로스보드에서 열어둔 판은 닫습니다
+  /* ── 🔐 내부계정을 나갔다 들어오면 찾던 말을 비웁니다 ──────────────
+     찾던 말(accQ)이 그대로 남아 있어서, 다시 들어오면 칸에 전에 친
+     글자가 들어가 있고 목록도 그만큼 걸러져 있었습니다. 「저절로
+     들어가서 못 쓰게 한다」 의 까닭입니다. 들어올 때는 늘 빈 칸입니다.
+     (줄 세우기 · 묶기는 취향이라 그대로 둡니다) */
+  if(v !== 'accounts'){ accQ = ''; accCat = ''; }
   view = v;
   currentBrandId = null;
   render();
@@ -17295,7 +17325,10 @@ function accGateHtml(){
       + '저장된 파일을 열어도 글자가 보이지 않습니다.</div>'
     + '<div class="f">'
       + '<input type="password" id="acUnPw" placeholder="금고 비밀번호"'
-        + ' autocomplete="off" onkeydown="if(event.key===\'Enter\')accUnlock()">'
+        + ' name="vault-only" autocomplete="new-password" autocorrect="off"'
+        + ' autocapitalize="off" spellcheck="false"'
+        + ' data-lpignore="true" data-1p-ignore data-form-type="other"'
+        + ' onkeydown="if(event.key===\'Enter\')accUnlock()">'
       + '<button class="btn primary" id="acUnGo" onclick="accUnlock()">🔓 열기</button>'
     + '</div>'
     + '<div class="bad" id="acUnBad" style="display:none">비밀번호가 다릅니다.</div>'
@@ -17556,10 +17589,17 @@ function accPaint(){
         + ' oninput="accEdit.url=this.value"></div>'
     + '<div class="pj-r">'
       + '<div class="pj-f"><label>아이디</label>'
-        + '<input value="' + esc(d.loginId) + '" oninput="accEdit.loginId=this.value"></div>'
+        + '<input id="acId" value="' + esc(d.loginId) + '"'
+          + ' name="acc-id-only" autocomplete="off" autocorrect="off"'
+          + ' autocapitalize="off" spellcheck="false"'
+          + ' data-lpignore="true" data-1p-ignore data-form-type="other"'
+          + ' oninput="accEdit.loginId=this.value"></div>'
       + '<div class="pj-f"><label>비밀번호</label>'
         + '<input id="acPw" type="password" value="' + esc(d.pw) + '"'
-          + ' oninput="accEdit.pw=this.value" autocomplete="new-password">'
+          + ' name="acc-pw-only" autocomplete="new-password" autocorrect="off"'
+          + ' autocapitalize="off" spellcheck="false"'
+          + ' data-lpignore="true" data-1p-ignore data-form-type="other"'
+          + ' oninput="accEdit.pw=this.value">'
         + '<button type="button" class="ac-eye" onclick="accEye()" title="보기">👁</button></div>'
     + '</div>'
     + (d.pwAt ? '<div class="ac-when">🕘 비밀번호를 적어 둔 날: ' + esc(d.pwAt)
@@ -18232,8 +18272,20 @@ function renderAccounts(){
       + '<button class="btn sm primary" onclick="accDedup()">🧹 한 줄로 합치기</button></div>'
     : '';
   const bar = '<div class="ac-bar">'
-    + '<input class="ac-q" id="accQ" value="' + esc(accQ) + '" placeholder="🔍 서비스 · 아이디 · 담당자로 찾기"'
-      + ' oninput="accSet(\'q\', this.value)">'
+    /* ── 브라우저가 멋대로 채우지 못하게 ──────────────────────────
+       크롬은 이름 없는 글칸에 <<전에 친 것>> 을 밀어 넣습니다. 더구나
+       이 화면에는 비밀번호 칸이 있어서, 크롬이 「로그인 자리」 로 보고
+       아이디까지 채워 넣습니다. 맥이라서가 아니라 크롬이 하는 일입니다.
+       type=search · autocomplete=off 에 암호관리자용 표시까지 답니다. */
+    + '<span class="ac-qw">'
+      + '<input class="ac-q" id="accQ" type="search" value="' + esc(accQ) + '"'
+        + ' placeholder="🔍 서비스 · 아이디 · 담당자로 찾기"'
+        + ' name="acc-find-only" autocomplete="off" autocorrect="off"'
+        + ' autocapitalize="off" spellcheck="false"'
+        + ' data-lpignore="true" data-1p-ignore data-form-type="other"'
+        + ' oninput="accSet(\'q\', this.value)">'
+      + (accQ ? '<button class="ac-qx" title="지우기" onclick="accSet(\'q\',\'\')">✕</button>' : '')
+    + '</span>'
     + (accVaultOn()
         ? '<button class="tt-edb" onclick="accLock()" title="지금 바로 잠그기">🔒 잠그기</button>'
           + '<button class="tt-edb" onclick="accVaultChange()">🔑 금고 비번 바꾸기</button>'

@@ -4343,6 +4343,9 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 .ac-safe .h{font-size:13px;font-weight:800;color:var(--text-primary);margin-bottom:5px}
 .ac-safe p{margin:0 0 4px;font-size:11.5px;line-height:1.7;color:var(--text-secondary)}
 .ac-cnt{margin-top:7px;font-size:11px;font-weight:700;color:#2e7d52}
+.ac-over{display:flex;align-items:center;gap:8px;margin-top:11px;padding:9px 12px;
+  border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary);
+  font-size:11.5px;line-height:1.6;color:var(--text-secondary);cursor:pointer}
 .ac-go{display:flex;gap:8px;margin-top:15px}
 .ac-note{margin:0 0 10px;padding:9px 12px;border-radius:8px;background:var(--bg-secondary);
   font-size:11.5px;line-height:1.6;color:var(--text-secondary)}
@@ -5042,7 +5045,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261006-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261006-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17288,6 +17291,8 @@ let accCat   = '';        // 고른 분류 ('' = 전체)
 let accSeen  = {};        // 지금 펴 본 비밀번호 { id: true } — 저장하지 않습니다
 let accEdit  = null;      // 고치는 중인 계정 (사본)
 let accImp   = null;      // 엑셀 넣기 중간 상태
+let accOver  = true;      // 같은 이름의 서비스는 고쳐 넣을까 (다시 읽는 일이 잦습니다)
+function accOverSet(v){ accOver = !!v; accImpPaint(); }
 
 function accAll(){ return Array.isArray(data.accounts) ? data.accounts : (data.accounts = []); }
 function accCatOf(a){ return ACC_CATS.indexOf(a.cat) >= 0 ? a.cat : '그 밖'; }
@@ -17662,11 +17667,22 @@ function accMask(grid){
    사전에 없는 가명(AI 가 지어낸 것)은 손대지 않고 그대로 둡니다 —
    눈에 보여야 사람이 알아채고 고칠 수 있습니다.
    ---------------------------------------------------------------- */
-function accUnmask(v, book){
+let accMixed = 0;          // AI 가 아이디·비밀번호 자리를 바꿔 넣은 횟수
+function accUnmask(v, book, want){
   const s = String(v == null ? '' : v);
   if(!s) return s;
-  return s.replace(/(?:Pw|Id)#\d+/g, t =>
-    Object.prototype.hasOwnProperty.call(book, t) ? book[t] : t);
+  return s.replace(/(?:Pw|Id)#\d+/g, t => {
+    /* ── 자리표의 <<갈래>> 를 봅니다 ─────────────────────────────
+       AI 는 비밀번호 글자를 못 봅니다 — Pw#3 같은 자리표만 봅니다.
+       그런데 「계정 비밀번호」 처럼 헷갈리는 머리줄이면, AI 가
+       비밀번호 자리에 Id#1 을 적어 보내는 일이 있습니다. 그대로
+       풀면 <<비밀번호 자리에 아이디가>> 들어갑니다 — 「비밀번호가
+       자꾸 아이디랑 같게 나온다」 의 까닭입니다.
+       갈래가 안 맞으면 넣지 않고, 몇 군데였는지 세어 둡니다. */
+    const kind = t.slice(0, 2) === 'Pw' ? 'pw' : 'id';
+    if(want && kind !== want){ accMixed++; return ''; }
+    return Object.prototype.hasOwnProperty.call(book, t) ? book[t] : t;
+  }).trim();
 }
 function accImpPaste(v){
   accImp.raw = v;
@@ -17771,6 +17787,13 @@ function accImpPaint(){
             + '두 칸이 같은 열을 보고 있을 때 이렇게 됩니다 — [← 다시] 로 돌아가 '
             + '「아이디」 와 「비밀번호」 를 <b>다른 칸</b>으로 골라 주세요.</div>'
           : '')
+      + (d.mixed
+          ? '<div class="ac-note">🔧 AI 가 <b>아이디와 비밀번호 자리를 ' + d.mixed
+            + '군데 바꿔</b> 보냈습니다 — 엉뚱한 값이 들어가지 않게 걸러 내고, '
+            + (d.fixed ? '<b>' + d.fixed + '줄</b>은 엑셀에서 직접 읽어 채웠습니다.'
+                       : '표에서 다시 읽었습니다.')
+            + ' 아래에서 한 번 봐 주세요.</div>'
+          : '')
       + (d.note ? '<div class="ac-note">💡 ' + esc(d.note) + '</div>' : '')
       + '<div class="ac-chk">'
         + rows.map((r, i) => '<label class="ac-ck' + (r.on ? '' : ' off') + '">'
@@ -17783,6 +17806,19 @@ function accImpPaint(){
             + '<span class="w">' + esc(r.who || '') + '</span>'
             + '</label>').join('')
       + '</div>'
+      + (function(){
+          const nz = v => String(v || '').replace(/\s+/g, '').toLowerCase();
+          const dup = rows.filter(r => r.on && accAll()
+            .some(a => nz(a.svc) === nz(r.svc))).length;
+          return dup
+            ? '<label class="ac-over"><input type="checkbox"' + (accOver ? ' checked' : '')
+              + ' onchange="accOverSet(this.checked)">'
+              + '<span>이미 있는 서비스 <b>' + dup + '건</b>은 '
+              + (accOver ? '<b>고쳐 넣습니다</b> — 같은 것이 두 개 생기지 않습니다'
+                         : '따로 <b>하나 더</b> 넣습니다')
+              + '</span></label>'
+            : '';
+        })()
       + '<div class="ac-go">'
         + '<button class="btn primary" onclick="accImpSave()">✅ 고른 것 넣기</button>'
         + '<button class="btn" onclick="accImp.step=1;accImpPaint()">← 다시</button>'
@@ -17860,15 +17896,21 @@ async function accImpRun(){
     }
     const list = Array.isArray(out['계정']) ? out['계정'] : [];
     if(!list.length) throw new Error('AI 가 줄을 하나도 못 찾았습니다');
+    accMixed = 0;
     accImp.rows = list.map(x => ({ on:true,
       svc: accUnmask(x['서비스'], m.book),
       url: accUnmask(x['주소'], m.book),
-      loginId: accUnmask(x['아이디'], m.book),
-      pw: accUnmask(x['비밀번호'], m.book),
+      loginId: accUnmask(x['아이디'], m.book, 'id'),
+      pw: accUnmask(x['비밀번호'], m.book, 'pw'),
       who: accUnmask(x['담당'], m.book),
       note: accUnmask(x['메모'], m.book),
       cat: ACC_CATS.indexOf(String(x['분류'] || '')) >= 0 ? String(x['분류']) : '그 밖' }));
+    /* ── AI 가 틀린 자리는 <<표에서 직접>> 가져와 메웁니다 ─────────
+       비밀번호가 어느 칸인지는 우리가 이미 압니다. AI 말을 안 믿고
+       표에서 그 칸을 바로 읽어 채웁니다 (서비스 이름으로 줄을 맞춥니다). */
+    const fixed = accImpBackfill(accImp.rows, g, accImp.map);
     accImp.note = String(out['한마디'] || '');
+    accImp.mixed = accMixed; accImp.fixed = fixed;
     accImp.step = 2;
   }catch(e){
     alert('정리하지 못했습니다.\n\n' + apiErrText(e)
@@ -17876,6 +17918,34 @@ async function accImpRun(){
   }finally{
     accImp.busy = false; accImpPaint();
   }
+}
+/* 표에서 바로 읽어 빈 자리를 메웁니다 — 몇 줄을 메웠는지 돌려줍니다 */
+function accImpBackfill(rows, grid, map){
+  if(!rows || !grid || !map) return 0;
+  const head = grid[0] || [], body = grid.slice(1);
+  const at = (r, i) => (i >= 0 && r && r[i] != null) ? String(r[i]).trim() : '';
+  const norm = v => String(v || '').replace(/\s+/g, '').toLowerCase();
+  let n = 0;
+  rows.forEach((row, i) => {
+    /* 서비스 이름이 닮은 줄을 찾고, 없으면 같은 자리의 줄을 씁니다 */
+    let src = null;
+    if(map.svc >= 0 && row.svc){
+      const want = norm(row.svc);
+      src = body.find(r => { const v = norm(at(r, map.svc));
+        return v && (v === want || v.indexOf(want) >= 0 || want.indexOf(v) >= 0); }) || null;
+    }
+    if(!src && body[i]) src = body[i];
+    if(!src) return;
+    let did = false;
+    if(!String(row.pw || '').trim() && map.pw >= 0){
+      const v = at(src, map.pw); if(v){ row.pw = v; did = true; }
+    }
+    if(!String(row.loginId || '').trim() && map.id >= 0){
+      const v = at(src, map.id); if(v){ row.loginId = v; did = true; }
+    }
+    if(did) n++;
+  });
+  return n;
 }
 async function accImpSave(){
   const pick = (accImp.rows || []).filter(r => r.on && String(r.svc || '').trim());
@@ -17885,10 +17955,21 @@ async function accImpSave(){
     return;
   }
   const today = todayStr(), now = new Date().toISOString();
+  /* ── 같은 서비스가 이미 있으면 <<고쳐 넣습니다>> ─────────────────
+     잘못 들어간 줄을 바로잡으려고 다시 읽는 일이 잦습니다. 그때마다
+     똑같은 서비스가 하나씩 더 쌓이면 어느 것이 맞는지 알 수 없게
+     됩니다. 이름이 같으면 그 줄을 고쳐 넣습니다. */
+  const nz = v => String(v || '').replace(/\s+/g, '').toLowerCase();
+  let made = 0, over = 0;
   for(const r of pick){
-    const a = { id: uid('ac'), svc: String(r.svc).trim(), url: r.url || '',
-      who: r.who || '', cat: r.cat || '그 밖', note: r.note || '',
-      pwAt: today, updatedAt: now };
+    const nm = String(r.svc).trim();
+    let a = accOver ? accAll().find(x => nz(x.svc) === nz(nm)) : null;
+    if(a){ over++; }
+    else { a = { id: uid('ac') }; accAll().unshift(a); made++; }
+    a.svc = nm; a.url = r.url || a.url || '';
+    a.who = r.who || a.who || ''; a.cat = r.cat || a.cat || '그 밖';
+    a.note = r.note || a.note || '';
+    a.pwAt = today; a.updatedAt = now;
     if(accVaultOn() && accKey){
       accPlain[a.id] = { loginId: r.loginId || '', pw: r.pw || '' };
       a.loginId = await accEnc(accKey, r.loginId || '');
@@ -17896,12 +17977,12 @@ async function accImpSave(){
     }else{
       a.loginId = r.loginId || ''; a.pw = r.pw || '';
     }
-    accAll().unshift(a);
   }
-  const n = pick.length;
   accImp = null; closeModal('accImpModal');
   markDirtyAll(); render();
-  toast('🔐 계정 ' + n + '건을 넣었습니다');
+  toast('🔐 ' + (made ? '계정 ' + made + '건을 넣었습니다' : '')
+    + (made && over ? ' · ' : '')
+    + (over ? '같은 이름 ' + over + '건은 고쳐 넣었습니다' : ''));
 }
 /* ── 화면 ────────────────────────────────────────────────────── */
 function renderAccounts(){

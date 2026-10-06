@@ -4772,8 +4772,22 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 .tt-ed .x{flex:0 0 auto;width:26px;height:26px;border:none;border-radius:7px;
   background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer}
 .tt-ed .x:hover{background:var(--bg-sunken);color:var(--red)}
-.tt-s{padding:12px 16px 13px;border-top:1px solid var(--border)}
-.tt-lb{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;
+.tt-s{border-top:1px solid var(--border)}
+/* 칸 머리 — 누르면 접혔다 펴집니다 */
+.tt-lb{display:flex;align-items:center;gap:0;width:100%;
+  padding:11px 16px;border:0;background:none;font-family:inherit;text-align:left;
+  cursor:pointer;transition:background .12s}
+/* 가운데 글자는 왼쪽에 붙이고, 셈과 [＋] 는 오른쪽 끝에 한 줄로 */
+.tt-lb > span:nth-child(2){flex:1 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.tt-lb .tt-n{flex:0 0 auto;display:inline-flex;align-items:center;white-space:nowrap}
+.tt-lb:hover{background:var(--bg-secondary)}
+.tt-s.op .tt-lb{padding-bottom:8px}
+.tt-s.op > .tt-l,.tt-s.op > .tt-e,.tt-s.op > .jr-fold{margin:0 16px 13px}
+.tt-k{flex:0 0 auto;font-size:9px;color:var(--text-muted);margin-right:5px;
+  transition:transform .16s var(--ease)}
+.tt-s.op .tt-k{transform:rotate(90deg);color:var(--tc)}
+.tt-lb-old{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;
   font-size:10px;font-weight:700;letter-spacing:.13em;color:var(--text-muted)}
 .tt-n{font-weight:800;color:var(--text-primary);letter-spacing:0}
 .tt-l{display:flex;flex-direction:column;gap:3px}
@@ -5070,7 +5084,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261006-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261006-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -15908,6 +15922,36 @@ function jrDays(t){
   const d = t && t.diary;
   return (d && typeof d === 'object') ? Object.keys(d).filter(k => d[k]).length : 0;
 }
+/* ── 어느 칸을 펴 두었나 ─────────────────────────────────────────
+   { '사람이름|칸': 1 } — 편 것만 적어 둡니다 (처음에는 다 접혀 있습니다).
+   브라우저에 남겨 두어 다음에 와도 보던 대로 열립니다.
+   사람 <<아이디>> 가 아니라 <<이름>> 으로 적어 둡니다 — 팀을 처음
+   만들 때 아이디를 그때그때 새로 짓기 때문에, 아이디로 적어 두면
+   다음에 왔을 때 남이 되어 다 접혀 버립니다. */
+let secO = {};
+try{ secO = JSON.parse(localStorage.getItem('brandHubSecOpen') || '{}') || {}; }catch(e){ secO = {}; }
+function secWho(m){
+  if(typeof m === 'string') return m;
+  return String((m && (m.name || m.id)) || '').trim() || '?';
+}
+function secOpen(m, k){ return !!secO[secWho(m) + '|' + k]; }
+function secFlip(who, k){
+  const key = secWho(who) + '|' + k;
+  if(secO[key]) delete secO[key]; else secO[key] = 1;
+  try{ localStorage.setItem('brandHubSecOpen', JSON.stringify(secO)); }catch(e){}
+  render();
+}
+/* 한 번에 다 펴거나 다 접습니다 */
+function secAll(on){
+  secO = {};
+  if(on){
+    teamsOf().forEach(t => t.members.forEach(m =>
+      ['rout', 'jrnl', 'proj', 'done'].forEach(k => { secO[secWho(m) + '|' + k] = 1; })));
+  }
+  try{ localStorage.setItem('brandHubSecOpen', JSON.stringify(secO)); }catch(e){}
+  render();
+}
+function secAnyOpen(){ return Object.keys(secO).length > 0; }
 let jrFold = {};        // { 사람id: 1 } — 끝낸 줄을 펴 둔 카드
 let jrNote = {};        // { 할일id: 1 } — 끝낸 줄에 한 줄 적으려고 연 것
 function jrFoldFlip(k){ if(jrFold[k]) delete jrFold[k]; else jrFold[k] = 1; render(); }
@@ -16819,14 +16863,31 @@ function memCard(m, t, hue, rows){
       + '</span></button>';
   };
   /* [＋] 를 누르면 그 자리에서 <<바로 창>> 이 뜹니다 — 브랜드도 창 안에서 */
-  const sec = (lb, n, list, none, draw, add, tail) => '<div class="tt-s">'
-    + '<div class="tt-lb"><span>' + lb + '</span>'
-      + '<span class="tt-n">' + n + (add ? '<button class="tt-p" onclick="' + add
-          + '" title="새로 만들기">＋</button>' : '') + '</span></div>'
-    + (list.length ? '<div class="tt-l">' + list.map(draw || row).join('') + '</div>'
-                   : (none ? '<div class="tt-e">' + none + '</div>' : ''))
-    + (tail || '')
+  /* ── 칸 셋은 <<눌러서>> 폅니다 ──────────────────────────────────
+     루틴 · 업무일지 · 프로젝트가 늘 다 펼쳐져 있어서 사람 카드 한 장이
+     633px, 여섯 명이면 2000px 이 넘었습니다. 이제 칸 머리를 누르면
+     접혔다 펴집니다. 접어 둬도 머리에 「0/3」 처럼 몇 건인지가 남아서,
+     접힌 채로도 그 사람이 오늘 어디쯤인지는 보입니다.
+     무엇을 펴 두었는지는 기억해 둡니다 (다음에 와도 그대로). */
+  const sec = (key, lb, n, list, none, draw, add, tail) => {
+    const op = secOpen(m, key);
+    return '<div class="tt-s' + (op ? ' op' : '') + '">'
+    /* 단추 안에 단추를 넣으면 브라우저가 쪼개 버립니다 ([＋] 가 아래로
+       떨어졌습니다). 바깥은 div 로 두고 눌리게만 합니다. */
+    + '<div class="tt-lb" role="button" tabindex="0"'
+      + ' onclick="secFlip(\'' + jsq(secWho(m)) + '\',\'' + key + '\')"'
+      + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+        + 'secFlip(\'' + jsq(secWho(m)) + '\',\'' + key + '\');}"'
+      + ' title="' + (op ? '접기' : '펴기') + '">'
+      + '<span class="tt-k">▸</span><span>' + lb + '</span>'
+      + '<span class="tt-n">' + n + (add ? '<button class="tt-p" title="새로 만들기"'
+          + ' onclick="event.stopPropagation();' + add + '">＋</button>' : '') + '</span></div>'
+    + (!op ? ''
+        : (list.length ? '<div class="tt-l">' + list.map(draw || row).join('') + '</div>'
+                       : (none ? '<div class="tt-e">' + none + '</div>' : ''))
+          + (tail || ''))
     + '</div>';
+  };
   const q = "'" + jsq(nm) + "'";
   /* 루틴도 · 프로젝트도 · 할 일도 하나 없는 카드 */
   const empty = !rs.length && !projs.length && !jAll.length && !shown.length;
@@ -16877,7 +16938,7 @@ function memCard(m, t, hue, rows){
         + '<button onclick="taskAddWho(' + q + ')">📓 할 일</button>'
         + '<button onclick="projAdd(' + q + ')">🚀 프로젝트</button>'
         + '</div></div>'
-      : sec('🔄 오늘 루틴', rd + '/' + rs.length, rs, '오늘 할 루틴이 없습니다',
+      : sec('rout', '🔄 오늘 루틴', rd + '/' + rs.length, rs, '오늘 할 루틴이 없습니다',
           r => '<div class="tt-i' + (routDone(r, iso) ? ' done' : '') + '">'
             + '<button class="tt-c" onclick="routFlip(\'' + jsq(r.id) + '\')"'
               + ' title="' + (routDone(r, iso) ? '안 한 것으로' : '했다고 표시') + '"></button>'
@@ -16895,14 +16956,14 @@ function memCard(m, t, hue, rows){
          보였습니다. 끝낸 것은 접어 두고, 남은 것만 세웁니다.
          셈과 「없습니다」 는 접기 <<전>> 기준입니다 — 접었다고 「6/0 ·
          적어 둔 할 일이 없습니다」 가 되면 거짓말이 됩니다. */
-      + sec('📓 업무일지 <em class="jr-dt">' + esc(jrHead(iso)) + '</em>',
+      + sec('jrnl', '📓 업무일지 <em class="jr-dt">' + esc(jrHead(iso)) + '</em>',
           '<span title="오늘 끝낸 ' + doneTd.length + '건 / 적어 둔 ' + jAll.length + '건">'
             + doneTd.length + '/' + jAll.length + '</span>',
           jobsS, jAll.length ? '' : '적어 둔 할 일이 없습니다',
           jrow, 'taskAddWho(' + q + ')', jrTail(m, jobsS, doneTd))
-      + sec('🚀 진행중 프로젝트', projs.length + '건', projs, '진행 중인 프로젝트가 없습니다',
+      + sec('proj', '🚀 진행중 프로젝트', projs.length + '건', projs, '진행 중인 프로젝트가 없습니다',
           prow, 'projAdd(' + q + ')')
-      + (shown.length ? sec('✅ 끝낸 일', shown.length + '건', shown, '', null, '') : ''))
+      + (shown.length ? sec('done', '✅ 끝낸 일', shown.length + '건', shown, '', null, '') : ''))
     + '</div>';
 }
 /* 팀에 없는 사람이 맡은 일 — 빠뜨리지 않게 마지막에 따로 모읍니다 */
@@ -16998,7 +17059,10 @@ function renderTasks(){
       + '<button class="tt-edb' + (mmOn ? ' on' : '') + '" onclick="mmToggle()">'
         + (mmOn ? '🗂 카드로 보기' : '🗺️ 지도로 보기') + '</button>'
       + (mmOn ? ''
-          : '<button class="tt-edb' + (taskDone ? ' on' : '') + '" onclick="toggleTaskDone()">'
+          : '<button class="tt-edb" onclick="secAll(' + (secAnyOpen() ? '0' : '1') + ')"'
+            + ' title="사람 카드 안의 칸을 한 번에">'
+            + (secAnyOpen() ? '🔼 모두 접기' : '🔽 모두 펼치기') + '</button>'
+          + '<button class="tt-edb' + (taskDone ? ' on' : '') + '" onclick="toggleTaskDone()">'
             + (taskDone ? '✅ 끝난 일도 보는 중' : '끝난 일 보기') + '</button>'
           + '<button class="tt-edb' + (teamEdit ? ' on' : '') + '" onclick="teamEditToggle()">'
             + (teamEdit ? '✔ 다 고쳤어요' : '✎ 팀 고치기') + '</button>')

@@ -168,7 +168,8 @@ pen_cards = [
           ("단가", "1,000개 <strong>338원</strong> ~ 50,000개 288원 (VAT 별도)")],
          [{"path": "01_볼펜_검정_목업.png", "label": "목업 — 블랙", "mock": True},
           {"path": "02_볼펜_흰색_목업.png", "label": "목업 — 화이트"}],
-         url="https://daehangift-gyeonggi.com/shop/view.php?index_no=726254"),
+         url="https://daehangift-gyeonggi.com/shop/view.php?index_no=726254",
+         decided="구매 확정 (3차 회의)"),
     card("②", "고려기프트 — 네오블랙 젤펜 (B3865)",
          [("모델", "B3865"), ("타입", "무광 블랙 젤펜 (젤심)"),
           ("인쇄", "인쇄비 무료"),
@@ -214,7 +215,8 @@ flash_cards = [
           ("재고", "<strong>현재 품절</strong>")],
          [{"path": "10_하이파워_LED_줌_랜턴_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
           {"path": "09_하이파워_LED_줌_랜턴_원본.jpg", "label": "원본"}],
-         url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=173345"),
+         url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=173345",
+         decided="구매 확정 (3차 회의)"),
     card("③", "벤딕트 BEAM-LX800 — 충전식 LED 손전등",
          [("밝기", "1,000루멘"), ("조사 거리", "800m"),
           ("특징", "자석 내장, COB 조명, USB 충전"),
@@ -312,7 +314,8 @@ dji_cards = [
           ("단가", "<strong>1,220,000원</strong>")],
          [{"path": "22_DJI_RC_Pro_2_현장_운용_목업.png", "label": "목업 — 현장 운용", "mock": True},
           {"path": "21_DJI_RC_Pro_2_제품_이미지.jpg", "label": "제품 이미지"}],
-         url="https://www.dji.com/rc-pro-2", url_text="DJI 공식"),
+         url="https://www.dji.com/rc-pro-2", url_text="DJI 공식",
+         decided="1대 구매 확정 (3차 회의)"),
 ]
 
 # ----- 6. 장비가방 -----
@@ -492,11 +495,11 @@ ondo_cards = [
 ]
 
 sections_html = "".join([
-    section("1", "볼펜 / 젤펜", "4종 검토", pen_cards, decision="1,820원 흑백 볼펜 잠정 선정"),
-    section("2", "손전등 / 랜턴", "4종 비교", flash_cards, decision="대량 구매 안 함 (휴대폰으로 충분)"),
+    section("1", "볼펜 / 젤펜", "4종 검토", pen_cards, decision="① 대한기프트 흑/백 볼펜 구매 확정"),
+    section("2", "손전등 / 랜턴", "4종 비교", flash_cards, decision="② 가나기프트 하이파워 LED 줌 랜턴 구매 확정"),
     section("3", "함수율 측정기", "5종 비교", moist_cards, decision="저가형(GM605) 구매"),
     section("4", "칫솔치약세트", "4종 비교", tooth_cards),
-    section("5", "드론 조종기", "현장 운용 장비", dji_cards, decision="미구매 (고가 장비 예시)"),
+    section("5", "드론 조종기", "현장 운용 장비", dji_cards, decision="DJI RC Pro 2 조종기 1대 구매 확정"),
     section("6", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),
     section("7", "열화상 카메라", "2종 비교", thermal_cards, decision="저가형 1개 구매"),
     section("8", "온습도계", "2종 비교", ondo_cards, decision="저가형 전 직원 지급"),

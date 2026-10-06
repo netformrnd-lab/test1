@@ -4211,6 +4211,19 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   border:1px solid var(--border);border-radius:9px;background:var(--bg-input);
   color:var(--text-primary)}
 .ac-q:focus{outline:none;border-color:var(--purple)}
+/* 분류 칩 — 눌러서 고릅니다 */
+.ac-chips{display:flex;gap:6px;flex-wrap:wrap;margin:-6px 0 16px}
+.ac-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:99px;
+  border:1px solid var(--border);background:var(--bg-card);font-family:inherit;font-size:11.5px;
+  font-weight:700;color:var(--text-secondary);cursor:pointer;white-space:nowrap;
+  transition:.12s var(--ease)}
+.ac-chip:hover{border-color:var(--purple);color:var(--purple)}
+.ac-chip b{font-size:10.5px;font-weight:800;padding:0 5px;border-radius:99px;
+  background:var(--bg-sunken);color:var(--text-muted)}
+.ac-chip.on{border-color:var(--purple);background:var(--purple);color:#fff}
+.ac-chip.on b{background:rgba(255,255,255,.22);color:#fff}
+.ac-chip.go{border-style:dashed;color:var(--text-muted)}
+.ac-chip.go:hover{border-style:solid}
 .ac-grp{margin-bottom:20px}
 .ac-gh{display:flex;align-items:center;gap:8px;margin:0 0 9px;font-size:13px;font-weight:800;
   color:var(--text-primary)}
@@ -5045,7 +5058,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261006-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261006-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17289,6 +17302,8 @@ function accGateHtml(){
 let accQ     = '';        // 찾는 말
 let accCat   = '';        // 고른 분류 ('' = 전체)
 let accSeen  = {};        // 지금 펴 본 비밀번호 { id: true } — 저장하지 않습니다
+let accSortBy = 'name';   // 줄 세우는 기준
+let accGrp    = 'cat';    // 묶는 기준 — 'cat' 분류별 · 'who' 담당자별 · '' 한 줄로
 let accEdit  = null;      // 고치는 중인 계정 (사본)
 let accImp   = null;      // 엑셀 넣기 중간 상태
 let accOver  = true;      // 같은 이름의 서비스는 고쳐 넣을까 (다시 읽는 일이 잦습니다)
@@ -17332,6 +17347,71 @@ function accShow(rows){
   });
 }
 function accSet(k, v){ if(k === 'q') accQ = v; else accCat = v; render(); }
+/* ── 🗂 분류를 <<이름 보고>> 알아서 나눕니다 ──────────────────────
+   엑셀에 분류 칸이 없으면 모두 「그 밖」 으로 쌓입니다. 서른 줄이
+   한 덩어리로 있으면 찾기가 어렵습니다. 서비스 이름과 주소를 보고
+   어디에 속하는지 짐작해 둡니다 — 틀리면 [✎] 로 바꾸면 됩니다.
+   ---------------------------------------------------------------- */
+const ACC_GUESS = [
+  ['광고 · 매체', /네이버|naver|검색광고|searchad|카카오모먼트|kakaomoment|구글\s*애즈|google\s*ads|adwords|메타\s*비즈니스|meta\s*business|business\.facebook|페이스북\s*광고|당근|dable|크리테오|criteo|애드|^ad\b|광고|moment|gfa|display|타겟팅/i],
+  ['소셜',        /인스타|instagram|페이스북|facebook|유튜브|youtube|틱톡|tiktok|트위터|twitter|^x\.com|스레드|threads|링크드인|linkedin|핀터레스트|pinterest|블로그|blog|브런치|brunch|네이버\s*카페|카페(?!\s*24)|cafe(?!\s*24)|채널톡|channel|카카오채널|플러스친구/i],
+  ['디자인 · 제작', /피그마|figma|어도비|adobe|포토샵|photoshop|일러스트|illustrat|캔바|canva|미리캔버스|miricanvas|망고보드|스톡|stock|셔터|shutter|게티|getty|폰트|font|프리픽|freepik|envato|midjourney|미드저니|dall|런웨이|runway/i],
+  ['개발 · 서버',  /github|깃허브|gitlab|비트버킷|bitbucket|aws|amazon|gcp|azure|클라우드|cloud|서버|server|호스팅|hosting|카페24|cafe24|가비아|gabia|고도몰|godo|도메인|domain|dns|시놀로지|synology|nas|vercel|netlify|헤로쿠|heroku|도커|docker|api|sentry|firebase/i],
+  ['문서 · 협업',  /구글|google|드라이브|drive|노션|notion|슬랙|slack|지라|jira|컨플루|confluence|트렐로|trello|아사나|asana|먼데이|monday|드롭박스|dropbox|원드라이브|onedrive|office|오피스|한컴|hancom|줌|zoom|팀즈|teams|메일|mail|gmail|웹하드|webhard|모두싸인|modusign|도큐사인|docusign|잔디|jandi|플로우|flow/i]
+];
+function accGuessCat(a){
+  const t = (String(a.svc || '') + ' ' + String(a.url || '') + ' ' + String(a.note || ''));
+  const hit = ACC_GUESS.find(([, re]) => re.test(t));
+  return hit ? hit[0] : '';
+}
+/* 「그 밖」 에 쌓인 것을 한 번에 나눠 담습니다 */
+function accSortOut(){
+  const left = accAll().filter(a => accCatOf(a) === '그 밖');
+  const can  = left.map(a => [a, accGuessCat(a)]).filter(x => x[1]);
+  if(!can.length){
+    alert('이름만 보고는 더 나눌 수가 없습니다.\n\n'
+      + '줄마다 [✎] 를 눌러 분류를 골라 주세요.');
+    return;
+  }
+  const by = {};
+  can.forEach(([, c]) => { by[c] = (by[c] || 0) + 1; });
+  if(!confirm('「그 밖」 ' + left.length + '건 가운데 ' + can.length + '건을 나눠 담습니다.\n\n'
+    + Object.keys(by).map(c => ' · ' + c + ' ' + by[c] + '건').join('\n')
+    + '\n\n이름과 주소를 보고 짐작한 것입니다 — 틀린 것은 [✎] 로 바꾸면 됩니다.')) return;
+  can.forEach(([a, c]) => { a.cat = c; a.updatedAt = new Date().toISOString(); });
+  markDirtyAll(); render();
+  toast('🗂 ' + can.length + '건을 나눠 담았습니다');
+}
+/* ── 줄 세우기 ─────────────────────────────────────────────────── */
+const ACC_SORTS = [['name','이름순'], ['who','담당자순'], ['new','최근 바뀐 순'],
+                   ['warn','살펴볼 것 먼저']];
+function accSortSet(v){ accSortBy = v; render(); }
+function accGrpSet(v){ accGrp = v; render(); }
+/* 살펴볼 것 — 돌려쓰는 비번 · 오래된 것 · 아이디와 같음 · 담당자 없음 */
+function accRisk(a){
+  let n = 0;
+  if(accSameIdPw(a)) n += 8;
+  if(!accReadable(a)) n += 6;
+  if(accDupOf(a) > 1) n += 4;
+  if(accAge(a) >= ACC_OLD) n += 2;
+  if(!String(a.who || '').trim()) n += 1;
+  return n;
+}
+function accOrder(list){
+  const ko = (x, y) => String(x || '').localeCompare(String(y || ''), 'ko');
+  const c = list.slice();
+  if(accSortBy === 'who'){
+    c.sort((a, b) => ko(a.who || 'ㅎ흐', b.who || 'ㅎ흐') || ko(a.svc, b.svc));
+  }else if(accSortBy === 'new'){
+    c.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
+      || ko(a.svc, b.svc));
+  }else if(accSortBy === 'warn'){
+    c.sort((a, b) => (accRisk(b) - accRisk(a)) || ko(a.svc, b.svc));
+  }else{
+    c.sort((a, b) => ko(a.svc, b.svc));
+  }
+  return c;
+}
 function accFlip(id){
   accTouch();
   if(accSeen[id]) delete accSeen[id]; else accSeen[id] = 1;
@@ -17967,7 +18047,12 @@ async function accImpSave(){
     if(a){ over++; }
     else { a = { id: uid('ac') }; accAll().unshift(a); made++; }
     a.svc = nm; a.url = r.url || a.url || '';
-    a.who = r.who || a.who || ''; a.cat = r.cat || a.cat || '그 밖';
+    a.who = r.who || a.who || '';
+    /* 엑셀에 분류 칸이 없으면 이름을 보고 짐작해 둡니다 — 모두 「그 밖」
+       으로 쌓이면 서른 줄이 한 덩어리가 되어 찾기 어렵습니다 */
+    a.cat = (r.cat && r.cat !== '그 밖') ? r.cat
+          : (a.cat && a.cat !== '그 밖') ? a.cat
+          : (accGuessCat({ svc:nm, url:r.url, note:r.note }) || '그 밖');
     a.note = r.note || a.note || '';
     a.pwAt = today; a.updatedAt = now;
     if(accVaultOn() && accKey){
@@ -18061,15 +18146,36 @@ function renderAccounts(){
         ? '<button class="tt-edb" onclick="accLock()" title="지금 바로 잠그기">🔒 잠그기</button>'
           + '<button class="tt-edb" onclick="accVaultChange()">🔑 금고 비번 바꾸기</button>'
         : '<button class="tt-edb on" onclick="accVaultMake()">🔒 비밀번호 걸기</button>')
-    + '<select class="mm-sel" onchange="accSet(\'cat\', this.value)">'
-      + '<option value="">분류 모두</option>'
-      + ACC_CATS.map(c => '<option' + (c === accCat ? ' selected' : '') + '>' + esc(c)
-          + '</option>').join('') + '</select>'
+    + '<select class="mm-sel" onchange="accSortSet(this.value)" title="줄 세우는 기준">'
+      + ACC_SORTS.map(x => '<option value="' + x[0] + '"' + (x[0] === accSortBy ? ' selected' : '')
+          + '>↕ ' + x[1] + '</option>').join('') + '</select>'
+    + '<select class="mm-sel" onchange="accGrpSet(this.value)" title="묶는 기준">'
+      + [['cat','🗂 분류별로'], ['who','👤 담당자별로'], ['','— 안 묶기 —']]
+          .map(x => '<option value="' + x[0] + '"' + (x[0] === accGrp ? ' selected' : '')
+            + '>' + x[1] + '</option>').join('') + '</select>'
     + (Object.keys(accSeen).length
         ? '<button class="tt-edb" onclick="accHideAll()">🔒 다시 가리기</button>' : '')
     + '<button class="tt-edb" onclick="accImport()">📗 엑셀 읽어 오기</button>'
     + '<button class="btn primary sm" onclick="accOpen(\'\')">＋ 계정</button>'
-    + '</div>';
+    + '</div>'
+    /* 분류를 눌러서 고릅니다 — 몇 건인지가 바로 보여야 찾기 쉽습니다 */
+    + (all.length > 4
+      ? '<div class="ac-chips">'
+        + '<button class="ac-chip' + (accCat ? '' : ' on') + '" onclick="accSet(\'cat\',\'\')">'
+          + '전체<b>' + all.length + '</b></button>'
+        + ACC_CATS.map(c => {
+            const n = all.filter(a => accCatOf(a) === c).length;
+            if(!n) return '';
+            return '<button class="ac-chip' + (accCat === c ? ' on' : '') + '"'
+              + ' onclick="accSet(\'cat\',\'' + jsq(c) + '\')">'
+              + esc(c) + '<b>' + n + '</b></button>';
+          }).join('')
+        + (all.filter(a => accCatOf(a) === '그 밖').length > 2
+            ? '<button class="ac-chip go" onclick="accSortOut()"'
+              + ' title="이름과 주소를 보고 「그 밖」 을 나눠 담습니다">🗂 알아서 나누기</button>'
+            : '')
+        + '</div>'
+      : '');
 
   const one = a => {
     const dn = accDupOf(a), ag = accAge(a), on = !!accSeen[a.id];
@@ -18121,13 +18227,30 @@ function renderAccounts(){
       + '<button onclick="accOpen(\'\')">＋ 하나씩 넣기</button></div></div>'
     : !rows.length
       ? '<div class="empty">찾는 계정이 없습니다.</div>'
-      : ACC_CATS.map(c => {
-          const g = rows.filter(a => accCatOf(a) === c);
-          if(!g.length) return '';
-          return '<div class="ac-grp"><div class="ac-gh">' + esc(c)
-            + '<span>' + g.length + '건</span></div>'
-            + '<div class="ac-list">' + g.map(one).join('') + '</div></div>';
-        }).join('');
+      : accGrp === ''
+        ? '<div class="ac-list">' + accOrder(rows).map(one).join('') + '</div>'
+        : accGrp === 'who'
+          ? (function(){
+              const names = [];
+              rows.forEach(a => { const w = String(a.who || '').trim() || '— 맡은 사람 없음 —';
+                if(names.indexOf(w) < 0) names.push(w); });
+              names.sort((x, y) => (x.indexOf('—') === 0) - (y.indexOf('—') === 0)
+                || String(x).localeCompare(String(y), 'ko'));
+              return names.map(w => {
+                const g = accOrder(rows.filter(a =>
+                  (String(a.who || '').trim() || '— 맡은 사람 없음 —') === w));
+                return '<div class="ac-grp"><div class="ac-gh">👤 ' + esc(w)
+                  + '<span>' + g.length + '건</span></div>'
+                  + '<div class="ac-list">' + g.map(one).join('') + '</div></div>';
+              }).join('');
+            })()
+          : ACC_CATS.map(c => {
+              const g = accOrder(rows.filter(a => accCatOf(a) === c));
+              if(!g.length) return '';
+              return '<div class="ac-grp"><div class="ac-gh">' + esc(c)
+                + '<span>' + g.length + '건</span></div>'
+                + '<div class="ac-list">' + g.map(one).join('') + '</div></div>';
+            }).join('');
 
   if(accLocked()){
     main.innerHTML = '<div class="panel"><div class="tabbody">'

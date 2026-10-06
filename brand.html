@@ -4389,6 +4389,7 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 .ac-go{display:flex;gap:8px;margin-top:15px}
 .ac-note{margin:0 0 10px;padding:9px 12px;border-radius:8px;background:var(--bg-secondary);
   font-size:11.5px;line-height:1.6;color:var(--text-secondary)}
+.ac-note.warn{background:color-mix(in srgb,var(--red) 8%,var(--bg-card));border:1px solid color-mix(in srgb,var(--red) 35%,var(--border))}
 .ac-chk{max-height:380px;overflow:auto;border:1px solid var(--border);border-radius:9px}
 .ac-ck{display:grid;grid-template-columns:22px 1.4fr .8fr 1.2fr .8fr .7fr;gap:8px;
   align-items:center;padding:7px 11px;border-bottom:1px solid var(--border);cursor:pointer;
@@ -5121,7 +5122,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261006-14';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261006-15';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17504,7 +17505,15 @@ let accSortBy = 'name';   // 줄 세우는 기준
 let accGrp    = 'cat';    // 묶는 기준 — 'cat' 분류별 · 'who' 담당자별 · '' 한 줄로
 let accEdit  = null;      // 고치는 중인 계정 (사본)
 let accImp   = null;      // 엑셀 넣기 중간 상태
-let accOver  = true;      // 같은 이름의 서비스는 고쳐 넣을까 (다시 읽는 일이 잦습니다)
+/* ── 엑셀에 있는 줄은 <<있는 그대로>> 들어갑니다 ──────────────────
+   전에는 서비스 이름이 같으면 이미 있는 줄을 고쳐 넣었고, 그것이
+   처음부터 켜져 있었습니다. 그래서 한 서비스에 계정이 여럿인 표
+   (네이버 네 줄 같은) 를 읽으면 <<네 줄이 한 줄로 뭉개졌습니다>> —
+   마지막 것만 남고 앞의 셋이 사라졌습니다.
+   이제 기본은 그대로 넣기입니다. 엑셀 줄 수와 들어가는 줄 수가
+   같습니다. 고쳐 넣기는 눌러서 켜야 하고, 켜도 <<서비스와 아이디가
+   둘 다 같을 때만>> 고칩니다 — 같은 서비스의 다른 계정은 안 건드립니다. */
+let accOver  = false;     // 같은 서비스+아이디를 고쳐 넣을까 (기본은 그대로 넣기)
 function accOverSet(v){ accOver = !!v; accImpPaint(); }
 
 function accAll(){ return Array.isArray(data.accounts) ? data.accounts : (data.accounts = []); }
@@ -17604,10 +17613,38 @@ function accScore(a){
   return n;
 }
 /* 이름이 같은 묶음들 */
+/* ── <<이름만>> 같은 것은 겹친 것이 아닙니다 ──────────────────────
+   한 서비스에 계정이 여럿인 일은 흔합니다 (네이버 광고 계정 넷처럼).
+   전에는 이름만 같으면 「겹쳤다」 고 합치자고 졸랐고, 합치면 멀쩡한
+   계정이 사라졌습니다. 이제 <<이름과 아이디가 둘 다 같을 때만>>
+   겹친 것으로 봅니다 — 그래야 진짜 두 번 들어온 줄만 걸립니다. */
 function accDupGroups(){
-  const by = {};
-  accAll().forEach(a => { const k = accNameKey(a); if(k) (by[k] = by[k] || []).push(a); });
-  return Object.keys(by).filter(k => by[k].length > 1).map(k => by[k]);
+  const nz = v => String(v || '').replace(/\s+/g, '').toLowerCase();
+  const by = {}, empty = {};
+  accAll().forEach(a => {
+    const k = accNameKey(a);
+    if(!k) return;
+    const id = nz(accLoginId(a));
+    /* 아이디가 빈 줄은 따로 모아 둡니다 — 가릴 거리가 없는 껍데기입니다 */
+    if(!id){ (empty[k] = empty[k] || []).push(a); return; }
+    (by[k] = by[k] || {});
+    (by[k][id] = by[k][id] || []).push(a);
+  });
+  const out = [];
+  Object.keys(by).forEach(k => {
+    const ids = Object.keys(by[k]);
+    ids.forEach(id => {
+      const g = by[k][id].slice();
+      /* 껍데기는 <<같은 이름의 묶음이 하나뿐일 때만>> 붙입니다.
+         둘 이상이면 어디에 붙일지 알 수 없으니 그냥 둡니다 —
+         멋대로 붙였다가 멀쩡한 계정을 지우는 것보다 낫습니다. */
+      if(ids.length === 1 && empty[k]){ g.push.apply(g, empty[k]); delete empty[k]; }
+      if(g.length > 1) out.push(g);
+    });
+  });
+  /* 아이디가 빈 줄끼리 이름이 같으면 그것도 겹친 것입니다 */
+  Object.keys(empty).forEach(k => { if(empty[k].length > 1) out.push(empty[k]); });
+  return out;
 }
 function accDedup(){
   if(accVaultOn() && !accKey){
@@ -18403,6 +18440,13 @@ function accImpPaint(){
                          + '베낀 값을 넣어 두는 것보다 낫습니다. ')
             + '아래에서 한 번 봐 주세요.</div>'
           : '')
+      + (d.lost
+          ? '<div class="ac-note warn">📉 엑셀에는 <b>' + d.srcN + '줄</b>이 있는데 '
+            + '<b>' + (d.rows || []).length + '줄</b>만 돌아왔습니다 — AI 가 비슷한 줄을 '
+            + '<b>합쳤을 수 있습니다</b>. 아래를 보시고 빠진 것이 있으면 '
+            + '[AI 없이 그대로 넣기] 로 다시 해 주세요 — 그쪽은 엑셀 줄을 '
+            + '<b>하나도 안 합칩니다</b>.</div>'
+          : '')
       + (d.note ? '<div class="ac-note">💡 ' + esc(d.note) + '</div>' : '')
       + '<div class="ac-chk">'
         + rows.map((r, i) => '<label class="ac-ck' + (r.on ? '' : ' off') + '">'
@@ -18418,13 +18462,14 @@ function accImpPaint(){
       + (function(){
           const nz = v => String(v || '').replace(/\s+/g, '').toLowerCase();
           const dup = rows.filter(r => r.on && accAll()
-            .some(a => nz(a.svc) === nz(r.svc))).length;
+            .some(a => nz(a.svc) === nz(r.svc)
+                    && nz(accLoginId(a)) === nz(r.loginId || ''))).length;
           return dup
             ? '<label class="ac-over"><input type="checkbox"' + (accOver ? ' checked' : '')
               + ' onchange="accOverSet(this.checked)">'
-              + '<span>이미 있는 서비스 <b>' + dup + '건</b>은 '
-              + (accOver ? '<b>고쳐 넣습니다</b> — 같은 것이 두 개 생기지 않습니다'
-                         : '따로 <b>하나 더</b> 넣습니다')
+              + '<span>서비스와 아이디가 <b>둘 다 같은</b> ' + dup + '건은 '
+              + (accOver ? '<b>고쳐 넣습니다</b>'
+                         : '<b>그대로 하나 더</b> 넣습니다 — 엑셀에 있는 대로')
               + '</span></label>'
             : '';
         })()
@@ -18587,6 +18632,14 @@ async function accImpRun(){
     const sureMap = accImp.map && accImp.map.id >= 0 && accImp.map.pw >= 0
       && accImp.map.id !== accImp.map.pw && !accMapClash(accImp.map).length;
     const fixed = sureMap ? accImpBackfill(accImp.rows, g, accImp.map) : 0;
+    /* ── AI 가 줄을 <<합쳐 버렸는지>> 셉니다 ────────────────────────
+       같은 서비스·같은 아이디가 여러 줄이면 AI 가 하나로 묶어 버리는
+       일이 있습니다. 그러면 멀쩡한 계정이 조용히 사라집니다.
+       엑셀의 줄 수와 견주어, 모자라면 숨기지 않고 알립니다. */
+    const srcN = Math.max(0, (accImp.full && accImp.full.length >= 2
+      ? accImp.full.length : g.length) - 1);
+    accImp.lost = (srcN && accImp.rows.length < srcN) ? (srcN - accImp.rows.length) : 0;
+    accImp.srcN = srcN;
     accImp.note = String(out['한마디'] || '');
     accImp.mixed = accMixed; accImp.fixed = fixed;
     accImp.step = 2;
@@ -18609,8 +18662,11 @@ function accImpBackfill(rows, grid, map){
     let src = null;
     if(map.svc >= 0 && row.svc){
       const want = norm(row.svc);
-      src = body.find(r => { const v = norm(at(r, map.svc));
-        return v && (v === want || v.indexOf(want) >= 0 || want.indexOf(v) >= 0); }) || null;
+      const hit = body.filter(r => { const v = norm(at(r, map.svc));
+        return v && (v === want || v.indexOf(want) >= 0 || want.indexOf(v) >= 0); });
+      /* 같은 이름이 여러 줄이면 이름으로는 못 가립니다 — 자리로 갑니다.
+         안 그러면 네이버 넷째 줄에 첫째 줄의 비밀번호가 들어갑니다. */
+      src = hit.length === 1 ? hit[0] : null;
     }
     if(!src && body[i]) src = body[i];
     if(!src) return;
@@ -18639,11 +18695,18 @@ async function accImpSave(){
      됩니다. 이름이 같으면 그 줄을 고쳐 넣습니다. */
   const nz = v => String(v || '').replace(/\s+/g, '').toLowerCase();
   let made = 0, over = 0;
+  /* 이번에 넣은 줄은 <<다시 쓰지 않습니다>> — 안 그러면 엑셀의 둘째
+     줄이 첫째 줄을 덮어써서 여러 줄이 한 줄로 뭉개집니다 */
+  const fresh = {};
   for(const r of pick){
     const nm = String(r.svc).trim();
-    let a = accOver ? accAll().find(x => nz(x.svc) === nz(nm)) : null;
+    /* 고쳐 넣기를 켰어도 <<서비스와 아이디가 둘 다 같을 때만>> 고칩니다 */
+    let a = accOver
+      ? accAll().find(x => !fresh[x.id] && nz(x.svc) === nz(nm)
+          && nz(accLoginId(x)) === nz(r.loginId || '')) : null;
     if(a){ over++; }
     else { a = { id: uid('ac') }; accAll().unshift(a); made++; }
+    fresh[a.id] = 1;
     a.svc = nm; a.url = r.url || a.url || '';
     a.who = r.who || a.who || '';
     /* 엑셀에 분류 칸이 없으면 이름을 보고 짐작해 둡니다 — 모두 「그 밖」

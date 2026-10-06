@@ -442,6 +442,8 @@ pre.out{margin:0;padding:12px;font-family:"IBM Plex Mono",monospace;font-size:11
 .mbox li b{color:var(--note);font-weight:700}
 .mok{appearance:none;width:100%;margin-top:13px;border:0;border-radius:11px;background:var(--note);
   color:#fff;font-family:inherit;font-size:13px;font-weight:700;padding:12px;cursor:pointer}
+/* 운영규칙 확인 버튼은 긴 규칙 목록에서도 늘 보이도록 하단 고정 */
+#rmOk{position:sticky;bottom:0;box-shadow:0 -10px 16px -6px var(--card)}
 .mok:hover{filter:brightness(1.06)}
 .mok:focus-visible{outline:2px solid var(--note);outline-offset:2px}
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:60;
@@ -469,7 +471,10 @@ pre.out{margin:0;padding:12px;font-family:"IBM Plex Mono",monospace;font-size:11
   /* 1~6 단계 탭은 상단에 붙여 둠 */
   .navwrap{position:sticky;top:0;z-index:14;background:var(--app);padding-top:8px;
     box-shadow:0 8px 14px -14px rgba(0,0,0,.6)}
-  .modal{position:fixed}
+  /* 팝업: 폰에서 전체가 스크롤되고 확인 버튼이 하단에 늘 닿게 (iOS 툴바 가림 방지) */
+  .modal{position:fixed;align-items:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:14px 14px calc(20px + env(safe-area-inset-bottom,0px))}
+  .mbox{max-height:none}
   .toast{bottom:96px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

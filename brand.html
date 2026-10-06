@@ -4203,7 +4203,9 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   border-left-color:var(--green,#2e7d52);
   background:color-mix(in srgb,var(--green,#2e7d52) 5%,var(--bg-card))}
 .ac-warn .i{font-size:19px;flex:0 0 auto}
-.ac-warn b{display:block;font-size:13.5px;font-weight:800;color:var(--text-primary)}
+.ac-warn>div>b{display:block;font-size:13.5px;font-weight:800;color:var(--text-primary)}
+/* 설명 줄 안에서 굵게 쓴 것은 줄을 안 바꿉니다 — 한 문장으로 읽혀야 합니다 */
+.ac-warn span b{display:inline;font-weight:700;color:var(--text-primary)}
 .ac-warn span:not(.i){display:block;margin-top:4px;font-size:12px;line-height:1.65;
   color:var(--text-secondary)}
 .ac-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0 16px}
@@ -4343,6 +4345,8 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 /* 🧭 어느 칸이 무엇인지 */
 .ac-map{margin-top:11px;padding:11px 13px;border-radius:10px;border:1px solid var(--border);
   background:var(--bg-secondary)}
+.ac-map.ok{padding:8px 13px}
+.ac-map.ok .h{margin:0}
 .ac-map.warn{border-color:color-mix(in srgb,var(--red) 40%,var(--border));
   background:color-mix(in srgb,var(--red) 5%,transparent)}
 .ac-map .h{font-size:11.5px;line-height:1.6;color:var(--text-secondary);margin-bottom:8px}
@@ -5114,7 +5118,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261006-11';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261006-12';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18008,6 +18012,7 @@ function accMapClash(m){
 }
 const ACC_MAP_LB = [['svc','서비스'], ['url','주소'], ['id','아이디'], ['pw','비밀번호'],
                     ['who','담당'], ['cat','분류'], ['note','메모']];
+function accMapOpen(){ if(accImp){ accImp.mapOpen = true; accImpPaint(); } }
 function accMapSet(k, v){
   if(!accImp || !accImp.map) return;
   accImp.map[k] = parseInt(v, 10);
@@ -18098,6 +18103,65 @@ function accTrim(grid){
   if(!g.length) return [];
   const h = accHeadRow(g);
   return g.slice(h);
+}
+/* ── ✂️ 이미 잘못 들어간 줄을 <<그 자리에서>> 고칩니다 ────
+   엑셀을 새로 읽을 때만 고쳐두면, 이미 저장된 줄은 그대로
+   남습니다 — 「아직도 같이 나온다」 가 바로 이것입니다.
+   세 가지 모양을 봅니다:
+
+     ① 아이디가 비어 있고 비밀번호에 둘 다  → 쪼갭니다
+     ② 아이디와 비밀번호가 똑같고 그 안에 둘 다 → 쪼갭니다
+     ③ 똑같은데 나눌 것이 없음            → <<못 고칩니다>>
+
+   ③ 는 비밀번호가 실제로 없어진 것입니다. 지어내지 않고
+   몇 건인지 그대로 말합니다 — 그건 엑셀을 다시 읽혀야 합니다.
+   금고가 잠겨 있어 값을 못 읽는 줄은 손대지 않습니다.
+   ---------------------------------------------------------------- */
+function accBroke(){
+  const out = { cut: [], lost: [], locked: 0 };
+  accAll().forEach(a => {
+    const i = accVal(a, 'loginId'), w = accVal(a, 'pw');
+    if(i === null || w === null){ out.locked++; return; }   /* 잠겨 있음 — 손대지 않습니다 */
+    const x = String(i || '').trim(), y = String(w || '').trim();
+    const same = !!x && x === y;
+    const only = (!x && !!y) || (!!x && !y);                 /* 한 쪽만 채워짐 */
+    if(!same && !only) return;
+    const src = same ? y : (x || y);
+    const h = accHalve(src);
+    if(h) out.cut.push({ a: a, id: h.a, pw: h.b });
+    else if(same) out.lost.push(a);
+  });
+  return out;
+}
+async function accRepair(){
+  const b = accBroke();
+  if(!b.cut.length){
+    toast(b.lost.length ? '나눌 수 있는 줄이 없습니다' : '고칠 줄이 없습니다');
+    return;
+  }
+  const lines = b.cut.slice(0, 6).map(c =>
+    '· ' + (c.a.svc || '(이름 없음)') + ' → 아이디 ' + c.id
+      + ' / 비밀번호 ' + c.pw.slice(0, 2) + '…(' + c.pw.length + '글자)').join('\n');
+  if(!confirm(b.cut.length + '줄을 아이디와 비밀번호로 나눕니다.\n\n' + lines
+      + (b.cut.length > 6 ? '\n… 외 ' + (b.cut.length - 6) + '줄' : '')
+      + '\n\n이대로 고칠까요?')) return;
+  /* 금고를 쓰면 자물쇠를 다시 채워서 넣습니다 — 저장하는 길은 하나만 */
+  if(accVaultOn() && !accKey){
+    toast('🔒 금고가 잠겼습니다 — 다시 열고 고쳐 주세요'); return;
+  }
+  for(const c of b.cut){
+    if(accVaultOn() && accKey){
+      accPlain[c.a.id] = { loginId: c.id, pw: c.pw };
+      c.a.loginId = await accEnc(accKey, c.id);
+      c.a.pw      = await accEnc(accKey, c.pw);
+    }else{
+      c.a.loginId = c.id; c.a.pw = c.pw;
+    }
+    c.a.updatedAt = new Date().toISOString();
+  }
+  accTouch(); markDirtyAll(); await saveAll(true); render();
+  toast('✂️ ' + b.cut.length + '줄을 나눠 두었습니다'
+    + (b.lost.length ? ' · ' + b.lost.length + '줄은 비밀번호가 없어서 못 고쳤습니다' : ''));
 }
 /* ── 한 칸에 아이디와 비밀번호가 같이 들어 있을 때 ────────
    「포어스토어 아이디/패스워드」 처럼 머리글 하나에 둘이 같이 적힌
@@ -18364,6 +18428,18 @@ function accImpMapHtml(g){
   const both = clash.length
     ? head.findIndex((h, i) => accBothWord(h) && (m.id === i || m.pw === i))
     : -1;
+  /* ── 잘 맞췄으면 고르는 칸을 <<접어 둡니다>> ──────────────────
+     우리가 못 맞췄을 때만 사람 손이 필요합니다. 멀쩡히 맞춘 날에도
+     드롭다운 일곱 개를 펼쳐 두면, 뭘 보고 넣는 건지 더 헷갈립니다.
+     그래서 맞췄으면 한 줄로 접고, 틀렸을 때만 펼칩니다. */
+  const sure = !noPw && !clash.length && m.id >= 0;
+  if(sure && !accImp.mapOpen){
+    const nm = (k) => (m[k] >= 0 ? (String(head[m[k]] || '').trim() || ('칸 ' + (m[k] + 1))) : '없음');
+    return '<div class="ac-map ok">'
+      + '<div class="h">🧭 <b>아이디</b>는 「' + esc(nm('id')) + '」, '
+      + '<b>비밀번호</b>는 「' + esc(nm('pw')) + '」 칸에서 가져옵니다 '
+      + '<button class="lnk" onclick="accMapOpen()">칸 바꾸기</button></div></div>';
+  }
   return '<div class="ac-map' + (noPw || clash.length ? ' warn' : '') + '">'
     + '<div class="h">' + (clash.length
         ? '⚠️ <b>' + clash.map(c => lb(c[0]) + ' 와 ' + lb(c[1])).join(', ')
@@ -18575,7 +18651,6 @@ function renderAccounts(){
   /* 못 읽는 줄이 있으면 숨기지 않고 꼭 알립니다 — 조용히 빈 칸으로
      두면 「비밀번호가 사라졌다」 로 보입니다. 저장된 것은 멀쩡합니다. */
   const stuck = all.filter(a => !accReadable(a));
-  const sameIdPw = all.filter(accSameIdPw);
   const dupNm = accDupGroups();        // 이름이 겹친 묶음 (dups 는 비번이 겹친 것)
   const stuckHtml = stuck.length
     ? '<div class="ac-warn"><span class="i">🔒</span>'
@@ -18585,16 +18660,32 @@ function renderAccounts(){
       + '[🔒 잠그기] 로 잠갔다가 다시 열면 대부분 풀립니다.</span></div>'
       + '<button class="btn sm" onclick="accSync(1)">↻ 다시 풀어 오기</button></div>'
     : '';
-  const sameHtml = sameIdPw.length
-    ? '<div class="ac-warn"><span class="i">⚠️</span>'
-      + '<div><b>' + sameIdPw.length + '건은 아이디와 비밀번호가 똑같이 들어가 있습니다</b>'
-      + '<span>엑셀을 읽을 때 두 칸이 <b>같은 열</b>을 보고 들어온 것입니다 '
-      + '(「계정 비밀번호」 처럼 두 가지에 다 걸리는 머리줄이 있으면 그렇게 됩니다). '
-      + '그대로는 못 씁니다 — 줄마다 [✎] 로 진짜 비밀번호를 넣거나, '
-      + '[📗 엑셀 읽어 오기] 에서 칸을 다시 골라 주세요: '
-      + sameIdPw.slice(0, 5).map(a => esc(a.svc)).join(' · ')
-      + (sameIdPw.length > 5 ? ' 외 ' + (sameIdPw.length - 5) + '건' : '')
-      + '</span></div></div>'
+  /* ── 아이디·비밀번호가 뒤엉킨 줄 ──────────────────────────────
+     전에는 「직접 넣으세요」 라고만 했습니다. 그건 우리가 못 맞춘
+     것을 사람한테 떠넘기는 것입니다. 나눌 수 있으면 나눠 줍니다. */
+  const broke = accBroke();
+  const sameHtml = (broke.cut.length || broke.lost.length)
+    ? '<div class="ac-warn"><span class="i">✂️</span>'
+      + '<div><b>' + (broke.cut.length + broke.lost.length)
+      + '건이 아이디와 비밀번호가 엉켜 있습니다</b>'
+      + '<span>'
+      + (broke.cut.length
+          ? '이 중 <b>' + broke.cut.length + '건</b>은 한 칸에 둘이 같이 들어가 있어서 '
+            + '<b>눌러 주시면 나눠 드립니다</b> — '
+            + broke.cut.slice(0, 5).map(c => esc(c.a.svc || '(이름 없음)')).join(' · ')
+            + (broke.cut.length > 5 ? ' 외 ' + (broke.cut.length - 5) + '건' : '') + '. '
+          : '')
+      + (broke.lost.length
+          ? '<b>' + broke.lost.length + '건</b>은 아이디와 비밀번호가 똑같은데 나눌 것이 없습니다 — '
+            + '비밀번호가 실제로 안 들어온 것이라 되살릴 수 없습니다. '
+            + '[📗 엑셀 읽어 오기] 로 다시 읽히거나 [✎] 로 넣어 주세요: '
+            + broke.lost.slice(0, 5).map(a => esc(a.svc || '(이름 없음)')).join(' · ')
+            + (broke.lost.length > 5 ? ' 외 ' + (broke.lost.length - 5) + '건' : '')
+          : '')
+      + '</span></div>'
+      + (broke.cut.length
+          ? '<button class="btn sm primary" onclick="accRepair()">✂️ 나눠 주기</button>' : '')
+      + '</div>'
     : '';
   /* 같은 이름이 두 줄 이상 — 엑셀을 여러 번 읽으면 생깁니다 */
   const dupHtml = dupNm.length

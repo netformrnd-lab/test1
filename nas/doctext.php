@@ -254,6 +254,7 @@ $OFFICE_WHY = '';          // 못 읽었을 때 왜 못 읽었는지 (화면에 
 function office_wanted($nm) {
     return (bool)preg_match('#^(word/document|word/footnotes|word/endnotes'
         . '|xl/sharedStrings|xl/worksheets/sheet[0-9]+'
+        . '|xl/workbook\.xml|xl/_rels/workbook\.xml\.rels'
         . '|ppt/slides/slide[0-9]+|ppt/notesSlides/notesSlide[0-9]+)#', $nm);
 }
 
@@ -889,13 +890,42 @@ function xl_txt($x) {
     $x = preg_replace('#<[^>]+>#', '', (string)$x);
     return trim(html_entity_decode((string)$x, ENT_QUOTES | ENT_XML1, 'UTF-8'));
 }
-function xl_grid($file, $maxRows, $deadline) {
-    global $OFFICE_WHY;
+/* workbook.xml 의 <<탭 차례>> 대로 시트를 늘어놓습니다.
+   r:id → xl/worksheets/sheetN.xml 은 _rels 에 적혀 있습니다. */
+function xl_tabs($wb, $rels, $parts_sheet) {
+    if ($wb === '' || !$parts_sheet) return [];
+    $map = [];
+    if ($rels !== '' && preg_match_all('#<Relationship\b[^>]*>#', $rels, $rr)) {
+        foreach ($rr[0] as $r) {
+            if (!preg_match('/Id="([^"]+)"/', $r, $im)) continue;
+            if (!preg_match('/Target="([^"]+)"/', $r, $tm)) continue;
+            $t = $tm[1];
+            $t = preg_replace('#^/?(xl/)?#', '', $t);        // worksheets/sheet1.xml
+            $map[$im[1]] = 'xl/' . ltrim($t, '/');
+        }
+    }
+    $out = [];
+    if (!preg_match_all('#<sheet\b[^>]*/?>#', $wb, $ss)) return [];
+    foreach ($ss[0] as $sx) {
+        if (preg_match('/state="(hidden|veryHidden)"/i', $sx)) continue;   // 숨긴 탭은 건너뜀
+        $nm = preg_match('/name="([^"]*)"/', $sx, $nm2) ? xl_txt($nm2[1]) : '';
+        $rid = preg_match('/r:id="([^"]+)"/', $sx, $rm) ? $rm[1] : '';
+        $path = ($rid !== '' && isset($map[$rid])) ? $map[$rid] : '';
+        if ($path === '' || !isset($parts_sheet[$path])) continue;
+        $out[] = ['name' => ($nm !== '' ? $nm : ('시트 ' . (count($out) + 1))),
+                  'xml'  => $parts_sheet[$path]];
+    }
+    return $out;
+}
+function xl_grid($file, $maxRows, $deadline, $want = '') {
+    global $OFFICE_WHY, $XL_TABS, $XL_PICK;
+    $XL_TABS = []; $XL_PICK = '';
     $parts = office_parts($file, $deadline);
     if ($parts === null) return null;
     $shared = [];
     $sheet  = '';
     $first  = '';
+    $wb = ''; $wbrels = ''; $parts_sheet = [];
     foreach ($parts as $pt) {
         list($nm, $x) = $pt;
         if (strpos($nm, 'xl/sharedStrings') === 0) {
@@ -911,8 +941,33 @@ function xl_grid($file, $maxRows, $deadline) {
                 }
             }
         } elseif (strpos($nm, 'xl/worksheets/sheet') === 0) {
+            $parts_sheet[$nm] = $x;
             if ($first === '') { $first = $nm; $sheet = $x; }
+        } elseif ($nm === 'xl/workbook.xml') {
+            $wb = $x;
+        } elseif ($nm === 'xl/_rels/workbook.xml.rels') {
+            $wbrels = $x;
         }
+    }
+    /* ── 어느 <<탭>> 을 읽을지 ─────────────────────────────────────
+       전에는 zip 안에서 <<먼저 나오는>> sheet 파일을 그냥 읽었습니다.
+       그런데 sheet1.xml 이 첫 탭이라는 보장이 없습니다 — 탭을 옮기거나
+       지우면 파일 이름과 탭 차례가 어긋납니다. 그래서 탭이 여러 개인
+       엑셀에서는 <<엉뚱한 탭>> 을 읽고 있었습니다.
+       차례는 workbook.xml 에 적혀 있습니다. 그것을 보고 고릅니다.
+       숨긴 탭은 건너뜁니다. ------------------------------------- */
+    $tabs = xl_tabs($wb, $wbrels, $parts_sheet);
+    if ($tabs) {
+        $pickI = 0;
+        if ($want !== '' ) {
+            foreach ($tabs as $i => $t) {
+                if ((string)$want === (string)$i || $t['name'] === $want) { $pickI = $i; break; }
+            }
+        }
+        $XL_TABS = [];
+        foreach ($tabs as $t) $XL_TABS[] = $t['name'];
+        $XL_PICK = $tabs[$pickI]['name'];
+        $sheet = $tabs[$pickI]['xml'];
     }
     if ($sheet === '') {
         $OFFICE_WHY = '엑셀 안에서 시트를 찾지 못했습니다.';
@@ -1012,7 +1067,7 @@ if ($action === 'sheet') {
     if ($ext === 'csv' || $ext === 'tsv' || $ext === 'txt') {
         $grid = xl_grid_csv($file, $MAXR);
     } elseif ($ext === 'xlsx' || $ext === 'xlsm') {
-        $grid = xl_grid($file, $MAXR, microtime(true) + 20);
+        $grid = xl_grid($file, $MAXR, microtime(true) + 20, (string)($_GET['tab'] ?? ''));
     } else {
         jout(['ok' => false, 'error' => '.' . $ext . ' 은 표로 읽을 수 없습니다.' . "\n\n"
             . '읽을 수 있는 것: xlsx · xlsm · csv · tsv' . "\n"
@@ -1030,7 +1085,9 @@ if ($action === 'sheet') {
     $w = 0;
     foreach ($grid as $r) $w = max($w, count($r));
     jout(['ok' => true, '표' => $grid, '줄수' => count($grid), '칸수' => $w,
-          '파일' => basename($file), '잘림' => count($grid) >= $MAXR]);
+          '파일' => basename($file), '잘림' => count($grid) >= $MAXR,
+          '탭목록' => (array)($GLOBALS['XL_TABS'] ?? []),
+          '읽은탭' => (string)($GLOBALS['XL_PICK'] ?? '')]);
 }
 
 /* ---------------- 목록 상태 ---------------- */

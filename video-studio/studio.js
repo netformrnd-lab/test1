@@ -297,7 +297,7 @@
   function editBoxHtml(e) {
     const held = e.status === 'held'
     const v = editDraft[e.id] != null ? editDraft[e.id] : e.prompt
-    return `<details class="edit-box" ${held || editDraft[e.id] != null ? 'open' : ''} data-edit-box="${e.id}"><summary>${icon('edit', 16)}프롬프트 직접 수정${held ? ' — 지적 사항을 보고 고쳐 주세요' : ''}</summary>
+    return `<details class="edit-box" ${editDraft[e.id] != null ? 'open' : ''} data-edit-box="${e.id}"><summary>${icon('edit', 16)}(선택) 프롬프트 직접 수정${held ? ' — AI 수정이 잘 안 될 때만' : ''}</summary>
       <p>HeyGen에 그대로 전달되는 글입니다. ‘대사:’ 줄이 아바타가 읽는 말이고, [화면 규칙] 등은 화면 지시입니다. 금지어가 있으면 저장되지 않습니다.</p>
       <textarea class="textarea edit-prompt" data-edit-text="${e.id}" rows="16">${esc(v)}</textarea>
       <div class="job-actions"><button type="button" class="btn" data-edit-review="${e.id}">수정본 다시 검수 (Claude·OpenAI 1회, 소액)</button>
@@ -309,6 +309,8 @@
       <p>${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
     const canEdit = ['held', 'ready'].includes(e.status) && e.plan && e.prompt && S.settings.heygenMode !== 'scenes'
+    if (e.status === 'held' && e.plan) h += `<div class="retry-box"><div><strong>AI가 지적 사항을 반영해 다시 고칩니다</strong><p>Claude가 위 지적 사항대로 대본을 고치고, Claude·OpenAI가 다시 검수합니다(최대 2회 수정, 소액). 통과하면 ‘제작 대기’로 바뀌고, 그때 확인만 하시면 됩니다.</p></div>
+      <button type="button" class="btn" data-retry="${e.id}">${icon('refresh', 16)}AI가 다시 수정·검수</button></div>`
     if (canEdit) h += editBoxHtml(e)
     if (e.status === 'ready' && e.prompt) {
       h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — 아래 프롬프트를 확인하세요</strong>
@@ -979,6 +981,16 @@
     }
     const pv = t.closest('[data-preview]')
     if (pv) { const job = S.data.jobs.find((j) => j.id === pv.dataset.preview); if (job && job.plan) openPreview(job); return }
+    const rt = t.closest('[data-retry]')
+    if (rt) {
+      try {
+        const r = await api({ action: 'retry', id: rt.dataset.retry })
+        S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); S.selectedId = r.job.id
+        S.success = 'AI가 지적 사항을 반영해 다시 고치는 중입니다. 이 창을 열어 두세요.'
+        renderAll(); ensurePolling()
+      } catch (e) { S.error = e.message; renderMessages() }
+      return
+    }
     const er = t.closest('[data-edit-review]') || t.closest('[data-edit-skip]')
     if (er) {
       const id = er.dataset.editReview || er.dataset.editSkip

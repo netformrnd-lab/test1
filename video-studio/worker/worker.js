@@ -251,6 +251,25 @@ const ACTIONS = {
     return { job: toJob(row) }
   },
 
+  // 검수 보류 작업을 AI 가 다시 고친다: 마지막 지적 사항으로 Claude 가 대본 수정 → Claude·OpenAI 재검수 (최대 2회 더, 작업당 3번까지)
+  async retry(env, { id }) {
+    let row = null
+    await mutate(env, 'jobs', [], (list) => {
+      row = list.find((j) => j.id === id)
+      if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
+      const d = row.data
+      if (row.status !== 'held' || !d.plan) throw new HttpError(409, '검수 보류된 작업만 다시 고칠 수 있습니다.')
+      d.retries = (d.retries || 0) + 1
+      if (d.retries > 3) throw new HttpError(429, '이 작업은 이미 3번 다시 고쳤습니다. 키워드를 바꿔 새로 만들어 주세요.')
+      d.pendingIssues = (d.lastIssues && d.lastIssues.length ? d.lastIssues : allIssues(d))
+      d.lastIssues = []; d.error = ''
+      d.customPrompt = ''; d.skippedReview = false; d.manual = false
+      row.revision = 0; row.step = 4; row.status = 'revising'
+      d.events.push(ev(`관리자 요청: AI 가 지적 사항 ${d.pendingIssues.length}건을 반영해 다시 수정 (${d.retries}/3번째)`))
+    })
+    return { job: toJob(row) }
+  },
+
   // 검수 보류·제작 대기 작업의 HeyGen 프롬프트를 관리자가 직접 고친다 (HeyGen 자동 구성 방식 전용)
   // mode 'review' = 수정본을 Claude·OpenAI 가 한 번 다시 검수 / 'skip' = 검수 없이 제작 대기로
   async editPrompt(env, { id, prompt, mode }) {

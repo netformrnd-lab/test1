@@ -4243,6 +4243,11 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 .ac-t.dup{background:color-mix(in srgb,var(--red) 13%,transparent);color:var(--red)}
 .ac-t.old{background:color-mix(in srgb,var(--orange) 15%,transparent);color:var(--orange)}
 .ac-t.lock{background:color-mix(in srgb,var(--red) 13%,transparent);color:var(--red)}
+.ac-t.dup2{background:color-mix(in srgb,var(--orange) 15%,transparent);color:var(--orange)}
+.ac-warn.dup{border-color:color-mix(in srgb,var(--orange) 40%,var(--border));
+  border-left-color:var(--orange);
+  background:color-mix(in srgb,var(--orange) 6%,var(--bg-card))}
+.ac-warn button{flex:0 0 auto;align-self:center}
 .ac-f .v .locked{font-style:normal;font-size:10.5px;font-weight:700;color:var(--red);
   font-family:inherit;letter-spacing:0}
 .ac-ed{flex:0 0 auto;width:22px;height:22px;padding:0;border:1px solid transparent;
@@ -5058,7 +5063,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261006-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261006-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17382,6 +17387,79 @@ function accSortOut(){
   markDirtyAll(); render();
   toast('🗂 ' + can.length + '건을 나눠 담았습니다');
 }
+/* ── 🧹 겹친 줄 정리하기 ─────────────────────────────────────────
+   엑셀을 두 번 읽으면 같은 서비스가 두 줄로 쌓입니다. 「덮어쓰기」 는
+   v20261006-4 부터라, 그 전에 넣은 것들은 그대로 남아 있습니다.
+   이름이 같은 줄을 한 줄로 합칩니다 — 지우기 전에 무엇을 남기고
+   무엇을 지울지 보여 주고 물어봅니다.
+   ---------------------------------------------------------------- */
+/* ⚠️ accKey 는 금고 열쇠 이름이라 쓰면 안 됩니다 (덮어쓰면 금고가 열린
+   채로 열쇠가 사라집니다). 이름을 따로 둡니다. */
+function accNameKey(a){ return String(a.svc || '').replace(/\s+/g, '').toLowerCase(); }
+/* 어느 줄을 남길까 — 쓸 수 있는 값이 많은 쪽입니다 */
+function accScore(a){
+  let n = 0;
+  if(accReadable(a)) n += 8;
+  const pw = accPw(a), id = accLoginId(a);
+  if(pw && pw !== id) n += 6;          // 쓸 수 있는 비밀번호
+  else if(pw) n += 1;                  // 아이디와 같은 값 — 거의 쓸모없음
+  if(id) n += 2;
+  if(String(a.who || '').trim()) n += 2;
+  if(String(a.url || '').trim()) n += 1;
+  if(String(a.note || '').trim()) n += 1;
+  if(accCatOf(a) !== '그 밖') n += 1;
+  return n;
+}
+/* 이름이 같은 묶음들 */
+function accDupGroups(){
+  const by = {};
+  accAll().forEach(a => { const k = accNameKey(a); if(k) (by[k] = by[k] || []).push(a); });
+  return Object.keys(by).filter(k => by[k].length > 1).map(k => by[k]);
+}
+function accDedup(){
+  if(accVaultOn() && !accKey){
+    toast('🔒 금고를 먼저 열어 주세요 — 열어야 어느 줄이 쓸 만한지 볼 수 있습니다');
+    return;
+  }
+  const groups = accDupGroups();
+  if(!groups.length){ toast('겹치는 줄이 없습니다'); return; }
+  const gone = groups.reduce((n, g) => n + g.length - 1, 0);
+  const lines = groups.slice(0, 8).map(g => {
+    const keep = g.slice().sort((x, y) => accScore(y) - accScore(x)
+      || String(y.updatedAt || '').localeCompare(String(x.updatedAt || '')))[0];
+    return ' · ' + (keep.svc || '(이름 없음)') + '  ' + g.length + '줄 → 1줄'
+      + (accPw(keep) && accPw(keep) !== accLoginId(keep) ? '' : '  ⚠️ 비밀번호를 봐 주세요');
+  });
+  if(!confirm('이름이 같은 줄을 한 줄로 합칩니다.\n\n'
+    + '겹친 이름 ' + groups.length + '가지 · 지워질 줄 ' + gone + '개\n\n'
+    + lines.join('\n') + (groups.length > 8 ? '\n · … 그 밖 ' + (groups.length - 8) + '가지' : '')
+    + '\n\n쓸 수 있는 값이 가장 많은 줄을 남기고, 빈 칸은 나머지 줄에서 채웁니다.\n'
+    + '지운 줄은 휴지통으로 갑니다 — 되살릴 수 있습니다.')) return;
+  let del = 0;
+  groups.forEach(g => {
+    const sorted = g.slice().sort((x, y) => accScore(y) - accScore(x)
+      || String(y.updatedAt || '').localeCompare(String(x.updatedAt || '')));
+    const keep = sorted[0], rest = sorted.slice(1);
+    /* 빈 칸은 나머지 줄에서 가져옵니다 */
+    rest.forEach(o => {
+      ['url', 'who', 'note'].forEach(f => {
+        if(!String(keep[f] || '').trim() && String(o[f] || '').trim()) keep[f] = o[f];
+      });
+      if(accCatOf(keep) === '그 밖' && accCatOf(o) !== '그 밖') keep.cat = o.cat;
+      /* 남길 줄의 비밀번호가 못 쓸 것(비었거나 아이디와 같음)이면 바꿔 받습니다 */
+      const kp = accPw(keep), op = accPw(o);
+      if((!kp || kp === accLoginId(keep)) && op && op !== accLoginId(o)){
+        keep.pw = o.pw; keep.loginId = o.loginId; keep.pwAt = o.pwAt || keep.pwAt;
+        if(accVaultOn()) accPlain[keep.id] = accPlain[o.id];
+      }
+    });
+    keep.svc = String(keep.svc || '').trim();      // 「인스타그램 」 처럼 끝에 붙은 빈칸을 뗍니다
+    keep.updatedAt = new Date().toISOString();
+    rest.forEach(o => { deleteItem('accounts', o.id, '', 1); del++; });
+  });
+  markDirtyAll(); render();
+  toast('🧹 겹친 줄 ' + del + '개를 정리했습니다');
+}
 /* ── 줄 세우기 ─────────────────────────────────────────────────── */
 const ACC_SORTS = [['name','이름순'], ['who','담당자순'], ['new','최근 바뀐 순'],
                    ['warn','살펴볼 것 먼저']];
@@ -18120,6 +18198,7 @@ function renderAccounts(){
      두면 「비밀번호가 사라졌다」 로 보입니다. 저장된 것은 멀쩡합니다. */
   const stuck = all.filter(a => !accReadable(a));
   const sameIdPw = all.filter(accSameIdPw);
+  const dupNm = accDupGroups();        // 이름이 겹친 묶음 (dups 는 비번이 겹친 것)
   const stuckHtml = stuck.length
     ? '<div class="ac-warn"><span class="i">🔒</span>'
       + '<div><b>' + stuck.length + '건은 지금 못 읽습니다 — 지워진 것이 아닙니다</b>'
@@ -18138,6 +18217,19 @@ function renderAccounts(){
       + sameIdPw.slice(0, 5).map(a => esc(a.svc)).join(' · ')
       + (sameIdPw.length > 5 ? ' 외 ' + (sameIdPw.length - 5) + '건' : '')
       + '</span></div></div>'
+    : '';
+  /* 같은 이름이 두 줄 이상 — 엑셀을 여러 번 읽으면 생깁니다 */
+  const dupHtml = dupNm.length
+    ? '<div class="ac-warn dup"><span class="i">🧹</span>'
+      + '<div><b>같은 이름이 두 줄 넘게 있습니다 — ' + dupNm.length + '가지 · '
+      + dupNm.reduce((n, g) => n + g.length, 0) + '줄</b>'
+      + '<span>엑셀을 두 번 읽으면 이렇게 쌓입니다. '
+      + '한 줄로 합치면 쓸 수 있는 값이 가장 많은 줄을 남기고, 빈 칸은 나머지에서 채웁니다. '
+      + '지운 줄은 휴지통으로 가니 되살릴 수 있습니다: '
+      + dupNm.slice(0, 5).map(g => esc(g[0].svc) + '(' + g.length + ')').join(' · ')
+      + (dupNm.length > 5 ? ' 외 ' + (dupNm.length - 5) + '가지' : '')
+      + '</span></div>'
+      + '<button class="btn sm primary" onclick="accDedup()">🧹 한 줄로 합치기</button></div>'
     : '';
   const bar = '<div class="ac-bar">'
     + '<input class="ac-q" id="accQ" value="' + esc(accQ) + '" placeholder="🔍 서비스 · 아이디 · 담당자로 찾기"'
@@ -18189,6 +18281,9 @@ function renderAccounts(){
             + '일">🕘 바꿀 때</span>' : '')
         + (!accReadable(a) ? '<span class="ac-t lock" title="이 금고 비밀번호로는 못 읽습니다 — '
             + '다른 비밀번호로 잠갔거나, 아직 풀어 오는 중입니다">🔒 못 읽음</span>' : '')
+        + (dupNm.some(g => g.indexOf(a) >= 0)
+            ? '<span class="ac-t dup2" title="같은 이름의 줄이 또 있습니다 — '
+              + '위의 [🧹 한 줄로 합치기] 로 정리할 수 있습니다">🧹 겹침</span>' : '')
         + (accSameIdPw(a) ? '<span class="ac-t lock" title="아이디와 비밀번호가 똑같이 들어가 '
             + '있습니다 — 엑셀에서 두 칸이 같은 열을 보고 들어온 것입니다. '
             + '[✎] 로 진짜 비밀번호를 넣어 주세요">⚠️ 아이디와 같음</span>' : '')
@@ -18259,7 +18354,7 @@ function renderAccounts(){
     return;
   }
   main.innerHTML = '<div class="panel"><div class="tabbody">'
-    + head + warn + stuckHtml + sameHtml + tiles + bar + body + '</div></div>';
+    + head + warn + dupHtml + stuckHtml + sameHtml + tiles + bar + body + '</div></div>';
   /* 아직 손도 안 대 본 줄이 있을 때만 따라잡습니다 — 못 푼 줄까지
      다시 풀려고 하면 화면이 끝없이 다시 그려집니다 */
   if(all.some(a => !accTried(a) && (accIsEnc(a.pw) || accIsEnc(a.loginId)))){
@@ -25838,15 +25933,18 @@ function trashEmpty(){
   toast('🗑️ 휴지통을 비웠습니다');
 }
 
-function deleteItem(type, id, brandId){
+function deleteItem(type, id, brandId, quiet){
   const arr = listOf(type, brandId);
   if(!arr) return;
   const it = arr.find(x => x.id === id);
-  if(!it){ render(); return; }          // 이미 다른 분이 지웠습니다
-  if(!confirm('"' + it.title + '" 항목을 삭제할까요?\n\n'
+  if(!it){ if(!quiet) render(); return; }   // 이미 다른 분이 지웠습니다
+  /* quiet — 한꺼번에 정리할 때는 줄마다 묻지 않습니다 (앞에서 한 번 물었습니다).
+     제목이 없는 것(계정은 svc 로 부릅니다)도 알아보게 합니다. */
+  const nm = it.title || it.svc || it.name || '이 항목';
+  if(!quiet && !confirm('"' + nm + '" 항목을 삭제할까요?\n\n'
     + '휴지통으로 갑니다 — 업무 → 🗑 휴지통 에서 되돌릴 수 있습니다.')) return;
   const bid = brandId || (TOP_LISTS.indexOf(type) >= 0 ? '' : currentBrandId);
-  trashPut((TYPES[type] && TYPES[type].label) || type, it.title, it,
+  trashPut((TYPES[type] && TYPES[type].label) || type, nm, it,
            { kind:'item', type: type, brandId: bid });
   const left = arr.filter(x => x.id !== id);
   if(TOP_LISTS.indexOf(type) >= 0) data[type] = left;

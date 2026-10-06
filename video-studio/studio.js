@@ -29,6 +29,7 @@
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     key: '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
     image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>',
     library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
   }
   function icon(name, size = 24, cls = '') {
@@ -291,13 +292,27 @@
     return `<div class="cut-list">${cuts.map((c, j) => `<div class="cut"><div class="cut-thumb">${cutVisual(c, s)}</div><div><span class="cut-no">컷 ${j + 1}</span><p>${esc(c.narration)}</p><small>${cutLabel(c)}</small></div></div>`).join('')}</div>`
   }
 
+  // 검수 보류·제작 대기: 프롬프트를 직접 고쳐 다시 검수하거나, 검수 없이 제작 대기로 넘긴다
+  const editDraft = {}
+  function editBoxHtml(e) {
+    const held = e.status === 'held'
+    const v = editDraft[e.id] != null ? editDraft[e.id] : e.prompt
+    return `<details class="edit-box" ${held || editDraft[e.id] != null ? 'open' : ''} data-edit-box="${e.id}"><summary>${icon('edit', 16)}프롬프트 직접 수정${held ? ' — 지적 사항을 보고 고쳐 주세요' : ''}</summary>
+      <p>HeyGen에 그대로 전달되는 글입니다. ‘대사:’ 줄이 아바타가 읽는 말이고, [화면 규칙] 등은 화면 지시입니다. 금지어가 있으면 저장되지 않습니다.</p>
+      <textarea class="textarea edit-prompt" data-edit-text="${e.id}" rows="16">${esc(v)}</textarea>
+      <div class="job-actions"><button type="button" class="btn" data-edit-review="${e.id}">수정본 다시 검수 (Claude·OpenAI 1회, 소액)</button>
+        <button type="button" class="btn outline" data-edit-skip="${e.id}">검수 없이 제작 대기로</button>
+        ${editDraft[e.id] != null ? `<button type="button" class="text-link" data-edit-reset="${e.id}">수정 취소</button>` : ''}</div></details>`
+  }
   function jobHtml(e) {
     let h = `<div class="job-result"><div class="between"><div><h3>${esc((e.plan && e.plan.title) || e.input.keywords)}</h3>
       <p>${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
+    const canEdit = ['held', 'ready'].includes(e.status) && e.plan && e.prompt && S.settings.heygenMode !== 'scenes'
+    if (canEdit) h += editBoxHtml(e)
     if (e.status === 'ready' && e.prompt) {
       h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — 아래 프롬프트를 확인하세요</strong>
-        <p>Claude·OpenAI 검수를 통과했습니다. 프롬프트와 무료 미리보기를 확인한 뒤 ‘영상 제작 시작’을 누르면 그때 HeyGen 크레딧이 쓰입니다. 마음에 들지 않으면 제작하지 말고 키워드를 바꿔 다시 만드세요(대본·검수 비용만 듭니다).</p>
+        <p>${e.skippedReview ? '<b>검수 없이 넘긴 직접 수정본입니다.</b> ' : e.edited ? '직접 수정한 프롬프트가 ' : ''}${e.skippedReview ? '' : 'Claude·OpenAI 검수를 통과했습니다. '} 프롬프트와 무료 미리보기를 확인한 뒤 ‘영상 제작 시작’을 누르면 그때 HeyGen 크레딧이 쓰입니다. 마음에 들지 않으면 제작하지 말고 키워드를 바꿔 다시 만드세요(대본·검수 비용만 듭니다).</p>
         <pre class="approve-prompt">${esc(e.prompt)}</pre>
         <div class="job-actions"><button type="button" class="btn outline" data-copy-prompt="${e.id}">${icon('copy', 14)}프롬프트 복사</button><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button><button type="button" class="btn" data-render="${e.id}">영상 제작 시작 (HeyGen 크레딧 사용)</button></div></div>`
     } else if (e.plan) h += `<div class="job-actions"><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button></div>`
@@ -948,6 +963,7 @@
   $('daily-limit').addEventListener('input', (ev) => { S.settings = { ...S.settings, maxDailyJobs: Number(ev.target.value) } })
   $('settings-save').addEventListener('click', saveSettings)
 
+  document.addEventListener('input', (ev) => { const ta = ev.target.closest && ev.target.closest('[data-edit-text]'); if (ta) editDraft[ta.dataset.editText] = ta.value })
   document.addEventListener('click', async (ev) => {
     const t = ev.target
     const tab = t.closest('[data-tab]'); if (tab) { S.tab = tab.dataset.tab; renderTabs(); return }
@@ -963,6 +979,24 @@
     }
     const pv = t.closest('[data-preview]')
     if (pv) { const job = S.data.jobs.find((j) => j.id === pv.dataset.preview); if (job && job.plan) openPreview(job); return }
+    const er = t.closest('[data-edit-review]') || t.closest('[data-edit-skip]')
+    if (er) {
+      const id = er.dataset.editReview || er.dataset.editSkip
+      const skip = !!er.dataset.editSkip
+      const ta = document.querySelector(`[data-edit-text="${id}"]`)
+      const prompt = ta ? ta.value : ''
+      if (skip && !confirm('검수 없이 제작 대기로 넘길까요?\n\n수정한 내용은 Claude·OpenAI 검수를 거치지 않습니다. 사실·금지어는 직접 확인해 주세요. (아직 영상은 만들지 않으며, 제작 시작은 따로 눌러야 합니다)')) return
+      try {
+        const r = await api({ action: 'editPrompt', id, prompt, mode: skip ? 'skip' : 'review' })
+        delete editDraft[id]
+        S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); S.selectedId = r.job.id
+        S.success = skip ? '제작 대기로 넘겼습니다. 프롬프트를 확인한 뒤 ‘영상 제작 시작’을 눌러 주세요.' : '수정본을 다시 검수합니다.'
+        renderAll(); if (!skip) ensurePolling()
+      } catch (e) { S.error = e.message; renderMessages() }
+      return
+    }
+    const ers = t.closest('[data-edit-reset]')
+    if (ers) { delete editDraft[ers.dataset.editReset]; renderCreate(); renderHistory(); return }
     const rd = t.closest('[data-render]')
     if (rd) {
       { const jb = S.data.jobs.find((j) => j.id === rd.dataset.render); if (!confirm(`이 프롬프트로 HeyGen 영상을 만들까요?\n\n목표 길이 ${jb ? jb.input.seconds : '?'}초 · HeyGen 크레딧이 사용되며 되돌릴 수 없습니다.`)) return }

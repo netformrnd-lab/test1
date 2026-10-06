@@ -251,6 +251,39 @@ const ACTIONS = {
     return { job: toJob(row) }
   },
 
+  // 검수 보류·제작 대기 작업의 HeyGen 프롬프트를 관리자가 직접 고친다 (HeyGen 자동 구성 방식 전용)
+  // mode 'review' = 수정본을 Claude·OpenAI 가 한 번 다시 검수 / 'skip' = 검수 없이 제작 대기로
+  async editPrompt(env, { id, prompt, mode }) {
+    const text = String(prompt || '').replace(/\r/g, '').trim()
+    if (text.length < 50) throw new HttpError(400, '프롬프트가 너무 짧습니다.')
+    if (text.length > 12000) throw new HttpError(400, '프롬프트는 12,000자 이하로 써 주세요.')
+    const bad = termIssues({ title: '', scenes: [{ narration: text, onScreen: '' }] }).filter((x) => x.includes('금지어'))
+    if (bad.length) throw new HttpError(400, '금지어가 있어 저장하지 않았습니다: ' + bad.map((x) => x.replace(/^장면 1 대사: /, '')).join(' / '))
+    const settings = await getSettings(env)
+    if (!isAgent(settings)) throw new HttpError(400, '직접 수정은 ‘HeyGen 자동 구성’ 방식에서만 쓸 수 있습니다(설정 → 영상 구성 설정).')
+    let row = null
+    await mutate(env, 'jobs', [], (list) => {
+      row = list.find((j) => j.id === id)
+      if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
+      if (!['held', 'ready'].includes(row.status) || !row.data.plan) throw new HttpError(409, '검수 보류 또는 제작 대기 상태의 작업만 직접 수정할 수 있습니다.')
+      const d = row.data
+      d.customPrompt = text; d.prompt = text
+      d.error = ''; d.lastIssues = []; d.pendingIssues = []
+      if (mode === 'skip') {
+        d.skippedReview = true
+        row.status = 'ready'; row.step = 6
+        d.events.push(ev('관리자가 프롬프트를 직접 수정하고 검수 없이 제작 대기로 넘김'))
+      } else {
+        d.skippedReview = false; d.manual = true
+        d.claude = null; d.openai = null
+        d.groundingIssues = termIssues({ title: '', scenes: [{ narration: text, onScreen: '' }] }).map((x) => x.replace(/^장면 1 대사/, '수정 프롬프트'))
+        row.status = 'reviewing'; row.step = 2
+        d.events.push(ev('관리자가 프롬프트를 직접 수정 → Claude·OpenAI 재검수'))
+      }
+    })
+    return { job: toJob(row) }
+  },
+
   // 화면에서 생긴 업로드 오류·건너뛴 형식 기록 (파일 이름 없이 확장자·문구만, 최근 300건)
   async log(env, { entries }) {
     const list = (Array.isArray(entries) ? entries : []).slice(0, 50).map((e) => ({
@@ -396,6 +429,11 @@ async function runStep(env, job) {
     if (!issues.length) {
       d.events.push(ev('교차 검수 통과: 양쪽 4항목 90점 이상 · 지적 0건 · 인용 원문 일치'))
       job.step = 5; job.status = 'preparing'
+    } else if (d.manual) {
+      job.status = 'held'
+      d.lastIssues = issues; d.pendingIssues = []
+      d.error = '직접 수정한 프롬프트가 검수를 통과하지 못했습니다. 지적 사항을 보고 다시 수정하거나, 검수 없이 제작 대기로 넘길 수 있습니다.'
+      d.events.push(ev('직접 수정본 검수 미통과 → 보류 (HeyGen 제작 요청 안 함)'))
     } else if (job.revision < MAX_REVISIONS) {
       d.pendingIssues = issues
       d.events.push(ev(`검수 미통과(지적 ${issues.length}건) → 자동 수정 ${job.revision + 1}/${MAX_REVISIONS}`))
@@ -492,7 +530,7 @@ async function runStep(env, job) {
   // 6) HeyGen 제작 요청 (중복 제작 방지: 요청 전에 '시도함'을 먼저 저장)
   if (job.status === 'submitting') {
     if (!st.settings.consent || !st.settings.avatarId || !st.settings.voiceId) throw new Error('아바타 사용 동의·아바타·음성 설정이 필요합니다.')
-    if (allIssues(d).length) throw new Error('검수 통과 기록이 없어 제작을 요청하지 않았습니다.')
+    if (!d.skippedReview && allIssues(d).length) throw new Error('검수 통과 기록이 없어 제작을 요청하지 않았습니다.')
     if (d.submitAttempted && !d.videoId) {
       job.status = 'uncertain'
       d.error = '이전 제작 요청의 결과를 확인하지 못했습니다. 중복 비용을 막기 위해 자동 재요청하지 않았습니다. HeyGen 대시보드에서 영상 생성 여부를 확인해 주세요.'
@@ -721,6 +759,7 @@ function reviewSystem() {
   ].join('\n')
 }
 function reviewUser(job, d) {
+  if (d.customPrompt) return `${briefBlock(job)}\n\n[승인 자료]\n${contextBlock(d)}\n\n[참고: AI가 처음 쓴 대본]\n${JSON.stringify(d.plan)}\n\n[검수 대상: 관리자가 직접 수정한 HeyGen 프롬프트 — 이 글이 그대로 HeyGen에 전달됩니다]\n${d.customPrompt}\n\n위 수정 프롬프트를 평가하세요. 대사(‘대사:’ 줄)의 사실·수치는 [승인 자료]로 뒷받침되어야 합니다. 컷·사진 배정은 평가하지 않습니다(HeyGen이 화면을 구성).`
   return `${briefBlock(job)}\n\n[승인 자료]\n${contextBlock(d)}\n\n[사진 자료실] (id: 설명)\n${photoBlock(d.photoCatalog)}\n\n[검수 대상 대본]\n${JSON.stringify(d.plan)}\n\n[컷 구성 요약]\n${d.prompt}\n\n위 대본과 컷 구성을 평가하세요.`
 }
 function heygenPrompt(job, plan, photos) {
@@ -745,7 +784,7 @@ function heygenPrompt(job, plan, photos) {
   })
   return lines.join('\n').trim()
 }
-function promptFor(job, plan, st) { return isAgent(st.settings) ? agentPrompt(job, plan) : heygenPrompt(job, plan, st.photos) }
+function promptFor(job, plan, st) { if (job.data && job.data.customPrompt) return job.data.customPrompt; return isAgent(st.settings) ? agentPrompt(job, plan) : heygenPrompt(job, plan, st.photos) }
 // HeyGen Video Agent 용 프롬프트: 대사는 검수 통과본 그대로, 화면은 HeyGen 이 만들되 브랜드·현장 규칙을 강하게 지시
 function agentPrompt(job, plan) {
   const i = job.input
@@ -769,9 +808,9 @@ function agentPrompt(job, plan) {
     '- 앱·웹 화면은 실제 이미지가 제공되지 않았으므로 그리지 않습니다. 대신 현장에서 감리자가 스마트폰으로 사진을 찍고 기록하는 실제 장면(화면 내용은 보이지 않게)으로 보여 줍니다.',
     '',
     '[자료 화면 선택]',
-    '- 건물·현장은 밝은 낮의 깨끗한 한국 아파트 단지(판상형·탑상형 공동주택, 동 번호가 보이는 외벽)만 사용합니다. 외국 도시·고층 오피스 빌딩·유럽식 건물·낡은 저층 건물 금지.',
+    '- 건물·현장은 밝은 낮의 깨끗한 한국 아파트 단지(판상형·탑상형 공동주택)만 사용합니다. 외국 도시·고층 오피스 빌딩·유럽식 건물·낡은 저층 건물 금지.',
     '- 어둡거나 칙칙한 색보정, 흑백·청회색 필터를 쓰지 않습니다. 밝고 자연스러운 색으로 보여 줍니다.',
-    '- 하자 장면(도막 들뜸·균열·초킹 등)은 실제 아파트 외벽 근접 촬영처럼 보이는 것만 씁니다.',
+    '- 하자 장면(도막 들뜸·균열·초킹·방수층 부풀음·고인 물 등)은 대사에 나온 바로 그 부위(외벽·옥상 바닥·파라펫·지하주차장 등)의 실제 근접 촬영처럼 보이는 것만 씁니다. 다른 부위의 하자 화면으로 바꾸지 않습니다.',
     '- 악수·서류에 서명하는 손·계산기·노트북 타자 같은 흔한 사무실 스톡 화면은 피합니다. 회의 장면이 필요하면 아파트 관리사무소·입주자대표회의 회의실에서 도면과 자료를 함께 보는 장면을 씁니다.',
     '- 화면 속 글자는 한국어만 사용합니다. 영어 문구가 적힌 자료 화면·문서(예: "OUR PERFORMANCE") 금지.',
     '',
@@ -795,7 +834,7 @@ function agentPrompt(job, plan) {
 function agentPayload(job, settings) {
   const config = { duration_sec: Math.max(10, Math.min(300, Number(job.input.seconds) || 60)), orientation: job.input.ratio === '9:16' ? 'portrait' : 'landscape' }
   if (settings.avatarId) config.avatar_id = settings.avatarId
-  return { prompt: agentPrompt(job, job.data.plan), config }
+  return { prompt: job.data.customPrompt || agentPrompt(job, job.data.plan), config }
 }
 // 컷마다 video_input 하나: 배경(영상 자료·AI 영상·움직임 클립 → 영상 / 사진 → 이미지 / 없으면 브랜드 카드) + 아바타(배경이 있으면 작게)
 function heygenPayload(job, settings, media) {
@@ -1224,7 +1263,7 @@ function toJob(r) {
   return {
     id: r.id, created: r.created_at, status: r.status, step: r.step, revision: r.revision, input: r.input,
     plan: d.plan || null, prompt: d.prompt || '', claude: d.claude || null, openai: d.openai || null,
-    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '',
+    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
     events: d.events || [], sources: d.sources || [], memory: d.memory || [],
     models: d.models || { claude: '', openai: '' }, promptVersion: d.promptVersion || PROMPT_VERSION,
     issues: d.pendingIssues && d.pendingIssues.length ? d.pendingIssues : d.lastIssues || [],

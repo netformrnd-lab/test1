@@ -194,8 +194,20 @@ body.tt-wide .layout{max-width:1820px}
 @media(min-width:1500px){ body.tt-wide .layout{gap:30px;padding:24px 30px} }
 
 /* ---------- 왼쪽 목록 ---------- */
-.side{align-self:start;position:sticky;top:84px}
-@media(max-width:900px){.side{position:static}}
+/* ── 왼쪽 메뉴에 휠이 걸리게 ──────────────────────────────────────
+   붙박이(sticky)로만 두었더니, 메뉴가 화면보다 길어지면 아래쪽에
+   손이 닿지 않았습니다. 화면 높이만큼만 쓰고 넘치면 스스로 내려
+   가게 합니다 — 메뉴 위에서 휠을 굴리면 메뉴가 내려갑니다. */
+.side{align-self:start;position:sticky;top:84px;
+  max-height:calc(100vh - 100px);overflow-y:auto;overscroll-behavior:contain;
+  padding-right:4px;scrollbar-width:thin;
+  scrollbar-color:color-mix(in srgb,var(--text-muted) 35%,transparent) transparent}
+.side::-webkit-scrollbar{width:8px}
+.side::-webkit-scrollbar-track{background:transparent}
+.side::-webkit-scrollbar-thumb{border-radius:99px;
+  background:color-mix(in srgb,var(--text-muted) 28%,transparent)}
+.side:hover::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--text-muted) 48%,transparent)}
+@media(max-width:900px){.side{position:static;max-height:none;overflow-y:visible}}
 .side-title{font-size:10.5px;font-weight:700;color:var(--text-muted);
   letter-spacing:.09em;text-transform:uppercase;margin:0 0 9px 11px}
 .brand-list{display:flex;flex-direction:column;gap:2px;margin-bottom:12px}
@@ -4297,12 +4309,6 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
 /* ── 📗 엑셀을 엑셀처럼 ─────────────────────────────────────────
    줄 번호와 칸 글자를 붙이고, 머리줄과 왼쪽 칸은 붙박이로 둡니다 —
    옆으로 밀어도 몇째 줄 어느 칸인지 놓치지 않습니다. */
-.ac-sw{display:flex;gap:6px;margin:0 0 14px;padding:4px;border-radius:10px;
-  background:var(--bg-sunken);width:fit-content}
-.ac-sw button{font-family:inherit;font-size:12.5px;font-weight:700;padding:7px 15px;
-  border:0;border-radius:7px;background:transparent;color:var(--text-muted);cursor:pointer}
-.ac-sw button.on{background:var(--bg-card);color:var(--text-primary);
-  box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .xl-bar{align-items:center;gap:10px;flex-wrap:wrap}
 .xl-nm{flex:0 0 auto;margin-right:2px}
 .xl-nm{font-size:12.5px;color:var(--text-secondary)}
@@ -5156,7 +5162,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261006-16';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261006-17';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17939,19 +17945,9 @@ function accDel(){
    주니, 적힌 그대로 보고 쓰시면 됩니다. 아무것도 안 고칩니다.
    NAS 파일을 그때그때 다시 읽으니 엑셀을 고치면 여기도 바뀝니다.
    ---------------------------------------------------------------- */
-let accTab = (function(){
-  try{ return localStorage.getItem('brandHubAccTab') === 'sheet' ? 'sheet' : 'list'; }
-  catch(e){ return 'list'; }
-})();
 let accSh   = null;      // {grid, tabs, tab, file, path, busy, err}
 let accShQ  = '';        // 찾는 글
 let accShGo = 0;         // 읽어 오라고 한 번만 시킵니다
-function accTabSet(v){
-  accTab = (v === 'sheet') ? 'sheet' : 'list';
-  try{ localStorage.setItem('brandHubAccTab', accTab); }catch(e){}
-  render();
-  if(accTab === 'sheet' && !accSh && accShSaved()) accShLoad(null, null, null, false);
-}
 function accShSaved(){
   const d = data.accSheet;
   return (d && typeof d === 'object' && d.path) ? d : null;
@@ -18124,8 +18120,6 @@ async function accImpPick(path, name, tab){
   /* 📗 그대로 보기용으로 고른 것이면 읽어 들이지 않고 그 화면으로 넘깁니다 */
   if(accImp && accImp.pickFor === 'sheet'){
     accImp = null; closeModal('accImpModal');
-    accTab = 'sheet';
-    try{ localStorage.setItem('brandHubAccTab', 'sheet'); }catch(e){}
     accShLoad(path, name, tab || '', true);
     return;
   }
@@ -18925,263 +18919,24 @@ async function accImpSave(){
 }
 /* ── 화면 ────────────────────────────────────────────────────── */
 function renderAccounts(){
-  const all  = accAll();
-  const rows = accShow(all);
-  const dups = accDup();
-  const olds = all.filter(a => accAge(a) >= ACC_OLD);
-  const head = '<h2 class="page-h">🔐 내부계정</h2>'
-    + '<div class="page-sub">팀이 같이 쓰는 서비스 계정을 한곳에 — '
-      + (accTab === 'sheet'
-          ? '공유폴더의 엑셀을 <b>손대지 않고 그대로</b> 띄웁니다'
-          : '칸으로 나눠 담아 둔 목록입니다') + '</div>';
   const main = document.getElementById('main');
-
-  /* 금고를 걸어 두면 대시보드 문이 열려 있어도 이 칸만은 안전합니다 */
-  const warn = accVaultOn()
-    ? '<div class="ac-warn ok"><span class="i">🔒</span>'
-      + '<div><b>자물쇠가 채워져 있습니다</b>'
-      + '<span>아이디와 비밀번호는 금고 비밀번호로 잠근 채 저장됩니다. '
-      + '대시보드에 들어온 사람도, 저장된 파일을 통째로 가져간 사람도 '
-      + '그 비밀번호 없이는 글자를 볼 수 없습니다. '
-      + '15분 동안 안 만지면 저절로 다시 잠깁니다. '
-      + '<b>금고 비밀번호는 아무 데도 저장돼 있지 않습니다 — 잊으면 되살릴 길이 없습니다.</b>'
-      + '</span></div></div>'
-    : '<div class="ac-warn"><span class="i">🚪</span>'
-      + '<div><b>여기에 진짜 비밀번호를 넣기 전에 — [🔒 비밀번호 걸기] 를 눌러 주세요</b>'
-      + '<span>지금은 아이디·비밀번호가 <b>글자 그대로</b> 저장됩니다. 이 대시보드는 '
-      + '공개 주소로 열려 있고 로그인 비밀번호도 처음 것(brandhub2026) 그대로일 수 '
-      + '있어서, 주소를 아는 사람은 그 하나로 여기 적힌 회사 계정을 모두 열어 봅니다. '
-      + '[🔒 비밀번호 걸기] 를 누르면 따로 정한 비밀번호로 <b>자물쇠를 채워</b> 저장하고, '
-      + '그 비밀번호를 친 사람만 보게 됩니다.'
-      + '</span></div></div>';
-
-  const tiles = '<div class="stats">'
-    + '<div class="stat"><div class="sl">🔑 모아 둔 계정</div><div class="sv">' + all.length + '건</div>'
-      + '<div class="sm">' + ACC_CATS.filter(c => all.some(a => accCatOf(a) === c)).length
-      + '개 분류</div></div>'
-    + '<div class="stat' + (dups.length ? ' bad' : '') + '"><div class="sl">♻️ 돌려쓰는 비밀번호</div>'
-      + '<div class="sv">' + dups.length + '가지</div>'
-      + '<div class="sm">' + (dups.length
-          ? '한 곳이 뚫리면 ' + dups.reduce((a, g) => a + g.length, 0) + '곳이 같이 뚫립니다'
-          : '겹치는 것이 없습니다') + '</div></div>'
-    + '<div class="stat' + (olds.length ? ' bad' : '') + '"><div class="sl">🕘 바꿀 때가 된 것</div>'
-      + '<div class="sv">' + olds.length + '건</div>'
-      + '<div class="sm">적어 둔 지 한 해가 넘었습니다</div></div>'
-    + '<div class="stat"><div class="sl">👤 맡은 사람 없음</div>'
-      + '<div class="sv">' + all.filter(a => !String(a.who || '').trim()).length + '건</div>'
-      + '<div class="sm">누가 쓰는지 모르는 계정</div></div>'
-    + '</div>';
-
-  /* 못 읽는 줄이 있으면 숨기지 않고 꼭 알립니다 — 조용히 빈 칸으로
-     두면 「비밀번호가 사라졌다」 로 보입니다. 저장된 것은 멀쩡합니다. */
-  const stuck = all.filter(a => !accReadable(a));
-  const dupNm = accDupGroups();        // 이름이 겹친 묶음 (dups 는 비번이 겹친 것)
-  const stuckHtml = stuck.length
-    ? '<div class="ac-warn"><span class="i">🔒</span>'
-      + '<div><b>' + stuck.length + '건은 지금 못 읽습니다 — 지워진 것이 아닙니다</b>'
-      + '<span>저장된 내용은 그대로 있습니다. 다른 금고 비밀번호로 잠긴 것이거나, '
-      + '방금 다른 분이 넣어서 아직 풀어 오는 중입니다. '
-      + '[🔒 잠그기] 로 잠갔다가 다시 열면 대부분 풀립니다.</span></div>'
-      + '<button class="btn sm" onclick="accSync(1)">↻ 다시 풀어 오기</button></div>'
-    : '';
-  /* ── 아이디·비밀번호가 뒤엉킨 줄 ──────────────────────────────
-     전에는 「직접 넣으세요」 라고만 했습니다. 그건 우리가 못 맞춘
-     것을 사람한테 떠넘기는 것입니다. 나눌 수 있으면 나눠 줍니다. */
-  const broke = accBroke();
-  const sameHtml = (broke.cut.length || broke.lost.length)
-    ? '<div class="ac-warn"><span class="i">✂️</span>'
-      + '<div><b>' + (broke.cut.length + broke.lost.length)
-      + '건이 아이디와 비밀번호가 엉켜 있습니다</b>'
-      + '<span>'
-      + (broke.cut.length
-          ? '이 중 <b>' + broke.cut.length + '건</b>은 한 칸에 둘이 같이 들어가 있어서 '
-            + '<b>눌러 주시면 나눠 드립니다</b> — '
-            + broke.cut.slice(0, 5).map(c => esc(c.a.svc || '(이름 없음)')).join(' · ')
-            + (broke.cut.length > 5 ? ' 외 ' + (broke.cut.length - 5) + '건' : '') + '. '
-          : '')
-      + (broke.lost.length
-          ? '<b>' + broke.lost.length + '건</b>은 아이디와 비밀번호가 똑같은데 나눌 것이 없습니다 — '
-            + '비밀번호가 실제로 안 들어온 것이라 되살릴 수 없습니다. '
-            + '[📗 엑셀 읽어 오기] 로 다시 읽히거나 [✎] 로 넣어 주세요: '
-            + broke.lost.slice(0, 5).map(a => esc(a.svc || '(이름 없음)')).join(' · ')
-            + (broke.lost.length > 5 ? ' 외 ' + (broke.lost.length - 5) + '건' : '')
-          : '')
-      + '</span></div>'
-      + (broke.cut.length
-          ? '<button class="btn sm primary" onclick="accRepair()">✂️ 나눠 주기</button>' : '')
-      + '</div>'
-    : '';
-  /* 같은 이름이 두 줄 이상 — 엑셀을 여러 번 읽으면 생깁니다 */
-  const dupHtml = dupNm.length
-    ? '<div class="ac-warn dup"><span class="i">🧹</span>'
-      + '<div><b>같은 이름이 두 줄 넘게 있습니다 — ' + dupNm.length + '가지 · '
-      + dupNm.reduce((n, g) => n + g.length, 0) + '줄</b>'
-      + '<span>엑셀을 두 번 읽으면 이렇게 쌓입니다. '
-      + '한 줄로 합치면 쓸 수 있는 값이 가장 많은 줄을 남기고, 빈 칸은 나머지에서 채웁니다. '
-      + '지운 줄은 휴지통으로 가니 되살릴 수 있습니다: '
-      + dupNm.slice(0, 5).map(g => esc(g[0].svc) + '(' + g.length + ')').join(' · ')
-      + (dupNm.length > 5 ? ' 외 ' + (dupNm.length - 5) + '가지' : '')
-      + '</span></div>'
-      + '<button class="btn sm primary" onclick="accDedup()">🧹 한 줄로 합치기</button></div>'
-    : '';
-  const bar = '<div class="ac-bar">'
-    /* ── 브라우저가 멋대로 채우지 못하게 ──────────────────────────
-       크롬은 이름 없는 글칸에 <<전에 친 것>> 을 밀어 넣습니다. 더구나
-       이 화면에는 비밀번호 칸이 있어서, 크롬이 「로그인 자리」 로 보고
-       아이디까지 채워 넣습니다. 맥이라서가 아니라 크롬이 하는 일입니다.
-       type=search · autocomplete=off 에 암호관리자용 표시까지 답니다. */
-    + '<span class="ac-qw">'
-      + '<input class="ac-q" id="accQ" type="search" value="' + esc(accQ) + '"'
-        + ' placeholder="🔍 서비스 · 아이디 · 담당자로 찾기"'
-        + ' name="acc-find-only" autocomplete="off" autocorrect="off"'
-        + ' autocapitalize="off" spellcheck="false"'
-        + ' data-lpignore="true" data-1p-ignore data-form-type="other"'
-        + ' oninput="accSet(\'q\', this.value)">'
-      + (accQ ? '<button class="ac-qx" title="지우기" onclick="accSet(\'q\',\'\')">✕</button>' : '')
-    + '</span>'
-    + (accVaultOn()
-        ? '<button class="tt-edb" onclick="accLock()" title="지금 바로 잠그기">🔒 잠그기</button>'
-          + '<button class="tt-edb" onclick="accVaultChange()">🔑 금고 비번 바꾸기</button>'
-        : '<button class="tt-edb on" onclick="accVaultMake()">🔒 비밀번호 걸기</button>')
-    + '<select class="mm-sel" onchange="accSortSet(this.value)" title="줄 세우는 기준">'
-      + ACC_SORTS.map(x => '<option value="' + x[0] + '"' + (x[0] === accSortBy ? ' selected' : '')
-          + '>↕ ' + x[1] + '</option>').join('') + '</select>'
-    + '<select class="mm-sel" onchange="accGrpSet(this.value)" title="묶는 기준">'
-      + [['cat','🗂 분류별로'], ['who','👤 담당자별로'], ['','— 안 묶기 —']]
-          .map(x => '<option value="' + x[0] + '"' + (x[0] === accGrp ? ' selected' : '')
-            + '>' + x[1] + '</option>').join('') + '</select>'
-    + (Object.keys(accSeen).length
-        ? '<button class="tt-edb" onclick="accHideAll()">🔒 다시 가리기</button>' : '')
-    + '<button class="tt-edb" onclick="accDiag()" title="지금 무엇이 들어 있는지 그대로 봅니다">'
-      + '🔎 진단</button>'
-    + '<button class="tt-edb" onclick="accImport()">📗 엑셀 읽어 오기</button>'
-    + '<button class="btn primary sm" onclick="accOpen(\'\')">＋ 계정</button>'
-    + '</div>'
-    /* 분류를 눌러서 고릅니다 — 몇 건인지가 바로 보여야 찾기 쉽습니다 */
-    + (all.length > 4
-      ? '<div class="ac-chips">'
-        + '<button class="ac-chip' + (accCat ? '' : ' on') + '" onclick="accSet(\'cat\',\'\')">'
-          + '전체<b>' + all.length + '</b></button>'
-        + ACC_CATS.map(c => {
-            const n = all.filter(a => accCatOf(a) === c).length;
-            if(!n) return '';
-            return '<button class="ac-chip' + (accCat === c ? ' on' : '') + '"'
-              + ' onclick="accSet(\'cat\',\'' + jsq(c) + '\')">'
-              + esc(c) + '<b>' + n + '</b></button>';
-          }).join('')
-        + (all.filter(a => accCatOf(a) === '그 밖').length > 2
-            ? '<button class="ac-chip go" onclick="accSortOut()"'
-              + ' title="이름과 주소를 보고 「그 밖」 을 나눠 담습니다">🗂 알아서 나누기</button>'
-            : '')
-        + '</div>'
-      : '');
-
-  const one = a => {
-    const dn = accDupOf(a), ag = accAge(a), on = !!accSeen[a.id];
-    const q = '\'' + jsq(a.id) + '\'';
-    return '<div class="ac-row">'
-      + '<div class="ac-h">'
-        + '<b>' + esc(a.svc || '(이름 없음)') + '</b>'
-        + (dn > 1 ? '<span class="ac-t dup" title="같은 비밀번호를 ' + dn
-            + '곳에서 돌려쓰고 있습니다">♻️ ' + dn + '곳 같은 비번</span>' : '')
-        + (ag >= ACC_OLD ? '<span class="ac-t old" title="적어 둔 지 ' + ag
-            + '일">🕘 바꿀 때</span>' : '')
-        + (!accReadable(a) ? '<span class="ac-t lock" title="이 금고 비밀번호로는 못 읽습니다 — '
-            + '다른 비밀번호로 잠갔거나, 아직 풀어 오는 중입니다">🔒 못 읽음</span>' : '')
-        + (dupNm.some(g => g.indexOf(a) >= 0)
-            ? '<span class="ac-t dup2" title="같은 이름의 줄이 또 있습니다 — '
-              + '위의 [🧹 한 줄로 합치기] 로 정리할 수 있습니다">🧹 겹침</span>' : '')
-        + (accSameIdPw(a) ? '<span class="ac-t lock" title="아이디와 비밀번호가 똑같이 들어가 '
-            + '있습니다 — 엑셀에서 두 칸이 같은 열을 보고 들어온 것입니다. '
-            + '[✎] 로 진짜 비밀번호를 넣어 주세요">⚠️ 아이디와 같음</span>' : '')
-        + '<span class="ac-t cat">' + esc(accCatOf(a)) + '</span>'
-        + (a.who ? '<span class="ac-t who">👤 ' + esc(a.who) + '</span>' : '')
-        + '<button class="ac-ed" onclick="accOpen(' + q + ')" title="고치기">✎</button>'
-      + '</div>'
-      + '<div class="ac-f">'
-        + '<span class="k">아이디</span>'
-        + '<span class="v">' + (accVal(a, 'loginId') === null
-            ? '<i class="locked">🔒 못 읽음</i>' : esc(accLoginId(a) || '—')) + '</span>'
-        + (accLoginId(a) ? '<button onclick="accCopy(' + q + ',\'id\')" title="복사">📋</button>' : '')
-        + '<span class="k pw">비밀번호</span>'
-        + '<span class="v mono">' + (accVal(a, 'pw') === null
-            ? '<i class="locked">🔒 못 읽음</i>'
-            : accPw(a)
-              ? (on ? esc(accPw(a)) : '•'.repeat(Math.min(12, accPw(a).length)))
-              : '—') + '</span>'
-        + (accPw(a) ? '<button onclick="accFlip(' + q + ')" title="'
-            + (on ? '가리기' : '잠깐 보기') + '">' + (on ? '🙈' : '👁') + '</button>'
-          + '<button onclick="accCopy(' + q + ',\'pw\')" title="복사">📋</button>' : '')
-        + (accPw(a) ? '' : '<span class="v"></span><span class="v"></span>')
-      + '</div>'
-      + (a.url ? '<div class="ac-u">🌐 <a href="' + esc(/^https?:/i.test(a.url)
-          ? a.url : 'https://' + a.url) + '" target="_blank" rel="noopener">'
-          + esc(a.url) + '</a></div>' : '')
-      + (a.note ? '<div class="ac-n">📝 ' + esc(a.note) + '</div>' : '')
-      + '</div>';
-  };
-  /* 분류별로 묶어 보여 줍니다 */
-  const body = !all.length
-    ? '<div class="ac-zero"><p>아직 모아 둔 계정이 없습니다.</p>'
-      + '<p class="s">공유폴더에 엑셀로 적어 두신 것이 있으면 그 파일을 고르기만 하면 됩니다 — '
-      + '열어 보고 어느 칸이 무엇인지 AI 가 맞춰 줍니다.</p>'
-      + '<div class="tt-zb"><button onclick="accImport()">📗 엑셀 읽어 오기</button>'
-      + '<button onclick="accOpen(\'\')">＋ 하나씩 넣기</button></div></div>'
-    : !rows.length
-      ? '<div class="empty">찾는 계정이 없습니다.</div>'
-      : accGrp === ''
-        ? '<div class="ac-list">' + accOrder(rows).map(one).join('') + '</div>'
-        : accGrp === 'who'
-          ? (function(){
-              const names = [];
-              rows.forEach(a => { const w = String(a.who || '').trim() || '— 맡은 사람 없음 —';
-                if(names.indexOf(w) < 0) names.push(w); });
-              names.sort((x, y) => (x.indexOf('—') === 0) - (y.indexOf('—') === 0)
-                || String(x).localeCompare(String(y), 'ko'));
-              return names.map(w => {
-                const g = accOrder(rows.filter(a =>
-                  (String(a.who || '').trim() || '— 맡은 사람 없음 —') === w));
-                return '<div class="ac-grp"><div class="ac-gh">👤 ' + esc(w)
-                  + '<span>' + g.length + '건</span></div>'
-                  + '<div class="ac-list">' + g.map(one).join('') + '</div></div>';
-              }).join('');
-            })()
-          : ACC_CATS.map(c => {
-              const g = accOrder(rows.filter(a => accCatOf(a) === c));
-              if(!g.length) return '';
-              return '<div class="ac-grp"><div class="ac-gh">' + esc(c)
-                + '<span>' + g.length + '건</span></div>'
-                + '<div class="ac-list">' + g.map(one).join('') + '</div></div>';
-            }).join('');
-
+  const head = '<h2 class="page-h">🔐 내부계정</h2>'
+    + '<div class="page-sub">공유폴더의 엑셀을 <b>손대지 않고 그대로</b> 띄웁니다 — '
+      + '칸을 맞추거나 줄을 합치지 않습니다</div>';
+  /* 비밀번호가 글자 그대로 보이는 화면이라 문은 그대로 둡니다 */
   if(accLocked()){
     main.innerHTML = '<div class="panel"><div class="tabbody">'
       + head + accGateHtml() + '</div></div>';
     setTimeout(() => { const e = document.getElementById('acUnPw'); if(e) e.focus(); }, 40);
     return;
   }
-  /* ── 두 가지 화면 ────────────────────────────────────────────
-     「목록」 은 우리가 칸으로 나눠 담아 둔 것이고, 「엑셀 그대로」 는
-     NAS 의 엑셀을 손대지 않고 띄운 것입니다. 엑셀 생김새가 제각각
-     이라 나눠 담는 쪽이 자꾸 빗나가니, 그대로 보는 길을 둡니다. */
-  const tabs = '<div class="ac-sw">'
-    + '<button class="' + (accTab === 'list' ? 'on' : '') + '"'
-      + ' onclick="accTabSet(\'list\')">🔐 목록</button>'
-    + '<button class="' + (accTab === 'sheet' ? 'on' : '') + '"'
-      + ' onclick="accTabSet(\'sheet\')">📗 엑셀 그대로</button>'
-    + '</div>';
-  if(accTab === 'sheet'){
-    main.innerHTML = '<div class="panel"><div class="tabbody">'
-      + head + tabs + accShHtml() + '</div></div>';
-    return;
-  }
+  /* ── 📗 엑셀만 띄웁니다 ──────────────────────────────────────────
+     칸으로 나눠 담던 목록은 걷어 냈습니다. 엑셀 생김새가 제각각이라
+     나눠 담는 쪽이 번번이 빗나갔고, 그때마다 값이 사라졌습니다.
+     담아 두었던 것은 <<지우지 않았습니다>> — 화면에만 안 나올 뿐
+     data.accounts · data.vault 에 그대로 있습니다. */
   main.innerHTML = '<div class="panel"><div class="tabbody">'
-    + head + tabs + warn + dupHtml + stuckHtml + sameHtml + tiles + bar + body + '</div></div>';
-  /* 아직 손도 안 대 본 줄이 있을 때만 따라잡습니다 — 못 푼 줄까지
-     다시 풀려고 하면 화면이 끝없이 다시 그려집니다 */
-  if(all.some(a => !accTried(a) && (accIsEnc(a.pw) || accIsEnc(a.loginId)))){
-    setTimeout(accSync, 30);
-  }
+    + head + accShHtml() + '</div></div>';
 }
 
 /* ═══════════════ 🪪 명함 ═════════════════════════════════════════

@@ -4630,7 +4630,11 @@ table.xl mark{background:color-mix(in srgb,var(--orange,#e08b1a) 35%,transparent
   background:color-mix(in srgb,var(--red) 5%,var(--bg-secondary))}
 .tt-pj-h{display:flex;align-items:center;gap:7px}
 /* ▸ 펼침 표시 — 펼치면 ▾ 로 돌아갑니다 */
-.tt-pj-k{flex:0 0 auto;font-size:9px;color:var(--text-muted);transition:transform .16s var(--ease)}
+.tt-pj-k{flex:0 0 auto;font-size:9px;color:var(--text-muted);
+  transition:transform .16s var(--ease),background .14s var(--ease);
+  border:0;background:transparent;font-family:inherit;cursor:pointer;
+  padding:4px 6px;margin-left:-4px;border-radius:6px;line-height:1}
+.tt-pj-k:hover{background:var(--bg-hover);color:var(--text-primary)}
 .tt-pj.op .tt-pj-k{transform:rotate(90deg);color:var(--tc)}
 .tt-pj-h b{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:700;letter-spacing:-.01em;
   color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -5162,7 +5166,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261007-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261007-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16964,10 +16968,18 @@ function memCard(m, t, hue, rows){
         + '<button class="go" onclick="' + ed + '">✎ 자세히 고치기</button>'
       + '</div></div>';
     return '<div class="tt-pj' + (st >= PROJ_STALE ? ' slow' : '') + (op ? ' op' : '') + '">'
-      + '<div class="tt-pj-t" onclick="pjAcc(\'' + jsq(r.t.id) + '\')"'
-        + ' title="' + (op ? '눌러서 접기' : '눌러서 펼치기') + '">'
+      + '<div class="tt-pj-t" onclick="' + ed + '"'
+        + ' title="눌러서 창에서 고치기">'
         + '<div class="tt-pj-h">'
-          + '<span class="tt-pj-k">▸</span>'
+          /* ── 칸을 누르면 <<창이 바로>> 열립니다 ────────────────────
+             전에는 눌러도 아래로 펼쳐지기만 해서, 고치려면 [✎] 를
+             한 번 더 찾아 눌러야 했습니다. 이제 칸 아무 데나 누르면
+             바로 창이 열립니다. 펼쳐 보는 것은 <<왼쪽 ▸>> 로 남겨
+             두었습니다 — 거기 있는 ○ ▶ ✓ 넘기기와 보조 업무 더하는
+             칸은 창을 안 열고 쓰는 게 빠르니까요. */
+          + '<button class="tt-pj-k' + (op ? ' op' : '') + '"'
+            + ' title="' + (op ? '접기' : '펼쳐서 보조 업무 보기') + '"'
+            + ' onclick="event.stopPropagation();pjAcc(\'' + jsq(r.t.id) + '\')">▸</button>'
           + (r.t.prio && r.t.prio !== '보통'
               ? '<span class="tt-pj-o" title="먼저 할 것: ' + esc(r.t.prio) + '">'
                 + (r.t.prio === '높음' ? '🔴' : '🟢') + '</span>' : '')

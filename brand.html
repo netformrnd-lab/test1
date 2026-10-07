@@ -4782,6 +4782,9 @@ table.xl mark{background:color-mix(in srgb,var(--orange,#e08b1a) 35%,transparent
 .mm-box{overflow:auto;border:1px solid var(--border);border-radius:12px;background:#fff;
   padding:6px}
 .mm-box svg{display:block;max-width:none}
+/* 폭 맞추기 — 지도를 통째로 보여 줍니다 (잘리지 않게) */
+.mm-box.fit{overflow:hidden}
+.mm-box.fit svg{width:100%;height:auto;max-width:100%}
 .mm-leg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:9px;
   font-size:11.5px;font-weight:700}
 .mm-leg .hint{margin-left:auto;font-weight:500;color:var(--text-muted)}
@@ -5179,7 +5182,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261007-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261007-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16608,6 +16611,20 @@ let mmOn   = false;     // 지도로 보는 중인가
 let mmWho  = '';        // '' = 모두
 let mmKind = '';        // '' = 모두 · 'proj' · 'rout' · 'live'
 function mmToggle(){ mmOn = !mmOn; render(); }
+/* ── 지도가 <<잘려 보이던 것>> ──────────────────────────────────────
+   지도는 1760px 로 그려 놓고 칸은 그보다 좁아서, 오른쪽이 밀려
+   잘린 것처럼 보였습니다 (옆으로 밀면 보이긴 했지만 아무도 모릅니다).
+   이제 <<칸 폭에 맞춰 줄여서>> 통째로 보여 줍니다. 글자가 작아 보기
+   힘들면 [🔍 크게] 로 본디 크기로 돌아가 옆으로 밀어 볼 수 있습니다.
+   그림으로 내보낼 때는 viewBox 를 쓰므로 언제나 본디 크기입니다. */
+let mmFit = (function(){
+  try{ return localStorage.getItem('brandHubMmFit') !== '0'; }catch(e){ return true; }
+})();
+function mmFitFlip(){
+  mmFit = !mmFit;
+  try{ localStorage.setItem('brandHubMmFit', mmFit ? '1' : '0'); }catch(e){}
+  render();
+}
 function mmSet(k, v){ if(k === 'who') mmWho = v; else mmKind = v; render(); }
 function mmEsc(x){
   return String(x == null ? '' : x).replace(/[<>&"']/g,
@@ -16794,10 +16811,14 @@ function mmHtml(rows){
     + sel('kind', mmKind, [['', '업무 모두'], ['proj', '🚀 프로젝트만'],
         ['rout', '🔄 루틴만'], ['live', '아직 안 끝난 것만']])
     + '<span class="mm-n">업무 ' + root.nTask + '건 · 보조 ' + root.nSub + '개</span>'
+    + '<button class="btn sm' + (mmFit ? '' : ' primary') + '" onclick="mmFitFlip()"'
+      + ' title="' + (mmFit ? '본디 크기로 — 옆으로 밀어서 봅니다'
+                            : '칸 폭에 맞춰 통째로 보여 줍니다') + '">'
+      + (mmFit ? '🔍 크게' : '↔ 폭 맞추기') + '</button>'
     + '<button class="btn sm" onclick="mmPng()">🖼 그림으로</button>'
     + '<button class="btn sm" onclick="window.print()">🖨 인쇄</button>'
     + '</div>'
-    + '<div class="mm-box">' + mmSvg(root) + '</div>'
+    + '<div class="mm-box' + (mmFit ? ' fit' : '') + '">' + mmSvg(root) + '</div>'
     + '<div class="mm-leg">'
       + '<span style="color:#6e5530">[프로젝트]</span>'
       + '<span style="color:#5b4b8a">[루틴]</span>'

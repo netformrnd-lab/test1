@@ -120,7 +120,33 @@ function load_source($f) {
 }
 
 /** curl → file_get_contents → wget 순으로 가져옵니다 */
+/**
+ * 구글시트 주소를 <<표가 나오는 주소>> 로 바꿉니다.
+ *
+ * 사람들은 주소창에 있는 편집 주소를 그대로 붙여 넣습니다 —
+ *   .../spreadsheets/d/<아이디>/edit?usp=sharing
+ * 그런데 그 주소는 표가 아니라 편집 화면(HTML)을 돌려줘서, 읽을 것이
+ * 하나도 없습니다. 「넣었는데 연결이 안 된다」 가 거의 다 이것입니다.
+ * 그래서 아이디만 뽑아 CSV 로 나오는 주소로 바꿔 줍니다.
+ * 이미 CSV 로 나오는 주소(웹에 게시한 것)는 그대로 둡니다.
+ */
+function sheet_csv_url($u) {
+    $u = trim((string)$u);
+    if ($u === '') return $u;
+    /* 이미 표로 나오는 주소면 손대지 않습니다 */
+    if (stripos($u, 'output=csv') !== false || stripos($u, 'format=csv') !== false
+        || stripos($u, 'out:csv') !== false) return $u;
+    /* 「웹에 게시」 주소(/d/e/2PACX-…)는 생김새가 달라 건드리지 않습니다 */
+    if (strpos($u, '/spreadsheets/d/e/') !== false) return $u;
+    if (preg_match('#/spreadsheets/d/([a-zA-Z0-9_\-]{20,})#', $u, $m)) {
+        $gid = preg_match('/[#&?]gid=([0-9]+)/', $u, $g) ? $g[1] : '0';
+        return 'https://docs.google.com/spreadsheets/d/' . $m[1]
+             . '/export?format=csv&gid=' . $gid;
+    }
+    return $u;
+}
 function fetch_csv($url, &$how) {
+    $url = sheet_csv_url($url);
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [

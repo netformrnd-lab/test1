@@ -656,7 +656,7 @@ function renderDash(){
   // 새로 올라온 감리일지 (안 본 것 우선 + NEW 표시)
   const newReps=newReportList().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
   const nc=$('dashNewCnt'); if(nc)nc.textContent=newReps.length?('새 '+newReps.length+'건'):'';
-  $('dashNewReports').innerHTML=newReps.length?`<table><tbody>${newReps.slice(0,8).map(r=>`<tr style="background:#fff6f5"><td style="font-weight:700"><span class="link" onclick="openProj('${r.apartment_id}')">${esc(aptName(r.apartment_id))}</span> <span class="pill red" style="margin-left:4px">NEW</span></td><td style="color:var(--mut)">${esc(r.title)||'감리일지'}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(r.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">새로 올라온 감리일지가 없어요 👍<div style="font-size:11px;margin-top:4px">(공사관리에서 단지를 열면 읽음 처리돼요)</div></div>';
+  $('dashNewReports').innerHTML=newReps.length?`<table><tbody>${newReps.slice(0,8).map(r=>`<tr style="background:#fff6f5"><td style="font-weight:700"><span class="link" onclick="openProj('${r.apartment_id}')">${esc(aptName(r.apartment_id))}</span> <span class="pill red" style="margin-left:4px">NEW</span></td><td><span class="link" style="font-weight:600" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'감리일지'}</span></td><td style="text-align:right;color:var(--mut);font-size:11px">${(r.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">새로 올라온 감리일지가 없어요 👍<div style="font-size:11px;margin-top:4px">(공사관리에서 단지를 열면 읽음 처리돼요)</div></div>';
   // 최근 히스토리
   const notes=[...SITE_NOTES].slice(0,6);
   $('dashNotes').innerHTML=notes.length?`<table><tbody>${notes.map(n=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${n.apartment_id}')">${esc(aptName(n.apartment_id))}</span></td><td style="color:var(--mut2)">${esc((n.body||'').slice(0,30))}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(n.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">작성된 히스토리가 없어요</div>';
@@ -1097,7 +1097,7 @@ function renderProj(){
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><select id="note-kind" class="inp" style="width:110px">${Object.entries(NOTE_KIND).map(([k,v])=>`<option value="${k}">${v[2]} ${v[0]}</option>`).join('')}</select><input id="note-input" placeholder="예: 106동 상도 완료 확인 / 소장님과 일정 협의" style="flex:1;min-width:180px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')addSiteNote('${p.id}')"><button class="b blue" onclick="addSiteNote('${p.id}')">기록 추가</button></div>
       ${siteNotesHtml(p.id)}</div>`;
   } else if(projTab==='report'){
-    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700">${esc(r.title)||'-'}</td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
+    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700"><span class="link" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'-'}</span></td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(projTab==='photo'){
     const hasPh=flds.some(f=>Array.isArray(f.photos)&&f.photos.length);
     const toolbar=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button>${hasPh?`<button class="b line" onclick="makeFieldPPT('${p.id}',null,this)">📊 준공 PPT</button><button class="b line" onclick="downloadAptAllPhotos('${p.id}',this)">⬇ 전체 사진 ZIP</button>`:''}<span style="flex:1"></span><div class="seg" style="margin:0"><button class="${photoView==='card'?'on':''}" onclick="setPhotoView('card')">📇 카드</button><button class="${photoView==='cal'?'on':''}" onclick="setPhotoView('cal')">🗓️ 달력</button></div></div>`;
@@ -1554,6 +1554,23 @@ function startInspectReport(){
     +(ws.work?'&work='+encodeURIComponent(ws.work):'')+(ws.sub?'&sub='+encodeURIComponent(ws.sub):'');
   window.open(url,'_blank','noopener');
   closeModal();
+}
+// 감리일지 '보기' — 제목 클릭 시 내용만 읽기전용으로 (수정은 편집 버튼으로)
+function openReportView(id){
+  const r=REPORTS.find(x=>x.id===id); if(!r)return;
+  const photos=Array.isArray(r.photos)?r.photos:[];
+  const meta=[ (r.created_at||'').slice(0,10), (r.dongs||''), (photos.length?photos.length+'장':''), (r.published?'공개중':'비공개') ].filter(Boolean);
+  const pdfHtml = r.pdf_url?`<div class="fld"><a href="${esc(r.pdf_url)}" target="_blank" class="b line">📄 입주민 공개용 PDF 보기${r.pdf_name?' ('+esc(r.pdf_name)+')':''}</a></div>`:'';
+  const phHtml = photos.length?`<div class="fld"><label style="display:flex;justify-content:space-between;align-items:center">현장 사진 ${photos.length}장 <button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 전체 다운로드</button></label><div class="phwrap" style="margin-top:4px">${photos.map(u=>`<a href="${esc(u)}" target="_blank" title="원본 보기"><img src="${esc(u)}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>`).join('')}</div></div>`:'';
+  openModal(mHead('📄 감리일지 보기')+`
+    <div style="font-size:14px;font-weight:800;margin-bottom:4px">${esc(r.title)||'감리일지'}</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:12px">${meta.map(esc).join(' · ')}</div>
+    <div class="fld"><label>점검 내용 (감리원 원문)</label>
+      <div style="white-space:pre-wrap;font-size:13px;line-height:1.75;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:14px 16px;max-height:48vh;overflow:auto">${r.content?esc(r.content):'<span style="color:var(--mut)">작성된 점검 내용이 없어요</span>'}</div>
+    </div>
+    ${pdfHtml}
+    ${phHtml}
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button><button class="b blue" onclick="openReportEdit('${r.id}')">✏️ 편집</button></div>`, true);
 }
 function openReportEdit(id){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;

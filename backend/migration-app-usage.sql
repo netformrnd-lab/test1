@@ -97,6 +97,40 @@ begin
         where created_at >= since
         group by 1
       ) k
+    ),
+
+    -- 사용자별 사용 (누가·몇 번·언제·무슨 기능) — 이벤트 많은 순 상위 300명
+    'by_user', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+          'profile_id', e.profile_id,
+          'name',       p.name,
+          'role',       p.role,
+          'apartment_id', coalesce(p.apartment_id, e.apt_any),
+          'events',     e.events,
+          'last_at',    to_char(e.last_at at time zone 'Asia/Seoul', 'YYYY-MM-DD HH24:MI'),
+          'view',       e.v_view,
+          'report',     e.v_report,
+          'contract',   e.v_contract,
+          'nps',        e.v_nps,
+          'kakao',      e.v_kakao
+        ) order by e.events desc), '[]'::jsonb)
+      from (
+        select profile_id,
+               count(*)                                                   as events,
+               max(created_at)                                            as last_at,
+               (array_agg(apartment_id) filter (where apartment_id is not null))[1] as apt_any,
+               count(*) filter (where coalesce(kind,'view') = 'view')     as v_view,
+               count(*) filter (where kind = 'report')                    as v_report,
+               count(*) filter (where kind = 'contract')                  as v_contract,
+               count(*) filter (where kind = 'nps')                       as v_nps,
+               count(*) filter (where kind = 'kakao')                     as v_kakao
+        from public.app_events
+        where created_at >= since and profile_id is not null
+        group by profile_id
+        order by events desc
+        limit 300
+      ) e
+      left join public.profiles p on p.id = e.profile_id
     )
   ) into res;
 

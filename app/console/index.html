@@ -626,6 +626,27 @@ function go(s){
 
 /* ===== 입주민 앱 사용통계 (자동 집계 RPC) ===== */
 const USG_KIND_LBL={view:'🏠 홈 열람',report:'📄 감리일지 열람',contract:'📑 계약서 열람',nps:'⭐ 만족도 제출',kakao:'💬 카톡 상담'};
+const USG_ROLE_LBL={resident:'입주민',manager:'관리소장',auditor:'감리원',admin:'관리자'};
+let USG_LAST=null;
+function renderUsgUsers(q){
+  const tb=$('usgUserRows'); if(!tb)return;
+  q=(q||'').trim().toLowerCase();
+  let list=(USG_LAST&&USG_LAST.by_user)||[];
+  if(q){ list=list.filter(u=>{ const nm=(u.name||'').toLowerCase(); const ap=(aptName(u.apartment_id)||'').toLowerCase(); return nm.indexOf(q)>=0||ap.indexOf(q)>=0; }); }
+  const n=v=>(v==null?'0':Number(v).toLocaleString());
+  tb.innerHTML=list.length?list.map(u=>`<tr>
+    <td style="font-weight:700;white-space:nowrap">${esc(u.name||'(이름 없음)')}</td>
+    <td style="white-space:nowrap">${u.apartment_id?`<span class="link" onclick="openProj('${u.apartment_id}')">${esc(aptName(u.apartment_id))}</span>`:'<span style="color:var(--mut)">-</span>'}</td>
+    <td><span class="pill ${u.role==='manager'?'blue':(u.role==='auditor'?'gray':'ok')}">${esc(USG_ROLE_LBL[u.role]||u.role||'입주민')}</span></td>
+    <td style="text-align:right;font-weight:800">${n(u.events)}건</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.view)}</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.report)}</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.contract)}</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.nps)}</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.kakao)}</td>
+    <td style="white-space:nowrap;color:var(--mut);font-size:11.5px">${esc(u.last_at||'-')}</td>
+  </tr>`).join(''):`<tr><td colspan="10" class="empty">${q?'검색 결과가 없어요':'아직 사용 기록이 없어요'}</td></tr>`;
+}
 async function renderUsage(){
   const body=$('usgBody'); if(!body)return;
   const days=+((($('usg-range')||{}).value)||30);
@@ -634,6 +655,7 @@ async function renderUsage(){
   try{ const {data,error}=await sb.rpc('app_usage_stats',{p_days:days}); if(error)throw error; d=data; }
   catch(e){ body.innerHTML='<div class="card"><div class="empty">통계를 불러오지 못했어요.<br><span style="font-size:11px;color:var(--mut)">backend/migration-app-usage.sql 실행이 필요할 수 있어요.<br>('+esc((e&&e.message)||'')+')</span></div></div>'; return; }
   if(!d){ body.innerHTML='<div class="card"><div class="empty">아직 데이터가 없어요.</div></div>'; return; }
+  USG_LAST=d;
   const num=v=>(v==null?'0':Number(v).toLocaleString());
   // KPI
   const kpis='<div class="tiles">'+
@@ -657,7 +679,11 @@ async function renderUsage(){
     <div class="card"><h3>🧩 기능별 사용</h3><table><thead><tr><th>기능</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${kindRows}</tbody></table></div>
     <div class="card"><h3>🏢 단지별 사용 Top 15 <span class="r" style="font-size:11px;color:var(--mut);font-weight:600">단지명 클릭 → 상세</span></h3><div style="overflow-x:auto"><table><thead><tr><th>단지</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${aptRows}</tbody></table></div></div>
   </div>`;
-  body.innerHTML=kpis+dailyCard+tables;
+  const userCard=`<div class="card"><h3>👤 사용자별 사용 <span class="r"><input class="inp" id="usg-user-q" oninput="renderUsgUsers(this.value)" placeholder="🔍 이름·단지 검색" style="width:auto;min-width:180px"></span></h3>
+    <div style="overflow-x:auto"><table style="min-width:720px"><thead><tr><th>이름</th><th>단지</th><th>역할</th><th style="text-align:right">총 사용</th><th title="홈 열람" style="text-align:center">🏠홈</th><th title="감리일지 열람" style="text-align:center">📄일지</th><th title="계약서 열람" style="text-align:center">📑계약</th><th title="만족도 제출" style="text-align:center">⭐만족</th><th title="카톡 상담" style="text-align:center">💬카톡</th><th>최근 접속</th></tr></thead><tbody id="usgUserRows"></tbody></table></div>
+    <div style="font-size:11px;color:var(--mut);margin-top:8px">* 이벤트가 많은 순 최대 300명. 숫자는 최근 ${num(d.range_days)}일 기준.</div></div>`;
+  body.innerHTML=kpis+dailyCard+tables+userCard;
+  renderUsgUsers('');
 }
 
 /* ===== 관제센터 ===== */

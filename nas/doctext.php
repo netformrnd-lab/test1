@@ -20,6 +20,11 @@
 if (is_file(__DIR__ . '/guard.php')) require_once __DIR__ . '/guard.php';   // 파일이 아직 안 왔으면 예전처럼 동작합니다
 
 header('Content-Type: application/json; charset=utf-8');
+/* 웹 스테이션(nginx)이나 중간 프록시가 답을 물고 있으면, 엑셀을 고쳐 저장해도
+   옛 내용이 돌아옵니다. 「저장했는데 그대로네」 가 바로 그것입니다. 막아 둡니다. */
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 @ini_set('display_errors', '0');
 @ini_set('html_errors', '0');
 @set_time_limit(0);

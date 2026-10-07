@@ -5162,7 +5162,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261006-17';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261007-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17980,10 +17980,29 @@ async function accShLoad(path, name, tab, remember){
   }catch(e){
     accSh.err = apiErrText(e);
   }finally{
-    accSh.busy = false; render();
+    accSh.busy = false; accShAt = Date.now(); render();
   }
 }
 function accShReload(){ if(accSh && accSh.path) accShLoad(accSh.path, accSh.file, accSh.tab, false); }
+/* ── 엑셀을 고치고 돌아오면 <<저절로>> 다시 읽습니다 ───────────────
+   엑셀에서 고쳐 저장하고 이 창으로 돌아왔는데 옛 내용이 그대로면
+   「저장이 안 됐나」 싶습니다. 창에 다시 들어올 때 읽어 둡니다.
+   누르고 있는 중이거나 글을 치는 중이면 건드리지 않습니다 —
+   찾던 글이 날아가면 안 되니까요. 잠깐 들렀다 오는 것까지 매번
+   읽으면 성가시니 10초는 쉬었다 읽습니다. */
+let accShAt = 0;
+function accShBack(){
+  if(view !== 'accounts' || currentBrandId) return;
+  if(!accSh || !accSh.path || accSh.busy) return;
+  if(typeof uiBusy === 'function' && uiBusy()) return;
+  if(accShQ.trim()) return;                      /* 찾는 중이면 그대로 둡니다 */
+  if(Date.now() - accShAt < 10000) return;
+  accShReload();
+}
+window.addEventListener('focus', accShBack);
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden) accShBack();
+});
 function accShTab(t){ if(accSh && accSh.path) accShLoad(accSh.path, accSh.file, t, true); }
 function accShPick(){ accImport(); accImp.pickFor = 'sheet'; accImpPaint(); }
 function accShFind(v){ accShQ = String(v || ''); accShPaint(); }

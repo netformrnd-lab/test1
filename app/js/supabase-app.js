@@ -123,6 +123,7 @@ function openInquiry() {
   const av = document.getElementById('q-aud-av'); if (av && RES_AUD_NAME) av.textContent = RES_AUD_NAME.slice(0, 1)
   const ph = document.getElementById('q-aud-phone')
   if (ph) ph.textContent = RES_AUD_PHONE ? ('📞 ' + RES_AUD_PHONE) : '연락처 미등록 (관리자에게 문의)'
+  logEvent('kakao')
   window.showScreen('s16')
 }
 window.openInquiry = openInquiry
@@ -136,6 +137,17 @@ async function logAptView(aptId, uid) {
     await sb.from('app_events').insert({ apartment_id: aptId, profile_id: uid, kind: 'view' })
   } catch (e) {}
 }
+// 입주민 기능별 사용 로깅 (감리원 사용은 '입주민 사용' 통계에서 제외) — app_events에 1행씩 기록, 테이블 없거나 실패해도 조용히 무시
+async function logEvent(kind, aptId) {
+  try {
+    if (currentRole === 'auditor') return
+    const uid = MY_ID || (((await sb.auth.getUser()).data || {}).user || {}).id
+    if (!uid) return
+    const apt = aptId || (RES_APT && RES_APT.id) || (currentApt && currentApt.id) || null
+    await sb.from('app_events').insert({ apartment_id: apt, profile_id: uid, kind: kind })
+  } catch (e) {}
+}
+window.logEvent = logEvent
 async function loadResidentHome() {
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
   // 무료 진단 서비스: 관리소장에게만 노출 (입주민 홈에서는 숨김)
@@ -532,6 +544,7 @@ async function loadResidentReports() {
   const { data } = await sb.from('reports').select('*').eq('apartment_id', prof.apartment_id).eq('published', true).order('created_at', { ascending: false })
   RES_REP_LIST = data || []
   RES_REP_DONG = ''
+  logEvent('report', prof.apartment_id)
   renderResReports()
 }
 let RES_REP_LIST = []
@@ -806,6 +819,7 @@ async function submitSurvey() {
     return
   }
   localStorage.setItem(surveyKey(SURVEY.apt.id), '1')
+  logEvent('nps', SURVEY.apt.id)
   checkSurveyBanner(SURVEY.apt)
   SURVEY = null
   renderSurveyDone(true)
@@ -2742,6 +2756,7 @@ function openContracts() {
   const ap = document.getElementById('ct-apt'); if (ap) ap.textContent = currentApt.name
   const msg = document.getElementById('ct-msg'); if (msg) msg.textContent = ''
   window.showScreen('s35')
+  logEvent('contract', currentApt && currentApt.id)
   loadContracts()
 }
 window.openContracts = openContracts

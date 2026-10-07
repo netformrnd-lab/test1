@@ -280,6 +280,7 @@ tbody tr:hover{background:#f8fafc}
       <div class="lbl">앱 관리</div>
       <a data-s="members" onclick="go('members')"><span class="ic">👤</span>회원<span class="cnt red" id="c-pending">0</span></a>
       <a data-s="comm" onclick="go('comm')"><span class="ic">💬</span>입주민소통/NPS</a>
+      <a data-s="usage" onclick="go('usage')"><span class="ic">📊</span>사용통계</a>
       <a data-s="promo" onclick="go('promo')"><span class="ic">🏅</span>홍보·자료</a>
       <div class="lbl">기타</div>
       <a data-s="tools" onclick="go('tools')"><span class="ic">🧰</span>데이터 도구</a>
@@ -362,6 +363,11 @@ tbody tr:hover{background:#f8fafc}
         <button onclick="commTab('alarm',this)">🔔 아파트알림</button>
       </div>
       <div id="commBody"></div>
+    </section>
+
+    <section class="sec" id="s-usage">
+      <div class="head"><div><h2>📊 입주민 앱 사용통계</h2><div class="desc">입주민이 앱을 얼마나 쓰는지 — 자동 집계(여는 순간 최신 데이터). 감리원 사용은 제외돼요.</div></div><div style="display:flex;gap:8px;align-items:center"><select class="inp" id="usg-range" onchange="renderUsage()" style="width:auto"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option></select><button class="b line" onclick="renderUsage()">🔄 새로고침</button></div></div>
+      <div id="usgBody"></div>
     </section>
 
     <section class="sec" id="s-promo">
@@ -614,7 +620,44 @@ function go(s){
   const el=$('s-'+s);if(el)el.classList.add('on');
   document.querySelectorAll('[data-s]').forEach(a=>a.classList.toggle('on',a.dataset.s===s));
   if(s==='projects')backToProjList();
+  if(s==='usage')renderUsage();
   window.scrollTo(0,0);
+}
+
+/* ===== 입주민 앱 사용통계 (자동 집계 RPC) ===== */
+const USG_KIND_LBL={view:'🏠 홈 열람',report:'📄 감리일지 열람',contract:'📑 계약서 열람',nps:'⭐ 만족도 제출',kakao:'💬 카톡 상담'};
+async function renderUsage(){
+  const body=$('usgBody'); if(!body)return;
+  const days=+((($('usg-range')||{}).value)||30);
+  body.innerHTML='<div class="card"><div class="empty">불러오는 중…</div></div>';
+  let d;
+  try{ const {data,error}=await sb.rpc('app_usage_stats',{p_days:days}); if(error)throw error; d=data; }
+  catch(e){ body.innerHTML='<div class="card"><div class="empty">통계를 불러오지 못했어요.<br><span style="font-size:11px;color:var(--mut)">backend/migration-app-usage.sql 실행이 필요할 수 있어요.<br>('+esc((e&&e.message)||'')+')</span></div></div>'; return; }
+  if(!d){ body.innerHTML='<div class="card"><div class="empty">아직 데이터가 없어요.</div></div>'; return; }
+  const num=v=>(v==null?'0':Number(v).toLocaleString());
+  // KPI
+  const kpis='<div class="tiles">'+
+    tile('','오늘 활성 입주민',num(d.active_today)+'<small>명</small>','앱을 연 고유 사용자')+
+    tile('','최근 7일 활성',num(d.active_7d)+'<small>명</small>','7일간 접속한 입주민')+
+    tile('','최근 30일 활성',num(d.active_30d)+'<small>명</small>','30일간 접속한 입주민')+
+    tile('good','기간 내 총 사용',num(d.events_total)+'<small>건</small>','최근 '+num(d.range_days)+'일 이벤트')+
+  '</div>';
+  // 일별 추이 막대
+  const daily=(d.daily||[]).slice(-Math.min(days,45));
+  const maxD=Math.max(1,...daily.map(x=>+x.events||0));
+  const bars=daily.length?daily.map(x=>{const h=Math.max(2,Math.round((+x.events||0)/maxD*120));return `<div style="flex:1 0 16px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px" title="${esc(x.day)} · ${num(x.users)}명 · ${num(x.events)}건"><div style="width:72%;min-width:7px;background:var(--blue);border-radius:4px 4px 0 0;height:${h}px"></div><span style="font-size:8.5px;color:var(--mut);white-space:nowrap">${esc(String(x.day).slice(5))}</span></div>`;}).join(''):'<div class="empty" style="margin:auto">아직 기록이 없어요</div>';
+  const dailyCard=`<div class="card"><h3>📈 일별 사용 추이 <span class="r" style="font-size:11px;color:var(--mut);font-weight:600">막대=이벤트 수 · 마우스 올리면 상세</span></h3><div style="display:flex;align-items:flex-end;gap:3px;height:150px;overflow-x:auto;padding-top:8px">${bars}</div></div>`;
+  // 기능별
+  const kinds=d.by_kind||[]; const maxK=Math.max(1,...kinds.map(x=>+x.events||0));
+  const kindRows=kinds.length?kinds.map(x=>`<tr><td style="font-weight:700;white-space:nowrap">${esc(USG_KIND_LBL[x.kind]||x.kind)}</td><td style="width:60%"><div style="display:flex;align-items:center;gap:9px"><div class="bar" style="flex:1;max-width:220px"><i style="width:${Math.round((+x.events||0)/maxK*100)}%"></i></div><span style="font-weight:700">${num(x.events)}건</span></div></td><td style="color:var(--mut);white-space:nowrap">${num(x.users)}명</td></tr>`).join(''):'<tr><td colspan="3" class="empty">없음</td></tr>';
+  // 단지별
+  const apts=d.by_apartment||[]; const maxA=Math.max(1,...apts.map(x=>+x.events||0));
+  const aptRows=apts.length?apts.slice(0,15).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${x.apartment_id}')">${esc(aptName(x.apartment_id))}</span></td><td style="width:55%"><div style="display:flex;align-items:center;gap:9px"><div class="bar" style="flex:1;max-width:200px"><i style="width:${Math.round((+x.events||0)/maxA*100)}%"></i></div><span style="font-weight:700">${num(x.events)}건</span></div></td><td style="color:var(--mut);white-space:nowrap">${num(x.users)}명</td></tr>`).join(''):'<tr><td colspan="3" class="empty">없음</td></tr>';
+  const tables=`<div class="grid2">
+    <div class="card"><h3>🧩 기능별 사용</h3><table><thead><tr><th>기능</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${kindRows}</tbody></table></div>
+    <div class="card"><h3>🏢 단지별 사용 Top 15 <span class="r" style="font-size:11px;color:var(--mut);font-weight:600">단지명 클릭 → 상세</span></h3><div style="overflow-x:auto"><table><thead><tr><th>단지</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${aptRows}</tbody></table></div></div>
+  </div>`;
+  body.innerHTML=kpis+dailyCard+tables;
 }
 
 /* ===== 관제센터 ===== */

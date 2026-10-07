@@ -4797,6 +4797,25 @@ table.xl mark{background:color-mix(in srgb,var(--orange,#e08b1a) 35%,transparent
 /* 폭 맞추기 — 지도를 통째로 보여 줍니다 (잘리지 않게) */
 .mm-box.fit{overflow:hidden}
 .mm-box.fit svg{width:100%;height:auto;max-width:100%}
+/* 분류별 — 부서 이름은 공종·상태보다 길어서 칸을 넓게 잡습니다 */
+.mgrid.lab{grid-template-columns:repeat(auto-fill,minmax(318px,1fr))}
+.mgrid.lab .bar-row .bl{width:128px}
+/* 📋 전체 목록 — 줄을 놓치지 않게 */
+table.itable.roomy tbody tr:nth-child(even) td{background:var(--bg-sunken)}
+table.itable.roomy tbody tr:hover td{background:var(--blue-soft)}
+table.itable th.iq-nh,table.itable td.iq-n{position:sticky;left:0;z-index:2;
+  width:66px;min-width:66px;padding:5px 8px;white-space:nowrap;
+  background:var(--bg-input);border-right:1px solid var(--border)}
+table.itable th.iq-nh{z-index:3}
+table.itable.roomy tbody tr:nth-child(even) td.iq-n{background:var(--bg-sunken)}
+table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
+.iq-see{border:1px solid var(--border);background:var(--bg-secondary);cursor:pointer;
+  border-radius:7px;padding:2px 6px;font-size:12px;line-height:1.3;
+  transition:border-color .14s var(--ease),background .14s var(--ease)}
+.iq-see:hover{border-color:var(--blue);background:var(--blue-soft)}
+.iq-no{margin-left:5px;font-size:10.5px;font-weight:700;color:var(--text-muted)}
+.mh-n{margin-left:7px;padding:1px 7px;border-radius:999px;font-size:10.5px;
+  font-weight:700;background:var(--bg-sunken);color:var(--text-muted)}
 /* 📨 문의 한 줄 — 눌러서 통째로 */
 .iq-row{cursor:pointer;transition:background .14s var(--ease)}
 .iq-row:hover{background:var(--bg-hover)}
@@ -5219,7 +5238,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261007-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261007-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20569,10 +20588,19 @@ function analyzeInquiries(rows){
 
   // 이름·연락처처럼 사람마다 다른 값은 집계에 쓰지 않습니다
   const isPrivate = c => /이름|성함|고객명|담당자|연락처|전화|휴대|번호|이메일|메일|주소/.test(c);
-  /* 사람이 꼭 보고 싶어 하는 분류 — 이름만 봐도 알 수 있는 것들 */
-  const CAT_NAMED = /부서|소속|직함|직책|직위|팀|유형|종류|구분|공종|경로|유입|상태|단계|지역|지점|등급/;
+  /* 사람이 꼭 보고 싶어 하는 분류 — 이름만 봐도 알 수 있는 것들.
+     영문 머리글로 적힌 시트도 있어서 둘 다 봅니다. */
+  const CAT_NAMED = /부서|소속|직함|직책|직위|직급|담당부서|팀|유형|종류|구분|공종|경로|유입|상태|단계|지역|지점|등급/;
+  const CAT_EN = /^(dept|department|team|division|unit|position|title|role|type|category|status|stage|region|branch|grade|channel|source|group)$/i;
+  const isNamed = c => CAT_NAMED.test(c) || CAT_EN.test(String(c).trim());
 
-  // 먼저 설명 열(문의 내용 등)을 정합니다 — 가장 길게 적히는 열
+  /* ── 설명 칸(문의 내용) 고르기 ─────────────────────────────────
+     예전에는 <<평균 길이>> 만 봤습니다. 그런데 긴 문의가 한두 건뿐이고
+     나머지가 「견적 문의요」 처럼 짧으면 평균이 열두 자를 못 넘겨서,
+     문의 내용 칸을 아예 못 찾았습니다. 정작 그 한 건이 사람이 읽어야
+     할 글입니다. 그래서 가장 긴 값도 같이 보고, 이름이 「문의내용」
+     처럼 또렷하면 조금 밀어 줍니다. */
+  const TEXT_NAMED = /문의|내용|상담|요청|사항|상세|설명|메시지|본문|질문|경위/;
   let textCol = null, bestLen = 0;
   const dateish0 = c => /날짜|일자|일시|시각|시간|date|time/i.test(c)
     || (rows.length && dateHits[c] >= rows.length * 0.3);
@@ -20581,9 +20609,12 @@ function analyzeInquiries(rows){
     const vals = rows.map(r => String(r[c] || '').trim()).filter(Boolean);
     if(!vals.length) return;
     const avg = vals.reduce((a, v) => a + v.length, 0) / vals.length;
-    if(avg > bestLen){ bestLen = avg; textCol = c; }
+    const max = vals.reduce((a, v) => Math.max(a, v.length), 0);
+    let score = Math.max(avg, max / 5);
+    if(TEXT_NAMED.test(c)) score *= 1.5;
+    if(score > bestLen){ bestLen = score; textCol = c; }
   });
-  if(bestLen < 12) textCol = null;      // 다들 짧으면 설명 열이 없는 것으로 봅니다
+  if(bestLen < 12) textCol = null;      // 다들 짧으면 설명 칸이 없는 것으로 봅니다
 
   // 사람이 읽을 분류가 아닌 열은 뺍니다.
   //  · 시트를 만든 프로그램이 붙인 열 (hasFiles, fileCount, id, timestamp …)
@@ -20599,38 +20630,61 @@ function analyzeInquiries(rows){
   const isDateish = c => /날짜|일자|일시|시각|시간|date|time/i.test(c)
     || (rows.length && dateHits[c] >= rows.length * 0.3);
 
+  /* 이름은 또렷한데 분류로 못 세운 칸 — 왜 그런지 화면에 적어 줍니다.
+     조용히 빠지면 「왜 부서가 안 나오냐」 를 아무도 알 수 없습니다. */
+  const catSkip = [];
   cols.forEach(c => {
-    if(skip.includes(c) || c === dateCol || c === textCol || isPrivate(c)) return;
-    if(isDateish(c)) return;
-    if(!hasHangul(c)) return;                                   // 영문 열 이름은 프로그램용으로 봅니다
+    const nm = isNamed(c);
+    const drop = why => { if(nm) catSkip.push({ col:c, why:why }); };
+    if(skip.includes(c)) return;
+    if(c === dateCol){ drop('날짜 칸으로 쓰고 있습니다'); return; }
+    if(c === textCol){ drop('문의 내용 칸으로 쓰고 있습니다'); return; }
+    if(isPrivate(c)){ drop('이름·연락처처럼 사람마다 다른 값으로 봤습니다'); return; }
+    if(isDateish(c)){ drop('날짜처럼 생긴 값이 많습니다'); return; }
+    if(!hasHangul(c) && !nm) return;                            // 영문 칸 이름은 프로그램용으로 봅니다
     const vals = rows.map(r => String(r[c] || '').trim()).filter(Boolean);
-    if(vals.length < rows.length * 0.2) return;                 // 대부분 비어 있으면 제외
-    if(isBoolish(vals) || isNumeric(vals)) return;              // 예/아니오·숫자만 있는 열 제외
     const uniq = new Set(vals);
-    const avgLen = vals.reduce((a, v) => a + v.length, 0) / vals.length;
-    /* ── 이름만 봐도 분류인 열은 <<너그럽게>> 봅니다 ──────────────────
-       부서처럼 종류가 스물을 넘는 열이 있습니다. 일반 잣대로는 빠지는데,
-       정작 사람이 가장 보고 싶어 하는 칸입니다. 그래서 이름이 또렷한
-       열은 종류를 쉰까지 봐 주고, 뒤에서 자를 때도 먼저 챙깁니다. */
-    const lim = CAT_NAMED.test(c) ? 50 : 20;
-    if(uniq.size >= 2 && uniq.size <= lim && uniq.size < vals.length * 0.9 && avgLen <= 20){
-      cats.push({ col:c, uniq:uniq.size, named: CAT_NAMED.test(c) });
+    const avgLen = vals.length
+      ? vals.reduce((a, v) => a + v.length, 0) / vals.length : 0;
+    /* ── 이름만 봐도 분류인 칸은 <<거의 그대로>> 받습니다 ─────────────
+       부서처럼 종류가 스물을 넘거나, 적어 넣은 줄이 몇 건뿐인 칸이
+       있습니다. 예전 잣대(종류 20가지 이하·다섯 줄에 한 줄은 채워져
+       있어야 함)로는 조용히 빠졌는데, 정작 사람이 가장 보고 싶어 하는
+       칸입니다. 그래서 종류 수와 채워진 비율로는 빼지 않고, 종류가
+       많으면 위 열두 가지만 그려 줍니다. */
+    if(nm){
+      if(!vals.length){ drop('적혀 있는 줄이 하나도 없습니다'); return; }
+      if(uniq.size < 2){
+        drop('값이 「' + Array.from(uniq)[0] + '」 한 가지뿐입니다'); return;
+      }
+      cats.push({ col:c, uniq:uniq.size, named:true });
+      return;
+    }
+    if(!vals.length) return;
+    if(vals.length < rows.length * 0.2) return;                 // 대부분 비어 있으면 제외
+    if(isBoolish(vals) || isNumeric(vals)) return;              // 예/아니오·숫자만 있는 칸 제외
+    if(uniq.size >= 2 && uniq.size <= 20 && uniq.size < vals.length * 0.9 && avgLen <= 20){
+      cats.push({ col:c, uniq:uniq.size, named:false });
     }
   });
-  /* 이름이 또렷한 열을 앞세우고, 그 안에서 종류가 적은 것부터 */
+  /* 이름이 또렷한 칸을 앞세우고, 그 안에서 종류가 적은 것부터 */
   cats.sort((a, b) => (b.named - a.named) || (a.uniq - b.uniq));
 
-  return { cols, dateCol, cats: cats.map(x => x.col).slice(0, 8), textCol };
+  return { cols, dateCol, textCol, catSkip,
+           cats: cats.map(x => x.col).slice(0, 8),
+           catKinds: cats.reduce((m, x) => { m[x.col] = x.uniq; return m; }, {}) };
 }
 
 /* ── 📨 문의 하나를 통째로 보기 ────────────────────────────────────
    최근 문의 줄은 90글자에서 잘려 있었고, 더 볼 길이 없었습니다.
    정작 읽어야 할 것이 문의 내용인데 말입니다. 줄을 누르면 그 줄에
    적힌 <<모든 칸을 그대로>> 보여 줍니다 — 자르지 않습니다. */
-let inqShown = [];        // 지금 화면에 세운 줄 (누른 자리를 찾으려고)
+let inqShown = [];        // 지금 화면에 걸러 놓은 줄 전부
 let inqSum   = null;      // 어느 칸이 날짜·분류·내용인지
-function inqOpen(i){
-  const r = inqShown[i];
+/* 줄을 _key 로 찾습니다. 최근 문의 목록과 📋 전체 목록이 차례가 서로
+   달라서, 자리 번호로 찾으면 엉뚱한 줄이 열립니다. */
+function inqOpen(key){
+  const r = (inqShown || []).find(x => String(x._key) === String(key));
   if(!r){ toast('그 문의를 못 찾았습니다'); return; }
   const el = document.getElementById('inqBody');
   if(!el) return;
@@ -20692,6 +20746,18 @@ function fmtYMD(v){
 function ym(v){
   const d = parseYMD(v);
   return d ? d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') : '';
+}
+
+/* 종류가 많은 칸(부서처럼)은 위 몇 가지만 그리고 나머지는 한 줄로 묶습니다.
+   「미입력」 은 분류가 아니라서 묶지 않고 늘 맨 끝에 그대로 둡니다. */
+function capCounts(items, n){
+  const none = items.filter(x => x.label === '미입력');
+  const real = items.filter(x => x.label !== '미입력');
+  if(real.length <= n + 1) return real.concat(none);
+  const head = real.slice(0, n), rest = real.slice(n);
+  head.push({ label:'그 외 ' + rest.length + '가지',
+              count: rest.reduce((a, x) => a + x.count, 0) });
+  return head.concat(none);
 }
 
 function countBy(rows, col){
@@ -21410,20 +21476,27 @@ function viewInquiries(b){
     + '<div class="sub">' + x.sub + '</div></div>').join('');
 
   // 분류별 집계 (상태·공종·유입 등을 자동으로 골라냅니다)
-  const breakdown = sum.cats.length
-    ? '<div class="hsec">📊 분류별</div><div class="mgrid">'
-      + sum.cats.map(c => '<div class="mbox"><div class="mh">' + esc(c) + '</div>'
-          + bars(countBy(shown, c), 'count') + '</div>').join('')
-      + '</div>'
-    : '';
+  const kinds = sum.catKinds || {};
+  const breakdown = (sum.cats.length ? '<div class="hsec">📊 분류별</div><div class="mgrid lab">'
+      + sum.cats.map(c => '<div class="mbox"><div class="mh">' + esc(c)
+          + (kinds[c] > 12 ? '<span class="mh-n">' + kinds[c] + '가지</span>' : '') + '</div>'
+          + bars(capCounts(countBy(shown, c), 12), 'count') + '</div>').join('')
+      + '</div>' : '')
+    /* 이름은 분류 같은데 못 세운 칸이 있으면, 조용히 넘기지 않고 이유를 적습니다 */
+    + ((sum.catSkip || []).length
+        ? '<div class="fmeta" style="margin-top:9px;line-height:1.75">'
+          + sum.catSkip.map(x => '「' + esc(x.col) + '」 칸은 분류로 못 세웠습니다 — '
+              + esc(x.why)).join('<br>')
+          + '</div>'
+        : '');
 
   // 최근 문의 목록
   const recent = sum.dateCol
     ? shown.slice().sort((x, y) => dateNum(y[sum.dateCol]) - dateNum(x[sum.dateCol])).slice(0, 8)
     : shown.slice(0, 8);
-  inqShown = recent;            /* 누른 줄을 찾으려고 담아 둡니다 */
+  inqShown = shown;             /* 누른 줄을 찾으려고 담아 둡니다 (걸러 놓은 것 전부) */
   const recentList = '<div class="hsec">🕘 최근 문의</div><div class="mbox">'
-    + (recent.length ? recent.map((r, myI) => {
+    + (recent.length ? recent.map(r => {
         // 설명 열이 없으면 분류가 아닌 값들을 이어 붙여 보여줍니다
         let text = sum.textCol ? String(r[sum.textCol] || '').trim() : '';
         if(!text){
@@ -21439,7 +21512,7 @@ function viewInquiries(b){
         const memo = String(r['메모'] || '').trim();
         const who  = String(r['담당자'] || '').trim();
         const stCls = st === '완료' ? ' on' : (st === '진행중' ? ' test' : (st ? '' : ''));
-        return '<div class="krow iq-row" onclick="inqOpen(' + myI + ')"'
+        return '<div class="krow iq-row" onclick="inqOpen(\'' + jsq(r._key) + '\')"'
           + ' title="눌러서 통째로 보기"'
           + ' style="flex-direction:column;align-items:stretch;gap:4px">'
           + '<div style="white-space:normal;color:var(--text-primary)">'
@@ -21466,25 +21539,41 @@ function viewInquiries(b){
 
   // 전체 표 (접어둠)
   const cols = inquiryCache.columns.filter(c => !['브랜드','brand','Brand','브랜드명'].includes(c));
-  // 우리끼리 쓰는 칸(처리상태·담당자·메모) 을 앞에, 시트 칸을 뒤에 둡니다
   const own  = inquiryCache.ownCols || [];
   const sheetCols = cols.filter(c => own.indexOf(c) < 0 && c[0] !== '_');
-  const tcols = own.concat(sheetCols);
+  /* ── 칸 차례 — 보고 싶은 것부터 왼쪽에 ──────────────────────────
+     예전에는 「우리 칸 + 시트에 적힌 순서」 였습니다. 그러면 날짜와
+     부서가 저 오른쪽으로 밀려서, 가로로 한참 끌어야 보였습니다.
+     이제 날짜 → 분류(부서·직함 …) → 문의 내용 → 나머지 로 세웁니다.
+     창에서 보여 주는 차례와도 같아서 눈이 덜 헷갈립니다. */
+  const front = [];
+  if(sum.dateCol && sheetCols.includes(sum.dateCol)) front.push(sum.dateCol);
+  sum.cats.forEach(c => { if(sheetCols.includes(c) && !front.includes(c)) front.push(c); });
+  if(sum.textCol && sheetCols.includes(sum.textCol) && !front.includes(sum.textCol))
+    front.push(sum.textCol);
+  const tcols = own.concat(front, sheetCols.filter(c => !front.includes(c)));
 
+  const trows = shown.slice(0, 500);
   const table = inquiryShowTable
     ? '<div class="fmeta" style="margin:10px 0 6px">'
-      + '칸을 눌러 바로 고칠 수 있습니다. '
+      + '맨 왼쪽 <b>📄</b> 을 누르면 그 문의를 통째로 볼 수 있습니다 (안 잘립니다). '
+      + '칸을 눌러 바로 고칠 수도 있습니다. '
       + '<b>' + esc(own.join(' · ') || '(없음)') + '</b> 은 우리끼리 쓰는 칸이고, '
       + '나머지는 구글시트에서 온 값입니다 — 고치면 ✎ 표시가 붙고, '
       + '비우면 시트 값으로 되돌아갑니다.'
       + ' <button class="btn sm" onclick="editCols()">칸 고르기</button></div>'
-    + '<div class="table-wrap"><table class="itable editable">'
-      + '<tr>' + tcols.map(c => '<th' + (own.indexOf(c) >= 0 ? ' class="ownc"' : '') + '>'
-          + esc(c) + '</th>').join('') + '</tr>'
-      + shown.slice(0, 500).map(r => '<tr>'
+    + '<div class="table-wrap"><table class="itable editable roomy">'
+      + '<thead><tr><th class="iq-nh">#</th>'
+        + tcols.map(c => '<th' + (own.indexOf(c) >= 0 ? ' class="ownc"' : '') + '>'
+          + esc(c) + '</th>').join('') + '</tr></thead>'
+      + '<tbody>'
+      + trows.map((r, i) => '<tr>'
+          + '<td class="iq-n"><button class="iq-see" title="통째로 보기"'
+            + ' onclick="inqOpen(\'' + jsq(r._key) + '\')">📄</button>'
+            + '<span class="iq-no">' + (i + 1) + '</span></td>'
           + tcols.map(c => cellHtml(r, c, own.indexOf(c) >= 0)).join('')
           + '</tr>').join('')
-      + '</table></div>'
+      + '</tbody></table></div>'
       + (shown.length > 500
           ? '<div class="fmeta" style="margin-top:8px">화면에는 500건까지만 표시합니다 '
             + '(찾기로 좁히면 그 안에서 고칠 수 있습니다)</div>' : '')

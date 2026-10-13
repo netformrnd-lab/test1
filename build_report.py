@@ -509,6 +509,12 @@ lanyard_cards = [
          url="https://smartstore.naver.com/bluemoon_livestudio/products/7176417330",
          url_text="스마트스토어 링크", pending=True,
          decided="목걸이 선정 (이 제품으로)"),
+    card("②", "온판장 — 행사용 고급 목걸이 명찰 (인쇄 제작)",
+         [("용도", "행사·전시·세미나용 목걸이 명찰 (디자인+인쇄 올인원)"),
+          ("구성", "고급 목걸이 명찰 + 목걸이 스트랩 (디자인 인쇄 포함)"),
+          ("단가", "<strong>2,500원</strong> (소비자가 5,700원 · 56% 할인) · 국내배송 무료"),
+          ("옵션", "50개 묶음 125,000원 · 신규 디자인 제작 +17,500원")],
+         [{"path": "명찰_온판장.png", "label": "제품 이미지 (샘플 디자인)"}]),
 ]
 
 # ----- 온습도계 -----
@@ -549,7 +555,7 @@ SECTIONS = [
     ("design", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards, None),
     ("design", "제안서", "클릭 시 원본 PDF", proposal_cards, "페이퍼용/PT용 이원화"),
     ("design", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards, None),
-    ("product", "사원증 목걸이", "넥스트랩 · 선정 완료", lanyard_cards, "목걸이 선정 (블루문 라이브스튜디오)"),
+    ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 목걸이 명찰 2종", lanyard_cards, "목걸이 선정 (블루문 라이브스튜디오)"),
 ]
 
 
@@ -790,11 +796,11 @@ SHORT_SUB = ("볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 
 # 1) 전체본 (16개 카테고리)
 build(OUT, SECTIONS, ["hardcover", "leaflet", "proposal"], FULL_SUB,
       [("16", "검토 카테고리"), (str(item_count(SECTIONS)), "검토 항목"),
-       ("44", "확보 이미지"), ("26", "목업 시안")])
+       ("45", "확보 이미지"), ("26", "목업 시안")])
 
 # 2) 축약본 — 디자인 제작물(리플릿·하드커버·제안서·사원증) 제외
 short_specs = [s for s in SECTIONS if s[0] != "design"]
 build(OUT_SHORT, short_specs, [], SHORT_SUB,
       [(str(len(short_specs)), "검토 카테고리"),
        (str(item_count(short_specs)), "검토 항목"),
-       ("36", "확보 이미지"), ("20", "목업 시안")])
+       ("37", "확보 이미지"), ("20", "목업 시안")])

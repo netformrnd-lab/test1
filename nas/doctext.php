@@ -1021,6 +1021,16 @@ function xl_grid($file, $maxRows, $deadline, $want = '') {
     return $grid;
 }
 /* csv · tsv 도 같은 모양으로 */
+/* 적어 둔 것이 너무 쌓이지 않게 — 오래된 것부터 치웁니다 */
+function sheet_cache_sweep($dir) {
+    $fs = @glob($dir . '/*.json');
+    if (!is_array($fs) || count($fs) < 40) return;
+    $ts = [];
+    foreach ($fs as $f) $ts[$f] = (int)@filemtime($f);
+    asort($ts);
+    $drop = count($fs) - 20;
+    foreach ($ts as $f => $t) { if ($drop-- <= 0) break; @unlink($f); }
+}
 function xl_grid_csv($file, $maxRows) {
     $raw = (string)@file_get_contents($file, false, null, 0, 4 * 1024 * 1024);
     if ($raw === '') return [];
@@ -1069,6 +1079,23 @@ if ($action === 'sheet') {
     }
     $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
     $MAXR = 2000;
+    /* ── 한 번 읽은 표는 적어 둡니다 ──────────────────────────────────
+       엑셀 하나 띄우는 데 압축을 풀고 칸을 세느라 몇 초씩 걸립니다.
+       파일이 그대로면 셈도 그대로이므로, 「파일이 바뀐 때」 (고친 시각
+       + 크기) 를 열쇠로 삼아 적어 두었다가 그대로 돌려줍니다.
+       파일을 고치면 열쇠가 달라져서 저절로 다시 읽습니다. */
+    $ckey = sha1($file . '|' . (string)@filemtime($file) . '|' . (string)@filesize($file)
+                 . '|' . (string)($_GET['tab'] ?? '') . '|' . $MAXR);
+    $cdir = $DATA . '/sheetcache';
+    $cfile = $cdir . '/' . $ckey . '.json';
+    if (is_file($cfile)) {
+        $hit = @file_get_contents($cfile);
+        if ($hit !== false && $hit !== '') {
+            header('Content-Type: application/json; charset=utf-8');
+            echo $hit;
+            exit;
+        }
+    }
     if ($ext === 'csv' || $ext === 'tsv' || $ext === 'txt') {
         $grid = xl_grid_csv($file, $MAXR);
     } elseif ($ext === 'xlsx' || $ext === 'xlsm') {
@@ -1089,10 +1116,21 @@ if ($action === 'sheet') {
     }
     $w = 0;
     foreach ($grid as $r) $w = max($w, count($r));
-    jout(['ok' => true, '표' => $grid, '줄수' => count($grid), '칸수' => $w,
-          '파일' => basename($file), '잘림' => count($grid) >= $MAXR,
-          '탭목록' => (array)($GLOBALS['XL_TABS'] ?? []),
-          '읽은탭' => (string)($GLOBALS['XL_PICK'] ?? '')]);
+    $out = ['ok' => true, '표' => $grid, '줄수' => count($grid), '칸수' => $w,
+            '파일' => basename($file), '잘림' => count($grid) >= $MAXR,
+            '탭목록' => (array)($GLOBALS['XL_TABS'] ?? []),
+            '읽은탭' => (string)($GLOBALS['XL_PICK'] ?? '')];
+    /* 적어 둡니다 — 다음부터는 압축을 안 풀고 그대로 돌려줍니다 */
+    $js = json_encode($out, JSON_UNESCAPED_UNICODE);
+    if ($js !== false) {
+        if (!is_dir($cdir)) @mkdir($cdir, 0775, true);
+        if (is_dir($cdir)) {
+            sheet_cache_sweep($cdir);
+            $tmp = $cfile . '.' . getmypid() . '.tmp';
+            if (@file_put_contents($tmp, $js) !== false) @rename($tmp, $cfile);
+        }
+    }
+    jout($out);
 }
 
 /* ---------------- 목록 상태 ---------------- */

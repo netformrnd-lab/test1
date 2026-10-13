@@ -408,6 +408,16 @@ uniform_cards = [
          [{"path": "유니폼2_A42.png", "label": "목업 — 아파트스퀘어 로고 (앞/뒤)", "mock": True}],
          url="https://dyuniform.com/product/%EC%95%84%ED%8A%B8%EC%9C%88-a-42-%ED%94%84%EB%9D%BC%EB%8B%A4%EC%A0%90%ED%8D%BC%EC%B6%94%EB%8F%99%EB%82%B4%ED%94%BC%EC%B0%B0%EB%B6%80%EC%B0%A9/5230/category/54/display/1/",
          url_text="제품 페이지"),
+    card("③", "CT-703 인퀼팅 하프코트 (겨울 패딩 · 블랙)",
+         [("품번", "CT-703 인퀼팅 하프코트"),
+          ("종류", "겨울 패딩 하프코트 · 탈착식 후드"),
+          ("색상", "블랙"),
+          ("디테일", "CORDURA 포켓 라벨 · 세로형 가슴 로고 + 등판 로고·슬로건"),
+          ("소재 / 사이즈 / 판매가", "확인 예정")],
+         [{"path": "겨울패딩_앞.png", "label": "목업 — 앞면(가슴 로고) · 클릭 시 크게 보기", "mock": True, "hifi": True},
+          {"path": "겨울패딩_뒤.png", "label": "목업 — 뒷면(로고·슬로건)", "mock": True}],
+         url="https://dyuniform.com/product/ct-703-%EC%9D%B8%ED%80%BC%ED%8C%85-%ED%95%98%ED%94%84-%EC%BD%94%ED%8A%B8/6107/category/179/display/1/",
+         url_text="제품 페이지", pending=True),
 ]
 
 # ----- 여름 유니폼 -----
@@ -531,7 +541,7 @@ SECTIONS = [
     ("product", "열화상 카메라", "2종 비교", thermal_cards, "저가형 1개 구매"),
     ("product", "온습도계", "2종 비교", ondo_cards, "저가형 전 직원 지급"),
     ("product", "쌍안경", "3종 비교", bino_cards, "고·저배율 각 1개 구매 확정 (테스트용)"),
-    ("product", "겨울 유니폼", "2종 검토", uniform_cards, "로고 기존 여름·춘추 디자인 유지"),
+    ("product", "겨울 유니폼", "3종 검토", uniform_cards, "로고 기존 여름·춘추 디자인 유지"),
     ("product", "여름 유니폼", "2종 — 춘하/여름", summer_cards, "로고 기존 여름·춘추 디자인 유지"),
     ("design", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards, None),
     ("design", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards, None),
@@ -778,11 +788,11 @@ SHORT_SUB = ("볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 
 # 1) 전체본 (16개 카테고리)
 build(OUT, SECTIONS, ["hardcover", "leaflet", "proposal"], FULL_SUB,
       [("16", "검토 카테고리"), (str(item_count(SECTIONS)), "검토 항목"),
-       ("42", "확보 이미지"), ("24", "목업 시안")])
+       ("44", "확보 이미지"), ("26", "목업 시안")])
 
 # 2) 축약본 — 디자인 제작물(리플릿·하드커버·제안서·사원증) 제외
 short_specs = [s for s in SECTIONS if s[0] != "design"]
 build(OUT_SHORT, short_specs, [], SHORT_SUB,
       [(str(len(short_specs)), "검토 카테고리"),
        (str(item_count(short_specs)), "검토 항목"),
-       ("34", "확보 이미지"), ("18", "목업 시안")])
+       ("36", "확보 이미지"), ("20", "목업 시안")])

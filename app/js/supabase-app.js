@@ -696,8 +696,8 @@ window.openNoticeList = openNoticeList
 const SURVEY_ITEMS = [
   { key: 'r_comm', label: '감리 소통', desc: '연락·설명이 잘 됐나요?' },
   { key: 'r_site', label: '현장 관리·안전', desc: '현장이 안전하게 관리됐나요?' },
-  { key: 'r_defect', label: '하자 대응', desc: '하자를 잘 잡아냈나요?' },
-  { key: 'r_quality', label: '시공 품질', desc: '마감·품질이 만족스러웠나요?' }
+  { key: 'r_defect', label: '지적·시정', desc: '문제를 제때 짚고 시정 요청이 됐나요?' },
+  { key: 'r_quality', label: '마감 상태', desc: '완료 마감이 만족스러웠나요?' }
 ]
 let SURVEY = null // { apt, overall, r_comm.., best, again, comment } — best/again은 자유 입력
 // 공사 완료 여부: 관리자가 단지 상태를 '완료(done)'로 명시했을 때만.
@@ -768,7 +768,7 @@ function renderSurveyDone(justSubmitted) {
   const body = document.getElementById('survey-body'); if (!body) return
   const title = justSubmitted ? '소중한 평가, 감사합니다' : '이미 참여해 주셨어요'
   const msg = justSubmitted
-    ? '남겨주신 한마디 한마디를 감리원과 함께 깊이 새기겠습니다.<br><br>아파트스퀘어는 눈에 보이지 않는 곳까지 <b style="color:#F5A623">끝까지 곁에서 꼼꼼하게</b> 확인하는, 믿을 수 있는 감리로 늘 함께하겠습니다.'
+    ? '남겨주신 한마디 한마디를 감리원과 함께 깊이 새기겠습니다.<br><br>아파트스퀘어는 완료된 부위를 <b style="color:#F5A623">사진과 기록으로 남기고, 시공자 자료를 받아 확인</b>하는, 믿을 수 있는 감리로 함께하겠습니다.'
     : '이미 소중한 의견을 남겨주셨어요.<br><br>보내주신 신뢰에 보답하는 마음으로, 아파트스퀘어는 <b style="color:#F5A623">한 단계 한 단계</b> 정직하게 확인하며 함께하겠습니다.'
   body.innerHTML = '<div style="text-align:center;padding:44px 24px">'
     + '<div style="font-size:52px;margin-bottom:14px">' + (justSubmitted ? '🎉' : '🙏') + '</div>'
@@ -788,7 +788,7 @@ function renderSurveyForm() {
   let items = SURVEY_ITEMS.map(it => `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f4f6fa"><div style="min-width:0"><div style="font-size:12.5px;font-weight:800;color:#26314d">${it.label}</div><div style="font-size:10px;color:#9aa3b6;font-weight:600;margin-top:1px">${it.desc}</div></div>${starRow(it.key, SURVEY[it.key])}</div>`).join('')
   html += card(sec('항목별 평가') + items)
   const taStyle = 'width:100%;box-sizing:border-box;resize:none;border:1px solid #e1e7f0;border-radius:11px;padding:11px 12px;font-size:13px;font-family:inherit;outline:none;line-height:1.5;background:#f7f9fc'
-  html += card(sec('가장 만족스러웠던 점은? <span style="font-weight:600;color:#9aa3b6;font-size:11px">(자유롭게)</span>') + `<textarea id="sv-best" rows="2" placeholder="예: 하자를 꼼꼼히 잡아준 점이 가장 좋았어요" style="${taStyle}">${escH(SURVEY.best)}</textarea>`)
+  html += card(sec('가장 만족스러웠던 점은? <span style="font-weight:600;color:#9aa3b6;font-size:11px">(자유롭게)</span>') + `<textarea id="sv-best" rows="2" placeholder="예: 진행 상황을 사진·기록으로 투명하게 남겨준 점이 좋았어요" style="${taStyle}">${escH(SURVEY.best)}</textarea>`)
   html += card(sec('다음에 또 맡긴다면 하고 싶은 공정은? <span style="font-weight:600;color:#9aa3b6;font-size:11px">(자유롭게)</span>') + `<textarea id="sv-again" rows="2" placeholder="예: 옥상 방수, 외벽 도색도 맡기고 싶어요" style="${taStyle}">${escH(SURVEY.again)}</textarea>`)
   html += card(sec('한 줄 의견 <span style="font-weight:600;color:#9aa3b6;font-size:11px">(선택)</span>') + `<textarea id="sv-comment" rows="3" placeholder="자유롭게 남겨주세요" style="${taStyle}">${escH(SURVEY.comment)}</textarea>`)
   html += `<div id="sv-msg" style="text-align:center;font-size:11.5px;font-weight:700;color:#e4544b;min-height:15px;margin-bottom:6px"></div>`
@@ -2519,7 +2519,7 @@ const ALIM = {
     h += '<div style="padding:6px 0 34px">'
     h += block('건축사가 만든 서비스', '감리는 늘 신축 현장에 집중돼 있었습니다.<br>정작 아파트 유지보수 공사에는,<br><b>끝까지 확인하고 기록해 줄 전문가</b>가<br>필요했습니다.')
     h += block('어렵던 공사를, 쉽고 투명하게', '관리소장도 입주민도<br>모든 과정을 직접 보긴 어렵습니다.<br>그래서 현장을 <b>사진과 기록</b>으로 남기고,<br>누구나 쉽게 이해하도록 <b>투명하게 공유</b>합니다.')
-    h += block('만족하는 감리', '우리가 만들고 싶은 건<br>하자 없는 공사만이 아닙니다.<br><b>안심하고 결정할 기준,<br>신뢰할 수 있는 과정,<br>시간이 지나도 남는 기록</b>입니다.')
+    h += block('만족하는 감리', '우리가 만들고 싶은 건<br>결과만이 아닙니다.<br><b>믿고 결정할 기준,<br>신뢰할 수 있는 과정,<br>시간이 지나도 남는 기록</b>입니다.')
     h += block('확인이 당연한 문화로', '공사의 품질은<br>좋은 자재·기술만으로 결정되지 않습니다.<br><b>진단하고, 기준대로 확인하고, 기록하는 것</b><br>— 보이지 않던 과정을 보이게 만듭니다.')
     h += block('감리의 기준', '마지막에 잘됐는지만 보는 감리가 아니라,<br><b>진단부터 준공·사후까지 잇는<br>유지보수 전문 파트너.</b><br>‘스퀘어’는 <b>기준과 균형</b>을 뜻합니다.')
     // ── 인증·이력(공신력) : 관리자가 올린 인증서 이미지 (없으면 섹션 자체가 숨겨짐) ──
@@ -2533,13 +2533,13 @@ const ALIM = {
   // 소개 = 아파트스퀘어가 어떤 회사인지 + (기존 철학 내용 녹여서)
   philosophy() {
     const wb = 'word-break:keep-all;'
-    let h = navyHero('APARTSQUARE · 아파트 보수공사 감리', '아파트 보수공사,<br>쉽게 · 공정하게 · 안심되게')
+    let h = navyHero('APARTSQUARE · 아파트 보수공사 감리', '아파트 보수공사,<br>쉽게 · 공정하게 · 투명하게')
     h += '<div style="padding:16px 14px 26px">'
     // 무엇을 하는 회사인가
     h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.9;' + wb + '">아파트스퀘어는 <b>비전문가도</b> 아파트 보수공사의 <b style="color:#2F6BF6">진단 · 설계 · 입찰 · 시공 · 준공</b>을 쉽게 이해하고 공정하게 관리할 수 있도록 돕는 <b>보수공사 감리 토탈 솔루션</b>입니다.</div>', '16px 15px')
     h += '<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:15px;padding:16px 15px;margin-top:12px">'
       + '<div style="font-size:13px;font-weight:800;color:#2F6BF6;margin-bottom:6px">🛡️ 감리가 뭔가요?</div>'
-      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8;' + wb + '">공사가 <b>약속대로 되는지 확인</b>하는 일이에요. <b>전문 감리원</b>가 자재·공정·품질을 단계마다 검측하고, 사진과 기록으로 남겨 직접 확인하실 수 있어요.</div></div>'
+      + '<div style="font-size:12px;color:#3a445e;font-weight:600;line-height:1.8;' + wb + '">공사가 <b>약속대로 되는지 확인</b>하는 일이에요. <b>전문 감리원</b>이 자재(시공자 자료)·공정률을 확인하고, 완료 부위의 적합 여부를 판정해 사진과 기록으로 남겨요. 언제든 직접 확인하실 수 있어요.</div></div>'
     // 이런 고민 (기존 철학에서 녹임)
     h += '<div style="font-size:13px;font-weight:800;color:#1c2440;margin:24px 2px 12px">이런 고민, 있으셨죠?</div>'
     h += '<div style="display:flex;flex-direction:column;gap:9px">'
@@ -2557,11 +2557,11 @@ const ALIM = {
     // 그래서 대신 확인
     h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:16px 0 6px">↓</div>'
     h += '<div style="font-size:16px;font-weight:800;color:#1c2440;margin:0 2px 10px;' + wb + '">그래서, 아파트스퀘어가<br><span style="color:#2F6BF6">함께 확인합니다</span></div>'
-    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '"><b>전문감리기관의 감리원</b>가 진단부터 준공까지 <b>자재·공정·품질을 직접 검측</b>하고, 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다. 언제든 직접 확인하실 수 있어요.</div>', '15px 15px')
-    h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit2.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 60%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 52%,rgba(10,16,34,.8))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">감리원이 현장에서 직접 확인합니다</div></div>'
+    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '"><b>전문감리기관의 감리원</b>이 진단부터 준공까지 <b>자재(시공자 자료)·공정률을 확인하고, 완료 부위의 적합 여부를 판정</b>해, 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다. 언제든 직접 확인하실 수 있어요.</div>', '15px 15px')
+    h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit2.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 60%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 52%,rgba(10,16,34,.8))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">감리원이 완료 부위를 확인·판정합니다</div></div>'
     // 3단계 흐름
     h += '<div style="display:flex;gap:7px;margin-top:13px">'
-    h += [['🔍', '정밀 진단', '드론·AI로 상태 파악'], ['🛡️', '공정별 검측', '단계마다 직접 확인'], ['📄', '기록·보고', '사진과 문서로 남김']]
+    h += [['🔍', '정밀 진단', '드론·AI로 상태 파악'], ['🛡️', '완료 검측·판정', '완료 부위 적합 여부'], ['📄', '기록·보고', '사진과 문서로 남김']]
       .map(c => '<div style="flex:1;background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:12px 6px;text-align:center"><div style="font-size:22px">' + c[0] + '</div><div style="font-size:11.5px;font-weight:800;color:#1c2440;margin-top:5px">' + c[1] + '</div><div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:3px;line-height:1.4;' + wb + '">' + c[2] + '</div></div>').join('')
     h += '</div>'
     // 우리가 지키는 가치 (4)
@@ -2569,14 +2569,14 @@ const ALIM = {
     h += '<div style="display:flex;flex-direction:column;gap:8px">'
     h += [['🔍', '투명성', '모든 공정을 사진·기록으로'],
       ['⚖️', '공정성', '정해진 기준과 기록에 따른 검증'],
-      ['🛡️', '전문성', '22년차 건축사가 직접 검측'],
+      ['🛡️', '전문성', '22년차 건축사가 기준대로 확인·판정'],
       ['💡', '쉬움', '어려운 판단을 쉬운 말로']]
       .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:12px 14px"><div style="width:38px;height:38px;border-radius:11px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + c[0] + '</div><div style="flex:1;min-width:0"><span style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</span><span style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-left:8px;' + wb + '">' + c[2] + '</span></div></div>').join('')
     h += '</div>'
     // 경쟁력 선언
-    h += '<div style="background:#1c2440;color:#fff;border-radius:15px;padding:20px 18px;margin-top:22px;text-align:center"><div style="font-size:12.5px;font-weight:600;color:#c3cee6;line-height:1.7">아파트스퀘어의 경쟁력은</div><div style="font-size:14.5px;font-weight:800;line-height:1.6;margin-top:8px;' + wb + '">전문적인 판단을 고객이<br><span style="color:#7FA1E0">쉽게 이해하고, 공정하게 결정하고,<br>안심하고 맡길 수 있게</span> 만든<br>표준 감리 운영체계</div></div>'
+    h += '<div style="background:#1c2440;color:#fff;border-radius:15px;padding:20px 18px;margin-top:22px;text-align:center"><div style="font-size:12.5px;font-weight:600;color:#c3cee6;line-height:1.7">아파트스퀘어의 경쟁력은</div><div style="font-size:14.5px;font-weight:800;line-height:1.6;margin-top:8px;' + wb + '">전문적인 판단을 고객이<br><span style="color:#7FA1E0">쉽게 이해하고, 공정하게 결정하고,<br>확인하며 맡길 수 있게</span> 만든<br>표준 감리 운영체계</div></div>'
     // 마무리 사진
-    h += '<div style="margin-top:16px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:190px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">우리 단지가 안심할 때까지 함께합니다</div></div></div>'
+    h += '<div style="margin-top:16px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:190px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">진단부터 준공까지 기록으로 함께합니다</div></div></div>'
     h += '</div>'
     return h
   },
@@ -2590,7 +2590,7 @@ const ALIM = {
     h += '<div style="padding:14px 14px 8px;display:flex;flex-direction:column;gap:12px">'
     h += pkg('🔍', '#eef4ff', '공사 전 진단 패키지', 'STEP 1 · 무엇을 할지 정해요', ['드론 AI 하자진단으로 정밀 촬영·분석', '현장 상태 진단', '할 공사 · 미뤄도 되는 공사 구분', '공법별 장단점 비교', '예상 공사비 범위 안내', '입주자대표회의 설명자료'])
     h += pkg('📐', '#eafaf2', '설계 · 입찰 패키지', 'STEP 2 · 공정하게 업체를 정해요', ['공사 범위 확정 · 설계도서 · 시방서', '물량 산출 · 입찰조건 작성', '업체 평가기준 수립', '현장설명회 · 기술평가 지원'])
-    h += pkg('🛡️', '#fff4e6', '토털 감리 패키지', 'STEP 3 · 끝까지 확인해요', ['사전진단 · 설계 · 입찰 지원', '시공 감리 · 공정별 검측', '준공 검사 · 하자 관리'])
+    h += pkg('🛡️', '#fff4e6', '토털 감리 패키지', 'STEP 3 · 준공까지 확인·기록', ['사전진단 · 설계 · 입찰 지원', '시공 감리 · 완료 부위 적합 판정', '준공 검사 · 기록 보관·사후관리'])
     h += '</div>'
     // 대상 공종
     h += '<div style="padding:14px 16px 6px"><div style="font-size:12px;font-weight:800;color:#1c2440;margin-bottom:9px">이런 공사를 감리해요</div><div style="display:flex;flex-wrap:wrap;gap:7px">'

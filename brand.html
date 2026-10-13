@@ -4840,6 +4840,18 @@ table.xl mark{background:color-mix(in srgb,var(--orange,#e08b1a) 35%,transparent
 .jr-carry{margin-top:6px;margin-left:26px;padding:7px 11px;border-radius:8px;
   border-left:2px solid var(--orange,#e08b1a);background:var(--bg-sunken);
   font-size:12px;line-height:1.6;color:var(--text-secondary)}
+/* 🔑 금고 단추 줄 */
+.ac-vb{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin:0 0 14px;
+  padding:13px 15px;border-radius:11px;border:1px solid var(--border);
+  background:var(--bg-secondary)}
+.ac-vb.off{border-color:var(--orange,#e08b1a);
+  background:color-mix(in srgb,var(--orange,#e08b1a) 9%,transparent)}
+.ac-vb .ac-vi{font-size:19px}
+.ac-vb .ac-vt{min-width:0;margin-right:auto}
+.ac-vb .ac-vt b{display:block;font-size:13.5px;font-weight:700;letter-spacing:-.015em}
+.ac-vb .ac-vt em{display:block;margin-top:2px;font-size:11.5px;font-style:normal;
+  color:var(--text-muted);line-height:1.5}
+@media(max-width:700px){ .ac-vb .ac-vt{margin-right:0;flex:1 1 100%} }
 .ac-old{margin:8px 0;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;
   background:var(--bg-sunken);color:var(--text-muted)}
 /* 👤 내 계정 창 */
@@ -5308,7 +5320,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261013-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261013-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19440,7 +19452,35 @@ function renderAccounts(){
      담아 두었던 것은 <<지우지 않았습니다>> — 화면에만 안 나올 뿐
      data.accounts · data.vault 에 그대로 있습니다. */
   main.innerHTML = '<div class="panel"><div class="tabbody">'
-    + head + accShHtml() + '</div></div>';
+    + head + accVaultBar() + accShHtml() + '</div></div>';
+}
+/* ── 🔑 금고 단추 줄 ──────────────────────────────────────────────
+   목록을 걷어 내고 엑셀만 띄우게 바꾸면서, 목록 위에 달려 있던
+   <<금고 비밀번호 바꾸기>> 까지 같이 떨어져 나갔습니다. 잠그는 자리도
+   없어졌습니다. 화면 맨 위에 다시 세웁니다 — 엑셀을 고르기 전에도
+   보이게 head 바로 밑입니다. */
+function accVaultBar(){
+  const v = accVault();
+  const on = accVaultOn();
+  const when = v && v.at ? String(v.at).slice(0, 10) : '';
+  return '<div class="ac-vb' + (on ? '' : ' off') + '">'
+    + '<span class="ac-vi">' + (on ? '🔒' : '🔓') + '</span>'
+    + '<span class="ac-vt"><b>' + (on ? '금고가 걸려 있습니다' : '금고가 안 걸려 있습니다')
+      + '</b><em>' + (on
+          ? ('금고 비밀번호를 친 사람만 이 화면을 볼 수 있습니다'
+             + (when ? ' · 마지막으로 바꾼 날 ' + esc(when) : ''))
+          : '지금은 이 대시보드에 들어온 사람이면 누구나 봅니다')
+      + '</em></span>'
+    + (on
+        ? '<button class="btn sm primary" onclick="accVaultChange()">'
+            + '🔑 금고 비밀번호 바꾸기</button>'
+          + '<button class="btn sm" onclick="accLock()" title="지금 바로 잠급니다">'
+            + '🔒 잠그기</button>'
+          + '<button class="btn sm" onclick="accVaultOff()" title="자물쇠를 풉니다">'
+            + '🔓 금고 풀기</button>'
+        : '<button class="btn sm primary" onclick="accVaultMake()">'
+            + '🔒 비밀번호 걸기</button>')
+    + '</div>';
 }
 
 /* ═══════════════ 🪪 명함 ═════════════════════════════════════════

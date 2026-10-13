@@ -5380,7 +5380,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261013-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261013-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16532,11 +16532,17 @@ function projPaint(){
   const has = subs.length > 0;
   const el = document.getElementById('pjBody'); if(!el) return;
   /* ── 내려둔 자리를 지킵니다 ──────────────────────────────────────
-     이 칸이 바로 <<스크롤되는 칸>> 입니다. 아래쪽 보조 업무에서 ✓ 를
-     누르면 여기를 통째로 다시 그리는데, 그러면 브라우저가 맨 위로
-     되돌려 버립니다. 긴 프로젝트일수록 누를 때마다 위로 튀어서
-     다시 내려와야 했습니다. 자리를 적어 두었다가 그대로 놓습니다. */
+     다시 그리면 브라우저가 맨 위로 되돌려 버립니다. 보조 업무가 스물이
+     넘는 프로젝트는 ○ ▶ ✓ 를 누를 때마다 위로 튀어서, 누르고 다시
+     내려오고를 되풀이해야 했습니다.
+
+     지켜야 할 자리가 <<둘>> 입니다 — 지난번에 창 전체(#pjBody)만 지켜
+     놓고 고쳤다고 했는데, 정작 굴러가는 것은 <<보조 업무 목록>>
+     (.pj-subs, 260px 짜리 제 칸) 이었습니다. 그래서 하나도 안 고쳐진
+     것처럼 보였습니다. 둘 다 적어 둡니다. */
   const keepY = el.scrollTop;
+  const sbOld = el.querySelector('.pj-subs');
+  const keepS = sbOld ? sbOld.scrollTop : 0;
   const names = memNames().concat(d.owner && memNames().indexOf(d.owner) < 0 ? [d.owner] : []);
   el.innerHTML =
     /* 📌 메인 프로젝트명 */
@@ -16625,6 +16631,10 @@ function projPaint(){
       + '<textarea rows="2" placeholder="배경이나 참고할 것"'
         + ' oninput="projDraft.note=this.value">' + esc(d.note) + '</textarea></div>';
   if(keepY && el.scrollTop !== keepY) el.scrollTop = keepY;   /* 보던 자리로 */
+  if(keepS){
+    const sb = el.querySelector('.pj-subs');
+    if(sb && sb.scrollTop !== keepS) sb.scrollTop = keepS;
+  }
 }
 function projBump(v){
   const d = projDraft; if(!d) return;

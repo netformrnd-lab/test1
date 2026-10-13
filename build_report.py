@@ -15,6 +15,7 @@ BASE = Path(__file__).parent
 IMGDIR = BASE / "images"
 ORIGDIR = IMGDIR / "originals"
 OUT = BASE / "판촉물_검토보고서.html"
+OUT_SHORT = BASE / "판촉물_검토보고서_제작물제외.html"
 
 
 def raw_b64(path):
@@ -518,33 +519,38 @@ ondo_cards = [
          url_text="쿠팡 링크"),
 ]
 
-sections_html = "".join([
-    section("1", "볼펜 / 젤펜", "4종 검토", pen_cards, decision="① 대한기프트 흑/백 볼펜 구매 확정"),
-    section("2", "손전등 / 랜턴", "4종 비교", flash_cards, decision="② 가나기프트 하이파워 LED 줌 랜턴 구매 확정"),
-    section("3", "함수율 측정기", "5종 비교", moist_cards, decision="저가형(GM605) 구매"),
-    section("4", "칫솔치약세트", "4종 비교", tooth_cards),
-    section("5", "드론 조종기", "현장 운용 장비", dji_cards, decision="DJI RC Pro 2 조종기 1대 구매 확정"),
-    section("6", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),
-    section("7", "열화상 카메라", "2종 비교", thermal_cards, decision="저가형 1개 구매"),
-    section("8", "온습도계", "2종 비교", ondo_cards, decision="저가형 전 직원 지급"),
-    section("9", "쌍안경", "3종 비교", bino_cards, decision="고·저배율 각 1개 구매 확정 (테스트용)"),
-    section("10", "겨울 유니폼", "2종 검토", uniform_cards, decision="로고 기존 여름·춘추 디자인 유지"),
-    section("11", "여름 유니폼", "2종 — 춘하/여름", summer_cards, decision="로고 기존 여름·춘추 디자인 유지"),
-    section("12", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
-    section("13", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards),
-    section("14", "제안서", "클릭 시 원본 PDF", proposal_cards, decision="페이퍼용/PT용 이원화"),
-    section("15", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards),
-    section("16", "사원증 목걸이", "넥스트랩 · 선정 완료", lanyard_cards, decision="목걸이 선정 (블루문 라이브스튜디오)"),
-])
+# 섹션 정의: (id, 제목, 배지, 카드들, 결정문구)
+#   id "design" = 디자인 제작물(리플릿·하드커버·제안서·사원증) — 축약본에서 제외
+SECTIONS = [
+    ("product", "볼펜 / 젤펜", "4종 검토", pen_cards, "① 대한기프트 흑/백 볼펜 구매 확정"),
+    ("product", "손전등 / 랜턴", "4종 비교", flash_cards, "② 가나기프트 하이파워 LED 줌 랜턴 구매 확정"),
+    ("product", "함수율 측정기", "5종 비교", moist_cards, "저가형(GM605) 구매"),
+    ("product", "칫솔치약세트", "4종 비교", tooth_cards, None),
+    ("product", "드론 조종기", "현장 운용 장비", dji_cards, "DJI RC Pro 2 조종기 1대 구매 확정"),
+    ("product", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards, None),
+    ("product", "열화상 카메라", "2종 비교", thermal_cards, "저가형 1개 구매"),
+    ("product", "온습도계", "2종 비교", ondo_cards, "저가형 전 직원 지급"),
+    ("product", "쌍안경", "3종 비교", bino_cards, "고·저배율 각 1개 구매 확정 (테스트용)"),
+    ("product", "겨울 유니폼", "2종 검토", uniform_cards, "로고 기존 여름·춘추 디자인 유지"),
+    ("product", "여름 유니폼", "2종 — 춘하/여름", summer_cards, "로고 기존 여름·춘추 디자인 유지"),
+    ("design", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards, None),
+    ("design", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards, None),
+    ("design", "제안서", "클릭 시 원본 PDF", proposal_cards, "페이퍼용/PT용 이원화"),
+    ("design", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards, None),
+    ("product", "사원증 목걸이", "넥스트랩 · 선정 완료", lanyard_cards, "목걸이 선정 (블루문 라이브스튜디오)"),
+]
 
-# ---------------------------------------------------------------------------
-# 요약 지표
-# ---------------------------------------------------------------------------
-summary_cards = [("16", "검토 카테고리"), ("39", "검토 항목"),
-                 ("42", "확보 이미지"), ("24", "목업 시안")]
-summary_html = "\n".join(
-    f'      <div class="stat-card"><div class="stat-num">{n}</div>'
-    f'<div class="stat-label">{l}</div></div>' for n, l in summary_cards)
+
+def render_sections(specs):
+    return "".join(
+        section(str(i + 1), title, badge, cards, decision=dec)
+        for i, (_sid, title, badge, cards, dec) in enumerate(specs))
+
+
+def summary_block(cards):
+    return "\n".join(
+        f'      <div class="stat-card"><div class="stat-num">{n}</div>'
+        f'<div class="stat-label">{l}</div></div>' for n, l in cards)
 
 TODAY = "2026-07-30"
 
@@ -557,14 +563,16 @@ ORIGINALS = {
     "proposal": {"mime": "application/pdf", "name": "공동주택_유지보수_감리_제안서.pdf",
                  "b64": raw_b64(ORIGDIR / "제안서_원본.pdf")},
 }
-originals_js = ",\n".join(
-    f'  "{k}": {{mime:"{v["mime"]}", name:"{v["name"]}", b64:"{v["b64"]}"}}'
-    for k, v in ORIGINALS.items())
+def originals_block(keys):
+    return ",\n".join(
+        f'  "{k}": {{mime:"{ORIGINALS[k]["mime"]}", name:"{ORIGINALS[k]["name"]}", b64:"{ORIGINALS[k]["b64"]}"}}'
+        for k in keys)
 
 # ---------------------------------------------------------------------------
 # 최종 HTML
 # ---------------------------------------------------------------------------
-DOC = f"""<!DOCTYPE html>
+def render(sections_html, summary_html, originals_js, cover_sub, chip_cat, chip_item):
+    return f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -687,11 +695,11 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증 · 목걸이</div>
+  <div class="sub">{cover_sub}</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 16개 카테고리</span>
-    <span class="chip">35개 항목 검토</span>
+    <span class="chip">총 {chip_cat}개 카테고리</span>
+    <span class="chip">{chip_item}개 항목 검토</span>
   </div>
 </header>
 
@@ -747,5 +755,34 @@ var ORIGINALS = {{
 </body>
 </html>"""
 
-OUT.write_text(DOC, encoding="utf-8")
-print(f"저장 완료: {OUT.name}  ({len(DOC):,} bytes / {len(DOC)/1024/1024:.2f} MB)")
+def item_count(specs):
+    return sum(len(cards) for _sid, _t, _b, cards, _d in specs)
+
+
+def build(out_path, specs, originals_keys, cover_sub, summary_cards):
+    sections_html = render_sections(specs)
+    summary_html = summary_block(summary_cards)
+    originals_js = originals_block(originals_keys)
+    cats = len(specs)
+    items = item_count(specs)
+    doc = render(sections_html, summary_html, originals_js, cover_sub, cats, items)
+    out_path.write_text(doc, encoding="utf-8")
+    print(f"저장 완료: {out_path.name}  ({len(doc):,} bytes / {len(doc)/1024/1024:.2f} MB)")
+
+
+FULL_SUB = ("볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · "
+            "겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증 · 목걸이")
+SHORT_SUB = ("볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · "
+             "겨울/여름 유니폼 · 목걸이")
+
+# 1) 전체본 (16개 카테고리)
+build(OUT, SECTIONS, ["hardcover", "leaflet", "proposal"], FULL_SUB,
+      [("16", "검토 카테고리"), (str(item_count(SECTIONS)), "검토 항목"),
+       ("42", "확보 이미지"), ("24", "목업 시안")])
+
+# 2) 축약본 — 디자인 제작물(리플릿·하드커버·제안서·사원증) 제외
+short_specs = [s for s in SECTIONS if s[0] != "design"]
+build(OUT_SHORT, short_specs, [], SHORT_SUB,
+      [(str(len(short_specs)), "검토 카테고리"),
+       (str(item_count(short_specs)), "검토 항목"),
+       ("34", "확보 이미지"), ("18", "목업 시안")])

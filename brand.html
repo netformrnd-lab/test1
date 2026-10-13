@@ -5380,7 +5380,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261014-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261014-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16394,8 +16394,12 @@ function projReflow(t){
     : (parseInt(t.pct, 10) || 0);
   if(String(avg) !== String(parseInt(t.pct, 10) || 0)) t.pctAt = todayStr();
   t.pct = String(avg);
-  if(avg >= 100) t.status = '완료';
-  else if(t.status === '완료') t.status = '진행 중';
+  /* ── 100% 가 되어도 <<저절로 끝내지 않습니다>> ──────────────────────
+     보조 업무를 다 ✓ 했다고 프로젝트가 끝난 것은 아닙니다 — 넘겨 보고
+     확인받는 일이 남아 있는데 목록에서 사라져 버렸습니다. 끝났다고
+     정하는 것은 <<사람>> 입니다 ([✓ 끝났어요] 를 누를 때).
+     거꾸로, 사람이 끝냈다고 해 둔 것을 % 가 내려갔다고 되살리지도
+     않습니다. */
   t.updatedAt = new Date().toISOString();
 }
 /* ── 📓 업무일지 ─────────────────────────────────────────────────
@@ -16733,8 +16737,7 @@ function projSave(){
   if(String(avg) !== String(parseInt(t.pct, 10) || 0)) t.pctAt = todayStr();
   t.pct = String(avg);
   t.kind = '프로젝트';
-  if(avg >= 100) t.status = '완료';
-  else if(t.status === '완료') t.status = '진행 중';
+  /* 100% 라도 끝났다고 정하지 않습니다 — [✓ 끝났어요] 를 눌러야 끝입니다 */
   t.updatedAt = new Date().toISOString();
   /* 계정을 쓰면 맡은 사람 아이디도 맞춰 둡니다 */
   if(authOn()){
@@ -17333,7 +17336,14 @@ function memCard(m, t, hue, rows){
      ▶ 진행 은 끄기 전까지 남아 있으므로, 오늘 못 끝낸 일은 내일도
      그대로 이 칸에 섭니다. 어제 적어 둔 것이 있으면 「어제에서 넘어옴」
      으로 그 글을 같이 보여 줘서, 어디까지 했는지 다시 안 찾아도 됩니다. */
-  const projDo = projs.filter(r => projDoing(r.t).length || jrGet(r.t, iso));
+  /* ── 손을 뗀 프로젝트는 <<일지에서 내려갑니다>> ────────────────────
+     전에는 오늘 일지를 적어 둔 것만으로도 남아 있었습니다. 그래서
+     마지막 ✓ 를 눌러 다 끝내 놓고도 줄이 그대로 서 있어, 끝낸 건지
+     아닌지 알 수 없었습니다.
+     이제 <<▶ 진행 을 켜 둔 것이 하나라도 있을 때만>> 섭니다.
+     마지막 하나를 ✓ 로 넘기면 그 자리에서 내려갑니다. 적어 둔 일지는
+     지워지지 않습니다 — 프로젝트 안에 그대로 쌓여 있습니다. */
+  const projDo = projs.filter(r => projDoing(r.t).length > 0);
   const jrank = r => r.t.status === '완료' ? 4
     : isProj(r.t) ? 1.5
     : !r.t.due ? 3 : r.t.due < iso ? 0 : r.t.due === iso ? 1 : 2;

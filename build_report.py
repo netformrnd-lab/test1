@@ -377,6 +377,14 @@ bino_cards = [
          [{"path": "29_라라캠프_콤팩트_쌍안경.jpg", "label": "제품 이미지"}],
          url="https://smartstore.naver.com/lalacamp/products/7484467111",
          url_text="스마트스토어"),
+    card("③", "프로딘 클리어뷰 10×25 FMC코팅 쌍안경 (그린)",
+         [("모델", "프로딘(PRODEAN) 클리어뷰 10×25 (상품번호 832204)"),
+          ("사양", "10배율 / 대물렌즈 25mm / FMC 멀티코팅"),
+          ("컬러", "밀리터리 그린"),
+          ("판매가", "<strong>26,000원</strong>")],
+         [{"path": "쌍안경3_프로딘.png", "label": "제품 이미지"}],
+         url="https://www.cscamera.com/shop/shopdetail.html?branduid=832204&xcode=048&mcode=018&scode=005",
+         url_text="제품 링크"),
 ]
 
 # ----- 9. 겨울 유니폼 -----
@@ -519,7 +527,7 @@ sections_html = "".join([
     section("6", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards),
     section("7", "열화상 카메라", "2종 비교", thermal_cards, decision="저가형 1개 구매"),
     section("8", "온습도계", "2종 비교", ondo_cards, decision="저가형 전 직원 지급"),
-    section("9", "쌍안경", "2종 비교", bino_cards, decision="고·저배율 각 1개 구매 확정 (테스트용)"),
+    section("9", "쌍안경", "3종 비교", bino_cards, decision="고·저배율 각 1개 구매 확정 (테스트용)"),
     section("10", "겨울 유니폼", "2종 검토", uniform_cards, decision="로고 기존 여름·춘추 디자인 유지"),
     section("11", "여름 유니폼", "2종 — 춘하/여름", summer_cards, decision="로고 기존 여름·춘추 디자인 유지"),
     section("12", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards),
@@ -532,7 +540,7 @@ sections_html = "".join([
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("16", "검토 카테고리"), ("38", "검토 항목"),
+summary_cards = [("16", "검토 카테고리"), ("39", "검토 항목"),
                  ("42", "확보 이미지"), ("24", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'

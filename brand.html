@@ -4866,6 +4866,34 @@ table.xl mark{background:color-mix(in srgb,var(--orange,#e08b1a) 35%,transparent
 @media(max-width:700px){ .ac-vb .ac-vt{margin-right:0;flex:1 1 100%} }
 .ac-old{margin:8px 0;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;
   background:var(--bg-sunken);color:var(--text-muted)}
+/* 📥 그로스보드 올리기 */
+.gbi-top{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.gbi-f{flex:1 1 200px;min-width:0}
+.gbi-f label{display:block;margin-bottom:4px;font-size:11.5px;font-weight:700;
+  color:var(--text-muted)}
+.gbi-f select{width:100%;font-family:inherit;font-size:13px;padding:8px 10px;
+  border:1px solid var(--border);border-radius:8px;background:var(--bg-input);
+  color:var(--text-primary)}
+.gbi-n{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px;
+  font-size:12px;color:var(--text-secondary)}
+.gbi-ab{margin-left:auto;display:flex;gap:6px}
+.gbi-ab button{padding:3px 10px;border:1px solid var(--border);border-radius:999px;
+  background:var(--bg-secondary);font-family:inherit;font-size:11px;font-weight:700;
+  color:var(--text-muted);cursor:pointer}
+.gbi-ab button:hover{border-color:var(--blue);color:var(--blue)}
+.gbi-l{display:flex;flex-direction:column;gap:5px;max-height:46vh;overflow:auto;
+  padding:3px;border:1px solid var(--border);border-radius:10px;background:var(--bg-sunken)}
+.gbi-r{display:flex;align-items:center;gap:9px;flex-wrap:wrap;cursor:pointer;
+  padding:9px 11px;border-radius:8px;background:var(--bg-secondary);
+  border:1px solid transparent;font-size:13px}
+.gbi-r.on{border-color:var(--blue)}
+.gbi-r input{flex-shrink:0;width:15px;height:15px;accent-color:var(--blue);cursor:pointer}
+.gbi-t{font-weight:700;letter-spacing:-.015em;min-width:0}
+.gbi-c{margin-left:auto;font-size:11px;font-weight:700;color:var(--text-muted);
+  white-space:nowrap}
+.gbi-d{flex:1 1 100%;padding-left:24px;font-size:11px;font-weight:700;
+  color:var(--orange,#e08b1a)}
+.gbi-s{margin-top:11px;font-size:12px;line-height:1.65;color:var(--text-secondary)}
 /* 👤 내 계정 창 */
 .um-l{display:flex;flex-direction:column;gap:9px}
 .um-b{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;cursor:pointer;
@@ -5225,6 +5253,26 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
     </div>
   </div>
 </div>
+<input type="file" id="gbiFile" accept=".html,.htm,text/html" style="display:none"
+       onchange="gbiFile(this)">
+<div class="modal-bg" id="gbiModal" onclick="if(event.target===this)closeModal('gbiModal')">
+  <div class="pjm wide">
+    <div class="pjm-h">
+      <span class="pjm-ic">📥</span>
+      <div class="pjm-ti">
+        <div class="pjm-t">그로스보드를 프로젝트로</div>
+        <div class="pjm-s">마인드맵 가지를 읽어 🚀 프로젝트와 보조 업무로 세웁니다</div>
+      </div>
+      <button class="pjm-x" onclick="closeModal('gbiModal')" title="닫기">×</button>
+    </div>
+    <div class="pjm-b" id="gbiBody"></div>
+    <div class="pjm-f">
+      <span class="pjm-sp"></span>
+      <button class="pjm-btn" onclick="closeModal('gbiModal')">취소</button>
+      <button class="pjm-btn primary" id="gbiGo" onclick="gbiRun()">세우기</button>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="userModal" onclick="if(event.target===this)closeModal('userModal')">
   <div class="pjm">
     <div class="pjm-h">
@@ -5332,7 +5380,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261013-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261013-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17683,11 +17731,226 @@ function renderTasks(){
           + '<button class="tt-edb' + (taskDone ? ' on' : '') + '" onclick="toggleTaskDone()">'
             + (taskDone ? '✅ 끝난 일도 보는 중' : '끝난 일 보기') + '</button>'
           + '<button class="tt-edb' + (teamEdit ? ' on' : '') + '" onclick="teamEditToggle()">'
-            + (teamEdit ? '✔ 다 고쳤어요' : '✎ 팀 고치기') + '</button>')
+            + (teamEdit ? '✔ 다 고쳤어요' : '✎ 팀 고치기') + '</button>'
+          + '<button class="tt-edb" onclick="gbiPick()" title="마인드맵으로 그린 '
+            + '그로스보드를 올리면 프로젝트로 세워 줍니다">📥 그로스보드</button>')
       + '</div>'
     + (mmOn ? mmHtml(rows) : teams + restHtml));
 }
 
+
+/* ═══════════════ 📥 그로스보드 올리기 ═════════════════════════════
+   마인드맵 프로그램(EdrawMind 등)에서 「HTML 로 내보내기」 한 파일을
+   그대로 올리면, 가지를 읽어 🚀 프로젝트로 세워 줍니다.
+   보드를 고쳐 다시 올리면 같은 이름은 <<덮어쓰지 않고 보태>> 줍니다 —
+   그 사이에 해 둔 ○ ▶ ✓ 표시가 날아가면 안 되니까요.
+
+   파일은 글자로만 읽습니다 (화면에 붙이지 않습니다) — 남이 만든
+   파일을 여는 자리라 그 안의 script 가 돌면 안 됩니다.
+   ================================================================= */
+let gbi = null;        // { who, projs:[{title,subs,note,on}], bid, owner, err, busy }
+
+function gbiPick(){
+  const el = document.getElementById('gbiFile');
+  if(el){ el.value = ''; el.click(); }
+}
+function gbiFile(inp){
+  const f = inp.files && inp.files[0];
+  inp.value = '';
+  if(!f) return;
+  if(f.size > 20 * 1024 * 1024){ alert('파일이 너무 큽니다 (20MB 넘음)'); return; }
+  const rd = new FileReader();
+  rd.onload = () => {
+    const out = gbiParse(String(rd.result || ''));
+    if(!out || !out.projs.length){
+      alert('이 파일에서 가지를 찾지 못했습니다.\n\n'
+        + '마인드맵 프로그램에서 「HTML 로 내보내기(Export to HTML)」 한 파일이어야 합니다.\n'
+        + '그림으로 저장한 것(png·pdf)은 읽을 수 없습니다.');
+      return;
+    }
+    const me = memNames().filter(Boolean);
+    gbi = { who: out.who, projs: out.projs.map(x => Object.assign({ on:true }, x)),
+            bid: (currentBrand() || data.brands[0] || {}).id || '',
+            owner: me.indexOf(out.who) >= 0 ? out.who : (me[0] || ''),
+            file: f.name };
+    gbiPaint();
+    document.getElementById('gbiModal').classList.add('open');
+  };
+  rd.onerror = () => alert('파일을 읽지 못했습니다.');
+  rd.readAsText(f, 'utf-8');
+}
+/* 마인드맵 HTML 에서 가지를 읽습니다 (글자만 봅니다) */
+function gbiParse(txt){
+  const i = txt.indexOf('<svg');
+  if(i < 0) return null;
+  const s = txt.slice(i);
+  const nodes = {}, order = [];
+  const G = /<g\b([^>]*)>([\s\S]*?)<\/g>/g;
+  let m, guard = 0;
+  while((m = G.exec(s)) && guard++ < 20000){
+    const at = m[1], body = m[2];
+    const id = /\bid="([^"]+)"/.exec(at);
+    if(!id) continue;
+    const par = /ed:parentid="([^"]+)"/.exec(at);
+    const tsp = body.match(/<tspan[^>]*>([\s\S]*?)<\/tspan>/g);
+    if(!tsp) continue;
+    const t = tsp.map(x => x.replace(/<[^>]+>/g, '')).join(' ')
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ').trim();
+    if(!t) continue;
+    nodes[id[1]] = { t: t, p: par ? par[1] : null, c: [] };
+    order.push(id[1]);
+  }
+  if(!order.length) return null;
+  order.forEach(k => { const p = nodes[k].p; if(p && nodes[p]) nodes[p].c.push(k); });
+  /* 프로젝트가 달린 줄기 = 가지가 가장 많이 뻗은 마디 (뿌리에서 두 칸 안쪽) */
+  const roots = order.filter(k => !nodes[k].p || !nodes[nodes[k].p]);
+  let trunk = null;
+  const look = (k, d) => {
+    if(d > 2) return;
+    if(!trunk || nodes[k].c.length > nodes[trunk].c.length) trunk = k;
+    nodes[k].c.forEach(c => look(c, d + 1));
+  };
+  roots.forEach(r => look(r, 0));
+  if(!trunk) return null;
+  const SEC = /^(누구를 위해|누구에게|대상|무엇을|어떻게|왜)$/;
+  /* 끝까지 이어 붙이면 이름이 한 문단이 됩니다. 할 만한 크기에서 끊습니다 —
+     잎이거나 두 칸 들어간 마디를 보조 업무로 보고, 그 밑은 메모로 내립니다. */
+  const subsOf = (k) => {
+    const subs = [], notes = [];
+    const go = (p, d) => nodes[p].c.forEach(c => {
+      const n = nodes[c];
+      if(!n.c.length || d >= 2){
+        subs.push(n.t);
+        n.c.forEach(g => notes.push(n.t + ' : ' + nodes[g].t));
+      }else go(c, d + 1);
+    });
+    go(k, 1);
+    return { subs: subs, notes: notes };
+  };
+  const lines = (k, d) => {
+    let out = [];
+    nodes[k].c.forEach(c => {
+      out.push((d ? '  ' : '') + '· ' + nodes[c].t);
+      if(nodes[c].c.length && d < 1) out = out.concat(lines(c, d + 1));
+    });
+    return out;
+  };
+  const projs = nodes[trunk].c.map(k => {
+    const n = nodes[k];
+    const secs = {};
+    n.c.forEach(c => { if(SEC.test(nodes[c].t)) secs[nodes[c].t] = c; });
+    let got = { subs: [], notes: [] };
+    if(secs['무엇을']) got = subsOf(secs['무엇을']);
+    if(!got.subs.length && secs['어떻게']) got = subsOf(secs['어떻게']);
+    if(!got.subs.length){
+      n.c.filter(c => !SEC.test(nodes[c].t)).forEach(c => {
+        got.subs.push(nodes[c].t);
+        nodes[c].c.forEach(g => got.notes.push(nodes[c].t + ' : ' + nodes[g].t));
+      });
+    }
+    const seen = {}, subs = [];
+    got.subs.forEach(t => { const q = String(t).trim();
+      if(q && !seen[q]){ seen[q] = 1; subs.push(q); } });
+    const note = [].concat(
+      got.notes.length ? ['[자세히]'].concat(got.notes.map(v => '· ' + v)) : [],
+      ['누구를 위해', '누구에게', '대상', '어떻게', '왜'].filter(x => secs[x]).reduce((a, x) =>
+        a.concat([''], ['[' + x + ']'], lines(secs[x], 0)), [])
+    ).join('\n').trim();
+    return { title: n.t, subs: subs, note: note };
+  }).filter(x => x.title);
+  return { who: roots.length ? nodes[roots[0]].t : '', projs: projs };
+}
+function gbiSet(k, v){ if(gbi){ gbi[k] = v; gbiPaint(); } }
+function gbiFlip(i){ if(gbi && gbi.projs[i]){ gbi.projs[i].on = !gbi.projs[i].on; gbiPaint(); } }
+function gbiAll(on){ if(gbi){ gbi.projs.forEach(p => p.on = !!on); gbiPaint(); } }
+function gbiPaint(){
+  const el = document.getElementById('gbiBody');
+  if(!el || !gbi) return;
+  const b = brandById(gbi.bid);
+  const have = {};
+  ((b && b.tasks) || []).forEach(t => { if(isProj(t)) have[String(t.title).trim()] = 1; });
+  const n = gbi.projs.filter(p => p.on).length;
+  const names = memNames().filter(Boolean);
+  el.innerHTML =
+      '<div class="gbi-top">'
+      + '<div class="gbi-f"><label>어느 브랜드에</label>'
+        + '<select onchange="gbiSet(\'bid\', this.value)">'
+        + (data.brands || []).map(x => '<option value="' + esc(x.id) + '"'
+            + (x.id === gbi.bid ? ' selected' : '') + '>' + esc(x.icon || '🏷️') + ' '
+            + esc(x.name) + '</option>').join('') + '</select></div>'
+      + '<div class="gbi-f"><label>누구 일로</label>'
+        + '<select onchange="gbiSet(\'owner\', this.value)">'
+        + [''].concat(names).map(x => '<option value="' + esc(x) + '"'
+            + (x === gbi.owner ? ' selected' : '') + '>' + (x ? esc(x) : '— 맡은 사람 없음 —')
+            + '</option>').join('') + '</select></div>'
+      + '</div>'
+    + '<div class="gbi-n">📄 ' + esc(gbi.file || '') + ' · 가지에서 찾은 프로젝트 '
+      + gbi.projs.length + '개'
+      + (gbi.who ? ' · 보드 주인 <b>' + esc(gbi.who) + '</b>' : '')
+      + '<span class="gbi-ab">'
+      + '<button onclick="gbiAll(1)">모두 고르기</button>'
+      + '<button onclick="gbiAll(0)">모두 끄기</button></span></div>'
+    + '<div class="gbi-l">'
+      + gbi.projs.map((p, i) => {
+          const dup = have[String(p.title).trim()];
+          return '<label class="gbi-r' + (p.on ? ' on' : '') + '">'
+            + '<input type="checkbox"' + (p.on ? ' checked' : '')
+              + ' onchange="gbiFlip(' + i + ')">'
+            + '<span class="gbi-t">' + esc(p.title) + '</span>'
+            + '<span class="gbi-c">보조 ' + p.subs.length + '건'
+              + (p.note ? ' · 메모 있음' : '') + '</span>'
+            + (dup ? '<span class="gbi-d">이미 있음 — 보조 업무만 보탭니다</span>' : '')
+            + '</label>';
+        }).join('')
+    + '</div>'
+    + '<div class="gbi-s">' + n + '개를 <b>' + esc((b && b.name) || '?') + '</b> 의 '
+      + '🚀 프로젝트로 세웁니다. 이미 있는 이름은 <b>덮어쓰지 않고</b> 없는 보조 업무만 '
+      + '보탭니다 — 해 두신 ○ ▶ ✓ 표시는 그대로입니다.</div>';
+  const go = document.getElementById('gbiGo');
+  if(go){ go.disabled = !n; go.textContent = n ? '🚀 ' + n + '개 세우기' : '고른 것이 없습니다'; }
+}
+function gbiRun(){
+  if(!gbi) return;
+  const b = brandById(gbi.bid);
+  if(!b){ toast('⚠️ 브랜드를 골라 주세요'); return; }
+  const pick = gbi.projs.filter(p => p.on);
+  if(!pick.length) return;
+  if(!Array.isArray(b.tasks)) b.tasks = [];
+  let made = 0, grew = 0, addSub = 0;
+  pick.forEach(p => {
+    const name = String(p.title).trim();
+    let t = b.tasks.find(x => isProj(x) && String(x.title).trim() === name);
+    if(!t){
+      t = { id: uid('i'), kind:'프로젝트', title: name, status:'진행 중',
+            owner: gbi.owner || '', pct:'0', subs: [], note: p.note || '',
+            updatedAt: new Date().toISOString() };
+      b.tasks.unshift(t);
+      made++;
+    }else{
+      grew++;
+      if(p.note && !String(t.note || '').trim()) t.note = p.note;
+    }
+    if(!Array.isArray(t.subs)) t.subs = [];
+    const had = {};
+    t.subs.forEach(x => { had[String(x.title || '').trim()] = 1; });
+    p.subs.forEach(st => {
+      const q = String(st).trim();
+      if(!q || had[q]) return;
+      had[q] = 1; addSub++;
+      t.subs.push({ id: uid('sb'), title: q, st:'할일', pct:'0' });
+    });
+    projReflow(t);
+    t.updatedAt = new Date().toISOString();
+  });
+  markDirty(b.id);
+  closeModal('gbiModal');
+  gbi = null;
+  render();
+  toast('📥 프로젝트 ' + made + '개를 세우고, 있던 ' + grew + '개에 보조 업무 '
+    + addSub + '건을 보탰습니다');
+}
 
 /* ═══════════════ 🔐 내부계정 ═══════════════════════════════════════
    팀이 같이 쓰는 서비스 계정(네이버 광고 · 인스타 · 각종 도구)을 한곳에

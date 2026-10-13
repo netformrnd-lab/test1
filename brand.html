@@ -5380,7 +5380,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261013-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261013-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16683,6 +16683,21 @@ function projSave(){
     b = nb;
   }
   const avg = projAvg(d);
+  /* ── 창에서 바꾼 것도 업무일지에 적습니다 ──────────────────────────
+     펼친 칸의 ○ ▶ ✓ 는 누르는 그 자리에서 적히는데, 창(✎ 자세히 고치기)
+     안에서 바꾼 것은 적히지 않았습니다. 같은 일을 어디서 하느냐에 따라
+     일지가 남기도 하고 안 남기도 하면, 쓰는 사람이 믿을 수 없습니다.
+     저장할 때 <<바뀐 것만>> 골라 적습니다. */
+  if(at.id){
+    const was = {};
+    projSubs(t).forEach(x => { was[x.id] = x.st; });
+    (d.subs || []).forEach(x => {
+      const old = was[x.id];
+      if(old === x.st) return;                       /* 안 바뀐 것은 그냥 둡니다 */
+      if(x.st === '진행') projLog(t, b, '▶ ' + (x.title || '보조 업무'));
+      else if(x.st === '끝') projLog(t, b, '✓ ' + (x.title || '보조 업무'));
+    });
+  }
   t.title = d.title.trim();
   t.owner = d.owner; t.start = d.start; t.due = d.due;
   t.prio = d.prio; t.note = d.note;

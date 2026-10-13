@@ -408,16 +408,18 @@ uniform_cards = [
          [{"path": "유니폼2_A42.png", "label": "목업 — 아파트스퀘어 로고 (앞/뒤)", "mock": True}],
          url="https://dyuniform.com/product/%EC%95%84%ED%8A%B8%EC%9C%88-a-42-%ED%94%84%EB%9D%BC%EB%8B%A4%EC%A0%90%ED%8D%BC%EC%B6%94%EB%8F%99%EB%82%B4%ED%94%BC%EC%B0%B0%EB%B6%80%EC%B0%A9/5230/category/54/display/1/",
          url_text="제품 페이지"),
-    card("③", "CT-703 인퀼팅 하프코트 (겨울 패딩 · 블랙)",
-         [("품번", "CT-703 인퀼팅 하프코트"),
+    card("③", "윌비 CT-703 인퀼팅 하프코트 (겨울 패딩 · 블랙)",
+         [("품번", "CT-703 인퀼팅 하프코트 (브랜드 윌비 WILLBE)"),
           ("종류", "겨울 패딩 하프코트 · 탈착식 후드"),
-          ("색상", "블랙"),
+          ("소재", "나일론 100%"),
+          ("사이즈 / 색상", "85–120 · 블랙"),
           ("디테일", "CORDURA 포켓 라벨 · 세로형 가슴 로고 + 등판 로고·슬로건"),
-          ("소재 / 사이즈 / 판매가", "확인 예정")],
+          ("배송", "3,300원 (150,000원 이상 무료)"),
+          ("판매가", "<strong>125,400원</strong> (VAT 포함)")],
          [{"path": "겨울패딩_앞.png", "label": "목업 — 앞면(가슴 로고) · 클릭 시 크게 보기", "mock": True, "hifi": True},
           {"path": "겨울패딩_뒤.png", "label": "목업 — 뒷면(로고·슬로건)", "mock": True}],
          url="https://dyuniform.com/product/ct-703-%EC%9D%B8%ED%80%BC%ED%8C%85-%ED%95%98%ED%94%84-%EC%BD%94%ED%8A%B8/6107/category/179/display/1/",
-         url_text="제품 페이지", pending=True),
+         url_text="제품 페이지"),
 ]
 
 # ----- 여름 유니폼 -----

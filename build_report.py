@@ -102,6 +102,8 @@ def _img_box(entry, alt, thumb=False):
 
 
 def images_block(imgs, alt, cols=1, stack=False):
+    if not imgs:
+        return ""
     if stack or len(imgs) == 1:
         style = f' style="grid-template-columns:repeat({cols},1fr);"' if cols > 1 else ""
         boxes = "\n      ".join(_img_box(e, alt) for e in imgs)
@@ -474,6 +476,20 @@ idcard_cards = [
          [{"path": "사원증_목업2.png", "label": "실물 목업 · 클릭 시 크게 보기", "mock": True, "hifi": True}]),
 ]
 
+# ----- 사원증 목걸이 (넥스트랩) -----
+lanyard_cards = [
+    card("🎗️", "사원증 목걸이 (넥스트랩 · ID 홀더용)",
+         [("용도", "감리 사원증(ID카드) 착용용 목걸이 스트랩"),
+          ("선정", "블루문 라이브스튜디오 (네이버 스마트스토어)"),
+          ("색상 / 폭", "확인 예정"),
+          ("인쇄 / 로고", "확인 예정"),
+          ("단가", "확인 예정")],
+         [],
+         url="https://smartstore.naver.com/bluemoon_livestudio/products/7176417330",
+         url_text="스마트스토어 링크", pending=True,
+         decided="목걸이 선정 (이 제품으로)"),
+]
+
 # ----- 온습도계 -----
 ondo_cards = [
     card("①", "바헤르츠 포켓 디지털 온습도계",
@@ -510,12 +526,13 @@ sections_html = "".join([
     section("13", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards),
     section("14", "제안서", "클릭 시 원본 PDF", proposal_cards, decision="페이퍼용/PT용 이원화"),
     section("15", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards),
+    section("16", "사원증 목걸이", "넥스트랩 · 선정 완료", lanyard_cards, decision="목걸이 선정 (블루문 라이브스튜디오)"),
 ])
 
 # ---------------------------------------------------------------------------
 # 요약 지표
 # ---------------------------------------------------------------------------
-summary_cards = [("15", "검토 카테고리"), ("37", "검토 항목"),
+summary_cards = [("16", "검토 카테고리"), ("38", "검토 항목"),
                  ("42", "확보 이미지"), ("24", "목업 시안")]
 summary_html = "\n".join(
     f'      <div class="stat-card"><div class="stat-num">{n}</div>'
@@ -662,10 +679,10 @@ DOC = f"""<!DOCTYPE html>
 <header class="cover">
   <div class="eyebrow">Promotional Goods Review</div>
   <h1>판촉물 검토보고서</h1>
-  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증</div>
+  <div class="sub">볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · 겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증 · 목걸이</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
-    <span class="chip">총 15개 카테고리</span>
+    <span class="chip">총 16개 카테고리</span>
     <span class="chip">35개 항목 검토</span>
   </div>
 </header>

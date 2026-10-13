@@ -5380,7 +5380,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261013-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261014-1';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16119,6 +16119,23 @@ function taskOwnerName(key){
   if(String(key).indexOf('nm:') === 0) return String(key).slice(3);
   return authOn() ? (peopleName(key) || key) : key;
 }
+/* ── 이 업무는 <<누구 것으로 보일까>> ──────────────────────────────
+   계정을 쓰면 업무를 아이디(uid)로 묶습니다. 그런데 그 아이디를 사람
+   이름으로 못 바꾸는 때가 있습니다 — 사람 목록을 아직 못 받아왔거나,
+   그 계정이 지워졌거나, 아이디를 새로 지어 준 경우입니다.
+   그러면 이름 자리에 <<아이디가 그대로>> 들어가, 그 사람 카드에서
+   빠져 「팀에 없는 사람」 칸으로 밀려났습니다. 일이 사라진 것처럼
+   보이는 까닭이었습니다.
+   업무에는 담당자 <<이름>> 도 같이 적혀 있습니다. 아이디를 못 바꾸면
+   적어 둔 이름을 씁니다 — 그래야 제자리에 섭니다. */
+function taskWho(t){
+  const k = taskOwnerKey(t);
+  if(k === '__pub') return '';
+  const nm = String(taskOwnerName(k) || '').trim();
+  const own = String((t && t.owner) || '').trim();
+  if(own && (!nm || nm === String(k))) return own;   /* 아이디를 못 바꿨습니다 */
+  return nm;
+}
 
 /* 정렬 — 진행 중 → 예정 → 보류 → 완료, 같은 상태면 기한이 급한 것부터 */
 const TASK_ORDER = { '진행 중':0, '예정':1, '보류':2, '완료':3 };
@@ -16155,7 +16172,7 @@ function taskCard(t, b, opts){
       + esc(b.icon || '🏷️') + ' ' + esc(b.name) + '</span>';
   const whoChip = opts.hideWho ? ''
     : '<span class="chip' + (authOn() && authMe() && t.uid === authMe().id ? ' on' : '') + '">👤 '
-      + esc(taskOwnerName(taskOwnerKey(t))) + '</span>';
+      + esc(taskWho(t) || taskOwnerName(taskOwnerKey(t))) + '</span>';
 
   return '<div class="card ca3' + (t.status === '완료' ? ' done' : '') + '">'
     + '<div class="ca">'
@@ -16819,7 +16836,7 @@ function memRows(m, rows){
     const k = taskOwnerKey(r.t);
     if(k === '__pub') return false;
     if(m.uid && k === m.uid) return true;
-    return String(taskOwnerName(k) || '').trim() === nm;
+    return taskWho(r.t) === nm;
   });
 }
 /* 팀 KPI 석 장 — 좌 · 중 · 우 */
@@ -17275,7 +17292,7 @@ function staleHtml(rows){
             + '\',null,\'' + jsq(r.b.id) + '\')">'
           + '<span class="tw-d">' + projStale(r.t) + '일</span>'
           + '<span class="tw-n">' + esc(r.t.title) + '</span>'
-          + '<span class="tw-w">' + esc(taskOwnerName(taskOwnerKey(r.t))) + '</span>'
+          + '<span class="tw-w">' + esc(taskWho(r.t) || taskOwnerName(taskOwnerKey(r.t))) + '</span>'
           + '<span class="tw-p">' + projPct(r.t) + '%</span>'
           + '<span class="tw-g">' + esc(r.b.icon || '🏷️') + ' ' + esc(r.b.name) + '</span>'
           + '</div>').join('')
@@ -17664,7 +17681,7 @@ function memRest(rows){
   const box = {};
   rows.forEach(r => {
     const k = taskOwnerKey(r.t);
-    const nm = k === '__pub' ? '공용 (맡은 사람 없음)' : String(taskOwnerName(k) || k);
+    const nm = k === '__pub' ? '공용 (맡은 사람 없음)' : (taskWho(r.t) || String(k));
     if(named[nm] || named['#' + k]) return;
     (box[nm] = box[nm] || []).push(r);
   });

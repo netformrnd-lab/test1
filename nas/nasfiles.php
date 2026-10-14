@@ -1417,4 +1417,139 @@ if ($action === 'download') {
     exit;
 }
 
+/* ---------------- 🔗 팀 허브 — 남의 팀 HTML 을 그 자리에서 펴 주기 ----
+   미디어마케팅팀은 자기네 브랜드허브(TeamHub)를 공유폴더에 둡니다.
+     Z:\넷폼알앤디 공유폴더\미디어마케팅팀\실행파일\HTML_V05
+   여태는 그 파일을 <<웹폴더로 손으로 복사>> 해 두고 걸었습니다. 그래서
+   그쪽이 V06 을 올리면 우리가 또 복사해야 했고, 안 하면 옛 판을 보게
+   됐습니다.
+
+   이제 폴더를 그대로 걸어 둡니다. 여기서 그 폴더를 열어 <<가장 새 판>>
+   HTML 을 찾아 펴 줍니다 — V06 이 올라오면 그냥 따라갑니다.
+
+     ?action=hub     &path=…  → 그 HTML 을 그대로 보냅니다
+     ?action=hubinfo &path=…  → 무엇을 고를지만 알려 줍니다 (확인용)
+
+   읽기만 합니다. 공유폴더 안쪽이 아니면 거절합니다.
+   -------------------------------------------------------------------- */
+/* 이름에서 판 번호를 뽑습니다 — 「HTML_V05」 → 5 · 「v1.2」 → 1.2 */
+function hub_ver($name) {
+    if (preg_match_all('/[vV](\d+)(?:[._](\d+))?/', (string)$name, $m, PREG_SET_ORDER)) {
+        $last = end($m);
+        return (float)$last[1] + (isset($last[2]) ? ((float)$last[2]) / 1000 : 0);
+    }
+    if (preg_match_all('/(\d{2,})/', (string)$name, $m)) {
+        $g = end($m[1]);
+        return (float)$g / 1000000;        /* 번호만 있으면 아주 약하게만 봅니다 */
+    }
+    return -1;
+}
+/* 폴더 안(과 한 단계 아래)에서 펴 줄 HTML 들을 모읍니다 */
+function hub_pick($dir) {
+    $cands = [];
+    $add = function ($f) use (&$cands) {
+        if (!is_file($f)) return;
+        $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+        if ($ext !== 'html' && $ext !== 'htm') return;
+        if (basename($f)[0] === '.') return;
+        $cands[] = $f;
+    };
+    foreach ((array)@scandir($dir) as $e) {
+        if ($e === '.' || $e === '..') continue;
+        $f = $dir . '/' . $e;
+        if (is_file($f)) { $add($f); continue; }
+        if (is_dir($f) && strpos($e, '_휴지통') !== 0) {
+            foreach ((array)@scandir($f) as $e2) {
+                if ($e2 === '.' || $e2 === '..') continue;
+                $add($f . '/' . $e2);
+            }
+        }
+    }
+    /* 판 번호가 큰 것 → 그 다음 새로 고친 것 → 큰 것 */
+    usort($cands, function ($a, $b) use ($dir) {
+        $ka = hub_ver(substr($a, strlen($dir)));
+        $kb = hub_ver(substr($b, strlen($dir)));
+        if ($ka !== $kb) return $kb <=> $ka;
+        $ma = (int)@filemtime($a); $mb = (int)@filemtime($b);
+        if ($ma !== $mb) return $mb <=> $ma;
+        return (int)@filesize($b) <=> (int)@filesize($a);
+    });
+    return $cands;
+}
+if ($action === 'hub' || $action === 'hubinfo') {
+    $in = normalize_nas_input($_GET['path'] ?? '');
+    if ($in === null) {
+        jout(['ok' => false, 'error' => '폴더(또는 파일) 경로를 알아보지 못했습니다. '
+            . '예) Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\실행파일\\HTML_V05'], 400);
+    }
+    $bd = basedir_error($in);
+    if ($bd !== null) jout(['ok' => false, 'error' => $bd], 403);
+
+    /* 파일을 바로 적었을 수도, 폴더를 적었을 수도 있습니다 */
+    $real = null; $tried = [];
+    [$dir, $tried] = resolve_nas_dir($in);
+    /* 공유폴더 밖이면 안을 들여다보지도 않습니다 (있는지조차 알려주지 않게) */
+    if ($dir !== null && !under_roots(realpath($dir) ?: $dir)) {
+        jout(['ok' => false, 'error' => '공유폴더 안쪽이 아니어서 열지 않았습니다. '
+            . 'NAS 가 훑는 폴더 안에 있는 자리를 적어 주세요.'], 403);
+    }
+    if ($dir !== null) {
+        $list = hub_pick($dir);
+        if (!$list) {
+            jout(['ok' => false, 'error' => '그 폴더에 펴 줄 HTML 이 없습니다',
+                  '찾은폴더' => $dir], 404);
+        }
+        $real = $list[0];
+        $names = [];
+        foreach (array_slice($list, 0, 12) as $f) $names[] = basename($f);
+    } else {
+        /* 폴더가 아니면 파일로 봅니다 — 위 폴더를 찾아 그 안에서 이름으로 */
+        [$up, $tried2] = resolve_nas_dir(dirname($in));
+        $tried = array_merge($tried, $tried2);
+        if ($up !== null && !under_roots(realpath($up) ?: $up)) {
+            jout(['ok' => false, 'error' => '공유폴더 안쪽이 아니어서 열지 않았습니다. '
+                . 'NAS 가 훑는 폴더 안에 있는 자리를 적어 주세요.'], 403);
+        }
+        if ($up !== null) {
+            $want = nas_name_key(basename($in));
+            foreach ((array)@scandir($up) as $e) {
+                if ($e === '.' || $e === '..') continue;
+                if (nas_name_key($e) === $want && is_file($up . '/' . $e)) {
+                    $real = $up . '/' . $e; break;
+                }
+            }
+        }
+        if ($real === null) {
+            jout(['ok' => false, 'error' => '그런 폴더·파일을 찾지 못했습니다',
+                  'tried' => $tried], 404);
+        }
+        $names = [basename($real)];
+        $dir = dirname($real);
+    }
+
+    $rr = realpath($real);
+    if ($rr === false || !under_roots($rr)) {
+        jout(['ok' => false, 'error' => '공유폴더 안쪽이 아니어서 열지 않았습니다: ' . $real], 403);
+    }
+    $ext = strtolower(pathinfo($rr, PATHINFO_EXTENSION));
+    if ($ext !== 'html' && $ext !== 'htm') {
+        jout(['ok' => false, 'error' => 'HTML 만 펴 줄 수 있습니다 (' . $ext . ')'], 400);
+    }
+
+    if ($action === 'hubinfo') {
+        jout(['ok' => true, '파일' => basename($rr), '폴더' => $dir,
+              '고친때' => date('Y-m-d H:i', (int)@filemtime($rr)),
+              '크기' => human((int)@filesize($rr)),
+              '후보' => $names]);
+    }
+
+    header('Content-Type: text/html; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Hub-File: ' . rawurlencode(basename($rr)));
+    header('Cache-Control: private, max-age=0');
+    while (ob_get_level()) ob_end_flush();
+    readfile($rr);
+    exit;
+}
+
 jout(['ok' => false, 'error' => '알 수 없는 요청입니다'], 400);

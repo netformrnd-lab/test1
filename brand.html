@@ -5411,7 +5411,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261014-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261014-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5693,7 +5693,8 @@ const TYPES = {
       { key:'title',  label:'항목',  type:'text', required:true,
         ph:'예: 네이버 파워링크 · Canva 구독' },
       { key:'kind',   label:'종류',  type:'select',
-        options:['광고비','구독료','외주비','제작비','행사비','기타'] },
+        options:['광고비','구독료','AI','외주비','제작비','행사비','기타'],
+        hint:'종류로 묶어 보면 💳 비용 화면에서 「AI 만」 처럼 한 곳에 모아 볼 수 있습니다.' },
       { key:'amount', label:'금액',  type:'text', required:true, ph:'예: 500000 (숫자만)' },
       { key:'cur',    label:'통화',  type:'select', options:['원','달러'] },
       /* 주기는 자리마다 다릅니다 — 2개월·3개월·18개월 같은 것이 흔합니다.
@@ -20143,8 +20144,11 @@ function cardHtml(c){
 /* ═══════════════ 마케팅 비용 ═════════════════════════════════════
    광고비·구독료처럼 나가는 돈을 적어두고, 한 달에 얼마인지 봅니다.
    ================================================================= */
-const COST_HUE = { '광고비':'var(--red)', '구독료':'var(--blue)', '외주비':'var(--purple)',
-                   '제작비':'var(--cyan)', '행사비':'var(--orange)', '기타':'var(--text-muted)' };
+const COST_HUE = { '광고비':'var(--red)', '구독료':'var(--blue)', 'AI':'var(--green)',
+                   '외주비':'var(--purple)', '제작비':'var(--cyan)', '행사비':'var(--orange)',
+                   '기타':'var(--text-muted)' };
+const COST_ICON = { '광고비':'📣', '구독료':'🔁', 'AI':'🤖', '외주비':'🤝',
+                    '제작비':'🎬', '행사비':'🎪', '기타':'📦' };
 
 /* 달러로 적은 것을 원으로 바꾸기 위한 환율. 화면에서 바꿉니다. */
 function fxRate(){
@@ -20227,6 +20231,13 @@ function won(n){ return (n || 0).toLocaleString('ko-KR') + '원'; }
    브랜드를 고르면 그 브랜드의 항목을 그대로 고칠 수 있습니다.
    ================================================================= */
 let costBrand = '';       // '' = 전체
+let costKind  = '';       // '' = 종류를 안 가림 ('AI' 면 AI 만 모아 봅니다)
+function setCostKind(k){ costKind = (costKind === k) ? '' : k; render(); }
+/* 지금 고른 종류만 남깁니다 — 브랜드든 구분이든 똑같이 거릅니다 */
+function costOfKind(list){
+  return costKind ? (list || []).filter(c => String(c.kind || '기타') === costKind)
+                  : (list || []);
+}
 
 function setCostBrand(id){ costBrand = id; render(); window.scrollTo({ top:0, behavior:'smooth' }); }
 
@@ -20410,7 +20421,7 @@ function costGroupDel(id){
 }
 /* 브랜드 하나의 셈 */
 function brandCost(b){
-  const list = b.costs || [];
+  const list = costOfKind(b.costs || []);
   const live = list.filter(costLive);
   return {
     b, n: list.length, live: live.length,
@@ -20444,7 +20455,30 @@ function renderCosts(){
       + '＋ 구분 추가</button>'
     + '<button class="btn sm" onclick="setFx()" title="달러로 적은 것을 원으로 바꿀 때 쓰는 값">'
       + '💱 환율 ' + fxRate().toLocaleString('ko-KR') + '원</button>'
-    + '</div>';
+    + '</div>'
+    /* ── 종류로 모아 보기 ─────────────────────────────────────────
+       「AI 비용만 한 곳에」 같은 때 씁니다. 브랜드를 바꾸지 않고 <<무슨
+       돈인지>> 로 거릅니다 — 그래서 그 비용은 제 브랜드에 그대로 있으면서
+       여기서는 한 줄로 모입니다. */
+    + (function(){
+        const all = costOwners().reduce((a, b) => a.concat(b.costs || []), []);
+        if(!all.length) return '';
+        const cnt = {};
+        all.forEach(c => { const k = String(c.kind || '기타');
+          cnt[k] = (cnt[k] || 0) + 1; });
+        const ks = Object.keys(COST_HUE).filter(k => cnt[k]);
+        if(ks.length < 2) return '';
+        return '<div class="sec-bar" style="margin-bottom:12px">'
+          + '<span class="fmeta">종류로 모아 보기</span>'
+          + '<button class="btn sm' + (costKind ? '' : ' primary') + '"'
+            + ' onclick="setCostKind(\'\')">전체 ' + all.length + '</button>'
+          + ks.map(k => '<button class="btn sm' + (costKind === k ? ' primary' : '') + '"'
+              + ' onclick="setCostKind(\'' + jsq(k) + '\')">'
+              + (COST_ICON[k] || '') + ' ' + esc(k) + ' <b>' + cnt[k] + '</b></button>').join('')
+          + (costKind ? '<span class="hint">「' + esc(costKind) + '」 만 보는 중입니다 — '
+              + '다시 누르면 전체로 돌아갑니다</span>' : '')
+          + '</div>';
+      })();
 
   const soonH = costSoonHtml(costSoon());
   const box = h => '<div class="panel"><div class="tabbody">'
@@ -20491,9 +20525,56 @@ function renderCosts(){
     return;
   }
 
+  /* ── 종류를 골랐으면 <<한 곳에 모아>> 보여 줍니다 ──────────────────
+     「AI 비용만」 같은 때, 브랜드를 하나씩 들어가 보지 않아도 되게
+     어디 것이든 한 표에 세웁니다. 비용 자체는 제 브랜드에 그대로 있습니다. */
+  const gathered = !costKind ? '' : (function(){
+    const all = [];
+    costOwners().forEach(o => costOfKind(o.costs || []).forEach(c => all.push({ o: o, c: c })));
+    if(!all.length) return '<div class="empty">「' + esc(costKind) + '」 로 적어 둔 비용이 '
+      + '아직 없습니다.<br>비용을 넣을 때 <b>종류</b> 를 「' + esc(costKind) + '」 로 '
+      + '골라 두면 여기 모입니다.</div>';
+    all.sort((x, y) => costPerMonth(y.c) - costPerMonth(x.c));
+    const sum = all.reduce((a, x) => a + costPerMonth(x.c), 0);
+    return '<div class="vz-box" style="margin-bottom:14px">'
+      + '<div class="vz-head">' + (COST_ICON[costKind] || '') + ' ' + esc(costKind)
+        + ' 만 모아 보기<span class="fmeta" style="margin-left:auto">'
+        + all.length + '건 · 한 달에 ' + won(sum) + '</span></div>'
+      + '<div class="vz-tw"><table class="ymtable costtable">'
+        + '<thead><tr><th>항목</th><th>어디 것</th><th class="num">금액</th><th>주기</th>'
+          + '<th class="num">한 달에</th><th>⏰ 만료일</th><th></th></tr></thead><tbody>'
+        + all.map(x => {
+            const c = x.c, end = costEndDay(c), guess = end ? null : costNextDay(c);
+            const left = daysUntil(end || guess);
+            const cls = left === null || left < 0 ? ''
+                      : left <= COST_SOON ? ' hot' : left <= 30 ? ' near' : '';
+            return '<tr>'
+              + '<td><b>' + esc(c.title || '(이름 없음)') + '</b>'
+                + (String(c.desc || '').trim()
+                    ? '<div class="cd-note">' + esc(c.desc) + '</div>' : '') + '</td>'
+              + '<td><button class="btn sm" onclick="setCostBrand(\'' + jsq(x.o.id) + '\')">'
+                + esc(x.o.icon || '🏷️') + ' ' + esc(x.o.name) + '</button></td>'
+              + '<td class="num">' + won(costWon(c)) + '</td>'
+              + '<td>' + esc(c.cycle || '매월') + '</td>'
+              + '<td class="num">' + (costPerMonth(c) ? won(costPerMonth(c))
+                  : '<span class="zero">–</span>') + '</td>'
+              + '<td class="cd-when"><div class="cd-end' + cls + '">'
+                + (end || guess ? esc(fmtDate(end || guess)) : '<span class="zero">없음</span>')
+                + (left !== null && left >= 0 && left <= 30
+                    ? '<span class="cd-dd">' + (left === 0 ? '오늘' : 'D-' + left) + '</span>' : '')
+                + '</div></td>'
+              + '<td style="white-space:nowrap"><button class="btn sm"'
+                + ' onclick="openItemModal(\'costs\',\'' + jsq(c.id) + '\',null,\''
+                + jsq(x.o.id) + '\')">수정</button></td>'
+              + '</tr>';
+          }).join('')
+        + '</tbody></table></div></div>';
+  })();
+
   const max = Math.max(1, withCost[0].month);
   const bars = '<div class="vz-box" style="margin-bottom:14px">'
-    + '<div class="vz-head">💳 브랜드마다 한 달에 얼마</div>'
+    + '<div class="vz-head">💳 ' + (costKind ? esc(costKind) + ' — ' : '')
+      + '브랜드마다 한 달에 얼마</div>'
     + withCost.map(r => '<div class="bar-row" style="cursor:pointer" '
         + 'onclick="setCostBrand(\'' + jsq(r.b.id) + '\')">'
         + '<span class="bl" style="width:104px">' + esc(r.b.icon || '🏷️') + ' ' + esc(r.b.name) + '</span>'
@@ -20543,16 +20624,16 @@ function renderCosts(){
       + '<td class="num">' + won(tot.once) + '</td><td></td></tr>'
     + '</tbody></table></div>';
 
-  document.getElementById('main').innerHTML = box(tiles + bars + kindBars + table
+  document.getElementById('main').innerHTML = box(tiles + gathered + bars + kindBars + table
     + '<div class="fmeta" style="margin-top:8px">'
-      + '「한 달에」 는 매년 결제하는 것을 12로 나눠 더한 값입니다. '
+      + '「한 달에」 는 주기에 맞춰 나눈 값입니다 (3개월에 30만원 → 한 달 10만원). '
       + '1회성은 달마다 계산에 넣지 않고 「올해 누적」 에만 들어갑니다. '
       + '달러로 적은 것은 환율 ' + fxRate().toLocaleString('ko-KR') + '원으로 바꿔 셉니다.'
     + '</div>');
 }
 
 function viewCosts(b){
-  const list = b.costs || [];
+  const list = costOfKind(b.costs || []);   /* 종류로 걸러 보는 중이면 그것만 */
   const bid = b.id;
   const bar = '<div class="sec-bar">'
     + '<button class="btn primary" onclick="openItemModal(\'costs\',null,null,\'' + jsq(bid) + '\')">'

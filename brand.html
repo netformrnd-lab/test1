@@ -5413,7 +5413,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261014-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261014-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20213,55 +20213,59 @@ function cycleMonths(c){
   if(/분\s*기/.test(k)) return 3;
   return 1;
 }
-/* 올해 실제로 나간(나갈) 돈 */
-function costThisYear(c){
-  const y = new Date().getFullYear();
-  const w = costWon(c);
-  const from = c.start ? new Date(c.start + 'T00:00:00') : null;
-  const to   = c.end   ? new Date(c.end   + 'T00:00:00') : null;
-  if(!cycleMonths(c)){                        /* 1회성 */
-    if(!c.start) return 0;
-    return (from && from.getFullYear() === y) ? w : 0;
-  }
-  // 올해 안에서 몇 달이나 걸쳐 있나
-  const s = (from && from.getFullYear() === y) ? from.getMonth() : (from && from.getFullYear() > y ? 12 : 0);
-  const e = (to && to.getFullYear() === y) ? to.getMonth() : (to && to.getFullYear() < y ? -1 : 11);
-  const months = Math.max(0, e - s + 1);
+/* ── 올해 <<돈이 나가는 날>> 을 하나하나 세어 봅니다 ───────────────
+   달력의 달을 세면 안 됩니다. 「10/13 신청 · 11/13 만료 · 1개월」 은
+   10월·11월 두 달에 걸쳐 있지만 돈은 <<10/13 한 번>> 만 나갑니다.
+   11/13 은 그 한 달이 끝나는 날이지, 또 내는 날이 아닙니다.
+   그래서 신청일에서 주기만큼 더해 가며 <<실제 결제일>> 을 세고,
+   만료일에 닿으면 멈춥니다.
+     · 신청일을 안 적었으면 올해 첫날부터 보는 셈으로 칩니다
+     · 1회성은 신청일 하루, 딱 한 번입니다
+     · 말일 넘침 보정 — 1/31 에 한 달 더해 3/3 이 되는 것을 막습니다 */
+function costPayDays(c, year){
   const per = cycleMonths(c);
-  return per ? Math.round(w / per) * months : 0;
+  const end = costEndDay(c);
+  let st = String((c && c.start) || '').slice(0, 10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(st)) st = year + '-01-01';
+  if(!per) return (st.slice(0, 4) === String(year)) ? [st] : [];   /* 1회성 */
+  const s = new Date(st + 'T00:00:00');
+  if(isNaN(s.getTime())) return [];
+  const day = s.getDate();
+  const out = [];
+  for(let i = 0; i < 1200; i++){
+    const d = new Date(s.getFullYear(), s.getMonth() + per * i, 1);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, last));
+    const ymd = ymdOf(d);
+    if(i > 0 && end && ymd >= end) break;      /* 만료일부터는 안 나갑니다 */
+    if(+ymd.slice(0, 4) > year) break;
+    if(ymd.slice(0, 4) === String(year)) out.push(ymd);
+    if(out.length > 400) break;
+  }
+  return out;
 }
+/* 올해 나갈 돈 전부 */
+function costThisYear(c){ return costYearParts(c).total; }
 /* ── 올해 치를 <<이미 나간 것 · 앞으로 나갈 것>> 으로 나눕니다 ─────
    「올해 누적」 이라고 적어 두었는데 실은 <<올해 나갈 돈 전부>> 였습니다.
    10월에 시작해 11월에 끝나는 것이 벌써 두 달 치로 잡혀서, 「벌써
    누적이 저래?」 하고 놀라게 됩니다. 셈은 맞지만 이름이 틀렸습니다.
    이제 전부와 「여기까지 나간 것」 을 같이 보여 줍니다. */
 function costYearParts(c){
-  const y = new Date().getFullYear();
-  const nowM = new Date().getMonth();
-  const w = costWon(c);
-  const from = c.start ? new Date(c.start + 'T00:00:00') : null;
-  const to   = c.end   ? new Date(c.end   + 'T00:00:00') : null;
-  const per  = cycleMonths(c);
-  if(!per){                                   /* 1회성 */
-    const t = (from && from.getFullYear() === y) ? w : 0;
-    const done = (t && String(c.start).slice(0, 10) <= todayStr()) ? t : 0;
-    return { total: t, done: done, left: t - done };
-  }
-  const s = (from && from.getFullYear() === y) ? from.getMonth()
-          : (from && from.getFullYear() > y ? 12 : 0);
-  const e = (to && to.getFullYear() === y) ? to.getMonth()
-          : (to && to.getFullYear() < y ? -1 : 11);
-  const months = Math.max(0, e - s + 1);
-  const mon = Math.round(w / per);
-  const doneM = Math.max(0, Math.min(e, nowM) - s + 1);
-  return { total: mon * months, done: mon * Math.min(doneM, months),
-           left: mon * Math.max(0, months - Math.min(doneM, months)) };
+  const y    = new Date().getFullYear();
+  const t0   = todayStr();
+  const days = costPayDays(c, y);
+  const w    = costWon(c);                    /* 한 번 낼 때 나가는 돈 */
+  const done = days.filter(d => d <= t0).length;
+  return { total: w * days.length, done: w * done,
+           left: w * (days.length - done), n: days.length };
 }
 function costYearSum(list){
   return (list || []).reduce((a, c) => {
     const p = costYearParts(c);
-    return { total: a.total + p.total, done: a.done + p.done, left: a.left + p.left };
-  }, { total:0, done:0, left:0 });
+    return { total: a.total + p.total, done: a.done + p.done,
+             left: a.left + p.left, n: a.n + p.n };
+  }, { total:0, done:0, left:0, n:0 });
 }
 function won(n){ return (n || 0).toLocaleString('ko-KR') + '원'; }
 
@@ -20555,7 +20559,7 @@ function renderCosts(){
           a.concat(costOfKind(b.costs || [])), []));
         return '<div class="stat"><div class="lb">📅 올해 나갈 돈</div>'
           + '<div class="val">' + won(yp.total) + '</div>'
-          + '<div class="sub">여기까지 나간 것 <b>' + won(yp.done) + '</b>'
+          + '<div class="sub">결제 ' + yp.n + '번 · 여기까지 나간 것 <b>' + won(yp.done) + '</b>'
             + ' · 앞으로 ' + won(yp.left) + '</div></div>';
       })()
     + '<div class="stat"><div class="lb">🧾 1회성</div><div class="val">' + won(tot.once) + '</div>'
@@ -20672,6 +20676,8 @@ function renderCosts(){
   document.getElementById('main').innerHTML = box(tiles + gathered + bars + kindBars + table
     + '<div class="fmeta" style="margin-top:8px">'
       + '「한 달에」 는 주기에 맞춰 나눈 값입니다 (3개월에 30만원 → 한 달 10만원). '
+      + '「올해 나갈 돈」 은 신청일에서 주기만큼 더해 가며 올해 안에 실제로 '
+      + '결제되는 날만 셉니다 (10/13 신청 · 11/13 만료 · 1개월 → 10/13 한 번). '
       + '1회성은 달마다 계산에 넣지 않고 「올해 나갈 돈」 에만 들어갑니다. '
       + '달러로 적은 것은 환율 ' + fxRate().toLocaleString('ko-KR') + '원으로 바꿔 셉니다.'
     + '</div>');
@@ -20711,7 +20717,7 @@ function viewCosts(b){
         const yp = costYearSum(list);
         return '<div class="stat"><div class="lb">📅 올해 나갈 돈</div>'
           + '<div class="val">' + won(yp.total) + '</div>'
-          + '<div class="sub">여기까지 나간 것 <b>' + won(yp.done) + '</b>'
+          + '<div class="sub">결제 ' + yp.n + '번 · 여기까지 나간 것 <b>' + won(yp.done) + '</b>'
             + ' · 앞으로 ' + won(yp.left) + '</div></div>';
       })()
     + '<div class="stat"><div class="lb">🧾 1회성</div><div class="val">' + won(once) + '</div>'
@@ -20765,7 +20771,10 @@ function viewCosts(b){
         + '</td>'
       + '<td>' + esc(c.cycle || '매월') + '</td>'
       + '<td class="num">' + (pm ? won(pm) : '<span class="zero">–</span>') + '</td>'
-      + '<td class="num">' + won(costThisYear(c)) + '</td>'
+      + '<td class="num">' + won(costThisYear(c))
+        + (function(){ const n = costYearParts(c).n;
+            return n > 1 ? '<div class="fmeta">' + n + '번</div>' : ''; })()
+        + '</td>'
       + '<td>' + esc(c.payer || '')
         + (c.owner ? '<div class="fmeta">' + esc(c.owner) + '</div>' : '')
         /* 들어가는 자리 — 비번은 가려 두고 눌러서 복사합니다 */
@@ -20823,6 +20832,8 @@ function viewCosts(b){
   return bar + tiles + kindBars + table
     + '<div class="fmeta" style="margin-top:8px">'
       + '「한 달에」 는 매년 결제하는 것을 12로 나눠 더한 값입니다. '
+      + '「올해 나갈 돈」 은 올해 안에 실제로 결제되는 날만 셉니다 '
+      + '(10/13 신청 · 11/13 만료 · 1개월 → 10/13 한 번). '
       + '1회성은 달마다 계산에 넣지 않고 「올해 나갈 돈」 에만 들어갑니다. '
       + '달러로 적은 것은 환율 ' + fxRate().toLocaleString('ko-KR') + '원으로 바꿔 셉니다.'
     + '</div>';

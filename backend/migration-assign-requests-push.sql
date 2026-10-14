@@ -1,44 +1,15 @@
--- 담당 배정 요청(assign_requests) → 앱 푸시(FCM) 연결
--- 방식: Supabase DB 트리거 + pg_net 로 /push(Cloudflare 함수) 직접 호출
---       (잔디 알림 migration-jandi-report.sql 과 동일한 패턴)
+-- 담당 배정 요청(assign_requests) → 앱 푸시(FCM)
+-- 기존 푸시 엔진을 그대로 재사용한다:
+--   공용 트리거 함수 public.notify_push() (pg_net) → cloudflare-push-worker → FCM
 --
--- ⚠️ 먼저 push 주소+비밀번호를 app_integrations 에 한 번만 넣어두세요(코드/깃엔 안 남게):
---   insert into public.app_integrations (key, value)
---     values ('push_webhook_url', 'https://(실제주소)/push?secret=(PUSH_WEBHOOK_SECRET)')
---   on conflict (key) do update set value = excluded.value;
+-- notify_push() 는 TG_TABLE_NAME / TG_OP / NEW 를 그대로 워커로 POST하는 '공용' 함수라,
+-- (reports·notices·profiles 등과 동일하게) assign_requests 에도 그대로 붙이면 된다.
+-- 워커 주소/secret 은 notify_push() 안에 이미 설정돼 있으므로 여기서 건드릴 게 없다.
 --
--- 이 값이 비어 있으면 트리거는 조용히 아무것도 안 함(= 기능은 그대로, 푸시만 안 감).
+-- ※ 전제: 푸시 워커(cloudflare-push-worker/worker.js)에 assign_requests 케이스가
+--   추가·배포돼 있어야 실제 발송된다. (없으면 워커가 '대상 없음'으로 조용히 끝남)
 
-create extension if not exists pg_net;
-
-create or replace function public.push_assign_request()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  hook text;
-begin
-  select value into hook from public.app_integrations where key = 'push_webhook_url';
-  if hook is null or length(hook) = 0 then
-    return new;   -- 주소 미설정 → 푸시 생략(안전)
-  end if;
-
-  perform net.http_post(
-    url     := hook,
-    headers := '{"content-type":"application/json"}'::jsonb,
-    body    := jsonb_build_object(
-      'table',  'assign_requests',
-      'type',   'INSERT',
-      'record', to_jsonb(new)
-    )
-  );
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_push_assign_request on public.assign_requests;
-create trigger trg_push_assign_request
+drop trigger if exists push_assign_requests on public.assign_requests;
+create trigger push_assign_requests
   after insert on public.assign_requests
-  for each row execute function public.push_assign_request();
+  for each row execute function public.notify_push();

@@ -311,6 +311,22 @@ body.tt-wide .layout{max-width:1820px}
 .ts-st{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;
   vertical-align:middle}
 .ts-box tr.dim{opacity:.5}
+/* 🔗 한 저장소를 같이 쓰는 할 일 */
+.lk-box{border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px 12px;
+  margin:0 0 18px;background:var(--bg-hover)}
+.lk-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  font-weight:650;font-size:14px;margin-bottom:10px}
+.lk-head .lk-meta{font-weight:400;font-size:12px;color:var(--text-muted)}
+.lk-head .lk-btns{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.lk-bad{color:var(--red)}
+.lk-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--text-muted)}
+.lk-dot.on{background:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 22%,transparent)}
+.lk-dot.off{background:var(--red)}
+.lk-dot.wait{background:var(--orange)}
+.lk-team{font-weight:650;font-size:13px;margin:12px 0 6px;display:flex;gap:8px;align-items:center}
+.lk-team .lk-tn{font-weight:400;font-size:12px;color:var(--text-muted)}
+.lk-box tr.dim{opacity:.5}
+@media (max-width:700px){ .lk-head .lk-btns{margin-left:0;width:100%} }
 @media (max-width:700px){ .ts-head .ts-btns{margin-left:0;width:100%} }
 
 /* ---------- 본문 판 ---------- */
@@ -5430,7 +5446,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261015-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261015-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5638,7 +5654,8 @@ function defaultData(){
   return {
     schema: SCHEMA,
     costGroups: [],        /* 💳 비용에서만 쓰는 구분 */
-    teamSync: null,        /* 🔁 다른 팀과 할 일 주고받기 */
+    teamSync: null,        /* 🔁 다른 팀과 할 일 주고받기 (파일 — 되지 않을 때만) */
+    teamLink: null,        /* 🔗 한 저장소를 같이 쓰는 할 일 연동 */
     brands: [
       newBrand('POUR공법',     '🏗️', '#3b82f6', ''),
       newBrand('아파트스퀘어',  '🏢', '#8b5cf6', ''),
@@ -18093,8 +18110,323 @@ function tsPanelHtml(){
     + '</div></div>';
 }
 
+/* ═══════════════ 🔗 할 일 진짜 연동 — 한 저장소를 같이 씁니다 ════
+   앞서 만든 「파일 주고받기」 는 연동이 아닙니다 — 누군가 눌러야 움직
+   이고, 양쪽이 서로 다른 것을 봅니다.
+
+   근무현황 캘린더를 붙인 것과 같은 틀로 갑니다. 거기서는 「(주)넷폼
+   알앤디 근무현황 캘린더」 가 쓰는 파이어베이스를 우리가 같이 읽었고,
+   아파트스퀘어도 같은 저장소를 씁니다. 그래서 아무것도 주고받지 않아도
+   서로 같은 것을 봅니다.
+
+   할 일도 같게 합니다. 다만 이번엔 <<읽기만>> 이 아니라 <<쓰기도>>
+   합니다 — 양쪽에서 고칠 수 있어야 연동입니다.
+
+     · 우리 할 일은 저장될 때마다 저절로 올라갑니다
+     · 저쪽 할 일은 1분마다 저절로 내려옵니다 (화면을 보고 있을 때)
+     · 저쪽이 우리 줄의 상태를 고치면 <<우리 할 일에도 들어옵니다>>
+     · 우리가 저쪽 줄을 고치면 저쪽에도 들어갑니다
+
+   줄마다 어느 팀 것인지 적혀 있고, 올릴 때 PATCH 를 써서 남의 줄은
+   건드리지 않습니다 (통째로 쓰면 상대가 방금 올린 것이 날아갑니다).
+   ================================================================= */
+let lkTimer = null, lkBusy = false, lkPushT = null, lkWoke = false;
+function lkOf(){
+  if(!data.teamLink || typeof data.teamLink !== 'object'){
+    data.teamLink = { on:false, rows:[], lastPull:'', lastPush:'',
+                      store:'', node:'', team:'', reach:null, why:'' };
+  }
+  const t = data.teamLink;
+  if(!Array.isArray(t.rows)) t.rows = [];
+  ['lastPull','lastPush','store','node','team','why'].forEach(k => {
+    if(typeof t[k] !== 'string') t[k] = ''; });
+  return t;
+}
+/* 때를 밀리초로 — 저장소는 「…+00:00」, 우리는 「…Z」 라 글자끼리 견주면 틀립니다 */
+function lkMs(iso){ const d = new Date(String(iso || '')); const n = d.getTime();
+                    return isFinite(n) ? n : 0; }
+function lkWhen(iso){
+  const n = lkMs(iso);
+  if(!n) return '아직 없음';
+  const d = new Date(n);
+  const sec = Math.round((Date.now() - n) / 1000);
+  if(sec < 90) return '방금';
+  if(sec < 3600) return Math.round(sec / 60) + '분 전';
+  return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 '
+       + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+/* 우리 할 일을 저장소에 올릴 모양으로 */
+function lkMine(){
+  return taskAll().map(({t, b}) => ({
+    id: String(t.id || ''),
+    업무명: String(t.title || '') + (b && b.name ? ' (' + b.name + ')' : ''),
+    담당자: taskWho(t) || '',
+    상태: String(t.status || ''),
+    기한: /^\d{4}-\d{2}-\d{2}$/.test(String(t.due || '')) ? String(t.due) : '',
+    진척률: String(t.pct || '').replace(/[^0-9]/g, '') || null,
+    메모: String(t.note || '')
+  })).filter(r => /^[A-Za-z0-9_\-]{1,64}$/.test(r.id) && r.업무명.trim());
+}
+/* ── 저쪽이 우리 줄을 고쳤으면 <<우리 할 일에도>> 넣습니다 ─────────
+   이게 없으면 반쪽입니다. 우리 것이 더 새것이면 그대로 둡니다. */
+function lkApplyBack(rows){
+  const t = lkOf();
+  if(!t.team) return 0;
+  const mine = {};
+  taskAll().forEach(x => { mine[x.t.id] = x; });
+  let n = 0;
+  (rows || []).forEach(r => {
+    if(String(r['팀'] || '') !== t.team) return;
+    const hit = mine[String(r.id || '')];
+    if(!hit) return;
+    if(lkMs(r['고친때']) <= lkMs(hit.t.updatedAt)) return;   /* 우리 것이 더 새것 */
+    let ch = false;
+    const st = String(r['상태'] || '').trim();
+    if(st && st !== String(hit.t.status || '')){ hit.t.status = st; ch = true; }
+    const pc = (r['진척률'] == null) ? '' : String(r['진척률']);
+    if(pc !== '' && pc !== String(hit.t.pct || '')){ hit.t.pct = pc; hit.t.pctAt = todayStr(); ch = true; }
+    const du = String(r['기한'] || '').trim();
+    if(du && du !== String(hit.t.due || '')){ hit.t.due = du; ch = true; }
+    if(ch){ hit.t.updatedAt = new Date(lkMs(r['고친때'])).toISOString();
+            markDirty(hit.b.id); n++; }
+  });
+  return n;
+}
+async function lkCheck(say){
+  const t = lkOf();
+  try{
+    const r = await apiJson('teamlink.php?action=check');
+    t.store = String(r['저장소'] || ''); t.node = String(r['노드'] || '');
+    t.team  = String(r['우리팀'] || '');  t.on = !r['꺼둠'];
+    t.reach = !!r['닿음'];
+    t.why   = (r['안된까닭'] || []).join(' · ');
+    if(say) alert((t.reach ? '✅ 저장소에 닿았습니다' : '⚠️ 아직 못 닿았습니다')
+      + '\n\n저장소: ' + t.store + '\n노드: ' + t.node + '\n우리 팀 이름: ' + t.team
+      + (t.reach ? '' : '\n\n까닭: ' + (t.why || '알 수 없음')
+          + '\n\n· 저장소 규칙(rules)에서 이 노드를 읽고 쓸 수 있어야 합니다'
+          + '\n· NAS 가 인터넷으로 나갈 수 있어야 합니다'));
+    render();
+    return t.reach;
+  }catch(e){
+    t.reach = false; t.why = apiErrText(e);
+    if(say) alert('❌ 연동 설정을 읽지 못했습니다.\n\n' + t.why
+      + '\n\nteamlink.php 가 NAS 에 올라왔는지 확인해 주세요 '
+      + '(판번호를 올리고 새로고침하면 저절로 올라갑니다).');
+    render();
+    return false;
+  }
+}
+async function lkSetup(){
+  const t = lkOf();
+  if(!t.store) await lkCheck(false);
+  const db = prompt('🔗 할 일을 같이 쓸 <<저장소 주소>>\n\n'
+    + '근무현황 캘린더가 쓰는 곳과 같은 저장소입니다.\n'
+    + '(아파트스퀘어도 여기를 씁니다 — 그래서 서로 같은 것을 봅니다)',
+    t.store || '');
+  if(db === null) return;
+  const node = prompt('그 안에서 할 일을 둘 <<자리 이름>>\n\n'
+    + '양쪽 앱이 같은 이름을 적어야 서로 보입니다.\n'
+    + '영문·숫자·_ - / 만 됩니다.', t.node || 'team_tasks');
+  if(node === null) return;
+  const team = prompt('우리 팀을 뭐라고 적을까요?\n\n'
+    + '줄마다 이 이름이 붙어, 어느 팀 것인지 알아봅니다.', t.team || '브랜드마케팅팀');
+  if(team === null) return;
+  try{
+    await apiJson('teamlink.php?action=setup', { method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ db:String(db).trim(), node:String(node).trim(),
+                             team:String(team).trim(), off:false }) });
+    toast('🔗 연동 자리를 맞췄습니다');
+    await lkCheck(true);
+    await lkPull(true);
+  }catch(e){ alert('❌ 맞추지 못했습니다.\n\n' + apiErrText(e)); }
+}
+/* 저장소를 둘러봅니다 — 그쪽 할 일이 이미 어딘가 들어 있는지 찾을 때 */
+async function lkPeek(path){
+  const t = lkOf();
+  const p = path != null ? path : prompt('저장소에서 둘러볼 자리\n\n'
+    + '비워 두면 맨 위에 무엇이 있는지 봅니다.\n'
+    + '(그쪽 할 일이 이미 어딘가 들어 있는지 찾아보는 데 씁니다)', '');
+  if(p === null) return;
+  try{
+    const r = await apiJson('teamlink.php?action=peek&path=' + encodeURIComponent(p));
+    const ks = r['열쇠'] || [];
+    alert('📂 ' + r['본곳'] + '\n\n'
+      + (ks.length ? ks.slice(0, 60).map(k => '· ' + k).join('\n')
+           + (ks.length > 60 ? '\n… 그 외 ' + (ks.length - 60) + '개' : '')
+           + '\n\n더 들어가 보려면 「' + (p ? p + '/' : '') + '위 이름」 을 적어 주세요.'
+         : '(안이 비었거나 값 하나입니다: ' + JSON.stringify(r['값']) + ')'));
+  }catch(e){ alert('❌ 둘러보지 못했습니다.\n\n' + apiErrText(e)); }
+}
+/* ⬇ 저장소에서 내려받습니다 */
+async function lkPull(loud){
+  const t = lkOf();
+  if(lkBusy) return;
+  lkBusy = true;
+  try{
+    const r = await apiJson('teamlink.php?action=pull' + (loud ? '&fresh=1' : ''));
+    t.rows = (r['줄'] || []).filter(x => x && String(x['업무명'] || '').trim());
+    t.lastPull = new Date().toISOString();
+    t.reach = true; t.why = '';
+    const back = lkApplyBack(t.rows);
+    markDirtyAll(); render();
+    if(loud) toast('⬇ 저장소에서 ' + t.rows.length + '줄을 받았습니다'
+      + (back ? ' · 우리 할 일 ' + back + '건이 저쪽에서 바뀐 대로 들어왔습니다' : ''));
+    else if(back) toast('🔗 저쪽에서 고친 ' + back + '건이 우리 할 일에 들어왔습니다');
+  }catch(e){
+    t.reach = false; t.why = apiErrText(e);
+    if(loud) alert('❌ 받지 못했습니다.\n\n' + t.why);
+    render();
+  }finally{ lkBusy = false; }
+}
+/* ⬆ 우리 할 일을 올립니다 */
+async function lkPush(loud){
+  const t = lkOf();
+  if(!t.on) return;
+  const rows = lkMine();
+  try{
+    const r = await apiJson('teamlink.php?action=push', { method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ 팀: t.team, 줄: rows }) });
+    t.lastPush = new Date().toISOString();
+    t.reach = true; t.why = '';
+    markDirtyAll();
+    if(loud){ toast('⬆ 우리 할 일 ' + (r['올린줄'] || 0) + '줄을 올렸습니다'); await lkPull(true); }
+    else render();
+  }catch(e){
+    t.reach = false; t.why = apiErrText(e);
+    if(loud) alert('❌ 올리지 못했습니다.\n\n' + t.why
+      + '\n\n· 저장소 규칙(rules)에서 이 자리에 <<쓰기>> 가 열려 있어야 합니다');
+    render();
+  }
+}
+/* 저장이 끝나면 조금 뒤 저절로 올립니다 — 누르지 않아도 연동되게 */
+function lkPushSoon(){
+  const t = lkOf();
+  if(!t.on || !t.team) return;
+  clearTimeout(lkPushT);
+  lkPushT = setTimeout(() => lkPush(false), 3000);
+}
+/* 화면을 보고 있는 동안 1분마다 내려받습니다 */
+function lkTick(){
+  clearTimeout(lkTimer);
+  const t = lkOf();
+  if(!t.on) return;
+  lkTimer = setTimeout(async () => {
+    if(view === 'tasks' && !document.hidden) await lkPull(false);
+    lkTick();
+  }, 60000);
+}
+/* 저쪽 줄을 우리가 고칩니다 (양방향) */
+async function lkRowSet(id){
+  const t = lkOf();
+  const r = (t.rows || []).find(x => String(x.id) === String(id));
+  if(!r) return;
+  const st = prompt('「' + r['업무명'] + '」 의 상태\n\n예) 대기 · 진행 중 · 완료 · 보류',
+    String(r['상태'] || ''));
+  if(st === null) return;
+  const pc = prompt('진척률 (숫자만, 비워도 됩니다)',
+    r['진척률'] == null ? '' : String(r['진척률']));
+  if(pc === null) return;
+  try{
+    await apiJson('teamlink.php?action=setrow', { method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id:id, 팀: t.team, 줄: Object.assign({}, r,
+        { 상태:String(st).trim(), 진척률:String(pc).replace(/[^0-9]/g, '') || null }) }) });
+    toast('🔗 저쪽 할 일을 고쳤습니다 — 저쪽 화면에도 들어갑니다');
+    await lkPull(true);
+  }catch(e){ alert('❌ 고치지 못했습니다.\n\n' + apiErrText(e)); }
+}
+const LK_ST_HUE = { '완료':'var(--green)', '진행 중':'var(--blue)', '진행':'var(--blue)',
+                    '대기':'var(--text-muted)', '보류':'var(--orange)' };
+function lkPanelHtml(){
+  if(STORAGE_MODE !== 'nas') return '';
+  const t = lkOf();
+  const rows = t.rows || [];
+  const others = rows.filter(r => String(r['팀'] || '') !== t.team);
+  const ours   = rows.length - others.length;
+  const byTeam = {};
+  others.forEach(r => { const k = String(r['팀'] || '(팀 없음)');
+    (byTeam[k] = byTeam[k] || []).push(r); });
+  const teams = Object.keys(byTeam);
+
+  const dot = (t.reach === null) ? 'wait' : (t.reach ? 'on' : 'off');
+  const head = '<div class="lk-head"><span class="lk-dot ' + dot + '"></span>'
+    + '🔗 다른 팀 할 일 — 한 저장소를 같이 씁니다'
+    + '<span class="lk-meta">'
+      + (t.reach === false ? '<b class="lk-bad">저장소에 못 닿음</b> · '
+          : (t.on ? '' : '<b class="lk-bad">꺼 둠</b> · '))
+      + '받은 때 ' + lkWhen(t.lastPull) + ' · 올린 때 ' + lkWhen(t.lastPush)
+      + ' · 우리 것 ' + ours + '줄 올라가 있음</span>'
+    + '<span class="lk-btns">'
+      + '<button class="btn sm primary" onclick="lkPull(1)" title="지금 바로 내려받습니다">↻ 지금 받기</button>'
+      + '<button class="btn sm" onclick="lkPush(1)" title="우리 할 일을 지금 올립니다">⬆ 지금 올리기</button>'
+      + '<button class="btn sm" onclick="lkPeek()" title="저장소에 무엇이 들어 있나 봅니다">🔍 둘러보기</button>'
+      + '<button class="btn sm" onclick="lkSetup()" title="저장소·자리·팀 이름">⚙︎ 연동 설정</button>'
+    + '</span></div>';
+
+  const body = t.reach === false
+    ? '<div class="empty" style="padding:16px">저장소에 못 닿았습니다.'
+      + (t.why ? '<div class="fmeta" style="margin-top:6px">' + esc(t.why) + '</div>' : '')
+      + '<div class="fmeta" style="margin-top:8px">'
+        + '· 저장소 규칙(rules)에서 이 자리를 읽고 쓸 수 있어야 합니다<br>'
+        + '· NAS 가 인터넷으로 나갈 수 있어야 합니다<br>'
+        + '· [⚙︎ 연동 설정] 에서 주소와 자리 이름을 확인해 주세요</div></div>'
+      /* 저장소가 막혀 있는 동안이라도 손이 묶이지 않게, 파일로 주고받는
+         길을 여기서만 보여 줍니다 (연동이 되면 안 보입니다) */
+      + '<div class="fmeta" style="margin:10px 0 6px">그동안 쓸 수 있는 길 — '
+        + '공유폴더에 파일 하나씩 놓아 주고받기</div>'
+      + tsPanelHtml()
+    : (!teams.length
+        ? '<div class="empty" style="padding:16px">아직 다른 팀이 올린 할 일이 없습니다.'
+          + '<div class="fmeta" style="margin-top:8px">우리 것은 ' + ours + '줄 올라가 있습니다 — '
+          + '저쪽 앱이 같은 자리(<b>' + esc(t.node || '?') + '</b>)를 읽고 쓰면 바로 서로 보입니다.</div></div>'
+        : teams.map(tm => {
+            const list = byTeam[tm];
+            const live = list.filter(r => String(r['상태'] || '') !== '완료');
+            return '<div class="lk-team">' + esc(tm)
+              + '<span class="lk-tn">남은 일 ' + live.length + '건 · 전부 ' + list.length + '건</span></div>'
+              + '<div class="vz-tw"><table class="ymtable"><thead><tr>'
+              + '<th>업무명</th><th>담당자</th><th>상태</th><th>기한</th>'
+              + '<th class="num">진척률</th><th>메모</th><th>마지막으로 고친</th><th></th>'
+              + '</tr></thead><tbody>'
+              + list.map(r => '<tr' + (String(r['상태'] || '') === '완료' ? ' class="dim"' : '') + '>'
+                  + '<td>' + esc(r['업무명']) + '</td>'
+                  + '<td>' + esc(r['담당자'] || '') + '</td>'
+                  + '<td><span class="ts-st" style="background:'
+                    + (LK_ST_HUE[r['상태']] || 'var(--text-muted)') + '"></span>'
+                    + esc(r['상태'] || '') + '</td>'
+                  + '<td>' + esc(r['기한'] || '') + '</td>'
+                  + '<td class="num">' + (r['진척률'] == null ? '–' : esc(r['진척률']) + '%') + '</td>'
+                  + '<td>' + esc(r['메모'] || '') + '</td>'
+                  + '<td class="fmeta">' + esc(r['고친이'] || '') + ' · ' + lkWhen(r['고친때']) + '</td>'
+                  + '<td><button class="btn sm" onclick="lkRowSet(\'' + jsq(r.id) + '\')"'
+                    + ' title="여기서 고치면 저쪽 화면에도 들어갑니다">✎ 고치기</button></td>'
+                  + '</tr>').join('')
+              + '</tbody></table></div>';
+          }).join(''));
+
+  return '<div class="lk-box">' + head + body
+    + '<div class="fmeta" style="margin-top:8px">'
+      + '근무현황 캘린더를 붙인 것과 같은 틀입니다 — 파일을 주고받지 않고 '
+      + '<b>한 저장소를 같이 씁니다</b>. 우리 할 일은 저장될 때마다 저절로 올라가고, '
+      + '저쪽 할 일은 1분마다 저절로 내려옵니다. '
+      + '<b>저쪽이 우리 줄의 상태를 고치면 우리 할 일에도 들어옵니다.</b>'
+      + (t.node ? '<br>자리: <b>' + esc(t.node) + '</b> · 우리 팀 이름: <b>'
+          + esc(t.team || '(안 정함)') + '</b>' : '')
+    + '</div></div>';
+}
+
 function renderTasks(){
   if(authOn()) setTimeout(() => loadPeople(), 10);
+  /* 🔗 할 일 연동 — 이 화면을 처음 열 때 한 번 확인하고, 그 뒤 1분마다 */
+  if(STORAGE_MODE === 'nas' && !lkWoke){
+    lkWoke = true;
+    setTimeout(async () => {
+      await lkCheck(false);
+      if(lkOf().on) { await lkPull(false); lkTick(); }
+    }, 60);
+  }
   const rows = taskAll();
   const head = '<h2 class="page-h">✅ 할 일</h2>'
     + '<div class="page-sub">팀마다 올해 노리는 것과, 팀원 저마다의 오늘을 한 화면에서 봅니다</div>';
@@ -18167,7 +18499,7 @@ function renderTasks(){
       teamKpiHtml(rows)
     + taskKpiHtml(rows)
     + staleHtml(rows)
-    + tsPanelHtml()
+    + lkPanelHtml()
     + mvHtml
     + '<div class="tt-sect">' + (mmOn ? '🗺️ 업무 마인드맵' : '팀 멤버별 오늘 할 일')
       + '<span class="tt-day">' + esc(dayText) + '</span>'
@@ -28864,6 +29196,19 @@ function mergeWithServer(server){
       sg.filter(x => x && x.id && !seen.has(x.id) && !deletedIds.has(x.id)));
   })();
 
+  /* 🔗 한 저장소를 같이 쓰는 할 일 — 담아 둔 것이라 나중에 받은 쪽을 따릅니다 */
+  (function(){
+    const st = o => { const a = String((o && o.lastPull) || ''),
+                            b = String((o && o.lastPush) || '');
+                      return a > b ? a : b; };
+    const ml = (mine.teamLink   && typeof mine.teamLink   === 'object') ? mine.teamLink   : null;
+    const sl = (server.teamLink && typeof server.teamLink === 'object') ? server.teamLink : null;
+    if(!ml && !sl){ delete merged.teamLink; return; }
+    if(!ml){ merged.teamLink = sl; return; }
+    if(!sl){ merged.teamLink = ml; return; }
+    merged.teamLink = st(sl) > st(ml) ? sl : ml;
+  })();
+
   /* 🔁 다른 팀과 주고받는 할 일 — 목록이 아니라서 따로. <<나중에 주고받은
      쪽>> 을 따릅니다 (가져온 때·보낸 때 가운데 늦은 것으로 견줍니다).
      이게 없으면 둘이 같이 켜 뒀을 때 한쪽이 방금 가져온 것이 사라집니다. */
@@ -29216,6 +29561,9 @@ async function saveAll(silent){
     setSaveState('saved');
     if(!silent) toast(STORAGE_MODE === 'nas' ? '✅ NAS에 저장되었습니다' : '✅ 저장되었습니다 (이 브라우저)');
     updateSubtitle();
+    /* 🔗 할 일 연동 — 저장될 때마다 조금 뒤 저절로 올립니다.
+       누르지 않아도 저쪽에 들어가야 「연동」 입니다. */
+    if(typeof lkPushSoon === 'function') lkPushSoon();
     if(mergedOnce) render();      // 합쳐졌을 때만 다시 그립니다 (평소엔 화면을 건드리지 않음)
   }catch(e){
     localStorage.setItem(LS_KEY, JSON.stringify(data));   // 안전망
@@ -29286,6 +29634,20 @@ function normalize(raw){
       h._dirMoved = true;
     }
   });
+  /* 🔗 한 저장소를 같이 쓰는 할 일 — 담아 둔 것이라 모양만 맞춥니다.
+     진짜 설정(저장소 주소·자리 이름)은 NAS 의 teamlink.php 가 들고 있어
+     사람마다 달라지지 않습니다. */
+  if(raw.teamLink && typeof raw.teamLink === 'object'){
+    const L = raw.teamLink;
+    ['lastPull','lastPush','store','node','team','why'].forEach(k => {
+      if(typeof L[k] !== 'string') L[k] = ''; });
+    L.on = !!L.on;
+    if(!Array.isArray(L.rows)) L.rows = [];
+    L.rows = L.rows.filter(r => r && typeof r === 'object'
+                                && String(r['업무명'] || '').trim()).slice(0, 2000);
+  }else if(raw.teamLink !== null && raw.teamLink !== undefined){
+    raw.teamLink = null;
+  }
   /* 🔁 다른 팀과 주고받는 할 일 — 모양을 맞춰 둡니다 */
   if(raw.teamSync && typeof raw.teamSync === 'object'){
     const t = raw.teamSync;

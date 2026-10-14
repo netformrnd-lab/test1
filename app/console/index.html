@@ -101,11 +101,43 @@ tbody tr:hover{background:#f8fafc}
 .alert.info{background:var(--blue-soft);border-color:#c3ddf7;color:#184f95}
 .alert .ah{font-weight:800;margin-bottom:5px;display:flex;align-items:center;gap:7px}
 .alert .row{padding:7px 0;border-top:1px dashed rgba(0,0,0,.1)}.alert .row:first-of-type{border-top:none}
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
 .cal .dh{text-align:center;font-size:11px;font-weight:800;color:var(--mut);padding:4px}
-.cell{background:#fff;border:1px solid var(--line);border-radius:9px;min-height:76px;padding:5px 6px;font-size:11px}
+.cell{background:#fff;border:1px solid var(--line);border-radius:9px;min-height:76px;padding:5px 6px;font-size:11px;min-width:0;overflow:hidden}
 .cell .dn{font-weight:800;color:var(--mut2);font-size:11px}
-.cell .ev{margin-top:3px;background:var(--blue-soft);color:var(--blue);border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell /* 기본 일정은 회색 톤(파란 도배 방지) → 빨간 아스퀘가 확 튀게. 아스퀘/방문은 인라인 스타일로 덮어씀 */
+.ev{margin-top:3px;background:#eef1f4;color:#434d63;border-radius:5px;padding:1px 5px;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 주간 보기 */
+.wktoggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.wktoggle button{border:none;background:#fff;font-size:12px;font-weight:700;padding:6px 13px;cursor:pointer;color:#59617a}
+.wktoggle button.on{background:#111a33;color:#fff}
+.wkwrap{background:#fff;border-radius:10px}
+.wkhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px 14px;border-bottom:1px solid var(--line)}
+.wkhead .wt{font-size:15px;font-weight:800;color:#1b2440}
+.wkhead .wsub{font-size:12px;color:#808aa0;font-weight:600}
+.wkday{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border-top:1px solid #eef1f4}
+.wkday:first-of-type{border-top:none}
+.wkday.today{background:#f2f6ff}
+.wkd-left{flex:0 0 52px;text-align:center;padding-top:3px}
+.wkd-dow{font-size:14px;font-weight:800;color:#3a4458}
+.wkday.today .wkd-dow{color:#2563eb}
+.wkday.weekend .wkd-dow{color:#c2607a}
+.wkd-date{font-size:11px;color:#6a7488;font-weight:700;margin-top:2px}
+.wkd-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.wkev{display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:#f8f9fb;border-left:3px solid #c7ccd6;border-radius:0 7px 7px 0;padding:6px 10px}
+.wkev.asq{background:#eff4ff;border-left-color:#2563eb}
+.wkev-cat{font-size:10px;font-weight:800;color:#4a5468;background:#dfe3ea;border-radius:4px;padding:2px 6px;white-space:nowrap}
+.wkev.asq .wkev-cat{background:#cfe0ff;color:#1b4fd6}
+.wkev-t{font-size:13px;font-weight:700;color:#27304a}
+.wkev.asq .wkev-t{color:#1d4ed8;font-weight:800}
+.wkev.visit{background:#eefaf4;border-left-color:#0f9d6b}
+.wkev.visit .wkev-cat{color:#0b7a55;background:#cdeede}
+.wkev.visit .wkev-t{color:#0b7a55;font-weight:800}
+.wkev:not(.asq):not(.visit){opacity:.55;border-left-color:#d8dce3}
+.wkev:not(.asq):not(.visit) .wkev-t{color:#9aa3b2;font-weight:600}
+.wkev:not(.asq):not(.visit) .wkev-cat{color:#9aa3b2;background:#f0f1f4}
+.wkev-who{font-size:11px;font-weight:700;color:#5b3fb0;background:#efeaff;border-radius:6px;padding:2px 7px;margin-left:auto;white-space:nowrap}
+.wkev-none{font-size:12px;color:#8a93a6;font-weight:600;padding:2px 0}
 .kv{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line2)}
 .kv:last-child{border-bottom:none}.kv span{width:110px;color:var(--mut2);font-size:12px;font-weight:800;flex-shrink:0}.kv b{font-weight:700;font-size:13px}
 .empty{text-align:center;color:var(--mut);font-size:13px;padding:22px}
@@ -200,6 +232,47 @@ tbody tr:hover{background:#f8fafc}
 .stog.todo{background:#eef1f7;color:var(--mut2)}.stog.doing{background:var(--blue-soft);color:var(--blue)}.stog.done{background:var(--green-soft);color:var(--green)}
 .rmboard{display:flex;gap:12px;min-width:min-content;align-items:flex-start}
 .rmcard{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:9px}
+/* ===== 공사관리 · 단계 보드 ===== */
+.stgfilter{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:12px;box-shadow:0 2px 8px rgba(31,44,92,.04)}
+.stgfilter .ttl{display:flex;align-items:center;gap:7px;margin-right:5px;padding-right:13px;border-right:1px solid var(--line);font-size:12px;font-weight:800;color:#17244d;white-space:nowrap}
+.stgfilter .ttl:before{content:'';width:7px;height:7px;border-radius:50%;background:#2f6bf6;box-shadow:0 0 0 4px #e9f0ff}
+.stgbtn{appearance:none;border:1px solid var(--line);background:#f7f9fc;color:#667085;border-radius:10px;padding:8px 11px;display:inline-flex;align-items:center;gap:8px;font-family:inherit;font-size:12.5px;font-weight:750;line-height:1;cursor:pointer;transition:.15s ease}
+.stgbtn:hover{border-color:#a9b9dc;background:#f1f5fc;color:#23386d;transform:translateY(-1px)}
+.stgbtn .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.stgbtn .num{min-width:21px;height:21px;padding:0 6px;border-radius:7px;background:#e7ebf2;color:#596579;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:850;font-variant-numeric:tabular-nums}
+.stgbtn.on{border-color:#1f2c5c;background:#1f2c5c;color:#fff;box-shadow:0 4px 10px rgba(31,44,92,.17)}
+.stgbtn.on .num{background:rgba(255,255,255,.18);color:#fff}
+/* 단계 체크바 (계약→착공→공사중→준공처리→준공) */
+.stepbar{display:inline-flex;gap:3px;align-items:center}
+.stepbar .sp{min-width:30px;height:26px;padding:0 7px;border-radius:7px;border:1px solid var(--line);background:#f4f6fa;color:#98a1b3;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap;transition:.13s;user-select:none}
+.stepbar .sp:hover{border-color:#8fa8d8;color:#2f6bf6;background:#eef3fd;transform:translateY(-1px)}
+.stepbar .sp.pass{background:#e8eefb;border-color:#d3e0f8;color:#5b7ec4}
+.stepbar .sp.cur{color:#fff;border-color:transparent;box-shadow:0 3px 8px rgba(31,44,92,.18)}
+.stepbar .sp.cur:hover{color:#fff;transform:none}
+/* 칸반 */
+.kbwrap{overflow-x:auto;padding-bottom:10px}
+.kbboard{display:grid;grid-template-columns:repeat(5,minmax(212px,1fr));gap:11px;min-width:1120px;align-items:start}
+.kbcol{background:#f4f6fa;border:1px solid var(--line);border-radius:14px;padding:10px;min-height:150px;transition:.13s}
+.kbcol.over{background:#eaf1ff;border-color:#2f6bf6;box-shadow:inset 0 0 0 1px #2f6bf6}
+.kbhead{display:flex;align-items:center;gap:8px;padding:2px 4px 10px;border-bottom:1px solid var(--line);margin-bottom:10px}
+.kbhead .nm{font-size:13px;font-weight:850;color:#17244d}
+.kbhead .sub{font-size:10.5px;color:var(--mut);font-weight:600}
+.kbhead .n{margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:8px;font-size:11.5px;font-weight:850;padding:2px 8px;font-variant-numeric:tabular-nums}
+.kbcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:9px;box-shadow:0 1px 3px rgba(31,44,92,.05);cursor:grab;transition:.13s}
+.kbcard:hover{box-shadow:0 5px 14px rgba(31,44,92,.12);transform:translateY(-1px);border-color:#bcd3fb}
+.kbcard.drag{opacity:.45}
+.kbcard.new{background:#fff6f5;border-color:#ffd5d0}
+.kbcard .t{font-size:13.5px;font-weight:800;line-height:1.3}
+.kbcard .rg{font-size:11px;color:var(--mut);margin-top:2px}
+.kbcard .mt{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;font-size:11.5px;margin-top:9px;color:var(--mut2)}
+.kbcard .mt b{color:var(--ink,#1b2233)}
+.kbfoot{display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:9px;border-top:1px dashed var(--line)}
+.kbmv{border:1px solid var(--line);background:#f7f9fc;color:#5c6580;border-radius:8px;min-width:30px;height:28px;padding:0 8px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit}
+.kbmv:hover:not(:disabled){border-color:#2f6bf6;color:#2f6bf6;background:#eef3fd}
+.kbmv:disabled{opacity:.35;cursor:default}
+.kbempty{border:1px dashed var(--line);border-radius:11px;padding:20px 10px;text-align:center;color:var(--mut);font-size:12px}
+.kbcard .t{overflow-wrap:anywhere}
+@media(max-width:820px){.kbboard{grid-template-columns:repeat(5,minmax(200px,1fr));min-width:1050px}}
 </style>
 </head>
 <body>
@@ -237,7 +310,8 @@ tbody tr:hover{background:#f8fafc}
       <a data-s="history" onclick="go('history')"><span class="ic">🗂️</span>활동기록</a>
       <div class="lbl">앱 관리</div>
       <a data-s="members" onclick="go('members')"><span class="ic">👤</span>회원<span class="cnt red" id="c-pending">0</span></a>
-      <a data-s="comm" onclick="go('comm')"><span class="ic">💬</span>입주민소통/NPS<span class="cnt red" id="c-chat" style="display:none">0</span></a>
+      <a data-s="comm" onclick="go('comm')"><span class="ic">💬</span>입주민소통/NPS</a>
+      <a data-s="usage" onclick="go('usage')"><span class="ic">📊</span>사용통계</a>
       <a data-s="promo" onclick="go('promo')"><span class="ic">🏅</span>홍보·자료</a>
       <div class="lbl">기타</div>
       <a data-s="tools" onclick="go('tools')"><span class="ic">🧰</span>데이터 도구</a>
@@ -257,7 +331,7 @@ tbody tr:hover{background:#f8fafc}
         <div class="card"><h3>🏅 고객사 등급 분포 <span class="r">사용빈도+문의 자동</span></h3><div id="dashGrades"></div></div>
       </div>
       <div class="grid2">
-        <div class="card"><h3>⚠️ 이번 주 배치 필요 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div id="dashAssign"></div></div>
+        <div class="card"><h3>⚠️ 담당 배정 안 된 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div id="dashAssign"></div></div>
         <div class="card"><h3>🚨 2일 이상 정체된 딜 <span class="r"><span class="link" onclick="go('sales')">영업 →</span></span></h3><div id="dashStalled"></div></div>
       </div>
       <div class="grid2">
@@ -273,8 +347,8 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-calendar">
-      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b line" style="color:#d9453c;border-color:#f3c2be" onclick="deleteOwnSchedules()">🗑 우리가 올린 일정 삭제 (POUR 제외)</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
-      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button> <span id="buildTag" style="font-size:9px;color:#c3c9d4;font-weight:600"></span></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div></div>
+      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="wktoggle"><button id="calViewMonth" class="on" onclick="setCalView('month')">월간</button><button id="calViewWeek" onclick="setCalView('week')">주간</button></span><button class="b line" onclick="exportCalImage()">📷 주간 사진 저장</button><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b line" style="color:#d9453c;border-color:#f3c2be" onclick="deleteOwnSchedules()">🗑 우리가 올린 일정 삭제 (POUR 제외)</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
+      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button> <span id="buildTag" style="font-size:9px;color:#c3c9d4;font-weight:600"></span></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div><div id="calWeek" style="display:none"></div></div>
       <div id="calDayList"></div>
       <div id="cal-alert"></div>
     </section>
@@ -287,10 +361,12 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-projects">
-      <div class="head"><div><h2>공사관리</h2><div class="desc">단지 클릭 → 상세(감리일지·작업사진·계약서·방문이력)</div></div></div>
+      <div class="head"><div><h2>공사관리</h2><div class="desc">단계(계약 → 착공 → 공사중 → 준공처리 → 준공)를 눌러 바로 이동 · 단지 클릭 → 상세(감리일지·작업사진·계약서·방문이력)</div></div></div>
       <div id="projList">
-        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openAptAdd()">➕ 단지 추가</button></div>
-        <div style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:860px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리사</th><th>감리비</th><th>미수금</th><th>감리일지</th><th>방문</th><th>공정률</th><th>상태</th></tr></thead><tbody id="projRows"></tbody></table></div></div>
+        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openReportAddPick()">📝 감리일지 작성</button><button class="b line" onclick="openAptAdd()">➕ 단지 추가</button><button class="b line" onclick="openBulkAssign()">👥 감리원 일괄배정</button><span style="flex:1"></span><div class="seg" style="margin:0"><button id="pv-list" onclick="setProjView('list')">📋 리스트</button><button id="pv-kanban" onclick="setProjView('kanban')">🗂️ 칸반</button></div></div>
+        <div class="stgfilter" id="projStageFilter"></div>
+        <div id="projTableWrap" style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:1000px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리원</th><th>감리비</th><th>미수금</th><th>감리일지</th><th>방문</th><th>공정률</th><th style="min-width:190px">단계 <span style="font-weight:600;color:var(--mut)">(클릭 이동)</span></th></tr></thead><tbody id="projRows"></tbody></table></div></div>
+        <div id="projKanbanWrap" class="kbwrap" style="display:none"><div class="kbboard" id="projKanban"></div></div>
       </div>
       <div id="projDetail" style="display:none"></div>
     </section>
@@ -302,7 +378,7 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-members">
-      <div class="head"><div><h2>회원</h2><div class="desc">앱 로그인 계정(입주민·감리사·소장·관리자) 승인·관리</div></div></div>
+      <div class="head"><div><h2>회원</h2><div class="desc">앱 로그인 계정(입주민·감리원·소장·관리자) 승인·관리</div></div></div>
       <div class="card"><h3>⏳ 승인 대기 <span class="r" id="pendCnt"></span></h3><div id="pendBody"></div></div>
       <div class="card"><h3>전체 회원 <span class="r" id="memCnt"></span></h3>
         <div class="toolbar"><input class="inp" id="mem-q" placeholder="🔍 이름·아이디 검색" style="min-width:220px" oninput="renderMembers()"><button class="b blue" onclick="openMemberAdd()">➕ 회원 추가</button></div>
@@ -311,14 +387,18 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-comm">
-      <div class="head"><div><h2>입주민소통/NPS</h2><div class="desc">공지사항 · 채팅 · NPS · 아파트알림</div></div></div>
+      <div class="head"><div><h2>입주민소통/NPS</h2><div class="desc">공지사항 · NPS · 아파트알림 · 상담은 카카오톡 채널로 운영</div></div></div>
       <div class="seg" id="commTabs">
         <button class="on" onclick="commTab('notice',this)">📢 공지사항</button>
-        <button id="commChatBtn" onclick="commTab('chat',this)">💬 채팅</button>
         <button onclick="commTab('nps',this)">⭐ NPS</button>
         <button onclick="commTab('alarm',this)">🔔 아파트알림</button>
       </div>
       <div id="commBody"></div>
+    </section>
+
+    <section class="sec" id="s-usage">
+      <div class="head"><div><h2>📊 입주민 앱 사용통계</h2><div class="desc">입주민이 앱을 얼마나 쓰는지 — 자동 집계(여는 순간 최신 데이터). 감리원 사용은 제외돼요.</div></div><div style="display:flex;gap:8px;align-items:center"><select class="inp" id="usg-range" onchange="renderUsage()" style="width:auto"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option></select><button class="b line" onclick="renderUsage()">🔄 새로고침</button></div></div>
+      <div id="usgBody"></div>
     </section>
 
     <section class="sec" id="s-promo">
@@ -404,7 +484,7 @@ const DEMO_SESS=(function(){try{return new URLSearchParams(location.search).get(
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY, DEMO_SESS?{auth:{storageKey:'sb-aptsq-demo-'+DEMO_SESS}}:undefined);
 const $=(id)=>document.getElementById(id);
 const esc=(s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};
+const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리원',admin:'관리자'};
 const dispId=(email)=>{const e=(email||'');return e.endsWith('@aptsquare.app')?e.slice(0,-'@aptsquare.app'.length):e;};
 // localStorage 안전 접근 (사생활보호 모드·일부 WebView에서 예외가 나도 화면이 깨지지 않게)
 const lsGet=(k)=>{try{return localStorage.getItem(k);}catch(e){return null;}};
@@ -413,7 +493,9 @@ const lsDel=(k)=>{try{localStorage.removeItem(k);}catch(e){}};
 const loginId=(m)=>m.username||dispId(m.email)||'';
 const realEmail=(m)=>{const e=(m.email||'');return e.endsWith('@aptsquare.app')?'':e;};
 
-let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={};
+let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={},AREQS=[];
+// 단지별 '대기중(pending)' 배정 요청 찾기
+function pendingReq(aptId){ return AREQS.find(r=>r.apartment_id===aptId && r.status==='pending'); }
 let SALES=[],ROADMAP=[],DOCS=[],SITE_NOTES=[],VIEWS={},CSITES={},PHASEB_OK={sales:false,roadmap:false,docs:false,csites:false};
 function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return a.auditor_id?[a.auditor_id]:[]; }
 function auditorName(id){ const m=MEMBERS.find(x=>x.id===id); return m?(m.name||m.email||'-'):'-'; }
@@ -471,6 +553,7 @@ async function loadAll(){
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
   SURVEYS=sv.data||[];CONTRACTS=ct.data||[];LEAFLETS=lf.data||[];CREDS=cr.data||[];MGRFORMS=mf.data||[];
   APT_AUD={}; try{ const {data:aa}=await sb.from('apartment_auditors').select('*'); (aa||[]).forEach(x=>{(APT_AUD[x.apartment_id]=APT_AUD[x.apartment_id]||[]).push(x.auditor_id);}); }catch(e){}
+  try{ const {data:ar}=await sb.from('assign_requests').select('*').order('created_at',{ascending:false}); AREQS=ar||[]; }catch(e){ AREQS=[]; }
   try{ const {data:ch}=await sb.from('chat_messages').select('*').order('created_at',{ascending:false}).limit(400); CHAT=ch||[]; }catch(e){ CHAT=[]; }
   try{ const {data:sl,error}=await sb.from('sales_leads').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); SALES=sl||[]; PHASEB_OK.sales=!error; }catch(e){ SALES=[]; PHASEB_OK.sales=false; }
   try{ const {data:rm,error}=await sb.from('roadmap_items').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); ROADMAP=rm||[]; PHASEB_OK.roadmap=!error; }catch(e){ ROADMAP=[]; PHASEB_OK.roadmap=false; }
@@ -482,8 +565,9 @@ async function loadAll(){
   initSeen();
   await loadRoadmapManual();
   renderAll();
-  startPoll(); startChatPoll(); startConsoleRealtime(); maybeAutoSyncGSheet();
+  startPoll(); startConsoleRealtime(); maybeAutoSyncGSheet();
   if(!WON_MATED){ WON_MATED=true; materializeWonApts(null); }  // 성사 딜 → 단지관리 자동 편입(세션 1회)
+  autoApplyVisits();  // 상시 자동 적용: 앞으로 6주치 방문 자동 생성(세션 1회)
 }
 let WON_MATED=false;
 function renderAll(){
@@ -506,6 +590,17 @@ function markAllRepsSeen(){ APTS.forEach(a=>markAptRepsSeen(a.id)); }
 function aptNewReps(aid){ const s=repSeenApt(aid); return REPORTS.filter(r=>r.apartment_id===aid && (r.created_at||'')>s).length; }
 function isNewReport(r){ return (r.created_at||'')>repSeenApt(r.apartment_id); }
 function newReportList(){ return REPORTS.filter(isNewReport); }
+// 감리일지 회차: '같은 단지+공종'의 생성순 위치(1,2,3…). 서버 기록 기준이라 기기와 무관하게 자동 증가.
+function repWorktype(r){ return ((r&&r.worktype)||'').trim(); }
+function repRound(r){
+  if(!r) return 1;
+  const wk=repWorktype(r);
+  const grp=REPORTS.filter(x=>x.apartment_id===r.apartment_id && repWorktype(x)===wk)
+                   .sort((a,b)=>((a.created_at||'').localeCompare(b.created_at||''))||(String(a.id)>String(b.id)?1:-1));
+  const i=grp.findIndex(x=>x.id===r.id);
+  return i>=0?i+1:1;
+}
+function repRoundBadge(r){ const wk=repWorktype(r); return `<span class="pill ok" style="font-weight:800" title="${wk?esc(wk)+' ':''}회차(단지+공종 기준 자동)">${repRound(r)}회차</span>`; }
 function chatKey(c){ return c.thread||('apt:'+c.apartment_id); }
 function chatSeen(th){ return lsGet('aptsq_chatseen_'+th)||''; }
 function markChatSeen(th){ const ms=CHAT.filter(c=>chatKey(c)===th); if(ms.length){ const mx=ms.reduce((m,c)=>((c.created_at||'')>m?(c.created_at||''):m),''); lsSet('aptsq_chatseen_'+th,mx); } }
@@ -571,7 +666,70 @@ function go(s){
   const el=$('s-'+s);if(el)el.classList.add('on');
   document.querySelectorAll('[data-s]').forEach(a=>a.classList.toggle('on',a.dataset.s===s));
   if(s==='projects')backToProjList();
+  if(s==='usage')renderUsage();
   window.scrollTo(0,0);
+}
+
+/* ===== 입주민 앱 사용통계 (자동 집계 RPC) ===== */
+const USG_KIND_LBL={view:'🏠 홈 열람',report:'📄 감리일지 열람',contract:'📑 계약서 열람',nps:'⭐ 만족도 제출',kakao:'💬 카톡 상담'};
+const USG_ROLE_LBL={resident:'입주민',manager:'관리소장',auditor:'감리원',admin:'관리자'};
+let USG_LAST=null;
+function renderUsgUsers(q){
+  const tb=$('usgUserRows'); if(!tb)return;
+  q=(q||'').trim().toLowerCase();
+  let list=(USG_LAST&&USG_LAST.by_user)||[];
+  if(q){ list=list.filter(u=>{ const nm=(u.name||'').toLowerCase(); const ap=(aptName(u.apartment_id)||'').toLowerCase(); return nm.indexOf(q)>=0||ap.indexOf(q)>=0; }); }
+  const n=v=>(v==null?'0':Number(v).toLocaleString());
+  tb.innerHTML=list.length?list.map(u=>`<tr>
+    <td style="font-weight:700;white-space:nowrap">${esc(u.name||'(이름 없음)')}</td>
+    <td style="white-space:nowrap">${u.apartment_id?`<span class="link" onclick="openProj('${u.apartment_id}')">${esc(aptName(u.apartment_id))}</span>`:'<span style="color:var(--mut)">-</span>'}</td>
+    <td><span class="pill ${u.role==='manager'?'blue':(u.role==='auditor'?'gray':'ok')}">${esc(USG_ROLE_LBL[u.role]||u.role||'입주민')}</span></td>
+    <td style="text-align:right;font-weight:800">${n(u.events)}건</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.view)}</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.report)}</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.contract)}</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.nps)}</td>
+    <td style="text-align:center;color:var(--mut)">${n(u.kakao)}</td>
+    <td style="white-space:nowrap;color:var(--mut);font-size:11.5px">${esc(u.last_at||'-')}</td>
+  </tr>`).join(''):`<tr><td colspan="10" class="empty">${q?'검색 결과가 없어요':'아직 사용 기록이 없어요'}</td></tr>`;
+}
+async function renderUsage(){
+  const body=$('usgBody'); if(!body)return;
+  const days=+((($('usg-range')||{}).value)||30);
+  body.innerHTML='<div class="card"><div class="empty">불러오는 중…</div></div>';
+  let d;
+  try{ const {data,error}=await sb.rpc('app_usage_stats',{p_days:days}); if(error)throw error; d=data; }
+  catch(e){ body.innerHTML='<div class="card"><div class="empty">통계를 불러오지 못했어요.<br><span style="font-size:11px;color:var(--mut)">backend/migration-app-usage.sql 실행이 필요할 수 있어요.<br>('+esc((e&&e.message)||'')+')</span></div></div>'; return; }
+  if(!d){ body.innerHTML='<div class="card"><div class="empty">아직 데이터가 없어요.</div></div>'; return; }
+  USG_LAST=d;
+  const num=v=>(v==null?'0':Number(v).toLocaleString());
+  // KPI
+  const kpis='<div class="tiles">'+
+    tile('','오늘 활성 입주민',num(d.active_today)+'<small>명</small>','앱을 연 고유 사용자')+
+    tile('','최근 7일 활성',num(d.active_7d)+'<small>명</small>','7일간 접속한 입주민')+
+    tile('','최근 30일 활성',num(d.active_30d)+'<small>명</small>','30일간 접속한 입주민')+
+    tile('good','기간 내 총 사용',num(d.events_total)+'<small>건</small>','최근 '+num(d.range_days)+'일 이벤트')+
+  '</div>';
+  // 일별 추이 막대
+  const daily=(d.daily||[]).slice(-Math.min(days,45));
+  const maxD=Math.max(1,...daily.map(x=>+x.events||0));
+  const bars=daily.length?daily.map(x=>{const h=Math.max(2,Math.round((+x.events||0)/maxD*120));return `<div style="flex:1 0 16px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px" title="${esc(x.day)} · ${num(x.users)}명 · ${num(x.events)}건"><div style="width:72%;min-width:7px;background:var(--blue);border-radius:4px 4px 0 0;height:${h}px"></div><span style="font-size:8.5px;color:var(--mut);white-space:nowrap">${esc(String(x.day).slice(5))}</span></div>`;}).join(''):'<div class="empty" style="margin:auto">아직 기록이 없어요</div>';
+  const dailyCard=`<div class="card"><h3>📈 일별 사용 추이 <span class="r" style="font-size:11px;color:var(--mut);font-weight:600">막대=이벤트 수 · 마우스 올리면 상세</span></h3><div style="display:flex;align-items:flex-end;gap:3px;height:150px;overflow-x:auto;padding-top:8px">${bars}</div></div>`;
+  // 기능별
+  const kinds=d.by_kind||[]; const maxK=Math.max(1,...kinds.map(x=>+x.events||0));
+  const kindRows=kinds.length?kinds.map(x=>`<tr><td style="font-weight:700;white-space:nowrap">${esc(USG_KIND_LBL[x.kind]||x.kind)}</td><td style="width:60%"><div style="display:flex;align-items:center;gap:9px"><div class="bar" style="flex:1;max-width:220px"><i style="width:${Math.round((+x.events||0)/maxK*100)}%"></i></div><span style="font-weight:700">${num(x.events)}건</span></div></td><td style="color:var(--mut);white-space:nowrap">${num(x.users)}명</td></tr>`).join(''):'<tr><td colspan="3" class="empty">없음</td></tr>';
+  // 단지별
+  const apts=d.by_apartment||[]; const maxA=Math.max(1,...apts.map(x=>+x.events||0));
+  const aptRows=apts.length?apts.slice(0,15).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${x.apartment_id}')">${esc(aptName(x.apartment_id))}</span></td><td style="width:55%"><div style="display:flex;align-items:center;gap:9px"><div class="bar" style="flex:1;max-width:200px"><i style="width:${Math.round((+x.events||0)/maxA*100)}%"></i></div><span style="font-weight:700">${num(x.events)}건</span></div></td><td style="color:var(--mut);white-space:nowrap">${num(x.users)}명</td></tr>`).join(''):'<tr><td colspan="3" class="empty">없음</td></tr>';
+  const tables=`<div class="grid2">
+    <div class="card"><h3>🧩 기능별 사용</h3><table><thead><tr><th>기능</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${kindRows}</tbody></table></div>
+    <div class="card"><h3>🏢 단지별 사용 Top 15 <span class="r" style="font-size:11px;color:var(--mut);font-weight:600">단지명 클릭 → 상세</span></h3><div style="overflow-x:auto"><table><thead><tr><th>단지</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${aptRows}</tbody></table></div></div>
+  </div>`;
+  const userCard=`<div class="card"><h3>👤 사용자별 사용 <span class="r"><input class="inp" id="usg-user-q" oninput="renderUsgUsers(this.value)" placeholder="🔍 이름·단지 검색" style="width:auto;min-width:180px"></span></h3>
+    <div style="overflow-x:auto"><table style="min-width:720px"><thead><tr><th>이름</th><th>단지</th><th>역할</th><th style="text-align:right">총 사용</th><th title="홈 열람" style="text-align:center">🏠홈</th><th title="감리일지 열람" style="text-align:center">📄일지</th><th title="계약서 열람" style="text-align:center">📑계약</th><th title="만족도 제출" style="text-align:center">⭐만족</th><th title="카톡 상담" style="text-align:center">💬카톡</th><th>최근 접속</th></tr></thead><tbody id="usgUserRows"></tbody></table></div>
+    <div style="font-size:11px;color:var(--mut);margin-top:8px">* 이벤트가 많은 순 최대 300명. 숫자는 최근 ${num(d.range_days)}일 기준.</div></div>`;
+  body.innerHTML=kpis+dailyCard+tables+userCard;
+  renderUsgUsers('');
 }
 
 /* ===== 관제센터 ===== */
@@ -580,6 +738,38 @@ function npsScore(){ const rated=SURVEYS.filter(r=>r.overall!=null&&r.overall!==
 function siteScore(aid){ const residents=MEMBERS.filter(m=>m.apartment_id===aid&&(m.role==='resident'||m.role==='manager')).length; const c=CHAT.filter(x=>x.apartment_id===aid).length; const s=SURVEYS.filter(x=>x.apartment_id===aid).length; const v=VIEWS[aid]||0; return residents*3+c*2+s*2+v; }
 function siteGrade(aid){ const sc=siteScore(aid); return sc>=20?'상':(sc>=7?'중':'하'); }
 function needAssignList(){ return APTS.filter(a=>a.status!=='done' && !aptAuditors(a).length); }
+/* ===== 담당 배정 요청: 팀장이 감리원 지정 → 앱 푸시 → 감리원 수락 시 자동 배정 ===== */
+function openAssignReq(aptId){
+  const a=APTS.find(x=>x.id===aptId); if(!a)return;
+  const auds=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
+  if(!auds.length){ openModal(mHead('📩 담당 배정 요청')+`<div style="padding:4px 2px 12px;font-size:13px;color:var(--mut)">등록된 감리원이 없어요.<br>회원 메뉴에서 역할을 '감리원'으로 지정해 주세요.</div><div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button></div>`); return; }
+  openModal(mHead('📩 담당 배정 요청')+`
+    <div style="background:#eef4ff;border-radius:9px;padding:9px 12px;font-size:12px;color:#2456c9;margin-bottom:12px">
+      <b>${esc(a.name)}</b> 현장을 맡길 감리원을 고르면, 그 감리원 앱으로 <b>배정 요청 알림</b>이 가요.<br>감리원이 앱에서 <b>수락</b>하면 담당으로 자동 등록돼요.
+    </div>
+    <div class="fld"><label>요청할 감리원 *</label><select id="ar-aud">${auds.map(m=>`<option value="${m.id}">${esc(m.name||loginId(m))}</option>`).join('')}</select></div>
+    <div class="fld"><label>메모 <span style="font-weight:600;color:var(--mut)">(선택 · 알림엔 안 보임)</span></label><input id="ar-note" placeholder="예: 다음 주부터 정기 방문 부탁드려요"></div>
+    <div class="mmsg" id="ar-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAssignReq('${aptId}')">요청 보내기</button></div>`);
+}
+async function submitAssignReq(aptId){
+  const auditorId=($('ar-aud')||{}).value||''; const note=(($('ar-note')||{}).value||'').trim()||null;
+  if(!auditorId){ const m=$('ar-msg'); if(m){m.textContent='감리원을 선택하세요';m.style.color='var(--red)';} return; }
+  if(pendingReq(aptId)){ const m=$('ar-msg'); if(m){m.textContent='이미 대기 중인 요청이 있어요. 먼저 취소해 주세요.';m.style.color='var(--red)';} return; }
+  const {data:{user}}=await sb.auth.getUser();
+  const {data,error}=await sb.from('assign_requests').insert({apartment_id:aptId,auditor_id:auditorId,requested_by:user?user.id:null,note,status:'pending'}).select('*').single();
+  if(error){ const m=$('ar-msg'); if(m){m.textContent='오류: '+error.message+' (assign_requests 테이블/권한을 확인하세요)';m.style.color='var(--red)';} return; }
+  if(data)AREQS.unshift(data);
+  closeModal(); renderDash();
+  alert(`📩 ${auditorName(auditorId)}님께 '${aptName(aptId)}' 배정 요청을 보냈어요.\n감리원이 앱에서 수락하면 담당으로 자동 등록돼요.`);
+}
+async function cancelAssignReq(reqId){
+  if(!confirm('이 배정 요청을 취소할까요?'))return;
+  const {error}=await sb.from('assign_requests').update({status:'canceled',responded_at:new Date().toISOString()}).eq('id',reqId);
+  if(error)return alert('취소 실패: '+error.message);
+  const r=AREQS.find(x=>x.id===reqId); if(r)r.status='canceled';
+  renderDash();
+}
 function stalledDeals(){ if(!PHASEB_OK.sales)return []; const now=Date.now(); return SALES.filter(s=>['inquiry','meeting','quote','contract'].includes(s.stage)).map(s=>{ const t=new Date(s.stage_changed_at||s.created_at||Date.now()).getTime(); const days=Math.floor((now-t)/86400000); return {s,days}; }).filter(x=>x.days>=2).sort((a,b)=>b.days-a.days); }
 function recontractRate(){ if(!PHASEB_OK.sales)return null; const won=SALES.filter(s=>s.stage==='won').length, lost=SALES.filter(s=>s.stage==='lost').length; const d=won+lost; return d?Math.round(won/d*100):null; }
 function renderDash(){
@@ -591,13 +781,13 @@ function renderDash(){
   const rc=recontractRate();
   $('dashTiles').innerHTML=
     tile('','진행중 현장',inprog+'<small>곳</small>','감리 진행 중')+
-    tile(need.length?'warn':'good','이번주 배치필요',need.length+'<small>곳</small>','담당·날짜 미배정')+
+    tile(need.length?'warn':'good','담당 배정 안 됨',need.length+'<small>곳</small>','담당 감리원 미배정')+
     tile(stalled.length?'crit':'good','정체된 딜',stalled.length+'<small>건</small>','2일+ 미이동')+
     tile('good','재계약율',(rc==null?'-':rc+'%'),'계약/성사 기준')+
     tile('good','NPS',(nps==null?'-':(nps>0?'+':'')+nps),'입주민소통/NPS');
   // 관제 알림
   const alerts=[];
-  if(need.length)alerts.push(`📍 <b>이번 주 방문 배치가 필요한 현장 ${need.length}곳</b> — 담당·날짜 미배정 <span class="link" onclick="go('calendar')">배정하기 →</span>`);
+  if(need.length)alerts.push(`📍 <b>담당 배정이 안 된 현장 ${need.length}곳</b> — 담당 감리원 미배정 <span class="link" onclick="go('calendar')">배정하기 →</span>`);
   if(stalled.length)alerts.push(`⏱️ <b>2일 이상 정체된 영업 딜 ${stalled.length}건</b> — ${stalled.slice(0,2).map(x=>esc(x.s.name)).join(', ')} <span class="link" onclick="go('sales')">확인 →</span>`);
   if(pend)alerts.push(`👤 <b>승인 대기 회원 ${pend}명</b> <span class="link" onclick="go('members')">승인하기 →</span>`);
   $('dashAlert').innerHTML=alerts.length?`<div class="alert crit"><div class="ah">🔔 오늘의 관제 알림</div>${alerts.map(a=>`<div class="row">${a}</div>`).join('')}</div>`:'<div class="alert info"><div class="ah">🔔 오늘의 관제 알림</div><div class="row">지금은 급한 알림이 없어요 👍</div></div>';
@@ -606,14 +796,20 @@ function renderDash(){
   // 고객사 등급 분포
   const grades={상:0,중:0,하:0}; APTS.forEach(a=>{ grades[siteGrade(a.id)]++; });
   $('dashGrades').innerHTML=`<div style="display:flex;gap:12px">${[['상','good'],['중','blue'],['하','gray']].map(([g,cl])=>`<div style="flex:1;text-align:center;background:#f6f8fc;border:1px solid var(--line);border-radius:12px;padding:14px 8px"><div style="font-size:12px;font-weight:800;color:var(--mut2)">${g}</div><div style="font-size:24px;font-weight:800;margin-top:4px">${grades[g]}<small style="font-size:12px;color:var(--mut);font-weight:700">곳</small></div></div>`).join('')}</div><div style="font-size:11px;color:var(--mut);margin-top:8px">입주민 <b>앱 조회수</b>·가입 수·문의(채팅)·설문 참여 등 <b>고객사 사용도</b> 기준 자동 산정</div>`;
-  // 이번 주 배치 필요 현장
-  $('dashAssign').innerHTML=need.length?`<table><tbody>${need.slice(0,7).map(a=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td style="color:var(--mut)">${esc(a.region)||'미지정'}</td><td style="text-align:right"><span class="pill no">미배정</span></td></tr>`).join('')}</tbody></table>`:'<div class="empty">모든 현장에 담당이 배정됐어요 👍</div>';
+  // 담당 배정 안 된 현장
+  $('dashAssign').innerHTML=need.length?`<table><tbody>${need.slice(0,7).map(a=>{
+    const pr=pendingReq(a.id); const reqName=pr?(auditorName(pr.auditor_id)||'감리원'):'';
+    const right=pr
+      ? `<span class="pill" style="background:#fff4e2;color:#b8710a">📩 ${esc(reqName)}님께 요청됨</span> <span class="link" style="color:var(--mut)" onclick="cancelAssignReq('${pr.id}')">취소</span>`
+      : `<span class="pill no">미배정</span> <span class="link" onclick="openAssignReq('${a.id}')">📩 배정 요청</span>`;
+    return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td style="color:var(--mut)">${esc(a.region)||'미지정'}</td><td style="text-align:right;white-space:nowrap">${right}</td></tr>`;
+  }).join('')}</tbody></table>`:'<div class="empty">모든 현장에 담당이 배정됐어요 👍</div>';
   // 정체된 딜
   $('dashStalled').innerHTML=!PHASEB_OK.sales?'<div class="empty" style="font-size:12px">영업 기능을 켜면 표시돼요</div>':(stalled.length?`<table><tbody>${stalled.slice(0,7).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openSalesEdit('${x.s.id}')">${esc(x.s.name)}</span></td><td><span class="pill blue">${SALES_LABEL[x.s.stage]||x.s.stage}</span></td><td style="text-align:right;color:var(--red);font-weight:700">${x.days}일 정체</td></tr>`).join('')}</tbody></table>`:'<div class="empty">정체된 딜이 없어요 👍</div>');
   // 새로 올라온 감리일지 (안 본 것 우선 + NEW 표시)
   const newReps=newReportList().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
   const nc=$('dashNewCnt'); if(nc)nc.textContent=newReps.length?('새 '+newReps.length+'건'):'';
-  $('dashNewReports').innerHTML=newReps.length?`<table><tbody>${newReps.slice(0,8).map(r=>`<tr style="background:#fff6f5"><td style="font-weight:700"><span class="link" onclick="openProj('${r.apartment_id}')">${esc(aptName(r.apartment_id))}</span> <span class="pill red" style="margin-left:4px">NEW</span></td><td style="color:var(--mut)">${esc(r.title)||'감리일지'}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(r.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">새로 올라온 감리일지가 없어요 👍<div style="font-size:11px;margin-top:4px">(공사관리에서 단지를 열면 읽음 처리돼요)</div></div>';
+  $('dashNewReports').innerHTML=newReps.length?`<table><tbody>${newReps.slice(0,8).map(r=>`<tr style="background:#fff6f5"><td style="font-weight:700"><span class="link" onclick="openProj('${r.apartment_id}')">${esc(aptName(r.apartment_id))}</span> <span class="pill red" style="margin-left:4px">NEW</span></td><td>${repRoundBadge(r)} <span class="link" style="font-weight:600" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'감리일지'}</span></td><td style="text-align:right;color:var(--mut);font-size:11px">${(r.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">새로 올라온 감리일지가 없어요 👍<div style="font-size:11px;margin-top:4px">(공사관리에서 단지를 열면 읽음 처리돼요)</div></div>';
   // 최근 히스토리
   const notes=[...SITE_NOTES].slice(0,6);
   $('dashNotes').innerHTML=notes.length?`<table><tbody>${notes.map(n=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${n.apartment_id}')">${esc(aptName(n.apartment_id))}</span></td><td style="color:var(--mut2)">${esc((n.body||'').slice(0,30))}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(n.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">작성된 히스토리가 없어요</div>';
@@ -639,7 +835,7 @@ function exportAllExcel(){
   const d10=s=>(s||'').slice(0,10);
   const wb=XLSX.utils.book_new();
   const add=(name,rows)=>{ const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{'':''}]); XLSX.utils.book_append_sheet(wb,ws,name); };
-  add('단지', APTS.map(a=>({단지명:a.name,지역:a.region,세대수:a.households,공종:siteType(a),등급:siteGrade(a.id),상태:(STATUS[a.status]||STATUS.scheduled)[0],담당감리사:aptAuditors(a).map(auditorName).join(', '),계약금액:a.contract_amount,감리비:a.supervision_fee,수금액:a.received_amount,미수금:(a.supervision_fee!=null?a.supervision_fee-(a.received_amount||0):null),등급:siteGrade(a.id),등록일:d10(a.created_at)})));
+  add('단지', APTS.map(a=>({단지명:a.name,지역:a.region,세대수:a.households,공종:siteType(a),등급:siteGrade(a.id),단계:stageLabel(a),담당감리원:aptAuditors(a).map(auditorName).join(', '),계약금액:a.contract_amount,감리비:a.supervision_fee,수금액:a.received_amount,미수금:(a.supervision_fee!=null?a.supervision_fee-(a.received_amount||0):null),등급:siteGrade(a.id),등록일:d10(a.created_at)})));
   add('감리일지', REPORTS.map(r=>({단지:aptName(r.apartment_id),제목:r.title,동:r.dongs,사진수:Array.isArray(r.photos)?r.photos.length:0,공개:r.published?'공개':'비공개',작성일:d10(r.created_at)})));
   add('현장기록', FIELDS.map(f=>({단지:aptName(f.apartment_id),제목:f.title,동:f.dong,사진수:Array.isArray(f.photos)?f.photos.length:0,작성일:d10(f.created_at)})));
   add('회원', MEMBERS.map(m=>({이름:m.name,아이디:loginId(m),역할:ROLES[m.role]||m.role,담당단지:m.apartment_id?aptName(m.apartment_id):'',연락처:m.phone,승인:m.approved?'승인':'대기'})));
@@ -686,17 +882,24 @@ function renderOrgs(){
   if(q)list=list.filter(a=>((a.name||'')+' '+(a.region||'')).toLowerCase().includes(q));
   list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   const gradePill={상:'ok',중:'blue',하:'gray'};
-  $('orgRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;const g=siteGrade(a.id);const deals=(PHASEB_OK.sales?SALES.filter(s=>s.apartment_id===a.id&&['inquiry','meeting','quote','contract'].includes(s.stage)).length:0);const cons=CONTRACTS.filter(c=>c.apartment_id===a.id).length;return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span></td><td>${esc(a.region)||'-'}</td><td>${a.households!=null?Number(a.households).toLocaleString():'<span style="color:var(--mut)">-</span>'}</td><td><span class="pill ${gradePill[g]}">${g}</span></td><td>${siteAuditors(a)}</td><td>${deals?`<b>${deals}</b>`:'<span style="color:var(--mut)">0</span>'}</td><td>${cons?cons+'건':'<span style="color:var(--mut)">-</span>'}</td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join(''):'<tr><td colspan="8" class="empty">단지가 없어요</td></tr>';
+  $('orgRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;const g=siteGrade(a.id);const deals=(PHASEB_OK.sales?SALES.filter(s=>s.apartment_id===a.id&&['inquiry','meeting','quote','contract'].includes(s.stage)).length:0);const cons=CONTRACTS.filter(c=>c.apartment_id===a.id).length;return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span></td><td>${esc(a.region)||'-'}</td><td>${a.households!=null?Number(a.households).toLocaleString():'<span style="color:var(--mut)">-</span>'}</td><td><span class="pill ${gradePill[g]}">${g}</span></td><td>${siteAuditors(a)}</td><td>${deals?`<b>${deals}</b>`:'<span style="color:var(--mut)">0</span>'}</td><td>${cons?cons+'건':'<span style="color:var(--mut)">-</span>'}</td><td><span class="pill" style="background:${stageMeta(stageOf(a))[3]}1f;color:${stageMeta(stageOf(a))[3]};font-weight:800">${esc(stageLabel(a))}</span></td></tr>`;}).join(''):'<tr><td colspan="8" class="empty">단지가 없어요</td></tr>';
 }
 
 /* ===== 캘린더 ===== */
 let calYM=null;
+let calView='month';      // 'month' | 'week'
+let calWeekStart=null;    // 이번(선택) 주의 월요일 Date
+function startOfWeek(d){ const n=new Date(d); const off=(n.getDay()+6)%7; n.setHours(0,0,0,0); n.setDate(n.getDate()-off); return n; }
+function syncCalViewUI(){ const mb=$('calViewMonth'),wb=$('calViewWeek'); if(mb)mb.className=(calView==='month'?'on':''); if(wb)wb.className=(calView==='week'?'on':''); }
+function setCalView(v){ calView=v; if(v==='week'&&!calWeekStart)calWeekStart=startOfWeek(new Date()); calPickedDay=null; renderCalendar(); }
+window.setCalView=setCalView;
 /* ===== 방문 배치 (control_sites) — 담당·주기·요일 → 방문 자동생성 ===== */
 const CYCLE_DAYS={'주1회':'수','주2회':'화·목','주3회':'월·수·금','상주':'월·화·수·목·금'};
 const WKB=['월','화','수','목','금','토','일'];
 const VISIT_MARK='🔧 정기 방문';
 // POUR 영업시스템과 동일한 분류 체계 (POUR에도 '아스퀘' 분류가 있음)
-const CAL_CATS=[['work','공사일정','#1E7F4F'],['asq','아스퀘','#2a78d6'],['pt','PT','#5598e7'],['sales','영업','#256abf'],['bids','현설','#d9662f'],['seminar','세미나','#0891b2'],['personal','개인','#8b5cf6'],['meeting','회의','#64748b'],['vacation','휴가','#e0900a']];
+/* 아스퀘(asq)만 강렬한 색으로 바로 눈에 띄게, 나머지는 톤다운(회색계열)으로 낮춤 */
+const CAL_CATS=[['work','공사일정','#8f98a6'],['asq','아스퀘','#2563eb'],['pt','PT','#8493ad'],['sales','영업','#7b8aa6'],['bids','현설','#ad967f'],['seminar','세미나','#7fa0a6'],['personal','개인','#948bb0'],['meeting','회의','#98a0ac'],['vacation','휴가','#bda674']];
 function catMeta(k){ return CAL_CATS.find(c=>c[0]===k)||['','일정','#2F6BF6']; }
 // 일정 추가/수정용 분류 <option> 생성. withPh=true 면 맨 앞에 "분류 선택" 안내(선택 강제).
 function catSelectOptions(sel, withPh){
@@ -709,7 +912,7 @@ function csSlug(name){ return String(name||'').replace(/[\/#\.\[\]\$]/g,'_').sli
 function csData(a){ return CSITES[csSlug(a.name)]||{}; }
 // 우리가 저장한 배치값만 사용 (운영팀 원본에 '들어있던' 담당자·주기·요일은 무시)
 function ownAsg(a){ const d=csData(a); return (d&&d.own)?d:{}; }
-// 담당 감리사 = 우리 단지에 배정된 감리사(대표 우선). control_sites 원본 mgr 안 씀.
+// 담당 감리원 = 우리 단지에 배정된 감리원(대표 우선). control_sites 원본 mgr 안 씀.
 function siteMgrName(a){ const rep=a.auditor_id||(aptAuditors(a)[0]||null); return rep?auditorName(rep):''; }
 function activeSites(){ return APTS.filter(a=>a.status!=='done'); }
 function auditorNames(){ return [...new Set(MEMBERS.filter(m=>m.role==='auditor').map(m=>m.name||loginId(m)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko')); }
@@ -717,19 +920,27 @@ function auditorList(){ return MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=
 function audNameC(id){ if(!id)return ''; const a=MEMBERS.find(m=>String(m.id)===String(id)); return a?(a.name||loginId(a)):''; }
 // 영업(POUR) 담당자 이름 목록: 알려진 팀 + POUR 일정 설명에서 '담당 XX' 추출
 function pourAssignees(){
+  // POUR 일정 설명에서 이름을 자동 수집하던 로직 제거(목록이 수백 개로 불어나던 원인).
+  //  우리 팀(아래 고정 명단) + 우리 감리원(schedRoster)만 담당자 후보로 노출.
   const set=new Set(['이승우','황윤선','한준엽','조재연','이필선','한인규','정정훈','김성민','조현식']);
-  (SCHEDULES||[]).forEach(s=>{ if(s.source!=='pour')return; const md=String(s.description||'').match(/담당\s+([^·]+)/); if(md){ md[1].split(/[,、\/]/).forEach(n=>{ const t=n.trim().replace(/\s*님$/,''); if(t&&t.length<=12)set.add(t); }); } });
   return [...set].sort((a,b)=>a.localeCompare(b,'ko'));
 }
-// 담당 드롭다운 옵션 (감리사=id 값, 영업담당=이름 값). selId/selName 으로 현재값 선택 표시
+// 담당 드롭다운 옵션 (감리원=id 값, 영업담당=이름 값). selId/selName 으로 현재값 선택 표시
 function audSelectOptions(selId,selName){
   let h='<option value="">담당 미지정</option>';
-  h+='<optgroup label="아파트스퀘어 감리사">'+auditorList().map(a=>`<option value="id:${a.id}" ${String(selId)===String(a.id)?'selected':''}>${esc(a.name||loginId(a))}</option>`).join('')+'</optgroup>';
+  h+='<optgroup label="아파트스퀘어 감리원">'+auditorList().map(a=>`<option value="id:${a.id}" ${String(selId)===String(a.id)?'selected':''}>${esc(a.name||loginId(a))}</option>`).join('')+'</optgroup>';
   h+='<optgroup label="영업(POUR) 담당">'+pourAssignees().map(n=>`<option value="nm:${esc(n)}" ${(!selId&&selName===n)?'selected':''}>${esc(n)}</option>`).join('')+'</optgroup>';
   return h;
 }
 function parseAsg(v){ if(!v)return {assignee_id:null,assignee_name:null}; if(v.slice(0,3)==='id:')return {assignee_id:v.slice(3),assignee_name:null}; if(v.slice(0,3)==='nm:')return {assignee_id:null,assignee_name:v.slice(3)}; return {assignee_id:null,assignee_name:null}; }
 function schedAsgName(s){ return (s&&s.assignee_name)||audNameC(s&&s.assignee_id)||''; }
+// 담당 필드가 비어 있을 때: 제목 맨 앞 "이름_..." 형태면 알려진 사람 이름을 담당으로 추정
+function knownPeople(){ try{ return [...new Set([...pourAssignees(), ...auditorNames()])]; }catch(e){ return []; } }
+function guessAsgFromTitle(title){
+  const t=String(title||'').trim(); if(!t)return '';
+  const head=t.split(/[_\s]/)[0];           // 첫 토큰(_ 또는 공백 전)
+  return knownPeople().includes(head) ? head : '';
+}
 let calPerson='전체';
 function setCalPerson(p){ calPerson=p; renderCalendar(); }
 let calCat='전체';   // 범례 클릭 → 그 종류만 보기 ('전체'=모두)
@@ -742,32 +953,33 @@ async function csSave(a,patch){
   if(error) alert('배치 저장 실패: '+error.message+'\n(backend/migration-control-sites.sql · migration-visit-plan-app.sql 실행이 필요해요)');
 }
 // 주기 선택 → 요일 자동 제안(아직 요일 안 정했을 때만)
-function asgSetCycle(aptId,c){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const patch={cycle:c}; if(!d.visitDay&&CYCLE_DAYS[c])patch.visitDay=CYCLE_DAYS[c]; csSave(a,patch).then(renderCalendar); }
+function asgSetCycle(aptId,c){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const patch={cycle:c}; if(!d.visitDay&&CYCLE_DAYS[c])patch.visitDay=CYCLE_DAYS[c]; csSave(a,patch).then(()=>{renderCalendar();resyncAptVisits(aptId);}); }
 function asgToggleDay(aptId,w){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a);
   let days=String(d.visitDay||'').split('·').filter(Boolean); const i=days.indexOf(w); if(i>=0)days.splice(i,1); else days.push(w);
-  days.sort((x,y)=>WKB.indexOf(x)-WKB.indexOf(y)); csSave(a,{visitDay:days.join('·')}).then(renderCalendar); renderCalendar();
+  days.sort((x,y)=>WKB.indexOf(x)-WKB.indexOf(y)); csSave(a,{visitDay:days.join('·')}).then(()=>{renderCalendar();resyncAptVisits(aptId);}); renderCalendar();
 }
-// 요일마다 담당 감리사 지정 (주2회 = 서로 다른 감리사 2명이 다른 날)
-function asgSetDayAuditor(aptId,w,id){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const da={...(d.dayAuditors||{})}; if(id)da[w]=id; else delete da[w]; csSave(a,{dayAuditors:da}).then(renderCalendar); renderCalendar(); }
+// 요일마다 담당 감리원 지정 (주2회 = 서로 다른 감리원 2명이 다른 날)
+function asgSetDayAuditor(aptId,w,id){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const da={...(d.dayAuditors||{})}; if(id)da[w]=id; else delete da[w]; csSave(a,{dayAuditors:da}).then(()=>{renderCalendar();resyncAptVisits(aptId);}); renderCalendar(); }
 function asgSetSub(aptId,name){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const wk=weekKeyOf(new Date());
   const subs=(d.subs&&typeof d.subs==='object')?{...d.subs}:{}; if(name)subs[wk]=name; else delete subs[wk];
-  csSave(a,{subs}).then(renderCalendar); renderCalendar();
+  csSave(a,{subs}).then(()=>{renderCalendar();resyncAptVisits(aptId);}); renderCalendar();
 }
-// 방문 배치표에서 담당 감리사 직접 배정 (단지의 auditor_id·apartment_auditors 갱신 → 앱에도 반영)
+// 방문 배치표에서 담당 감리원 직접 배정 (단지의 auditor_id·apartment_auditors 갱신 → 앱에도 반영)
 async function asgSetAuditor(aptId,mid){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const rep=mid||null;
   const {error}=await sb.from('apartments').update({auditor_id:rep}).eq('id',aptId);
-  if(error){ alert('감리사 배정 실패: '+error.message); return; }
+  if(error){ alert('감리원 배정 실패: '+error.message); return; }
   a.auditor_id=rep;
   try{ await sb.from('apartment_auditors').delete().eq('apartment_id',aptId); if(rep) await sb.from('apartment_auditors').insert([{apartment_id:aptId,auditor_id:rep}]); }catch(e){}
   APT_AUD[aptId]=rep?[rep]:[];
-  renderCalendar(); renderOrgs(); renderProjList();
+  renderCalendar(); renderOrgs(); renderProjList(); resyncAptVisits(aptId);
 }
-// 특정 달의 자동 방문 목록 계산 → [{aptId,name,date,who,sub}]  (담당자=우리 단지 배정 감리사, 요일=우리가 저장한 값)
+// 특정 달의 자동 방문 목록 계산 → [{aptId,name,date,who,sub}]  (담당자=우리 단지 배정 감리원, 요일=우리가 저장한 값)
 function computeVisits(y,m){
   const days=new Date(y,m+1,0).getDate(); const out=[];
   const sites=activeSites().filter(a=>{ const d=ownAsg(a); return d.visitDay && (siteMgrName(a) || Object.keys(d.dayAuditors||{}).length); });
   for(let dd=1;dd<=days;dd++){ const dt=new Date(y,m,dd); const wd=WKB[(dt.getDay()+6)%7]; const wk=weekKeyOf(dt);
     sites.forEach(a=>{ const d=ownAsg(a); if(!String(d.visitDay).split('·').includes(wd))return;
+      if((d.skipVisits||{})[isoDate(dt)])return;   // 옮기거나 지운 날짜는 자동 재생성에서 제외
       const mgr=siteMgrName(a); const dayId=(d.dayAuditors||{})[wd];
       const who=dayId?(auditorName(dayId)||mgr):((d.subs&&d.subs[wk])||mgr);   // 요일별 담당 우선, 없으면 대타/대표
       const assigneeId=dayId||a.auditor_id||null;
@@ -777,26 +989,38 @@ function computeVisits(y,m){
 function renderCalendar(){
   const now=new Date(); if(!calYM)calYM={y:now.getFullYear(),m:now.getMonth()};
   const bt=$('buildTag'); if(bt)bt.textContent='v'+(window.__BUILD__||'dev');
+  syncCalViewUI();
+  if(calView==='week'){ const g=$('calGrid'); if(g)g.style.display='none'; const cw=$('calWeek'); if(cw)cw.style.display=''; const dl=$('calDayList'); if(dl)dl.innerHTML=''; const ca=$('cal-alert'); if(ca)ca.innerHTML=''; renderWeek(); return; }
+  { const g=$('calGrid'); if(g)g.style.display=''; const cw=$('calWeek'); if(cw){cw.style.display='none';cw.innerHTML='';} }
   const {y,m}=calYM; const cl=$('calLabel'); if(cl)cl.textContent=`${y}년 ${m+1}월`;
   const names=auditorNames(); const ps=$('calPersonSel');
   if(ps) ps.innerHTML=`담당 <select onchange="setCalPerson(this.value)" style="font-size:12px;padding:3px 8px;border-radius:7px;border:1px solid var(--line)"><option ${calPerson==='전체'?'selected':''}>전체</option>${names.map(n=>`<option ${calPerson===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`;
   const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), todayStr=isoDate(now);
   const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
   const byDay={};
-  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({id:s.id,t,visit:isV,color:isP?(meta[2]||'#888'):(isV?null:meta[2]),cat:isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:''))}); }});
+  SCHEDULES.forEach(s=>{ if(!s.date)return; const d=new Date(s.date); if(d.getFullYear()===y&&d.getMonth()===m){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const isP=s.source==='pour'; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return; const meta=catMeta(s.category); const t=(aptName[s.apartment_id]?aptName[s.apartment_id]+' — ':'')+(s.title||'일정'); (byDay[d.getDate()]=byDay[d.getDate()]||[]).push({id:s.id,t,visit:isV,color:isP?(meta[2]||'#888'):(isV?null:meta[2]),cat:isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')),asq:(!isV&&s.category==='asq'),exp:(s.meta&&s.meta.dateType==='expected')}); }});
   // 예상(계획) 방문은 달력에 자동으로 그리지 않음 — 실제 저장된 일정만 표시.
   // (방문 배치는 아래 표에서 관리하고, '🔄 이 달 방문 일정 생성'을 누르면 실제 일정으로 만들어짐)
   // 색상 범례 = 클릭하면 그 종류만 보기 (다시 누르면 전체)
   const legChip=(key,label,color)=>`<span onclick="setCalCat('${key}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:7px;${calCat===key?'background:#111a33;color:#fff':''}"><i style="width:9px;height:9px;border-radius:3px;background:${color};display:inline-block"></i>${label}</span>`;
   let h='<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 7px;padding:8px 4px 12px;font-size:11px;color:var(--mut);align-items:center">'+
     `<span onclick="setCalCat('전체')" style="cursor:pointer;padding:2px 9px;border-radius:7px;font-weight:800;${calCat==='전체'?'background:#111a33;color:#fff':'background:#eef1f6'}">전체</span>`+
-    legChip('방문','방문','var(--blue,#2f6bf6)')+
+    legChip('방문','방문','#0f9d6b')+
     CAL_CATS.map(c=>legChip(c[0],c[1],c[2])).join('')+'</div>';
+  // 📌 날짜 미정(예정월/미정) 일정 — date 가 없어 달력 칸엔 안 그려지므로 상단에 따로 표시.
+  //    예정월: 그 달(expectedMonth)에만 표시 · 미정: 항상 표시. 눌러서 수정/삭제.
+  const _ym=`${y}-${String(m+1).padStart(2,'0')}`;
+  const _noDate=(SCHEDULES||[]).filter(s=>{ if(s.date)return false; const ck=(s.category||''); if(calCat!=='전체'&&ck!==calCat)return false; const dt=(s.meta&&s.meta.dateType)||'expected'; if(dt==='tbd')return true; const em=(s.meta&&s.meta.expectedMonth)||''; return em? em===_ym : true; });
+  if(_noDate.length){
+    h+=`<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 4px 12px;margin-bottom:4px;border-bottom:1px dashed var(--line)"><span style="font-size:11px;font-weight:800;color:var(--mut)">📌 날짜 미정</span>`+
+      _noDate.map(s=>{ const isAsq=(s.category==='asq'); const dt=(s.meta&&s.meta.dateType)||'expected'; const tag=dt==='tbd'?'미정':'예정'; const apt=s.apartment_id?(aptName[s.apartment_id]||''):''; const nm=(apt?apt+' — ':'')+(s.title||'일정'); return `<span onclick="openScheduleEdit('${s.id}')" title="눌러서 수정·삭제" style="cursor:pointer;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;${isAsq?'background:#dce8ff;color:#1b4fd6':'background:#f0f1f4;color:#aab2c0;opacity:.75'}">${tag} · ${esc(nm)}</span>`; }).join('')+
+      `</div>`;
+  }
   ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const _selSt=date===calPickedDay?'box-shadow:0 0 0 2px #111a33 inset':(date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':'');
-    h+=`<div class="cell" onclick="pickCalDay('${date}')" style="cursor:pointer;${_selSt}"><div class="dn">${d}</div>${ev.map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#fff;background:${e.visit?'var(--blue,#2f6bf6)':(e.color||'#888')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="event.stopPropagation();openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.color?`border-left:3px solid ${e.color};padding-left:6px`:'')}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}</div>`;
+    h+=`<div class="cell" onclick="pickCalDay('${date}')" style="cursor:pointer;${_selSt}"><div class="dn">${d}</div>${ev.map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;${e.asq?'color:#1b4fd6;background:#cfe0ff':(e.visit?'color:#0b7a55;background:#cdeede':'color:#9aa3b2;background:#f0f1f4')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="event.stopPropagation();openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.asq?'background:#dce8ff;color:#1b4fd6;font-weight:800;border-radius:4px;padding:1px 6px':(e.visit?'background:#e1f4ec;color:#0b7a55;font-weight:800;border-radius:4px;padding:1px 6px':`border-left:3px solid #d8dce3;padding-left:6px;color:#9aa3b2;font-weight:600;opacity:.5`)}${e.exp?';border:1px dashed #c7ccd6;opacity:.85':''}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.exp?'<b style="display:inline-block;font-size:8px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#8a6d1f;background:#fdf3d6">예정</b>':''}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}</div>`;
   }
   $('calGrid').innerHTML=h;
   // 날짜 선택 전 = 방문 배치표, 날짜 클릭 = 그 날 일정 목록 (서로 토글)
@@ -806,6 +1030,52 @@ function renderCalendar(){
 let calPickedDay=null;
 function pickCalDay(dk){ calPickedDay=(calPickedDay===dk?null:dk); renderCalendar(); if(calPickedDay){ const el=$('calDayList'); if(el)setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50); } }
 window.pickCalDay=pickCalDay;
+/* ===== 주간 보기 + 사진 내보내기 ===== */
+function renderWeek(){
+  const now=new Date(); if(!calWeekStart)calWeekStart=startOfWeek(now);
+  const mon=new Date(calWeekStart); const days=[]; for(let i=0;i<7;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); days.push(d); }
+  const sun=days[6];
+  const cl=$('calLabel'); if(cl)cl.textContent=`${mon.getMonth()+1}/${mon.getDate()} ~ ${sun.getMonth()+1}/${sun.getDate()} 주간`;
+  const names=auditorNames(); const ps=$('calPersonSel');
+  if(ps) ps.innerHTML=`담당 <select onchange="setCalPerson(this.value)" style="font-size:12px;padding:3px 8px;border-radius:7px;border:1px solid var(--line)"><option ${calPerson==='전체'?'selected':''}>전체</option>${names.map(n=>`<option ${calPerson===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`;
+  const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
+  const todayStr=isoDate(now), mks=isoDate(mon), sks=isoDate(sun);
+  const byDate={};
+  (SCHEDULES||[]).forEach(s=>{ if(!s.date)return; const dk=String(s.date).slice(0,10); if(dk<mks||dk>sks)return;
+    const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return;
+    const meta=catMeta(s.category); const isP=s.source==='pour'; const isAsq=(!isV&&s.category==='asq');
+    let asg=schedAsgName(s); if(!asg&&s.apartment_id){ const _a=APTS.find(x=>x.id===s.apartment_id); if(_a) asg=aptAuditors(_a).map(auditorName).filter(n=>n&&n!=='-').join(', '); }
+    if(!asg) asg=guessAsgFromTitle(s.title);
+    if(calPerson!=='전체' && asg!==calPerson && !String(asg||'').split(', ').includes(calPerson)) return;
+    const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:''));
+    (byDate[dk]=byDate[dk]||[]).push({ title:s.title||'일정', apt:s.apartment_id?(aptName[s.apartment_id]||''):'', lab, asq:isAsq, visit:isV, color:isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]), who:asg });
+  });
+  const DOW=['월','화','수','목','금','토','일'];
+  let h='<div class="wkwrap" id="calWeekShot">';
+  h+=`<div class="wkhead"><span class="wt">📅 주간 일정</span><span class="wsub">${mon.getFullYear()}. ${mon.getMonth()+1}.${mon.getDate()} ~ ${sun.getMonth()+1}.${sun.getDate()}${calPerson!=='전체'?' · 담당 '+esc(calPerson):''}${calCat!=='전체'?' · '+esc(catMeta(calCat)[1]||calCat):''}</span><span style="flex:1"></span><span class="wsub" style="font-weight:800;color:#2563eb">아파트스퀘어</span></div>`;
+  days.forEach((d,i)=>{ const dk=isoDate(d); const evs=byDate[dk]||[]; const cls=(i>=5?' weekend':'')+(dk===todayStr?' today':'');
+    h+=`<div class="wkday${cls}"><div class="wkd-left"><div class="wkd-dow">${DOW[i]}</div><div class="wkd-date">${d.getMonth()+1}/${d.getDate()}</div></div><div class="wkd-body">`;
+    if(!evs.length) h+='<div class="wkev-none">— 일정 없음 —</div>';
+    else h+=evs.map(e=>`<div class="wkev${e.asq?' asq':(e.visit?' visit':'')}"><b class="wkev-cat">${esc(e.lab||'일정')}</b><span class="wkev-t">${e.apt?esc(e.apt)+' — ':''}${esc(e.title)}</span>${e.who?`<span class="wkev-who">👤 ${esc(e.who)}</span>`:''}</div>`).join('');
+    h+='</div></div>';
+  });
+  h+='</div>';
+  const cw=$('calWeek'); if(cw)cw.innerHTML=h;
+}
+function ensureHtml2canvas(){ if(window.html2canvas)return Promise.resolve(); if(window._h2cP)return window._h2cP; window._h2cP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}); return window._h2cP; }
+async function exportCalImage(){
+  if(calView!=='week'){ setCalView('week'); }
+  const node=document.getElementById('calWeekShot');
+  if(!node){ alert('주간 보기를 먼저 열어주세요.'); return; }
+  try{
+    await ensureHtml2canvas();
+    const canvas=await html2canvas(node,{scale:2,backgroundColor:'#ffffff'});
+    const a=document.createElement('a'); a.href=canvas.toDataURL('image/png');
+    a.download='아파트스퀘어_주간일정_'+isoDate(calWeekStart)+'.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ alert('이미지 저장 실패: '+((e&&e.message)||e)); }
+}
+window.exportCalImage=exportCalImage;
 // 날짜 클릭 → 그 날 일정 전부를 달력 아래에 목록으로 (클릭해서 수정/삭제, 담당 표시)
 function renderCalDayList(){
   const box=$('calDayList'); if(!box)return;
@@ -816,7 +1086,7 @@ function renderCalDayList(){
   const wd=['일','월','화','수','목','금','토'][new Date(Y,M-1,D).getDay()];
   let h=`<div class="card" style="margin-top:12px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📅 ${M}/${D} (${wd}) 일정 <span style="font-size:12px;color:var(--mut);font-weight:600">${items.length}건</span><span style="flex:1"></span><button class="b blue sm" onclick="openScheduleAdd('${calPickedDay}')">➕ 이 날 일정 추가</button><button class="b line sm" onclick="pickCalDay('${calPickedDay}')">닫기</button></h3>`;
   if(!items.length){ h+='<div class="empty">이 날 일정이 없어요</div>'; }
-  else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const asg=schedAsgName(s); const apt=s.apartment_id?aptName[s.apartment_id]:''; return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${col};background:#f8faff;border-radius:0 8px 8px 0;margin-bottom:6px"><b style="font-size:10px;font-weight:800;color:#fff;background:${col};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b><span style="font-weight:700;font-size:13px">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:var(--mut)">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
+  else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const isAsq=(!isV&&s.category==='asq'); const isExp=(s.meta&&s.meta.dateType==='expected'); let asg=schedAsgName(s); if(!asg&&s.apartment_id){ const _a=APTS.find(x=>x.id===s.apartment_id); if(_a){ asg=aptAuditors(_a).map(auditorName).filter(n=>n&&n!=='-').join(', '); } } if(!asg) asg=guessAsgFromTitle(s.title); const apt=s.apartment_id?aptName[s.apartment_id]:''; const bcol=isAsq?'#2563eb':(isV?'#0f9d6b':'#c7ccd6'); return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${bcol};background:${isAsq?'#eff4ff':(isV?'#eefaf4':'#f7f8fa')};border-radius:0 8px 8px 0;margin-bottom:6px${isExp?';border:1px dashed #c7ccd6':''}${(isAsq||isV)?'':';opacity:.6'}"><b style="font-size:10px;font-weight:800;${isAsq?'color:#1b4fd6;background:#cfe0ff':(isV?'color:#0b7a55;background:#cdeede':'color:#9aa3b2;background:#f0f1f4')};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b>${isExp?'<b style="font-size:9px;font-weight:800;color:#8a6d1f;background:#fdf3d6;padding:2px 7px;border-radius:5px">예정</b>':''}<span style="font-weight:${(isAsq||isV)?800:700};font-size:13px;color:${isAsq?'#1d4ed8':(isV?'#0b7a55':'#9aa3b2')}">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:${(isAsq||isV)?'var(--mut)':'#aab2c0'}">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
   h+='</div>';
   box.innerHTML=h;
 }
@@ -833,7 +1103,7 @@ function renderAssignTable(){
     const mgr=siteMgrName(a);
     const mgrCell=mgrs.length
       ? `<select onchange="asgSetAuditor('${a.id}',this.value)" style="font-size:12px;padding:5px 8px;border-radius:8px;font-weight:700;border:1.5px solid ${a.auditor_id?'var(--blue,#2f6bf6)':'#e6b04d'};color:${a.auditor_id?'var(--blue,#2f6bf6)':'#b8710a'};background:#fff"><option value="">- 담당 지정 -</option>${AUDS.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select>`
-      : '<span style="color:var(--mut);font-size:11px">회원에서 ‘감리사’를 먼저 등록하세요</span>';
+      : '<span style="color:var(--mut);font-size:11px">회원에서 ‘감리원’를 먼저 등록하세요</span>';
     const cyc=`<select onchange="asgSetCycle('${a.id}',this.value)" style="font-size:12px;padding:4px 7px;border-radius:7px;border:1px solid var(--line)">${['미확인'].concat(CYB).map(c=>`<option ${(d.cycle||'미확인')===c?'selected':''}>${c}</option>`).join('')}</select>`;
     const wdBtns=WKB.map(w=>{const on=days.includes(w);return `<i onclick="asgToggleDay('${a.id}','${w}')" style="cursor:pointer;display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;margin:1px;border-radius:6px;font-size:11px;font-weight:700;font-style:normal;border:1px solid ${on?'var(--blue,#2f6bf6)':'var(--line)'};background:${on?'var(--blue,#2f6bf6)':'#fff'};color:${on?'#fff':'var(--mut)'}">${w}</i>`;}).join('');
     const daySel=days.length?days.map(w=>{ const cur=(d.dayAuditors||{})[w]||''; return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="font-size:11px;font-weight:800;width:26px;color:var(--fg)">${w}</span><select onchange="asgSetDayAuditor('${a.id}','${w}',this.value)" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid var(--line);min-width:110px"><option value="">담당(대표)</option>${AUDS.map(m=>`<option value="${m.id}" ${cur===m.id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>`; }).join(''):'<span style="color:var(--mut);font-size:11px">요일 먼저 선택</span>';
@@ -842,8 +1112,8 @@ function renderAssignTable(){
   }).join('');
   const un=sites.filter(a=>!siteMgrName(a)).length;
   box.innerHTML=`<div class="card" style="margin-top:16px"><h3>📍 방문 배치표 <span class="r">현장 ${sites.length}곳${un?` · <b style="color:#b8710a">담당 미배정 ${un}</b>`:' · 담당 전원 배정'}</span></h3>
-    <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px"><b>주기·요일</b>을 정한 뒤, <b>요일별 담당 감리사</b>를 고르세요(주2회면 서로 다른 감리사 2명이 다른 날). 비워두면 대표 감리사로 들어갑니다 · <b>“이 달 방문 일정 생성”</b>을 누르면 감리사·입주민 앱에도 방문이 떠요.</div>
-    <div style="overflow-x:auto"><table style="width:100%;min-width:820px"><thead><tr><th>현장</th><th>대표 감리사</th><th>주기</th><th>방문 요일</th><th>요일별 담당</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px"><b>주기·요일</b>을 정한 뒤, <b>요일별 담당 감리원</b>를 고르세요(주2회면 서로 다른 감리원 2명이 다른 날). 비워두면 대표 감리원으로 들어갑니다 · <b style="color:#1e7f4f">정한 즉시 앞으로 6주치 방문이 자동으로 떠요(감리원·입주민 앱 포함).</b> 변동 있을 때만 그 날짜 일정을 고치면 돼요. <span style="color:#9aa3b2">(‘이 달 방문 일정 생성’은 과거 포함 전체 재생성용)</span></div>
+    <div style="overflow-x:auto"><table style="width:100%;min-width:820px"><thead><tr><th>현장</th><th>대표 감리원</th><th>주기</th><th>방문 요일</th><th>요일별 담당</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 async function materializeVisits(){
   if(!PHASEB_OK.csites){ alert('먼저 backend/migration-control-sites.sql 을 실행하세요'); return; }
@@ -861,15 +1131,165 @@ async function materializeVisits(){
   const rows=future.map(v=>({apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':''),assignee_id:v.assigneeId||null,resident_visible:true}));   // 방문 날짜는 입주민에게 공개(나머지 일정은 숨김)
   const {error}=await sb.from('schedules').insert(rows);
   if(error){ alert('생성 실패: '+error.message); return; }
-  await loadAll(); alert(rows.length+'건의 예정 방문을 생성했어요. 감리사·입주민 앱에도 표시됩니다.');
+  await loadAll(); alert(rows.length+'건의 예정 방문을 생성했어요. 감리원·입주민 앱에도 표시됩니다.');
+}
+/* ===== 상시 자동 적용 ===== */
+// 배치표(요일·담당)만 정해두면 앞으로 6주치 방문을 자동 생성. 세션 1회(로딩 시).
+const AUTO_VISIT_DAYS=42;
+function _visitWindow(){ const today=new Date(); today.setHours(0,0,0,0); const end=new Date(today); end.setDate(end.getDate()+AUTO_VISIT_DAYS);
+  const months=[]; let cur=new Date(today.getFullYear(),today.getMonth(),1); while(cur<=end){ months.push({y:cur.getFullYear(),m:cur.getMonth()}); cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
+  return {todayStr:isoDate(today),endStr:isoDate(end),months}; }
+function _visitRow(v){ return {apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':''),assignee_id:v.assigneeId||null,resident_visible:true}; }
+let _visitsAutoApplied=false;
+async function autoApplyVisits(){
+  if(!PHASEB_OK.csites||_visitsAutoApplied) return; _visitsAutoApplied=true;
+  try{
+    const {todayStr,endStr,months}=_visitWindow();
+    let visits=[]; months.forEach(({y,m})=>{ visits=visits.concat(computeVisits(y,m)); });
+    visits=visits.filter(v=>v.date>=todayStr&&v.date<=endStr);
+    if(!visits.length) return;
+    const have=new Set((SCHEDULES||[]).filter(s=>String(s.title||'').indexOf(VISIT_MARK)===0).map(s=>s.apartment_id+'|'+String(s.date||'').slice(0,10)));
+    const toIns=visits.filter(v=>!have.has(v.aptId+'|'+v.date));
+    if(!toIns.length) return;
+    const {data,error}=await sb.from('schedules').insert(toIns.map(_visitRow)).select();
+    if(error){ console.warn('[자동 방문 적용 실패]',error.message); return; }
+    if(data&&data.length){ data.forEach(r=>SCHEDULES.push(r)); try{renderCalendar();}catch(e){} try{updateBadges();}catch(e){} }
+  }catch(e){ console.warn('[자동 방문 적용 오류]',e); }
+}
+// 한 현장의 배치가 바뀌면 그 현장의 앞으로 6주치 방문을 계획대로 재동기화(안 다녀온 것만 추가/삭제, 과거·다녀온 기록 보존)
+async function resyncAptVisits(aptId){
+  if(!PHASEB_OK.csites) return;
+  try{
+    const {todayStr,endStr,months}=_visitWindow();
+    let visits=[]; months.forEach(({y,m})=>{ visits=visits.concat(computeVisits(y,m)); });
+    visits=visits.filter(v=>String(v.aptId)===String(aptId)&&v.date>=todayStr&&v.date<=endStr);
+    const want=new Set(visits.map(v=>v.date));
+    const curRows=(SCHEDULES||[]).filter(s=>String(s.apartment_id)===String(aptId)&&String(s.title||'').indexOf(VISIT_MARK)===0&&!s.done_at&&String(s.date||'').slice(0,10)>=todayStr&&String(s.date||'').slice(0,10)<=endStr);
+    const delIds=curRows.filter(s=>!want.has(String(s.date).slice(0,10))).map(s=>s.id);
+    if(delIds.length){ try{ await sb.from('schedules').delete().in('id',delIds); }catch(e){} for(let i=SCHEDULES.length-1;i>=0;i--){ if(delIds.includes(SCHEDULES[i].id))SCHEDULES.splice(i,1); } }
+    const have=new Set(curRows.filter(s=>!delIds.includes(s.id)).map(s=>String(s.date).slice(0,10)));
+    const toIns=visits.filter(v=>!have.has(v.date));
+    if(toIns.length){ const {data,error}=await sb.from('schedules').insert(toIns.map(_visitRow)).select(); if(!error&&data) data.forEach(r=>SCHEDULES.push(r)); }
+    try{renderCalendar();}catch(e){} try{updateBadges();}catch(e){}
+  }catch(e){ console.warn('[방문 재동기화 오류]',e); }
+}
+// 방문을 옮기거나 지웠을 때, 그 (단지,날짜)를 '건너뛸 날짜'로 기억 → 자동 재생성이 다시 안 넣음
+async function addVisitSkip(aptId,dateStr){
+  if(!aptId||!dateStr)return; const a=APTS.find(x=>String(x.id)===String(aptId)); if(!a)return;
+  const d=ownAsg(a); const skips={...(d.skipVisits||{})}; skips[String(dateStr).slice(0,10)]=true;
+  try{ await csSave(a,{skipVisits:skips}); }catch(e){}
 }
 
 /* ===== 공사관리 ===== */
+/* ── 현장 단계 5단계: 계약 → 착공 → 공사중 → 준공처리(준공검사) → 준공 ──
+   저장 위치: control_sites.data.stage (5단계 원본) + apartments.status (3단계 · 감리원/입주민 앱 호환) */
+const SITE_STAGES=[
+  ['계약','계약','계약 완료 · 착공 전','#6b7280'],
+  ['착공','착공','착공 준비 · 초기','#d97706'],
+  ['공사중','공사중','감리 진행 중','#2f6bf6'],
+  ['준공처리중','준공처리','준공검사 · 마무리','#7c3aed'],
+  ['준공','준공','완료','#1e7f4f']
+];
+const STAGE_KEYS=SITE_STAGES.map(s=>s[0]);
+const STAGE_BY_STATUS={scheduled:'계약',in_progress:'공사중',done:'준공'};
+const STATUS_BY_STAGE={'계약':'scheduled','착공':'scheduled','공사중':'in_progress','준공처리중':'in_progress','준공':'done'};
+function stageMeta(k){ return SITE_STAGES.find(s=>s[0]===k)||SITE_STAGES[0]; }
+function stageIdx(k){ const i=STAGE_KEYS.indexOf(k); return i<0?0:i; }
+// 단계 읽기: control_sites 에 저장된 값 우선, 없으면 기존 status 로 환산
+function stageOf(a){ if(!a)return '계약'; const s=(csData(a)||{}).stage; return STAGE_KEYS.includes(s)?s:(STAGE_BY_STATUS[a.status]||'공사중'); }
+function stageLabel(a){ return stageMeta(stageOf(a))[1]; }
+let stageBusy=false;
+async function setSiteStage(aptId,key){
+  if(stageBusy)return; const a=APTS.find(x=>x.id===aptId); if(!a||!STAGE_KEYS.includes(key))return;
+  if(stageOf(a)===key)return;
+  stageBusy=true;
+  const slug=csSlug(a.name), prevCS=CSITES[slug], prevStatus=a.status;
+  const data={...(CSITES[slug]||{}),_name:a.name,stage:key,stageAt:new Date().toISOString()};
+  const ns=STATUS_BY_STAGE[key];
+  CSITES[slug]=data; if(ns)a.status=ns;      // 화면부터 바로 반영(낙관적 갱신)
+  renderProjList();
+  let err=null;
+  try{
+    const r1=await sb.from('control_sites').upsert({slug,name:a.name,apartment_id:a.id,data,updated_at:new Date().toISOString()},{onConflict:'slug'});
+    err=r1.error;
+    if(!err&&ns&&prevStatus!==ns){ const r2=await sb.from('apartments').update({status:ns}).eq('id',a.id); err=r2.error; }
+    // 준공 처리 → 그 현장의 '오늘 이후·아직 안 다녀온' 정기 방문 자동 삭제 (과거·다녀온 기록은 보존)
+    if(!err&&key==='준공'){
+      const todayStr=isoDate(new Date());
+      try{ await sb.from('schedules').delete().eq('apartment_id',a.id).gte('date',todayStr).like('title',VISIT_MARK+'%').is('done_at',null); }catch(e){}
+      for(let i=SCHEDULES.length-1;i>=0;i--){ const s=SCHEDULES[i]; if(String(s.apartment_id)===String(a.id)&&String(s.date||'').slice(0,10)>=todayStr&&String(s.title||'').indexOf(VISIT_MARK)===0&&!s.done_at) SCHEDULES.splice(i,1); }
+    }
+  }catch(e){ err=e; }
+  stageBusy=false;
+  if(err){ if(prevCS)CSITES[slug]=prevCS; else delete CSITES[slug]; a.status=prevStatus; renderProjList();
+    alert('단계 저장에 실패했어요: '+(err.message||err)+'\n(control_sites 테이블 마이그레이션이 필요할 수 있어요)'); return; }
+  try{updateBadges();}catch(e){} try{renderOrgs();}catch(e){} try{renderDash();}catch(e){} try{renderCalendar();}catch(e){}
+  if(curProj&&curProj.id===aptId)renderProj();
+}
+function moveStage(id,d){ const a=APTS.find(x=>x.id===id); if(!a)return; const ni=stageIdx(stageOf(a))+d; if(ni<0||ni>=STAGE_KEYS.length)return; setSiteStage(id,STAGE_KEYS[ni]); }
+// 단계 체크바 — 칸을 누르면 그 단계로 이동
+function stepBarHtml(a){
+  const ci=stageIdx(stageOf(a));
+  return '<div class="stepbar">'+SITE_STAGES.map(([k,lab,,color],i)=>
+    `<span class="sp ${i===ci?'cur':(i<ci?'pass':'')}" ${i===ci?`style="background:${color}"`:''} title="${esc(lab)} 단계로 이동" onclick="event.stopPropagation();setSiteStage('${a.id}','${k}')">${esc(lab)}</span>`
+  ).join('')+'</div>';
+}
+/* ── 리스트 / 칸반 전환 · 단계 필터 ── */
+let projStage='전체', projView='list';
+try{ const v=localStorage.getItem('asq_proj_view'); if(v==='kanban'||v==='list')projView=v; }catch(e){}
+function setProjView(v){ projView=v; try{localStorage.setItem('asq_proj_view',v);}catch(e){} renderProjList(); }
+function setProjStage(k){ projStage=(projStage===k&&k!=='전체')?'전체':k; renderProjList();
+  if(projView==='kanban'&&projStage!=='전체'){ const c=document.querySelector('.kbcol.sel'); if(c&&c.scrollIntoView)c.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}); } }
 function renderProjList(){
   const q=($('proj-q')?.value||'').trim().toLowerCase();
-  let list=APTS.slice(); if(q)list=list.filter(a=>((a.name||'')+' '+(a.region||'')).toLowerCase().includes(q));
-  list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
-  $('projRows').innerHTML=list.length?list.map(a=>{const st=STATUS[a.status]||STATUS.scheduled;const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nvisit=aptVisits(a.id);const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td>${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td>${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}</td><td>${nvisit}회</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td><span class="pill ${st[1]}">${st[0]}</span></td></tr>`;}).join(''):'<tr><td colspan="9" class="empty">단지가 없어요</td></tr>';
+  let base=APTS.slice(); if(q)base=base.filter(a=>((a.name||'')+' '+(a.region||'')).toLowerCase().includes(q));
+  base.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  const cnt=k=>base.filter(a=>stageOf(a)===k).length;
+  const f=$('projStageFilter');
+  if(f)f.innerHTML='<span class="ttl">단계</span>'
+    +`<button class="stgbtn ${projStage==='전체'?'on':''}" onclick="setProjStage('전체')">전체 <span class="num">${base.length}</span></button>`
+    +SITE_STAGES.map(([k,lab,desc,color])=>`<button class="stgbtn ${projStage===k?'on':''}" title="${esc(desc)}" onclick="setProjStage('${k}')"><span class="dot" style="background:${color}"></span>${esc(lab)} <span class="num">${cnt(k)}</span></button>`).join('')
+    +`<span style="margin-left:auto;font-size:11.5px;color:var(--mut);font-weight:600">${projView==='kanban'?'카드를 끌어다 옮기거나 ◀ ▶ 로 단계를 바꿔요':'단계 칸을 누르면 바로 이동해요'}</span>`;
+  const bl=$('pv-list'),bk=$('pv-kanban'); if(bl)bl.classList.toggle('on',projView==='list'); if(bk)bk.classList.toggle('on',projView==='kanban');
+  const tw=$('projTableWrap'),kw=$('projKanbanWrap');
+  if(tw)tw.style.display=projView==='list'?'block':'none';
+  if(kw)kw.style.display=projView==='kanban'?'block':'none';
+  if(projView==='kanban')renderProjKanban(base);
+  else renderProjRows(projStage==='전체'?base:base.filter(a=>stageOf(a)===projStage));
+}
+function renderProjRows(list){
+  if(!$('projRows'))return;
+  $('projRows').innerHTML=list.length?list.map(a=>{const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nvisit=aptVisits(a.id);const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td>${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td>${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}</td><td>${nvisit}회</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td>${stepBarHtml(a)}</td></tr>`;}).join(''):`<tr><td colspan="9" class="empty">${projStage==='전체'?'단지가 없어요':esc(stageMeta(projStage)[1])+' 단계인 단지가 없어요'}</td></tr>`;
+}
+/* ── 칸반 ── */
+let kbDragId=null;
+function kbDragStart(e,id){ kbDragId=id; try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',id);}catch(_){} e.currentTarget.classList.add('drag'); }
+function kbDragEnd(e){ e.currentTarget.classList.remove('drag'); kbDragId=null; document.querySelectorAll('.kbcol.over').forEach(c=>c.classList.remove('over')); }
+function kbOver(e,el){ e.preventDefault(); try{e.dataTransfer.dropEffect='move';}catch(_){} el.classList.add('over'); }
+function kbLeave(el){ el.classList.remove('over'); }
+function kbDrop(e,el,key){ e.preventDefault(); el.classList.remove('over'); let id=kbDragId; if(!id){try{id=e.dataTransfer.getData('text/plain');}catch(_){}} if(id)setSiteStage(id,key); }
+function kbCardHtml(a){
+  const pr=progressOf(a),nrep=REPORTS.filter(r=>r.apartment_id===a.id).length,nvisit=aptVisits(a.id),nnew=aptNewReps(a.id);
+  const sf=a.supervision_fee,out=(sf!=null)?(sf-(a.received_amount||0)):null,i=stageIdx(stageOf(a));
+  return `<div class="kbcard ${nnew?'new':''}" draggable="true" ondragstart="kbDragStart(event,'${a.id}')" ondragend="kbDragEnd(event)">
+    <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0">
+      <div class="t"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}</div>
+      <div class="rg">${esc(a.region)||'지역 미입력'}${siteType(a)?' · '+esc(siteType(a)):''}</div></div>
+      <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span></div>
+    <div class="mt"><div>감리 <b>${siteAuditors(a)}</b></div><div>방문 <b>${nvisit}회</b></div>
+      <div>일지 <b${nnew?' style="color:var(--red)"':''}>${nrep}건</b></div>
+      <div>미수 ${out==null?'<b>-</b>':(out<=0?'<b style="color:var(--green)">완납</b>':`<b style="color:var(--red)">${moneyKR(out)}</b>`)}</div></div>
+    <div style="display:flex;align-items:center;gap:7px;margin-top:9px"><div class="bar" style="flex:1"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut);font-weight:700">${pr.pct}%</span></div>
+    <div class="kbfoot"><button class="kbmv" ${i===0?'disabled':''} title="이전 단계로" onclick="moveStage('${a.id}',-1)">◀</button><button class="kbmv" ${i===STAGE_KEYS.length-1?'disabled':''} title="다음 단계로" onclick="moveStage('${a.id}',1)">▶</button><span style="flex:1"></span><button class="kbmv" onclick="openProj('${a.id}')">상세 →</button></div></div>`;
+}
+function renderProjKanban(base){
+  const box=$('projKanban'); if(!box)return;
+  box.innerHTML=SITE_STAGES.map(([k,lab,desc,color])=>{
+    const items=base.filter(a=>stageOf(a)===k);
+    return `<div class="kbcol ${projStage===k?'sel':''}" ${projStage===k?`style="box-shadow:inset 0 0 0 2px ${color}"`:''} ondragover="kbOver(event,this)" ondragleave="kbLeave(this)" ondrop="kbDrop(event,this,'${k}')">
+      <div class="kbhead"><span style="width:9px;height:9px;border-radius:50%;background:${color};flex:none"></span><div><div class="nm">${esc(lab)}</div><div class="sub">${esc(desc)}</div></div><span class="n">${items.length}</span></div>
+      ${items.length?items.map(kbCardHtml).join(''):'<div class="kbempty">여기로 카드를 끌어다 놓으세요</div>'}</div>`;
+  }).join('');
 }
 let curProj=null,projTab='report';
 let photoView='card',photoCalYM=null,photoSelDate=null;
@@ -932,10 +1352,10 @@ function renderProj(){
       <div class="kv"><span>지역</span><b>${esc(p.region)||'-'}</b></div><div class="kv"><span>공종</span><b>${esc(siteType(p))||'-'}</b></div>
       <div class="kv"><span>담당 감리</span><b>${siteAuditors(p)}</b></div>
       <div class="kv"><span>공법</span><b>${esc((window.methodLabel&&window.methodLabel(p.method))||p.method||'미지정')}</b></div>
-      <div class="kv"><span>상태</span><b>${(STATUS[p.status]||STATUS.scheduled)[0]}</b></div>
+      <div class="kv"><span>단계</span><b style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span class="pill" style="background:${stageMeta(stageOf(p))[3]}1f;color:${stageMeta(stageOf(p))[3]}">${esc(stageLabel(p))}</span>${stepBarHtml(p)}</b></div>
       <div class="kv"><span>공정</span><b>${pr.tot?`${pr.cur}/${pr.tot}단계 (${pr.pct}%)${stName?' · '+esc(stName):''}`:'<span style="color:var(--mut)">공법을 정하면 공정이 표시돼요 (⚙️ 단지 설정)</span>'}</b></div>
       ${pr.tot?`<div class="bar" style="margin-top:6px"><i style="width:${pr.pct}%"></i></div>`:''}
-      <div style="font-size:11px;color:var(--mut);margin-top:10px">💡 담당 감리사·공법·공정·상태는 <b>⚙️ 단지 설정</b>에서 바꿔요.</div></div>
+      <div style="font-size:11px;color:var(--mut);margin-top:10px">💡 담당 감리원·공법·공정·상태는 <b>⚙️ 단지 설정</b>에서 바꿔요.</div></div>
       ${billingCard(p,cons)}</div>`+
       `<div class="card"><h3>📝 현장개요 <span class="r">이 현장의 핵심 요약 (관리자 메모)</span></h3>
         <textarea id="ov-text" placeholder="예: 106~110동 외벽 재도장. 2026.03 착공, 감리 주 1회 방문. 특이사항: 옥상 방수 추가 검토 중." style="width:100%;box-sizing:border-box;min-height:110px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none;resize:vertical;line-height:1.6">${esc(p.overview)||''}</textarea>
@@ -945,7 +1365,7 @@ function renderProj(){
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><select id="note-kind" class="inp" style="width:110px">${Object.entries(NOTE_KIND).map(([k,v])=>`<option value="${k}">${v[2]} ${v[0]}</option>`).join('')}</select><input id="note-input" placeholder="예: 106동 상도 완료 확인 / 소장님과 일정 협의" style="flex:1;min-width:180px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')addSiteNote('${p.id}')"><button class="b blue" onclick="addSiteNote('${p.id}')">기록 추가</button></div>
       ${siteNotesHtml(p.id)}</div>`;
   } else if(projTab==='report'){
-    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700">${esc(r.title)||'-'}</td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
+    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${(r.created_at||'').slice(0,10)}</td><td style="font-weight:700">${repRoundBadge(r)} <span class="link" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'-'}</span></td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(projTab==='photo'){
     const hasPh=flds.some(f=>Array.isArray(f.photos)&&f.photos.length);
     const toolbar=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button>${hasPh?`<button class="b line" onclick="makeFieldPPT('${p.id}',null,this)">📊 준공 PPT</button><button class="b line" onclick="downloadAptAllPhotos('${p.id}',this)">⬇ 전체 사진 ZIP</button>`:''}<span style="flex:1"></span><div class="seg" style="margin:0"><button class="${photoView==='card'?'on':''}" onclick="setPhotoView('card')">📇 카드</button><button class="${photoView==='cal'?'on':''}" onclick="setPhotoView('cal')">🗓️ 달력</button></div></div>`;
@@ -1126,7 +1546,7 @@ async function togglePub(id){
   if(error){alert('변경 실패: '+error.message);return;}
   r.published=next; renderProj();
 }
-/* ===== 감리사 배정 저장 ===== */
+/* ===== 감리원 배정 저장 ===== */
 async function saveAuditors(aptId){
   const ids=[...document.querySelectorAll('.aud-chk:checked')].map(c=>c.value);
   const rep=ids[0]||null;
@@ -1134,7 +1554,66 @@ async function saveAuditors(aptId){
   if(error){alert('저장 실패: '+error.message);return;}
   try{ await sb.from('apartment_auditors').delete().eq('apartment_id',aptId); if(ids.length) await sb.from('apartment_auditors').insert(ids.map(x=>({apartment_id:aptId,auditor_id:x}))); }catch(e){}
   const a=APTS.find(x=>x.id===aptId); if(a)a.auditor_id=rep; APT_AUD[aptId]=ids;
-  renderProj(); renderProjList(); renderOrgs(); renderDash(); alert('감리사 배정을 저장했어요');
+  renderProj(); renderProjList(); renderOrgs(); renderDash(); alert('감리원 배정을 저장했어요');
+}
+
+/* ===== 감리원 일괄 배정 (여러 단지에 한 번에) ===== */
+function openBulkAssign(){
+  const auds=auditorList();
+  if(!auds.length){ alert('먼저 회원에서 ‘감리원’를 등록·승인하세요'); return; }
+  const audOpts=auds.map(a=>`<option value="${a.id}">${esc(a.name||loginId(a))}</option>`).join('');
+  openModal(mHead('👥 감리원 일괄 배정')+`
+    <div class="frow"><div class="fld"><label>감리원 선택</label><select id="ba-aud">${audOpts}</select></div>
+      <div class="fld"><label>배정 방식</label><select id="ba-mode">
+        <option value="add">추가 배정 (기존 담당 유지)</option>
+        <option value="rep">대표 감리원으로 지정 (기존 대표 교체)</option>
+      </select></div></div>
+    <div style="display:flex;gap:8px;align-items:center;margin:6px 0 8px">
+      <input class="inp" id="ba-q" placeholder="🔍 단지명·지역 검색" style="flex:1" oninput="baRender()">
+      <label style="font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer"><input type="checkbox" id="ba-all" onchange="baToggleAll(this.checked)"> 보이는 단지 전체선택</label>
+    </div>
+    <div id="ba-list" style="max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:2px 12px"></div>
+    <div class="mmsg" id="ba-msg"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="bulkAssignSave()">선택 단지에 배정</button></div>
+  `,true);
+  baRender();
+}
+function baRender(){
+  const q=((($('ba-q')||{}).value)||'').trim().toLowerCase();
+  const list=APTS.filter(a=>!q||((a.name||'').toLowerCase().includes(q)||(a.region||'').toLowerCase().includes(q)))
+    .sort((x,y)=>(x.name||'').localeCompare(y.name||'','ko'));
+  const box=$('ba-list'); if(!box)return;
+  box.innerHTML=list.length?list.map(a=>{
+    const cur=aptAuditors(a).map(auditorName).filter(n=>n&&n!=='-');
+    return `<label style="display:flex;align-items:center;gap:9px;padding:7px 2px;border-bottom:1px solid var(--line);cursor:pointer">
+      <input type="checkbox" class="ba-chk" value="${a.id}">
+      <span style="font-weight:700;font-size:13px">${esc(a.name)}</span>
+      <span style="color:var(--mut);font-size:11px">${esc(a.region)||''}</span>
+      <span style="margin-left:auto;font-size:11px;color:${cur.length?'var(--blue,#2f6bf6)':'#b8710a'}">${cur.length?'담당: '+esc(cur.join(', ')):'미배정'}</span>
+    </label>`;
+  }).join(''):'<div class="empty">단지가 없어요</div>';
+  const all=$('ba-all'); if(all)all.checked=false;
+}
+function baToggleAll(on){ document.querySelectorAll('#ba-list .ba-chk').forEach(c=>c.checked=on); }
+async function bulkAssignSave(){
+  const aud=($('ba-aud')||{}).value; const mode=($('ba-mode')||{}).value||'add';
+  const ids=[...document.querySelectorAll('#ba-list .ba-chk:checked')].map(c=>c.value);
+  const msg=$('ba-msg');
+  if(!aud){ if(msg){msg.textContent='감리원을 선택하세요';msg.style.color='var(--red)';} return; }
+  if(!ids.length){ if(msg){msg.textContent='배정할 단지를 하나 이상 선택하세요';msg.style.color='var(--red)';} return; }
+  if(msg){msg.textContent='배정 중…';msg.style.color='var(--mut)';}
+  // 1) apartment_auditors 에 아직 없는 (단지,감리원)만 추가
+  const toIns=ids.filter(id=>!(APT_AUD[id]||[]).includes(aud)).map(id=>({apartment_id:id,auditor_id:aud}));
+  if(toIns.length){ const {error}=await sb.from('apartment_auditors').insert(toIns); if(error){ if(msg){msg.textContent='배정 실패: '+error.message;msg.style.color='var(--red)';} return; } }
+  // 2) 대표 감리원 지정: 'rep'면 선택 단지 전부, 'add'면 대표가 비어있는 단지만
+  const repIds = (mode==='rep') ? ids : ids.filter(id=>{ const a=APTS.find(x=>x.id===id); return a&&!a.auditor_id; });
+  if(repIds.length){ const {error}=await sb.from('apartments').update({auditor_id:aud}).in('id',repIds); if(error){ if(msg){msg.textContent='대표 지정 실패: '+error.message;msg.style.color='var(--red)';} return; } }
+  // 3) 로컬 상태 갱신 + 화면 새로고침
+  ids.forEach(id=>{ APT_AUD[id]=Array.from(new Set([...(APT_AUD[id]||[]),aud])); });
+  repIds.forEach(id=>{ const a=APTS.find(x=>x.id===id); if(a)a.auditor_id=aud; });
+  closeModal();
+  renderProjList(); renderOrgs(); renderDash();
+  alert(`${auditorName(aud)} 감리원을 ${ids.length}개 단지에 배정했어요.`+(mode==='rep'?' (대표로 지정)':''));
 }
 /* ===== 현장개요 / 히스토리 ===== */
 async function saveOverview(aptId){
@@ -1225,7 +1704,7 @@ function openAptAdd(pre){ pre=pre||{}; APT_ADD_LINK=pre._leadId||null;
     <div class="frow"><div class="fld"><label>지역</label><input id="m-region" value="${esc(pre.region)||''}" placeholder="예: 서울 노원"></div><div class="fld"><label>세대수</label><input id="m-house" type="number" value="${pre.households!=null?pre.households:''}" placeholder="예: 1240"></div></div>
     <div class="fld"><label>주소 <span style="font-weight:600;color:var(--mut)">(일정 등록 시 자동입력)</span></label><input id="m-address" value="${esc(pre.address)||''}" placeholder="예: 서울 노원구 ○○로 12"></div>
     <div class="frow"><div class="fld"><label>공법 <span style="font-weight:600;color:var(--mut)">(공종 자동)</span></label><select id="m-method" onchange="onMethodChangeC(this)">${methodOptsC(pre.method||'')}</select></div><div class="fld"><label>공정</label><select id="m-stage">${stageOptsC(pre.method||'',0)}</select></div></div>
-    <div class="frow"><div class="fld"><label>상태</label><select id="m-status"><option value="scheduled">점검 예정</option><option value="in_progress">감리 진행 중</option><option value="done">완료</option></select></div><div class="fld"><label>대표 감리사</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(a=>`<option value="${a.id}">${esc(a.name||loginId(a))}</option>`).join('')}</select></div></div>
+    <div class="frow"><div class="fld"><label>단계</label><select id="m-stagekey">${SITE_STAGES.map(([k,lab,desc])=>`<option value="${k}">${esc(lab)} · ${esc(desc)}</option>`).join('')}</select></div><div class="fld"><label>대표 감리원</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(a=>`<option value="${a.id}">${esc(a.name||loginId(a))}</option>`).join('')}</select></div></div>
     <div class="frow"><div class="fld"><label>총 계약금액 (원)</label><input id="m-ca" type="number" value="${pre.contract_amount!=null?pre.contract_amount:''}" placeholder="공사비"></div><div class="fld"><label>감리비 (원)</label><input id="m-sf" type="number" value="${pre.supervision_fee!=null?pre.supervision_fee:''}" placeholder="우리 매출"></div></div>
     <div class="fld"><label>수금액 (원)</label><input id="m-rc" type="number" placeholder="받은 금액 · 미수금 자동 계산"></div>
     <div class="fld"><label>현장 개요 / 메모</label><textarea id="m-overview" placeholder="계약·현장 특이사항">${esc(pre.overview)||''}</textarea></div>
@@ -1240,12 +1719,14 @@ async function submitAptAdd(){
   let pc=parseInt(($('m-stage')||{}).value,10); if(isNaN(pc)||pc<0)pc=0; if(pt&&pc>pt)pc=pt;
   const num=id=>{ const el=$(id); if(!el)return null; const v=(el.value||'').trim(); if(v==='')return null; const n=parseInt(v.replace(/[^0-9]/g,''),10); return isNaN(n)?null:n; };
   const rec={ name, region:$('m-region').value.trim()||null, address:($('m-address')||{}).value?.trim()||null, households:num('m-house'),
-    method, progress_current:pc, progress_total:pt, status:($('m-status')||{}).value||'scheduled',
+    method, progress_current:pc, progress_total:pt, status:STATUS_BY_STAGE[($('m-stagekey')||{}).value]||'scheduled',
     auditor_id:$('m-aud').value||null, construction_type:(($('m-ctype')||{}).value||'').trim()||null,
     contract_amount:num('m-ca'), supervision_fee:num('m-sf'), received_amount:num('m-rc'),
     overview:($('m-overview').value||'').trim()||null };
   const {data,error}=await sb.from('apartments').insert(rec).select('id').single();
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  // 5단계 원본을 control_sites 에도 기록 (계약/착공, 준공처리중 구분용)
+  const sk0=($('m-stagekey')||{}).value; if(data&&STAGE_KEYS.includes(sk0)){ try{ const slug=csSlug(name); const d={...(CSITES[slug]||{}),_name:name,stage:sk0,stageAt:new Date().toISOString()}; CSITES[slug]=d; await sb.from('control_sites').upsert({slug,name,apartment_id:data.id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'}); }catch(e){console.warn('단계 저장 실패',e);} }
   if(APT_ADD_LINK&&data){ try{ await sb.from('sales_leads').update({apartment_id:data.id,stage:'won',stage_changed_at:new Date().toISOString()}).eq('id',APT_ADD_LINK);}catch(e){} }
   APT_ADD_LINK=null;
   closeModal(); await loadAll();
@@ -1260,9 +1741,9 @@ function openAptEdit(id){
     <div class="frow"><div class="fld"><label>지역</label><input id="m-region" value="${esc(a.region)||''}"></div><div class="fld"><label>세대수</label><input id="m-house" type="number" value="${a.households!=null?a.households:''}" placeholder="예: 1240"></div></div>
     <div class="fld"><label>주소 <span style="font-weight:600;color:var(--mut)">(일정 등록 시 자동입력)</span></label><input id="m-address" value="${esc(a.address)||''}" placeholder="예: 서울 노원구 ○○로 12"></div>
     <div class="frow"><div class="fld"><label>공법 <span style="font-weight:600;color:var(--mut)">(공종이 자동으로 잡혀요)</span></label><select id="m-method" onchange="onMethodChangeC(this)">${methodOptsC(a.method)}</select></div><div class="fld"><label>공정</label><select id="m-stage">${stageOptsC(a.method,pc)}</select></div></div>
-    <div class="fld"><label>상태</label><select id="m-status"><option value="scheduled" ${(!a.status||a.status==='scheduled')?'selected':''}>점검 예정</option><option value="in_progress" ${a.status==='in_progress'?'selected':''}>감리 진행 중</option><option value="done" ${a.status==='done'?'selected':''}>완료</option></select></div>
-    <div class="fld"><label>대표 감리사</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>
-    <div class="fld"><label>함께 담당 감리사 <span style="font-weight:600;color:var(--mut)">(여러 명 체크 가능)</span></label>${auds.length?`<div class="audlist">${auds.map(m=>`<label><input type="checkbox" class="m-team" value="${m.id}" ${team.includes(m.id)?'checked':''}><span>${esc(m.name||loginId(m)||'(이름없음)')}</span></label>`).join('')}</div>`:'<div style="color:var(--mut);font-size:12px">등록된 감리사가 없어요. 회원 메뉴에서 역할을 ‘감리사’로 지정하세요.</div>'}</div>
+    <div class="fld"><label>단계</label><select id="m-stagekey">${SITE_STAGES.map(([k,lab,desc])=>`<option value="${k}" ${stageOf(a)===k?'selected':''}>${esc(lab)} · ${esc(desc)}</option>`).join('')}</select></div>
+    <div class="fld"><label>대표 감리원</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>
+    <div class="fld"><label>함께 담당 감리원 <span style="font-weight:600;color:var(--mut)">(여러 명 체크 가능)</span></label>${auds.length?`<div class="audlist">${auds.map(m=>`<label><input type="checkbox" class="m-team" value="${m.id}" ${team.includes(m.id)?'checked':''}><span>${esc(m.name||loginId(m)||'(이름없음)')}</span></label>`).join('')}</div>`:'<div style="color:var(--mut);font-size:12px">등록된 감리원이 없어요. 회원 메뉴에서 역할을 ‘감리원’로 지정하세요.</div>'}</div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b red" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAptEdit('${a.id}')">저장</button></div>`);
 }
@@ -1275,8 +1756,10 @@ async function submitAptEdit(id){
   const team=[...document.querySelectorAll('.m-team:checked')].map(c=>c.value);
   const all=[...new Set([aud,...team].filter(Boolean))];
   const hv=($('m-house').value||'').trim(); const households=hv===''?null:(parseInt(hv.replace(/[^0-9]/g,''),10)||null);
-  const {error}=await sb.from('apartments').update({name,region:$('m-region').value.trim()||null,address:($('m-address')||{}).value?.trim()||null,households,auditor_id:aud,method,status:$('m-status').value,progress_current:pc,progress_total:pt}).eq('id',id);
+  const sk=($('m-stagekey')||{}).value; const newStatus=STATUS_BY_STAGE[sk]||'scheduled';
+  const {error}=await sb.from('apartments').update({name,region:$('m-region').value.trim()||null,address:($('m-address')||{}).value?.trim()||null,households,auditor_id:aud,method,status:newStatus,progress_current:pc,progress_total:pt}).eq('id',id);
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
+  if(STAGE_KEYS.includes(sk)){ try{ const slug=csSlug(name); const d={...(CSITES[slug]||{}),_name:name,stage:sk,stageAt:new Date().toISOString()}; CSITES[slug]=d; await sb.from('control_sites').upsert({slug,name,apartment_id:id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'}); }catch(e){console.warn('단계 저장 실패',e);} }
   try{ await sb.from('apartment_auditors').delete().eq('apartment_id',id); if(all.length) await sb.from('apartment_auditors').insert(all.map(x=>({apartment_id:id,auditor_id:x}))); }catch(e){}
   closeModal(); await loadAll();
 }
@@ -1298,19 +1781,73 @@ function openReportAdd(aptId){
   MPHOTOS=[]; MBUCKET='report-photos'; MPREFIX='';
   openModal(mHead('➕ 감리일지 추가')+`
     <div class="fld"><label>단지</label><input value="${esc(aptName(aptId))}" disabled></div>
-    <div class="fld"><label>제목 *</label><input id="m-title" placeholder="예: 106동 외벽 상도 1차"></div>
-    <div class="frow"><div class="fld"><label>동 (쉼표로 구분)</label><input id="m-dongs" placeholder="예: 106동, 107동"></div></div>
-    <div class="fld"><label>점검 내용 (감리사 원문)</label><textarea id="m-content" placeholder="점검 내용을 적으세요"></textarea></div>
+    <div class="fld"><label>제목 *</label><input id="m-title" placeholder="예: 106동 외벽 상도"></div>
+    <div class="frow"><div class="fld"><label>공종 <span style="font-weight:600;color:var(--mut)">(회차 기준)</span></label><input id="m-worktype" value="${esc(siteType(APTS.find(x=>x.id===aptId)||{}))}" placeholder="예: 옥상방수"></div><div class="fld"><label>동 (쉼표로 구분)</label><input id="m-dongs" placeholder="예: 106동, 107동"></div></div>
+    <div class="fld"><label>점검 내용 (감리원 원문)</label><textarea id="m-content" placeholder="점검 내용을 적으세요"></textarea></div>
     <div class="fld"><label>현장 사진</label>${mPhotoBox()}</div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitReportAdd('${aptId}')">등록</button></div>`);
 }
 async function submitReportAdd(aptId){
   const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
+  const worktype=(($('m-worktype')||{}).value||'').trim();
   const {data:{user}}=await sb.auth.getUser();
-  const {error}=await sb.from('reports').insert({apartment_id:aptId,title,dongs:$('m-dongs').value.trim()||null,content:$('m-content').value.trim()||null,photos:MPHOTOS.slice(),published:false,author_id:user?user.id:null});
+  const rec={apartment_id:aptId,title,dongs:$('m-dongs').value.trim()||null,content:$('m-content').value.trim()||null,photos:MPHOTOS.slice(),published:false,author_id:user?user.id:null};
+  // 회차: 같은 단지+공종 기존 수 + 1 → 제목에 '제N차' 자동. worktype 컬럼 없으면 건너뜀(안전)
+  try{
+    let cq=sb.from('reports').select('id',{count:'exact',head:true}).eq('apartment_id',aptId);
+    cq=worktype?cq.eq('worktype',worktype):cq.is('worktype',null);
+    const {count,error:ce}=await cq;
+    if(!ce){ const round=(count||0)+1; rec.worktype=worktype||null; if(!/제\s*\d+\s*차/.test(title)) rec.title=title+' · 제'+round+'차'; }
+  }catch(e){}
+  const {error}=await sb.from('reports').insert(rec);
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();
+}
+/* 감리일지 작성 — 실제 '체크리스트(inspect)' 양식으로 연결(앱과 동일). 마지막 단지 기억 */
+function inspectWorkSub(method){
+  if(method==='repaint') return {work:'외벽 재도장',sub:''};
+  if(method==='metalroof') return {work:'옥상방수',sub:'금속기와'};
+  if(method==='shingle') return {work:'옥상방수',sub:'싱글'};
+  if(method==='epoxy') return {work:'지하주차장',sub:''};
+  return {work:'',sub:''};
+}
+function openReportAddPick(){
+  const last=lsGet('aptsq_lastReportApt')||'';
+  const apts=[...APTS].sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  const opts=apts.map(a=>`<option value="${a.id}" ${a.id===last?'selected':''}>${esc(a.name)}</option>`).join('');
+  openModal(mHead('📝 감리일지 작성 (체크리스트)')+`
+    <div class="fld"><label>단지 *</label><select id="m-apt-pick">${opts||'<option value="">먼저 단지를 등록하세요</option>'}</select>
+      <div style="font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.6">단지를 고르고 아래 버튼을 누르면 <b>우리가 쓰는 체크리스트 감리일지</b>가 새 탭에서 열립니다. 체크리스트 작성·전송하면 이 단지 감리일지로 저장돼요.<br>마지막에 작성한 단지가 기본 선택됩니다.</div></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="startInspectReport()">➡️ 체크리스트 작성 시작</button></div>`);
+}
+function startInspectReport(){
+  const sel=$('m-apt-pick'); const aptId=sel&&sel.value;
+  if(!aptId){$('m-msg').textContent='단지를 선택하세요';$('m-msg').style.color='var(--red)';return;}
+  const a=APTS.find(x=>x.id===aptId); const nm=a?(a.name||''):''; const ws=inspectWorkSub(a&&a.method);
+  lsSet('aptsq_lastReportApt',aptId);
+  const url='../inspect/?apt='+encodeURIComponent(aptId)+'&name='+encodeURIComponent(nm)
+    +(ws.work?'&work='+encodeURIComponent(ws.work):'')+(ws.sub?'&sub='+encodeURIComponent(ws.sub):'');
+  window.open(url,'_blank','noopener');
+  closeModal();
+}
+// 감리일지 '보기' — 제목 클릭 시 내용만 읽기전용으로 (수정은 편집 버튼으로)
+function openReportView(id){
+  const r=REPORTS.find(x=>x.id===id); if(!r)return;
+  const photos=Array.isArray(r.photos)?r.photos:[];
+  const meta=[ (r.created_at||'').slice(0,10), (r.dongs||''), (photos.length?photos.length+'장':''), (r.published?'공개중':'비공개') ].filter(Boolean);
+  const pdfHtml = r.pdf_url?`<div class="fld"><a href="${esc(r.pdf_url)}" target="_blank" class="b line">📄 입주민 공개용 PDF 보기${r.pdf_name?' ('+esc(r.pdf_name)+')':''}</a></div>`:'';
+  const phHtml = photos.length?`<div class="fld"><label style="display:flex;justify-content:space-between;align-items:center">현장 사진 ${photos.length}장 <button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 전체 다운로드</button></label><div class="phwrap" style="margin-top:4px">${photos.map(u=>`<a href="${esc(u)}" target="_blank" title="원본 보기"><img src="${esc(u)}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>`).join('')}</div></div>`:'';
+  openModal(mHead('📄 감리일지 보기')+`
+    <div style="font-size:14px;font-weight:800;margin-bottom:4px">${repRoundBadge(r)} ${esc(r.title)||'감리일지'}</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:12px">${meta.map(esc).join(' · ')}</div>
+    <div class="fld"><label>점검 내용 (감리원 원문)</label>
+      <div style="white-space:pre-wrap;font-size:13px;line-height:1.75;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:14px 16px;max-height:48vh;overflow:auto">${r.content?esc(r.content):'<span style="color:var(--mut)">작성된 점검 내용이 없어요</span>'}</div>
+    </div>
+    ${pdfHtml}
+    ${phHtml}
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button><button class="b blue" onclick="openReportEdit('${r.id}')">✏️ 편집</button></div>`, true);
 }
 function openReportEdit(id){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;
@@ -1318,7 +1855,7 @@ function openReportEdit(id){
   openModal(mHead('📄 감리일지 편집')+`
     <div class="fld"><label>제목 *</label><input id="m-title" value="${esc(r.title)||''}"></div>
     <div class="fld"><label>동 (쉼표로 구분)</label><input id="m-dongs" value="${esc(r.dongs)||''}"></div>
-    <div class="fld"><label>점검 내용 (감리사 원문)</label><textarea id="m-content" style="min-height:180px">${esc(r.content)||''}</textarea></div>
+    <div class="fld"><label>점검 내용 (감리원 원문)</label><textarea id="m-content" style="min-height:180px">${esc(r.content)||''}</textarea></div>
     <div class="fld"><label style="display:flex;justify-content:space-between;align-items:center">현장 사진${MPHOTOS.length?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 전체 다운로드 (${MPHOTOS.length})</button>`:''}</label>${mPhotoBox()}</div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>📄 입주민 공개용 PDF</label>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${r.pdf_url?`<a href="${esc(r.pdf_url)}" target="_blank" class="b line">📄 ${esc(r.pdf_name||'PDF')} 보기</a>`:'<span style="font-size:12px;color:var(--mut)">아직 PDF 없음</span>'}
@@ -1530,7 +2067,7 @@ const SURVEY_TEXT=[['best','👍 가장 좋았던 점'],['again','🔁 다음에
 function starRow(n){ let f=Math.round(+n||0); if(f<0)f=0; if(f>5)f=5; return `<span style="color:#f5b301;letter-spacing:1px">${'★'.repeat(f)}<span style="color:#dfe3ea">${'★'.repeat(5-f)}</span></span>`; }
 function openNpsDetail(aptId){
   const list=SURVEYS.filter(s=>s.apartment_id===aptId).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
-  const roleNm={resident:'입주민',manager:'관리소장',auditor:'감리사',admin:'관리자'};
+  const roleNm={resident:'입주민',manager:'관리소장',auditor:'감리원',admin:'관리자'};
   const body=list.length?list.map(s=>{
     const rates=SURVEY_RATE.filter(([k])=>s[k]!=null&&s[k]!=='').map(([k,lbl])=>`<div style="display:flex;align-items:center;gap:8px;font-size:12.5px"><span style="width:96px;color:var(--mut2);font-weight:700;flex-shrink:0">${lbl}</span>${starRow(s[k])}<span style="color:var(--mut);font-size:11px">${s[k]}</span></div>`).join('');
     const texts=SURVEY_TEXT.filter(([k])=>s[k]!=null&&String(s[k]).trim()!=='').map(([k,lbl])=>`<div style="margin-top:7px"><div style="font-size:11px;font-weight:800;color:var(--mut2)">${lbl}</div><div style="font-size:13px;color:var(--ink);background:#f6f8fc;border-radius:8px;padding:8px 11px;margin-top:3px;line-height:1.5;white-space:pre-wrap">${esc(s[k])}</div></div>`).join('');
@@ -1704,7 +2241,7 @@ function openNameCardAdd(){
   openModal(mHead('➕ 명함 추가')+`
     <div class="fld"><label>이름 * (검색에 사용)</label><input id="m-name" placeholder="예) 이승우"></div>
     <div class="fld"><label>명함 사진 *</label><input id="m-img" type="file" accept="image/*"></div>
-    <div class="fld"><label>설명 (선택 · 직함/부서 등)</label><input id="m-cap" placeholder="예) 감리사 · 영업담당"></div>
+    <div class="fld"><label>설명 (선택 · 직함/부서 등)</label><input id="m-cap" placeholder="예) 감리원 · 영업담당"></div>
     <div class="fld"><label>정렬 순서</label><input id="m-sort" type="number" value="0"></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" id="m-submit" onclick="submitNameCardAdd()">추가</button></div>`);
@@ -1814,7 +2351,9 @@ async function deleteMember(id){
 
 /* ===== 일정(schedules) ===== */
 let calYMset=false;
-function calMove(d){ if(!calYM){const n=new Date();calYM={y:n.getFullYear(),m:n.getMonth()};} let m=calYM.m+d,y=calYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} calYM={y,m}; renderCalendar(); }
+function calMove(d){
+  if(calView==='week'){ if(!calWeekStart)calWeekStart=startOfWeek(new Date()); const n=new Date(calWeekStart); n.setDate(n.getDate()+7*d); calWeekStart=n; renderCalendar(); return; }
+  if(!calYM){const n=new Date();calYM={y:n.getFullYear(),m:n.getMonth()};} let m=calYM.m+d,y=calYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} calYM={y,m}; renderCalendar(); }
 function schOwnerName(s){ const m=MEMBERS.find(x=>x.id===s.owner_id); return m?(m.name||loginId(m)):'개인'; }
 /* ===== 일정 추가/수정 — POUR식 분류별 상세 폼 ===== */
 const SCHED_NODE={pt:'pt',bids:'briefing',sales:'sales',seminar:'seminar',personal:'personal',meeting:'meetings',vacation:'vacation',asq:'asq'};
@@ -1866,18 +2405,22 @@ function onSchedAptChange(){ const apt=APTS.find(a=>a.id===(($('sm-apt')||{}).va
   const wt=$('sm-workType'); if(wt&&!wt.value)wt.value=siteType(apt)||'';
   const ad=$('sm-address'); if(ad&&!ad.value)ad.value=apt.address||apt.region||'';
 }
+let _schedEditVisit=false;
 function openSchedModal(s,preDate){ s=s||null;
+  const isVisit=!!(s&&String(s.title||'').indexOf(VISIT_MARK)===0); _schedEditVisit=isVisit;
   const cat=(s&&s.category)||'asq';
   SCHED_ASGN=(s&&s.meta&&Array.isArray(s.meta.assignees)&&s.meta.assignees.length)?s.meta.assignees.slice():(s&&s.meta&&Array.isArray(s.meta.attendees)&&s.meta.attendees.length?s.meta.attendees.slice():(s&&s.assignee_name?[s.assignee_name]:[]));
   const m=(s&&s.meta&&typeof s.meta==='object')?Object.assign({},s.meta):{};
   if(!m.date){ if(s&&s.date)m.date=s.date; else if(preDate)m.date=preDate; }
   if(!m.siteName&&(cat==='pt'||cat==='bids'||cat==='asq')&&s&&s.title)m.siteName=s.title;
+  if(isVisit){ const _va=s&&s.apartment_id?APTS.find(x=>x.id===s.apartment_id):null; m.siteName=_va?_va.name:''; }   // 정기 방문: 현장명은 단지명으로(저장 시 제목은 방문으로 고정)
   if(!m.title&&cat!=='pt'&&cat!=='bids'&&cat!=='asq'&&s&&s.title)m.title=s.title;
   if(!m.company&&cat==='sales'&&s&&s.title)m.company=s.title;
   const sorted=APTS.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   const isPour=s&&s.source==='pour';
   openModal(mHead(s?'✏️ 일정 수정':'➕ 일정 추가')+`
     ${isPour?'<div class="mmsg" style="color:var(--mut)">📣 POUR 영업시스템에서 온 일정이에요. 원본은 POUR에서 수정하세요.</div>':''}
+    ${isVisit?'<div class="mmsg" style="color:#0b7a55;background:#eefaf4;border-color:#cdeede">🔧 <b>정기 방문</b> 일정이에요 — 날짜·담당·메모를 바꿔도 <b>정기 방문(초록)</b>으로 유지돼요. 그날 못 가면 날짜를 옮기거나 담당을 바꾸세요.</div>':''}
     <div class="frow"><div class="fld"><label>분류 *</label><select id="sm-cat" onchange="onSchedCatChange()">${CAL_CATS.map(c=>`<option value="${c[0]}" ${cat===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select></div>
       <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 선택 시 입주민 공개·현장 자동입력</span></label><select id="sm-apt" onchange="onSchedAptChange()"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}" ${s&&String(s.apartment_id)===String(a.id)?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div></div>
     <div id="sm-fields"></div>
@@ -1907,7 +2450,7 @@ async function submitSched(id){
       meta={type:'meeting',date,time,title,location:g('sm-location'),attendees:asg,responses:{},createdAt:new Date().toISOString(),note};
     } else if(site){
       meta={type:node,dateType,status:dateType==='confirmed'?'확정':(dateType==='expected'?'예정':'미정'),mainCategory:'재도장',
-        date:dateType==='confirmed'?date:'',time,siteName:title,title:(cat==='asq'?title:''),workType:g('sm-workType'),address:g('sm-address'),
+        date:dateType==='tbd'?'':date,time,siteName:title,title:(cat==='asq'?title:''),workType:g('sm-workType'),address:g('sm-address'),
         requester:g('sm-requester'),participants:g('sm-participants'),competitor:g('sm-competitor'),
         ptProduct:(cat==='pt'||cat==='bids')?g('sm-ptProduct'):'',assignees:asg,ptAssignee:(cat==='pt'?(asg[0]||''):''),assignee:(cat==='bids'?(asg[0]||''):''),
         location:'',note,expectedMonth:dateType==='expected'?date.slice(0,7):'',dateNote:'',bidDeadline:''};
@@ -1916,18 +2459,25 @@ async function submitSched(id){
     }
   }
   const desc=(cat==='sales')?g('sm-content'):note;
-  const row={date:(dateType==='confirmed'?date:null)||null,title,category:cat,source:'aptsq',description:desc||null,assignee_name:asg[0]||null,assignee_id:null,meta};
-  if(aptId){ row.apartment_id=aptId; row.owner_id=null; row.resident_visible=true; } else { row.apartment_id=null; row.owner_id=null; row.resident_visible=false; }
+  const row={date:(dateType==='tbd'?null:(date||null)),title,category:cat,source:'aptsq',description:desc||null,assignee_name:asg[0]||null,assignee_id:null,meta};
+  // 확정일 일정만 입주민에게 공개. 예정월/미정은 내부(콘솔·감리원)만 보이고 입주민에겐 숨김.
+  if(aptId){ row.apartment_id=aptId; row.owner_id=null; row.resident_visible=(dateType==='confirmed'); } else { row.apartment_id=null; row.owner_id=null; row.resident_visible=false; }
+  if(_schedEditVisit){ row.title=VISIT_MARK; row.category=null; row.meta=null; }   // 정기 방문은 수정해도 방문(초록)으로 고정
+  const _orig=id?(SCHEDULES||[]).find(x=>String(x.id)===String(id)):null;
   let error;
   if(id){ ({error}=await sb.from('schedules').update(row).eq('id',id)); }
   else { ({error}=await sb.from('schedules').insert(row)); }
   if(error){$('m-msg').textContent='저장 실패: '+error.message+(/meta|column/.test(error.message)?'\n(backend/migration-schedule-meta.sql 실행 필요)':'');$('m-msg').style.color='var(--red)';return;}
+  // 정기 방문을 다른 날로 옮겼으면, 원래 날짜는 '건너뛸 날짜'로 기억(자동 재생성이 다시 안 넣게)
+  if(_schedEditVisit&&_orig&&_orig.apartment_id&&_orig.date&&String(_orig.date).slice(0,10)!==String(row.date||'').slice(0,10)) await addVisitSkip(_orig.apartment_id,_orig.date);
   closeModal(); await loadAll();
 }
 async function deleteSchedule(id){
   if(!confirm('이 일정을 삭제할까요?'))return;
+  const _s=(SCHEDULES||[]).find(x=>String(x.id)===String(id));
   const {error}=await sb.from('schedules').delete().eq('id',id);
   if(error)return alert('삭제 실패: '+error.message);
+  if(_s&&String(_s.title||'').indexOf(VISIT_MARK)===0&&_s.apartment_id&&_s.date) await addVisitSkip(_s.apartment_id,_s.date);  // 정기 방문 삭제 → 자동 재생성 제외
   try{ closeModal(); }catch(e){}
   await loadAll();
 }
@@ -2555,13 +3105,13 @@ const RM_MANUAL=[
  {icon:'🔍',name:'현장 하자 진단·공법 제안',
   work:['단지 하자진단 및 공법 추천'],
   docs:['공법 선정에 대한 예상 내역서'], notes:['입대의 PT는 필요 시 진행']},
+ {icon:'🧾',name:'입찰 단계',
+  work:['현장 설명회 준비·진행'],
+  docs:['공고문 예시','현장설명회 예시'], notes:['현장 설명회 주최는 필요 시 진행']},
  {icon:'🏆',name:'낙찰자 선정',
   work:['낙찰자 사전 소통, 카카오톡 방 개설','착공 날짜·공정표 확인','아파트스퀘어 앱 작성 및 아파트 초대','공정에 따른 내용 확인','재도장 공법·시안 / 옥상 방수 공법 / 에폭시 공법 확인'],
   docs:['계약서 검토(감리 & 시공사)','공사 서류','안내사항 자료(안전지도·공정별 입주민 안내·체크리스트·업무일지)'],
   notes:['계약서 검토는 필요 시 진행','비산먼지 신청 내용 확인(시공사 신청)']},
- {icon:'🧾',name:'입찰 단계',
-  work:['현장 설명회 준비·진행'],
-  docs:['공고문 예시','현장설명회 예시'], notes:['현장 설명회 주최는 필요 시 진행']},
  {icon:'🚧',name:'공사 착공',
   work:['착공업체 소통 카톡방 개설·초대 요청','착공 일정 확인','착공 현장 방문'],
   docs:[], notes:[]},
@@ -2582,6 +3132,15 @@ let rmSel=0, rmEdit=false;
 async function loadRoadmapManual(){
   try{ const {data}=await sb.from('roadmap_manual').select('data').eq('id','main').maybeSingle();
     if(data&&Array.isArray(data.data)&&data.data.length){ RM_DATA=data.data.map(x=>({icon:x.icon||'📌',name:x.name||'',work:x.work||[],docs:x.docs||[],notes:x.notes||[]})); }
+  }catch(e){}
+  fixBidOrder();  // 저장본이든 기본이든 '입찰 → 낙찰' 순서로 보장(다른 수정은 보존)
+}
+// 입찰 단계가 낙찰자 선정보다 뒤에 있으면 둘의 순서만 바로잡는다 (요청: 입찰 → 낙찰)
+function fixBidOrder(){
+  try{
+    const bi=RM_DATA.findIndex(x=>/입찰/.test(x.name));
+    const wi=RM_DATA.findIndex(x=>/낙찰/.test(x.name));
+    if(bi>=0 && wi>=0 && bi>wi){ const t=RM_DATA[bi]; RM_DATA[bi]=RM_DATA[wi]; RM_DATA[wi]=t; }
   }catch(e){}
 }
 function selRm(i){ if(rmEdit)return; if(i<0||i>=RM_DATA.length)return; rmSel=i; renderRoadmap(); const b=$('rmSteps'); const el=b&&b.children[i*2]; if(el)el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}); }

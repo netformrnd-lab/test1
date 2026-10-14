@@ -52,9 +52,9 @@ export async function onRequest() { return json({ ok: false, error: 'POST only' 
 async function buildPlan(env, table, type, rec, old) {
   if (table === 'reports') {
     if (type === 'INSERT') {
-      // 감리사가 감리일지 등록 → 관리자에게 "확인해주세요"
+      // 감리원이 감리일지 등록 → 관리자에게 "확인해주세요"
       const aptName = await aptName_(env, rec.apartment_id)
-      return { title: '🔔 새 감리일지 확인 요청', body: (aptName ? aptName + ' · ' : '') + (rec.title || '') + ' — 감리사가 올렸어요', userIds: await admins_(env), data: { kind: 'report_new', apartment_id: rec.apartment_id || '' } }
+      return { title: '🔔 새 감리일지 확인 요청', body: (aptName ? aptName + ' · ' : '') + (rec.title || '') + ' — 감리원이 올렸어요', userIds: await admins_(env), data: { kind: 'report_new', apartment_id: rec.apartment_id || '' } }
     }
     if (type === 'UPDATE' && !old.published && rec.published) {
       // 관리자가 감리일지 공개 → 입주민·소장에게
@@ -73,6 +73,12 @@ async function buildPlan(env, table, type, rec, old) {
   if (table === 'notices' && type === 'INSERT') {
     // 새 공지 → 모든 입주민·소장
     return { title: '📢 새 공지사항', body: rec.title || '', userIds: await allResidents_(env), data: { kind: 'notice' } }
+  }
+
+  if (table === 'assign_requests' && type === 'INSERT') {
+    // 관리자가 '담당 배정 요청' → 지정한 감리원에게
+    const aptName = await aptName_(env, rec.apartment_id)
+    return { title: '🙋 담당 배정 요청', body: (aptName ? aptName + ' · ' : '') + '담당 감리원으로 요청됐어요 — 앱에서 수락해 주세요', userIds: rec.auditor_id ? [rec.auditor_id] : [], data: { kind: 'assign_request', apartment_id: rec.apartment_id || '', request_id: rec.id || '' } }
   }
 
   if (table === 'chat_messages' && type === 'INSERT') {

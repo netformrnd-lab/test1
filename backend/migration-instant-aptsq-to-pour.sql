@@ -78,6 +78,28 @@ begin
       'id', sid, '_origin', 'aptsq', '_aptsqId', NEW.id::text, '_syncedAt', ts,
       'date', coalesce(nullif(NEW.meta->>'date', ''), dt)
     );
+    -- ★ POUR 달력은 dateType='confirmed'&&date 만 그림(monthOnly/pending은 안 그림).
+    --   '예정'을 POUR 달력에 띄우려면 confirmed 로 보내되 제목에 [예정] 표식을 단다.
+    if (NEW.meta->>'dateType') = 'expected' then
+      declare
+        the_date text := coalesce(nullif(NEW.meta->>'date',''), dt);
+        sn text := coalesce(nullif(NEW.meta->>'siteName',''), title);
+        tt text := coalesce(nullif(NEW.meta->>'title',''), title);
+      begin
+        if the_date <> '' then
+          obj := obj || jsonb_build_object(
+            'dateType','confirmed','status','월예정','date', the_date,
+            'expectedMonth', coalesce(nullif(NEW.meta->>'expectedMonth',''), left(the_date,7)),
+            'siteName', case when sn <> '' then (case when sn like '[예정] %' then sn else '[예정] '||sn end) else '' end,
+            'title',    case when tt <> '' then (case when tt like '[예정] %' then tt else '[예정] '||tt end) else '[예정]' end
+          );
+        else
+          obj := obj || jsonb_build_object('dateType','monthOnly','status','월예정');
+        end if;
+      end;
+    elsif (NEW.meta->>'dateType') = 'tbd' then
+      obj := obj || jsonb_build_object('dateType', 'pending', 'status', '일정조율중');
+    end if;
     perform net.http_post(
       url := url, body := obj,
       headers := '{"Content-Type":"application/json","X-HTTP-Method-Override":"PUT"}'::jsonb

@@ -442,6 +442,8 @@ pre.out{margin:0;padding:12px;font-family:"IBM Plex Mono",monospace;font-size:11
 .mbox li b{color:var(--note);font-weight:700}
 .mok{appearance:none;width:100%;margin-top:13px;border:0;border-radius:11px;background:var(--note);
   color:#fff;font-family:inherit;font-size:13px;font-weight:700;padding:12px;cursor:pointer}
+/* 운영규칙 확인 버튼은 긴 규칙 목록에서도 늘 보이도록 하단 고정 */
+#rmOk{position:sticky;bottom:0;box-shadow:0 -10px 16px -6px var(--card)}
 .mok:hover{filter:brightness(1.06)}
 .mok:focus-visible{outline:2px solid var(--note);outline-offset:2px}
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:60;
@@ -469,7 +471,10 @@ pre.out{margin:0;padding:12px;font-family:"IBM Plex Mono",monospace;font-size:11
   /* 1~6 단계 탭은 상단에 붙여 둠 */
   .navwrap{position:sticky;top:0;z-index:14;background:var(--app);padding-top:8px;
     box-shadow:0 8px 14px -14px rgba(0,0,0,.6)}
-  .modal{position:fixed}
+  /* 팝업: 폰에서 전체가 스크롤되고 확인 버튼이 하단에 늘 닿게 (iOS 툴바 가림 방지) */
+  .modal{position:fixed;align-items:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:14px 14px calc(20px + env(safe-area-inset-bottom,0px))}
+  .mbox{max-height:none}
   .toast{bottom:96px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -1117,7 +1122,10 @@ function roundNo(){
   var c = curLog();
   return c ? c.no : (logsHere().length + 1);
 }
-function roundLabel(){ var n = roundNo(); return n ? ('제' + n + '차') : ''; }
+function roundLabel(){
+  if(window.SRV_ROUND!=null && ready() && siteName()) return '제' + window.SRV_ROUND + '차';
+  var n = roundNo(); return n ? ('제' + n + '차') : '';
+}
 function prevLog(){
   var n = roundNo();
   var a = logsHere().filter(function(L){ return L.no < n; });
@@ -1199,6 +1207,7 @@ function chrome(){
   document.getElementById('who').textContent = (store.meta.insp || '김성민');
   var rn = document.getElementById('rno');
   if(rn){ rn.textContent = roundLabel(); rn.hidden = !roundLabel(); }
+  try{ if(window.refreshServerRound) window.refreshServerRound(); }catch(e){}
 
   selbarRender();
 
@@ -2314,13 +2323,35 @@ clock();
   var APT_ID = QS.get('apt')||'';
   var APT_NAME = QS.get('name')||'';
   /* 발표용 데모(?sess=...): 메인 앱과 같은 세션 저장소 키를 써서 로그인 세션을 공유한다
-     → 감리일지 전송 시 "로그인이 필요" 대신 데모 감리사로 정상 전송되어 대시보드에 실시간 반영 */
+     → 감리일지 전송 시 "로그인이 필요" 대신 데모 감리원으로 정상 전송되어 대시보드에 실시간 반영 */
   var DEMO_SESS = QS.get('sess')||'';
   var _sbOpts = DEMO_SESS ? { auth: { storageKey: 'sb-aptsq-demo-' + DEMO_SESS } } : undefined;
   var sb = (window.supabase && window.supabase.createClient)
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, _sbOpts)
     : null;
   var INTEG = { photos:[], auditors:[], boss:'', me:'' };
+
+  /* 회차 실시간 표시: 서버의 '같은 단지+공종' 기존 감리일지 수 + 1 을 조회해
+     작성 중에도 올바른 다음 회차(제N차)가 상단에 뜨게 한다. (worktype 컬럼 없으면 로컬 방식 유지) */
+  window.SRV_ROUND = null; var _srvKey = '__';
+  window.refreshServerRound = function(){
+    try{
+      if(window._srvNoCol) return;            /* 컬럼 없음 확인됨 → 더 안 물어봄 */
+      if(!sb || !APT_ID) return;
+      if(typeof ready==='function' && !ready()) return;
+      var wl = (typeof W!=='undefined' && W && typeof D!=='undefined' && D[W]) ? D[W].label : '';
+      var key = APT_ID + '§' + wl;
+      if(key === _srvKey) return;             /* 같은 단지+공종이면 재조회 안 함 */
+      _srvKey = key;
+      var q = sb.from('reports').select('id',{count:'exact',head:true}).eq('apartment_id', APT_ID);
+      q = wl ? q.eq('worktype', wl) : q.is('worktype', null);
+      q.then(function(cr){
+        if(cr && cr.error){ window._srvNoCol = true; return; }
+        window.SRV_ROUND = ((cr && cr.count) || 0) + 1;
+        try{ var rn=document.getElementById('rno'); if(rn && typeof roundLabel==='function'){ rn.textContent=roundLabel(); rn.hidden=!roundLabel(); } }catch(e){}
+      });
+    }catch(e){}
+  };
 
   /* 단지명 자동 주입 */
   if(APT_NAME){ store.meta.site = APT_NAME; try{ save(); }catch(e){} }
@@ -2404,7 +2435,7 @@ clock();
   }
   if(typeof renderStep==='function'){ var _renderStep=renderStep; renderStep=function(){ _renderStep.apply(this,arguments); try{ addMics(); }catch(e){} }; }
 
-  /* ---- 데이터 로드: 로그인 감리사, 감리사 목록, 담당 감리사 ---- */
+  /* ---- 데이터 로드: 로그인 감리원, 감리원 목록, 담당 감리원 ---- */
   function loadIntegData(){
     if(!sb) return;
     sb.auth.getUser().then(function(r){
@@ -2431,7 +2462,7 @@ clock();
     }
   }
 
-  /* ---- 메타 입력 보정: 자동채움만(입력은 자유) · 감리원은 감리사 목록에서 선택 ----
+  /* ---- 메타 입력 보정: 자동채움만(입력은 자유) · 감리원은 감리원 목록에서 선택 ----
      현장명은 store.meta.site(=단지명)를 앱의 bindMeta가 자동으로 채운다. 여기선 덮어쓰지 않는다. */
   function applyMeta(){
     var insp=document.getElementById('m-insp');
@@ -2440,13 +2471,13 @@ clock();
       if(!dl){ dl=document.createElement('datalist'); dl.id='integAuditors'; document.body.appendChild(dl); }
       dl.innerHTML = INTEG.auditors.map(function(n){return '<option value="'+String(n).replace(/"/g,'&quot;')+'"></option>';}).join('');
       insp.setAttribute('list','integAuditors');
-      insp.placeholder='감리사 선택 또는 직접 입력';
-      /* 앱 기본값 '김성민'이면 로그인 감리사로 교체(있을 때) */
+      insp.placeholder='감리원 선택 또는 직접 입력';
+      /* 앱 기본값 '김성민'이면 로그인 감리원으로 교체(있을 때) */
       if(insp.value==='김성민'){ insp.value = INTEG.me || ''; store.meta.insp = insp.value; }
     }
     var boss=document.getElementById('m-boss');
     if(boss){
-      /* 앱 기본값 '조현식'이면 담당 감리사로 교체(있을 때) */
+      /* 앱 기본값 '조현식'이면 담당 감리원으로 교체(있을 때) */
       if(boss.value==='조현식'){ boss.value = INTEG.boss || ''; store.meta.boss = boss.value; }
       else if(!boss.value && INTEG.boss){ boss.value = INTEG.boss; store.meta.boss = INTEG.boss; }
     }
@@ -2535,14 +2566,28 @@ clock();
         msg('저장 중…', true);
         var date=store.meta.date||'';
         var wl=(typeof W!=='undefined' && W && D[W]) ? D[W].label : '';
-        var title='[감리일지] '+(store.meta.site||APT_NAME||'현장')+(wl?' · '+wl:'')+(date?' · '+date:'');
         var stage=(typeof PH!=='undefined' && PH)?PH:null;
-        sb.from('reports').insert({ apartment_id:APT_ID, author_id:user.id, title:title, content:content, stage:stage, dongs:store.meta.zone||null, photos:urls }).then(function(res){
+        function done(res){
           if(res.error){ msg('전송 실패: '+res.error.message); if(btn) btn.disabled=false; return; }
           msg('✅ 전송 완료! 앱으로 돌아갑니다…', true);
           INTEG.photos=[]; renderThumbs();
           try{ localStorage.removeItem(KEY); }catch(e){}   /* 전송 끝난 이 단지 임시작성 비우기 → 다음엔 새로 시작 */
           setTimeout(function(){ if(window._integBack) window._integBack(); }, 1300);
+        }
+        function doInsert(round, hasWT){
+          var title='[감리일지] '+(store.meta.site||APT_NAME||'현장')+(wl?' · '+wl:'')+(hasWT?' · 제'+round+'차':'')+(date?' · '+date:'');
+          var body=hasWT?String(content).replace(/회차:\s*제\d+차/, '회차: 제'+round+'차'):content;   /* 내용 속 회차도 서버 기준으로 */
+          var rec={ apartment_id:APT_ID, author_id:user.id, title:title, content:body, stage:stage, dongs:store.meta.zone||null, photos:urls };
+          if(hasWT) rec.worktype=wl||null;
+          sb.from('reports').insert(rec).then(done);
+        }
+        /* 회차: 서버의 '같은 단지+공종' 기존 감리일지 수 + 1 → 기기와 무관하게 자동 증가.
+           worktype 컬럼이 아직 없으면(마이그레이션 전) 기존 방식으로 안전하게 처리. */
+        var cq=sb.from('reports').select('id',{count:'exact',head:true}).eq('apartment_id',APT_ID);
+        cq=wl?cq.eq('worktype',wl):cq.is('worktype',null);
+        cq.then(function(cr){
+          if(cr&&cr.error) doInsert(1,false);
+          else doInsert(((cr&&cr.count)||0)+1, true);
         });
       }
       next();

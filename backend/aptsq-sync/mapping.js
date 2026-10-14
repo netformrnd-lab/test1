@@ -65,6 +65,7 @@ function pourToSupabase(node, id, s) {
     date: pickDate(s),
     title: String(title).slice(0, 300),
     description: parts.join(' · ').slice(0, 1000) || null,
+    assignee_name: who || null,  // 담당자 — 캘린더/앱에서 담당 표시에 사용
     apartment_id: null,          // POUR 일정은 특정 단지에 매이지 않음
     resident_visible: false,     // 영업일정은 입주민에게 비공개가 기본
     ext_updated_at: new Date().toISOString(),
@@ -84,10 +85,31 @@ function supabaseToPour(row) {
 
   // meta(POUR 상세 폼)가 있으면 그대로 POUR 모양으로 전송 (id/_origin/date 만 보정)
   if (row.meta && typeof row.meta === 'object') {
-    return Object.assign({}, row.meta, {
+    const m = Object.assign({}, row.meta);
+    // ★ POUR 달력은 dateType==="confirmed"&&date 만 그림(monthOnly/pending은 안 그림).
+    //   그래서 '예정'을 POUR 달력에 띄우려면 confirmed 로 보내되 제목에 [예정] 표식을 단다.
+    if (m.dateType === 'expected') {
+      const theDate = m.date || row.date || '';
+      const tag = '[예정] ';
+      if (theDate) {
+        m.dateType = 'confirmed';
+        m.status = '월예정';
+        m.date = theDate;
+        if (!m.expectedMonth) m.expectedMonth = String(theDate).slice(0, 7);
+        if (m.siteName) m.siteName = String(m.siteName).startsWith(tag) ? m.siteName : tag + m.siteName;
+        if (m.title) m.title = String(m.title).startsWith(tag) ? m.title : tag + m.title;
+        if (!m.siteName && !m.title) m.title = tag.trim();
+      } else {
+        m.dateType = 'monthOnly'; m.status = '월예정';   // 날짜 없으면 달력에 못 놓음(예정월 목록만)
+      }
+    } else if (m.dateType === 'tbd') {
+      m.dateType = 'pending';
+      m.status = '일정조율중';
+    }
+    return Object.assign(m, {
       id: rtdbId, _origin: 'aptsq', _aptsqId: String(row.id),
       _syncedAt: new Date().toISOString(),
-      date: row.meta.date || row.date || '',
+      date: m.date || row.date || '',
     });
   }
 

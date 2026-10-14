@@ -85,6 +85,12 @@ let ldemo = fs.readFileSync(APP + "/live-demo/index.html", "utf8");
 ldemo = ldemo.replace("</head>", NOCACHE + "\n</head>");
 fs.writeFileSync(OUT + "/live-demo/index.html", ldemo);
 
+// --- 현장 사진 모아보기 갤러리 (photos/) — 감리일지 사진 링크가 여는 페이지 ---
+cp.execSync(`mkdir -p "${OUT}/photos"`);
+let photos = fs.readFileSync(APP + "/photos/index.html", "utf8");
+photos = photos.replace("</head>", NOCACHE + "\n</head>");
+fs.writeFileSync(OUT + "/photos/index.html", photos);
+
 // --- assets: 이미지만 (woff/woff2 폰트는 CDN 사용하므로 제외) ---
 let kept = 0, dropped = 0;
 for (const f of fs.readdirSync(APP + "/assets")) {

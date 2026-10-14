@@ -5413,7 +5413,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261014-10';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261014-11';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -9727,7 +9727,7 @@ async function tpProbe(id){
     const info = await apiJson('channels.php?action=probe&url=' + encodeURIComponent(url));
     t.kind = info.kind || t.kind || '웹사이트';
     t.feed = info.feed || '';
-    if(!t.name.trim()) t.name = info['채널이름'] || t.kind;
+    if(!String(t.name || '').trim()) t.name = info['채널이름'] || t.kind;
     markDirty(b.id); render();
     toast(t.feed ? '✅ 최근 글을 가져올 수 있습니다' : '⚠️ 이 주소에서는 최근 글을 못 가져옵니다');
   }catch(e){ alert('찾지 못했습니다.\n\n' + apiErrText(e)); }
@@ -12007,7 +12007,7 @@ function renameTool(id){
   const b = currentBrand();
   const t = (b.tools || []).find(x => x.id === id);
   if(!t) return;
-  const v = prompt('이 도구를 뭐라고 부를까요?', t.label || t.name.replace(/\.html?$/i, ''));
+  const v = prompt('이 도구를 뭐라고 부를까요?', t.label || String(t.name || '').replace(/\.html?$/i, ''));
   if(v === null) return;
   t.label = v.trim();
   markDirty();
@@ -12031,7 +12031,7 @@ function viewTools(b){
     return '<div class="toolcard' + (on ? ' on' : '') + '">'
       + '<div class="tc-head">'
         + '<span class="tc-ic">🛠</span>'
-        + '<span class="tc-nm">' + esc(t.label || t.name.replace(/\.html?$/i, '')) + '</span>'
+        + '<span class="tc-nm">' + esc(t.label || String(t.name || '').replace(/\.html?$/i, '')) + '</span>'
         + '<span class="tc-meta">' + fmtSize(t.size || 0) + '</span>'
       + '</div>'
       + '<div class="row" style="margin-top:9px">'
@@ -20176,7 +20176,8 @@ function setFx(){
 /* 적어둔 금액을 원 단위 숫자로 바꿉니다 (쉼표·원·$ 다 받아줍니다) */
 function costWon(c){
   const n = Number(String(c.amount == null ? '' : c.amount).replace(/[^0-9.\-]/g, ''));
-  if(!isFinite(n)) return 0;
+  if(!isFinite(n) || n < 0) return 0;     /* 「-5000」 같은 것이 들어오면 합계가
+                                             마이너스로 망가집니다 — 0 으로 봅니다 */
   return (c.cur === '달러') ? Math.round(n * fxRate()) : Math.round(n);
 }
 /* 아직 나가고 있는 돈인가 (만료일이 지났으면 아닙니다) */
@@ -20227,7 +20228,12 @@ function costPayDays(c, year){
   const end = costEndDay(c);
   let st = String((c && c.start) || '').slice(0, 10);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(st)) st = year + '-01-01';
-  if(!per) return (st.slice(0, 4) === String(year)) ? [st] : [];   /* 1회성 */
+  /* 1회성은 신청일 하루뿐입니다. 날을 안 적었으면 <<언제 나갔는지 모르는>>
+     것이라 올해 치로 세지 않습니다 (안 그러면 1월 1일에 나간 것처럼 보입니다) */
+  if(!per){
+    const real = /^\d{4}-\d{2}-\d{2}$/.test(String((c && c.start) || '').slice(0, 10));
+    return (real && st.slice(0, 4) === String(year)) ? [st] : [];
+  }
   const s = new Date(st + 'T00:00:00');
   if(isNaN(s.getTime())) return [];
   const day = s.getDate();
@@ -21273,7 +21279,9 @@ function viewLinks(b){
             + ' title="눌러서 이름을 고칩니다">✎</span></div>'
         + itemMemoHtml(b.id, 'links', l.id, 'desc', l.desc)
         + '<div class="fmeta" style="margin-top:8px">'
-          + esc(l.url.replace(/^https?:\/\//,'').slice(0,60)) + '</div>'
+          /* 주소를 안 적은 줄이 하나라도 있으면 예전엔 화면이 통째로
+             깨졌습니다 (null.replace). 빈 것은 그냥 비워 둡니다. */
+          + esc(String(l.url || '').replace(/^https?:\/\//,'').slice(0,60)) + '</div>'
         + '</div>';
       }).join('') + '</div></div>').join('')
     + '<div class="fmeta" style="margin-top:14px">'
@@ -28030,7 +28038,18 @@ function deleteItem(type, id, brandId, quiet){
            { kind:'item', type: type, brandId: bid });
   const left = arr.filter(x => x.id !== id);
   if(TOP_LISTS.indexOf(type) >= 0) data[type] = left;
-  else (brandId ? data.brands.find(x => x.id === brandId) : currentBrand())[type] = left;
+  else {
+    /* 비용은 「비용 전용 구분」 에도 담깁니다 — listOf 는 그쪽도 찾는데
+       여기서 브랜드만 찾으면 undefined[type] 으로 터졌습니다. 그래서
+       구분에 든 비용은 삭제가 아예 안 됐습니다 (휴지통에만 들어가고
+       표에는 그대로 남음). listOf 와 같은 자리를 찾습니다. */
+    const own = brandId
+      ? ((type === 'costs' ? costOwnerById(brandId) : null)
+          || data.brands.find(x => x.id === brandId))
+      : currentBrand();
+    if(own) own[type] = left;
+    else { arr.length = 0; left.forEach(x => arr.push(x)); }   /* 자리를 못 찾으면 그 자리에서 */
+  }
   deletedIds.add(id);
   render(); markDirtyAll();            // 휴지통도 같이 저장되어야 합니다
   toast('🗑️ 휴지통으로 보냈습니다');
@@ -28895,6 +28914,12 @@ function normalize(raw){
     if(typeof g.icon !== 'string' || !g.icon) g.icon = '💳';
     if(!Array.isArray(g.costs)) g.costs = [];
     g.costOnly = true;
+  });
+  /* 이름이 빈 구분을 그냥 버리면 <<그 안에 적어 둔 비용까지>> 같이
+     날아갑니다. 비용이 들었으면 이름만 붙여 살려 두고, 이름도 비용도
+     없는 빈 껍데기만 버립니다. */
+  raw.costGroups.forEach(g => {
+    if(!String(g.name).trim() && g.costs.length) g.name = '이름 없는 구분';
   });
   raw.costGroups = raw.costGroups.filter(g => String(g.name).trim());
   /* 예전 판이 일지 칸에 자동으로 써 넣은 「▶ … · ✓ …」 토막을 치웁니다.

@@ -331,7 +331,7 @@ tbody tr:hover{background:#f8fafc}
         <div class="card"><h3>🏅 고객사 등급 분포 <span class="r">사용빈도+문의 자동</span></h3><div id="dashGrades"></div></div>
       </div>
       <div class="grid2">
-        <div class="card"><h3>⚠️ 이번 주 배치 필요 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div id="dashAssign"></div></div>
+        <div class="card"><h3>⚠️ 담당 배정 안 된 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div id="dashAssign"></div></div>
         <div class="card"><h3>🚨 2일 이상 정체된 딜 <span class="r"><span class="link" onclick="go('sales')">영업 →</span></span></h3><div id="dashStalled"></div></div>
       </div>
       <div class="grid2">
@@ -735,13 +735,13 @@ function renderDash(){
   const rc=recontractRate();
   $('dashTiles').innerHTML=
     tile('','진행중 현장',inprog+'<small>곳</small>','감리 진행 중')+
-    tile(need.length?'warn':'good','이번주 배치필요',need.length+'<small>곳</small>','담당·날짜 미배정')+
+    tile(need.length?'warn':'good','담당 배정 안 됨',need.length+'<small>곳</small>','담당 감리원 미배정')+
     tile(stalled.length?'crit':'good','정체된 딜',stalled.length+'<small>건</small>','2일+ 미이동')+
     tile('good','재계약율',(rc==null?'-':rc+'%'),'계약/성사 기준')+
     tile('good','NPS',(nps==null?'-':(nps>0?'+':'')+nps),'입주민소통/NPS');
   // 관제 알림
   const alerts=[];
-  if(need.length)alerts.push(`📍 <b>이번 주 방문 배치가 필요한 현장 ${need.length}곳</b> — 담당·날짜 미배정 <span class="link" onclick="go('calendar')">배정하기 →</span>`);
+  if(need.length)alerts.push(`📍 <b>담당 배정이 안 된 현장 ${need.length}곳</b> — 담당 감리원 미배정 <span class="link" onclick="go('calendar')">배정하기 →</span>`);
   if(stalled.length)alerts.push(`⏱️ <b>2일 이상 정체된 영업 딜 ${stalled.length}건</b> — ${stalled.slice(0,2).map(x=>esc(x.s.name)).join(', ')} <span class="link" onclick="go('sales')">확인 →</span>`);
   if(pend)alerts.push(`👤 <b>승인 대기 회원 ${pend}명</b> <span class="link" onclick="go('members')">승인하기 →</span>`);
   $('dashAlert').innerHTML=alerts.length?`<div class="alert crit"><div class="ah">🔔 오늘의 관제 알림</div>${alerts.map(a=>`<div class="row">${a}</div>`).join('')}</div>`:'<div class="alert info"><div class="ah">🔔 오늘의 관제 알림</div><div class="row">지금은 급한 알림이 없어요 👍</div></div>';
@@ -750,7 +750,7 @@ function renderDash(){
   // 고객사 등급 분포
   const grades={상:0,중:0,하:0}; APTS.forEach(a=>{ grades[siteGrade(a.id)]++; });
   $('dashGrades').innerHTML=`<div style="display:flex;gap:12px">${[['상','good'],['중','blue'],['하','gray']].map(([g,cl])=>`<div style="flex:1;text-align:center;background:#f6f8fc;border:1px solid var(--line);border-radius:12px;padding:14px 8px"><div style="font-size:12px;font-weight:800;color:var(--mut2)">${g}</div><div style="font-size:24px;font-weight:800;margin-top:4px">${grades[g]}<small style="font-size:12px;color:var(--mut);font-weight:700">곳</small></div></div>`).join('')}</div><div style="font-size:11px;color:var(--mut);margin-top:8px">입주민 <b>앱 조회수</b>·가입 수·문의(채팅)·설문 참여 등 <b>고객사 사용도</b> 기준 자동 산정</div>`;
-  // 이번 주 배치 필요 현장
+  // 담당 배정 안 된 현장
   $('dashAssign').innerHTML=need.length?`<table><tbody>${need.slice(0,7).map(a=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td style="color:var(--mut)">${esc(a.region)||'미지정'}</td><td style="text-align:right"><span class="pill no">미배정</span></td></tr>`).join('')}</tbody></table>`:'<div class="empty">모든 현장에 담당이 배정됐어요 👍</div>';
   // 정체된 딜
   $('dashStalled').innerHTML=!PHASEB_OK.sales?'<div class="empty" style="font-size:12px">영업 기능을 켜면 표시돼요</div>':(stalled.length?`<table><tbody>${stalled.slice(0,7).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openSalesEdit('${x.s.id}')">${esc(x.s.name)}</span></td><td><span class="pill blue">${SALES_LABEL[x.s.stage]||x.s.stage}</span></td><td style="text-align:right;color:var(--red);font-weight:700">${x.days}일 정체</td></tr>`).join('')}</tbody></table>`:'<div class="empty">정체된 딜이 없어요 👍</div>');

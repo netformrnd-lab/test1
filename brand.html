@@ -5380,7 +5380,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261014-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261014-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -16340,27 +16340,28 @@ function projSubFlip(tid, bid, i){
   const k = SUB_ST.findIndex(y => y[0] === x.st);
   x.st = SUB_ST[(k + 1) % SUB_ST.length][0];
   x.pct = x.st === '끝' ? '100' : x.st === '할일' ? '0' : String(parseInt(x.pct, 10) || 50);
-  /* ── 눌러 둔 것이 <<업무일지에 그대로 적힙니다>> ──────────────────
-     진행으로 바꾸면 「무엇을 하는 중인지」, 끝으로 바꾸면 「무엇을
-     끝냈는지」 가 그날 일지에 한 줄로 남습니다. 따로 또 적지 않아도
-     하루 끝에 무엇을 했는지가 남습니다. */
-  if(x.st === '진행') projLog(t, b, '▶ ' + (x.title || '보조 업무'));
-  else if(x.st === '끝') projLog(t, b, '✓ ' + (x.title || '보조 업무'));
+  /* 「지금 하는 일」 은 보조 업무 상태에서 <<그때그때 뽑아>> 보여 줍니다.
+     따로 적어 두지 않습니다 — 적어 두면 이름을 고치거나 상태가 엇갈릴 때
+     옛 「▶」 가 영영 남습니다. */
   projReflow(t);
   markDirty(b.id); render();
 }
-/* 그날 일지에 한 줄 보탭니다 — 같은 줄은 두 번 적지 않습니다 */
-function projLog(t, b, line){
-  if(!t.diary || typeof t.diary !== 'object') t.diary = {};
-  const iso = todayStr();
-  const had = String(t.diary[iso] || '').trim();
-  const parts = had ? had.split(' · ') : [];
-  /* 같은 보조 업무가 진행 → 끝 으로 넘어가면 앞의 「▶」 는 걷어 냅니다 */
-  const bare = line.slice(2);
-  const keep = parts.filter(v => v.slice(2) !== bare);
-  keep.push(line);
-  t.diary[iso] = keep.join(' · ');
-  t.updatedAt = new Date().toISOString();
+/* ── 자동으로 적던 줄을 걷어 냅니다 ────────────────────────────────
+   「▶ 무엇 · ✓ 무엇」 을 그날 일지에 <<써 넣고>> 있었습니다. 그런데
+   그 칸은 사람이 ✎ 로 적는 칸과 <<같은 칸>> 이었습니다. 그래서
+     · 손으로 적어 둔 글이 자동 줄에 덮였고
+     · 보조 업무 이름을 고치면 짝이 안 맞아 옛 「▶」 가 영영 남았습니다
+       (완료를 눌렀는데도 ▶ 가 그대로 보이던 까닭입니다)
+   이제 「지금 하는 일」 은 보조 업무 상태에서 그때그때 뽑습니다 —
+   완료하면 그 자리에서 사라지고, 어긋날 일이 없습니다.
+   일지 칸은 <<사람이 적는 자리>> 로만 둡니다.
+
+   예전에 자동으로 적어 둔 줄은 치워 드립니다 — 사람이 적은 글은
+   남기고, 「▶ …」 「✓ …」 토막만 걷어 냅니다. */
+function jrStripAuto(v){
+  const parts = String(v || '').split(' · ');
+  const keep = parts.filter(x => !/^\s*[▶✓]\s/.test(x));
+  return keep.join(' · ').trim();
 }
 /* 지금 손대고 있는 보조 업무 (진행 표시를 해 둔 것) */
 function projDoing(t){
@@ -16714,21 +16715,6 @@ function projSave(){
     b = nb;
   }
   const avg = projAvg(d);
-  /* ── 창에서 바꾼 것도 업무일지에 적습니다 ──────────────────────────
-     펼친 칸의 ○ ▶ ✓ 는 누르는 그 자리에서 적히는데, 창(✎ 자세히 고치기)
-     안에서 바꾼 것은 적히지 않았습니다. 같은 일을 어디서 하느냐에 따라
-     일지가 남기도 하고 안 남기도 하면, 쓰는 사람이 믿을 수 없습니다.
-     저장할 때 <<바뀐 것만>> 골라 적습니다. */
-  if(at.id){
-    const was = {};
-    projSubs(t).forEach(x => { was[x.id] = x.st; });
-    (d.subs || []).forEach(x => {
-      const old = was[x.id];
-      if(old === x.st) return;                       /* 안 바뀐 것은 그냥 둡니다 */
-      if(x.st === '진행') projLog(t, b, '▶ ' + (x.title || '보조 업무'));
-      else if(x.st === '끝') projLog(t, b, '✓ ' + (x.title || '보조 업무'));
-    });
-  }
   t.title = d.title.trim();
   t.owner = d.owner; t.start = d.start; t.due = d.due;
   t.prio = d.prio; t.note = d.note;
@@ -28549,6 +28535,18 @@ function normalize(raw){
     return fresh;
   }
   if(typeof raw._rev !== 'number') raw._rev = 0;
+  /* 예전 판이 일지 칸에 자동으로 써 넣은 「▶ … · ✓ …」 토막을 치웁니다.
+     사람이 적은 글은 그대로 둡니다. 남는 게 없으면 그 날짜는 지웁니다. */
+  (raw.brands || []).forEach(b => (b.tasks || []).forEach(t => {
+    const d = t && t.diary;
+    if(!d || typeof d !== 'object') return;
+    Object.keys(d).forEach(k => {
+      const v = String(d[k] || '');
+      if(!/[▶✓]/.test(v)) return;
+      const left = jrStripAuto(v);
+      if(left) d[k] = left; else delete d[k];
+    });
+  }));
   if(!Array.isArray(raw.onboard))  raw.onboard  = obSeed();   // 팀 온보딩 (단 하나씩)
   /* 📑 손수 만드는 목록 — 모양을 맞춰 둡니다. 한 칸이라도 빠지면
      그 목록을 열 때 화면이 통째로 빕니다. */

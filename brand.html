@@ -4819,6 +4819,34 @@ table.xl mark{background:color-mix(in srgb,var(--orange,#e08b1a) 35%,transparent
 .cs-h .cs-n{margin-left:auto;font-size:13px;font-weight:700;color:var(--text-secondary)}
 .fmeta.soon{color:var(--orange,#e08b1a);font-weight:700}
 .fmeta.soon i{font-weight:500;font-style:normal}
+/* 💳 비용 표 — 만료일 · 특이사항 · 들어가는 자리 */
+.cd-when{white-space:nowrap}
+.cd-end{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:750;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cd-end.near{color:var(--orange,#e08b1a)}
+.cd-end.hot{color:var(--red,#d9534f)}
+.cd-dd{padding:1px 8px;border-radius:999px;font-size:11px;font-weight:800;
+  background:var(--bg-sunken);color:var(--text-muted)}
+.cd-end.near .cd-dd{background:color-mix(in srgb,var(--orange,#e08b1a) 18%,transparent);
+  color:var(--orange,#e08b1a)}
+.cd-end.hot .cd-dd{background:var(--red,#d9534f);color:#fff}
+.cd-note{margin-top:5px;padding:6px 10px;border-left:3px solid var(--orange,#e08b1a);
+  border-radius:0 7px 7px 0;background:color-mix(in srgb,var(--orange,#e08b1a) 10%,transparent);
+  font-size:12px;line-height:1.55;color:var(--text-primary);white-space:pre-wrap;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  max-height:calc(1.55em * 2 + 12px);cursor:text;max-width:340px}
+.cd-acc{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:4px}
+.cd-acc span{cursor:pointer;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700;
+  background:var(--bg-sunken);color:var(--text-secondary);
+  max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd-acc span:hover{background:var(--blue-soft);color:var(--blue)}
+.cd-acc span.hit{background:var(--green,#2e9c5a);color:#fff}
+.f-pw{position:relative;display:block}
+.f-pw input{width:100%;padding-right:38px!important}
+.f-pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  width:26px;height:26px;padding:0;border:0;border-radius:6px;cursor:pointer;
+  background:transparent;font-size:14px;opacity:.45;line-height:1}
+.f-pw button:hover,.f-pw button.on{opacity:1;background:var(--bg-sunken)}
 .f-hint{display:block;margin:-2px 0 6px;font-size:11.5px;line-height:1.55;
   color:var(--text-muted)}
 .cs-sub{margin:-4px 0 11px;font-size:12px;line-height:1.6;color:var(--text-secondary)}
@@ -5380,7 +5408,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261014-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261014-4';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5652,6 +5680,10 @@ const TYPES = {
     hint:'광고비·구독료처럼 나가는 돈을 적어둡니다',
     empty:'등록된 비용이 없습니다. 광고비·구독료부터 적어보세요.',
     fields:[
+      /* 🏷️ 어느 브랜드 것인가 — 창에서 골라 옮길 수 있습니다 (할 일과 같게) */
+      { key:'bid',    label:'🏷️ 브랜드', type:'select', required:true,
+        options: () => (data.brands || []).map(b => ({ value:b.id,
+          label:(b.icon || '🏷️') + ' ' + b.name })) },
       { key:'title',  label:'항목',  type:'text', required:true,
         ph:'예: 네이버 파워링크 · Canva 구독' },
       { key:'kind',   label:'종류',  type:'select',
@@ -5665,7 +5697,15 @@ const TYPES = {
              + '비워 두면 신청일과 주기로 알아서 셉니다.' },
       { key:'payer',  label:'결제 수단', type:'text', ph:'예: 법인카드 1234 · 계좌이체' },
       { key:'owner',  label:'담당',  type:'text', ph:'누가 관리하나요' },
-      { key:'desc',   label:'메모',  type:'textarea', ph:'무엇에 쓰는 돈인지' }
+      /* 구독은 들어가는 자리가 따로 있습니다 — 해지하려 해도 못 들어가면
+         소용없어서, 그 자리 아이디·비번을 같이 적어 둡니다. */
+      { key:'loginId', label:'아이디', type:'text', ph:'이 구독에 들어가는 아이디' },
+      { key:'loginPw', label:'비밀번호', type:'pw', ph:'눌러서 보기 · 복사',
+        hint:'⚠️ 이 칸은 <b>글자 그대로</b> 저장됩니다 — 대시보드에 들어온 사람은 '
+             + '누구나 볼 수 있습니다. 중요한 것은 🔐 내부계정(금고) 에 넣어 주세요.' },
+      { key:'desc',   label:'특이사항', type:'textarea', rows:2,
+        ph:'예: 11월에 해지 예정 · 작년보다 12% 올랐음 · 담당자 바뀜',
+        hint:'적어 두면 표에서 눈에 띄게 보여 줍니다 (두 줄까지)' }
     ]
   },
   automations: {
@@ -20473,11 +20513,13 @@ function viewCosts(b){
         + '<b' + itemEdAttr(bid, 'costs', c.id, 'title', 0, '무엇에 쓰는 돈인가') + '>'
         + esc(c.title || '(이름 없음)') + '</b>'
         + (off ? '<span class="chip off" style="margin-left:6px">해지</span>' : '')
+        /* 특이사항 — 적어 두면 눈에 띄게, 두 줄까지 보여 줍니다 */
         + (String(c.desc || '').trim()
-            ? '<div class="fmeta" style="margin-top:3px"'
-              + itemEdAttr(bid, 'costs', c.id, 'desc', 1, '메모') + '>' + esc(c.desc) + '</div>'
+            ? '<div class="cd-note"'
+              + itemEdAttr(bid, 'costs', c.id, 'desc', 1, '특이사항') + '>'
+              + esc(c.desc) + '</div>'
             : '<div class="fmeta cd-non" style="margin-top:3px"'
-              + itemEdAttr(bid, 'costs', c.id, 'desc', 1, '메모') + '>＋ 메모</div>')
+              + itemEdAttr(bid, 'costs', c.id, 'desc', 1, '특이사항') + '>＋ 특이사항</div>')
         + '</td>'
       + '<td>' + esc(c.kind || '기타') + '</td>'
       + '<td class="num"><span' + itemEdAttr(bid, 'costs', c.id, 'amount', 0,
@@ -20488,19 +20530,41 @@ function viewCosts(b){
       + '<td>' + esc(c.cycle || '매월') + '</td>'
       + '<td class="num">' + (pm ? won(pm) : '<span class="zero">–</span>') + '</td>'
       + '<td class="num">' + won(costThisYear(c)) + '</td>'
-      + '<td>' + esc(c.payer || '') + (c.owner ? '<div class="fmeta">' + esc(c.owner) + '</div>' : '') + '</td>'
+      + '<td>' + esc(c.payer || '')
+        + (c.owner ? '<div class="fmeta">' + esc(c.owner) + '</div>' : '')
+        /* 들어가는 자리 — 비번은 가려 두고 눌러서 복사합니다 */
+        + (String(c.loginId || '').trim() || String(c.loginPw || '').trim()
+            ? '<div class="cd-acc">'
+              + (String(c.loginId || '').trim()
+                  ? '<span class="cd-id" title="눌러서 복사"'
+                    + ' onclick="cdCopy(this,\'' + jsq(String(c.loginId)) + '\')">🔑 '
+                    + esc(c.loginId) + '</span>' : '')
+              + (String(c.loginPw || '').trim()
+                  ? '<span class="cd-pw" title="눌러서 복사 (••• 는 가려 둔 것입니다)"'
+                    + ' onclick="cdCopy(this,\'' + jsq(String(c.loginPw)) + '\')">••••••</span>' : '')
+              + '</div>' : '')
+        + '</td>'
       /* 신청일 ~ 만료일 — 만료일을 안 적었으면 주기로 센 날을 흐리게 보여 줍니다 */
       + (function(){
           const end = costEndDay(c);
           const guess = end ? null : costNextDay(c);
           const left = daysUntil(end || guess);
-          return '<td>' + (c.start ? esc(fmtDate(c.start)) : '<span class="zero">–</span>')
-            + '<div class="fmeta' + (left !== null && left >= 0 && left <= COST_SOON ? ' soon' : '') + '">'
-              + '~ ' + (end ? esc(fmtDate(end))
-                            : (guess ? esc(fmtDate(guess)) + ' <i>(주기로 셈)</i>' : '만료일 없음'))
-              + (left !== null && left >= 0 && left <= COST_SOON
-                  ? ' · <b>' + (left === 0 ? '오늘 만료' : left + '일 남음') + '</b>' : '')
-            + '</div></td>';
+          /* ── 만료일을 <<가장 크게>> ────────────────────────────────
+             이 표에서 제일 먼저 봐야 하는 것은 「언제까지 정해야 하나」
+             입니다. 신청일은 작게 내리고, 만료일을 굵게 올립니다.
+             이레 안이면 빨갛게 · 한 달 안이면 주황으로 남은 날을 답니다. */
+          const cls = left === null || left < 0 ? ''
+                    : left <= COST_SOON ? ' hot' : left <= 30 ? ' near' : '';
+          return '<td class="cd-when">'
+            + '<div class="cd-end' + cls + '">'
+              + (end ? esc(fmtDate(end))
+                     : (guess ? esc(fmtDate(guess)) : '<span class="zero">만료일 없음</span>'))
+              + (left !== null && left >= 0 && left <= 30
+                  ? '<span class="cd-dd">' + (left === 0 ? '오늘' : 'D-' + left) + '</span>' : '')
+            + '</div>'
+            + '<div class="fmeta">' + (c.start ? '신청 ' + esc(fmtDate(c.start)) : '신청일 없음')
+              + (end ? '' : (guess ? ' · 주기로 셈' : '')) + '</div>'
+            + '</td>';
         })()
       + '<td style="white-space:nowrap">'
         + '<button class="btn sm" onclick="openItemModal(\'costs\',\'' + jsq(c.id)
@@ -20513,7 +20577,7 @@ function viewCosts(b){
   const table = '<div class="vz-tw"><table class="ymtable costtable">'
     + '<thead><tr><th>항목</th><th>종류</th><th class="num">금액</th><th>주기</th>'
       + '<th class="num">한 달에</th><th class="num">올해</th><th>결제·담당</th>'
-      + '<th>신청일 ~ 만료일</th><th></th></tr></thead>'
+      + '<th>⏰ 만료일</th><th></th></tr></thead>'
     + '<tbody>' + rows
     + '<tr class="sumrow"><th>합계</th><td></td><td></td><td></td>'
       + '<td class="num tot">' + won(perMon) + '</td>'
@@ -27432,7 +27496,7 @@ function openItemModal(type, id, preset, brandId){
     if(!it && preset && preset[f.key] != null) v = preset[f.key];
     /* 할 일의 브랜드 칸은 지금 열려 있는 브랜드를 기본으로 (안 그러면
        창을 열었다 저장하는 것만으로 다른 브랜드로 옮겨집니다) */
-    if(itemType === 'tasks' && f.key === 'bid' && !v) v = itemBrandId;
+    if((itemType === 'tasks' || itemType === 'costs') && f.key === 'bid' && !v) v = itemBrandId;
     else if(!it && !v && f.def) v = f.def();
     else if(!it && !v && f.type === 'date' && !f.noDefault) v = todayStr();
 
@@ -27452,8 +27516,18 @@ function openItemModal(type, id, preset, brandId){
         + '</select>';
     }
     if(f.type === 'textarea'){
-      return lab + '<textarea id="f_' + f.key + '" placeholder="' + esc(f.ph || '') + '">'
-        + esc(v) + '</textarea>';
+      return lab + '<textarea id="f_' + f.key + '" rows="' + (f.rows || 3) + '"'
+        + ' placeholder="' + esc(f.ph || '') + '">' + esc(v) + '</textarea>';
+    }
+    /* 비밀번호 칸 — 가려 두고, 눌러서 봅니다 */
+    if(f.type === 'pw'){
+      return lab + '<span class="f-pw">'
+        + '<input type="password" id="f_' + f.key + '" value="' + esc(v) + '"'
+          + ' autocomplete="new-password" autocorrect="off" autocapitalize="off"'
+          + ' spellcheck="false" data-lpignore="true" data-1p-ignore'
+          + ' placeholder="' + esc(f.ph || '') + '">'
+        + '<button type="button" title="보이기 / 가리기"'
+          + ' onclick="pwEye(\'f_' + f.key + '\', this)">👁</button></span>';
     }
     return lab + '<input type="' + (f.type === 'date' ? 'date' : 'text') + '" id="f_' + f.key + '" '
       + 'value="' + esc(v) + '" placeholder="' + esc(f.ph || '') + '">';
@@ -27501,9 +27575,9 @@ function submitItem(){
     toast('⚠️ 끝나는 날이 시작하는 날보다 앞입니다');
     return;
   }
-  /* 🏷️ 브랜드 — 할 일은 창에서 고른 브랜드로 들어가거나 옮겨갑니다 */
+  /* 🏷️ 브랜드 — 할 일·비용은 창에서 고른 브랜드로 들어가거나 옮겨갑니다 */
   let toBid = itemBrandId;
-  if(itemType === 'tasks'){
+  if(itemType === 'tasks' || itemType === 'costs'){
     if(payload.bid) toBid = payload.bid;
     delete payload.bid;
   }
@@ -28763,6 +28837,24 @@ function toggleDark(){
   localStorage.setItem('brandHubDark', document.body.classList.contains('dark-mode'));
 }
 
+/* 표에서 아이디·비번을 눌러 복사합니다 (비번은 가려 둔 채로) */
+function cdCopy(el, v){
+  if(!v) return;
+  try{
+    navigator.clipboard.writeText(v);
+    el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 700);
+    toast('📋 복사했습니다');
+  }catch(e){ toast('복사하지 못했습니다'); }
+}
+/* 비밀번호 칸을 보였다 가렸다 */
+function pwEye(id, btn){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  if(btn) btn.classList.toggle('on', show);
+  el.focus();
+}
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.style.display = 'block';

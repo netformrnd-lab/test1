@@ -1102,11 +1102,17 @@ async function setSiteStage(aptId,key){
     const r1=await sb.from('control_sites').upsert({slug,name:a.name,apartment_id:a.id,data,updated_at:new Date().toISOString()},{onConflict:'slug'});
     err=r1.error;
     if(!err&&ns&&prevStatus!==ns){ const r2=await sb.from('apartments').update({status:ns}).eq('id',a.id); err=r2.error; }
+    // 준공 처리 → 그 현장의 '오늘 이후·아직 안 다녀온' 정기 방문 자동 삭제 (과거·다녀온 기록은 보존)
+    if(!err&&key==='준공'){
+      const todayStr=isoDate(new Date());
+      try{ await sb.from('schedules').delete().eq('apartment_id',a.id).gte('date',todayStr).like('title',VISIT_MARK+'%').is('done_at',null); }catch(e){}
+      for(let i=SCHEDULES.length-1;i>=0;i--){ const s=SCHEDULES[i]; if(String(s.apartment_id)===String(a.id)&&String(s.date||'').slice(0,10)>=todayStr&&String(s.title||'').indexOf(VISIT_MARK)===0&&!s.done_at) SCHEDULES.splice(i,1); }
+    }
   }catch(e){ err=e; }
   stageBusy=false;
   if(err){ if(prevCS)CSITES[slug]=prevCS; else delete CSITES[slug]; a.status=prevStatus; renderProjList();
     alert('단계 저장에 실패했어요: '+(err.message||err)+'\n(control_sites 테이블 마이그레이션이 필요할 수 있어요)'); return; }
-  try{updateBadges();}catch(e){} try{renderOrgs();}catch(e){} try{renderDash();}catch(e){}
+  try{updateBadges();}catch(e){} try{renderOrgs();}catch(e){} try{renderDash();}catch(e){} try{renderCalendar();}catch(e){}
   if(curProj&&curProj.id===aptId)renderProj();
 }
 function moveStage(id,d){ const a=APTS.find(x=>x.id===id); if(!a)return; const ni=stageIdx(stageOf(a))+d; if(ni<0||ni>=STAGE_KEYS.length)return; setSiteStage(id,STAGE_KEYS[ni]); }

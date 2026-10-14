@@ -1578,7 +1578,7 @@ $TS_EXT  = ['json', 'csv', 'tsv', 'xlsx', 'xlsm'];
 /* 자료일 수도 있는 것 — 그쪽 앱이 무엇으로 담아 두는지 모르니 넓게 봅니다.
    (localStorage 를 쓰면 파일이 아예 없습니다. 그것도 뒤져 봐야 압니다) */
 $TS_EXT2 = ['json', 'csv', 'tsv', 'xlsx', 'xlsm', 'xls', 'txt', 'xml', 'db',
-            'sqlite', 'sqlite3', 'js', 'dat', 'log', 'bak'];
+            'sqlite', 'sqlite3', 'js', 'dat', 'log', 'bak', 'html', 'htm'];
 /* 「할 일」 로 보이는 이름인가 — 이름만 보고 미리 가려 줍니다 */
 function ts_looks($name) {
     $k = nas_name_key($name);
@@ -1736,6 +1736,85 @@ if ($action === 'tspeek') {
         }
     }
     jout($out);
+}
+
+/* ── 🔎 화면 파일(HTML)이 <<자료를 어디서 가져오는지>> 읽어냅니다 ──
+   미디어마케팅팀 브랜드허브도 우리처럼 HTML 한 장짜리입니다. 그런
+   화면은 자료를 넷 중 하나에 둡니다.
+     ① 브라우저 안 (localStorage · IndexedDB) — 폴더에는 파일이 없습니다
+     ② 옆에 있는 파일 (data.json 같은 것)
+     ③ 인터넷 저장소 (파이어베이스 같은 것)
+     ④ 화면 안에 박아 둔 것
+   어느 쪽인지는 <<그 화면이 쓰는 글자>> 를 보면 압니다. 짐작하지 않고
+   파일을 읽어 그대로 알려 줍니다. 읽기만 합니다. */
+if ($action === 'tssniff') {
+    $in = normalize_nas_input($_GET['path'] ?? '');
+    if ($in === null) jout(['ok' => false, 'error' => '파일 경로를 알아보지 못했습니다'], 400);
+    $dir  = ts_dir(dirname($in));
+    $want = nas_name_key(basename($in));
+    $file = null;
+    foreach ((array)@scandir($dir) as $e) {
+        if ($e === '.' || $e === '..') continue;
+        if (nas_name_key($e) === $want && is_file($dir . '/' . $e)) { $file = $dir . '/' . $e; break; }
+    }
+    if ($file === null) jout(['ok' => false, 'error' => '그런 파일이 없습니다: ' . basename($in)], 404);
+    if (@filesize($file) > 40 * 1024 * 1024) jout(['ok' => false, 'error' => '파일이 너무 큽니다 (40MB 넘음)'], 413);
+    $raw = (string)@file_get_contents($file);
+
+    $hit = function ($re, $g = 1) use ($raw) {
+        $o = [];
+        if (preg_match_all($re, $raw, $m)) {
+            foreach ($m[$g] as $x) { $x = trim($x); if ($x !== '' && !in_array($x, $o, true)) $o[] = $x; }
+        }
+        return array_slice($o, 0, 25);
+    };
+
+    $store = [];
+    /* ① 브라우저 안 */
+    $ls = $hit('/localStorage\s*\.\s*(?:get|set|remove)Item\s*\(\s*[\'"`]([^\'"`]+)/');
+    $ls2 = $hit('/localStorage\s*\.\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*=/');
+    $idb = preg_match('/indexedDB|IDBDatabase|openDatabase/i', $raw) ? true : false;
+    if ($ls || $ls2 || $idb) $store[] = '브라우저 안 (localStorage' . ($idb ? ' · IndexedDB' : '') . ')';
+    /* ③ 인터넷 저장소 */
+    $fb  = $hit('#(https?://[A-Za-z0-9._-]*(?:firebasedatabase\.app|firebaseio\.com)[^\'"`\s)]*)#');
+    $fbc = $hit('/databaseURL\s*:\s*[\'"`]([^\'"`]+)/');
+    $refs= $hit('/\bref\s*\(\s*(?:[A-Za-z_$][\w$]*\s*,\s*)?[\'"`]([^\'"`]+)[\'"`]/');
+    if ($fb || $fbc) $store[] = '인터넷 저장소 (파이어베이스)';
+    /* ② 옆에 있는 파일 · 서버 */
+    $urls = $hit('/\b(?:fetch|axios\.get|axios\.post|\.open)\s*\(\s*[\'"`]([^\'"`]+)[\'"`]/');
+    $jsons= $hit('/[\'"`]([^\'"`\s]+\.(?:json|csv|tsv|xlsx|php))[\'"`]/');
+    if ($urls || $jsons) $store[] = '옆에 있는 파일 또는 서버';
+    /* ④ 화면 안에 박아 둔 것 */
+    $big = [];
+    if (preg_match_all('/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(\[|\{)/', $raw, $m, PREG_OFFSET_CAPTURE)) {
+        foreach ($m[1] as $i => $nm) {
+            $start = $m[2][$i][1];
+            $end = min(strlen($raw), $start + 200000);
+            $chunk = substr($raw, $start, $end - $start);
+            $len = strlen($chunk);
+            if ($len > 2000 && preg_match('/[가-힣]/u', substr($chunk, 0, 3000))) {
+                if (!in_array($nm[0], $big, true)) $big[] = $nm[0];
+            }
+            if (count($big) >= 12) break;
+        }
+    }
+    /* 할 일처럼 보이는 낱말이 있나 */
+    $words = [];
+    foreach (['할일', '할 일', 'tasks', 'todo', '업무', '담당자', '진척', '마감', '기한', 'assignee',
+              'deadline', 'progress', 'status', '상태'] as $w) {
+        if (mb_strpos($raw, $w) !== false) $words[] = $w;
+    }
+    jout(['ok' => true, '파일' => basename($file), '폴더' => $dir,
+          '크기' => human((int)@filesize($file)),
+          '고친때' => date('Y-m-d H:i', (int)@filemtime($file)),
+          '자료를둔곳' => $store ?: ['모르겠습니다'],
+          '브라우저열쇠' => array_values(array_unique(array_merge($ls, $ls2))),
+          '저장소주소' => array_values(array_unique(array_merge($fb, $fbc))),
+          '저장소자리' => $refs,
+          '부르는주소' => $urls,
+          '쓰는파일' => $jsons,
+          '큰덩어리' => $big,
+          '할일낱말' => $words]);
 }
 
 if ($action === 'tsput') {

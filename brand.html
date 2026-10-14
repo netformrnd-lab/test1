@@ -5447,7 +5447,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261015-4';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261015-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18263,7 +18263,7 @@ async function lkPeek(path){
    「자료가 저기 공유폴더에 있다」 고 들었으면, 먼저 <<무엇이 어떤
    모양으로>> 있는지 눈으로 봐야 합니다. 찾아서 보여 주기만 하고,
    읽을 것을 고르면 그 자리를 적어 둡니다. 고치지 않습니다. */
-const LK_DIG_DEF = 'Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀';
+const LK_DIG_DEF = 'Y:\\넷폼알앤디 공유폴더\\미디어마케팅팀';
 let lkDug = null;
 async function lkDig(){
   const where = prompt('📂 저쪽 자료가 들어 있을 <<폴더>> 를 적어 주세요.\n\n'
@@ -18283,7 +18283,9 @@ async function lkDig(){
       alert('📂 ' + r['폴더'] + '\n\n자료로 보이는 파일이 없습니다.\n\n'
         + '그쪽 앱이 자료를 <<브라우저 안>> 에 담아 두는 것일 수 있습니다 '
         + '(그러면 폴더에는 파일이 안 생깁니다).\n'
-        + '그때는 폴더에서 가져올 수 없고, 저장소를 같이 쓰는 쪽으로 가야 합니다.');
+        + '그때는 폴더에서 가져올 수 없고, 저장소를 같이 쓰는 쪽으로 가야 합니다.\n\n'
+        + '먼저 그쪽 화면(HTML)이 있는 폴더를 적고 [🔎 어디서 가져오나] 를 '
+        + '눌러 보세요 — 그 화면이 자료를 어디에 두는지 읽어냅니다.');
       render(); return;
     }
     alert('📂 ' + r['폴더'] + '\n\n찾은 파일 ' + fs.length + '개 '
@@ -18324,6 +18326,43 @@ async function lkDigPeek(path){
       + String(r['앞부분'] || '').slice(0, 1200));
   }catch(e){ alert('❌ 열어보지 못했습니다.\n\n' + apiErrText(e)); }
 }
+/* ── 🔎 그쪽 화면이 자료를 어디서 가져오는지 읽어냅니다 ───────────
+   그쪽 브랜드허브도 우리처럼 HTML 한 장짜리입니다. 그런 화면은 자료를
+   넷 중 하나에 둡니다 — 브라우저 안 · 옆 파일 · 인터넷 저장소 · 화면
+   안. 어느 쪽인지 알아야 가져올 길이 정해집니다. 짐작하지 않고 그
+   파일을 읽어 그대로 알려 줍니다. */
+async function lkSniff(path){
+  toast('⏳ 그 화면을 읽고 있습니다…');
+  try{
+    const r = await apiJson('nasfiles.php?action=tssniff&path=' + encodeURIComponent(path));
+    const L = [];
+    L.push('🔎 ' + r['파일'] + ' (' + r['크기'] + ' · ' + r['고친때'] + ')');
+    L.push('');
+    L.push('이 화면은 자료를 여기에 둡니다:');
+    (r['자료를둔곳'] || []).forEach(x => L.push('  · ' + x));
+    const put = (lab, arr, tip) => {
+      if(!(arr || []).length) return;
+      L.push('');
+      L.push(lab);
+      arr.slice(0, 12).forEach(x => L.push('  · ' + x));
+      if(tip) L.push('  → ' + tip);
+    };
+    put('🌐 저장소 주소', r['저장소주소'],
+        '우리 연동과 같은 저장소면, 자리 이름만 맞추면 바로 이어집니다.');
+    put('📍 저장소에서 쓰는 자리', r['저장소자리'],
+        '[⚙︎ 연동 설정] 에 이 이름을 넣으면 그쪽 자료를 그대로 봅니다.');
+    put('📡 불러오는 주소', r['부르는주소'], null);
+    put('📄 쓰는 파일', r['쓰는파일'], '이 파일이 공유폴더에 있으면 바로 읽어옵니다.');
+    put('💾 브라우저에 담는 열쇠', r['브라우저열쇠'],
+        '이러면 자료가 그 사람 브라우저 안에만 있습니다 — 폴더에서는 못 가져옵니다.');
+    put('📦 화면 안에 박아 둔 큰 덩어리', r['큰덩어리'], null);
+    if((r['할일낱말'] || []).length)
+      L.push('\n🔤 할 일과 관련된 낱말: ' + r['할일낱말'].join(' · '));
+    L.push('');
+    L.push('── 이 내용을 그대로 알려 주시면 가져오는 길을 붙이겠습니다 ──');
+    alert(L.join('\n'));
+  }catch(e){ alert('❌ 읽지 못했습니다.\n\n' + apiErrText(e)); }
+}
 /* 뒤져서 찾은 것을 화면에 늘어놓습니다 */
 function lkDigHtml(){
   if(!lkDug || !(lkDug.files || []).length) return '';
@@ -18338,8 +18377,13 @@ function lkDigHtml(){
         + '<td class="fmeta">' + esc(f['어디'] || '(맨 위)') + '</td>'
         + '<td class="num">' + esc(f['크기']) + '</td>'
         + '<td class="fmeta">' + esc(f['고친때']) + '</td>'
-        + '<td><button class="btn sm" onclick="lkDigPeek(\'' + jsq(f['경로'])
-          + '\')" title="어떤 모양인지 들여다봅니다 (고치지 않습니다)">👁 열어보기</button></td>'
+        + '<td>' + (/\.html?$/i.test(String(f['이름'] || ''))
+            ? '<button class="btn sm primary" onclick="lkSniff(\'' + jsq(f['경로'])
+              + '\')" title="이 화면이 자료를 어디서 가져오는지 읽어냅니다">'
+              + '🔎 어디서 가져오나</button>'
+            : '<button class="btn sm" onclick="lkDigPeek(\'' + jsq(f['경로'])
+              + '\')" title="어떤 모양인지 들여다봅니다 (고치지 않습니다)">👁 열어보기</button>')
+          + '</td>'
         + '</tr>').join('')
     + '</tbody></table></div>'
     + '<div class="fmeta" style="margin-top:6px">★ 는 이름이 할 일처럼 보이는 것입니다. '

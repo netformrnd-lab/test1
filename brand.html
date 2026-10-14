@@ -5453,7 +5453,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261015-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261015-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5534,12 +5534,33 @@ async function pullLive(by){
   /* 섞여 들어온 계정 가운데 아직 못 푼 것을 뒤늦게 풀어 옵니다 */
   accSync();
   updateSubtitle();
-  /* 브랜드북을 펴 놓고 있으면 다시 그리지 않습니다 — 책이 한 번 사라졌다
-     나옵니다. 옆 사람이 <<책을 바꿔 올렸으면>> 그때는 그립니다. */
-  bgRender();
-
-  const who = (by && by !== myName()) ? by + '님이 ' : '';
-  if(by !== myName()) toast('🔄 ' + who + '방금 고친 내용을 가져왔습니다');
+  /* ── 눈에 보이는 것이 그대로면 그리지도, 알리지도 않습니다 ─────────
+     옆 사람 쪽에서 저장만 자꾸 일어나면(판을 안 올렸거나, 무언가 저절로
+     도는 중이면) 그때마다 <<화면이 다시 그려지고 띠가 떴습니다>>. 길게
+     내려 보는 화면에서는 그릴 때마다 보던 자리를 잃습니다.
+     저장 때마다 달라지는 것(판번호·저장시각·연동 메모)은 빼고 견주어,
+     <<정말 바뀐 게 있을 때만>> 그립니다. */
+  const sig = liveSig(data);
+  const same = (sig !== '' && sig === liveSeen);
+  liveSeen = sig;
+  if(!same){
+    /* 브랜드북을 펴 놓고 있으면 다시 그리지 않습니다 — 책이 한 번 사라졌다
+       나옵니다. 옆 사람이 <<책을 바꿔 올렸으면>> 그때는 그립니다. */
+    bgRender();
+    const who = (by && by !== myName()) ? by + '님이 ' : '';
+    if(by !== myName()) toast('🔄 ' + who + '방금 고친 내용을 가져왔습니다');
+  }
+}
+/* 저장할 때마다 달라지는 것은 빼고, 눈에 보이는 것만 추려 견줍니다 */
+let liveSeen = '';
+function liveSig(d){
+  try{
+    return JSON.stringify(d, (k, v) => {
+      if(k === '_rev' || k === 'savedAt' || k === '_lastBy' || k === 'updatedAt') return undefined;
+      if(k === 'teamLink' || k === 'teamSync' || k === '_이전형식백업') return undefined;
+      return v;
+    });
+  }catch(e){ return ''; }
 }
 
 /* 로그인이 끊겼을 때 실시간 확인을 멈춥니다.
@@ -6272,6 +6293,22 @@ async function pullVersion(btn){
    그때 쓰던 글이 날아가거나 커서가 튀지 않도록,
    다시 그리기 전에 '지금 상태' 를 적어 두었다가 그대로 되돌려 놓습니다. */
 
+/* ── 펼쳐 둔 접힘칸(<details>)을 기억합니다 ────────────────────────
+   다시 그릴 때 접힘칸이 <<모두 접힌 채>> 다시 나면, 보던 글이 통째로
+   사라져 화면이 확 짧아집니다. 그러면 내려둔 자리가 끝을 넘어 브라우저가
+   위로 끌어올립니다 — 「모아 보기를 펴 둔 뒤 누가 저장하면 위로 튄다」 가
+   이것입니다. 열어 둔 것은 열린 채로 다시 냅니다. */
+function uiOpenSnap(){
+  const main = document.getElementById('main');
+  if(!main) return [];
+  const out = [];
+  main.querySelectorAll('details[id]').forEach(d => { if(d.open) out.push(d.id); });
+  return out;
+}
+function uiOpenBack(list){
+  if(!Array.isArray(list) || !list.length) return;
+  list.forEach(id => { const d = document.getElementById(id); if(d) d.open = true; });
+}
 function captureUI(){
   const main = document.getElementById('main');
   const el   = document.activeElement;
@@ -6279,6 +6316,7 @@ function captureUI(){
     y: window.scrollY,
     scrolls: [],
     field: null,
+    opens: uiOpenSnap(),
     anc: uiAnchor()
   };
   if(main){
@@ -6412,6 +6450,8 @@ function restoreUI(snap){
       try{ n.value = d.value; }catch(e){}
     });
   }
+  /* 자리를 되돌리기 <<전에>> 먼저 펴 둡니다 — 높이가 맞아야 자리가 맞습니다 */
+  uiOpenBack(snap.opens);
   uiScrollBack(snap);
   const f = snap.field;
   if(f){
@@ -18482,7 +18522,7 @@ function lkPackHtml(){
       + '</span>'
     + '<button class="btn sm" style="margin-left:auto" onclick="lkPackCopy()"'
       + ' title="아래 내용을 통째로 복사합니다">📋 전부 복사</button></div>'
-    + fs.map(f => '<details class="lk-pk"><summary>'
+    + fs.map((f, i) => '<details class="lk-pk" id="lkpk_' + i + '"><summary>'
         + esc((f['어디'] ? f['어디'] + '/' : '') + f['이름'])
         + ' <span class="fmeta">' + esc(f['크기']) + ' · ' + esc(f['고친때'])
         + ((f['JSON열쇠'] || []).length

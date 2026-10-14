@@ -1884,6 +1884,45 @@ if ($action === 'tssniff') {
           '할일낱말' => $words]);
 }
 
+/* ── 🧩 작은 자료 파일을 한꺼번에 모아 봅니다 ─────────────────────
+   그쪽 앱은 자료를 여러 작은 파일로 흩어 둡니다 (snap · changes · pcs
+   처럼). 하나씩 눌러 보면 모양을 못 맞춥니다. 작은 것들을 한 번에
+   모아서, 어디에 무엇이 들었는지 한눈에 봅니다. 읽기만 합니다. */
+if ($action === 'tsbundle') {
+    $dir  = ts_dir($_GET['path'] ?? '');
+    $cap  = max(1000, min(60000, (int)($_GET['cap'] ?? 8000)));   /* 파일 하나 최대 */
+    $maxN = max(1, min(60, (int)($_GET['n'] ?? 40)));
+    $out  = [];
+    ts_scan($dir, 4, $out, 300, true);
+    /* 작은 글자 파일만 — 23MB 짜리 화면을 통째로 담으면 안 됩니다 */
+    $pick = [];
+    foreach ($out as $f) {
+        $ext = $f['종류'];
+        if (!in_array($ext, ['json', 'txt', 'log', 'csv', 'tsv', 'xml', 'dat'], true)) continue;
+        if ((int)$f['바이트'] > 256 * 1024) continue;
+        $pick[] = $f;
+    }
+    /* 작은 것부터 — 설정·목차 같은 핵심이 대개 작습니다 */
+    usort($pick, function ($a, $b) { return (int)$a['바이트'] <=> (int)$b['바이트']; });
+    $files = [];
+    foreach (array_slice($pick, 0, $maxN) as $f) {
+        $raw = (string)@file_get_contents($f['경로'], false, null, 0, $cap);
+        $isText = $raw === '' || (preg_match('//u', $raw) && strpos($raw, "\0") === false);
+        $one = ['이름' => $f['이름'], '어디' => $f['어디'], '크기' => $f['크기'],
+                '고친때' => $f['고친때'], '경로' => $f['경로']];
+        if (!$isText) { $one['글자아님'] = true; }
+        else {
+            $one['내용'] = $raw;
+            $one['잘림'] = (int)$f['바이트'] > $cap;
+            $js = json_decode($raw, true);
+            if (is_array($js)) $one['JSON열쇠'] = array_slice(array_keys($js), 0, 30);
+        }
+        $files[] = $one;
+    }
+    jout(['ok' => true, '폴더' => $dir, '본파일' => count($files),
+          '찾은파일' => count($out), '파일' => $files]);
+}
+
 if ($action === 'tsput') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
     $dir = ts_dir($_GET['path'] ?? '');

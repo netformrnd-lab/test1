@@ -327,6 +327,12 @@ body.tt-wide .layout{max-width:1820px}
 .lk-team .lk-tn{font-weight:400;font-size:12px;color:var(--text-muted)}
 .lk-box tr.dim{opacity:.5}
 .lk-dig{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)}
+.lk-pk{border:1px solid var(--border);border-radius:var(--r-xs);margin:5px 0;background:var(--bg-card)}
+.lk-pk>summary{cursor:pointer;padding:7px 10px;font-size:12.5px;font-weight:600}
+.lk-pk>summary .fmeta{font-weight:400}
+.lk-pre{margin:0;padding:10px 12px;border-top:1px solid var(--border);font-size:11.5px;
+  line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:320px;overflow:auto;
+  background:var(--bg-hover)}
 @media (max-width:700px){ .lk-head .lk-btns{margin-left:0;width:100%} }
 @media (max-width:700px){ .ts-head .ts-btns{margin-left:0;width:100%} }
 
@@ -5447,7 +5453,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261015-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261015-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18289,22 +18295,37 @@ async function lkAskReg(e, dir){
     return false;
   }
 }
-/* 지금 어떤 폴더를 볼 수 있나 */
+/* 지금 어떤 폴더를 볼 수 있나 · 바로 등록하기 ─────────────────────
+   막힐 때까지 기다렸다 물어보는 것만으로는 「허락을 어떻게 하지?」 가
+   됩니다. 여기서 바로 적어 넣을 수 있게 둡니다. */
 async function lkDirs(){
   try{
     const r = await apiJson('nasfiles.php?action=tsdirs');
-    const a = (r['훑는폴더'] || []).map(x => '  · ' + x + '   (NAS 자료 폴더)');
+    const a = (r['훑는폴더'] || []).map(x => '  · ' + x + '   (NAS 자료 폴더 — 못 뺍니다)');
     const b = (r['등록된폴더'] || []).map(x => '  · ' + x + '   (연동용으로 등록함)');
-    const v = prompt('📂 지금 볼 수 있는 폴더\n\n' + a.concat(b).join('\n')
-      + '\n\n빼고 싶은 것이 있으면 그 줄을 그대로 붙여 넣어 주세요.\n'
-      + '(NAS 자료 폴더는 여기서 못 뺍니다)\n그냥 닫으려면 [취소]', '');
+    const v = prompt('📂 지금 볼 수 있는 폴더\n\n' + (a.concat(b).join('\n') || '  (없음)')
+      + '\n\n── 새로 허락하려면 ──\n'
+      + '여기에 그 폴더를 적고 [확인] 하세요. 읽기만 합니다.\n'
+      + '  예) ' + LK_DIG_DEF + '\n\n'
+      + '── 빼려면 ──\n'
+      + '위에 적힌 줄을 그대로 붙여 넣고 앞에 「빼기 」 를 붙이세요.\n'
+      + '  예) 빼기 /volume1/넷폼알앤디 공유폴더/미디어마케팅팀', '');
     if(v === null) return;
-    const del = String(v).trim();
-    if(!del) return;
-    await apiJson('nasfiles.php?action=tsdirs', { method:'POST',
-      headers:{'Content-Type':'application/json'}, body: JSON.stringify({ del: del }) });
-    toast('뺐습니다');
-  }catch(e){ alert('❌ ' + apiErrText(e)); }
+    const t = String(v).trim();
+    if(!t) return;
+    const isDel = /^빼기\s+/.test(t);
+    const body = isDel ? { del: t.replace(/^빼기\s+/, '').trim() } : { add: t };
+    const r2 = await apiJson('nasfiles.php?action=tsdirs', { method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    toast(isDel ? '뺐습니다' : '📂 허락했습니다 — 이제 이 폴더를 볼 수 있습니다');
+    if(!isDel) alert('✅ 허락했습니다.\n\n'
+      + (r2['등록된폴더'] || []).map(x => '  · ' + x).join('\n')
+      + '\n\n이제 [📂 저쪽 폴더 뒤지기] 를 누르면 그 안을 볼 수 있습니다.');
+  }catch(e){
+    alert('❌ ' + apiErrText(e)
+      + '\n\n· 「PHP 가 공유폴더를 읽지 못하도록 막혀 있습니다」 라고 나오면, '
+      + 'NAS 의 웹 스테이션 설정에서 PHP 의 open_basedir 를 비워 주셔야 합니다.');
+  }
 }
 async function lkDig(){
   const where = prompt('📂 저쪽 자료가 들어 있을 <<폴더>> 를 적어 주세요.\n\n'
@@ -18416,6 +18437,102 @@ async function lkSniff(path){
     alert('❌ 읽지 못했습니다.\n\n' + apiErrText(e));
   }
 }
+/* ── 🧩 작은 자료 파일을 한꺼번에 모아 봅니다 ─────────────────────
+   그쪽 앱은 자료를 작은 파일 여럿으로 흩어 둡니다 (snap · changes ·
+   pcs 처럼). 하나씩 눌러 보면 모양이 안 잡힙니다. 한 번에 모아 놓고
+   보면 어디에 무엇이 들었는지 바로 보입니다. */
+let lkBundle = null;
+async function lkPack(){
+  const dir = (lkDug && lkDug.dir) || LK_DIG_DEF;
+  toast('⏳ 작은 자료 파일을 모으고 있습니다…');
+  try{
+    const r = await apiJson('nasfiles.php?action=tsbundle&n=40&cap=8000&path='
+      + encodeURIComponent(dir));
+    lkBundle = r;
+    render();
+    toast('🧩 ' + r['본파일'] + '개를 모았습니다 — 아래에서 보시고 그대로 알려 주세요');
+  }catch(e){
+    if(await lkAskReg(e, dir)) return lkPack();
+    alert('❌ 모으지 못했습니다.\n\n' + apiErrText(e));
+  }
+}
+/* 모은 것을 글로 — 그대로 복사해 보내 주시면 모양을 맞춥니다 */
+function lkPackText(){
+  if(!lkBundle) return '';
+  return (lkBundle['파일'] || []).map(f =>
+    '───── ' + (f['어디'] ? f['어디'] + '/' : '') + f['이름']
+    + '  (' + f['크기'] + ' · ' + f['고친때'] + ') ─────\n'
+    + (f['글자아님'] ? '(글자가 아닌 파일)' : String(f['내용'] || '').slice(0, 4000))
+    + (f['잘림'] ? '\n… (뒷부분 줄임)' : '')).join('\n\n');
+}
+function lkPackCopy(){
+  const t = lkPackText();
+  if(!t) return;
+  const ta = document.createElement('textarea');
+  ta.value = t; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); toast('📋 모은 내용을 복사했습니다'); }
+  catch(e){ toast('복사가 안 됩니다 — 아래 글을 긁어서 복사해 주세요'); }
+  ta.remove();
+}
+function lkPackHtml(){
+  if(!lkBundle) return '';
+  const fs = lkBundle['파일'] || [];
+  return '<div class="lk-dig"><div class="lk-team">🧩 모아 본 자료'
+    + '<span class="lk-tn">' + fs.length + '개 (' + lkBundle['찾은파일'] + '개 가운데 작은 것들)'
+      + '</span>'
+    + '<button class="btn sm" style="margin-left:auto" onclick="lkPackCopy()"'
+      + ' title="아래 내용을 통째로 복사합니다">📋 전부 복사</button></div>'
+    + fs.map(f => '<details class="lk-pk"><summary>'
+        + esc((f['어디'] ? f['어디'] + '/' : '') + f['이름'])
+        + ' <span class="fmeta">' + esc(f['크기']) + ' · ' + esc(f['고친때'])
+        + ((f['JSON열쇠'] || []).length
+            ? ' · ' + esc((f['JSON열쇠'] || []).slice(0, 8).join(', ')) : '')
+        + '</span></summary><pre class="lk-pre">'
+        + esc(f['글자아님'] ? '(글자가 아닌 파일)' : String(f['내용'] || ''))
+        + (f['잘림'] ? '\n… (뒷부분 줄임)' : '') + '</pre></details>').join('')
+    + '</div>';
+}
+/* ── 📥 이 파일을 할 일로 가져옵니다 ──────────────────────────────
+   줄 목록이 들어 있으면 칸 이름을 느슨하게 맞춰 읽어, 「다른 팀 할 일」
+   칸에 보여 줍니다. 모양을 못 알아보면 무엇이 들었는지 알려 줍니다. */
+async function lkTake(path, name){
+  toast('⏳ 가져오는 중…');
+  try{
+    let rows = [];
+    const r = await apiJson('nasfiles.php?action=tsread&path=' + encodeURIComponent(path));
+    if(r['표로읽기']){
+      if(!r['표경로']) throw new Error('공유폴더 안쪽이 아닙니다');
+      const g = await apiJson('doctext.php?action=sheet&path='
+        + encodeURIComponent(r['표경로'])
+        + (r['표뿌리'] === 'upload' ? '&root=upload' : ''));
+      rows = tsFromGrid(g['표'] || []);
+    }else{
+      rows = tsFromJson(r['줄'] || []);
+    }
+    if(!rows.length){
+      alert('📥 ' + name + '\n\n이 파일에서는 할 일로 알아볼 줄을 못 찾았습니다.\n\n'
+        + '[👁 열어보기] 로 안을 보시고, 줄 모양을 알려 주시면 거기에 맞춰 '
+        + '읽도록 고치겠습니다.\n'
+        + '(또는 [🧩 모아 보기] → [📋 전부 복사] 로 통째로 보내 주셔도 됩니다)');
+      return;
+    }
+    const t = lkOf();
+    t.rows = rows.map(x => ({ id:'f_' + Math.random().toString(36).slice(2, 9),
+      '팀': t.team === '미디어마케팅팀' ? '가져온 것' : '미디어마케팅팀',
+      '업무명': x.title, '담당자': x.owner, '상태': x.status,
+      '기한': x.due, '진척률': x.pct, '메모': x.note,
+      '고친때': '', '고친이': name }));
+    t.lastPull = new Date().toISOString();
+    markDirtyAll(); render();
+    alert('📥 ' + name + ' 에서 할 일 ' + rows.length + '건을 가져왔습니다.\n\n'
+      + '아래 「다른 팀 할 일」 칸에 들어가 있습니다.\n\n'
+      + '※ 이건 <<그때 한 번 읽어온 것>> 입니다. 저쪽이 고치면 따라 바뀌지 '
+      + '않습니다 — 이어서 보려면 저장소 연동이 필요합니다.');
+  }catch(e){
+    if(await lkAskReg(e, path)) return lkTake(path, name);
+    alert('❌ 가져오지 못했습니다.\n\n' + apiErrText(e));
+  }
+}
 /* 뒤져서 찾은 것을 화면에 늘어놓습니다 */
 function lkDigHtml(){
   if(!lkDug || !(lkDug.files || []).length) return '';
@@ -18430,12 +18547,16 @@ function lkDigHtml(){
         + '<td class="fmeta">' + esc(f['어디'] || '(맨 위)') + '</td>'
         + '<td class="num">' + esc(f['크기']) + '</td>'
         + '<td class="fmeta">' + esc(f['고친때']) + '</td>'
-        + '<td>' + (/\.html?$/i.test(String(f['이름'] || ''))
+        + '<td style="white-space:nowrap">' + (/\.html?$/i.test(String(f['이름'] || ''))
             ? '<button class="btn sm primary" onclick="lkSniff(\'' + jsq(f['경로'])
               + '\')" title="이 화면이 자료를 어디서 가져오는지 읽어냅니다">'
               + '🔎 어디서 가져오나</button>'
             : '<button class="btn sm" onclick="lkDigPeek(\'' + jsq(f['경로'])
-              + '\')" title="어떤 모양인지 들여다봅니다 (고치지 않습니다)">👁 열어보기</button>')
+              + '\')" title="어떤 모양인지 들여다봅니다 (고치지 않습니다)">👁 열어보기</button>'
+              + (/\.(json|csv|tsv|xlsx|xlsm)$/i.test(String(f['이름'] || ''))
+                  ? ' <button class="btn sm primary" onclick="lkTake(\'' + jsq(f['경로'])
+                    + '\',\'' + jsq(f['이름']) + '\')"'
+                    + ' title="이 파일의 할 일을 가져옵니다">📥 가져오기</button>' : ''))
           + '</td>'
         + '</tr>').join('')
     + '</tbody></table></div>'
@@ -18444,25 +18565,44 @@ function lkDigHtml(){
     + '</div>';
 }
 
+/* ── ⚠️ 저절로 도는 것은 <<바뀐 게 있을 때만>> 그립니다 ───────────
+   처음에는 받을 때마다 markDirtyAll() + render() 를 했습니다. 그런데
+     받기 → markDirtyAll → 1.2초 뒤 저장 → 저장 끝 → 3초 뒤 올리기
+     → 올리기도 markDirtyAll → 또 저장 → 또 올리기 → …
+   이렇게 <<4초마다 저장하고 다시 그리는 되풀이>> 가 됐습니다. 그래서
+   가만히 있어도 화면이 자꾸 맨 위로 튀었습니다.
+   이제 받은 줄이 <<정말 달라졌을 때만>> 그리고, 우리 할 일이 바뀌었을
+   때만 저장합니다. 받은 때·올린 때는 그저 적어 두는 것이라 다음 저장에
+   얹혀 갑니다. */
+function lkRowsKey(rows){
+  return (rows || []).map(r => [r.id, r['업무명'], r['담당자'], r['상태'],
+    r['기한'], r['진척률'], r['메모'], r['고친때']].join('|')).join('\n');
+}
 /* ⬇ 저장소에서 내려받습니다 */
 async function lkPull(loud){
   const t = lkOf();
   if(lkBusy) return;
   lkBusy = true;
   try{
+    const was = lkRowsKey(t.rows);
     const r = await apiJson('teamlink.php?action=pull' + (loud ? '&fresh=1' : ''));
-    t.rows = (r['줄'] || []).filter(x => x && String(x['업무명'] || '').trim());
+    const rows = (r['줄'] || []).filter(x => x && String(x['업무명'] || '').trim());
+    const changed = lkRowsKey(rows) !== was;
+    const wasReach = t.reach;
+    t.rows = rows;
     t.lastPull = new Date().toISOString();
     t.reach = true; t.why = '';
     const back = lkApplyBack(t.rows);
-    markDirtyAll(); render();
+    if(back) markDirtyAll();                 /* 우리 할 일이 바뀐 때만 저장 */
+    if(loud || changed || back || !wasReach) render();
     if(loud) toast('⬇ 저장소에서 ' + t.rows.length + '줄을 받았습니다'
       + (back ? ' · 우리 할 일 ' + back + '건이 저쪽에서 바뀐 대로 들어왔습니다' : ''));
     else if(back) toast('🔗 저쪽에서 고친 ' + back + '건이 우리 할 일에 들어왔습니다');
   }catch(e){
+    const wasReach = t.reach;
     t.reach = false; t.why = apiErrText(e);
     if(loud) alert('❌ 받지 못했습니다.\n\n' + t.why);
-    render();
+    if(loud || wasReach !== false) render();
   }finally{ lkBusy = false; }
 }
 /* ⬆ 우리 할 일을 올립니다 */
@@ -18474,24 +18614,32 @@ async function lkPush(loud){
     const r = await apiJson('teamlink.php?action=push', { method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ 팀: t.team, 줄: rows }) });
+    const wasReach = t.reach;
     t.lastPush = new Date().toISOString();
     t.reach = true; t.why = '';
-    markDirtyAll();
+    /* ⚠️ 여기서 markDirtyAll() 을 하면 저장이 또 불려 되풀이가 됩니다.
+       올린 때는 적어 두는 것뿐이라 다음 저장에 얹혀 갑니다. */
     if(loud){ toast('⬆ 우리 할 일 ' + (r['올린줄'] || 0) + '줄을 올렸습니다'); await lkPull(true); }
-    else render();
+    else if(wasReach !== true) render();
   }catch(e){
+    const wasReach = t.reach;
     t.reach = false; t.why = apiErrText(e);
     if(loud) alert('❌ 올리지 못했습니다.\n\n' + t.why
       + '\n\n· 저장소 규칙(rules)에서 이 자리에 <<쓰기>> 가 열려 있어야 합니다');
-    render();
+    if(loud || wasReach !== false) render();
   }
 }
 /* 저장이 끝나면 조금 뒤 저절로 올립니다 — 누르지 않아도 연동되게 */
+let lkSentKey = '';
 function lkPushSoon(){
   const t = lkOf();
   if(!t.on || !t.team) return;
+  /* 올릴 것이 지난번과 똑같으면 보내지 않습니다 — 괜히 보내면 저장이
+     또 불려 되풀이가 되고, NAS 와 저장소를 쉴 새 없이 두드립니다. */
+  const key = JSON.stringify(lkMine());
+  if(key === lkSentKey) return;
   clearTimeout(lkPushT);
-  lkPushT = setTimeout(() => lkPush(false), 3000);
+  lkPushT = setTimeout(() => { lkSentKey = key; lkPush(false); }, 3000);
 }
 /* 화면을 보고 있는 동안 1분마다 내려받습니다 */
 function lkTick(){
@@ -18549,7 +18697,8 @@ function lkPanelHtml(){
       + '<button class="btn sm" onclick="lkPush(1)" title="우리 할 일을 지금 올립니다">⬆ 지금 올리기</button>'
       + '<button class="btn sm" onclick="lkPeek()" title="저장소에 무엇이 들어 있나 봅니다">🔍 저장소 둘러보기</button>'
       + '<button class="btn sm" onclick="lkDig()" title="저쪽 NAS 폴더에 자료 파일이 있는지 뒤져 봅니다">📂 저쪽 폴더 뒤지기</button>'
-      + '<button class="btn sm" onclick="lkDirs()" title="지금 볼 수 있는 폴더를 봅니다">📁 볼 수 있는 폴더</button>'
+      + '<button class="btn sm" onclick="lkPack()" title="작은 자료 파일을 한꺼번에 모아 봅니다">🧩 자료 모아 보기</button>'
+      + '<button class="btn sm" onclick="lkDirs()" title="볼 수 있는 폴더를 보고, 새로 허락합니다">📁 폴더 허락</button>'
       + '<button class="btn sm" onclick="lkSetup()" title="저장소·자리·팀 이름">⚙︎ 연동 설정</button>'
     + '</span></div>';
 
@@ -18594,7 +18743,7 @@ function lkPanelHtml(){
               + '</tbody></table></div>';
           }).join(''));
 
-  return '<div class="lk-box">' + head + body + lkDigHtml()
+  return '<div class="lk-box">' + head + body + lkDigHtml() + lkPackHtml()
     + '<div class="fmeta" style="margin-top:8px">'
       + '근무현황 캘린더를 붙인 것과 같은 틀입니다 — 파일을 주고받지 않고 '
       + '<b>한 저장소를 같이 씁니다</b>. 우리 할 일은 저장될 때마다 저절로 올라가고, '
@@ -22389,6 +22538,11 @@ async function loadInquiries(force){
    여러 명이 열어둬도 NAS 는 구글에 한 번만 갑니다 (maxage·잠금).
    ------------------------------------------------------------------ */
 let inqBusy = false;
+/* 지금 보고 있는 화면에 문의가 나오나 — 나올 때만 다시 그립니다 */
+function inqShouldDraw(){
+  return (view === 'home' && !currentBrandId)
+      || (view === 'brand' && currentTab === 'inquiries');
+}
 async function inquiryTick(){
   if(STORAGE_MODE !== 'nas' || inqBusy || !inquiryCache.loaded) return;
   inqBusy = true;
@@ -22399,7 +22553,14 @@ async function inquiryTick(){
       if(st.updatedAt && st.updatedAt !== inquiryCache.updatedAt){
         inquiryCache.loaded = false;
         await loadInquiries(true);
-        bgRender();
+        /* ── 문의가 들어왔다고 아무 화면이나 다시 그리면 안 됩니다 ──────
+           ✅ 할 일 처럼 길게 내려 보는 화면에서는, 30초마다 돌아가는 이
+           확인이 그릴 때마다 <<보던 자리를 잃고 위로 튀었습니다>>.
+           「자꾸 문의가 들어오면 위로 한 번씩 뜬다」 가 이것입니다.
+           문의가 실제로 보이는 화면(🏠 홈 · 📮 문의 탭)일 때만 그리고,
+           그 밖에서는 숫자만 고쳐 둡니다 — 그 화면으로 가면 그때 맞게
+           그려집니다. */
+        if(inqShouldDraw()) bgRender();
         toast('📮 문의 기록이 바뀌었습니다 (새 문의 또는 다른 분이 고침)');
       }
       // NAS 가 가진 것 자체가 오래됐으면 시트에서 새로 가져오게 합니다

@@ -564,6 +564,7 @@ async function loadAll(){
   renderAll();
   startPoll(); startConsoleRealtime(); maybeAutoSyncGSheet();
   if(!WON_MATED){ WON_MATED=true; materializeWonApts(null); }  // 성사 딜 → 단지관리 자동 편입(세션 1회)
+  autoApplyVisits();  // 상시 자동 적용: 앞으로 6주치 방문 자동 생성(세션 1회)
 }
 let WON_MATED=false;
 function renderAll(){
@@ -900,16 +901,16 @@ async function csSave(a,patch){
   if(error) alert('배치 저장 실패: '+error.message+'\n(backend/migration-control-sites.sql · migration-visit-plan-app.sql 실행이 필요해요)');
 }
 // 주기 선택 → 요일 자동 제안(아직 요일 안 정했을 때만)
-function asgSetCycle(aptId,c){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const patch={cycle:c}; if(!d.visitDay&&CYCLE_DAYS[c])patch.visitDay=CYCLE_DAYS[c]; csSave(a,patch).then(renderCalendar); }
+function asgSetCycle(aptId,c){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const patch={cycle:c}; if(!d.visitDay&&CYCLE_DAYS[c])patch.visitDay=CYCLE_DAYS[c]; csSave(a,patch).then(()=>{renderCalendar();resyncAptVisits(aptId);}); }
 function asgToggleDay(aptId,w){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a);
   let days=String(d.visitDay||'').split('·').filter(Boolean); const i=days.indexOf(w); if(i>=0)days.splice(i,1); else days.push(w);
-  days.sort((x,y)=>WKB.indexOf(x)-WKB.indexOf(y)); csSave(a,{visitDay:days.join('·')}).then(renderCalendar); renderCalendar();
+  days.sort((x,y)=>WKB.indexOf(x)-WKB.indexOf(y)); csSave(a,{visitDay:days.join('·')}).then(()=>{renderCalendar();resyncAptVisits(aptId);}); renderCalendar();
 }
 // 요일마다 담당 감리원 지정 (주2회 = 서로 다른 감리원 2명이 다른 날)
-function asgSetDayAuditor(aptId,w,id){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const da={...(d.dayAuditors||{})}; if(id)da[w]=id; else delete da[w]; csSave(a,{dayAuditors:da}).then(renderCalendar); renderCalendar(); }
+function asgSetDayAuditor(aptId,w,id){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const da={...(d.dayAuditors||{})}; if(id)da[w]=id; else delete da[w]; csSave(a,{dayAuditors:da}).then(()=>{renderCalendar();resyncAptVisits(aptId);}); renderCalendar(); }
 function asgSetSub(aptId,name){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const d=ownAsg(a); const wk=weekKeyOf(new Date());
   const subs=(d.subs&&typeof d.subs==='object')?{...d.subs}:{}; if(name)subs[wk]=name; else delete subs[wk];
-  csSave(a,{subs}).then(renderCalendar); renderCalendar();
+  csSave(a,{subs}).then(()=>{renderCalendar();resyncAptVisits(aptId);}); renderCalendar();
 }
 // 방문 배치표에서 담당 감리원 직접 배정 (단지의 auditor_id·apartment_auditors 갱신 → 앱에도 반영)
 async function asgSetAuditor(aptId,mid){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const rep=mid||null;
@@ -918,7 +919,7 @@ async function asgSetAuditor(aptId,mid){ const a=APTS.find(x=>x.id===aptId); if(
   a.auditor_id=rep;
   try{ await sb.from('apartment_auditors').delete().eq('apartment_id',aptId); if(rep) await sb.from('apartment_auditors').insert([{apartment_id:aptId,auditor_id:rep}]); }catch(e){}
   APT_AUD[aptId]=rep?[rep]:[];
-  renderCalendar(); renderOrgs(); renderProjList();
+  renderCalendar(); renderOrgs(); renderProjList(); resyncAptVisits(aptId);
 }
 // 특정 달의 자동 방문 목록 계산 → [{aptId,name,date,who,sub}]  (담당자=우리 단지 배정 감리원, 요일=우리가 저장한 값)
 function computeVisits(y,m){
@@ -1058,7 +1059,7 @@ function renderAssignTable(){
   }).join('');
   const un=sites.filter(a=>!siteMgrName(a)).length;
   box.innerHTML=`<div class="card" style="margin-top:16px"><h3>📍 방문 배치표 <span class="r">현장 ${sites.length}곳${un?` · <b style="color:#b8710a">담당 미배정 ${un}</b>`:' · 담당 전원 배정'}</span></h3>
-    <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px"><b>주기·요일</b>을 정한 뒤, <b>요일별 담당 감리원</b>를 고르세요(주2회면 서로 다른 감리원 2명이 다른 날). 비워두면 대표 감리원으로 들어갑니다 · <b>“이 달 방문 일정 생성”</b>을 누르면 감리원·입주민 앱에도 방문이 떠요.</div>
+    <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px"><b>주기·요일</b>을 정한 뒤, <b>요일별 담당 감리원</b>를 고르세요(주2회면 서로 다른 감리원 2명이 다른 날). 비워두면 대표 감리원으로 들어갑니다 · <b style="color:#1e7f4f">정한 즉시 앞으로 6주치 방문이 자동으로 떠요(감리원·입주민 앱 포함).</b> 변동 있을 때만 그 날짜 일정을 고치면 돼요. <span style="color:#9aa3b2">(‘이 달 방문 일정 생성’은 과거 포함 전체 재생성용)</span></div>
     <div style="overflow-x:auto"><table style="width:100%;min-width:820px"><thead><tr><th>현장</th><th>대표 감리원</th><th>주기</th><th>방문 요일</th><th>요일별 담당</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 async function materializeVisits(){
@@ -1078,6 +1079,46 @@ async function materializeVisits(){
   const {error}=await sb.from('schedules').insert(rows);
   if(error){ alert('생성 실패: '+error.message); return; }
   await loadAll(); alert(rows.length+'건의 예정 방문을 생성했어요. 감리원·입주민 앱에도 표시됩니다.');
+}
+/* ===== 상시 자동 적용 ===== */
+// 배치표(요일·담당)만 정해두면 앞으로 6주치 방문을 자동 생성. 세션 1회(로딩 시).
+const AUTO_VISIT_DAYS=42;
+function _visitWindow(){ const today=new Date(); today.setHours(0,0,0,0); const end=new Date(today); end.setDate(end.getDate()+AUTO_VISIT_DAYS);
+  const months=[]; let cur=new Date(today.getFullYear(),today.getMonth(),1); while(cur<=end){ months.push({y:cur.getFullYear(),m:cur.getMonth()}); cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
+  return {todayStr:isoDate(today),endStr:isoDate(end),months}; }
+function _visitRow(v){ return {apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':''),assignee_id:v.assigneeId||null,resident_visible:true}; }
+let _visitsAutoApplied=false;
+async function autoApplyVisits(){
+  if(!PHASEB_OK.csites||_visitsAutoApplied) return; _visitsAutoApplied=true;
+  try{
+    const {todayStr,endStr,months}=_visitWindow();
+    let visits=[]; months.forEach(({y,m})=>{ visits=visits.concat(computeVisits(y,m)); });
+    visits=visits.filter(v=>v.date>=todayStr&&v.date<=endStr);
+    if(!visits.length) return;
+    const have=new Set((SCHEDULES||[]).filter(s=>String(s.title||'').indexOf(VISIT_MARK)===0).map(s=>s.apartment_id+'|'+String(s.date||'').slice(0,10)));
+    const toIns=visits.filter(v=>!have.has(v.aptId+'|'+v.date));
+    if(!toIns.length) return;
+    const {data,error}=await sb.from('schedules').insert(toIns.map(_visitRow)).select();
+    if(error){ console.warn('[자동 방문 적용 실패]',error.message); return; }
+    if(data&&data.length){ data.forEach(r=>SCHEDULES.push(r)); try{renderCalendar();}catch(e){} try{updateBadges();}catch(e){} }
+  }catch(e){ console.warn('[자동 방문 적용 오류]',e); }
+}
+// 한 현장의 배치가 바뀌면 그 현장의 앞으로 6주치 방문을 계획대로 재동기화(안 다녀온 것만 추가/삭제, 과거·다녀온 기록 보존)
+async function resyncAptVisits(aptId){
+  if(!PHASEB_OK.csites) return;
+  try{
+    const {todayStr,endStr,months}=_visitWindow();
+    let visits=[]; months.forEach(({y,m})=>{ visits=visits.concat(computeVisits(y,m)); });
+    visits=visits.filter(v=>String(v.aptId)===String(aptId)&&v.date>=todayStr&&v.date<=endStr);
+    const want=new Set(visits.map(v=>v.date));
+    const curRows=(SCHEDULES||[]).filter(s=>String(s.apartment_id)===String(aptId)&&String(s.title||'').indexOf(VISIT_MARK)===0&&!s.done_at&&String(s.date||'').slice(0,10)>=todayStr&&String(s.date||'').slice(0,10)<=endStr);
+    const delIds=curRows.filter(s=>!want.has(String(s.date).slice(0,10))).map(s=>s.id);
+    if(delIds.length){ try{ await sb.from('schedules').delete().in('id',delIds); }catch(e){} for(let i=SCHEDULES.length-1;i>=0;i--){ if(delIds.includes(SCHEDULES[i].id))SCHEDULES.splice(i,1); } }
+    const have=new Set(curRows.filter(s=>!delIds.includes(s.id)).map(s=>String(s.date).slice(0,10)));
+    const toIns=visits.filter(v=>!have.has(v.date));
+    if(toIns.length){ const {data,error}=await sb.from('schedules').insert(toIns.map(_visitRow)).select(); if(!error&&data) data.forEach(r=>SCHEDULES.push(r)); }
+    try{renderCalendar();}catch(e){} try{updateBadges();}catch(e){}
+  }catch(e){ console.warn('[방문 재동기화 오류]',e); }
 }
 
 /* ===== 공사관리 ===== */

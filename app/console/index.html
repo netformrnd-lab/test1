@@ -3105,13 +3105,13 @@ const RM_MANUAL=[
  {icon:'🔍',name:'현장 하자 진단·공법 제안',
   work:['단지 하자진단 및 공법 추천'],
   docs:['공법 선정에 대한 예상 내역서'], notes:['입대의 PT는 필요 시 진행']},
+ {icon:'🧾',name:'입찰 단계',
+  work:['현장 설명회 준비·진행'],
+  docs:['공고문 예시','현장설명회 예시'], notes:['현장 설명회 주최는 필요 시 진행']},
  {icon:'🏆',name:'낙찰자 선정',
   work:['낙찰자 사전 소통, 카카오톡 방 개설','착공 날짜·공정표 확인','아파트스퀘어 앱 작성 및 아파트 초대','공정에 따른 내용 확인','재도장 공법·시안 / 옥상 방수 공법 / 에폭시 공법 확인'],
   docs:['계약서 검토(감리 & 시공사)','공사 서류','안내사항 자료(안전지도·공정별 입주민 안내·체크리스트·업무일지)'],
   notes:['계약서 검토는 필요 시 진행','비산먼지 신청 내용 확인(시공사 신청)']},
- {icon:'🧾',name:'입찰 단계',
-  work:['현장 설명회 준비·진행'],
-  docs:['공고문 예시','현장설명회 예시'], notes:['현장 설명회 주최는 필요 시 진행']},
  {icon:'🚧',name:'공사 착공',
   work:['착공업체 소통 카톡방 개설·초대 요청','착공 일정 확인','착공 현장 방문'],
   docs:[], notes:[]},
@@ -3132,6 +3132,15 @@ let rmSel=0, rmEdit=false;
 async function loadRoadmapManual(){
   try{ const {data}=await sb.from('roadmap_manual').select('data').eq('id','main').maybeSingle();
     if(data&&Array.isArray(data.data)&&data.data.length){ RM_DATA=data.data.map(x=>({icon:x.icon||'📌',name:x.name||'',work:x.work||[],docs:x.docs||[],notes:x.notes||[]})); }
+  }catch(e){}
+  fixBidOrder();  // 저장본이든 기본이든 '입찰 → 낙찰' 순서로 보장(다른 수정은 보존)
+}
+// 입찰 단계가 낙찰자 선정보다 뒤에 있으면 둘의 순서만 바로잡는다 (요청: 입찰 → 낙찰)
+function fixBidOrder(){
+  try{
+    const bi=RM_DATA.findIndex(x=>/입찰/.test(x.name));
+    const wi=RM_DATA.findIndex(x=>/낙찰/.test(x.name));
+    if(bi>=0 && wi>=0 && bi>wi){ const t=RM_DATA[bi]; RM_DATA[bi]=RM_DATA[wi]; RM_DATA[wi]=t; }
   }catch(e){}
 }
 function selRm(i){ if(rmEdit)return; if(i<0||i>=RM_DATA.length)return; rmSel=i; renderRoadmap(); const b=$('rmSteps'); const el=b&&b.children[i*2]; if(el)el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}); }

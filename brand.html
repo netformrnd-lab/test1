@@ -4833,6 +4833,8 @@ table.xl mark{background:color-mix(in srgb,var(--orange,#e08b1a) 35%,transparent
 .cd-end.near .cd-dd{background:color-mix(in srgb,var(--orange,#e08b1a) 18%,transparent);
   color:var(--orange,#e08b1a)}
 .cd-end.hot .cd-dd{background:var(--red,#d9534f);color:#fff}
+/* 고치는 중에는 두 줄 자르기를 풉니다 — 안 그러면 글칸이 눌려 찌그러집니다 */
+.cd-note.ed-on{display:block;-webkit-line-clamp:none;max-height:none;overflow:visible}
 .cd-note{margin-top:5px;padding:6px 10px;border-left:3px solid var(--orange,#e08b1a);
   border-radius:0 7px 7px 0;background:color-mix(in srgb,var(--orange,#e08b1a) 10%,transparent);
   font-size:12px;line-height:1.55;color:var(--text-primary);white-space:pre-wrap;
@@ -5411,7 +5413,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261014-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261014-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -11849,12 +11851,16 @@ function secBar(type){
    뒤의 목록이 가려지고, 저장을 눌러야 돌아옵니다. 읽던 자리에서 바로
    고치게 합니다 — 모달은 여러 칸을 한꺼번에 채울 때만 씁니다. */
 function itemFieldSet(bid, type, id, f, v){
-  const b = bid ? brandById(bid) : null;
+  /* 💳 비용은 「비용 전용 구분」 에도 담깁니다 — 거기도 찾아야 합니다.
+     안 그러면 그 줄을 눌러 고칠 때 빈 칸이 뜨고, 저장하면 적어 둔 글이
+     지워졌습니다 (특이사항이 사라지던 까닭). */
+  const b = bid ? ((type === 'costs' && typeof costOwnerById === 'function'
+                      ? costOwnerById(bid) : null) || brandById(bid)) : null;
   const box = b ? b[type] : data[type];
   const x = (box || []).find(y => y.id === id); if(!x) return;
   x[f] = v;
   x.updatedAt = new Date().toISOString();
-  if(b) markDirty(b.id); else markDirtyAll();
+  if(b && !b.costOnly) markDirty(b.id); else markDirtyAll();
 }
 /* 메모는 비면 안 그려져서 적을 길이 모달뿐이었습니다. 자리는 늘 두되
    48칸이 「＋ 메모」 로 도배되지 않게 손을 올렸을 때만 보입니다. */
@@ -20224,6 +20230,39 @@ function costThisYear(c){
   const per = cycleMonths(c);
   return per ? Math.round(w / per) * months : 0;
 }
+/* ── 올해 치를 <<이미 나간 것 · 앞으로 나갈 것>> 으로 나눕니다 ─────
+   「올해 누적」 이라고 적어 두었는데 실은 <<올해 나갈 돈 전부>> 였습니다.
+   10월에 시작해 11월에 끝나는 것이 벌써 두 달 치로 잡혀서, 「벌써
+   누적이 저래?」 하고 놀라게 됩니다. 셈은 맞지만 이름이 틀렸습니다.
+   이제 전부와 「여기까지 나간 것」 을 같이 보여 줍니다. */
+function costYearParts(c){
+  const y = new Date().getFullYear();
+  const nowM = new Date().getMonth();
+  const w = costWon(c);
+  const from = c.start ? new Date(c.start + 'T00:00:00') : null;
+  const to   = c.end   ? new Date(c.end   + 'T00:00:00') : null;
+  const per  = cycleMonths(c);
+  if(!per){                                   /* 1회성 */
+    const t = (from && from.getFullYear() === y) ? w : 0;
+    const done = (t && String(c.start).slice(0, 10) <= todayStr()) ? t : 0;
+    return { total: t, done: done, left: t - done };
+  }
+  const s = (from && from.getFullYear() === y) ? from.getMonth()
+          : (from && from.getFullYear() > y ? 12 : 0);
+  const e = (to && to.getFullYear() === y) ? to.getMonth()
+          : (to && to.getFullYear() < y ? -1 : 11);
+  const months = Math.max(0, e - s + 1);
+  const mon = Math.round(w / per);
+  const doneM = Math.max(0, Math.min(e, nowM) - s + 1);
+  return { total: mon * months, done: mon * Math.min(doneM, months),
+           left: mon * Math.max(0, months - Math.min(doneM, months)) };
+}
+function costYearSum(list){
+  return (list || []).reduce((a, c) => {
+    const p = costYearParts(c);
+    return { total: a.total + p.total, done: a.done + p.done, left: a.left + p.left };
+  }, { total:0, done:0, left:0 });
+}
 function won(n){ return (n || 0).toLocaleString('ko-KR') + '원'; }
 
 /* ═══════════════ 업무 → 마케팅 비용 ═══════════════════════════════
@@ -20511,8 +20550,14 @@ function renderCosts(){
   const tiles = '<div class="stats">'
     + '<div class="stat"><div class="lb">💳 한 달에</div><div class="val">' + won(tot.month) + '</div>'
       + '<div class="sub">' + rows.filter(r => r.month > 0).length + '곳에서 나가는 돈</div></div>'
-    + '<div class="stat"><div class="lb">📅 올해 누적</div><div class="val">' + won(tot.year) + '</div>'
-      + '<div class="sub">' + new Date().getFullYear() + '년에 나가는 돈 (1회성 포함)</div></div>'
+    + (function(){
+        const yp = costYearSum(costOwners().reduce((a, b) =>
+          a.concat(costOfKind(b.costs || [])), []));
+        return '<div class="stat"><div class="lb">📅 올해 나갈 돈</div>'
+          + '<div class="val">' + won(yp.total) + '</div>'
+          + '<div class="sub">여기까지 나간 것 <b>' + won(yp.done) + '</b>'
+            + ' · 앞으로 ' + won(yp.left) + '</div></div>';
+      })()
     + '<div class="stat"><div class="lb">🧾 1회성</div><div class="val">' + won(tot.once) + '</div>'
       + '<div class="sub">한 번만 나가는 것 (달마다 계산엔 안 넣습니다)</div></div>'
     + '</div>';
@@ -20627,7 +20672,7 @@ function renderCosts(){
   document.getElementById('main').innerHTML = box(tiles + gathered + bars + kindBars + table
     + '<div class="fmeta" style="margin-top:8px">'
       + '「한 달에」 는 주기에 맞춰 나눈 값입니다 (3개월에 30만원 → 한 달 10만원). '
-      + '1회성은 달마다 계산에 넣지 않고 「올해 누적」 에만 들어갑니다. '
+      + '1회성은 달마다 계산에 넣지 않고 「올해 나갈 돈」 에만 들어갑니다. '
       + '달러로 적은 것은 환율 ' + fxRate().toLocaleString('ko-KR') + '원으로 바꿔 셉니다.'
     + '</div>');
 }
@@ -20662,8 +20707,13 @@ function viewCosts(b){
   const tiles = '<div class="stats">'
     + '<div class="stat"><div class="lb">💳 한 달에</div><div class="val">' + won(perMon) + '</div>'
       + '<div class="sub">지금 쓰고 있는 것 ' + live.length + '건 기준</div></div>'
-    + '<div class="stat"><div class="lb">📅 올해 누적</div><div class="val">' + won(year) + '</div>'
-      + '<div class="sub">' + new Date().getFullYear() + '년에 나가는 돈 (1회성 포함)</div></div>'
+    + (function(){
+        const yp = costYearSum(list);
+        return '<div class="stat"><div class="lb">📅 올해 나갈 돈</div>'
+          + '<div class="val">' + won(yp.total) + '</div>'
+          + '<div class="sub">여기까지 나간 것 <b>' + won(yp.done) + '</b>'
+            + ' · 앞으로 ' + won(yp.left) + '</div></div>';
+      })()
     + '<div class="stat"><div class="lb">🧾 1회성</div><div class="val">' + won(once) + '</div>'
       + '<div class="sub">한 번만 나가는 것 (달마다 계산엔 안 넣습니다)</div></div>'
     + '</div>';
@@ -20762,7 +20812,7 @@ function viewCosts(b){
 
   const table = '<div class="vz-tw"><table class="ymtable costtable">'
     + '<thead><tr><th>항목</th><th>종류</th><th class="num">금액</th><th>주기</th>'
-      + '<th class="num">한 달에</th><th class="num">올해</th><th>결제·담당</th>'
+      + '<th class="num">한 달에</th><th class="num">올해 전부</th><th>결제·담당</th>'
       + '<th>⏰ 만료일</th><th></th></tr></thead>'
     + '<tbody>' + rows
     + '<tr class="sumrow"><th>합계</th><td></td><td></td><td></td>'
@@ -20773,7 +20823,7 @@ function viewCosts(b){
   return bar + tiles + kindBars + table
     + '<div class="fmeta" style="margin-top:8px">'
       + '「한 달에」 는 매년 결제하는 것을 12로 나눠 더한 값입니다. '
-      + '1회성은 달마다 계산에 넣지 않고 「올해 누적」 에만 들어갑니다. '
+      + '1회성은 달마다 계산에 넣지 않고 「올해 나갈 돈」 에만 들어갑니다. '
       + '달러로 적은 것은 환율 ' + fxRate().toLocaleString('ko-KR') + '원으로 바꿔 셉니다.'
     + '</div>';
 }
@@ -24557,7 +24607,11 @@ function edGet(d){
      여섯 화면이 같은 칸을 쓰므로 여기 하나만 답니다. */
   if(d.ed === 'item'){
     /* 회의록 · 일정은 브랜드에 딸리지 않고 data 에 통째로 있습니다 */
-    const box = d.g ? (brandById(d.g) || {})[d.k] : data[d.k];
+    const own = d.g
+      ? ((d.k === 'costs' && typeof costOwnerById === 'function' ? costOwnerById(d.g) : null)
+          || brandById(d.g) || {})
+      : null;
+    const box = own ? own[d.k] : data[d.k];
     const x = (box || []).find(y => y.id === d.i); return x ? S(x[d.f]) : '';
   }
   if(d.ed === 'pg'){ const pg = pageFind(d.i); return pg ? S(pg[d.f]) : ''; }

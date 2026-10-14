@@ -2991,12 +2991,19 @@ clock();
       applyMeta();
     });
     if(APT_ID){
-      sb.from('apartments').select('auditor_id').eq('id',APT_ID).single().then(function(r){
-        var aid = r && r.data && r.data.auditor_id; if(!aid) return;
+      /* 담당 감리원: apartment_auditors(일괄배정·배정요청 수락) 우선, 없으면 대표(auditor_id) */
+      function setBoss(aid){
+        if(!aid) return;
         sb.from('profiles').select('name').eq('id',aid).single().then(function(p){
           INTEG.boss = (p && p.data && p.data.name) || '';
-          if(INTEG.boss){ store.meta.boss=INTEG.boss; try{save();}catch(e){} }
-          applyMeta();
+          if(INTEG.boss){ store.meta.boss=INTEG.boss; try{save();}catch(e){} applyMeta(); }
+        });
+      }
+      sb.from('apartment_auditors').select('auditor_id').eq('apartment_id',APT_ID).then(function(r){
+        var ids = ((r&&r.data)||[]).map(function(x){return x.auditor_id;}).filter(Boolean);
+        if(ids.length){ setBoss(ids[0]); return; }
+        sb.from('apartments').select('auditor_id').eq('id',APT_ID).single().then(function(r2){
+          setBoss(r2 && r2.data && r2.data.auditor_id);
         });
       });
     }
@@ -3013,7 +3020,7 @@ clock();
       insp.setAttribute('list','integAuditors');
       insp.placeholder='감리원 선택 또는 직접 입력';
       /* 앱 기본값 '김성민'이면 로그인 감리원으로 교체(있을 때) */
-      if(insp.value==='김성민'){ insp.value = INTEG.me || ''; store.meta.insp = insp.value; }
+      if(insp.value==='김성민'){ insp.value = INTEG.me || INTEG.boss || ''; store.meta.insp = insp.value; }
     }
     var boss=document.getElementById('m-boss');
     if(boss){

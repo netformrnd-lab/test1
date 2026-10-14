@@ -1609,24 +1609,91 @@ function ts_scan($dir, $depth, &$out, $limit = 120, $wide = false, $base = null)
     }
 }
 /* 공유폴더 안쪽 폴더인지 확인하고 실제 자리를 돌려줍니다 */
+/* ── 🔁 연동용으로 허락해 둔 폴더 ────────────────────────────────
+   NAS 가 읽도록 정해 둔 폴더(nasroot · uploadroot)는 <<우리 팀 것>>
+   입니다. 그래서 다른 팀 폴더는 그대로는 막힙니다 — 「뒤지기가 안 된다」
+   의 진짜 까닭이 이것이었습니다.
+   아무 데나 열어 주면 안 되니, <<사람이 적어서 등록한 폴더만>> 더
+   봅니다. 등록은 로그인한 사람만 하고, 적어 둔 것은 NAS 에 남아 모두가
+   같이 씁니다. 읽기만 합니다. */
+function ts_dirs_file() { return __DIR__ . '/data/teamdirs.php'; }
+function ts_dirs_get() {
+    $raw = (string)@file_get_contents(ts_dirs_file());
+    $j = json_decode(preg_replace('/^<\?php.*?\n/s', '', $raw), true);
+    return is_array($j) ? array_values(array_filter($j, 'is_string')) : [];
+}
+function ts_dirs_put($list) {
+    $list = array_values(array_unique(array_filter($list, 'strlen')));
+    if (!is_dir(__DIR__ . '/data')) @mkdir(__DIR__ . '/data', 0775, true);
+    $js = "<?php exit; ?>\n" . json_encode($list, JSON_UNESCAPED_UNICODE);
+    $t = ts_dirs_file() . '.tmp' . getmypid();
+    if (@file_put_contents($t, $js) === false || !@rename($t, ts_dirs_file())) { @unlink($t); return false; }
+    @chmod(ts_dirs_file(), 0664);
+    return true;
+}
+/* 훑는 폴더 안이거나, 사람이 등록해 둔 폴더 안이면 됩니다 */
+function ts_allowed($real) {
+    if (under_roots($real)) return true;
+    foreach (ts_dirs_get() as $d) {
+        $r = realpath($d);
+        if ($r !== false && ($real === $r || strpos($real, $r . DIRECTORY_SEPARATOR) === 0)) return true;
+    }
+    return false;
+}
 function ts_dir($raw) {
     $in = normalize_nas_input($raw);
     if ($in === null) {
         jout(['ok' => false, 'error' => '폴더 경로를 알아보지 못했습니다. '
-            . '예) Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\할일연동'], 400);
+            . '예) Y:\\넷폼알앤디 공유폴더\\미디어마케팅팀'], 400);
     }
     $bd = basedir_error($in);
     if ($bd !== null) jout(['ok' => false, 'error' => $bd], 403);
     [$dir, $tried] = resolve_nas_dir($in);
     if ($dir === null) {
-        jout(['ok' => false, 'error' => '그런 폴더를 찾지 못했습니다', 'tried' => $tried], 404);
+        jout(['ok' => false, 'error' => '그런 폴더를 찾지 못했습니다. 이름을 다시 봐 주세요.',
+              'tried' => $tried, '찾아본곳' => array_slice($tried, 0, 8)], 404);
     }
     $rr = realpath($dir) ?: $dir;
-    if (!under_roots($rr)) {
-        jout(['ok' => false, 'error' => '공유폴더 안쪽이 아니어서 손대지 않았습니다. '
-            . 'NAS 가 훑는 폴더 안에 있는 자리를 적어 주세요.'], 403);
+    if (!ts_allowed($rr)) {
+        /* 무엇이 막았는지 똑똑히 알려 줍니다 — 이것만 알면 바로 풉니다 */
+        jout(['ok' => false, 'error' => '폴더는 찾았는데, 아직 볼 수 있게 허락되지 않았습니다.',
+              '등록하면됨' => true, '찾은폴더' => $rr,
+              '지금허락된곳' => array_merge(roots_all(), ts_dirs_get()),
+              '안내' => 'NAS 가 읽도록 정해 둔 폴더는 우리 팀 것뿐입니다. 다른 팀 폴더를 '
+                      . '보려면 <<연동용으로 한 번 등록>> 하면 됩니다 (읽기만 합니다).'], 403);
     }
     return $rr;
+}
+/* 연동용 폴더 보기 · 등록 · 빼기 */
+if (($_GET['action'] ?? '') === 'tsdirs') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $in  = json_decode((string)file_get_contents('php://input'), true) ?: [];
+        $add = trim((string)($in['add'] ?? ''));
+        $del = trim((string)($in['del'] ?? ''));
+        $list = ts_dirs_get();
+        if ($add !== '') {
+            $norm = normalize_nas_input($add);
+            if ($norm === null) jout(['ok' => false, 'error' => '폴더 경로를 알아보지 못했습니다'], 400);
+            $bd = basedir_error($norm);
+            if ($bd !== null) jout(['ok' => false, 'error' => $bd], 403);
+            [$dir, $tried] = resolve_nas_dir($norm);
+            if ($dir === null) jout(['ok' => false, 'error' => '그런 폴더를 찾지 못했습니다',
+                                     'tried' => $tried], 404);
+            $rr = realpath($dir) ?: $dir;
+            /* 뿌리(/ · /volume1 같은 것)를 통째로 여는 것은 막습니다 */
+            if (substr_count(rtrim($rr, '/'), '/') < 2) {
+                jout(['ok' => false, 'error' => '너무 넓은 폴더는 등록할 수 없습니다. '
+                    . '팀 폴더처럼 안쪽 자리를 적어 주세요: ' . $rr], 400);
+            }
+            $list[] = $rr;
+        }
+        if ($del !== '') $list = array_values(array_filter($list,
+            function ($x) use ($del) { return $x !== $del; }));
+        if (!ts_dirs_put($list)) jout(['ok' => false,
+            'error' => '등록해 두지 못했습니다 (data 폴더에 쓸 수 있어야 합니다)'], 500);
+        jout(['ok' => true, '등록된폴더' => ts_dirs_get(), '훑는폴더' => roots_all()]);
+    }
+    jout(['ok' => true, '등록된폴더' => ts_dirs_get(), '훑는폴더' => roots_all()]);
 }
 if ($action === 'tsfind') {
     $dir  = ts_dir($_GET['path'] ?? '');

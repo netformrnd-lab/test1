@@ -5447,7 +5447,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261015-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261015-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18265,6 +18265,47 @@ async function lkPeek(path){
    읽을 것을 고르면 그 자리를 적어 둡니다. 고치지 않습니다. */
 const LK_DIG_DEF = 'Y:\\넷폼알앤디 공유폴더\\미디어마케팅팀';
 let lkDug = null;
+/* ── 막혔을 때: 「그 폴더를 연동용으로 등록할까요?」 ────────────────
+   NAS 가 읽도록 정해 둔 폴더는 우리 팀 것뿐이라, 다른 팀 폴더는 처음엔
+   막힙니다. 그때마다 사람이 설정을 찾아 들어가게 두면 그냥 포기합니다.
+   그 자리에서 물어보고, 등록하면 하던 일을 그대로 다시 합니다. */
+async function lkAskReg(e, dir){
+  if(!e || !e['등록하면됨']) return false;
+  const now = (e['지금허락된곳'] || []).map(x => '  · ' + x).join('\n');
+  if(!confirm('📂 폴더는 찾았습니다.\n\n' + e['찾은폴더']
+    + '\n\n다만 NAS 가 읽도록 정해 둔 폴더는 <<우리 팀 것>> 뿐이라 '
+    + '아직 막혀 있습니다.\n\n지금 허락된 곳:\n' + (now || '  (없음)')
+    + '\n\n이 폴더를 연동용으로 등록할까요?\n'
+    + '(읽기만 합니다 — 아무것도 고치거나 지우지 않습니다)')) return false;
+  try{
+    const r = await apiJson('nasfiles.php?action=tsdirs', { method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ add: e['찾은폴더'] || dir }) });
+    toast('📂 등록했습니다 — 이제 이 폴더를 볼 수 있습니다');
+    return true;
+  }catch(e2){
+    alert('❌ 등록하지 못했습니다.\n\n' + apiErrText(e2)
+      + '\n\nNAS 의 brand/data 폴더에 쓸 수 있어야 합니다.');
+    return false;
+  }
+}
+/* 지금 어떤 폴더를 볼 수 있나 */
+async function lkDirs(){
+  try{
+    const r = await apiJson('nasfiles.php?action=tsdirs');
+    const a = (r['훑는폴더'] || []).map(x => '  · ' + x + '   (NAS 자료 폴더)');
+    const b = (r['등록된폴더'] || []).map(x => '  · ' + x + '   (연동용으로 등록함)');
+    const v = prompt('📂 지금 볼 수 있는 폴더\n\n' + a.concat(b).join('\n')
+      + '\n\n빼고 싶은 것이 있으면 그 줄을 그대로 붙여 넣어 주세요.\n'
+      + '(NAS 자료 폴더는 여기서 못 뺍니다)\n그냥 닫으려면 [취소]', '');
+    if(v === null) return;
+    const del = String(v).trim();
+    if(!del) return;
+    await apiJson('nasfiles.php?action=tsdirs', { method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({ del: del }) });
+    toast('뺐습니다');
+  }catch(e){ alert('❌ ' + apiErrText(e)); }
+}
 async function lkDig(){
   const where = prompt('📂 저쪽 자료가 들어 있을 <<폴더>> 를 적어 주세요.\n\n'
     + '그 밑을 네 단계까지 뒤져, 자료로 보이는 파일을 모두 찾아 보여 줍니다.\n'
@@ -18274,6 +18315,9 @@ async function lkDig(){
   const dir = String(where).trim();
   if(!dir) return;
   toast('⏳ 폴더를 뒤지고 있습니다…');
+  let tryAgain = true;
+  while(tryAgain){
+  tryAgain = false;
   try{
     const r = await apiJson('nasfiles.php?action=tsfind&wide=1&deep=4&path='
       + encodeURIComponent(dir));
@@ -18297,9 +18341,12 @@ async function lkDig(){
       + '\n\n아래 목록에서 [👁 열어보기] 를 누르면 그 파일이 어떤 모양인지 봅니다.');
     render();
   }catch(e){
+    if(await lkAskReg(e, dir)){ tryAgain = true; continue; }   /* 등록했으면 다시 */
     alert('❌ 폴더를 뒤지지 못했습니다.\n\n' + apiErrText(e)
       + '\n\n· 적은 폴더: ' + dir
-      + '\n· NAS 가 읽는 공유폴더 안쪽이어야 합니다');
+      + (e && e['찾아본곳'] ? '\n· 찾아본 곳:\n  ' + e['찾아본곳'].join('\n  ') : '')
+      + '\n\n폴더 이름이 맞는지, 탐색기 주소창에서 그대로 복사했는지 봐 주세요.');
+  }
   }
 }
 /* 파일 하나가 어떤 모양인지 들여다봅니다 */
@@ -18324,7 +18371,10 @@ async function lkDigPeek(path){
               + (r['줄모양'] || []).join('\n· ') : '')
           + '\n\n── 앞부분 ──\n' : '── 앞부분 ──\n')
       + String(r['앞부분'] || '').slice(0, 1200));
-  }catch(e){ alert('❌ 열어보지 못했습니다.\n\n' + apiErrText(e)); }
+  }catch(e){
+    if(await lkAskReg(e, path)) return lkDigPeek(path);
+    alert('❌ 열어보지 못했습니다.\n\n' + apiErrText(e));
+  }
 }
 /* ── 🔎 그쪽 화면이 자료를 어디서 가져오는지 읽어냅니다 ───────────
    그쪽 브랜드허브도 우리처럼 HTML 한 장짜리입니다. 그런 화면은 자료를
@@ -18361,7 +18411,10 @@ async function lkSniff(path){
     L.push('');
     L.push('── 이 내용을 그대로 알려 주시면 가져오는 길을 붙이겠습니다 ──');
     alert(L.join('\n'));
-  }catch(e){ alert('❌ 읽지 못했습니다.\n\n' + apiErrText(e)); }
+  }catch(e){
+    if(await lkAskReg(e, path)) return lkSniff(path);
+    alert('❌ 읽지 못했습니다.\n\n' + apiErrText(e));
+  }
 }
 /* 뒤져서 찾은 것을 화면에 늘어놓습니다 */
 function lkDigHtml(){
@@ -18496,6 +18549,7 @@ function lkPanelHtml(){
       + '<button class="btn sm" onclick="lkPush(1)" title="우리 할 일을 지금 올립니다">⬆ 지금 올리기</button>'
       + '<button class="btn sm" onclick="lkPeek()" title="저장소에 무엇이 들어 있나 봅니다">🔍 저장소 둘러보기</button>'
       + '<button class="btn sm" onclick="lkDig()" title="저쪽 NAS 폴더에 자료 파일이 있는지 뒤져 봅니다">📂 저쪽 폴더 뒤지기</button>'
+      + '<button class="btn sm" onclick="lkDirs()" title="지금 볼 수 있는 폴더를 봅니다">📁 볼 수 있는 폴더</button>'
       + '<button class="btn sm" onclick="lkSetup()" title="저장소·자리·팀 이름">⚙︎ 연동 설정</button>'
     + '</span></div>';
 

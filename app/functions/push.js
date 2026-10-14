@@ -75,6 +75,12 @@ async function buildPlan(env, table, type, rec, old) {
     return { title: '📢 새 공지사항', body: rec.title || '', userIds: await allResidents_(env), data: { kind: 'notice' } }
   }
 
+  if (table === 'assign_requests' && type === 'INSERT') {
+    // 관리자가 '담당 배정 요청' → 지정한 감리원에게
+    const aptName = await aptName_(env, rec.apartment_id)
+    return { title: '🙋 담당 배정 요청', body: (aptName ? aptName + ' · ' : '') + '담당 감리원으로 요청됐어요 — 앱에서 수락해 주세요', userIds: rec.auditor_id ? [rec.auditor_id] : [], data: { kind: 'assign_request', apartment_id: rec.apartment_id || '', request_id: rec.id || '' } }
+  }
+
   if (table === 'chat_messages' && type === 'INSERT') {
     // 새 채팅 → 같은 대화 상대(본인 제외)
     const ids = await chatRecipients_(env, rec)

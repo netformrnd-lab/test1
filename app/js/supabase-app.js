@@ -1147,6 +1147,58 @@ async function loadAuditorApts() {
   AUD_LIST = apts
   apts.forEach(a => { AUD_APTS[a.id] = a; noteAptBase(a) })
   renderAudApts()
+  loadAssignRequests()
+}
+// ===== 담당 배정 요청: 나한테 온 pending 요청을 홈 상단에 띄우고 수락/거절 =====
+let AUD_REQS = []
+async function loadAssignRequests() {
+  const box = document.getElementById('aud-reqs'); if (!box) return
+  const { data: { user } } = await sb.auth.getUser(); if (!user) { box.innerHTML = ''; return }
+  let rows = []
+  try {
+    const { data } = await sb.from('assign_requests').select('*').eq('auditor_id', user.id).eq('status', 'pending').order('created_at', { ascending: false })
+    rows = data || []
+  } catch (e) { rows = [] }
+  // 단지 이름 채우기(없으면 조회)
+  const needIds = [...new Set(rows.map(r => r.apartment_id).filter(id => !(AUD_APTS[id] && AUD_APTS[id].name)))]
+  if (needIds.length) {
+    try { const { data } = await sb.from('apartments').select('id,name,region').in('id', needIds); (data || []).forEach(a => { AUD_APTS[a.id] = Object.assign(AUD_APTS[a.id] || {}, a) }) } catch (e) {}
+  }
+  AUD_REQS = rows
+  if (!rows.length) { box.innerHTML = ''; return }
+  box.innerHTML = '<div style="margin-top:11px;display:flex;flex-direction:column;gap:8px">' + rows.map(r => {
+    const apt = AUD_APTS[r.apartment_id] || {}
+    const nm = escH(apt.name) || '새 현장'
+    const rg = escH(apt.region) || ''
+    const note = r.note ? `<div style="font-size:10.5px;color:#8b6b2e;margin-top:3px">“${escH(r.note)}”</div>` : ''
+    return `<div style="background:#fff8ec;border:1px solid #f0dcb4;border-radius:13px;padding:11px 12px">
+      <div style="font-size:10px;font-weight:800;color:#b8710a">🙋 담당 배정 요청</div>
+      <div style="font-size:13px;font-weight:800;color:#1c2440;margin-top:3px">${nm}${rg ? `<span style="font-size:10.5px;font-weight:600;color:#8b95ad"> · ${rg}</span>` : ''}</div>
+      ${note}
+      <div style="display:flex;gap:7px;margin-top:9px">
+        <button onclick="acceptAssignRequest('${r.id}')" style="flex:1;border:none;background:#2F6BF6;color:#fff;font-size:12px;font-weight:800;padding:9px;border-radius:10px;font-family:inherit;cursor:pointer">수락 · 담당 맡기</button>
+        <button onclick="declineAssignRequest('${r.id}')" style="border:1px solid #e0e5ee;background:#fff;color:#8b95ad;font-size:12px;font-weight:700;padding:9px 13px;border-radius:10px;font-family:inherit;cursor:pointer">거절</button>
+      </div>
+    </div>`
+  }).join('') + '</div>'
+}
+async function acceptAssignRequest(id) {
+  try {
+    const { data, error } = await sb.rpc('accept_assign_request', { p_request: id })
+    if (error) { appToast('수락 실패: ' + (error.message || '')); return }
+    if (data === 'ok') { appToast('✅ 담당으로 등록됐어요'); loadAuditorApts() }
+    else if (data && data.indexOf('already-') === 0) { appToast('이미 처리된 요청이에요'); loadAssignRequests() }
+    else if (data === 'forbidden') { appToast('내게 온 요청이 아니에요') }
+    else { appToast('처리 결과: ' + data) }
+  } catch (e) { appToast('수락 중 오류가 났어요') }
+}
+async function declineAssignRequest(id) {
+  if (typeof confirm === 'function' && !confirm('이 배정 요청을 거절할까요?')) return
+  try {
+    const { data, error } = await sb.rpc('decline_assign_request', { p_request: id })
+    if (error) { appToast('거절 실패: ' + (error.message || '')); return }
+    appToast('요청을 거절했어요'); loadAssignRequests()
+  } catch (e) { appToast('거절 중 오류가 났어요') }
 }
 function renderAudApts() {
   const cont = document.getElementById('aud-apts'); if (!cont) return
@@ -3246,6 +3298,7 @@ function navigateFromPush(data) {
       if (kind === 'field_new') { window.showScreen('s26'); loadFieldUpdates() }
       else if (kind === 'report_pub') { window.showScreen('s12'); loadResidentReports() }
       else if (kind === 'notice') { openNoticeList() }
+      else if (kind === 'assign_request') { window.showScreen('s07'); loadAuditorApts() }
       else if (kind === 'assigned' || kind === 'approved') { route() }
       try { refreshChatBadge() } catch (e) {}
     } catch (e) {}

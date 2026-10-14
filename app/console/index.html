@@ -493,7 +493,9 @@ const lsDel=(k)=>{try{localStorage.removeItem(k);}catch(e){}};
 const loginId=(m)=>m.username||dispId(m.email)||'';
 const realEmail=(m)=>{const e=(m.email||'');return e.endsWith('@aptsquare.app')?'':e;};
 
-let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={};
+let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={},AREQS=[];
+// 단지별 '대기중(pending)' 배정 요청 찾기
+function pendingReq(aptId){ return AREQS.find(r=>r.apartment_id===aptId && r.status==='pending'); }
 let SALES=[],ROADMAP=[],DOCS=[],SITE_NOTES=[],VIEWS={},CSITES={},PHASEB_OK={sales:false,roadmap:false,docs:false,csites:false};
 function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return a.auditor_id?[a.auditor_id]:[]; }
 function auditorName(id){ const m=MEMBERS.find(x=>x.id===id); return m?(m.name||m.email||'-'):'-'; }
@@ -551,6 +553,7 @@ async function loadAll(){
   MEMBERS=m.data||[];APTS=a.data||[];NOTICES=n.data||[];CASES=c.data||[];REPORTS=r.data||[];FIELDS=f.data||[];SCHEDULES=s.data||[];
   SURVEYS=sv.data||[];CONTRACTS=ct.data||[];LEAFLETS=lf.data||[];CREDS=cr.data||[];MGRFORMS=mf.data||[];
   APT_AUD={}; try{ const {data:aa}=await sb.from('apartment_auditors').select('*'); (aa||[]).forEach(x=>{(APT_AUD[x.apartment_id]=APT_AUD[x.apartment_id]||[]).push(x.auditor_id);}); }catch(e){}
+  try{ const {data:ar}=await sb.from('assign_requests').select('*').order('created_at',{ascending:false}); AREQS=ar||[]; }catch(e){ AREQS=[]; }
   try{ const {data:ch}=await sb.from('chat_messages').select('*').order('created_at',{ascending:false}).limit(400); CHAT=ch||[]; }catch(e){ CHAT=[]; }
   try{ const {data:sl,error}=await sb.from('sales_leads').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); SALES=sl||[]; PHASEB_OK.sales=!error; }catch(e){ SALES=[]; PHASEB_OK.sales=false; }
   try{ const {data:rm,error}=await sb.from('roadmap_items').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); ROADMAP=rm||[]; PHASEB_OK.roadmap=!error; }catch(e){ ROADMAP=[]; PHASEB_OK.roadmap=false; }
@@ -724,6 +727,38 @@ function npsScore(){ const rated=SURVEYS.filter(r=>r.overall!=null&&r.overall!==
 function siteScore(aid){ const residents=MEMBERS.filter(m=>m.apartment_id===aid&&(m.role==='resident'||m.role==='manager')).length; const c=CHAT.filter(x=>x.apartment_id===aid).length; const s=SURVEYS.filter(x=>x.apartment_id===aid).length; const v=VIEWS[aid]||0; return residents*3+c*2+s*2+v; }
 function siteGrade(aid){ const sc=siteScore(aid); return sc>=20?'상':(sc>=7?'중':'하'); }
 function needAssignList(){ return APTS.filter(a=>a.status!=='done' && !aptAuditors(a).length); }
+/* ===== 담당 배정 요청: 팀장이 감리원 지정 → 앱 푸시 → 감리원 수락 시 자동 배정 ===== */
+function openAssignReq(aptId){
+  const a=APTS.find(x=>x.id===aptId); if(!a)return;
+  const auds=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
+  if(!auds.length){ openModal(mHead('📩 담당 배정 요청')+`<div style="padding:4px 2px 12px;font-size:13px;color:var(--mut)">등록된 감리원이 없어요.<br>회원 메뉴에서 역할을 '감리원'으로 지정해 주세요.</div><div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button></div>`); return; }
+  openModal(mHead('📩 담당 배정 요청')+`
+    <div style="background:#eef4ff;border-radius:9px;padding:9px 12px;font-size:12px;color:#2456c9;margin-bottom:12px">
+      <b>${esc(a.name)}</b> 현장을 맡길 감리원을 고르면, 그 감리원 앱으로 <b>배정 요청 알림</b>이 가요.<br>감리원이 앱에서 <b>수락</b>하면 담당으로 자동 등록돼요.
+    </div>
+    <div class="fld"><label>요청할 감리원 *</label><select id="ar-aud">${auds.map(m=>`<option value="${m.id}">${esc(m.name||loginId(m))}</option>`).join('')}</select></div>
+    <div class="fld"><label>메모 <span style="font-weight:600;color:var(--mut)">(선택 · 알림엔 안 보임)</span></label><input id="ar-note" placeholder="예: 다음 주부터 정기 방문 부탁드려요"></div>
+    <div class="mmsg" id="ar-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAssignReq('${aptId}')">요청 보내기</button></div>`);
+}
+async function submitAssignReq(aptId){
+  const auditorId=($('ar-aud')||{}).value||''; const note=(($('ar-note')||{}).value||'').trim()||null;
+  if(!auditorId){ const m=$('ar-msg'); if(m){m.textContent='감리원을 선택하세요';m.style.color='var(--red)';} return; }
+  if(pendingReq(aptId)){ const m=$('ar-msg'); if(m){m.textContent='이미 대기 중인 요청이 있어요. 먼저 취소해 주세요.';m.style.color='var(--red)';} return; }
+  const {data:{user}}=await sb.auth.getUser();
+  const {data,error}=await sb.from('assign_requests').insert({apartment_id:aptId,auditor_id:auditorId,requested_by:user?user.id:null,note,status:'pending'}).select('*').single();
+  if(error){ const m=$('ar-msg'); if(m){m.textContent='오류: '+error.message+' (assign_requests 테이블/권한을 확인하세요)';m.style.color='var(--red)';} return; }
+  if(data)AREQS.unshift(data);
+  closeModal(); renderDash();
+  alert(`📩 ${auditorName(auditorId)}님께 '${aptName(aptId)}' 배정 요청을 보냈어요.\n감리원이 앱에서 수락하면 담당으로 자동 등록돼요.`);
+}
+async function cancelAssignReq(reqId){
+  if(!confirm('이 배정 요청을 취소할까요?'))return;
+  const {error}=await sb.from('assign_requests').update({status:'canceled',responded_at:new Date().toISOString()}).eq('id',reqId);
+  if(error)return alert('취소 실패: '+error.message);
+  const r=AREQS.find(x=>x.id===reqId); if(r)r.status='canceled';
+  renderDash();
+}
 function stalledDeals(){ if(!PHASEB_OK.sales)return []; const now=Date.now(); return SALES.filter(s=>['inquiry','meeting','quote','contract'].includes(s.stage)).map(s=>{ const t=new Date(s.stage_changed_at||s.created_at||Date.now()).getTime(); const days=Math.floor((now-t)/86400000); return {s,days}; }).filter(x=>x.days>=2).sort((a,b)=>b.days-a.days); }
 function recontractRate(){ if(!PHASEB_OK.sales)return null; const won=SALES.filter(s=>s.stage==='won').length, lost=SALES.filter(s=>s.stage==='lost').length; const d=won+lost; return d?Math.round(won/d*100):null; }
 function renderDash(){
@@ -751,7 +786,13 @@ function renderDash(){
   const grades={상:0,중:0,하:0}; APTS.forEach(a=>{ grades[siteGrade(a.id)]++; });
   $('dashGrades').innerHTML=`<div style="display:flex;gap:12px">${[['상','good'],['중','blue'],['하','gray']].map(([g,cl])=>`<div style="flex:1;text-align:center;background:#f6f8fc;border:1px solid var(--line);border-radius:12px;padding:14px 8px"><div style="font-size:12px;font-weight:800;color:var(--mut2)">${g}</div><div style="font-size:24px;font-weight:800;margin-top:4px">${grades[g]}<small style="font-size:12px;color:var(--mut);font-weight:700">곳</small></div></div>`).join('')}</div><div style="font-size:11px;color:var(--mut);margin-top:8px">입주민 <b>앱 조회수</b>·가입 수·문의(채팅)·설문 참여 등 <b>고객사 사용도</b> 기준 자동 산정</div>`;
   // 담당 배정 안 된 현장
-  $('dashAssign').innerHTML=need.length?`<table><tbody>${need.slice(0,7).map(a=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td style="color:var(--mut)">${esc(a.region)||'미지정'}</td><td style="text-align:right"><span class="pill no">미배정</span></td></tr>`).join('')}</tbody></table>`:'<div class="empty">모든 현장에 담당이 배정됐어요 👍</div>';
+  $('dashAssign').innerHTML=need.length?`<table><tbody>${need.slice(0,7).map(a=>{
+    const pr=pendingReq(a.id); const reqName=pr?(auditorName(pr.auditor_id)||'감리원'):'';
+    const right=pr
+      ? `<span class="pill" style="background:#fff4e2;color:#b8710a">📩 ${esc(reqName)}님께 요청됨</span> <span class="link" style="color:var(--mut)" onclick="cancelAssignReq('${pr.id}')">취소</span>`
+      : `<span class="pill no">미배정</span> <span class="link" onclick="openAssignReq('${a.id}')">📩 배정 요청</span>`;
+    return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td style="color:var(--mut)">${esc(a.region)||'미지정'}</td><td style="text-align:right;white-space:nowrap">${right}</td></tr>`;
+  }).join('')}</tbody></table>`:'<div class="empty">모든 현장에 담당이 배정됐어요 👍</div>';
   // 정체된 딜
   $('dashStalled').innerHTML=!PHASEB_OK.sales?'<div class="empty" style="font-size:12px">영업 기능을 켜면 표시돼요</div>':(stalled.length?`<table><tbody>${stalled.slice(0,7).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openSalesEdit('${x.s.id}')">${esc(x.s.name)}</span></td><td><span class="pill blue">${SALES_LABEL[x.s.stage]||x.s.stage}</span></td><td style="text-align:right;color:var(--red);font-weight:700">${x.days}일 정체</td></tr>`).join('')}</tbody></table>`:'<div class="empty">정체된 딜이 없어요 👍</div>');
   // 새로 올라온 감리일지 (안 본 것 우선 + NEW 표시)

@@ -337,10 +337,10 @@ bag_cards = [
          url_text="제품 페이지"),
     card("③", "K25600 — 가방1번지",
          [("업체", "가방1번지 (02-932-5674)"), ("최소 수량", "1개 이상"),
-          ("소비자가", "117,000원"), ("인쇄", "전화 확인 필요")],
+          ("소비자가", "117,000원"), ("인쇄", "자사 로고 인쇄 적용")],
          [{"path": "25_K25600_장비가방.jpg", "label": "제품 이미지"}],
          url="https://www.gabang1bungi.com/product/k25600/5041/category/27/display/1/",
-         url_text="제품 페이지"),
+         url_text="제품 페이지", decided="구매 확정 · 자사 로고 인쇄"),
 ]
 
 # ----- 7. 열화상 카메라 -----
@@ -546,7 +546,7 @@ SECTIONS = [
     ("product", "함수율 측정기", "5종 비교", moist_cards, "저가형(GM605) 구매"),
     ("product", "칫솔치약세트", "4종 비교", tooth_cards, None),
     ("product", "드론 조종기", "현장 운용 장비", dji_cards, "DJI RC Pro 2 조종기 1대 구매 확정"),
-    ("product", "장비가방", "3종 비교 — 가격 전화 견적 필수", bag_cards, None),
+    ("product", "장비가방", "3종 비교", bag_cards, "③ K25600 선정 · 자사 로고 인쇄"),
     ("product", "열화상 카메라", "2종 비교", thermal_cards, "저가형 1개 구매"),
     ("product", "온습도계", "2종 비교", ondo_cards, None),
     ("product", "쌍안경", "3종 비교", bino_cards, "고·저배율 각 1개 구매 확정 (테스트용)"),

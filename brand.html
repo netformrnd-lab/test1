@@ -301,6 +301,17 @@ body.tt-wide .layout{max-width:1820px}
 .bedits{position:absolute;right:7px;top:50%;transform:translateY(-50%);
   display:flex;gap:4px;align-items:center}
 .bedits .bedit{position:static;right:auto;top:auto;transform:none}
+/* 🔁 다른 팀과 주고받는 할 일 — 우리 것과 섞이지 않게 테두리를 줍니다 */
+.ts-box{border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px 12px;
+  margin:0 0 18px;background:var(--bg-hover)}
+.ts-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-weight:650;font-size:14px;margin-bottom:10px}
+.ts-head .ts-meta{font-weight:400;font-size:12px;color:var(--text-muted)}
+.ts-head .ts-btns{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.ts-st{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;
+  vertical-align:middle}
+.ts-box tr.dim{opacity:.5}
+@media (max-width:700px){ .ts-head .ts-btns{margin-left:0;width:100%} }
 
 /* ---------- 본문 판 ---------- */
 .panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);
@@ -5419,7 +5430,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261015-1';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261015-2';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5627,6 +5638,7 @@ function defaultData(){
   return {
     schema: SCHEMA,
     costGroups: [],        /* 💳 비용에서만 쓰는 구분 */
+    teamSync: null,        /* 🔁 다른 팀과 할 일 주고받기 */
     brands: [
       newBrand('POUR공법',     '🏗️', '#3b82f6', ''),
       newBrand('아파트스퀘어',  '🏢', '#8b5cf6', ''),
@@ -17815,6 +17827,272 @@ function memRest(rows){
   });
   return box;
 }
+/* ═══════════════ 🔁 다른 팀과 할 일 주고받기 ═════════════════════
+   미디어마케팅팀은 자기네 브랜드허브를 따로 씁니다. 두 쪽을 하나로
+   묶으려면 그쪽이 서버 프로그램을 새로 만들어야 하는데, 그걸 기다리면
+   언제까지고 못 봅니다.
+
+   그래서 <<공유폴더에 파일 하나씩 놓아 주고받습니다>>.
+     · 우리가 놓는 것  브랜드마케팅팀-할일.json · .csv
+     · 그쪽이 놓는 것  아무 이름이나 — json · csv · 엑셀 다 읽습니다
+   양쪽 다 「폴더에 파일을 떨어뜨린다」 만 하면 되고, 엑셀로 저장해
+   두어도 읽힙니다. 새로 만들 프로그램이 없습니다.
+
+   가져온 것은 <<읽기 전용>> 입니다. 우리가 고쳐도 그쪽 것이 바뀌지
+   않으니, 고칠 수 있게 두면 서로 다른 것을 보게 됩니다.
+   ================================================================= */
+const TS_DIR_DEF = 'Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\할일연동';
+function tsOf(){
+  if(!data.teamSync || typeof data.teamSync !== 'object'){
+    data.teamSync = { team:'미디어마케팅팀', dir:TS_DIR_DEF, inFile:'',
+                      lastIn:'', lastOut:'', rows:[] };
+  }
+  const t = data.teamSync;
+  if(typeof t.team   !== 'string') t.team   = '미디어마케팅팀';
+  if(typeof t.dir    !== 'string') t.dir    = TS_DIR_DEF;
+  if(typeof t.inFile !== 'string') t.inFile = '';
+  if(typeof t.lastIn !== 'string') t.lastIn = '';
+  if(typeof t.lastOut!== 'string') t.lastOut= '';
+  if(!Array.isArray(t.rows)) t.rows = [];
+  return t;
+}
+/* ── 어느 칸이 무엇인가 — 그쪽이 적은 머리말을 느슨하게 알아봅니다 ── */
+const TS_MAP = [
+  ['title', ['업무명','업무','할일','할 일','제목','이름','task','title','todo','내용']],
+  ['owner', ['담당자','담당','맡은이','맡은 사람','사람','owner','assignee','who']],
+  ['status',['상태','진행','진행상태','status','state','단계']],
+  ['due',   ['기한','마감','마감일','종료일','끝','due','deadline','date','날짜']],
+  ['pct',   ['진척률','진척','달성','퍼센트','진행률','pct','percent','progress']],
+  ['note',  ['메모','비고','설명','내용메모','note','memo','desc','remark']]
+];
+function tsKey(s){ return String(s == null ? '' : s).replace(/[\s_\-()\[\].]/g, '').toLowerCase(); }
+function tsPickCol(headers){
+  const hk = headers.map(tsKey);
+  const out = {};
+  TS_MAP.forEach(([key, words]) => {
+    let hit = -1;
+    /* 똑같은 이름을 먼저, 없으면 들어 있는 것으로 */
+    for(const w of words){ const i = hk.indexOf(tsKey(w)); if(i >= 0){ hit = i; break; } }
+    if(hit < 0) for(const w of words){
+      const i = hk.findIndex(h => h && h.indexOf(tsKey(w)) >= 0);
+      if(i >= 0){ hit = i; break; }
+    }
+    if(hit >= 0 && Object.values(out).indexOf(hit) < 0) out[key] = hit;
+  });
+  return out;
+}
+/* 줄 하나를 우리가 쓰는 모양으로 */
+function tsRow(get){
+  const pctRaw = String(get('pct') || '').replace(/[^0-9.]/g, '');
+  let pct = pctRaw === '' ? null : Math.round(Number(pctRaw));
+  if(pct !== null && (!isFinite(pct) || pct < 0)) pct = null;
+  if(pct !== null && pct > 100) pct = 100;
+  const due = String(get('due') || '').trim().replace(/[./]/g, '-').slice(0, 10);
+  return { title: String(get('title') || '').trim(),
+           owner: String(get('owner') || '').trim(),
+           status: String(get('status') || '').trim(),
+           due: /^\d{4}-\d{1,2}-\d{1,2}$/.test(due) ? due : '',
+           pct: pct, note: String(get('note') || '').trim() };
+}
+/* 표(머리말 + 줄) → 우리 모양 */
+function tsFromGrid(grid){
+  const rows = (grid || []).filter(r => (r || []).some(c => String(c || '').trim()));
+  if(rows.length < 2) return [];
+  const col = tsPickCol(rows[0].map(x => String(x || '')));
+  if(col.title == null) return [];
+  return rows.slice(1).map(r => tsRow(k => col[k] == null ? '' : r[col[k]]))
+             .filter(x => x.title);
+}
+/* JSON 줄 목록 → 우리 모양 */
+function tsFromJson(list){
+  const keys = [];
+  (list || []).slice(0, 30).forEach(o => {
+    if(o && typeof o === 'object') Object.keys(o).forEach(k => {
+      if(keys.indexOf(k) < 0) keys.push(k); });
+  });
+  const col = tsPickCol(keys);
+  if(col.title == null) return [];
+  return (list || []).map(o => tsRow(k => (col[k] == null || !o) ? '' : o[keys[col[k]]]))
+                     .filter(x => x.title);
+}
+function tsSetDir(){
+  const t = tsOf();
+  const v = prompt('🔁 ' + t.team + ' 과 할 일을 주고받을 <<공유폴더>> 를 적어 주세요.\n\n'
+    + '양쪽이 이 폴더에 파일을 하나씩 놓습니다 —\n'
+    + '  · 우리 → 브랜드마케팅팀-할일.json · .csv\n'
+    + '  · 그쪽 → 아무 이름이나 (json · csv · 엑셀 다 읽습니다)\n\n'
+    + '예) ' + TS_DIR_DEF, t.dir || TS_DIR_DEF);
+  if(v === null) return;
+  t.dir = String(v).trim();
+  t.inFile = '';
+  markDirtyAll(); render();
+  if(t.dir) tsFind();
+}
+/* 그쪽이 놓아 둔 파일을 찾아 고릅니다 */
+async function tsFind(){
+  const t = tsOf();
+  if(!String(t.dir || '').trim()){ tsSetDir(); return; }
+  toast('⏳ 공유폴더를 보고 있습니다…');
+  try{
+    const r = await apiJson('nasfiles.php?action=tsfind&path=' + encodeURIComponent(t.dir));
+    const mine = /^브랜드마케팅팀-할일\./;
+    const list = (r['파일'] || []).filter(f => !mine.test(f['이름']));
+    if(!list.length){
+      alert('아직 ' + t.team + ' 이 놓아 둔 파일이 없습니다.\n\n'
+        + '폴더: ' + r['폴더'] + '\n\n'
+        + '그쪽에 이렇게 부탁하시면 됩니다 —\n'
+        + '「이 폴더에 할 일 목록을 엑셀(또는 csv·json) 로 하나 저장해 주세요.\n'
+        + ' 칸 이름은 업무명 · 담당자 · 상태 · 기한 · 진척률 로요.」');
+      return;
+    }
+    const pick = list.length === 1 ? list[0]['이름'] : prompt(
+      '어느 파일을 읽을까요? 이름을 적어 주세요.\n\n'
+      + list.map((f, i) => (i + 1) + ') ' + f['이름'] + '  (' + f['고친때'] + ' · ' + f['크기'] + ')').join('\n'),
+      list[0]['이름']);
+    if(pick === null) return;
+    const hit = list.find(f => f['이름'] === String(pick).trim())
+             || list[(parseInt(pick, 10) || 0) - 1];
+    if(!hit){ toast('그런 이름이 없습니다'); return; }
+    t.inFile = hit['이름'];
+    markDirtyAll();
+    await tsPull();
+  }catch(e){
+    alert('❌ 공유폴더를 보지 못했습니다.\n\n' + apiErrText(e)
+      + '\n\n· 적어 둔 폴더: ' + t.dir
+      + '\n· NAS 가 읽는 공유폴더 안쪽이어야 합니다');
+  }
+}
+/* ⬇ 그쪽 할 일을 가져옵니다 */
+async function tsPull(){
+  const t = tsOf();
+  if(!String(t.dir || '').trim()){ tsSetDir(); return; }
+  if(!String(t.inFile || '').trim()){ await tsFind(); return; }
+  const full = String(t.dir).replace(/[\\/]+$/, '') + '\\' + t.inFile;
+  const ext  = (t.inFile.split('.').pop() || '').toLowerCase();
+  toast('⏳ ' + t.team + ' 할 일을 가져오고 있습니다…');
+  try{
+    let rows = [];
+    /* 먼저 NAS 에 물어 자리를 확인합니다. json 이면 줄을 바로 받고,
+       엑셀·csv 면 <<공유폴더 기준 상대 경로>> 를 받아 표 읽기로 넘깁니다
+       (표 읽기는 Z:\ 같은 PC 경로를 모릅니다). */
+    const r = await apiJson('nasfiles.php?action=tsread&path=' + encodeURIComponent(full));
+    if(r['표로읽기']){
+      if(!r['표경로']) throw new Error('그 파일이 공유폴더 안쪽이 아닙니다: ' + t.inFile);
+      const g = await apiJson('doctext.php?action=sheet&path='
+        + encodeURIComponent(r['표경로'])
+        + (r['표뿌리'] === 'upload' ? '&root=upload' : ''));
+      rows = tsFromGrid(g['표'] || []);
+    }else{
+      rows = tsFromJson(r['줄'] || []);
+    }
+    if(!rows.length){
+      alert('파일은 읽었는데, 할 일로 알아볼 칸이 없습니다.\n\n'
+        + '파일: ' + t.inFile + '\n\n'
+        + '첫 줄에 칸 이름을 적어 주시면 됩니다 —\n'
+        + '업무명 · 담당자 · 상태 · 기한 · 진척률 (업무명만 있어도 됩니다)');
+      return;
+    }
+    t.rows = rows;
+    t.lastIn = new Date().toISOString();
+    markDirtyAll(); render();
+    toast('⬇ ' + t.team + ' 할 일 ' + rows.length + '건을 가져왔습니다');
+  }catch(e){
+    alert('❌ 가져오지 못했습니다.\n\n' + apiErrText(e) + '\n\n· 읽으려던 파일: ' + full);
+  }
+}
+/* 우리 할 일을 내보낼 모양으로 — 끝낸 것도 함께 (그쪽이 가려 봅니다) */
+function tsMine(){
+  return taskAll().map(({t, b}) => ({
+    id: String(t.id || ''), 브랜드: String(b.name || ''),
+    업무명: String(t.title || ''), 담당자: taskWho(t) || '',
+    상태: String(t.status || ''), 기한: String(t.due || ''),
+    진척률: Number(String(t.pct || '').replace(/[^0-9]/g, '')) || 0,
+    메모: String(t.note || ''),
+    고친때: String(t.updatedAt || '')
+  }));
+}
+function tsCsv(rows){
+  const cols = ['브랜드','업무명','담당자','상태','기한','진척률','메모','고친때','id'];
+  const q = v => { const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  return [cols.join(',')].concat(rows.map(r => cols.map(c => q(r[c])).join(','))).join('\r\n');
+}
+/* ⬆ 우리 할 일을 공유폴더에 놓습니다 */
+async function tsPush(){
+  const t = tsOf();
+  if(!String(t.dir || '').trim()){ tsSetDir(); return; }
+  const rows = tsMine();
+  const body = { name:'브랜드마케팅팀-할일',
+    json: JSON.stringify({ 팀:'브랜드마케팅팀', 놓은때:new Date().toISOString(),
+                           줄수:rows.length, 할일:rows }, null, 1),
+    csv: tsCsv(rows) };
+  toast('⏳ 공유폴더에 놓고 있습니다…');
+  try{
+    const r = await apiJson('nasfiles.php?action=tsput&path=' + encodeURIComponent(t.dir),
+      { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    t.lastOut = new Date().toISOString();
+    markDirtyAll(); render();
+    toast('⬆ 우리 할 일 ' + rows.length + '건을 놓았습니다 ('
+          + (r['놓은파일'] || []).map(f => f['이름']).join(' · ') + ')');
+  }catch(e){
+    alert('❌ 놓지 못했습니다.\n\n' + apiErrText(e)
+      + '\n\n· 폴더: ' + t.dir
+      + '\n· NAS 가 그 폴더에 쓸 수 있어야 합니다 (읽기 전용이면 안 됩니다)');
+  }
+}
+function tsWhen(iso){
+  if(!iso) return '아직 없음';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '아직 없음';
+  return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 '
+       + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+const TS_ST_HUE = { '완료':'var(--green)', '진행 중':'var(--blue)', '진행':'var(--blue)',
+                    '대기':'var(--text-muted)', '보류':'var(--orange)' };
+function tsPanelHtml(){
+  if(STORAGE_MODE !== 'nas') return '';
+  const t = tsOf();
+  const rows = t.rows || [];
+  const live = rows.filter(r => r.status !== '완료');
+  const table = rows.length
+    ? '<div class="vz-tw"><table class="ymtable"><thead><tr>'
+      + '<th>업무명</th><th>담당자</th><th>상태</th><th>기한</th>'
+      + '<th class="num">진척률</th><th>메모</th></tr></thead><tbody>'
+      + rows.map(r => '<tr' + (r.status === '완료' ? ' class="dim"' : '') + '>'
+          + '<td>' + esc(r.title) + '</td>'
+          + '<td>' + esc(r.owner) + '</td>'
+          + '<td><span class="ts-st" style="background:'
+            + (TS_ST_HUE[r.status] || 'var(--text-muted)') + '"></span>' + esc(r.status) + '</td>'
+          + '<td>' + esc(r.due) + '</td>'
+          + '<td class="num">' + (r.pct == null ? '–' : r.pct + '%') + '</td>'
+          + '<td>' + esc(r.note) + '</td></tr>').join('')
+      + '</tbody></table></div>'
+    : '<div class="empty" style="padding:18px">아직 가져온 것이 없습니다 — '
+      + '[⬇ 가져오기] 를 눌러 주세요.</div>';
+  return '<div class="ts-box">'
+    + '<div class="ts-head">🔁 ' + esc(t.team) + ' 할 일'
+      + '<span class="ts-meta">' + (rows.length ? '남은 일 ' + live.length + '건 · 전부 '
+          + rows.length + '건' : '연동 전')
+        + ' · 가져온 때 ' + tsWhen(t.lastIn)
+        + ' · 보낸 때 ' + tsWhen(t.lastOut) + '</span>'
+      + '<span class="ts-btns">'
+        + '<button class="btn sm primary" onclick="tsPull()" title="그쪽이 놓아 둔 파일을 읽습니다">'
+          + '⬇ 가져오기</button>'
+        + '<button class="btn sm" onclick="tsPush()" title="우리 할 일을 그 폴더에 놓습니다">'
+          + '⬆ 우리 것 보내기</button>'
+        + '<button class="btn sm" onclick="tsFind()" title="그쪽 파일을 다시 고릅니다">📂 파일 고르기</button>'
+        + '<button class="btn sm" onclick="tsSetDir()" title="주고받을 폴더를 고칩니다">⚙︎ 폴더</button>'
+      + '</span></div>'
+    + table
+    + '<div class="fmeta" style="margin-top:8px">'
+      + '공유폴더에 파일 하나씩 놓아 주고받습니다 — '
+      + esc(String(t.dir || '(폴더를 안 적었습니다)'))
+      + (t.inFile ? ' · 읽는 파일 <b>' + esc(t.inFile) + '</b>' : '')
+      + '<br>가져온 것은 <b>그쪽 자료</b>라 여기서 고칠 수 없습니다. '
+      + '고칠 것이 있으면 그쪽에 말씀해 주세요.'
+    + '</div></div>';
+}
+
 function renderTasks(){
   if(authOn()) setTimeout(() => loadPeople(), 10);
   const rows = taskAll();
@@ -17889,6 +18167,7 @@ function renderTasks(){
       teamKpiHtml(rows)
     + taskKpiHtml(rows)
     + staleHtml(rows)
+    + tsPanelHtml()
     + mvHtml
     + '<div class="tt-sect">' + (mmOn ? '🗺️ 업무 마인드맵' : '팀 멤버별 오늘 할 일')
       + '<span class="tt-day">' + esc(dayText) + '</span>'
@@ -28585,6 +28864,22 @@ function mergeWithServer(server){
       sg.filter(x => x && x.id && !seen.has(x.id) && !deletedIds.has(x.id)));
   })();
 
+  /* 🔁 다른 팀과 주고받는 할 일 — 목록이 아니라서 따로. <<나중에 주고받은
+     쪽>> 을 따릅니다 (가져온 때·보낸 때 가운데 늦은 것으로 견줍니다).
+     이게 없으면 둘이 같이 켜 뒀을 때 한쪽이 방금 가져온 것이 사라집니다. */
+  (function(){
+    /* 글자를 Math.max 에 넣으면 NaN 이 나옵니다 — 글자끼리 견줍니다 */
+    const stamp = o => { const a = String((o && o.lastIn) || ''),
+                               b = String((o && o.lastOut) || '');
+                         return a > b ? a : b; };
+    const ms = (mine.teamSync   && typeof mine.teamSync   === 'object') ? mine.teamSync   : null;
+    const ss = (server.teamSync && typeof server.teamSync === 'object') ? server.teamSync : null;
+    if(!ms && !ss){ delete merged.teamSync; return; }
+    if(!ms){ merged.teamSync = ss; return; }
+    if(!ss){ merged.teamSync = ms; return; }
+    merged.teamSync = stamp(ss) > stamp(ms) ? ss : ms;
+  })();
+
   /* 📗 그대로 볼 엑셀도 목록이 아니라서 따로 — 나중에 고른 쪽을 따릅니다 */
   (function(){
     const ms = (mine.accSheet && typeof mine.accSheet === 'object') ? mine.accSheet : null;
@@ -28991,6 +29286,25 @@ function normalize(raw){
       h._dirMoved = true;
     }
   });
+  /* 🔁 다른 팀과 주고받는 할 일 — 모양을 맞춰 둡니다 */
+  if(raw.teamSync && typeof raw.teamSync === 'object'){
+    const t = raw.teamSync;
+    ['team','dir','inFile','lastIn','lastOut'].forEach(k => {
+      if(typeof t[k] !== 'string') t[k] = '';
+    });
+    if(!t.team) t.team = '미디어마케팅팀';
+    if(!Array.isArray(t.rows)) t.rows = [];
+    /* 가져온 줄도 모양을 맞춥니다 — 밖에서 온 것이라 무엇이든 들어옵니다 */
+    t.rows = t.rows.filter(r => r && typeof r === 'object' && String(r.title || '').trim())
+      .map(r => ({ title:String(r.title || ''), owner:String(r.owner || ''),
+                   status:String(r.status || ''), due:String(r.due || ''),
+                   pct: (r.pct == null || !isFinite(Number(r.pct))) ? null
+                        : Math.max(0, Math.min(100, Math.round(Number(r.pct)))),
+                   note:String(r.note || '') }))
+      .slice(0, 2000);
+  }else if(raw.teamSync !== null && raw.teamSync !== undefined){
+    raw.teamSync = null;
+  }
   /* 💳 비용에서만 쓰는 구분 — 모양을 맞춰 둡니다 */
   if(!Array.isArray(raw.costGroups)) raw.costGroups = [];
   raw.costGroups.forEach(g => {

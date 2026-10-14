@@ -1552,4 +1552,163 @@ if ($action === 'hub' || $action === 'hubinfo') {
     exit;
 }
 
+/* ---------------- 🔁 팀끼리 할 일 주고받기 --------------------------
+   미디어마케팅팀은 자기네 브랜드허브를 따로 씁니다. 두 쪽을 하나로
+   묶으려면 그쪽이 서버 프로그램을 새로 만들어야 하는데, 그건 그쪽
+   일정이 있어 기다릴 수 없습니다.
+
+   그래서 <<공유폴더에 파일 하나씩 놓아 주고받습니다>>. 양쪽 다
+   「폴더에 파일을 떨어뜨린다」 만 하면 되고, 엑셀로 저장해 두어도
+   읽힙니다 — 새로 만들 프로그램이 없습니다.
+
+     …\미디어마케팅팀\할일연동\
+        브랜드마케팅팀-할일.json   ← 우리가 씁니다 (그쪽이 읽습니다)
+        브랜드마케팅팀-할일.csv    ← 같은 것, 엑셀로 열어 보는 용
+        미디어마케팅팀-할일.*      ← 그쪽이 씁니다 (우리가 읽습니다)
+
+     ?action=tsfind &path=<폴더>   할 일로 보이는 자료 파일 찾기
+     ?action=tsread &path=<파일>   .json 을 줄 목록으로 (엑셀·csv 는
+                                   doctext.php?action=sheet 가 읽습니다)
+     ?action=tsput  &path=<폴더>   우리 할 일 파일을 그 폴더에 놓기 (POST)
+
+   읽기·쓰기 모두 <<공유폴더 안쪽>> 만 됩니다.
+   -------------------------------------------------------------------- */
+$TS_EXT  = ['json', 'csv', 'tsv', 'xlsx', 'xlsm'];
+/* 「할 일」 로 보이는 이름인가 — 이름만 보고 미리 가려 줍니다 */
+function ts_looks($name) {
+    $k = nas_name_key($name);
+    foreach (['할일', '할것', 'todo', 'task', '업무', '일감', '진행', 'kanban'] as $w) {
+        if (strpos($k, nas_name_key($w)) !== false) return true;
+    }
+    return false;
+}
+/* 폴더(와 아래 단계)에서 자료 파일을 모읍니다 */
+function ts_scan($dir, $depth, &$out, $limit = 120) {
+    if ($depth < 0 || count($out) >= $limit) return;
+    foreach ((array)@scandir($dir) as $e) {
+        if ($e === '.' || $e === '..' || $e[0] === '.') continue;
+        if (strpos($e, '_휴지통') === 0) continue;
+        $f = $dir . '/' . $e;
+        if (is_dir($f)) { ts_scan($f, $depth - 1, $out, $limit); continue; }
+        $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+        if (!in_array($ext, $GLOBALS['TS_EXT'], true)) continue;
+        if (count($out) >= $limit) return;
+        $out[] = ['이름' => $e, '경로' => $f, '종류' => $ext,
+                  '크기' => human((int)@filesize($f)),
+                  '고친때' => date('Y-m-d H:i', (int)@filemtime($f)),
+                  '할일같음' => ts_looks($e)];
+    }
+}
+/* 공유폴더 안쪽 폴더인지 확인하고 실제 자리를 돌려줍니다 */
+function ts_dir($raw) {
+    $in = normalize_nas_input($raw);
+    if ($in === null) {
+        jout(['ok' => false, 'error' => '폴더 경로를 알아보지 못했습니다. '
+            . '예) Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\할일연동'], 400);
+    }
+    $bd = basedir_error($in);
+    if ($bd !== null) jout(['ok' => false, 'error' => $bd], 403);
+    [$dir, $tried] = resolve_nas_dir($in);
+    if ($dir === null) {
+        jout(['ok' => false, 'error' => '그런 폴더를 찾지 못했습니다', 'tried' => $tried], 404);
+    }
+    $rr = realpath($dir) ?: $dir;
+    if (!under_roots($rr)) {
+        jout(['ok' => false, 'error' => '공유폴더 안쪽이 아니어서 손대지 않았습니다. '
+            . 'NAS 가 훑는 폴더 안에 있는 자리를 적어 주세요.'], 403);
+    }
+    return $rr;
+}
+if ($action === 'tsfind') {
+    $dir = ts_dir($_GET['path'] ?? '');
+    $out = [];
+    ts_scan($dir, 2, $out);
+    /* 할 일로 보이는 것 → 새로 고친 것 순 */
+    usort($out, function ($a, $b) {
+        if ($a['할일같음'] !== $b['할일같음']) return $b['할일같음'] <=> $a['할일같음'];
+        return strcmp($b['고친때'], $a['고친때']);
+    });
+    jout(['ok' => true, '폴더' => $dir, '개수' => count($out), '파일' => $out]);
+}
+if ($action === 'tsread') {
+    $in = normalize_nas_input($_GET['path'] ?? '');
+    if ($in === null) jout(['ok' => false, 'error' => '파일 경로를 알아보지 못했습니다'], 400);
+    $dir  = ts_dir(dirname($in));
+    $want = nas_name_key(basename($in));
+    $file = null;
+    foreach ((array)@scandir($dir) as $e) {
+        if ($e === '.' || $e === '..') continue;
+        if (nas_name_key($e) === $want && is_file($dir . '/' . $e)) { $file = $dir . '/' . $e; break; }
+    }
+    if ($file === null) jout(['ok' => false, 'error' => '그런 파일이 없습니다: ' . basename($in)], 404);
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    /* 엑셀·csv 는 이미 있는 표 읽기(doctext.php?action=sheet)가 읽습니다.
+       그쪽은 <<공유폴더 기준 상대 경로>> 로 받으니, Z:\… 를 풀어 그 모양으로
+       돌려줍니다 — 화면이 그걸로 다시 부릅니다. */
+    if ($ext !== 'json') {
+        /* 표 읽기(doctext.php?action=sheet)는 전체 경로도 받습니다. 다만
+           <<어느 뿌리 안인지>> 를 자기 기준으로 다시 확인하므로, 훑는
+           폴더(nasroot) 가 아니라 올린 폴더(uploadroot) 안이면 그렇다고
+           같이 알려 줘야 합니다 — 안 그러면 「공유폴더 바깥」 이라고 합니다. */
+        $which = null;
+        foreach ([['/data/nasroot.txt', 'nas'], ['/data/uploadroot.txt', 'upload']] as [$rel, $tag]) {
+            $f = __DIR__ . $rel;
+            if (!is_file($f)) continue;
+            $r = realpath(rtrim(trim((string)@file_get_contents($f)), '/'));
+            if ($r !== false && strpos($file, $r . DIRECTORY_SEPARATOR) === 0) { $which = $tag; break; }
+        }
+        jout(['ok' => true, '표로읽기' => true, '파일' => basename($file),
+              '표경로' => $file, '표뿌리' => $which, '폴더' => $dir,
+              '고친때' => date('Y-m-d H:i', (int)@filemtime($file))]);
+    }
+    $raw = (string)@file_get_contents($file);
+    $js  = json_decode($raw, true);
+    if (!is_array($js)) jout(['ok' => false, 'error' => 'JSON 을 읽지 못했습니다: ' . basename($file)], 422);
+    /* 줄 목록이 어디 들었든 찾아냅니다 — [..] · {할일:[..]} · {tasks:[..]} … */
+    $rows = null;
+    if (array_key_exists(0, $js)) $rows = $js;
+    else foreach (['할일', '할 일', 'tasks', 'todos', 'rows', 'items', 'data', '목록'] as $k) {
+        if (isset($js[$k]) && is_array($js[$k])) { $rows = $js[$k]; break; }
+    }
+    if ($rows === null) jout(['ok' => false, 'error' => 'JSON 안에서 할 일 목록을 찾지 못했습니다',
+                              '안에있는것' => array_slice(array_keys($js), 0, 12)], 422);
+    jout(['ok' => true, '파일' => basename($file), '폴더' => $dir,
+          '고친때' => date('Y-m-d H:i', (int)@filemtime($file)),
+          '줄수' => count($rows), '줄' => array_slice(array_values($rows), 0, 2000)]);
+}
+if ($action === 'tsput') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
+    $dir = ts_dir($_GET['path'] ?? '');
+    $in  = json_decode((string)file_get_contents('php://input'), true);
+    if (!is_array($in)) jout(['ok' => false, 'error' => '보낸 내용을 읽지 못했습니다'], 400);
+    $base = trim((string)($in['name'] ?? '브랜드마케팅팀-할일'));
+    /* 이름으로 폴더를 벗어나지 못하게 — 경로 글자는 다 떼어 냅니다 */
+    $base = str_replace(['/', '\\', '..', ':'], '', $base);
+    $base = preg_replace('/[\x00-\x1f]/u', '', $base);
+    if ($base === '') $base = '브랜드마케팅팀-할일';
+    $wrote = [];
+    foreach ([['json', 'json'], ['csv', 'csv']] as [$key, $ext]) {
+        if (!isset($in[$key]) || !is_string($in[$key]) || $in[$key] === '') continue;
+        if (strlen($in[$key]) > 20 * 1024 * 1024) {
+            jout(['ok' => false, 'error' => '내용이 너무 큽니다 (20MB 넘음)'], 413);
+        }
+        $body = $in[$key];
+        /* 엑셀이 한글을 깨뜨리지 않게 CSV 앞에 표시를 붙입니다 */
+        if ($ext === 'csv' && substr($body, 0, 3) !== "\xEF\xBB\xBF") $body = "\xEF\xBB\xBF" . $body;
+        $path = $dir . '/' . $base . '.' . $ext;
+        $tmp  = $path . '.' . getmypid() . '.tmp';
+        if (@file_put_contents($tmp, $body) === false) {
+            @unlink($tmp);
+            jout(['ok' => false, 'error' => '그 폴더에 쓸 수 없습니다 (NAS 쓰기 권한을 확인해 주세요): '
+                . $dir], 403);
+        }
+        if (!@rename($tmp, $path)) { @unlink($tmp); jout(['ok' => false, 'error' => '파일을 바꿔 넣지 못했습니다'], 500); }
+        @chmod($path, 0664);
+        $wrote[] = ['이름' => basename($path), '크기' => human((int)@filesize($path))];
+    }
+    if (!$wrote) jout(['ok' => false, 'error' => '쓸 내용이 없습니다'], 400);
+    jout(['ok' => true, '폴더' => $dir, '놓은파일' => $wrote,
+          '놓은때' => date('Y-m-d H:i')]);
+}
+
 jout(['ok' => false, 'error' => '알 수 없는 요청입니다'], 400);

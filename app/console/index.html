@@ -101,9 +101,9 @@ tbody tr:hover{background:#f8fafc}
 .alert.info{background:var(--blue-soft);border-color:#c3ddf7;color:#184f95}
 .alert .ah{font-weight:800;margin-bottom:5px;display:flex;align-items:center;gap:7px}
 .alert .row{padding:7px 0;border-top:1px dashed rgba(0,0,0,.1)}.alert .row:first-of-type{border-top:none}
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
 .cal .dh{text-align:center;font-size:11px;font-weight:800;color:var(--mut);padding:4px}
-.cell{background:#fff;border:1px solid var(--line);border-radius:9px;min-height:76px;padding:5px 6px;font-size:11px}
+.cell{background:#fff;border:1px solid var(--line);border-radius:9px;min-height:76px;padding:5px 6px;font-size:11px;min-width:0;overflow:hidden}
 .cell .dn{font-weight:800;color:var(--mut2);font-size:11px}
 .cell /* 기본 일정은 회색 톤(파란 도배 방지) → 빨간 아스퀘가 확 튀게. 아스퀘/방문은 인라인 스타일로 덮어씀 */
 .ev{margin-top:3px;background:#eef1f4;color:#434d63;border-radius:5px;padding:1px 5px;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -130,6 +130,9 @@ tbody tr:hover{background:#f8fafc}
 .wkev.asq .wkev-cat{background:#cfe0ff;color:#1b4fd6}
 .wkev-t{font-size:13px;font-weight:700;color:#27304a}
 .wkev.asq .wkev-t{color:#1d4ed8;font-weight:800}
+.wkev:not(.asq){opacity:.55;border-left-color:#d8dce3}
+.wkev:not(.asq) .wkev-t{color:#9aa3b2;font-weight:600}
+.wkev:not(.asq) .wkev-cat{color:#9aa3b2;background:#f0f1f4}
 .wkev-who{font-size:11px;font-weight:700;color:#5b3fb0;background:#efeaff;border-radius:6px;padding:2px 7px;margin-left:auto;white-space:nowrap}
 .wkev-none{font-size:12px;color:#8a93a6;font-weight:600;padding:2px 0}
 .kv{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line2)}
@@ -946,14 +949,14 @@ function renderCalendar(){
   const _noDate=(SCHEDULES||[]).filter(s=>{ if(s.date)return false; const ck=(s.category||''); if(calCat!=='전체'&&ck!==calCat)return false; const dt=(s.meta&&s.meta.dateType)||'expected'; if(dt==='tbd')return true; const em=(s.meta&&s.meta.expectedMonth)||''; return em? em===_ym : true; });
   if(_noDate.length){
     h+=`<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 4px 12px;margin-bottom:4px;border-bottom:1px dashed var(--line)"><span style="font-size:11px;font-weight:800;color:var(--mut)">📌 날짜 미정</span>`+
-      _noDate.map(s=>{ const isAsq=(s.category==='asq'); const dt=(s.meta&&s.meta.dateType)||'expected'; const tag=dt==='tbd'?'미정':'예정'; const apt=s.apartment_id?(aptName[s.apartment_id]||''):''; const nm=(apt?apt+' — ':'')+(s.title||'일정'); return `<span onclick="openScheduleEdit('${s.id}')" title="눌러서 수정·삭제" style="cursor:pointer;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;${isAsq?'background:#dce8ff;color:#1b4fd6':'background:#eef1f4;color:#59617a'}">${tag} · ${esc(nm)}</span>`; }).join('')+
+      _noDate.map(s=>{ const isAsq=(s.category==='asq'); const dt=(s.meta&&s.meta.dateType)||'expected'; const tag=dt==='tbd'?'미정':'예정'; const apt=s.apartment_id?(aptName[s.apartment_id]||''):''; const nm=(apt?apt+' — ':'')+(s.title||'일정'); return `<span onclick="openScheduleEdit('${s.id}')" title="눌러서 수정·삭제" style="cursor:pointer;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;${isAsq?'background:#dce8ff;color:#1b4fd6':'background:#f0f1f4;color:#aab2c0;opacity:.75'}">${tag} · ${esc(nm)}</span>`; }).join('')+
       `</div>`;
   }
   ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let d=1;d<=days;d++){ const ev=(byDay[d]||[]); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const _selSt=date===calPickedDay?'box-shadow:0 0 0 2px #111a33 inset':(date===todayStr?'box-shadow:0 0 0 2px var(--blue,#2f6bf6) inset':'');
-    h+=`<div class="cell" onclick="pickCalDay('${date}')" style="cursor:pointer;${_selSt}"><div class="dn">${d}</div>${ev.map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;${e.asq?'color:#1b4fd6;background:#cfe0ff':(e.visit?'color:#2f6bf6;background:#deeafe':'color:#48526a;background:#e7eaf0')}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="event.stopPropagation();openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.visit?'background:var(--blue-soft,#eaf1ff);color:var(--blue,#2f6bf6);font-weight:700':(e.asq?'background:#dce8ff;color:#1b4fd6;font-weight:800;border-radius:4px;padding:1px 6px':`border-left:3px solid #b9c0cf;padding-left:6px;color:#3f4a5e;font-weight:600`)}${e.exp?';border:1px dashed #c7ccd6;opacity:.9':''}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.exp?'<b style="display:inline-block;font-size:8px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#8a6d1f;background:#fdf3d6">예정</b>':''}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}</div>`;
+    h+=`<div class="cell" onclick="pickCalDay('${date}')" style="cursor:pointer;${_selSt}"><div class="dn">${d}</div>${ev.map(e=>{const badge=e.cat?`<b style="display:inline-block;font-size:9px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;${e.asq?'color:#1b4fd6;background:#cfe0ff':'color:#9aa3b2;background:#f0f1f4'}">${esc(e.cat)}</b>`:'';return `<div class="ev"${e.id?` onclick="event.stopPropagation();openScheduleEdit('${e.id}')"`:''} style="${e.id?'cursor:pointer;':''}${e.asq?'background:#dce8ff;color:#1b4fd6;font-weight:800;border-radius:4px;padding:1px 6px':`border-left:3px solid #d8dce3;padding-left:6px;color:#9aa3b2;font-weight:600;opacity:.5`}${e.exp?';border:1px dashed #c7ccd6;opacity:.85':''}" title="${e.id?'눌러서 수정·삭제':esc(e.who||'')}">${badge}${e.exp?'<b style="display:inline-block;font-size:8px;font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;margin-right:3px;color:#8a6d1f;background:#fdf3d6">예정</b>':''}${e.sub?'🔁 ':''}${esc(e.t)}${e.who?' · '+esc(e.who):''}</div>`;}).join('')}</div>`;
   }
   $('calGrid').innerHTML=h;
   // 날짜 선택 전 = 방문 배치표, 날짜 클릭 = 그 날 일정 목록 (서로 토글)
@@ -988,7 +991,7 @@ function renderWeek(){
   days.forEach((d,i)=>{ const dk=isoDate(d); const evs=byDate[dk]||[]; const cls=(i>=5?' weekend':'')+(dk===todayStr?' today':'');
     h+=`<div class="wkday${cls}"><div class="wkd-left"><div class="wkd-dow">${DOW[i]}</div><div class="wkd-date">${d.getMonth()+1}/${d.getDate()}</div></div><div class="wkd-body">`;
     if(!evs.length) h+='<div class="wkev-none">— 일정 없음 —</div>';
-    else h+=evs.map(e=>`<div class="wkev${e.asq?' asq':''}"${(!e.asq&&e.color)?` style="border-left-color:${e.color}"`:''}><b class="wkev-cat">${esc(e.lab||'일정')}</b><span class="wkev-t">${e.apt?esc(e.apt)+' — ':''}${esc(e.title)}</span>${e.who?`<span class="wkev-who">👤 ${esc(e.who)}</span>`:''}</div>`).join('');
+    else h+=evs.map(e=>`<div class="wkev${e.asq?' asq':''}"><b class="wkev-cat">${esc(e.lab||'일정')}</b><span class="wkev-t">${e.apt?esc(e.apt)+' — ':''}${esc(e.title)}</span>${e.who?`<span class="wkev-who">👤 ${esc(e.who)}</span>`:''}</div>`).join('');
     h+='</div></div>';
   });
   h+='</div>';
@@ -1018,7 +1021,7 @@ function renderCalDayList(){
   const wd=['일','월','화','수','목','금','토'][new Date(Y,M-1,D).getDay()];
   let h=`<div class="card" style="margin-top:12px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📅 ${M}/${D} (${wd}) 일정 <span style="font-size:12px;color:var(--mut);font-weight:600">${items.length}건</span><span style="flex:1"></span><button class="b blue sm" onclick="openScheduleAdd('${calPickedDay}')">➕ 이 날 일정 추가</button><button class="b line sm" onclick="pickCalDay('${calPickedDay}')">닫기</button></h3>`;
   if(!items.length){ h+='<div class="empty">이 날 일정이 없어요</div>'; }
-  else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const isAsq=(s.category==='asq'); const isExp=(s.meta&&s.meta.dateType==='expected'); let asg=schedAsgName(s); if(!asg&&s.apartment_id){ const _a=APTS.find(x=>x.id===s.apartment_id); if(_a){ asg=aptAuditors(_a).map(auditorName).filter(n=>n&&n!=='-').join(', '); } } const apt=s.apartment_id?aptName[s.apartment_id]:''; const bcol=isAsq?'#2563eb':'#c7ccd6'; return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${bcol};background:${isAsq?'#eff4ff':'#f7f8fa'};border-radius:0 8px 8px 0;margin-bottom:6px${isExp?';border:1px dashed #c7ccd6':''}"><b style="font-size:10px;font-weight:800;${isAsq?'color:#1b4fd6;background:#cfe0ff':'color:#49536a;background:#e7eaf0'};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b>${isExp?'<b style="font-size:9px;font-weight:800;color:#8a6d1f;background:#fdf3d6;padding:2px 7px;border-radius:5px">예정</b>':''}<span style="font-weight:${isAsq?800:700};font-size:13px;color:${isAsq?'#1d4ed8':'#2b3446'}">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:${isAsq?'var(--mut)':'#5a6478'}">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
+  else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const isAsq=(s.category==='asq'); const isExp=(s.meta&&s.meta.dateType==='expected'); let asg=schedAsgName(s); if(!asg&&s.apartment_id){ const _a=APTS.find(x=>x.id===s.apartment_id); if(_a){ asg=aptAuditors(_a).map(auditorName).filter(n=>n&&n!=='-').join(', '); } } const apt=s.apartment_id?aptName[s.apartment_id]:''; const bcol=isAsq?'#2563eb':'#c7ccd6'; return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${bcol};background:${isAsq?'#eff4ff':'#f7f8fa'};border-radius:0 8px 8px 0;margin-bottom:6px${isExp?';border:1px dashed #c7ccd6':''}${isAsq?'':';opacity:.6'}"><b style="font-size:10px;font-weight:800;${isAsq?'color:#1b4fd6;background:#cfe0ff':'color:#9aa3b2;background:#f0f1f4'};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b>${isExp?'<b style="font-size:9px;font-weight:800;color:#8a6d1f;background:#fdf3d6;padding:2px 7px;border-radius:5px">예정</b>':''}<span style="font-weight:${isAsq?800:700};font-size:13px;color:${isAsq?'#1d4ed8':'#9aa3b2'}">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:${isAsq?'var(--mut)':'#aab2c0'}">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
   h+='</div>';
   box.innerHTML=h;
 }

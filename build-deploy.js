@@ -57,6 +57,25 @@ for (const f of ["app.js", "stages.js", "supabase-app.js"]) {
 // --- 현장 점검 앱 (inspect/) ---
 cp.execSync(`mkdir -p "${OUT}/inspect"`);
 let insp = fs.readFileSync(APP + "/inspect/index.html", "utf8");
+// 안전장치: 체크리스트(감리일지)를 통째로 교체해도 '핵심 연동/수정'이 빠지면 빌드를 중단한다.
+// (디자이너 새 파일로 바꿀 때 supabase 로드·대시보드 전송 등이 누락돼 배포가 깨지는 사고 방지)
+const INSPECT_REQUIRED = [
+  ["@supabase/supabase-js", "Supabase 로드 <script> — 연결/대시보드 전송/담당감리원/잔디"],
+  ["createClient",          "Supabase 클라이언트 생성(연동)"],
+  ["sendToDashboard",       "대시보드(reports) 전송 연동"],
+  ["refreshServerRound",    "서버 기준 회차(제N차) 자동화"],
+  ["report-photos",         "현장 사진 업로드"],
+  ["maximum-scale=1",       "모바일 확대 잠금 viewport 수정"],
+  ["env(safe-area-inset-bottom", "팝업(.modal) 모바일 가림 수정"],
+];
+const inspMissing = INSPECT_REQUIRED.filter(([m]) => !insp.includes(m));
+if (inspMissing.length) {
+  console.error("\n❌ 배포 중단 — inspect/index.html(감리 체크리스트)에 핵심 기능이 빠졌습니다:");
+  inspMissing.forEach(([m, d]) => console.error("   · " + d + "   (마커: " + m + ")"));
+  console.error("\n→ 체크리스트를 새로 교체했다면, 위 연동/수정이 그대로 들어있는지 확인한 뒤 다시 빌드하세요.");
+  console.error("   (교체보다 '내용만 수정'을 권장. 자세한 건 docs/체크리스트-교체-주의.md 참고)\n");
+  process.exit(1);
+}
 insp = insp.replace("</head>", NOCACHE + "\n</head>");
 fs.writeFileSync(OUT + "/inspect/index.html", insp);
 cp.execSync(`mkdir -p "${OUT}/inspect/guides" && cp -f "${APP}/inspect/guides/"*.jpg "${OUT}/inspect/guides/" 2>/dev/null || true`);

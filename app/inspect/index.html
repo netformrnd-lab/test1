@@ -2540,14 +2540,28 @@ clock();
         msg('저장 중…', true);
         var date=store.meta.date||'';
         var wl=(typeof W!=='undefined' && W && D[W]) ? D[W].label : '';
-        var title='[감리일지] '+(store.meta.site||APT_NAME||'현장')+(wl?' · '+wl:'')+(date?' · '+date:'');
         var stage=(typeof PH!=='undefined' && PH)?PH:null;
-        sb.from('reports').insert({ apartment_id:APT_ID, author_id:user.id, title:title, content:content, stage:stage, dongs:store.meta.zone||null, photos:urls }).then(function(res){
+        function done(res){
           if(res.error){ msg('전송 실패: '+res.error.message); if(btn) btn.disabled=false; return; }
           msg('✅ 전송 완료! 앱으로 돌아갑니다…', true);
           INTEG.photos=[]; renderThumbs();
           try{ localStorage.removeItem(KEY); }catch(e){}   /* 전송 끝난 이 단지 임시작성 비우기 → 다음엔 새로 시작 */
           setTimeout(function(){ if(window._integBack) window._integBack(); }, 1300);
+        }
+        function doInsert(round, hasWT){
+          var title='[감리일지] '+(store.meta.site||APT_NAME||'현장')+(wl?' · '+wl:'')+(hasWT?' · 제'+round+'차':'')+(date?' · '+date:'');
+          var body=hasWT?String(content).replace(/회차:\s*제\d+차/, '회차: 제'+round+'차'):content;   /* 내용 속 회차도 서버 기준으로 */
+          var rec={ apartment_id:APT_ID, author_id:user.id, title:title, content:body, stage:stage, dongs:store.meta.zone||null, photos:urls };
+          if(hasWT) rec.worktype=wl||null;
+          sb.from('reports').insert(rec).then(done);
+        }
+        /* 회차: 서버의 '같은 단지+공종' 기존 감리일지 수 + 1 → 기기와 무관하게 자동 증가.
+           worktype 컬럼이 아직 없으면(마이그레이션 전) 기존 방식으로 안전하게 처리. */
+        var cq=sb.from('reports').select('id',{count:'exact',head:true}).eq('apartment_id',APT_ID);
+        cq=wl?cq.eq('worktype',wl):cq.is('worktype',null);
+        cq.then(function(cr){
+          if(cr&&cr.error) doInsert(1,false);
+          else doInsert(((cr&&cr.count)||0)+1, true);
         });
       }
       next();

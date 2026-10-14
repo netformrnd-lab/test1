@@ -1573,7 +1573,12 @@ if ($action === 'hub' || $action === 'hubinfo') {
 
    읽기·쓰기 모두 <<공유폴더 안쪽>> 만 됩니다.
    -------------------------------------------------------------------- */
+/* 표로 바로 읽히는 것 */
 $TS_EXT  = ['json', 'csv', 'tsv', 'xlsx', 'xlsm'];
+/* 자료일 수도 있는 것 — 그쪽 앱이 무엇으로 담아 두는지 모르니 넓게 봅니다.
+   (localStorage 를 쓰면 파일이 아예 없습니다. 그것도 뒤져 봐야 압니다) */
+$TS_EXT2 = ['json', 'csv', 'tsv', 'xlsx', 'xlsm', 'xls', 'txt', 'xml', 'db',
+            'sqlite', 'sqlite3', 'js', 'dat', 'log', 'bak'];
 /* 「할 일」 로 보이는 이름인가 — 이름만 보고 미리 가려 줍니다 */
 function ts_looks($name) {
     $k = nas_name_key($name);
@@ -1583,17 +1588,21 @@ function ts_looks($name) {
     return false;
 }
 /* 폴더(와 아래 단계)에서 자료 파일을 모읍니다 */
-function ts_scan($dir, $depth, &$out, $limit = 120) {
+function ts_scan($dir, $depth, &$out, $limit = 120, $wide = false, $base = null) {
     if ($depth < 0 || count($out) >= $limit) return;
+    if ($base === null) $base = $dir;
+    $exts = $wide ? $GLOBALS['TS_EXT2'] : $GLOBALS['TS_EXT'];
     foreach ((array)@scandir($dir) as $e) {
         if ($e === '.' || $e === '..' || $e[0] === '.') continue;
         if (strpos($e, '_휴지통') === 0) continue;
         $f = $dir . '/' . $e;
-        if (is_dir($f)) { ts_scan($f, $depth - 1, $out, $limit); continue; }
+        if (is_dir($f)) { ts_scan($f, $depth - 1, $out, $limit, $wide, $base); continue; }
         $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-        if (!in_array($ext, $GLOBALS['TS_EXT'], true)) continue;
+        if (!in_array($ext, $exts, true)) continue;
         if (count($out) >= $limit) return;
         $out[] = ['이름' => $e, '경로' => $f, '종류' => $ext,
+                  '어디' => trim(str_replace($base, '', dirname($f)), '/'),
+                  '바이트' => (int)@filesize($f),
                   '크기' => human((int)@filesize($f)),
                   '고친때' => date('Y-m-d H:i', (int)@filemtime($f)),
                   '할일같음' => ts_looks($e)];
@@ -1620,9 +1629,11 @@ function ts_dir($raw) {
     return $rr;
 }
 if ($action === 'tsfind') {
-    $dir = ts_dir($_GET['path'] ?? '');
-    $out = [];
-    ts_scan($dir, 2, $out);
+    $dir  = ts_dir($_GET['path'] ?? '');
+    $wide = !empty($_GET['wide']);            /* 넓게 뒤지기 */
+    $deep = max(0, min(5, (int)($_GET['deep'] ?? ($wide ? 4 : 2))));
+    $out  = [];
+    ts_scan($dir, $deep, $out, 300, $wide);
     /* 할 일로 보이는 것 → 새로 고친 것 순 */
     usort($out, function ($a, $b) {
         if ($a['할일같음'] !== $b['할일같음']) return $b['할일같음'] <=> $a['할일같음'];
@@ -1676,6 +1687,57 @@ if ($action === 'tsread') {
           '고친때' => date('Y-m-d H:i', (int)@filemtime($file)),
           '줄수' => count($rows), '줄' => array_slice(array_values($rows), 0, 2000)]);
 }
+/* 파일 앞부분을 글자로 조금 보여 줍니다 — 그쪽 자료가 어떤 모양인지
+   눈으로 보고 정하려는 것입니다. 읽기만 하고, 공유폴더 안쪽만 봅니다. */
+if ($action === 'tspeek') {
+    $in = normalize_nas_input($_GET['path'] ?? '');
+    if ($in === null) jout(['ok' => false, 'error' => '파일 경로를 알아보지 못했습니다'], 400);
+    $dir  = ts_dir(dirname($in));
+    $want = nas_name_key(basename($in));
+    $file = null;
+    foreach ((array)@scandir($dir) as $e) {
+        if ($e === '.' || $e === '..') continue;
+        if (nas_name_key($e) === $want && is_file($dir . '/' . $e)) { $file = $dir . '/' . $e; break; }
+    }
+    if ($file === null) jout(['ok' => false, 'error' => '그런 파일이 없습니다: ' . basename($in)], 404);
+
+    $max = max(200, min(20000, (int)($_GET['n'] ?? 4000)));
+    $fh  = @fopen($file, 'rb');
+    $head = $fh ? (string)fread($fh, $max) : '';
+    if ($fh) fclose($fh);
+    /* 글자가 아니면(그림·압축·sqlite 같은 것) 앞머리만 알려 줍니다.
+       ⚠️ UTF-8 로 읽히는지만 보면 안 됩니다 — SQLite 파일은 0 바이트로
+       채워져 있어 그것도 「글자」 로 통과합니다. 0 바이트가 하나라도
+       있으면 글자가 아닌 것으로 봅니다. */
+    $isText = $head === '' || (preg_match('//u', $head) && strpos($head, "\0") === false);
+    $out = ['ok' => true, '파일' => basename($file), '폴더' => $dir,
+            '크기' => human((int)@filesize($file)),
+            '고친때' => date('Y-m-d H:i', (int)@filemtime($file)),
+            '글자인가' => (bool)$isText];
+    if (!$isText) {
+        $out['앞머리'] = strtoupper(bin2hex(substr($head, 0, 16)));
+        $out['짐작'] = (strpos($head, 'SQLite format 3') === 0) ? 'SQLite 자료파일'
+                     : ((substr($head, 0, 2) === 'PK') ? '압축(xlsx·zip 일 수 있음)' : '글자가 아닌 파일');
+        jout($out);
+    }
+    $out['앞부분'] = $head;
+    /* JSON 이면 무슨 열쇠가 있는지도 알려 줍니다 */
+    $js = json_decode((string)@file_get_contents($file), true);
+    if (is_array($js)) {
+        $out['JSON열쇠'] = array_slice(array_keys($js), 0, 40);
+        $out['줄수'] = array_key_exists(0, $js) ? count($js) : null;
+        foreach ($js as $k => $v) {
+            if (is_array($v) && array_key_exists(0, $v) && is_array($v[0])) {
+                $out['목록열쇠'] = $k;
+                $out['목록줄수'] = count($v);
+                $out['줄모양'] = array_slice(array_keys($v[0]), 0, 30);
+                break;
+            }
+        }
+    }
+    jout($out);
+}
+
 if ($action === 'tsput') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
     $dir = ts_dir($_GET['path'] ?? '');

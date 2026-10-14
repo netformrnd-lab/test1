@@ -107,6 +107,31 @@ tbody tr:hover{background:#f8fafc}
 .cell .dn{font-weight:800;color:var(--mut2);font-size:11px}
 .cell /* 기본 일정은 회색 톤(파란 도배 방지) → 빨간 아스퀘가 확 튀게. 아스퀘/방문은 인라인 스타일로 덮어씀 */
 .ev{margin-top:3px;background:#eef1f4;color:#59617a;border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 주간 보기 */
+.wktoggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.wktoggle button{border:none;background:#fff;font-size:12px;font-weight:700;padding:6px 13px;cursor:pointer;color:#59617a}
+.wktoggle button.on{background:#111a33;color:#fff}
+.wkwrap{background:#fff;border-radius:10px}
+.wkhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px 14px;border-bottom:1px solid var(--line)}
+.wkhead .wt{font-size:15px;font-weight:800;color:#1b2440}
+.wkhead .wsub{font-size:12px;color:#808aa0;font-weight:600}
+.wkday{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border-top:1px solid #eef1f4}
+.wkday:first-of-type{border-top:none}
+.wkday.today{background:#f2f6ff}
+.wkd-left{flex:0 0 52px;text-align:center;padding-top:3px}
+.wkd-dow{font-size:14px;font-weight:800;color:#3a4458}
+.wkday.today .wkd-dow{color:#2563eb}
+.wkday.weekend .wkd-dow{color:#c2607a}
+.wkd-date{font-size:11px;color:#9aa3b2;font-weight:700;margin-top:2px}
+.wkd-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.wkev{display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:#f8f9fb;border-left:3px solid #c7ccd6;border-radius:0 7px 7px 0;padding:6px 10px}
+.wkev.asq{background:#eff4ff;border-left-color:#2563eb}
+.wkev-cat{font-size:10px;font-weight:800;color:#fff;background:#aab2c0;border-radius:4px;padding:2px 6px;white-space:nowrap}
+.wkev.asq .wkev-cat{background:#2563eb}
+.wkev-t{font-size:13px;font-weight:700;color:#27304a}
+.wkev.asq .wkev-t{color:#1d4ed8;font-weight:800}
+.wkev-who{font-size:11px;font-weight:700;color:#5b3fb0;background:#efeaff;border-radius:6px;padding:2px 7px;margin-left:auto;white-space:nowrap}
+.wkev-none{font-size:12px;color:#b3bac5;font-weight:600;padding:2px 0}
 .kv{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line2)}
 .kv:last-child{border-bottom:none}.kv span{width:110px;color:var(--mut2);font-size:12px;font-weight:800;flex-shrink:0}.kv b{font-weight:700;font-size:13px}
 .empty{text-align:center;color:var(--mut);font-size:13px;padding:22px}
@@ -316,8 +341,8 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-calendar">
-      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b line" style="color:#d9453c;border-color:#f3c2be" onclick="deleteOwnSchedules()">🗑 우리가 올린 일정 삭제 (POUR 제외)</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
-      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button> <span id="buildTag" style="font-size:9px;color:#c3c9d4;font-weight:600"></span></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div></div>
+      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="wktoggle"><button id="calViewMonth" class="on" onclick="setCalView('month')">월간</button><button id="calViewWeek" onclick="setCalView('week')">주간</button></span><button class="b line" onclick="exportCalImage()">📷 주간 사진 저장</button><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b line" style="color:#d9453c;border-color:#f3c2be" onclick="deleteOwnSchedules()">🗑 우리가 올린 일정 삭제 (POUR 제외)</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
+      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button> <span id="buildTag" style="font-size:9px;color:#c3c9d4;font-weight:600"></span></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div><div id="calWeek" style="display:none"></div></div>
       <div id="calDayList"></div>
       <div id="cal-alert"></div>
     </section>
@@ -803,6 +828,12 @@ function renderOrgs(){
 
 /* ===== 캘린더 ===== */
 let calYM=null;
+let calView='month';      // 'month' | 'week'
+let calWeekStart=null;    // 이번(선택) 주의 월요일 Date
+function startOfWeek(d){ const n=new Date(d); const off=(n.getDay()+6)%7; n.setHours(0,0,0,0); n.setDate(n.getDate()-off); return n; }
+function syncCalViewUI(){ const mb=$('calViewMonth'),wb=$('calViewWeek'); if(mb)mb.className=(calView==='month'?'on':''); if(wb)wb.className=(calView==='week'?'on':''); }
+function setCalView(v){ calView=v; if(v==='week'&&!calWeekStart)calWeekStart=startOfWeek(new Date()); calPickedDay=null; renderCalendar(); }
+window.setCalView=setCalView;
 /* ===== 방문 배치 (control_sites) — 담당·주기·요일 → 방문 자동생성 ===== */
 const CYCLE_DAYS={'주1회':'수','주2회':'화·목','주3회':'월·수·금','상주':'월·화·수·목·금'};
 const WKB=['월','화','수','목','금','토','일'];
@@ -891,6 +922,9 @@ function computeVisits(y,m){
 function renderCalendar(){
   const now=new Date(); if(!calYM)calYM={y:now.getFullYear(),m:now.getMonth()};
   const bt=$('buildTag'); if(bt)bt.textContent='v'+(window.__BUILD__||'dev');
+  syncCalViewUI();
+  if(calView==='week'){ const g=$('calGrid'); if(g)g.style.display='none'; const cw=$('calWeek'); if(cw)cw.style.display=''; const dl=$('calDayList'); if(dl)dl.innerHTML=''; const ca=$('cal-alert'); if(ca)ca.innerHTML=''; renderWeek(); return; }
+  { const g=$('calGrid'); if(g)g.style.display=''; const cw=$('calWeek'); if(cw){cw.style.display='none';cw.innerHTML='';} }
   const {y,m}=calYM; const cl=$('calLabel'); if(cl)cl.textContent=`${y}년 ${m+1}월`;
   const names=auditorNames(); const ps=$('calPersonSel');
   if(ps) ps.innerHTML=`담당 <select onchange="setCalPerson(this.value)" style="font-size:12px;padding:3px 8px;border-radius:7px;border:1px solid var(--line)"><option ${calPerson==='전체'?'selected':''}>전체</option>${names.map(n=>`<option ${calPerson===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`;
@@ -929,6 +963,51 @@ function renderCalendar(){
 let calPickedDay=null;
 function pickCalDay(dk){ calPickedDay=(calPickedDay===dk?null:dk); renderCalendar(); if(calPickedDay){ const el=$('calDayList'); if(el)setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50); } }
 window.pickCalDay=pickCalDay;
+/* ===== 주간 보기 + 사진 내보내기 ===== */
+function renderWeek(){
+  const now=new Date(); if(!calWeekStart)calWeekStart=startOfWeek(now);
+  const mon=new Date(calWeekStart); const days=[]; for(let i=0;i<7;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); days.push(d); }
+  const sun=days[6];
+  const cl=$('calLabel'); if(cl)cl.textContent=`${mon.getMonth()+1}/${mon.getDate()} ~ ${sun.getMonth()+1}/${sun.getDate()} 주간`;
+  const names=auditorNames(); const ps=$('calPersonSel');
+  if(ps) ps.innerHTML=`담당 <select onchange="setCalPerson(this.value)" style="font-size:12px;padding:3px 8px;border-radius:7px;border:1px solid var(--line)"><option ${calPerson==='전체'?'selected':''}>전체</option>${names.map(n=>`<option ${calPerson===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`;
+  const aptName={}; APTS.forEach(a=>aptName[a.id]=a.name);
+  const todayStr=isoDate(now), mks=isoDate(mon), sks=isoDate(sun);
+  const byDate={};
+  (SCHEDULES||[]).forEach(s=>{ if(!s.date)return; const dk=String(s.date).slice(0,10); if(dk<mks||dk>sks)return;
+    const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return;
+    const meta=catMeta(s.category); const isP=s.source==='pour'; const isAsq=(s.category==='asq');
+    let asg=schedAsgName(s); if(!asg&&s.apartment_id){ const _a=APTS.find(x=>x.id===s.apartment_id); if(_a) asg=aptAuditors(_a).map(auditorName).filter(n=>n&&n!=='-').join(', '); }
+    if(calPerson!=='전체' && asg!==calPerson && !String(asg||'').split(', ').includes(calPerson)) return;
+    const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:''));
+    (byDate[dk]=byDate[dk]||[]).push({ title:s.title||'일정', apt:s.apartment_id?(aptName[s.apartment_id]||''):'', lab, asq:isAsq, color:isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]), who:asg });
+  });
+  const DOW=['월','화','수','목','금','토','일'];
+  let h='<div class="wkwrap" id="calWeekShot">';
+  h+=`<div class="wkhead"><span class="wt">📅 주간 일정</span><span class="wsub">${mon.getFullYear()}. ${mon.getMonth()+1}.${mon.getDate()} ~ ${sun.getMonth()+1}.${sun.getDate()}${calPerson!=='전체'?' · 담당 '+esc(calPerson):''}${calCat!=='전체'?' · '+esc(catMeta(calCat)[1]||calCat):''}</span><span style="flex:1"></span><span class="wsub" style="font-weight:800;color:#2563eb">아파트스퀘어</span></div>`;
+  days.forEach((d,i)=>{ const dk=isoDate(d); const evs=byDate[dk]||[]; const cls=(i>=5?' weekend':'')+(dk===todayStr?' today':'');
+    h+=`<div class="wkday${cls}"><div class="wkd-left"><div class="wkd-dow">${DOW[i]}</div><div class="wkd-date">${d.getMonth()+1}/${d.getDate()}</div></div><div class="wkd-body">`;
+    if(!evs.length) h+='<div class="wkev-none">— 일정 없음 —</div>';
+    else h+=evs.map(e=>`<div class="wkev${e.asq?' asq':''}"${(!e.asq&&e.color)?` style="border-left-color:${e.color}"`:''}><b class="wkev-cat"${(!e.asq&&e.color)?` style="background:${e.color}"`:''}>${esc(e.lab||'일정')}</b><span class="wkev-t">${e.apt?esc(e.apt)+' — ':''}${esc(e.title)}</span>${e.who?`<span class="wkev-who">👤 ${esc(e.who)}</span>`:''}</div>`).join('');
+    h+='</div></div>';
+  });
+  h+='</div>';
+  const cw=$('calWeek'); if(cw)cw.innerHTML=h;
+}
+function ensureHtml2canvas(){ if(window.html2canvas)return Promise.resolve(); if(window._h2cP)return window._h2cP; window._h2cP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}); return window._h2cP; }
+async function exportCalImage(){
+  if(calView!=='week'){ setCalView('week'); }
+  const node=document.getElementById('calWeekShot');
+  if(!node){ alert('주간 보기를 먼저 열어주세요.'); return; }
+  try{
+    await ensureHtml2canvas();
+    const canvas=await html2canvas(node,{scale:2,backgroundColor:'#ffffff'});
+    const a=document.createElement('a'); a.href=canvas.toDataURL('image/png');
+    a.download='아파트스퀘어_주간일정_'+isoDate(calWeekStart)+'.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ alert('이미지 저장 실패: '+((e&&e.message)||e)); }
+}
+window.exportCalImage=exportCalImage;
 // 날짜 클릭 → 그 날 일정 전부를 달력 아래에 목록으로 (클릭해서 수정/삭제, 담당 표시)
 function renderCalDayList(){
   const box=$('calDayList'); if(!box)return;
@@ -2143,7 +2222,9 @@ async function deleteMember(id){
 
 /* ===== 일정(schedules) ===== */
 let calYMset=false;
-function calMove(d){ if(!calYM){const n=new Date();calYM={y:n.getFullYear(),m:n.getMonth()};} let m=calYM.m+d,y=calYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} calYM={y,m}; renderCalendar(); }
+function calMove(d){
+  if(calView==='week'){ if(!calWeekStart)calWeekStart=startOfWeek(new Date()); const n=new Date(calWeekStart); n.setDate(n.getDate()+7*d); calWeekStart=n; renderCalendar(); return; }
+  if(!calYM){const n=new Date();calYM={y:n.getFullYear(),m:n.getMonth()};} let m=calYM.m+d,y=calYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} calYM={y,m}; renderCalendar(); }
 function schOwnerName(s){ const m=MEMBERS.find(x=>x.id===s.owner_id); return m?(m.name||loginId(m)):'개인'; }
 /* ===== 일정 추가/수정 — POUR식 분류별 상세 폼 ===== */
 const SCHED_NODE={pt:'pt',bids:'briefing',sales:'sales',seminar:'seminar',personal:'personal',meeting:'meetings',vacation:'vacation',asq:'asq'};

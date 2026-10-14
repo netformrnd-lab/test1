@@ -3012,6 +3012,9 @@ clock();
   /* ---- 메타 입력 보정: 자동채움만(입력은 자유) · 감리원은 감리원 목록에서 선택 ----
      현장명은 store.meta.site(=단지명)를 앱의 bindMeta가 자동으로 채운다. 여기선 덮어쓰지 않는다. */
   function applyMeta(){
+    /* 감리원·공사감리자 = 담당 감리원 자동. 담당 감리원(INTEG.boss) 우선, 없으면 로그인 감리원(INTEG.me).
+       빈칸이거나 샘플 기본값(김성민/조현식)일 때만 채운다(사용자가 직접 쓴 값은 보존). */
+    var want = INTEG.boss || INTEG.me || '';
     var insp=document.getElementById('m-insp');
     if(insp){
       var dl=document.getElementById('integAuditors');
@@ -3019,14 +3022,14 @@ clock();
       dl.innerHTML = INTEG.auditors.map(function(n){return '<option value="'+String(n).replace(/"/g,'&quot;')+'"></option>';}).join('');
       insp.setAttribute('list','integAuditors');
       insp.placeholder='감리원 선택 또는 직접 입력';
-      /* 앱 기본값 '김성민'이면 로그인 감리원으로 교체(있을 때) */
-      if(insp.value==='김성민'){ insp.value = INTEG.me || INTEG.boss || ''; store.meta.insp = insp.value; }
+      if(want && (!insp.value || insp.value==='김성민')){
+        insp.value = want; store.meta.insp = want; try{save();}catch(e){}
+        try{ var w=document.getElementById('who'); if(w) w.textContent = want; }catch(e){}
+      }
     }
     var boss=document.getElementById('m-boss');
-    if(boss){
-      /* 앱 기본값 '조현식'이면 담당 감리원으로 교체(있을 때) */
-      if(boss.value==='조현식'){ boss.value = INTEG.boss || ''; store.meta.boss = boss.value; }
-      else if(!boss.value && INTEG.boss){ boss.value = INTEG.boss; store.meta.boss = INTEG.boss; }
+    if(boss && want && (!boss.value || boss.value==='조현식')){
+      boss.value = want; store.meta.boss = want; try{save();}catch(e){}
     }
   }
   if(typeof bindMeta==='function'){ var _bindMeta=bindMeta; bindMeta=function(){ _bindMeta.apply(this,arguments); applyMeta(); }; }

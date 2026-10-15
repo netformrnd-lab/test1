@@ -335,6 +335,15 @@ body.tt-wide .layout{max-width:1820px}
   background:color-mix(in srgb,var(--green) 7%,transparent)}
 .lk-auto .fmeta{margin-left:auto}
 @media (max-width:700px){ .lk-auto .fmeta{margin-left:0;width:100%} }
+/* 📌 저쪽에 부탁할 자리·이름 — 눈에 잘 띄게 */
+.lk-fix{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 0;
+  padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--blue);
+  border-radius:var(--r-xs);background:var(--bg-card);font-size:12.5px}
+.lk-fix code{font-size:12px;padding:3px 7px;border-radius:4px;
+  background:var(--bg-hover);border:1px solid var(--border);
+  word-break:break-all;line-height:1.7}
+.lk-fix code b{color:var(--blue)}
+.lk-fix .fmeta{width:100%;margin:0}
 .lk-warn{border:1px solid var(--border);border-left:3px solid var(--orange);
   border-radius:var(--r-xs);padding:9px 12px;margin:0 0 10px;font-size:12.5px;
   background:var(--bg-card)}
@@ -5468,7 +5477,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-9';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-10';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7237,30 +7246,42 @@ function hubsOf(){
     /* 처음 한 번만 — 미디어마케팅팀 자리를 미리 만들어 둡니다.
        주소는 [✎] 로 적습니다 (NAS 웹폴더에 올린 파일 이름). */
     data.hubs = [{ id: uid('hub'), name: '미디어마케팅팀', emoji: '\ud83d\udcca',
-                   url: '', path: HUB_MEDIA_DIR }];
+                   url: '', path: HUB_MEDIA_DIR, want: HUB_MEDIA_FILE }];
   }
   /* 모양을 맞춰 둡니다 — 예전에 걸어 둔 것에는 path 가 없습니다 */
   data.hubs.forEach(h => {
     if(typeof h.url  !== 'string') h.url  = '';
     if(typeof h.path !== 'string') h.path = '';
+    if(typeof h.want !== 'string') h.want = '';
   });
   return data.hubs;
 }
 /* 미디어마케팅팀이 자기네 브랜드허브를 두는 자리 (판이 올라가도 그대로) */
-const HUB_MEDIA_DIR = 'Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\실행파일\\HTML_V05';
+const HUB_MEDIA_DIR = 'Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\미디어마케팅팀 브랜드허브\\프로그램_미디어마케팅팀 브랜드허브';
+/* 📌 <<못 박아 둔 프로그램 이름>> ───────────────────────────────────
+   여태는 폴더 이름에 판 번호가 붙어 있어(HTML_V05 → V06) 그쪽이 판을
+   올릴 때마다 우리가 다시 걸어야 했습니다. 이제 <<파일 이름 하나>> 를
+   맞춰 두었습니다 — 저쪽이 몇 번을 갱신해도 이 이름이면 그대로 열립니다.
+   확장자(.html · .htm)는 안 봅니다. 이 이름이 아직 없으면 판 번호가
+   가장 큰 것을 엽니다(예비 길). */
+const HUB_MEDIA_FILE = 'mediam_TeamHub';
 /* ── 팀 허브를 어디로 여나 ─────────────────────────────────────────
    · path 가 있으면 <<공유폴더에서 가장 새 판 HTML>> 을 펴 줍니다.
      (그쪽이 HTML_V06 을 올리면 우리는 손댈 것이 없습니다)
    · 없으면 여태처럼 적어 둔 주소를 그대로 씁니다. */
 function hubHref(h){
   const pth = String((h && h.path) || '').trim();
-  if(pth) return 'nasfiles.php?action=hub&path=' + encodeURIComponent(pth);
+  const wnt = String((h && h.want) || '').trim();
+  if(pth) return 'nasfiles.php?action=hub&path=' + encodeURIComponent(pth)
+    + (wnt ? '&want=' + encodeURIComponent(wnt) : '');
   return String((h && h.url) || '').trim();
 }
 function hubWhere(h){
   const pth = String((h && h.path) || '').trim();
-  return pth ? pth + ' 안에서 가장 새 판을 엽니다'
-             : (String((h && h.url) || '').trim() || '아직 자리를 안 적었습니다');
+  const wnt = String((h && h.want) || '').trim();
+  if(!pth) return String((h && h.url) || '').trim() || '아직 자리를 안 적었습니다';
+  return pth + (wnt ? ' 안에서 「' + wnt + '」 을 엽니다 (판이 올라가도 그대로)'
+                    : ' 안에서 가장 새 판을 엽니다');
 }
 function renderHubs(){
   const el = document.getElementById('hubList');
@@ -7306,15 +7327,26 @@ async function hubCheck(id){
                         : '아직 자리를 안 적었습니다'); return; }
   toast('⏳ 공유폴더를 보고 있습니다…');
   try{
-    const r = await apiJson('nasfiles.php?action=hubinfo&path=' + encodeURIComponent(pth));
+    const wnt = String(h.want || '').trim();
+    const r = await apiJson('nasfiles.php?action=hubinfo&path=' + encodeURIComponent(pth)
+      + (wnt ? '&want=' + encodeURIComponent(wnt) : ''));
     alert('✅ ' + h.name + ' — 이것이 열립니다\n\n'
       + '파일: ' + r['파일'] + '\n'
       + '고친때: ' + r['고친때'] + ' · ' + r['크기'] + '\n'
       + '폴더: ' + r['폴더'] + '\n\n'
-      + (((r['후보'] || []).length > 1)
-          ? '같은 폴더에서 본 것들:\n· ' + r['후보'].join('\n· ')
-            + '\n\n판 번호가 가장 큰 것을 엽니다 (V06 이 올라오면 그쪽으로 바뀝니다).'
-          : '판이 올라가도 이 폴더만 보면 되니, 다시 걸 일은 없습니다.'));
+      + (wnt
+          ? (r['정해둔것맞음']
+              ? '📌 못 박아 둔 이름 「' + wnt + '」 그대로입니다.\n'
+                + '저쪽이 몇 번을 갱신해도 이름만 같으면 늘 이 파일이 열립니다 — '
+                + '다시 걸 일이 없습니다.'
+              : '⚠ 못 박아 둔 이름 「' + wnt + '」 은 <<아직 그 폴더에 없습니다>>.\n'
+                + '그래서 판 번호가 가장 큰 것을 대신 열었습니다.\n\n'
+                + '미디어마케팅팀에 「프로그램 파일 이름을 ' + wnt + '.html 로 '
+                + '맞춰 주세요」 라고 한 번만 부탁해 주세요.')
+          : (((r['후보'] || []).length > 1)
+              ? '같은 폴더에서 본 것들:\n· ' + r['후보'].join('\n· ')
+                + '\n\n판 번호가 가장 큰 것을 엽니다 (V06 이 올라오면 그쪽으로 바뀝니다).'
+              : '판이 올라가도 이 폴더만 보면 되니, 다시 걸 일은 없습니다.')));
   }catch(e){
     alert('❌ 아직 못 찾았습니다.\n\n' + apiErrText(e)
       + '\n\n· 적어 둔 자리: ' + pth
@@ -7339,9 +7371,9 @@ function hubEdit(id){
      우리는 손댈 것이 없습니다. 웹주소·파일이름도 그대로 받습니다. */
   const cur = h ? (String(h.path || '').trim() || String(h.url || '').trim()) : HUB_MEDIA_DIR;
   const loc = prompt('자리 — 어디에 있는 것을 열까요?\n\n'
-    + '① 공유폴더 경로 (권장) — 그 폴더에서 가장 새 판을 엽니다\n'
-    + '   예) Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\실행파일\\HTML_V05\n'
-    + '   그쪽이 HTML_V06 을 올려도 다시 걸 일이 없습니다.\n\n'
+    + '① 공유폴더 경로 (권장) — 그 폴더에서 열 것을 골라 줍니다\n'
+    + '   예) ' + HUB_MEDIA_DIR + '\n'
+    + '   그쪽이 판을 올려도 다시 걸 일이 없습니다.\n\n'
     + '② 웹주소 — http 로 시작하는 주소 전체\n'
     + '③ 같은 NAS 웹폴더에 둔 파일이면 파일 이름만: teamhub-media.html',
     cur);
@@ -7349,16 +7381,31 @@ function hubEdit(id){
   const v = String(loc).trim();
   /* 어느 쪽으로 적었는지 가립니다 — \\ · 드라이브 문자 · / 로 시작하면 폴더 */
   const isDir = /^[A-Za-z]:[\\/]/.test(v) || v.indexOf('\\\\') === 0 || v.indexOf('/') === 0;
+  /* 📌 폴더를 적었으면 <<파일 이름>> 까지 못 박아 둡니다 — 저쪽이 판을
+     올려도 이름만 같으면 늘 그 파일이 열립니다. 비워 두면 여태처럼
+     판 번호가 가장 큰 것을 엽니다. */
+  let wnt = h ? String(h.want || '') : HUB_MEDIA_FILE;
+  if(isDir){
+    const w = prompt('📌 프로그램 파일 이름 — 못 박아 둘까요? (비워도 됩니다)\n\n'
+      + '저쪽이 갱신해도 <<이 이름이면 늘 그 파일>> 이 열립니다.\n'
+      + '확장자는 안 적어도 됩니다 (.html · .htm 둘 다 찾습니다).\n\n'
+      + '예) ' + HUB_MEDIA_FILE + '\n\n'
+      + '비워 두면 그 폴더에서 판 번호가 가장 큰 것을 엽니다.', wnt);
+    if(w === null) return;
+    wnt = String(w).trim().replace(/[\\/:]+/g, '');
+  }
   const em = prompt('앞에 붙일 그림 하나 (비워도 됩니다)', h ? (h.emoji || '🔗') : '📊');
   const tgt = h || { id: uid('hub') };
   tgt.name  = nm.trim();
   tgt.emoji = (em || '🔗').trim();
   tgt.path  = isDir ? v : '';
   tgt.url   = isDir ? '' : v;
+  tgt.want  = isDir ? wnt : '';
   if(!h) hs.push(tgt);
   markDirtyAll(); renderHubs();
   toast('🔗 ' + nm.trim() + ' 을 걸어 두었습니다'
-        + (isDir ? ' — 그 폴더에서 가장 새 판을 엽니다' : ''));
+        + (isDir ? (wnt ? ' — 「' + wnt + '」 을 엽니다'
+                        : ' — 그 폴더에서 가장 새 판을 엽니다') : ''));
   if(isDir) hubCheck(tgt.id);          /* 바로 무엇이 열릴지 보여 줍니다 */
 }
 function renderSidebar(){
@@ -18362,6 +18409,42 @@ async function lkPeek(path){
 /* 미디어마케팅팀이 알려 준 진짜 자리 (2026-10-15) —
    여태 「실행파일\HTML_V06」 만 보고 있어서 알맹이를 못 찾았습니다. */
 const LK_DIG_DEF = 'Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\미디어마케팅팀 브랜드허브\\DB_미디어마케팅팀 브랜드허브';
+/* 📌 <<정해 둔 파일 이름>> ──────────────────────────────────────────
+   저쪽이 아무 이름으로나 떨어뜨리면, 서른 개 넘는 목록에서 사람이
+   매번 골라야 합니다. 그래서 이름을 하나로 못 박아 둡니다 —
+   이 이름이면 길 찾기를 건너뛰고 <<넣는 즉시>> 붙습니다.
+   확장자는 아무거나 됩니다(json · csv · xlsx · tsv). 날짜를 뒤에 붙이지
+   말고 <<늘 같은 이름으로 덮어써>> 주셔야 자동으로 돌아갑니다. */
+const LK_FILE_DEF = '미디어마케팅팀-할일';
+/* 우리가 내보낼 때 쓰는 이름 — 저쪽이 이것을 읽습니다 */
+const LK_FILE_OUT = '브랜드마케팅팀-할일';
+/* 이름을 견주기 좋게 — 확장자·띄어쓰기·- · _ 를 떼고 소문자로.
+   「미디어마케팅팀-할일.json」 「미디어마케팅팀 할일.csv」
+   「미디어마케팅팀_할일.xlsx」 가 모두 같은 것으로 보입니다. */
+function lkNameKey(s){
+  return String(s || '').toLowerCase()
+    .replace(/\.[a-z0-9]{1,5}$/, '')
+    .replace(/[\s_\-()\[\]]/g, '');
+}
+function lkIsDef(name){ return lkNameKey(name) === lkNameKey(LK_FILE_DEF); }
+/* 저쪽에 그대로 보낼 부탁 글 — 자리와 이름이 한 줄로 들어 있습니다 */
+function lkAskText(){
+  return '브랜드허브 할 일 연동 부탁드립니다.\n\n'
+    + '· 자리: ' + LK_DIG_DEF + '\n'
+    + '· 이름: ' + LK_FILE_DEF + '.json   (csv · xlsx 도 됩니다)\n'
+    + '· 칸: 업무명 · 담당자 · 상태 · 기한 · 진척률 · 메모\n'
+    + '      (name · assignee · state · deadline · progress · note 도 읽습니다)\n\n'
+    + '날짜를 뒤에 붙이지 말고 <<늘 같은 이름으로 덮어써>> 주세요.\n'
+    + '그러면 저희 쪽은 사람이 손댈 것 없이 저절로 맞춰집니다.';
+}
+function lkAskCopy(){
+  const t = lkAskText();
+  const ta = document.createElement('textarea');
+  ta.value = t; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); toast('📋 부탁 글을 복사했습니다 — 미디어마케팅팀에 보내 주세요'); }
+  catch(e){ alert(t); }
+  ta.remove();
+}
 let lkDug = null;
 /* ── 막혔을 때: 「그 폴더를 연동용으로 등록할까요?」 ────────────────
    NAS 가 읽도록 정해 둔 폴더는 우리 팀 것뿐이라, 다른 팀 폴더는 처음엔
@@ -18732,6 +18815,31 @@ async function lkFileLoad(ev){
 
    그 서버에 직접 물어봅니다. 자리 이름은 모르니 흔한 것부터 차례로
    두드려 보고, 할 일처럼 생긴 답이 오면 그 자리를 기억합니다. */
+/* 📄 파일 하나를 열어 할 일 줄로 바꿉니다 — 못 읽으면 null.
+   json 이면 그 안에서 줄 목록을 찾고, 엑셀·csv 면 표 읽기에 넘깁니다. */
+async function lkReadHit(f){
+  const r = await apiJson('nasfiles.php?action=tsread&path='
+    + encodeURIComponent(f['경로']));
+  if(r['표로읽기']){
+    if(!r['표경로']) return null;
+    const g = await apiJson('doctext.php?action=sheet&path='
+      + encodeURIComponent(r['표경로'])
+      + (r['표뿌리'] === 'upload' ? '&root=upload' : ''));
+    const rows = tsFromGrid(g['표'] || []);
+    if(!rows.length) return null;
+    return { file: f, path: '(표)', n: rows.length, rows: rows,
+             keys: (g['표'] || [[]])[0] || [] };
+  }
+  const hits = lkFindRows(r['줄'] ? { 줄: r['줄'] } : {});
+  if(hits.length){
+    const h = hits.sort((a, b) => b.n - a.n)[0];
+    return Object.assign({ file: f }, h);
+  }
+  const rows = tsFromJson(r['줄'] || []);
+  if(rows.length) return { file: f, path: '줄', n: rows.length, rows: rows,
+                           keys: Object.keys(rows[0] || {}) };
+  return null;
+}
 const LK_SRV_TRY = ['/api/tasks', '/api/todos', '/api/task/list', '/api/board/items',
                     '/api/items', '/api/export/tasks', '/api/tasks/export',
                     '/tasks', '/todos', '/api/data', '/api/state', '/api/snapshot'];
@@ -19025,6 +19133,42 @@ function lkIntoTasks(rows, srcName, teamName){
   markDirty(b.id);
   return { n:n, b:b };
 }
+/* ✅ 찾은 것을 <<진짜 할 일로>> 꽂고, 어디서 가져왔는지 적어 둡니다.
+   길 찾기(뒤져서 찾은 길)와 정해 둔 이름(바로 찾은 길)이 같이 씁니다. */
+function lkLand(h, dir, log, a, b){
+  const t = lkOf();
+  t.rows = h.rows.map(x => ({ id:'f_' + Math.random().toString(36).slice(2, 9),
+    '팀': '미디어마케팅팀', '업무명': x.title, '담당자': x.owner, '상태': x.status,
+    '기한': x.due, '진척률': x.pct, '메모': x.note,
+    '고친때': '', '고친이': h.file['이름'] }));
+  t.lastPull = new Date().toISOString();
+  /* 📌 보는 표에만 담지 않고, <<진짜 할 일로>> 꽂아 넣습니다 */
+  const put = lkIntoTasks(h.rows, h.file['이름'], '미디어마케팅팀');
+  markDirtyAll(); render();
+  /* ⏱ 자동으로 맞추려면 <<어디서 찾았는지>> 를 적어 둬야 합니다 —
+     다음부터는 뒤지지 않고 그 파일 하나만 다시 읽습니다 (가볍습니다) */
+  t.autoPath = String(h.file['경로'] || '');
+  t.autoName = String(h.file['이름'] || '');
+  t.autoDir  = dir;
+  log.push((a || '④') + ' 찾음: ' + h.file['이름'] + ' → ' + h.path
+    + ' (' + h.n + '건)');
+  if(put.n) log.push((b || '⑤') + ' 할 일로 넣음: ' + put.n + '건 → '
+    + (put.b ? put.b.name : ''));
+  lkAutoLog = log; render();
+  alert('✅ 찾아서 <<할 일에 넣었습니다>> — ' + put.n + '건\n\n'
+    + '어디서: ' + (h.file['어디'] ? h.file['어디'] + '/' : '') + h.file['이름']
+    + (h.path && h.path !== '(표)' ? '  →  ' + h.path : '') + '\n'
+    + '줄 생김새: ' + (h.keys || []).join(' · ') + '\n'
+    + '어디로: ' + (put.b ? put.b.name : '') + ' 밑 · 담당자 이름 그대로\n\n'
+    + '담당자 이름이 팀원과 같으면 <<그 사람 카드>> 에 바로 섭니다.\n'
+    + '같은 것을 다시 가져와도 쌓이지 않고 덮어씁니다. 저쪽에서 없어진 것은 '
+    + '여기서도 같이 사라집니다.\n\n'
+    + (lkIsDef(h.file['이름'])
+        ? '📌 정해 둔 이름이라 <<다음부터는 저절로>> 맞춰집니다 — '
+          + '[⏱ 자동으로 맞추기] 를 켜 두세요.'
+        : '※ 저쪽이 고치면 다시 한 번 눌러 주세요 — 그때 맞춰집니다.'));
+  return put;
+}
 async function lkAuto(){
   const where = prompt('🔗 연동 길 찾기\n\n'
     + '저쪽 폴더를 적어 주시면, 할 일이 어디에 어떤 모양으로 들어 있는지\n'
@@ -19052,7 +19196,32 @@ async function lkAuto(){
     log.push('   자료로 보이는 파일 ' + files.length + '개');
     if(!files.length){
       log.push('   → 자료 파일이 하나도 없습니다.');
+      log.push('');
+      log.push('📌 저쪽에 「' + LK_FILE_DEF + '.json」 으로 떨어뜨려 달라고'
+        + ' 부탁해 두면, 넣는 즉시 여기에 붙습니다.');
       throw { _done: true };
+    }
+
+    /* 📌 <<정해 둔 이름이 있으면 뒤지지 않습니다>> ───────────────────
+       저쪽에 「미디어마케팅팀-할일.json(csv·xlsx)」 하나로 부탁해 두었습니다.
+       그 이름이 보이면 ②③④ 를 건너뛰고 바로 읽어 할 일에 꽂습니다 —
+       사람이 목록에서 고를 일이 없습니다. */
+    const fixed = files.filter(f => lkIsDef(f['이름']));
+    if(fixed.length){
+      log.push('② 📌 정해 둔 이름 「' + LK_FILE_DEF + '」 을 찾았습니다 ('
+        + fixed.length + '개) — 뒤지지 않고 바로 읽습니다');
+      toast('⏳ 📌 정해 둔 파일을 바로 읽는 중…');
+      for(const f of fixed){
+        let h = null;
+        try{ h = await lkReadHit(f); }
+        catch(e){ log.push('   · ' + f['이름'] + ' → '
+          + apiErrText(e).split('\n')[0]); continue; }
+        if(!h){ log.push('   · ' + f['이름'] + ' → 열리기는 하는데 할 일 줄이 없습니다');
+          continue; }
+        lkLand(h, dir, log, '③', '④');
+        return;
+      }
+      log.push('   → 그 파일을 할 일로 읽지 못했습니다. 계속 뒤져 봅니다.');
     }
 
     /* ② 제일 큰 화면 파일이 자료를 어디에 두나 */
@@ -19154,36 +19323,7 @@ async function lkAuto(){
     }
     hits.sort((x, y) => y.n - x.n);
 
-    if(hits.length){
-      const h = hits[0];
-      const t = lkOf();
-      t.rows = h.rows.map(x => ({ id:'f_' + Math.random().toString(36).slice(2, 9),
-        '팀': '미디어마케팅팀', '업무명': x.title, '담당자': x.owner, '상태': x.status,
-        '기한': x.due, '진척률': x.pct, '메모': x.note,
-        '고친때': '', '고친이': h.file['이름'] }));
-      t.lastPull = new Date().toISOString();
-      /* 📌 보는 표에만 담지 않고, <<진짜 할 일로>> 꽂아 넣습니다 */
-      const put = lkIntoTasks(h.rows, h.file['이름'], '미디어마케팅팀');
-      markDirtyAll(); render();
-      /* ⏱ 자동으로 맞추려면 <<어디서 찾았는지>> 를 적어 둬야 합니다 —
-         다음부터는 뒤지지 않고 그 파일 하나만 다시 읽습니다 (가볍습니다) */
-      t.autoPath = String(h.file['경로'] || '');
-      t.autoName = String(h.file['이름'] || '');
-      t.autoDir  = dir;
-      log.push('④ 찾음: ' + h.file['이름'] + ' → ' + h.path + ' (' + h.n + '건)');
-      if(put.n) log.push('⑤ 할 일로 넣음: ' + put.n + '건 → ' + (put.b ? put.b.name : ''));
-      lkAutoLog = log; render();
-      alert('✅ 찾아서 <<할 일에 넣었습니다>> — ' + put.n + '건\n\n'
-        + '어디서: ' + (h.file['어디'] ? h.file['어디'] + '/' : '') + h.file['이름']
-        + (h.path && h.path !== '(표)' ? '  →  ' + h.path : '') + '\n'
-        + '줄 생김새: ' + (h.keys || []).join(' · ') + '\n'
-        + '어디로: ' + (put.b ? put.b.name : '') + ' 밑 · 담당자 이름 그대로\n\n'
-        + '담당자 이름이 팀원과 같으면 <<그 사람 카드>> 에 바로 섭니다.\n'
-        + '같은 것을 다시 가져와도 쌓이지 않고 덮어씁니다. 저쪽에서 없어진 것은 '
-        + '여기서도 같이 사라집니다.\n\n'
-        + '※ 저쪽이 고치면 다시 한 번 눌러 주세요 — 그때 맞춰집니다.');
-      return;
-    }
+    if(hits.length){ lkLand(hits[0], dir, log, '④', '⑤'); return; }
 
     /* 못 찾았을 때 — 쪽지 속을 바로 펼쳐 보여 줍니다 (또 누르게 하지 않게) */
     log.push('④ 할 일로 알아볼 줄 목록을 못 찾았습니다.');
@@ -19429,6 +19569,17 @@ function lkSwapHtml(){
       + '다시 불러와도 쌓이지 않고 덮어씁니다.'
       + '<br>칸 이름: 업무명 · 담당자 · 상태 · 기한 · 진척률 · 메모 '
       + '(name · assignee · state · deadline · progress · note 도 읽습니다)'
+    + '</div>'
+    /* 📌 저쪽에 부탁할 자리와 이름 — 이 이름이면 사람 손이 아예 안 갑니다 */
+    + '<div class="lk-fix"><b>📌 저쪽에 부탁드릴 이름</b>'
+      + '<code>' + esc(LK_DIG_DEF) + '\\<b>' + esc(LK_FILE_DEF) + '.json</b></code>'
+      + '<button class="btn sm" onclick="lkAskCopy()"'
+        + ' title="미디어마케팅팀에 그대로 보낼 글을 복사합니다">'
+        + '📋 부탁 글 복사</button>'
+      + '<span class="fmeta">확장자는 <b>json · csv · xlsx</b> 아무거나 됩니다. '
+        + '날짜를 뒤에 붙이지 말고 <b>늘 같은 이름으로 덮어써</b> 주셔야 '
+        + '저절로 맞춰집니다 — 이 이름이면 [🔗 연동 길 찾기] 한 번으로 '
+        + '끝나고, 그다음부터는 손댈 것이 없습니다.</span>'
     + '</div></div>';
 }
 function lkPanelHtml(){
@@ -30807,12 +30958,31 @@ function normalize(raw){
      판을 보게 됐습니다. 그래서 <<공유폴더 자리>> 로 한 번만 바꿔 둡니다.
      사람이 뒤에 다시 고쳤으면 그 뜻을 따릅니다 (_dirMoved 로 한 번만). */
   if(Array.isArray(raw.hubs)) raw.hubs.forEach(h => {
-    if(!h || h._dirMoved) return;
-    if(!String(h.path || '').trim()
+    if(!h) return;
+    if(!h._dirMoved
+       && !String(h.path || '').trim()
        && /^teamhub-media\.html?$/i.test(String(h.url || '').trim())){
-      h.path = 'Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\실행파일\\HTML_V05';
+      h.path = HUB_MEDIA_DIR;
       h.url  = '';
+      h.want = HUB_MEDIA_FILE;
       h._dirMoved = true;
+    }
+    /* 📌 판 번호가 붙은 옛 자리(…\실행파일\HTML_V05) 를 걸어 둔 분들은
+       <<새 자리 + 못 박은 이름>> 으로 한 번만 옮겨 드립니다. 그쪽이
+       폴더를 옮기고 프로그램 이름을 mediam_TeamHub 로 맞춰 주었습니다.
+       사람이 뒤에 또 고쳤으면 그 뜻을 따릅니다 (_fileFixed 로 한 번만). */
+    if(!h._fileFixed){
+      const p = String(h.path || '').trim();
+      if(/실행파일[\\/]+HTML_V\d+$/i.test(p) || /실행파일[\\/]*$/i.test(p)){
+        h.path = HUB_MEDIA_DIR;
+        h.want = HUB_MEDIA_FILE;
+      }
+      /* 새 자리인데 이름이 비어 있으면 이름만 채웁니다 */
+      if(String(h.path || '').trim() === HUB_MEDIA_DIR
+         && !String(h.want || '').trim()){
+        h.want = HUB_MEDIA_FILE;
+      }
+      h._fileFixed = true;
     }
   });
   /* 🔗 한 저장소를 같이 쓰는 할 일 — 담아 둔 것이라 모양만 맞춥니다.

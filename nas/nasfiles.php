@@ -1419,16 +1419,20 @@ if ($action === 'download') {
 
 /* ---------------- 🔗 팀 허브 — 남의 팀 HTML 을 그 자리에서 펴 주기 ----
    미디어마케팅팀은 자기네 브랜드허브(TeamHub)를 공유폴더에 둡니다.
-     Z:\넷폼알앤디 공유폴더\미디어마케팅팀\실행파일\HTML_V05
+     Z:\넷폼알앤디 공유폴더\미디어마케팅팀\미디어마케팅팀 브랜드허브
+        \프로그램_미디어마케팅팀 브랜드허브\mediam_TeamHub.html
    여태는 그 파일을 <<웹폴더로 손으로 복사>> 해 두고 걸었습니다. 그래서
    그쪽이 V06 을 올리면 우리가 또 복사해야 했고, 안 하면 옛 판을 보게
    됐습니다.
 
-   이제 폴더를 그대로 걸어 둡니다. 여기서 그 폴더를 열어 <<가장 새 판>>
-   HTML 을 찾아 펴 줍니다 — V06 이 올라오면 그냥 따라갑니다.
+   이제 폴더를 걸어 둡니다. 그 폴더에서
+     ① <<못 박아 둔 이름>>(want=) 이 있으면 <<그것을 먼저>> 엽니다.
+        그쪽이 판을 올려도 이름만 같으면 영원히 그 파일입니다.
+     ② 그 이름이 아직 없으면 판 번호가 가장 큰 HTML 을 엽니다 (예비 길).
+   확장자(.html · .htm)는 안 봅니다 — 이름만 맞으면 됩니다.
 
-     ?action=hub     &path=…  → 그 HTML 을 그대로 보냅니다
-     ?action=hubinfo &path=…  → 무엇을 고를지만 알려 줍니다 (확인용)
+     ?action=hub     &path=… [&want=이름] → 그 HTML 을 그대로 보냅니다
+     ?action=hubinfo &path=… [&want=이름] → 무엇을 고를지만 알려 줍니다
 
    읽기만 합니다. 공유폴더 안쪽이 아니면 거절합니다.
    -------------------------------------------------------------------- */
@@ -1444,8 +1448,16 @@ function hub_ver($name) {
     }
     return -1;
 }
-/* 폴더 안(과 한 단계 아래)에서 펴 줄 HTML 들을 모읍니다 */
-function hub_pick($dir) {
+/* 확장자를 뗀 이름 열쇠 — 「mediam_TeamHub.html」 ↔ 「mediam TeamHub.htm」.
+   그쪽이 .html 로 저장하든 .htm 으로 저장하든 같은 것으로 봅니다. */
+function hub_name_key($s) {
+    $s = (string)$s;
+    $s = preg_replace('/\.[A-Za-z0-9]{1,5}$/', '', $s);
+    return nas_name_key($s);
+}
+/* 폴더 안(과 한 단계 아래)에서 펴 줄 HTML 들을 모읍니다.
+   $want 를 주면 <<그 이름을 맨 앞으로>> 올립니다 (판 번호보다 셉니다). */
+function hub_pick($dir, $want = '') {
     $cands = [];
     $add = function ($f) use (&$cands) {
         if (!is_file($f)) return;
@@ -1465,8 +1477,14 @@ function hub_pick($dir) {
             }
         }
     }
-    /* 판 번호가 큰 것 → 그 다음 새로 고친 것 → 큰 것 */
-    usort($cands, function ($a, $b) use ($dir) {
+    /* 못 박아 둔 이름 → 판 번호가 큰 것 → 새로 고친 것 → 큰 것 */
+    $wk = hub_name_key($want);
+    usort($cands, function ($a, $b) use ($dir, $wk) {
+        if ($wk !== '') {
+            $fa = (hub_name_key(basename($a)) === $wk) ? 1 : 0;
+            $fb = (hub_name_key(basename($b)) === $wk) ? 1 : 0;
+            if ($fa !== $fb) return $fb <=> $fa;
+        }
         $ka = hub_ver(substr($a, strlen($dir)));
         $kb = hub_ver(substr($b, strlen($dir)));
         if ($ka !== $kb) return $kb <=> $ka;
@@ -1485,6 +1503,12 @@ if ($action === 'hub' || $action === 'hubinfo') {
     $bd = basedir_error($in);
     if ($bd !== null) jout(['ok' => false, 'error' => $bd], 403);
 
+    /* 📌 못 박아 둔 파일 이름 — 폴더 안에서 <<이것을 먼저>> 찾습니다.
+       경로가 아니라 이름 하나만 받습니다 (/ \ .. 는 받지 않습니다). */
+    $want = trim((string)($_GET['want'] ?? ''));
+    if (strpbrk($want, '/\\:') !== false || strpos($want, '..') !== false) $want = '';
+    if (mb_strlen($want, 'UTF-8') > 120) $want = '';
+
     /* 파일을 바로 적었을 수도, 폴더를 적었을 수도 있습니다 */
     $real = null; $tried = [];
     [$dir, $tried] = resolve_nas_dir($in);
@@ -1494,10 +1518,11 @@ if ($action === 'hub' || $action === 'hubinfo') {
             . 'NAS 가 훑는 폴더 안에 있는 자리를 적어 주세요.'], 403);
     }
     if ($dir !== null) {
-        $list = hub_pick($dir);
+        $list = hub_pick($dir, $want);
         if (!$list) {
-            jout(['ok' => false, 'error' => '그 폴더에 펴 줄 HTML 이 없습니다',
-                  '찾은폴더' => $dir], 404);
+            jout(['ok' => false, 'error' => '그 폴더에 펴 줄 HTML 이 없습니다'
+                  . ($want !== '' ? ' (「' . $want . '」 도 아직 없습니다)' : ''),
+                  '찾은폴더' => $dir, '정해둔이름' => $want], 404);
         }
         $real = $list[0];
         $names = [];
@@ -1540,6 +1565,9 @@ if ($action === 'hub' || $action === 'hubinfo') {
         jout(['ok' => true, '파일' => basename($rr), '폴더' => $dir,
               '고친때' => date('Y-m-d H:i', (int)@filemtime($rr)),
               '크기' => human((int)@filesize($rr)),
+              '정해둔이름' => $want,
+              '정해둔것맞음' => ($want !== ''
+                  && hub_name_key(basename($rr)) === hub_name_key($want)),
               '후보' => $names]);
     }
 

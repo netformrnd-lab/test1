@@ -329,6 +329,12 @@ body.tt-wide .layout{max-width:1820px}
 .lk-swap{border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px 12px;
   margin:20px 0 0;background:var(--bg-hover)}
 .lk-swap .lk-head{margin-bottom:8px}
+.lk-auto{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0 2px;
+  padding:9px 11px;border:1px dashed var(--border);border-radius:var(--r-xs)}
+.lk-auto.on{border-style:solid;border-color:var(--green);
+  background:color-mix(in srgb,var(--green) 7%,transparent)}
+.lk-auto .fmeta{margin-left:auto}
+@media (max-width:700px){ .lk-auto .fmeta{margin-left:0;width:100%} }
 .lk-warn{border:1px solid var(--border);border-left:3px solid var(--orange);
   border-radius:var(--r-xs);padding:9px 12px;margin:0 0 10px;font-size:12.5px;
   background:var(--bg-card)}
@@ -5462,7 +5468,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-5';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-6';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18199,8 +18205,12 @@ function lkOf(){
   }
   const t = data.teamLink;
   if(!Array.isArray(t.rows)) t.rows = [];
-  ['lastPull','lastPush','store','node','team','why'].forEach(k => {
+  ['lastPull','lastPush','store','node','team','why',
+   'autoPath','autoName','autoDir','autoKey','autoAt',
+   'fileAt','fileName','outAt','brandId'].forEach(k => {
     if(typeof t[k] !== 'string') t[k] = ''; });
+  if(typeof t.autoOn !== 'boolean') t.autoOn = false;
+  { const n = parseInt(t.autoMin, 10); t.autoMin = (n >= 1 && n <= 180) ? n : 10; }
   return t;
 }
 /* 때를 밀리초로 — 저장소는 「…+00:00」, 우리는 「…Z」 라 글자끼리 견주면 틀립니다 */
@@ -18687,6 +18697,92 @@ async function lkFileLoad(ev){
       + '우리가 손으로 적은 것과 다른 팀 것은 그대로입니다.');
   }catch(e){ alert('❌ 불러오지 못했습니다.\n\n' + (e && e.message || e)); }
 }
+/* ── ⏱ 자동으로 맞추기 ───────────────────────────────────────────
+   [🔗 연동 길 찾기] 가 한 번 찾아 두면 그 자리를 기억합니다. 그 뒤로는
+   <<그 파일 하나만>> 다시 읽어 맞춥니다 — 폴더를 다시 뒤지지 않아
+   가볍고, 사람이 누를 일이 없습니다.
+
+   ⚠️ 한 가지 지킵니다 — 읽어서 <<줄이 하나도 없으면 아무것도 안 합니다>>.
+   저쪽이 파일을 쓰는 중이거나 잠깐 비었을 때 그대로 따라가면, 우리
+   할 일이 통째로 지워집니다. 사라지는 쪽으로는 저절로 가지 않습니다. */
+async function lkPullFile(loud){
+  const t = lkOf();
+  const path = String(t.autoPath || '').trim();
+  if(!path){ if(loud) toast('아직 어디서 가져올지 못 정했습니다 — [🔗 연동 길 찾기] 를 먼저'); return 0; }
+  try{
+    let rows = [];
+    const r = await apiJson('nasfiles.php?action=tsread&path=' + encodeURIComponent(path));
+    if(r['표로읽기']){
+      if(!r['표경로']) throw new Error('공유폴더 안쪽이 아닙니다');
+      const g = await apiJson('doctext.php?action=sheet&path='
+        + encodeURIComponent(r['표경로'])
+        + (r['표뿌리'] === 'upload' ? '&root=upload' : ''));
+      rows = tsFromGrid(g['표'] || []);
+    }else{
+      const hits = lkFindRows(r['줄'] ? { 줄: r['줄'] } : {});
+      rows = hits.length ? hits.sort((a, b) => b.n - a.n)[0].rows : tsFromJson(r['줄'] || []);
+    }
+    if(!rows.length){
+      if(loud) alert('📄 ' + (t.autoName || path) + '\n\n읽기는 했는데 할 일 줄이 없습니다.\n\n'
+        + '저쪽이 파일을 쓰는 중일 수 있어, <<아무것도 바꾸지 않았습니다>>.\n'
+        + '(빈 것을 그대로 따라가면 우리 할 일이 통째로 지워집니다)');
+      return 0;
+    }
+    /* 달라진 게 없으면 손대지 않습니다 — 괜히 저장·다시 그리지 않게 */
+    const key = JSON.stringify(rows.map(x => [x.title, x.owner, x.status, x.due, x.pct, x.note]));
+    if(key === String(t.autoKey || '')){ if(loud) toast('⏱ 그대로입니다 — 바뀐 것이 없습니다'); 
+      t.autoAt = new Date().toISOString(); return 0; }
+    const put = lkIntoTasks(rows, t.autoName || '자동', '미디어마케팅팀');
+    t.autoKey = key;
+    t.autoAt = new Date().toISOString();
+    markDirtyAll(); render();
+    if(loud) toast('⏱ 미디어마케팅팀 할 일 ' + put.n + '건을 맞췄습니다');
+    else toast('⏱ 미디어마케팅팀 할 일이 바뀌어 ' + put.n + '건을 맞췄습니다');
+    return put.n;
+  }catch(e){
+    if(loud) alert('❌ 맞추지 못했습니다.\n\n' + apiErrText(e)
+      + '\n\n· 읽으려던 파일: ' + path);
+    return 0;
+  }
+}
+let lkAutoT = null;
+function lkAutoToggle(){
+  const t = lkOf();
+  if(!t.autoOn && !String(t.autoPath || '').trim()){
+    alert('⏱ 자동으로 맞추려면 먼저 <<어디서 가져올지>> 를 정해야 합니다.\n\n'
+      + '[🔗 연동 길 찾기] 를 한 번 눌러 주세요. 한 번 찾으면 그 자리를 '
+      + '기억해 두고, 그 뒤로는 혼자 맞춥니다.');
+    return;
+  }
+  t.autoOn = !t.autoOn;
+  markDirtyAll(); render();
+  if(t.autoOn){
+    toast('⏱ 자동으로 맞춥니다 — ' + lkAutoMin() + '분마다');
+    lkAutoTick(); lkPullFile(false);
+  }else{ clearTimeout(lkAutoT); toast('⏱ 자동 맞추기를 껐습니다'); }
+}
+function lkAutoMin(){ const t = lkOf();
+  const n = parseInt(t.autoMin, 10); return (n >= 1 && n <= 180) ? n : 10; }
+function lkAutoSetMin(){
+  const t = lkOf();
+  const v = prompt('몇 분마다 맞출까요? (1~180)\n\n'
+    + '화면을 ✅ 할 일 에 두고 있을 때만 돕니다.', String(lkAutoMin()));
+  if(v === null) return;
+  const n = parseInt(v, 10);
+  if(!(n >= 1 && n <= 180)){ toast('1에서 180 사이로 적어 주세요'); return; }
+  t.autoMin = n; markDirtyAll(); render();
+  toast('⏱ ' + n + '분마다 맞춥니다');
+  if(t.autoOn) lkAutoTick();
+}
+function lkAutoTick(){
+  clearTimeout(lkAutoT);
+  const t = lkOf();
+  if(!t.autoOn) return;
+  lkAutoT = setTimeout(async () => {
+    if(view === 'tasks' && !document.hidden) await lkPullFile(false);
+    lkAutoTick();
+  }, lkAutoMin() * 60000);
+}
 /* 📤 우리 할 일을 파일로 — 그쪽이 불러갈 수 있게 */
 function lkFileOut(kind){
   const rows = taskAll().filter(x => !x.t._from).map(({t, b}) => ({
@@ -18940,6 +19036,11 @@ async function lkAuto(){
       /* 📌 보는 표에만 담지 않고, <<진짜 할 일로>> 꽂아 넣습니다 */
       const put = lkIntoTasks(h.rows, h.file['이름'], '미디어마케팅팀');
       markDirtyAll(); render();
+      /* ⏱ 자동으로 맞추려면 <<어디서 찾았는지>> 를 적어 둬야 합니다 —
+         다음부터는 뒤지지 않고 그 파일 하나만 다시 읽습니다 (가볍습니다) */
+      t.autoPath = String(h.file['경로'] || '');
+      t.autoName = String(h.file['이름'] || '');
+      t.autoDir  = dir;
       log.push('④ 찾음: ' + h.file['이름'] + ' → ' + h.path + ' (' + h.n + '건)');
       if(put.n) log.push('⑤ 할 일로 넣음: ' + put.n + '건 → ' + (put.b ? put.b.name : ''));
       lkAutoLog = log; render();
@@ -19159,6 +19260,24 @@ function lkSwapHtml(){
       + (n ? '<button class="btn sm danger" onclick="lkDropImported()"'
              + ' title="가져온 것만 뺍니다">🧹 가져온 것 빼기</button>' : '')
     + '</span></div>'
+    /* ⏱ 자동으로 맞추기 — 한 번 길을 찾아 두면 혼자 돕니다 */
+    + '<div class="lk-auto' + (t.autoOn ? ' on' : '') + '">'
+      + '<button class="btn sm' + (t.autoOn ? ' primary' : '') + '" onclick="lkAutoToggle()"'
+        + ' title="켜 두면 사람이 누르지 않아도 혼자 맞춥니다">'
+        + (t.autoOn ? '⏱ 자동으로 맞추는 중' : '⏱ 자동으로 맞추기 (꺼짐)') + '</button>'
+      + '<button class="btn sm" onclick="lkAutoSetMin()" title="얼마나 자주 볼지">'
+        + lkAutoMin() + '분마다</button>'
+      + '<button class="btn sm" onclick="lkPullFile(1)" title="지금 바로 한 번 맞춥니다">'
+        + '↻ 지금 맞추기</button>'
+      + '<button class="btn sm" onclick="lkAuto()" title="어디서 가져올지 찾습니다">'
+        + '🔗 연동 길 찾기</button>'
+      + '<span class="fmeta">'
+        + (String(t.autoPath || '').trim()
+            ? '가져오는 곳 <b>' + esc(t.autoName || t.autoPath) + '</b>'
+              + ' · 마지막 맞춘 때 ' + lkWhen(t.autoAt)
+            : '아직 어디서 가져올지 안 정했습니다 — [🔗 연동 길 찾기] 를 한 번')
+      + '</span>'
+    + '</div>'
     + '<div class="fmeta">'
       + '그쪽에서 <b>할 일만 내보낸 파일</b>을 골라 주시면 바로 읽습니다 — '
       + 'NAS 권한도 폴더 허락도 필요 없습니다 (json · csv 둘 다). '
@@ -19267,6 +19386,7 @@ function renderTasks(){
     setTimeout(async () => {
       await lkCheck(false);
       if(lkOf().on) { await lkPull(false); lkTick(); }
+      if(lkOf().autoOn) { await lkPullFile(false); lkAutoTick(); }
     }, 60);
   }
   const rows = taskAll();
@@ -30556,9 +30676,13 @@ function normalize(raw){
      사람마다 달라지지 않습니다. */
   if(raw.teamLink && typeof raw.teamLink === 'object'){
     const L = raw.teamLink;
-    ['lastPull','lastPush','store','node','team','why'].forEach(k => {
+    ['lastPull','lastPush','store','node','team','why',
+     'autoPath','autoName','autoDir','autoKey','autoAt',
+     'fileAt','fileName','outAt','brandId'].forEach(k => {
       if(typeof L[k] !== 'string') L[k] = ''; });
     L.on = !!L.on;
+    L.autoOn = !!L.autoOn;
+    { const n = parseInt(L.autoMin, 10); L.autoMin = (n >= 1 && n <= 180) ? n : 10; }
     if(!Array.isArray(L.rows)) L.rows = [];
     L.rows = L.rows.filter(r => r && typeof r === 'object'
                                 && String(r['업무명'] || '').trim()).slice(0, 2000);

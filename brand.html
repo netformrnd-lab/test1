@@ -5468,7 +5468,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-7';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-8';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19170,7 +19170,7 @@ async function lkAuto(){
       log.push('🖥 저쪽은 <<서버 프로그램>> 으로 보입니다 (Server/main.json 이 있습니다).');
       log.push('   할 일은 폴더가 아니라 그 서버 안에 있어, 여기서는 안 나옵니다.');
       log.push('   → [🖥 저쪽 서버에 묻기] 를 눌러 보세요.');
-      t.autoDir = dir;
+      lkOf().autoDir = dir;      /* ← 이 가지에는 t 가 없습니다 */
       markDirtyAll();
     }
     const key = (b['파일'] || []).filter(f => !f['글자아님'] && f['내용'])

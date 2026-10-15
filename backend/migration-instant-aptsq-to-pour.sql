@@ -28,6 +28,7 @@ declare
   ts    text;
   asgn  jsonb;
   obj   jsonb;
+  apt_name text;
 begin
   r := coalesce(NEW, OLD);
 
@@ -71,6 +72,19 @@ begin
   dt    := coalesce(NEW.date::text, '');
   ts    := to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
   asgn  := case when who <> '' then jsonb_build_array(who) else '[]'::jsonb end;
+
+  -- 정기 방문(🔧 정기 방문): POUR 표시용으로 '단지명'(제목)·'담당자'(설명에서 추출)를 보강
+  if title like '🔧 정기 방문%' then
+    select name into apt_name from public.apartments where id = NEW.apartment_id;
+    if apt_name is not null and btrim(apt_name) <> '' then
+      title := btrim(apt_name) || ' 정기방문';
+    end if;
+    if who = '' and memo <> '' then
+      who := btrim(regexp_replace(regexp_replace(memo, '^담당\s*', ''), '\s*\(대타\)\s*$', ''));
+      if who = '-' then who := ''; end if;
+    end if;
+    asgn := case when who <> '' then jsonb_build_array(who) else '[]'::jsonb end;
+  end if;
 
   -- meta(POUR 상세 폼)가 있으면 그대로 전송 (id/_origin/date 만 보정)
   if NEW.meta is not null then
@@ -137,7 +151,7 @@ begin
     elsif node = 'briefing' then
       obj := obj || jsonb_build_object('siteName', title, 'title', '', 'assignee', who, 'ptProduct', '', 'bidDeadline', '');
     elsif node = 'asq' then
-      obj := obj || jsonb_build_object('title', title, 'siteName', title, 'assignee', '', 'assignees', asgn, 'ptProduct', '', 'bidDeadline', '');
+      obj := obj || jsonb_build_object('title', title, 'siteName', title, 'assignee', who, 'assignees', asgn, 'ptProduct', '', 'bidDeadline', '');
     else  -- seminar / personal / vacation
       obj := obj || jsonb_build_object('title', title, 'siteName', '', 'assignee', '', 'assignees', asgn, 'ptProduct', '', 'bidDeadline', '');
     end if;

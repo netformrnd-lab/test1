@@ -326,6 +326,9 @@ body.tt-wide .layout{max-width:1820px}
 .lk-team{font-weight:650;font-size:13px;margin:12px 0 6px;display:flex;gap:8px;align-items:center}
 .lk-team .lk-tn{font-weight:400;font-size:12px;color:var(--text-muted)}
 .lk-box tr.dim{opacity:.5}
+.lk-swap{border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px 12px;
+  margin:20px 0 0;background:var(--bg-hover)}
+.lk-swap .lk-head{margin-bottom:8px}
 .lk-warn{border:1px solid var(--border);border-left:3px solid var(--orange);
   border-radius:var(--r-xs);padding:9px 12px;margin:0 0 10px;font-size:12.5px;
   background:var(--bg-card)}
@@ -5161,6 +5164,9 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
     <button class="btn hide-phone" title="파일에서 가져오기 (복원)"
             onclick="document.getElementById('importFile').click()">📥</button>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importJSON(event)">
+    <!-- 📄 미디어마케팅팀이 내보낸 할 일 파일 (이 컴퓨터에서 바로 읽습니다) -->
+    <input type="file" id="lkFileInput" accept=".json,.csv,.tsv,.txt,application/json,text/csv"
+           style="display:none" onchange="lkFileLoad(event)">
     <button class="btn primary" title="지금 바로 저장 (Ctrl+S) — 평소에는 자동 저장됩니다"
             onclick="saveAll()">💾 저장</button>
     </div>
@@ -5456,7 +5462,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-3';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-5';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18317,7 +18323,9 @@ async function lkPeek(path){
    「자료가 저기 공유폴더에 있다」 고 들었으면, 먼저 <<무엇이 어떤
    모양으로>> 있는지 눈으로 봐야 합니다. 찾아서 보여 주기만 하고,
    읽을 것을 고르면 그 자리를 적어 둡니다. 고치지 않습니다. */
-const LK_DIG_DEF = 'Y:\\넷폼알앤디 공유폴더\\미디어마케팅팀';
+/* 미디어마케팅팀이 알려 준 진짜 자리 (2026-10-15) —
+   여태 「실행파일\HTML_V06」 만 보고 있어서 알맹이를 못 찾았습니다. */
+const LK_DIG_DEF = 'Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\미디어마케팅팀 브랜드허브\\DB_미디어마케팅팀 브랜드허브';
 let lkDug = null;
 /* ── 막혔을 때: 「그 폴더를 연동용으로 등록할까요?」 ────────────────
    NAS 가 읽도록 정해 둔 폴더는 우리 팀 것뿐이라, 다른 팀 폴더는 처음엔
@@ -18619,6 +18627,113 @@ function lkFindRows(obj, depth, path, out){
   Object.keys(obj).slice(0, 60).forEach(k =>
     lkFindRows(obj[k], depth + 1, path ? path + '.' + k : k, out));
   return out;
+}
+/* ═══════════════ 📄 손으로 주고받기 — 파일 하나로 ════════════════
+   미디어마케팅팀 쪽 제안이 맞습니다. 서로 프로그램이 다르고 둘 다 판이
+   오르는데, 그때마다 속을 들여다보는 식이면 계속 깨집니다.
+   <<내보내기 파일 하나>> 를 주고받는 것이 제일 단단합니다.
+
+     · 그쪽이 할 일만 내보냅니다 → 그 파일을 여기서 [📂 파일로 불러오기]
+     · 우리 할 일은 [📤 할 일 내보내기] 로 파일을 만들어 건넵니다
+
+   파일은 <<이 컴퓨터에서 바로 읽습니다>> — NAS 권한도, 폴더 허락도
+   필요 없습니다. json · csv 둘 다 읽습니다.
+   들어온 것은 <<미디어마케팅팀 것만>> 바꿉니다. 다른 팀과 우리가 손으로
+   적은 것은 건드리지 않습니다.
+   ================================================================= */
+function lkFileAsk(){ const el = document.getElementById('lkFileInput'); if(el) el.click(); }
+function lkCsvGrid(text){
+  const rows = (typeof parseCSV === 'function') ? parseCSV(text) : null;
+  if(rows) return rows;
+  return String(text).split(/\r?\n/).filter(x => x.trim()).map(x => x.split(','));
+}
+async function lkFileLoad(ev){
+  const f = ev && ev.target && ev.target.files && ev.target.files[0];
+  if(ev && ev.target) ev.target.value = '';
+  if(!f) return;
+  const name = f.name || '파일';
+  try{
+    let text = await f.text();
+    if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    let rows = [];
+    if(/\.(csv|tsv|txt)$/i.test(name) || !/^\s*[\[{]/.test(text)){
+      rows = tsFromGrid(lkCsvGrid(text));
+    }else{
+      let js = null;
+      try{ js = JSON.parse(text); }
+      catch(e){ alert('❌ ' + name + '\n\n이 파일을 읽지 못했습니다 (JSON 모양이 아닙니다).\n\n'
+        + '엑셀에서 [다른 이름으로 저장] → CSV 로 떨어뜨려 주셔도 읽습니다.'); return; }
+      const hits = lkFindRows(js);
+      if(hits.length){ hits.sort((a, b) => b.n - a.n); rows = hits[0].rows; }
+      else if(Array.isArray(js)) rows = tsFromJson(js);
+    }
+    if(!rows.length){
+      alert('📂 ' + name + '\n\n할 일로 알아볼 줄을 못 찾았습니다.\n\n'
+        + '첫 줄(또는 열쇠 이름)에 이렇게 적혀 있으면 읽습니다 —\n'
+        + '  업무명 · 담당자 · 상태 · 기한 · 진척률 · 메모\n'
+        + '  (name · assignee · state · deadline · progress · note 도 됩니다)');
+      return;
+    }
+    const put = lkIntoTasks(rows, name, '미디어마케팅팀');
+    const t = lkOf();
+    t.fileAt = new Date().toISOString();
+    t.fileName = name;
+    markDirtyAll(); render();
+    alert('✅ 불러왔습니다 — 할 일 ' + put.n + '건\n\n'
+      + '파일: ' + name + '\n'
+      + '어디로: ' + (put.b ? put.b.name : '') + ' 밑 · 담당자 이름 그대로\n\n'
+      + '담당자 이름이 팀원과 같으면 그 사람 카드에 바로 섭니다.\n'
+      + '다시 불러와도 쌓이지 않고 덮어쓰며, 저쪽에서 빠진 것은 같이 사라집니다.\n'
+      + '우리가 손으로 적은 것과 다른 팀 것은 그대로입니다.');
+  }catch(e){ alert('❌ 불러오지 못했습니다.\n\n' + (e && e.message || e)); }
+}
+/* 📤 우리 할 일을 파일로 — 그쪽이 불러갈 수 있게 */
+function lkFileOut(kind){
+  const rows = taskAll().filter(x => !x.t._from).map(({t, b}) => ({
+    id: String(t.id || ''), 브랜드: String(b.name || ''),
+    업무명: String(t.title || ''), 담당자: taskWho(t) || '',
+    상태: String(t.status || ''), 기한: String(t.due || ''),
+    진척률: Number(String(t.pct || '').replace(/[^0-9]/g, '')) || 0,
+    메모: String(t.note || ''), 갈래: String(t.kind || '할 일'),
+    고친때: String(t.updatedAt || '')
+  }));
+  const stamp = new Date();
+  const ymd = stamp.getFullYear() + '-' + String(stamp.getMonth() + 1).padStart(2, '0')
+            + '-' + String(stamp.getDate()).padStart(2, '0');
+  let body, type, ext;
+  if(kind === 'csv'){
+    body = '\ufeff' + tsCsv(rows); type = 'text/csv;charset=utf-8'; ext = 'csv';
+  }else{
+    body = JSON.stringify({ 팀:'브랜드마케팅팀', 내보낸때: stamp.toISOString(),
+                            줄수: rows.length, 할일: rows }, null, 1);
+    type = 'application/json'; ext = 'json';
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], { type: type }));
+  a.download = '브랜드마케팅팀-할일_' + ymd + '.' + ext;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  const t = lkOf();
+  t.outAt = stamp.toISOString();
+  markDirtyAll(); render();
+  toast('📤 할 일 ' + rows.length + '건을 파일로 내보냈습니다');
+}
+/* 가져온 것만 한꺼번에 치웁니다 */
+function lkDropImported(){
+  const tag = '미디어마케팅팀';
+  let n = 0;
+  (data.brands || []).forEach(b => {
+    const was = (b.tasks || []).length;
+    b.tasks = (b.tasks || []).filter(t => t._from !== tag);
+    n += was - b.tasks.length;
+  });
+  if(!n){ toast('가져온 할 일이 없습니다'); return; }
+  if(!confirm('미디어마케팅팀에서 가져온 할 일 ' + n + '건을 모두 뺄까요?\n\n'
+    + '(우리가 손으로 적은 것과 다른 팀 것은 그대로 둡니다)')){
+    render(); return;
+  }
+  markDirtyAll(); render();
+  toast('🧹 가져온 할 일 ' + n + '건을 뺐습니다');
 }
 /* ── 📥 가져온 줄을 <<진짜 할 일>> 로 꽂아 넣습니다 ────────────────
    여태는 「다른 팀 할 일」 이라는 따로 된 표에만 담았습니다. 그건 보는
@@ -19022,6 +19137,37 @@ async function lkRowSet(id){
 }
 const LK_ST_HUE = { '완료':'var(--green)', '진행 중':'var(--blue)', '진행':'var(--blue)',
                     '대기':'var(--text-muted)', '보류':'var(--orange)' };
+/* 📄 손으로 주고받는 칸 — 할 일 화면 아래에 둡니다 */
+function lkSwapHtml(){
+  const t = lkOf();
+  let n = 0;
+  (data.brands || []).forEach(b => (b.tasks || []).forEach(x => {
+    if(x._from === '미디어마케팅팀') n++; }));
+  return '<div class="lk-swap"><div class="lk-head">📄 미디어마케팅팀 할 일 — 파일로 주고받기'
+    + '<span class="lk-meta">'
+      + (n ? '지금 ' + n + '건 들어와 있음' : '아직 불러온 것 없음')
+      + ' · 마지막 불러온 때 ' + lkWhen(t.fileAt)
+      + (t.fileName ? ' (' + esc(t.fileName) + ')' : '')
+      + ' · 마지막 내보낸 때 ' + lkWhen(t.outAt) + '</span>'
+    + '<span class="lk-btns">'
+      + '<button class="btn sm primary" onclick="lkFileAsk()"'
+        + ' title="그쪽이 내보낸 파일을 골라 바로 읽습니다">📂 파일로 불러오기</button>'
+      + '<button class="btn sm" onclick="lkFileOut(\'json\')"'
+        + ' title="우리 할 일을 파일로 만듭니다 (그쪽이 불러갑니다)">📤 내보내기 (json)</button>'
+      + '<button class="btn sm" onclick="lkFileOut(\'csv\')"'
+        + ' title="엑셀로 열리는 모양으로">📤 내보내기 (csv)</button>'
+      + (n ? '<button class="btn sm danger" onclick="lkDropImported()"'
+             + ' title="가져온 것만 뺍니다">🧹 가져온 것 빼기</button>' : '')
+    + '</span></div>'
+    + '<div class="fmeta">'
+      + '그쪽에서 <b>할 일만 내보낸 파일</b>을 골라 주시면 바로 읽습니다 — '
+      + 'NAS 권한도 폴더 허락도 필요 없습니다 (json · csv 둘 다). '
+      + '<b>미디어마케팅팀 것만</b> 바뀌고, 우리가 손으로 적은 것과 다른 팀 것은 그대로입니다. '
+      + '다시 불러와도 쌓이지 않고 덮어씁니다.'
+      + '<br>칸 이름: 업무명 · 담당자 · 상태 · 기한 · 진척률 · 메모 '
+      + '(name · assignee · state · deadline · progress · note 도 읽습니다)'
+    + '</div></div>';
+}
 function lkPanelHtml(){
   if(STORAGE_MODE !== 'nas') return '';
   const t = lkOf();
@@ -19212,7 +19358,10 @@ function renderTasks(){
           + '<button class="tt-edb" onclick="gbiPick()" title="마인드맵으로 그린 '
             + '그로스보드를 올리면 프로젝트로 세워 줍니다">📥 그로스보드</button>')
       + '</div>'
-    + (mmOn ? mmHtml(rows) : teams + restHtml));
+    + (mmOn ? mmHtml(rows) : teams + restHtml)
+    /* 📄 파일로 주고받는 칸은 <<맨 아래>> 에 둡니다 — 날마다 쓰는 것이
+       아니라 가끔 맞출 때 쓰는 것이라, 위에 있으면 거치적거립니다 */
+    + lkSwapHtml());
 }
 
 
@@ -29648,6 +29797,48 @@ function snapshotIds(d){
      · 불러온 뒤 내가 만든 것        → 남깁니다
      · 내가 내용을 고친 것            → 남깁니다 (쓴 것을 버리지 않습니다)
      · 손대지 않은 채 남이 지운 것   → 뺍니다                                */
+/* ── 목록 하나를 줄마다 합칩니다 (브랜드 안 목록과 같은 규칙) ──────
+   서버에만 있는 줄은 남기고, 내가 고친 줄은 내 것으로, 내가 지운 줄은
+   빼고, 내가 새로 만든 줄은 넣습니다. 어느 쪽도 <<모르는 줄>> 을 지우지
+   못합니다 — 이것이 자료가 말없이 사라지는 것을 막는 핵심입니다. */
+function mergeRows(mineArr, srvArr, depth){
+  const M = Array.isArray(mineArr) ? mineArr : [];
+  const S = Array.isArray(srvArr)  ? srvArr  : [];
+  const mById = new Map(M.filter(x => x && x.id).map(x => [x.id, x]));
+  const sIds  = new Set(S.filter(x => x && x.id).map(x => x.id));
+  const res = [];
+  S.forEach(sv => {
+    if(!sv || !sv.id) return;
+    if(deletedIds.has(sv.id)) return;                 /* 내가 지운 것 */
+    const mi = mById.get(sv.id);
+    res.push(mi ? mergeNested(mi, sv, (depth || 0) + 1) : sv);
+  });
+  M.forEach((m, i) => {
+    if(!m || !m.id || sIds.has(m.id)) return;
+    if(!keepMine(m.id, m)) return;                    /* 손 안 댄 채 남이 지운 것 */
+    if(i === 0) res.unshift(m); else res.push(m);     /* 내가 새로 만든 것 */
+  });
+  return res;
+}
+/* ── 줄 하나를 합칠 때, <<그 안에 또 든 목록>> 도 줄마다 봅니다 ──────
+   팀 안의 팀원, 보드 안의 단계·업무처럼 목록 안에 목록이 있습니다.
+   겉만 「내 것이 이긴다」 로 덮으면, 내 화면이 모르는 팀원·업무가 그
+   줄째로 사라집니다 — 비용에서 난 일과 똑같은 탈입니다.
+   id 가 달린 목록이면 안쪽도 같은 규칙으로 맞춥니다 (네 겹까지). */
+function mergeNested(mi, sv, depth){
+  if(!mi || typeof mi !== 'object' || !sv || typeof sv !== 'object') return mi;
+  if((depth || 0) > 4) return mi;
+  const out = Object.assign({}, sv, mi);
+  Object.keys(sv).forEach(k => {
+    const a = mi[k], b = sv[k];
+    if(!Array.isArray(a) || !Array.isArray(b)) return;
+    const idish = x => x && typeof x === 'object' && typeof x.id === 'string';
+    if(!a.every(idish) || !b.every(idish)) return;     /* id 가 없는 목록은 그대로 */
+    if(!a.length && !b.length) return;
+    out[k] = mergeRows(a, b, depth || 0);
+  });
+  return out;
+}
 function keepMine(id, obj){
   if(!baseIds.has(id)) return true;                     // 내가 새로 만든 것
   if(obj && sigOf(obj) !== baseIds.get(id)){            // 내가 고친 것
@@ -29889,18 +30080,35 @@ function mergeWithServer(server){
     const mh = Array.isArray(mine.hubs) ? mine.hubs : null;
     const sh = Array.isArray(server.hubs) ? server.hubs : null;
     if(!mh && !sh){ delete merged.hubs; return; }
-    merged.hubs = (mh && sh) ? mh : (mh || sh);
+    /* 겉을 통째로 덮으면 남이 방금 건 허브가 사라집니다 — 줄마다 봅니다 */
+    merged.hubs = (mh && sh) ? mergeRows(mh, sh, 0) : (mh || sh);
   })();
 
-  /* 💳 비용에서만 쓰는 구분 — 줄마다 봅니다. 같은 id 는 내 것을 쓰고,
-     상대가 새로 만든 구분은 버리지 않고 같이 둡니다 (안 그러면 둘이
-     같은 때에 만들었을 때 한쪽이 통째로 사라집니다). */
+  /* ── 💳 비용에서만 쓰는 구분 ───────────────────────────────────────
+     ⚠️ 여태는 <<구분을 통째로>> 내 것으로 덮었습니다. 그래서 내 화면이
+     모르는 비용 — 옆 사람이 방금 넣었거나, 내 화면이 뜬 뒤에 들어온 것 —
+     이 그 구분째로 사라졌습니다. 「새로고침하니 AI 비용 하나가 지워졌다」
+     가 이것입니다. 판을 안 올린 화면이 옆에서 저장만 해도 이렇게 됩니다.
+
+     이제 브랜드 목록과 <<똑같은 규칙>> 으로 줄마다 봅니다.
+       · 서버에만 있는 줄   → 그대로 둡니다 (남이 방금 넣은 것)
+       · 내가 고친 줄       → 내 것으로
+       · 내가 지운 줄       → 뺍니다 (deletedIds)
+       · 내가 새로 만든 줄  → 넣습니다
+     이러면 어느 쪽도 모르는 줄을 지울 수 없습니다. */
   (function(){
     const mg = Array.isArray(mine.costGroups) ? mine.costGroups : [];
     const sg = Array.isArray(server.costGroups) ? server.costGroups : [];
     if(!mg.length && !sg.length){ delete merged.costGroups; return; }
+    const sById = new Map(sg.filter(x => x && x.id).map(x => [x.id, x]));
     const seen = new Set(mg.map(x => x && x.id));
-    merged.costGroups = mg.concat(
+    const out = mg.map(g => {
+      if(!g || !g.id) return g;
+      const sv = sById.get(g.id);
+      if(!sv) return g;                                /* 내가 새로 만든 구분 */
+      return mergeNested(g, sv, 0);
+    });
+    merged.costGroups = out.concat(
       sg.filter(x => x && x.id && !seen.has(x.id) && !deletedIds.has(x.id)));
   })();
 
@@ -29970,7 +30178,8 @@ function mergeWithServer(server){
           clashedTop++;
         }
       }
-      res.push(mi || sv);
+      /* 겉만 덮지 않고 안쪽 목록(팀원·단계·업무 …)까지 줄마다 맞춥니다 */
+      res.push(mi ? mergeNested(mi, sv, 0) : sv);
     });
     extra.forEach(x => res.push(x));
     const put = new Set(res.map(x => x.id));

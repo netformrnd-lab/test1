@@ -1074,7 +1074,31 @@ if ($action === 'sheet') {
     $file = (substr($rel, 0, 1) === '/')
           ? @realpath($rel)
           : @realpath($base . '/' . ltrim($rel, '/'));
-    if (!$file || !$root || strpos($file, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($file)) {
+    /* 🔁 <<연동용으로 등록해 둔 폴더>> 도 읽습니다 ───────────────────
+       다른 팀(미디어마케팅팀) 폴더는 공유폴더(nasroot) 바깥입니다.
+       nasfiles.php 는 사람이 등록해 둔 폴더를 읽게 해 두었는데 여기는
+       아니어서, 그쪽이 <<엑셀·csv>> 로 내보내면 못 읽고 막혔습니다.
+       PD 가 엑셀로 떨어뜨리는 쪽이 오히려 흔하니, 같은 목록을 여기서도
+       봅니다. 읽기만 하고, 적어 둔 폴더 안쪽만 봅니다. */
+    $okIn = ($file && $root && strpos($file, $root . DIRECTORY_SEPARATOR) === 0);
+    if (!$okIn && $file && is_file($file)) {
+        $regf = $DATA . '/teamdirs.php';
+        if (is_file($regf)) {
+            /* 그 파일은 「<?php exit; ?>」 로 시작합니다 — 주소로 바로 열어도
+               안 보이게 해 둔 것입니다. include 하면 이 요청까지 죽으니,
+               앞머리를 떼고 JSON 으로만 읽습니다 (nasfiles.php 와 같은 식). */
+            $raw = (string)@file_get_contents($regf);
+            $reg = json_decode(preg_replace('/^<\?php.*?\n/s', '', $raw), true);
+            foreach ((array)(is_array($reg) ? $reg : []) as $d) {
+                if (!is_string($d)) continue;
+                $r = @realpath((string)$d);
+                if ($r !== false && strpos($file, $r . DIRECTORY_SEPARATOR) === 0) {
+                    $okIn = true; break;
+                }
+            }
+        }
+    }
+    if (!$file || !$okIn || !is_file($file)) {
         jout(['ok' => false, 'error' => '그런 파일이 없거나, 공유폴더 바깥입니다: ' . $rel], 404);
     }
     $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));

@@ -335,6 +335,12 @@ body.tt-wide .layout{max-width:1820px}
   background:color-mix(in srgb,var(--green) 7%,transparent)}
 .lk-auto .fmeta{margin-left:auto}
 @media (max-width:700px){ .lk-auto .fmeta{margin-left:0;width:100%} }
+/* 🧹 누구 것만 들어오는지 */
+.lk-only{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 0;
+  padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--green);
+  border-radius:var(--r-xs);background:var(--bg-card);font-size:12.5px}
+.lk-only .fmeta{width:100%;margin:0;line-height:1.75}
+.lk-only button{margin-left:auto}
 /* 📌 저쪽에 부탁할 자리·이름 — 눈에 잘 띄게 */
 /* 🤝 저절로 연동 — 지금 꼴을 한 줄로 */
 .lk-boot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 0;
@@ -5484,7 +5490,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-11';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-12';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18030,6 +18036,21 @@ const TS_MAP = [
   ['note',  ['메모','비고','설명','내용메모','note','memo','desc','remark']]
 ];
 function tsKey(s){ return String(s == null ? '' : s).replace(/[\s_\-()\[\].]/g, '').toLowerCase(); }
+/* 🧑‍🤝‍🧑 <<「팀」 칸>> ───────────────────────────────────────────────
+   저쪽 파일에 팀·소속이 적혀 있으면 그것으로 가려냅니다. 다만 이 칸은
+   <<할 일인지 가리는 데는 쓰지 않습니다>> — TS_MAP 에 넣으면 「이름 +
+   팀」 으로 된 people.json 까지 할 일로 집어 버립니다. 그래서 따로 둡니다. */
+const TS_TEAM_WORDS = ['팀','팀명','소속','소속팀','부서','본부','조직','구분',
+                       'team','dept','department','group','org','division'];
+function tsPickTeam(headers){
+  const hk = (headers || []).map(tsKey);
+  for(const w of TS_TEAM_WORDS){ const i = hk.indexOf(tsKey(w)); if(i >= 0) return i; }
+  for(const w of TS_TEAM_WORDS){
+    const i = hk.findIndex(h => h && h.indexOf(tsKey(w)) >= 0);
+    if(i >= 0) return i;
+  }
+  return -1;
+}
 function tsPickCol(headers){
   const hk = headers.map(tsKey);
   const out = {};
@@ -18062,10 +18083,15 @@ function tsRow(get){
 function tsFromGrid(grid){
   const rows = (grid || []).filter(r => (r || []).some(c => String(c || '').trim()));
   if(rows.length < 2) return [];
-  const col = tsPickCol(rows[0].map(x => String(x || '')));
+  const head = rows[0].map(x => String(x || ''));
+  const col = tsPickCol(head);
   if(col.title == null) return [];
-  return rows.slice(1).map(r => tsRow(k => col[k] == null ? '' : r[col[k]]))
-             .filter(x => x.title);
+  const ti = tsPickTeam(head);
+  return rows.slice(1).map(r => {
+    const x = tsRow(k => col[k] == null ? '' : r[col[k]]);
+    x.team = ti >= 0 ? String(r[ti] || '').trim() : '';
+    return x;
+  }).filter(x => x.title);
 }
 /* JSON 줄 목록 → 우리 모양 */
 function tsFromJson(list){
@@ -18076,8 +18102,12 @@ function tsFromJson(list){
   });
   const col = tsPickCol(keys);
   if(col.title == null) return [];
-  return (list || []).map(o => tsRow(k => (col[k] == null || !o) ? '' : o[keys[col[k]]]))
-                     .filter(x => x.title);
+  const ti = tsPickTeam(keys);
+  return (list || []).map(o => {
+    const x = tsRow(k => (col[k] == null || !o) ? '' : o[keys[col[k]]]);
+    x.team = (ti >= 0 && o) ? String(o[keys[ti]] || '').trim() : '';
+    return x;
+  }).filter(x => x.title);
 }
 function tsSetDir(){
   const t = tsOf();
@@ -18439,8 +18469,12 @@ function lkAskText(){
   return '브랜드허브 할 일 연동 부탁드립니다.\n\n'
     + '· 자리: ' + LK_DIG_DEF + '\n'
     + '· 이름: ' + LK_FILE_DEF + '.json   (csv · xlsx 도 됩니다)\n'
-    + '· 칸: 업무명 · 담당자 · 상태 · 기한 · 진척률 · 메모\n'
+    + '· 칸: 팀 · 업무명 · 담당자 · 상태 · 기한 · 진척률 · 메모\n'
     + '      (name · assignee · state · deadline · progress · note 도 읽습니다)\n\n'
+    + '◆ 「팀」 칸을 꼭 넣어 주세요.\n'
+    + '  저희는 그 칸이 「미디어마케팅팀」 인 줄만 가져옵니다. 다른 팀 줄이\n'
+    + '  섞여 있어도 저희 쪽에는 안 들어오니, 한 파일에 같이 담아 주셔도\n'
+    + '  괜찮습니다.\n\n'
     + '날짜를 뒤에 붙이지 말고 <<늘 같은 이름으로 덮어써>> 주세요.\n'
     + '그러면 저희 쪽은 사람이 손댈 것 없이 저절로 맞춰집니다.';
 }
@@ -18801,12 +18835,23 @@ async function lkFileLoad(ev){
       return;
     }
     const put = lkIntoTasks(rows, name, '미디어마케팅팀');
+    if(put.blocked){
+      alert('⚠ ' + name + '\n\n'
+        + '읽은 ' + put.all + '줄이 <<모두 다른 팀 것>> 이어서 가져오지 않았습니다.\n'
+        + '(그대로 넣으면 여태 가져온 것이 지워집니다)\n\n'
+        + (put.how === '팀 칸'
+            ? '파일의 「팀」 칸에 미디어마케팅팀이라고 적힌 줄이 없습니다.'
+            : '[✎ 명단] 에 미디어마케팅팀 사람 이름을 적어 주세요.'));
+      return;
+    }
     const t = lkOf();
     t.fileAt = new Date().toISOString();
     t.fileName = name;
     markDirtyAll(); render();
     alert('✅ 불러왔습니다 — 할 일 ' + put.n + '건\n\n'
       + '파일: ' + name + '\n'
+      + (put.drop ? '건너뜀: 다른 팀 ' + put.drop + '줄 ('
+          + (put.how === '팀 칸' ? '파일의 「팀」 칸' : '적어 둔 명단') + '으로 가림)\n' : '')
       + '어디로: ' + (put.b ? put.b.name : '') + ' 밑 · 담당자 이름 그대로\n\n'
       + '담당자 이름이 팀원과 같으면 그 사람 카드에 바로 섭니다.\n'
       + '다시 불러와도 쌓이지 않고 덮어쓰며, 저쪽에서 빠진 것은 같이 사라집니다.\n'
@@ -18977,11 +19022,29 @@ async function lkPullFile(loud){
     if(key === String(t.autoKey || '')){ if(loud) toast('⏱ 그대로입니다 — 바뀐 것이 없습니다'); 
       t.autoAt = new Date().toISOString(); return 0; }
     const put = lkIntoTasks(rows, t.autoName || '자동', '미디어마케팅팀', true);
+    if(put.blocked){
+      /* 걸러 보니 미디어마케팅팀 줄이 하나도 없습니다 — 그대로 밀면
+         여태 가져온 것이 통째로 지워지니 <<아무것도 바꾸지 않습니다>> */
+      t.autoKey = key;
+      t.autoAt = new Date().toISOString();
+      lkSay('⚠ 읽은 ' + put.all + '줄이 모두 다른 팀 것이어서 안 가져왔습니다 — '
+        + (put.how === '팀 칸' ? '파일의 「팀」 칸을 봐 주세요'
+                               : '[✎ 명단] 에 미디어마케팅팀 사람을 적어 주세요'));
+      markDirtyAll(); render();
+      if(loud) alert('⚠ ' + (t.autoName || '파일') + '\n\n'
+        + '읽은 ' + put.all + '줄이 <<모두 다른 팀 것>> 이어서 가져오지 않았습니다.\n'
+        + '(그대로 넣으면 여태 가져온 것이 지워집니다)\n\n'
+        + (put.how === '팀 칸'
+            ? '파일의 「팀」 칸에 미디어마케팅팀이라고 적힌 줄이 없습니다.'
+            : '[✎ 명단] 에 미디어마케팅팀 사람 이름을 적어 주세요.'));
+      return 0;
+    }
     t.autoKey = key;
     t.autoAt = new Date().toISOString();
     markDirtyAll(); render();
-    if(loud) toast('⏱ 미디어마케팅팀 할 일 ' + put.n + '건을 맞췄습니다');
-    else toast('⏱ 미디어마케팅팀 할 일이 바뀌어 ' + put.n + '건을 맞췄습니다');
+    const dropTxt = put.drop ? ' (다른 팀 ' + put.drop + '줄은 건너뜀)' : '';
+    if(loud) toast('⏱ 미디어마케팅팀 할 일 ' + put.n + '건을 맞췄습니다' + dropTxt);
+    else toast('⏱ 미디어마케팅팀 할 일이 바뀌어 ' + put.n + '건을 맞췄습니다' + dropTxt);
     return put.n;
   }catch(e){
     if(loud) alert('❌ 맞추지 못했습니다.\n\n' + apiErrText(e)
@@ -19099,9 +19162,119 @@ function lkKey(r, i){
   for(let k = 0; k < base.length; k++) h = (h * 31 + base.charCodeAt(k)) >>> 0;
   return 'mm_' + h.toString(36) + '_' + (base.length % 97);
 }
+/* 🔎 저쪽 people.json 에서 <<이름을 저절로 주워 옵니다>> ───────────
+   명단을 사람이 손으로 적게 하면 또 「내가 하면 안 되는」 일이 됩니다.
+   저쪽 폴더에 people.json 이 있는 것을 이미 봤으니, 거기서 이름만
+   읽어 와 채웁니다. 읽기만 하고, 실패하면 조용히 넘어갑니다. */
+async function lkMemSniff(files){
+  if(lkMembers().length) return 0;        /* 이미 적혀 있으면 안 건드립니다 */
+  const cand = (files || []).filter(f =>
+    /people|member|사람|팀원|인원|직원/i.test(String(f['이름'] || ''))
+    && /\.json$/i.test(String(f['이름'] || ''))).slice(0, 3);
+  for(const f of cand){
+    let txt = '';
+    try{
+      const r = await apiJson('nasfiles.php?action=tspeek&n=20000&path='
+        + encodeURIComponent(f['경로']));
+      if(!r['글자인가']) continue;
+      txt = String(r['앞부분'] || '');
+    }catch(e){ continue; }
+    const names = [];
+    const add = (v) => {
+      const x = String(v || '').trim();
+      /* 사람 이름처럼 생긴 것만 — 너무 길거나 숫자·주소는 뺍니다 */
+      if(!x || x.length > 20 || /[\/\\@:{}\[\]]/.test(x)) return;
+      if(names.indexOf(x) < 0) names.push(x);
+    };
+    let js = null;
+    try{ js = JSON.parse(txt); }catch(e){}
+    if(js){
+      const walk = (o, d) => {
+        if(!o || typeof o !== 'object' || (d || 0) > 4) return;
+        if(Array.isArray(o)) return o.slice(0, 200).forEach(x => walk(x, (d||0)+1));
+        Object.keys(o).forEach(k => {
+          if(/^(name|이름|성명|담당자|사원명)$/i.test(k)) add(o[k]);
+          else walk(o[k], (d||0)+1);
+        });
+      };
+      walk(js, 0);
+    }
+    if(!names.length){
+      /* 잘려서 JSON 이 안 되면 글자에서 바로 긁습니다 */
+      const re = /"(?:name|이름|성명|담당자)"\s*:\s*"([^"]{1,20})"/g;
+      let m; while((m = re.exec(txt))) add(m[1]);
+    }
+    if(names.length){
+      lkOf().members = names.slice(0, 80);
+      return names.length;
+    }
+  }
+  return 0;
+}
+/* ✎ 명단 고치기 — 파일에 「팀」 칸이 없을 때 쓰는 길입니다 */
+function lkMemEdit(){
+  const t = lkOf();
+  const now = lkMembers();
+  const v = prompt('📛 미디어마케팅팀 사람 명단\n\n'
+    + '여기 적어 둔 사람 것만 가져옵니다. 쉼표로 나눠 적어 주세요.\n'
+    + '(저쪽 파일에 「팀」 칸이 있으면 그것을 먼저 보고, 이 명단은 안 씁니다)\n\n'
+    + '비워 두면 <<파일에 있는 줄을 다 가져옵니다>>.',
+    now.join(', '));
+  if(v === null) return;
+  const list = String(v).split(/[,\n]+/).map(x => x.trim()).filter(Boolean).slice(0, 80);
+  t.members = list;
+  t.autoKey = '';                 /* 체가 바뀌었으니 다음에 다시 맞춥니다 */
+  markDirtyAll(); render();
+  toast(list.length ? '📛 ' + list.length + '명만 가져옵니다' : '명단을 비웠습니다');
+}
+/* 📛 미디어마케팅팀 사람 명단 — 적어 두면 이 사람들 것만 들어옵니다 */
+function lkMemKey(s){
+  return String(s == null ? '' : s).replace(/[\s_\-()\[\].]/g, '').toLowerCase();
+}
+function lkMembers(){
+  const t = lkOf();
+  return (Array.isArray(t.members) ? t.members : [])
+    .map(x => String(x || '').trim()).filter(Boolean);
+}
+/* 「미디어마케팅팀」 · 「미디어마케팅」 · 「mediam」 다 같은 것으로 봅니다 */
+function lkIsTeamName(s){
+  const k = lkMemKey(s);
+  if(!k) return false;
+  return k.indexOf(lkMemKey('미디어마케팅')) >= 0 || k.indexOf('mediam') >= 0;
+}
+/* 🧹 <<미디어마케팅팀 것만 골라냅니다>> ─────────────────────────────
+   저쪽 파일에는 PD 가 적은 것만 담기지만, 다른 팀 줄이 섞여 올 수
+   있습니다. 그대로 들여오면 남의 일이 우리 사람 카드에 서고, 우리가
+   손댈 수 없는 줄이 쌓입니다. 그래서 <<들어올 때>> 걸러냅니다.
+     ① 파일에 「팀」 칸이 있으면 → 미디어마케팅팀 줄만
+     ② 없으면 적어 둔 명단으로  → 그 사람 것만
+     ③ 둘 다 없으면 → 다 받되, 그렇다고 또렷이 알려 줍니다 */
+function lkOnlyTeam(rows){
+  const all = (rows || []).filter(r => r && String(r.title || '').trim());
+  if(all.some(r => String(r.team || '').trim())){
+    const keep = all.filter(r => lkIsTeamName(r.team));
+    return { keep: keep, all: all.length, drop: all.length - keep.length, how: '팀 칸' };
+  }
+  const mem = lkMembers();
+  if(mem.length){
+    const set = {};
+    mem.forEach(m => { set[lkMemKey(m)] = true; });
+    const keep = all.filter(r => set[lkMemKey(r.owner)]);
+    return { keep: keep, all: all.length, drop: all.length - keep.length, how: '명단' };
+  }
+  return { keep: all, all: all.length, drop: 0, how: '' };
+}
 function lkIntoTasks(rows, srcName, teamName, quiet){
   const bs = data.brands || [];
   if(!bs.length) return { n:0, b:null };
+  /* 🧹 미디어마케팅팀 것만 — 다른 팀 줄은 여기서 버립니다 */
+  const sift = lkOnlyTeam(rows);
+  if(!sift.keep.length && sift.all){
+    /* 걸러 보니 하나도 안 남았습니다. 이때 그대로 밀면 여태 가져온 것이
+       통째로 지워집니다 — <<아무것도 바꾸지 않습니다>>. */
+    return { n:0, b:null, all: sift.all, drop: sift.drop, how: sift.how, blocked:true };
+  }
+  rows = sift.keep;
   /* 어느 브랜드에 둘지 — 한 번 고르면 적어 둡니다 */
   const t = lkOf();
   const tag = teamName || '미디어마케팅팀';
@@ -19148,7 +19321,7 @@ function lkIntoTasks(rows, srcName, teamName, quiet){
   /* 저쪽에서 없어진 것은 우리 쪽에서도 치웁니다 (가져온 것만) */
   b.tasks = b.tasks.filter(x => !(x._from === tag && !seen[x.id]));
   markDirty(b.id);
-  return { n:n, b:b };
+  return { n:n, b:b, all: sift.all, drop: sift.drop, how: sift.how };
 }
 /* 🤝 <<저절로 연동>> ─────────────────────────────────────────────
    여태는 사람이 ① 길 찾기 누르고 ② 폴더 적고 ③ 등록 허락하고
@@ -19192,6 +19365,9 @@ async function lkBootFind(dir){
   }
   const files = r['파일'] || [];
   if(!files.length) return null;
+  /* 📛 명단이 비어 있으면 저쪽 people.json 에서 주워 옵니다 —
+     파일에 「팀」 칸이 없을 때 이것으로 걸러냅니다 */
+  try{ await lkMemSniff(files); }catch(e){}
   /* 📌 정해 둔 이름이 먼저, 그 다음 「할 일 같은 이름」 */
   const order = files.filter(f => lkIsDef(f['이름']))
     .concat(files.filter(f => !lkIsDef(f['이름']) && f['할일같음']));
@@ -19235,8 +19411,17 @@ async function lkBoot(force){
         if(!got) continue;
         const put = lkLand(got.hit, got.dir, [], '①', '②', true);
         t.autoOn = true; lkAutoTick();
+        if(put && put.blocked){
+          lkSay('⚠ 「' + got.hit.file['이름'] + '」 의 ' + put.all + '줄이 모두 다른 팀 '
+            + '것이어서 안 가져왔습니다 — '
+            + (put.how === '팀 칸' ? '파일의 「팀」 칸을 봐 주세요'
+                                   : '[✎ 명단] 에 미디어마케팅팀 사람을 적어 주세요'));
+          markDirtyAll(); render();
+          return;
+        }
         lkSay('✅ 저절로 찾아 연결했습니다 — 「' + got.hit.file['이름'] + '」 에서 '
           + (put ? put.n : 0) + '건'
+          + (put && put.drop ? ' (다른 팀 ' + put.drop + '줄은 건너뜀)' : '')
           + (put && put.b ? ' → ' + put.b.name + ' 밑' : '')
           + ' · ' + lkAutoMin() + '분마다 맞춥니다');
         markDirtyAll(); render();
@@ -19275,10 +19460,23 @@ function lkLand(h, dir, log, a, b, quiet){
   if(!quiet){ lkAutoLog = log; }
   render();
   if(quiet) return put;              /* 저절로 한 것은 알림창을 띄우지 않습니다 */
+  if(put.blocked){
+    alert('⚠ ' + h.file['이름'] + '\n\n'
+      + '읽은 ' + put.all + '줄이 <<모두 다른 팀 것>> 이어서 가져오지 않았습니다.\n\n'
+      + (put.how === '팀 칸'
+          ? '파일의 「팀」 칸에 미디어마케팅팀이라고 적힌 줄이 없습니다.'
+          : '[✎ 명단] 에 미디어마케팅팀 사람 이름을 적어 주세요.'));
+    return put;
+  }
   alert('✅ 찾아서 <<할 일에 넣었습니다>> — ' + put.n + '건\n\n'
     + '어디서: ' + (h.file['어디'] ? h.file['어디'] + '/' : '') + h.file['이름']
     + (h.path && h.path !== '(표)' ? '  →  ' + h.path : '') + '\n'
     + '줄 생김새: ' + (h.keys || []).join(' · ') + '\n'
+    + (put.drop
+        ? '건너뜀: 다른 팀 ' + put.drop + '줄 ('
+          + (put.how === '팀 칸' ? '파일의 「팀」 칸' : '적어 둔 명단')
+          + '으로 가렸습니다 — 미디어마케팅팀 것만 들어옵니다)\n'
+        : '')
     + '어디로: ' + (put.b ? put.b.name : '') + ' 밑 · 담당자 이름 그대로\n\n'
     + '담당자 이름이 팀원과 같으면 <<그 사람 카드>> 에 바로 섭니다.\n'
     + '같은 것을 다시 가져와도 쌓이지 않고 덮어씁니다. 저쪽에서 없어진 것은 '
@@ -19697,6 +19895,24 @@ function lkSwapHtml(){
       + '다시 불러와도 쌓이지 않고 덮어씁니다.'
       + '<br>칸 이름: 업무명 · 담당자 · 상태 · 기한 · 진척률 · 메모 '
       + '(name · assignee · state · deadline · progress · note 도 읽습니다)'
+    + '</div>'
+    /* 🧹 누구 것만 들어오는지 — 섞여 들어오는 것을 막습니다 */
+    + '<div class="lk-only">'
+      + '<b>🧹 미디어마케팅팀 사람 것만 가져옵니다</b>'
+      + '<button class="btn sm" onclick="lkMemEdit()"'
+        + ' title="파일에 「팀」 칸이 없을 때 쓰는 명단입니다">✎ 명단</button>'
+      + '<span class="fmeta">'
+        + '저쪽 파일에 <b>「팀」 칸</b>이 있으면 그것을 먼저 봅니다 — '
+        + '미디어마케팅팀이라고 적힌 줄만 들어옵니다. '
+        + '칸이 없으면 아래 <b>명단</b>에 적힌 사람 것만 들어옵니다.'
+        + '<br>지금 명단: '
+        + (lkMembers().length
+            ? '<b>' + esc(lkMembers().join(' · ')) + '</b> (' + lkMembers().length + '명)'
+            : '<b>비어 있음</b> — 「팀」 칸도 없으면 <b>파일에 있는 줄을 다 가져옵니다</b>. '
+              + '섞여 들어올 수 있으니 [✎ 명단] 에 한 번 적어 주세요.')
+        + '<br>내보내기는 <b>우리가 적은 것만</b> 나갑니다 — 저쪽에서 가져온 줄은 '
+        + '되돌려 보내지 않습니다.'
+      + '</span>'
     + '</div>'
     /* 📌 저쪽에 부탁할 자리와 이름 — 이 이름이면 사람 손이 아예 안 갑니다 */
     + '<div class="lk-fix"><b>📌 저쪽에 부탁드릴 이름</b>'
@@ -31128,6 +31344,9 @@ function normalize(raw){
     L.autoOn = !!L.autoOn;
     L.bootOff = !!L.bootOff;
     { const n = parseInt(L.autoMin, 10); L.autoMin = (n >= 1 && n <= 180) ? n : 10; }
+    if(!Array.isArray(L.members)) L.members = [];
+    L.members = L.members.map(x => String(x || '').trim())
+                         .filter(Boolean).slice(0, 80);
     if(!Array.isArray(L.rows)) L.rows = [];
     L.rows = L.rows.filter(r => r && typeof r === 'object'
                                 && String(r['업무명'] || '').trim()).slice(0, 2000);

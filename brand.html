@@ -5456,7 +5456,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-2';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-3';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18620,6 +18620,71 @@ function lkFindRows(obj, depth, path, out){
     lkFindRows(obj[k], depth + 1, path ? path + '.' + k : k, out));
   return out;
 }
+/* ── 📥 가져온 줄을 <<진짜 할 일>> 로 꽂아 넣습니다 ────────────────
+   여태는 「다른 팀 할 일」 이라는 따로 된 표에만 담았습니다. 그건 보는
+   것일 뿐이라, 사람 카드에는 안 나왔습니다 — 「가져와서 여기에 적혀야지」
+   가 그 말입니다.
+   이제 담당자 이름을 그대로 달아 <<할 일로>> 넣습니다. 그러면 그 사람
+   카드의 업무일지·진행중 프로젝트에 바로 섭니다.
+   · 같은 줄은 덮어씁니다 (id 를 원본에서 따와 고정합니다) — 다시
+     가져와도 쌓이지 않습니다
+   · 저쪽에서 없어진 줄은 같이 지웁니다 (우리가 손으로 적은 것은 그대로)
+   · 우리가 여기서 고친 뒤 다시 가져오면, 저쪽 것이 이깁니다 (저쪽이
+     원본이라 그렇습니다) */
+function lkStatus(s){
+  const v = String(s || '').trim();
+  if(/완료|done|끝/i.test(v)) return '완료';
+  if(/보류|hold|대기|예정|todo|wait/i.test(v)) return /보류|hold/i.test(v) ? '보류' : '예정';
+  if(v) return '진행 중';
+  return '진행 중';
+}
+function lkKey(r, i){
+  const base = String(r.srcId || r.title || '') + '|' + String(r.owner || '');
+  let h = 0;
+  for(let k = 0; k < base.length; k++) h = (h * 31 + base.charCodeAt(k)) >>> 0;
+  return 'mm_' + h.toString(36) + '_' + (base.length % 97);
+}
+function lkIntoTasks(rows, srcName, teamName){
+  const bs = data.brands || [];
+  if(!bs.length) return { n:0, b:null };
+  /* 어느 브랜드에 둘지 — 한 번 고르면 적어 둡니다 */
+  const t = lkOf();
+  let b = bs.find(x => x.id === t.brandId);
+  if(!b){
+    const pick = prompt('가져온 할 일을 <<어느 브랜드 밑>> 에 둘까요?\n\n'
+      + '번호를 적어 주세요. (담당자 이름은 그대로 달려서, 그 사람 카드에 섭니다)\n\n'
+      + bs.map((x, i) => (i + 1) + ') ' + (x.icon || '') + ' ' + x.name).join('\n'), '1');
+    if(pick === null) return { n:0, b:null };
+    b = bs[(parseInt(pick, 10) || 1) - 1] || bs[0];
+    t.brandId = b.id;
+  }
+  b.tasks = b.tasks || [];
+  const seen = {};
+  let n = 0;
+  (rows || []).forEach((r, i) => {
+    const id = lkKey(r, i);
+    seen[id] = true;
+    const now = new Date().toISOString();
+    const pct = (r.pct == null || r.pct === '') ? '' : String(r.pct);
+    const hit = b.tasks.find(x => x.id === id);
+    const row = {
+      id: id, title: String(r.title || '').trim(),
+      kind: pct !== '' ? '프로젝트' : '할 일',
+      status: lkStatus(r.status),
+      pct: pct, due: String(r.due || ''), owner: String(r.owner || ''),
+      note: String(r.note || ''),
+      _from: teamName || '미디어마케팅팀',          /* 가져온 것이라는 표 */
+      _src: String(srcName || ''), updatedAt: now
+    };
+    if(hit) Object.assign(hit, row); else b.tasks.unshift(row);
+    n++;
+  });
+  /* 저쪽에서 없어진 것은 우리 쪽에서도 치웁니다 (가져온 것만) */
+  const tag = teamName || '미디어마케팅팀';
+  b.tasks = b.tasks.filter(x => !(x._from === tag && !seen[x.id]));
+  markDirty(b.id);
+  return { n:n, b:b };
+}
 async function lkAuto(){
   const where = prompt('🔗 연동 길 찾기\n\n'
     + '저쪽 폴더를 적어 주시면, 할 일이 어디에 어떤 모양으로 들어 있는지\n'
@@ -18682,12 +18747,55 @@ async function lkAuto(){
     /* ④ 할 일처럼 생긴 줄 목록 찾기 */
     toast('⏳ ④ 할 일을 찾는 중…');
     const hits = [];
-    (b['파일'] || []).forEach(f => {
+    const dig1 = (list) => (list || []).forEach(f => {
       if(f['글자아님'] || !f['내용']) return;
       let js = null;
       try{ js = JSON.parse(f['내용']); }catch(e){ return; }
       lkFindRows(js).forEach(h => hits.push(Object.assign({ file: f }, h)));
     });
+    dig1(b['파일']);
+
+    /* ④-2 <<가리키는 자리를 따라갑니다>> ─────────────────────────────
+       그쪽 앱은 자료가 어디 있는지를 설정 파일에 적어 둡니다
+       (Server/main.json · snap/LATEST.json · DB위치설정 안내서). 그래서
+       이 폴더 안에는 작은 쪽지들만 있고 알맹이는 딴 데 있습니다.
+       쪽지 안에서 폴더처럼 생긴 글자를 찾아 그쪽도 한 번 더 뒤집니다. */
+    if(!hits.length){
+      const seenDir = {}; const more = [];
+      (b['파일'] || []).forEach(f => {
+        const txt = String(f['내용'] || '');
+        if(!txt) return;
+        const re = /["']((?:[A-Za-z]:[\\\/]|\\\\|\/volume\d+\/)[^"']{3,200})["']/g;
+        let m;
+        while((m = re.exec(txt))){
+          let d = m[1].replace(/\\\\/g, '\\');
+          /* 파일을 가리키면 그 위 폴더를 봅니다 */
+          if(/\.[A-Za-z0-9]{1,5}$/.test(d)) d = d.replace(/[\\\/][^\\\/]*$/, '');
+          if(!d || seenDir[d]) continue;
+          seenDir[d] = true; more.push({ d: d, from: f['이름'] });
+        }
+      });
+      if(more.length){
+        log.push('④ 설정 안에 적힌 다른 자리 ' + more.length + '곳을 따라가 봅니다');
+        for(const x of more.slice(0, 4)){
+          toast('⏳ ④ ' + x.d + ' 도 보는 중…');
+          try{
+            const b2 = await apiJson('nasfiles.php?action=tsbundle&n=40&cap=60000&path='
+              + encodeURIComponent(x.d));
+            log.push('   · ' + x.d + ' (' + x.from + ' 에 적힘) → 자료 '
+              + b2['본파일'] + '개');
+            dig1(b2['파일']);
+            if(b2['파일'] && b2['파일'].length)
+              lkBundle = { 폴더: b2['폴더'], 본파일: (lkBundle ? lkBundle['본파일'] : 0) + b2['본파일'],
+                           찾은파일: b2['찾은파일'],
+                           파일: (lkBundle ? (lkBundle['파일'] || []) : []).concat(b2['파일']) };
+            if(hits.length) break;
+          }catch(e2){
+            log.push('   · ' + x.d + ' → ' + apiErrText(e2).split('\n')[0]);
+          }
+        }
+      }
+    }
     /* 엑셀·csv 도 같이 봅니다 */
     for(const f of files){
       if(hits.length) break;
@@ -18714,23 +18822,37 @@ async function lkAuto(){
         '기한': x.due, '진척률': x.pct, '메모': x.note,
         '고친때': '', '고친이': h.file['이름'] }));
       t.lastPull = new Date().toISOString();
+      /* 📌 보는 표에만 담지 않고, <<진짜 할 일로>> 꽂아 넣습니다 */
+      const put = lkIntoTasks(h.rows, h.file['이름'], '미디어마케팅팀');
       markDirtyAll(); render();
-      alert('✅ 찾았습니다 — 할 일 ' + h.n + '건을 가져왔습니다.\n\n'
+      log.push('④ 찾음: ' + h.file['이름'] + ' → ' + h.path + ' (' + h.n + '건)');
+      if(put.n) log.push('⑤ 할 일로 넣음: ' + put.n + '건 → ' + (put.b ? put.b.name : ''));
+      lkAutoLog = log; render();
+      alert('✅ 찾아서 <<할 일에 넣었습니다>> — ' + put.n + '건\n\n'
         + '어디서: ' + (h.file['어디'] ? h.file['어디'] + '/' : '') + h.file['이름']
         + (h.path && h.path !== '(표)' ? '  →  ' + h.path : '') + '\n'
-        + '줄 생김새: ' + (h.keys || []).join(' · ') + '\n\n'
-        + (hits.length > 1 ? '(다른 자리에서도 ' + (hits.length - 1)
-            + '군데 더 찾았습니다 — 아래 「모아 본 자료」 에서 확인하세요)\n\n' : '')
-        + '아래 「다른 팀 할 일」 칸에 들어가 있습니다.\n\n'
-        + '※ 이건 <<그때 한 번 읽어온 것>> 입니다. 저쪽이 고치면 따라 바뀌지 '
-        + '않습니다 — 이어서 보려면 아래 ⑤ 를 읽어 주세요.');
-      log.push('④ 찾음: ' + h.file['이름'] + ' → ' + h.path + ' (' + h.n + '건)');
-      lkAutoLog = log; render();
+        + '줄 생김새: ' + (h.keys || []).join(' · ') + '\n'
+        + '어디로: ' + (put.b ? put.b.name : '') + ' 밑 · 담당자 이름 그대로\n\n'
+        + '담당자 이름이 팀원과 같으면 <<그 사람 카드>> 에 바로 섭니다.\n'
+        + '같은 것을 다시 가져와도 쌓이지 않고 덮어씁니다. 저쪽에서 없어진 것은 '
+        + '여기서도 같이 사라집니다.\n\n'
+        + '※ 저쪽이 고치면 다시 한 번 눌러 주세요 — 그때 맞춰집니다.');
       return;
     }
 
-    /* 못 찾았을 때 — 무엇을 봤고 무엇이 없었는지 */
+    /* 못 찾았을 때 — 쪽지 속을 바로 펼쳐 보여 줍니다 (또 누르게 하지 않게) */
     log.push('④ 할 일로 알아볼 줄 목록을 못 찾았습니다.');
+    const key = (b['파일'] || []).filter(f => !f['글자아님'] && f['내용'])
+      .sort((x, y) => (String(y['내용']).length) - (String(x['내용']).length))
+      .slice(0, 6);
+    if(key.length){
+      log.push('');
+      log.push('── 들여다본 쪽지 속 (여기에 자료가 어디 있는지 적혀 있을 수 있습니다) ──');
+      key.forEach(f => {
+        log.push('• ' + (f['어디'] ? f['어디'] + '/' : '') + f['이름']);
+        log.push('  ' + String(f['내용'] || '').replace(/\s+/g, ' ').slice(0, 400));
+      });
+    }
     throw { _done: true };
   }catch(e){
     if(!e || !e._done){

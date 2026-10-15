@@ -986,6 +986,15 @@ function computeVisits(y,m){
       out.push({aptId:a.id,name:a.name,date:isoDate(dt),dd,who:who||'-',sub:!!who&&who!==mgr,assigneeId}); }); }
   return out;
 }
+// 정기 방문 한 건의 담당 감리원 이름을 찾는다: 저장된 이름 → 저장된 id→이름 → 요일별 담당(dayAuditors)·대표 감리원 순
+function visitAsgName(s){
+  let nm=(s&&s.assignee_name)||''; if(nm&&nm!=='-')return nm;
+  nm=audNameC(s&&s.assignee_id); if(nm&&nm!=='-')return nm;
+  if(s&&s.apartment_id&&s.date){ const a=APTS.find(x=>String(x.id)===String(s.apartment_id)); if(a){ const d=ownAsg(a);
+    const wd=WKB[(new Date(s.date).getDay()+6)%7]; const dayId=(d.dayAuditors||{})[wd];
+    const cand=dayId?auditorName(dayId):siteMgrName(a); if(cand&&cand!=='-')return cand; } }
+  return '';
+}
 function renderCalendar(){
   const now=new Date(); if(!calYM)calYM={y:now.getFullYear(),m:now.getMonth()};
   const bt=$('buildTag'); if(bt)bt.textContent='v'+(window.__BUILD__||'dev');
@@ -2409,7 +2418,8 @@ let _schedEditVisit=false;
 function openSchedModal(s,preDate){ s=s||null;
   const isVisit=!!(s&&String(s.title||'').indexOf(VISIT_MARK)===0); _schedEditVisit=isVisit;
   const cat=(s&&s.category)||'asq';
-  SCHED_ASGN=(s&&s.meta&&Array.isArray(s.meta.assignees)&&s.meta.assignees.length)?s.meta.assignees.slice():(s&&s.meta&&Array.isArray(s.meta.attendees)&&s.meta.attendees.length?s.meta.attendees.slice():(s&&s.assignee_name?[s.assignee_name]:[]));
+  SCHED_ASGN=(s&&s.meta&&Array.isArray(s.meta.assignees)&&s.meta.assignees.length)?s.meta.assignees.slice():(s&&s.meta&&Array.isArray(s.meta.attendees)&&s.meta.attendees.length?s.meta.attendees.slice():(s&&s.assignee_name&&s.assignee_name!=='-'?[s.assignee_name]:[]));
+  if(isVisit&&!SCHED_ASGN.length){ const _vn=visitAsgName(s); if(_vn)SCHED_ASGN=[_vn]; }   // 정기 방문: 담당 비면 요일별 담당·배정 감리원에서 채워 보여줌
   const m=(s&&s.meta&&typeof s.meta==='object')?Object.assign({},s.meta):{};
   if(!m.date){ if(s&&s.date)m.date=s.date; else if(preDate)m.date=preDate; }
   if(!m.siteName&&(cat==='pt'||cat==='bids'||cat==='asq')&&s&&s.title)m.siteName=s.title;

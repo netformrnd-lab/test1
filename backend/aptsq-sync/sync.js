@@ -91,8 +91,11 @@ async function importPourEntry(node, id, s) {
 
 // ── 방향 B : Supabase(aptsq) 한 건 → POUR PUT ────────────────────────────────
 const VISIT_MARK = '🔧 정기 방문';
-let APT_NAMES = {};   // 단지 id→이름 (POUR 방문 표시용)
-let PROFILE_NAMES = {};   // 감리원 id→이름 (assignee_id로 담당자 보강)
+const WKB = ['월', '화', '수', '목', '금', '토', '일'];   // (getDay()+6)%7 기준 (앱 computeVisits와 동일)
+let APT_NAMES = {};      // 단지 id→이름 (POUR 방문 표시용)
+let PROFILE_NAMES = {};  // 감리원 id→이름 (assignee_id로 담당자 보강)
+let APT_REP = {};        // 단지 id→대표 감리원 id (apartments.auditor_id)
+let CS_DATA = {};        // 단지 id→배치 데이터(dayAuditors 등, control_sites.data)
 // 정기 방문이면 POUR 표시용으로 '단지명'(제목)·'담당자'를 보강한다. (원본 schedules는 안 건드림)
 function enrichVisit(row) {
   if (!row || typeof row.title !== 'string' || row.title.indexOf(VISIT_MARK) !== 0) return row;
@@ -104,6 +107,16 @@ function enrichVisit(row) {
     if (who === '-') who = '';
   }
   if (!who && row.assignee_id) who = PROFILE_NAMES[row.assignee_id] || '';  // 그래도 비면 id→이름(앱 표시와 동일)
+  if (!who && row.apartment_id && row.date) {   // 그래도 비면 요일별 담당(dayAuditors)·대표 감리원에서 유추(앱 달력과 동일)
+    const cs = CS_DATA[row.apartment_id];
+    const d = new Date(row.date);
+    if (!isNaN(d)) {
+      const wd = WKB[(d.getDay() + 6) % 7];
+      const dayId = cs && cs.dayAuditors ? cs.dayAuditors[wd] : null;
+      const repId = dayId || APT_REP[row.apartment_id] || null;
+      if (repId) who = PROFILE_NAMES[repId] || '';
+    }
+  }
   return Object.assign({}, row, {
     title: aptName ? (aptName + ' 정기방문') : row.title,
     assignee_name: who || null,
@@ -184,13 +197,13 @@ async function reconcileSync() {
     aptsqRows.push(...data);
     if (data.length < 1000) break;
   }
-  // 정기 방문 POUR 표시용: 단지 id→이름 맵 (한 번만 조회)
+  // 정기 방문 POUR 표시용: 단지 id→이름·대표 감리원 맵 (한 번만 조회)
   try {
-    APT_NAMES = {};
+    APT_NAMES = {}; APT_REP = {};
     for (let af = 0; ; af += 1000) {
-      const { data: apts } = await sb.from('apartments').select('id,name').range(af, af + 999);
+      const { data: apts } = await sb.from('apartments').select('id,name,auditor_id').range(af, af + 999);
       if (!apts || !apts.length) break;
-      apts.forEach(a => { APT_NAMES[a.id] = a.name; });
+      apts.forEach(a => { APT_NAMES[a.id] = a.name; if (a.auditor_id) APT_REP[a.id] = a.auditor_id; });
       if (apts.length < 1000) break;
     }
   } catch (e) {}
@@ -202,6 +215,16 @@ async function reconcileSync() {
       if (!profs || !profs.length) break;
       profs.forEach(p => { PROFILE_NAMES[p.id] = (p.name && p.name.trim()) || (p.email && p.email.trim()) || ''; });
       if (profs.length < 1000) break;
+    }
+  } catch (e) {}
+  // 담당자 보강용: 단지 id→배치 데이터(dayAuditors 등) (요일별 담당 유추)
+  try {
+    CS_DATA = {};
+    for (let cf = 0; ; cf += 1000) {
+      const { data: csr } = await sb.from('control_sites').select('apartment_id,data').range(cf, cf + 999);
+      if (!csr || !csr.length) break;
+      csr.forEach(c => { if (c.apartment_id && c.data) CS_DATA[c.apartment_id] = c.data; });
+      if (csr.length < 1000) break;
     }
   } catch (e) {}
   for (const row of aptsqRows) {

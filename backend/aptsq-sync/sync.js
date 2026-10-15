@@ -90,8 +90,25 @@ async function importPourEntry(node, id, s) {
 }
 
 // ── 방향 B : Supabase(aptsq) 한 건 → POUR PUT ────────────────────────────────
+const VISIT_MARK = '🔧 정기 방문';
+let APT_NAMES = {};   // 단지 id→이름 (POUR 방문 표시용)
+// 정기 방문이면 POUR 표시용으로 '단지명'(제목)·'담당자'(설명에서 추출)를 보강한다. (원본 schedules는 안 건드림)
+function enrichVisit(row) {
+  if (!row || typeof row.title !== 'string' || row.title.indexOf(VISIT_MARK) !== 0) return row;
+  const aptName = APT_NAMES[row.apartment_id] || '';
+  let who = row.assignee_name || '';
+  if (!who && row.description) {
+    who = String(row.description).replace(/^담당\s*/, '').replace(/\s*\(대타\)\s*$/, '').trim();
+    if (who === '-') who = '';
+  }
+  return Object.assign({}, row, {
+    title: aptName ? (aptName + ' 정기방문') : row.title,
+    assignee_name: who || null,
+  });
+}
 async function pushSupabaseRow(row) {
   if (!row || row.source !== 'aptsq') return;        // POUR 에서 온 건 되돌려 쓰지 않음
+  row = enrichVisit(row);                            // 정기 방문: 단지명·담당자 보강
   const obj = M.supabaseToPour(row);
   if (!obj) return;                                  // 내보낼 노드가 없는 category
   const node = M.CATEGORY_TO_NODE[row.category];
@@ -164,6 +181,16 @@ async function reconcileSync() {
     aptsqRows.push(...data);
     if (data.length < 1000) break;
   }
+  // 정기 방문 POUR 표시용: 단지 id→이름 맵 (한 번만 조회)
+  try {
+    APT_NAMES = {};
+    for (let af = 0; ; af += 1000) {
+      const { data: apts } = await sb.from('apartments').select('id,name').range(af, af + 999);
+      if (!apts || !apts.length) break;
+      apts.forEach(a => { APT_NAMES[a.id] = a.name; });
+      if (apts.length < 1000) break;
+    }
+  } catch (e) {}
   for (const row of aptsqRows) {
     if (M.CATEGORY_TO_NODE[row.category]) { liveAptsqIds.add(String(row.id)); await pushSupabaseRow(row); pushed++; }
   }

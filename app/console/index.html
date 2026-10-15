@@ -1139,7 +1139,7 @@ const AUTO_VISIT_DAYS=42;
 function _visitWindow(){ const today=new Date(); today.setHours(0,0,0,0); const end=new Date(today); end.setDate(end.getDate()+AUTO_VISIT_DAYS);
   const months=[]; let cur=new Date(today.getFullYear(),today.getMonth(),1); while(cur<=end){ months.push({y:cur.getFullYear(),m:cur.getMonth()}); cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
   return {todayStr:isoDate(today),endStr:isoDate(end),months}; }
-function _visitRow(v){ return {apartment_id:v.aptId,date:v.date,title:VISIT_MARK,description:'담당 '+(v.who||'-')+(v.sub?' (대타)':''),assignee_id:v.assigneeId||null,resident_visible:true}; }
+function _visitRow(v){ return {apartment_id:v.aptId,date:v.date,title:VISIT_MARK,category:'asq',source:'aptsq',description:'담당 '+(v.who||'-')+(v.sub?' (대타)':''),assignee_id:v.assigneeId||null,assignee_name:v.who||null,resident_visible:true}; }
 let _visitsAutoApplied=false;
 async function autoApplyVisits(){
   if(!PHASEB_OK.csites||_visitsAutoApplied) return; _visitsAutoApplied=true;
@@ -2462,7 +2462,7 @@ async function submitSched(id){
   const row={date:(dateType==='tbd'?null:(date||null)),title,category:cat,source:'aptsq',description:desc||null,assignee_name:asg[0]||null,assignee_id:null,meta};
   // 확정일 일정만 입주민에게 공개. 예정월/미정은 내부(콘솔·감리원)만 보이고 입주민에겐 숨김.
   if(aptId){ row.apartment_id=aptId; row.owner_id=null; row.resident_visible=(dateType==='confirmed'); } else { row.apartment_id=null; row.owner_id=null; row.resident_visible=false; }
-  if(_schedEditVisit){ row.title=VISIT_MARK; row.category=null; row.meta=null; }   // 정기 방문은 수정해도 방문(초록)으로 고정
+  if(_schedEditVisit){ row.title=VISIT_MARK; row.category='asq'; row.meta=null; row.source='aptsq'; }   // 정기 방문: 방문(초록) 고정 + POUR(asq) 연동 유지
   const _orig=id?(SCHEDULES||[]).find(x=>String(x.id)===String(id)):null;
   let error;
   if(id){ ({error}=await sb.from('schedules').update(row).eq('id',id)); }

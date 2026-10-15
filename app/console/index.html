@@ -1157,13 +1157,33 @@ function renderCalDayList(){
   h+='</div>';
   box.innerHTML=h;
 }
+/* 방문 배치표 탭: 'active' = 진행 현장(준공 아님) · 'done' = 준공완료 이력(읽기 전용) */
+let asgTab='active';
+function setAsgTab(t){ asgTab=(t==='done')?'done':'active'; renderAssignTable(); }
+function stagePill(a,extra){ const k=stageOf(a); const m=stageMeta(k); return `<span class="pill" style="background:${m[3]}1a;color:${m[3]};${extra||''}" title="${esc(m[2])}">${esc(m[1])}</span>`; }
+function doneVisitStats(aptId){ let n=0, last=''; (SCHEDULES||[]).forEach(x=>{ if(String(x.apartment_id)!==String(aptId))return; if(String(x.title||'').indexOf(VISIT_MARK)!==0)return; if(!x.done_at)return; n++; const d=String(x.date||'').slice(0,10); if(d>last)last=d; }); return {n,last}; }
 function renderAssignTable(){
   const box=$('cal-alert'); if(!box)return;
   if(!PHASEB_OK.csites){ box.innerHTML='<div class="card" style="margin-top:16px"><div class="empty">방문 배치를 쓰려면 Supabase에서 <b>backend/migration-control-sites.sql</b> 을 한 번 실행하세요.</div></div>'; return; }
-  // 진행중 현장 + '이미 방문 계획을 만들어 둔' 현장(완료 처리됐어도)까지 표시
-  const hasPlan=a=>{ const d=ownAsg(a); return !!(d&&(String(d.visitDay||'').trim()||(d.cycle&&d.cycle!=='미확인'))); };
-  const sites=APTS.filter(a=>a.status!=='done'||hasPlan(a)).slice().sort((p,q)=>(p.name||'').localeCompare(q.name||'','ko'));
-  if(!sites.length){ box.innerHTML='<div class="card" style="margin-top:16px"><h3>📍 방문 배치표</h3><div class="empty">배치할 현장(단지)이 없어요.<br>단지관리에서 단지를 추가하세요. (전체 단지 '+APTS.length+'곳)</div></div>'; return; }
+  const byName=(p,q)=>(p.name||'').localeCompare(q.name||'','ko');
+  const active=APTS.filter(a=>a.status!=='done').slice().sort(byName);
+  const doneList=APTS.filter(a=>a.status==='done').slice().sort((p,q)=>{ const pa=(csData(p).stageAt||''), qa=(csData(q).stageAt||''); return qa.localeCompare(pa)||byName(p,q); });
+  const tabs=`<div style="display:flex;gap:6px;margin:-4px 0 10px;flex-wrap:wrap">
+      <button class="b ${asgTab==='active'?'blue':'line'}" style="padding:6px 12px;font-size:12px" onclick="setAsgTab('active')">🏗️ 진행 현장 <b>${active.length}</b></button>
+      <button class="b ${asgTab==='done'?'blue':'line'}" style="padding:6px 12px;font-size:12px" onclick="setAsgTab('done')">✅ 준공완료 <b>${doneList.length}</b></button>
+    </div>`;
+  if(asgTab==='done'){
+    const rows=doneList.map(a=>{ const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean); const cs=csData(a); const st=doneVisitStats(a.id);
+      const doneAt=(cs.stage==='준공'&&cs.stageAt)?String(cs.stageAt).slice(0,10):'';
+      const auds=aptAuditors(a).map(auditorName).filter(n=>n&&n!=='-');
+      return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span><br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${stagePill(a)}</td><td style="font-size:12px">${auds.length?esc(auds.join(', ')):'<span style="color:var(--mut)">-</span>'}</td><td style="font-size:12px;color:var(--mut2)">${esc(d.cycle||'-')}${days.length?' · '+esc(days.join('·')):''}</td><td style="font-size:12px">${st.n?`${st.n}회${st.last?` <span style="color:var(--mut)">(마지막 ${esc(st.last)})</span>`:''}`:'<span style="color:var(--mut)">기록 없음</span>'}</td><td style="font-size:12px;color:var(--mut)">${doneAt?esc(doneAt):'-'}</td></tr>`; }).join('');
+    box.innerHTML=`<div class="card" style="margin-top:16px"><h3>📍 방문 배치표 <span class="r">준공완료 이력 · ${doneList.length}곳</span></h3>${tabs}
+      <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">준공 처리된 현장의 <b>배치 이력</b>이에요(읽기 전용). 정기 방문은 더 이상 생기지 않아요. 다시 진행하려면 공사관리에서 단계를 되돌리면 진행 현장 탭으로 돌아와요.</div>
+      ${doneList.length?`<div style="overflow-x:auto"><table style="width:100%;min-width:720px"><thead><tr><th>현장</th><th>단계</th><th>담당했던 감리원</th><th>주기 · 요일</th><th>다녀온 정기 방문</th><th>준공 처리일</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">준공 처리된 현장이 아직 없어요</div>'}</div>`;
+    return;
+  }
+  const sites=active;
+  if(!sites.length){ box.innerHTML='<div class="card" style="margin-top:16px"><h3>📍 방문 배치표</h3>'+tabs+'<div class="empty">배치할 진행 현장(단지)이 없어요.<br>공사관리에서 단지를 추가하세요. (전체 단지 '+APTS.length+'곳 · 준공완료 '+doneList.length+'곳)</div></div>'; return; }
   const mgrs=auditorNames(), wk=weekKeyOf(new Date()), CYB=['주1회','주2회','주3회','상주'];
   const AUDS=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
   const rows=sites.map(a=>{ const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean); const curSub=(d.subs&&d.subs[wk])||'';
@@ -1175,12 +1195,14 @@ function renderAssignTable(){
     const wdBtns=WKB.map(w=>{const on=days.includes(w);return `<i onclick="asgToggleDay('${a.id}','${w}')" style="cursor:pointer;display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;margin:1px;border-radius:6px;font-size:11px;font-weight:700;font-style:normal;border:1px solid ${on?'var(--blue,#2f6bf6)':'var(--line)'};background:${on?'var(--blue,#2f6bf6)':'#fff'};color:${on?'#fff':'var(--mut)'}">${w}</i>`;}).join('');
     const daySel=days.length?days.map(w=>{ const cur=(d.dayAuditors||{})[w]||''; return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="font-size:11px;font-weight:800;width:26px;color:var(--fg)">${w}</span><select onchange="asgSetDayAuditor('${a.id}','${w}',this.value)" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid var(--line);min-width:110px"><option value="">담당(대표)</option>${AUDS.map(m=>`<option value="${m.id}" ${cur===m.id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>`; }).join(''):'<span style="color:var(--mut);font-size:11px">요일 먼저 선택</span>';
     const stat=!mgr?'<span style="color:#b8710a;font-size:11.5px">담당 미배정</span>':(days.length?(curSub?`<span style="color:#b8710a;font-size:11.5px">🔁 이번주 ${esc(curSub)}</span>`:'<span style="color:var(--green);font-size:11.5px">✓ 배치됨</span>'):'<span style="color:#b8710a;font-size:11.5px">요일 선택</span>');
-    return `<tr style="${!mgr?'background:#fffaf0':''}"><td style="font-weight:700">${esc(a.name)}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${mgrCell}</td><td>${cyc}</td><td style="white-space:nowrap">${wdBtns}</td><td>${daySel}</td><td>${stat}</td></tr>`;
+    return `<tr style="${!mgr?'background:#fffaf0':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')" title="공사관리 상세로">${esc(a.name)}</span><br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td style="white-space:nowrap" onclick="openProj('${a.id}')">${stagePill(a,'cursor:pointer')}</td><td>${mgrCell}</td><td>${cyc}</td><td style="white-space:nowrap">${wdBtns}</td><td>${daySel}</td><td>${stat}</td></tr>`;
   }).join('');
   const un=sites.filter(a=>!siteMgrName(a)).length;
-  box.innerHTML=`<div class="card" style="margin-top:16px"><h3>📍 방문 배치표 <span class="r">현장 ${sites.length}곳${un?` · <b style="color:#b8710a">담당 미배정 ${un}</b>`:' · 담당 전원 배정'}</span></h3>
+  const stageCnt=SITE_STAGES.filter(([k])=>k!=='준공').map(([k,lab,,color])=>{ const n=sites.filter(a=>stageOf(a)===k).length; return n?`<span class="pill" style="background:${color}1a;color:${color};margin-left:4px">${esc(lab)} ${n}</span>`:''; }).join('');
+  box.innerHTML=`<div class="card" style="margin-top:16px"><h3>📍 방문 배치표 <span class="r">진행 현장 ${sites.length}곳${un?` · <b style="color:#b8710a">담당 미배정 ${un}</b>`:' · 담당 전원 배정'}</span></h3>${tabs}
     <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px"><b>주기·요일</b>을 정한 뒤, <b>요일별 담당 감리원</b>를 고르세요(주2회면 서로 다른 감리원 2명이 다른 날). 비워두면 대표 감리원으로 들어갑니다 · <b style="color:#1e7f4f">정한 즉시 앞으로 6주치 방문이 자동으로 떠요(감리원·입주민 앱 포함).</b> 변동 있을 때만 그 날짜 일정을 고치면 돼요. <span style="color:#9aa3b2">(‘이 달 방문 일정 생성’은 과거 포함 전체 재생성용)</span></div>
-    <div style="overflow-x:auto"><table style="width:100%;min-width:820px"><thead><tr><th>현장</th><th>대표 감리원</th><th>주기</th><th>방문 요일</th><th>요일별 담당</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">단계별:${stageCnt||' -'} <span style="color:#9aa3b2">· 단계는 공사관리 → 단지 상세에서 바꿔요. 준공으로 바꾸면 ‘준공완료’ 탭으로 이동해요.</span></div>
+    <div style="overflow-x:auto"><table style="width:100%;min-width:900px"><thead><tr><th>현장</th><th>단계</th><th>대표 감리원</th><th>주기</th><th>방문 요일</th><th>요일별 담당</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 async function materializeVisits(){
   if(!PHASEB_OK.csites){ alert('먼저 backend/migration-control-sites.sql 을 실행하세요'); return; }

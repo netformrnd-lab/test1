@@ -1923,6 +1923,102 @@ if ($action === 'tsbundle') {
           '찾은파일' => count($out), '파일' => $files]);
 }
 
+/* ── 🖥 저쪽이 <<서버 프로그램>> 일 때 — 그 서버에 직접 묻습니다 ────
+   미디어마케팅팀 TeamHub 는 파일이 아니라 PC 에서 도는 서버입니다.
+     Server/main.json → { url, addresses, port, state, heartbeat, hostname }
+   할 일은 그 서버 안에 있고, 공유폴더에는 기록과 <<서버가 어디 있나>>
+   쪽지만 놓입니다. 그래서 폴더를 아무리 뒤져도 안 나옵니다.
+
+     ?action=tssrv&path=<DB폴더>            서버가 어디 있고 켜져 있나
+     ?action=tssrv&path=…&q=/api/tasks     그 서버의 한 자리를 읽어 옵니다
+
+   ⚠️ 아무 데나 부르지 않습니다 — <<그 폴더의 main.json 에 적힌 주소>>
+      로만 갑니다. 읽기(GET)만 하고, 10초 안에 안 오면 그만둡니다. */
+function ts_srv_conf($dir) {
+    foreach (['/Server/main.json', '/main.json', '/server/main.json'] as $rel) {
+        $f = $dir . $rel;
+        if (!is_file($f)) continue;
+        $j = json_decode((string)@file_get_contents($f), true);
+        if (is_array($j)) { $j['_파일'] = $rel; return $j; }
+    }
+    return null;
+}
+function ts_srv_bases($j) {
+    $out = [];
+    $port = (int)($j['port'] ?? 0);
+    $u = trim((string)($j['url'] ?? ''));
+    if ($u !== '' && preg_match('#^https?://#i', $u)) $out[] = rtrim($u, '/');
+    foreach ((array)($j['addresses'] ?? []) as $a) {
+        $a = trim((string)$a);
+        if ($a === '' || !$port) continue;
+        if (!filter_var($a, FILTER_VALIDATE_IP)) continue;
+        $b = 'http://' . $a . ':' . $port;
+        if (!in_array($b, $out, true)) $out[] = $b;
+    }
+    return $out;
+}
+function ts_srv_get($url, &$why, $sec = 10) {
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => $sec, CURLOPT_CONNECTTIMEOUT => min(5, $sec),
+            CURLOPT_HTTPHEADER => ['Accept: application/json']]);
+        $b = curl_exec($ch);
+        $c = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $e = curl_error($ch);
+        curl_close($ch);
+        if ($b !== false && $c > 0) return ['code' => $c, 'body' => (string)$b];
+        $why[] = 'curl: ' . ($e !== '' ? $e : 'HTTP ' . $c);
+        return null;
+    }
+    $ctx = stream_context_create(['http' => ['timeout' => $sec, 'ignore_errors' => true,
+                                             'header' => "Accept: application/json\r\n"]]);
+    $b = @file_get_contents($url, false, $ctx);
+    $code = 0;
+    foreach ((array)($http_response_header ?? []) as $h) {
+        if (preg_match('#^HTTP/\S+\s+(\d+)#', $h, $m)) $code = (int)$m[1];
+    }
+    if ($b !== false && $code > 0) return ['code' => $code, 'body' => (string)$b];
+    $why[] = 'file_get_contents: HTTP ' . $code;
+    return null;
+}
+if ($action === 'tssrv') {
+    $dir = ts_dir($_GET['path'] ?? '');
+    $j   = ts_srv_conf($dir);
+    if (!$j) {
+        jout(['ok' => false, 'error' => '이 폴더에 서버 쪽지(Server/main.json)가 없습니다. '
+            . '저쪽이 서버 프로그램이 아니거나, 다른 폴더일 수 있습니다.',
+            '본곳' => $dir], 404);
+    }
+    $bases = ts_srv_bases($j);
+    $beat  = (string)($j['heartbeat'] ?? '');
+    $age   = $beat !== '' ? (time() - strtotime($beat)) : -1;
+    $info = ['ok' => true, '프로그램' => (string)($j['app'] ?? ''),
+             '판' => (string)($j['version'] ?? ''), '상태' => (string)($j['state'] ?? ''),
+             '컴퓨터' => (string)($j['hostname'] ?? ''), '주소들' => $bases,
+             '마지막신호' => $beat,
+             '신호지난초' => $age,
+             '켜져있나짐작' => ($age >= 0 && $age < 300 && (string)($j['state'] ?? '') !== 'stopped'),
+             '쪽지' => $j['_파일']];
+    $q = trim((string)($_GET['q'] ?? ''));
+    if ($q === '') jout($info);
+    if (substr($q, 0, 1) !== '/') $q = '/' . $q;
+    if (strpos($q, '..') !== false) jout(['ok' => false, 'error' => '그런 자리는 못 부릅니다'], 400);
+    if (!$bases) jout(['ok' => false, 'error' => '쪽지에 서버 주소가 없습니다'] + $info, 404);
+    $why = []; $tries = [];
+    foreach ($bases as $b) {
+        $url = $b . $q;
+        $r = ts_srv_get($url, $why, 10);
+        $tries[] = ['주소' => $url, '답' => $r ? $r['code'] : 0];
+        if ($r && $r['code'] >= 200 && $r['code'] < 300) {
+            jout($info + ['물어본곳' => $url, '답' => $r['code'],
+                          '내용' => mb_substr($r['body'], 0, 200000), '해본것' => $tries]);
+        }
+    }
+    jout(['ok' => false, 'error' => '서버가 답하지 않습니다 (꺼져 있거나 다른 자리입니다)',
+          '해본것' => $tries, '안된까닭' => $why] + $info, 502);
+}
+
 if ($action === 'tsput') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
     $dir = ts_dir($_GET['path'] ?? '');

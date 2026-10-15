@@ -5468,7 +5468,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-6';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-7';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18206,7 +18206,7 @@ function lkOf(){
   const t = data.teamLink;
   if(!Array.isArray(t.rows)) t.rows = [];
   ['lastPull','lastPush','store','node','team','why',
-   'autoPath','autoName','autoDir','autoKey','autoAt',
+   'autoPath','autoName','autoDir','autoKey','autoAt','srvPath',
    'fileAt','fileName','outAt','brandId'].forEach(k => {
     if(typeof t[k] !== 'string') t[k] = ''; });
   if(typeof t.autoOn !== 'boolean') t.autoOn = false;
@@ -18697,6 +18697,109 @@ async function lkFileLoad(ev){
       + '우리가 손으로 적은 것과 다른 팀 것은 그대로입니다.');
   }catch(e){ alert('❌ 불러오지 못했습니다.\n\n' + (e && e.message || e)); }
 }
+/* ── 🖥 저쪽이 <<서버 프로그램>> 일 때 ────────────────────────────
+   미디어마케팅팀 TeamHub 는 파일이 아니라 PC 에서 도는 서버입니다
+   (기록에 「NETFORM TeamHub 서버 v2.0.0 시작 — http://localhost:4100,
+   실시간 동기화(Socket.IO)」 라고 적혀 있습니다). 할 일은 그 서버 안에
+   있고, 공유폴더에는 기록과 <<서버가 어디 있나>> 쪽지만 놓입니다.
+   그래서 폴더를 아무리 뒤져도 할 일이 안 나옵니다.
+
+   그 서버에 직접 물어봅니다. 자리 이름은 모르니 흔한 것부터 차례로
+   두드려 보고, 할 일처럼 생긴 답이 오면 그 자리를 기억합니다. */
+const LK_SRV_TRY = ['/api/tasks', '/api/todos', '/api/task/list', '/api/board/items',
+                    '/api/items', '/api/export/tasks', '/api/tasks/export',
+                    '/tasks', '/todos', '/api/data', '/api/state', '/api/snapshot'];
+async function lkServer(){
+  const t = lkOf();
+  const dir = String(t.autoDir || '').trim() || LK_DIG_DEF;
+  toast('⏳ 저쪽 서버를 찾는 중…');
+  let info;
+  try{
+    info = await apiJson('nasfiles.php?action=tssrv&path=' + encodeURIComponent(dir));
+  }catch(e){
+    if(await lkAskReg(e, dir)) return lkServer();
+    alert('❌ 서버 쪽지를 읽지 못했습니다.\n\n' + apiErrText(e)
+      + '\n\n· 본 폴더: ' + dir);
+    return;
+  }
+  const beat = String(info['마지막신호'] || '');
+  const live = !!info['켜져있나짐작'];
+  const head = '🖥 ' + (info['프로그램'] || '저쪽 프로그램') + ' v' + (info['판'] || '?')
+    + '\n\n'
+    + '이것은 <<파일이 아니라 서버 프로그램>> 입니다.\n'
+    + '할 일은 그 서버 안에 있어서, 공유폴더를 뒤져서는 나오지 않습니다.\n\n'
+    + '· 도는 컴퓨터: ' + (info['컴퓨터'] || '?') + '\n'
+    + '· 주소: ' + ((info['주소들'] || []).join(' · ') || '(쪽지에 없음)') + '\n'
+    + '· 쪽지에 적힌 상태: ' + (info['상태'] || '?') + '\n'
+    + '· 마지막 신호: ' + (beat ? beat.replace('T', ' ').slice(0, 16) : '없음')
+    + (info['신호지난초'] > 0 ? ' (' + Math.round(info['신호지난초'] / 3600) + '시간 전)' : '')
+    + '\n\n';
+  if(!live){
+    alert(head
+      + '⚠️ 지금은 <<꺼져 있는 것으로 보입니다>>.\n\n'
+      + '이 프로그램은 「데스크톱 통합」 이라, ' + (info['컴퓨터'] || '그 PC')
+      + ' 가 켜져 있고 프로그램이 돌 때만 답합니다.\n\n'
+      + '그래서 늘 되는 길은 둘입니다 —\n'
+      + '  ① 아래 [📂 파일로 불러오기] 로 그쪽 내보내기 파일 받기 (지금 바로 됨)\n'
+      + '  ② 그쪽이 DB 폴더에 할 일 파일을 하나 떨어뜨리게 하기\n'
+      + '     → 그러면 [⏱ 자동으로 맞추기] 가 혼자 돕니다\n\n'
+      + '서버가 켜져 있을 때 다시 눌러 보시면, 그 서버에 직접 물어봅니다.');
+    lkAutoLog = ['🖥 저쪽은 서버 프로그램입니다 — 할 일은 폴더가 아니라 서버 안에 있습니다',
+      '   프로그램: ' + (info['프로그램'] || '') + ' v' + (info['판'] || ''),
+      '   컴퓨터: ' + (info['컴퓨터'] || '') + ' · 주소: ' + ((info['주소들'] || []).join(' · ')),
+      '   상태: ' + (info['상태'] || '') + ' · 마지막 신호: ' + beat,
+      '   → 지금은 꺼져 있어 보입니다. 파일로 주고받기를 쓰시거나, 그쪽이 DB 폴더에',
+      '     할 일 파일을 떨어뜨리게 하면 자동으로 맞출 수 있습니다.'];
+    render();
+    return;
+  }
+  /* 켜져 있으면 자리 이름을 차례로 두드려 봅니다 */
+  const log = ['🖥 ' + (info['프로그램'] || '') + ' v' + (info['판'] || '')
+               + ' — 켜져 있습니다 (' + (info['주소들'] || []).join(' · ') + ')'];
+  for(const q of LK_SRV_TRY){
+    toast('⏳ ' + q + ' 를 물어보는 중…');
+    try{
+      const r = await apiJson('nasfiles.php?action=tssrv&q=' + encodeURIComponent(q)
+        + '&path=' + encodeURIComponent(dir));
+      let js = null;
+      try{ js = JSON.parse(r['내용'] || ''); }catch(e){}
+      if(!js){ log.push('· ' + q + ' → 답은 왔는데 JSON 이 아닙니다'); continue; }
+      const hits = lkFindRows(js);
+      if(!hits.length){
+        log.push('· ' + q + ' → 답은 왔는데 할 일 줄이 안 보입니다 ('
+          + Object.keys(js).slice(0, 8).join(', ') + ')');
+        continue;
+      }
+      hits.sort((a, b) => b.n - a.n);
+      const h = hits[0];
+      const put = lkIntoTasks(h.rows, q, '미디어마케팅팀');
+      t.srvPath = q; t.autoAt = new Date().toISOString();
+      markDirtyAll();
+      log.push('· ' + q + ' → ✅ 할 일 ' + h.n + '건 (' + h.path + ')');
+      lkAutoLog = log; render();
+      alert('✅ 저쪽 서버에서 바로 가져왔습니다 — ' + put.n + '건\n\n'
+        + '자리: ' + (r['물어본곳'] || q) + '\n'
+        + '줄 생김새: ' + (h.keys || []).join(' · ') + '\n\n'
+        + '이 자리를 기억해 두었습니다. 서버가 켜져 있을 때는 '
+        + '[↻ 지금 맞추기] 로 바로 맞출 수 있습니다.');
+      return;
+    }catch(e){
+      log.push('· ' + q + ' → ' + apiErrText(e).split('\n')[0].slice(0, 60));
+    }
+  }
+  lkAutoLog = log.concat([
+    '',
+    '— 흔한 자리 이름을 다 두드려 봤지만 할 일을 못 찾았습니다.',
+    '  그쪽에 「할 일을 내려 주는 주소가 무엇인가요?」 한 줄만 물어보시면,',
+    '  그 자리를 넣어 바로 잇겠습니다. (예: /api/tasks)']);
+  render();
+  alert('🖥 서버는 켜져 있는데, 할 일을 내려 주는 자리를 못 찾았습니다.\n\n'
+    + '흔한 이름 ' + LK_SRV_TRY.length + '가지를 다 두드려 봤습니다.\n'
+    + '아래 「연동 길 찾기 — 본 것」 에 무엇을 해 봤는지 남겨 두었습니다.\n\n'
+    + '그쪽에 이렇게 한 줄만 물어봐 주세요 —\n'
+    + '「할 일 목록을 내려 주는 주소가 무엇인가요? (예: /api/tasks)」\n\n'
+    + '알려 주시면 그 자리를 넣어 바로 잇겠습니다.');
+}
 /* ── ⏱ 자동으로 맞추기 ───────────────────────────────────────────
    [🔗 연동 길 찾기] 가 한 번 찾아 두면 그 자리를 기억합니다. 그 뒤로는
    <<그 파일 하나만>> 다시 읽어 맞춥니다 — 폴더를 다시 뒤지지 않아
@@ -19058,6 +19161,18 @@ async function lkAuto(){
 
     /* 못 찾았을 때 — 쪽지 속을 바로 펼쳐 보여 줍니다 (또 누르게 하지 않게) */
     log.push('④ 할 일로 알아볼 줄 목록을 못 찾았습니다.');
+    /* 서버 쪽지가 보이면 <<폴더에 없는 게 당연한 것>> 이니 그렇다고 짚어 줍니다 */
+    const srvNote = (b['파일'] || []).some(f =>
+      /main\.json$/i.test(String(f['이름'] || ''))
+      && /"port"|teamhub|TeamHub/i.test(String(f['내용'] || '')));
+    if(srvNote){
+      log.push('');
+      log.push('🖥 저쪽은 <<서버 프로그램>> 으로 보입니다 (Server/main.json 이 있습니다).');
+      log.push('   할 일은 폴더가 아니라 그 서버 안에 있어, 여기서는 안 나옵니다.');
+      log.push('   → [🖥 저쪽 서버에 묻기] 를 눌러 보세요.');
+      t.autoDir = dir;
+      markDirtyAll();
+    }
     const key = (b['파일'] || []).filter(f => !f['글자아님'] && f['내용'])
       .sort((x, y) => (String(y['내용']).length) - (String(x['내용']).length))
       .slice(0, 6);
@@ -19271,6 +19386,9 @@ function lkSwapHtml(){
         + '↻ 지금 맞추기</button>'
       + '<button class="btn sm" onclick="lkAuto()" title="어디서 가져올지 찾습니다">'
         + '🔗 연동 길 찾기</button>'
+      + '<button class="btn sm" onclick="lkServer()"'
+        + ' title="저쪽이 서버 프로그램이면 그 서버에 직접 물어봅니다">'
+        + '🖥 저쪽 서버에 묻기</button>'
       + '<span class="fmeta">'
         + (String(t.autoPath || '').trim()
             ? '가져오는 곳 <b>' + esc(t.autoName || t.autoPath) + '</b>'
@@ -30677,7 +30795,7 @@ function normalize(raw){
   if(raw.teamLink && typeof raw.teamLink === 'object'){
     const L = raw.teamLink;
     ['lastPull','lastPush','store','node','team','why',
-     'autoPath','autoName','autoDir','autoKey','autoAt',
+     'autoPath','autoName','autoDir','autoKey','autoAt','srvPath',
      'fileAt','fileName','outAt','brandId'].forEach(k => {
       if(typeof L[k] !== 'string') L[k] = ''; });
     L.on = !!L.on;

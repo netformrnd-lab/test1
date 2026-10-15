@@ -5468,7 +5468,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-8';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-9';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6568,11 +6568,36 @@ document.addEventListener('input', e => {
 let uiClickAt = 0;
 ['pointerdown', 'mousedown', 'touchstart', 'click'].forEach(ev =>
   document.addEventListener(ev, () => { uiClickAt = Date.now(); }, true));
-function uiBusy(){ return uiTyping() || (Date.now() - uiClickAt < 500); }
+/* 사람이 <<붙잡고 있는 중>> 인가 ──────────────────────────────
+   여태는 「글자를 치는 중」 만 피했습니다 (uiTyping). 그래서 글칸에
+   <<커서만 놓아 둔 채>> 가만히 있으면, 곁다리 새로고침이 그대로 화면을
+   다시 그려 커서가 빠졌습니다 — 「문의 띠가 뜨면 커서 잡았던 게 풀린다」
+   가 이것입니다. 글을 드래그해 잡아 둔 것도 같이 사라졌습니다.
+   이제 둘 다 「붙잡고 있는 중」 으로 봅니다. 손을 떼면 미뤄 둔
+   새로고침이 그때 돌아갑니다. */
+function uiHolding(){
+  const el = document.activeElement;
+  if(uiTextEl(el) && uiIn(el)) return true;
+  try{
+    const sel = window.getSelection && window.getSelection();
+    if(sel && sel.rangeCount && !sel.isCollapsed){
+      const n = sel.getRangeAt(0).commonAncestorContainer;
+      const e = n && (n.nodeType === 1 ? n : n.parentElement);
+      if(e && uiIn(e)) return true;
+    }
+  }catch(e){}
+  return false;
+}
+function uiBusy(){ return uiTyping() || uiHolding() || (Date.now() - uiClickAt < 500); }
 document.addEventListener('focusout', e => {
   if(!uiTextEl(e.target) || !bgWanted) return;
   setTimeout(() => { if(bgWanted && !uiBusy()) bgFlush(); }, 600);
 }, true);
+/* 잡아 둔 글을 놓으면 그때 미뤄 둔 것을 풀어 줍니다 */
+document.addEventListener('selectionchange', () => {
+  if(!bgWanted) return;
+  setTimeout(() => { if(bgWanted && !uiBusy()) bgFlush(); }, 600);
+});
 setInterval(() => { if(bgWanted && !uiBusy()) bgFlush(); }, 1500);
 function bgFlush(){
   if(!bgWanted) return;
@@ -6580,8 +6605,9 @@ function bgFlush(){
   bgRender();
 }
 function bgRender(){
-  /* 글 쓰는 중이면 미뤄 둡니다 — 손을 떼면 저절로 그려집니다 */
-  if(uiTyping()){ bgWanted = true; return; }
+  /* 글을 쓰는 중이거나 <<커서를 놓아 둔 채>> 면 미뤄 둡니다 —
+     손을 떼면 저절로 그려집니다 */
+  if(uiTyping() || uiHolding()){ bgWanted = true; return; }
   const live = document.getElementById('bkIfr') || document.getElementById('pdfBox');
   /* 어느 브랜드의 책이든 바뀌었으면 먼저 알립니다 (바탕화면 알림) */
   bookNotifyScan();

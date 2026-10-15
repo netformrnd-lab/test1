@@ -56,6 +56,7 @@ main{flex:1;min-width:0;padding:24px 34px 70px;max-width:1680px;margin:0 auto}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 17px;position:relative;overflow:hidden}
 .tile .edge{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
+.tile.clickable{cursor:pointer;transition:box-shadow .15s,border-color .15s}.tile.clickable:hover{border-color:var(--blue);box-shadow:0 6px 18px -10px rgba(47,107,246,.5)}
 .tile.good .edge{background:var(--green)}.tile.warn .edge{background:var(--amber)}.tile.crit .edge{background:var(--red)}
 .tile .k{font-size:12px;color:var(--mut2);font-weight:700;margin-bottom:7px}
 .tile .v{font-size:25px;font-weight:800;font-variant-numeric:tabular-nums}
@@ -772,6 +773,31 @@ async function cancelAssignReq(reqId){
 }
 function stalledDeals(){ if(!PHASEB_OK.sales)return []; const now=Date.now(); return SALES.filter(s=>['inquiry','meeting','quote','contract'].includes(s.stage)).map(s=>{ const t=new Date(s.stage_changed_at||s.created_at||Date.now()).getTime(); const days=Math.floor((now-t)/86400000); return {s,days}; }).filter(x=>x.days>=2).sort((a,b)=>b.days-a.days); }
 function recontractRate(){ if(!PHASEB_OK.sales)return null; const won=SALES.filter(s=>s.stage==='won').length, lost=SALES.filter(s=>s.stage==='lost').length; const d=won+lost; return d?Math.round(won/d*100):null; }
+/* ===== 관제센터 '진행중 현장' 카운트 출처 + 현장 리스트 팝업 ===== */
+function inProgSites(){ return APTS.filter(a=>a.status==='in_progress').slice().sort((p,q)=>(p.name||'').localeCompare(q.name||'','ko')); }
+function lastReportDate(aptId){ let d=''; REPORTS.forEach(r=>{ if(r.apartment_id===aptId){ const c=(r.created_at||'').slice(0,10); if(c>d)d=c; } }); return d; }
+function openInProgList(){
+  const list=inProgSites();
+  const rows=list.map(a=>{
+    const auds=aptAuditors(a).map(auditorName).filter(n=>n&&n!=='-');
+    const ld=lastReportDate(a.id);
+    const stg=stageOf(a), stgColor=stageMeta(stg)[3];
+    return `<tr>
+      <td style="font-weight:700"><span class="link" onclick="closeModal();openProj('${a.id}')">${esc(a.name)}</span><div style="font-size:11px;color:var(--mut);font-weight:500">${esc(a.region)||'지역 미지정'}</div></td>
+      <td><span class="pill" style="background:${stgColor}1a;color:${stgColor}">${esc(stageMeta(stg)[1])}</span></td>
+      <td style="font-size:12px">${auds.length?esc(auds.join(', ')):'<span class="pill no">미배정</span>'}</td>
+      <td style="text-align:right;font-size:11px;color:var(--mut);white-space:nowrap">${ld?esc(ld):'<span style="color:var(--amber)">일지 없음</span>'}</td>
+    </tr>`;
+  }).join('');
+  openModal(mHead(`🏗️ 진행중 현장 <span style="color:var(--blue)">${list.length}곳</span>`)+`
+    <div style="background:#eef4ff;border-radius:9px;padding:9px 12px;font-size:12px;color:#2456c9;margin-bottom:12px;line-height:1.6">
+      <b>카운트 출처:</b> 공사관리에 등록된 단지 중 <b>상태가 ‘공사중’</b>인 단지 수예요.<br>
+      <span style="color:var(--mut)">(DB: <code>apartments.status = 'in_progress'</code> · 단계 ‘공사중/준공처리’로 바꾸면 자동으로 공사중, ‘준공’이면 완료로 빠져요)</span>
+    </div>
+    ${list.length?`<div style="max-height:60vh;overflow:auto"><table><thead><tr><th>단지</th><th>단계</th><th>담당 감리원</th><th style="text-align:right">최근 감리일지</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">상태가 ‘공사중’인 단지가 없어요</div>'}
+    <div style="font-size:11px;color:var(--mut);margin-top:10px">단지명을 누르면 공사관리 상세로 이동해요. 상태 변경은 공사관리 → 단지 상세 → 단계에서 해요.</div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button></div>`,true);
+}
 function renderDash(){
   const inprog=APTS.filter(a=>a.status==='in_progress').length;
   const pend=MEMBERS.filter(x=>!x.approved).length;
@@ -780,7 +806,7 @@ function renderDash(){
   const nps=npsScore();
   const rc=recontractRate();
   $('dashTiles').innerHTML=
-    tile('','진행중 현장',inprog+'<small>곳</small>','감리 진행 중')+
+    tile('','진행중 현장',inprog+'<small>곳</small>','상태 ‘공사중’ 단지 · 눌러서 목록 보기','openInProgList()')+
     tile(need.length?'warn':'good','담당 배정 안 됨',need.length+'<small>곳</small>','담당 감리원 미배정')+
     tile(stalled.length?'crit':'good','정체된 딜',stalled.length+'<small>건</small>','2일+ 미이동')+
     tile('good','재계약율',(rc==null?'-':rc+'%'),'계약/성사 기준')+
@@ -873,7 +899,7 @@ function exportSchedulesExcel(monthOnly){
   XLSX.utils.book_append_sheet(wb,ws,'일정');
   XLSX.writeFile(wb,'아파트스퀘어_일정_'+scope+'.xlsx');
 }
-function tile(cls,k,v,sub){ return `<div class="tile ${cls}"><span class="edge"></span><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`; }
+function tile(cls,k,v,sub,onclick){ return `<div class="tile ${cls}${onclick?' clickable':''}"${onclick?` onclick="${onclick}" title="눌러서 상세 보기"`:''}><span class="edge"></span><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`; }
 
 /* ===== 고객관리 ===== */
 function renderOrgs(){

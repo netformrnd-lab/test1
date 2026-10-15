@@ -155,7 +155,7 @@ function supabaseToPour(row) {
     case 'vacation':
       return { ...base, title, siteName: '', assignee: '', assignees: who ? [who] : [], ptProduct: '', bidDeadline: '' };
     case 'asq':                                      // 아스퀘 (POUR에도 있는 분류)
-      return { ...base, title, siteName: title, assignee: '', assignees: who ? [who] : [], ptProduct: '', bidDeadline: '' };
+      return { ...base, title, siteName: title, assignee: who, assignees: who ? [who] : [], ptProduct: '', bidDeadline: '' };
     default:
       return { ...base, title };
   }

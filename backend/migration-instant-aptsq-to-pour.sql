@@ -79,9 +79,18 @@ begin
     if apt_name is not null and btrim(apt_name) <> '' then
       title := btrim(apt_name) || ' 정기방문';
     end if;
-    if who = '' and memo <> '' then
+    if who = '-' then who := ''; end if;                 -- '-'(미배정 표식)은 담당자로 취급하지 않음
+    if who = '' and memo <> '' then                      -- 담당자 비면 설명('담당 OOO')에서 추출
       who := btrim(regexp_replace(regexp_replace(memo, '^담당\s*', ''), '\s*\(대타\)\s*$', ''));
       if who = '-' then who := ''; end if;
+    end if;
+    -- 그래도 비면: assignee_id로 담당 감리원 이름을 직접 조회(앱은 id→이름으로 표시하므로 POUR도 동일하게 맞춤)
+    if who = '' and NEW.assignee_id is not null then
+      select coalesce(nullif(btrim(p.name), ''), nullif(btrim(p.email), ''), '')
+        into who
+        from public.profiles p
+       where p.id = NEW.assignee_id;
+      who := coalesce(who, '');
     end if;
     asgn := case when who <> '' then jsonb_build_array(who) else '[]'::jsonb end;
   end if;

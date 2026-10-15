@@ -92,15 +92,18 @@ async function importPourEntry(node, id, s) {
 // ── 방향 B : Supabase(aptsq) 한 건 → POUR PUT ────────────────────────────────
 const VISIT_MARK = '🔧 정기 방문';
 let APT_NAMES = {};   // 단지 id→이름 (POUR 방문 표시용)
-// 정기 방문이면 POUR 표시용으로 '단지명'(제목)·'담당자'(설명에서 추출)를 보강한다. (원본 schedules는 안 건드림)
+let PROFILE_NAMES = {};   // 감리원 id→이름 (assignee_id로 담당자 보강)
+// 정기 방문이면 POUR 표시용으로 '단지명'(제목)·'담당자'를 보강한다. (원본 schedules는 안 건드림)
 function enrichVisit(row) {
   if (!row || typeof row.title !== 'string' || row.title.indexOf(VISIT_MARK) !== 0) return row;
   const aptName = APT_NAMES[row.apartment_id] || '';
   let who = row.assignee_name || '';
-  if (!who && row.description) {
+  if (who === '-') who = '';                 // '-'(미배정 표식)은 담당자로 취급하지 않음
+  if (!who && row.description) {             // 담당자 비면 설명('담당 OOO')에서 추출
     who = String(row.description).replace(/^담당\s*/, '').replace(/\s*\(대타\)\s*$/, '').trim();
     if (who === '-') who = '';
   }
+  if (!who && row.assignee_id) who = PROFILE_NAMES[row.assignee_id] || '';  // 그래도 비면 id→이름(앱 표시와 동일)
   return Object.assign({}, row, {
     title: aptName ? (aptName + ' 정기방문') : row.title,
     assignee_name: who || null,
@@ -189,6 +192,16 @@ async function reconcileSync() {
       if (!apts || !apts.length) break;
       apts.forEach(a => { APT_NAMES[a.id] = a.name; });
       if (apts.length < 1000) break;
+    }
+  } catch (e) {}
+  // 담당자 보강용: 감리원 id→이름 맵 (assignee_id로 담당자 채우기)
+  try {
+    PROFILE_NAMES = {};
+    for (let pf = 0; ; pf += 1000) {
+      const { data: profs } = await sb.from('profiles').select('id,name,email').range(pf, pf + 999);
+      if (!profs || !profs.length) break;
+      profs.forEach(p => { PROFILE_NAMES[p.id] = (p.name && p.name.trim()) || (p.email && p.email.trim()) || ''; });
+      if (profs.length < 1000) break;
     }
   } catch (e) {}
   for (const row of aptsqRows) {

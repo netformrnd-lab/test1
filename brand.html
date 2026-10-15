@@ -336,6 +336,13 @@ body.tt-wide .layout{max-width:1820px}
 .lk-auto .fmeta{margin-left:auto}
 @media (max-width:700px){ .lk-auto .fmeta{margin-left:0;width:100%} }
 /* 📌 저쪽에 부탁할 자리·이름 — 눈에 잘 띄게 */
+/* 🤝 저절로 연동 — 지금 꼴을 한 줄로 */
+.lk-boot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 0;
+  padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--orange);
+  border-radius:var(--r-xs);background:var(--bg-card);font-size:12.5px}
+.lk-boot.on{border-left-color:var(--green);
+  background:color-mix(in srgb,var(--green) 7%,transparent)}
+.lk-boot button{margin-left:auto}
 .lk-fix{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 0;
   padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--blue);
   border-radius:var(--r-xs);background:var(--bg-card);font-size:12.5px}
@@ -5477,7 +5484,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-10';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-11';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18969,7 +18976,7 @@ async function lkPullFile(loud){
     const key = JSON.stringify(rows.map(x => [x.title, x.owner, x.status, x.due, x.pct, x.note]));
     if(key === String(t.autoKey || '')){ if(loud) toast('⏱ 그대로입니다 — 바뀐 것이 없습니다'); 
       t.autoAt = new Date().toISOString(); return 0; }
-    const put = lkIntoTasks(rows, t.autoName || '자동', '미디어마케팅팀');
+    const put = lkIntoTasks(rows, t.autoName || '자동', '미디어마케팅팀', true);
     t.autoKey = key;
     t.autoAt = new Date().toISOString();
     markDirtyAll(); render();
@@ -19092,12 +19099,23 @@ function lkKey(r, i){
   for(let k = 0; k < base.length; k++) h = (h * 31 + base.charCodeAt(k)) >>> 0;
   return 'mm_' + h.toString(36) + '_' + (base.length % 97);
 }
-function lkIntoTasks(rows, srcName, teamName){
+function lkIntoTasks(rows, srcName, teamName, quiet){
   const bs = data.brands || [];
   if(!bs.length) return { n:0, b:null };
   /* 어느 브랜드에 둘지 — 한 번 고르면 적어 둡니다 */
   const t = lkOf();
+  const tag = teamName || '미디어마케팅팀';
   let b = bs.find(x => x.id === t.brandId);
+  if(!b && quiet){
+    /* 🤝 저절로 할 때는 <<묻지 않습니다>>. 뒤에서 조용히 도는 중인데
+       창을 띄우면 하던 일이 끊기고, 「또 뭘 물어보네」 가 됩니다.
+       ① 팀 이름과 같은 브랜드 → ② 이미 가져온 것이 있는 브랜드 →
+       ③ 맨 앞. 어디에 넣었는지는 한 줄로 알려 줍니다. */
+    b = bs.find(x => String(x.name || '').indexOf(tag) >= 0)
+     || bs.find(x => (x.tasks || []).some(y => y._from === tag))
+     || bs[0];
+    t.brandId = b.id;
+  }
   if(!b){
     const pick = prompt('가져온 할 일을 <<어느 브랜드 밑>> 에 둘까요?\n\n'
       + '번호를 적어 주세요. (담당자 이름은 그대로 달려서, 그 사람 카드에 섭니다)\n\n'
@@ -19128,14 +19146,114 @@ function lkIntoTasks(rows, srcName, teamName){
     n++;
   });
   /* 저쪽에서 없어진 것은 우리 쪽에서도 치웁니다 (가져온 것만) */
-  const tag = teamName || '미디어마케팅팀';
   b.tasks = b.tasks.filter(x => !(x._from === tag && !seen[x.id]));
   markDirty(b.id);
   return { n:n, b:b };
 }
+/* 🤝 <<저절로 연동>> ─────────────────────────────────────────────
+   여태는 사람이 ① 길 찾기 누르고 ② 폴더 적고 ③ 등록 허락하고
+   ④ 자동 켜기 — 네 걸음이었습니다. 걸음마다 막힐 데가 있어서
+   「내가 하면 안 된다」 가 됐습니다.
+
+   그래서 들어오면 <<여기서 다 해 봅니다>>. 미리 아는 자리만 보고,
+   막혀 있으면 등록까지 저절로 하고, 찾으면 할 일에 꽂고 자동까지
+   켭니다. 사람이 누를 것은 없습니다. 읽기만 합니다. */
+const LK_TRY_DIRS = [
+  LK_DIG_DEF,                       /* DB_…  (자료를 두기로 한 자리) */
+  'Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\미디어마케팅팀 브랜드허브',
+  'Z:\\넷폼알앤디 공유폴더\\미디어마케팅팀\\할일연동',
+  HUB_MEDIA_DIR                     /* 프로그램_… (혹시 여기 둘 수도) */
+];
+/* 지금 어떤 꼴인지 한 줄로 적어 둡니다 — 화면에 그대로 보여 줍니다 */
+function lkSay(msg){
+  const t = lkOf();
+  t.boot = String(msg || '');
+  t.bootAt = new Date().toISOString();
+}
+/* 폴더 하나를 봅니다 — 막혀 있으면 <<등록까지 저절로>> 하고 다시 봅니다 */
+async function lkBootFind(dir){
+  let r;
+  try{
+    r = await apiJson('nasfiles.php?action=tsfind&wide=1&deep=3&path='
+      + encodeURIComponent(dir));
+  }catch(e){
+    /* 📂 「아직 허락되지 않았습니다」 — 묻지 않고 그냥 등록합니다.
+       미리 아는 자리뿐이고 읽기만 하니, 사람을 붙잡을 까닭이 없습니다. */
+    if(!e || !e['등록하면됨']) return null;
+    try{
+      await apiJson('nasfiles.php?action=tsdirs', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ add: e['찾은폴더'] || dir }) });
+    }catch(e2){ return null; }
+    try{
+      r = await apiJson('nasfiles.php?action=tsfind&wide=1&deep=3&path='
+        + encodeURIComponent(dir));
+    }catch(e3){ return null; }
+  }
+  const files = r['파일'] || [];
+  if(!files.length) return null;
+  /* 📌 정해 둔 이름이 먼저, 그 다음 「할 일 같은 이름」 */
+  const order = files.filter(f => lkIsDef(f['이름']))
+    .concat(files.filter(f => !lkIsDef(f['이름']) && f['할일같음']));
+  for(const f of order){
+    let h = null;
+    try{ h = await lkReadHit(f); }catch(e){ continue; }
+    if(h && h.rows && h.rows.length) return { hit: h, dir: r['폴더'] || dir };
+  }
+  return null;
+}
+/* ↻ 지금 바로 다시 찾기 — 저쪽이 방금 파일을 넣었을 때 */
+async function lkBootNow(){
+  const t = lkOf();
+  t.bootOff = false; t.bootTry = ''; lkBooted = false;
+  lkSay('⏳ 지금 찾고 있습니다…'); render();
+  await lkBoot(true);
+}
+let lkBooted = false;
+async function lkBoot(force){
+  if(lkBooted && !force) return; lkBooted = true;
+  if(STORAGE_MODE !== 'nas') return;
+  const t = lkOf();
+  if(t.bootOff) return;              /* 사람이 끈 적 있으면 안 건드립니다 */
+  try{
+    /* ① 이미 길을 알면 그 파일 하나만 다시 읽습니다 (가볍습니다) */
+    if(String(t.autoPath || '').trim()){
+      await lkPullFile(false);
+      if(!t.autoOn){ t.autoOn = true; lkAutoTick(); markDirtyAll(); }
+      lkSay('✅ 「' + (t.autoName || t.autoPath) + '」 에서 '
+        + lkAutoMin() + '분마다 저절로 맞추고 있습니다');
+      render();
+      return;
+    }
+    /* ② 아직 모르면 — 미리 아는 자리를 차례로 봅니다.
+       아무것도 못 찾았으면 30분 동안은 다시 안 들여다봅니다 */
+    const last = Date.parse(t.bootTry || '') || 0;
+    if(force || !last || (Date.now() - last) > 30 * 60 * 1000){
+      t.bootTry = new Date().toISOString();
+      for(const dir of LK_TRY_DIRS){
+        const got = await lkBootFind(dir);
+        if(!got) continue;
+        const put = lkLand(got.hit, got.dir, [], '①', '②', true);
+        t.autoOn = true; lkAutoTick();
+        lkSay('✅ 저절로 찾아 연결했습니다 — 「' + got.hit.file['이름'] + '」 에서 '
+          + (put ? put.n : 0) + '건'
+          + (put && put.b ? ' → ' + put.b.name + ' 밑' : '')
+          + ' · ' + lkAutoMin() + '분마다 맞춥니다');
+        markDirtyAll(); render();
+        toast('🤝 미디어마케팅팀 할 일 ' + (put ? put.n : 0) + '건을 저절로 가져왔습니다');
+        return;
+      }
+      lkSay('⏳ 아직 그쪽 파일이 없습니다 — 미디어마케팅팀이 「'
+        + LK_FILE_DEF + '.json」 을 DB 폴더에 넣어 주면 저절로 붙습니다');
+      render();
+    }
+  }catch(e){
+    lkSay('⏳ 지금은 저쪽 폴더를 못 봤습니다 — 다음에 다시 봅니다');
+  }
+}
 /* ✅ 찾은 것을 <<진짜 할 일로>> 꽂고, 어디서 가져왔는지 적어 둡니다.
    길 찾기(뒤져서 찾은 길)와 정해 둔 이름(바로 찾은 길)이 같이 씁니다. */
-function lkLand(h, dir, log, a, b){
+function lkLand(h, dir, log, a, b, quiet){
   const t = lkOf();
   t.rows = h.rows.map(x => ({ id:'f_' + Math.random().toString(36).slice(2, 9),
     '팀': '미디어마케팅팀', '업무명': x.title, '담당자': x.owner, '상태': x.status,
@@ -19143,7 +19261,7 @@ function lkLand(h, dir, log, a, b){
     '고친때': '', '고친이': h.file['이름'] }));
   t.lastPull = new Date().toISOString();
   /* 📌 보는 표에만 담지 않고, <<진짜 할 일로>> 꽂아 넣습니다 */
-  const put = lkIntoTasks(h.rows, h.file['이름'], '미디어마케팅팀');
+  const put = lkIntoTasks(h.rows, h.file['이름'], '미디어마케팅팀', quiet);
   markDirtyAll(); render();
   /* ⏱ 자동으로 맞추려면 <<어디서 찾았는지>> 를 적어 둬야 합니다 —
      다음부터는 뒤지지 않고 그 파일 하나만 다시 읽습니다 (가볍습니다) */
@@ -19154,7 +19272,9 @@ function lkLand(h, dir, log, a, b){
     + ' (' + h.n + '건)');
   if(put.n) log.push((b || '⑤') + ' 할 일로 넣음: ' + put.n + '건 → '
     + (put.b ? put.b.name : ''));
-  lkAutoLog = log; render();
+  if(!quiet){ lkAutoLog = log; }
+  render();
+  if(quiet) return put;              /* 저절로 한 것은 알림창을 띄우지 않습니다 */
   alert('✅ 찾아서 <<할 일에 넣었습니다>> — ' + put.n + '건\n\n'
     + '어디서: ' + (h.file['어디'] ? h.file['어디'] + '/' : '') + h.file['이름']
     + (h.path && h.path !== '(표)' ? '  →  ' + h.path : '') + '\n'
@@ -19559,9 +19679,17 @@ function lkSwapHtml(){
         + (String(t.autoPath || '').trim()
             ? '가져오는 곳 <b>' + esc(t.autoName || t.autoPath) + '</b>'
               + ' · 마지막 맞춘 때 ' + lkWhen(t.autoAt)
-            : '아직 어디서 가져올지 안 정했습니다 — [🔗 연동 길 찾기] 를 한 번')
+            : '아직 어디서 가져올지 안 정했습니다 — 들어올 때마다 저절로 찾아봅니다')
       + '</span>'
     + '</div>'
+    /* 🤝 저절로 연동 — 지금 어떤 꼴인지 한 줄로 */
+    + (String(t.boot || '').trim()
+        ? '<div class="lk-boot' + (/^✅/.test(t.boot) ? ' on' : '') + '">'
+            + esc(t.boot)
+            + '<button class="btn sm" onclick="lkBootNow()"'
+              + ' title="지금 바로 다시 찾아봅니다">↻ 다시 찾기</button>'
+          + '</div>'
+        : '')
     + '<div class="fmeta">'
       + '그쪽에서 <b>할 일만 내보낸 파일</b>을 골라 주시면 바로 읽습니다 — '
       + 'NAS 권한도 폴더 허락도 필요 없습니다 (json · csv 둘 다). '
@@ -19681,7 +19809,9 @@ function renderTasks(){
     setTimeout(async () => {
       await lkCheck(false);
       if(lkOf().on) { await lkPull(false); lkTick(); }
-      if(lkOf().autoOn) { await lkPullFile(false); lkAutoTick(); }
+      /* 🤝 사람이 누를 것 없이 — 들어오면 저절로 붙여 봅니다 */
+      await lkBoot();
+      if(lkOf().autoOn && !lkAutoT) lkAutoTick();
     }, 60);
   }
   const rows = taskAll();
@@ -30992,10 +31122,11 @@ function normalize(raw){
     const L = raw.teamLink;
     ['lastPull','lastPush','store','node','team','why',
      'autoPath','autoName','autoDir','autoKey','autoAt','srvPath',
-     'fileAt','fileName','outAt','brandId'].forEach(k => {
+     'fileAt','fileName','outAt','brandId','boot','bootAt','bootTry'].forEach(k => {
       if(typeof L[k] !== 'string') L[k] = ''; });
     L.on = !!L.on;
     L.autoOn = !!L.autoOn;
+    L.bootOff = !!L.bootOff;
     { const n = parseInt(L.autoMin, 10); L.autoMin = (n >= 1 && n <= 180) ? n : 10; }
     if(!Array.isArray(L.rows)) L.rows = [];
     L.rows = L.rows.filter(r => r && typeof r === 'object'

@@ -1118,7 +1118,8 @@ function renderWeek(){
   const todayStr=isoDate(now), mks=isoDate(mon), sks=isoDate(sun);
   const byDate={};
   (SCHEDULES||[]).forEach(s=>{ if(!s.date)return; const dk=String(s.date).slice(0,10); if(dk<mks||dk>sks)return;
-    const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const ck=isV?'방문':(s.category||''); if(calCat!=='전체'&&ck!==calCat)return;
+    const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const ck=isV?'방문':(s.category||''); if(s.category!=='asq'&&!isV)return;   // 주간 보기는 아스퀘(asq)만 (정기 방문 포함)
+    if(calCat!=='전체'&&ck!==calCat)return;
     const meta=catMeta(s.category); const isP=s.source==='pour'; const isAsq=(!isV&&s.category==='asq');
     let asg=schedAsgName(s); if(!asg&&s.apartment_id){ const _a=APTS.find(x=>x.id===s.apartment_id); if(_a) asg=aptAuditors(_a).map(auditorName).filter(n=>n&&n!=='-').join(', '); }
     if(!asg) asg=guessAsgFromTitle(s.title);
@@ -1128,7 +1129,7 @@ function renderWeek(){
   });
   const DOW=['월','화','수','목','금','토','일'];
   let h='<div class="wkwrap" id="calWeekShot">';
-  h+=`<div class="wkhead"><span class="wt">📅 주간 일정</span><span class="wsub">${mon.getFullYear()}. ${mon.getMonth()+1}.${mon.getDate()} ~ ${sun.getMonth()+1}.${sun.getDate()}${calPerson!=='전체'?' · 담당 '+esc(calPerson):''}${calCat!=='전체'?' · '+esc(catMeta(calCat)[1]||calCat):''}</span><span style="flex:1"></span><span class="wsub" style="font-weight:800;color:#2563eb">아파트스퀘어</span></div>`;
+  h+=`<div class="wkhead"><span class="wt">📅 주간 아스퀘 일정</span><span class="wsub">${mon.getFullYear()}. ${mon.getMonth()+1}.${mon.getDate()} ~ ${sun.getMonth()+1}.${sun.getDate()}${calPerson!=='전체'?' · 담당 '+esc(calPerson):''}${calCat!=='전체'?' · '+esc(catMeta(calCat)[1]||calCat):''}</span><span style="flex:1"></span><span class="wsub" style="font-weight:800;color:#2563eb">아파트스퀘어</span></div>`;
   days.forEach((d,i)=>{ const dk=isoDate(d); const evs=byDate[dk]||[]; const cls=(i>=5?' weekend':'')+(dk===todayStr?' today':'');
     h+=`<div class="wkday${cls}"><div class="wkd-left"><div class="wkd-dow">${DOW[i]}</div><div class="wkd-date">${d.getMonth()+1}/${d.getDate()}</div></div><div class="wkd-body">`;
     if(!evs.length) h+='<div class="wkev-none">— 일정 없음 —</div>';

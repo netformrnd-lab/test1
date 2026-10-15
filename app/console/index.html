@@ -332,7 +332,7 @@ tbody tr:hover{background:#f8fafc}
         <div class="card"><h3>🏅 고객사 등급 분포 <span class="r">사용빈도+문의 자동</span></h3><div id="dashGrades"></div></div>
       </div>
       <div class="grid2">
-        <div class="card"><h3>⚠️ 담당 배정 안 된 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div id="dashAssign"></div></div>
+        <div class="card"><h3>⚠️ 배치 필요한 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div style="font-size:11px;color:var(--mut);margin:-6px 0 8px">방문 배치표에 있지만 <b>담당 감리원</b>이나 <b>방문 요일</b>이 안 정해진 현장 · 눌러서 바로 배치</div><div id="dashAssign"></div></div>
         <div class="card"><h3>🚨 2일 이상 정체된 딜 <span class="r"><span class="link" onclick="go('sales')">영업 →</span></span></h3><div id="dashStalled"></div></div>
       </div>
       <div class="grid2">
@@ -739,6 +739,42 @@ function npsScore(){ const rated=SURVEYS.filter(r=>r.overall!=null&&r.overall!==
 function siteScore(aid){ const residents=MEMBERS.filter(m=>m.apartment_id===aid&&(m.role==='resident'||m.role==='manager')).length; const c=CHAT.filter(x=>x.apartment_id===aid).length; const s=SURVEYS.filter(x=>x.apartment_id===aid).length; const v=VIEWS[aid]||0; return residents*3+c*2+s*2+v; }
 function siteGrade(aid){ const sc=siteScore(aid); return sc>=20?'상':(sc>=7?'중':'하'); }
 function needAssignList(){ return APTS.filter(a=>a.status!=='done' && !aptAuditors(a).length); }
+/* ===== 관제센터: 방문 배치표에 있는데 배치(담당·요일)가 안 된 현장 → 바로 배치 창 ===== */
+function siteHasDays(a){ return String((ownAsg(a).visitDay)||'').split('·').filter(Boolean).length>0; }
+// 배치 필요 = 진행중(완료 아님) 현장 중 담당 미배정 또는 방문 요일 미지정
+function needPlaceList(){ return activeSites().filter(a=>!aptAuditors(a).length || !siteHasDays(a)).sort((p,q)=>{ const pa=aptAuditors(p).length?1:0, qa=aptAuditors(q).length?1:0; return pa-qa || (p.name||'').localeCompare(q.name||'','ko'); }); }
+function placeReasonPills(a){ const out=[]; if(!aptAuditors(a).length)out.push('<span class="pill no">담당 미배정</span>'); if(!siteHasDays(a))out.push('<span class="pill" style="background:#fff4e2;color:#b8710a">요일 미지정</span>'); return out.join(' '); }
+// 방문 배치표 원본(control_sites)에만 있고 단지(공사관리)로는 등록 안 된 현장
+function unregisteredPlanSites(){ const have=new Set(APTS.map(a=>csSlug(a.name))); return Object.keys(CSITES).filter(slug=>!have.has(slug)).map(slug=>{ const d=CSITES[slug]||{}; return {slug,name:d._name||slug,d}; }).filter(x=>x.d&&(x.d.visitDay||x.d.cycle||x.d.mgr||x.d.own)); }
+let placeSiteId=null;
+function openPlaceSite(aptId){ placeSiteId=aptId; renderPlaceModal(); }
+function renderPlaceModal(){
+  const a=APTS.find(x=>x.id===placeSiteId); if(!a){ closeModal(); return; }
+  const AUDS=auditorList(); const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean); const CYB=['주1회','주2회','주3회','상주'];
+  const pr=pendingReq(a.id);
+  const mgrSel=AUDS.length
+    ? `<select onchange="placeSetAuditor(this.value)" style="width:100%;font-size:13px;padding:8px 10px;border-radius:9px;font-weight:700;border:1.5px solid ${a.auditor_id?'var(--blue)':'#e6b04d'};color:${a.auditor_id?'var(--blue)':'#b8710a'};background:#fff"><option value="">- 담당 지정 -</option>${AUDS.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select>`
+    : '<div style="font-size:12px;color:var(--mut)">회원 메뉴에서 역할을 ‘감리원’으로 먼저 지정하세요</div>';
+  const reqLine=pr
+    ? `<div style="font-size:12px;margin-top:6px"><span class="pill" style="background:#fff4e2;color:#b8710a">📩 ${esc(auditorName(pr.auditor_id)||'감리원')}님께 수락 대기 중</span> <span class="link" style="color:var(--mut);font-size:12px" onclick="cancelAssignReq('${pr.id}').then(()=>renderPlaceModal())">취소</span></div>`
+    : `<div style="font-size:12px;color:var(--mut);margin-top:6px">직접 지정 대신 감리원 앱으로 <span class="link" onclick="openAssignReq('${a.id}')">📩 배정 요청 보내기</span> 도 돼요 (수락하면 자동 등록)</div>`;
+  const planUI=!PHASEB_OK.csites
+    ? '<div class="empty" style="font-size:12px">방문 요일을 쓰려면 Supabase에서 <b>backend/migration-control-sites.sql</b> 을 한 번 실행하세요.</div>'
+    : `<div class="fld"><label>방문 주기</label><select onchange="placeSetCycle(this.value)" style="font-size:13px;padding:7px 10px;border-radius:9px;border:1px solid var(--line)">${['미확인'].concat(CYB).map(c=>`<option ${(d.cycle||'미확인')===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="fld"><label>방문 요일 <span style="font-weight:600;color:var(--mut)">(눌러서 선택)</span></label><div>${WKB.map(w=>{const on=days.includes(w);return `<i onclick="placeToggleDay('${w}')" style="cursor:pointer;display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;margin:2px;border-radius:9px;font-size:13px;font-weight:800;font-style:normal;border:1.5px solid ${on?'var(--blue)':'var(--line)'};background:${on?'var(--blue)':'#fff'};color:${on?'#fff':'var(--fg)'}">${w}</i>`;}).join('')}</div></div>
+      ${days.length?`<div class="fld"><label>요일별 담당 <span style="font-weight:600;color:var(--mut)">(비우면 대표 감리원)</span></label>${days.map(w=>{ const cur=(d.dayAuditors||{})[w]||''; return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:12px;font-weight:800;width:26px">${w}</span><select onchange="placeSetDayAuditor('${w}',this.value)" style="font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);min-width:160px"><option value="">대표 감리원</option>${AUDS.map(m=>`<option value="${m.id}" ${m.id===cur?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>`; }).join('')}</div>`:''}`;
+  const ok=aptAuditors(a).length&&days.length;
+  openModal(mHead(`📍 바로 배치 · ${esc(a.name)}`)+`
+    <div style="font-size:12px;color:var(--mut);margin:-8px 0 12px">${esc(a.region)||'지역 미지정'} · ${esc(stageLabel(a))} · 현재 상태: ${ok?'<span style="color:var(--green);font-weight:800">✓ 배치됨</span>':placeReasonPills(a)}</div>
+    <div style="background:#eef4ff;border-radius:9px;padding:9px 12px;font-size:12px;color:#2456c9;margin-bottom:12px;line-height:1.6">바꾸는 즉시 저장되고, <b>앞으로 6주치 정기 방문</b>이 자동으로 캘린더·감리원 앱·입주민 앱에 떠요.</div>
+    <div class="fld"><label>대표(담당) 감리원 *</label>${mgrSel}${reqLine}</div>
+    ${planUI}
+    <div class="modal-actions"><button class="b line" onclick="closeModal();go('calendar')">배치표에서 보기</button><button class="b blue" onclick="closeModal()">완료</button></div>`);
+}
+async function placeSetAuditor(mid){ if(!placeSiteId)return; await asgSetAuditor(placeSiteId,mid); renderPlaceModal(); renderDash(); }
+function placeSetCycle(c){ if(!placeSiteId)return; asgSetCycle(placeSiteId,c); renderPlaceModal(); renderDash(); }
+function placeToggleDay(w){ if(!placeSiteId)return; asgToggleDay(placeSiteId,w); renderPlaceModal(); renderDash(); }
+function placeSetDayAuditor(w,id){ if(!placeSiteId)return; asgSetDayAuditor(placeSiteId,w,id); renderPlaceModal(); renderDash(); }
 /* ===== 담당 배정 요청: 팀장이 감리원 지정 → 앱 푸시 → 감리원 수락 시 자동 배정 ===== */
 function openAssignReq(aptId){
   const a=APTS.find(x=>x.id===aptId); if(!a)return;
@@ -802,18 +838,22 @@ function renderDash(){
   const inprog=APTS.filter(a=>a.status==='in_progress').length;
   const pend=MEMBERS.filter(x=>!x.approved).length;
   const need=needAssignList();
+  const place=needPlaceList();
+  const unreg=unregisteredPlanSites();
   const stalled=stalledDeals();
   const nps=npsScore();
   const rc=recontractRate();
   $('dashTiles').innerHTML=
     tile('','진행중 현장',inprog+'<small>곳</small>','상태 ‘공사중’ 단지 · 눌러서 목록 보기','openInProgList()')+
-    tile(need.length?'warn':'good','담당 배정 안 됨',need.length+'<small>곳</small>','담당 감리원 미배정')+
+    tile(place.length?'warn':'good','배치 필요',place.length+'<small>곳</small>',need.length?`담당 미배정 ${need.length} · 요일 미지정 ${place.length-need.length}`:'담당·요일 미지정 현장',"document.getElementById('dashAssign').scrollIntoView({behavior:'smooth',block:'center'})")+
     tile(stalled.length?'crit':'good','정체된 딜',stalled.length+'<small>건</small>','2일+ 미이동')+
     tile('good','재계약율',(rc==null?'-':rc+'%'),'계약/성사 기준')+
     tile('good','NPS',(nps==null?'-':(nps>0?'+':'')+nps),'입주민소통/NPS');
   // 관제 알림
   const alerts=[];
-  if(need.length)alerts.push(`📍 <b>담당 배정이 안 된 현장 ${need.length}곳</b> — 담당 감리원 미배정 <span class="link" onclick="go('calendar')">배정하기 →</span>`);
+  if(need.length)alerts.push(`📍 <b>담당 배정이 안 된 현장 ${need.length}곳</b> — ${need.slice(0,2).map(a=>`<span class="link" onclick="openPlaceSite('${a.id}')">${esc(a.name)}</span>`).join(', ')}${need.length>2?' 외':''} <span class="link" onclick="openPlaceSite('${need[0].id}')">바로 배치 →</span>`);
+  const dayOnly=place.filter(a=>aptAuditors(a).length); if(dayOnly.length)alerts.push(`📅 <b>방문 요일이 안 정해진 현장 ${dayOnly.length}곳</b> — 정기 방문이 자동 생성되지 않아요 <span class="link" onclick="openPlaceSite('${dayOnly[0].id}')">바로 배치 →</span>`);
+  if(unreg.length)alerts.push(`📋 <b>배치표 원본에만 있고 단지로 등록 안 된 현장 ${unreg.length}곳</b> — ${unreg.slice(0,2).map(x=>esc(x.name)).join(', ')}${unreg.length>2?' 외':''} <span class="link" onclick="openAptAdd({name:'${esc(unreg[0].name).replace(/'/g,'&#39;')}'})">단지 등록 →</span>`);
   if(stalled.length)alerts.push(`⏱️ <b>2일 이상 정체된 영업 딜 ${stalled.length}건</b> — ${stalled.slice(0,2).map(x=>esc(x.s.name)).join(', ')} <span class="link" onclick="go('sales')">확인 →</span>`);
   if(pend)alerts.push(`👤 <b>승인 대기 회원 ${pend}명</b> <span class="link" onclick="go('members')">승인하기 →</span>`);
   $('dashAlert').innerHTML=alerts.length?`<div class="alert crit"><div class="ah">🔔 오늘의 관제 알림</div>${alerts.map(a=>`<div class="row">${a}</div>`).join('')}</div>`:'<div class="alert info"><div class="ah">🔔 오늘의 관제 알림</div><div class="row">지금은 급한 알림이 없어요 👍</div></div>';
@@ -822,14 +862,15 @@ function renderDash(){
   // 고객사 등급 분포
   const grades={상:0,중:0,하:0}; APTS.forEach(a=>{ grades[siteGrade(a.id)]++; });
   $('dashGrades').innerHTML=`<div style="display:flex;gap:12px">${[['상','good'],['중','blue'],['하','gray']].map(([g,cl])=>`<div style="flex:1;text-align:center;background:#f6f8fc;border:1px solid var(--line);border-radius:12px;padding:14px 8px"><div style="font-size:12px;font-weight:800;color:var(--mut2)">${g}</div><div style="font-size:24px;font-weight:800;margin-top:4px">${grades[g]}<small style="font-size:12px;color:var(--mut);font-weight:700">곳</small></div></div>`).join('')}</div><div style="font-size:11px;color:var(--mut);margin-top:8px">입주민 <b>앱 조회수</b>·가입 수·문의(채팅)·설문 참여 등 <b>고객사 사용도</b> 기준 자동 산정</div>`;
-  // 담당 배정 안 된 현장
-  $('dashAssign').innerHTML=need.length?`<table><tbody>${need.slice(0,7).map(a=>{
+  // 배치 필요한 현장 (담당 미배정 또는 방문 요일 미지정) → 클릭하면 바로 배치 창
+  const unregRows=unreg.slice(0,3).map(x=>`<tr style="background:#fdf6ff"><td style="font-weight:700">${esc(x.name)}<div style="font-size:11px;color:var(--mut);font-weight:500">배치표 원본에만 있음</div></td><td><span class="pill" style="background:#f3e8ff;color:#7c3aed">단지 미등록</span></td><td style="text-align:right;white-space:nowrap"><span class="link" onclick="openAptAdd({name:'${esc(x.name).replace(/'/g,'&#39;')}'})">➕ 단지 등록</span></td></tr>`).join('');
+  $('dashAssign').innerHTML=(place.length||unreg.length)?`<table><tbody>${place.slice(0,7).map(a=>{
     const pr=pendingReq(a.id); const reqName=pr?(auditorName(pr.auditor_id)||'감리원'):'';
     const right=pr
-      ? `<span class="pill" style="background:#fff4e2;color:#b8710a">📩 ${esc(reqName)}님께 요청됨</span> <span class="link" style="color:var(--mut)" onclick="cancelAssignReq('${pr.id}')">취소</span>`
-      : `<span class="pill no">미배정</span> <span class="link" onclick="openAssignReq('${a.id}')">📩 배정 요청</span>`;
-    return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span></td><td style="color:var(--mut)">${esc(a.region)||'미지정'}</td><td style="text-align:right;white-space:nowrap">${right}</td></tr>`;
-  }).join('')}</tbody></table>`:'<div class="empty">모든 현장에 담당이 배정됐어요 👍</div>';
+      ? `<span class="pill" style="background:#fff4e2;color:#b8710a">📩 ${esc(reqName)}님께 요청됨</span> <span class="link" onclick="openPlaceSite('${a.id}')">⚙️ 배치</span>`
+      : `<span class="link" onclick="openPlaceSite('${a.id}')">⚙️ 바로 배치</span>${aptAuditors(a).length?'':` <span class="link" style="color:var(--mut)" onclick="openAssignReq('${a.id}')">📩 요청</span>`}`;
+    return `<tr style="cursor:pointer" onclick="openPlaceSite('${a.id}')"><td style="font-weight:700"><span class="link" onclick="event.stopPropagation();openProj('${a.id}')">${esc(a.name)}</span><div style="font-size:11px;color:var(--mut);font-weight:500">${esc(a.region)||'미지정'}${aptAuditors(a).length?' · '+esc(siteMgrName(a)):''}</div></td><td>${placeReasonPills(a)}</td><td style="text-align:right;white-space:nowrap" onclick="event.stopPropagation()">${right}</td></tr>`;
+  }).join('')}${unregRows}</tbody></table>${place.length>7?`<div style="font-size:11px;color:var(--mut);margin-top:6px">외 ${place.length-7}곳 · <span class="link" onclick="go('calendar')">배치표 전체 보기</span></div>`:''}`:'<div class="empty">모든 현장에 담당·방문 요일이 정해졌어요 👍</div>';
   // 정체된 딜
   $('dashStalled').innerHTML=!PHASEB_OK.sales?'<div class="empty" style="font-size:12px">영업 기능을 켜면 표시돼요</div>':(stalled.length?`<table><tbody>${stalled.slice(0,7).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openSalesEdit('${x.s.id}')">${esc(x.s.name)}</span></td><td><span class="pill blue">${SALES_LABEL[x.s.stage]||x.s.stage}</span></td><td style="text-align:right;color:var(--red);font-weight:700">${x.days}일 정체</td></tr>`).join('')}</tbody></table>`:'<div class="empty">정체된 딜이 없어요 👍</div>');
   // 새로 올라온 감리일지 (안 본 것 우선 + NEW 표시)

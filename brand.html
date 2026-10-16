@@ -5658,7 +5658,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-28';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-29';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18475,6 +18475,26 @@ const TS_MAP = [
   ['note',  ['메모','비고','설명','내용메모','note','memo','desc','remark']]
 ];
 function tsKey(s){ return String(s == null ? '' : s).replace(/[\s_\-()\[\].]/g, '').toLowerCase(); }
+/* ── 🏷️ <<머리말이 「제목(title)」 처럼 둘로 적혀 올 때>> ─────────────
+   미디어마케팅팀 프로그램이 내보내는 표는 머리말을 <<한글(영문)>> 으로
+   적습니다 — 「제목(title)」 「담당(assignee_id)」 「마감일(due_date)」.
+
+   여태는 괄호를 떼고 <<붙여서>> 한 덩어리로 봤습니다(제목title). 그러면
+   똑같은 이름이 하나도 없어서 「들어 있는 것」 으로 넘어갔고, 거기서
+   「업무」 가 <<업무유형>> 에 먼저 걸렸습니다. 그 바람에 할 일 이름이
+   「영상 콘티 쓰기」 가 아니라 「촬영」 으로 들어왔습니다.
+
+   이제 머리말 하나를 <<세 가지로>> 봅니다 —
+     제목(title)  →  「제목title」 · 「제목」 · 「title」
+   그래서 똑같은 이름으로 바로 맞습니다. */
+function tsKeyParts(h){
+  const raw = String(h == null ? '' : h);
+  const out = [tsKey(raw)];
+  const m = raw.match(/^\s*([^()（）]*)[(（]([^()（）]*)[)）]\s*$/);
+  if(m){ const a = tsKey(m[1]), b = tsKey(m[2]);
+         if(a) out.push(a); if(b) out.push(b); }
+  return out.filter((x, i) => x && out.indexOf(x) === i);
+}
 /* 🧑‍🤝‍🧑 <<「팀」 칸>> ───────────────────────────────────────────────
    저쪽 파일에 팀·소속이 적혀 있으면 그것으로 가려냅니다. 다만 이 칸은
    <<할 일인지 가리는 데는 쓰지 않습니다>> — TS_MAP 에 넣으면 「이름 +
@@ -18482,23 +18502,33 @@ function tsKey(s){ return String(s == null ? '' : s).replace(/[\s_\-()\[\].]/g, 
 const TS_TEAM_WORDS = ['팀','팀명','소속','소속팀','부서','본부','조직','구분',
                        'team','dept','department','group','org','division'];
 function tsPickTeam(headers){
-  const hk = (headers || []).map(tsKey);
-  for(const w of TS_TEAM_WORDS){ const i = hk.indexOf(tsKey(w)); if(i >= 0) return i; }
+  const hp = (headers || []).map(tsKeyParts);
   for(const w of TS_TEAM_WORDS){
-    const i = hk.findIndex(h => h && h.indexOf(tsKey(w)) >= 0);
+    const k = tsKey(w);
+    const i = hp.findIndex(ps => ps.indexOf(k) >= 0);
+    if(i >= 0) return i;
+  }
+  for(const w of TS_TEAM_WORDS){
+    const k = tsKey(w);
+    const i = hp.findIndex(ps => ps.some(x => x.indexOf(k) >= 0));
     if(i >= 0) return i;
   }
   return -1;
 }
 function tsPickCol(headers){
-  const hk = headers.map(tsKey);
+  const hp = (headers || []).map(tsKeyParts);
   const out = {};
   TS_MAP.forEach(([key, words]) => {
     let hit = -1;
     /* 똑같은 이름을 먼저, 없으면 들어 있는 것으로 */
-    for(const w of words){ const i = hk.indexOf(tsKey(w)); if(i >= 0){ hit = i; break; } }
+    for(const w of words){
+      const k = tsKey(w);
+      const i = hp.findIndex(ps => ps.indexOf(k) >= 0);
+      if(i >= 0){ hit = i; break; }
+    }
     if(hit < 0) for(const w of words){
-      const i = hk.findIndex(h => h && h.indexOf(tsKey(w)) >= 0);
+      const k = tsKey(w);
+      const i = hp.findIndex(ps => ps.some(x => x.indexOf(k) >= 0));
       if(i >= 0){ hit = i; break; }
     }
     if(hit >= 0 && Object.values(out).indexOf(hit) < 0) out[key] = hit;
@@ -18507,7 +18537,11 @@ function tsPickCol(headers){
 }
 /* 줄 하나를 우리가 쓰는 모양으로 */
 function tsRow(get){
-  const pctRaw = String(get('pct') || '').replace(/[^0-9.]/g, '');
+  /* 🔢 <<0 은 빈 칸이 아닙니다>>. 여태는 get('pct') || '' 로 받아서
+     progress: 0 (아직 손도 안 댄 일)이 「안 적힌 것」 으로 넘어갔고,
+     가져온 뒤 진척률이 비어 버렸습니다. 숫자 0 과 빈 칸을 가립니다. */
+  const pv = get('pct');
+  const pctRaw = (pv == null ? '' : String(pv)).replace(/[^0-9.]/g, '');
   let pct = pctRaw === '' ? null : Math.round(Number(pctRaw));
   if(pct !== null && (!isFinite(pct) || pct < 0)) pct = null;
   if(pct !== null && pct > 100) pct = 100;
@@ -19758,6 +19792,15 @@ function lkOnlyTeam(rows){
     const set = {};
     mem.forEach(m => { set[lkMemKey(m)] = true; });
     const keep = all.filter(r => set[lkMemKey(r.owner)]);
+    /* 🔢 <<담당이 이름이 아니라 번호로 올 때>> ─────────────────────
+       저쪽 프로그램은 담당을 assignee_id(번호)로 적어 내보낼 수 있습니다.
+       그러면 명단과 맞는 것이 하나도 없어 <<다 버려집니다>>. 번호만
+       적혀 왔다면 가릴 거리가 없는 것이니, 가리지 않고 그대로 둡니다
+       (버리는 것보다 낫습니다 — 어느 팀 것인지는 눈으로 봅니다). */
+    if(!keep.length && all.every(r => { const o = String(r.owner == null ? '' : r.owner).trim();
+                                        return !o || /^[0-9]+$/.test(o); })){
+      return { keep: all, all: all.length, drop: 0, how: '못 가림(담당이 번호)' };
+    }
     return { keep: keep, all: all.length, drop: all.length - keep.length, how: '명단' };
   }
   return { keep: all, all: all.length, drop: 0, how: '' };
@@ -32143,16 +32186,27 @@ async function saveAll(silent){
   }
 }
 
-function exportJSON(){
+/* 지금 내용을 파일 하나로 — 이름만 달리해서 두 군데서 씁니다
+   ① 사람이 [📤] 를 눌렀을 때 (백업·미마팀 동기화용)
+   ② [📥] 로 덮어쓰기 바로 전에 <<되돌리기용>> 으로 (아래) */
+function dataFile(tag){
   const copy = Object.assign({}, data);
   delete copy._rev;                       // 내부에서만 쓰는 판 번호는 뺍니다
   const blob = new Blob([JSON.stringify(copy, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = '브랜드허브_' + new Date().toISOString().slice(0,10) + '.json';
+  const d = new Date(Date.now() + 9 * 3600000).toISOString();
+  a.download = '브랜드허브' + (tag ? '_' + tag : '') + '_'
+    + d.slice(0, 10) + (tag ? '_' + d.slice(11, 13) + d.slice(14, 16) : '') + '.json';
   a.click();
   URL.revokeObjectURL(a.href);
-  toast('📤 파일로 내보냈습니다');
+  return a.download;
+}
+function exportJSON(){
+  dataFile('');
+  /* 🔄 미디어마케팅팀 프로그램의 [브랜드 허브 동기화] 가 바로 이 파일을
+     받습니다 (schema 2 · brands) — 그래서 여기서 한 번 짚어 줍니다 */
+  toast('📤 파일로 내보냈습니다 — 미디어마케팅팀 [브랜드 허브 동기화] 에 넣는 파일입니다');
 }
 
 function importJSON(ev){
@@ -32164,7 +32218,18 @@ function importJSON(ev){
       const parsed = JSON.parse(reader.result);
       if(!Array.isArray(parsed.brands)) throw new Error('브랜드 목록이 없습니다');
       if(!confirm('현재 내용을 파일 내용으로 덮어씁니다.\n\n'
-        + '다른 분이 그 사이에 넣은 내용도 함께 사라질 수 있습니다. 계속할까요?')) return;
+        + '다른 분이 그 사이에 넣은 내용도 함께 사라질 수 있습니다.\n\n'
+        + '· 덮어쓰기 바로 전에 <<지금 내용을 파일로 한 벌>> 받아 둡니다\n'
+        + '  (잘못되면 그 파일을 다시 [📥] 로 넣으면 그대로 돌아옵니다)\n\n'
+        + '계속할까요?')) return;
+      /* 💾 <<되돌릴 자리를 먼저 만들어 둡니다>> ───────────────────────
+         미디어마케팅팀 [브랜드 허브 동기화] 를 거친 파일을 여기로 넣는
+         것이 그쪽이 일러 준 마지막 차례입니다. 그 파일이 지난 것이면
+         우리가 그 뒤에 고친 것이 통째로 사라집니다. 그래서 덮어쓰기
+         직전에 지금 것을 파일로 한 벌 받아 둡니다 — 한 번만 넣으면
+         그대로 돌아옵니다. */
+      let backName = '';
+      try{ backName = dataFile('되돌리기용'); }catch(e){}
       const keepRev = data._rev || 0;         // 판 번호는 지금 것을 유지합니다
       data = normalize(parsed);
       data._rev = keepRev;
@@ -32173,7 +32238,8 @@ function importJSON(ev){
       data.brands.forEach(b => dirtyBrands.add(b.id));
       currentBrandId = data.brands.length ? data.brands[0].id : null;
       render(); markDirtyAll();
-      toast('📥 불러왔습니다');
+      toast('📥 불러왔습니다'
+        + (backName ? ' · 되돌릴 파일 「' + backName + '」 을 받아 뒀습니다' : ''));
     }catch(e){ toast('⚠️ 파일을 읽을 수 없습니다: ' + e.message); }
   };
   reader.readAsText(file);

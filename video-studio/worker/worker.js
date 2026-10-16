@@ -28,6 +28,14 @@ const PHOTO_UPLOAD_OFF = true
 const PHOTO_OFF_MSG = '사진 업로드 중지됨 — 저장 위치를 옮기는 중입니다.'
 // 검수 통과 후에는 항상 멈추고, 사람이 프롬프트를 확인한 뒤 '영상 제작'을 눌러야 HeyGen 크레딧을 쓴다
 const READY_MSG = '검수 통과 · 제작 대기: 프롬프트와 무료 미리보기를 확인한 뒤 ‘영상 제작 시작’을 눌러 주세요. 누르기 전에는 HeyGen 크레딧을 쓰지 않습니다.'
+// Manus API (v1): POST /tasks 로 작업 생성, GET /tasks/{id} 로 상태·결과 파일 확인
+const MANUS_API = 'https://api.manus.ai/v1'
+const MANUS_PROFILES = [
+  { id: 'manus-1.6', name: 'Manus 1.6 (기본)' },
+  { id: 'manus-1.6-max', name: 'Manus 1.6 Max (고품질 · 크레딧 많이 씀)' },
+  { id: 'manus-1.6-lite', name: 'Manus 1.6 Lite (빠름 · 크레딧 적게)' },
+]
+function manusHeaders(key) { return { API_KEY: key, 'content-type': 'application/json', accept: 'application/json' } }
 const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
 const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
 const DEFAULT_SETTINGS = {
@@ -66,7 +74,7 @@ export default {
 const ACTIONS = {
   // API 키 확인(save=false: 모델 목록만) / 저장(save=true)
   async connection(env, { provider, key, model, save }) {
-    if (!['claude', 'openai', 'heygen'].includes(provider)) throw new HttpError(400, '알 수 없는 서비스입니다.')
+    if (!['claude', 'openai', 'heygen', 'manus'].includes(provider)) throw new HttpError(400, '알 수 없는 서비스입니다.')
     let apiKey = String(key || '').trim()
     if (!apiKey) apiKey = await getKey(env, provider, false)
     if (!apiKey) throw new HttpError(400, 'API 키를 입력해 주세요.')
@@ -240,14 +248,15 @@ const ACTIONS = {
   },
   // '미리보기 후 제작' 모드에서 준비가 끝난 작업을 HeyGen 제작으로 넘긴다
   async render(env, { id }) {
+    const manusReady = (await state(env, { raw: true })).readiness.manus
     let row = null
     await mutate(env, 'jobs', [], (list) => {
       row = list.find((j) => j.id === id)
       if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
       if (row.status !== 'ready') throw new HttpError(409, '제작 대기 상태의 작업만 제작을 요청할 수 있습니다.')
-      if (isManus(row)) throw new HttpError(400, 'Manus 영상은 아직 자동 제작이 연결되지 않았습니다. 프롬프트를 복사해 Manus 에서 만들어 주세요.')
+      if (isManus(row) && !manusReady) throw new HttpError(400, 'Manus API 가 연결되지 않았습니다. 설정 → 연결 설정에서 Manus API 를 저장하거나, 프롬프트를 복사해 Manus 에서 만들어 주세요.')
       row.status = 'submitting'; row.step = 6
-      row.data.events.push(ev('영상 제작 시작 (프롬프트 확인 후 직접 요청)'))
+      row.data.events.push(ev(isManus(row) ? 'Manus 영상 제작 시작 (프롬프트 확인 후 직접 요청)' : '영상 제작 시작 (프롬프트 확인 후 직접 요청)'))
     })
     return { job: toJob(row) }
   },
@@ -544,6 +553,79 @@ async function runStep(env, job) {
     job.step = 6
     job.status = 'ready'
     d.events.push(ev(READY_MSG))
+    return
+  }
+
+  // 6-M) Manus 작업 생성 (중복 제작 방지는 HeyGen 과 같은 방식)
+  if (job.status === 'submitting' && isManus(job)) {
+    if (!d.skippedReview && allIssues(d).length) throw new Error('검수 통과 기록이 없어 제작을 요청하지 않았습니다.')
+    if (d.submitAttempted && !d.videoId) {
+      job.status = 'uncertain'
+      d.error = '이전 Manus 작업 요청의 결과를 확인하지 못했습니다. 중복 비용을 막기 위해 자동 재요청하지 않았습니다. Manus 에서 작업이 만들어졌는지 확인해 주세요.'
+      d.events.push(ev('Manus 요청 결과 불명 → 중복 방지로 중단'))
+      return
+    }
+    d.submitAttempted = true; d.mode = 'manus'
+    await saveJob(env, job)
+    const key = await getKey(env, 'manus')
+    const profile = (st.secrets.manus && st.secrets.manus.model) || MANUS_PROFILES[0].id
+    let res
+    try {
+      res = await fetch(MANUS_API + '/tasks', { method: 'POST', headers: manusHeaders(key), body: JSON.stringify({ prompt: d.prompt, agentProfile: profile, taskMode: 'agent' }) })
+    } catch (e) {
+      job.status = 'uncertain'
+      d.error = 'Manus 요청 중 연결이 끊겨 결과를 확인하지 못했습니다. 중복 비용을 막기 위해 재요청하지 않았습니다. Manus 에서 확인해 주세요.'
+      d.events.push(ev('Manus 요청 연결 오류 → 중복 방지로 중단'))
+      return
+    }
+    const out = await res.json().catch(() => ({}))
+    const taskId = out.task_id || out.id || (out.task && out.task.id)
+    if (!res.ok || !taskId) {
+      job.status = 'failed'
+      d.error = 'Manus 작업 요청 실패: ' + apiError(out, res.status)
+      d.events.push(ev(d.error))
+      return
+    }
+    d.videoId = taskId
+    d.manusTask = { id: taskId, url: out.task_url || (out.task && out.task.task_url) || '', share: out.share_url || (out.task && out.task.share_url) || '', at: now() }
+    d.events.push(ev(`Manus 작업 접수 (${profile}) — 완성까지 수십 분 걸릴 수 있습니다`))
+    job.step = 7; job.status = 'rendering'
+    return
+  }
+
+  // 7-M) Manus 작업 상태 확인 → 완성 영상 파일 찾기
+  if (job.status === 'rendering' && isManus(job)) {
+    const key = await getKey(env, 'manus')
+    const res = await fetch(MANUS_API + '/tasks/' + encodeURIComponent(d.videoId), { headers: manusHeaders(key) })
+    const out = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error('Manus 상태 확인 실패: ' + apiError(out, res.status))
+    const t = out.task || out
+    const status = String(t.status || '').toLowerCase()
+    if (t.task_url && !d.manusTask.url) d.manusTask.url = t.task_url
+    if (status && status !== d.manusTask.status) { d.manusTask.status = status; d.events.push(ev('Manus 상태: ' + status)) }
+    const credits = Number(t.credit_usage || t.credits_used || 0)
+    if (credits) d.usage = { ...(d.usage || {}), manus: { credits } }
+    if (status === 'completed' || status === 'finished' || status === 'succeeded') {
+      const files = manusFiles(t)
+      const vid = files.find((f) => /^video\//.test(f.mime) || /\.(mp4|mov|webm)(\?|$)/i.test(f.name + ' ' + f.url))
+      if (vid) {
+        d.videoUrl = vid.url
+        d.events.push(ev(`Manus 영상 완성: ${vid.name || '영상 파일'}`))
+        job.step = 8; job.status = 'rendered'
+      } else {
+        job.status = 'failed'
+        d.error = `Manus 작업은 끝났지만 결과에서 영상 파일을 찾지 못했습니다(파일 ${files.length}개). Manus 화면에서 결과를 확인해 주세요.`
+        d.events.push(ev(d.error))
+      }
+    } else if (status === 'failed' || status === 'error' || status === 'cancelled' || status === 'canceled') {
+      job.status = 'failed'
+      d.error = 'Manus 작업 실패: ' + (t.error || t.message || status)
+      d.events.push(ev(d.error))
+    } else if (Date.now() - new Date(d.manusTask.at).getTime() > 120 * 60000) {
+      job.status = 'uncertain'
+      d.error = 'Manus 작업이 2시간 넘게 끝나지 않았습니다. Manus 화면에서 진행 상황을 확인해 주세요.'
+      d.events.push(ev(d.error))
+    }
     return
   }
 
@@ -896,6 +978,17 @@ function manusPrompt(job, plan) {
   })
   return lines.join('\n').trim()
 }
+// Manus 응답에서 결과 파일 목록 뽑기 (output 메시지의 output_file / attachments)
+function manusFiles(t) {
+  const out = []
+  const add = (f) => { if (!f) return; const url = f.fileUrl || f.file_url || f.url || f.download_url || ''; if (url) out.push({ url, name: f.fileName || f.file_name || f.name || '', mime: f.mimeType || f.mime_type || f.content_type || '' }) }
+  for (const m of [].concat(t.output || [], t.messages || [])) {
+    for (const c of [].concat((m && m.content) || [])) if (c && (c.type === 'output_file' || c.fileUrl || c.file_url)) add(c)
+    for (const a of [].concat((m && m.attachments) || [])) add(a)
+  }
+  for (const a of [].concat(t.attachments || [], t.files || [])) add(a)
+  return out
+}
 function agentPayload(job, settings) {
   const config = { duration_sec: Math.max(10, Math.min(300, Number(job.input.seconds) || 60)), orientation: job.input.ratio === '9:16' ? 'portrait' : 'landscape' }
   if (settings.avatarId) config.avatar_id = settings.avatarId
@@ -1187,6 +1280,13 @@ async function listModels(provider, key) {
     return (out.data || []).map((m) => m.id).filter((id) => /^(gpt-|o\d|chatgpt-)/.test(id) && !skip.test(id))
       .sort().reverse().map((id) => ({ id, name: id }))
   }
+  if (provider === 'manus') {
+    const res = await fetch(MANUS_API + '/tasks?limit=1', { headers: manusHeaders(key) })
+    const out = await res.json().catch(() => ({}))
+    if (res.status === 401 || res.status === 403) throw new HttpError(400, 'Manus 인증 실패: ' + apiError(out, res.status))
+    if (!res.ok) throw new HttpError(400, `Manus 연결 확인 실패(HTTP ${res.status}): ` + apiError(out, res.status) + ' — API 주소·형식이 바뀌었을 수 있습니다.')
+    return MANUS_PROFILES
+  }
   const res = await fetch('https://api.heygen.com/v2/user/remaining_quota', { headers: { 'X-Api-Key': key, accept: 'application/json' } })
   const out = await res.json().catch(() => ({}))
   if (!res.ok || (out && out.error)) throw new HttpError(400, 'HeyGen 인증 실패: ' + apiError(out, res.status))
@@ -1290,7 +1390,7 @@ async function state(env, opt = {}) {
   const settingsRows = [{ data: settingsObj }]
   jobs.splice(50)
   const sec = {}
-  for (const p of ['claude', 'openai', 'heygen']) {
+  for (const p of ['claude', 'openai', 'heygen', 'manus']) {
     const r = secrets.find((x) => x.provider === p)
     sec[p] = { configured: !!r, model: (r && r.model) || '', checkedAt: (r && r.checked_at) || '' }
   }
@@ -1299,6 +1399,7 @@ async function state(env, opt = {}) {
     claude: sec.claude.configured && !!sec.claude.model,
     openai: sec.openai.configured && !!sec.openai.model,
     heygen: sec.heygen.configured,
+    manus: sec.manus.configured && !!sec.manus.model,
   }
   const off = new Set(settings.builtinOff || [])
   const builtins = K.map((k) => ({ ...k, approved: !off.has(k.id), builtin: true, created_at: '' }))
@@ -1332,7 +1433,7 @@ function toJob(r) {
   return {
     id: r.id, created: r.created_at, status: r.status, step: r.step, revision: r.revision, input: r.input,
     plan: d.plan || null, prompt: d.prompt || '', claude: d.claude || null, openai: d.openai || null,
-    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
+    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', manusUrl: (d.manusTask && (d.manusTask.share || d.manusTask.url)) || '', edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
     events: d.events || [], sources: d.sources || [], memory: d.memory || [],
     models: d.models || { claude: '', openai: '' }, promptVersion: d.promptVersion || PROMPT_VERSION,
     issues: d.pendingIssues && d.pendingIssues.length ? d.pendingIssues : d.lastIssues || [],
@@ -1351,6 +1452,7 @@ function usageView(d) {
     image: u.image || null,
     video: u.video || null,
     heygen: u.heygen || null,
+    manus: u.manus || null,
   }
 }
 function totalUsage(jobs) {
@@ -1458,7 +1560,7 @@ async function saveJob(env, job, extra = {}) {
 async function getKey(env, provider, required = true) {
   const rows = [(await readJSON(env, 'secrets', {}))[provider]].filter(Boolean)
   if (!rows.length) {
-    if (required) throw new HttpError(400, `${provider === 'claude' ? 'Claude' : provider === 'openai' ? 'OpenAI' : 'HeyGen'} API 연결을 먼저 저장해 주세요.`)
+    if (required) throw new HttpError(400, `${({ claude: 'Claude', openai: 'OpenAI', heygen: 'HeyGen', manus: 'Manus' })[provider] || provider} API 연결을 먼저 저장해 주세요.`)
     return ''
   }
   return decrypt(env, rows[0].cipher, rows[0].iv)

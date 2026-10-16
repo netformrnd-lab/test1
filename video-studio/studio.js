@@ -41,7 +41,7 @@
   const STATUS = {
     queued: '자료 검색', drafting: '대본 작성', reviewing: '교차 검수', revising: '자동 수정', submitting: '제작 요청',
     preparing: '장면 이미지 준비', ready: '검수 완료 · 제작 대기',
-    rendering: 'HeyGen 제작 중', rendered: '영상 생성 완료', held: '자동 보류', failed: '처리 실패', uncertain: '중복 방지로 중단',
+    rendering: '영상 제작 중', rendered: '영상 생성 완료', held: '자동 보류', failed: '처리 실패', uncertain: '중복 방지로 중단',
   }
   const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
   const DEFAULT_SETTINGS = { avatarId: '', avatarType: 'avatar', voiceId: 'fdd91d5eb0654e45a8b216b3f2c86eca', avatarName: '조현식 이사', consent: false, consentAt: '', maxDailyJobs: 5 }
@@ -85,7 +85,7 @@
     ['컷별 장면 이미지 준비', '사진 자료실 배정 · 부족한 컷은 AI 이미지 생성', 5, 6],
     ['이사님 아바타 영상 생성', '컷마다 배경 사진 + 아바타·음성으로 실제 제작', 6, 8],
   ]
-  const PROVIDERS = [['claude', 'Claude'], ['openai', 'ChatGPT · OpenAI'], ['heygen', 'HeyGen']]
+  const PROVIDERS = [['claude', 'Claude'], ['openai', 'ChatGPT · OpenAI'], ['heygen', 'HeyGen'], ['manus', 'Manus (아바타 없는 영상)']]
 
   // ── 상태 ──
   const S = {
@@ -311,6 +311,7 @@
   function jobHtml(e) {
     let h = `<div class="job-result"><div class="between"><div><h3>${esc((e.plan && e.plan.title) || e.input.keywords)}</h3>
       <p>${e.input.tool === 'manus' ? 'Manus · 아바타 없음 · ' : 'HeyGen 아바타 · '}${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
+    if (e.manusUrl && ['rendering', 'rendered', 'failed', 'uncertain'].includes(e.status)) h += `<p class="fineprint"><a href="${esc(e.manusUrl)}" target="_blank" rel="noreferrer">${icon('external', 14)}Manus에서 작업 보기</a>${e.status === 'rendering' ? ' · Manus가 자료를 찾고 영상을 만드는 중입니다(수십 분 걸릴 수 있음). 이 창을 닫아도 다시 열면 이어서 확인합니다.' : ''}</p>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
     const isM = e.input.tool === 'manus'
     const canEdit = ['held', 'ready'].includes(e.status) && e.plan && e.prompt && (isM || S.settings.heygenMode !== 'scenes')
@@ -321,7 +322,8 @@
       h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — Manus에 붙여 넣을 프롬프트입니다</strong>
         <p>${e.skippedReview ? '<b>검수 없이 넘긴 직접 수정본입니다.</b> ' : 'Claude·OpenAI 검수를 통과했습니다. '}‘프롬프트 복사’ → Manus 열기 → 영상(Studio) <b>Alchemy 모드</b>를 고르고 붙여 넣으세요. 자료는 Manus가 홈페이지·앱 소개 등에서 직접 찾아 씁니다(꼭 써야 할 사진·캡처가 있으면 함께 첨부하세요). 아바타 없이 내레이션으로 만들어집니다. HeyGen 크레딧은 쓰지 않습니다.</p>
         <pre class="approve-prompt">${esc(e.prompt)}</pre>
-        <div class="job-actions"><button type="button" class="btn" data-copy-prompt="${e.id}">${icon('copy', 14)}프롬프트 복사</button><a class="btn outline" href="https://manus.im/app" target="_blank" rel="noreferrer">${icon('external', 14)}Manus 열기</a><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button></div></div>`
+        <div class="job-actions">${S.data.readiness.manus ? `<button type="button" class="btn" data-render="${e.id}">Manus로 영상 만들기 (Manus 크레딧 사용)</button>` : ''}<button type="button" class="btn ${S.data.readiness.manus ? 'outline' : ''}" data-copy-prompt="${e.id}">${icon('copy', 14)}프롬프트 복사</button><a class="btn outline" href="https://manus.im/app" target="_blank" rel="noreferrer">${icon('external', 14)}Manus 열기</a><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button></div>
+        ${S.data.readiness.manus ? '' : '<p class="fineprint">설정 → 연결 설정에서 Manus API를 저장하면 ‘Manus로 영상 만들기’ 버튼으로 바로 제작하고 완성 영상을 여기서 받아 볼 수 있습니다.</p>'}</div>`
     } else if (e.status === 'ready' && e.prompt) {
       h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — 아래 프롬프트를 확인하세요</strong>
         <p>${e.skippedReview ? '<b>검수 없이 넘긴 직접 수정본입니다.</b> ' : e.edited ? '직접 수정한 프롬프트가 ' : ''}${e.skippedReview ? '' : 'Claude·OpenAI 검수를 통과했습니다. '} 프롬프트와 무료 미리보기를 확인한 뒤 ‘영상 제작 시작’을 누르면 그때 HeyGen 크레딧이 쓰입니다. 마음에 들지 않으면 제작하지 말고 키워드를 바꿔 다시 만드세요(대본·검수 비용만 듭니다).</p>
@@ -336,7 +338,7 @@
     if (e.videoUrl) {
       h += `<div class="video-output"><video controls playsinline preload="metadata" src="${esc(e.videoUrl)}"></video>
         <div class="between"><span>실제 길이 ${e.actualSeconds || '미확인'}초</span><a href="${esc(e.videoUrl)}" target="_blank" rel="noreferrer">영상 열기 ${icon('external', 14)}</a></div>
-        <p class="fineprint">AI 아바타 생성 영상 · 화면·발음·자막의 최종 품질은 자동 검증되지 않았습니다. 영상 주소는 만료될 수 있습니다.</p></div>`
+        <p class="fineprint">${e.input.tool === 'manus' ? 'Manus 생성 영상' : 'AI 아바타 생성 영상'} · 화면·발음·자막의 최종 품질은 자동 검증되지 않았습니다. 영상 주소는 만료될 수 있습니다.</p></div>`
     }
     h += `<div class="reviews-grid">${reviewHtml('Claude', e.claude)}${reviewHtml('OpenAI', e.openai)}</div>`
     if (e.plan) {
@@ -359,13 +361,14 @@
 
   const n0 = (x) => Number(x || 0).toLocaleString()
   function usageHtml(u, models) {
-    if (!u || (!u.claude && !u.openai && !u.heygen && !u.image && !u.video)) return ''
+    if (!u || (!u.claude && !u.openai && !u.heygen && !u.image && !u.video && !u.manus)) return ''
     const row = (name, v, extra) => `<div><span>${name}</span><b>${extra}</b><small>${v ? `입력 ${n0(v.input)} · 출력 ${n0(v.output)} 토큰 · ${v.calls}회` : ''}</small></div>`
     let h = '<details open><summary>사용량 (크레딧)</summary><div class="usage-grid">'
     if (u.claude) h += row(`Claude <small>${esc(models.claude)}</small>`, u.claude, u.claude.usd != null ? `약 $${u.claude.usd.toFixed(3)}` : '요금표 없는 모델')
     if (u.openai) h += row(`OpenAI 검수 <small>${esc(models.openai)}</small>`, u.openai, '토큰 기준')
     if (u.image) h += row('OpenAI 이미지 생성', u.image, `${u.image.calls}장 생성`)
     if (u.video) h += `<div><span>AI 영상 (Sora)</span><b>약 $${(u.video.usd || 0).toFixed(2)}</b><small>${u.video.calls}개 · 총 ${u.video.seconds}초 (공개 요금 기준 예상치)</small></div>`
+    if (u.manus) h += `<div><span>Manus</span><b>${n0(u.manus.credits)} 크레딧</b><small>Manus 작업 기준</small></div>`
     if (u.heygen) h += `<div><span>HeyGen</span><b>${u.heygen.used != null ? n0(u.heygen.used) + ' 크레딧' : '측정 중'}</b><small>${u.heygen.before != null ? `제작 전 ${n0(u.heygen.before)} → 후 ${u.heygen.after != null ? n0(u.heygen.after) : '…'}` : '잔액 조회 불가'}</small></div>`
     return h + '</div><p class="fineprint">Claude 금액은 공개 요금표 기준 예상치입니다(부가세·할인 제외). OpenAI 금액은 모델별 요금이 달라 토큰만 표시합니다. HeyGen은 제작 전후 잔액 차이라 같은 시간에 다른 사용이 있으면 함께 잡힙니다.</p></details>'
   }
@@ -426,8 +429,8 @@
       <div class="between"><h2>${label}</h2><span class="tag" data-p-status>연결 필요</span></div>
       <div class="field"><label for="${p}-key">API 키</label><input class="input" id="${p}-key" type="password" autocomplete="new-password" spellcheck="false" placeholder="API 키를 여기에 붙여 넣으세요"></div>
       ${p !== 'heygen' ? `<button class="btn outline" data-p-check>연결 확인 · 모델 불러오기</button>
-      <div class="field"><label for="${p}-model">사용할 모델</label><select class="select select-sm" id="${p}-model"><option value="">먼저 모델을 불러오세요</option></select>
-      <small>구조화 출력이 가능한 텍스트 모델을 선택해 주세요.</small></div>` : ''}
+      <div class="field"><label for="${p}-model">${p === 'manus' ? '에이전트 프로필' : '사용할 모델'}</label><select class="select select-sm" id="${p}-model"><option value="">먼저 모델을 불러오세요</option></select>
+      <small>${p === 'manus' ? 'Manus API 키는 Manus 설정의 API 메뉴에서 발급합니다. 연결하면 ‘아바타 없는 영상’을 버튼 하나로 Manus에 맡기고 완성 영상을 받아 옵니다(Manus 크레딧 사용). 연결하지 않으면 프롬프트를 복사해 붙여 넣으면 됩니다.' : '구조화 출력이 가능한 텍스트 모델을 선택해 주세요.'}</small></div>` : ''}
       <div class="connection-actions"><button class="btn" data-p-save>연결 확인 후 저장</button><button class="btn outline" data-p-delete hidden>연결 삭제</button></div>
       <p class="body-note" role="status" data-p-ok hidden></p><p class="message error" role="alert" data-p-err hidden></p>
     </section>`).join('')
@@ -1021,7 +1024,7 @@
     if (ers) { delete editDraft[ers.dataset.editReset]; renderCreate(); renderHistory(); return }
     const rd = t.closest('[data-render]')
     if (rd) {
-      { const jb = S.data.jobs.find((j) => j.id === rd.dataset.render); if (!confirm(`이 프롬프트로 HeyGen 영상을 만들까요?\n\n목표 길이 ${jb ? jb.input.seconds : '?'}초 · HeyGen 크레딧이 사용되며 되돌릴 수 없습니다.`)) return }
+      { const jb = S.data.jobs.find((j) => j.id === rd.dataset.render); const svc = jb && jb.input.tool === 'manus' ? 'Manus' : 'HeyGen'; if (!confirm(`이 프롬프트로 ${svc} 영상을 만들까요?\n\n목표 길이 ${jb ? jb.input.seconds : '?'}초 · ${svc} 크레딧이 사용되며 되돌릴 수 없습니다.`)) return }
       try { const r = await api({ action: 'render', id: rd.dataset.render }); S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); renderAll() } catch (e) { S.error = e.message; renderMessages() }
       return
     }

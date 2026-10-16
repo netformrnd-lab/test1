@@ -19,8 +19,9 @@
 #
 DDNS="${DDNS:-netformrnd.synology.me}"
 WEB="${WEB:-/volume1/web/brand}"
+BAD=0
 ok()  { printf '  ✅ %s\n' "$1"; }
-no()  { printf '  ❌ %s\n' "$1"; }
+no()  { BAD=$((BAD+1)); printf '  ❌ %s\n' "$1"; }
 hm()  { printf '  ⚠️  %s\n' "$1"; }
 line(){ printf '\n%s\n' "$1"; }
 
@@ -137,9 +138,20 @@ cat <<'TXT'
 
   📅 이 점검을 <<달마다 저절로>> 돌리려면
      DSM → 제어판 → 작업 스케줄러 → [생성] → 예약된 작업 → 사용자 정의 스크립트
-       · 일정: 매달 1일
-       · 명령: sh /volume1/web/brand/fixed-url-check.sh
-       · 알림: 「스크립트 출력 세부 정보를 통해 실행」 체크 + 메일 주소
-     인증서가 저절로 갱신 안 되고 있으면 만료 전에 메일이 옵니다.
+       · 스케줄 : 매달 1일
+       · 작업 설정 → 실행 명령 :
+             sh /volume1/web/brand/fixed-url-check.sh
+       · 작업 설정 → 알림 :
+             [v] 실행 상세 정보를 이메일로 보내기   ← 꼭 켜세요
+                 이메일: 받을 주소
+             [v] 스크립트가 비정상적으로 종료된 경우에만 실행 세부 사항 보내기
+                 → 이것도 켜면 <<문제가 있을 때만>> 메일이 옵니다.
+                   이 스크립트는 ❌ 가 하나라도 있으면 비정상 종료로
+                   끝내므로, 평소에는 조용하고 탈이 날 때만 알려 줍니다.
 TXT
-printf '\n'
+if [ "$BAD" -gt 0 ]; then
+    printf '  ❌ 문제 %s 가지 — 위를 봐 주세요.\n\n' "$BAD"
+    exit 1          # ← DSM 이 「비정상 종료」 로 보고 메일을 보냅니다
+fi
+printf '  ✅ 모두 정상입니다.\n\n'
+exit 0

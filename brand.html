@@ -466,7 +466,7 @@ div.tab.on > span[data-ed]{cursor:pointer}
 .card.linkcard .ct{display:block;text-decoration:none;color:inherit}
 .card.linkcard .ct:hover{color:var(--blue)}
 .card.linkcard .go{color:var(--blue);font-size:12px}
-.card.linkcard.haspv{padding-top:13px}
+.card.haspv{padding-top:13px}
 
 /* 미리보기 — 실제 페이지를 축소해서 보여줍니다 */
 .pvwrap{display:block;position:relative;z-index:0;width:100%;height:170px;
@@ -5528,7 +5528,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-15';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-16';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5934,6 +5934,22 @@ const TYPES = {
       { key:'bid',    label:'🏷️ 브랜드', type:'select', required:true,
         options: () => (data.brands || []).map(b => ({ value:b.id,
           label:(b.icon || '🏷️') + ' ' + b.name })) },
+      /* ── 🚀 <<어디에 넣을까>> ──────────────────────────────────
+         할 일을 적다 보면 「이건 그냥 오늘 할 일」 인 것과 「굴러가고
+         있는 프로젝트의 한 줄」 인 것이 섞입니다. 전에는 프로젝트 밑에
+         넣으려면 그 프로젝트를 찾아 들어가 거기서 또 적어야 했습니다.
+         여기서 바로 고릅니다. 프로젝트를 고르면 그 밑 보조 업무로
+         들어가고, 진척률도 같이 세어집니다. */
+      { key:'into',   label:'어디에 넣을까', type:'select', when: () => !editing,
+        options: () => {
+          const out = [{ value:'', label:'📓 오늘 할 일로 (그냥 할 일)' }];
+          (data.brands || []).forEach(b => (b.tasks || []).forEach(t => {
+            if(!isProj(t) || t.status === '완료') return;
+            out.push({ value: 'p:' + b.id + ':' + t.id,
+              label: '🚀 ' + b.name + ' · ' + (t.title || '이름 없음') + ' 밑에' });
+          }));
+          return out;
+        } },
       /* 프로젝트는 여러 날에 걸쳐 굴러가는 일입니다 — 진척률로 봅니다.
          그냥 할 일은 끝냈나 안 끝냈나만 보면 됩니다. */
       { key:'kind',   label:'갈래',    type:'select',   options:['할 일','프로젝트'] },
@@ -7101,6 +7117,11 @@ function pageItemSet(pid, iid, f, v){
 function pageItemMove(pid, iid, tid){
   pageItemSet(pid, iid, 'tab', tid); render();
 }
+/* 🖼 미리보기 켜고 끄기 — 켜면 그 쪽을 줄여서 보여 줍니다 */
+function pageItemPv(pid, iid, v){
+  pageItemSet(pid, iid, 'preview', v); render();
+  toast(v === '안 보기' ? '미리보기를 껐습니다' : '🖼 미리보기를 켭니다');
+}
 /* 🤖 AI 모음 — 처음 한 번만 세워 둡니다. 지우면 다시 생기지 않습니다
    (「지웠는데 자꾸 살아난다」 가 제일 나쁩니다). */
 function pageSeed(){
@@ -7230,8 +7251,21 @@ function renderPage(){
               ? '<div class="cd"' + ed('body', 1, '적어 둘 것') + '>' + esc(it.body) + '</div>'
               : '<div class="cd cd-non"' + ed('body', 1, '적어 둘 것') + '>＋ 적기</div>')
           + '</div>';
-        return '<div class="card">'
+        /* 🖼 주소를 적어 둔 것은 <<그 쪽을 줄여서>> 보여 줍니다 —
+           🔗 바로가기와 같은 식입니다. 이름만 봐서는 무엇인지 모르는
+           주소가 눈으로 가려집니다. [안 보기] 로 끌 수 있습니다. */
+        const shw = it.preview !== '안 보기' && isUrl(u);
+        return '<div class="card' + (shw ? ' haspv' : '') + '">'
           + '<div class="ca">'
+            + (shw ? '<button class="btn sm" title="미리보기 새로고침" '
+                     + 'onclick="reloadPreview(\'' + iid + '\')">↻</button>'
+                     + '<button class="btn sm" title="미리보기를 끕니다" '
+                     + 'onclick="pageItemPv(\'' + pid + '\',\'' + iid
+                     + '\',\'안 보기\')">🚫</button>'
+                   : (isUrl(u)
+                       ? '<button class="btn sm" title="미리보기를 켭니다" '
+                         + 'onclick="pageItemPv(\'' + pid + '\',\'' + iid
+                         + '\',\'\')">🖼</button>' : ''))
             + (ts.length > 1
                 ? '<select class="pg-mv" title="다른 탭으로 옮기기" '
                   + 'onchange="pageItemMove(\'' + pid + '\',\'' + iid + '\', this.value)">'
@@ -7242,6 +7276,14 @@ function renderPage(){
             + '<button class="btn sm danger" onclick="pageItemDel(\'' + pid + '\',\''
               + iid + '\')">삭제</button>'
           + '</div>'
+          + (shw
+              ? '<a class="pvwrap" href="' + esc(u) + '" target="_blank" rel="noopener" '
+                + 'title="클릭하면 새 탭에서 열립니다">'
+                + '<iframe class="pv" id="pv_' + esc(it.id) + '" src="' + esc(u) + '" '
+                  + 'loading="lazy" sandbox="allow-scripts allow-same-origin" '
+                  + 'referrerpolicy="no-referrer" scrolling="no" tabindex="-1"></iframe>'
+                + '<span class="pvmask"></span></a>'
+              : '')
           + '<div class="ct"' + ed('title', 0, '무엇인가') + '>'
             + esc(String(it.title || '').trim() || '＋ 이름을 적어 주세요') + '</div>'
           + (u
@@ -30470,6 +30512,27 @@ function submitItem(){
       payload.owner = payload.uid ? (peopleName(payload.uid) || payload.owner || '') : '';
     }
   }
+  /* 🚀 프로젝트 밑으로 넣기 — 새 할 일을 그 프로젝트의 보조 업무로.
+     새로 넣을 때만입니다 (고칠 때는 옮기지 않습니다 — 고치다가 자리가
+     바뀌면 어디 갔는지 못 찾습니다). */
+  if(itemType === 'tasks' && !editing
+     && String(payload.into || '').indexOf('p:') === 0){
+    const bits = String(payload.into).split(':');
+    const pb = brandById(bits[1]);
+    const pt = pb && (pb.tasks || []).find(x => x.id === bits[2]);
+    const tt = String(payload.title || '').trim();
+    if(pt && tt){
+      if(!Array.isArray(pt.subs)) pt.subs = [];
+      pt.subs.push({ id: uid('sb'), title: tt, st:'할일', pct:'0' });
+      projReflow(pt);
+      editing = null;
+      closeModal('itemModal');
+      markDirty(pb.id); render();
+      toast('🚀 「' + (pt.title || '프로젝트') + '」 밑에 넣었습니다');
+      return;
+    }
+  }
+  delete payload.into;
   // 끝나는 날이 시작보다 앞이면 잘못 고른 것입니다
   if(payload.until && payload.date && payload.until < payload.date){
     toast('⚠️ 끝나는 날이 시작하는 날보다 앞입니다');

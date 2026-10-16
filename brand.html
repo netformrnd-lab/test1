@@ -5667,7 +5667,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-33';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-34';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -14070,10 +14070,30 @@ function gbGrow(el){
   el.style.height = '0px';
   el.style.height = Math.max(26, el.scrollHeight) + 'px';
 }
-function gbGrowAll(){
-  document.querySelectorAll('.gb-act textarea, .gb-perf textarea,\n     .hxb textarea, .dc-no, .hl-now textarea, .gb-dtt, #gbGoal,\n     .pe-t, .pe-rl textarea, .pe-sum textarea, .pe-ch textarea')
-    .forEach(gbGrow);
+/* ── ✍️ <<쓰는 만큼 늘어납니다>> ────────────────────────────────────
+   여태는 몇몇 칸만 늘어났습니다. 할 일 메모처럼 자주 쓰는 칸은 작은
+   채로 있어서, 두세 줄만 적어도 그 안에서 스크롤해야 했습니다.
+   이제 <<글 칸이면 다 늘어납니다>>. 일부러 크기를 잡아 둔 칸
+   (data-nogrow)만 그대로 둡니다.
+   늘릴 때 잠깐 0 으로 눌렀다 재는데, 그 바람에 쪽이 밀릴 수 있어서
+   보던 자리를 도로 잡아 둡니다. */
+function uiGrowSkip(el){
+  return !el || el.tagName !== 'TEXTAREA' || el.dataset.nogrow === '1';
 }
+function gbGrowAll(root){
+  (root || document).querySelectorAll('textarea').forEach(el => {
+    if(uiGrowSkip(el)) return;
+    gbGrow(el);
+  });
+}
+/* 쓰는 동안에도 바로바로 — 다시 그릴 때까지 기다리지 않습니다 */
+document.addEventListener('input', ev => {
+  const el = ev.target;
+  if(uiGrowSkip(el)) return;
+  const y = window.scrollY;
+  gbGrow(el);
+  if(Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+}, true);
 function setGbWho(v){
   gbWho = v; gbWb = null; gbIt = null; gbQ = ''; gbSt = '';
   render(); uiGoTop(1);
@@ -26452,24 +26472,97 @@ function pastePanel(){
     + '</div></div></div>';
 }
 
-/* AI 가 뽑아준 할 일을 「할 일」 탭으로 옮깁니다 */
-function aiTodoToTask(mid, i){
+/* ── ✅ <<회의에서 나온 할 일을 옮깁니다>> ──────────────────────────
+   여태는 누르면 그냥 <<첫 브랜드의 할 일>> 로 툭 들어갔습니다. 누가
+   하는지도, 어느 프로젝트 것인지도 안 물어서, 옮겨 놓고 다시 찾아가
+   담당과 자리를 손으로 고쳐야 했습니다.
+   이제 한 창에서 <<누가 · 어디에>> 를 같이 고릅니다. 프로젝트를 고르면
+   그 밑 보조 업무로 들어가 진척률도 같이 세어집니다.
+   회의에 적힌 담당·기한은 미리 골라 둡니다 — 맞으면 그냥 [넣기]. */
+function mtWhoGuess(name){
+  const n = String(name || '').trim();
+  if(!n) return '';
+  const people = (typeof taskPeople === 'function') ? taskPeople() : [];
+  const key = x => String(x || '').replace(/\s|님|씨|매니저|팀장|대리|과장/g, '');
+  const hit = people.find(o => key(o.label).indexOf(key(n)) >= 0
+                            || key(n).indexOf(key(o.label)) >= 0);
+  return hit ? hit.value : '';
+}
+async function aiTodoToTask(mid, i){
   const m = (data.meetings || []).find(x => x.id === mid);
   const t = m && m.ai && m.ai.할일 && m.ai.할일[i];
   if(!t) return;
-  // 회의에 브랜드가 적혀 있으면 그 브랜드의 할 일로, 없으면 첫 브랜드로
-  const b = data.brands.find(x => x.name === m.brand) || data.brands[0];
-  if(!b){ toast('⚠️ 브랜드가 없습니다'); return; }
-  b.tasks.unshift({
-    id: uid('i'), title: String(t['내용'] || '').slice(0, 120),
-    status: '할일', due: /^\d{4}-\d{2}-\d{2}$/.test(String(t['기한'] || '')) ? t['기한'] : '',
-    desc: '회의에서 나온 할 일 · ' + (m.title || '') + (t['담당'] ? ' · 담당 ' + t['담당'] : ''),
-    updatedAt: new Date().toISOString()
+  const bs = data.brands || [];
+  if(!bs.length){ toast('⚠️ 브랜드가 없습니다'); return; }
+  const b0 = bs.find(x => x.name === m.brand) || bs[0];
+  const due0 = /^\d{4}-\d{2}-\d{2}$/.test(String(t['기한'] || '')) ? t['기한'] : '';
+
+  const v = await askForm({
+    icon: '✅', title: '회의에서 나온 할 일 넣기', ok: '넣기',
+    note: String(m.title || '회의') + ' 에서 나온 것입니다',
+    fields: [
+      { key:'title', label:'할 일', value: String(t['내용'] || '').slice(0, 120),
+        required:true },
+      { key:'bid', label:'🏷️ 브랜드', type:'select', value: b0.id,
+        options: bs.map(x => ({ value:x.id, label:(x.icon || '🏷️') + ' ' + x.name })) },
+      { key:'who', label:'👤 누가 하나요', type:'select',
+        value: mtWhoGuess(t['담당']),
+        /* taskPeople() 맨 앞에 이미 「맡은 사람 없음」 이 들어 있습니다 */
+        options: (typeof taskPeople === 'function' ? taskPeople() : [{ value:'', label:'—' }]),
+        hint: t['담당'] ? '회의에는 「' + String(t['담당']) + '」 이라고 적혀 있습니다' : '' },
+      { key:'into', label:'🚀 어디에 넣을까', type:'select', value:'',
+        options: (() => {
+          const out = [{ value:'', label:'📓 오늘 할 일로 (그냥 할 일)' }];
+          bs.forEach(x => (x.tasks || []).forEach(y => {
+            if(!isProj(y) || y.status === '완료') return;
+            out.push({ value:'p:' + x.id + ':' + y.id,
+              label:'🚀 ' + x.name + ' · ' + (y.title || '이름 없음') + ' 밑에' });
+          }));
+          return out;
+        })(),
+        hint:'프로젝트를 고르면 그 밑 보조 업무로 들어가고 진척률에 같이 셉니다' },
+      { key:'due', label:'기한 (선택)', type:'date', value: due0 }
+    ]
   });
-  m.ai.할일[i]._옮김 = true;
+  if(!v) return;
+  const title = String(v.title || '').trim();
+  if(!title) return;
+
+  /* 🚀 프로젝트 밑으로 */
+  if(String(v.into || '').indexOf('p:') === 0){
+    const bits = String(v.into).split(':');
+    const pb = brandById(bits[1]);
+    const pt = pb && (pb.tasks || []).find(x => x.id === bits[2]);
+    if(pt){
+      if(!Array.isArray(pt.subs)) pt.subs = [];
+      pt.subs.push({ id: uid('sb'), title: title, st:'할일', pct:'0' });
+      projReflow(pt);
+      t._옮김 = true;
+      markDirty(pb.id); render();
+      toast('🚀 「' + (pt.title || '프로젝트') + '」 밑에 넣었습니다');
+      return;
+    }
+  }
+
+  /* 📓 그냥 할 일로 */
+  const b = brandById(v.bid) || b0;
+  const who = String(v.who || '');
+  const row = {
+    id: uid('i'), title: title, kind:'할 일', status:'예정',
+    due: /^\d{4}-\d{2}-\d{2}$/.test(String(v.due || '')) ? String(v.due) : '',
+    note: '회의에서 나온 할 일 · ' + (m.title || ''),
+    updatedAt: new Date().toISOString()
+  };
+  if(who.indexOf('nm:') === 0) row.owner = who.slice(3);
+  else if(who){ row.uid = who; row.owner = peopleName(who) || ''; }
+  else if(t['담당']) row.owner = String(t['담당']);
+  b.tasks = b.tasks || [];
+  b.tasks.unshift(row);
+  t._옮김 = true;
   markDirty(b.id);
   render();
-  toast('✅ ' + b.name + ' 할 일로 옮겼습니다');
+  toast('✅ ' + b.name + ' 할 일로 넣었습니다'
+    + (row.owner ? ' — ' + row.owner + ' 님' : ''));
 }
 
 function viewMeetings(list){
@@ -33067,7 +33160,11 @@ function askForm(o){
           + (v && v !== 'false' ? ' checked' : '') + '><span>'
           + esc(f.ph || '그렇게 합니다') + '</span></label>';
       }else{
-        box = '<input type="' + (f.type === 'pw' ? 'password' : 'text') + '" id="' + id + '"'
+        /* 📅 날짜 칸 — 달력에서 고르게 합니다 (전에는 글자 칸이라
+           「2026-10-20」 을 손으로 적어야 했습니다) */
+        const ty = f.type === 'pw' ? 'password'
+                 : (f.type === 'date' || f.type === 'number' ? f.type : 'text');
+        box = '<input type="' + ty + '" id="' + id + '"'
           + ' value="' + esc(v) + '" placeholder="' + esc(f.ph || '') + '"'
           + ' autocomplete="off"' + (i === 0 ? ' data-first="1"' : '') + '>';
       }
@@ -33079,6 +33176,7 @@ function askForm(o){
       + (o.foot ? '<div class="ask-foot">' + o.foot + '</div>' : '')
       + '<div class="pw-err" id="askErr"></div>';
     document.getElementById('askModal').classList.add('open');
+    setTimeout(() => { gbGrowAll(document.getElementById('askBody')); }, 20);
     setTimeout(() => {
       const el = document.querySelector('#askBody [data-first], #askBody input, '
         + '#askBody textarea, #askBody select');

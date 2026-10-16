@@ -1366,17 +1366,23 @@ async function compressImage (file, opts) {
     if (!file || !file.type || !/^image\/(jpe?g|png|webp)$/i.test(file.type)) return file
     const MAX = (opts && opts.max) || 1600
     const Q = (opts && opts.quality) || 0.82
-    let bmp
-    try { bmp = await createImageBitmap(file) }
-    catch (e) { bmp = await new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = URL.createObjectURL(file) }) }
+    let bmp, url
+    // ① 디코드 단계에서 바로 축소 → 아이폰에서 대용량 카메라 사진(최대 48MP)을 통째로 메모리에 펼치지 않아 '튕김' 방지
+    try { bmp = await createImageBitmap(file, { resizeWidth: MAX, resizeQuality: 'high' }) }
+    catch (e1) {
+      try { bmp = await createImageBitmap(file) }      // 리사이즈 옵션 미지원 시: 일반 디코드
+      catch (e2) { bmp = await new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; url = URL.createObjectURL(file); img.src = url }) }
+    }
     const w0 = bmp.width, h0 = bmp.height
-    if (!w0 || !h0) return file
-    const scale = Math.min(1, MAX / Math.max(w0, h0))
-    const w = Math.round(w0 * scale), h = Math.round(h0 * scale)
+    if (!w0 || !h0) { if (url) { try { URL.revokeObjectURL(url) } catch (_) {} } return file }
+    const scale = Math.min(1, MAX / Math.max(w0, h0))   // 긴 변 기준 한 번 더 상한(세로 사진·옵션 미지원 대비)
+    const w = Math.max(1, Math.round(w0 * scale)), h = Math.max(1, Math.round(h0 * scale))
     const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
     canvas.getContext('2d').drawImage(bmp, 0, 0, w, h)
     if (bmp.close) { try { bmp.close() } catch (_) {} }
+    if (url) { try { URL.revokeObjectURL(url) } catch (_) {} }
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', Q))
+    canvas.width = canvas.height = 0                    // 캔버스 메모리 즉시 해제(아이폰)
     if (!blob || blob.size >= file.size) return file       // 효과 없으면 원본 유지
     const name = (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg'
     return new File([blob], name, { type: 'image/jpeg' })

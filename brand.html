@@ -342,6 +342,39 @@ body.tt-wide .layout{max-width:1820px}
 .lk-only .fmeta{width:100%;margin:0;line-height:1.75}
 .lk-only button{margin-left:auto}
 /* 📌 저쪽에 부탁할 자리·이름 — 눈에 잘 띄게 */
+/* ✎ 내부계정 표를 그 자리에서 고치기 */
+.xl td.xl-e{background:var(--bg-input);outline:1px solid var(--border);
+  cursor:text;min-width:60px;white-space:pre-wrap}
+.xl td.xl-e:focus{outline:2px solid var(--blue);background:var(--bg-card);
+  position:relative;z-index:1}
+.tt-edb.sv{border-color:var(--border)}
+.tt-edb.sv.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ac-edn{margin:8px 0 10px;padding:9px 12px;font-size:12.5px;line-height:1.7;
+  border:1px solid var(--border);border-left:3px solid var(--blue);
+  border-radius:var(--r-xs);background:var(--bg-card);color:var(--text-secondary)}
+/* 🪗 회의록 아코디언 — 접힌 줄에도 요약과 [수정] 이 보입니다 */
+.mt-acc{padding:0;overflow:hidden}
+.mt-acc>summary{display:flex;align-items:center;flex-wrap:wrap;gap:7px;
+  padding:12px 14px;cursor:pointer;list-style:none;user-select:none;
+  border-radius:var(--r-xs)}
+.mt-acc>summary::-webkit-details-marker{display:none}
+.mt-acc>summary:hover{background:var(--bg-hover)}
+.mt-acc .mt-ar{font-size:10px;color:var(--text-muted);width:10px;
+  transition:transform .16s var(--ease)}
+.mt-acc[open] .mt-ar{transform:rotate(90deg)}
+.mt-acc[open]>summary{border-bottom:1px solid var(--border);border-radius:0;
+  background:var(--bg-hover)}
+.mt-acc .mt-peek{flex:1 1 100%;font-size:12.5px;color:var(--text-muted);
+  padding-left:17px;line-height:1.6;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mt-acc[open] .mt-peek{display:none}
+.mt-acc .mt-act{margin-left:auto;display:flex;gap:4px;opacity:0;
+  transition:.16s var(--ease)}
+.mt-acc>summary:hover .mt-act,.mt-acc[open] .mt-act{opacity:1}
+.mt-in{padding:13px 14px 0}
+.mt-t2{font-size:15.5px;font-weight:800;color:var(--text-primary);margin:0 0 10px;
+  line-height:1.5}
+@media (max-width:700px){ .mt-acc .mt-act{opacity:1} }
 /* 📁 비용 구분을 담는 폴더 */
 .cf-wrap{margin:0 0 12px}
 .cf-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px;
@@ -5528,7 +5561,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-16';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-17';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5814,7 +5847,9 @@ const TYPES = {
       { key:'date',      label:'날짜',      type:'date' },
       { key:'brand',     label:'브랜드 (선택)', type:'select', options:brandNames },
       { key:'attendees', label:'참석자',    type:'text', ph:'예: 김마케, 이디자인, 박기획' },
-      { key:'body',      label:'회의 내용', type:'textarea',
+      /* 📝 회의 글은 <<크게>> 고칩니다 — 세 줄짜리 칸에 긴 회의를
+         욱여넣으면 어디를 고치는지 안 보입니다 */
+      { key:'body',      label:'회의 내용', type:'textarea', rows:16,
         ph:'들은 대로 편하게 적으세요. 문장이 안 다듬어져도 괜찮습니다.\n'
            + 'AI가 요약·결정사항·할 일로 정리해 줍니다.' }
     ]
@@ -21366,6 +21401,11 @@ async function accShLoad(path, name, tab, remember){
     accSh.file = out['파일'] || nm;
     accSh.err  = '';
     accSh.old  = false;
+    /* 📄 읽어 온 그대로를 적어 둡니다 — 덮기 전에 이것을 사본으로
+       놓습니다. 고친 뒤의 것을 사본으로 놓으면 되돌릴 데가 없습니다. */
+    accShBase = accShCsv();
+    accShDirty = false;
+    accShEd = false;                  /* 새로 읽었으면 고치기는 꺼 둡니다 */
     accShCachePut();                  /* 다음에 들어올 때 바로 띄우려고 */
     if(remember !== false) accShRemember(pt, accSh.file, accSh.tab);
     else if(saved && saved.tab !== accSh.tab) accShRemember(pt, accSh.file, accSh.tab);
@@ -21438,6 +21478,13 @@ function accShTable(){
     + rows.map(x => '<tr><td class="xl-c">' + x.n + '</td>'
         + Array.from({ length: w }, (_, c) => {
             const v = x.r[c] == null ? '' : String(x.r[c]);
+            /* ✎ 고치는 중이면 칸이 글칸이 됩니다. 평소에는 눌러서 복사
+               — 둘을 같이 걸면 고치려다 복사되고, 복사하려다 고쳐집니다 */
+            if(accShEd) return '<td class="xl-e" contenteditable="true"'
+              + ' data-r="' + (x.n - 1) + '" data-c="' + c + '"'
+              + ' onblur="accShSet(' + (x.n - 1) + ',' + c + ', this.innerText)"'
+              + ' onkeydown="if(event.key===\'Enter\'&&!event.shiftKey)'
+                + '{event.preventDefault();this.blur();}">' + esc(v) + '</td>';
             return '<td' + (v ? ' onclick="accShCopy(this)" title="눌러서 복사"' : '')
                  + '>' + mark(v) + '</td>';
           }).join('')
@@ -21445,6 +21492,115 @@ function accShTable(){
     + '</table></div>'
     + (!rows.length ? '<div class="ac-wait">찾는 글이 있는 줄이 없습니다</div>' : '');
 }
+/* ═══ ✎ 표를 그 자리에서 고치고 엑셀로 되돌려 놓기 ═══════════════
+   여태 내부계정은 <<읽기만>> 했습니다. 전화번호 하나 고치려 해도
+   공유폴더에서 엑셀을 열고, 고치고, 저장하고, 여기서 [↻ 다시 읽기]
+   해야 했습니다. 이제 여기서 바로 고치고 바로 되돌려 놓습니다.
+
+   ── 되돌려 놓는 방식 ─────────────────────────────────────────────
+   CSV(엑셀이 그대로 여는 모양, 한글이 안 깨지게 BOM 을 붙입니다)로
+   씁니다. 원본이 .csv 면 그 파일을 덮고, .xlsx 면 같은 이름의 .csv 를
+   옆에 놓습니다 (xlsx 를 직접 쓰려면 압축을 만들어야 해서, 비밀번호가
+   든 파일을 걸고 할 일이 아닙니다).
+   덮어쓰기 <<전에 늘 날짜가 붙은 사본>> 을 먼저 놓습니다 —
+   비밀번호가 든 표라, 잘못 고쳤을 때 되돌릴 데가 있어야 합니다.
+   ================================================================= */
+let accShEd = false;                 /* ✎ 고치는 중인가 */
+let accShDirty = false;              /* 고쳤는데 아직 안 올린 것이 있나 */
+function accShEdit(){
+  if(!accSh || !accSh.grid || !accSh.grid.length){ toast('먼저 엑셀을 골라 주세요'); return; }
+  accShEd = !accShEd;
+  if(accShEd) toast('✎ 칸을 눌러 고치세요 — 다 고치면 [💾 엑셀로 저장]');
+  render();
+}
+/* 칸 하나를 고쳤습니다 */
+function accShSet(ri, ci, v){
+  if(!accSh || !accSh.grid) return;
+  const r = accSh.grid[ri];
+  if(!r) return;
+  while(r.length <= ci) r.push('');
+  if(String(r[ci] == null ? '' : r[ci]) === String(v)) return;
+  r[ci] = v;
+  accShDirty = true;
+  const el = document.getElementById('accShSv');
+  if(el) el.classList.add('on');
+}
+/* 줄을 하나 더합니다 (맨 아래) */
+function accShRowAdd(){
+  if(!accSh || !accSh.grid){ toast('먼저 엑셀을 골라 주세요'); return; }
+  const w = accSh.grid.reduce((a, r) => Math.max(a, r.length), 1);
+  accSh.grid.push(Array.from({ length: w }, () => ''));
+  accShDirty = true; accShEd = true; render();
+}
+/* 📞 전화번호 칸 — 없으면 맨 뒤에 하나 만듭니다 */
+function accShPhone(){
+  if(!accSh || !accSh.grid || !accSh.grid.length){ toast('먼저 엑셀을 골라 주세요'); return; }
+  const head = accSh.grid[0] || [];
+  const has = head.some(c => /전화|연락처|휴대|핸드폰|phone|tel|mobile/i
+    .test(String(c || '').replace(/\s/g, '')));
+  if(has){ toast('이미 전화번호 칸이 있습니다'); accShEd = true; render(); return; }
+  const w = accSh.grid.reduce((a, r) => Math.max(a, r.length), 0);
+  accSh.grid.forEach((r, i) => {
+    while(r.length < w) r.push('');
+    r.push(i === 0 ? '전화번호' : '');
+  });
+  accShDirty = true; accShEd = true; render();
+  toast('📞 전화번호 칸을 맨 뒤에 만들었습니다');
+}
+/* 표 → CSV */
+function accShCsv(){
+  const g = (accSh && accSh.grid) || [];
+  const w = g.reduce((a, r) => Math.max(a, r.length), 0);
+  const q = v => {
+    const t = String(v == null ? '' : v);
+    return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  return g.map(r => Array.from({ length: w }, (_, c) => q(r[c])).join(',')).join('\r\n');
+}
+/* 💾 엑셀로 되돌려 놓기 */
+async function accShSave(){
+  if(!accSh || !accSh.path){ toast('먼저 엑셀을 골라 주세요'); return; }
+  const full = String(accSh.path);
+  const dir  = full.replace(/[\\/][^\\/]*$/, '');
+  const name = full.replace(/^.*[\\/]/, '');
+  const base = name.replace(/\.[A-Za-z0-9]+$/, '');
+  const ext  = (name.match(/\.([A-Za-z0-9]+)$/) || [, ''])[1].toLowerCase();
+  const csv  = accShCsv();
+  if(!csv.trim()){ toast('⚠️ 표가 비어 있습니다'); return; }
+  const d = new Date();
+  const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+            + '-' + String(d.getDate()).padStart(2, '0');
+  if(!confirm('💾 고친 내용을 엑셀로 되돌려 놓을까요?\n\n'
+    + '· 놓을 곳: ' + dir + '\n'
+    + '· 파일: ' + base + '.csv'
+    + (ext === 'csv' ? ' (지금 보고 있는 그 파일을 덮습니다)'
+                     : '\n  ※ 원본은 .' + ext + ' 입니다 — 옆에 .csv 로 놓습니다.\n'
+                       + '     앞으로는 이 .csv 를 보시면 됩니다.') + '\n\n'
+    + '덮기 전에 「' + base + '_백업_' + ymd + '.csv」 를 먼저 놓아 둡니다.')) return;
+  const post = (nm, body) => apiJson('nasfiles.php?action=tsput&path='
+    + encodeURIComponent(dir), { method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name: nm, csv: body }) });
+  try{
+    toast('⏳ 사본을 먼저 놓는 중…');
+    await post(base + '_백업_' + ymd, accShBase || csv);
+    toast('⏳ 되돌려 놓는 중…');
+    const r = await post(base, csv);
+    accShDirty = false; accShBase = csv;
+    const sv = document.getElementById('accShSv'); if(sv) sv.classList.remove('on');
+    alert('✅ 엑셀로 되돌려 놓았습니다.\n\n'
+      + '· 놓은 곳: ' + (r['폴더'] || dir) + '\n'
+      + '· 놓은 파일: ' + (r['놓은파일'] || []).map(x => x['이름']).join(' · ') + '\n'
+      + '· 때: ' + (r['놓은때'] || '') + '\n\n'
+      + (ext === 'csv' ? '' : '원본 ' + name + ' 은 그대로 두었습니다.\n')
+      + '잘못 고치셨으면 같은 폴더의 「_백업_' + ymd + '」 로 되돌리시면 됩니다.');
+  }catch(e){
+    alert('❌ 되돌려 놓지 못했습니다.\n\n' + apiErrText(e)
+      + '\n\n· 그 폴더에 NAS 가 쓸 수 있어야 합니다.'
+      + '\n· 고친 내용은 화면에 그대로 있으니 다시 눌러 보세요.');
+  }
+}
+let accShBase = '';        /* 읽어 온 그대로의 CSV (사본으로 놓습니다) */
 function accShCopy(td){
   const t = td.innerText;
   if(!t) return;
@@ -21481,9 +21637,27 @@ function accShHtml(){
       + '<span class="xl-n" id="accShCnt">' + accShRows().length + '줄</span>'
       + '<input id="accShQ" class="xl-q" value="' + esc(accShQ) + '"'
         + ' placeholder="표 안에서 찾기" oninput="accShFind(this.value)">'
+      + '<button class="tt-edb' + (accShEd ? ' on' : '') + '" onclick="accShEdit()"'
+        + ' title="칸을 눌러 그 자리에서 고칩니다">'
+        + (accShEd ? '✎ 고치는 중' : '✎ 고치기') + '</button>'
+      + (accShEd
+          ? '<button class="tt-edb" onclick="accShPhone()"'
+            + ' title="맨 뒤에 전화번호 칸을 만듭니다">📞 전화번호 칸</button>'
+            + '<button class="tt-edb" onclick="accShRowAdd()"'
+            + ' title="맨 아래에 빈 줄을 하나 더합니다">＋ 줄</button>'
+            + '<button class="tt-edb sv' + (accShDirty ? ' on' : '') + '" id="accShSv"'
+            + ' onclick="accShSave()" title="고친 것을 엑셀로 되돌려 놓습니다">'
+            + '💾 엑셀로 저장</button>'
+          : '')
       + '<button class="tt-edb" onclick="accShReload()">↻ 다시 읽기</button>'
       + '<button class="tt-edb" onclick="accShPick()">📗 다른 엑셀</button>'
     + '</div>'
+    + (accShEd
+        ? '<div class="ac-edn">✎ 칸을 눌러 고치고, 다 고치면 <b>[💾 엑셀로 저장]</b> 을 '
+          + '눌러 주세요. 저장하기 전까지는 <b>공유폴더의 엑셀이 그대로</b>입니다.<br>'
+          + '덮기 전에 날짜가 붙은 사본을 먼저 놓아 두니, 잘못 고쳐도 되돌릴 수 있습니다.'
+          + '</div>'
+        : '')
     + ((d.tabs && d.tabs.length > 1)
         ? '<div class="ac-tabs"><span>📑 탭</span>'
           + d.tabs.map(t => '<button class="btn sm' + (t === d.tab ? ' primary' : '') + '"'
@@ -25726,20 +25900,39 @@ function viewMeetings(list){
   const sorted = list.slice().sort((x, y) =>
     String(y.date || y.updatedAt || '').localeCompare(String(x.date || x.updatedAt || '')));
 
+  /* ── 🪗 회의록은 <<접어 둡니다>> ───────────────────────────────
+     회의가 쌓이면 화면이 한없이 길어져, 지난주 것을 찾으려면 한참
+     굴려야 했습니다. 이제 한 줄로 접어 두고 눌러서 폅니다.
+     접힌 줄에도 <<요약 한 줄과 [수정]>> 이 있어서, 펴지 않고도
+     무슨 회의였는지 보이고 바로 고칠 수 있습니다.
+     편 자리는 uiOpenSnap 이 id 로 기억해 다시 그려도 그대로입니다. */
+  const stop = 'event.stopPropagation();event.preventDefault();';
   const cards = sorted.map(m => {
     const ai = m.ai;
     const busy = aiState.busy === m.id;
-    return '<div class="mtbox">'
-      + '<div class="mt-head">'
-        + '<span class="mt-title"' + itemEdAttr('', 'meetings', m.id, 'title', 0, '회의 제목')
-          + '>' + esc(m.title || '(제목 없음)') + '</span>'
+    /* 접힌 줄에 보일 한 줄 — AI 요약이 있으면 그것, 없으면 글 첫 줄 */
+    const peek = String((ai && ai.요약) || m.body || '')
+      .replace(/\s+/g, ' ').trim().slice(0, 90);
+    return '<details class="mtbox mt-acc" id="mtacc_' + esc(m.id) + '">'
+      + '<summary class="mt-head">'
+        + '<span class="mt-ar">▸</span>'
+        + '<span class="mt-title">' + esc(m.title || '(제목 없음)') + '</span>'
         + (m.date ? '<span class="chip">' + esc(fmtYMD(m.date)) + '</span>' : '')
         + (m.brand ? '<span class="chip on">' + esc(m.brand) + '</span>' : '')
         + (m.attendees ? '<span class="fmeta">👥 ' + esc(m.attendees) + '</span>' : '')
+        + (ai ? '<span class="chip test">🤖 정리됨</span>' : '')
         + '<span class="mt-act">'
-          + '<button class="btn sm" onclick="openItemModal(\'meetings\',\'' + jsq(m.id) + '\')">수정</button>'
-          + '<button class="btn sm danger" onclick="deleteItem(\'meetings\',\'' + jsq(m.id) + '\')">삭제</button>'
-        + '</span></div>'
+          + '<button class="btn sm" onclick="' + stop
+            + 'openItemModal(\'meetings\',\'' + jsq(m.id) + '\')" '
+            + 'title="펴지 않고도 바로 고칩니다">✎ 수정</button>'
+          + '<button class="btn sm danger" onclick="' + stop
+            + 'deleteItem(\'meetings\',\'' + jsq(m.id) + '\')">삭제</button>'
+        + '</span>'
+        + (peek ? '<span class="mt-peek">' + esc(peek) + '…</span>' : '')
+      + '</summary>'
+      + '<div class="mt-in">'
+      + '<div class="mt-t2"' + itemEdAttr('', 'meetings', m.id, 'title', 0, '회의 제목')
+        + ' title="눌러서 제목을 고칩니다">' + esc(m.title || '(제목 없음)') + '</div>'
 
       + (ai ? aiPanel(m, ai) : '')
 
@@ -25753,7 +25946,7 @@ function viewMeetings(list){
 
       // AI 를 아직 안 붙였으면 「공짜로 되는 길」 을 대표 단추로 내놓습니다.
       // (키가 없는데 [✨ AI로 정리] 를 먼저 누르게 두면 헛걸음만 합니다)
-      + '<div class="mt-foot">'
+      + '</div><div class="mt-foot">'
         + (aiState.ready === false
             ? '<button class="btn primary" onclick="askViaChat(\'' + jsq(m.id) + '\')" '
                 + 'title="문장을 복사하고 클로드 창을 엽니다. 키도 크레딧도 필요 없습니다 '
@@ -25777,7 +25970,7 @@ function viewMeetings(list){
         + (ai && ai.만든때
             ? '<span class="fmeta">' + esc(sinceText(ai.만든때)) + ' 정리함</span>' : '')
       + '</div>'
-      + '</div>';
+      + '</details>';
   }).join('');
 
   return keyBar + cards;

@@ -5658,7 +5658,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-30';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-31';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19392,6 +19392,23 @@ async function lkFileLoad(ev){
 async function lkReadHit(f){
   const r = await apiJson('nasfiles.php?action=tsread&path='
     + encodeURIComponent(f['경로']));
+  /* ── 🗄️ <<데이터베이스 파일>> ─────────────────────────────────────
+     「할 일이 저쪽에 쌓이는데 왜 못 가져오나」 — 쌓이는 자리가 파일
+     한 장이 아니라 그쪽 프로그램이 들고 있는 데이터베이스였습니다.
+     우리는 <<내보낸 파일>> 만 읽었고, 그건 사람이 누를 때만 생깁니다.
+     이제 데이터베이스도 바로 읽습니다 (읽기만 합니다). */
+  if(r['디비로읽기']){
+    let d;
+    try{
+      d = await apiJson('nasfiles.php?action=tsdb&path='
+        + encodeURIComponent(f['경로']));
+    }catch(e){ lkSay('🗄️ ' + f['이름'] + ' — ' + apiErrText(e)); return null; }
+    const rows = tsFromJson(d['줄'] || []);
+    if(!rows.length) return null;
+    return { file: f, path: '(디비 ' + (d['고른표'] || '') + ')', n: rows.length,
+             rows: rows, keys: Object.keys((d['줄'] || [{}])[0] || {}),
+             db: { 표: d['고른표'], 표들: d['표들'] || [] } };
+  }
   if(r['표로읽기']){
     if(!r['표경로']) return null;
     const g = await apiJson('doctext.php?action=sheet&path='
@@ -19996,7 +20013,11 @@ function lkIntoTasks(rows, srcName, teamName, quiet){
   const seen = {};
   let n = 0;
   (rows || []).forEach((r, i) => {
-    const own = r.srcId ? mine[String(r.srcId)] : null;
+    /* 번호만 적힌 id(31 같은)는 <<저쪽 제 번호>> 입니다 — 우리 할 일
+       번호는 언제나 「앞글자_…」 꼴이라 숫자만일 수 없습니다. 섞이지
+       않게 숫자만인 것은 아예 안 봅니다. */
+    const sid = String(r.srcId || '');
+    const own = (sid && !/^\d+$/.test(sid)) ? mine[sid] : null;
     if(own){
       const theirs = at(r.srcAt), ours = at(own.t.updatedAt);
       if(!theirs){ held++; return; }          /* 때를 모르면 손대지 않습니다 */
@@ -20086,9 +20107,15 @@ async function lkBootFind(dir){
   /* 📛 명단이 비어 있으면 저쪽 people.json 에서 주워 옵니다 —
      파일에 「팀」 칸이 없을 때 이것으로 걸러냅니다 */
   try{ await lkMemSniff(files); }catch(e){}
-  /* 📌 정해 둔 이름이 먼저, 그 다음 「할 일 같은 이름」 */
+  /* 📌 정해 둔 이름이 먼저, 그 다음 「할 일 같은 이름」,
+     그래도 없으면 <<데이터베이스 파일>> 을 열어 봅니다.
+     저쪽 할 일은 내보낸 파일이 아니라 데이터베이스에 쌓이고, 내보내기는
+     사람이 누를 때만 생깁니다 — 아무도 안 누르면 영영 못 가져옵니다.
+     그래서 마지막에 데이터베이스까지 봅니다 (읽기만 합니다). */
+  const isDb = (f) => /\.(db|sqlite|sqlite3)$/i.test(String(f['이름'] || ''));
   const order = files.filter(f => lkIsDef(f['이름']))
-    .concat(files.filter(f => !lkIsDef(f['이름']) && f['할일같음']));
+    .concat(files.filter(f => !lkIsDef(f['이름']) && f['할일같음'] && !isDb(f)))
+    .concat(files.filter(f => !lkIsDef(f['이름']) && isDb(f)));
   for(const f of order){
     let h = null;
     try{ h = await lkReadHit(f); }catch(e){ continue; }
@@ -20435,7 +20462,7 @@ function lkDigHtml(){
               + '🔎 어디서 가져오나</button>'
             : '<button class="btn sm" onclick="lkDigPeek(\'' + jsq(f['경로'])
               + '\')" title="어떤 모양인지 들여다봅니다 (고치지 않습니다)">👁 열어보기</button>'
-              + (/\.(json|csv|tsv|xlsx|xlsm)$/i.test(String(f['이름'] || ''))
+              + (/\.(json|csv|tsv|xlsx|xlsm|db|sqlite|sqlite3)$/i.test(String(f['이름'] || ''))
                   ? ' <button class="btn sm primary" onclick="lkTake(\'' + jsq(f['경로'])
                     + '\',\'' + jsq(f['이름']) + '\')"'
                     + ' title="이 파일의 할 일을 가져옵니다">📥 가져오기</button>' : ''))

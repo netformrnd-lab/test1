@@ -1941,6 +1941,16 @@ if ($action === 'tsread') {
     }
     if ($file === null) jout(['ok' => false, 'error' => '그런 파일이 없습니다: ' . basename($in)], 404);
     $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    /* ── 🗄️ <<데이터베이스 파일>> ───────────────────────────────────
+       「할 일이 저쪽에 쌓이는데 왜 못 가져오나」 — 쌓이는 자리가 파일
+       한 장이 아니라 <<프로그램이 들고 있는 데이터베이스>> 라서였습니다.
+       우리는 내보낸 파일만 읽었고, 그건 사람이 누를 때만 생깁니다.
+       이제 데이터베이스도 바로 읽습니다 (읽기만 합니다). */
+    if (in_array($ext, ['db', 'sqlite', 'sqlite3'], true)) {
+        jout(['ok' => true, '디비로읽기' => true, '파일' => basename($file),
+              '디비경로' => $file, '폴더' => $dir,
+              '고친때' => date('Y-m-d H:i', (int)@filemtime($file))]);
+    }
     /* 엑셀·csv 는 이미 있는 표 읽기(doctext.php?action=sheet)가 읽습니다.
        그쪽은 <<공유폴더 기준 상대 경로>> 로 받으니, Z:\… 를 풀어 그 모양으로
        돌려줍니다 — 화면이 그걸로 다시 부릅니다. */
@@ -2240,6 +2250,112 @@ if ($action === 'tssrv') {
           '해본것' => $tries, '안된까닭' => $why] + $info, 502);
 }
 
+/* ── 🗄️ <<SQLite 데이터베이스에서 할 일을 바로 읽습니다>> ──────────
+   저쪽 프로그램이 쌓아 두는 자리를 <<읽기만>> 합니다. 고치지 않습니다.
+   표가 여럿이면 「할 일처럼 보이는 표」 를 고르고, 무엇을 골랐는지와
+   다른 표에 무엇이 있는지도 같이 돌려줍니다 — 눈으로 가릴 수 있게. */
+function db_tbl_score($name, $cols) {
+    $n = nas_name_key($name);
+    $score = 0;
+    foreach (['할일', 'task', 'todo', '업무', 'issue', 'item', 'card'] as $w) {
+        if (strpos($n, nas_name_key($w)) !== false) { $score += 10; break; }
+    }
+    $ck = array_map('nas_name_key', $cols);
+    foreach ([['제목', 'title', 'name', '업무명'],
+              ['담당', 'owner', 'assignee', 'assigneeid'],
+              ['상태', 'status', 'statusid', 'state'],
+              ['기한', 'due', 'duedate', 'deadline'],
+              ['진척', 'progress', 'pct', 'percent']] as $grp) {
+        foreach ($grp as $w) {
+            if (in_array(nas_name_key($w), $ck, true)) { $score += 2; break; }
+        }
+    }
+    /* 제목 비슷한 칸이 아예 없으면 할 일 표가 아닙니다 */
+    $hasTitle = false;
+    foreach (['제목', 'title', 'name', '업무명'] as $w) {
+        if (in_array(nas_name_key($w), $ck, true)) { $hasTitle = true; break; }
+    }
+    if (!$hasTitle) $score -= 20;
+    return $score;
+}
+if ($action === 'tsdb') {
+    if (!class_exists('PDO') || !in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+        jout(['ok' => false, 'error' => '이 NAS 의 PHP 가 SQLite 를 못 읽습니다 '
+            . '(pdo_sqlite 가 꺼져 있습니다). DSM 의 [패키지 센터] → PHP 설정에서 '
+            . 'pdo_sqlite 를 켜 주시면 바로 읽습니다.'], 501);
+    }
+    $in = normalize_nas_input($_GET['path'] ?? '');
+    if ($in === null) jout(['ok' => false, 'error' => '파일 경로를 알아보지 못했습니다'], 400);
+    $dir  = ts_dir(dirname($in));
+    $want = nas_name_key(basename($in));
+    $file = null;
+    foreach ((array)@scandir($dir) as $e) {
+        if ($e === '.' || $e === '..') continue;
+        if (nas_name_key($e) === $want && is_file($dir . '/' . $e)) { $file = $dir . '/' . $e; break; }
+    }
+    if ($file === null) jout(['ok' => false, 'error' => '그런 파일이 없습니다: ' . basename($in)], 404);
+    if ((int)@filesize($file) > 400 * 1024 * 1024) {
+        jout(['ok' => false, 'error' => '데이터베이스가 너무 큽니다 (400MB 넘음)'], 413);
+    }
+    /* 읽기 전용으로 엽니다 — 저쪽 자료를 건드리지 않으려고요 */
+    try {
+        $pdo = new PDO('sqlite:' . $file, null, null, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+        $pdo->setAttribute(PDO::ATTR_TIMEOUT, 5);
+        $pdo->exec('PRAGMA query_only = 1');
+    } catch (Throwable $e) {
+        jout(['ok' => false, 'error' => '데이터베이스를 열지 못했습니다 — '
+            . $e->getMessage()], 422);
+    }
+    $tables = [];
+    try {
+        $q = $pdo->query("SELECT name FROM sqlite_master WHERE type IN ('table','view') "
+                       . "AND name NOT LIKE 'sqlite_%' ORDER BY name");
+        foreach ($q->fetchAll() as $r) $tables[] = (string)$r['name'];
+    } catch (Throwable $e) {
+        jout(['ok' => false, 'error' => '표 목록을 읽지 못했습니다 — ' . $e->getMessage()], 422);
+    }
+    if (!$tables) jout(['ok' => false, 'error' => '그 데이터베이스에 표가 없습니다'], 422);
+
+    $pick = trim((string)($_GET['table'] ?? ''));
+    $info = [];
+    $best = null; $bestScore = -999;
+    foreach ($tables as $t) {
+        $cols = [];
+        try {
+            foreach ($pdo->query('PRAGMA table_info(' . '"' . str_replace('"', '""', $t) . '")')
+                     ->fetchAll() as $c) $cols[] = (string)$c['name'];
+        } catch (Throwable $e) { continue; }
+        $n = 0;
+        try {
+            $n = (int)$pdo->query('SELECT COUNT(*) AS c FROM "'
+                 . str_replace('"', '""', $t) . '"')->fetch()['c'];
+        } catch (Throwable $e) { $n = -1; }
+        $sc = db_tbl_score($t, $cols);
+        $info[] = ['표' => $t, '줄수' => $n, '칸' => array_slice($cols, 0, 20), '점수' => $sc];
+        if ($sc > $bestScore && $n !== 0) { $bestScore = $sc; $best = $t; }
+    }
+    if ($pick !== '' && in_array($pick, $tables, true)) $best = $pick;
+    if ($best === null || ($pick === '' && $bestScore <= 0)) {
+        jout(['ok' => false, 'error' => '그 데이터베이스에서 할 일 표를 못 찾았습니다',
+              '표들' => $info, '파일' => basename($file)], 422);
+    }
+    $rows = [];
+    try {
+        $lim = max(1, min(5000, (int)($_GET['limit'] ?? 2000)));
+        $rows = $pdo->query('SELECT * FROM "' . str_replace('"', '""', $best)
+              . '" LIMIT ' . $lim)->fetchAll();
+    } catch (Throwable $e) {
+        jout(['ok' => false, 'error' => '표를 읽지 못했습니다 — ' . $e->getMessage(),
+              '표들' => $info], 422);
+    }
+    jout(['ok' => true, '파일' => basename($file), '폴더' => $dir,
+          '고친때' => date('Y-m-d H:i', (int)@filemtime($file)),
+          '고른표' => $best, '표들' => $info,
+          '줄수' => count($rows), '줄' => $rows]);
+}
 if ($action === 'tsput') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') jout(['ok' => false, 'error' => 'POST 로 보내주세요'], 405);
     $dir = ts_dir($_GET['path'] ?? '');

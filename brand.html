@@ -5658,7 +5658,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-23';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-24';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -32168,13 +32168,26 @@ function normalize(raw){
      사람이 뒤에 다시 고쳤으면 그 뜻을 따릅니다 (_dirMoved 로 한 번만). */
   if(Array.isArray(raw.hubs)) raw.hubs.forEach(h => {
     if(!h) return;
-    if(!h._dirMoved
-       && !String(h.path || '').trim()
-       && /^teamhub-media\.html?$/i.test(String(h.url || '').trim())){
-      h.path = HUB_MEDIA_DIR;
-      h.url  = '';
-      h.want = HUB_MEDIA_FILE;
-      h._dirMoved = true;
+    /* ── 📄 <<웹폴더에 복사해 둔 파일>> 을 걸어 둔 분들 ───────────
+       여태는 「teamhub-media.html」 이라는 <<한 이름만>> 보고 옮겼습니다.
+       그런데 실제로는 「teamhub.html」 로 걸어 두신 분이 있었고, 그
+       파일은 옛날에 손으로 복사해 둔 것이라 그쪽이 새 판을 올려도
+       영영 그대로였습니다 — v2.2.0 이 계속 열리던 진짜 까닭입니다.
+
+       이제 <<이름을 가리지 않습니다>>. 적어 둔 것이 웹폴더 안의 파일
+       하나(http 도 아니고 / \ 도 없는 .html)이면 복사본으로 봅니다.
+       다만 아무 것이나 끌어오면 안 되니, 이름이나 파일에 「미디어」
+       또는 「teamhub」 가 들어 있을 때만 옮깁니다. */
+    if(!h._dirMoved && !String(h.path || '').trim()){
+      const u = String(h.url || '').trim();
+      const localCopy = !!u && !/^https?:/i.test(u)
+        && u.indexOf('/') < 0 && u.indexOf('\\') < 0 && /\.html?$/i.test(u);
+      if(localCopy && /미디어|teamhub/i.test(u + ' ' + String(h.name || ''))){
+        h.path = HUB_MEDIA_DIR;
+        h.url  = '';
+        h.want = HUB_MEDIA_FILE;
+        h._dirMoved = true;
+      }
     }
     /* 📌 판 번호가 붙은 옛 자리(…\실행파일\HTML_V05) 를 걸어 둔 분들은
        <<새 자리 + 못 박은 이름>> 으로 한 번만 옮겨 드립니다. 그쪽이

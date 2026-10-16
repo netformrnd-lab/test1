@@ -61,14 +61,37 @@ else
     hm '알아내지 못했습니다 (NAS 가 인터넷으로 못 나가는 중일 수 있습니다)'
 fi
 
-line '④ 인증서 (https 가 되나)'
+line '④ 인증서 (https 가 되나 · 언제까지 쓰나)'
 cert=$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$DDNS" 2>/dev/null \
-      | openssl x509 -noout -subject -enddate 2>/dev/null)
+      | openssl x509 -noout -subject -issuer -enddate 2>/dev/null)
 if [ -n "$cert" ]; then
-    printf '   %s\n' "$cert"
-    echo "$cert" | grep -q "$DDNS" \
+    printf '%s\n' "$cert" | sed 's/^/   /'
+    echo "$cert" | grep -q "CN *= *$DDNS" \
       && ok "그 주소 것으로 잡혀 있습니다" \
-      || hm "딴 이름 인증서입니다 — DSM → 제어판 → 보안 → 인증서 → [추가] → Let's Encrypt → 도메인 $DDNS"
+      || hm "딴 이름 인증서입니다 — DSM → 제어판 → 보안 → 인증서 → [설정] 에서 '시스템 기본 설정' 을 $DDNS 로"
+
+    # ── 📅 <<언제까지 쓰나>> ──────────────────────────────────────
+    #  Let's Encrypt 는 90 일짜리입니다. 시놀로지가 보통 만료 30 일 전에
+    #  저절로 새로 받아 둡니다 — 다만 그때 <<80 번 포트가 열려 있어야>>
+    #  합니다. 닫혀 있으면 조용히 실패하고, 만료일이 되면 경고가 다시
+    #  뜹니다. 그래서 남은 날을 세어 미리 알려 줍니다.
+    end=$(echo "$cert" | sed -n 's/^notAfter=//p')
+    if [ -n "$end" ]; then
+        es=$(date -d "$end" +%s 2>/dev/null)
+        ns=$(date +%s 2>/dev/null)
+        if [ -n "$es" ] && [ -n "$ns" ]; then
+            left=$(( (es - ns) / 86400 ))
+            printf '   📅 남은 날: %s일  (만료 %s)\n' "$left" "$end"
+            if   [ "$left" -lt 0 ];  then no  "이미 만료됐습니다 — 바로 새로 받아야 합니다"
+            elif [ "$left" -lt 15 ]; then no  "곧 만료입니다. 저절로 갱신이 안 되고 있는 것 같습니다"
+            elif [ "$left" -lt 30 ]; then hm  "갱신할 때가 됐습니다 — 80 번 포트가 열려 있는지 봐 주세요"
+            else ok "넉넉합니다 (보통 만료 30일 전에 저절로 갱신됩니다)"
+            fi
+            if [ "$left" -lt 30 ]; then
+                hm "저절로 갱신되려면 <<바깥 80 번 포트>> 가 열려 있어야 합니다 (⑤ 참고)"
+            fi
+        fi
+    fi
 else
     hm '인증서를 읽지 못했습니다 (443 이 안 열렸을 수 있습니다)'
 fi
@@ -104,8 +127,19 @@ cat <<'TXT'
 
   ② 가 ❌  → Web Station 을 켜고 80/443 으로 맞춥니다
   ③ 이 ❌  → DSM → 제어판 → 외부 액세스 → DDNS → [지금 업데이트]
-  ④ 가 ⚠️  → DSM → 제어판 → 보안 → 인증서 → [추가] → Let's Encrypt
+  ④ 가 ⚠️  → DSM → 제어판 → 보안 → 인증서 → [설정] 에서
+             「시스템 기본 설정」 을 그 주소 인증서로 바꿉니다
+             (이미 있는 인증서를 쓰면 됩니다 — 새로 받지 않아도 됩니다)
   ⑤ 가 ❌  → 공유기 설정에서 포트포워딩: 바깥 443 → NAS 내부IP 443
              (공유기 종류를 알려 주시면 그 기종에 맞춰 짚어 드립니다)
+TXT
+cat <<'TXT'
+
+  📅 이 점검을 <<달마다 저절로>> 돌리려면
+     DSM → 제어판 → 작업 스케줄러 → [생성] → 예약된 작업 → 사용자 정의 스크립트
+       · 일정: 매달 1일
+       · 명령: sh /volume1/web/brand/fixed-url-check.sh
+       · 알림: 「스크립트 출력 세부 정보를 통해 실행」 체크 + 메일 주소
+     인증서가 저절로 갱신 안 되고 있으면 만료 전에 메일이 옵니다.
 TXT
 printf '\n'

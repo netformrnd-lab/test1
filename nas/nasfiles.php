@@ -1455,15 +1455,33 @@ function hub_name_key($s) {
     $s = preg_replace('/\.[A-Za-z0-9]{1,5}$/', '', $s);
     return nas_name_key($s);
 }
+/* ── 📄 <<알맹이가 HTML 인지만 봅니다>> ─────────────────────────────
+   윈도우는 「.html」 을 숨겨 둡니다. 그래서 그쪽이 올린 파일이 이름만
+   「mediam_TeamHub」 인 채로 보일 수 있고, 확장자가 다르면 우리는
+   「없다」 고 했습니다. 못 박은 이름이면 확장자를 안 가리되, 알맹이가
+   정말 HTML 인지는 앞 몇 줄로 가립니다 (zip 을 펴 주면 안 되니까). */
+function hub_looks_html($f) {
+    $fp = @fopen($f, 'rb');
+    if (!$fp) return false;
+    $h = (string)@fread($fp, 512);
+    @fclose($fp);
+    $h = ltrim(preg_replace('/^\xEF\xBB\xBF/', '', $h));
+    return (bool)preg_match('/^<(!doctype|html|meta|head|script|\?xml|!--)/i', $h);
+}
 /* 폴더 안(과 한 단계 아래)에서 펴 줄 HTML 들을 모읍니다.
    $want 를 주면 <<그 이름을 맨 앞으로>> 올립니다 (판 번호보다 셉니다). */
 function hub_pick($dir, $want = '') {
     $cands = [];
-    $add = function ($f) use (&$cands) {
+    $wk0 = hub_name_key($want);
+    $add = function ($f) use (&$cands, $wk0) {
         if (!is_file($f)) return;
-        $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-        if ($ext !== 'html' && $ext !== 'htm') return;
         if (basename($f)[0] === '.') return;
+        $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+        $good = ($ext === 'html' || $ext === 'htm');
+        /* 📌 못 박은 이름이면 확장자를 안 가립니다 (윈도우가 숨겨 둡니다) */
+        if (!$good && $wk0 !== '' && hub_name_key(basename($f)) === $wk0
+            && hub_looks_html($f)) $good = true;
+        if (!$good) return;
         $cands[] = $f;
     };
     foreach ((array)@scandir($dir) as $e) {
@@ -1511,6 +1529,53 @@ function hub_pick($dir, $want = '') {
     });
     return $cands;
 }
+/* ── 📌 <<못 박은 이름을 근처에서도 찾습니다>> ───────────────────────
+   「여기 이거 있는데 왜 없다고 떠」 — 파일은 분명히 있는데, 적어 둔
+   자리가 <<그 파일이 든 폴더가 아니었습니다>>. 압축을 푼 teamhub 폴더나
+   웹폴더 복사본을 걸어 두면, 그 안에는 mediam_TeamHub 가 없으니
+   「아직 없습니다」 가 떴습니다.
+
+   이제 적어 둔 자리에 없으면 <<위로 올라가며 근처를>> 훑어 그 이름을
+   찾습니다. 허락된 폴더(ts_allowed) 안만 보고, 읽기만 합니다.
+   사람이 자리를 다시 적을 일이 없습니다. */
+function hub_hunt($dir, $want, $max = 1200) {
+    $wk = hub_name_key($want);
+    if ($wk === '') return null;
+    /* 적어 둔 폴더에서 <<위로 세 단계>> 까지 — 단, 허락된 곳만 */
+    $bases = [];
+    $d = rtrim(str_replace('\\', '/', (string)$dir), '/');
+    for ($i = 0; $i < 4 && $d !== '' && $d !== '/' && $d !== '.'; $i++) {
+        $rd = realpath($d);
+        if ($rd !== false && ts_allowed($rd)) $bases[] = $rd;
+        $up = dirname($d);
+        if ($up === $d) break;
+        $d = $up;
+    }
+    if (!$bases) return null;
+    $hit = null; $n = 0;
+    $walk = function ($p, $depth) use (&$walk, &$hit, &$n, $wk, $max) {
+        if ($hit !== null || $n > $max) return;
+        $subs = [];
+        foreach ((array)@scandir($p) as $e) {
+            if ($e === '.' || $e === '..' || $e === '' || $e[0] === '.') continue;
+            $f = $p . '/' . $e;
+            if (is_file($f)) {
+                if (++$n > $max) return;
+                if (hub_name_key($e) !== $wk) continue;
+                $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                if ($ext === 'html' || $ext === 'htm' || hub_looks_html($f)) {
+                    $hit = $f; return;
+                }
+            } elseif (is_dir($f) && strpos($e, '_휴지통') !== 0) {
+                $subs[] = $f;
+            }
+        }
+        if ($depth <= 0) return;
+        foreach ($subs as $sd) { $walk($sd, $depth - 1); if ($hit !== null) return; }
+    };
+    foreach ($bases as $b) { $walk($b, 2); if ($hit !== null) break; }
+    return $hit;
+}
 if ($action === 'hub' || $action === 'hubinfo') {
     $in = normalize_nas_input($_GET['path'] ?? '');
     if ($in === null) {
@@ -1527,7 +1592,7 @@ if ($action === 'hub' || $action === 'hubinfo') {
     if (mb_strlen($want, 'UTF-8') > 120) $want = '';
 
     /* 파일을 바로 적었을 수도, 폴더를 적었을 수도 있습니다 */
-    $real = null; $tried = [];
+    $real = null; $tried = []; $said = '';
     [$dir, $tried] = resolve_nas_dir($in);
     /* 공유폴더 밖이면 안을 들여다보지도 않습니다 (있는지조차 알려주지 않게) */
     /* ── 📂 다른 팀 폴더도 <<등록해 두었으면>> 엽니다 ────────────────
@@ -1544,6 +1609,18 @@ if ($action === 'hub' || $action === 'hubinfo') {
     }
     if ($dir !== null) {
         $list = hub_pick($dir, $want);
+        /* 📌 적어 둔 폴더에 못 박은 이름이 없으면 — 근처에서 찾아봅니다.
+           (압축 푼 teamhub 폴더·웹폴더 복사본을 걸어 둔 분들) */
+        if ($want !== ''
+            && (!$list || hub_name_key(basename($list[0])) !== hub_name_key($want))) {
+            $far = hub_hunt($dir, $want);
+            if ($far !== null) {
+                $said = $dir;
+                $dir  = dirname($far);
+                $list = hub_pick($dir, $want);
+                if (!$list) $list = [$far];
+            }
+        }
         if (!$list) {
             jout(['ok' => false, 'error' => '그 폴더에 펴 줄 HTML 이 없습니다'
                   . ($want !== '' ? ' (「' . $want . '」 도 아직 없습니다)' : ''),
@@ -1584,7 +1661,7 @@ if ($action === 'hub' || $action === 'hubinfo') {
               '등록하면됨' => true, '찾은폴더' => $rr !== false ? dirname($rr) : ''], 403);
     }
     $ext = strtolower(pathinfo($rr, PATHINFO_EXTENSION));
-    if ($ext !== 'html' && $ext !== 'htm') {
+    if ($ext !== 'html' && $ext !== 'htm' && !hub_looks_html($rr)) {
         jout(['ok' => false, 'error' => 'HTML 만 펴 줄 수 있습니다 (' . $ext . ')'], 400);
     }
 
@@ -1604,6 +1681,7 @@ if ($action === 'hub' || $action === 'hubinfo') {
               '정해둔이름' => $want,
               '정해둔것맞음' => ($want !== ''
                   && hub_name_key(basename($rr)) === hub_name_key($want)),
+              '적어둔폴더' => (isset($said) && $said !== $dir) ? $said : '',
               '폴더안' => $all,
               '후보' => $names]);
     }
@@ -1616,6 +1694,7 @@ if ($action === 'hub' || $action === 'hubinfo') {
     header('Content-Type: text/html; charset=utf-8');
     header('X-Content-Type-Options: nosniff');
     header('X-Hub-File: ' . rawurlencode(basename($rr)));
+    header('X-Hub-Dir: ' . rawurlencode($dir));
     header('X-Hub-When: ' . date('Y-m-d H:i:s', (int)@filemtime($rr)));
     header('Last-Modified: ' . gmdate('D, d M Y H:i:s', (int)@filemtime($rr)) . ' GMT');
     header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');

@@ -5667,7 +5667,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-32';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-33';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -33288,40 +33288,31 @@ async function delUser(id){
   if(f.mem.length)    line.push('👤 팀원 카드 ' + f.mem.length + '장');
   if(f.rout.length)   line.push('🔄 루틴 ' + f.rout.length + '개');
 
-  if(!confirm('「' + nm + '」 님을 지울까요?\n\n'
+  /* ── 🪪 <<아이디만 지웁니다>> ─────────────────────────────────────
+     한동안은 사람을 지우면 그 분이 쓴 것까지 모조리 휴지통으로 보냈습니다.
+     그런데 브랜드마다 마케팅에 적어 둔 것이 있어서, 그렇게 쓸어 담으면
+     <<남아 있어야 할 기록까지>> 같이 사라졌습니다.
+     이제 <<계정만>> 지웁니다. 쓴 것은 그 자리에 그대로 둡니다. 정리는
+     손으로 — 필요하면 [🧹 남긴 자료] 로 고를 수 있습니다. */
+  if(!confirm('「' + nm + '」 님의 <<아이디만>> 지울까요?\n\n'
     + (line.length
-        ? '이 분이 쓴 것도 <<모두 휴지통으로>> 갑니다 —\n· ' + line.join('\n· ')
-          + '\n\n✅ 할 일 화면에서 아주 사라집니다 (「그 밖」 으로 내려가지 않습니다).\n'
-          + '업무 → 🗑 휴지통 에서 30일 안에 되돌릴 수 있습니다.\n\n'
+        ? '이 분이 쓴 것은 <<그대로 둡니다>> —\n· ' + line.join('\n· ')
+          + '\n\n브랜드마다 마케팅에 적어 둔 것이 있어서 지우지 않습니다.\n'
+          + '치우실 것이 있으면 손으로 — [🧹 남긴 자료] 에서 고르시면 됩니다.\n\n'
         : '이 분 앞으로 남은 자료는 없습니다.\n\n')
-    + '다만 <<계정 자체는 되돌릴 수 없습니다.>>\n'
+    + '· 이제 이 아이디로는 들어올 수 없습니다.\n'
+    + '· <<계정 자체는 되돌릴 수 없습니다.>>\n\n'
     + '퇴사자라면 지우기보다 [🚫 사용 중지] 를 권합니다 '
     + '(누가 무엇을 했는지 기록이 남습니다).')) return;
 
-  /* ① 먼저 쓴 것을 치웁니다 — 계정이 없어지면 이름으로 못 찾습니다 */
-  if(f.total){
-    const keep = { growth:wipePick.growth, tasks:wipePick.tasks,
-                   boards:wipePick.boards, perf:wipePick.perf, mem:wipePick.mem };
-    const keepWho = wipeWho;
-    wipeWho = id;
-    wipePick.growth = wipePick.tasks = wipePick.boards = true;
-    wipePick.perf = wipePick.mem = true;
-    wipeSweep(id, nm, f);                    /* 묻지 않고 바로 치웁니다 */
-    wipeWho = keepWho;
-    Object.keys(keep).forEach(k => { wipePick[k] = keep[k]; });
-  }
-
-  /* ② 그 다음에 계정 */
   try{
-    const o = await authPost('deluser', { id: id });
-    toast('🗑️ ' + nm + ' 님을 지웠습니다'
-      + (f.total ? ' — 쓴 것 ' + f.total + '개는 휴지통에 있습니다' : ''));
+    await authPost('deluser', { id: id });
+    toast('🪪 ' + nm + ' 님의 아이디를 지웠습니다'
+      + (f.total ? ' — 쓴 것 ' + f.total + '개는 그대로 있습니다' : ''));
     if(wipeWho === id) wipeWho = '';
     loadUsers(); loadPeople(true); render();
   }catch(e){
-    alert('계정은 지우지 못했습니다.\n\n' + e.message
-      + (f.total ? '\n\n쓴 것은 이미 휴지통으로 옮겼습니다 — '
-          + '되돌리려면 업무 → 🗑 휴지통 을 봐 주세요.' : ''));
+    alert('아이디를 지우지 못했습니다.\n\n' + e.message);
     render();
   }
 }
@@ -33407,9 +33398,12 @@ function usersPanel(){
                     + '\'관리자에서 내릴까요?\')">팀원으로</button> '
                   : '<button class="btn sm" onclick="setUser(\'' + jsq(u.id) + '\',{admin:true},'
                     + '\'관리자로 올릴까요? 사람을 넣고 뺄 수 있게 됩니다.\')">관리자로</button> ')
-              + (u['쓸수있음'] ? ''
-                  : '<button class="btn sm danger" onclick="wipeOpen(\'' + jsq(u.id) + '\')" '
-                    + 'title="이 사람이 남긴 보드·할 일을 한 번에 정리합니다">🧹 남긴 자료</button> ')
+              /* 🧹 지우기가 아이디만 지우게 됐으니, 남긴 자료를 손으로
+                 치우는 길은 <<늘>> 보여야 합니다 (전에는 사용 중지된
+                 사람에게만 나왔습니다) */
+              + '<button class="btn sm" onclick="wipeOpen(\'' + jsq(u.id) + '\')" '
+                + 'title="이 사람이 남긴 보드·할 일을 골라서 치웁니다 '
+                + '— 지우기는 아이디만 지웁니다">🧹 남긴 자료</button> '
               + (me ? '' : '<button class="btn sm danger" onclick="delUser(\'' + jsq(u.id) + '\')">지우기</button>')
             + '</td></tr>';
         }).join('')

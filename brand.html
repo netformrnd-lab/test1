@@ -342,6 +342,29 @@ body.tt-wide .layout{max-width:1820px}
 .lk-only .fmeta{width:100%;margin:0;line-height:1.75}
 .lk-only button{margin-left:auto}
 /* 📌 저쪽에 부탁할 자리·이름 — 눈에 잘 띄게 */
+/* 📁 비용 구분을 담는 폴더 */
+.cf-wrap{margin:0 0 12px}
+.cf-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px;
+  padding:5px 7px;border-radius:var(--r-xs)}
+.cf-row+.cf-row{margin-top:3px}
+.cf-row.open{background:var(--bg-hover)}
+.cf-h{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;
+  color:var(--text-secondary);background:none;border:0;padding:3px 4px;cursor:pointer;
+  font-family:inherit}
+.cf-h.plain{cursor:default}
+.cf-h:hover{color:var(--text-primary)}
+.cf-h .ar{font-size:10px;color:var(--text-muted);width:9px;text-align:center}
+.cf-h .ct{font-size:11px;font-weight:600;color:var(--text-muted)}
+.cf-e{opacity:0;transition:.16s var(--ease);padding:2px 6px;font-size:11px}
+.cf-row:hover .cf-e,.cf-e:focus-visible{opacity:.8}
+.cf-e:hover{opacity:1}
+.cf-in{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:4px;align-items:center;
+  padding:4px 0 2px 16px}
+/* 구분을 폴더에 넣는 작은 단추 — 평소엔 숨어 있습니다 */
+.cg-mv{padding:2px 6px;font-size:11px;opacity:0;transition:.16s var(--ease);
+  margin-left:-2px}
+.sec-bar:hover .cg-mv,.cf-row:hover .cg-mv,.cg-mv:focus-visible{opacity:.65}
+.cg-mv:hover{opacity:1}
 /* 🤝 저절로 연동 — 지금 꼴을 한 줄로 */
 .lk-boot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 0;
   padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--orange);
@@ -1981,6 +2004,15 @@ body.bk-edit .panel{overflow:clip}
 .ob-chips .chip{font-family:var(--f-mono);font-size:11.5px;font-weight:500;
   background:var(--bg-sunken);color:var(--text-secondary);border:0;padding:4px 9px;
   border-radius:2px}
+/* ✏️ 칩에 달린 「설명 적기」 — 평소엔 흐리게, 올리면 또렷하게 */
+.ob-chips .chip.ob-cp{display:inline-flex;align-items:center;gap:5px;padding-right:5px}
+.ob-chips .cp-b{font-size:10px;opacity:.35;cursor:pointer;padding:0 2px;border-radius:2px;
+  transition:.16s var(--ease)}
+.ob-chips .chip:hover .cp-b{opacity:.85}
+.ob-chips .cp-b:hover{opacity:1;background:var(--bg-hover)}
+/* 방금 만든 빈 하위 — 적을 자리가 있다는 것이 보여야 합니다 */
+.ob-en .ob-k.new b.dim,.ob-en .ob-k.new span.dim{color:var(--text-muted);font-weight:600}
+.ob-en .ob-k.new{opacity:.85}
 .ob-emp{margin:0;font-size:13.5px;color:var(--text-muted)}
 
 /* ── 🌳 조직도 — 층위를 보여줘야 할 때 ───────────────────────────
@@ -5496,7 +5528,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-13';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-14';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -8168,16 +8200,43 @@ function renderOnboard(){
           if(!run.length) return;
           out.push('<div class="ob-chips">'
             /* 칩도 <<자료>> 입니다 — 눌러서 못 고치면 이름 하나 고치려고
-               [고치기] 화면을 다시 찾아 들어가야 합니다 */
-            + run.map(x => '<span class="chip" data-ed="obkid" data-g="' + esc(sc.id)
-                + '" data-i="' + esc(it.id) + '" data-k="' + esc(x.id)
-                + '" data-f="title" data-ph="이름">' + esc(x.t) + '</span>').join('')
+               [고치기] 화면을 다시 찾아 들어가야 합니다.
+               ── ✏️ 는 <<설명을 적는 자리>> 입니다 ───────────────────
+               설명이 없는 하위는 칩으로 그려집니다. 그런데 칩에는 이름만
+               고칠 수 있어, 「소라님」 처럼 밑에 한 줄을 달려고 해도 적을
+               자리가 없었습니다. 그래서 적을 데가 없어 보였던 것입니다.
+               ✏️ 를 누르면 그 자리에서 적히고, 한 글자라도 적히면 다음
+               그림부터는 칩이 아니라 <<줄>> 로 바뀝니다. */
+            + run.map(x => '<span class="chip ob-cp">'
+                + '<span data-ed="obkid" data-g="' + esc(sc.id)
+                  + '" data-i="' + esc(it.id) + '" data-k="' + esc(x.id)
+                  + '" data-f="title" data-ph="이름">' + esc(x.t) + '</span>'
+                + '<span class="cp-b" title="눌러서 한 줄 설명을 적습니다"'
+                  + ' data-ed="obkid" data-g="' + esc(sc.id)
+                  + '" data-i="' + esc(it.id) + '" data-k="' + esc(x.id)
+                  + '" data-f="body" data-ml="1" data-ph="한 줄 설명">✏️</span>'
+                + '</span>').join('')
             + '</div>');
           run = [];
         };
         it.kids.forEach(k => {
           const t = String(k.title || '').trim(), b = String(k.body || '').trim();
-          if(!t && !b) return;
+          /* ── 방금 [＋ 하위 넣기] 로 만든 <<빈 줄>> ──────────────────
+             전에는 여기서 그냥 건너뛰었습니다. 그래서 단추를 눌러도
+             화면에 아무것도 안 나타났고 — 「하위가 안 생긴다」 가
+             이것이었습니다. 이제 적을 자리를 띄워 둡니다. */
+          if(!t && !b){
+            flush();
+            out.push('<div class="ob-k new">'
+              + '<b class="dim" data-ed="obkid" data-g="' + esc(sc.id)
+                + '" data-i="' + esc(it.id) + '" data-k="' + esc(k.id)
+                + '" data-f="title" data-ph="이름">✏️ 이름</b>'
+              + '<span class="dim" data-ed="obkid" data-g="' + esc(sc.id)
+                + '" data-i="' + esc(it.id) + '" data-k="' + esc(k.id)
+                + '" data-f="body" data-ml="1" data-ph="한 줄 설명">눌러서 적기</span>'
+              + '</div>');
+            return;
+          }
           if(t && !b){ run.push({ id: k.id, t: t }); return; }
           flush();
           out.push('<div class="ob-k">'
@@ -14205,28 +14264,70 @@ function gbStart(){ gbEnsure(gbWho, gbYear); render(); }
    회의록·일정은 작성자가 계정이 아니라 그냥 적어둔 글자라서 손대지 않습니다.
    ---------------------------------------------------------------- */
 let wipeWho = '';                                   // 지금 정리하는 사람 (계정 아이디)
-const wipePick = { growth:true, tasks:true, boards:true, perf:true };
+const wipePick = { growth:true, tasks:true, boards:true, perf:true, mem:true };
 
 /* 이 사람 앞으로 무엇이 남아 있나 */
-function wipeFind(who){
+/* 📛 이름을 <<확실히>> 알아냅니다 ─────────────────────────────────
+   peopleName 은 못 찾으면 아이디를 그대로 돌려줍니다. 그걸 이름인 줄
+   알고 견주면 <<이름으로 맡긴 일이 하나도 안 걸립니다>> — 지웠는데
+   그 줄들이 남아 「그 밖」 으로 내려앉던 것이 이것입니다.
+   사람 관리 목록(auth.users) → 팀원 목록 → peopleName 차례로 보고,
+   끝내 못 찾으면 <<빈 이름>> 으로 둡니다 (아이디로만 거릅니다). */
+function wipeName(who, hint){
+  const id = String(who || '');
+  let nm = String(hint || '').trim();
+  if(nm) return nm;
+  const u = (auth.users || []).find(x => x && x.id === id);
+  nm = String((u && u['이름']) || '').trim();
+  if(nm) return nm;
+  const l = (people.list || []).find(x => x && x.id === id);
+  nm = String((l && l['이름']) || '').trim();
+  if(nm) return nm;
+  teamsOf().forEach(t => (t.members || []).forEach(m => {
+    if(!nm && String(m.uid || '') === id) nm = String(m.name || '').trim();
+  }));
+  if(nm) return nm;
+  const p = String(peopleName(id) || '').trim();
+  return (p && p !== id) ? p : '';        /* 아이디를 이름으로 쓰지 않습니다 */
+}
+function wipeFind(who, hint){
   who = String(who || '');
+  const nm = wipeName(who, hint);
   const growth = (data.growth || []).filter(x => x.who === who);
+  /* ── 맡은 할 일은 <<아이디로도 이름으로도>> 찾습니다 ──────────────
+     전에는 t.uid 만 봤습니다. 그런데 계정이 없는 분께 이름만 적어
+     맡긴 할 일(owner · 「nm:이름」)이 많습니다. 그것들이 안 걸리니,
+     사람을 지워도 그 줄들이 남아 <<그 밖>> 으로 내려앉았습니다.
+     「지우면 깨끗이 없어져야지 아래로 내리지 말라」 는 말씀이 이것입니다. */
   const tasks  = [];
   (data.brands || []).forEach(b => (b.tasks || []).forEach(t => {
-    if(String(t.uid || '') === who) tasks.push({ b:b, t:t });
+    const byId = who && String(t.uid || '') === who;
+    const byNm = !t.uid && nm && String(t.owner || '').trim() === nm;
+    if(byId || byNm) tasks.push({ b:b, t:t });
   }));
   const boards = (data.boards || []).filter(x => x.from && x.from.who === who);
   const perf   = (data.gbperf || []).filter(x => x.who === who);
+  /* 팀원 카드 — 루틴과 KPI 가 이 안에 들어 있습니다 */
+  const mem = [];
+  teamsOf().forEach(t => (t.members || []).forEach(m => {
+    if((who && String(m.uid || '') === who)
+       || (nm && String(m.name || '').trim() === nm)) mem.push({ t:t, m:m });
+  }));
   const items  = growth.reduce((a, g) =>
     a + (g.stages || []).reduce((c, st) => c + (st.items || []).length, 0), 0);
-  return { growth, tasks, boards, perf, items,
-           total: growth.length + tasks.length + boards.length + perf.length };
+  /* 🔄 루틴은 <<팀원 카드 안>> 이 아니라 따로 있는 목록입니다(data.routines).
+     이름으로 묶여 있어서, 카드만 치우면 루틴은 주인 없이 남습니다. */
+  const rout = nm ? routAll().filter(r => String(r.who || '').trim() === nm) : [];
+  return { growth, tasks, boards, perf, mem, rout, items, routs: rout.length, nm,
+           total: growth.length + tasks.length + boards.length
+                  + perf.length + mem.length + rout.length };
 }
 
 function wipeOpen(who){
   if(!isAdmin()){ toast('⚠️ 관리자만 할 수 있습니다'); return; }
   wipeWho = String(who || '');
-  wipePick.growth = wipePick.tasks = wipePick.boards = wipePick.perf = true;
+  wipePick.growth = wipePick.tasks = wipePick.boards = true;
+  wipePick.perf = wipePick.mem = true;
   render();
 }
 function wipeClose(){ wipeWho = ''; render(); }
@@ -14234,8 +14335,8 @@ function wipeToggle(k){ wipePick[k] = !wipePick[k]; render(); }
 
 function wipeGo(){
   if(!isAdmin()){ toast('⚠️ 관리자만 할 수 있습니다'); return; }
-  const who = wipeWho, nm = peopleName(who) || who;
-  const f = wipeFind(who);
+  const who = wipeWho, nm = wipeName(who) || who;
+  const f = wipeFind(who, wipeName(who));
 
   const line = [];
   if(wipePick.growth && f.growth.length)
@@ -14243,11 +14344,22 @@ function wipeGo(){
   if(wipePick.tasks  && f.tasks.length)  line.push('✅ 맡은 할 일 ' + f.tasks.length + '건');
   if(wipePick.boards && f.boards.length) line.push('🧩 그로스 판 ' + f.boards.length + '개');
   if(wipePick.perf   && f.perf.length)   line.push('📊 성과 정리 ' + f.perf.length + '건');
+  if(wipePick.mem    && f.mem.length)
+    line.push('👤 팀원 카드 ' + f.mem.length + '장');
+  if(wipePick.mem    && f.rout.length) line.push('🔄 루틴 ' + f.rout.length + '개');
   if(!line.length){ toast('⚠️ 고른 것이 없습니다'); return; }
 
   if(!confirm(nm + ' 님이 남긴 것을 지울까요?\n\n· ' + line.join('\n· ')
     + '\n\n휴지통으로 갑니다 — 업무 → 🗑 휴지통 에서 30일 안에 되돌릴 수 있습니다.')) return;
+  const n = wipeSweep(who, nm, f);
+  gbIt = null; gbWb = null;
+  markDirtyAll(); render();
+  toast('🧹 ' + nm + ' 님 자료 ' + n + '개를 휴지통으로 보냈습니다');
+}
 
+/* 🧹 고른 것을 <<묻지 않고>> 치웁니다 — 묻는 일은 부르는 쪽이 합니다.
+   [🧹 남긴 자료] 와 사람 관리의 [지우기] 가 같이 씁니다. */
+function wipeSweep(who, nm, f){
   let n = 0;
   if(wipePick.growth && f.growth.length){
     f.growth.forEach(g => {
@@ -14287,16 +14399,37 @@ function wipeGo(){
     data.gbperf = (data.gbperf || []).filter(x => !ids.has(x.id));
   }
 
-  gbIt = null; gbWb = null;
-  markDirtyAll(); render();
-  toast('🧹 ' + nm + ' 님 자료 ' + n + '개를 휴지통으로 보냈습니다');
+  /* 👤 팀원 카드 — 이것까지 치워야 할 일 화면에서 <<아주>> 사라집니다.
+     카드만 남겨 두면 빈 카드가 그대로 서 있습니다. */
+  if(wipePick.mem && f.mem.length){
+    f.mem.forEach(x => {
+      trashPut('팀원', x.m.name || '(이름 없음)', x.m, { kind:'mem', teamId: x.t.id });
+      deletedIds.add(x.m.id); n++;
+    });
+    const ids = new Set(f.mem.map(x => x.m.id));
+    teamsOf().forEach(t => {
+      t.members = (t.members || []).filter(m => !ids.has(m.id));
+    });
+  }
+  /* 🔄 루틴도 같이 — 이름으로 묶여 있어 카드만 치우면 주인 없이 남습니다 */
+  if(wipePick.mem && f.rout && f.rout.length){
+    f.rout.forEach(r => {
+      trashPut('루틴', r.name || r.title || '(이름 없음)', r,
+               { kind:'item', type:'routines', brandId:'' });
+      deletedIds.add(r.id); n++;
+    });
+    const rid = new Set(f.rout.map(r => r.id));
+    data.routines = (data.routines || []).filter(r => !rid.has(r.id));
+  }
+
+  return n;
 }
 
 /* 자료를 치운 뒤 계정까지 — 이건 진짜 끝입니다 (되돌리기 없음) */
 async function wipeAccount(){
   if(!isAdmin()){ toast('⚠️ 관리자만 할 수 있습니다'); return; }
-  const who = wipeWho, nm = peopleName(who) || who;
-  const f = wipeFind(who);
+  const who = wipeWho, nm = wipeName(who) || who;
+  const f = wipeFind(who, wipeName(who));
   if(f.total && !confirm('아직 ' + nm + ' 님 앞으로 자료 ' + f.total + '개가 남아 있습니다.\n\n'
     + '계정을 지우면 이름을 알려줄 곳이 없어져서, 남은 자료에 이름 대신 '
     + '아이디(' + who + ')가 찍힙니다.\n\n그래도 계정을 지울까요?')) return;
@@ -14312,8 +14445,8 @@ async function wipeAccount(){
 /* 정리판 — 무엇이 얼마나 남았는지 보여주고 고르게 합니다 */
 function wipePanel(){
   if(!wipeWho) return '';
-  const who = wipeWho, nm = peopleName(who) || who;
-  const f = wipeFind(who);
+  const who = wipeWho, nm = wipeName(who) || who;
+  const f = wipeFind(who, wipeName(who));
   const row = (k, ic, label, n, note) => '<label class="wz-r' + (n ? '' : ' off') + '">'
     + '<input type="checkbox"' + (wipePick[k] && n ? ' checked' : '')
       + (n ? '' : ' disabled') + ' onchange="wipeToggle(\'' + k + '\')">'
@@ -14333,6 +14466,8 @@ function wipePanel(){
       + row('tasks',  '✅', '맡고 있던 할 일', f.tasks.length, '')
       + row('boards', '🧩', '그로스보드에서 만든 판', f.boards.length, '')
       + row('perf',   '📊', '성과 정리 (예전 자료)', f.perf.length, '')
+      + row('mem',    '👤', '팀원 카드 · 루틴', f.mem.length + f.rout.length,
+            f.rout.length ? ' <span class="fmeta">루틴 ' + f.rout.length + '개</span>' : '')
     + '</div>'
     + '<div class="ainote" style="margin-top:12px">'
       + '🗣️ <b>회의록 · 일정 · 명함은 건드리지 않습니다.</b> '
@@ -22714,9 +22849,99 @@ function costGroups(){
     if(typeof g.name !== 'string') g.name = '';
     if(typeof g.icon !== 'string' || !g.icon) g.icon = '💳';
     if(!Array.isArray(g.costs)) g.costs = [];
+    if(typeof g.folder !== 'string') g.folder = '';   /* 📁 담긴 폴더 */
     g.costOnly = true;
   });
   return data.costGroups;
+}
+/* 📁 <<구분을 담는 폴더>> ─────────────────────────────────────────
+   구분이 늘어나니 「어디 것으로 보기」 줄이 끝없이 길어져, 찾으려는
+   것을 눈으로 훑어야 했습니다. 폴더로 묶어 접어 둡니다.
+   폴더는 <<보기 좋으라고>> 있는 것이라 셈에는 끼지 않습니다 —
+   접어 두어도 「전체」 금액은 그대로입니다. */
+function costFolders(){
+  if(!Array.isArray(data.costFolders)) data.costFolders = [];
+  data.costFolders.forEach(f => {
+    f.id = f.id || uid('cf');
+    if(typeof f.name !== 'string') f.name = '';
+    if(typeof f.icon !== 'string' || !f.icon) f.icon = '📁';
+    f.open = f.open !== false;              /* 처음엔 펴 둡니다 */
+  });
+  return data.costFolders;
+}
+function costFolderFind(id){ return costFolders().find(f => f.id === id) || null; }
+/* 그 폴더에 든 구분들 — 폴더가 없어진 구분은 「폴더 밖」 으로 봅니다 */
+function costGroupsIn(fid){
+  return costGroups().filter(g => {
+    const f = String(g.folder || '');
+    return fid ? f === fid : (!f || !costFolderFind(f));
+  });
+}
+function costFolderAdd(){
+  const v = prompt('📁 폴더를 만들어 구분을 묶습니다.\n\n'
+    + '예) 회사 공통 · 팀 공용 도구 · 외주\n\n'
+    + '이름을 적어 주세요. (앞에 그림글자를 붙이면 그대로 씁니다)', '');
+  if(v === null) return;
+  let nm = String(v).trim(); if(!nm) return;
+  let icon = '📁';
+  const m = /^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u.exec(nm);
+  if(m){ icon = m[1]; nm = m[2].trim(); }
+  if(!nm) return;
+  if(costFolders().some(f => f.name.trim() === nm)){
+    toast('⚠️ 같은 이름의 폴더가 이미 있습니다'); return;
+  }
+  costFolders().push({ id: uid('cf'), name: nm, icon: icon, open: true });
+  markDirtyAll(); render();
+  toast('📁 「' + nm + '」 폴더를 만들었습니다 — 구분의 [📁] 를 눌러 넣어 주세요');
+}
+function costFolderRename(id){
+  const f = costFolderFind(id); if(!f) return;
+  const v = prompt('폴더 이름을 고칩니다. (앞에 그림글자를 붙이면 그대로 씁니다)',
+    (f.icon && f.icon !== '📁' ? f.icon + ' ' : '') + f.name);
+  if(v === null) return;
+  let nm = String(v).trim(); if(!nm) return;
+  const m = /^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u.exec(nm);
+  if(m){ f.icon = m[1]; nm = m[2].trim(); }
+  if(!nm) return;
+  f.name = nm; markDirtyAll(); render();
+}
+function costFolderDel(id){
+  const f = costFolderFind(id); if(!f) return;
+  const n = costGroupsIn(id).length;
+  if(!confirm('📁 「' + f.name + '」 폴더를 없앨까요?\n\n'
+    + (n ? '안에 든 구분 ' + n + '개는 <<지워지지 않고>> 폴더 밖으로 나옵니다.\n'
+         + '적어 둔 비용도 그대로입니다.'
+        : '빈 폴더입니다.'))) return;
+  costGroups().forEach(g => { if(String(g.folder || '') === id) g.folder = ''; });
+  data.costFolders = costFolders().filter(x => x.id !== id);
+  deletedIds.add(id);
+  markDirtyAll(); render();
+  toast('폴더를 없앴습니다 — 구분은 그대로 있습니다');
+}
+function costFolderToggle(id){
+  const f = costFolderFind(id); if(!f) return;
+  f.open = !f.open; markDirtyAll(); render();
+}
+/* 구분 하나를 폴더에 넣습니다 (또는 꺼냅니다) */
+function costGroupMove(id){
+  const g = costGroups().find(x => x.id === id); if(!g) return;
+  const fs = costFolders();
+  if(!fs.length){
+    if(confirm('아직 폴더가 없습니다.\n\n먼저 폴더를 하나 만들까요?')) costFolderAdd();
+    return;
+  }
+  const cur = fs.findIndex(f => f.id === String(g.folder || ''));
+  const v = prompt('📁 「' + g.name + '」 을(를) 어느 폴더에 넣을까요?\n\n'
+    + fs.map((f, i) => (i + 1) + ') ' + f.icon + ' ' + f.name).join('\n')
+    + '\n0) 폴더 밖으로 꺼내기\n\n번호를 적어 주세요.',
+    String(cur >= 0 ? cur + 1 : 0));
+  if(v === null) return;
+  const n = parseInt(String(v).trim(), 10);
+  if(isNaN(n) || n < 0 || n > fs.length){ toast('⚠️ 그런 번호가 없습니다'); return; }
+  g.folder = n === 0 ? '' : fs[n - 1].id;
+  markDirtyAll(); render();
+  toast(n === 0 ? '폴더 밖으로 꺼냈습니다'
+                : '📁 「' + fs[n - 1].name + '」 안으로 옮겼습니다');
 }
 /* 비용 화면에서 쓰는 자리 전부 — 브랜드 + 비용 전용 구분 */
 function costOwners(){ return (data.brands || []).concat(costGroups()); }
@@ -22785,21 +23010,71 @@ function renderCosts(){
     + '<div class="page-sub">광고비·구독료처럼 나가는 돈을 브랜드마다 적어두고, '
       + '어디에 얼마가 들어가는지 한눈에 봅니다</div>';
 
+  /* 한 자리를 단추 하나로 */
+  const rById = {};
+  rows.forEach(r => { rById[r.b.id] = r; });
+  const oneBtn = (b) => {
+    const r = rById[b.id] || { n:0 };
+    return '<button class="btn sm' + (costBrand === b.id ? ' primary' : '')
+      + (b.costOnly ? ' cg' : '') + '" '
+      + 'onclick="setCostBrand(\'' + jsq(b.id) + '\')">' + esc(b.icon || '🏷️') + ' '
+      + esc(b.name) + (r.n ? ' <b>' + r.n + '</b>' : '') + '</button>'
+      + (b.costOnly
+          ? '<button class="btn sm cg-mv" title="📁 폴더에 넣기 · 꺼내기"'
+            + ' onclick="costGroupMove(\'' + jsq(b.id) + '\')">📁</button>'
+          : '');
+  };
+  /* 📁 폴더로 묶어 보여 줍니다 — 접어 두어도 셈은 그대로입니다 */
+  const folders = costFolders();
+  const foldHtml = folders.map(f => {
+    const gs = costGroupsIn(f.id);
+    const n  = gs.reduce((a, g) => a + ((rById[g.id] || {}).n || 0), 0);
+    return '<div class="cf-row' + (f.open ? ' open' : '') + '">'
+      + '<button class="cf-h" onclick="costFolderToggle(\'' + jsq(f.id) + '\')"'
+        + ' title="눌러서 접고 폅니다">'
+        + '<span class="ar">' + (f.open ? '▾' : '▸') + '</span>'
+        + esc(f.icon) + ' ' + esc(f.name)
+        + '<span class="ct">' + gs.length + '개' + (n ? ' · 비용 ' + n + '건' : '') + '</span>'
+      + '</button>'
+      + '<button class="btn sm cf-e" title="폴더 이름 고치기"'
+        + ' onclick="costFolderRename(\'' + jsq(f.id) + '\')">✎</button>'
+      + '<button class="btn sm cf-e" title="폴더만 없애기 (안에 든 구분은 그대로)"'
+        + ' onclick="costFolderDel(\'' + jsq(f.id) + '\')">✕</button>'
+      + (f.open
+          ? '<div class="cf-in">'
+            + (gs.length ? gs.map(oneBtn).join('')
+                         : '<span class="fmeta">비었습니다 — 구분 옆 [📁] 를 눌러 넣어 주세요</span>')
+            + '</div>'
+          : '')
+      + '</div>';
+  }).join('');
+  const loose = costGroupsIn('');
+
   const pick = '<div class="sec-bar" style="margin-bottom:12px">'
     + '<span class="fmeta">어디 것으로 보기</span>'
     + '<button class="btn sm' + (costBrand ? '' : ' primary') + '" '
       + 'onclick="setCostBrand(\'\')">전체 ' + tot.n + '</button>'
-    + rows.map(r => '<button class="btn sm' + (costBrand === r.b.id ? ' primary' : '')
-        + (r.b.costOnly ? ' cg' : '') + '" '
-        + 'onclick="setCostBrand(\'' + jsq(r.b.id) + '\')">' + esc(r.b.icon || '🏷️') + ' '
-        + esc(r.b.name) + (r.n ? ' <b>' + r.n + '</b>' : '') + '</button>').join('')
+    + (data.brands || []).map(oneBtn).join('')
+    + (folders.length ? '' : loose.map(oneBtn).join(''))
     /* 브랜드가 아닌데 돈이 나가는 자리 — 여기서만 쓰는 구분을 만듭니다 */
     + '<button class="btn sm" onclick="costGroupAdd()"'
       + ' title="브랜드가 아닌 것(회사 공통·사무실 같은 것)을 이 화면에서만 쓰게 만듭니다">'
       + '＋ 구분 추가</button>'
+    + '<button class="btn sm" onclick="costFolderAdd()"'
+      + ' title="구분이 많아지면 폴더로 묶어 접어 둘 수 있습니다">'
+      + '📁 폴더 만들기</button>'
     + '<button class="btn sm" onclick="setFx()" title="달러로 적은 것을 원으로 바꿀 때 쓰는 값">'
       + '💱 환율 ' + fxRate().toLocaleString('ko-KR') + '원</button>'
     + '</div>'
+    + (folders.length
+        ? '<div class="cf-wrap">' + foldHtml
+          + (loose.length
+              ? '<div class="cf-row open"><div class="cf-h plain">📂 폴더 밖'
+                + '<span class="ct">' + loose.length + '개</span></div>'
+                + '<div class="cf-in">' + loose.map(oneBtn).join('') + '</div></div>'
+              : '')
+          + '</div>'
+        : '')
     /* ── 종류로 모아 보기 ─────────────────────────────────────────
        「AI 비용만 한 곳에」 같은 때 씁니다. 브랜드를 바꾸지 않고 <<무슨
        돈인지>> 로 거릅니다 — 그래서 그 비용은 제 브랜드에 그대로 있으면서
@@ -30272,6 +30547,16 @@ function trashRestore(tid){
     if(data.growth.some(x => x.id === t.내용.id)){ toast('⚠️ 같은 보드가 이미 있습니다'); return; }
     data.growth.push(t.내용);
     deletedIds.delete(t.내용.id);
+  }else if(w.kind === 'mem'){
+    const tm = teamFind(w.teamId);
+    if(!tm){
+      alert('되돌릴 자리를 찾지 못했습니다.\n\n그 팀이 지워졌습니다.');
+      return;
+    }
+    tm.members = tm.members || [];
+    if(tm.members.some(x => x.id === t.내용.id)){ toast('⚠️ 이미 있습니다'); return; }
+    tm.members.push(t.내용);
+    deletedIds.delete(t.내용.id);
   }else if(w.kind === 'gbstage' || w.kind === 'gbitem'){
     const g = (data.growth || []).find(x => x.id === w.boardId);
     if(!g){
@@ -30879,6 +31164,24 @@ function mergeWithServer(server){
       sg.filter(x => x && x.id && !seen.has(x.id) && !deletedIds.has(x.id)));
   })();
 
+  /* 📁 구분을 담는 폴더 — 구분과 <<똑같은 규칙>> 으로 줄마다 봅니다.
+     그냥 두면 「내 것이 이긴다」 라서, 폴더를 아직 못 받은 사람이
+     남이 방금 만든 폴더를 지워 버립니다. */
+  (function(){
+    const mf = Array.isArray(mine.costFolders) ? mine.costFolders : [];
+    const sf = Array.isArray(server.costFolders) ? server.costFolders : [];
+    if(!mf.length && !sf.length){ delete merged.costFolders; return; }
+    const sById = new Map(sf.filter(x => x && x.id).map(x => [x.id, x]));
+    const seen = new Set(mf.map(x => x && x.id));
+    const out = mf.map(f => {
+      if(!f || !f.id) return f;
+      const sv = sById.get(f.id);
+      return sv ? mergeNested(f, sv, 0) : f;
+    });
+    merged.costFolders = out.concat(
+      sf.filter(x => x && x.id && !seen.has(x.id) && !deletedIds.has(x.id)));
+  })();
+
   /* 🔗 한 저장소를 같이 쓰는 할 일 — 담아 둔 것이라 나중에 받은 쪽을 따릅니다 */
   (function(){
     const st = o => { const a = String((o && o.lastPull) || ''),
@@ -31394,6 +31697,24 @@ function normalize(raw){
     if(!String(g.name).trim() && g.costs.length) g.name = '이름 없는 구분';
   });
   raw.costGroups = raw.costGroups.filter(g => String(g.name).trim());
+  /* 📁 구분을 담는 폴더 — 모양을 맞추고, 이름 없는 폴더는 버립니다.
+     없어진 폴더를 가리키는 구분은 <<폴더 밖>> 으로 꺼냅니다 (구분과
+     그 안의 비용은 절대 버리지 않습니다). */
+  if(!Array.isArray(raw.costFolders)) raw.costFolders = [];
+  raw.costFolders.forEach(f => {
+    f.id = f.id || uid('cf');
+    if(typeof f.name !== 'string') f.name = '';
+    if(typeof f.icon !== 'string' || !f.icon) f.icon = '📁';
+    f.open = f.open !== false;
+  });
+  raw.costFolders = raw.costFolders.filter(f => String(f.name).trim());
+  {
+    const fset = new Set(raw.costFolders.map(f => f.id));
+    raw.costGroups.forEach(g => {
+      if(typeof g.folder !== 'string') g.folder = '';
+      if(g.folder && !fset.has(g.folder)) g.folder = '';
+    });
+  }
   /* 예전 판이 일지 칸에 자동으로 써 넣은 「▶ … · ✓ …」 토막을 치웁니다.
      사람이 적은 글은 그대로 둡니다. 남는 게 없으면 그 날짜는 지웁니다. */
   (raw.brands || []).forEach(b => (b.tasks || []).forEach(t => {
@@ -31808,16 +32129,63 @@ async function resetPw(id){
   if(pw === null || !pw) return;
   setUser(id, { pw: pw });
 }
+/* ── 🗑 사람을 지우면 <<그 사람이 쓴 것도 같이>> 휴지통으로 ────────
+   전에는 계정만 지웠습니다. 그래서 그 사람이 맡던 할 일이 주인을 잃고
+   ✅ 할 일 화면 밑 <<그 밖>> 칸으로 내려앉았습니다. 지웠는데 화면에는
+   그대로 남아 있으니 치운 것이 아니었습니다.
+   이제 <<한 번에>> 치웁니다 — 맡은 할 일 · 그로스보드 · 그로스 판 ·
+   성과 정리 · 팀원 카드(루틴 · KPI)가 모두 휴지통으로 갑니다.
+   휴지통이라 30일 안에는 되돌릴 수 있습니다. */
 async function delUser(id){
-  if(!confirm('"' + id + '" 계정을 아예 지울까요?\n\n'
-    + '되돌릴 수 없습니다.\n'
-    + '퇴사자라면 지우기보다 [사용 중지] 를 권합니다 '
+  if(!isAdmin()){ toast('⚠️ 관리자만 할 수 있습니다'); return; }
+  const nm = wipeName(id) || id;
+  const f  = wipeFind(id, wipeName(id));
+
+  const line = [];
+  if(f.tasks.length)  line.push('✅ 맡은 할 일 ' + f.tasks.length + '건');
+  if(f.growth.length) line.push('📈 그로스보드 ' + f.growth.length + '개 ('
+    + '한 일 ' + f.items + '건)');
+  if(f.boards.length) line.push('🧩 그로스 판 ' + f.boards.length + '개');
+  if(f.perf.length)   line.push('📊 성과 정리 ' + f.perf.length + '건');
+  if(f.mem.length)    line.push('👤 팀원 카드 ' + f.mem.length + '장');
+  if(f.rout.length)   line.push('🔄 루틴 ' + f.rout.length + '개');
+
+  if(!confirm('「' + nm + '」 님을 지울까요?\n\n'
+    + (line.length
+        ? '이 분이 쓴 것도 <<모두 휴지통으로>> 갑니다 —\n· ' + line.join('\n· ')
+          + '\n\n✅ 할 일 화면에서 아주 사라집니다 (「그 밖」 으로 내려가지 않습니다).\n'
+          + '업무 → 🗑 휴지통 에서 30일 안에 되돌릴 수 있습니다.\n\n'
+        : '이 분 앞으로 남은 자료는 없습니다.\n\n')
+    + '다만 <<계정 자체는 되돌릴 수 없습니다.>>\n'
+    + '퇴사자라면 지우기보다 [🚫 사용 중지] 를 권합니다 '
     + '(누가 무엇을 했는지 기록이 남습니다).')) return;
+
+  /* ① 먼저 쓴 것을 치웁니다 — 계정이 없어지면 이름으로 못 찾습니다 */
+  if(f.total){
+    const keep = { growth:wipePick.growth, tasks:wipePick.tasks,
+                   boards:wipePick.boards, perf:wipePick.perf, mem:wipePick.mem };
+    const keepWho = wipeWho;
+    wipeWho = id;
+    wipePick.growth = wipePick.tasks = wipePick.boards = true;
+    wipePick.perf = wipePick.mem = true;
+    wipeSweep(id, nm, f);                    /* 묻지 않고 바로 치웁니다 */
+    wipeWho = keepWho;
+    Object.keys(keep).forEach(k => { wipePick[k] = keep[k]; });
+  }
+
+  /* ② 그 다음에 계정 */
   try{
     const o = await authPost('deluser', { id: id });
-    toast('🗑️ ' + (o['안내'] || '지웠습니다'));
-    loadUsers();
-  }catch(e){ alert(e.message); }
+    toast('🗑️ ' + nm + ' 님을 지웠습니다'
+      + (f.total ? ' — 쓴 것 ' + f.total + '개는 휴지통에 있습니다' : ''));
+    if(wipeWho === id) wipeWho = '';
+    loadUsers(); loadPeople(true); render();
+  }catch(e){
+    alert('계정은 지우지 못했습니다.\n\n' + e.message
+      + (f.total ? '\n\n쓴 것은 이미 휴지통으로 옮겼습니다 — '
+          + '되돌리려면 업무 → 🗑 휴지통 을 봐 주세요.' : ''));
+    render();
+  }
 }
 
 /* ---- 화면 ---- */

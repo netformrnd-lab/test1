@@ -342,6 +342,17 @@ body.tt-wide .layout{max-width:1820px}
 .lk-only .fmeta{width:100%;margin:0;line-height:1.75}
 .lk-only button{margin-left:auto}
 /* 📌 저쪽에 부탁할 자리·이름 — 눈에 잘 띄게 */
+/* 📝 여러 칸을 한 번에 묻는 창 */
+.pw-f .req{color:var(--red,#d93b3b);font-style:normal}
+.pw-f.chk{margin-bottom:10px}
+.pw-f select,.pw-f textarea{width:100%;font-size:14px;padding:9px 11px;
+  border:1px solid var(--border);border-radius:var(--r-xs);
+  background:var(--bg-input);color:var(--text-primary);font-family:inherit}
+.pw-f textarea{line-height:1.7;resize:vertical}
+.pw-f select:focus,.pw-f textarea:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+.ask-foot{margin-top:4px;padding:9px 12px;font-size:12px;line-height:1.7;
+  border-radius:var(--r-xs);background:var(--bg-hover);color:var(--text-secondary)}
 /* 🔑 비밀번호 바꾸기 창 */
 .pw-f{margin-bottom:14px}
 .pw-f label{display:block;font-size:12px;font-weight:700;letter-spacing:-.01em;
@@ -5519,6 +5530,24 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
     <div class="pjm-b" id="accDiagBox"></div>
   </div>
 </div>
+<!-- 📝 여러 칸을 한 번에 묻는 창 — prompt 를 잇달아 띄우는 대신 -->
+<div class="modal-bg" id="askModal" onclick="if(event.target===this)askCancel()">
+  <div class="pjm">
+    <div class="pjm-h">
+      <span class="pjm-ic" id="askIc">📝</span>
+      <div class="pjm-ti">
+        <div class="pjm-t" id="askTi">적어 주세요</div>
+        <div class="pjm-s" id="askSub"></div>
+      </div>
+      <button class="pjm-x" onclick="askCancel()" title="닫기">×</button>
+    </div>
+    <div class="pjm-b" id="askBody"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="askCancel()">취소</button>
+      <button class="btn primary" id="askGo" onclick="askOk()">확인</button>
+    </div>
+  </div>
+</div>
 <!-- 🔑 비밀번호 바꾸기 — 「내 계정」 창과 같은 생김새로 -->
 <div class="modal-bg" id="pwModal" onclick="if(event.target===this)closeModal('pwModal')">
   <div class="pjm">
@@ -5629,7 +5658,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-18';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-19';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5658,9 +5687,9 @@ function myId(){
     return v;
   }catch(e){ return 'u0'; }
 }
-function setMyName(){
+async function setMyName(){
   const cur = myName();
-  const v = prompt('이름을 넣어주세요.\n\n같이 보고 있는 분들에게 "누가 보고 있는지" 로 표시됩니다.', cur);
+  const v = await askOne('이름을 넣어주세요.\n\n같이 보고 있는 분들에게 "누가 보고 있는지" 로 표시됩니다.', cur);
   if(v === null) return;
   try{ localStorage.setItem('brandHubUser', v.trim().slice(0, 20)); }catch(e){}
   pingPresence();
@@ -6154,7 +6183,7 @@ function paintVersion(){
    ("새 판 받기" 알림이 떠도 단추들이 밀리거나 겹치지 않게)                */
 /* 되돌리기 단추와 저장 방식 표시를 지금 상태에 맞춥니다 */
 let showSetup = false;
-function userMenu(){
+async function userMenu(){
   const m = authMe();
   if(!m){
     if(!confirm('아직 계정을 만들지 않아 누구나 들어올 수 있습니다.\n\n'
@@ -6173,7 +6202,7 @@ function userMenu(){
   const el = document.getElementById('umBody');
   const hd = document.getElementById('umS');
   if(!el){            /* 창이 아직 없으면(옛 판) 하던 대로 */
-    const v = prompt('1. 비밀번호 바꾸기\n2. 로그아웃', '');
+    const v = await askOne('1. 비밀번호 바꾸기\n2. 로그아웃', '');
     if(v === null) return;
     const n = String(v).trim()[0];
     if(n === '1') changePw(); else if(n === '2') doLogout();
@@ -7594,11 +7623,35 @@ async function hubCheck(id){
       + ' (업무 → 📁 NAS 자료 에서 훑는 폴더를 확인해 주세요)');
   }
 }
-function hubEdit(id){
+async function hubEdit(id){
   const hs = hubsOf();
   const h  = id ? hs.find(x => x.id === id) : null;
-  const nm = prompt('팀 허브 이름\n\n예: 미디어마케팅팀', h ? h.name : '');
-  if(nm === null) return;
+  /* 전에는 창이 넷이었습니다 — 이름 · 자리 · 파일 이름 · 그림.
+     넷을 다 지나야 무엇을 적었는지 알 수 있었습니다. */
+  const cur0 = h ? (String(h.path || '').trim() || String(h.url || '').trim())
+                 : HUB_MEDIA_DIR;
+  const v = await askForm({
+    icon: '🔗', title: id ? '팀 허브 고치기' : '팀 허브 걸기',
+    ok: id ? '고치기' : '걸기',
+    note: '다른 팀이 만든 화면을 여기서 바로 엽니다',
+    fields: [
+      { key:'name', label:'이름', value: h ? h.name : '', ph:'예: 미디어마케팅팀',
+        hint: id ? '비우고 [고치기] 를 누르면 목록에서 뺍니다' : '' },
+      { key:'loc', label:'자리', value: cur0,
+        ph:'공유폴더 경로 · 웹주소 · 파일 이름',
+        hint:'공유폴더 경로를 적으면 그 폴더에서 열 것을 골라 줍니다 '
+           + '(그쪽이 판을 올려도 다시 걸 일이 없습니다)' },
+      { key:'want', label:'📌 파일 이름 (폴더를 적었을 때만)',
+        value: h ? String(h.want || '') : HUB_MEDIA_FILE,
+        ph:'예: ' + HUB_MEDIA_FILE,
+        hint:'못 박아 두면 저쪽이 갱신해도 늘 이 파일이 열립니다. '
+           + '비우면 판 번호가 가장 큰 것을 엽니다' },
+      { key:'emoji', label:'앞에 붙일 그림', value: h ? (h.emoji || '🔗') : '📊',
+        ph:'한 글자 (비워도 됩니다)' }
+    ]
+  });
+  if(!v) return;
+  const nm = v.name;
   if(!String(nm).trim()){
     /* 이름을 비우면 지웁니다 */
     if(h && confirm('"' + h.name + '" 을 목록에서 뺄까요?\n\n(그쪽 파일은 그대로 있습니다)')){
@@ -7607,39 +7660,19 @@ function hubEdit(id){
     }
     return;
   }
-  /* 자리는 <<공유폴더 경로>> 가 제일 좋습니다 — 그쪽이 판을 올려도
-     우리는 손댈 것이 없습니다. 웹주소·파일이름도 그대로 받습니다. */
-  const cur = h ? (String(h.path || '').trim() || String(h.url || '').trim()) : HUB_MEDIA_DIR;
-  const loc = prompt('자리 — 어디에 있는 것을 열까요?\n\n'
-    + '① 공유폴더 경로 (권장) — 그 폴더에서 열 것을 골라 줍니다\n'
-    + '   예) ' + HUB_MEDIA_DIR + '\n'
-    + '   그쪽이 판을 올려도 다시 걸 일이 없습니다.\n\n'
-    + '② 웹주소 — http 로 시작하는 주소 전체\n'
-    + '③ 같은 NAS 웹폴더에 둔 파일이면 파일 이름만: teamhub-media.html',
-    cur);
-  if(loc === null) return;
-  const v = String(loc).trim();
+  const v2 = String(v.loc || '').trim();
   /* 어느 쪽으로 적었는지 가립니다 — \\ · 드라이브 문자 · / 로 시작하면 폴더 */
-  const isDir = /^[A-Za-z]:[\\/]/.test(v) || v.indexOf('\\\\') === 0 || v.indexOf('/') === 0;
+  const isDir = /^[A-Za-z]:[\\/]/.test(v2) || v2.indexOf('\\\\') === 0 || v2.indexOf('/') === 0;
   /* 📌 폴더를 적었으면 <<파일 이름>> 까지 못 박아 둡니다 — 저쪽이 판을
      올려도 이름만 같으면 늘 그 파일이 열립니다. 비워 두면 여태처럼
      판 번호가 가장 큰 것을 엽니다. */
-  let wnt = h ? String(h.want || '') : HUB_MEDIA_FILE;
-  if(isDir){
-    const w = prompt('📌 프로그램 파일 이름 — 못 박아 둘까요? (비워도 됩니다)\n\n'
-      + '저쪽이 갱신해도 <<이 이름이면 늘 그 파일>> 이 열립니다.\n'
-      + '확장자는 안 적어도 됩니다 (.html · .htm 둘 다 찾습니다).\n\n'
-      + '예) ' + HUB_MEDIA_FILE + '\n\n'
-      + '비워 두면 그 폴더에서 판 번호가 가장 큰 것을 엽니다.', wnt);
-    if(w === null) return;
-    wnt = String(w).trim().replace(/[\\/:]+/g, '');
-  }
-  const em = prompt('앞에 붙일 그림 하나 (비워도 됩니다)', h ? (h.emoji || '🔗') : '📊');
+  const wnt = isDir ? String(v.want || '').trim().replace(/[\\/:]+/g, '') : '';
+  const em  = v.emoji;
   const tgt = h || { id: uid('hub') };
   tgt.name  = nm.trim();
   tgt.emoji = (em || '🔗').trim();
-  tgt.path  = isDir ? v : '';
-  tgt.url   = isDir ? '' : v;
+  tgt.path  = isDir ? v2 : '';
+  tgt.url   = isDir ? '' : v2;
   tgt.want  = isDir ? wnt : '';
   if(!h) hs.push(tgt);
   markDirtyAll(); renderHubs();
@@ -8184,12 +8217,12 @@ function obYearAdd(sid, year){
 }
 /* 지금 적혀 있는 하위를 해 한 줄 밑으로 접어 넣습니다 —
    「팀 → 사람」 으로 적어 둔 것을 「팀 → 해 → 그 해에 한 일」 로 바꿉니다 */
-function obToYears(sid){
+async function obToYears(sid){
   const sc = obOf().find(x => x.id === sid); if(!sc) return;
   const its = sc.items.filter(it => String(it.title || '').trim());
   if(!its.length) return;
   const y0 = obYearOf(sc.title) || String(new Date().getFullYear());
-  const y = (prompt('지금 적혀 있는 것을 어느 해의 것으로 볼까요?\n\n'
+  const y = (await askOne('지금 적혀 있는 것을 어느 해의 것으로 볼까요?\n\n'
     + '항목(팀)마다 하위가 그 해 한 줄 밑으로 접힙니다.\n'
     + '예) 전략마케팅팀 → ' + y0 + ' → 「소라님 — 기존 브랜드 정리 …」\n\n'
     + '이 뒤로는 [📅 해 추가] 로 해마다 한 줄씩 늘리면 됩니다.', y0) || '').trim();
@@ -11195,7 +11228,7 @@ function reloadFolder(navKey, startDir){
 async function nasMkdir(navKey, startDir){
   const dir = currentDirOf(navKey, startDir);
   if(!dir){ toast('⚠️ 폴더를 먼저 열어주세요'); return; }
-  const name = prompt('여기에 만들 폴더 이름을 적어주세요.\n\n' + dir, '');
+  const name = await askOne('여기에 만들 폴더 이름을 적어주세요.\n\n' + dir, '');
   if(name === null || !name.trim()) return;
   try{
     const out = await apiJson('nasfiles.php?action=mkdir', {
@@ -11211,7 +11244,7 @@ async function nasMkdir(navKey, startDir){
 async function nasMkdirGo(navKey, startDir){
   const dir = currentDirOf(navKey, startDir);
   if(!dir){ toast('⚠️ 폴더를 먼저 열어주세요'); return; }
-  const name = prompt('여기에 만들 폴더 이름을 적어주세요.\n\n' + dir, '');
+  const name = await askOne('여기에 만들 폴더 이름을 적어주세요.\n\n' + dir, '');
   if(name === null || !name.trim()) return;
   try{
     const out = await apiJson('nasfiles.php?action=mkdir', {
@@ -11514,7 +11547,7 @@ async function nasMovePick(path, navKey, startDir){
   if(c && c.parent) opts.push({ p:c.parent, label:'⬆ 상위 폴더' });
   ((c && c.folders) || []).forEach(f => { if(f.path !== path) opts.push({ p:f.path, label:'📁 ' + f.name }); });
   if(!opts.length){ toast('⚠️ 여기에는 옮길 만한 폴더가 없습니다'); return; }
-  const pick = prompt('「' + path.split('/').pop() + '」 을(를) 어디로 옮길까요?\n\n'
+  const pick = await askOne('「' + path.split('/').pop() + '」 을(를) 어디로 옮길까요?\n\n'
     + opts.map((o, i) => '  ' + (i + 1) + ' = ' + o.label).join('\n'), '1');
   if(pick === null) return;
   const o = opts[Number(pick.trim()) - 1];
@@ -11984,7 +12017,7 @@ async function copyDirPath(navKey, startDir){
 async function setScanRoot(){
   const now = (nasState.info && nasState.info['다음에훑을폴더'])
            || (nasState.info && nasState.info['훑은폴더']) || '';
-  const v = prompt(
+  const v = await askOne(
     '파일 목록을 만들 최상위 폴더를 넣어주세요.\n\n'
     + '탐색기 주소창에서 복사한 그대로 붙여넣으셔도 됩니다.\n'
     + '예) Y:\\넷폼알앤디 공유폴더\\마케팅 공유폴더 외장하드 백업\\00. 브랜드 공유폴더\n\n'
@@ -12506,11 +12539,11 @@ function removeTool(id){
   toast('🗑️ 휴지통으로 보냈습니다');
 }
 
-function renameTool(id){
+async function renameTool(id){
   const b = currentBrand();
   const t = (b.tools || []).find(x => x.id === id);
   if(!t) return;
-  const v = prompt('이 도구를 뭐라고 부를까요?', t.label || String(t.name || '').replace(/\.html?$/i, ''));
+  const v = await askOne('이 도구를 뭐라고 부를까요?', t.label || String(t.name || '').replace(/\.html?$/i, ''));
   if(v === null) return;
   t.label = v.trim();
   markDirty();
@@ -12903,7 +12936,7 @@ async function openUpRoot(){
   await loadUpRoot(true);
   const i = upRoot.info || {};
   const cur = i['적어둔값'] || '';
-  const v = prompt(
+  const v = await askOne(
     '올린 파일을 어느 폴더에 저장할까요?\n\n'
     + '윈도우에서 보는 주소를 그대로 붙여넣어도 됩니다.\n'
     + '  예) Y:\\넷폼알앤디 공유폴더\\마케팅 공유폴더 외장하드 백업\\브랜드 마케팅팀\n\n'
@@ -13265,9 +13298,9 @@ function wbBoards(){ if(!Array.isArray(data.boards)) data.boards = []; return da
 function wbCur(){ return wbBoards().find(b => b.id === wbId) || null; }
 function wbNode(id){ const b = wbCur(); return b ? (b.nodes || []).find(n => n.id === id) : null; }
 
-function wbRename(){
+async function wbRename(){
   const b = wbCur(); if(!b) return;
-  const v = prompt('판 이름', b.name || '');
+  const v = await askOne('판 이름', b.name || '');
   if(v === null) return;
   b.name = v.trim() || '이름 없는 판';
   b.updatedAt = new Date().toISOString();
@@ -18439,9 +18472,9 @@ function tsFromJson(list){
     return x;
   }).filter(x => x.title);
 }
-function tsSetDir(){
+async function tsSetDir(){
   const t = tsOf();
-  const v = prompt('🔁 ' + t.team + ' 과 할 일을 주고받을 <<공유폴더>> 를 적어 주세요.\n\n'
+  const v = await askOne('🔁 ' + t.team + ' 과 할 일을 주고받을 <<공유폴더>> 를 적어 주세요.\n\n'
     + '양쪽이 이 폴더에 파일을 하나씩 놓습니다 —\n'
     + '  · 우리 → 브랜드마케팅팀-할일.json · .csv\n'
     + '  · 그쪽 → 아무 이름이나 (json · csv · 엑셀 다 읽습니다)\n\n'
@@ -18469,7 +18502,7 @@ async function tsFind(){
         + ' 칸 이름은 업무명 · 담당자 · 상태 · 기한 · 진척률 로요.」');
       return;
     }
-    const pick = list.length === 1 ? list[0]['이름'] : prompt(
+    const pick = list.length === 1 ? list[0]['이름'] : await askOne(
       '어느 파일을 읽을까요? 이름을 적어 주세요.\n\n'
       + list.map((f, i) => (i + 1) + ') ' + f['이름'] + '  (' + f['고친때'] + ' · ' + f['크기'] + ')').join('\n'),
       list[0]['이름']);
@@ -18730,18 +18763,24 @@ async function lkCheck(say){
 async function lkSetup(){
   const t = lkOf();
   if(!t.store) await lkCheck(false);
-  const db = prompt('🔗 할 일을 같이 쓸 <<저장소 주소>>\n\n'
-    + '근무현황 캘린더가 쓰는 곳과 같은 저장소입니다.\n'
-    + '(아파트스퀘어도 여기를 씁니다 — 그래서 서로 같은 것을 봅니다)',
-    t.store || '');
-  if(db === null) return;
-  const node = prompt('그 안에서 할 일을 둘 <<자리 이름>>\n\n'
-    + '양쪽 앱이 같은 이름을 적어야 서로 보입니다.\n'
-    + '영문·숫자·_ - / 만 됩니다.', t.node || 'team_tasks');
-  if(node === null) return;
-  const team = prompt('우리 팀을 뭐라고 적을까요?\n\n'
-    + '줄마다 이 이름이 붙어, 어느 팀 것인지 알아봅니다.', t.team || '브랜드마케팅팀');
-  if(team === null) return;
+  const v = await askForm({
+    icon: '🔗', title: '할 일 연동 설정', ok: '맞추기',
+    note: '한 저장소를 같이 써서 서로 할 일을 봅니다',
+    fields: [
+      { key:'db', label:'저장소 주소', value: t.store || '', required:true,
+        ph:'https://…firebaseio.com',
+        hint:'근무현황 캘린더가 쓰는 곳과 같은 저장소입니다 '
+           + '(아파트스퀘어도 여기를 씁니다)' },
+      { key:'node', label:'자리 이름', value: t.node || 'team_tasks', required:true,
+        ph:'team_tasks',
+        hint:'양쪽 앱이 <<같은 이름>> 을 적어야 서로 보입니다. 영문·숫자·_ - / 만' },
+      { key:'team', label:'우리 팀 이름', value: t.team || '브랜드마케팅팀',
+        required:true, ph:'브랜드마케팅팀',
+        hint:'줄마다 이 이름이 붙어 어느 팀 것인지 알아봅니다' }
+    ]
+  });
+  if(!v) return;
+  const db = v.db, node = v.node, team = v.team;
   try{
     await apiJson('teamlink.php?action=setup', { method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -18755,10 +18794,18 @@ async function lkSetup(){
 /* 저장소를 둘러봅니다 — 그쪽 할 일이 이미 어딘가 들어 있는지 찾을 때 */
 async function lkPeek(path){
   const t = lkOf();
-  const p = path != null ? path : prompt('저장소에서 둘러볼 자리\n\n'
-    + '비워 두면 맨 위에 무엇이 있는지 봅니다.\n'
-    + '(그쪽 할 일이 이미 어딘가 들어 있는지 찾아보는 데 씁니다)', '');
-  if(p === null) return;
+  let p = path;
+  if(p == null){
+    const v = await askForm({
+      icon: '📂', title: '저장소 둘러보기', ok: '둘러보기',
+      note: '그쪽 할 일이 이미 어딘가 들어 있는지 찾아봅니다',
+      fields: [{ key:'path', label:'둘러볼 자리', value:'',
+        ph:'비워 두면 맨 위부터',
+        hint:'더 들어가려면 「위이름/아래이름」 처럼 적습니다' }]
+    });
+    if(!v) return;
+    p = v.path;
+  }
   try{
     const r = await apiJson('teamlink.php?action=peek&path=' + encodeURIComponent(p));
     const ks = r['열쇠'] || [];
@@ -18849,7 +18896,7 @@ async function lkDirs(){
     const r = await apiJson('nasfiles.php?action=tsdirs');
     const a = (r['훑는폴더'] || []).map(x => '  · ' + x + '   (NAS 자료 폴더 — 못 뺍니다)');
     const b = (r['등록된폴더'] || []).map(x => '  · ' + x + '   (연동용으로 등록함)');
-    const v = prompt('📂 지금 볼 수 있는 폴더\n\n' + (a.concat(b).join('\n') || '  (없음)')
+    const v = await askOne('📂 지금 볼 수 있는 폴더\n\n' + (a.concat(b).join('\n') || '  (없음)')
       + '\n\n── 새로 허락하려면 ──\n'
       + '여기에 그 폴더를 적고 [확인] 하세요. 읽기만 합니다.\n'
       + '  예) ' + LK_DIG_DEF + '\n\n'
@@ -18874,7 +18921,7 @@ async function lkDirs(){
   }
 }
 async function lkDig(){
-  const where = prompt('📂 저쪽 자료가 들어 있을 <<폴더>> 를 적어 주세요.\n\n'
+  const where = await askOne('📂 저쪽 자료가 들어 있을 <<폴더>> 를 적어 주세요.\n\n'
     + '그 밑을 네 단계까지 뒤져, 자료로 보이는 파일을 모두 찾아 보여 줍니다.\n'
     + '(읽기만 합니다 — 아무것도 고치지 않습니다)\n\n'
     + '예) ' + LK_DIG_DEF, (lkDug && lkDug.dir) || LK_DIG_DEF);
@@ -19400,9 +19447,9 @@ function lkAutoToggle(){
 }
 function lkAutoMin(){ const t = lkOf();
   const n = parseInt(t.autoMin, 10); return (n >= 1 && n <= 180) ? n : 10; }
-function lkAutoSetMin(){
+async function lkAutoSetMin(){
   const t = lkOf();
-  const v = prompt('몇 분마다 맞출까요? (1~180)\n\n'
+  const v = await askOne('몇 분마다 맞출까요? (1~180)\n\n'
     + '화면을 ✅ 할 일 에 두고 있을 때만 돕니다.', String(lkAutoMin()));
   if(v === null) return;
   const n = parseInt(v, 10);
@@ -19542,16 +19589,20 @@ async function lkMemSniff(files){
   return 0;
 }
 /* ✎ 명단 고치기 — 파일에 「팀」 칸이 없을 때 쓰는 길입니다 */
-function lkMemEdit(){
+async function lkMemEdit(){
   const t = lkOf();
   const now = lkMembers();
-  const v = prompt('📛 미디어마케팅팀 사람 명단\n\n'
-    + '여기 적어 둔 사람 것만 가져옵니다. 쉼표로 나눠 적어 주세요.\n'
-    + '(저쪽 파일에 「팀」 칸이 있으면 그것을 먼저 보고, 이 명단은 안 씁니다)\n\n'
-    + '비워 두면 <<파일에 있는 줄을 다 가져옵니다>>.',
-    now.join(', '));
-  if(v === null) return;
-  const list = String(v).split(/[,\n]+/).map(x => x.trim()).filter(Boolean).slice(0, 80);
+  const vv = await askForm({
+    icon: '📛', title: '미디어마케팅팀 사람 명단', ok: '맞추기',
+    note: '여기 적어 둔 사람 것만 가져옵니다',
+    fields: [{ key:'list', label:'이름 (쉼표로 나눠서)', type:'textarea', rows:3,
+      value: now.join(', '), ph:'최상기, 박PD, 김영상',
+      hint:'저쪽 파일에 「팀」 칸이 있으면 그것을 먼저 보고 이 명단은 안 씁니다' }],
+    foot: '비워 두면 <b>파일에 있는 줄을 다 가져옵니다</b> — 다른 팀 것이 '
+        + '섞여 들어올 수 있습니다.'
+  });
+  if(!vv) return;
+  const list = String(vv.list).split(/[,\n]+/).map(x => x.trim()).filter(Boolean).slice(0, 80);
   t.members = list;
   t.autoKey = '';                 /* 체가 바뀌었으니 다음에 다시 맞춥니다 */
   markDirtyAll(); render();
@@ -19620,11 +19671,13 @@ function lkIntoTasks(rows, srcName, teamName, quiet){
     t.brandId = b.id;
   }
   if(!b){
-    const pick = prompt('가져온 할 일을 <<어느 브랜드 밑>> 에 둘까요?\n\n'
-      + '번호를 적어 주세요. (담당자 이름은 그대로 달려서, 그 사람 카드에 섭니다)\n\n'
-      + bs.map((x, i) => (i + 1) + ') ' + (x.icon || '') + ' ' + x.name).join('\n'), '1');
-    if(pick === null) return { n:0, b:null };
-    b = bs[(parseInt(pick, 10) || 1) - 1] || bs[0];
+    /* 묻지 않고 고릅니다 — ① 팀 이름과 같은 브랜드 → ② 이미 가져온
+       것이 있는 브랜드 → ③ 맨 앞. 어디에 넣었는지는 알림에 적습니다.
+       (여기서 창을 띄우면 이 함수가 async 가 되어, 동기로 부르는
+        네 군데가 모두 Promise 를 받게 됩니다) */
+    b = bs.find(x => String(x.name || '').indexOf(tag) >= 0)
+     || bs.find(x => (x.tasks || []).some(y => y._from === tag))
+     || bs[0];
     t.brandId = b.id;
   }
   b.tasks = b.tasks || [];
@@ -19818,7 +19871,7 @@ function lkLand(h, dir, log, a, b, quiet){
   return put;
 }
 async function lkAuto(){
-  const where = prompt('🔗 연동 길 찾기\n\n'
+  const where = await askOne('🔗 연동 길 찾기\n\n'
     + '저쪽 폴더를 적어 주시면, 할 일이 어디에 어떤 모양으로 들어 있는지\n'
     + '제가 끝까지 찾아보고 가져올 수 있으면 바로 가져옵니다.\n'
     + '(읽기만 합니다 — 아무것도 고치지 않습니다)\n\n'
@@ -20150,12 +20203,18 @@ async function lkRowSet(id){
   const t = lkOf();
   const r = (t.rows || []).find(x => String(x.id) === String(id));
   if(!r) return;
-  const st = prompt('「' + r['업무명'] + '」 의 상태\n\n예) 대기 · 진행 중 · 완료 · 보류',
-    String(r['상태'] || ''));
-  if(st === null) return;
-  const pc = prompt('진척률 (숫자만, 비워도 됩니다)',
-    r['진척률'] == null ? '' : String(r['진척률']));
-  if(pc === null) return;
+  const v = await askForm({
+    icon: '🔗', title: String(r['업무명'] || '저쪽 할 일'), ok: '고치기',
+    note: '고치면 <<저쪽 화면에도>> 들어갑니다',
+    fields: [
+      { key:'st', label:'상태', type:'select', value:String(r['상태'] || ''),
+        options:['', '대기', '진행 중', '완료', '보류'] },
+      { key:'pc', label:'진척률 (%)', value: r['진척률'] == null ? '' : String(r['진척률']),
+        ph:'숫자만 · 비워도 됩니다' }
+    ]
+  });
+  if(!v) return;
+  const st = v.st, pc = v.pc;
   try{
     await apiJson('teamlink.php?action=setrow', { method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -20861,19 +20920,28 @@ async function accVaultMake(){
       + '들어와서 다시 해 주세요.');
     return;
   }
-  const p1 = prompt('🔒 내부계정에 걸 비밀번호를 정해 주세요.\n\n'
-    + '· 대시보드 로그인 비밀번호와 <<다르게>> 정하세요\n'
-    + '· 이 비번을 친 사람만 계정 목록을 볼 수 있습니다\n'
-    + '· 저장된 파일을 가져가도 이 비번 없이는 못 엽니다\n\n'
-    + '⚠️ 잊으면 되살릴 길이 없습니다. 적어 두세요.');
-  if(p1 === null) return;
+  const v0 = await askForm({
+    icon: '🔒', title: '내부계정에 자물쇠 걸기', ok: '자물쇠 걸기',
+    note: '이 비밀번호를 친 사람만 계정 목록을 볼 수 있습니다',
+    fields: [
+      { key:'p1', label:'새 비밀번호', type:'pw', required:true,
+        ph:'여덟 글자 넘게', hint:'대시보드 로그인 비밀번호와 <<다르게>> 정하세요' },
+      { key:'p2', label:'한 번 더', type:'pw', required:true, ph:'같은 것을 한 번 더' },
+      { key:'wrote', type:'check', ph:'어딘가에 적어 두었습니다' }
+    ],
+    foot: '⚠️ <b>잊으면 되살릴 길이 없습니다.</b> 저장된 파일을 가져가도 '
+        + '이 비밀번호 없이는 못 엽니다 — 그래서 안전한 것이고, 그래서 '
+        + '잊으면 아무도 못 엽니다.'
+  });
+  if(!v0) return;
+  const p1 = v0.p1, p2 = v0.p2;
   if(String(p1).length < 8){ alert('너무 짧습니다 — 여덟 글자 넘게 정해 주세요.'); return; }
-  const p2 = prompt('한 번 더 똑같이 쳐 주세요.');
-  if(p2 === null) return;
   if(p1 !== p2){ alert('두 번 친 것이 다릅니다. 다시 해 주세요.'); return; }
-  if(!confirm('마지막으로 확인합니다.\n\n'
-    + '이 비밀번호를 잊으면 적어 두신 계정을 <<아무도>> 못 엽니다.\n'
-    + '되살리는 방법은 없습니다.\n\n지금 어딘가에 적어 두셨나요?')) return;
+  if(!v0.wrote){
+    alert('「어딘가에 적어 두었습니다」 를 확인해 주세요.\n\n'
+      + '이 비밀번호를 잊으면 적어 두신 계정을 <<아무도>> 못 엽니다.');
+    return;
+  }
   try{
     const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
     const key  = await accDerive(p1, salt);
@@ -20935,12 +21003,19 @@ async function accUnlock(){
 /* ── 금고 비번 바꾸기 (사람이 나갔을 때) ───────────────────────── */
 async function accVaultChange(){
   if(accLocked()){ toast('먼저 금고를 열어 주세요'); return; }
-  const p1 = prompt('🔑 새 비밀번호를 정해 주세요.\n\n'
-    + '팀에서 누가 나갔을 때는 바꿔 두는 게 좋습니다.\n'
-    + '(여기 적힌 서비스들의 진짜 비밀번호도 따로 바꿔야 합니다)');
-  if(p1 === null) return;
+  const vv = await askForm({
+    icon: '🔑', title: '금고 비밀번호 바꾸기', ok: '바꾸기',
+    note: '팀에서 누가 나갔을 때는 바꿔 두는 게 좋습니다',
+    fields: [
+      { key:'p1', label:'새 비밀번호', type:'pw', required:true, ph:'여덟 글자 넘게' },
+      { key:'p2', label:'한 번 더', type:'pw', required:true, ph:'같은 것을 한 번 더' }
+    ],
+    foot: '여기 적어 둔 <b>서비스들의 진짜 비밀번호</b>도 따로 바꾸셔야 합니다 — '
+        + '이건 금고 문만 바꾸는 것입니다.'
+  });
+  if(!vv) return;
+  const p1 = vv.p1, p2 = vv.p2;
   if(String(p1).length < 8){ alert('여덟 글자 넘게 정해 주세요.'); return; }
-  const p2 = prompt('한 번 더 똑같이 쳐 주세요.');
   if(p1 !== p2){ alert('두 번 친 것이 다릅니다.'); return; }
   try{
     const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
@@ -22919,8 +22994,8 @@ function fxRate(){
   const v = Number((data.settings && data.settings.fx) || 0);
   return v > 0 ? v : 1350;
 }
-function setFx(){
-  const v = prompt('달러를 원으로 바꿀 때 쓸 환율을 적어주세요.\n\n'
+async function setFx(){
+  const v = await askOne('달러를 원으로 바꿀 때 쓸 환율을 적어주세요.\n\n'
     + '(구독료를 달러로 적어둔 것만 이 환율로 바뀝니다)', String(fxRate()));
   if(v === null) return;
   const n = Number(String(v).replace(/[,\s원]/g, ''));
@@ -23205,12 +23280,16 @@ function costGroupsIn(fid){
     return fid ? f === fid : (!f || !costFolderFind(f));
   });
 }
-function costFolderAdd(){
-  const v = prompt('📁 폴더를 만들어 구분을 묶습니다.\n\n'
-    + '예) 회사 공통 · 팀 공용 도구 · 외주\n\n'
-    + '이름을 적어 주세요. (앞에 그림글자를 붙이면 그대로 씁니다)', '');
-  if(v === null) return;
-  let nm = String(v).trim(); if(!nm) return;
+async function costFolderAdd(){
+  const vv = await askForm({
+    icon: '📁', title: '폴더 만들기', ok: '만들기',
+    note: '구분이 많아지면 폴더로 묶어 접어 둘 수 있습니다',
+    fields: [{ key:'name', label:'폴더 이름', required:true,
+      ph:'예) 회사 공통 · 팀 공용 도구 · 외주',
+      hint:'앞에 그림글자를 붙이면 그대로 씁니다' }]
+  });
+  if(!vv) return;
+  let nm = String(vv.name).trim(); if(!nm) return;
   let icon = '📁';
   const m = /^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u.exec(nm);
   if(m){ icon = m[1]; nm = m[2].trim(); }
@@ -23222,12 +23301,15 @@ function costFolderAdd(){
   markDirtyAll(); render();
   toast('📁 「' + nm + '」 폴더를 만들었습니다 — 구분의 [📁] 를 눌러 넣어 주세요');
 }
-function costFolderRename(id){
+async function costFolderRename(id){
   const f = costFolderFind(id); if(!f) return;
-  const v = prompt('폴더 이름을 고칩니다. (앞에 그림글자를 붙이면 그대로 씁니다)',
-    (f.icon && f.icon !== '📁' ? f.icon + ' ' : '') + f.name);
-  if(v === null) return;
-  let nm = String(v).trim(); if(!nm) return;
+  const vv = await askForm({
+    icon: f.icon || '📁', title: '폴더 이름 고치기', ok: '고치기',
+    fields: [{ key:'name', label:'폴더 이름', required:true,
+      value:(f.icon && f.icon !== '📁' ? f.icon + ' ' : '') + f.name }]
+  });
+  if(!vv) return;
+  let nm = String(vv.name).trim(); if(!nm) return;
   const m = /^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u.exec(nm);
   if(m){ f.icon = m[1]; nm = m[2].trim(); }
   if(!nm) return;
@@ -23251,7 +23333,7 @@ function costFolderToggle(id){
   f.open = !f.open; markDirtyAll(); render();
 }
 /* 구분 하나를 폴더에 넣습니다 (또는 꺼냅니다) */
-function costGroupMove(id){
+async function costGroupMove(id){
   const g = costGroups().find(x => x.id === id); if(!g) return;
   const fs = costFolders();
   if(!fs.length){
@@ -23259,7 +23341,7 @@ function costGroupMove(id){
     return;
   }
   const cur = fs.findIndex(f => f.id === String(g.folder || ''));
-  const v = prompt('📁 「' + g.name + '」 을(를) 어느 폴더에 넣을까요?\n\n'
+  const v = await askOne('📁 「' + g.name + '」 을(를) 어느 폴더에 넣을까요?\n\n'
     + fs.map((f, i) => (i + 1) + ') ' + f.icon + ' ' + f.name).join('\n')
     + '\n0) 폴더 밖으로 꺼내기\n\n번호를 적어 주세요.',
     String(cur >= 0 ? cur + 1 : 0));
@@ -23274,13 +23356,17 @@ function costGroupMove(id){
 /* 비용 화면에서 쓰는 자리 전부 — 브랜드 + 비용 전용 구분 */
 function costOwners(){ return (data.brands || []).concat(costGroups()); }
 function costOwnerById(id){ return costOwners().find(x => x.id === id) || null; }
-function costGroupAdd(){
-  const v = prompt('💳 비용에서만 쓸 구분을 만듭니다.\n\n'
-    + '왼쪽 브랜드 목록에는 안 생깁니다 — 이 화면에서만 보입니다.\n'
-    + '예) 회사 공통 · 사무실 · 팀 공용 도구\n\n'
-    + '이름을 적어 주세요. (앞에 그림글자를 붙이면 그대로 씁니다)', '');
-  if(v === null) return;
-  let nm = String(v).trim();
+async function costGroupAdd(){
+  const vv = await askForm({
+    icon: '💳', title: '비용 구분 만들기', ok: '만들기',
+    note: '브랜드가 아닌데 돈이 나가는 자리를 만듭니다',
+    fields: [{ key:'name', label:'이름', required:true,
+      ph:'예) 회사 공통 · 사무실 · 팀 공용 도구',
+      hint:'앞에 그림글자를 붙이면 그대로 씁니다. 왼쪽 브랜드 목록에는 '
+         + '안 생기고 이 화면에서만 보입니다' }]
+  });
+  if(!vv) return;
+  let nm = String(vv.name).trim();
   if(!nm) return;
   let icon = '💳';
   const m = /^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u.exec(nm);
@@ -23295,12 +23381,16 @@ function costGroupAdd(){
   markDirtyAll(); render();
   toast('💳 「' + nm + '」 구분을 만들었습니다 — 이 화면에서만 보입니다');
 }
-function costGroupRename(id){
+async function costGroupRename(id){
   const g = costGroups().find(x => x.id === id); if(!g) return;
-  const v = prompt('이름을 고칩니다. (앞에 그림글자를 붙이면 그대로 씁니다)',
-    (g.icon && g.icon !== '💳' ? g.icon + ' ' : '') + g.name);
-  if(v === null) return;
-  let nm = String(v).trim(); if(!nm) return;
+  const vv = await askForm({
+    icon: g.icon || '💳', title: '구분 이름 고치기', ok: '고치기',
+    fields: [{ key:'name', label:'이름', required:true,
+      value:(g.icon && g.icon !== '💳' ? g.icon + ' ' : '') + g.name,
+      hint:'앞에 그림글자를 붙이면 그대로 씁니다' }]
+  });
+  if(!vv) return;
+  let nm = String(vv.name).trim(); if(!nm) return;
   const m = /^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u.exec(nm);
   if(m){ g.icon = m[1]; nm = m[2].trim(); }
   if(!nm) return;
@@ -24256,7 +24346,7 @@ async function saveSheets(list){
 }
 
 async function addSheet(){
-  const url = prompt(
+  const url = await askOne(
     '구글시트 주소를 넣어 주세요.\n\n'
     + '주소창에 있는 주소를 그대로 붙여 넣으시면 됩니다.\n'
     + '(.../edit?usp=sharing 그대로 — 알아서 표 주소로 바꿉니다)\n\n'
@@ -24265,9 +24355,9 @@ async function addSheet(){
     + '   안 되면 파일 → 공유 → 웹에 게시 → csv 주소를 넣어 주세요.');
   if(url === null || !url.trim()) return;
 
-  const name = prompt('이 시트를 뭐라고 부를까요? (예: 슈어포인트 문의)', '') || '';
+  const name = await askOne('이 시트를 뭐라고 부를까요? (예: 슈어포인트 문의)', '') || '';
   const names = data.brands.map((b, i) => (i + 1) + '. ' + b.name).join('\n');
-  const pick = prompt(
+  const pick = await askOne(
     '이 시트는 어느 브랜드 것인가요?\n\n'
     + '시트에 「브랜드」 열이 있으면 0을 넣으세요 (열을 보고 알아서 나눕니다).\n'
     + '한 브랜드 전용 시트면 번호를 넣으세요.\n\n0. 시트의 브랜드 열 사용\n' + names, '0');
@@ -24297,7 +24387,7 @@ async function editSheetBrand(id){
   const s = list.find(x => x.id === id);
   if(!s) return;
   const names = data.brands.map((b, i) => (i + 1) + '. ' + b.name).join('\n');
-  const pick = prompt('이 시트는 어느 브랜드 것인가요?\n\n0. 시트의 브랜드 열 사용\n' + names,
+  const pick = await askOne('이 시트는 어느 브랜드 것인가요?\n\n0. 시트의 브랜드 열 사용\n' + names,
     s.brand ? String(data.brands.findIndex(b => b.name === s.brand) + 1) : '0');
   if(pick === null) return;
   const n = parseInt(pick, 10);
@@ -24901,7 +24991,7 @@ function cellHtml(r, c, own){
 /* 대시보드에서만 쓰는 칸(처리상태·담당자·메모) 을 바꿉니다 */
 async function editCols(){
   const cur = (inquiryCache.ownCols || []).join(', ');
-  const v = prompt('문의 표에 둘 칸을 쉼표로 적어주세요.\n\n'
+  const v = await askOne('문의 표에 둘 칸을 쉼표로 적어주세요.\n\n'
     + '구글시트에는 없는, 우리끼리 쓰는 칸입니다. (최대 8개)\n'
     + '예) 처리상태, 담당자, 메모', cur);
   if(v === null) return;
@@ -25618,15 +25708,20 @@ async function aiCheck(){
    ================================================================= */
 async function aiSetLocal(){
   const now = (aiState.info || {})['우리것주소'] || '';
-  const url = prompt('우리 AI 가 있는 주소를 적어주세요.\n\n'
-    + '· 사무실 PC 에 올렸다면:    http://192.168.0.50:11434\n'
-    + '· NAS 안(도커)에 올렸다면:  http://localhost:11434\n'
-    + '  (LM Studio 는 보통 :1234)\n\n'
-    + '※ Ollama 는 기본이 「그 PC 안에서만」 입니다.\n'
-    + '   OLLAMA_HOST=0.0.0.0 을 넣고 다시 시작해야 NAS 가 부를 수 있습니다.\n'
-    + '   윈도우 방화벽에서 그 포트도 열어주세요.\n\n'
-    + '인터넷에 나가지 않고, 돈도 들지 않습니다.', now || 'http://192.168.0.50:11434');
-  if(url === null || !url.trim()) return;
+  const v0 = await askForm({
+    icon: '🖥', title: '우리 것 쓰기 — AI 주소', ok: '확인하기',
+    note: '인터넷에 나가지 않고 돈도 들지 않습니다',
+    fields: [{ key:'url', label:'AI 주소', required:true,
+      value: now || 'http://192.168.0.50:11434',
+      ph:'http://192.168.0.50:11434',
+      hint:'사무실 PC 라면 그 PC 주소 · NAS 안(도커)이면 http://localhost:11434 '
+         + '(LM Studio 는 보통 :1234)' }],
+    foot: '※ Ollama 는 기본이 「그 PC 안에서만」 입니다. '
+        + '<b>OLLAMA_HOST=0.0.0.0</b> 을 넣고 다시 시작해야 NAS 가 부를 수 있고, '
+        + '윈도우 방화벽에서 그 포트도 열어야 합니다.'
+  });
+  if(!v0 || !String(v0.url).trim()) return;
+  const url = v0.url;
 
   toast('🔎 그 주소를 확인하는 중…');
   let models = [];
@@ -25642,28 +25737,28 @@ async function aiSetLocal(){
       + '그래도 이 주소로 저장할까요?')) return;
   }
 
-  let model = '';
-  if(models.length){
-    const pick = prompt('어떤 모델을 쓸까요? 번호를 넣어주세요.\n\n'
-      + models.slice(0, 20).map((m, i) => '  ' + (i + 1) + ' = ' + m).join('\n'), '1');
-    if(pick === null) return;
-    model = models[Number(pick.trim()) - 1] || models[0];
-  }else{
-    const m = prompt('쓸 모델 이름을 적어주세요.\n\n'
-      + '예) qwen2.5:7b · gemma3:4b · llama3.1:8b\n'
-      + '(비워두면 그 서버의 기본값을 씁니다)', '');
-    if(m === null) return;
-    model = m.trim();
-  }
-
-  const key = prompt('열쇠(키)가 필요한 서버인가요?\n\n'
-    + 'Ollama·LM Studio 는 보통 필요 없습니다. 그냥 비워두고 확인을 누르세요.', '');
-  if(key === null) return;
-
-  const sec = prompt('얼마나 기다려 줄까요? (초)\n\n'
-    + '그래픽카드 없는 사무실 PC 는 회의록 한 건에 1~3분이 걸리기도 합니다.\n'
-    + '너무 짧으면 다 만들기 전에 끊깁니다.', '240');
-  if(sec === null) return;
+  /* 모델 · 열쇠 · 기다림을 <<한 창에>> 묻습니다 (전에는 셋이었습니다) */
+  const v1 = await askForm({
+    icon: '🖥', title: '우리 것 쓰기 — 설정', ok: '저장',
+    note: models.length ? '그 서버에서 모델 ' + models.length + '개를 찾았습니다'
+                        : '모델 목록을 못 받아 와, 이름을 적어 주세요',
+    fields: [
+      models.length
+        ? { key:'model', label:'쓸 모델', type:'select', value: models[0],
+            options: models.slice(0, 30) }
+        : { key:'model', label:'쓸 모델 이름',
+            ph:'예) qwen2.5:7b · gemma3:4b · llama3.1:8b',
+            hint:'비워 두면 그 서버의 기본값을 씁니다' },
+      { key:'key', label:'열쇠(키)', type:'pw', ph:'보통 비워 둡니다',
+        hint:'Ollama · LM Studio 는 열쇠가 필요 없습니다' },
+      { key:'sec', label:'얼마나 기다릴까요 (초)', value:'240', ph:'240',
+        hint:'그래픽카드 없는 PC 는 회의록 한 건에 1~3분이 걸리기도 합니다' }
+    ]
+  });
+  if(!v1) return;
+  const model = String(v1.model || '').trim();
+  const key = String(v1.key || '');
+  const sec = String(v1.sec || '240');
 
   try{
     const res = await fetch('ai.php?action=setkey', {
@@ -25679,7 +25774,7 @@ async function aiSetLocal(){
 }
 
 async function aiSetKey(){
-  const v = prompt('AI 키를 넣어주세요.\n\n'
+  const v = await askOne('AI 키를 넣어주세요.\n\n'
     + '· 챗GPT: platform.openai.com → API keys 의 「sk-…」 키\n'
     + '· 클로드: console.anthropic.com 의 「sk-ant-…」 키\n'
     + '· 마누스: 마누스 앱 → API 설정에서 만든 키\n\n'
@@ -25692,7 +25787,7 @@ async function aiSetKey(){
     // 키 모양만으로는 알 수 없습니다 (마누스 키도 sk- 로 시작할 수 있습니다).
     // 잘못 짐작해서 엉뚱한 회사에 물어보는 일이 없도록 항상 여쭤봅니다.
     const guess = /^sk-ant-/.test(k) ? '3' : (/^sk-/.test(k) ? '2' : '1');
-    const pick = prompt('어느 AI 의 키인가요? 번호를 넣어주세요.\n\n'
+    const pick = await askOne('어느 AI 의 키인가요? 번호를 넣어주세요.\n\n'
       + '  1 = 마누스 (Manus)\n'
       + '  2 = 챗GPT (OpenAI)\n'
       + '  3 = 클로드 (Anthropic)\n\n'
@@ -29379,10 +29474,10 @@ async function uploadDoc(fileList){
   toast('✅ 기획서를 올렸습니다');
 }
 
-function docRename(bid, id){
+async function docRename(bid, id){
   const b = brandById(bid) || currentBrand(); if(!b) return;
   const d = docFind(b, id); if(!d) return;
-  const v = prompt('이 문서를 뭐라고 부를까요?', d.title || '');
+  const v = await askOne('이 문서를 뭐라고 부를까요?', d.title || '');
   if(v === null) return;
   d.title = v.trim() || d.title;
   markDirty(b.id); render();
@@ -32438,6 +32533,111 @@ async function doLogout(){
   location.reload();
 }
 
+/* ═══ 📝 여러 칸을 <<한 번에>> 묻는 창 ════════════════════════════
+   여태 곳곳에서 prompt 를 잇달아 띄웠습니다. 사람 하나 넣으려면 창이
+   넷, 연동 설정은 셋이었습니다. 적은 것이 안 보이고, 뒤로 갈 수도
+   없고, 마지막에 가서야 틀렸다는 말을 들었습니다.
+   이제 칸을 모아 <<창 하나>> 로 묻습니다. 쓰는 쪽은 한 줄입니다 —
+     const v = await askForm({ 제목, 칸: [...] });
+     if(!v) return;                      // 취소
+   ================================================================= */
+let askRes = null;              /* 지금 열려 있는 창의 대답 받을 자리 */
+let askDef = null;              /* 지금 열려 있는 창의 칸 생김새 */
+function askForm(o){
+  o = o || {};
+  const fs = (o.fields || []).filter(f => f && f.key);
+  return new Promise(res => {
+    if(askRes){ askRes(null); }           /* 열려 있던 것이 있으면 닫습니다 */
+    askRes = res; askDef = fs;
+    document.getElementById('askIc').textContent  = o.icon || '📝';
+    document.getElementById('askTi').textContent  = o.title || '적어 주세요';
+    document.getElementById('askSub').textContent = o.note || '';
+    document.getElementById('askGo').textContent  = o.ok || '확인';
+    document.getElementById('askBody').innerHTML = fs.map((f, i) => {
+      const id = 'ask_' + f.key;
+      const v  = f.value == null ? '' : String(f.value);
+      const lab = '<label for="' + id + '">' + esc(f.label || f.key)
+        + (f.required ? ' <i class="req">*</i>' : '') + '</label>';
+      let box;
+      if(f.type === 'textarea'){
+        box = '<textarea id="' + id + '" rows="' + (f.rows || 4) + '" placeholder="'
+          + esc(f.ph || '') + '">' + esc(v) + '</textarea>';
+      }else if(f.type === 'select'){
+        const opts = (f.options || []).map(x =>
+          (x && typeof x === 'object') ? x : { value: x, label: x });
+        box = '<select id="' + id + '">' + opts.map(x =>
+          '<option value="' + esc(x.value) + '"' + (String(x.value) === v ? ' selected' : '')
+          + '>' + esc(x.label === '' ? '— 없음 —' : x.label) + '</option>').join('') + '</select>';
+      }else if(f.type === 'check'){
+        box = '<label class="pw-see"><input type="checkbox" id="' + id + '"'
+          + (v && v !== 'false' ? ' checked' : '') + '><span>'
+          + esc(f.ph || '그렇게 합니다') + '</span></label>';
+      }else{
+        box = '<input type="' + (f.type === 'pw' ? 'password' : 'text') + '" id="' + id + '"'
+          + ' value="' + esc(v) + '" placeholder="' + esc(f.ph || '') + '"'
+          + ' autocomplete="off"' + (i === 0 ? ' data-first="1"' : '') + '>';
+      }
+      return '<div class="pw-f' + (f.type === 'check' ? ' chk' : '') + '">'
+        + (f.type === 'check' ? '' : lab) + box
+        + (f.hint ? '<div class="pw-hint">' + esc(f.hint) + '</div>' : '')
+        + '</div>';
+    }).join('')
+      + (o.foot ? '<div class="ask-foot">' + o.foot + '</div>' : '')
+      + '<div class="pw-err" id="askErr"></div>';
+    document.getElementById('askModal').classList.add('open');
+    setTimeout(() => {
+      const el = document.querySelector('#askBody [data-first], #askBody input, '
+        + '#askBody textarea, #askBody select');
+      if(el){ el.focus(); if(el.select) try{ el.select(); }catch(e){} }
+    }, 40);
+  });
+}
+/* 한 칸만 묻던 prompt 를 그대로 갈음합니다 — 첫 줄이 제목, 나머지가 설명 */
+async function askOne(msg, def, opt){
+  const lines = String(msg || '').split('\n').filter(x => x.trim());
+  const v = await askForm(Object.assign({
+    icon: (opt && opt.icon) || '📝',
+    title: lines[0] || '적어 주세요',
+    note: lines.slice(1).join(' '),
+    fields: [{ key:'v', label:(opt && opt.label) || '', value: def == null ? '' : def,
+               ph:(opt && opt.ph) || '' }]
+  }, (opt && opt.more) || {}));
+  return v ? v.v : null;
+}
+function askClose(v){
+  const r = askRes; askRes = null; askDef = null;
+  document.getElementById('askModal').classList.remove('open');
+  if(r) r(v);
+}
+function askCancel(){ askClose(null); }
+function askOk(){
+  if(!askDef) return askClose(null);
+  const out = {};
+  for(const f of askDef){
+    const el = document.getElementById('ask_' + f.key);
+    if(!el) continue;
+    const v = (f.type === 'check') ? !!el.checked : String(el.value || '');
+    if(f.required && !(f.type === 'check' ? v : String(v).trim())){
+      const er = document.getElementById('askErr');
+      if(er){ er.textContent = '「' + (f.label || f.key) + '」 을(를) 적어 주세요.';
+        er.classList.add('on'); }
+      el.focus(); return;
+    }
+    out[f.key] = (f.type === 'check') ? v : String(v);
+  }
+  askClose(out);
+}
+/* 한 줄짜리 칸에서 Enter 는 [확인], Esc 는 [취소] */
+document.addEventListener('keydown', (e) => {
+  if(!askRes) return;
+  const box = document.getElementById('askModal');
+  if(!box || !box.classList.contains('open')) return;
+  if(e.key === 'Escape'){ e.preventDefault(); askCancel(); return; }
+  if(e.key === 'Enter' && e.target && e.target.tagName !== 'TEXTAREA'){
+    e.preventDefault(); askOk();
+  }
+}, true);
+
 /* ── 🔑 비밀번호 바꾸기 ────────────────────────────────────────────
    전에는 prompt 창이 셋 잇달아 떴습니다. 적은 것이 안 보이고, 뒤로
    갈 수도 없고, 세 번째에 가서야 「서로 다릅니다」 를 들었습니다.
@@ -32535,18 +32735,25 @@ function openUsers(){ auth.showUsers = true; auth.users = null; loadUsers(); }
 function closeUsers(){ auth.showUsers = false; render(); }
 
 async function addUser(){
-  const id = prompt('새 사람의 아이디를 지어주세요.\n\n영문·숫자 2~32글자 (예: kim.mk)');
-  if(id === null || !id.trim()) return;
-  const nm = prompt('이름을 넣어주세요. (화면에 보일 이름)', id.trim());
-  if(nm === null) return;
-  const pw = prompt('처음 쓸 비밀번호를 정해주세요.\n\n'
-    + '8글자 이상, 숫자만은 안 됩니다.\n본인에게 알려주고 바꾸게 하세요.');
-  if(pw === null) return;
-  const admin = confirm('이 사람을 관리자로 할까요?\n\n'
-    + '관리자는 사람을 넣고 빼고, 퇴사 처리를 할 수 있습니다.\n'
-    + '[취소] 를 누르면 일반 팀원이 됩니다.');
+  /* 전에는 창이 넷이었습니다 — 아이디 · 이름 · 비밀번호 · 관리자 여부.
+     마지막에 가서야 아이디를 잘못 적은 것을 알곤 했습니다. */
+  const v = await askForm({
+    icon: '👤', title: '사람 추가', ok: '넣기',
+    note: '들어올 수 있는 사람을 하나 더합니다',
+    fields: [
+      { key:'id',   label:'아이디', required:true, ph:'예: kim.mk',
+        hint:'영문·숫자 2~32글자. 나중에 바꿀 수 없습니다' },
+      { key:'name', label:'이름',   required:true, ph:'화면에 보일 이름' },
+      { key:'pw',   label:'처음 쓸 비밀번호', type:'pw', required:true,
+        ph:'8글자 이상 · 숫자만은 안 됩니다',
+        hint:'본인에게 알려주고 들어와서 바꾸게 하세요' },
+      { key:'admin', type:'check', ph:'관리자로 만들기 (사람을 넣고 빼고 퇴사 처리)' }
+    ]
+  });
+  if(!v) return;
   try{
-    const o = await authPost('adduser', { id:id.trim(), name:nm.trim(), pw:pw, admin:admin });
+    const o = await authPost('adduser', { id:v.id.trim(), name:v.name.trim(),
+      pw:v.pw, admin:!!v.admin });
     toast('✅ ' + (o['안내'] || '넣었습니다'));
     loadUsers();
   }catch(e){ alert(e.message); }
@@ -32561,7 +32768,7 @@ async function setUser(id, patch, ask){
   }catch(e){ alert(e.message); }
 }
 async function resetPw(id){
-  const pw = prompt(id + ' 의 비밀번호를 새로 정합니다.\n\n'
+  const pw = await askOne(id + ' 의 비밀번호를 새로 정합니다.\n\n'
     + '8글자 이상, 숫자만은 안 됩니다.\n본인에게 알려주고 바꾸게 하세요.');
   if(pw === null || !pw) return;
   setUser(id, { pw: pw });

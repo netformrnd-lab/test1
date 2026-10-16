@@ -342,6 +342,32 @@ body.tt-wide .layout{max-width:1820px}
 .lk-only .fmeta{width:100%;margin:0;line-height:1.75}
 .lk-only button{margin-left:auto}
 /* 📌 저쪽에 부탁할 자리·이름 — 눈에 잘 띄게 */
+/* 🔑 비밀번호 바꾸기 창 */
+.pw-f{margin-bottom:14px}
+.pw-f label{display:block;font-size:12px;font-weight:700;letter-spacing:-.01em;
+  color:var(--text-secondary);margin-bottom:5px}
+.pw-f input[type=password],.pw-f input[type=text]{width:100%;font-size:14px;
+  padding:9px 11px;border:1px solid var(--border);border-radius:var(--r-xs);
+  background:var(--bg-input);color:var(--text-primary);font-family:inherit}
+.pw-f input:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+.pw-bar{height:3px;border-radius:99px;background:var(--bg-sunken);margin:7px 0 5px;
+  overflow:hidden}
+.pw-bar i{display:block;height:100%;width:0;border-radius:99px;
+  transition:width .18s var(--ease),background .18s var(--ease)}
+.pw-bar i.bad{background:var(--red,#d93b3b)}
+.pw-bar i.mid{background:var(--orange,#e08a2e)}
+.pw-bar i.ok{background:var(--green,#2e7d52)}
+.pw-hint{font-size:11.5px;line-height:1.6;color:var(--text-muted)}
+.pw-hint.ok{color:var(--green,#2e7d52);font-weight:700}
+.pw-hint.bad{color:var(--red,#d93b3b);font-weight:700}
+.pw-see{display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer;
+  color:var(--text-secondary);margin-top:2px}
+.pw-err{display:none;margin-top:12px;padding:9px 12px;font-size:12.5px;line-height:1.7;
+  border:1px solid var(--red,#d93b3b);border-radius:var(--r-xs);
+  background:rgba(217,59,59,.07);color:var(--red,#d93b3b);font-weight:600}
+.pw-err.on{display:block}
+#pwGo:disabled{opacity:.4;cursor:default}
 /* ✎ 내부계정 표를 그 자리에서 고치기 */
 .xl td.xl-e{background:var(--bg-input);outline:1px solid var(--border);
   cursor:text;min-width:60px;white-space:pre-wrap}
@@ -5493,6 +5519,48 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
     <div class="pjm-b" id="accDiagBox"></div>
   </div>
 </div>
+<!-- 🔑 비밀번호 바꾸기 — 「내 계정」 창과 같은 생김새로 -->
+<div class="modal-bg" id="pwModal" onclick="if(event.target===this)closeModal('pwModal')">
+  <div class="pjm">
+    <div class="pjm-h">
+      <span class="pjm-ic">🔑</span>
+      <div class="pjm-ti">
+        <div class="pjm-t">비밀번호 바꾸기</div>
+        <div class="pjm-s" id="pwWho">지금 쓰는 비밀번호를 새것으로 바꿉니다</div>
+      </div>
+      <button class="pjm-x" onclick="closeModal('pwModal')" title="닫기">×</button>
+    </div>
+    <div class="pjm-b">
+      <div class="pw-f">
+        <label for="pwOld">지금 비밀번호</label>
+        <input type="password" id="pwOld" autocomplete="current-password"
+               placeholder="지금 쓰고 계신 것" oninput="pwTick()">
+      </div>
+      <div class="pw-f">
+        <label for="pwNew">새 비밀번호</label>
+        <input type="password" id="pwNew" autocomplete="new-password"
+               placeholder="8글자 이상 · 숫자만은 안 됩니다"
+               oninput="pwTick()">
+        <div class="pw-bar"><i id="pwBar"></i></div>
+        <div class="pw-hint" id="pwHint">8글자 이상, 숫자만은 안 됩니다</div>
+      </div>
+      <div class="pw-f">
+        <label for="pwNew2">새 비밀번호 한 번 더</label>
+        <input type="password" id="pwNew2" autocomplete="new-password"
+               placeholder="같은 것을 한 번 더" oninput="pwTick()"
+               onkeydown="if(event.key==='Enter')pwSubmit()">
+        <div class="pw-hint" id="pwSame"></div>
+      </div>
+      <label class="pw-see"><input type="checkbox" id="pwSee" onchange="pwShow(this.checked)">
+        <span>적은 것 보이기</span></label>
+      <div class="pw-err" id="pwErr"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('pwModal')">취소</button>
+      <button class="btn primary" id="pwGo" onclick="pwSubmit()">바꾸기</button>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="accImpModal" onclick="if(event.target===this)closeModal('accImpModal')">
   <div class="pjm wide">
     <div class="pjm-h">
@@ -5561,7 +5629,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-17';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-18';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -32370,18 +32438,87 @@ async function doLogout(){
   location.reload();
 }
 
-async function changePw(){
-  const old = prompt('지금 쓰는 비밀번호를 넣어주세요.');
-  if(old === null) return;
-  const nw = prompt('새 비밀번호를 넣어주세요.\n\n8글자 이상, 숫자만은 안 됩니다.');
-  if(nw === null) return;
-  const n2 = prompt('한 번 더 넣어주세요.');
-  if(n2 === null) return;
-  if(nw !== n2){ alert('두 번 넣은 것이 서로 다릅니다.'); return; }
+/* ── 🔑 비밀번호 바꾸기 ────────────────────────────────────────────
+   전에는 prompt 창이 셋 잇달아 떴습니다. 적은 것이 안 보이고, 뒤로
+   갈 수도 없고, 세 번째에 가서야 「서로 다릅니다」 를 들었습니다.
+   「내 계정」 창과 같은 생김새의 창 하나로 바꿉니다 — 세 칸이 한눈에
+   보이고, 적는 동안 세기와 맞는지를 바로 알려 줍니다. */
+function changePw(){
+  const m = authMe();
+  const w = document.getElementById('pwWho');
+  if(w) w.textContent = m
+    ? (m['이름'] || m.id) + ' (' + m.id + ') 님의 비밀번호를 바꿉니다'
+    : '지금 쓰는 비밀번호를 새것으로 바꿉니다';
+  ['pwOld', 'pwNew', 'pwNew2'].forEach(k => {
+    const e = document.getElementById(k); if(e) e.value = '';
+  });
+  const see = document.getElementById('pwSee'); if(see) see.checked = false;
+  pwShow(false); pwTick();
+  const er = document.getElementById('pwErr');
+  if(er){ er.textContent = ''; er.classList.remove('on'); }
+  document.getElementById('pwModal').classList.add('open');
+  setTimeout(() => { const e = document.getElementById('pwOld'); if(e) e.focus(); }, 40);
+}
+function pwShow(on){
+  ['pwOld', 'pwNew', 'pwNew2'].forEach(k => {
+    const e = document.getElementById(k); if(e) e.type = on ? 'text' : 'password';
+  });
+}
+/* 얼마나 센가 — 자물쇠가 이것 하나뿐이라 세기를 눈으로 보여 줍니다 */
+function pwScore(v){
+  const t = String(v || '');
+  if(!t) return 0;
+  let n = 0;
+  if(t.length >= 8) n++;
+  if(t.length >= 12) n++;
+  if(/[a-zA-Z]/.test(t) && /[0-9]/.test(t)) n++;
+  if(/[^a-zA-Z0-9]/.test(t)) n++;
+  if(/^[0-9]+$/.test(t)) n = 0;            /* 숫자만은 안 됩니다 */
+  return Math.min(4, n);
+}
+function pwTick(){
+  const nw = (document.getElementById('pwNew') || {}).value || '';
+  const n2 = (document.getElementById('pwNew2') || {}).value || '';
+  const sc = pwScore(nw);
+  const bar = document.getElementById('pwBar');
+  if(bar){ bar.style.width = (sc * 25) + '%';
+    bar.className = sc >= 3 ? 'ok' : (sc === 2 ? 'mid' : 'bad'); }
+  const h = document.getElementById('pwHint');
+  if(h) h.textContent = !nw ? '8글자 이상, 숫자만은 안 됩니다'
+    : /^[0-9]+$/.test(nw) ? '⚠️ 숫자만은 안 됩니다'
+    : nw.length < 8 ? '⚠️ 8글자가 안 됩니다 (지금 ' + nw.length + '글자)'
+    : ['', '조금 약합니다', '쓸 만합니다', '좋습니다', '아주 좋습니다'][sc];
+  const sm = document.getElementById('pwSame');
+  if(sm){
+    sm.textContent = !n2 ? '' : (nw === n2 ? '✓ 같습니다' : '⚠️ 서로 다릅니다');
+    sm.className = 'pw-hint' + (n2 && nw === n2 ? ' ok' : (n2 ? ' bad' : ''));
+  }
+  /* 지금 비밀번호까지 적혀야 누를 수 있습니다 — 안 그러면 다 적은
+     줄 알고 눌렀다가 「지금 비밀번호를 넣어 주세요」 를 듣습니다 */
+  const od = (document.getElementById('pwOld') || {}).value || '';
+  const go = document.getElementById('pwGo');
+  if(go) go.disabled = !(od && nw && n2 && nw === n2
+    && nw.length >= 8 && !/^[0-9]+$/.test(nw));
+}
+async function pwSubmit(){
+  const old = (document.getElementById('pwOld') || {}).value || '';
+  const nw  = (document.getElementById('pwNew') || {}).value || '';
+  const n2  = (document.getElementById('pwNew2') || {}).value || '';
+  const er  = document.getElementById('pwErr');
+  const bad = (t) => { if(er){ er.textContent = t; er.classList.add('on'); } };
+  if(er){ er.textContent = ''; er.classList.remove('on'); }
+  if(!old) return bad('지금 쓰는 비밀번호를 넣어 주세요.');
+  if(nw !== n2) return bad('새 비밀번호를 두 번 넣은 것이 서로 다릅니다.');
+  if(nw.length < 8) return bad('새 비밀번호는 8글자 이상이어야 합니다.');
+  if(/^[0-9]+$/.test(nw)) return bad('숫자만으로는 쓸 수 없습니다.');
+  const go = document.getElementById('pwGo');
+  if(go){ go.disabled = true; go.textContent = '바꾸는 중…'; }
   try{
     const o = await authPost('passwd', { old: old, new: nw });
-    alert(o['안내'] || '바꿨습니다.');
-  }catch(e){ alert(e.message); }
+    closeModal('pwModal');
+    toast('🔑 ' + (o['안내'] || '비밀번호를 바꿨습니다'));
+  }catch(e){ bad(e.message || '바꾸지 못했습니다.'); }
+  finally{ if(go){ go.textContent = '바꾸기'; pwTick(); } }
 }
 
 /* ---- 사람 관리 (관리자) ---- */

@@ -5658,7 +5658,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-24';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-25';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7598,7 +7598,10 @@ function hubGo(id){
   apiJson('nasfiles.php?action=hubinfo&path=' + encodeURIComponent(pth)
     + (wnt ? '&want=' + encodeURIComponent(wnt) : ''))
     .then(r => toast('↗ ' + (r['파일'] || '') + ' · ' + (r['고친때'] || '') + ' 판'))
-    .catch(() => {});
+    .catch(e => {
+      /* 막혀 있으면 새 창에도 빨간 글이 떴을 것이니, 여기서 풀어 줍니다 */
+      if(e && e['등록하면됨']) lkAskReg(e, pth).then(okd => { if(okd) hubCheck(id); });
+    });
 }
 /* 걸어 둔 자리에서 무엇이 열릴지 미리 알려 줍니다 — 열어 보지 않고 확인용 */
 async function hubCheck(id){
@@ -7638,10 +7641,13 @@ async function hubCheck(id){
                 + '\n\n판 번호가 가장 큰 것을 엽니다 (V06 이 올라오면 그쪽으로 바뀝니다).'
               : '판이 올라가도 이 폴더만 보면 되니, 다시 걸 일은 없습니다.')));
   }catch(e){
+    /* 📂 다른 팀 폴더는 처음에 막혀 있습니다 — 그 자리에서 허락받고
+       다시 해 봅니다 (할 일 연동 때 쓰는 것과 같은 길입니다) */
+    if(e && e['등록하면됨'] && await lkAskReg(e, pth)){ hubCheck(id); return; }
     alert('❌ 아직 못 찾았습니다.\n\n' + apiErrText(e)
       + '\n\n· 적어 둔 자리: ' + pth
-      + '\n· NAS 가 읽는 공유폴더 안쪽이어야 합니다'
-      + ' (업무 → 📁 NAS 자료 에서 훑는 폴더를 확인해 주세요)');
+      + '\n· 다른 팀 폴더면 [📂 폴더 허락] 으로 한 번 등록해야 합니다'
+      + ' (할 일 화면 아래 연동 칸에 있습니다)');
   }
 }
 async function hubEdit(id){

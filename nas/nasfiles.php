@@ -1530,9 +1530,17 @@ if ($action === 'hub' || $action === 'hubinfo') {
     $real = null; $tried = [];
     [$dir, $tried] = resolve_nas_dir($in);
     /* 공유폴더 밖이면 안을 들여다보지도 않습니다 (있는지조차 알려주지 않게) */
-    if ($dir !== null && !under_roots(realpath($dir) ?: $dir)) {
-        jout(['ok' => false, 'error' => '공유폴더 안쪽이 아니어서 열지 않았습니다. '
-            . 'NAS 가 훑는 폴더 안에 있는 자리를 적어 주세요.'], 403);
+    /* ── 📂 다른 팀 폴더도 <<등록해 두었으면>> 엽니다 ────────────────
+       NAS 가 읽도록 정해 둔 폴더(nasroot)는 우리 팀 것뿐입니다. 그래서
+       미디어마케팅팀 자리를 걸면 여기서 403 이 났습니다 — 할 일 연동
+       때 풀어 둔 「연동용으로 등록한 폴더」 를 허브는 안 보고 있었습니다.
+       같은 목록(ts_allowed)을 여기서도 봅니다. 읽기만 합니다. */
+    if ($dir !== null && !ts_allowed(realpath($dir) ?: $dir)) {
+        jout(['ok' => false, 'error' => '폴더는 찾았는데, 아직 볼 수 있게 허락되지 않았습니다.',
+              '등록하면됨' => true, '찾은폴더' => realpath($dir) ?: $dir,
+              '지금허락된곳' => array_merge(roots_all(), ts_dirs_get()),
+              '안내' => 'NAS 가 읽도록 정해 둔 폴더는 우리 팀 것뿐입니다. 다른 팀 폴더를 '
+                      . '보려면 <<연동용으로 한 번 등록>> 하면 됩니다 (읽기만 합니다).'], 403);
     }
     if ($dir !== null) {
         $list = hub_pick($dir, $want);
@@ -1548,9 +1556,10 @@ if ($action === 'hub' || $action === 'hubinfo') {
         /* 폴더가 아니면 파일로 봅니다 — 위 폴더를 찾아 그 안에서 이름으로 */
         [$up, $tried2] = resolve_nas_dir(dirname($in));
         $tried = array_merge($tried, $tried2);
-        if ($up !== null && !under_roots(realpath($up) ?: $up)) {
-            jout(['ok' => false, 'error' => '공유폴더 안쪽이 아니어서 열지 않았습니다. '
-                . 'NAS 가 훑는 폴더 안에 있는 자리를 적어 주세요.'], 403);
+        if ($up !== null && !ts_allowed(realpath($up) ?: $up)) {
+            jout(['ok' => false, 'error' => '폴더는 찾았는데, 아직 볼 수 있게 허락되지 않았습니다.',
+                  '등록하면됨' => true, '찾은폴더' => realpath($up) ?: $up,
+                  '지금허락된곳' => array_merge(roots_all(), ts_dirs_get())], 403);
         }
         if ($up !== null) {
             $want = nas_name_key(basename($in));
@@ -1570,8 +1579,9 @@ if ($action === 'hub' || $action === 'hubinfo') {
     }
 
     $rr = realpath($real);
-    if ($rr === false || !under_roots($rr)) {
-        jout(['ok' => false, 'error' => '공유폴더 안쪽이 아니어서 열지 않았습니다: ' . $real], 403);
+    if ($rr === false || !ts_allowed($rr)) {
+        jout(['ok' => false, 'error' => '아직 볼 수 있게 허락되지 않은 자리입니다: ' . $real,
+              '등록하면됨' => true, '찾은폴더' => $rr !== false ? dirname($rr) : ''], 403);
     }
     $ext = strtolower(pathinfo($rr, PATHINFO_EXTENSION));
     if ($ext !== 'html' && $ext !== 'htm') {

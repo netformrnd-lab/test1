@@ -1688,22 +1688,88 @@ if ($action === 'hub' || $action === 'hubinfo') {
               '후보' => $names]);
     }
 
-    /* ── 🔄 <<늘 지금 것을 보내 줍니다>> ─────────────────────────────
-       「max-age=0」 만으로는 모자랐습니다. 견줄 거리(ETag · Last-Modified)
-       를 안 줬더니 브라우저가 제 마음대로 받아 둔 것을 다시 썼고,
-       그래서 그쪽이 새 판을 올려도 <<지난 판이 열렸습니다>>.
-       아예 담아 두지 말라고 못 박고, 언제 고친 것인지도 같이 보냅니다. */
+    /* ── ⚡ <<빨리 열리게 · 그래도 늘 지금 것으로>> ──────────────────
+       미마팀 프로그램은 24MB 짜리 한 장입니다. 여태는 「아예 담아 두지
+       말라(no-store)」 고 못 박아서, 누를 때마다 24MB 를 통째로 다시
+       받았습니다 — 그래서 한참 걸렸습니다.
+
+       이제 이렇게 합니다 —
+         · 담아는 두되(no-cache), <<열 때마다 반드시 물어봅니다>>
+         · 안 바뀌었으면 304 한 줄만 옵니다 (0 바이트 · 눈 깜짝할 새)
+         · 바뀌었으면 그때만 새것을 통째로 받습니다
+         · 받을 때도 <<눌러서(gzip)>> 보냅니다 — 24MB 가 몇 MB 로 줄어듭니다
+       「지난 판이 열리던」 일은 안 생깁니다. 물어보는 건 늘 하니까요. */
+    $hmt = (int)@filemtime($rr);
+    $hsz = (int)@filesize($rr);
+    $etag = '"h' . $hmt . '-' . $hsz . '"';
     header('Content-Type: text/html; charset=utf-8');
     header('X-Content-Type-Options: nosniff');
     header('X-Hub-File: ' . rawurlencode(basename($rr)));
     header('X-Hub-Dir: ' . rawurlencode($dir));
-    header('X-Hub-When: ' . date('Y-m-d H:i:s', (int)@filemtime($rr)));
-    header('Last-Modified: ' . gmdate('D, d M Y H:i:s', (int)@filemtime($rr)) . ' GMT');
-    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-    header('Pragma: no-cache');
-    header('Expires: 0');
-    while (ob_get_level()) ob_end_flush();
-    readfile($rr);
+    header('X-Hub-When: ' . date('Y-m-d H:i:s', $hmt));
+    header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $hmt) . ' GMT');
+    header('ETag: ' . $etag);
+    header('Cache-Control: no-cache, must-revalidate, max-age=0');
+    header('Vary: Accept-Encoding');
+
+    /* 안 바뀌었으면 — 한 줄만 보내고 끝냅니다 */
+    $inm = trim((string)($_SERVER['HTTP_IF_NONE_MATCH'] ?? ''));
+    $ims = strtotime((string)($_SERVER['HTTP_IF_MODIFIED_SINCE'] ?? '')) ?: 0;
+    if (($inm !== '' && (strpos($inm, $etag) !== false || trim($inm) === 'W/' . $etag))
+        || ($inm === '' && $ims > 0 && $hmt > 0 && $hmt <= $ims)) {
+        header('X-Hub-Same: 1');
+        http_response_code(304);
+        while (ob_get_level()) ob_end_clean();
+        exit;
+    }
+
+    /* 눌러서 보내기 — 한 번 눌러 두고 다음부터는 그것을 씁니다.
+       (고친 때·크기가 바뀌면 다시 누릅니다) */
+    $gz = null;
+    $acc = (string)($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '');
+    if ($hsz > 262144 && $hsz < 157286400 && stripos($acc, 'gzip') !== false
+        && function_exists('gzopen')) {
+        $cdir = __DIR__ . '/data/hubgz';
+        if (!is_dir($cdir)) @mkdir($cdir, 0775, true);
+        if (is_dir($cdir) && is_writable($cdir)) {
+            $cf = $cdir . '/' . sha1($rr) . '-' . $hmt . '-' . $hsz . '.gz';
+            if (!is_file($cf)) {
+                /* 조금씩 읽어 조금씩 누릅니다 — 24MB 를 통째로 들고 있지
+                   않으려고요 (NAS 의 PHP 는 쓸 수 있는 메모리가 적습니다) */
+                $t   = $cf . '.tmp' . getmypid();
+                $in  = @fopen($rr, 'rb');
+                $out = $in ? @gzopen($t, 'wb6') : false;
+                $good = false;
+                if ($in && $out) {
+                    $good = true;
+                    while (!feof($in)) {
+                        $b = @fread($in, 1048576);
+                        if ($b === false) { $good = false; break; }
+                        if ($b === '') break;
+                        if (@gzwrite($out, $b) === false) { $good = false; break; }
+                    }
+                }
+                if ($in) @fclose($in);
+                if ($out) @gzclose($out);
+                if ($good && @rename($t, $cf)) { @chmod($cf, 0664); }
+                else { @unlink($t); }
+                /* 묵은 것들은 치웁니다 — 판이 올라갈 때마다 쌓이니까 */
+                foreach ((array)@glob($cdir . '/*.gz') as $oldgz) {
+                    if ($oldgz !== $cf && @filemtime($oldgz) < time() - 86400 * 14) @unlink($oldgz);
+                }
+            }
+            if (is_file($cf)) $gz = $cf;
+        }
+    }
+    while (ob_get_level()) ob_end_clean();
+    if ($gz !== null) {
+        header('Content-Encoding: gzip');
+        header('Content-Length: ' . (string)(int)@filesize($gz));
+        readfile($gz);
+    } else {
+        header('Content-Length: ' . (string)$hsz);
+        readfile($rr);
+    }
     exit;
 }
 

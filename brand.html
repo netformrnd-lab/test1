@@ -5658,7 +5658,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-19';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-20';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17009,9 +17009,7 @@ function projSubFlip(tid, bid, i){
   const t = b && (b.tasks || []).find(x => x.id === tid);
   const x = t && projSubs(t)[i];
   if(!x){ render(); return; }
-  const k = SUB_ST.findIndex(y => y[0] === x.st);
-  x.st = SUB_ST[(k + 1) % SUB_ST.length][0];
-  x.pct = x.st === '끝' ? '100' : x.st === '할일' ? '0' : String(parseInt(x.pct, 10) || 50);
+  subStNext(x);
   /* 「지금 하는 일」 은 보조 업무 상태에서 <<그때그때 뽑아>> 보여 줍니다.
      따로 적어 두지 않습니다 — 적어 두면 이름을 고치거나 상태가 엇갈릴 때
      옛 「▶」 가 영영 남습니다. */
@@ -17154,6 +17152,36 @@ function jrHead(iso){
    ------------------------------------------------------------- */
 const PROJ_PRIO = [['높음','🔴'], ['보통','🟡'], ['낮음','🟢']];
 const SUB_ST = [['할일','○'], ['진행','▶'], ['끝','✓']];
+/* ── ⏸ 상태를 넘겨도 <<퍼센트를 지우지 않습니다>> ──────────────────
+   「▶ 진행 80%」 에서 잠깐 멈추려고 상태를 넘기면, 여태는 「○ 할일」
+   이 되면서 80% 가 0 으로 밀렸습니다. 멈춘다고 해 둔 일이 없어지는
+   것은 아닌데, 적어 둔 숫자가 사라지니 다시 적어야 했습니다.
+     · 할일 ↔ 진행 — 퍼센트를 <<건드리지 않습니다>>
+     · ✓ 끝 으로 갈 때만 100 으로 올리고, 올리기 전 값을 적어 둡니다
+     · 끝에서 나오면 적어 둔 그 값을 <<돌려 놓습니다>> (pctWas)
+   -------------------------------------------------------------- */
+function subStNext(x){
+  const k   = SUB_ST.findIndex(y => y[0] === x.st);
+  const was = x.st;
+  x.st = SUB_ST[(k + 1) % SUB_ST.length][0];
+  if(x.st === '끝'){
+    if(String(x.pct) !== '100') x.pctWas = String(x.pct == null ? '' : x.pct);
+    x.pct = '100';
+  }else if(was === '끝'){
+    x.pct = (x.pctWas != null && x.pctWas !== '') ? x.pctWas : '0';
+    delete x.pctWas;
+  }
+  return x;
+}
+/* 단추에 「누르면 무엇이 되는지」 를 적어 둡니다 */
+function subStTip(st){
+  const k = SUB_ST.findIndex(y => y[0] === st);
+  const nx = SUB_ST[((k < 0 ? 0 : k) + 1) % SUB_ST.length];
+  const nm = { '할일':'○ 할일 (잠깐 멈춤)', '진행':'▶ 진행', '끝':'✓ 끝' }[nx[0]] || nx[0];
+  return '눌러서 ' + nm + ' 으로'
+    + (nx[0] === '끝' ? ' — 100% 가 됩니다 (되돌리면 지금 값으로 돌아옵니다)'
+                      : ' — 적어 둔 %는 그대로 둡니다');
+}
 let projAt = null;          // { id, bid } — 지금 고치는 프로젝트
 let projDraft = null;       // 창에서 만지작거리는 사본
 function projSubs(t){ return Array.isArray(t.subs) ? t.subs : []; }
@@ -17304,7 +17332,7 @@ function projPaint(){
                 const k = SUB_ST.indexOf(m);
                 return '<div class="pj-sub' + (x.st === '끝' ? ' done' : '') + '">'
                   + '<button class="pj-st s' + k + '" onclick="projSubSt(' + i + ')"'
-                    + ' title="상태 바꾸기 — 할일 → 진행 → 끝">' + m[1] + '</button>'
+                    + ' title="' + esc(subStTip(x.st)) + '">' + m[1] + '</button>'
                   + '<input value="' + esc(x.title) + '"'
                     + ' oninput="projDraft.subs[' + i + '].title=this.value"'
                     + ' onkeydown="if(event.key===\'Enter\')this.blur()" placeholder="보조 업무 이름">'
@@ -17344,10 +17372,7 @@ function projSubPct(i, v){
 }
 function projSubSt(i){
   const x = projDraft && projDraft.subs[i]; if(!x) return;
-  const k = SUB_ST.findIndex(y => y[0] === x.st);
-  x.st = SUB_ST[(k + 1) % SUB_ST.length][0];
-  if(x.st === '끝') x.pct = '100';
-  else if(x.st === '할일') x.pct = '0';
+  subStNext(x);
   projPaint();
 }
 function projSubDel(i){
@@ -17391,7 +17416,11 @@ function projSave(){
   t.owner = d.owner; t.start = d.start; t.due = d.due;
   t.prio = d.prio; t.note = d.note;
   t.year = String(d.year || ''); t.half = String(d.half || '');
-  t.subs = d.subs.map(x => ({ id:x.id, title:x.title, st:x.st, pct:x.pct }));
+  t.subs = d.subs.map(x => {
+    const o = { id:x.id, title:x.title, st:x.st, pct:x.pct };
+    if(x.pctWas != null && x.pctWas !== '') o.pctWas = String(x.pctWas);
+    return o;
+  });
   if(String(avg) !== String(parseInt(t.pct, 10) || 0)) t.pctAt = todayStr();
   t.pct = String(avg);
   t.kind = '프로젝트';
@@ -18174,7 +18203,7 @@ function memCard(m, t, hue, rows){
               const k  = SUB_ST.indexOf(m);
               const sp = Math.max(0, Math.min(100, parseInt(x.pct, 10) || 0));
               return '<div class="pja-s' + (x.st === '끝' ? ' done' : '') + '">'
-                + '<button class="pja-st s' + k + '" title="상태 넘기기 — 할일 → 진행 → 끝"'
+                + '<button class="pja-st s' + k + '" title="' + esc(subStTip(x.st)) + '"'
                   + ' onclick="projSubFlip(' + q2 + ',' + i + ')">' + m[1] + '</button>'
                 + '<span class="pja-t" title="' + esc(x.title) + '">'
                   + esc(x.title || '이름 없음') + '</span>'

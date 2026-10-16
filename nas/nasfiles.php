@@ -1495,26 +1495,22 @@ function hub_pick($dir, $want = '') {
             }
         }
     }
-    /* ── 📅 <<새로 고친 것이 먼저>> ──────────────────────────────────
-       여태는 못 박아 둔 이름이 무조건 이겼습니다. 그래서 그쪽이 새 판을
-       <<다른 이름으로>> 올리고 옛 mediam_TeamHub.html 을 그대로 두면,
-       우리는 영영 지난 판만 열었습니다 (v2.2.0 이 계속 열리던 까닭).
+    /* ── 📌 <<못 박은 이름이 언제나 이깁니다>> ────────────────────────
+       한동안은 「제일 새로 고친 것」 을 먼저 봤습니다. 그랬더니 이런 일이
+       났습니다 — 그쪽이 프로그램과 설명서를 <<한꺼번에>> 올렸는데,
+       설명서(읽기_…변경요약.html · 266KB)가 <<몇 초 늦게>> 들어왔습니다.
+       탐색기에는 둘 다 「07:54」 로 보이지만 초가 달랐고, 그래서 우리는
+       24MB 짜리 프로그램을 놔두고 <<설명서를 폈습니다>>.
 
-       이제 이렇게 가립니다 —
-         · 못 박은 이름이 <<제일 새것이면>> 그것을 엽니다 (평소)
-         · 더 새로 고친 파일이 있으면 <<그것을>> 엽니다
-       이름을 못 박아 두는 뜻(자리가 안 흔들림)은 그대로 살리면서,
-       새 판을 놓치지 않습니다. */
+       이름을 못 박아 두는 뜻은 「판이 올라가도 늘 그 파일」 입니다.
+       그러니 못 박은 이름이 있으면 <<무조건>> 그것을 엽니다.
+       대신, 더 새로 고친 다른 파일이 있으면 [?] 에서 알려 줍니다 —
+       고르는 건 우리가 하지 않고 눈으로 보고 사람이 정합니다. */
     $wk = hub_name_key($want);
-    $newest = 0;
-    foreach ($cands as $c) { $m = (int)@filemtime($c); if ($m > $newest) $newest = $m; }
-    usort($cands, function ($a, $b) use ($dir, $wk, $newest) {
+    usort($cands, function ($a, $b) use ($dir, $wk) {
         if ($wk !== '') {
-            /* 못 박은 이름이되, <<제일 새것일 때만>> 앞세웁니다 */
-            $fa = (hub_name_key(basename($a)) === $wk
-                   && (int)@filemtime($a) >= $newest) ? 1 : 0;
-            $fb = (hub_name_key(basename($b)) === $wk
-                   && (int)@filemtime($b) >= $newest) ? 1 : 0;
+            $fa = hub_name_key(basename($a)) === $wk ? 1 : 0;
+            $fb = hub_name_key(basename($b)) === $wk ? 1 : 0;
             if ($fa !== $fb) return $fb <=> $fa;
         }
         /* 새로 고친 것 먼저 — 판 번호보다 날짜를 믿습니다 */
@@ -1668,10 +1664,14 @@ if ($action === 'hub' || $action === 'hubinfo') {
     if ($action === 'hubinfo') {
         /* 폴더에 무엇이 언제 치로 들어 있는지 — 「왜 옛 판이 열리나」 를
            눈으로 가릴 수 있게 날짜까지 같이 돌려줍니다 */
-        $all = [];
+        $all = []; $mine = (int)@filemtime($rr); $newer = ''; $newerAt = $mine;
         foreach (hub_pick($dir, $want) as $f) {
+            $m = (int)@filemtime($f);
+            /* 📅 못 박은 것 말고 <<더 새로 고친 것>> 이 있으면 짚어 줍니다.
+               몇 초 차이는 한꺼번에 올린 것이니 넘깁니다 (10분 넘게 새것만). */
+            if ($f !== $rr && $m > $newerAt + 600) { $newer = basename($f); $newerAt = $m; }
             $all[] = ['이름' => basename($f),
-                      '고친때' => date('Y-m-d H:i', (int)@filemtime($f)),
+                      '고친때' => date('Y-m-d H:i', $m),
                       '크기' => human((int)@filesize($f))];
             if (count($all) >= 12) break;
         }
@@ -1682,6 +1682,8 @@ if ($action === 'hub' || $action === 'hubinfo') {
               '정해둔것맞음' => ($want !== ''
                   && hub_name_key(basename($rr)) === hub_name_key($want)),
               '적어둔폴더' => (isset($said) && $said !== $dir) ? $said : '',
+              '더새것' => $newer,
+              '더새것때' => $newer !== '' ? date('Y-m-d H:i', $newerAt) : '',
               '폴더안' => $all,
               '후보' => $names]);
     }

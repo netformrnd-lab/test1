@@ -1477,14 +1477,31 @@ function hub_pick($dir, $want = '') {
             }
         }
     }
-    /* 못 박아 둔 이름 → 판 번호가 큰 것 → 새로 고친 것 → 큰 것 */
+    /* ── 📅 <<새로 고친 것이 먼저>> ──────────────────────────────────
+       여태는 못 박아 둔 이름이 무조건 이겼습니다. 그래서 그쪽이 새 판을
+       <<다른 이름으로>> 올리고 옛 mediam_TeamHub.html 을 그대로 두면,
+       우리는 영영 지난 판만 열었습니다 (v2.2.0 이 계속 열리던 까닭).
+
+       이제 이렇게 가립니다 —
+         · 못 박은 이름이 <<제일 새것이면>> 그것을 엽니다 (평소)
+         · 더 새로 고친 파일이 있으면 <<그것을>> 엽니다
+       이름을 못 박아 두는 뜻(자리가 안 흔들림)은 그대로 살리면서,
+       새 판을 놓치지 않습니다. */
     $wk = hub_name_key($want);
-    usort($cands, function ($a, $b) use ($dir, $wk) {
+    $newest = 0;
+    foreach ($cands as $c) { $m = (int)@filemtime($c); if ($m > $newest) $newest = $m; }
+    usort($cands, function ($a, $b) use ($dir, $wk, $newest) {
         if ($wk !== '') {
-            $fa = (hub_name_key(basename($a)) === $wk) ? 1 : 0;
-            $fb = (hub_name_key(basename($b)) === $wk) ? 1 : 0;
+            /* 못 박은 이름이되, <<제일 새것일 때만>> 앞세웁니다 */
+            $fa = (hub_name_key(basename($a)) === $wk
+                   && (int)@filemtime($a) >= $newest) ? 1 : 0;
+            $fb = (hub_name_key(basename($b)) === $wk
+                   && (int)@filemtime($b) >= $newest) ? 1 : 0;
             if ($fa !== $fb) return $fb <=> $fa;
         }
+        /* 새로 고친 것 먼저 — 판 번호보다 날짜를 믿습니다 */
+        $ma0 = (int)@filemtime($a); $mb0 = (int)@filemtime($b);
+        if ($ma0 !== $mb0) return $mb0 <=> $ma0;
         $ka = hub_ver(substr($a, strlen($dir)));
         $kb = hub_ver(substr($b, strlen($dir)));
         if ($ka !== $kb) return $kb <=> $ka;
@@ -1562,12 +1579,22 @@ if ($action === 'hub' || $action === 'hubinfo') {
     }
 
     if ($action === 'hubinfo') {
+        /* 폴더에 무엇이 언제 치로 들어 있는지 — 「왜 옛 판이 열리나」 를
+           눈으로 가릴 수 있게 날짜까지 같이 돌려줍니다 */
+        $all = [];
+        foreach (hub_pick($dir, $want) as $f) {
+            $all[] = ['이름' => basename($f),
+                      '고친때' => date('Y-m-d H:i', (int)@filemtime($f)),
+                      '크기' => human((int)@filesize($f))];
+            if (count($all) >= 12) break;
+        }
         jout(['ok' => true, '파일' => basename($rr), '폴더' => $dir,
               '고친때' => date('Y-m-d H:i', (int)@filemtime($rr)),
               '크기' => human((int)@filesize($rr)),
               '정해둔이름' => $want,
               '정해둔것맞음' => ($want !== ''
                   && hub_name_key(basename($rr)) === hub_name_key($want)),
+              '폴더안' => $all,
               '후보' => $names]);
     }
 

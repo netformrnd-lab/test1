@@ -5658,7 +5658,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-22';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-23';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7612,10 +7612,18 @@ async function hubCheck(id){
     const wnt = String(h.want || '').trim();
     const r = await apiJson('nasfiles.php?action=hubinfo&path=' + encodeURIComponent(pth)
       + (wnt ? '&want=' + encodeURIComponent(wnt) : ''));
+    const inside = (r['폴더안'] || []);
     alert('✅ ' + h.name + ' — 이것이 열립니다\n\n'
       + '파일: ' + r['파일'] + '\n'
       + '고친때: ' + r['고친때'] + ' · ' + r['크기'] + '\n'
       + '폴더: ' + r['폴더'] + '\n\n'
+      + (inside.length > 1
+          ? '── 그 폴더 안 (새로 고친 차례) ──\n'
+            + inside.map((x, i) => (i === 0 ? '▶ ' : '  ') + x['이름']
+                + '   ' + x['고친때'] + ' · ' + x['크기']).join('\n')
+            + '\n\n여기 보이는 날짜가 저쪽이 마지막으로 올린 때와 다르면, '
+            + '공유폴더에 새 판이 아직 안 올라온 것입니다.\n\n'
+          : '')
       + (wnt
           ? (r['정해둔것맞음']
               ? '📌 못 박아 둔 이름 「' + wnt + '」 그대로입니다.\n'
@@ -19510,8 +19518,48 @@ function lkAutoTick(){
   }, lkAutoMin() * 60000);
 }
 /* 📤 우리 할 일을 파일로 — 그쪽이 불러갈 수 있게 */
-function lkFileOut(kind){
-  const rows = taskAll().filter(x => !x.t._from).map(({t, b}) => ({
+/* 📤 내보내기 — <<누구 것을 내보낼지>> 고릅니다.
+   여태는 「우리가 적은 것 전부」 였습니다. 그런데 저쪽에 보낼 때는
+   그쪽과 맞물린 사람 것만 보내고 싶을 때가 많습니다. */
+async function lkFileOutPick(kind){
+  const who = {};
+  taskAll().forEach(({t}) => {
+    if(t._from) return;
+    const n = (taskWho(t) || '').trim() || '(담당자 없음)';
+    who[n] = (who[n] || 0) + 1;
+  });
+  const names = Object.keys(who).sort((a, b) => who[b] - who[a]);
+  const mem = lkMembers();
+  const v = await askForm({
+    icon: '📤', title: '할 일 내보내기', ok: '내보내기',
+    note: kind === 'csv' ? '엑셀로 열리는 모양으로 만듭니다'
+                         : '저쪽이 읽을 파일을 만듭니다',
+    fields: [
+      { key:'who', label:'누구 것을 내보낼까요', type:'select', value:'all',
+        options: [{ value:'all', label:'🧑‍🤝‍🧑 우리 팀 전부 ('
+            + Object.values(who).reduce((a, n) => a + n, 0) + '건)' }]
+          .concat(mem.length ? [{ value:'mem',
+            label:'📛 미디어마케팅팀 명단에 있는 사람만 (' + mem.join(' · ') + ')' }] : [])
+          .concat(names.map(n => ({ value:'p:' + n, label:'👤 ' + n + ' (' + who[n] + '건)' }))) },
+      { key:'done', type:'check', ph:'끝난 일도 같이 내보내기' }
+    ],
+    foot: '저쪽에서 <b>가져온 줄은 안 섞입니다</b> — 되돌려 보내지 않습니다.'
+  });
+  if(!v) return;
+  lkFileOut(kind, v.who, !!v.done);
+}
+function lkFileOut(kind, pick, withDone){
+  const mem = lkMembers().map(x => lkMemKey(x));
+  const keep = ({t}) => {
+    if(t._from) return false;
+    if(!withDone && String(t.status || '') === '완료') return false;
+    const nm = (taskWho(t) || '').trim() || '(담당자 없음)';
+    if(!pick || pick === 'all') return true;
+    if(pick === 'mem') return mem.indexOf(lkMemKey(nm)) >= 0;
+    if(String(pick).indexOf('p:') === 0) return nm === String(pick).slice(2);
+    return true;
+  };
+  const rows = taskAll().filter(keep).map(({t, b}) => ({
     id: String(t.id || ''), 브랜드: String(b.name || ''),
     업무명: String(t.title || ''), 담당자: taskWho(t) || '',
     상태: String(t.status || ''), 기한: String(t.due || ''),
@@ -19532,13 +19580,14 @@ function lkFileOut(kind){
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([body], { type: type }));
-  a.download = '브랜드마케팅팀-할일_' + ymd + '.' + ext;
+  a.download = LK_FILE_OUT + '_' + ymd + '.' + ext;
   a.click();
   URL.revokeObjectURL(a.href);
   const t = lkOf();
   t.outAt = stamp.toISOString();
   markDirtyAll(); render();
-  toast('📤 할 일 ' + rows.length + '건을 파일로 내보냈습니다');
+  toast('📤 할 일 ' + rows.length + '건을 파일로 내보냈습니다'
+    + (pick && pick !== 'all' ? ' (고른 것만)' : ''));
 }
 /* 가져온 것만 한꺼번에 치웁니다 */
 function lkDropImported(){
@@ -20283,9 +20332,9 @@ function lkSwapHtml(){
     + '<span class="lk-btns">'
       + '<button class="btn sm primary" onclick="lkFileAsk()"'
         + ' title="그쪽이 내보낸 파일을 골라 바로 읽습니다">📂 파일로 불러오기</button>'
-      + '<button class="btn sm" onclick="lkFileOut(\'json\')"'
-        + ' title="우리 할 일을 파일로 만듭니다 (그쪽이 불러갑니다)">📤 내보내기 (json)</button>'
-      + '<button class="btn sm" onclick="lkFileOut(\'csv\')"'
+      + '<button class="btn sm" onclick="lkFileOutPick(\'json\')"'
+        + ' title="누구 것을 내보낼지 골라서 파일로 만듭니다">📤 내보내기 (json)</button>'
+      + '<button class="btn sm" onclick="lkFileOutPick(\'csv\')"'
         + ' title="엑셀로 열리는 모양으로">📤 내보내기 (csv)</button>'
       + (n ? '<button class="btn sm danger" onclick="lkDropImported()"'
              + ' title="가져온 것만 뺍니다">🧹 가져온 것 빼기</button>' : '')

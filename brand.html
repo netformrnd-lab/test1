@@ -5687,7 +5687,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-36';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-37';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -14792,9 +14792,12 @@ function wipePanel(){
       + '거기 적힌 이름은 계정이 아니라 그냥 적어둔 글자라, '
       + '누가 쓴 것인지 기계가 확실히 알 수 없기 때문입니다. '
       + '지우시려면 그 화면에서 하나씩 지워주세요.</div>'
+    /* 단추 자리는 다른 창과 같게 — 곁다리로 하는 일은 왼쪽,
+       닫기와 이 창에서 할 일은 오른쪽 */
     + '<div class="modal-actions" style="flex-wrap:wrap;gap:6px">'
-      + '<button class="btn" onclick="wipeClose()">닫기</button>'
       + '<button class="btn danger" onclick="wipeAccount()">👤 계정도 지우기</button>'
+      + '<span class="vz-spacer"></span>'
+      + '<button class="btn" onclick="wipeClose()">닫기</button>'
       + '<button class="btn danger" onclick="wipeGo()"' + (f.total ? '' : ' disabled')
         + '>🗑 고른 것 휴지통으로 (' + f.total + ')</button>'
     + '</div></div></div>';

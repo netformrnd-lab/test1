@@ -4286,6 +4286,18 @@ td.ed.on input,td.ed.on select{width:100%;min-width:110px;font-family:inherit;fo
   padding:7px 10px;border-radius:var(--r-xs);background:var(--bg-card);
   border:1px solid var(--border)}
 .ai-td{font-weight:600;color:var(--text-primary)}
+/* ✎ 정리된 그대로에서 고치기 */
+.ai-bar{display:flex;align-items:center;gap:8px;margin:-2px 0 10px}
+.ai-bar .btn{margin-left:auto}
+.aibox.on{border-left-color:var(--green);background:var(--bg-card)}
+.ai-ed{width:100%;font:inherit;font-size:13.5px;line-height:1.7;color:var(--text-primary);
+  background:var(--bg-input);border:1px solid var(--border);border-radius:var(--r-xs);
+  padding:7px 9px;resize:none}
+.ai-ed:focus{outline:none;border-color:var(--blue);background:var(--bg-card)}
+.ai-ed.w{flex:0 0 136px;width:136px}
+.ai-todo.ed{align-items:stretch}
+.ai-todo.ed .ai-ed:not(.w){flex:1 1 220px;width:auto}
+@media(max-width:640px){ .ai-ed.w{flex:1 1 100%;width:100%} }
 
 .hitrow{display:flex;align-items:center;gap:12px;padding:10px 14px}
 .hitrow + .hitrow{border-top:1px solid var(--border)}
@@ -5667,7 +5679,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-34';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-35';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -27306,31 +27318,128 @@ function renderCalendar(){
     + '</div></div>';
 }
 
+/* ── ✎ <<정리된 그대로에서 고칩니다>> ───────────────────────────────
+   AI 가 정리해 준 요약·결정된 것·할 일은 보기만 했습니다. 한 글자라도
+   고치려면 회의 메모로 돌아가 다시 정리를 돌려야 했고, 그러면 손본 것이
+   도로 날아갔습니다.
+   이제 <<보이는 그 자리에서>> 고칩니다. [✎ 고치기] 를 누르면 칸이
+   열리고, 다 고치면 [✔ 다 고쳤어요] 로 덮습니다.
+   · 요약 · 다음에 다룰 것 — 글 칸 (쓰는 만큼 늘어납니다)
+   · 결정된 것 · 확인해야 할 것 — 한 줄에 하나씩
+   · 할 일 — 줄마다 내용 · 담당 · 기한, 그리고 [＋ 줄 넣기] · [🗑] */
+let aiEdit = '';
+function aiEditOn(id){
+  aiEdit = (aiEdit === String(id || '')) ? '' : String(id || '');
+  render();
+}
+function aiOf(id){
+  const m = (data.meetings || []).find(x => x.id === id);
+  return (m && m.ai) ? m : null;
+}
+function aiMark(m){
+  m.ai._고친때 = new Date().toISOString();
+  markDirtyAll();
+}
+function aiSetText(id, key, v){
+  const m = aiOf(id); if(!m) return;
+  m.ai[key] = String(v == null ? '' : v);
+  aiMark(m);
+}
+function aiSetList(id, key, v){
+  const m = aiOf(id); if(!m) return;
+  m.ai[key] = String(v == null ? '' : v).split('\n')
+    .map(x => x.replace(/^[\s·*\-]+/, '').trim()).filter(Boolean);
+  aiMark(m);
+}
+function aiTodoSet(id, i, key, v){
+  const m = aiOf(id); if(!m) return;
+  const t = (m.ai.할일 || [])[i]; if(!t) return;
+  t[key] = String(v == null ? '' : v).trim();
+  aiMark(m);
+}
+function aiTodoAdd(id){
+  const m = aiOf(id); if(!m) return;
+  if(!Array.isArray(m.ai.할일)) m.ai.할일 = [];
+  m.ai.할일.push({ 내용:'', 담당:'', 기한:'' });
+  aiMark(m); render();
+}
+function aiTodoDel(id, i){
+  const m = aiOf(id); if(!m) return;
+  const t = (m.ai.할일 || [])[i]; if(!t) return;
+  if(String(t['내용'] || '').trim()
+     && !confirm('「' + String(t['내용']).slice(0, 40) + '」 줄을 뺄까요?')) return;
+  m.ai.할일.splice(i, 1);
+  aiMark(m); render();
+}
 function aiPanel(m, ai){
   const li = arr => (arr || []).map(x => '<li>' + esc(String(x)) + '</li>').join('');
-  return '<div class="aibox">'
+  const ed = (aiEdit === m.id);
+  const q  = jsq(m.id);
+  /* 고치는 중에는 <<비어 있는 칸도>> 보여 줍니다 — 안 그러면 없는 것을
+     새로 적을 수가 없습니다 */
+  const show = (v) => ed || v;
+  const ta = (key, val, ph) =>
+    '<textarea class="ai-ed" rows="2" placeholder="' + esc(ph || '') + '"'
+    + ' onchange="aiSetText(\'' + q + '\',\'' + key + '\',this.value)">'
+    + esc(String(val || '')) + '</textarea>';
+  const tl = (key, arr, ph) =>
+    '<textarea class="ai-ed" rows="3" placeholder="' + esc(ph || '') + '"'
+    + ' onchange="aiSetList(\'' + q + '\',\'' + key + '\',this.value)">'
+    + esc((arr || []).join('\n')) + '</textarea>';
+
+  return '<div class="aibox' + (ed ? ' on' : '') + '">'
+    + '<div class="ai-bar">'
+      + '<span class="fmeta">' + (ed
+          ? '보이는 그대로 고칩니다 — 칸 밖을 누르면 저장됩니다'
+          : 'AI 가 정리한 것입니다') + '</span>'
+      + '<button class="btn sm' + (ed ? ' primary' : '') + '"'
+        + ' onclick="aiEditOn(\'' + q + '\')"'
+        + ' title="정리된 그대로에서 고칩니다">'
+        + (ed ? '✔ 다 고쳤어요' : '✎ 고치기') + '</button>'
+    + '</div>'
     + (ai.잘림 ? '<div class="fmeta" style="margin-bottom:8px">⚠️ 내용이 길어 앞부분만 보고 정리했습니다</div>' : '')
-    + (ai.요약 ? '<div class="ai-sec"><div class="ai-h">요약</div>'
-        + '<div class="ai-p">' + esc(ai.요약) + '</div></div>' : '')
-    + ((ai.결정사항 || []).length ? '<div class="ai-sec"><div class="ai-h">결정된 것</div>'
-        + '<ul class="ai-ul">' + li(ai.결정사항) + '</ul></div>' : '')
-    + ((ai.할일 || []).length ? '<div class="ai-sec"><div class="ai-h">할 일</div>'
-        + '<div class="ai-todos">' + ai.할일.map((t, i) =>
-            '<div class="ai-todo">'
-            + '<span class="ai-td">' + esc(String(t['내용'] || '')) + '</span>'
-            + (t['담당'] ? '<span class="chip">' + esc(t['담당']) + '</span>' : '')
-            + (t['기한'] ? '<span class="chip test">' + esc(t['기한']) + '</span>' : '')
-            + (t._옮김
-                ? '<span class="chip on" style="margin-left:auto">✓ 할 일로 옮김</span>'
-                : '<button class="btn sm" style="margin-left:auto" onclick="aiTodoToTask(\''
-                  + jsq(m.id) + '\',' + i + ')">→ 할 일로</button>')
-            + '</div>').join('') + '</div></div>' : '')
-    + (ai.다음회의 ? '<div class="ai-sec"><div class="ai-h">다음에 다룰 것</div>'
-        + '<div class="ai-p">' + esc(ai.다음회의) + '</div></div>' : '')
-    + ((ai.확인필요 || []).length ? '<div class="ai-sec warn"><div class="ai-h">사람이 확인해야 할 것</div>'
-        + '<ul class="ai-ul">' + li(ai.확인필요) + '</ul>'
+    + (show(ai.요약) ? '<div class="ai-sec"><div class="ai-h">요약</div>'
+        + (ed ? ta('요약', ai.요약, '회의를 몇 줄로')
+              : '<div class="ai-p">' + esc(ai.요약) + '</div>') + '</div>' : '')
+    + (show((ai.결정사항 || []).length) ? '<div class="ai-sec"><div class="ai-h">결정된 것</div>'
+        + (ed ? tl('결정사항', ai.결정사항, '한 줄에 하나씩')
+              : '<ul class="ai-ul">' + li(ai.결정사항) + '</ul>') + '</div>' : '')
+    + (show((ai.할일 || []).length) ? '<div class="ai-sec"><div class="ai-h">할 일</div>'
+        + '<div class="ai-todos">' + (ai.할일 || []).map((t, i) =>
+            '<div class="ai-todo' + (ed ? ' ed' : '') + '">'
+            + (ed
+                ? '<input class="ai-ed" value="' + esc(String(t['내용'] || '')) + '"'
+                  + ' placeholder="할 일"'
+                  + ' onchange="aiTodoSet(\'' + q + '\',' + i + ',\'내용\',this.value)">'
+                  + '<input class="ai-ed w" value="' + esc(String(t['담당'] || '')) + '"'
+                  + ' placeholder="담당"'
+                  + ' onchange="aiTodoSet(\'' + q + '\',' + i + ',\'담당\',this.value)">'
+                  + '<input class="ai-ed w" type="date" value="'
+                  + esc(String(t['기한'] || '')) + '"'
+                  + ' onchange="aiTodoSet(\'' + q + '\',' + i + ',\'기한\',this.value)">'
+                  + '<button class="btn sm danger" onclick="aiTodoDel(\'' + q + '\',' + i + ')"'
+                  + ' title="이 줄을 뺍니다">🗑</button>'
+                : '<span class="ai-td">' + esc(String(t['내용'] || '')) + '</span>'
+                  + (t['담당'] ? '<span class="chip">' + esc(t['담당']) + '</span>' : '')
+                  + (t['기한'] ? '<span class="chip test">' + esc(t['기한']) + '</span>' : '')
+                  + (t._옮김
+                      ? '<span class="chip on" style="margin-left:auto">✓ 할 일로 옮김</span>'
+                      : '<button class="btn sm" style="margin-left:auto" onclick="aiTodoToTask(\''
+                        + q + '\',' + i + ')">→ 할 일로</button>'))
+            + '</div>').join('')
+        + (ed ? '<button class="btn sm" onclick="aiTodoAdd(\'' + q + '\')"'
+                + ' style="margin-top:6px">＋ 줄 넣기</button>' : '')
+        + '</div></div>' : '')
+    + (show(ai.다음회의) ? '<div class="ai-sec"><div class="ai-h">다음에 다룰 것</div>'
+        + (ed ? ta('다음회의', ai.다음회의, '다음에 이어서 볼 것')
+              : '<div class="ai-p">' + esc(ai.다음회의) + '</div>') + '</div>' : '')
+    + (show((ai.확인필요 || []).length) ? '<div class="ai-sec warn"><div class="ai-h">사람이 확인해야 할 것</div>'
+        + (ed ? tl('확인필요', ai.확인필요, '한 줄에 하나씩')
+              : '<ul class="ai-ul">' + li(ai.확인필요) + '</ul>')
         + '<div class="fmeta" style="margin-top:6px">메모만으로는 분명하지 않아 AI가 짚어둔 것입니다</div>'
         + '</div>' : '')
+    + (ai._고친때 ? '<div class="fmeta" style="margin-top:8px">✎ 사람이 고친 것입니다 · '
+        + esc(String(ai._고친때).slice(0, 10)) + '</div>' : '')
     + '</div>';
 }
 

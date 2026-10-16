@@ -4023,7 +4023,11 @@ body.bk-edit .panel{overflow:clip}
 .modal textarea{min-height:96px;resize:vertical;line-height:1.65}
 .modal input:focus,.modal select:focus,.modal textarea:focus{outline:none;
   border-color:var(--border-light);box-shadow:var(--ring)}
-.modal-actions{display:flex;gap:8px;align-items:center;margin-top:22px}
+/* 단추는 <<늘 오른쪽>> 으로 — 창마다 자리가 달라서 눈이 헤맸습니다.
+   왼쪽에 둘 것(삭제 같은 것)은 앞에 두고 .vz-spacer 로 밀어 냅니다. */
+.modal-actions{display:flex;gap:8px;align-items:center;margin-top:22px;
+  justify-content:flex-end}
+.modal-actions .vz-spacer{flex:1 1 auto}
 
 /* ---------- 판 번호 · 새 글 표시 ---------- */
 .verbadge{font-family:ui-monospace,'SFMono-Regular',Consolas,monospace;font-size:10.5px;
@@ -5563,9 +5567,12 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
       <button class="pjm-x" onclick="askCancel()" title="닫기">×</button>
     </div>
     <div class="pjm-b" id="askBody"></div>
-    <div class="modal-actions">
-      <button class="btn" onclick="askCancel()">취소</button>
-      <button class="btn primary" id="askGo" onclick="askOk()">확인</button>
+    <!-- 바닥 칸은 다른 창(프로젝트·내 계정)과 같은 모양으로 — 전에는
+         여기만 modal-actions 라 단추가 왼쪽에 붙고 줄도 없었습니다 -->
+    <div class="pjm-f">
+      <span class="pjm-sp"></span>
+      <button class="pjm-btn" onclick="askCancel()">취소</button>
+      <button class="pjm-btn primary" id="askGo" onclick="askOk()">확인</button>
     </div>
   </div>
 </div>
@@ -5605,9 +5612,10 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
         <span>적은 것 보이기</span></label>
       <div class="pw-err" id="pwErr"></div>
     </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal('pwModal')">취소</button>
-      <button class="btn primary" id="pwGo" onclick="pwSubmit()">바꾸기</button>
+    <div class="pjm-f">
+      <span class="pjm-sp"></span>
+      <button class="pjm-btn" onclick="closeModal('pwModal')">취소</button>
+      <button class="pjm-btn primary" id="pwGo" onclick="pwSubmit()">바꾸기</button>
     </div>
   </div>
 </div>
@@ -5679,7 +5687,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-35';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-36';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -26522,17 +26530,39 @@ async function aiTodoToTask(mid, i){
         /* taskPeople() 맨 앞에 이미 「맡은 사람 없음」 이 들어 있습니다 */
         options: (typeof taskPeople === 'function' ? taskPeople() : [{ value:'', label:'—' }]),
         hint: t['담당'] ? '회의에는 「' + String(t['담당']) + '」 이라고 적혀 있습니다' : '' },
-      { key:'into', label:'🚀 어디에 넣을까', type:'select', value:'',
-        options: (() => {
+      /* 🔎 고른 사람 프로젝트만 — 온 팀 것이 다 나오면 고르기가 답답합니다 */
+      { key:'into', label:'🚀 어디에 넣을까', type:'select', value:'', deps:['who'],
+        options: (v) => {
+          const who = String((v && v.who) || '');
+          const all = String((v && v.into) || '') === '*';
+          const nm  = who.indexOf('nm:') === 0 ? who.slice(3)
+                    : (who ? (peopleName(who) || '') : '');
+          const mine = (y) => {
+            if(!who || all) return true;
+            const o = String(y.owner || '').trim();
+            /* 담당이 안 적힌 프로젝트는 <<다 같이 쓰는 것>> 이라 그대로 둡니다 —
+               빼 버리면 공용 프로젝트에 아무것도 못 넣게 됩니다 */
+            if(!o && !y.uid) return true;
+            if(who.indexOf('nm:') !== 0 && y.uid && y.uid === who) return true;
+            return !!nm && (o === nm || o.indexOf(nm) >= 0);
+          };
           const out = [{ value:'', label:'📓 오늘 할 일로 (그냥 할 일)' }];
           bs.forEach(x => (x.tasks || []).forEach(y => {
             if(!isProj(y) || y.status === '완료') return;
+            if(!mine(y)) return;
             out.push({ value:'p:' + x.id + ':' + y.id,
               label:'🚀 ' + x.name + ' · ' + (y.title || '이름 없음') + ' 밑에' });
           }));
+          if(who && !all) out.push({ value:'*', label:'🔎 다른 프로젝트도 보기' });
           return out;
-        })(),
-        hint:'프로젝트를 고르면 그 밑 보조 업무로 들어가고 진척률에 같이 셉니다' },
+        },
+        hint: (v) => {
+          const who = String((v && v.who) || '');
+          if(!who) return '프로젝트를 고르면 그 밑 보조 업무로 들어가고 진척률에 같이 셉니다';
+          const nm = who.indexOf('nm:') === 0 ? who.slice(3) : (peopleName(who) || '그분');
+          return nm + ' 님이 맡은 것과 담당 없는 프로젝트만 보여 줍니다 '
+               + '— 다른 데 넣으려면 [🔎 다른 프로젝트도 보기]';
+        } },
       { key:'due', label:'기한 (선택)', type:'date', value: due0 }
     ]
   });
@@ -33239,6 +33269,40 @@ async function doLogout(){
    ================================================================= */
 let askRes = null;              /* 지금 열려 있는 창의 대답 받을 자리 */
 let askDef = null;              /* 지금 열려 있는 창의 칸 생김새 */
+/* ── 🔗 <<앞 칸을 고치면 뒷 칸이 따라 바뀝니다>> ────────────────────
+   「누가 하나요」 를 고르면 「어디에 넣을까」 에 <<그 사람 프로젝트만>>
+   남습니다. 전에는 온 팀 프로젝트가 다 나와서 고르기가 답답했습니다.
+   그 사람 것이 하나도 없을 수도 있으니, 맨 뒤에 [🔎 다른 프로젝트도
+   보기] 를 둬서 언제든 다 볼 수 있게 합니다. */
+function askVals(){
+  const out = {};
+  (askDef || []).forEach(f => {
+    const el = document.getElementById('ask_' + f.key);
+    if(!el) return;
+    out[f.key] = (f.type === 'check') ? (el.checked ? '1' : '') : el.value;
+  });
+  return out;
+}
+function askOpts(f, vals){
+  const raw = (typeof f.options === 'function') ? f.options(vals) : (f.options || []);
+  return (raw || []).map(x => (x && typeof x === 'object') ? x : { value:x, label:x });
+}
+function askSync(){
+  const vals = askVals();
+  (askDef || []).forEach(f => {
+    if(!f || f.type !== 'select' || !f.deps) return;
+    const el = document.getElementById('ask_' + f.key);
+    if(!el) return;
+    const was = el.value;
+    const list = askOpts(f, vals);
+    el.innerHTML = list.map(x => '<option value="' + esc(x.value) + '">'
+      + esc(x.label === '' ? '— 없음 —' : x.label) + '</option>').join('');
+    el.value = list.some(x => String(x.value) === was)
+      ? was : (list.length ? String(list[0].value) : '');
+    const hintEl = el.parentNode && el.parentNode.querySelector('.pw-hint');
+    if(hintEl && typeof f.hint === 'function') hintEl.textContent = f.hint(vals);
+  });
+}
 function askForm(o){
   o = o || {};
   const fs = (o.fields || []).filter(f => f && f.key);
@@ -33259,9 +33323,8 @@ function askForm(o){
         box = '<textarea id="' + id + '" rows="' + (f.rows || 4) + '" placeholder="'
           + esc(f.ph || '') + '">' + esc(v) + '</textarea>';
       }else if(f.type === 'select'){
-        const opts = (f.options || []).map(x =>
-          (x && typeof x === 'object') ? x : { value: x, label: x });
-        box = '<select id="' + id + '">' + opts.map(x =>
+        const opts = askOpts(f, { [f.key]: v });
+        box = '<select id="' + id + '" onchange="askSync()">' + opts.map(x =>
           '<option value="' + esc(x.value) + '"' + (String(x.value) === v ? ' selected' : '')
           + '>' + esc(x.label === '' ? '— 없음 —' : x.label) + '</option>').join('') + '</select>';
       }else if(f.type === 'check'){
@@ -33279,13 +33342,14 @@ function askForm(o){
       }
       return '<div class="pw-f' + (f.type === 'check' ? ' chk' : '') + '">'
         + (f.type === 'check' ? '' : lab) + box
-        + (f.hint ? '<div class="pw-hint">' + esc(f.hint) + '</div>' : '')
+        + (f.hint ? '<div class="pw-hint">'
+            + esc(typeof f.hint === 'function' ? f.hint({}) : f.hint) + '</div>' : '')
         + '</div>';
     }).join('')
       + (o.foot ? '<div class="ask-foot">' + o.foot + '</div>' : '')
       + '<div class="pw-err" id="askErr"></div>';
     document.getElementById('askModal').classList.add('open');
-    setTimeout(() => { gbGrowAll(document.getElementById('askBody')); }, 20);
+    setTimeout(() => { gbGrowAll(document.getElementById('askBody')); askSync(); }, 20);
     setTimeout(() => {
       const el = document.querySelector('#askBody [data-first], #askBody input, '
         + '#askBody textarea, #askBody select');

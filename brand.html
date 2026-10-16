@@ -454,6 +454,15 @@ body.tt-wide .layout{max-width:1820px}
   border-radius:var(--r-xs);padding:9px 12px;margin:0 0 10px;font-size:12.5px;
   background:var(--bg-card)}
 .lk-dig{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)}
+/* 🧹 붙고 나면 접어 두는 칸 — 길 찾던 기록이 화면을 덮지 않게 */
+.lk-fold>summary{cursor:pointer;display:flex;align-items:center;gap:8px;
+  flex-wrap:wrap;list-style:none;padding:6px 0}
+.lk-fold>summary::-webkit-details-marker{display:none}
+.lk-fold>summary::before{content:'▸';color:var(--text-muted);font-size:11px}
+.lk-fold[open]>summary::before{content:'▾'}
+.lk-fold>summary:hover{opacity:.85}
+.lk-fold>summary .lk-tn{margin-left:0}
+.lk-fold>summary .btn{margin-left:auto}
 .lk-pk{border:1px solid var(--border);border-radius:var(--r-xs);margin:5px 0;background:var(--bg-card)}
 .lk-pk>summary{cursor:pointer;padding:7px 10px;font-size:12.5px;font-weight:600}
 .lk-pk>summary .fmeta{font-weight:400}
@@ -5658,7 +5667,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-31';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-32';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19210,14 +19219,20 @@ function lkPackCopy(){
   catch(e){ toast('복사가 안 됩니다 — 아래 글을 긁어서 복사해 주세요'); }
   ta.remove();
 }
+function lkPackClear(){ lkBundle = null; render(); }
 function lkPackHtml(){
   if(!lkBundle) return '';
   const fs = lkBundle['파일'] || [];
-  return '<div class="lk-dig"><div class="lk-team">🧩 모아 본 자료'
+  return '<details class="lk-dig lk-fold"><summary>'
+    + '<span class="lk-team" style="display:inline">🧩 모아 본 자료</span>'
     + '<span class="lk-tn">' + fs.length + '개 (' + lkBundle['찾은파일'] + '개 가운데 작은 것들)'
-      + '</span>'
-    + '<button class="btn sm" style="margin-left:auto" onclick="lkPackCopy()"'
-      + ' title="아래 내용을 통째로 복사합니다">📋 전부 복사</button></div>'
+      + ' · 눌러서 펴기</span>'
+    + '<button class="btn sm" onclick="event.preventDefault();'
+      + 'event.stopPropagation();lkPackCopy()"'
+      + ' title="아래 내용을 통째로 복사합니다">📋 전부 복사</button>'
+    + '<button class="btn sm" onclick="event.preventDefault();'
+      + 'event.stopPropagation();lkPackClear()" title="이 목록을 치웁니다">치우기</button>'
+    + '</summary>'
     + fs.map((f, i) => '<details class="lk-pk" id="lkpk_' + i + '"><summary>'
         + esc((f['어디'] ? f['어디'] + '/' : '') + f['이름'])
         + ' <span class="fmeta">' + esc(f['크기']) + ' · ' + esc(f['고친때'])
@@ -19226,7 +19241,7 @@ function lkPackHtml(){
         + '</span></summary><pre class="lk-pre">'
         + esc(f['글자아님'] ? '(글자가 아닌 파일)' : String(f['내용'] || ''))
         + (f['잘림'] ? '\n… (뒷부분 줄임)' : '') + '</pre></details>').join('')
-    + '</div>';
+    + '</details>';
 }
 /* ── 📥 이 파일을 할 일로 가져옵니다 ──────────────────────────────
    줄 목록이 들어 있으면 칸 이름을 느슨하게 맞춰 읽어, 「다른 팀 할 일」
@@ -20437,17 +20452,37 @@ async function lkAuto(){
   }
 }
 let lkAutoLog = null;
+/* ── 🧹 <<잘 되고 나면 치웁니다>> ───────────────────────────────────
+   길을 찾는 동안에는 「무엇을 봤는지」 가 꼭 필요합니다 — 안 될 때
+   어디서 막혔는지 그것으로 가립니다. 그런데 한 번 붙고 나면 그 글이
+   화면을 반이나 차지합니다. 그래서 <<붙고 나면 접어 두고>>, 안 될 때만
+   펴 둡니다. 눈에 거슬리면 [치우기] 로 아예 없앱니다. */
+function lkAutoClear(){ lkAutoLog = []; render(); }
 function lkAutoHtml(){
   if(!lkAutoLog || !lkAutoLog.length) return '';
-  return '<div class="lk-dig"><div class="lk-team">🔗 연동 길 찾기 — 본 것</div>'
-    + '<pre class="lk-pre">' + esc(lkAutoLog.join('\n')) + '</pre></div>';
+  const txt = lkAutoLog.join('\n');
+  const bad = /❌|⚠|못|실패/.test(txt);
+  return '<details class="lk-dig lk-fold"' + (bad ? ' open' : '') + '>'
+    + '<summary><span class="lk-team" style="display:inline">'
+      + '🔗 연동 길 찾기 — 본 것</span>'
+    + '<span class="lk-tn">' + (bad ? '막힌 데가 있습니다' : '잘 붙었습니다')
+      + ' · 눌러서 펴기</span>'
+    + '<button class="btn sm" onclick="event.preventDefault();'
+      + 'event.stopPropagation();lkAutoClear()" title="이 글을 치웁니다">치우기</button>'
+    + '</summary>'
+    + '<pre class="lk-pre">' + esc(txt) + '</pre></details>';
 }
 /* 뒤져서 찾은 것을 화면에 늘어놓습니다 */
+function lkDigClear(){ lkDug = null; render(); }
 function lkDigHtml(){
   if(!lkDug || !(lkDug.files || []).length) return '';
-  return '<div class="lk-dig"><div class="lk-team">📂 저쪽 폴더에서 찾은 자료'
+  return '<details class="lk-dig lk-fold"><summary>'
+    + '<span class="lk-team" style="display:inline">📂 저쪽 폴더에서 찾은 자료</span>'
     + '<span class="lk-tn">' + esc(lkDug.root || lkDug.dir) + ' · '
-      + lkDug.files.length + '개</span></div>'
+      + lkDug.files.length + '개 · 눌러서 펴기</span>'
+    + '<button class="btn sm" onclick="event.preventDefault();'
+      + 'event.stopPropagation();lkDigClear()" title="이 목록을 치웁니다">치우기</button>'
+    + '</summary>'
     + '<div class="vz-tw"><table class="ymtable"><thead><tr>'
     + '<th>파일</th><th>어디</th><th>크기</th><th>고친 때</th><th></th>'
     + '</tr></thead><tbody>'
@@ -20471,7 +20506,7 @@ function lkDigHtml(){
     + '</tbody></table></div>'
     + '<div class="fmeta" style="margin-top:6px">★ 는 이름이 할 일처럼 보이는 것입니다. '
       + '읽을 만한 것을 찾으면 알려 주세요 — 그 모양에 맞춰 바로 가져오게 하겠습니다.</div>'
-    + '</div>';
+    + '</details>';
 }
 
 /* ── ⚠️ 저절로 도는 것은 <<바뀐 게 있을 때만>> 그립니다 ───────────
@@ -20779,6 +20814,24 @@ function lkPanelHtml(){
               + '</tbody></table></div>';
           }).join(''));
 
+  /* ── 🧹 <<안 쓰는 칸은 접어 둡니다>> ─────────────────────────────
+     「한 저장소를 같이 쓰기」 는 저쪽이 아직 안 쓰는 길입니다. 그런데
+     이 칸이 화면 맨 위에서 「아직 다른 팀이 올린 할 일이 없습니다」 라고
+     크게 말하는 바람에, 파일·데이터베이스로 <<이미 붙어 있는데도>>
+     안 붙은 것처럼 보였습니다.
+     붙어 있으면 이 칸은 한 줄로 접습니다. 눌러서 펴면 그대로 있습니다. */
+  const fileOn = !!String(t.autoPath || '').trim() || !!String(t.fileAt || '').trim()
+    || (data.brands || []).some(b => (b.tasks || []).some(x => x._from === '미디어마케팅팀'));
+  if(!teams.length && fileOn){
+    return '<div class="lk-box">'
+      + '<details class="lk-fold"><summary>'
+        + '<span class="lk-dot ' + dot + '"></span>'
+        + '<span class="lk-team" style="display:inline">🔗 한 저장소를 같이 쓰기</span>'
+        + '<span class="lk-tn">지금은 이 길을 안 씁니다 — '
+          + '아래 <b>파일·데이터베이스</b>로 붙어 있습니다 · 눌러서 펴기</span>'
+      + '</summary>' + head + body + '</details>'
+      + lkAutoHtml() + lkDigHtml() + lkPackHtml() + '</div>';
+  }
   return '<div class="lk-box">' + head + body + lkAutoHtml() + lkDigHtml() + lkPackHtml()
     + '<div class="fmeta" style="margin-top:8px">'
       + '근무현황 캘린더를 붙인 것과 같은 틀입니다 — 파일을 주고받지 않고 '

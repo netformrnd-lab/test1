@@ -90,8 +90,41 @@ async function importPourEntry(node, id, s) {
 }
 
 // ── 방향 B : Supabase(aptsq) 한 건 → POUR PUT ────────────────────────────────
+const VISIT_MARK = '🔧 정기 방문';
+const WKB = ['월', '화', '수', '목', '금', '토', '일'];   // (getDay()+6)%7 기준 (앱 computeVisits와 동일)
+let APT_NAMES = {};      // 단지 id→이름 (POUR 방문 표시용)
+let PROFILE_NAMES = {};  // 감리원 id→이름 (assignee_id로 담당자 보강)
+let APT_REP = {};        // 단지 id→대표 감리원 id (apartments.auditor_id)
+let CS_DATA = {};        // 단지 id→배치 데이터(dayAuditors 등, control_sites.data)
+// 정기 방문이면 POUR 표시용으로 '단지명'(제목)·'담당자'를 보강한다. (원본 schedules는 안 건드림)
+function enrichVisit(row) {
+  if (!row || typeof row.title !== 'string' || row.title.indexOf(VISIT_MARK) !== 0) return row;
+  const aptName = APT_NAMES[row.apartment_id] || '';
+  let who = row.assignee_name || '';
+  if (who === '-') who = '';                 // '-'(미배정 표식)은 담당자로 취급하지 않음
+  if (!who && row.description) {             // 담당자 비면 설명('담당 OOO')에서 추출
+    who = String(row.description).replace(/^담당\s*/, '').replace(/\s*\(대타\)\s*$/, '').trim();
+    if (who === '-') who = '';
+  }
+  if (!who && row.assignee_id) who = PROFILE_NAMES[row.assignee_id] || '';  // 그래도 비면 id→이름(앱 표시와 동일)
+  if (!who && row.apartment_id && row.date) {   // 그래도 비면 요일별 담당(dayAuditors)·대표 감리원에서 유추(앱 달력과 동일)
+    const cs = CS_DATA[row.apartment_id];
+    const d = new Date(row.date);
+    if (!isNaN(d)) {
+      const wd = WKB[(d.getDay() + 6) % 7];
+      const dayId = cs && cs.dayAuditors ? cs.dayAuditors[wd] : null;
+      const repId = dayId || APT_REP[row.apartment_id] || null;
+      if (repId) who = PROFILE_NAMES[repId] || '';
+    }
+  }
+  return Object.assign({}, row, {
+    title: aptName ? (aptName + ' 정기방문') : row.title,
+    assignee_name: who || null,
+  });
+}
 async function pushSupabaseRow(row) {
   if (!row || row.source !== 'aptsq') return;        // POUR 에서 온 건 되돌려 쓰지 않음
+  row = enrichVisit(row);                            // 정기 방문: 단지명·담당자 보강
   const obj = M.supabaseToPour(row);
   if (!obj) return;                                  // 내보낼 노드가 없는 category
   const node = M.CATEGORY_TO_NODE[row.category];
@@ -164,6 +197,36 @@ async function reconcileSync() {
     aptsqRows.push(...data);
     if (data.length < 1000) break;
   }
+  // 정기 방문 POUR 표시용: 단지 id→이름·대표 감리원 맵 (한 번만 조회)
+  try {
+    APT_NAMES = {}; APT_REP = {};
+    for (let af = 0; ; af += 1000) {
+      const { data: apts } = await sb.from('apartments').select('id,name,auditor_id').range(af, af + 999);
+      if (!apts || !apts.length) break;
+      apts.forEach(a => { APT_NAMES[a.id] = a.name; if (a.auditor_id) APT_REP[a.id] = a.auditor_id; });
+      if (apts.length < 1000) break;
+    }
+  } catch (e) {}
+  // 담당자 보강용: 감리원 id→이름 맵 (assignee_id로 담당자 채우기)
+  try {
+    PROFILE_NAMES = {};
+    for (let pf = 0; ; pf += 1000) {
+      const { data: profs } = await sb.from('profiles').select('id,name,email').range(pf, pf + 999);
+      if (!profs || !profs.length) break;
+      profs.forEach(p => { PROFILE_NAMES[p.id] = (p.name && p.name.trim()) || (p.email && p.email.trim()) || ''; });
+      if (profs.length < 1000) break;
+    }
+  } catch (e) {}
+  // 담당자 보강용: 단지 id→배치 데이터(dayAuditors 등) (요일별 담당 유추)
+  try {
+    CS_DATA = {};
+    for (let cf = 0; ; cf += 1000) {
+      const { data: csr } = await sb.from('control_sites').select('apartment_id,data').range(cf, cf + 999);
+      if (!csr || !csr.length) break;
+      csr.forEach(c => { if (c.apartment_id && c.data) CS_DATA[c.apartment_id] = c.data; });
+      if (csr.length < 1000) break;
+    }
+  } catch (e) {}
   for (const row of aptsqRows) {
     if (M.CATEGORY_TO_NODE[row.category]) { liveAptsqIds.add(String(row.id)); await pushSupabaseRow(row); pushed++; }
   }

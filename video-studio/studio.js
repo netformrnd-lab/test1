@@ -319,7 +319,7 @@
     if (canEdit) h += editBoxHtml(e)
     if (e.status === 'ready' && e.prompt && isM) {
       h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — Manus에 붙여 넣을 프롬프트입니다</strong>
-        <p>${e.skippedReview ? '<b>검수 없이 넘긴 직접 수정본입니다.</b> ' : 'Claude·OpenAI 검수를 통과했습니다. '}‘프롬프트 복사’ → Manus 열기 → 영상(Studio) <b>Alchemy 모드</b>를 고르고 붙여 넣으세요. <b>앱 화면 캡처·현장 사진·로고 이미지를 함께 첨부</b>하면 훨씬 잘 나옵니다(아래 ‘화면:’ 줄에 장면별로 필요한 자료가 적혀 있습니다). 아바타 없이 내레이션으로 만들어집니다. HeyGen 크레딧은 쓰지 않습니다.</p>
+        <p>${e.skippedReview ? '<b>검수 없이 넘긴 직접 수정본입니다.</b> ' : 'Claude·OpenAI 검수를 통과했습니다. '}‘프롬프트 복사’ → Manus 열기 → 영상(Studio) <b>Alchemy 모드</b>를 고르고 붙여 넣으세요. 자료는 Manus가 홈페이지·앱 소개 등에서 직접 찾아 씁니다(꼭 써야 할 사진·캡처가 있으면 함께 첨부하세요). 아바타 없이 내레이션으로 만들어집니다. HeyGen 크레딧은 쓰지 않습니다.</p>
         <pre class="approve-prompt">${esc(e.prompt)}</pre>
         <div class="job-actions"><button type="button" class="btn" data-copy-prompt="${e.id}">${icon('copy', 14)}프롬프트 복사</button><a class="btn outline" href="https://manus.im/app" target="_blank" rel="noreferrer">${icon('external', 14)}Manus 열기</a><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button></div></div>`
     } else if (e.status === 'ready' && e.prompt) {

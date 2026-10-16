@@ -5658,7 +5658,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-29';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-30';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18501,6 +18501,31 @@ function tsKeyParts(h){
    팀」 으로 된 people.json 까지 할 일로 집어 버립니다. 그래서 따로 둡니다. */
 const TS_TEAM_WORDS = ['팀','팀명','소속','소속팀','부서','본부','조직','구분',
                        'team','dept','department','group','org','division'];
+/* ── 🔑 <<아이디 칸>> · ⏱ <<고친 때 칸>> ────────────────────────────
+   쌍방향으로 고치려면 「이 줄이 원래 우리 것이냐」 를 알아야 합니다.
+   우리가 내보낼 때 id 를 같이 적고, 돌아온 줄의 id 가 우리 것이면
+   <<새로 만들지 않고 그 자리를 고칩니다>>.
+   고친 때까지 보고 <<저쪽이 더 늦게 고친 것만>> 받습니다 — 안 그러면
+   우리가 방금 고친 것을 돌아온 줄이 되돌려 버립니다.
+   TS_MAP 에는 안 넣습니다. 넣으면 id 하나만 맞는 설정 파일까지
+   할 일로 집어 버립니다. */
+const TS_ID_WORDS   = ['id','아이디','고유번호','키','key','taskid','task_id','uid','no'];
+const TS_WHEN_WORDS = ['고친때','고친 때','수정일','수정시각','바뀐때','updatedat',
+                       'updated_at','updated','modified','lastmodified','mtime'];
+function tsPickOne(headers, words){
+  const hp = (headers || []).map(tsKeyParts);
+  for(const w of words){
+    const k = tsKey(w);
+    const i = hp.findIndex(ps => ps.indexOf(k) >= 0);
+    if(i >= 0) return i;
+  }
+  for(const w of words){
+    const k = tsKey(w);
+    const i = hp.findIndex(ps => ps.some(x => x.indexOf(k) >= 0));
+    if(i >= 0) return i;
+  }
+  return -1;
+}
 function tsPickTeam(headers){
   const hp = (headers || []).map(tsKeyParts);
   for(const w of TS_TEAM_WORDS){
@@ -18560,9 +18585,13 @@ function tsFromGrid(grid){
   const col = tsPickCol(head);
   if(col.title == null) return [];
   const ti = tsPickTeam(head);
+  const ii = tsPickOne(head, TS_ID_WORDS);
+  const wi = tsPickOne(head, TS_WHEN_WORDS);
   return rows.slice(1).map(r => {
     const x = tsRow(k => col[k] == null ? '' : r[col[k]]);
-    x.team = ti >= 0 ? String(r[ti] || '').trim() : '';
+    x.team   = ti >= 0 ? String(r[ti] || '').trim() : '';
+    x.srcId  = ii >= 0 ? String(r[ii] == null ? '' : r[ii]).trim() : '';
+    x.srcAt  = wi >= 0 ? String(r[wi] == null ? '' : r[wi]).trim() : '';
     return x;
   }).filter(x => x.title);
 }
@@ -18576,9 +18605,13 @@ function tsFromJson(list){
   const col = tsPickCol(keys);
   if(col.title == null) return [];
   const ti = tsPickTeam(keys);
+  const ii = tsPickOne(keys, TS_ID_WORDS);
+  const wi = tsPickOne(keys, TS_WHEN_WORDS);
   return (list || []).map(o => {
     const x = tsRow(k => (col[k] == null || !o) ? '' : o[keys[col[k]]]);
-    x.team = (ti >= 0 && o) ? String(o[keys[ti]] || '').trim() : '';
+    x.team  = (ti >= 0 && o) ? String(o[keys[ti]] || '').trim() : '';
+    x.srcId = (ii >= 0 && o) ? String(o[keys[ii]] == null ? '' : o[keys[ii]]).trim() : '';
+    x.srcAt = (wi >= 0 && o) ? String(o[keys[wi]] == null ? '' : o[keys[wi]]).trim() : '';
     return x;
   }).filter(x => x.title);
 }
@@ -19573,7 +19606,12 @@ function lkAutoTick(){
   const t = lkOf();
   if(!t.autoOn) return;
   lkAutoT = setTimeout(async () => {
-    if(view === 'tasks' && !document.hidden) await lkPullFile(false);
+    if(view === 'tasks' && !document.hidden){
+      await lkPullFile(false);
+      /* ↔️ 받기만 하면 한쪽으로만 흐릅니다 — 우리 것도 같이 놓습니다.
+         바뀐 게 없으면 lkFilePut 이 알아서 건너뜁니다. */
+      if(!lkOf().outOff) await lkFilePut(false);
+    }
     lkAutoTick();
   }, lkAutoMin() * 60000);
 }
@@ -19648,6 +19686,106 @@ function lkFileOut(kind, pick, withDone){
   markDirtyAll(); render();
   toast('📤 할 일 ' + rows.length + '건을 파일로 내보냈습니다'
     + (pick && pick !== 'all' ? ' (고른 것만)' : ''));
+}
+/* ── ⬆ <<우리 할 일을 그 폴더에 바로 놓습니다>> ────────────────────
+   여태는 [📤 내보내기] 가 <<브라우저로 내려받기>> 였습니다. 받은 파일을
+   사람이 손으로 그 폴더에 끌어다 놓아야 했고, 그래서 한쪽으로만
+   흘렀습니다 — 저쪽 것은 저절로 들어오는데 우리 것은 안 나갔습니다.
+
+   이제 NAS 가 <<그 폴더에 바로 써 줍니다>>. 양쪽이 한 폴더에 파일을
+   하나씩 두고 서로 읽으니, 이것으로 쌍방향이 됩니다.
+     · 그쪽 → 미디어마케팅팀-할일.json  (우리가 읽습니다)
+     · 우리 → 브랜드마케팅팀-할일.json  (그쪽이 읽습니다)
+   칸 이름은 저쪽 프로그램이 쓰는 <<한글(영문)>> 그대로 적습니다 —
+   「제목(title)」 「담당(assignee_id)」 … 그래야 그쪽이 그대로 읽습니다. */
+const LK_OUT_COLS = [
+  ['id',               t => String(t.id || '')],
+  ['제목(title)',      t => String(t.title || '')],
+  ['내용(description)',t => String(t.note || '')],
+  ['상태(status_id)',  t => String(t.status || '')],
+  ['담당(assignee_id)',(t, b) => taskWho(t) || ''],
+  ['마감일(due_date)', t => String(t.due || '')],
+  ['진척률(progress)', t => String(t.pct == null ? '' : t.pct).replace(/[^0-9]/g, '')],
+  ['브랜드(project_id)', (t, b) => String((b && b.name) || '')],
+  ['갈래(task_type_id)', t => String(t.kind || '할 일')],
+  ['고친때(updated_at)', t => String(t.updatedAt || '')]
+];
+function lkOutRows(){
+  /* 저쪽에서 가져온 줄은 <<되돌려 보내지 않습니다>> — 메아리가 됩니다 */
+  return taskAll().filter(({t}) => !t._from).map(({t, b}) => {
+    const o = {};
+    LK_OUT_COLS.forEach(([k, f]) => { o[k] = f(t, b); });
+    return o;
+  });
+}
+function lkOutCsv(rows){
+  const cols = LK_OUT_COLS.map(c => c[0]);
+  const q = v => { const x = String(v == null ? '' : v);
+    return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
+  return [cols.join(',')]
+    .concat((rows || []).map(r => cols.map(c => q(r[c])).join(','))).join('\r\n');
+}
+/* 올릴 것이 정말 바뀌었나 — 안 바뀌었으면 괜히 쓰지 않습니다 */
+function lkOutSig(rows){
+  return (rows || []).map(r => LK_OUT_COLS.map(c => r[c[0]]).join('|')).join('\n');
+}
+let lkPutBusy = false;
+async function lkFilePut(loud){
+  if(lkPutBusy) return null;
+  const t = lkOf();
+  const dir = String(t.autoDir || '').trim()
+           || (lkDug && lkDug.dir) || LK_DIG_DEF;
+  const rows = lkOutRows();
+  const sig  = lkOutSig(rows);
+  if(!loud && sig === String(t.outSig || '')) return null;   /* 그대로면 건너뜁니다 */
+  lkPutBusy = true;
+  if(loud) toast('⏳ 그 폴더에 놓는 중…');
+  try{
+    const stamp = new Date();
+    const body = { name: LK_FILE_OUT,
+      json: JSON.stringify({ 팀:'브랜드마케팅팀', 놓은때: stamp.toISOString(),
+                             줄수: rows.length, 할일: rows }, null, 1),
+      csv: lkOutCsv(rows) };
+    let r;
+    try{
+      r = await apiJson('nasfiles.php?action=tsput&path=' + encodeURIComponent(dir),
+        { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(body) });
+    }catch(e){
+      /* 📂 아직 허락 안 된 폴더면 그 자리에서 등록하고 한 번 더 */
+      if(e && e['등록하면됨'] && await lkAskReg(e, dir)){
+        r = await apiJson('nasfiles.php?action=tsput&path=' + encodeURIComponent(dir),
+          { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(body) });
+      }else throw e;
+    }
+    t.outSig = sig;
+    t.outPutAt = stamp.toISOString();
+    t.outPutDir = String(r['폴더'] || dir);
+    t.outPutWhy = '';
+    markDirtyAll();
+    if(loud){
+      render();
+      alert('⬆ 우리 할 일 ' + rows.length + '건을 놓았습니다.\n\n'
+        + '· 놓은 곳: ' + t.outPutDir + '\n'
+        + '· 놓은 파일: ' + (r['놓은파일'] || []).map(f => f['이름']).join(' · ') + '\n'
+        + '· 때: ' + (r['놓은때'] || '') + '\n\n'
+        + '미디어마케팅팀은 이 파일을 열어 보면 우리 할 일이 그대로 보입니다. '
+        + '그쪽에서 고쳐 되돌려 주면 <<우리 쪽 그 자리가 고쳐집니다>> '
+        + '(새로 생기지 않습니다).');
+    }
+    return r;
+  }catch(e){
+    t.outPutWhy = apiErrText(e);
+    if(loud){
+      render();
+      alert('❌ 놓지 못했습니다.\n\n' + apiErrText(e)
+        + '\n\n· 폴더: ' + dir
+        + '\n· NAS 가 그 폴더에 <<쓸 수>> 있어야 합니다 (읽기 전용이면 안 됩니다).'
+        + '\n· 미디어마케팅팀에 그 폴더 쓰기 권한을 한 번만 부탁해 주세요.');
+    }
+    return null;
+  }finally{ lkPutBusy = false; }
 }
 /* 가져온 것만 한꺼번에 치웁니다 */
 function lkDropImported(){
@@ -19841,9 +19979,39 @@ function lkIntoTasks(rows, srcName, teamName, quiet){
     t.brandId = b.id;
   }
   b.tasks = b.tasks || [];
+  /* ── ↔️ <<우리가 보낸 것이 고쳐져 돌아온 줄>> ──────────────────────
+     쌍방향으로 고치려면 이것이 핵심입니다. 우리가 내보낼 때 우리 할 일의
+     id 를 같이 적어 보냅니다. 저쪽에서 그 줄을 고쳐 되돌려 주면, 새로
+     만들지 않고 <<원래 그 자리를 고칩니다>>. 그래야 한 가지 일이 둘로
+     늘어나지 않습니다.
+     다만 <<저쪽이 더 늦게 고친 것만>> 받습니다 — 안 그러면 우리가 방금
+     고친 것을 지난 줄이 되돌려 버립니다. 때를 모르면 손대지 않고
+     몇 건인지만 알려 줍니다. */
+  const mine = {};
+  (data.brands || []).forEach(x => (x.tasks || []).forEach(y => {
+    if(!y._from && y.id) mine[String(y.id)] = { t: y, b: x }; }));
+  const at = (v) => { const d = new Date(String(v || '')); 
+                      return isNaN(d.getTime()) ? 0 : d.getTime(); };
+  let back = 0, held = 0;
   const seen = {};
   let n = 0;
   (rows || []).forEach((r, i) => {
+    const own = r.srcId ? mine[String(r.srcId)] : null;
+    if(own){
+      const theirs = at(r.srcAt), ours = at(own.t.updatedAt);
+      if(!theirs){ held++; return; }          /* 때를 모르면 손대지 않습니다 */
+      if(theirs <= ours) return;              /* 우리 것이 더 새것입니다 */
+      const pct2 = (r.pct == null || r.pct === '') ? own.t.pct : String(r.pct);
+      Object.assign(own.t, {
+        title: String(r.title || own.t.title || '').trim(),
+        status: lkStatus(r.status), pct: pct2,
+        due: String(r.due || ''), note: String(r.note || ''),
+        updatedAt: new Date(theirs).toISOString(), _back: '미디어마케팅팀'
+      });
+      markDirty(own.b.id);
+      back++;
+      return;
+    }
     const id = lkKey(r, i);
     seen[id] = true;
     const now = new Date().toISOString();
@@ -19864,7 +20032,8 @@ function lkIntoTasks(rows, srcName, teamName, quiet){
   /* 저쪽에서 없어진 것은 우리 쪽에서도 치웁니다 (가져온 것만) */
   b.tasks = b.tasks.filter(x => !(x._from === tag && !seen[x.id]));
   markDirty(b.id);
-  return { n:n, b:b, all: sift.all, drop: sift.drop, how: sift.how };
+  return { n:n, b:b, all: sift.all, drop: sift.drop, how: sift.how,
+           back: back, held: held };
 }
 /* 🤝 <<저절로 연동>> ─────────────────────────────────────────────
    여태는 사람이 ① 길 찾기 누르고 ② 폴더 적고 ③ 등록 허락하고
@@ -19874,9 +20043,15 @@ function lkIntoTasks(rows, srcName, teamName, quiet){
    그래서 들어오면 <<여기서 다 해 봅니다>>. 미리 아는 자리만 보고,
    막혀 있으면 등록까지 저절로 하고, 찾으면 할 일에 꽂고 자동까지
    켭니다. 사람이 누를 것은 없습니다. 읽기만 합니다. */
+/* 🔤 <<드라이브 글자는 사람마다 다릅니다>> ─────────────────────────
+   같은 공유폴더인데 어떤 분 탐색기에는 Z:, 어떤 분에게는 Y:(Synology02)
+   로 붙습니다. NAS 는 글자를 안 보고 폴더 이름으로 찾지만, 두 글자가
+   아주 <<다른 공유폴더>> 일 수도 있어서 둘 다 넣어 둡니다. */
 const LK_TRY_DIRS = [
   LK_DIG_DEF,                       /* DB_…  (자료를 두기로 한 자리) */
+  LK_DIG_DEF.replace(/^Z:/i, 'Y:'),
   'Z:\\넷폼알앤디 공유폴더\\00. 미디어마케팅팀\\미디어마케팅팀 브랜드허브',
+  'Y:\\넷폼알앤디 공유폴더\\00. 미디어마케팅팀\\미디어마케팅팀 브랜드허브',
   'Z:\\넷폼알앤디 공유폴더\\00. 미디어마케팅팀\\할일연동',
   HUB_MEDIA_DIR                     /* 프로그램_… (혹시 여기 둘 수도) */
 ];
@@ -20397,10 +20572,15 @@ function lkSwapHtml(){
       + (n ? '지금 ' + n + '건 들어와 있음' : '아직 불러온 것 없음')
       + ' · 마지막 불러온 때 ' + lkWhen(t.fileAt)
       + (t.fileName ? ' (' + esc(t.fileName) + ')' : '')
-      + ' · 마지막 내보낸 때 ' + lkWhen(t.outAt) + '</span>'
+      + ' · 마지막 올린 때 ' + lkWhen(t.outPutAt)
+      + (t.outPutWhy ? ' <b class="lk-bad">(못 올림)</b>' : '') + '</span>'
     + '<span class="lk-btns">'
       + '<button class="btn sm primary" onclick="lkFileAsk()"'
         + ' title="그쪽이 내보낸 파일을 골라 바로 읽습니다">📂 파일로 불러오기</button>'
+      /* ⬆ 내려받아 손으로 옮기지 않고 <<그 폴더에 바로>> 놓습니다 */
+      + '<button class="btn sm primary" onclick="lkFilePut(1)"'
+        + ' title="우리 할 일을 미디어마케팅팀 DB 폴더에 바로 놓습니다">'
+        + '⬆ 그 폴더에 올리기</button>'
       + '<button class="btn sm" onclick="lkFileOutPick(\'json\')"'
         + ' title="누구 것을 내보낼지 골라서 파일로 만듭니다">📤 내보내기 (json)</button>'
       + '<button class="btn sm" onclick="lkFileOutPick(\'csv\')"'
@@ -20427,6 +20607,23 @@ function lkSwapHtml(){
             ? '가져오는 곳 <b>' + esc(t.autoName || t.autoPath) + '</b>'
               + ' · 마지막 맞춘 때 ' + lkWhen(t.autoAt)
             : '아직 어디서 가져올지 안 정했습니다 — 들어올 때마다 저절로 찾아봅니다')
+      + '</span>'
+    + '</div>'
+    /* ↔️ 쌍방향 — 양쪽이 한 폴더에 파일을 하나씩 둡니다 */
+    + '<div class="lk-only"><b>↔️ 서로 고칠 수 있습니다</b>'
+      + '<span class="fmeta">'
+        + '한 폴더에 파일을 하나씩 둡니다 — '
+        + '그쪽은 <b>' + esc(LK_FILE_DEF) + '.json</b>, '
+        + '우리는 <b>' + esc(LK_FILE_OUT) + '.json</b>.<br>'
+        + '우리가 올리는 줄에는 <b>우리 할 일 번호와 고친 때</b>가 같이 적힙니다. '
+        + '그래서 그쪽이 그 줄을 고쳐 되돌려 주면 <b>새로 생기지 않고 '
+        + '그 자리가 고쳐집니다</b>. 양쪽이 같은 줄을 고쳤으면 '
+        + '<b>더 늦게 고친 쪽</b>이 남습니다.'
+        + (t.outPutDir ? '<br>올리는 곳: <b>' + esc(t.outPutDir) + '</b>' : '')
+        + (t.outPutWhy
+            ? '<br><b class="lk-bad">못 올렸습니다 — ' + esc(t.outPutWhy) + '</b>'
+              + ' (그 폴더에 <b>쓰기</b> 권한이 있어야 합니다)'
+            : '')
       + '</span>'
     + '</div>'
     /* 🤝 저절로 연동 — 지금 어떤 꼴인지 한 줄로 */
@@ -32318,11 +32515,13 @@ function normalize(raw){
     const L = raw.teamLink;
     ['lastPull','lastPush','store','node','team','why',
      'autoPath','autoName','autoDir','autoKey','autoAt','srvPath',
-     'fileAt','fileName','outAt','brandId','boot','bootAt','bootTry'].forEach(k => {
+     'fileAt','fileName','outAt','brandId','boot','bootAt','bootTry',
+     'outSig','outPutAt','outPutDir','outPutWhy'].forEach(k => {
       if(typeof L[k] !== 'string') L[k] = ''; });
     L.on = !!L.on;
     L.autoOn = !!L.autoOn;
     L.bootOff = !!L.bootOff;
+    L.outOff = !!L.outOff;
     { const n = parseInt(L.autoMin, 10); L.autoMin = (n >= 1 && n <= 180) ? n : 10; }
     /* 🔢 팀 폴더에 번호가 붙은 것 — 적어 둔 자리도 같이 옮깁니다 */
     ['autoPath', 'autoDir', 'srvPath'].forEach(k => {

@@ -245,6 +245,7 @@ const ACTIONS = {
       row = list.find((j) => j.id === id)
       if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
       if (row.status !== 'ready') throw new HttpError(409, '제작 대기 상태의 작업만 제작을 요청할 수 있습니다.')
+      if (isManus(row)) throw new HttpError(400, 'Manus 영상은 아직 자동 제작이 연결되지 않았습니다. 프롬프트를 복사해 Manus 에서 만들어 주세요.')
       row.status = 'submitting'; row.step = 6
       row.data.events.push(ev('영상 제작 시작 (프롬프트 확인 후 직접 요청)'))
     })
@@ -279,12 +280,12 @@ const ACTIONS = {
     const bad = termIssues({ title: '', scenes: [{ narration: text, onScreen: '' }] }).filter((x) => x.includes('금지어'))
     if (bad.length) throw new HttpError(400, '금지어가 있어 저장하지 않았습니다: ' + bad.map((x) => x.replace(/^장면 1 대사: /, '')).join(' / '))
     const settings = await getSettings(env)
-    if (!isAgent(settings)) throw new HttpError(400, '직접 수정은 ‘HeyGen 자동 구성’ 방식에서만 쓸 수 있습니다(설정 → 영상 구성 설정).')
     let row = null
     await mutate(env, 'jobs', [], (list) => {
       row = list.find((j) => j.id === id)
       if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
       if (!['held', 'ready'].includes(row.status) || !row.data.plan) throw new HttpError(409, '검수 보류 또는 제작 대기 상태의 작업만 직접 수정할 수 있습니다.')
+      if (!isManus(row) && !isAgent(settings)) throw new HttpError(400, '직접 수정은 ‘HeyGen 자동 구성’ 방식이나 Manus 영상에서만 쓸 수 있습니다(설정 → 영상 구성 설정).')
       const d = row.data
       d.customPrompt = text; d.prompt = text
       d.error = ''; d.lastIssues = []; d.pendingIssues = []
@@ -344,7 +345,7 @@ const ACTIONS = {
 
     const inp = validateInput(input)
     const st = await state(env, { raw: true })
-    const missing = readinessProblems(st)
+    const missing = readinessProblems(st, inp.tool)
     if (missing.length) throw new HttpError(400, '제작 전 확인이 필요합니다: ' + missing.join(' / '))
     if (st.jobs.some((j) => ACTIVE.includes(j.status))) throw new HttpError(409, '진행 중인 제작이 끝난 뒤 새 영상을 시작할 수 있습니다.')
     const today = new Date(); today.setUTCHours(0, 0, 0, 0)
@@ -418,7 +419,7 @@ async function runStep(env, job) {
 
   // 1) 대본·장면 작성
   if (job.step === 1) {
-    const plan = await callClaude(claudeKey, d.models.claude, draftSystem(aiVideoMax(st.settings)), draftUser(job, d), PLAN_SCHEMA, d)
+    const plan = await callClaude(claudeKey, d.models.claude, draftSystem(maxVFor(job, st.settings), job), draftUser(job, d), PLAN_SCHEMA, d)
     applyPlan(job, plan, st)
     d.events.push(ev(`대본 작성 완료: 장면 ${plan.scenes.length}개 · Claude ${d.models.claude}`))
     job.step = 2; job.status = 'reviewing'
@@ -468,7 +469,7 @@ async function runStep(env, job) {
 
   // 4-수정) 지적 사항을 반영해 대본 수정 → 다시 양쪽 검수
   if (job.status === 'revising') {
-    const plan = await callClaude(claudeKey, d.models.claude, draftSystem(aiVideoMax(st.settings)), reviseUser(job, d), PLAN_SCHEMA, d)
+    const plan = await callClaude(claudeKey, d.models.claude, draftSystem(maxVFor(job, st.settings), job), reviseUser(job, d), PLAN_SCHEMA, d)
     job.revision += 1
     applyPlan(job, plan, st)
     d.claude = null; d.openai = null; d.pendingIssues = []
@@ -478,10 +479,10 @@ async function runStep(env, job) {
   }
 
   // 5) 장면 준비 — 한 번 호출에 한 가지씩: ① AI 영상(요청·확인) ② AI 이미지 ③ 사진 컷 자동 줌·이동 클립
-  if (job.status === 'preparing' && isAgent(st.settings)) {
+  if (job.status === 'preparing' && (isManus(job) || isAgent(st.settings))) {
     // HeyGen 자동 구성: 화면은 HeyGen 이 만들므로 AI 이미지·영상·움직임 클립을 만들지 않는다 (비용 절약)
     d.prompt = promptFor(job, d.plan, st)
-    d.events.push(ev('HeyGen 자동 구성 모드: 화면 구성은 HeyGen Video Agent 가 만듭니다.'))
+    d.events.push(ev(isManus(job) ? 'Manus 영상(아바타 없음): 프롬프트를 복사해 Manus 에서 만듭니다.' : 'HeyGen 자동 구성 모드: 화면 구성은 HeyGen Video Agent 가 만듭니다.'))
     job.step = 6
     job.status = 'ready'
     d.events.push(ev(READY_MSG))
@@ -700,10 +701,12 @@ function normReview(r) {
 }
 
 // ─────────────────────────── 프롬프트 ───────────────────────────
-function draftSystem(maxV = DEFAULT_SETTINGS.maxAiVideos) {
+function draftSystem(maxV = DEFAULT_SETTINGS.maxAiVideos, job = null) {
   return [
     '당신은 아파트 보수공사 감리 전문회사 "아파트스퀘어"의 영상 대본 작가입니다.',
-    '발표자는 아파트스퀘어 조현식 이사(AI 아바타)이며, 1인칭 존댓말로 시청자에게 직접 설명합니다.',
+    job && isManus(job)
+      ? '이 영상은 발표자·아바타 없이 내레이션(목소리 해설)과 화면으로 진행합니다. 내레이터는 아파트스퀘어를 대표하는 차분한 전문가 목소리로 시청자에게 존댓말로 설명합니다. 특정 인물 이름(조현식 이사 등)을 대거나 "저는 ~입니다"라고 자신을 소개하지 않습니다. 화면(visual)은 시네마틱한 실사 장면 위주로 구체적으로 적습니다.'
+      : '발표자는 아파트스퀘어 조현식 이사(AI 아바타)이며, 1인칭 존댓말로 시청자에게 직접 설명합니다.',
     '규칙:',
     '1. 사실·수치·서비스 내용은 제공된 [승인 자료] 단락에서만 가져옵니다. 자료에 없는 사실, 수치, 사례, 약속을 만들지 마세요.',
     '2. 모든 장면에 citations 를 1개 이상 달고, quote 는 해당 자료 원문에서 12자 이상을 글자 그대로 복사합니다(띄어쓰기 포함, 요약·수정 금지). sourceId 는 자료의 id 를 그대로 씁니다.',
@@ -754,7 +757,7 @@ function contextBlock(d) {
 }
 function briefBlock(job) {
   const i = job.input
-  return `[이번 영상]\n키워드: ${i.keywords}\n시청 대상: ${i.audience}\n목표 길이: ${i.seconds}초\n화면 비율: ${i.ratio === '9:16' ? '세로형 9:16(쇼츠)' : '가로형 16:9'}`
+  return `[이번 영상]\n키워드: ${i.keywords}\n시청 대상: ${i.audience}\n목표 길이: ${i.seconds}초\n화면 비율: ${i.ratio === '9:16' ? '세로형 9:16(쇼츠)' : '가로형 16:9'}\n제작 방식: ${i.tool === 'manus' ? 'Manus 가 내레이션·화면을 만드는 아바타 없는 영상 (production 은 Manus 영상 제작 지시로서 적절한지 평가, 컷·사진 배정은 평가하지 않음)' : 'HeyGen 조현식 이사 아바타 영상'}`
 }
 function draftUser(job, d) {
   const mem = (d.memory || []).length ? `\n\n[지난 제작 형식 참고(사실은 가져오지 말 것)]\n${d.memory.join('\n')}` : ''
@@ -778,7 +781,7 @@ function reviewSystem() {
   ].join('\n')
 }
 function reviewUser(job, d) {
-  if (d.customPrompt) return `${briefBlock(job)}\n\n[승인 자료]\n${contextBlock(d)}\n\n[참고: AI가 처음 쓴 대본]\n${JSON.stringify(d.plan)}\n\n[검수 대상: 관리자가 직접 수정한 HeyGen 프롬프트 — 이 글이 그대로 HeyGen에 전달됩니다]\n${d.customPrompt}\n\n위 수정 프롬프트를 평가하세요. 대사(‘대사:’ 줄)의 사실·수치는 [승인 자료]로 뒷받침되어야 합니다. 컷·사진 배정은 평가하지 않습니다(HeyGen이 화면을 구성).`
+  if (d.customPrompt) return `${briefBlock(job)}\n\n[승인 자료]\n${contextBlock(d)}\n\n[참고: AI가 처음 쓴 대본]\n${JSON.stringify(d.plan)}\n\n[검수 대상: 관리자가 직접 수정한 제작 프롬프트 — 이 글이 그대로 영상 제작에 쓰입니다]\n${d.customPrompt}\n\n위 수정 프롬프트를 평가하세요. 대사(‘대사:’ 줄)의 사실·수치는 [승인 자료]로 뒷받침되어야 합니다. 컷·사진 배정은 평가하지 않습니다(제작 도구가 화면을 구성). ‘내레이션:’ 줄도 대사와 같이 봅니다.`
   return `${briefBlock(job)}\n\n[승인 자료]\n${contextBlock(d)}\n\n[사진 자료실] (id: 설명)\n${photoBlock(d.photoCatalog)}\n\n[검수 대상 대본]\n${JSON.stringify(d.plan)}\n\n[컷 구성 요약]\n${d.prompt}\n\n위 대본과 컷 구성을 평가하세요.`
 }
 function heygenPrompt(job, plan, photos) {
@@ -803,7 +806,7 @@ function heygenPrompt(job, plan, photos) {
   })
   return lines.join('\n').trim()
 }
-function promptFor(job, plan, st) { if (job.data && job.data.customPrompt) return job.data.customPrompt; return isAgent(st.settings) ? agentPrompt(job, plan) : heygenPrompt(job, plan, st.photos) }
+function promptFor(job, plan, st) { if (job.data && job.data.customPrompt) return job.data.customPrompt; if (isManus(job)) return manusPrompt(job, plan); return isAgent(st.settings) ? agentPrompt(job, plan) : heygenPrompt(job, plan, st.photos) }
 // HeyGen Video Agent 용 프롬프트: 대사는 검수 통과본 그대로, 화면은 HeyGen 이 만들되 브랜드·현장 규칙을 강하게 지시
 function agentPrompt(job, plan) {
   const i = job.input
@@ -817,11 +820,14 @@ function agentPrompt(job, plan) {
     '[발표자 등장]',
     '- 첫 장면은 발표자가 화면에 직접 나와 시청자를 보며 말하는 것으로 시작합니다(첫 3초 안에 얼굴이 보이게).',
     '- 마지막 장면도 발표자가 정면을 보며 마무리합니다.',
-    '- 중간 장면에서도 발표자가 영상 전체 시간의 절반 이상 보이게 합니다. 자료 화면이 나올 때는 발표자를 화면 한쪽에 작게(화면 분할 또는 작은 창) 함께 둡니다. 자료 화면만 연속 2개 넘게 이어지지 않게 합니다.',
+    '- 발표자 장면과 자료 화면 장면을 번갈아 보여 줍니다. 발표자가 나올 때는 발표자만 화면에 크게(상반신, 화면 중앙 또는 1/3 지점) 보여 주고, 자료 화면이 나올 때는 자료 화면만 화면 가득 보여 줍니다.',
+    '- 자료 화면 위에 발표자를 작은 창·구석·하단 오버레이로 겹쳐 넣지 않습니다(픽처인픽처·화면 분할 금지). 자료 화면이 나오는 동안 발표자 목소리는 그대로 이어집니다.',
+    '- 자료 화면은 한 번에 1~2개(최대 약 8초)만 이어서 보여 주고 다시 발표자 장면으로 돌아옵니다. 핵심 메시지 장면은 발표자가 직접 말합니다.',
     '',
     '[화면 구성]',
     '- 자료 화면은 화면 가득(전체 화면)으로 씁니다. 화면 위쪽에 흰색·단색 제목 띠(배너)를 두지 않습니다.',
-    '- 자막은 화면 아래쪽 1/4 안에 짧게 넣습니다. 장면 제목은 화면 아래쪽 또는 왼쪽 아래에 작은 라벨로만 잠깐 보여 줍니다.',
+    '- 자막은 화면 아래쪽에 또렷하게 읽히는 크기(가로 영상 기준 글자 높이 약 40~48px, 네이비 반투명 상자 위 흰 글자)로 넣습니다. 너무 작은 글자 라벨은 쓰지 않습니다.',
+    '- 장면 제목은 자료 화면 왼쪽 아래에 라벨로 잠깐 보여 줍니다(자막과 겹치지 않게).',
     '- 장면은 3~4초마다 바뀌고, 정지 화면도 천천히 확대·이동하는 카메라 움직임을 줍니다.',
     '- 버튼·점 세 개(···)·검색창·체크박스 같은 화면 UI 모양 장식, 빈 상자·빈 틀 그래픽을 넣지 않습니다.',
     '- 앱·웹 화면은 실제 이미지가 제공되지 않았으므로 그리지 않습니다. 대신 현장에서 감리자가 스마트폰으로 사진을 찍고 기록하는 실제 장면(화면 내용은 보이지 않게)으로 보여 줍니다.',
@@ -846,6 +852,48 @@ function agentPrompt(job, plan) {
     lines.push(`자막: ${s.onScreen}`)
     lines.push(`화면: ${s.visual}`)
     lines.push(`대사: ${(s.cuts && s.cuts.length ? s.cuts.map((c) => c.narration).join(' ') : s.narration)}`)
+    lines.push('')
+  })
+  return lines.join('\n').trim()
+}
+// Manus(아바타 없는 영상)용 제작 지시서: 내레이션은 검수본 그대로, 연출은 Manus 가 크리에이티브 디렉터로
+function manusPrompt(job, plan) {
+  const i = job.input
+  const lines = [
+    `# ${plan.title}`,
+    '아파트스퀘어(공동주택 유지보수 전문감리기관)의 영상을 만들어 주세요. 완성된 MP4 영상 파일로 전달해 주세요.',
+    `- 형식: ${i.ratio === '9:16' ? '세로형 9:16 (1080×1920, 쇼츠)' : '가로형 16:9 (1920×1080)'} · 목표 길이 ${i.seconds}초 · 시청 대상 ${i.audience}`,
+    '- 발표자·아바타·실존 인물의 얼굴 없이, 차분하고 신뢰감 있는 한국어 남성 내레이션(AI 음성)과 한국어 자막으로 진행합니다.',
+    '- 배경음악은 잔잔하고 신뢰감 있게, 내레이션보다 작게 깔아 주세요.',
+    '',
+    '[내레이션 규칙] 아래 장면별 내레이션을 한 글자도 바꾸지 말고 순서대로 그대로 읽습니다. 문장을 추가·삭제·요약하지 않습니다.',
+    '',
+    '[연출]',
+    '- 크리에이티브 디렉터로서 장면마다 시네마틱한 실사(또는 사실적인 AI 영상) 장면을 만들고, 부드러운 카메라 움직임과 2~4초 컷 전환으로 리듬감 있게 편집합니다.',
+    '- 하자 부위·점검 위치 등 중요한 곳은 얇은 포인트 블루(#4A6FB5) 윤곽선이나 화살표로 강조합니다.',
+    '- 핵심 단어는 짧은 키네틱 타이포그래피(서체 Pretendard, 네이비 #1F2C5C·화이트)로 보여 줍니다. 자막과 겹치지 않게 합니다.',
+    '- 장면 전체가 같은 색감(밝은 낮, 자연광, 깨끗한 톤)으로 이어지게 합니다. 어둡거나 칙칙한 필터는 쓰지 않습니다.',
+    '- 자막은 화면 아래쪽에 또렷하게 읽히는 크기로 넣습니다.',
+    '',
+    '[화면 소재]',
+    '- 건물·현장은 한국 아파트 단지(판상형·탑상형 공동주택)만 사용합니다. 외국 도시·오피스 빌딩·유럽식 건물 금지.',
+    '- 하자 장면(도막 들뜸·균열·초킹·방수층 부풀음·고인 물 등)은 내레이션에 나온 바로 그 부위(외벽·옥상 바닥·파라펫·지하주차장 등)를 실제 크기와 모습대로 보여 줍니다. 과장된 붕괴·대형 파손 장면 금지.',
+    '- 앱·웹 화면 UI는 그리지 않습니다. 기록 장면은 감리자가 스마트폰으로 사진을 찍는 모습(화면 내용은 보이지 않게)으로 보여 줍니다.',
+    '- 화면 속 글자는 한국어만 사용합니다. 영어 문구·가짜 문서 금지.',
+    '- 수치·공정률·가격·결과 약속을 새로 만들어 넣지 않습니다. 내레이션과 자막에 있는 내용만 보여 줍니다.',
+    '- AI로 만든 장면을 실제 아파트스퀘어 현장 기록처럼 표시하지 않습니다.',
+    '',
+    '[브랜드]',
+    `- ${(T.brand && T.brand.visual) || '네이비 #1F2C5C, 포인트 블루 #4A6FB5(제한적으로), 화이트 #FFFFFF, 그레이 #F4F5F7, 서체 Pretendard'}`,
+    '- 마지막 장면: 흰 배경 카드에 네이비 Pretendard 굵은 글씨로 "아파트스퀘어", 그 아래 "공동주택 유지보수 전문감리기관"과 "1600-6069 · aptsquare.net". 로고를 새로 그리거나 변형하지 않습니다(로고 이미지가 없으면 글자만).',
+    '- 다른 회사·브랜드 이름(POUR 등)은 화면과 음성 어디에도 넣지 않습니다.',
+    '',
+  ]
+  plan.scenes.forEach((s, k) => {
+    lines.push(`## 장면 ${k + 1} (${s.seconds}초)`)
+    lines.push(`자막: ${s.onScreen}`)
+    lines.push(`화면: ${s.visual}`)
+    lines.push(`내레이션: ${(s.cuts && s.cuts.length ? s.cuts.map((c) => c.narration).join(' ') : s.narration)}`)
     lines.push('')
   })
   return lines.join('\n').trim()
@@ -892,6 +940,8 @@ async function cutMedia(env, plan, photos, seconds) {
   await Promise.all(jobs)
   return out
 }
+function isManus(job) { return !!(job && job.input && job.input.tool === 'manus') }
+function maxVFor(job, set) { return isManus(job) ? 0 : aiVideoMax(set) }
 function isAgent(set) { return (set && set.heygenMode) !== 'scenes' }
 function aiVideoMax(set) { return isAgent(set) || set.aiVideo === false ? 0 : set.maxAiVideos != null ? set.maxAiVideos : DEFAULT_SETTINGS.maxAiVideos }
 function cutSeconds(c) { return Math.max(2, Math.min(12, Math.round((String(c.narration || '').replace(/\s/g, '').length / 4.5 + 0.8) * 10) / 10)) }
@@ -1266,13 +1316,15 @@ async function state(env, opt = {}) {
     terms: T,
   }
 }
-function readinessProblems(st) {
+function readinessProblems(st, tool = 'heygen') {
   const out = []
   if (!st.readiness.claude) out.push('Claude 연결')
   if (!st.readiness.openai) out.push('OpenAI 연결')
-  if (!st.readiness.heygen) out.push('HeyGen 연결')
-  if (!st.settings.avatarId || !st.settings.voiceId) out.push('아바타·음성 설정')
-  if (!st.settings.consent) out.push('아바타 사용 동의')
+  if (tool !== 'manus') {
+    if (!st.readiness.heygen) out.push('HeyGen 연결')
+    if (!st.settings.avatarId || !st.settings.voiceId) out.push('아바타·음성 설정')
+    if (!st.settings.consent) out.push('아바타 사용 동의')
+  }
   if (!st.sourcesFull.some((s) => s.approved)) out.push('승인된 브랜드 자료')
   return out
 }
@@ -1327,7 +1379,7 @@ function validateInput(i) {
   if (audience.length < 2 || audience.length > 200) throw new HttpError(400, '시청 대상을 선택해 주세요.')
   if (![30, 60, 90, 120, 180, 300].includes(seconds)) throw new HttpError(400, '목표 영상 길이가 올바르지 않습니다.')
   if (!['16:9', '9:16'].includes(i.ratio)) throw new HttpError(400, '화면 비율이 올바르지 않습니다.')
-  return { keywords, audience, seconds, ratio: i.ratio }
+  return { keywords, audience, seconds, ratio: i.ratio, tool: i.tool === 'manus' ? 'manus' : 'heygen' }
 }
 async function getSettings(env) {
   return { ...DEFAULT_SETTINGS, ...(await readJSON(env, 'settings', {})) }

@@ -143,9 +143,10 @@
     const out = []
     if (!n.readiness.claude) out.push({ label: 'Claude API와 사용할 모델을 저장해 주세요.', tab: 'settings', action: 'Claude 연결' })
     if (!n.readiness.openai) out.push({ label: 'OpenAI API와 사용할 모델을 저장해 주세요.', tab: 'settings', action: 'OpenAI 연결' })
-    if (!n.readiness.heygen) out.push({ label: 'HeyGen API 연결을 저장해 주세요.', tab: 'settings', action: 'HeyGen 연결' })
-    if (!n.settings.avatarId || !n.settings.voiceId) out.push({ label: '사용할 아바타와 음성을 선택하고 저장해 주세요.', tab: 'settings', action: '아바타 설정' })
-    if (!n.settings.consent) out.push({ label: '아바타 사용 권한 확인을 체크하고 설정을 저장해 주세요.', tab: 'settings', action: '동의 저장' })
+    const manus = $('tool').value === 'manus'
+    if (!manus && !n.readiness.heygen) out.push({ label: 'HeyGen API 연결을 저장해 주세요.', tab: 'settings', action: 'HeyGen 연결' })
+    if (!manus && (!n.settings.avatarId || !n.settings.voiceId)) out.push({ label: '사용할 아바타와 음성을 선택하고 저장해 주세요.', tab: 'settings', action: '아바타 설정' })
+    if (!manus && !n.settings.consent) out.push({ label: '아바타 사용 권한 확인을 체크하고 설정을 저장해 주세요.', tab: 'settings', action: '동의 저장' })
     if (!n.sources.some((s) => s.approved === 1)) {
       out.push({ label: n.sources.length ? '등록 자료에서 ‘영상 제작 근거로 사용’을 체크해 주세요.' : '영상의 근거가 될 브랜드 자료를 1개 이상 등록해 주세요.', tab: 'knowledge', action: '자료실 열기' })
     }
@@ -189,6 +190,9 @@
       <strong>제작 전 ${miss.length}개 항목을 완료해 주세요</strong>
       <p>${n.settings.consent ? '아바타 사용 동의는 저장되었습니다. 아래 제작 버튼 위에 남은 항목을 표시했습니다.' : '아래 제작 버튼 위에서 필요한 항목을 확인하세요.'}</p></div></div></div>` : ''
 
+    const isManusSel = $('tool').value === 'manus'
+    $('presenter-box').hidden = isManusSel
+    $('tool-note').textContent = isManusSel ? '아바타 없이 내레이션과 화면으로 만듭니다. 검수 통과 후 프롬프트를 복사해 Manus(Alchemy 모드 추천)에 붙여 넣으면 됩니다. HeyGen 크레딧은 쓰지 않습니다.' : '조현식 이사 아바타가 직접 설명합니다. 검수 통과 후 ‘영상 제작 시작’을 누르면 HeyGen 크레딧을 씁니다.'
     const consent = n && n.settings.consent
     $('presenter-tag').className = consent ? 'tag green' : 'tag'
     $('presenter-tag').textContent = consent ? '사용 동의 저장 완료' : '본인·동의 확인 전'
@@ -306,13 +310,19 @@
   }
   function jobHtml(e) {
     let h = `<div class="job-result"><div class="between"><div><h3>${esc((e.plan && e.plan.title) || e.input.keywords)}</h3>
-      <p>${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
+      <p>${e.input.tool === 'manus' ? 'Manus · 아바타 없음 · ' : 'HeyGen 아바타 · '}${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
-    const canEdit = ['held', 'ready'].includes(e.status) && e.plan && e.prompt && S.settings.heygenMode !== 'scenes'
+    const isM = e.input.tool === 'manus'
+    const canEdit = ['held', 'ready'].includes(e.status) && e.plan && e.prompt && (isM || S.settings.heygenMode !== 'scenes')
     if (e.status === 'held' && e.plan) h += `<div class="retry-box"><div><strong>AI가 지적 사항을 반영해 다시 고칩니다</strong><p>Claude가 위 지적 사항대로 대본을 고치고, Claude·OpenAI가 다시 검수합니다(최대 2회 수정, 소액). 통과하면 ‘제작 대기’로 바뀌고, 그때 확인만 하시면 됩니다.</p></div>
       <button type="button" class="btn" data-retry="${e.id}">${icon('refresh', 16)}AI가 다시 수정·검수</button></div>`
     if (canEdit) h += editBoxHtml(e)
-    if (e.status === 'ready' && e.prompt) {
+    if (e.status === 'ready' && e.prompt && isM) {
+      h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — Manus에 붙여 넣을 프롬프트입니다</strong>
+        <p>${e.skippedReview ? '<b>검수 없이 넘긴 직접 수정본입니다.</b> ' : 'Claude·OpenAI 검수를 통과했습니다. '}‘프롬프트 복사’ → Manus 열기 → 영상(Studio) <b>Alchemy 모드</b>를 고르고 붙여 넣으세요. 아바타 없이 내레이션으로 만들어집니다. HeyGen 크레딧은 쓰지 않습니다.</p>
+        <pre class="approve-prompt">${esc(e.prompt)}</pre>
+        <div class="job-actions"><button type="button" class="btn" data-copy-prompt="${e.id}">${icon('copy', 14)}프롬프트 복사</button><a class="btn outline" href="https://manus.im/app" target="_blank" rel="noreferrer">${icon('external', 14)}Manus 열기</a><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button></div></div>`
+    } else if (e.status === 'ready' && e.prompt) {
       h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — 아래 프롬프트를 확인하세요</strong>
         <p>${e.skippedReview ? '<b>검수 없이 넘긴 직접 수정본입니다.</b> ' : e.edited ? '직접 수정한 프롬프트가 ' : ''}${e.skippedReview ? '' : 'Claude·OpenAI 검수를 통과했습니다. '} 프롬프트와 무료 미리보기를 확인한 뒤 ‘영상 제작 시작’을 누르면 그때 HeyGen 크레딧이 쓰입니다. 마음에 들지 않으면 제작하지 말고 키워드를 바꿔 다시 만드세요(대본·검수 비용만 듭니다).</p>
         <pre class="approve-prompt">${esc(e.prompt)}</pre>
@@ -577,7 +587,7 @@
       S.requestId = S.requestId || newRequestId()
       const e = await api({
         action: 'create', requestId: S.requestId,
-        input: { keywords: $('keywords').value, audience: $('audience').value, seconds: Number($('seconds').value), ratio: $('ratio').value },
+        input: { keywords: $('keywords').value, audience: $('audience').value, seconds: Number($('seconds').value), ratio: $('ratio').value, tool: $('tool').value },
       })
       S.data.jobs = [e.job, ...S.data.jobs.filter((j) => j.id !== e.job.id)]
       S.selectedId = e.job.id
@@ -865,7 +875,7 @@
 
   // ── 이벤트 ──
   $('topics').innerHTML = ['외벽 재도장', '옥상 방수', '공사 전 진단'].map((t) => `<button type="button" data-topic="${t}">${icon('plus', 13)}${t}</button>`).join('')
-  ;['keywords', 'audience', 'ratio', 'seconds'].forEach((id) => $(id).addEventListener('input', () => { S.requestId = null; renderCreate() }))
+  ;['keywords', 'audience', 'ratio', 'seconds', 'tool'].forEach((id) => $(id).addEventListener('input', () => { S.requestId = null; renderCreate() }))
   $('create-btn').addEventListener('click', createJob)
   ;['source-title', 'source-origin', 'source-content'].forEach((id) => $(id).addEventListener('input', updateSourceSave))
   $('source-save').addEventListener('click', async () => {

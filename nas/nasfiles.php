@@ -1571,10 +1571,19 @@ if ($action === 'hub' || $action === 'hubinfo') {
               '후보' => $names]);
     }
 
+    /* ── 🔄 <<늘 지금 것을 보내 줍니다>> ─────────────────────────────
+       「max-age=0」 만으로는 모자랐습니다. 견줄 거리(ETag · Last-Modified)
+       를 안 줬더니 브라우저가 제 마음대로 받아 둔 것을 다시 썼고,
+       그래서 그쪽이 새 판을 올려도 <<지난 판이 열렸습니다>>.
+       아예 담아 두지 말라고 못 박고, 언제 고친 것인지도 같이 보냅니다. */
     header('Content-Type: text/html; charset=utf-8');
     header('X-Content-Type-Options: nosniff');
     header('X-Hub-File: ' . rawurlencode(basename($rr)));
-    header('Cache-Control: private, max-age=0');
+    header('X-Hub-When: ' . date('Y-m-d H:i:s', (int)@filemtime($rr)));
+    header('Last-Modified: ' . gmdate('D, d M Y H:i:s', (int)@filemtime($rr)) . ' GMT');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
     while (ob_get_level()) ob_end_flush();
     readfile($rr);
     exit;

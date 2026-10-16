@@ -5658,7 +5658,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-21';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-22';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7541,7 +7541,12 @@ const HUB_MEDIA_FILE = 'mediam_TeamHub';
 function hubHref(h){
   const pth = String((h && h.path) || '').trim();
   const wnt = String((h && h.want) || '').trim();
-  if(pth) return 'nasfiles.php?action=hub&path=' + encodeURIComponent(pth)
+  /* 🔄 누를 때마다 <<새 주소>> 로 부릅니다 — 같은 주소면 브라우저가
+     받아 둔 것을 그냥 다시 보여 줘서, 그쪽이 새 판을 올려도 지난
+     판이 열립니다. t 는 「언제 눌렀나」 일 뿐 서버는 보지 않습니다.
+     path= 보다 <<앞에>> 둡니다 (뒤에 붙이면 자리 글자에 섞입니다). */
+  if(pth) return 'nasfiles.php?action=hub&t=' + Date.now()
+    + '&path=' + encodeURIComponent(pth)
     + (wnt ? '&want=' + encodeURIComponent(wnt) : '');
   return String((h && h.url) || '').trim();
 }
@@ -7586,6 +7591,14 @@ function hubGo(id){
     hubEdit(id); return;
   }
   window.open(href, '_blank', 'noopener');
+  /* 🧾 무엇이 열렸는지 한 줄로 — 지난 판이 열리면 눈에 보여야 합니다 */
+  const pth = String(h.path || '').trim();
+  if(!pth) return;
+  const wnt = String(h.want || '').trim();
+  apiJson('nasfiles.php?action=hubinfo&path=' + encodeURIComponent(pth)
+    + (wnt ? '&want=' + encodeURIComponent(wnt) : ''))
+    .then(r => toast('↗ ' + (r['파일'] || '') + ' · ' + (r['고친때'] || '') + ' 판'))
+    .catch(() => {});
 }
 /* 걸어 둔 자리에서 무엇이 열릴지 미리 알려 줍니다 — 열어 보지 않고 확인용 */
 async function hubCheck(id){

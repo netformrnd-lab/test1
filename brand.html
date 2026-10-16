@@ -5528,7 +5528,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-14';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261016-15';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6500,6 +6500,45 @@ function uiScrollSnap(snap){
     });
   });
 }
+/* ── 🪂 다시 그린 <<뒤에>> 밀려나는 것을 붙잡습니다 ────────────────
+   자리를 되돌려 놓아도, 그 뒤에 글칸 높이가 잡히고 그림·미리보기가
+   들어오면서 쪽이 잠깐 <<짧아집니다>>. 그 순간 브라우저가 스크롤을
+   끝까지 깎아 버리고, 내용이 다시 길어져도 깎인 자리에 그대로
+   남습니다 — 이것이 「가끔 위로 튕긴다」 의 까닭입니다.
+   그래서 되돌린 뒤 몇 프레임과 짧은 틈을 두고 <<다시 한 번>> 맞춥니다.
+   사람이 스스로 굴렸거나(uiTouchAt) 일부러 올린 것(uiGoTop)이면
+   바로 손을 뗍니다 — 그러지 않으면 사람과 싸웁니다. */
+let uiTouchAt = 0;      /* 사람이 마지막으로 굴린 때 */
+let uiGoAt    = 0;      /* 일부러 맨 위로 보낸 때 */
+['wheel', 'touchmove', 'keydown'].forEach(ev =>
+  window.addEventListener(ev, () => { uiTouchAt = Date.now(); },
+    { passive: true, capture: true }));
+function uiGoTop(smooth){
+  uiGoAt = Date.now();
+  window.scrollTo(smooth ? { top:0, behavior:'smooth' } : { top:0 });
+}
+function uiGoY(y){
+  uiGoAt = Date.now();
+  window.scrollTo({ top: y });
+}
+function uiHoldY(y, t0){
+  if(!(y > 0)) return;                       /* 맨 위면 붙잡을 것이 없습니다 */
+  let n = 0;
+  /* 같은 밀리초 안에 일어나는 일이 흔합니다 — render() 바로 뒤에
+     uiGoTop() 을 부르면 t0 와 uiGoAt 이 같은 값이 됩니다. > 로 보면
+     「일부러 올린 것」 을 못 알아보고 도로 끌어내립니다. */
+  const give = () => (uiTouchAt >= t0) || (uiGoAt >= t0);
+  const tick = () => {
+    if(give()) return;
+    if(Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y);
+    if(++n < 3) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  setTimeout(() => { if(!give() && Math.abs(window.scrollY - y) > 2)
+    window.scrollTo(0, y); }, 150);
+  setTimeout(() => { if(!give() && Math.abs(window.scrollY - y) > 2)
+    window.scrollTo(0, y); }, 420);
+}
 function uiScrollBack(snap){
   (snap.scrolls || []).forEach(x => {
     if(!Array.isArray(x) || x.length !== 4) return;
@@ -6779,6 +6818,11 @@ function render(){
   uiScrollBack(snap);
   if(Math.abs(window.scrollY - snap.y) > 2) window.scrollTo(0, snap.y);
   uiAnchorBack(snap);     /* 글이 줄어들었으면 보던 줄에 다시 맞춥니다 */
+  /* 🪂 뒤늦게 밀려나는 것까지 붙잡습니다.
+     붙잡을 자리는 snap.y 가 아니라 <<지금 자리>> 입니다 — 바로 위
+     uiAnchorBack 이 「보던 줄」 에 맞추려고 일부러 옮겨 놓았을 수
+     있는데, 옛 자리를 붙잡으면 그걸 도로 끌어내립니다. */
+  uiHoldY(window.scrollY, Date.now());
 }
 
 /* ── 휴대폰 메뉴 ────────────────────────────────────────────────
@@ -6788,7 +6832,7 @@ let navOpen = false;
 function toggleNav(){
   navOpen = !navOpen;
   document.body.classList.toggle('nav-open', navOpen);
-  if(navOpen) window.scrollTo({ top:0, behavior:'smooth' });
+  if(navOpen) uiGoTop(1);
 }
 function closeNav(){
   if(!navOpen) return;
@@ -6839,7 +6883,7 @@ function setPageTab(pid, tid){ pageTab[pid] = tid; render(); }
 function goPage(id){
   closeNav(); clearSearchQuietly();
   view = 'page'; pageAt = id; currentBrandId = null;
-  render(); window.scrollTo({ top:0, behavior:'smooth' });
+  render(); uiGoTop(1);
 }
 function pageAdd(group){
   const pg = { id: uid('pg'), name: '새 목록', icon: '📑', group: group,
@@ -7246,7 +7290,7 @@ function goView(v){
   view = v;
   currentBrandId = null;
   render();
-  window.scrollTo({ top:0, behavior:'smooth' });
+  uiGoTop(1);
 }
 
 function goNas(){
@@ -7263,7 +7307,7 @@ function goHome(){
   view = 'home';
   currentBrandId = null;
   render();
-  window.scrollTo({ top:0, behavior:'smooth' });
+  uiGoTop(1);
 }
 
 /* 묶음마다 만든 목록을 세우고, 그 밑에 [＋ 목록] 을 답니다.
@@ -7764,7 +7808,7 @@ function obStepGo(go){
     const b = (data.brands || [])[0];
     if(!b){ toast('아직 브랜드가 없습니다'); return; }
     selectBrand(b.id);
-    window.scrollTo({ top:0, behavior:'smooth' });
+    uiGoTop(1);
     return;
   }
   goView(g);
@@ -10547,7 +10591,7 @@ function tidyAuto(){
   if(!tidy.files || !tidy.targets){ toast('⚠️ 두 폴더를 먼저 골라주세요'); return; }
   tidy.plan = tidyPlan();
   render();
-  window.scrollTo({ top:0, behavior:'smooth' });
+  uiGoTop(1);
 }
 function tidyPlanClose(){ tidy.plan = null; render(); }
 function toggleTidyMk(){
@@ -13798,7 +13842,7 @@ function gbGrowAll(){
 }
 function setGbWho(v){
   gbWho = v; gbWb = null; gbIt = null; gbQ = ''; gbSt = '';
-  render(); window.scrollTo({ top:0, behavior:'smooth' });
+  render(); uiGoTop(1);
 }
 function setGbYear(v){ gbYear = String(v); gbWb = null; gbIt = null; render(); }
 
@@ -15280,7 +15324,7 @@ async function gbPerfCopyAI(pid){
    그동안 한 일은 그 아래에 근거로 붙습니다 (접혀 있습니다).
    ------------------------------------------------------------- */
 let gbPbId = '';          // 사람 보드에서 고른 브랜드
-function setGbPb(id){ gbPbId = id; render(); window.scrollTo({ top: 0 }); }
+function setGbPb(id){ gbPbId = id; render(); uiGoTop(); }
 
 /* 이 사람이 손댄 브랜드 (한 일 수와 함께) + 성과만 적어 둔 브랜드 */
 function gbMyBrands(g){
@@ -15505,12 +15549,12 @@ function gbOpenItem(sid, iid){
   gbBackY = window.scrollY;
   gbIt = { sid: sid, iid: iid };
   render();
-  window.scrollTo({ top: 0 });
+  uiGoTop();
 }
 function gbCloseItem(){
   gbIt = null;
   render();
-  window.scrollTo({ top: gbBackY });
+  uiGoY(gbBackY);
 }
 /* 옆 업무로 바로 넘어가기 */
 function gbStep2(d){
@@ -15521,7 +15565,7 @@ function gbStep2(d){
   const i = flat.findIndex(x => x.sid === gbIt.sid && x.iid === gbIt.iid);
   const n = flat[i + d];
   if(!n) return;
-  gbIt = n; render(); window.scrollTo({ top: 0 });
+  gbIt = n; render(); uiGoTop();
 }
 /* 다른 단계로 옮기기 */
 function gbMoveStage(sid, iid, to){
@@ -22718,7 +22762,7 @@ function costOfKind(list){
                   : (list || []);
 }
 
-function setCostBrand(id){ costBrand = id; render(); window.scrollTo({ top:0, behavior:'smooth' }); }
+function setCostBrand(id){ costBrand = id; render(); uiGoTop(1); }
 
 /* ═══════════════ ⏰ 다음 결제일 ══════════════════════════════════
    여태 적어 두는 것은 시작일 · 끝난 날뿐이었습니다. 그래서 「언제
@@ -26218,7 +26262,7 @@ function calGoTo(ds){
   const d = new Date(ds + 'T00:00:00');
   if(isNaN(d.getTime())) return;
   calYM = { y: d.getFullYear(), m: d.getMonth() };
-  render(); window.scrollTo({ top:0, behavior:'smooth' });
+  render(); uiGoTop(1);
 }
 
 function renderCalendar(){
@@ -30200,7 +30244,7 @@ function gotoResult(brandId, tab){
   clearSearch();
   if(tab === 'costs'){                      // 비용은 업무 쪽에 있습니다
     view = 'costs'; currentBrandId = null; costBrand = brandId;
-    render(); window.scrollTo({ top:0, behavior:'smooth' });
+    render(); uiGoTop(1);
     return;
   }
   if(tab === 'assets'){                     // 자료는 NAS 자료 한 곳입니다
@@ -30208,14 +30252,14 @@ function gotoResult(brandId, tab){
   }
   if(tab === 'tasks'){                      // 할 일도 업무 쪽에 있습니다
     view = 'tasks'; currentBrandId = null;
-    render(); window.scrollTo({ top:0, behavior:'smooth' });
+    render(); uiGoTop(1);
     return;
   }
   view = 'brand';
   currentBrandId = brandId;
   currentTab = TAB_MOVED[tab] || tab;
   render();
-  window.scrollTo({ top:0, behavior:'smooth' });
+  uiGoTop(1);
 }
 
 /* ========================= 브랜드 ========================= */
@@ -31935,7 +31979,7 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function showError(msg){
   document.getElementById('errText').textContent = msg;
   document.getElementById('errBar').classList.add('show');
-  window.scrollTo({ top:0, behavior:'smooth' });
+  uiGoTop(1);
 }
 
 function toggleDark(){

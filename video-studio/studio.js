@@ -320,9 +320,9 @@
     if (canEdit) h += editBoxHtml(e)
     if (e.status === 'ready' && e.prompt && isM) {
       h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — Manus에 붙여 넣을 프롬프트입니다</strong>
-        <p>${e.skippedReview ? '<b>검수 없이 넘긴 직접 수정본입니다.</b> ' : 'Claude·OpenAI 검수를 통과했습니다. '}‘프롬프트 복사’ → Manus 열기 → 영상(Studio) <b>Alchemy 모드</b>를 고르고 붙여 넣으세요. 자료는 Manus가 홈페이지·앱 소개 등에서 직접 찾아 씁니다(꼭 써야 할 사진·캡처가 있으면 함께 첨부하세요). 아바타 없이 내레이션으로 만들어집니다. HeyGen 크레딧은 쓰지 않습니다.</p>
+        <p>${e.skippedReview ? '<b>검수 없이 넘긴 직접 수정본입니다.</b> ' : 'Claude·OpenAI 검수를 통과했습니다. '}두 가지 방법이 있습니다. <b>Alchemy로 만들기</b>: 프롬프트를 복사하고 Manus를 열어 드립니다 → Studio 영상 편집기에서 <b>Alchemy 모드</b>를 고르고 붙여 넣으세요(Alchemy는 Manus 웹에서만 고를 수 있습니다). <b>Manus로 영상 만들기</b>: API로 자동 제작하고 완성 영상을 여기서 받습니다(일반 에이전트 방식). 자료는 Manus가 홈페이지·앱 소개 등에서 직접 찾아 씁니다(꼭 써야 할 사진·캡처가 있으면 함께 첨부하세요). 아바타 없이 내레이션으로 만들어집니다. HeyGen 크레딧은 쓰지 않습니다.</p>
         <pre class="approve-prompt">${esc(e.prompt)}</pre>
-        <div class="job-actions">${S.data.readiness.manus ? `<button type="button" class="btn" data-render="${e.id}">Manus로 영상 만들기 (Manus 크레딧 사용)</button>` : ''}<button type="button" class="btn ${S.data.readiness.manus ? 'outline' : ''}" data-copy-prompt="${e.id}">${icon('copy', 14)}프롬프트 복사</button><a class="btn outline" href="https://manus.im/app" target="_blank" rel="noreferrer">${icon('external', 14)}Manus 열기</a><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button></div>
+        <div class="job-actions">${S.data.readiness.manus ? `<button type="button" class="btn" data-render="${e.id}">Manus로 영상 만들기 (Manus 크레딧 사용)</button>` : ''}<button type="button" class="btn ${S.data.readiness.manus ? 'outline' : ''}" data-alchemy="${e.id}">${icon('sparkles', 14)}Alchemy로 만들기 (복사 → Manus 열기)</button><button type="button" class="btn outline" data-copy-prompt="${e.id}">${icon('copy', 14)}프롬프트만 복사</button><button type="button" class="btn outline" data-preview="${e.id}">▶ 무료 미리보기</button></div>
         ${S.data.readiness.manus ? '' : '<p class="fineprint">설정 → 연결 설정에서 Manus API를 저장하면 ‘Manus로 영상 만들기’ 버튼으로 바로 제작하고 완성 영상을 여기서 받아 볼 수 있습니다.</p>'}</div>`
     } else if (e.status === 'ready' && e.prompt) {
       h += `<div class="approve-box"><strong>${icon('shield', 18)}검수 완료 — 아래 프롬프트를 확인하세요</strong>
@@ -1033,6 +1033,14 @@
       const w = window.open('', '_blank')
       try { const r = await api({ action: 'fileUrl', id: fl.dataset.file }); if (w) w.location = r.url; else location.href = r.url } catch (e) { if (w) w.close(); S.error = e.message; renderMessages() }
       return
+    }
+    const al = t.closest('[data-alchemy]')
+    if (al) {
+      const job = S.data.jobs.find((j) => j.id === al.dataset.alchemy)
+      const w = window.open('https://manus.im/app', '_blank')
+      try { await navigator.clipboard.writeText(job.prompt); S.success = '프롬프트를 복사했습니다. 열린 Manus에서 Studio → 영상(Video Editor) → Alchemy 모드를 고르고 붙여 넣으세요.' } catch (e) { S.error = '복사 권한이 없습니다. 아래 프롬프트를 직접 선택해 복사해 주세요.' }
+      if (!w) S.error = (S.error ? S.error + ' ' : '') + '팝업이 막혀 Manus 창을 열지 못했습니다. ‘Manus 열기’를 눌러 주세요.'
+      renderMessages(); return
     }
     const cp = t.closest('[data-copy-prompt]')
     if (cp) {

@@ -5687,7 +5687,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-43';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-44';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19054,12 +19054,27 @@ let lkBridgeOn = null;        /* null=아직 모름 · true=있음 · false=없�
 let lkBridgeAt = 0;
 async function lkBridge(q, opt){
   const u = LK_BRIDGE + (q || '');
-  const r = await fetch(u, Object.assign({ cache:'no-store' }, opt || {}));
+  /* 🔑 열쇠를 정해 뒀으면 같이 보냅니다 (사무실 밖에서도 열려고 정한 것) */
+  const key = String(lkOf().brKey || '');
+  const o = Object.assign({ cache:'no-store' }, opt || {});
+  if(key) o.headers = Object.assign({ 'X-TeamHub-Key': key }, o.headers || {});
+  const r = await fetch(u, o);
   if(!r.ok){
     const t = await r.text().catch(() => '');
-    throw { error: t || ('다리가 ' + r.status + ' 를 돌려줬습니다'), status: r.status };
+    throw { error: t || ('다리가 ' + r.status + ' 를 돌려줬습니다'), status: r.status,
+            열쇠필요: r.status === 401 };
   }
   return r;
+}
+/* 🔑 열쇠를 한 번 받아 적어 둡니다 — 401 이 왔을 때만 묻습니다 */
+async function lkBridgeKey(){
+  const v = await askOne('🔑 팀허브 열쇠\n\n'
+    + 'NAS 의 teamhub-key.txt 에 적어 두신 글자를 그대로 넣어 주세요.\n'
+    + '한 번만 넣으면 이 대시보드가 기억합니다.', String(lkOf().brKey || ''));
+  if(v === null) return false;
+  lkOf().brKey = String(v).trim();
+  markDirtyAll();
+  return !!lkOf().brKey;
 }
 /* 다리가 살아 있나 — 한 번 보고 5분은 그대로 믿습니다 */
 async function lkBridgeCheck(force){
@@ -19068,8 +19083,21 @@ async function lkBridgeCheck(force){
     const j = await (await lkBridge('?op=ping')).json();
     lkBridgeOn = !!(j && j.ok);
     lkBridgeAt = Date.now();
-    if(lkBridgeOn){ const t = lkOf(); t.brWhere = String(j.label || ''); t.brWrite = !!j.writable; }
-  }catch(e){ lkBridgeOn = false; lkBridgeAt = Date.now(); }
+    if(lkBridgeOn){
+      const t = lkOf();
+      t.brWhere = String(j.label || '');
+      t.brWrite = !!j.writable;
+      t.brKeyed = !!j.keyed;
+      t.brInWeb = !!j.inWeb;
+    }
+  }catch(e){
+    /* 🔑 「열쇠가 필요합니다」 면 한 번 물어보고 다시 해 봅니다 */
+    if(e && e.열쇠필요 && force && await lkBridgeKey()){
+      lkBridgeOn = null; lkBridgeAt = 0;
+      return lkBridgeCheck(true);
+    }
+    lkBridgeOn = false; lkBridgeAt = Date.now();
+  }
   return lkBridgeOn;
 }
 /* 폴더 안을 훑습니다 — 날짜 폴더까지 한 단계 더 */
@@ -33123,7 +33151,7 @@ function normalize(raw){
     ['lastPull','lastPush','store','node','team','why',
      'autoPath','autoName','autoDir','autoKey','autoAt','srvPath',
      'fileAt','fileName','outAt','brandId','boot','bootAt','bootTry',
-     'outSig','outPutAt','outPutDir','outPutWhy','outDir'].forEach(k => {
+     'outSig','outPutAt','outPutDir','outPutWhy','outDir','brKey','brWhere'].forEach(k => {
       if(typeof L[k] !== 'string') L[k] = ''; });
     L.on = !!L.on;
     L.autoOn = !!L.autoOn;

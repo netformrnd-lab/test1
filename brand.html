@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-52';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-53';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19820,37 +19820,83 @@ async function lkServer(){
    그런데 팀허브가 자기 자료를 어떤 이름으로 두는지는 그쪽 사정입니다.
    이제 폴더 안 .json 을 새것부터 열어 보고, <<할 일처럼 생긴 줄>> 이
    가장 많은 것을 고릅니다. 이름을 안 맞춰도 됩니다. */
+/* 📦 <<눌러 담긴 것도 읽습니다>> ──────────────────────────────────
+   팀허브는 자기 자료를 gzip 으로 눌러 둡니다 (.json.gz · .thsnap).
+   앞 두 글자(1f 8b)로 눌린 것인지 보고, 눌렸으면 풀어서 읽습니다. */
+async function lkReadText(path, area){
+  const r = await lkBridge('?op=read&p=' + encodeURIComponent(path)
+    + (area ? '&area=' + area : ''));
+  const buf = await r.arrayBuffer();
+  const u8  = new Uint8Array(buf);
+  if(!(u8.length > 2 && u8[0] === 0x1f && u8[1] === 0x8b))
+    return new TextDecoder('utf-8').decode(u8);
+  if(typeof DecompressionStream !== 'function') return '';   /* 옛 브라우저 */
+  const st = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(st).text();
+}
+/* 그 글에서 할 일처럼 생긴 줄을 꺼냅니다 (사람 목록은 거릅니다) */
+function lkRowsIn(txt){
+  let js = null;
+  try{ js = JSON.parse(String(txt || '').replace(/^\uFEFF/, '')); }catch(e){ return null; }
+  const hit = lkFindRows(js)
+    .filter(h => (h['맞은칸'] || 0) >= 3 && h.rows && h.rows.length)
+    .sort((a, b) => (b['맞은칸'] - a['맞은칸']) || (b.n - a.n))[0];
+  if(!hit) return null;
+  return { rows: hit.rows, 맞은칸: hit['맞은칸'] || 0,
+           at: hit.path === '(맨 위)' ? '' : String(hit.path || ''),
+           cols: lkColNames(hit.keys || []) };
+}
+/* 🧱 <<저쪽 모양에 맞춰 읽습니다>> ─────────────────────────────────
+   팀허브 자료함은 이렇게 생겼습니다 —
+     · Database_Backup/시점저장본/…thsnap   ← 통째로 담아 둔 것 (몇 분마다)
+     · TeamHub_HTML/changes/<PC>/00000163.json.gz ← 그 뒤로 바뀐 것 (1분마다)
+   그래서 <<통째>> 를 바탕으로 깔고, 그보다 <<새로 바뀐 것>> 을 그 위에
+   덮습니다. 지우는 일은 하지 않습니다 — 덮어쓰기만 합니다. */
+const LK_SNAP = /snap|시점|저장본|backup|백업|dump|full/i;
 async function lkBridgeSniff(files){
-  const cand = (files || [])
-    .filter(f => /\.json$/i.test(String(f['이름'] || ''))
+  const all = (files || [])
+    .filter(f => /\.(json|gz|thsnap)$/i.test(String(f['이름'] || ''))
               && !/^브랜드마케팅팀-할일/.test(String(f['이름'] || ''))
-              && (f['바이트'] || 0) <= 3000000)
-    .sort((a, b) => String(b['고친때']).localeCompare(String(a['고친때'])))
-    .slice(0, 12);
+              && (f['바이트'] || 0) <= 8000000)
+    .sort((a, b) => String(b['고친때']).localeCompare(String(a['고친때'])));
+  const big = all.filter(f => LK_SNAP.test(String(f['경로'] || ''))
+                           || (f['바이트'] || 0) >= 20000).slice(0, 3);
+  const small = all.filter(f => big.indexOf(f) < 0).slice(0, 14);
+
   let best = null;
-  for(const f of cand){
-    let hit = null;
-    try{
-      const txt = await (await lkBridge('?op=read&p='
-        + encodeURIComponent(f['경로']))).text();
-      const js = JSON.parse(txt.replace(/^\uFEFF/, ''));
-      /* 🚦 <<사람 목록을 할 일로 보면 안 됩니다>>.
-         이름 한 칸만 있는 목록도 「제목」 으로는 읽힙니다. 그래서
-         <<맞은 칸이 셋 이상>> 인 것만 할 일로 봅니다 — 할 일에는
-         상태·기한·진척률 같은 칸이 같이 있습니다. */
-      hit = lkFindRows(js)
-        .filter(h => (h['맞은칸'] || 0) >= 3 && h.rows && h.rows.length)
-        .sort((a, b) => (b['맞은칸'] - a['맞은칸']) || (b.n - a.n))[0] || null;
-    }catch(e){ continue; }
-    if(!hit) continue;
-    const score = (hit['맞은칸'] || 0) * 1000 + hit.rows.length;
-    if(!best || score > best.score)
-      best = { f:f, rows:hit.rows, score:score,
-               at: hit.path === '(맨 위)' ? '' : String(hit.path || ''),
-               cols: lkColNames(hit.keys || []) };
+  const read = async (f) => {
+    try{ return lkRowsIn(await lkReadText(f['경로'])); }catch(e){ return null; }
+  };
+  /* ① 바탕 — 통째로 담긴 것 가운데 <<칸이 가장 잘 맞고 가장 새것>> */
+  for(const f of big){
+    const h = await read(f);
+    if(!h) continue;
+    if(!best || h['맞은칸'] > best['맞은칸']) best = Object.assign({ f:f }, h);
+  }
+  /* ② 작은 것들 — 바탕이 없으면 그 가운데 고르고, 있으면 그 위에 덮습니다 */
+  const over = [];
+  for(const f of small){
+    const h = await read(f);
+    if(!h) continue;
+    if(!best){ best = Object.assign({ f:f }, h); continue; }
+    if(String(f['고친때']) > String(best.f['고친때'])) over.push(h);
+  }
+  if(!best) return null;
+  if(over.length){
+    const key = r => String(r.srcId || '') || ('t:' + String(r.title || ''));
+    const map = new Map();
+    best.rows.forEach(r => map.set(key(r), r));
+    /* 오래된 것부터 덮어야 가장 새것이 남습니다 */
+    over.reverse().forEach(h => h.rows.forEach(r => {
+      const k = key(r), was = map.get(k);
+      if(!was || String(r.srcAt || '') >= String(was.srcAt || '')) map.set(k, r);
+    }));
+    best.rows = Array.from(map.values());
+    best.덮은수 = over.length;
   }
   return best;
 }
+
 async function lkPullBridge(loud){
   const t = lkOf();
   let files = [];
@@ -19859,6 +19905,16 @@ async function lkPullBridge(loud){
   try{ files = await lkBridgeFind('', 3); }
   catch(e){ if(loud) toast('⚠ 다리에 못 닿았습니다'); return 0; }
   /* 「할일」 이 든 것 가운데 가장 새것 */
+  /* 🔔 <<가장 자주 바뀌는 파일>> 을 알림종으로 삼습니다.
+     팀허브는 할 일을 고칠 때마다 자취(changes·lease)를 남깁니다. 담아
+     두는 파일은 몇 분에 한 번이라 그것만 보면 늦습니다. 가장 새 파일
+     하나만 10초마다 「바뀌었나요」 묻고, 바뀌면 그때 제대로 읽습니다. */
+  {
+    const hot = files
+      .filter(f => !/^브랜드마케팅팀-할일/.test(String(f['이름'] || '')))
+      .sort((a, b) => String(b['고친때']).localeCompare(String(a['고친때'])))[0];
+    t.hotPath = hot ? hot['경로'] : '';
+  }
   let hit = files
     .filter(f => /할일|할 일|todo|task/i.test(String(f['이름'] || ''))
               && /\.(json|csv|tsv)$/i.test(String(f['이름'] || ''))
@@ -19885,9 +19941,17 @@ async function lkPullBridge(loud){
       /* 📐 <<그 파일 모양>> 을 적어 둡니다 — 우리 줄을 같은 모양으로
          그 파일에 적어 넣으려고 합니다 (저쪽이 [불러오기] 를 안 눌러도
          바로 보이게) */
-      t.livePath = sn.f['경로'];
-      t.liveAt   = sn.at || '';
-      t.liveCols = sn.cols || {};
+      /* ✋ <<담아 둔 것(.thsnap)·바뀐 것(changes)에는 쓰지 않습니다>>.
+         그것은 저쪽 프로그램이 지나간 자취로 쓰는 파일이라, 거기에
+         적어 봐야 화면에 안 나오고 자취만 더럽힙니다. 평범한 .json
+         파일일 때만 바로 쓰기를 켭니다. */
+      const okLive = /\.json$/i.test(String(sn.f['이름'] || ''))
+        && !LK_SNAP.test(String(sn.f['경로'] || ''))
+        && !/(^|\/)(changes|pcs)(\/|$)/i.test(String(sn.f['경로'] || ''));
+      t.livePath = okLive ? sn.f['경로'] : '';
+      t.liveAt   = okLive ? (sn.at || '') : '';
+      t.liveCols = okLive ? (sn.cols || {}) : {};
+      t.liveWhy  = okLive ? '' : '저쪽이 담아 둔 자취 파일이라 여기엔 안 씁니다';
     }
   }
   if(!from){ if(loud) toast('⏱ 팀허브가 아직 할 일을 안 내보냈습니다'); return 0; }
@@ -20035,6 +20099,7 @@ async function lkProbe(){
     '   · 지금 들어와 있는 줄 : ' + n + '건',
     '   · 저절로 보기 : ' + (t.autoOn ? '켜짐' : '\u26A0 꺼짐') + ' · 지켜보기 '
       + (lkWatchT ? '도는 중' : '\u26A0 안 돎'),
+    '   · 알림종(바뀌면 바로 아는 파일) : ' + (t.hotPath || '— 없음'),
     '',
     '\u2461 올리는 쪽',
     '   · 마지막으로 올린 때 : ' + (t.outPutAt ? lkWhen(t.outPutAt) : '— 없음'),
@@ -20056,15 +20121,16 @@ async function lkProbe(){
                   .slice(0, 20);
     for(const f of top){
       let note = '';
-      if(/\.json$/i.test(String(f['이름'] || '')) && (f['바이트'] || 0) <= 3000000){
+      if(/\.(json|gz|thsnap)$/i.test(String(f['이름'] || '')) && (f['바이트'] || 0) <= 8000000){
         try{
-          const txt = await (await lkBridge('?op=read&p='
-            + encodeURIComponent(f['경로']) + (area ? '&area=' + area : ''))).text();
-          const js = JSON.parse(txt.replace(/^\uFEFF/, ''));
-          const hits = lkFindRows(js);
-          const n = hits.length ? hits.sort((a, b) => b.n - a.n)[0].n : 0;
-          const keys = Array.isArray(js) ? '[목록]' : Object.keys(js).slice(0, 8).join(' · ');
-          note = n ? ('  \u2190 할 일 ' + n + '줄') : ('  (칸: ' + keys + ')');
+          const txt = await lkReadText(f['경로'], area);
+          const h = lkRowsIn(txt);
+          if(h) note = '  \u2190 할 일 ' + h.rows.length + '줄';
+          else{
+            const js = JSON.parse(String(txt).replace(/^\uFEFF/, ''));
+            note = '  (칸: ' + (Array.isArray(js) ? '[목록]'
+              : Object.keys(js).slice(0, 8).join(' · ')) + ')';
+          }
         }catch(e){ note = '  (못 읽었습니다)'; }
       }
       log.push('   · ' + f['경로']
@@ -20214,7 +20280,7 @@ async function lkAutoSetMin(){
    (op=stat — 글자 몇 개짜리 대답입니다), 바뀌었을 때만 읽어 옵니다.
    올리는 쪽은 우리가 저장할 때마다 몇 초 뒤 저절로 나갑니다. */
 const LK_WATCH_MS = 10000;
-let lkWatchT = null, lkWatchMt = 0, lkWatchSz = -1, lkWatchAmb = false;
+let lkWatchT = null, lkWatchMt = 0, lkWatchSz = -1, lkWatchAmb = false, lkWatchGot = 0;
 function lkWatchTick(){
   clearTimeout(lkWatchT);
   lkWatchT = setTimeout(async () => {
@@ -20226,8 +20292,11 @@ async function lkWatchOnce(){
   if(lkBridgeOn !== true) return 0;
   const t = lkOf();
   if(!t.autoOn) return 0;
-  const path = String(t.autoPath || '').trim();
+  /* 알림종이 있으면 그것을, 없으면 읽던 파일을 봅니다 */
+  const path = String(t.hotPath || t.autoPath || '').trim();
   if(!path) return 0;
+  /* 숨 돌릴 틈 — 한 번 읽었으면 4초는 띄웁니다 (쉴 새 없이 안 돌게) */
+  if(lkWatchGot && Date.now() - lkWatchGot < 4000) return 0;
   let j = null;
   try{ j = await (await lkBridge('?op=stat&p=' + encodeURIComponent(path))).json(); }
   catch(e){ return 0; }
@@ -20242,6 +20311,7 @@ async function lkWatchOnce(){
   lkWatchMt = mt; lkWatchSz = sz;
   lkWatchAmb = (Date.now() - mt) < 2500;
   if(first) return 0;              /* 처음 본 것은 「바뀐 것」 이 아닙니다 */
+  lkWatchGot = Date.now();
   return await lkPullBridge(false);
 }
 /* 우리가 고친 것은 몇 초 뒤 바로 나갑니다 */

@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-59';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-60';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18752,6 +18752,9 @@ function tsFromGrid(grid){
     x.team   = ti >= 0 ? String(r[ti] || '').trim() : '';
     x.srcId  = ii >= 0 ? String(r[ii] == null ? '' : r[ii]).trim() : '';
     x.srcAt  = wi >= 0 ? String(r[wi] == null ? '' : r[wi]).trim() : '';
+    /* 원래 줄을 「칸이름:값」 으로 되살려 달아 둡니다 */
+    x.raw = (() => { const o = {};
+      head.forEach((h, i) => { if(h) o[h] = r[i]; }); return o; })();
     return x;
   }).filter(x => x.title);
 }
@@ -18772,6 +18775,7 @@ function tsFromJson(list){
     x.team  = (ti >= 0 && o) ? String(o[keys[ti]] || '').trim() : '';
     x.srcId = (ii >= 0 && o) ? String(o[keys[ii]] == null ? '' : o[keys[ii]]).trim() : '';
     x.srcAt = (wi >= 0 && o) ? String(o[keys[wi]] == null ? '' : o[keys[wi]]).trim() : '';
+    x.raw   = (o && typeof o === 'object') ? o : null;   /* 원래 줄 그대로 */
     return x;
   }).filter(x => x.title);
 }
@@ -19994,6 +19998,38 @@ function lkIdNames(objs){
   (objs || []).forEach(o => walk(o, 0));
   return map;
 }
+/* 🙋 <<담당 칸이 비어 있을 때>> ───────────────────────────────────
+   저쪽 할 일에는 담당이 안 적힌 줄이 있습니다 (프로젝트는 맡은 사람을
+   다른 칸에 적어 두기 때문입니다 — 만든 사람·책임자 같은 칸).
+   그런 줄은 통째로 「공용」 으로 빠집니다. 그래서 같은 줄의 <<다른 사람
+   칸>> 을 차례로 봐서, 번호면 이름으로 풀고 이름이면 그대로 씁니다. */
+const LK_WHO_COLS = [
+  /^(assignee|assignee_id|담당자|담당)$/i,
+  /(assignee|담당|맡은|charge|pic)/i,
+  /(owner|owner_id|책임|manager|lead|leader)/i,
+  /(member|user|worker|writer|author|created_by|creator|만든)/i
+];
+function lkWhoFix(rows, people){
+  (rows || []).forEach(r => {
+    if(String(r.owner == null ? '' : r.owner).trim()) return;
+    const raw = r && r.raw;
+    if(!raw || typeof raw !== 'object') return;
+    const keys = Object.keys(raw);
+    for(const re of LK_WHO_COLS){
+      for(const k of keys){
+        if(!re.test(String(k))) continue;
+        const v = String(raw[k] == null ? '' : raw[k]).trim();
+        if(!v || v === '0' || /^(null|undefined|false|true)$/i.test(v)) continue;
+        if(/^[0-9]+$/.test(v)){
+          if(people && people[v]){ r.owner = people[v]; return; }
+          continue;                      /* 이름을 모르는 번호는 안 씁니다 */
+        }
+        if(v.length <= 24){ r.owner = v; return; }
+      }
+    }
+  });
+  return rows || [];
+}
 /* 번호로 들어온 담당을 이름으로 바꿔 답니다 */
 function lkNameRows(rows, map){
   if(!map) return rows || [];
@@ -20143,6 +20179,7 @@ async function lkBridgeSniff(files){
   best['바뀐이름들'] = chgNames;
   best['사람'] = people;
   lkNameRows(best.rows, people);
+  lkWhoFix(best.rows, people);
   return best;
 }
 
@@ -20247,7 +20284,16 @@ async function lkPullBridge(loud){
   t.chSample = rows.slice(0, 4).map(r => ({ t: String(r.title || ''),
                                             raw: String(r.owner == null ? '' : r.owner) }));
   lkNameRows(rows, t.chPeople || {});
-  (t.chSample || []).forEach((x, i) => { x.who = String((rows[i] && rows[i].owner) || ''); });
+  lkWhoFix(rows, t.chPeople || {});
+  (t.chSample || []).forEach((x, i) => {
+    x.who = String((rows[i] && rows[i].owner) || '');
+    /* 담당이 끝내 안 붙으면 — 그 줄에 어떤 사람 칸이 있었는지 적어 둡니다 */
+    if(!x.who){
+      const raw = (rows[i] && rows[i].raw) || {};
+      x.cols = Object.keys(raw).filter(k => /(assignee|owner|user|member|charge|pic|manager|담당|맡은|created|author|writer|team)/i.test(k))
+        .slice(0, 8).map(k => k + '=' + String(raw[k] == null ? '' : raw[k]).slice(0, 14)).join(' · ');
+    }
+  });
   hit = from;
   const key = JSON.stringify(rows.map(x => [x.title, x.owner, x.status, x.due, x.pct, x.note]));
   if(key === String(t.autoKey || '')){
@@ -20667,7 +20713,8 @@ async function lkProbe(){
     log.splice(log.length - 2, 0, '   · 들어온 줄 맛보기');
     (t.chSample || []).forEach(x => log.splice(log.length - 2, 0,
       '       · ' + (x.t || '(이름 없음)') + '  / 담당 원래값 "' + (x.raw || '')
-      + '" → ' + (x.who ? x.who : '\u26A0 못 찾음')));
+      + '" → ' + (x.who ? x.who : '\u26A0 못 찾음')
+      + (x.cols ? '\n           그 줄의 사람 칸 : ' + x.cols : '')));
   }
   for(const area of ['', 'copy']){
     const label = area === 'copy' ? '주고받기 칸 (우리가 올리는 자리)' : '팀 칸 (저쪽 자료)';

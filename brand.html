@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-61';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-62';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20185,8 +20185,6 @@ async function lkBridgeSniff(files){
 
 async function lkPullBridge(loud){
   const t = lkOf();
-  /* 🏠 주인 모드에서는 <<사람이 일부러 누를 때만>> 읽습니다 */
-  if(t.own && !loud) return 0;
   let files = [];
   /* 📂 세 단계까지 봅니다 — 저쪽이 날짜 폴더 · 보드 폴더처럼 한 겹 더
      들어가 두어도 찾을 수 있게 (점검 화면과 같은 깊이로 맞춥니다) */
@@ -20403,18 +20401,19 @@ function lkRowOut(r, cols, keyName, people){
 async function lkOwnOn(){
   const t = lkOf();
   if(!confirm('🏠 할 일을 <<브랜드 허브 것>> 으로 삼을까요?\n\n'
-    + '· 저쪽 할 일을 마지막으로 한 번 가져옵니다\n'
-    + '· 그 뒤로는 저쪽과 맞추지 않습니다 (읽지도, 적지도 않습니다)\n'
+    + '· 저쪽에서 적은 할 일은 <<그대로 들어옵니다>> (10초마다)\n'
+    + '· 우리 할 일은 저쪽에 <<안 보냅니다>> — 어긋날 일이 없어집니다\n'
     + '· 저쪽 자료는 그대로 둡니다 — 언제든 되돌릴 수 있습니다\n\n'
     + '미디어마케팅팀도 이 화면에서 할 일을 보시면 됩니다.')) return;
   let got = 0;
   try{ got = await lkPullBridge(true) || 0; }catch(e){}
   t.own = true; t.ownAt = new Date().toISOString();
-  clearTimeout(lkWatchT); lkWatchT = null;
-  clearTimeout(lkAutoT);  lkAutoT = null;
+  if(!lkWatchT) lkWatchTick();      /* 받기는 그대로 돕니다 */
+  if(!lkAutoT)  lkAutoTick();
   markDirtyAll(); render();
   alert('🏠 이제 할 일은 브랜드 허브가 주인입니다.\n\n'
-    + (got ? ('마지막으로 ' + got + '건을 가져왔습니다.\n\n') : '')
+    + (got ? (got + '건을 가져왔습니다.\n\n') : '')
+    + '저쪽에서 적는 것도 그대로 들어옵니다.\n\n'
     + '미디어마케팅팀에는 이 주소를 알려 주세요 —\n'
     + lkHomeUrl() + '\n\n(연동 칸의 [📋 안내 복사] 로 문구를 통째로 복사할 수 있습니다)');
 }
@@ -20437,8 +20436,9 @@ function lkOwnCopy(){
     + '1. 위 주소로 들어가 [✅ 할 일] 을 누르세요\n'
     + '2. 「팀 멤버별 오늘 할 일」 에서 본인 카드를 찾으면 됩니다\n'
     + '3. 지금까지 팀허브에 적어 둔 할 일은 그대로 옮겨져 있습니다\n\n'
-    + '※ 팀허브(캘린더·TODAY)는 그대로 쓰시고, 할 일만 여기서 적어 주세요.\n'
-    + '  두 군데에 적으면 서로 안 맞습니다.';
+    + '※ 팀허브에 적으셔도 됩니다 — 여기로 저절로 들어옵니다 (10초쯤).\n'
+    + '  다만 <<여기서 고친 것은 팀허브로 안 돌아갑니다>>.\n'
+    + '  그래서 할 일은 되도록 이 화면에서 봐 주세요.';
   const go = () => {
     const ta = document.createElement('textarea');
     ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
@@ -20973,7 +20973,6 @@ function lkWatchTick(){
 async function lkWatchOnce(){
   if(lkBridgeOn !== true) return 0;
   const t = lkOf();
-  if(t.own) return 0;                 /* 🏠 우리가 주인이면 안 봅니다 */
   if(!t.autoOn) return 0;
   /* 알림종이 있으면 그것을, 없으면 읽던 파일을 봅니다 */
   const path = String(t.hotPath || t.autoPath || '').trim();
@@ -21016,12 +21015,10 @@ function lkAutoTick(){
        홈이나 브랜드 화면을 보고 있으면 저쪽이 올린 것이 안 들어오고,
        우리 것도 안 올라갔습니다 — 「양방향이 안 된다」 의 큰 까닭입니다. */
     try{
-      if(!lkOf().own){
-        await lkPullFile(false);
-        /* ↔️ 받기만 하면 한쪽으로만 흐릅니다 — 우리 것도 같이 놓습니다.
-           바뀐 게 없으면 lkFilePut 이 알아서 건너뜁니다. */
-        if(!lkOf().outOff) await lkFilePut(false);
-      }
+      /* 🏠 주인 모드여도 <<받기는 그대로>> — 저쪽에서 적은 것도 들어와야
+         합니다. 올리는 것만 안 합니다 (lkPutBridge 가 알아서 건너뜁니다). */
+      await lkPullFile(false);
+      if(!lkOf().own && !lkOf().outOff) await lkFilePut(false);
     }catch(e){}
     lkAutoTick();
   }, lkAutoMin() * 60000);
@@ -22070,18 +22067,18 @@ function lkSwapHtml(){
     return '<div class="lk-swap"><div class="lk-head">'
       + '<span class="lk-dot on"></span>'
       + '🏠 할 일은 브랜드 허브가 주인입니다'
-      + '<span class="lk-meta">미디어마케팅팀도 이 화면에서 봅니다 · '
-        + '저쪽과 맞추지 않습니다'
-        + (t.ownAt ? ' · 옮겨온 때 ' + lkWhen(t.ownAt) : '')
-        + ' · 지금 ' + n + '건'
+      + '<span class="lk-meta">저쪽에서 적은 것도 들어옵니다 · '
+        + '우리 것은 저쪽에 안 보냅니다'
+        + ' · 마지막 ' + lkWhen(t.autoAt)
+        + ' · 들어온 것 ' + n + '건'
       + '</span>'
       + '<span class="lk-btns">'
         + '<button class="btn sm primary" onclick="lkOwnCopy()"'
           + ' title="팀에 보낼 안내 문구를 복사합니다">📋 안내 복사</button>'
-        + '<button class="btn sm" onclick="lkPullBridge(1)"'
-          + ' title="저쪽에 남아 있는 것을 한 번 더 가져옵니다">⬇ 한 번 더 가져오기</button>'
+        + '<button class="btn sm" onclick="lkPullFile(1)"'
+          + ' title="지금 바로 한 번 가져옵니다">↻ 지금 가져오기</button>'
         + '<button class="btn sm" onclick="lkOwnOff()"'
-          + ' title="다시 저쪽과 주고받습니다">↩ 다시 맞추기</button>'
+          + ' title="우리 것도 저쪽에 보냅니다">↩ 양쪽으로</button>'
       + '</span></div></div>';
   }
   /* 🌉 바로 옆에 붙어 저절로 돌고 있으면 — 한 줄이면 됩니다 */

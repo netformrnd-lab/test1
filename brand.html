@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-58';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-59';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19955,19 +19955,8 @@ const LK_ID_WORDS = /^(userid|user_id|id|memberid|member_id|uid|no|번호|아이
 const LK_NM_WORDS = /^(name|username|user_name|displayname|display_name|fullname|full_name|nickname|이름|성명|닉네임)$/;
 function lkIdNames(objs){
   const map = {};
-  (objs || []).forEach(o => {
-    if(!o || typeof o !== 'object') return;
-    let head = null, rows = null;
-    const g = lkGridOf(o);
-    if(g){ head = g[0]; rows = g.slice(1); }
-    else if(Array.isArray(o.rows) && o.rows[0] && typeof o.rows[0] === 'object'
-            && !Array.isArray(o.rows[0])){
-      head = []; o.rows.slice(0, 50).forEach(r => Object.keys(r).forEach(k => {
-        if(head.indexOf(k) < 0) head.push(k); }));
-      rows = o.rows.map(r => head.map(k => r[k]));
-    }else if(o.d && typeof o.d === 'object'){
-      head = Object.keys(o.d); rows = [head.map(k => o.d[k])];
-    }
+  /* 줄 목록 하나에서 번호·이름 짝을 거둡니다 */
+  const eat = (head, rows) => {
     if(!head || !rows || !rows.length) return;
     const low = head.map(h => String(h == null ? '' : h).trim().toLowerCase());
     const idI = low.findIndex(h => LK_ID_WORDS.test(h));
@@ -19979,7 +19968,30 @@ function lkIdNames(objs){
       /* 번호 → 이름 인 것만 (이름 → 이름 은 쓸모가 없습니다) */
       if(k && v && /^[0-9]+$/.test(k) && !/^[0-9]+$/.test(v)) map[k] = v;
     });
-  });
+  };
+  const eatObjs = (arr) => {
+    const head = [];
+    arr.slice(0, 80).forEach(r => Object.keys(r || {}).forEach(k => {
+      if(head.indexOf(k) < 0) head.push(k); }));
+    eat(head, arr.map(r => head.map(k => r[k])));
+  };
+  /* 🔎 <<파일 어디에 숨어 있든>> 찾습니다 — 사람 이름표는 통째로 담은
+     것의 users 표에도, PC 적어 둔 쪽(pcs/*.json)의 users 목록에도,
+     바뀐 것의 알맹이에도 들어 있습니다. */
+  const walk = (o, d) => {
+    if(!o || typeof o !== 'object' || d > 5) return;
+    if(Array.isArray(o)){
+      const inner = o.filter(x => x && typeof x === 'object' && !Array.isArray(x));
+      if(inner.length) eatObjs(inner);
+      o.slice(0, 80).forEach(x => walk(x, d + 1));
+      return;
+    }
+    const g = lkGridOf(o);
+    if(g) eat(g[0], g.slice(1));
+    if(o.d && typeof o.d === 'object' && !Array.isArray(o.d)) eatObjs([o.d]);
+    Object.keys(o).slice(0, 40).forEach(k => walk(o[k], d + 1));
+  };
+  (objs || []).forEach(o => walk(o, 0));
   return map;
 }
 /* 번호로 들어온 담당을 이름으로 바꿔 답니다 */
@@ -20015,6 +20027,13 @@ function lkRowsNd(objs){
     if(n && names.indexOf(n) < 0) names.push(n); });
   return { rows: rows, '맞은칸': best['맞은칸'], at: '',
            cols: lkColNames(best.keys || []), '표': best['표'], '이름들': names };
+}
+/* 글 하나를 한 번만 풀어 둡니다 (한 덩어리인지 · 줄마다인지) */
+function lkObjsOf(txt){
+  const raw = String(txt || '').replace(/^\uFEFF/, '');
+  let js = null;
+  try{ js = JSON.parse(raw); }catch(e){ js = null; }
+  return { js: js, objs: js ? [js] : lkNdjson(raw) };
 }
 /* 그 글에서 할 일처럼 생긴 줄을 꺼냅니다 (사람 목록은 거릅니다) */
 function lkRowsIn(txt){
@@ -20067,7 +20086,15 @@ async function lkBridgeSniff(files){
   const chgNames = [];          /* 바뀐 것(changes)에 실제로 쓰인 표 이름 */
   const read = async (f) => {
     try{
-      const h = lkRowsIn(await lkReadText(f['경로']));
+      const txt = await lkReadText(f['경로']);
+      /* 사람 이름표는 <<어느 파일에서든>> 거둡니다 (할 일이 없는 파일에도
+         들어 있습니다 — pcs/*.json 의 users 목록 같은 것) */
+      try{
+        const o1 = lkObjsOf(txt);
+        const mp = lkIdNames(o1.objs && o1.objs.length ? o1.objs : (o1.js ? [o1.js] : []));
+        Object.keys(mp).forEach(k => { people[k] = mp[k]; });
+      }catch(e){}
+      const h = lkRowsIn(txt);
       if(h && h['사람']) Object.keys(h['사람']).forEach(k => { people[k] = h['사람'][k]; });
       if(/\/changes\//i.test(String(f['경로'] || ''))){
         (h && h['이름들'] ? h['이름들'] : []).forEach(n => {
@@ -20216,7 +20243,11 @@ async function lkPullBridge(loud){
   if(!rows.length){ if(loud) toast('⏱ 읽었는데 할 일 줄이 없습니다'); return 0; }
   /* 🧑 번호로 온 담당을 이름으로 — 적어 둔 표로 한 번 더 (바뀐 것만
      읽었을 때는 사람 표가 그 파일에 없습니다) */
+  /* 🧪 들어온 줄 몇 개를 적어 둡니다 — 담당이 왜 안 붙는지 눈으로 보려고 */
+  t.chSample = rows.slice(0, 4).map(r => ({ t: String(r.title || ''),
+                                            raw: String(r.owner == null ? '' : r.owner) }));
   lkNameRows(rows, t.chPeople || {});
+  (t.chSample || []).forEach((x, i) => { x.who = String((rows[i] && rows[i].owner) || ''); });
   hit = from;
   const key = JSON.stringify(rows.map(x => [x.title, x.owner, x.status, x.due, x.pct, x.note]));
   if(key === String(t.autoKey || '')){
@@ -20603,6 +20634,10 @@ async function lkProbe(){
     '   · 저절로 보기 : ' + (t.autoOn ? '켜짐' : '\u26A0 꺼짐') + ' · 지켜보기 '
       + (lkWatchT ? '도는 중' : '\u26A0 안 돎'),
     '   · 알림종(바뀌면 바로 아는 파일) : ' + (t.hotPath || '— 없음'),
+    '   · 들여온 칸 쓰임 : '
+      + (t.chCols && Object.keys(t.chCols).length
+          ? Object.keys(t.chCols).map(k => k + '=' + t.chCols[k]).join(' · ')
+          : '— 아직 모릅니다'),
     '   · 사람 번호 → 이름 : '
       + ((t.chPeople && Object.keys(t.chPeople).length)
           ? (Object.keys(t.chPeople).length + '명 — '
@@ -20627,6 +20662,13 @@ async function lkProbe(){
     (t.outPutWhy ? '   · \u26A0 못 올린 까닭 : ' + t.outPutWhy : ''),
     '',
     '\u2462 저쪽 자료함'];
+  /* 🧪 들어온 줄 맛보기 — 담당이 왜 안 붙는지 눈으로 */
+  if(t.chSample && t.chSample.length){
+    log.splice(log.length - 2, 0, '   · 들어온 줄 맛보기');
+    (t.chSample || []).forEach(x => log.splice(log.length - 2, 0,
+      '       · ' + (x.t || '(이름 없음)') + '  / 담당 원래값 "' + (x.raw || '')
+      + '" → ' + (x.who ? x.who : '\u26A0 못 찾음')));
+  }
   for(const area of ['', 'copy']){
     const label = area === 'copy' ? '주고받기 칸 (우리가 올리는 자리)' : '팀 칸 (저쪽 자료)';
     let fs = [];

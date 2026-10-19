@@ -506,6 +506,7 @@ async function runStep(env, job) {
   if (job.status === 'preparing' && (isManus(job) || isAgent(st.settings))) {
     // HeyGen 자동 구성: 화면은 HeyGen 이 만들므로 AI 이미지·영상·움직임 클립을 만들지 않는다 (비용 절약)
     d.prompt = promptFor(job, d.plan, st)
+    if (isManus(job)) { const blk = await manusAssetBlock(env, job, st); if (blk) d.prompt = stripAssets(d.prompt) + '\n\n' + blk }
     d.events.push(ev(isManus(job) ? 'Manus 영상(아바타 없음): 프롬프트를 복사해 Manus 에서 만듭니다.' : 'HeyGen 자동 구성 모드: 화면 구성은 HeyGen Video Agent 가 만듭니다.'))
     job.step = 6
     job.status = 'ready'
@@ -586,7 +587,9 @@ async function runStep(env, job) {
     const profile = (st.secrets.manus && st.secrets.manus.model) || MANUS_PROFILES[0].id
     let res
     try {
-      res = await fetch(MANUS_API + '/tasks', { method: 'POST', headers: manusHeaders(key), body: JSON.stringify({ prompt: d.prompt, agentProfile: profile, taskMode: 'agent' }) })
+      const blk = await manusAssetBlock(env, job, st)
+      const prompt = blk ? stripAssets(d.prompt) + '\n\n' + blk : d.prompt
+      res = await fetch(MANUS_API + '/tasks', { method: 'POST', headers: manusHeaders(key), body: JSON.stringify({ prompt, agentProfile: profile, taskMode: 'agent' }) })
     } catch (e) {
       job.status = 'uncertain'
       d.error = 'Manus 요청 중 연결이 끊겨 결과를 확인하지 못했습니다. 중복 비용을 막기 위해 재요청하지 않았습니다. Manus 에서 확인해 주세요.'
@@ -984,7 +987,7 @@ function manusPrompt(job, plan) {
     '',
     '[브랜드]',
     `- ${(T.brand && T.brand.visual) || '네이비 #1F2C5C, 포인트 블루 #4A6FB5(제한적으로), 화이트 #FFFFFF, 그레이 #F4F5F7, 서체 Pretendard'}`,
-    '- 로고는 첨부한 로고 이미지만 쓰고 새로 그리거나 변형하지 않습니다(로고 이미지가 없으면 글자만).',
+    '- 로고는 아래 [첨부 자료]의 공식 로고 이미지만 쓰고, 마지막 장면 카드와 화면 오른쪽 위 작은 로고로 넣습니다. 새로 그리거나 변형하지 않습니다(로고 이미지를 못 받으면 글자만).',
     '- 다른 회사·브랜드 이름(POUR 등)은 화면과 음성 어디에도 넣지 않습니다.',
     '',
   ]
@@ -997,6 +1000,29 @@ function manusPrompt(job, plan) {
   })
   return lines.join('\n').trim()
 }
+// Manus 에 넘길 실제 자료(로고·브랜드 자료실 원본·사진 자료실)의 내려받기 주소 목록 (주소는 7일 유효)
+const ASSET_MARK = '[첨부 자료 — 아래 주소에서 내려받아 사용하세요]'
+async function manusAssetBlock(env, job, st) {
+  const d = job.data
+  const lines = [ASSET_MARK]
+  if (env.PUBLIC_BASE) lines.push(`- 아파트스퀘어 공식 로고(PNG): ${env.PUBLIC_BASE}/brand-logo.png — 마지막 장면 카드와 화면 오른쪽 위 작은 로고에 반드시 이 이미지를 그대로 사용(색·비율 변경, 다시 그리기 금지)`)
+  const used = new Set((d.sources || []).map((x) => x.id))
+  const srcs = (st.sourcesFull || []).filter((s) => s.approved && s.file && s.file.path).sort((a, b) => (used.has(b.id) ? 1 : 0) - (used.has(a.id) ? 1 : 0)).slice(0, 8)
+  for (const s of srcs) {
+    const url = await signedUrl(env, s.file.path, 7 * 86400).catch(() => '')
+    if (url) lines.push(`- 브랜드 자료 「${s.title}」(${s.file.name || '원본 파일'}): ${url}${used.has(s.id) ? ' — 이번 대본의 근거 자료' : ''}`)
+  }
+  const photos = (st.photos || []).filter((p) => p.source !== 'ai').slice(0, 20)
+  for (const p of photos) {
+    const url = await signedUrl(env, p.thumbPath || p.path, 7 * 86400).catch(() => '')
+    if (url) lines.push(`- 현장 ${p.kind === 'video' ? '영상' : '사진'}: ${(p.desc || p.name || '').replace(/\s+/g, ' ').slice(0, 80)} — ${p.kind === 'video' ? await signedUrl(env, p.path, 7 * 86400).catch(() => url) : url}`)
+  }
+  if (lines.length === 1) return ''
+  lines.push('- 브랜드 자료는 내용·색·톤을 참고하고, 현장 사진·영상은 내레이션에 맞는 장면에 우선 사용합니다. 첨부 자료로 부족한 장면만 직접 찾거나 만듭니다.')
+  return lines.join('\n')
+}
+function stripAssets(text) { const i = String(text || '').indexOf(ASSET_MARK); return (i >= 0 ? text.slice(0, i) : String(text || '')).trim() }
+
 // Manus 응답에서 결과 파일 찾기: 응답 전체를 훑어 파일 주소(영상 우선)와 글 답변을 모은다 (응답 형식이 바뀌어도 찾도록)
 function manusFiles(t) {
   const out = [], seen = new Set()
@@ -1629,6 +1655,10 @@ async function decrypt(env, cipher, iv) {
 // ─────────────────────────── 공통 ───────────────────────────
 function serveStatic(path) {
   const name = path === '/' || path === '' ? 'index.html' : path.replace(/^\/+/, '')
+  if (typeof BINARY_FILES !== 'undefined' && BINARY_FILES[name]) {
+    const bin = Uint8Array.from(atob(BINARY_FILES[name]), (c) => c.charCodeAt(0))
+    return new Response(bin, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400', 'access-control-allow-origin': '*' } })
+  }
   const body = STATIC_FILES[name]
   if (body == null) return new Response('Not found', { status: 404 })
   const type = name.endsWith('.css') ? 'text/css' : name.endsWith('.js') ? 'text/javascript' : 'text/html'

@@ -11,6 +11,8 @@ globalThis.__FFMPEG = ffmpegPath
 const env = {
   SUPABASE_URL: process.env.SUPABASE_URL || 'https://gndktayoicegyqyllybk.supabase.co',
   SUPABASE_SERVICE_ROLE: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  // 외부 서비스(Manus)에 넘길 공개 주소(로고 이미지 등)
+  PUBLIC_BASE: 'https://asia-southeast1-test-168a4.cloudfunctions.net/studio',
 }
 
 export const studio = functions

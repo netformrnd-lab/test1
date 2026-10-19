@@ -6,11 +6,14 @@ const here = new URL('.', import.meta.url).pathname
 const files = {}
 for (const f of ['index.html', 'studio.css', 'studio.js', 'config.js', 'extract.js']) files[f] = fs.readFileSync(here + f, 'utf8')
 const worker = fs.readFileSync(here + 'worker/worker.js', 'utf8')
+// 공개 이미지(로고): Manus 등 외부 서비스가 내려받을 수 있게 base64 로 넣는다
+const binary = { 'brand-logo.png': fs.readFileSync(here + 'brand/logo.png').toString('base64') }
 const terms = JSON.parse(fs.readFileSync(here + 'terms.json', 'utf8'))
 const knowledge = JSON.parse(fs.readFileSync(here + 'knowledge.json', 'utf8'))
 const out = `// ⚠️ 자동 생성 파일 — 직접 고치지 말고 video-studio/ 원본을 고친 뒤 \`node build.mjs\` 를 다시 실행하세요.\n` +
   `// 이 파일 전체를 Cloudflare Worker 편집기에 붙여넣으면 화면 + API 가 함께 동작합니다.\n` +
   `const STATIC_FILES = ${JSON.stringify(files)}\n` +
+  `const BINARY_FILES = ${JSON.stringify(binary)}\n` +
   `const TERMS = ${JSON.stringify(terms)}\n` +
   `const KNOWLEDGE = ${JSON.stringify(knowledge)}\n\n` + worker
 fs.mkdirSync(here + 'deploy', { recursive: true })

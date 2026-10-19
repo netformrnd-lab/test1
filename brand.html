@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-53';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-54';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20005,6 +20005,76 @@ function lkWalk(obj, path){
   }
   return cur;
 }
+/* 🧬 <<저쪽 속모양을 그대로 옮겨 적습니다>> ─────────────────────────
+   저쪽은 바뀐 것을 눌러 담은 자취(changes/*.json.gz)로 주고받습니다.
+   거기에 우리가 바로 적어 넣을 수 있으면 주고받기 파일이 아예 필요
+   없어집니다. 그러려면 <<적는 규칙>> 을 봐야 합니다 — 그 몇 개를
+   글자 그대로 보여 줍니다 (읽기만 합니다). */
+async function lkInside(){
+  if(!await lkBridgeCheck(true)){
+    alert('❌ 팀허브 다리에 못 닿았습니다.');
+    return;
+  }
+  const log = ['\uD83E\uDDEC 저쪽 속모양 ('
+    + new Date().toLocaleString('ko-KR', { dateStyle:'short', timeStyle:'short' }) + ')',
+    '   읽기만 했습니다 — 아무것도 바꾸지 않았습니다', ''];
+  let files = [];
+  try{ files = await lkBridgeFind('', 3); }
+  catch(e){ log.push('자료함을 못 읽었습니다'); lkAutoLog = log; render(); return; }
+  const newest = (a, b) => String(b['고친때']).localeCompare(String(a['고친때']));
+  const by = (re, n) => files.filter(f => re.test(String(f['경로'] || '')))
+                             .sort(newest).slice(0, n);
+  const pick = []
+    .concat(by(/HEAD\.json$/i, 1))
+    .concat(by(/lease\.json$/i, 1))
+    .concat(by(/\/pcs\/[^/]+\.json$/i, 1))
+    .concat(by(/changes\/.+\.json(\.gz)?$/i, 2))
+    .concat(by(/\.thsnap$/i, 1));
+  const seen = {};
+  for(const f of pick){
+    const path = String(f['경로'] || '');
+    if(!path || seen[path]) continue;
+    seen[path] = 1;
+    log.push('\u2500\u2500 ' + path
+      + ' (' + Math.max(1, Math.round((f['바이트'] || 0) / 1024)) + 'KB · '
+      + lkWhen(f['고친때']) + ')');
+    let txt = '';
+    try{ txt = await lkReadText(path); }
+    catch(e){ log.push('   (못 읽었습니다)'); continue; }
+    if(!txt){ log.push('   (빈 것이거나 못 푼 것입니다)'); continue; }
+    /* 통째로 담긴 것은 커서 — <<모양만>> 적습니다 */
+    if(/\.thsnap$/i.test(path) || txt.length > 4000){
+      let js = null;
+      try{ js = JSON.parse(txt.replace(/^\uFEFF/, '')); }
+      catch(e){ log.push('   (글자 ' + txt.length + '자 · json 이 아닙니다)'
+        + '\n   ' + txt.slice(0, 200)); continue; }
+      const walk = (o, at, d) => {
+        if(d > 2 || o == null) return;
+        if(Array.isArray(o)){
+          const first = o.find(x => x && typeof x === 'object');
+          log.push('   ' + (at || '(맨 위)') + ' : 목록 ' + o.length + '개'
+            + (first ? ' · 칸 = ' + Object.keys(first).slice(0, 14).join(' · ') : ''));
+          return;
+        }
+        if(typeof o !== 'object'){ return; }
+        Object.keys(o).slice(0, 20).forEach(k => {
+          const v = o[k];
+          if(v && typeof v === 'object') walk(v, at ? at + '.' + k : k, d + 1);
+          else log.push('   ' + (at ? at + '.' : '') + k + ' = '
+            + String(v).slice(0, 60));
+        });
+      };
+      walk(js, '', 0);
+      continue;
+    }
+    txt.split(/\n/).slice(0, 40).forEach(l => log.push('   ' + l.slice(0, 160)));
+    if(txt.length > 2400) log.push('   … (줄임)');
+  }
+  log.push('');
+  log.push('\u2139 이 글을 [📋 복사] 로 그대로 붙여 주시면, 주고받기 파일 없이'
+    + ' 바로 넣을 수 있는지 보겠습니다.');
+  lkAutoLog = log; render();
+}
 /* 🤝 <<저쪽 할 일 파일에 우리 줄을 바로 적어 넣습니다>> ─────────────
    여태는 「주고받기」 칸에 놓아 두고, 저쪽이 [불러오기] 를 눌러야
    들어갔습니다. 이제 저쪽이 쓰고 있는 그 파일에 <<그 파일 모양 그대로>>
@@ -21427,7 +21497,10 @@ function lkSwapHtml(){
       + (lkBridgeOn === true
           ? '<button class="btn sm" onclick="lkProbe()"'
             + ' title="저쪽 자료함에 무엇이 있는지 그대로 보여 줍니다">'
-            + '\uD83D\uDD0E 저쪽 자료함 보기</button>' : '')
+            + '\uD83D\uDD0E 저쪽 자료함 보기</button>'
+          + '<button class="btn sm" onclick="lkInside()"'
+            + ' title="저쪽이 바뀐 것을 어떻게 적는지 글자 그대로 보여 줍니다">'
+            + '\uD83E\uDDEC 속모양 보기</button>' : '')
       + (n ? '<button class="btn sm danger" onclick="lkDropImported()"'
              + ' title="가져온 것만 뺍니다">🧹 가져온 것 빼기</button>' : '')
     + '</span></div>'

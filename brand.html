@@ -5299,6 +5299,8 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
   <div class="searchbox">
     <span class="ico">🔍</span>
     <input type="text" id="search" placeholder="모든 브랜드에서 검색 (자동화·히스토리·자료)"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           data-lpignore="true" data-1p-ignore data-form-type="other" data-nofill="1"
            oninput="onSearch(this.value)">
   </div>
   <span class="spacer"></span>
@@ -5687,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-46';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-47';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6990,6 +6992,7 @@ function render(){
   restoreUI(snap);
   uiStamp();     // 「그렸을 때의 값」 을 칸마다 적어 둡니다 (고쳤는지 보려고)
   gbGrowAll();   // 글 칸 높이를 내용에 맞춥니다 (한 줄이면 한 줄로)
+  noFillAll();   // 맥에서 아이디가 저절로 들어오지 않게 막습니다
   foldAll();     // 접어 둘 만큼 긴 글에만 [＋ 더 보기] 를 답니다
   /* 위 둘이 글칸 높이를 바꿔서 자리가 밀립니다 — 그 뒤에 한 번 더 */
   uiScrollBack(snap);
@@ -14126,6 +14129,37 @@ function gbGrowAll(root){
     gbGrow(el);
   });
 }
+/* ── 🚫 저절로 들어오는 아이디 막기 ─────────────────────────────
+   맥(사파리·크롬)은 화면 어딘가에 비밀번호 칸이 있으면, 그 앞에 있는
+   <<아무 글자 칸>> 이나 아이디 칸으로 짐작해서 저장해 둔 아이디를 슬쩍
+   넣어 버립니다. 그러면 찾기 칸에 아이디가 들어오고, 들어오자마자
+   oninput 이 돌아 <<저절로 검색>> 이 됩니다.
+   그래서 들어가기 칸 말고는 모두 「여기엔 넣지 마세요」 표를 붙입니다.
+   일부러 autocomplete 를 적어 둔 칸(아이디·비밀번호)은 그대로 둡니다. */
+const NOFILL_SKIP = { password:1, file:1, checkbox:1, radio:1, hidden:1,
+                      submit:1, button:1, reset:1, image:1, color:1, range:1 };
+function noFillOne(el){
+  if(!el || el.dataset.nofill === '1') return;
+  const t = String(el.type || 'text').toLowerCase();
+  if(NOFILL_SKIP[t]) return;
+  if(el.hasAttribute('autocomplete')) return;   /* 일부러 적어 둔 칸 */
+  el.setAttribute('autocomplete', 'off');
+  el.setAttribute('autocorrect', 'off');
+  el.setAttribute('autocapitalize', 'off');
+  el.setAttribute('data-lpignore', 'true');     /* 비번 지킴이 프로그램들 */
+  el.setAttribute('data-1p-ignore', '');
+  el.setAttribute('data-form-type', 'other');
+  el.dataset.nofill = '1';
+}
+function noFillAll(root){
+  (root || document).querySelectorAll('input').forEach(noFillOne);
+}
+/* 창이 새로 열려 칸이 뒤늦게 생겨도 — 손이 닿는 그때 붙입니다 */
+document.addEventListener('focusin', ev => {
+  const el = ev.target;
+  if(el && el.tagName === 'INPUT') noFillOne(el);
+}, true);
+
 /* 쓰는 동안에도 바로바로 — 다시 그릴 때까지 기다리지 않습니다 */
 document.addEventListener('input', ev => {
   const el = ev.target;

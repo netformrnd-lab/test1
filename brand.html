@@ -5687,7 +5687,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-44';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-45';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7736,7 +7736,23 @@ async function hubEdit(id){
     }
     return;
   }
-  const v2 = String(v.loc || '').trim();
+  let v2 = String(v.loc || '').trim();
+  /* ── 📝 <<.html 을 빠뜨려도 됩니다>> ──────────────────────────────
+     「mediam_TeamHub」 라고만 적으면 404 가 났습니다 — 주소에는
+     확장자가 있어야 하는데 윈도우가 늘 숨겨 두니 빠뜨리기 쉽습니다.
+     웹주소도 폴더도 아닌 <<이름 하나>> 면 .html 을 붙여 줍니다.
+     (#/board 같은 꼬리표가 붙어 있어도 그 앞에 끼워 넣습니다) */
+  {
+    /* #/board 같은 꼬리표를 <<먼저 떼고>> 봅니다 — 안 그러면 꼬리표 안의
+       / 때문에 「폴더구나」 하고 넘어가 버립니다 */
+    const m = v2.match(/^([^#?]*)([#?].*)?$/);
+    const head = m ? m[1] : v2, tail = (m && m[2]) || '';
+    if(head && !/^https?:/i.test(head) && !/^[A-Za-z]:[\\/]/.test(head)
+       && head.indexOf('\\') < 0 && head.indexOf('/') < 0
+       && !/\.[A-Za-z0-9]{1,5}$/.test(head)){
+      v2 = head + '.html' + tail;
+    }
+  }
   /* 어느 쪽으로 적었는지 가립니다 — \\ · 드라이브 문자 · / 로 시작하면 폴더 */
   const isDir = /^[A-Za-z]:[\\/]/.test(v2) || v2.indexOf('\\\\') === 0 || v2.indexOf('/') === 0;
   /* 📌 폴더를 적었으면 <<파일 이름>> 까지 못 박아 둡니다 — 저쪽이 판을

@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-51';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-52';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19854,7 +19854,9 @@ async function lkBridgeSniff(files){
 async function lkPullBridge(loud){
   const t = lkOf();
   let files = [];
-  try{ files = await lkBridgeFind('', 2); }
+  /* 📂 세 단계까지 봅니다 — 저쪽이 날짜 폴더 · 보드 폴더처럼 한 겹 더
+     들어가 두어도 찾을 수 있게 (점검 화면과 같은 깊이로 맞춥니다) */
+  try{ files = await lkBridgeFind('', 3); }
   catch(e){ if(loud) toast('⚠ 다리에 못 닿았습니다'); return 0; }
   /* 「할일」 이 든 것 가운데 가장 새것 */
   let hit = files
@@ -20019,9 +20021,30 @@ async function lkProbe(){
     return;
   }
   const t = lkOf();
-  const log = ['\uD83D\uDD0E 저쪽 자료함을 들여다봤습니다 ('
+  let n = 0;
+  (data.brands || []).forEach(b => (b.tasks || []).forEach(x => {
+    if(x._from === '미디어마케팅팀') n++; }));
+  const log = ['\uD83D\uDD0E 연동 점검 ('
     + new Date().toLocaleString('ko-KR', { dateStyle:'short', timeStyle:'short' }) + ')',
-    '   ' + (t.brWhere || '팀허브') + (t.brWrite ? ' · 쓸 수 있음' : ' · 읽기만')];
+    '   판 ' + APP_VER + ' · ' + (t.brWhere || '팀허브')
+      + (t.brWrite ? ' · 쓸 수 있음' : ' · 읽기만'),
+    '',
+    '\u2460 받는 쪽',
+    '   · 보고 있는 파일 : ' + (t.autoPath || '— 아직 못 찾았습니다'),
+    '   · 마지막으로 읽은 때 : ' + (t.autoAt ? lkWhen(t.autoAt) : '— 없음'),
+    '   · 지금 들어와 있는 줄 : ' + n + '건',
+    '   · 저절로 보기 : ' + (t.autoOn ? '켜짐' : '\u26A0 꺼짐') + ' · 지켜보기 '
+      + (lkWatchT ? '도는 중' : '\u26A0 안 돎'),
+    '',
+    '\u2461 올리는 쪽',
+    '   · 마지막으로 올린 때 : ' + (t.outPutAt ? lkWhen(t.outPutAt) : '— 없음'),
+    '   · 어디에 : ' + (t.outPutDir || '— 아직 안 올렸습니다'),
+    '   · 저쪽 파일에 바로 쓰기 : '
+      + (t.livePath ? (t.liveWhy ? ('\u26A0 ' + t.liveWhy) : ('됨 — ' + t.livePath))
+                    : '\u26A0 아직 그 파일을 못 찾았습니다'),
+    (t.outPutWhy ? '   · \u26A0 못 올린 까닭 : ' + t.outPutWhy : ''),
+    '',
+    '\u2462 저쪽 자료함'];
   for(const area of ['', 'copy']){
     const label = area === 'copy' ? '주고받기 칸 (우리가 올리는 자리)' : '팀 칸 (저쪽 자료)';
     let fs = [];
@@ -21083,6 +21106,21 @@ let lkAutoLog = null;
    화면을 반이나 차지합니다. 그래서 <<붙고 나면 접어 두고>>, 안 될 때만
    펴 둡니다. 눈에 거슬리면 [치우기] 로 아예 없앱니다. */
 function lkAutoClear(){ lkAutoLog = []; render(); }
+/* 본 것을 통째로 복사 — 여쭐 때 그대로 붙여 넣으시라고 */
+function lkLogCopy(){
+  const txt = (lkAutoLog || []).join('\n');
+  if(!txt) return;
+  const go = () => {
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    ta.remove();
+  };
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).catch(go);
+  else go();
+  toast('📋 복사했습니다 — 그대로 붙여 넣으시면 됩니다');
+}
 function lkAutoHtml(){
   if(!lkAutoLog || !lkAutoLog.length) return '';
   const txt = lkAutoLog.join('\n');
@@ -21093,9 +21131,12 @@ function lkAutoHtml(){
     + '<span class="lk-tn">' + (bad ? '막힌 데가 있습니다' : '잘 붙었습니다')
       + ' · 눌러서 펴기</span>'
     + '<button class="btn sm" onclick="event.preventDefault();'
+      + 'event.stopPropagation();lkLogCopy()" title="적힌 것을 통째로 복사합니다">'
+      + '📋 복사</button>'
+    + '<button class="btn sm" onclick="event.preventDefault();'
       + 'event.stopPropagation();lkAutoClear()" title="이 글을 치웁니다">치우기</button>'
     + '</summary>'
-    + '<pre class="lk-pre">' + esc(txt) + '</pre></details>';
+    + '<pre class="lk-pre" id="lkLogPre">' + esc(txt) + '</pre></details>';
 }
 /* 뒤져서 찾은 것을 화면에 늘어놓습니다 */
 function lkDigClear(){ lkDug = null; render(); }
@@ -21277,6 +21318,8 @@ function lkSwapHtml(){
       + '<span class="lk-btns">'
         + '<button class="btn sm primary" onclick="lkPullFile(1)"'
           + ' title="지금 바로 한 번 맞춥니다">↻ 지금 맞추기</button>'
+        + '<button class="btn sm" onclick="lkProbe()"'
+          + ' title="어디서 받아 어디로 올리는지 그대로 보여 줍니다">🔎 점검</button>'
         + '<button class="btn sm" onclick="lkMoreOn()"'
           + ' title="파일로 주고받기 · 명단 같은 것을 폅니다">⋯ 자세히</button>'
       + '</span></div>'

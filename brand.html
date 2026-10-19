@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-62';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-63';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20514,6 +20514,140 @@ async function lkPutChange(rows){
   t.chAt = now.toISOString(); t.chSeq = seq; t.chWhy = '';
   return { seq: seq, n: rows.length, pc: pc, '표': tbl };
 }
+/* 🔌 <<팀허브와 바로 잇습니다>> ───────────────────────────────────
+   팀허브는 우리와 <<같은 폴더>>(/brand/)에 있습니다. 같은 집이면
+   브라우저가 서로 손을 잡게 해 줍니다 — 그쪽 프로그램이 들고 있는
+   할 일도, 그쪽이 쓰는 함수도 그대로 쓸 수 있습니다.
+
+   그래서 <<파일을 뜯어 읽을 일이 없어집니다>>. 넣고 고치는 일은
+   저쪽 프로그램이 제 손으로 하니, 번호·이름·칸 모양을 우리가 맞출
+   것도 없습니다.
+
+   보이는 창이 아닙니다 — 뒤에서 일만 하는 일꾼이고, 사람 눈에는
+   아무것도 안 뜹니다. 먼저 <<무엇을 쓸 수 있는지>> 알아봅니다. */
+const LK_HUB_PAGE = 'mediam_TeamHub.html#/board';
+let lkFrame = null;
+function lkFrameEl(){
+  const was = document.getElementById('lkFrame');
+  if(was) return was;
+  const f = document.createElement('iframe');
+  f.id = 'lkFrame';
+  f.src = LK_HUB_PAGE;
+  /* 🙈 <<보이는 창이 아닙니다>> — 뒤에서 일만 하는 일꾼입니다.
+     눈에 안 띄고, 손도 안 닿고, 글자 읽는 기계에도 안 걸립니다.
+     그래도 display:none 은 안 씁니다 — 안 그리는 쪽은 제 자료를
+     아예 안 불러오는 프로그램이 있어서입니다. */
+  f.setAttribute('aria-hidden', 'true');
+  f.setAttribute('tabindex', '-1');
+  f.setAttribute('title', '');
+  f.style.cssText = 'position:fixed;left:-99999px;top:0;width:1280px;'
+    + 'height:900px;border:0;opacity:0;pointer-events:none;'
+    + 'visibility:visible;z-index:-1';
+  document.body.appendChild(f);
+  lkFrame = f;
+  return f;
+}
+function lkFrameDrop(){
+  const f = document.getElementById('lkFrame');
+  if(f && f.parentNode) f.parentNode.removeChild(f);
+  lkFrame = null;
+}
+/* 다 뜰 때까지 기다립니다 (25MB 라 좀 걸립니다) */
+async function lkFrameWin(ms){
+  const f = lkFrameEl();
+  const end = Date.now() + (ms || 30000);
+  let seen = 0, same = 0;
+  while(Date.now() < end){
+    let w = null;
+    try{ w = f.contentWindow; }catch(e){ return null; }   /* 다른 집 */
+    try{
+      if(w && w.document && w.document.readyState === 'complete'){
+        /* 글자 수가 더 안 늘면 다 그린 것으로 봅니다 */
+        const n = (w.document.body && w.document.body.innerText || '').length;
+        if(n && n === seen){ if(++same >= 3) return w; }
+        else { seen = n; same = 0; }
+      }
+    }catch(e){ return null; }
+    await new Promise(r => setTimeout(r, 400));
+  }
+  try{ return f.contentWindow; }catch(e){ return null; }
+}
+/* 저쪽이 들고 있는 것을 훑습니다 — 읽기만 합니다 */
+async function lkFrameScan(){
+  toast('🔌 팀허브와 잇는 중입니다 — 자료가 커서 잠깐 걸립니다…');
+  const w = await lkFrameWin();
+  if(!w){
+    alert('❌ 팀허브와 잇지 못했습니다.\n\n'
+      + 'brand 폴더에 mediam_TeamHub.html 이 있어야 합니다.');
+    return;
+  }
+  const log = ['\uD83D\uDD0C 팀허브와 바로 이어 봤습니다',
+    '   뒤에서 이은 것이라 화면에는 아무것도 안 뜹니다',
+    '   읽기만 했습니다 — 아무것도 바꾸지 않았습니다', ''];
+  /* ① 저쪽이 브라우저에 적어 둔 것 */
+  try{
+    const ks = Object.keys(w.localStorage || {});
+    log.push('\u2460 저쪽이 적어 둔 것 (localStorage) — ' + ks.length + '개');
+    ks.slice(0, 14).forEach(k => {
+      let v = '';
+      try{ v = String(w.localStorage.getItem(k) || ''); }catch(e){}
+      log.push('   · ' + k + '  (' + v.length + '자) ' + v.slice(0, 70));
+    });
+  }catch(e){ log.push('\u2460 적어 둔 것을 못 봤습니다'); }
+  /* ② 안쪽 자료함 */
+  try{
+    if(w.indexedDB && w.indexedDB.databases){
+      const ds = await w.indexedDB.databases();
+      log.push('', '\u2461 안쪽 자료함(IndexedDB) — '
+        + (ds.length ? ds.map(d => d.name + ' v' + d.version).join(' · ') : '없음'));
+    }
+  }catch(e){}
+  /* ③ 저쪽이 들고 있는 이름들 (우리에게 없는 것만) */
+  const mine = {};
+  Object.keys(window).forEach(k => { mine[k] = 1; });
+  let names = [];
+  try{ names = Object.keys(w).filter(k => !mine[k]); }catch(e){}
+  log.push('', '\u2462 저쪽만 가진 이름 — ' + names.length + '개');
+  const funcs = [], objs = [], arrs = [];
+  names.forEach(k => {
+    let v;
+    try{ v = w[k]; }catch(e){ return; }
+    if(typeof v === 'function') funcs.push(k);
+    else if(Array.isArray(v)) arrs.push(k + '[' + v.length + ']');
+    else if(v && typeof v === 'object'){
+      let ks = [];
+      try{ ks = Object.keys(v).slice(0, 10); }catch(e){}
+      objs.push(k + ' { ' + ks.join(' · ') + ' }');
+    }
+  });
+  if(objs.length){ log.push('   \u2500 자료 뭉치'); objs.slice(0, 24).forEach(x => log.push('     · ' + x)); }
+  if(arrs.length){ log.push('   \u2500 목록'); arrs.slice(0, 24).forEach(x => log.push('     · ' + x)); }
+  if(funcs.length) log.push('   \u2500 함수 ' + funcs.length + '개 : '
+    + funcs.slice(0, 40).join(' · '));
+  /* ④ 할 일처럼 생긴 것이 어디 있나 */
+  log.push('', '\u2463 할 일처럼 생긴 것');
+  let found = 0;
+  names.forEach(k => {
+    if(found >= 6) return;
+    let v;
+    try{ v = w[k]; }catch(e){ return; }
+    if(!v || typeof v !== 'object') return;
+    let hits = [];
+    try{ hits = lkFindRows(v).filter(h => (h['맞은칸'] || 0) >= 3 && h.rows.length); }catch(e){}
+    hits.slice(0, 2).forEach(h => {
+      found++;
+      log.push('   · ' + k + (h.path && h.path !== '(맨 위)' ? '.' + h.path : '')
+        + ' — ' + h.n + '줄 · 칸 = ' + (h.keys || []).slice(0, 14).join(' · '));
+    });
+  });
+  if(!found) log.push('   · (아직 못 찾았습니다 — 저쪽이 자료를 안쪽 자료함에'
+    + ' 두었거나, 아직 다 안 불러왔을 수 있습니다)');
+  log.push('', '\u2139 [📋 복사] 로 그대로 붙여 주시면, 저쪽 프로그램이 제 손으로'
+    + ' 넣고 고치게 이어 두겠습니다 — 그 뒤로는 사람이 볼 것도,'
+    + ' 누를 것도 없습니다.');
+  lkAutoLog = log; render();
+  lkFrameDrop();
+}
 /* 🧬 <<저쪽 속모양을 그대로 옮겨 적습니다>> ─────────────────────────
    저쪽은 바뀐 것을 눌러 담은 자취(changes/*.json.gz)로 주고받습니다.
    거기에 우리가 바로 적어 넣을 수 있으면 주고받기 파일이 아예 필요
@@ -22140,6 +22274,9 @@ function lkSwapHtml(){
           ? '<button class="btn sm" onclick="lkProbe()"'
             + ' title="저쪽 자료함에 무엇이 있는지 그대로 보여 줍니다">'
             + '\uD83D\uDD0E 저쪽 자료함 보기</button>'
+          + '<button class="btn sm primary" onclick="lkFrameScan()"'
+            + ' title="팀허브와 뒤에서 바로 잇습니다 — 화면에는 아무것도 안 뜹니다">'
+            + '\uD83D\uDD0C 바로 잇기</button>'
           + '<button class="btn sm" onclick="lkInside()"'
             + ' title="저쪽이 바뀐 것을 어떻게 적는지 글자 그대로 보여 줍니다">'
             + '\uD83E\uDDEC 속모양 보기</button>'

@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-55';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-56';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19847,6 +19847,27 @@ function lkNdjson(txt){
 /* 🗂 토막들을 <<표 이름별>> 로 모읍니다.
    저쪽은 바뀐 것을 { t:표이름, k:열쇠, o:'u'(넣기)·'d'(지우기), d:알맹이 }
    로 적습니다. 담아 둔 것도 같은 모양입니다. */
+/* 🏷 토막이 「무슨 표」 인지 — 겉 이름은 프로그램마다 다릅니다 */
+function lkTbName(o){
+  if(!o || typeof o !== 'object') return '';
+  const v = o.table || o.entity || o.collection || o.model || o.name || o.t || '';
+  const nm = String(v || '').trim();
+  /* type 은 보통 「bucket · table · rows」 같은 겉껍데기라 안 씁니다 */
+  return /^(bucket|table|rows|row|data|chunk|header)$/i.test(nm) ? '' : nm;
+}
+/* 담아 둔 것은 「task」, 바뀐 것은 「tasks」 처럼 이름이 다를 수 있습니다.
+   둘 다에 있는 이름(session ↔ sessions)으로 규칙을 알아내 맞춥니다. */
+function lkTbFix(name, snapNames, chgNames){
+  const nm = String(name || '');
+  if(!nm || !chgNames || !chgNames.length) return nm;
+  if(chgNames.indexOf(nm) >= 0) return nm;
+  const rules = [x => x + 's', x => x + 'es', x => x.replace(/s$/, '')];
+  for(const r of rules){
+    const works = (snapNames || []).some(x => x && chgNames.indexOf(r(x)) >= 0);
+    if(works) return r(nm);
+  }
+  return nm;
+}
 function lkTables(objs){
   const tb = {};
   const add = (name, row) => {
@@ -19856,7 +19877,7 @@ function lkTables(objs){
   };
   (objs || []).forEach(o => {
     if(!o || typeof o !== 'object') return;
-    const nm = o.table || o.name || o.t || '';
+    const nm = lkTbName(o);
     if(Array.isArray(o.rows)){
       o.rows.forEach(r => {
         if(r && typeof r === 'object' && (r.t || r.d)){
@@ -19889,6 +19910,31 @@ function lkPickTable(tb){
   });
   return best;
 }
+/* 🔦 <<줄마다 다 뒤져 봅니다>> — 담는 모양이 우리 짐작과 달라도.
+   토막 하나하나에 「할 일 목록」 이 들어 있는지 보고, 가장 잘 맞는
+   것과 같은 수준인 토막들을 모두 모읍니다. 겉을 싸고 있는 이름이
+   무엇이든 (rows · items · data · 무엇이든) 상관없이 찾아냅니다. */
+function lkRowsNd(objs){
+  let best = null;
+  const bag = [];
+  (objs || []).forEach(o => {
+    if(!o || typeof o !== 'object') return;
+    const h = lkFindRows(o)
+      .filter(x => (x['맞은칸'] || 0) >= 3 && x.rows && x.rows.length)
+      .sort((a, b) => (b['맞은칸'] - a['맞은칸']) || (b.n - a.n))[0];
+    if(!h) return;
+    h['표'] = lkTbName(o);
+    bag.push(h);
+    if(!best || h['맞은칸'] > best['맞은칸']) best = h;
+  });
+  if(!best) return null;
+  const rows = [], names = [];
+  bag.forEach(h => { if(h['맞은칸'] === best['맞은칸']) rows.push.apply(rows, h.rows); });
+  (objs || []).forEach(o => { const n = lkTbName(o);
+    if(n && names.indexOf(n) < 0) names.push(n); });
+  return { rows: rows, '맞은칸': best['맞은칸'], at: '',
+           cols: lkColNames(best.keys || []), '표': best['표'], '이름들': names };
+}
 /* 그 글에서 할 일처럼 생긴 줄을 꺼냅니다 (사람 목록은 거릅니다) */
 function lkRowsIn(txt){
   const raw = String(txt || '').replace(/^\uFEFF/, '');
@@ -19906,9 +19952,11 @@ function lkRowsIn(txt){
   const objs = js ? [js] : lkNdjson(raw);
   if(!objs.length) return null;
   const pick = lkPickTable(lkTables(objs));
-  if(!pick) return null;
-  return { rows: pick.rows, '맞은칸': pick['맞은칸'], at: '', cols: pick.cols,
-           '표': pick['표'], keys: pick.keys };
+  if(pick) return { rows: pick.rows, '맞은칸': pick['맞은칸'], at: '', cols: pick.cols,
+                    '표': pick['표'], keys: pick.keys,
+                    '이름들': Object.keys(lkTables(objs)) };
+  /* 그래도 못 찾으면 — 줄마다 통째로 뒤져 봅니다 */
+  return lkRowsNd(objs);
 }
 /* 🧱 <<저쪽 모양에 맞춰 읽습니다>> ─────────────────────────────────
    팀허브 자료함은 이렇게 생겼습니다 —
@@ -19928,8 +19976,16 @@ async function lkBridgeSniff(files){
   const small = all.filter(f => big.indexOf(f) < 0).slice(0, 14);
 
   let best = null;
+  const chgNames = [];          /* 바뀐 것(changes)에 실제로 쓰인 표 이름 */
   const read = async (f) => {
-    try{ return lkRowsIn(await lkReadText(f['경로'])); }catch(e){ return null; }
+    try{
+      const h = lkRowsIn(await lkReadText(f['경로']));
+      if(/\/changes\//i.test(String(f['경로'] || ''))){
+        (h && h['이름들'] ? h['이름들'] : []).forEach(n => {
+          if(n && chgNames.indexOf(n) < 0) chgNames.push(n); });
+      }
+      return h;
+    }catch(e){ return null; }
   };
   /* ① 바탕 — 통째로 담긴 것 가운데 <<칸이 가장 잘 맞고 가장 새것>> */
   for(const f of big){
@@ -19937,11 +19993,21 @@ async function lkBridgeSniff(files){
     if(!h) continue;
     if(!best || h['맞은칸'] > best['맞은칸']) best = Object.assign({ f:f }, h);
   }
-  /* ② 작은 것들 — 바탕이 없으면 그 가운데 고르고, 있으면 그 위에 덮습니다 */
+  /* ② 작은 것들 — 바탕이 없으면 그 가운데 고르고, 있으면 그 위에 덮습니다.
+     할 일이 없는 토막이라도 <<표 이름>> 은 거둬 둡니다 (적어 넣을 때 씁니다) */
   const over = [];
   for(const f of small){
     const h = await read(f);
-    if(!h) continue;
+    if(!h){
+      if(/\/changes\//i.test(String(f['경로'] || ''))){
+        try{
+          const objs = lkNdjson(await lkReadText(f['경로']));
+          Object.keys(lkTables(objs)).forEach(n => {
+            if(n && chgNames.indexOf(n) < 0) chgNames.push(n); });
+        }catch(e){}
+      }
+      continue;
+    }
     if(!best){ best = Object.assign({ f:f }, h); continue; }
     if(String(f['고친때']) > String(best.f['고친때'])) over.push(h);
   }
@@ -19958,6 +20024,7 @@ async function lkBridgeSniff(files){
     best.rows = Array.from(map.values());
     best.덮은수 = over.length;
   }
+  best['바뀐이름들'] = chgNames;
   return best;
 }
 
@@ -19966,7 +20033,7 @@ async function lkPullBridge(loud){
   let files = [];
   /* 📂 세 단계까지 봅니다 — 저쪽이 날짜 폴더 · 보드 폴더처럼 한 겹 더
      들어가 두어도 찾을 수 있게 (점검 화면과 같은 깊이로 맞춥니다) */
-  try{ files = await lkBridgeFind('', 3); }
+  try{ files = await lkBridgeFind('', 4); }
   catch(e){ if(loud) toast('⚠ 다리에 못 닿았습니다'); return 0; }
   /* 「할일」 이 든 것 가운데 가장 새것 */
   /* 🔔 <<가장 자주 바뀌는 파일>> 을 알림종으로 삼습니다.
@@ -19984,6 +20051,19 @@ async function lkPullBridge(loud){
               && /\.(json|csv|tsv)$/i.test(String(f['이름'] || ''))
               && !/^브랜드마케팅팀-할일/.test(String(f['이름'] || '')))
     .sort((a, b) => String(b['고친때']).localeCompare(String(a['고친때'])))[0];
+  /* 📛 <<이름만 믿으면 안 됩니다>>.
+     「…할일.json」 이라는 이름을 가진 사흘 전 백업이 폴더에 남아
+     있으면, 이름만 보고 그것을 집어 옵니다. 그래서 저쪽이 아무리
+     고쳐도 사흘 전 것만 들어왔습니다.
+     이름이 맞는 것이 있어도, <<더 새로 바뀐 파일>> 이 있으면 그쪽을
+     열어 봅니다. */
+  {
+    const nc = files
+      .filter(f => /\.(json|gz|thsnap)$/i.test(String(f['이름'] || ''))
+                && !/^브랜드마케팅팀-할일/.test(String(f['이름'] || '')))
+      .sort((a, b) => String(b['고친때']).localeCompare(String(a['고친때'])))[0];
+    if(hit && nc && String(nc['고친때']) > String(hit['고친때'])) hit = null;
+  }
   let rows = [], from = hit;
   if(hit){
     try{
@@ -20014,7 +20094,10 @@ async function lkPullBridge(loud){
         && !/(^|\/)(changes|pcs)(\/|$)/i.test(String(sn.f['경로'] || ''));
       /* 📓 저쪽이 쓰는 <<표 이름>> 과 <<바뀐 것 폴더>> 를 적어 둡니다 —
          우리도 같은 자리에 같은 모양으로 적으려고 합니다 */
-      if(sn['표']){ t.chTable = String(sn['표']); t.chCols = sn.cols || {}; }
+      if(sn['표']){
+        t.chTable = lkTbFix(sn['표'], sn['이름들'] || [], sn['바뀐이름들'] || []);
+        t.chCols = sn.cols || {};
+      }
       {
         const h = (files || []).find(f =>
           /(^|\/)changes\/[^/]+\/HEAD\.json$/i.test(String(f['경로'] || '')));
@@ -20232,8 +20315,37 @@ async function lkInside(){
     if(/\.thsnap$/i.test(path) || txt.length > 4000){
       let js = null;
       try{ js = JSON.parse(txt.replace(/^\uFEFF/, '')); }
-      catch(e){ log.push('   (글자 ' + txt.length + '자 · json 이 아닙니다)'
-        + '\n   ' + txt.slice(0, 200)); continue; }
+      catch(e){ js = null; }
+      if(!js){
+        /* 줄마다 한 토막 — 토막 종류와 생김새를 적습니다 */
+        const ls = lkNdjson(txt);
+        log.push('   (글자 ' + txt.length + '자 · 줄 ' + ls.length + '개)');
+        const seen = {};
+        ls.forEach(o => {
+          if(!o || typeof o !== 'object') return;
+          const kind = String(o.type || o.table || o.name || o.t || '?');
+          if(seen[kind]) { seen[kind].n++; return; }
+          seen[kind] = { n:1, o:o };
+        });
+        Object.keys(seen).slice(0, 14).forEach(kind => {
+          const o = seen[kind].o;
+          const keys = Object.keys(o).slice(0, 10);
+          let more = '';
+          keys.forEach(k => {
+            const v = o[k];
+            if(Array.isArray(v)){
+              const f0 = v.find(x => x && typeof x === 'object');
+              more += '\n       ' + k + ' : 목록 ' + v.length + '개'
+                + (f0 ? ' · 칸 = ' + Object.keys(f0).slice(0, 14).join(' · ') : '');
+            }else if(v && typeof v === 'object'){
+              more += '\n       ' + k + ' : { ' + Object.keys(v).slice(0, 12).join(' · ') + ' }';
+            }
+          });
+          log.push('   [' + kind + '] ' + seen[kind].n + '줄 · 칸 = '
+            + keys.join(' · ') + more);
+        });
+        continue;
+      }
       const walk = (o, at, d) => {
         if(d > 2 || o == null) return;
         if(Array.isArray(o)){
@@ -20391,9 +20503,22 @@ async function lkProbe(){
           const h = lkRowsIn(txt);
           if(h) note = '  \u2190 할 일 ' + h.rows.length + '줄';
           else{
-            const js = JSON.parse(String(txt).replace(/^\uFEFF/, ''));
-            note = '  (칸: ' + (Array.isArray(js) ? '[목록]'
+            let js = null;
+            try{ js = JSON.parse(String(txt).replace(/^\uFEFF/, '')); }catch(e2){ js = null; }
+            if(js) note = '  (칸: ' + (Array.isArray(js) ? '[목록]'
               : Object.keys(js).slice(0, 8).join(' · ')) + ')';
+            else{
+              /* 줄마다 적힌 것 — 몇 줄인지, 어떤 토막인지 */
+              const ls = lkNdjson(txt);
+              const kinds = [];
+              ls.slice(0, 200).forEach(o => {
+                const k = String((o && (o.type || o.table || o.name || o.t)) || '?');
+                if(kinds.indexOf(k) < 0) kinds.push(k); });
+              note = ls.length
+                ? ('  (줄 ' + ls.length + '개 · 토막: ' + kinds.slice(0, 10).join(' · ')
+                   + ' · 할 일 표는 못 찾음)')
+                : ('  (글자 ' + String(txt).length + '자 · 줄로도 안 읽힙니다)');
+            }
           }
         }catch(e){ note = '  (못 읽었습니다)'; }
       }

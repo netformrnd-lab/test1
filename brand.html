@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-64';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-65';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20572,6 +20572,55 @@ async function lkFrameWin(ms){
   }
   try{ return f.contentWindow; }catch(e){ return null; }
 }
+/* ⏳ <<저쪽이 깨어날 때까지>> 기다립니다 ───────────────────────────
+   팀허브는 창이 뜬 뒤에도 한참 걸립니다 — 25MB 를 읽고, 브라우저 안
+   Postgres(PGlite)를 깨우고, 자료를 올립니다. 그 전에 들여다보면
+   worker=null · ready=false 만 보입니다 (빈 껍데기).
+   그래서 <<깨어난 표시>> 가 날 때까지 기다리고, 한참 안 깨어나면
+   저쪽이 내어 준 손잡이(__teamhubReopen)를 한 번 당겨 봅니다. */
+function lkHostState(w){
+  let h = null;
+  try{ h = w.__teamhubHost; }catch(e){ return null; }
+  if(!h) return null;
+  const g = (k) => { try{ return h[k]; }catch(e){ return undefined; } };
+  return { worker: !!g('worker'), ready: !!g('ready'), info: !!g('info'),
+           readyP: !!g('readyP'), seq: Number(g('seq') || 0),
+           pend: ((g('pending') || []).length) || 0 };
+}
+function lkAwake(st){
+  return !!(st && (st.worker || st.ready || st.info || st.readyP || st.seq > 0));
+}
+async function lkFrameWake(w, log, ms){
+  const end = Date.now() + (ms || 70000);
+  let pulled = false, last = '';
+  while(Date.now() < end){
+    const st = lkHostState(w);
+    const now = st ? ('worker=' + st.worker + ' ready=' + st.ready
+      + ' info=' + st.info + ' seq=' + st.seq) : '(아직 없음)';
+    if(now !== last){ if(log) log.push('   · ' + Math.round((Date.now() - (end - (ms || 70000))) / 1000)
+      + '초 — ' + now); last = now; }
+    if(lkAwake(st)){
+      /* 깨어났으면 자료까지 올라오게 조금 더 */
+      try{
+        const pr = w.__teamhubHost && w.__teamhubHost.readyP;
+        if(pr && typeof pr.then === 'function')
+          await Promise.race([pr, new Promise(r => setTimeout(r, 20000))]);
+      }catch(e){}
+      await new Promise(r => setTimeout(r, 1500));
+      return true;
+    }
+    /* 15초가 지나도 안 깨어나면 — 손잡이를 한 번만 당겨 봅니다 */
+    if(!pulled && Date.now() > end - (ms || 70000) + 15000){
+      pulled = true;
+      if(log) log.push('   · 안 깨어나서 손잡이를 당겨 봅니다 (__teamhubReopen)');
+      try{ if(typeof w.__teamhubReopen === 'function') await w.__teamhubReopen(); }
+      catch(e){ if(log) log.push('     ✖ ' + String((e && e.message) || e).slice(0, 90)); }
+      try{ if(w.teamhub && typeof w.teamhub.app === 'function') w.teamhub.app(); }catch(e){}
+    }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return lkAwake(lkHostState(w));
+}
 /* 🌳 뭉치 속을 몇 겹 더 들여다봅니다 (이름과 생김새만) */
 function lkTree(v, path, depth, out, seen){
   if(depth > 3 || !v || out.length > 90) return out;
@@ -20603,7 +20652,7 @@ function lkTree(v, path, depth, out, seen){
 /* 🧪 <<읽기만 하는 물음>> 을 한 번 던져 봅니다.
    이름이 또렷이 「묻기」 인 것만 고르고, 던지는 것도 select 1 뿐입니다.
    (고치는 함수는 손대지 않습니다) */
-const LK_ASK_NAMES = /^(query|exec|sql|execSql|runSql|queryAll|execute|select)$/i;
+const LK_ASK_NAMES = /^(query|exec|sql|execSql|runSql|queryAll|execute|select|q)$/i;
 async function lkAskTry(w, log){
   const found = [];
   const walk = (v, path, d, seen) => {
@@ -20627,6 +20676,16 @@ async function lkAskTry(w, log){
     let v; try{ v = w[k]; }catch(e){ return; }
     if(v && typeof v === 'object' && v !== w) walk(v, k, 1, []);
   });
+  /* teamhub.app() · teamhub.ui() 는 <<깨우는 함수>> 일 수 있습니다 —
+     불러서 나온 것 속도 봅니다 (돌려주기만 하는 것이라 안전합니다) */
+  try{
+    const th = w.teamhub;
+    ['app', 'ui'].forEach(k => {
+      if(!th || typeof th[k] !== 'function') return;
+      let r; try{ r = th[k](); }catch(e){ return; }
+      if(r && typeof r === 'object') walk(r, 'teamhub.' + k + '()', 1, []);
+    });
+  }catch(e){}
   if(!found.length){ log.push('   · (묻는 함수를 아직 못 찾았습니다)'); return; }
   for(const f of found.slice(0, 4)){
     let got = '';
@@ -20649,17 +20708,13 @@ async function lkFrameScan(){
       + 'brand 폴더에 mediam_TeamHub.html 이 있어야 합니다.');
     return;
   }
-  /* 저쪽이 「다 됐다」 고 알려 주는 것이 있으면 그것까지 기다립니다 */
-  try{
-    const h = w.__teamhubHost;
-    const pr = h && (h.readyP || h.ready);
-    if(pr && typeof pr.then === 'function')
-      await Promise.race([pr, new Promise(r => setTimeout(r, 15000))]);
-  }catch(e){}
-  await new Promise(r => setTimeout(r, 1200));
   const log = ['\uD83D\uDD0C 팀허브와 바로 이어 봤습니다',
     '   뒤에서 이은 것이라 화면에는 아무것도 안 뜹니다',
-    '   읽기만 했습니다 — 아무것도 바꾸지 않았습니다', ''];
+    '   읽기만 했습니다 — 아무것도 바꾸지 않았습니다', '',
+    '\u23F3 저쪽이 깨어나기를 기다립니다 (브라우저 속 Postgres 라 한참 걸립니다)'];
+  const awake = await lkFrameWake(w, log, 70000);
+  log.push('   · ' + (awake ? '\u2705 깨어났습니다' : '\u26A0 끝내 안 깨어났습니다'));
+  log.push('');
   /* ① 저쪽이 브라우저에 적어 둔 것 */
   try{
     const ks = Object.keys(w.localStorage || {});
@@ -20697,6 +20752,20 @@ async function lkFrameScan(){
     }
   });
   if(objs.length){ log.push('   \u2500 자료 뭉치'); objs.slice(0, 24).forEach(x => log.push('     · ' + x)); }
+  /* teamhub.app() 이 돌려주는 것도 펴 봅니다 */
+  try{
+    const th = w.teamhub;
+    ['app', 'ui'].forEach(k => {
+      if(!th || typeof th[k] !== 'function') return;
+      let r; try{ r = th[k](); }catch(e){ return; }
+      if(r && typeof r === 'object'){
+        const out = [];
+        try{ lkTree(r, 'teamhub.' + k + '()', 1, out, []); }catch(e){}
+        if(out.length) names.push('\u0000');   /* 아래에서 같이 찍히게 */
+        out.slice(0, 20).forEach(l => objs.push(l.trim()));
+      }
+    });
+  }catch(e){}
   /* 뭉치 속을 몇 겹 더 */
   log.push('', '\u2462-2 뭉치 속 (세 겹까지)');
   names.slice(0, 10).forEach(k => {

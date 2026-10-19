@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-65';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-66';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20649,6 +20649,56 @@ function lkTree(v, path, depth, out, seen){
   });
   return out;
 }
+/* 👂 <<주고받는 말을 엿듣습니다>> ────────────────────────────────
+   저쪽은 자료를 일꾼(worker)에게 맡겨 두고, 쪽지(postMessage)로
+   주고받습니다. 밖에서 부를 수 있는 「묻기」 함수가 없는 까닭입니다.
+   그러면 <<무슨 쪽지를 어떻게 주고받는지>> 를 보면 됩니다. 그 모양만
+   알면 우리도 같은 쪽지를 보내 물어볼 수 있습니다.
+   오가는 것을 적어 두기만 합니다 — 막지도, 바꾸지도 않습니다. */
+function lkMsgBrief(d){
+  try{
+    if(d == null) return String(d);
+    if(typeof d !== 'object') return String(d).slice(0, 100);
+    if(Array.isArray(d)) return '[' + d.length + '개] '
+      + JSON.stringify(d.slice(0, 2)).slice(0, 110);
+    const ks = Object.keys(d).slice(0, 14);
+    return '{ ' + ks.map(k => {
+      let v;
+      try{ v = d[k]; }catch(e){ return k + ':?'; }
+      if(v && typeof v === 'object')
+        v = Array.isArray(v) ? ('[' + v.length + ']')
+          : ('{' + Object.keys(v).slice(0, 6).join(',') + '}');
+      else v = String(v).slice(0, 48);
+      return k + ':' + v;
+    }).join(' · ') + ' }';
+  }catch(e){ return '(못 읽었습니다)'; }
+}
+function lkTapWorker(w){
+  let h = null;
+  try{ h = w.__teamhubHost; }catch(e){ return null; }
+  const wk = h && h.worker;
+  if(!wk) return null;
+  const outs = [], ins = [];
+  let orig = null;
+  try{
+    if(typeof wk.postMessage === 'function'){
+      orig = wk.postMessage.bind(wk);
+      wk.postMessage = function(d, t){
+        if(outs.length < 16) outs.push(lkMsgBrief(d));
+        return orig(d, t);
+      };
+    }
+  }catch(e){}
+  const onMsg = (ev) => { if(ins.length < 16) ins.push(lkMsgBrief(ev && ev.data)); };
+  try{ wk.addEventListener('message', onMsg); }catch(e){}
+  return {
+    outs: outs, ins: ins,
+    stop: function(){
+      try{ wk.removeEventListener('message', onMsg); }catch(e){}
+      try{ if(orig) wk.postMessage = orig; }catch(e){}
+    }
+  };
+}
 /* 🧪 <<읽기만 하는 물음>> 을 한 번 던져 봅니다.
    이름이 또렷이 「묻기」 인 것만 고르고, 던지는 것도 select 1 뿐입니다.
    (고치는 함수는 손대지 않습니다) */
@@ -20805,6 +20855,34 @@ async function lkFrameScan(){
   /* ⑤ 읽기만 하는 물음을 던져 봅니다 */
   log.push('', '\u2464 「묻기」 시험 (select 1 만 던집니다 — 고치지 않습니다)');
   try{ await lkAskTry(w, log); }catch(e){ log.push('   · 시험을 못 했습니다'); }
+
+  /* ⑥ 일꾼과 주고받는 쪽지를 엿듣습니다 — 막지도 바꾸지도 않습니다 */
+  log.push('', '\u2465 일꾼과 주고받는 쪽지 (엿듣기만 — 10초)');
+  const tap = lkTapWorker(w);
+  if(!tap) log.push('   · 일꾼을 아직 못 잡았습니다');
+  else{
+    /* 말이 오가게 살짝 건드립니다 — 밀어내기(flush)는 넣고 빼는 일이 아닙니다 */
+    try{ if(typeof w.__teamhubFlush === 'function') w.__teamhubFlush(); }catch(e){}
+    try{ if(typeof w.__teamhubHost.onStep === 'function') { /* 그냥 둡니다 */ } }catch(e){}
+    await new Promise(r => setTimeout(r, 10000));
+    tap.stop();
+    log.push('   \u2500 우리가 보낸 쪽지 ' + tap.outs.length + '개');
+    tap.outs.slice(0, 10).forEach(x => log.push('     → ' + x));
+    log.push('   \u2500 일꾼이 보낸 쪽지 ' + tap.ins.length + '개');
+    tap.ins.slice(0, 10).forEach(x => log.push('     ← ' + x));
+    if(!tap.outs.length && !tap.ins.length)
+      log.push('     (조용합니다 — 저쪽이 아직 들어가기(계정) 앞에서 기다리는 듯합니다)');
+  }
+  /* ⑦ 어디까지 와 있나 */
+  try{
+    const h = w.__teamhubHost, inf = (h && h.info) || {};
+    log.push('', '\u2466 저쪽이 서 있는 자리');
+    log.push('   · 들어가기 단계(entry) : ' + String(inf.entry || '?')
+      + (String(inf.entry) === 'account'
+          ? '  \u2190 아이디로 들어가기 앞에서 기다리는 중입니다' : ''));
+    log.push('   · 자료함 준비(ready) : ' + String(!!(h && h.ready)));
+    log.push('   · 팀 : ' + String(inf.teamName || '?') + ' (' + String(inf.teamId || '') + ')');
+  }catch(e){}
   log.push('', '\u2139 [📋 복사] 로 그대로 붙여 주시면, 저쪽 프로그램이 제 손으로'
     + ' 넣고 고치게 이어 두겠습니다 — 그 뒤로는 사람이 볼 것도,'
     + ' 누를 것도 없습니다.');

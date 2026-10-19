@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-63';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-64';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20572,6 +20572,74 @@ async function lkFrameWin(ms){
   }
   try{ return f.contentWindow; }catch(e){ return null; }
 }
+/* 🌳 뭉치 속을 몇 겹 더 들여다봅니다 (이름과 생김새만) */
+function lkTree(v, path, depth, out, seen){
+  if(depth > 3 || !v || out.length > 90) return out;
+  if(typeof v !== 'object' && typeof v !== 'function') return out;
+  seen = seen || [];
+  if(seen.indexOf(v) >= 0) return out;
+  seen.push(v);
+  let ks = [];
+  try{ ks = Object.keys(v); }catch(e){ return out; }
+  const fn = [], ob = [], et = [];
+  ks.slice(0, 40).forEach(k => {
+    let t;
+    try{ t = v[k]; }catch(e){ return; }
+    if(typeof t === 'function') fn.push(k + '()');
+    else if(Array.isArray(t)) et.push(k + '[' + t.length + ']');
+    else if(t && typeof t === 'object') ob.push(k);
+    else et.push(k + '=' + String(t).slice(0, 24));
+  });
+  out.push('     ' + path + '  '
+    + (ob.length ? '{ ' + ob.join(' · ') + ' }' : '')
+    + (fn.length ? '  함수: ' + fn.slice(0, 18).join(' ') : '')
+    + (et.length ? '  값: ' + et.slice(0, 10).join(' · ') : ''));
+  ob.forEach(k => {
+    let t; try{ t = v[k]; }catch(e){ return; }
+    lkTree(t, path + '.' + k, depth + 1, out, seen);
+  });
+  return out;
+}
+/* 🧪 <<읽기만 하는 물음>> 을 한 번 던져 봅니다.
+   이름이 또렷이 「묻기」 인 것만 고르고, 던지는 것도 select 1 뿐입니다.
+   (고치는 함수는 손대지 않습니다) */
+const LK_ASK_NAMES = /^(query|exec|sql|execSql|runSql|queryAll|execute|select)$/i;
+async function lkAskTry(w, log){
+  const found = [];
+  const walk = (v, path, d, seen) => {
+    if(d > 3 || !v || found.length > 6) return;
+    if(typeof v !== 'object' && typeof v !== 'function') return;
+    seen = seen || [];
+    if(seen.indexOf(v) >= 0) return;
+    seen.push(v);
+    let ks = [];
+    try{ ks = Object.keys(v); }catch(e){ return; }
+    ks.slice(0, 40).forEach(k => {
+      let t; try{ t = v[k]; }catch(e){ return; }
+      if(typeof t === 'function' && LK_ASK_NAMES.test(k)) found.push({ path: path + '.' + k, fn: t, on: v });
+      else if(t && typeof t === 'object') walk(t, path + '.' + k, d + 1, seen);
+    });
+  };
+  let names = [];
+  try{ names = Object.keys(w); }catch(e){}
+  names.forEach(k => {
+    if(/^(window|self|top|parent|frames|document|location)$/.test(k)) return;
+    let v; try{ v = w[k]; }catch(e){ return; }
+    if(v && typeof v === 'object' && v !== w) walk(v, k, 1, []);
+  });
+  if(!found.length){ log.push('   · (묻는 함수를 아직 못 찾았습니다)'); return; }
+  for(const f of found.slice(0, 4)){
+    let got = '';
+    try{
+      const r = await Promise.race([
+        Promise.resolve(f.fn.call(f.on, 'select 1 as ok')),
+        new Promise(r2 => setTimeout(() => r2('(대답이 없습니다)'), 4000))
+      ]);
+      got = (r && typeof r === 'object') ? JSON.stringify(r).slice(0, 200) : String(r).slice(0, 120);
+    }catch(e){ got = '✖ ' + String((e && e.message) || e).slice(0, 110); }
+    log.push('   · ' + f.path + "('select 1 as ok') → " + got);
+  }
+}
 /* 저쪽이 들고 있는 것을 훑습니다 — 읽기만 합니다 */
 async function lkFrameScan(){
   toast('🔌 팀허브와 잇는 중입니다 — 자료가 커서 잠깐 걸립니다…');
@@ -20581,6 +20649,14 @@ async function lkFrameScan(){
       + 'brand 폴더에 mediam_TeamHub.html 이 있어야 합니다.');
     return;
   }
+  /* 저쪽이 「다 됐다」 고 알려 주는 것이 있으면 그것까지 기다립니다 */
+  try{
+    const h = w.__teamhubHost;
+    const pr = h && (h.readyP || h.ready);
+    if(pr && typeof pr.then === 'function')
+      await Promise.race([pr, new Promise(r => setTimeout(r, 15000))]);
+  }catch(e){}
+  await new Promise(r => setTimeout(r, 1200));
   const log = ['\uD83D\uDD0C 팀허브와 바로 이어 봤습니다',
     '   뒤에서 이은 것이라 화면에는 아무것도 안 뜹니다',
     '   읽기만 했습니다 — 아무것도 바꾸지 않았습니다', ''];
@@ -20621,6 +20697,21 @@ async function lkFrameScan(){
     }
   });
   if(objs.length){ log.push('   \u2500 자료 뭉치'); objs.slice(0, 24).forEach(x => log.push('     · ' + x)); }
+  /* 뭉치 속을 몇 겹 더 */
+  log.push('', '\u2462-2 뭉치 속 (세 겹까지)');
+  names.slice(0, 10).forEach(k => {
+    let v; try{ v = w[k]; }catch(e){ return; }
+    if(!v || typeof v !== 'object') return;
+    const out = [];
+    try{ lkTree(v, k, 1, out, []); }catch(e){}
+    out.slice(0, 30).forEach(l => log.push(l));
+  });
+  /* 자료함이 어디인지 (PGlite 같은 것) */
+  try{
+    const h = w.__teamhubHost;
+    if(h && h.info) log.push('', '   \u2500 알림판(info) : '
+      + JSON.stringify(h.info).slice(0, 300));
+  }catch(e){}
   if(arrs.length){ log.push('   \u2500 목록'); arrs.slice(0, 24).forEach(x => log.push('     · ' + x)); }
   if(funcs.length) log.push('   \u2500 함수 ' + funcs.length + '개 : '
     + funcs.slice(0, 40).join(' · '));
@@ -20642,6 +20733,9 @@ async function lkFrameScan(){
   });
   if(!found) log.push('   · (아직 못 찾았습니다 — 저쪽이 자료를 안쪽 자료함에'
     + ' 두었거나, 아직 다 안 불러왔을 수 있습니다)');
+  /* ⑤ 읽기만 하는 물음을 던져 봅니다 */
+  log.push('', '\u2464 「묻기」 시험 (select 1 만 던집니다 — 고치지 않습니다)');
+  try{ await lkAskTry(w, log); }catch(e){ log.push('   · 시험을 못 했습니다'); }
   log.push('', '\u2139 [📋 복사] 로 그대로 붙여 주시면, 저쪽 프로그램이 제 손으로'
     + ' 넣고 고치게 이어 두겠습니다 — 그 뒤로는 사람이 볼 것도,'
     + ' 누를 것도 없습니다.');

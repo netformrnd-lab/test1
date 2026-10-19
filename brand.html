@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-56';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-57';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19910,6 +19910,43 @@ function lkPickTable(tb){
   });
   return best;
 }
+/* 🧱 <<칸 이름 따로, 값 따로>> 적힌 모양 ──────────────────────────
+   팀허브가 통째로 담을 때 쓰는 모양입니다 —
+     { type:'table', name:'tasks', pk:['id'],
+       columns:['id','title','assignee_id', …],
+       rows:[ [1,'영상 콘티','최상기', …], [2, …] ] }
+   줄마다 <<값만>> 들어 있어서, 칸 이름을 붙여 줘야 할 일로 읽힙니다.
+   엑셀 표를 읽을 때와 같은 길(tsFromGrid)로 보냅니다. */
+function lkGridOf(o){
+  if(!o || typeof o !== 'object') return null;
+  const cols = o.columns || o.cols || o.fields || o.header || o.head;
+  const rows = o.rows || o.values || o.data || o.records;
+  if(!Array.isArray(cols) || !Array.isArray(rows)) return null;
+  if(!cols.length || !rows.length || !Array.isArray(rows[0])) return null;
+  const head = cols.map(c => (c && typeof c === 'object')
+    ? String(c.name || c.key || c.field || '') : String(c == null ? '' : c));
+  return [head].concat(rows);
+}
+function lkRowsGrid(objs){
+  let best = null;
+  const names = [];
+  (objs || []).forEach(o => {
+    const nm = lkTbName(o);
+    if(nm && names.indexOf(nm) < 0) names.push(nm);
+    const g = lkGridOf(o);
+    if(!g) return;
+    const head = g[0];
+    const idx = tsPickCol(head);
+    const n = Object.keys(idx).length;
+    if(idx.title == null || n < 3) return;
+    const rows = tsFromGrid(g);
+    if(!rows.length) return;
+    if(!best || n > best['맞은칸'] || (n === best['맞은칸'] && rows.length > best.rows.length))
+      best = { rows: rows, '맞은칸': n, at: '', cols: lkColNames(head), '표': nm };
+  });
+  if(best) best['이름들'] = names;
+  return best;
+}
 /* 🔦 <<줄마다 다 뒤져 봅니다>> — 담는 모양이 우리 짐작과 달라도.
    토막 하나하나에 「할 일 목록」 이 들어 있는지 보고, 가장 잘 맞는
    것과 같은 수준인 토막들을 모두 모읍니다. 겉을 싸고 있는 이름이
@@ -19955,6 +19992,9 @@ function lkRowsIn(txt){
   if(pick) return { rows: pick.rows, '맞은칸': pick['맞은칸'], at: '', cols: pick.cols,
                     '표': pick['표'], keys: pick.keys,
                     '이름들': Object.keys(lkTables(objs)) };
+  /* 칸 이름 따로 · 값 따로 적힌 모양 */
+  const grid = lkRowsGrid(objs);
+  if(grid) return grid;
   /* 그래도 못 찾으면 — 줄마다 통째로 뒤져 봅니다 */
   return lkRowsNd(objs);
 }
@@ -20327,6 +20367,24 @@ async function lkInside(){
           if(seen[kind]) { seen[kind].n++; return; }
           seen[kind] = { n:1, o:o };
         });
+        /* 표가 여러 줄이면 — 표마다 이름과 줄 수를 적습니다 */
+        const tbs = [];
+        ls.forEach(o => {
+          if(!o || typeof o !== 'object') return;
+          const g = lkGridOf(o);
+          const nm = lkTbName(o);
+          if(!nm) return;
+          const n = g ? (g.length - 1)
+                      : (Array.isArray(o.rows) ? o.rows.length : 0);
+          if(n > 0) tbs.push({ nm: nm, n: n,
+            cols: g ? g[0].slice(0, 12).join(' · ') : '' });
+        });
+        if(tbs.length){
+          tbs.sort((a, b) => b.n - a.n);
+          log.push('   \u2500 줄이 든 표 (많은 것부터)');
+          tbs.slice(0, 12).forEach(x => log.push('     · ' + x.nm + ' : ' + x.n + '줄'
+            + (x.cols ? '  (칸 = ' + x.cols + ')' : '')));
+        }
         Object.keys(seen).slice(0, 14).forEach(kind => {
           const o = seen[kind].o;
           const keys = Object.keys(o).slice(0, 10);
@@ -21055,7 +21113,15 @@ function lkOnlyTeam(rows){
   const all = (rows || []).filter(r => r && String(r.title || '').trim());
   if(all.some(r => String(r.team || '').trim())){
     const keep = all.filter(r => lkIsTeamName(r.team));
-    return { keep: keep, all: all.length, drop: all.length - keep.length, how: '팀 칸' };
+    /* 🔢 <<팀 칸이 이름이 아니라 번호일 때>> ───────────────────────
+       저쪽 자료에는 team_id 가 1 · 2 처럼 번호로 들어 있습니다. 그것을
+       팀 이름인 줄 알고 가리면 <<한 줄도 안 남습니다>> — 실제로 통째로
+       담긴 할 일이 다 버려졌습니다. 번호뿐이면 가릴 거리가 없는 것이니
+       가리지 않고 그대로 둡니다 (담당자로 다시 가려 봅니다). */
+    const numOnly = all.every(r => { const v = String(r.team == null ? '' : r.team).trim();
+                                     return !v || /^[0-9]+$/.test(v); });
+    if(keep.length || !numOnly)
+      return { keep: keep, all: all.length, drop: all.length - keep.length, how: '팀 칸' };
   }
   const mem = lkMembers();
   if(mem.length){

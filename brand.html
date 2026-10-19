@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-50';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-51';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19844,7 +19844,10 @@ async function lkBridgeSniff(files){
     }catch(e){ continue; }
     if(!hit) continue;
     const score = (hit['맞은칸'] || 0) * 1000 + hit.rows.length;
-    if(!best || score > best.score) best = { f:f, rows:hit.rows, score:score };
+    if(!best || score > best.score)
+      best = { f:f, rows:hit.rows, score:score,
+               at: hit.path === '(맨 위)' ? '' : String(hit.path || ''),
+               cols: lkColNames(hit.keys || []) };
   }
   return best;
 }
@@ -19875,7 +19878,15 @@ async function lkPullBridge(loud){
   /* 이름으로 못 찾았거나 줄이 없으면 — 열어 보고 고릅니다 */
   if(!rows.length){
     const sn = await lkBridgeSniff(files);
-    if(sn){ rows = sn.rows; from = sn.f; }
+    if(sn){
+      rows = sn.rows; from = sn.f;
+      /* 📐 <<그 파일 모양>> 을 적어 둡니다 — 우리 줄을 같은 모양으로
+         그 파일에 적어 넣으려고 합니다 (저쪽이 [불러오기] 를 안 눌러도
+         바로 보이게) */
+      t.livePath = sn.f['경로'];
+      t.liveAt   = sn.at || '';
+      t.liveCols = sn.cols || {};
+    }
   }
   if(!from){ if(loud) toast('⏱ 팀허브가 아직 할 일을 안 내보냈습니다'); return 0; }
   if(!rows.length){ if(loud) toast('⏱ 읽었는데 할 일 줄이 없습니다'); return 0; }
@@ -19900,6 +19911,102 @@ async function lkPullBridge(loud){
   markDirtyAll(); render();
   if(loud) toast('⬇ 할 일 ' + put.n + '건을 가져왔습니다');
   return put.n;
+}
+/* 📐 <<그 파일이 쓰는 칸 이름>> 을 뽑습니다.
+   tsPickCol 은 「몇 번째 칸인가」 를 돌려줍니다 — 적어 넣으려면
+   「무슨 이름의 칸인가」 가 있어야 해서 이름으로 바꿉니다. */
+function lkColNames(keys){
+  const ks = keys || [];
+  const idx = tsPickCol(ks);
+  const out = {};
+  Object.keys(idx).forEach(k => { const nm = ks[idx[k]]; if(nm) out[k] = nm; });
+  const i1 = tsPickOne(ks, TS_ID_WORDS);   if(i1 >= 0) out.id   = ks[i1];
+  const i2 = tsPickOne(ks, TS_WHEN_WORDS); if(i2 >= 0) out.when = ks[i2];
+  return out;
+}
+/* 📐 「items」 · 「a.b[0].c」 같은 길을 따라 들어갑니다 */
+function lkWalk(obj, path){
+  if(!path) return obj;
+  let cur = obj;
+  const parts = String(path).split('.');
+  for(const raw of parts){
+    if(cur == null) return null;
+    const m = String(raw).match(/^([^\[\]]*)((\[\d+\])*)$/);
+    if(!m) return null;
+    if(m[1]){ cur = cur[m[1]]; }
+    const idx = (m[2] || '').match(/\d+/g) || [];
+    for(const i of idx){ if(cur == null) return null; cur = cur[Number(i)]; }
+  }
+  return cur;
+}
+/* 🤝 <<저쪽 할 일 파일에 우리 줄을 바로 적어 넣습니다>> ─────────────
+   여태는 「주고받기」 칸에 놓아 두고, 저쪽이 [불러오기] 를 눌러야
+   들어갔습니다. 이제 저쪽이 쓰고 있는 그 파일에 <<그 파일 모양 그대로>>
+   우리 줄을 끼워 넣습니다.
+
+   손대는 범위를 좁게 잡았습니다 —
+   · 쓰기 직전에 <<다시 읽습니다>> (그 사이 저쪽이 고쳤을 수 있으니)
+   · 저쪽 줄은 <<하나도 지우지 않습니다>>. 우리가 넣은 줄(우리 id)만
+     고칩니다
+   · 처음 한 번은 <<되돌리기용>> 을 주고받기 칸에 떠 둡니다
+   · 모양을 못 알아보면 아무것도 안 하고 주고받기 칸 길로 돌아갑니다 */
+async function lkPutLive(rows){
+  const t = lkOf();
+  const path = String(t.livePath || '').trim();
+  const cols = t.liveCols || {};
+  if(!path || !cols.title) return null;
+  let txt = '', js = null;
+  try{
+    txt = await (await lkBridge('?op=read&p=' + encodeURIComponent(path))).text();
+    js  = JSON.parse(txt.replace(/^\uFEFF/, ''));
+  }catch(e){ return null; }
+  const arr = lkWalk(js, t.liveAt || '');
+  if(!Array.isArray(arr)) return null;
+
+  /* 되돌리기용 — 처음 한 번만 (주고받기 칸은 우리가 써도 되는 자리입니다) */
+  if(!t.liveBak){
+    const nm = '브랜드허브-되돌리기용/' + String(path).replace(/[\/]/g, '_')
+      + '_' + new Date().toISOString().replace(/[:.]/g, '-') + '.json';
+    try{
+      await lkBridge('?op=write&area=copy&p=' + encodeURIComponent(nm),
+        { method:'PUT', body: txt });
+      t.liveBak = nm;
+    }catch(e){ /* 못 떠도 막지는 않습니다 — 지우는 일은 하지 않으니까요 */ }
+  }
+
+  /* 우리 줄을 <<저쪽 칸 이름>> 으로 바꿔 끼웁니다 */
+  const put = (o, key, v) => { const k = cols[key]; if(k) o[k] = v; };
+  const idK = cols.id || 'id';
+  const mine = {};
+  (arr || []).forEach((o, i) => {
+    const v = o && o[idK] != null ? String(o[idK]) : '';
+    if(v) mine[v] = i;
+  });
+  let add = 0, fix = 0;
+  rows.forEach(r => {
+    const id = String(r['id'] || '');
+    if(!id) return;
+    const at = mine[id];
+    const o  = (at == null) ? {} : arr[at];
+    put(o, 'id',     id);
+    put(o, 'title',  String(r['업무명'] || ''));
+    put(o, 'owner',  String(r['담당자'] || ''));
+    put(o, 'status', String(r['상태'] || ''));
+    put(o, 'due',    String(r['기한'] || ''));
+    put(o, 'pct',    r['진척률']);
+    put(o, 'note',   String(r['메모'] || ''));
+    put(o, 'when',   String(r['고친때'] || ''));
+    /* 같은 id 가 우리 쪽에 두 번 있어도 저쪽에는 한 줄만 둡니다 */
+    if(at == null){ arr.push(o); mine[id] = arr.length - 1; add++; }
+    else fix++;
+  });
+  if(!add && !fix) return { add:0, fix:0, n:arr.length };
+
+  try{
+    await lkBridge('?op=write&p=' + encodeURIComponent(path),
+      { method:'PUT', body: JSON.stringify(js, null, 1) });
+  }catch(e){ return null; }
+  return { add:add, fix:fix, n:arr.length };
 }
 /* 🔎 <<저쪽 자료함을 그대로 보여 줍니다>> ───────────────────────
    「연동이 안 되는 것 같다」 는 말이 나왔을 때, 무엇이 있고 무엇이
@@ -19970,9 +20077,18 @@ async function lkPutBridge(loud){
       return null;
     }
   }
+  /* 🤝 저쪽이 쓰고 있는 그 파일에도 바로 적어 넣습니다 — [불러오기] 를
+     누르지 않아도 보이게. 모양을 못 알아보면 조용히 건너뜁니다. */
+  let live = null;
+  try{ live = await lkPutLive(rows); }catch(e){ live = null; }
+  t.liveAt2 = live ? stamp.toISOString() : (t.liveAt2 || '');
+  t.liveWhy = live ? '' : (String(t.livePath || '') ? '그 파일 모양을 못 알아봤습니다' : '');
   t.outSig = sig;
   t.outPutAt = stamp.toISOString();
-  t.outPutDir = '팀허브 주고받기 칸';
+  t.outPutDir = live
+    ? ('저쪽 할 일 파일에 바로 (' + (live.add || 0) + '건 넣고 '
+       + (live.fix || 0) + '건 고침)')
+    : '팀허브 주고받기 칸';
   t.outPutWhy = '';
   markDirtyAll();
   if(loud){
@@ -20054,7 +20170,7 @@ function lkAutoToggle(){
   markDirtyAll(); render();
   if(t.autoOn){
     toast('⏱ 자동으로 맞춥니다 — ' + lkAutoMin() + '분마다');
-    lkAutoTick(); lkPullFile(false);
+    lkAutoTick(); lkWatchTick(); lkPullFile(false);
   }else{ clearTimeout(lkAutoT); toast('⏱ 자동 맞추기를 껐습니다'); }
 }
 function lkAutoMin(){ const t = lkOf();
@@ -20069,6 +20185,50 @@ async function lkAutoSetMin(){
   t.autoMin = n; markDirtyAll(); render();
   toast('⏱ ' + n + '분마다 맞춥니다');
   if(t.autoOn) lkAutoTick();
+}
+/* ⚡ <<최신으로>> ────────────────────────────────────────────────
+   10분을 기다리지 않습니다. 10초마다 「그 파일 바뀌었나요」 만 묻고
+   (op=stat — 글자 몇 개짜리 대답입니다), 바뀌었을 때만 읽어 옵니다.
+   올리는 쪽은 우리가 저장할 때마다 몇 초 뒤 저절로 나갑니다. */
+const LK_WATCH_MS = 10000;
+let lkWatchT = null, lkWatchMt = 0, lkWatchSz = -1, lkWatchAmb = false;
+function lkWatchTick(){
+  clearTimeout(lkWatchT);
+  lkWatchT = setTimeout(async () => {
+    try{ await lkWatchOnce(); }catch(e){}
+    lkWatchTick();
+  }, LK_WATCH_MS);
+}
+async function lkWatchOnce(){
+  if(lkBridgeOn !== true) return 0;
+  const t = lkOf();
+  if(!t.autoOn) return 0;
+  const path = String(t.autoPath || '').trim();
+  if(!path) return 0;
+  let j = null;
+  try{ j = await (await lkBridge('?op=stat&p=' + encodeURIComponent(path))).json(); }
+  catch(e){ return 0; }
+  if(!j) return 0;
+  const mt = Number(j.mtime || 0), sz = Number(j.size || 0);
+  const first = !lkWatchMt;
+  const same  = (mt === lkWatchMt && sz === lkWatchSz);
+  /* ⏱ 고친 때는 <<1초 단위>> 입니다. 우리가 본 그 초에 저쪽이 또
+     고치면, 때도 크기도 그대로일 수 있습니다 (30 → 90 처럼 길이가 같은
+     고침). 그래서 방금 고쳐진 파일은 <<한 번 더>> 읽어 봅니다. */
+  if(same && !lkWatchAmb) return 0;
+  lkWatchMt = mt; lkWatchSz = sz;
+  lkWatchAmb = (Date.now() - mt) < 2500;
+  if(first) return 0;              /* 처음 본 것은 「바뀐 것」 이 아닙니다 */
+  return await lkPullBridge(false);
+}
+/* 우리가 고친 것은 몇 초 뒤 바로 나갑니다 */
+let lkOutT = null;
+function lkBridgeOutSoon(){
+  if(lkBridgeOn !== true) return;
+  const t = lkOf();
+  if(!t.autoOn || t.outOff) return;
+  clearTimeout(lkOutT);
+  lkOutT = setTimeout(() => { lkPutBridge(false).catch(() => {}); }, 4000);
 }
 function lkAutoTick(){
   clearTimeout(lkAutoT);
@@ -21105,11 +21265,13 @@ function lkSwapHtml(){
   if(lkBridgeOn === true && !lkMore){
     return '<div class="lk-swap"><div class="lk-head">'
       + '<span class="lk-dot on"></span>'
-      + '🔗 미디어마케팅팀 할 일 — 저절로 맞추는 중'
+      + '🔗 미디어마케팅팀 할 일 — 바뀌는 대로 맞추는 중'
       + '<span class="lk-meta">'
-        + lkAutoMin() + '분마다 · 마지막 ' + lkWhen(t.autoAt)
+        + '저쪽이 고치면 바로 · 마지막 ' + lkWhen(t.autoAt)
         + ' · 들어온 것 ' + n + '건'
         + (t.outPutAt ? ' · 올린 때 ' + lkWhen(t.outPutAt) : '')
+        + (t.livePath && !t.liveWhy
+            ? ' <span class="chip on">저쪽 할 일에 바로 씀</span>' : '')
         + (t.outPutWhy ? ' <b class="lk-bad">(못 올림)</b>' : '')
       + '</span>'
       + '<span class="lk-btns">'
@@ -33248,6 +33410,8 @@ async function saveAll(silent){
     /* 🔗 할 일 연동 — 저장될 때마다 조금 뒤 저절로 올립니다.
        누르지 않아도 저쪽에 들어가야 「연동」 입니다. */
     if(typeof lkPushSoon === 'function') lkPushSoon();
+    /* 🌉 바로 옆 팀허브에도 몇 초 뒤 저절로 나갑니다 */
+    if(typeof lkBridgeOutSoon === 'function') lkBridgeOutSoon();
     if(mergedOnce) render();      // 합쳐졌을 때만 다시 그립니다 (평소엔 화면을 건드리지 않음)
   }catch(e){
     localStorage.setItem(LS_KEY, JSON.stringify(data));   // 안전망
@@ -34396,6 +34560,7 @@ async function init(){
       try{
         await lkBoot();
         if(lkOf().autoOn && !lkAutoT) lkAutoTick();
+        if(!lkWatchT) lkWatchTick();          /* ⚡ 10초마다 「바뀌었나요」 */
       }catch(e){}
     }, 1500);
   }

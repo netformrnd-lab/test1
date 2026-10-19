@@ -261,6 +261,21 @@ const ACTIONS = {
     return { job: toJob(row) }
   },
 
+  // Manus 결과 다시 확인: 새 작업을 만들지 않고 같은 작업의 결과를 다시 읽는다 (크레딧 추가 없음)
+  async manusRecheck(env, { id }) {
+    let row = null
+    await mutate(env, 'jobs', [], (list) => {
+      row = list.find((j) => j.id === id)
+      if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
+      if (!isManus(row) || !row.data.videoId || !['failed', 'uncertain', 'rendered'].includes(row.status)) throw new HttpError(409, 'Manus 작업이 접수된 작업만 다시 확인할 수 있습니다.')
+      row.data.error = ''
+      row.data.manusTask = { ...(row.data.manusTask || {}), at: now() }
+      row.status = 'rendering'; row.step = 7
+      row.data.events.push(ev('Manus 결과 다시 확인 (새 작업 없음 · 크레딧 추가 없음)'))
+    })
+    return { job: toJob(row) }
+  },
+
   // 검수 보류 작업을 AI 가 다시 고친다: 마지막 지적 사항으로 Claude 가 대본 수정 → Claude·OpenAI 재검수 (최대 2회 더, 작업당 3번까지)
   async retry(env, { id }) {
     let row = null
@@ -606,7 +621,9 @@ async function runStep(env, job) {
     const credits = Number(t.credit_usage || t.credits_used || 0)
     if (credits) d.usage = { ...(d.usage || {}), manus: { credits } }
     if (status === 'completed' || status === 'finished' || status === 'succeeded') {
-      const files = manusFiles(t)
+      d.manusRaw = JSON.stringify(out).slice(0, 20000)
+      d.manusText = manusText(t)
+      const files = manusFiles(out)
       const vid = files.find((f) => /^video\//.test(f.mime) || /\.(mp4|mov|webm)(\?|$)/i.test(f.name + ' ' + f.url))
       if (vid) {
         d.videoUrl = vid.url
@@ -614,7 +631,8 @@ async function runStep(env, job) {
         job.step = 8; job.status = 'rendered'
       } else {
         job.status = 'failed'
-        d.error = `Manus 작업은 끝났지만 결과에서 영상 파일을 찾지 못했습니다(파일 ${files.length}개). Manus 화면에서 결과를 확인해 주세요.`
+        d.manusFilesFound = files.slice(0, 10)
+        d.error = `Manus 작업은 끝났지만 결과에서 영상 파일을 찾지 못했습니다(찾은 파일 ${files.length}개). 아래 Manus 답변과 ‘Manus에서 작업 보기’로 결과를 확인해 주세요.`
         d.events.push(ev(d.error))
       }
     } else if (status === 'failed' || status === 'error' || status === 'cancelled' || status === 'canceled') {
@@ -979,16 +997,37 @@ function manusPrompt(job, plan) {
   })
   return lines.join('\n').trim()
 }
-// Manus 응답에서 결과 파일 목록 뽑기 (output 메시지의 output_file / attachments)
+// Manus 응답에서 결과 파일 찾기: 응답 전체를 훑어 파일 주소(영상 우선)와 글 답변을 모은다 (응답 형식이 바뀌어도 찾도록)
 function manusFiles(t) {
-  const out = []
-  const add = (f) => { if (!f) return; const url = f.fileUrl || f.file_url || f.url || f.download_url || ''; if (url) out.push({ url, name: f.fileName || f.file_name || f.name || '', mime: f.mimeType || f.mime_type || f.content_type || '' }) }
-  for (const m of [].concat(t.output || [], t.messages || [])) {
-    for (const c of [].concat((m && m.content) || [])) if (c && (c.type === 'output_file' || c.fileUrl || c.file_url)) add(c)
-    for (const a of [].concat((m && m.attachments) || [])) add(a)
+  const out = [], seen = new Set()
+  const push = (url, name, mime) => { if (!url || seen.has(url)) return; seen.add(url); out.push({ url, name: name || '', mime: mime || '' }) }
+  const walk = (v, depth) => {
+    if (depth > 12 || v == null) return
+    if (typeof v === 'string') { const m = v.match(/https?:\/\/[^\s"'<>)]+\.(mp4|mov|webm|m4v)(\?[^\s"'<>)]*)?/gi); if (m) m.forEach((u) => push(u, '', 'video/mp4')); return }
+    if (Array.isArray(v)) { v.forEach((x) => walk(x, depth + 1)); return }
+    if (typeof v === 'object') {
+      const url = v.fileUrl || v.file_url || v.downloadUrl || v.download_url || v.url || v.signed_url || v.signedUrl || ''
+      const name = v.fileName || v.file_name || v.filename || v.name || ''
+      const mime = v.mimeType || v.mime_type || v.content_type || v.contentType || v.type || ''
+      if (typeof url === 'string' && /^https?:\/\//.test(url) && (name || /file|video|mp4|attachment/i.test(String(mime) + url))) push(url, String(name), String(mime))
+      for (const k of Object.keys(v)) walk(v[k], depth + 1)
+    }
   }
-  for (const a of [].concat(t.attachments || [], t.files || [])) add(a)
+  walk(t, 0)
   return out
+}
+function manusText(t) {
+  const texts = []
+  const walk = (v, depth) => {
+    if (depth > 12 || v == null) return
+    if (Array.isArray(v)) return v.forEach((x) => walk(x, depth + 1))
+    if (typeof v === 'object') {
+      if ((v.type === 'output_text' || v.type === 'text') && typeof v.text === 'string') texts.push(v.text)
+      for (const k of Object.keys(v)) if (k !== 'text') walk(v[k], depth + 1)
+    }
+  }
+  walk(t, 0)
+  return texts.join('\n').slice(-2000)
 }
 function agentPayload(job, settings) {
   const config = { duration_sec: Math.max(10, Math.min(300, Number(job.input.seconds) || 60)), orientation: job.input.ratio === '9:16' ? 'portrait' : 'landscape' }
@@ -1434,7 +1473,7 @@ function toJob(r) {
   return {
     id: r.id, created: r.created_at, status: r.status, step: r.step, revision: r.revision, input: r.input,
     plan: d.plan || null, prompt: d.prompt || '', claude: d.claude || null, openai: d.openai || null,
-    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', manusUrl: (d.manusTask && (d.manusTask.share || d.manusTask.url)) || '', edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
+    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', manusUrl: (d.manusTask && (d.manusTask.share || d.manusTask.url)) || '', manusText: d.manusText || '', manusFiles: d.manusFilesFound || [], manusTaskId: isManus(r) ? d.videoId || '' : '', edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
     events: d.events || [], sources: d.sources || [], memory: d.memory || [],
     models: d.models || { claude: '', openai: '' }, promptVersion: d.promptVersion || PROMPT_VERSION,
     issues: d.pendingIssues && d.pendingIssues.length ? d.pendingIssues : d.lastIssues || [],

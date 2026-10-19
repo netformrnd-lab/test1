@@ -312,6 +312,8 @@
     let h = `<div class="job-result"><div class="between"><div><h3>${esc((e.plan && e.plan.title) || e.input.keywords)}</h3>
       <p>${e.input.tool === 'manus' ? 'Manus · 아바타 없음 · ' : 'HeyGen 아바타 · '}${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
     if (e.manusUrl && ['rendering', 'rendered', 'failed', 'uncertain'].includes(e.status)) h += `<p class="fineprint"><a href="${esc(e.manusUrl)}" target="_blank" rel="noreferrer">${icon('external', 14)}Manus에서 작업 보기</a>${e.status === 'rendering' ? ' · Manus가 자료를 찾고 영상을 만드는 중입니다(수십 분 걸릴 수 있음). 이 창을 닫아도 다시 열면 이어서 확인합니다.' : ''}</p>`
+    if (e.input.tool === 'manus' && e.manusTaskId && ['failed', 'uncertain'].includes(e.status)) h += `<div class="job-actions"><button type="button" class="btn outline" data-manus-recheck="${e.id}">${icon('refresh', 14)}Manus 결과 다시 확인 (크레딧 안 씀)</button></div>`
+    if (e.manusText && e.status !== 'rendering') h += `<details ${e.status === 'rendered' ? '' : 'open'}><summary>Manus 답변</summary><pre>${esc(e.manusText)}</pre>${e.manusFiles.length ? `<ul>${e.manusFiles.map((f) => `<li><a href="${esc(f.url)}" target="_blank" rel="noreferrer">${esc(f.name || f.url.split('?')[0].split('/').pop())}</a></li>`).join('')}</ul>` : ''}</details>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
     const isM = e.input.tool === 'manus'
     const canEdit = ['held', 'ready'].includes(e.status) && e.plan && e.prompt && (isM || S.settings.heygenMode !== 'scenes')
@@ -994,6 +996,11 @@
     }
     const pv = t.closest('[data-preview]')
     if (pv) { const job = S.data.jobs.find((j) => j.id === pv.dataset.preview); if (job && job.plan) openPreview(job); return }
+    const mr = t.closest('[data-manus-recheck]')
+    if (mr) {
+      try { const r = await api({ action: 'manusRecheck', id: mr.dataset.manusRecheck }); S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); S.success = 'Manus 결과를 다시 확인합니다.'; renderAll(); ensurePolling() } catch (e) { S.error = e.message; renderMessages() }
+      return
+    }
     const rt = t.closest('[data-retry]')
     if (rt) {
       try {

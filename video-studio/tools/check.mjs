@@ -30,3 +30,16 @@ for (let offset = 0; ; offset += 1000) {
 const srcDirs = new Set(arr(sources).filter((s) => s.file && s.file.path).map((s) => s.file.path.split('/')[1]))
 const photoDirs = new Set(P.flatMap((p) => [p.path, p.thumbPath]).filter(Boolean).map((x) => x.split('/')[1]))
 console.log('== 삭제 대상 확인 == files/ 폴더 전체', all.length, '| 브랜드 자료 원본(보존)', all.filter((d) => srcDirs.has(d)).length, '| 사진 기록 있음', all.filter((d) => photoDirs.has(d)).length, '| 기록 없음', all.filter((d) => !srcDirs.has(d) && !photoDirs.has(d)).length)
+
+// Manus 결과 구조 확인 (최근 Manus 작업 1건 — 응답 형식 파악용)
+const mj = arr(jobs).find((j) => j.input && j.input.tool === 'manus' && j.data && j.data.videoId)
+if (mj) {
+  const d = mj.data
+  console.log('== 최근 Manus 작업 ==', mj.status, '|', d.error || '', '| task', JSON.stringify(d.manusTask || {}))
+  console.log('찾은 파일:', JSON.stringify(d.manusFilesFound || []).slice(0, 800))
+  console.log('Manus 답변(앞 600자):', String(d.manusText || '').slice(0, 600))
+  if (d.manusRaw) {
+    const shape = (v, depth = 0) => depth > 4 || v == null ? typeof v : Array.isArray(v) ? `[${v.length}]` + (v.length ? shape(v[0], depth + 1) : '') : typeof v === 'object' ? '{' + Object.keys(v).slice(0, 25).map((k) => `${k}:${shape(v[k], depth + 1)}`).join(', ') + '}' : typeof v
+    try { console.log('응답 구조:', shape(JSON.parse(d.manusRaw)).slice(0, 3000)) } catch (e) { console.log('원문 앞부분:', d.manusRaw.slice(0, 1500)) }
+  } else console.log('응답 원문 없음 (이전 버전에서 처리된 작업 — ‘결과 다시 확인’을 누르면 저장됨)')
+} else console.log('== 최근 Manus 작업 없음 ==')

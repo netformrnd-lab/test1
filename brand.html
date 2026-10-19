@@ -5687,7 +5687,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-39';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-40';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19022,6 +19022,11 @@ async function lkPeek(path){
 /* 미디어마케팅팀이 알려 준 진짜 자리 (2026-10-15) —
    여태 「실행파일\HTML_V06」 만 보고 있어서 알맹이를 못 찾았습니다. */
 const LK_DIG_DEF = 'Z:\\넷폼알앤디 공유폴더\\00. 미디어마케팅팀\\미디어마케팅팀 브랜드허브\\DB_미디어마케팅팀 브랜드허브';
+/* 📤 <<우리가 올리는 자리>> — 그쪽 [불러오기] 가 보는 폴더입니다.
+   읽어보기 v2.5.6/2.5.8 : 「불러오기 : DB_Copy 에서 이름에 「할일」이 든
+   가장 최근 파일」. 우리가 쓰는 자리(DB_…브랜드허브)에 두면 그쪽은
+   아예 쳐다보지 않습니다. */
+const LK_OUT_DIR = 'Z:\\넷폼알앤디 공유폴더\\00. 미디어마케팅팀\\미디어마케팅팀 브랜드허브\\DB_Copy';
 /* 📌 <<정해 둔 파일 이름>> ──────────────────────────────────────────
    저쪽이 아무 이름으로나 떨어뜨리면, 서른 개 넘는 목록에서 사람이
    매번 골라야 합니다. 그래서 이름을 하나로 못 박아 둡니다 —
@@ -19039,7 +19044,15 @@ function lkNameKey(s){
     .replace(/\.[a-z0-9]{1,5}$/, '')
     .replace(/[\s_\-()\[\]]/g, '');
 }
-function lkIsDef(name){ return lkNameKey(name) === lkNameKey(LK_FILE_DEF); }
+/* 📌 그쪽은 날짜를 뒤에 붙여 내보냅니다 —
+     …\DB_미디어마케팅팀 브랜드허브\2026-10-19\미디어마케팅팀-할일_2026-10-19.json
+   「미디어마케팅팀-할일」 로 시작하면 <<같은 것>> 으로 봅니다.
+   (_2026-10-19 · (1) 같은 꼬리표가 붙어도 놓치지 않게) */
+function lkIsDef(name){
+  const k = lkNameKey(name), d = lkNameKey(LK_FILE_DEF);
+  if(k === d) return true;
+  return k.indexOf(d) === 0 && /^[0-9]{0,8}$/.test(k.slice(d.length));
+}
 /* 저쪽에 그대로 보낼 부탁 글 — 자리와 이름이 한 줄로 들어 있습니다 */
 function lkAskText(){
   return '브랜드허브 할 일 연동 부탁드립니다.\n\n'
@@ -19777,17 +19790,28 @@ function lkFileOut(kind, pick, withDone){
      · 우리 → 브랜드마케팅팀-할일.json  (그쪽이 읽습니다)
    칸 이름은 저쪽 프로그램이 쓰는 <<한글(영문)>> 그대로 적습니다 —
    「제목(title)」 「담당(assignee_id)」 … 그래야 그쪽이 그대로 읽습니다. */
+/* ── 📐 <<저쪽 설명서에 적힌 모양 그대로>> ──────────────────────────
+   미디어마케팅팀 v2.5.8 읽어보기에 이렇게 적혀 있습니다 —
+     「내보내기 : 브랜드 허브 「할 일」 내보내기 파일과 똑같은 모양
+        { 팀 · 내보낸때 · 줄수 ·
+          할일[ id · 브랜드 · 업무명 · 담당자 · 상태 · 기한 · 진척률 ·
+                메모 · 갈래 · 고친때 ] }」
+   그쪽이 <<우리 내보내기를 보고 맞춰 둔>> 것입니다. 그러니 우리가
+   올릴 때도 이 이름 그대로 써야 합니다. (한동안 제가 「제목(title)」
+   처럼 저쪽 표 머리말을 흉내 냈는데, 그건 그쪽이 <<읽는>> 모양이 아니라
+   그쪽이 엑셀로 <<내보낼>> 때 쓰는 머리말이었습니다.) */
 const LK_OUT_COLS = [
-  ['id',               t => String(t.id || '')],
-  ['제목(title)',      t => String(t.title || '')],
-  ['내용(description)',t => String(t.note || '')],
-  ['상태(status_id)',  t => String(t.status || '')],
-  ['담당(assignee_id)',(t, b) => taskWho(t) || ''],
-  ['마감일(due_date)', t => String(t.due || '')],
-  ['진척률(progress)', t => String(t.pct == null ? '' : t.pct).replace(/[^0-9]/g, '')],
-  ['브랜드(project_id)', (t, b) => String((b && b.name) || '')],
-  ['갈래(task_type_id)', t => String(t.kind || '할 일')],
-  ['고친때(updated_at)', t => String(t.updatedAt || '')]
+  ['id',     t => String(t.id || '')],
+  ['브랜드', (t, b) => String((b && b.name) || '')],
+  ['업무명', t => String(t.title || '')],
+  ['담당자', (t, b) => taskWho(t) || ''],
+  ['상태',   t => String(t.status || '')],
+  ['기한',   t => String(t.due || '')],
+  ['진척률', t => Number(String(t.pct == null ? '' : t.pct)
+                          .replace(/[^0-9]/g, '')) || 0],
+  ['메모',   t => String(t.note || '')],
+  ['갈래',   t => String(t.kind || '할 일')],
+  ['고친때', t => String(t.updatedAt || '')]
 ];
 function lkOutRows(){
   /* 저쪽에서 가져온 줄은 <<되돌려 보내지 않습니다>> — 메아리가 됩니다 */
@@ -19812,8 +19836,8 @@ let lkPutBusy = false;
 async function lkFilePut(loud){
   if(lkPutBusy) return null;
   const t = lkOf();
-  const dir = String(t.autoDir || '').trim()
-           || (lkDug && lkDug.dir) || LK_DIG_DEF;
+  /* 올리는 곳은 <<받는 곳과 다릅니다>> — 그쪽은 DB_Copy 만 봅니다 */
+  const dir = String(t.outDir || '').trim() || LK_OUT_DIR;
   const rows = lkOutRows();
   const sig  = lkOutSig(rows);
   if(!loud && sig === String(t.outSig || '')) return null;   /* 그대로면 건너뜁니다 */
@@ -20721,9 +20745,11 @@ function lkSwapHtml(){
     /* ↔️ 쌍방향 — 양쪽이 한 폴더에 파일을 하나씩 둡니다 */
     + '<div class="lk-only"><b>↔️ 서로 고칠 수 있습니다</b>'
       + '<span class="fmeta">'
-        + '한 폴더에 파일을 하나씩 둡니다 — '
-        + '그쪽은 <b>' + esc(LK_FILE_DEF) + '.json</b>, '
-        + '우리는 <b>' + esc(LK_FILE_OUT) + '.json</b>.<br>'
+        + '서로 <b>보는 폴더가 다릅니다</b> — 저쪽 설명서에 그렇게 적혀 있습니다.<br>'
+        + '· 받기: <b>DB_미디어마케팅팀 브랜드허브</b> 의 '
+          + '<b>' + esc(LK_FILE_DEF) + '.json</b> (날짜 폴더 안도 봅니다)<br>'
+        + '· 올리기: <b>DB_Copy</b> 의 '
+          + '<b>' + esc(LK_FILE_OUT) + '.json</b> — 그쪽 [불러오기] 가 보는 자리<br>'
         + '우리가 올리는 줄에는 <b>우리 할 일 번호와 고친 때</b>가 같이 적힙니다. '
         + '그래서 그쪽이 그 줄을 고쳐 되돌려 주면 <b>새로 생기지 않고 '
         + '그 자리가 고쳐집니다</b>. 양쪽이 같은 줄을 고쳤으면 '
@@ -32928,7 +32954,7 @@ function normalize(raw){
     ['lastPull','lastPush','store','node','team','why',
      'autoPath','autoName','autoDir','autoKey','autoAt','srvPath',
      'fileAt','fileName','outAt','brandId','boot','bootAt','bootTry',
-     'outSig','outPutAt','outPutDir','outPutWhy'].forEach(k => {
+     'outSig','outPutAt','outPutDir','outPutWhy','outDir'].forEach(k => {
       if(typeof L[k] !== 'string') L[k] = ''; });
     L.on = !!L.on;
     L.autoOn = !!L.autoOn;

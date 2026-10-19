@@ -5687,7 +5687,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-37';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-39';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -9212,8 +9212,7 @@ function renderHome(){
                                        : '<span class="chip">✨ 미작성</span>')
       + (function(){ const k = brandNewCount(b);
            return k ? '<span class="chip new">🆕 새 글 ' + k + '</span>' : ''; })()
-      + ((b._conflicts || []).length
-          ? '<span class="chip test">⚠️ 같이 고친 것 ' + b._conflicts.length + '</span>' : '')
+
     + '</div></div>').join('');
 
   // 기한이 지났거나 임박한 할 일
@@ -12309,6 +12308,11 @@ function openInBrowser(i){
 /* 같은 것을 다른 분과 동시에 고쳤을 때 뜨는 띠.
    내 것을 그대로 두되, 상대가 쓴 내용을 볼 수 있게 남겨둡니다. */
 function clashBar(b){
+  /* 🤝 이제 띠를 띄우지 않습니다 — 둘이 같이 고쳐도 <<칸별로 알아서>>
+     합쳐서 저장합니다 (mergeItem). 사람에게 고르라고 묻지 않습니다.
+     예전에 쌓아 둔 것도 normalize 가 치웁니다. */
+  return '';
+  /* eslint-disable no-unreachable */
   const list = b._conflicts || [];
   if(!list.length) return '';
   return '<div class="clashbar">'
@@ -31933,6 +31937,9 @@ const TOP_LISTS   = ['onboard', 'notices', 'meetings', 'events', 'trash', 'growt
                      'log'];  // 브랜드 밖 (log = 🕘 무엇이 바뀌었나)
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)
+/* 🧩 칸별로 합치려면 지문만으로는 모자랍니다 — 그때 <<알맹이>> 도
+   같이 적어 둡니다. 「누가 어느 칸을 고쳤나」 를 이것으로 가립니다. */
+let baseObjs = new Map();
 let revived  = 0;                // 되살린 개수 (알려주기 위해)
 
 /* 내용이 바뀌었는지 빠르게 비교하기 위한 짧은 지문입니다 */
@@ -31948,6 +31955,7 @@ function sigOf(o){
    내가 만든 것인지 / 내가 고친 것인지 / 남이 지운 것인지 구별하려는 것입니다. */
 function snapshotIds(d){
   const m = new Map();
+  baseObjs = new Map();
   TOP_LISTS.forEach(k => ((d && d[k]) || []).forEach(x => {
     if(x && x.id) m.set(x.id, sigOf(x));
   }));
@@ -31974,7 +31982,7 @@ function snapshotIds(d){
       if(x && x.id) m.set(x.id, sigOf(x));
     });
     MERGE_LISTS.forEach(k => (b[k] || []).forEach(x => {
-      if(x && x.id) m.set(x.id, sigOf(x));
+      if(x && x.id){ m.set(x.id, sigOf(x)); baseObjs.set(x.id, x); }
     }));
   });
   return m;
@@ -32154,6 +32162,80 @@ function mergeHist(mineB, srvB){
   return out;
 }
 
+/* 둘 다 고친 한 건을 칸별로 합칩니다 */
+function mgSame(a, b){ return JSON.stringify(a === undefined ? null : a)
+                           === JSON.stringify(b === undefined ? null : b); }
+function mgWhen(o){
+  const t = Date.parse(String((o && (o.updatedAt || o.at || o.고친때)) || ''));
+  return isFinite(t) ? t : 0;
+}
+/* 줄 목록(id 가 있는 것)은 줄마다 — 한쪽에만 있는 줄은 <<둘 다>> 남깁니다 */
+function mgRows(mine, srv, base, newerIsMine){
+  const bi = new Map((Array.isArray(base) ? base : []).map(x => [x && x.id, x]));
+  const si = new Map((Array.isArray(srv) ? srv : []).map(x => [x && x.id, x]));
+  const seen = new Set();
+  const out = [];
+  (Array.isArray(mine) ? mine : []).forEach(m => {
+    if(!m || !m.id){ out.push(m); return; }
+    seen.add(m.id);
+    const sv = si.get(m.id);
+    if(sv === undefined){
+      /* 상대에게 없는 줄 — 내가 새로 넣었거나, 상대가 지웠습니다.
+         기준에도 없었으면 새로 넣은 것이니 남깁니다. */
+      if(!bi.has(m.id)) out.push(m);
+      else if(!mgSame(m, bi.get(m.id))) out.push(m);   /* 내가 고쳤으면 살립니다 */
+      return;
+    }
+    const b = bi.get(m.id);
+    if(mgSame(m, sv)) { out.push(m); return; }
+    if(b !== undefined && mgSame(m, b)) { out.push(sv); return; }   /* 상대만 고침 */
+    if(b !== undefined && mgSame(sv, b)) { out.push(m); return; }   /* 나만 고침 */
+    out.push(newerIsMine ? m : sv);                                  /* 둘 다 고침 */
+  });
+  (Array.isArray(srv) ? srv : []).forEach(sv => {
+    if(!sv || !sv.id){ return; }
+    if(seen.has(sv.id)) return;
+    if(bi.has(sv.id)) return;        /* 기준에 있었는데 내게 없음 = 내가 지웠습니다 */
+    out.push(sv);                    /* 상대가 새로 넣은 줄 */
+  });
+  return out;
+}
+function mergeItem(mi, sv, base){
+  const newerIsMine = mgWhen(mi) >= mgWhen(sv);
+  const out = Object.assign({}, sv, mi);
+  const keys = {};
+  [sv, mi, base || {}].forEach(o => Object.keys(o || {}).forEach(k => { keys[k] = 1; }));
+  Object.keys(keys).forEach(k => {
+    if(k === 'id') return;
+    const b = base ? base[k] : undefined;
+    const iDid = !mgSame(mi[k], b);
+    const uDid = !mgSame(sv[k], b);
+    if(!iDid && uDid){ out[k] = sv[k]; return; }        /* 나는 안 건드린 칸 */
+    if(iDid && !uDid){ out[k] = mi[k]; return; }        /* 상대는 안 건드린 칸 */
+    if(!iDid && !uDid){ return; }                       /* 둘 다 그대로 */
+    /* 둘 다 고친 칸 */
+    if(Array.isArray(mi[k]) && Array.isArray(sv[k])){
+      out[k] = mgRows(mi[k], sv[k], Array.isArray(b) ? b : [], newerIsMine);
+      return;
+    }
+    const a = mi[k], c = sv[k];
+    /* 사람이 쓴 글로 보이는 칸은 길이와 상관없이 둘 다 남깁니다 —
+       짧다고 버리면 「한 줄 메모」 가 조용히 사라집니다 */
+    const PROSE = ['note','desc','memo','body','text','summary','내용','메모','설명','요약'];
+    const isProse = PROSE.indexOf(k) >= 0 || a.length > 40 || c.length > 40
+                 || String(a).indexOf('\n') >= 0 || String(c).indexOf('\n') >= 0;
+    if(typeof a === 'string' && typeof c === 'string' && a !== c && a && c && isProse){
+      /* 긴 글은 <<둘 다>> 남깁니다 — 한쪽을 버리면 누군가의 글이 사라집니다 */
+      const first = newerIsMine ? a : c, second = newerIsMine ? c : a;
+      out[k] = first + '\n\n— 같은 때 다른 분이 쓴 것 —\n' + second;
+      return;
+    }
+    out[k] = newerIsMine ? a : c;
+  });
+  const t = Math.max(mgWhen(mi), mgWhen(sv));
+  if(t) out.updatedAt = new Date(t).toISOString();
+  return out;
+}
 function mergeBrand(mineB, srvB){
   const out = Object.assign({}, srvB, mineB);
   out._conflicts = (mineB._conflicts || srvB._conflicts || []).slice();
@@ -32191,12 +32273,21 @@ function mergeBrand(mineB, srvB){
       if(deletedIds.has(sv.id)) return;                 // 내가 지운 것
       const mi = mineById.get(sv.id);
       if(mi){
-        // 둘 다 고쳤으면 내 것을 쓰되, 상대 것을 버리지 않고 챙겨둡니다
+        /* ── 🤝 <<둘이 같이 고쳤으면 묻지 않고 합칩니다>> ────────────
+           여태는 「같은 것을 다른 분과 같은 시간에 고쳤습니다」 띠를 띄우고
+           사람에게 고르라고 했습니다. 그런데 고르라는 말 자체가 일입니다.
+           이제 <<칸별로>> 가립니다 —
+             · 한 사람만 고친 칸  → 그 사람 것 (그대로 살아남습니다)
+             · 둘 다 고친 칸      → 나중에 고친 쪽
+             · 줄 목록(보조 업무 · 업무일지) → 줄마다 같은 규칙으로 합침
+             · 긴 글을 둘 다 고쳤으면 → 나중 것 아래에 <<먼저 쓴 글도 붙여>>
+               둡니다. 글이 통째로 사라지는 일은 없습니다. */
         const base = baseIds.get(sv.id);
         if(base !== undefined && sigOf(sv) !== base && sigOf(mi) !== base
            && sigOf(sv) !== sigOf(mi)){
-          stashClash(out, (TYPES[k] ? TYPES[k].label : k) + ' — ' + (mi.title || mi.name || ''),
-                     mi, sv);
+          res.push(mergeItem(mi, sv, baseObjs.get(sv.id)));
+          clashed++;
+          return;
         }
       }
       res.push(mi || sv);
@@ -32668,7 +32759,10 @@ async function saveAll(silent){
         /* 섞여 들어온 계정 가운데 아직 못 푼 것을 뒤늦게 풀어 옵니다 */
         accSync();
         data.savedAt = new Date().toISOString();
-        if(clashed) toast('⚠️ 같은 것을 다른 분과 동시에 고쳤습니다 — 아래 띠에서 확인하세요');
+        /* 🤝 묻지 않습니다 — 칸별로 합쳐서 둘 다 저장했습니다.
+           무슨 일이 있었는지는 한 줄로만 알려 줍니다. */
+        if(clashed) toast('🤝 다른 분이 같은 때 고친 것도 함께 저장했습니다 ('
+                          + clashed + '건)');
         else if(clashedTop) toast('⚠️ 같은 회의록·일정을 다른 분과 동시에 고쳤습니다 '
                                   + '— 상대가 쓴 것도 바로 아래에 따로 남겨뒀습니다');
         else if(revived) toast('다른 분이 지운 항목이지만, 고치신 내용이 있어 살려뒀습니다');
@@ -32766,6 +32860,9 @@ function normalize(raw){
     return fresh;
   }
   if(typeof raw._rev !== 'number') raw._rev = 0;
+  /* 🧹 예전에 쌓아 둔 「같이 고친 것」 띠는 치웁니다 — 이제 묻지 않고
+     칸별로 합쳐 저장하니, 보여 줄 까닭이 없습니다 */
+  (raw.brands || []).forEach(b => { if(b && b._conflicts) delete b._conflicts; });
   /* 🔗 미디어마케팅팀 허브 — 여태는 웹폴더로 손수 복사한 파일을 걸어
      뒀습니다. 그쪽이 판을 올리면 우리가 또 복사해야 했고, 안 하면 옛
      판을 보게 됐습니다. 그래서 <<공유폴더 자리>> 로 한 번만 바꿔 둡니다.

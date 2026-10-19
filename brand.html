@@ -5687,7 +5687,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261016-37';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-38';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -19262,6 +19262,123 @@ function lkPackCopy(){
   catch(e){ toast('복사가 안 됩니다 — 아래 글을 긁어서 복사해 주세요'); }
   ta.remove();
 }
+/* ── 🧰 <<통째로 보여 줄 꾸러미>> ───────────────────────────────────
+   「파일이 30기가가 넘는데 어떻게 보여 주나」 — 통째로는 못 옮깁니다.
+   그럴 까닭도 없습니다. 알맹이가 궁금한 것은 몇 백 KB 뿐이고, 나머지는
+   무엇이 어디에 있는지만 알면 됩니다.
+   [🧰 통째로 보여 줄 꾸러미] 한 번이면 ① 폴더 안 모든 파일 이름·크기
+   ② 작은 글자 파일 알맹이 ③ 데이터베이스 표 생김새 를 한 글로 만듭니다.
+   비밀번호처럼 보이는 값은 가려서 담습니다. */
+let lkPack2 = null;
+async function lkPackAll(){
+  const t = lkOf();
+  const dir = String(t.autoDir || '').trim() || (lkDug && lkDug.dir) || LK_DIG_DEF;
+  toast('⏳ 폴더를 훑어 꾸러미를 만드는 중…');
+  let r;
+  try{
+    r = await apiJson('nasfiles.php?action=tspack&path=' + encodeURIComponent(dir));
+  }catch(e){
+    if(e && e['등록하면됨'] && await lkAskReg(e, dir)) return lkPackAll();
+    alert('❌ 만들지 못했습니다.\n\n' + apiErrText(e) + '\n\n· 폴더: ' + dir);
+    return;
+  }
+  lkPack2 = r;
+  render();
+  toast('🧰 꾸러미를 만들었습니다 — 파일 ' + (r['파일수'] || 0) + '개 ('
+        + (r['다합쳐'] || '') + ') 가운데 글자 '
+        + Math.round((r['담은글자'] || 0) / 1024) + 'KB 를 담았습니다');
+}
+function lkPack2Text(){
+  const r = lkPack2;
+  if(!r) return '';
+  const L = [];
+  L.push('# 미디어마케팅팀 폴더 꾸러미');
+  L.push('폴더: ' + (r['폴더'] || ''));
+  L.push('파일 ' + (r['파일수'] || 0) + '개 · 다 합쳐 ' + (r['다합쳐'] || ''));
+  L.push('(비밀번호처럼 보이는 값은 **** 로 가려져 있습니다)');
+  L.push('');
+  L.push('## 1. 폴더 안에 무엇이 있나');
+  (r['목록'] || []).forEach(f => {
+    L.push('  ' + ((f['어디'] ? f['어디'] + '/' : '') + f['이름'])
+      + (f['바이트'] >= 0 ? '   ' + f['크기'] + ' · ' + f['고친때'] : ''));
+  });
+  const dbs = r['디비'] || [];
+  if(dbs.length){
+    L.push('');
+    L.push('## 2. 데이터베이스');
+    dbs.forEach(d => {
+      L.push('### ' + (d['어디'] ? d['어디'] + '/' : '') + d['이름'] + '  ' + d['크기']);
+      if(d['못연까닭']) L.push('  (못 열었습니다: ' + d['못연까닭'] + ')');
+      (d['표'] || []).forEach(t => {
+        L.push('  - ' + t['표'] + '  (' + t['줄수'] + '줄)');
+        L.push('    칸: ' + (t['칸'] || []).join(', '));
+        (t['맛보기'] || []).forEach(x => L.push('    예) ' + JSON.stringify(x)));
+      });
+    });
+  }
+  const fs = r['글자파일'] || [];
+  if(fs.length){
+    L.push('');
+    L.push('## ' + (dbs.length ? '3' : '2') + '. 글자 파일 알맹이');
+    fs.forEach(f => {
+      L.push('');
+      L.push('### ' + (f['어디'] ? f['어디'] + '/' : '') + f['이름']
+        + '  ' + f['크기'] + ' · ' + f['고친때']);
+      L.push('```');
+      L.push(String(f['내용'] || ''));
+      if(f['잘림']) L.push('… (뒷부분 줄임)');
+      L.push('```');
+    });
+  }
+  return L.join('\n');
+}
+async function lkPackCopy2(){
+  const t = lkPack2Text();
+  if(!t){ toast('먼저 꾸러미를 만들어 주세요'); return; }
+  try{
+    await navigator.clipboard.writeText(t);
+    toast('📋 ' + Math.round(t.length / 1024) + 'KB 를 복사했습니다 — 그대로 붙여넣으시면 됩니다');
+  }catch(e){
+    const el = document.getElementById('lkPackBox');
+    if(el){ el.focus(); el.select(); }
+    toast('⚠️ 복사가 막혀 있습니다 — 칸 안을 눌러 Ctrl+C 해 주세요');
+  }
+}
+function lkPackDown(){
+  const t = lkPack2Text();
+  if(!t){ toast('먼저 꾸러미를 만들어 주세요'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([t], { type:'text/plain;charset=utf-8' }));
+  a.download = '미마팀폴더-꾸러미_' + new Date().toISOString().slice(0, 10) + '.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('⬇ 파일로 받았습니다 — 그대로 올리시면 됩니다');
+}
+function lkPack2Clear(){ lkPack2 = null; render(); }
+function lkPack2Html(){
+  const r = lkPack2;
+  if(!r) return '';
+  const txt = lkPack2Text();
+  return '<details class="lk-dig lk-fold" open><summary>'
+    + '<span class="lk-team" style="display:inline">🧰 통째로 보여 줄 꾸러미</span>'
+    + '<span class="lk-tn">파일 ' + (r['파일수'] || 0) + '개 · 다 합쳐 '
+      + esc(r['다합쳐'] || '') + ' → 글 ' + Math.round(txt.length / 1024) + 'KB</span>'
+    + '<button class="btn sm primary" onclick="event.preventDefault();'
+      + 'event.stopPropagation();lkPackCopy2()">📋 복사</button>'
+    + '<button class="btn sm" onclick="event.preventDefault();'
+      + 'event.stopPropagation();lkPackDown()">⬇ 파일로</button>'
+    + '<button class="btn sm" onclick="event.preventDefault();'
+      + 'event.stopPropagation();lkPack2Clear()">치우기</button>'
+    + '</summary>'
+    + '<div class="fmeta" style="margin:6px 0">'
+      + '30GB 를 다 옮길 수는 없습니다 — <b>무엇이 어디에 있는지</b>와 '
+      + '<b>작은 글자 파일·데이터베이스 표 생김새</b>만 담았습니다. '
+      + '비밀번호처럼 보이는 값은 <b>****</b> 로 가려 두었지만, '
+      + '보내시기 전에 한 번 훑어봐 주세요.</div>'
+    + '<textarea id="lkPackBox" class="lk-pre" style="width:100%;height:320px" '
+      + 'readonly>' + esc(txt) + '</textarea>'
+    + '</details>';
+}
 function lkPackClear(){ lkBundle = null; render(); }
 function lkPackHtml(){
   if(!lkBundle) return '';
@@ -20707,6 +20824,11 @@ function lkSwapHtml(){
       + '<button class="btn sm" onclick="lkServer()"'
         + ' title="저쪽이 서버 프로그램이면 그 서버에 직접 물어봅니다">'
         + '🖥 저쪽 서버에 묻기</button>'
+      /* 🧰 폴더가 아무리 커도 — 보여 줄 만큼만 한 글로 모읍니다 */
+      + '<button class="btn sm" onclick="lkPackAll()"'
+        + ' title="폴더 안에 무엇이 있는지, 작은 글자 파일과 데이터베이스 표 '
+        + '생김새까지 한 글로 모읍니다 (복사해서 그대로 보내시면 됩니다)">'
+        + '🧰 통째로 보여 줄 꾸러미</button>'
       + '<span class="fmeta">'
         + (String(t.autoPath || '').trim()
             ? '가져오는 곳 <b>' + esc(t.autoName || t.autoPath) + '</b>'
@@ -20873,9 +20995,10 @@ function lkPanelHtml(){
         + '<span class="lk-tn">지금은 이 길을 안 씁니다 — '
           + '아래 <b>파일·데이터베이스</b>로 붙어 있습니다 · 눌러서 펴기</span>'
       + '</summary>' + head + body + '</details>'
-      + lkAutoHtml() + lkDigHtml() + lkPackHtml() + '</div>';
+      + lkAutoHtml() + lkDigHtml() + lkPackHtml() + lkPack2Html() + '</div>';
   }
   return '<div class="lk-box">' + head + body + lkAutoHtml() + lkDigHtml() + lkPackHtml()
+    + lkPack2Html()
     + '<div class="fmeta" style="margin-top:8px">'
       + '근무현황 캘린더를 붙인 것과 같은 틀입니다 — 파일을 주고받지 않고 '
       + '<b>한 저장소를 같이 씁니다</b>. 우리 할 일은 저장될 때마다 저절로 올라가고, '

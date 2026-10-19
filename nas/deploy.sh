@@ -77,7 +77,13 @@ if wget -q -T 30 -O "$TMP/manifest.txt" "$BASE/nas/manifest.txt" 2>/dev/null &&
     log "목록 파일 사용"
     while IFS="$TAB" read -r name remote marker; do
         case "$name" in ''|'#'*) continue;; esac
-        case "$name" in */*|*\\*) continue;; esac      # 폴더 이동 금지
+        # 폴더는 <<한 단계>> 까지만 (teamhub/teamhub.php 처럼).
+        # 위로 올라가거나 절대 경로는 받지 않습니다.
+        case "$name" in
+            /*|*..*|*\\*) continue;;
+            */*/*) continue;;
+            */*) mkdir -p "$TARGET/${name%/*}" "$TMP/${name%/*}" 2>/dev/null;;
+        esac
         [ -z "$remote" ] && continue
         update_file "$name" "$remote" "$marker" || failed=1
     done < "$TMP/manifest.txt"

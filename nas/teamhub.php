@@ -28,11 +28,12 @@
 
    ※ /volume1 이 맞는지는 File Station → 그 폴더 → 속성에서 봅니다. */
 /* 아무 데도 안 갑니다 — <<이 파일 옆>> 이 자리입니다.
-   /volume1/web/brand/teamhub/DB/
-   브랜드허브(brand.html)와 팀허브가 같은 주소 아래 나란히 있고,
+   /volume1/web/brand/DB_teamhub/
+   브랜드허브(brand.html) 와 <<같은 폴더>> 에 나란히 둡니다 —
+   폴더를 새로 만들 것도 없이 파일만 올리면 됩니다.
    자료도 그 옆에 있습니다. 공유폴더도, 드라이브 글자도, 폴더 허락도
    필요 없습니다. 없으면 처음 쓸 때 저절로 만들어집니다. */
-$BASE = __DIR__ . '/DB';
+$BASE = __DIR__ . '/DB_teamhub';
 
 $TEAM_DIR = $BASE . '/미디어마케팅팀';
 

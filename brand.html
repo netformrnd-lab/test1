@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-47';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261019-48';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7593,9 +7593,45 @@ function hubWhere(h){
   return pth + (wnt ? ' 안에서 「' + wnt + '」 을 엽니다 (판이 올라가도 그대로)'
                     : ' 안에서 가장 새 판을 엽니다');
 }
+/* ── 🧭 팀허브는 <<들어가기 쪽>> 을 거쳐 엽니다 ─────────────────
+   팀허브는 <<사람마다>> 처음 한 번 저장 위치를 고릅니다. 거기서 Z:
+   공유폴더를 고르면 그 사람 혼자 보는 자료가 되어, 우리 할 일과
+   영영 안 이어집니다. 말로 알려 주는 것만으로는 꼭 한둘이 빠집니다.
+   그래서 누르면 먼저 안내 쪽이 열려 <<NAS 를 고르도록>> 짚어 주고,
+   한 번 고른 사람은 그냥 지나가게 했습니다.
+   적어 둔 자리는 한 번만 바꾸고, 옛 자리는 적어 둡니다 (되돌릴 수
+   있게). 손으로 다시 고치면 그 뒤로는 건드리지 않습니다. */
+const HUB_START = 'hub-start.html';
+function hubStartFix(){
+  /* 아직 자료를 못 받았으면 아무것도 하지 않습니다 */
+  if(!data || !Array.isArray(data.hubs)) return 0;
+  /* 🚦 <<바로 옆에 있을 때만>> 바꿉니다. 팀허브가 우리 웹폴더에
+     같이 올라와 있어야(= 다리가 붙어야) 들어가기 쪽이 뜻이 있습니다.
+     아직 공유폴더로만 여는 곳은 그대로 둡니다 — 안 그러면 열던 길이
+     끊깁니다. */
+  if(lkBridgeOn !== true) return 0;
+  let n = 0;
+  hubsOf().forEach(h => {
+    if(h['들머리']) return;                       /* 한 번만 */
+    const u = String(h.url || '').trim();
+    /* 📌 <<웹폴더에 올린 파일 이름>> 으로 걸어 둔 것만 바꿉니다.
+       공유폴더(Z:) 로 걸어 둔 곳은 손대지 않습니다 — 그쪽은 아직
+       그 길로만 열리는 곳일 수 있고, 지우면 열던 길이 끊깁니다. */
+    if(!/^mediam_TeamHub(\.html?)?([#?].*)?$/i.test(u)) return;
+    const tail = u.match(/[#?].*$/);
+    h['옛자리'] = u;
+    h.url = HUB_START + (tail ? tail[0] : '');
+    h['들머리'] = 1; n++;
+  });
+  return n;
+}
 function renderHubs(){
   const el = document.getElementById('hubList');
   if(!el) return;
+  /* 아직 안 물어봤으면 한 번 물어봅니다 — 바로 옆에 붙어 있으면
+     그때 자리를 들어가기 쪽으로 바꿔 둡니다 (lkBridgeCheck 안에서) */
+  if(lkBridgeOn === null) lkBridgeCheck();
+  if(hubStartFix()) markDirtyAll();
   const hs = hubsOf();
   el.innerHTML = hs.map(h =>
       '<div class="bwrap"><button class="brand-item home-item"'
@@ -19139,6 +19175,10 @@ async function lkBridgeCheck(force){
       t.brWrite = !!j.writable;
       t.brKeyed = !!j.keyed;
       t.brInWeb = !!j.inWeb;
+      /* 🧭 바로 옆에 있는 것이 확인됐습니다 — 팀 허브 자리를
+         들어가기 쪽으로 한 번만 바꿔 둡니다 (사람마다 저장 위치를
+         NAS 로 고르도록 짚어 주려고) */
+      try{ if(hubStartFix()){ markDirtyAll(); renderHubs(); } }catch(e){}
     }
   }catch(e){
     /* 🔑 「열쇠가 필요합니다」 면 한 번 물어보고 다시 해 봅니다 */

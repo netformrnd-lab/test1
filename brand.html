@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261020-68';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261020-69';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20400,22 +20400,24 @@ function lkRowOut(r, cols, keyName, people){
    · 저쪽 자료는 그대로 둡니다 (지우지 않습니다). 언제든 되돌립니다 */
 async function lkOwnOn(){
   const t = lkOf();
-  if(!confirm('🏠 할 일을 <<브랜드 허브 것>> 으로 삼을까요?\n\n'
-    + '· 저쪽에서 적은 할 일은 <<그대로 들어옵니다>> (10초마다)\n'
-    + '· 우리 할 일은 저쪽에 <<안 보냅니다>> — 어긋날 일이 없어집니다\n'
-    + '· 저쪽 자료는 그대로 둡니다 — 언제든 되돌릴 수 있습니다\n\n'
-    + '미디어마케팅팀도 이 화면에서 할 일을 보시면 됩니다.')) return;
+  if(!confirm('🏠 미디어마케팅팀 할 일을 <<우리 프로그램으로 이식>> 할까요?\n\n'
+    + '· 지금 팀허브에 있는 할 일을 우리로 한 번 가져옵니다\n'
+    + '· 그 뒤로 할 일은 <<여기 한 곳>> 에서만 적고 봅니다\n'
+    + '· 팀허브에 적은 것도 한동안은 받아 둡니다 (옮기는 동안)\n'
+    + '· 팀허브 자료는 그대로 둡니다 — 언제든 되돌릴 수 있습니다\n\n'
+    + '미디어마케팅팀은 각자 <<브랜드허브 계정>> 으로 이 화면에 들어오면 됩니다.')) return;
   let got = 0;
   try{ got = await lkPullBridge(true) || 0; }catch(e){}
   t.own = true; t.ownAt = new Date().toISOString();
   if(!lkWatchT) lkWatchTick();      /* 받기는 그대로 돕니다 */
   if(!lkAutoT)  lkAutoTick();
   markDirtyAll(); render();
-  alert('🏠 이제 할 일은 브랜드 허브가 주인입니다.\n\n'
+  alert('🏠 이식했습니다 — 이제 할 일은 이 프로그램 하나입니다.\n\n'
     + (got ? (got + '건을 가져왔습니다.\n\n') : '')
-    + '저쪽에서 적는 것도 그대로 들어옵니다.\n\n'
-    + '미디어마케팅팀에는 이 주소를 알려 주세요 —\n'
-    + lkHomeUrl() + '\n\n(연동 칸의 [📋 안내 복사] 로 문구를 통째로 복사할 수 있습니다)');
+    + '미디어마케팅팀에는 아래 주소를 알려 주세요 (할 일 화면으로 바로 열립니다) —\n'
+    + lkTaskUrl() + '\n\n'
+    + '[📋 안내 복사] 로 문구를 통째로 복사할 수 있습니다.\n'
+    + '캘린더·TODAY 는 팀허브를 그대로 쓰시면 됩니다.');
 }
 function lkOwnOff(){
   const t = lkOf();
@@ -20429,16 +20431,21 @@ function lkOwnOff(){
 function lkHomeUrl(){
   return location.href.replace(/[?#].*$/, '');
 }
+/* 할 일 화면으로 바로 여는 주소 */
+function lkTaskUrl(){
+  return lkHomeUrl() + '#할일';
+}
 /* 팀원에게 보낼 문구 — 그대로 복사해서 보내시면 됩니다 */
 function lkOwnCopy(){
   const txt = '📌 미디어마케팅팀 할 일은 이제 <<브랜드 허브>> 에서 봅니다\n\n'
-    + lkHomeUrl() + '\n\n'
-    + '1. 위 주소로 들어가 [✅ 할 일] 을 누르세요\n'
-    + '2. 「팀 멤버별 오늘 할 일」 에서 본인 카드를 찾으면 됩니다\n'
-    + '3. 지금까지 팀허브에 적어 둔 할 일은 그대로 옮겨져 있습니다\n\n'
-    + '※ 팀허브에 적으셔도 됩니다 — 여기로 저절로 들어옵니다 (10초쯤).\n'
-    + '  다만 <<여기서 고친 것은 팀허브로 안 돌아갑니다>>.\n'
-    + '  그래서 할 일은 되도록 이 화면에서 봐 주세요.';
+    + lkTaskUrl() + '\n\n'
+    + '1. 위 주소로 들어가 <<본인 브랜드허브 계정>> 으로 로그인하세요\n'
+    + '   (계정이 없으면 관리자에게 만들어 달라고 하세요)\n'
+    + '2. 바로 [✅ 할 일] 화면이 열립니다 — 「팀 멤버별 오늘 할 일」 에서\n'
+    + '   본인 카드를 찾으면 됩니다. 지금까지 적어 둔 할 일이 다 있습니다\n'
+    + '3. 앞으로 할 일은 <<여기서만>> 적어 주세요\n\n'
+    + '※ 캘린더 · TODAY 는 팀허브를 그대로 쓰시면 됩니다.\n'
+    + '  할 일만 이쪽으로 옮기는 것입니다.';
   const go = () => {
     const ta = document.createElement('textarea');
     ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
@@ -35875,6 +35882,12 @@ async function init(){
   pageTopUp();
 
   currentBrandId = null;   // 처음에는 홈부터 보여줍니다
+  /* 🔗 미디어마케팅팀처럼 <<할 일 화면으로 바로>> 오는 링크를 받습니다.
+     brand.html#할일 (또는 #tasks · #board) 로 들어오면 곧장 ✅ 할 일 로 */
+  try{
+    const hx = decodeURIComponent(location.hash || '').toLowerCase();
+    if(/^#(할일|할-일|tasks?|board|todo)$/.test(hx)) view = 'tasks';
+  }catch(e){}
   updateSubtitle();
   refreshSnap();           // 첫 번째 고침도 Ctrl+Z 로 되돌릴 수 있게 기준을 잡아둡니다
   render();

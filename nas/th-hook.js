@@ -8,7 +8,11 @@
 (function () {
   'use strict';
 
-  var TASKS = location.href.replace(/[^/]*$/, '') + 'brand.html#할일';
+  /* 같은 폴더의 brand.html 로 — <<주소 끝의 #해시·?꼬리를 먼저 떼고>> 폴더만.
+     팀허브가 #/home 처럼 해시를 달고 있으면 location.href 끝이 / 라,
+     그냥 자르면 폴더가 안 잡혀 팀허브가 또 열립니다. */
+  var DIR = (location.origin + location.pathname).replace(/[^/]*$/, '');
+  var TASKS = DIR + 'brand.html#할일';
   var TASK_WORD = /^(할일|todo|tasks?)$/i;
   var AVOID = /(저장|주고받|캘린더|동기화|마인드맵|목록|링크|보기|고치|끝난|대시보드)/;
   var OV = 'bh-task-ov';

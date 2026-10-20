@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261019-66';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261020-67';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -20699,6 +20699,68 @@ function lkTapWorker(w){
     }
   };
 }
+/* 🚪 <<들어가기 화면이 무엇을 묻고 있나>> ─────────────────────────
+   저쪽은 entry=account — 아이디 앞에서 멈춰 있습니다. 그래서 묻지도
+   않고, 자료도 안 열립니다. 그 화면이 무엇을 받는지(칸·단추) 그대로
+   적습니다. 적기만 합니다 — 누르지 않습니다. */
+function lkFormDump(w, log){
+  let d = null;
+  try{ d = w.document; }catch(e){ log.push('   · 화면을 못 봤습니다'); return; }
+  try{
+    const txt = String((d.body && d.body.innerText) || '').replace(/\s+/g, ' ').slice(0, 260);
+    log.push('   · 화면 글 : ' + (txt || '(비어 있습니다)'));
+  }catch(e){}
+  try{
+    const ins = Array.prototype.slice.call(
+      d.querySelectorAll('input,select,textarea')).slice(0, 14);
+    log.push('   · 적는 칸 ' + ins.length + '개');
+    ins.forEach(el => {
+      let lab = '';
+      try{ lab = (el.labels && el.labels[0] && el.labels[0].innerText) || ''; }catch(e){}
+      log.push('     · <' + el.tagName.toLowerCase()
+        + ' type=' + (el.type || '') + '>'
+        + (el.id ? ' id=' + el.id : '')
+        + (el.name ? ' name=' + el.name : '')
+        + (el.placeholder ? ' 안내=' + el.placeholder : '')
+        + (lab ? ' 이름표=' + lab.replace(/\s+/g, ' ').slice(0, 24) : ''));
+    });
+    const bs = Array.prototype.slice.call(
+      d.querySelectorAll('button,[role=button],input[type=submit],a.btn')).slice(0, 16);
+    const names = bs.map(b => String((b.innerText || b.value || '')).replace(/\s+/g, ' ').trim())
+                    .filter(Boolean).slice(0, 14);
+    log.push('   · 단추 : ' + (names.join(' · ') || '(없음)'));
+  }catch(e){ log.push('   · 칸을 못 봤습니다'); }
+}
+/* 📨 <<일꾼에게 직접 물어봅니다>> — select 1 만, 모양만 바꿔 가며.
+   쪽지 모양이 { t:… · s:… } 인 것은 봤으니, 묻는 이름만 맞추면 됩니다.
+   보내는 것은 전부 <<읽기>> 뿐입니다. 고치는 말은 하나도 안 보냅니다. */
+async function lkAskWorker(w, log){
+  let h = null;
+  try{ h = w.__teamhubHost; }catch(e){}
+  const wk = h && h.worker;
+  if(!wk){ log.push('   · 일꾼이 아직 없습니다'); return; }
+  const got = [];
+  const on = (ev) => { if(got.length < 14) got.push(lkMsgBrief(ev && ev.data)); };
+  try{ wk.addEventListener('message', on); }catch(e){}
+  const SQL = 'select 1 as ok';
+  const tries = [
+    { t:'query', s:{ sql:SQL }, id:'bh1' },
+    { t:'query', sql:SQL, id:'bh2' },
+    { t:'q',     s:{ sql:SQL }, id:'bh3' },
+    { t:'sql',   s:SQL, id:'bh4' },
+    { t:'exec',  s:{ sql:SQL, params:[] }, id:'bh5' },
+    { type:'query', sql:SQL, id:'bh6' }
+  ];
+  for(const m of tries){
+    try{ wk.postMessage(m); }catch(e){}
+    await new Promise(r => setTimeout(r, 800));
+  }
+  await new Promise(r => setTimeout(r, 1500));
+  try{ wk.removeEventListener('message', on); }catch(e){}
+  log.push('   · 모양 ' + tries.length + '가지로 물어봤습니다 (전부 select 1)');
+  if(!got.length) log.push('   · 대답이 없습니다');
+  else got.slice(0, 12).forEach(x => log.push('     ← ' + x));
+}
 /* 🧪 <<읽기만 하는 물음>> 을 한 번 던져 봅니다.
    이름이 또렷이 「묻기」 인 것만 고르고, 던지는 것도 select 1 뿐입니다.
    (고치는 함수는 손대지 않습니다) */
@@ -20873,10 +20935,18 @@ async function lkFrameScan(){
     if(!tap.outs.length && !tap.ins.length)
       log.push('     (조용합니다 — 저쪽이 아직 들어가기(계정) 앞에서 기다리는 듯합니다)');
   }
-  /* ⑦ 어디까지 와 있나 */
+  /* ⑦-0 들어가기 화면이 무엇을 묻고 있나 */
+  log.push('', '\u2466 들어가기 화면 (적기만 합니다 — 누르지 않습니다)');
+  try{ lkFormDump(w, log); }catch(e){ log.push('   · 못 봤습니다'); }
+
+  /* ⑧ 일꾼에게 직접 물어봅니다 — select 1 만 */
+  log.push('', '\u2467 일꾼에게 직접 묻기 (전부 select 1 — 고치는 말은 없습니다)');
+  try{ await lkAskWorker(w, log); }catch(e){ log.push('   · 못 물었습니다'); }
+
+  /* ⑨ 어디까지 와 있나 */
   try{
     const h = w.__teamhubHost, inf = (h && h.info) || {};
-    log.push('', '\u2466 저쪽이 서 있는 자리');
+    log.push('', '\u2468 저쪽이 서 있는 자리');
     log.push('   · 들어가기 단계(entry) : ' + String(inf.entry || '?')
       + (String(inf.entry) === 'account'
           ? '  \u2190 아이디로 들어가기 앞에서 기다리는 중입니다' : ''));

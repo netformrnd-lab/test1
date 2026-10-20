@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261020-72';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261020-73';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5974,7 +5974,14 @@ const TYPES = {
         ph:'예: 9월 콘텐츠 방향 회의' },
       { key:'date',      label:'날짜',      type:'date' },
       { key:'brand',     label:'브랜드 (선택)', type:'select', options:brandNames },
-      { key:'attendees', label:'참석자',    type:'text', ph:'예: 김마케, 이디자인, 박기획' },
+      { key:'attendees', label:'참석자',    type:'text', ph:'예: 김마케, 이디자인, 박기획',
+        hint:'회의에 들어온 사람들입니다 (적은 사람과 다를 수 있어요)' },
+      /* ✍️ 작성자 — 이 회의록을 적은 사람. 참석자와 따로입니다.
+         새로 적으면 본인 이름이 저절로 채워지고, 고칠 수 있습니다.
+         예전 회의록은 비어 있으니 기억나는 분이 여기 적어 넣으면 됩니다. */
+      { key:'by',        label:'✍️ 작성자', type:'text', ph:'누가 적었나요',
+        hint:'회의록을 적은 사람입니다 (참석자와 다릅니다)',
+        def: () => (typeof myName === 'function' ? myName() : '') },
       /* 📝 회의 글은 <<크게>> 고칩니다 — 세 줄짜리 칸에 긴 회의를
          욱여넣으면 어디를 고치는지 안 보입니다 */
       { key:'body',      label:'회의 내용', type:'textarea', rows:16,
@@ -33600,14 +33607,6 @@ function submitItem(){
     }
   }else{
     if(itemType === 'tasks' && payload.pct) payload.pctAt = todayStr();
-    /* 📝 회의록은 누가 적었는지 남겨 둡니다 (작성자). 계정을 쓰면 그 이름,
-       안 쓰면 「이름 지정」 으로 적어 둔 이름입니다. 나중에 고쳐도 처음
-       적은 사람은 그대로 둡니다 (payload 에 by 를 넣지 않으므로 수정 때
-       덮이지 않습니다). */
-    if(itemType === 'meetings'){
-      const nm = (typeof myName === 'function') ? myName() : '';
-      if(nm){ payload.by = nm; payload.byAt = new Date().toISOString(); }
-    }
     const item = Object.assign({ id: uid('i'), updatedAt: new Date().toISOString() }, payload);
     // 여정은 시간 순으로 읽어야 하므로 아래에 쌓고, 나머지는 최신이 위로 옵니다
     if(itemType === 'history') (dest || arr).push(item);

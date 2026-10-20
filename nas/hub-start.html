@@ -117,9 +117,9 @@ var want = (hash.indexOf('#/') === 0) ? hash : '#/board';
 /* 🔀 <<할 일만 우리 프로그램으로>> ───────────────────────────────
    할 일(#/board · #할일)은 브랜드 허브로 보냅니다. 거기 한 곳에서만
    적고 봅니다. 캘린더·TODAY 같은 다른 것은 팀허브를 그대로 씁니다. */
-var isTask = /^#(\/board|할일|할-일|tasks?|board|todo)$/i.test(hash)
-          || hash === '' || hash === '#/board';
-var HUB = isTask ? 'brand.html#할일' : (FILE + want);
+/* 할 일이든 캘린더든 모두 팀허브(mediam.php)로 — 할 일 버튼은 그 안에서
+   우리 프로그램이 뜹니다 (th-hook). 넘어가지 않습니다. */
+var HUB = 'mediam.php' + want;
 
 document.getElementById('u').value = here + BRG;
 document.getElementById('go').href = HUB;

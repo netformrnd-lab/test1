@@ -9,7 +9,9 @@
    파일을 손으로 고칠 필요가 없습니다 (File Station 에 편집기가 없어도 됩니다). */
 
 $FILE = __DIR__ . '/mediam_TeamHub.html';
-$HOOK = "\n<script src=\"th-hook.js?v=1\"></script>\n";
+/* 훅 파일이 바뀌면 주소도 바뀌게 — 브라우저가 옛 훅을 안 쓰게 (캐시 깨기) */
+$HV = @filemtime(__DIR__ . '/th-hook.js') ?: time();
+$HOOK = "\n<script src=\"th-hook.js?v=" . $HV . "\"></script>\n";
 
 if (!is_file($FILE)) {
     http_response_code(404);
@@ -21,7 +23,7 @@ if (!is_file($FILE)) {
 $mt  = @filemtime($FILE);
 $sz  = @filesize($FILE);
 /* 끼워 넣는 한 줄까지 지문에 넣습니다 — 그 줄이 바뀌면 새로 받게 */
-$etag = '"m' . $mt . '-' . $sz . '-' . strlen($HOOK) . '"';
+$etag = '"m' . $mt . '-' . $sz . '-' . $HV . '"';
 
 /* 안 바뀌었으면 304 한 줄만 (25MB 를 매번 받지 않게) */
 $inm = isset($_SERVER['HTTP_IF_NONE_MATCH']) ? trim($_SERVER['HTTP_IF_NONE_MATCH']) : '';

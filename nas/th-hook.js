@@ -115,4 +115,18 @@
     window.__goBrandTasks = function(){ openTasks(null); };
     window.__closeBrandTasks = closeTasks;
   } catch (e) {}
+
+  /* 🔗 <<#할일 로 열면 바로 띄웁니다>> — 브랜드허브에서 미디어마케팅팀을
+     누르면 mediam.php#할일 로 들어오니, 그때 열자마자 우리 할 일이 뜹니다.
+     (#/board 같은 팀허브 자기 꼬리표에는 안 반응합니다 — 그건 팀허브 화면) */
+  function wantTasksHash(){
+    var h = '';
+    try { h = decodeURIComponent(location.hash || ''); } catch (e) { h = location.hash || ''; }
+    return /^#(할일|할-일|tasks?|todo)$/i.test(h);
+  }
+  function maybeAuto(){ if (wantTasksHash()) openTasks(null); }
+  if (document.readyState === 'complete' || document.readyState === 'interactive')
+    setTimeout(maybeAuto, 300);
+  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(maybeAuto, 300); });
+  window.addEventListener('hashchange', maybeAuto);
 })();

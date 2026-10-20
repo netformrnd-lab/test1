@@ -5689,7 +5689,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261020-71';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261020-72';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -28658,6 +28658,7 @@ function viewMeetings(list){
         + (m.date ? '<span class="chip">' + esc(fmtYMD(m.date)) + '</span>' : '')
         + (m.brand ? '<span class="chip on">' + esc(m.brand) + '</span>' : '')
         + (m.attendees ? '<span class="fmeta">👥 ' + esc(m.attendees) + '</span>' : '')
+        + (m.by ? '<span class="fmeta" title="이 회의록을 적은 사람">✍️ ' + esc(m.by) + '</span>' : '')
         + (ai ? '<span class="chip test">🤖 정리됨</span>' : '')
         + '<span class="mt-act">'
           + '<button class="btn sm" onclick="' + stop
@@ -33599,6 +33600,14 @@ function submitItem(){
     }
   }else{
     if(itemType === 'tasks' && payload.pct) payload.pctAt = todayStr();
+    /* 📝 회의록은 누가 적었는지 남겨 둡니다 (작성자). 계정을 쓰면 그 이름,
+       안 쓰면 「이름 지정」 으로 적어 둔 이름입니다. 나중에 고쳐도 처음
+       적은 사람은 그대로 둡니다 (payload 에 by 를 넣지 않으므로 수정 때
+       덮이지 않습니다). */
+    if(itemType === 'meetings'){
+      const nm = (typeof myName === 'function') ? myName() : '';
+      if(nm){ payload.by = nm; payload.byAt = new Date().toISOString(); }
+    }
     const item = Object.assign({ id: uid('i'), updatedAt: new Date().toISOString() }, payload);
     // 여정은 시간 순으로 읽어야 하므로 아래에 쌓고, 나머지는 최신이 위로 옵니다
     if(itemType === 'history') (dest || arr).push(item);

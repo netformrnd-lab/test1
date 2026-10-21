@@ -4451,6 +4451,9 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-rename{border:0;background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px;
   padding:2px 5px;border-radius:6px;line-height:1}
 .wiki-rename:hover{background:var(--bg-secondary);color:var(--blue)}
+.wiki-catchip{display:inline-flex;align-items:center;gap:1px}
+.wiki-catchip .wiki-catedit{padding:4px 7px;color:var(--text-muted);opacity:.7}
+.wiki-catchip .wiki-catedit:hover{opacity:1;color:var(--blue)}
 /* 편집 모드 */
 .wiki-step.edit{display:flex;gap:10px;align-items:flex-start;padding:10px;margin-bottom:10px;
   border:1px solid var(--border);border-radius:10px;background:var(--bg-secondary)}
@@ -5946,7 +5949,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-96';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-97';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29297,6 +29300,12 @@ function wikiRename(id){ const w = wikiFind(id); if(!w) return;
   const v = prompt('노하우 이름을 바꿉니다', w.title || '');
   if(v == null) return; const t = v.trim(); if(!t || t === (w.title || '')) return;
   w.title = t; w.updatedAt = new Date().toISOString(); markDirty(); render(); toast('이름을 바꿨어요'); }
+function wikiRenameCat(oldName){ const cur = oldName || '기타';
+  const v = prompt('분류 이름을 바꿉니다\n(이 분류의 노하우가 모두 함께 바뀝니다)', cur);
+  if(v == null) return; const t = v.trim(); if(!t || t === cur) return;
+  let n = 0; (data.wiki || []).forEach(w => { if((w.cat || '기타') === cur){ w.cat = t; w.updatedAt = new Date().toISOString(); n++; } });
+  if(!n){ toast('바꿀 노하우가 없어요'); return; }
+  if(wikiCat === cur) wikiCat = t; markDirty(); render(); toast('분류 이름을 바꿨어요 (' + n + '개)'); }
 function wikiDelStep(id, i){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(!s[i]) return;
   if(((s[i].imgs && s[i].imgs.length) || String(s[i].text||'').trim()) && !confirm('이 단계를 지울까요?')) return;
   s.splice(i, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); }
@@ -29326,9 +29335,13 @@ function renderWiki(){
   });
   const cats = [...new Set(all.map(w => w.cat || '기타'))];
   const chips = '<button class="btn sm' + (wikiCat ? '' : ' primary') + '" onclick="setWikiCat(\'\')">전체 ' + all.length + '</button>'
-    + cats.map(c => '<button class="btn sm' + (wikiCat === c ? ' primary' : '') + '" '
-        + 'onclick="setWikiCat(\'' + jsq(c) + '\')">' + esc(c) + ' '
-        + all.filter(w => (w.cat || '기타') === c).length + '</button>').join('');
+    + cats.map(c => '<span class="wiki-catchip">'
+        + '<button class="btn sm' + (wikiCat === c ? ' primary' : '') + '" '
+          + 'onclick="setWikiCat(\'' + jsq(c) + '\')">' + esc(c) + ' '
+          + all.filter(w => (w.cat || '기타') === c).length + '</button>'
+        + '<button class="btn sm wiki-catedit" title="분류 이름 바꾸기" '
+          + 'onclick="wikiRenameCat(\'' + jsq(c) + '\')">✎</button>'
+      + '</span>').join('');
 
   const bar = '<div class="sec-bar" style="margin-bottom:10px;flex-wrap:wrap">'
     + '<input id="wikiQBox" class="wiki-q" placeholder="🔎 노하우 검색 (명함 · 홈페이지 · 결재 …)" '

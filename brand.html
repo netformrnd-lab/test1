@@ -4434,11 +4434,15 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-step.read:last-child .wst-line{display:none}
 .wiki-step.read .wst-body{flex:1 1 auto;min-width:0;padding:2px 0 22px}
 .wiki-step.read:last-child .wst-body{padding-bottom:4px}
-.wiki-step.read .wiki-step-imgs{display:flex;flex-wrap:wrap;gap:10px;margin:0}
+.wiki-step.read .wiki-step-imgs{display:flex;flex-wrap:wrap;gap:12px;margin:0;align-items:flex-start}
+.wiki-step.read .wiki-shot{position:relative;display:inline-flex}
 .wiki-step.read .wiki-step-img{max-width:100%;width:auto;max-height:280px;border:1px solid var(--border);
   border-radius:11px;cursor:zoom-in;display:block;object-fit:contain;background:var(--bg-card);
   box-shadow:0 1px 5px rgba(0,0,0,.09);transition:transform .12s ease,box-shadow .12s ease}
-.wiki-step.read .wiki-step-img:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.16)}
+.wiki-step.read .wiki-shot:hover .wiki-step-img{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.16)}
+.wiki-shot-n{position:absolute;top:8px;left:8px;min-width:24px;height:24px;padding:0 7px;border-radius:999px;
+  background:var(--blue);color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4);pointer-events:none;letter-spacing:.3px}
 .wiki-step-cap{font-size:14px;line-height:1.7;color:var(--text-primary);margin:11px 1px 0}
 .wiki-step.read .wst-body>.wiki-step-cap:first-child{margin-top:4px}
 /* 편집 모드 */
@@ -4457,8 +4461,11 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-img{position:relative;display:inline-block}
 .wiki-img img{max-width:300px;max-height:220px;border:1px solid var(--border);border-radius:8px;
   cursor:zoom-in;display:block;object-fit:contain;background:var(--bg-card)}
+.wiki-img .wiki-shot-n{top:5px;left:5px;min-width:22px;height:22px}
 .wiki-img-x{position:absolute;top:4px;right:4px;width:22px;height:22px;border:0;border-radius:999px;
   background:rgba(0,0,0,.6);color:#fff;font-size:12px;cursor:pointer;line-height:1}
+.wiki-img-ord{display:flex;gap:4px;justify-content:center;margin-top:5px}
+.wiki-img-ord .btn{padding:2px 9px;font-size:11px;line-height:1.1}
 .wiki-imgbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 16px 14px 30px}
 .wiki-lb{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.82);
   display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px}
@@ -5933,7 +5940,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-94';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-95';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29277,6 +29284,9 @@ function wikiAddStep(id, armPaste){
 /* 설명 글은 다시 그리지 않고 바로 담습니다 — 글 치는 중에 칸이 사라지지 않게 */
 function wikiStepText(id, i, v){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(s[i]){ s[i].text = v; w.updatedAt = new Date().toISOString(); markDirty(); } }
 function wikiStepDelImg(id, i, k){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(s[i] && s[i].imgs){ s[i].imgs.splice(k, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); } }
+function wikiMoveImg(id, i, k, dir){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w);
+  const imgs = s[i] && s[i].imgs; if(!imgs) return; const j = k + dir; if(j < 0 || j >= imgs.length) return;
+  const t = imgs[k]; imgs[k] = imgs[j]; imgs[j] = t; w.updatedAt = new Date().toISOString(); markDirty(); render(); }
 function wikiDelStep(id, i){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(!s[i]) return;
   if(((s[i].imgs && s[i].imgs.length) || String(s[i].text||'').trim()) && !confirm('이 단계를 지울까요?')) return;
   s.splice(i, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); }
@@ -29331,11 +29341,18 @@ function renderWiki(){
             + '<div class="wiki-step-n">' + (i + 1) + '</div>'
             + '<div class="wiki-step-b">'
               + '<div class="wiki-step-imgs edit">'
-                + imgs.map((src, k) => '<div class="wiki-img"><img src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">'
-                    + '<button class="wiki-img-x" title="사진 지우기" onclick="wikiStepDelImg(\'' + wid + '\',' + i + ',' + k + ')">✕</button></div>').join('')
+                + imgs.map((src, k) => '<div class="wiki-img">'
+                    + (imgs.length > 1 ? '<span class="wiki-shot-n">' + (i + 1) + '-' + (k + 1) + '</span>' : '')
+                    + '<img src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">'
+                    + '<button class="wiki-img-x" title="사진 지우기" onclick="wikiStepDelImg(\'' + wid + '\',' + i + ',' + k + ')">✕</button>'
+                    + (imgs.length > 1 ? '<div class="wiki-img-ord">'
+                        + '<button class="btn sm" ' + (k === 0 ? 'disabled' : '') + ' title="앞으로" onclick="wikiMoveImg(\'' + wid + '\',' + i + ',' + k + ',-1)">◀</button>'
+                        + '<button class="btn sm" ' + (k === imgs.length - 1 ? 'disabled' : '') + ' title="뒤로" onclick="wikiMoveImg(\'' + wid + '\',' + i + ',' + k + ',1)">▶</button>'
+                      + '</div>' : '')
+                  + '</div>').join('')
                 + '<div class="wiki-step-add"><button class="btn sm" onclick="wikiArmPaste(\'' + wid + '\',' + i + ')">📷 캡처 붙여넣기</button>'
                   + '<button class="btn sm" onclick="wikiStepPick(\'' + wid + '\',' + i + ')">📁 파일</button>'
-                  + '<span class="fmeta">한 단계에 여러 장 넣을 수 있어요</span></div>'
+                  + '<span class="fmeta">여러 장이면 ◀▶ 로 순서를 바꿀 수 있어요</span></div>'
               + '</div>'
               + '<textarea class="wiki-step-t" id="wst_' + esc(w.id) + '_' + i + '" placeholder="이 단계 설명 (사진 아래에 보입니다)" '
                 + 'oninput="wikiStepText(\'' + wid + '\',' + i + ',this.value)">' + esc(st.text || '') + '</textarea>'
@@ -29350,7 +29367,9 @@ function renderWiki(){
             + '<div class="wst-rail"><div class="wst-num">' + (i + 1) + '</div><div class="wst-line"></div></div>'
             + '<div class="wst-body">'
               + (imgs.length ? '<div class="wiki-step-imgs">'
-                  + imgs.map(src => '<img class="wiki-step-img" src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">').join('') + '</div>' : '')
+                  + imgs.map((src, k) => '<div class="wiki-shot">'
+                      + (imgs.length > 1 ? '<span class="wiki-shot-n">' + (i + 1) + '-' + (k + 1) + '</span>' : '')
+                      + '<img class="wiki-step-img" src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기"></div>').join('') + '</div>' : '')
               + (String(st.text || '').trim()
                   ? '<div class="wiki-step-cap">' + esc(st.text).replace(/\n/g, '<br>') + '</div>' : '')
             + '</div>'

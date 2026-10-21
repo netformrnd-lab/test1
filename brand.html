@@ -4404,6 +4404,23 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
   font-size:12px;font-weight:700;color:var(--mm-blue)}
 @media(max-width:560px){ .mm-tile-n{font-size:22px} .mm-2col{grid-template-columns:1fr} }
 
+/* 📖 팀 노하우 */
+.wiki-q{flex:1 1 280px;min-width:0;padding:9px 12px;border:1px solid var(--border);
+  border-radius:9px;background:var(--bg-input);font-family:inherit;font-size:13.5px;color:var(--text-primary)}
+.wiki-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+  margin-bottom:9px;overflow:hidden}
+.wiki-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;cursor:pointer;
+  list-style:none}
+.wiki-head::-webkit-details-marker{display:none}
+.wiki-ar{color:var(--text-muted);font-size:12px;transition:transform .15s;flex:0 0 auto}
+.wiki-card[open] .wiki-ar{transform:rotate(90deg)}
+.wiki-t{font-weight:700;font-size:14px;color:var(--text-primary)}
+.wiki-act{margin-left:auto;display:flex;gap:6px}
+.wiki-peek{flex:1 1 100%;font-size:12px;color:var(--text-muted);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wiki-card[open] .wiki-peek{display:none}
+.wiki-body{padding:2px 16px 14px 30px;font-size:13.5px;line-height:1.7;color:var(--text-secondary)}
+
 /* 고칠 수 있는 표 */
 table.itable.editable td{max-width:260px}
 table.itable th.ownc{background:var(--blue-soft);color:var(--text-primary)}
@@ -5597,6 +5614,11 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
 
     <div class="side-title" style="margin-top:18px">기록 · 설정</div>
     <div class="brand-list">
+      <button class="brand-item home-item" id="wikiBtn" onclick="goView('wiki')">
+        <span class="bar" style="background:var(--cyan)"></span>
+        <span class="em">📖</span><span>팀 노하우</span>
+        <span class="cnt" id="wikiCnt"></span>
+      </button>
       <button class="brand-item home-item" id="acctBtn" onclick="goView('accounts')">
         <span class="bar" style="background:var(--purple)"></span>
         <span class="em">🔐</span><span>내부계정</span>
@@ -5868,7 +5890,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-88';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-89';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6176,6 +6198,25 @@ const TYPES = {
       { key:'body',      label:'회의 내용', type:'textarea', rows:16,
         ph:'들은 대로 편하게 적으세요. 문장이 안 다듬어져도 괜찮습니다.\n'
            + 'AI가 요약·결정사항·할 일로 정리해 줍니다.' }
+    ]
+  },
+  /* 📖 팀 노하우 — 「이거 어떻게 하더라」 를 적어두고 같이 찾아봅니다 */
+  wiki: {
+    label:'노하우', icon:'📖', tab:'팀 노하우',
+    hint:'명함 제작·홈페이지 수정·전자결재처럼 자주 묻는 일을 적어둡니다',
+    empty:'아직 노하우가 없습니다. 자주 묻는 일부터 적어보세요.',
+    fields:[
+      { key:'title', label:'제목 (무엇을 하는 법)', type:'text', required:true,
+        ph:'예: 명함 제작 신청하기 · 홈페이지 수정하기 · 전자결재 올리기' },
+      { key:'cat',   label:'분류', type:'combo', options: wikiCats,
+        ph:'예: 전자결재 · 총무·행정 · IT·홈페이지',
+        hint:'비슷한 것끼리 묶어서 찾기 쉽게 합니다' },
+      { key:'body',  label:'하는 방법 (단계별)', type:'textarea', rows:14,
+        ph:'1) 먼저 …\n2) 그다음 …\n3) 마지막으로 …\n\n화면 캡처를 못 넣으니, 어디를 누르는지 글로 또렷이 적어두면 좋아요.' },
+      { key:'links', label:'관련 링크 (선택)', type:'textarea', rows:3,
+        ph:'신청 페이지·양식 링크를 줄마다 적어두면 바로 눌러서 갑니다' },
+      { key:'by',    label:'✍️ 작성자', type:'text', ph:'누가 적었나요',
+        def: () => (typeof myName === 'function' ? myName() : '') }
     ]
   },
   /* ═══ 🎬 미디어마케팅 (미디어팀 TeamHub 에서 옮겨 온 메뉴) ═══════════
@@ -7214,7 +7255,7 @@ function render(){
   [['obBtn','onboard'],
    ['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],
    ['mediaBtn','media'],
-   ['costBtn','costs'],['blogBtn','blog'],['acctBtn','accounts'],
+   ['costBtn','costs'],['blogBtn','blog'],['wikiBtn','wiki'],['acctBtn','accounts'],
    ['trashBtn','trash']].forEach(([id, v]) => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('on', view === v && !searchQuery);
@@ -7226,6 +7267,8 @@ function render(){
     + (data.shoots || []).length + (data.requests || []).length) || '';
   const ac = document.getElementById('acctCnt');
   if(ac) ac.textContent = (data.accounts || []).length || '';
+  const wkc = document.getElementById('wikiCnt');
+  if(wkc) wkc.textContent = (data.wiki || []).length || '';
   const cc = document.getElementById('calCnt');
   if(cc) cc.textContent = (data.events || []).length || '';
   const kc = document.getElementById('taskCnt');
@@ -7250,6 +7293,7 @@ function render(){
   else if(view === 'nas') renderNas();
   else if(view === 'onboard') renderOnboard();
   else if(view === 'meetings') renderMeetings();
+  else if(view === 'wiki') renderWiki();
   else if(view === 'media') renderMedia();
   else if(view === 'calendar') renderCalendar();
   else if(view === 'tasks') renderTasks();
@@ -7771,6 +7815,7 @@ function goView(v){
      들어가서 못 쓰게 한다」 의 까닭입니다. 들어올 때는 늘 빈 칸입니다.
      (줄 세우기 · 묶기는 취향이라 그대로 둡니다) */
   if(v !== 'accounts'){ accQ = ''; accCat = ''; }
+  if(v !== 'wiki'){ wikiQ = ''; wikiCat = ''; }
   view = v;
   currentBrandId = null;
   render();
@@ -29090,6 +29135,86 @@ function viewMeetings(list){
   return keyBar + cards;
 }
 
+/* ═══════════════ 📖 팀 노하우 ═════════════════════════════════════
+   명함 제작·홈페이지 수정·전자결재처럼 「이거 어떻게 하더라」 를 한곳에
+   적어두고 같이 찾아봅니다. 신입이 물어보기 전에 스스로 찾게 됩니다.
+   팀 전체가 같이 보는 목록(TOP_LISTS)이라 저장·합치기·휴지통이 돕니다.
+   ================================================================= */
+function wikiCats(){
+  const seed = ['업무 절차', '전자결재', '총무·행정', 'IT·홈페이지', '디자인·제작', '콘텐츠·영상', '계정·툴', '기타'];
+  const used = (data.wiki || []).map(w => w.cat).filter(Boolean);
+  return [...new Set(used.concat(seed))];
+}
+/* 링크 줄은 눌러서 바로 가게 (http/https 만) */
+function wikiLinks(s){
+  return String(s || '').split('\n').map(ln => {
+    const t = ln.trim();
+    return /^https?:\/\//i.test(t)
+      ? '<a href="' + esc(t) + '" target="_blank" rel="noopener noreferrer">' + esc(t) + '</a>'
+      : esc(ln);
+  }).join('<br>');
+}
+let wikiQ = '', wikiCat = '';
+function setWikiQ(v){ wikiQ = v; render(); }
+function setWikiCat(v){ wikiCat = v; render(); }
+
+function renderWiki(){
+  const all = (data.wiki || []).slice()
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  const q = wikiQ.trim().toLowerCase();
+  const list = all.filter(w => {
+    if(wikiCat && (w.cat || '기타') !== wikiCat) return false;
+    if(!q) return true;
+    return ((w.title || '') + ' ' + (w.body || '') + ' ' + (w.cat || '')).toLowerCase().indexOf(q) >= 0;
+  });
+  const cats = [...new Set(all.map(w => w.cat || '기타'))];
+  const chips = '<button class="btn sm' + (wikiCat ? '' : ' primary') + '" onclick="setWikiCat(\'\')">전체 ' + all.length + '</button>'
+    + cats.map(c => '<button class="btn sm' + (wikiCat === c ? ' primary' : '') + '" '
+        + 'onclick="setWikiCat(\'' + jsq(c) + '\')">' + esc(c) + ' '
+        + all.filter(w => (w.cat || '기타') === c).length + '</button>').join('');
+
+  const bar = '<div class="sec-bar" style="margin-bottom:10px;flex-wrap:wrap">'
+    + '<input id="wikiQBox" class="wiki-q" placeholder="🔎 노하우 검색 (명함 · 홈페이지 · 결재 …)" '
+      + 'value="' + esc(wikiQ) + '" oninput="setWikiQ(this.value)">'
+    + '<button class="btn primary" onclick="openItemModal(\'wiki\')">＋ 노하우 추가</button>'
+    + '</div>'
+    + (all.length ? '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap">'
+        + '<span class="fmeta">분류</span>' + chips + '</div>' : '');
+
+  const stop = 'event.stopPropagation();event.preventDefault();';
+  const cards = list.length
+    ? list.map(w => {
+        const peek = String(w.body || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+        return '<details class="wiki-card"><summary class="wiki-head">'
+          + '<span class="wiki-ar">▸</span>'
+          + '<span class="wiki-t">' + esc(w.title || '(제목 없음)') + '</span>'
+          + (w.cat ? '<span class="chip on">' + esc(w.cat) + '</span>' : '')
+          + (w.by ? '<span class="fmeta">✍️ ' + esc(w.by) + '</span>' : '')
+          + '<span class="wiki-act">'
+            + '<button class="btn sm" onclick="' + stop + 'openItemModal(\'wiki\',\'' + jsq(w.id) + '\')">✎ 수정</button>'
+            + '<button class="btn sm danger" onclick="' + stop + 'deleteItem(\'wiki\',\'' + jsq(w.id) + '\')">삭제</button>'
+          + '</span>'
+          + (peek ? '<span class="wiki-peek">' + esc(peek) + '…</span>' : '')
+          + '</summary>'
+          + '<div class="wiki-body">' + esc(w.body || '(비어 있음)').replace(/\n/g, '<br>') + '</div>'
+          + (String(w.links || '').trim()
+              ? '<div class="fmeta" style="margin-top:9px;line-height:1.7">🔗 ' + wikiLinks(w.links) + '</div>' : '')
+        + '</details>';
+      }).join('')
+    : '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
+      + (all.length
+          ? '찾는 노하우가 없습니다.'
+          : '아직 노하우가 없습니다. <b>＋ 노하우 추가</b> 로 「명함 제작」·「홈페이지 수정」·「전자결재」 같은 걸 적어보세요.')
+      + '</div>';
+
+  document.getElementById('main').innerHTML =
+    '<div class="panel"><div class="tabbody">'
+    + '<h2 class="page-h">📖 팀 노하우</h2>'
+    + '<div class="page-sub">명함 제작·홈페이지 수정·전자결재처럼 「이거 어떻게 하더라」를 적어두고 같이 찾아봅니다</div>'
+    + bar + cards
+    + '</div></div>';
+}
+
 /* 회의록 화면 (브랜드와 상관없이 팀 전체) */
 let meetFilter = '';
 function setMeetFilter(v){ meetFilter = v; render(); }
@@ -34850,6 +34975,7 @@ const TOP_LISTS   = ['onboard', 'notices', 'meetings', 'events', 'trash', 'growt
                      'teams', 'routines',  // 👥 팀 · 팀원 · 🔄 루틴 (할 일 화면)
                      'accounts',           // 🔐 내부계정
                      'contents', 'mchannels', 'shoots', 'requests',  // 🎬 미디어마케팅
+                     'wiki',               // 📖 팀 노하우 (팀 전체)
                      'log'];  // 브랜드 밖 (log = 🕘 무엇이 바뀌었나)
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)

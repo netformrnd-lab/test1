@@ -4434,17 +4434,23 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-step.read:last-child .wst-line{display:none}
 .wiki-step.read .wst-body{flex:1 1 auto;min-width:0;padding:2px 0 22px}
 .wiki-step.read:last-child .wst-body{padding-bottom:4px}
-.wiki-step.read .wiki-step-imgs{display:flex;flex-wrap:wrap;gap:12px;margin:0;align-items:flex-start}
-.wiki-step.read .wiki-shot{position:relative;display:inline-flex}
-.wiki-step.read .wiki-step-img{max-width:100%;width:auto;max-height:280px;border:1px solid var(--border);
-  border-radius:11px;cursor:zoom-in;display:block;object-fit:contain;background:var(--bg-card);
-  box-shadow:0 1px 5px rgba(0,0,0,.09);transition:transform .12s ease,box-shadow .12s ease}
-.wiki-step.read .wiki-shot:hover .wiki-step-img{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.16)}
-.wiki-shot-n{position:absolute;top:8px;left:8px;min-width:24px;height:24px;padding:0 7px;border-radius:999px;
-  background:var(--blue);color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;
+/* 설명이 먼저 잘 보이게, 사진은 작은 썸네일(누르면 크게) */
+.wiki-step-cap{font-size:14.5px;line-height:1.72;color:var(--text-primary);margin:4px 1px 0;font-weight:500}
+.wiki-step.read .wiki-step-imgs{display:flex;flex-wrap:wrap;gap:9px;margin:10px 0 2px;align-items:flex-start}
+.wiki-step.read .wiki-shot{position:relative;display:inline-flex;cursor:zoom-in}
+.wiki-step.read .wiki-step-img{max-width:200px;width:auto;max-height:140px;border:1px solid var(--border);
+  border-radius:9px;display:block;object-fit:contain;background:var(--bg-card);
+  box-shadow:0 1px 4px rgba(0,0,0,.09);transition:transform .12s ease,box-shadow .12s ease}
+.wiki-step.read .wiki-shot:hover .wiki-step-img{transform:translateY(-2px);box-shadow:0 5px 15px rgba(0,0,0,.18)}
+.wiki-step.read .wiki-shot::after{content:'🔍';position:absolute;right:6px;bottom:6px;font-size:11px;
+  background:rgba(0,0,0,.55);color:#fff;border-radius:6px;padding:1px 5px;opacity:0;transition:opacity .12s}
+.wiki-step.read .wiki-shot:hover::after{opacity:1}
+.wiki-shot-n{position:absolute;top:6px;left:6px;min-width:22px;height:20px;padding:0 6px;border-radius:999px;
+  background:var(--blue);color:#fff;font-size:11.5px;font-weight:800;display:flex;align-items:center;
   justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4);pointer-events:none;letter-spacing:.3px}
-.wiki-step-cap{font-size:14px;line-height:1.7;color:var(--text-primary);margin:11px 1px 0}
-.wiki-step.read .wst-body>.wiki-step-cap:first-child{margin-top:4px}
+.wiki-rename{border:0;background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px;
+  padding:2px 5px;border-radius:6px;line-height:1}
+.wiki-rename:hover{background:var(--bg-secondary);color:var(--blue)}
 /* 편집 모드 */
 .wiki-step.edit{display:flex;gap:10px;align-items:flex-start;padding:10px;margin-bottom:10px;
   border:1px solid var(--border);border-radius:10px;background:var(--bg-secondary)}
@@ -5940,7 +5946,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-95';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-96';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29287,6 +29293,10 @@ function wikiStepDelImg(id, i, k){ const w = wikiFind(id); if(!w) return; const 
 function wikiMoveImg(id, i, k, dir){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w);
   const imgs = s[i] && s[i].imgs; if(!imgs) return; const j = k + dir; if(j < 0 || j >= imgs.length) return;
   const t = imgs[k]; imgs[k] = imgs[j]; imgs[j] = t; w.updatedAt = new Date().toISOString(); markDirty(); render(); }
+function wikiRename(id){ const w = wikiFind(id); if(!w) return;
+  const v = prompt('노하우 이름을 바꿉니다', w.title || '');
+  if(v == null) return; const t = v.trim(); if(!t || t === (w.title || '')) return;
+  w.title = t; w.updatedAt = new Date().toISOString(); markDirty(); render(); toast('이름을 바꿨어요'); }
 function wikiDelStep(id, i){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(!s[i]) return;
   if(((s[i].imgs && s[i].imgs.length) || String(s[i].text||'').trim()) && !confirm('이 단계를 지울까요?')) return;
   s.splice(i, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); }
@@ -29366,12 +29376,12 @@ function renderWiki(){
           : '<div class="wiki-step read">'
             + '<div class="wst-rail"><div class="wst-num">' + (i + 1) + '</div><div class="wst-line"></div></div>'
             + '<div class="wst-body">'
+              + (String(st.text || '').trim()
+                  ? '<div class="wiki-step-cap">' + esc(st.text).replace(/\n/g, '<br>') + '</div>' : '')
               + (imgs.length ? '<div class="wiki-step-imgs">'
                   + imgs.map((src, k) => '<div class="wiki-shot">'
                       + (imgs.length > 1 ? '<span class="wiki-shot-n">' + (i + 1) + '-' + (k + 1) + '</span>' : '')
                       + '<img class="wiki-step-img" src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기"></div>').join('') + '</div>' : '')
-              + (String(st.text || '').trim()
-                  ? '<div class="wiki-step-cap">' + esc(st.text).replace(/\n/g, '<br>') + '</div>' : '')
             + '</div>'
           + '</div>'; }).join('');
         const imgCount = steps.reduce((a, s) => a + ((s.imgs && s.imgs.length) || 0), 0);
@@ -29379,6 +29389,7 @@ function renderWiki(){
           + '<summary class="wiki-head">'
           + '<span class="wiki-ar">▸</span>'
           + '<span class="wiki-t">' + esc(w.title || '(제목 없음)') + '</span>'
+          + '<button class="wiki-rename" title="이름 바꾸기" onclick="' + stop + 'wikiRename(\'' + wid + '\')">✎</button>'
           + (w.cat ? '<span class="chip on">' + esc(w.cat) + '</span>' : '')
           + (imgCount ? '<span class="chip test">📷 ' + imgCount + '</span>' : '')
           + (w.by ? '<span class="fmeta">✍️ ' + esc(w.by) + '</span>' : '')

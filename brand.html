@@ -4350,7 +4350,41 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
   background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;
   padding:5px 9px;cursor:pointer}
 .mm-item:hover{border-color:var(--mm-blue)}
-@media(max-width:560px){ .mm-tile-n{font-size:22px} }
+/* 미마 홈 추가 — 경고 · 파이프라인 · 업로드/촬영 · 채널 현황 */
+.mm-alert{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;
+  background:color-mix(in srgb,var(--red) 10%,var(--bg-card));
+  border:1px solid color-mix(in srgb,var(--red) 35%,var(--border));
+  color:var(--text-primary);border-radius:10px;padding:10px 14px;font-size:13px}
+.mm-pipe-wrap{margin:16px 0 4px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:12px;padding:12px 16px}
+.mm-pipe-ttl{font-size:12.5px;font-weight:700;color:var(--text-muted);margin-bottom:8px}
+.mm-pipe-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.mm-pipe{flex:1 1 90px;min-width:78px;text-align:center;cursor:pointer;
+  border:1px solid var(--border);border-top:3px solid var(--sc);border-radius:10px;padding:9px 6px;
+  background:var(--bg-secondary);transition:transform .08s}
+.mm-pipe:hover{transform:translateY(-1px)}
+.mm-pipe-n{font-size:20px;font-weight:800;color:var(--sc)}
+.mm-pipe-l{font-size:11.5px;font-weight:650;color:var(--text-secondary);margin-top:1px}
+.mm-pipe-arr{color:var(--text-muted);font-size:16px;flex:0 0 auto}
+.mm-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.mm-box{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px}
+.mm-box-h{font-size:13px;font-weight:750;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.mm-box-h .fmeta{margin-left:auto}
+.mm-row{display:flex;align-items:center;gap:7px;padding:6px 0;border-top:1px solid var(--border);
+  cursor:pointer;font-size:12.5px}
+.mm-row:first-of-type{border-top:0}
+.mm-row:hover .mm-row-t{color:var(--mm-blue)}
+.mm-dot{width:8px;height:8px;border-radius:999px;background:var(--sc);flex:0 0 auto}
+.mm-row-t{flex:1 1 auto;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mm-row-d{flex:0 0 auto;font-size:11.5px;font-weight:700;color:var(--text-muted)}
+.mm-empty-s{color:var(--text-muted);font-size:12.5px;padding:10px 0;text-align:center}
+.mm-chcard{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+  padding:11px 14px;cursor:pointer;transition:border-color .12s}
+.mm-chcard:hover{border-color:var(--mm-blue)}
+.mm-chcard-h{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13.5px}
+.mm-chcard-st{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--text-muted)}
+.mm-chcard-st b{font-size:15px;color:var(--text-primary);display:block;font-weight:800}
+@media(max-width:560px){ .mm-tile-n{font-size:22px} .mm-2col{grid-template-columns:1fr} }
 
 /* 고칠 수 있는 표 */
 table.itable.editable td{max-width:260px}
@@ -5806,7 +5840,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-76';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-77';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29589,16 +29623,81 @@ function mediaHomeView(){
     + '</div>';
   }
 
+  /* 🚨 확인할 것 — 3일 안에 공개인데 아직 배포 전인 콘텐츠 */
+  const risk = contents.filter(c => mmUpcoming(c.pubDate, 3)
+    && ['배포', '완료'].indexOf(c.stage || CONTENT_STAGES[0]) < 0);
+  const alertHtml = risk.length
+    ? '<div class="mm-alert">⚠️ <b>곧 공개(3일 안)인데 아직 배포 전</b>인 콘텐츠 ' + risk.length + '건 — '
+      + '일정을 확인하세요 '
+      + '<button class="btn sm" onclick="setMediaTab(\'cal\')">📆 캘린더</button>'
+      + '<button class="btn sm" onclick="setMediaTab(\'contents\')">🎬 칸반</button></div>'
+    : '';
+
+  /* 🎬 제작 Pipeline — 단계별 건수 (TeamHub 제작 Pipeline 처럼) */
+  const pipe = CONTENT_STAGES.map(st => {
+    const c = contents.filter(x => (x.stage || CONTENT_STAGES[0]) === st).length;
+    return '<div class="mm-pipe" style="--sc:' + STAGE_HUE[st] + '" '
+      + 'onclick="setMediaTab(\'contents\')" title="콘텐츠 제작에서 보기">'
+      + '<div class="mm-pipe-n">' + c + '</div><div class="mm-pipe-l">' + esc(st) + '</div></div>';
+  }).join('<span class="mm-pipe-arr">›</span>');
+
+  /* 🗓 이번 주 업로드 예정 · 🎥 촬영 일정(7일) */
+  const cmp = (f) => (a, b) => String(a[f] || '').localeCompare(String(b[f] || ''));
+  const upC = contents.filter(c => mmUpcoming(c.pubDate, 7)).sort(cmp('pubDate'));
+  const upS = shoots.filter(s => mmUpcoming(s.date, 7)).sort(cmp('date'));
+  const upCHtml = upC.length
+    ? upC.map(c => '<div class="mm-row" onclick="setMediaTab(\'cal\')">'
+        + '<span class="mm-dot" style="--sc:' + STAGE_HUE[c.stage || CONTENT_STAGES[0]] + '"></span>'
+        + '<span class="mm-row-t">' + esc(c.title || '(제목)') + '</span>'
+        + (c.channel ? '<span class="fmeta">📺 ' + esc(c.channel) + '</span>' : '')
+        + '<span class="mm-row-d">' + esc(fmtYMD(c.pubDate)) + '</span></div>').join('')
+    : '<div class="mm-empty-s">이번 주 공개 예정이 없습니다</div>';
+  const upSHtml = upS.length
+    ? upS.map(s => '<div class="mm-row" onclick="setMediaTab(\'shoots\')">'
+        + '<span class="mm-dot" style="--sc:var(--purple)"></span>'
+        + '<span class="mm-row-t">' + esc(s.title || '(제목)') + '</span>'
+        + (s.place ? '<span class="fmeta">📍 ' + esc(s.place) + '</span>' : '')
+        + '<span class="mm-row-d">' + esc(fmtYMD(s.date)) + '</span></div>').join('')
+    : '<div class="mm-empty-s">7일 안에 잡힌 촬영이 없습니다</div>';
+
+  /* 📺 채널 현황 — 채널별 이번 주 공개 · 제작 중 · 예약 */
+  const chans = data.mchannels || [];
+  const chanHtml = chans.length
+    ? chans.map(ch => {
+        const cc = contents.filter(x => (x.channel || '') === ch.name);
+        const making = cc.filter(x => ['기획', '촬영', '편집'].indexOf(x.stage || CONTENT_STAGES[0]) >= 0).length;
+        const week = cc.filter(x => mmUpcoming(x.pubDate, 7)).length;
+        const booked = cc.filter(x => x.pubDate && x.pubDate > todayStr()).length;
+        return '<div class="mm-chcard" onclick="setMediaTab(\'mchannels\')" title="채널 운영에서 보기">'
+          + '<div class="mm-chcard-h"><b>' + esc(ch.name || '채널') + '</b>'
+            + (ch.platform ? '<span class="fmeta">' + esc(ch.platform) + '</span>' : '') + '</div>'
+          + '<div class="mm-chcard-st">'
+            + '<span>이번 주 공개 <b>' + week + '</b></span>'
+            + '<span>제작 중 <b>' + making + '</b></span>'
+            + '<span>예약 <b>' + booked + '</b></span></div>'
+        + '</div>';
+      }).join('')
+    : '<div class="mm-empty-s">등록한 채널이 없습니다 — <b>📺 채널 운영</b> 에서 넣으면 여기 현황이 보입니다</div>';
+
   const empty = (!contents.length && !shoots.length)
     ? '<div class="ainote" style="margin-top:14px">아직 콘텐츠·촬영이 없습니다. '
       + '<b>🎬 콘텐츠 제작</b> · <b>🎥 촬영·장비</b> 에서 넣으면 여기에 팀·사람별로 모여서 보입니다.</div>'
     : '';
 
-  return '<div class="mm-tiles">' + tiles + '</div>'
+  return alertHtml
+    + '<div class="mm-tiles">' + tiles + '</div>'
+    + '<div class="mm-pipe-wrap"><div class="mm-pipe-ttl">🎬 제작 Pipeline</div>'
+      + '<div class="mm-pipe-row">' + pipe + '</div></div>'
     + '<h3 class="mm-sec-t">👥 팀별 — 무슨 일을 하고 있나</h3>'
     + '<div class="mm-team-grid">' + teamCards + '</div>'
     + '<h3 class="mm-sec-t">🙋 개인별 — 누가 무엇을 맡고 있나</h3>'
     + '<div class="mm-person-grid">' + personCards + orphan + '</div>'
+    + '<div class="mm-2col">'
+      + '<div class="mm-box"><div class="mm-box-h">🗓 이번 주 업로드 예정 <span class="fmeta">' + upC.length + '건</span></div>' + upCHtml + '</div>'
+      + '<div class="mm-box"><div class="mm-box-h">🎥 촬영 일정 (7일) <span class="fmeta">' + upS.length + '건</span></div>' + upSHtml + '</div>'
+    + '</div>'
+    + '<h3 class="mm-sec-t">📺 채널 현황</h3>'
+    + '<div class="mm-team-grid">' + chanHtml + '</div>'
     + empty;
 }
 

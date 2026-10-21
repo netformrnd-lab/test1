@@ -1646,6 +1646,8 @@ function openWrite() {
   else if (m === 'metalroof') { work = '옥상방수'; sub = '금속기와' }
   else if (m === 'shingle') { work = '옥상방수'; sub = '싱글' }
   else if (m === 'epoxy') work = '지하주차장'
+  else if (m === 'block') work = '보도블록 포장'
+  else if (m === 'ascon') work = '아스콘 포장'
   const url = 'inspect/?apt=' + encodeURIComponent(currentApt.id) + '&name=' + encodeURIComponent(currentApt.name || '') + '&work=' + encodeURIComponent(work) + '&sub=' + encodeURIComponent(sub) + (DEMO_SESS ? '&sess=' + encodeURIComponent(DEMO_SESS) : '')
   location.href = url
 }

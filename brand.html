@@ -4422,10 +4422,13 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-body{padding:2px 16px 8px 30px;font-size:13.5px;line-height:1.7;color:var(--text-secondary)}
 /* 📷 사진 + 설명 단계 */
 .wiki-steps{padding:4px 16px 6px 30px}
-.wiki-step.read{margin:0 0 16px}
-.wiki-step.read .wiki-step-img{max-width:480px;width:100%;border:1px solid var(--border);
-  border-radius:9px;cursor:zoom-in;display:block}
-.wiki-step-cap{font-size:13.5px;line-height:1.6;color:var(--text-primary);margin:7px 2px 0}
+.wiki-step.read{margin:0 0 20px;padding-bottom:16px;border-bottom:1px dashed var(--border)}
+.wiki-step.read:last-child{border-bottom:0}
+/* 읽기 — 사진을 크게, 여러 장이면 위아래로 쌓고, 설명은 그 아래 */
+.wiki-step.read .wiki-step-imgs{display:flex;flex-direction:column;gap:8px;margin-bottom:2px}
+.wiki-step.read .wiki-step-img{max-width:100%;width:720px;max-height:70vh;border:1px solid var(--border);
+  border-radius:9px;cursor:zoom-in;display:block;object-fit:contain;background:var(--bg-card)}
+.wiki-step-cap{font-size:14px;line-height:1.65;color:var(--text-primary);margin:9px 2px 0}
 .wiki-step-cap b{color:var(--blue);margin-right:4px}
 /* 편집 모드 */
 .wiki-step.edit{display:flex;gap:10px;align-items:flex-start;padding:10px;margin-bottom:10px;
@@ -4433,8 +4436,9 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-step-n{flex:0 0 auto;width:24px;height:24px;border-radius:999px;background:var(--blue);
   color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:2px}
 .wiki-step-b{flex:1 1 auto;min-width:0}
-.wiki-step-add{display:flex;gap:6px;flex-wrap:wrap;padding:14px;border:1px dashed var(--border);
-  border-radius:8px;background:var(--bg-card);margin-bottom:7px}
+.wiki-step-imgs.edit{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;margin-bottom:4px}
+.wiki-step-add{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:12px;border:1px dashed var(--border);
+  border-radius:8px;background:var(--bg-card)}
 .wiki-step-t{width:100%;box-sizing:border-box;min-height:56px;margin-top:7px;padding:8px 10px;
   border:1px solid var(--border);border-radius:8px;background:var(--bg-input);font-family:inherit;
   font-size:13px;color:var(--text-primary);resize:vertical}
@@ -5918,7 +5922,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-92';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-93';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29198,9 +29202,11 @@ function wikiFind(id){ return (data.wiki || []).find(x => x.id === id) || null; 
 /* 예전 판(imgs 한 줄)에서 만든 것은 단계로 자동 변환 */
 function wikiStepsOf(w){
   if(!Array.isArray(w.steps)){
-    w.steps = (Array.isArray(w.imgs) ? w.imgs : []).map(img => ({ img: img, text: '' }));
+    w.steps = (Array.isArray(w.imgs) ? w.imgs : []).map(img => ({ imgs: img ? [img] : [], text: '' }));
     delete w.imgs;
   }
+  /* 예전 단계(사진 1장 img)는 여러 장(imgs 배열)으로 바꿉니다 */
+  w.steps.forEach(st => { if(st && !Array.isArray(st.imgs)){ st.imgs = st.img ? [st.img] : []; delete st.img; } });
   return w.steps;
 }
 /* 큰 이미지는 화면 크기로 줄여 담습니다 (동기화가 무거워지지 않게) */
@@ -29226,18 +29232,16 @@ function wikiZoom(src){
   const im = document.createElement('img'); im.src = src; o.appendChild(im);
   document.body.appendChild(o);
 }
-async function wikiSetStepImg(id, i, file){
+async function wikiStepAddImg(id, i, file){
   const w = wikiFind(id); if(!w) return;
   const s = wikiStepsOf(w); if(!s[i]) return;
-  try{ s[i].img = await wikiShrink(file); w.updatedAt = new Date().toISOString(); markDirty(); render(); toast('📷 사진을 넣었습니다'); }
+  try{ s[i].imgs.push(await wikiShrink(file)); w.updatedAt = new Date().toISOString(); markDirty(); render(); toast('📷 사진을 넣었습니다'); }
   catch(e){ toast('⚠️ 이미지를 넣지 못했습니다'); }
 }
-async function wikiSetStepImgs(id, i, fileList){
+/* 고른 사진을 모두 그 단계에 넣습니다 (한 단계에 여러 장) */
+async function wikiStepAddImgs(id, i, fileList){
   const arr = Array.from(fileList || []).filter(f => /^image\//.test(f.type || ''));
-  for(let k = 0; k < arr.length; k++){
-    if(k === 0){ await wikiSetStepImg(id, i, arr[k]); }
-    else { wikiAddStep(id, false); const w = wikiFind(id); await wikiSetStepImg(id, wikiStepsOf(w).length - 1, arr[k]); }
-  }
+  for(let k = 0; k < arr.length; k++) await wikiStepAddImg(id, i, arr[k]);
 }
 function wikiStepPick(id, i){
   let el = document.getElementById('wikiFileIn');
@@ -29245,7 +29249,7 @@ function wikiStepPick(id, i){
     el = document.createElement('input'); el.type = 'file'; el.id = 'wikiFileIn';
     el.accept = 'image/*'; el.multiple = true; el.style.display = 'none';
     el.addEventListener('change', () => { const f = el.files, to = el.dataset.to; el.value = '';
-      if(f && to){ const bits = to.split('|'); wikiSetStepImgs(bits[0], +bits[1], f); } });
+      if(f && to){ const bits = to.split('|'); wikiStepAddImgs(bits[0], +bits[1], f); } });
     document.body.appendChild(el);
   }
   el.dataset.to = id + '|' + i; el.value = ''; el.click();
@@ -29253,7 +29257,7 @@ function wikiStepPick(id, i){
 function wikiArmPaste(id, i){ wikiPasteTo = { id: id, step: i }; toast('📷 이제 Ctrl+V 로 캡처를 붙여넣으세요 (다른 곳을 누르면 취소)'); }
 function wikiAddStep(id, armPaste){
   const w = wikiFind(id); if(!w) return;
-  const s = wikiStepsOf(w); s.push({ img: '', text: '' });
+  const s = wikiStepsOf(w); s.push({ imgs: [], text: '' });
   w.updatedAt = new Date().toISOString(); markDirty();
   if(wikiEdit !== id) wikiEdit = id;
   render();
@@ -29261,9 +29265,9 @@ function wikiAddStep(id, armPaste){
 }
 /* 설명 글은 다시 그리지 않고 바로 담습니다 — 글 치는 중에 칸이 사라지지 않게 */
 function wikiStepText(id, i, v){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(s[i]){ s[i].text = v; w.updatedAt = new Date().toISOString(); markDirty(); } }
-function wikiDelStepImg(id, i){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(s[i]){ s[i].img = ''; w.updatedAt = new Date().toISOString(); markDirty(); render(); } }
+function wikiStepDelImg(id, i, k){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(s[i] && s[i].imgs){ s[i].imgs.splice(k, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); } }
 function wikiDelStep(id, i){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(!s[i]) return;
-  if((s[i].img || String(s[i].text||'').trim()) && !confirm('이 단계를 지울까요?')) return;
+  if(((s[i].imgs && s[i].imgs.length) || String(s[i].text||'').trim()) && !confirm('이 단계를 지울까요?')) return;
   s.splice(i, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); }
 function wikiMoveStep(id, i, dir){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); const j = i + dir;
   if(j < 0 || j >= s.length) return; const t = s[i]; s[i] = s[j]; s[j] = t; w.updatedAt = new Date().toISOString(); markDirty(); render(); }
@@ -29274,7 +29278,7 @@ document.addEventListener('paste', function(e){
   for(let i = 0; i < items.length; i++){
     if(items[i].type && items[i].type.indexOf('image') === 0){
       const f = items[i].getAsFile();
-      if(f){ e.preventDefault(); const to = wikiPasteTo; wikiPasteTo = null; wikiSetStepImg(to.id, to.step, f); }
+      if(f){ e.preventDefault(); const to = wikiPasteTo; wikiPasteTo = null; wikiStepAddImg(to.id, to.step, f); }
       return;
     }
   }
@@ -29310,15 +29314,18 @@ function renderWiki(){
         const steps = wikiStepsOf(w);
         const editing = wikiEdit === w.id;
         const wid = jsq(w.id);
-        const stepsHtml = steps.map((st, i) => editing
+        const stepsHtml = steps.map((st, i) => { const imgs = Array.isArray(st.imgs) ? st.imgs : [];
+          return editing
           ? '<div class="wiki-step edit">'
             + '<div class="wiki-step-n">' + (i + 1) + '</div>'
             + '<div class="wiki-step-b">'
-              + (st.img
-                  ? '<div class="wiki-img"><img src="' + st.img + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">'
-                    + '<button class="wiki-img-x" title="사진 지우기" onclick="wikiDelStepImg(\'' + wid + '\',' + i + ')">✕</button></div>'
-                  : '<div class="wiki-step-add"><button class="btn sm" onclick="wikiArmPaste(\'' + wid + '\',' + i + ')">📷 캡처 붙여넣기</button>'
-                    + '<button class="btn sm" onclick="wikiStepPick(\'' + wid + '\',' + i + ')">📁 파일</button></div>')
+              + '<div class="wiki-step-imgs edit">'
+                + imgs.map((src, k) => '<div class="wiki-img"><img src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">'
+                    + '<button class="wiki-img-x" title="사진 지우기" onclick="wikiStepDelImg(\'' + wid + '\',' + i + ',' + k + ')">✕</button></div>').join('')
+                + '<div class="wiki-step-add"><button class="btn sm" onclick="wikiArmPaste(\'' + wid + '\',' + i + ')">📷 캡처 붙여넣기</button>'
+                  + '<button class="btn sm" onclick="wikiStepPick(\'' + wid + '\',' + i + ')">📁 파일</button>'
+                  + '<span class="fmeta">한 단계에 여러 장 넣을 수 있어요</span></div>'
+              + '</div>'
               + '<textarea class="wiki-step-t" id="wst_' + esc(w.id) + '_' + i + '" placeholder="이 단계 설명 (사진 아래에 보입니다)" '
                 + 'oninput="wikiStepText(\'' + wid + '\',' + i + ',this.value)">' + esc(st.text || '') + '</textarea>'
             + '</div>'
@@ -29329,16 +29336,18 @@ function renderWiki(){
             + '</div>'
           + '</div>'
           : '<div class="wiki-step read">'
-            + (st.img ? '<img class="wiki-step-img" src="' + st.img + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">' : '')
+            + (imgs.length ? '<div class="wiki-step-imgs">'
+                + imgs.map(src => '<img class="wiki-step-img" src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">').join('') + '</div>' : '')
             + (String(st.text || '').trim()
                 ? '<div class="wiki-step-cap"><b>' + (i + 1) + '.</b> ' + esc(st.text).replace(/\n/g, '<br>') + '</div>' : '')
-          + '</div>').join('');
+          + '</div>'; }).join('');
+        const imgCount = steps.reduce((a, s) => a + ((s.imgs && s.imgs.length) || 0), 0);
         return '<details class="wiki-card" id="wikicard_' + esc(w.id) + '"' + (editing ? ' open' : '') + '>'
           + '<summary class="wiki-head">'
           + '<span class="wiki-ar">▸</span>'
           + '<span class="wiki-t">' + esc(w.title || '(제목 없음)') + '</span>'
           + (w.cat ? '<span class="chip on">' + esc(w.cat) + '</span>' : '')
-          + (steps.some(s => s.img) ? '<span class="chip test">📷 ' + steps.filter(s => s.img).length + '</span>' : '')
+          + (imgCount ? '<span class="chip test">📷 ' + imgCount + '</span>' : '')
           + (w.by ? '<span class="fmeta">✍️ ' + esc(w.by) + '</span>' : '')
           + '<span class="wiki-act">'
             + '<button class="btn sm" onclick="' + stop + 'openItemModal(\'wiki\',\'' + wid + '\')">✎ 글 수정</button>'
@@ -29347,7 +29356,9 @@ function renderWiki(){
           + (peek ? '<span class="wiki-peek">' + esc(peek) + '…</span>' : '')
           + '</summary>'
           + (String(w.body || '').trim() ? '<div class="wiki-body">' + esc(w.body).replace(/\n/g, '<br>') + '</div>' : '')
-          + (steps.length ? '<div class="wiki-steps' + (editing ? ' editing' : '') + '">' + stepsHtml + '</div>' : '')
+          + (steps.length ? '<div class="wiki-steps' + (editing ? ' editing' : '') + '">'
+              + (!editing && imgCount ? '<div class="fmeta" style="margin:0 0 10px">🔍 사진을 누르면 크게 보입니다</div>' : '')
+              + stepsHtml + '</div>' : '')
           + (String(w.links || '').trim()
               ? '<div class="fmeta" style="margin:4px 16px 2px 30px;line-height:1.7">🔗 ' + wikiLinks(w.links) + '</div>' : '')
           + '<div class="wiki-imgbar">'

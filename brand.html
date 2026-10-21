@@ -5949,7 +5949,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-100';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-101';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29345,7 +29345,7 @@ async function wikiPdfMake(file){
   const cats = [...new Set((data.wiki || []).map(w => w.cat).filter(Boolean))];
   const cat = cats.find(c => /프로세스|절차/.test(c)) || '업무 프로세스';
   const title = file.name.replace(/\.pdf$/i, '').trim() || '새 프로세스';
-  const item = { id: uid(), title, cat, by: (typeof myName === 'function' ? myName() : ''),
+  const item = { id: uid('i'), title, cat, by: (typeof myName === 'function' ? myName() : ''),
     steps, updatedAt: new Date().toISOString() };
   if(!Array.isArray(data.wiki)) data.wiki = [];
   data.wiki.unshift(item);
@@ -29414,7 +29414,7 @@ async function wikiHtmlMake(file){
   if(!Array.isArray(data.wiki)) data.wiki = [];
   let total = 0;
   for(let i = made.length - 1; i >= 0; i--){ const m = made[i];
-    data.wiki.unshift({ id: uid(), title: m.title, cat, by,
+    data.wiki.unshift({ id: uid('i'), title: m.title, cat, by,
       steps: m.steps.map(s => ({ imgs: s.imgs || [], text: s.text || '' })),
       links: (m.links || []).join('\n'), updatedAt: new Date().toISOString() });
     total += m.steps.length; }

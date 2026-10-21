@@ -5949,7 +5949,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-101';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-102';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29358,14 +29358,63 @@ async function wikiPdfMake(file){
 /* 🌐 HTML 가이드를 올리면 글·사진을 모두 가져와 단계로 — PDF 와 달리 설명까지 들어갑니다.
    템플릿(장=h1 · 단계=figure[h3+사진+figcaption])을 알아보고, 장마다 한 노하우로 만듭니다. */
 function wikiHtmlPick(){ const el = document.getElementById('wikiHtmlInput'); if(el) el.click(); }
-async function wikiHtmlMake(file){
-  if(!file) return;
-  if(!(/\.html?$/i.test(file.name) || /html/.test(file.type))){ toast('HTML 파일을 골라주세요'); return; }
-  let txt; try{ txt = await file.text(); }catch(e){ toast('파일을 읽지 못했어요'); return; }
+/* zip 을 브라우저에서 바로 풀기 — 라이브러리 없이(압축은 deflate-raw) */
+async function wikiInflateRaw(u8){
+  const ds = new DecompressionStream('deflate-raw');
+  const ab = await new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer();
+  return new Uint8Array(ab);
+}
+function wikiBytesToUrl(u8, type){ return new Promise(res => {
+  const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => res(null);
+  fr.readAsDataURL(new Blob([u8], { type })); }); }
+async function wikiUnzipImgs(buf){
+  const u8 = new Uint8Array(buf); const dv = new DataView(buf);
+  let eo = -1; for(let i = u8.length - 22; i >= 0; i--){ if(dv.getUint32(i, true) === 0x06054b50){ eo = i; break; } }
+  if(eo < 0) throw new Error('zip 형식이 아니에요');
+  const cnt = dv.getUint16(eo + 10, true); let p = dv.getUint32(eo + 16, true);
+  const entries = [];
+  for(let k = 0; k < cnt; k++){
+    if(dv.getUint32(p, true) !== 0x02014b50) break;
+    const flag = dv.getUint16(p + 8, true), method = dv.getUint16(p + 10, true);
+    const csize = dv.getUint32(p + 20, true);
+    const nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true);
+    const lho = dv.getUint32(p + 42, true);
+    const nameBytes = u8.subarray(p + 46, p + 46 + nlen);
+    let name; try{ name = new TextDecoder((flag & 0x800) ? 'utf-8' : 'euc-kr').decode(nameBytes); }
+    catch(e){ name = new TextDecoder('utf-8').decode(nameBytes); }
+    entries.push({ name, method, csize, lho });
+    p += 46 + nlen + elen + clen;
+  }
+  const imgs = entries.filter(e => /\.(png|jpe?g|webp|gif)$/i.test(e.name) && !/\/__MACOSX\/|\/\._/.test('/' + e.name));
+  imgs.sort((a, b) => a.name < b.name ? -1 : (a.name > b.name ? 1 : 0));   /* 경로순 = data-source 순 */
+  const out = [];
+  for(const e of imgs){
+    if(dv.getUint32(e.lho, true) !== 0x04034b50){ out.push(null); continue; }
+    const lnlen = dv.getUint16(e.lho + 26, true), lelen = dv.getUint16(e.lho + 28, true);
+    const start = e.lho + 30 + lnlen + lelen;
+    const comp = u8.subarray(start, start + e.csize);
+    let raw; try{ raw = e.method === 0 ? comp : (e.method === 8 ? await wikiInflateRaw(comp) : null); }catch(err){ raw = null; }
+    if(!raw){ out.push(null); continue; }
+    const type = /\.png$/i.test(e.name) ? 'image/png' : (/\.webp$/i.test(e.name) ? 'image/webp'
+      : (/\.gif$/i.test(e.name) ? 'image/gif' : 'image/jpeg'));
+    out.push(await wikiBytesToUrl(raw, type));
+  }
+  return out;
+}
+async function wikiHtmlMake(files){
+  const arr = files ? [...files] : [];
+  const htmlF = arr.find(f => /\.html?$/i.test(f.name) || /html/.test(f.type));
+  const zipF  = arr.find(f => /\.zip$/i.test(f.name) || /zip/.test(f.type));
+  if(!htmlF){ toast('HTML 파일을 골라주세요 (사진 ZIP 은 같이 골라도 돼요)'); return; }
+  let txt; try{ txt = await htmlF.text(); }catch(e){ toast('파일을 읽지 못했어요'); return; }
   let doc; try{ doc = new DOMParser().parseFromString(txt, 'text/html'); }catch(e){ toast('HTML 을 여는 데 실패했어요'); return; }
+  let zipImgs = null;
+  if(zipF){ toast('사진(ZIP) 푸는 중…');
+    try{ zipImgs = (await wikiUnzipImgs(await zipF.arrayBuffer())).filter(Boolean); }
+    catch(e){ zipImgs = null; toast('ZIP 을 못 읽어 HTML 사진으로 넣어요'); } }
   const clean = s => (s || '').replace(/\s+/g, ' ').trim();
   const stripNo = s => clean(s).replace(/^\d+\s*[.\-]\s*/, '');
-  toast('HTML 을 단계로 바꾸는 중…');
+  toast(zipImgs ? 'HTML 글 + 사진을 단계로 맞추는 중…' : 'HTML 을 단계로 바꾸는 중…');
   const sections = [...doc.querySelectorAll('section.sheet')].filter(s => !s.classList.contains('cover'));
   const made = [];
   if(sections.length){
@@ -29386,7 +29435,15 @@ async function wikiHtmlMake(file){
         for(const b of blocks){
           if(multiSub && sub && sub !== shownSub){ steps.push({ imgs: [], text: '■ ' + sub }); shownSub = sub; }
           if(b.matches('figure')){
-            const srcs = [...b.querySelectorAll('img')].map(im => im.getAttribute('src')).filter(s => /^data:image/.test(s || ''));
+            let srcs;
+            if(zipImgs){   /* data-source N → zip 전체 사진 N번 (조각 여럿은 원본 한 장으로) */
+              const ds = [...new Set([...b.querySelectorAll('[data-source]')]
+                .map(c => +c.getAttribute('data-source')).filter(n => n >= 1))];
+              srcs = ds.map(n => zipImgs[n - 1]).filter(Boolean);
+            }
+            if(!srcs || !srcs.length){
+              srcs = [...b.querySelectorAll('img')].map(im => im.getAttribute('src')).filter(s => /^data:image/.test(s || ''));
+            }
             const h3 = clean((b.querySelector('h3') || {}).textContent);
             const cap = clean((b.querySelector('figcaption') || {}).textContent);
             steps.push({ _srcs: srcs, text: [h3, cap].filter(Boolean).join('\n') });
@@ -29400,9 +29457,10 @@ async function wikiHtmlMake(file){
       if(steps.length) made.push({ title: stripNo(g.title) || '새 프로세스', steps, links: [...links] });
     }
   } else {
-    const imgs = [...doc.querySelectorAll('img')].map(im => im.getAttribute('src')).filter(s => /^data:image/.test(s || ''));
-    if(!imgs.length){ toast('가져올 사진이 없어요 (HTML 안에 그림이 포함돼 있어야 해요)'); return; }
-    made.push({ title: clean(doc.title) || file.name.replace(/\.html?$/i, ''),
+    const imgs = (zipImgs && zipImgs.length) ? zipImgs
+      : [...doc.querySelectorAll('img')].map(im => im.getAttribute('src')).filter(s => /^data:image/.test(s || ''));
+    if(!imgs.length){ toast('가져올 사진이 없어요 (HTML 안에 그림이 있거나 ZIP 을 같이 올려야 해요)'); return; }
+    made.push({ title: clean(doc.title) || htmlF.name.replace(/\.html?$/i, ''),
       steps: imgs.map(s => ({ _srcs: [s], text: '' })), links: [] });
   }
   if(!made.length){ toast('가져올 내용을 찾지 못했어요'); return; }
@@ -29462,9 +29520,9 @@ function renderWiki(){
     + '<input id="wikiQBox" class="wiki-q" placeholder="🔎 노하우 검색 (명함 · 홈페이지 · 결재 …)" '
       + 'value="' + esc(wikiQ) + '" oninput="setWikiQ(this.value)">'
     + '<button class="btn primary" onclick="openItemModal(\'wiki\')">＋ 노하우 추가</button>'
-    + '<button class="btn" title="HTML 가이드를 올리면 글·사진을 그대로 가져와 단계로 만들어 줍니다" onclick="wikiHtmlPick()">🌐 HTML로 만들기</button>'
-    + '<input type="file" id="wikiHtmlInput" accept=".html,.htm,text/html" style="display:none" '
-      + 'onchange="wikiHtmlMake(this.files[0]); this.value=\'\'">'
+    + '<button class="btn" title="HTML 가이드(+사진 ZIP)를 올리면 글·사진을 단계로 만들어 줍니다. ZIP 을 같이 고르면 전체 원본 사진이 들어갑니다" onclick="wikiHtmlPick()">🌐 HTML+사진 올리기</button>'
+    + '<input type="file" id="wikiHtmlInput" accept=".html,.htm,.zip,text/html" multiple style="display:none" '
+      + 'onchange="wikiHtmlMake(this.files); this.value=\'\'">'
     + '<button class="btn" title="PDF 를 올리면 쪽마다 한 장(사진)으로 만들어 줍니다" onclick="wikiPdfPick()">📄 PDF로 만들기</button>'
     + '<input type="file" id="wikiPdfInput" accept="application/pdf" style="display:none" '
       + 'onchange="wikiPdfMake(this.files[0]); this.value=\'\'">'

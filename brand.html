@@ -4308,6 +4308,14 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 .mm-badge{font-size:11px;font-weight:800;color:#fff;background:var(--mm-blue);
   min-width:17px;height:17px;padding:0 5px;border-radius:999px;
   display:inline-flex;align-items:center;justify-content:center;line-height:1}
+/* 👤 전체 / 내 것만 토글 (콘텐츠 캘린더) */
+.mm-seg{display:inline-flex;border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.mm-seg-b{appearance:none;border:0;background:var(--bg-card);cursor:pointer;font-family:inherit;
+  font-size:12.5px;font-weight:700;color:var(--text-secondary);padding:6px 12px}
+.mm-seg-b+.mm-seg-b{border-left:1px solid var(--border)}
+.mm-seg-b:hover:not(.on):not([disabled]){background:var(--bg-hover);color:var(--text-primary)}
+.mm-seg-b.on{background:var(--mm-blue);color:#fff}
+.mm-seg-b[disabled]{opacity:.5;cursor:not-allowed}
 /* 칸반 열 머리를 TeamHub 식으로 — 남색 글자 · 또렷한 단계색 띠 */
 .mm-os .media-col-h{color:var(--mm-navy);font-weight:800}
 body.dark-mode .mm-os .media-col-h{color:#dfe5f3}
@@ -5857,7 +5865,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-81';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-82';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29612,6 +29620,8 @@ function calGoTo(ds){
    ================================================================= */
 let mediaTab = 'home';
 let reqFilter = '';                       // 요청 센터: ''(전체)·받음·보냄·대기·완료
+let calMine = false;                      // 콘텐츠 캘린더: 내 것만 보기
+function setCalMine(v){ calMine = v; render(); }
 const MEDIA_TABS = [
   ['home',      '🏠 미마 홈'],
   ['contents',  '🎬 콘텐츠 제작'],
@@ -29627,6 +29637,13 @@ function setReqFilter(v){ reqFilter = v; render(); }
 function mediaWho(x){
   const nm = x && x.uid ? peopleName(x.uid) : '';
   return (nm && nm !== x.uid) ? nm : ((x && x.owner) || '');
+}
+/* 이 일(콘텐츠·촬영)이 「내 것」인가 — 로그인한 본인(또는 이름 지정)이 담당 */
+function mmIsMine(x){
+  const me = (typeof authMe === 'function') ? authMe() : null;
+  if(x && x.uid && me) return x.uid === me.id;
+  const nm = (typeof myName === 'function') ? myName() : '';
+  return !!nm && mediaWho(x) === nm;
 }
 
 /* 어떤 일(콘텐츠·촬영)이 이 팀원 것인가 — 계정이면 uid, 아니면 이름으로 맞춤 */
@@ -29929,12 +29946,15 @@ function mediaCalView(){
   const todayS = todayStr();
   const byDay = {};
   const put = (d, o) => { if(d) (byDay[d] = byDay[d] || []).push(o); };
-  (data.contents || []).forEach(x => { if(x.pubDate)
+  /* 👤 개인용 — 내 것만 보기면 담당이 나인 것만 모읍니다 */
+  const mineOnly = (x) => !calMine || mmIsMine(x);
+  (data.contents || []).forEach(x => { if(x.pubDate && mineOnly(x))
     put(x.pubDate, { t:x.title, kind:'공개', hue:STAGE_HUE['배포'], who:mediaWho(x), id:x.id, type:'contents' }); });
-  (data.contents || []).forEach(x => { if(x.shootDate)
+  (data.contents || []).forEach(x => { if(x.shootDate && mineOnly(x))
     put(x.shootDate, { t:x.title, kind:'촬영', hue:STAGE_HUE['촬영'], who:mediaWho(x), id:x.id, type:'contents' }); });
-  (data.shoots || []).forEach(x => { if(x.date)
+  (data.shoots || []).forEach(x => { if(x.date && mineOnly(x))
     put(x.date, { t:x.title, kind:'촬영', hue:'var(--purple)', who:mediaWho(x), id:x.id, type:'shoots' }); });
+  const myNm = (typeof myName === 'function') ? myName() : '';
 
   const cells = [];
   for(let i = 0; i < lead; i++) cells.push('<div class="cal-c out"></div>');
@@ -29962,8 +29982,16 @@ function mediaCalView(){
       + c.y + '년 ' + (c.m + 1) + '월</strong>'
     + '<button class="btn" onclick="calMove(1)">다음 달 ›</button>'
     + '<button class="btn" onclick="calToday()">오늘</button>'
+    /* 👤 개인용 캘린더 토글 — 전체 / 내 것만 */
+    + '<span class="mm-seg">'
+      + '<button class="mm-seg-b' + (calMine ? '' : ' on') + '" onclick="setCalMine(false)">전체</button>'
+      + '<button class="mm-seg-b' + (calMine ? ' on' : '') + '" onclick="setCalMine(true)"'
+        + (myNm ? '' : ' disabled title="로그인하면 내 것만 볼 수 있습니다"') + '>👤 내 것만</button>'
+    + '</span>'
     + '<button class="btn primary" onclick="openItemModal(\'contents\')">＋ 콘텐츠</button>'
-    + '<span class="hint">콘텐츠의 공개 예정일·촬영일과 촬영 일정이 함께 보입니다</span>'
+    + '<span class="hint">' + (calMine
+        ? '👤 ' + esc(myNm || '나') + '님이 담당인 공개·촬영만 보고 있습니다'
+        : '콘텐츠의 공개 예정일·촬영일과 촬영 일정이 함께 보입니다') + '</span>'
     + '</div>'
     + '<div class="vz-legend" style="margin:8px 0 10px">'
       + '<span class="vz-key"><span class="cal-dot" style="--ec:' + STAGE_HUE['배포'] + '"></span>공개 예정</span>'

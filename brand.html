@@ -4421,15 +4421,26 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-card[open] .wiki-peek{display:none}
 .wiki-body{padding:2px 16px 8px 30px;font-size:13.5px;line-height:1.7;color:var(--text-secondary)}
 /* 📷 사진 + 설명 단계 */
-.wiki-steps{padding:4px 16px 6px 30px}
-.wiki-step.read{margin:0 0 20px;padding-bottom:16px;border-bottom:1px dashed var(--border)}
-.wiki-step.read:last-child{border-bottom:0}
-/* 읽기 — 사진을 크게, 여러 장이면 위아래로 쌓고, 설명은 그 아래 */
-.wiki-step.read .wiki-step-imgs{display:flex;flex-direction:column;gap:8px;margin-bottom:2px}
-.wiki-step.read .wiki-step-img{max-width:100%;width:720px;max-height:70vh;border:1px solid var(--border);
-  border-radius:9px;cursor:zoom-in;display:block;object-fit:contain;background:var(--bg-card)}
-.wiki-step-cap{font-size:14px;line-height:1.65;color:var(--text-primary);margin:9px 2px 0}
-.wiki-step-cap b{color:var(--blue);margin-right:4px}
+.wiki-steps{padding:8px 18px 10px 16px}
+.wiki-hint{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);
+  background:var(--bg-secondary);border-radius:999px;padding:4px 11px;margin:0 0 14px}
+/* 읽기 — 번호 타임라인: ① 선 · 사진(알맞은 크기) · 아래 설명 */
+.wiki-step.read{display:flex;gap:14px;align-items:stretch;position:relative}
+.wiki-step.read .wst-rail{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;width:30px}
+.wiki-step.read .wst-num{flex:0 0 auto;width:30px;height:30px;border-radius:999px;background:var(--blue);
+  color:#fff;font-size:13.5px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(37,99,235,.32)}
+.wiki-step.read .wst-line{flex:1 1 auto;width:2px;background:var(--border);margin:4px 0}
+.wiki-step.read:last-child .wst-line{display:none}
+.wiki-step.read .wst-body{flex:1 1 auto;min-width:0;padding:2px 0 22px}
+.wiki-step.read:last-child .wst-body{padding-bottom:4px}
+.wiki-step.read .wiki-step-imgs{display:flex;flex-wrap:wrap;gap:10px;margin:0}
+.wiki-step.read .wiki-step-img{max-width:100%;width:auto;max-height:280px;border:1px solid var(--border);
+  border-radius:11px;cursor:zoom-in;display:block;object-fit:contain;background:var(--bg-card);
+  box-shadow:0 1px 5px rgba(0,0,0,.09);transition:transform .12s ease,box-shadow .12s ease}
+.wiki-step.read .wiki-step-img:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.16)}
+.wiki-step-cap{font-size:14px;line-height:1.7;color:var(--text-primary);margin:11px 1px 0}
+.wiki-step.read .wst-body>.wiki-step-cap:first-child{margin-top:4px}
 /* 편집 모드 */
 .wiki-step.edit{display:flex;gap:10px;align-items:flex-start;padding:10px;margin-bottom:10px;
   border:1px solid var(--border);border-radius:10px;background:var(--bg-secondary)}
@@ -5922,7 +5933,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-93';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-94';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29336,10 +29347,13 @@ function renderWiki(){
             + '</div>'
           + '</div>'
           : '<div class="wiki-step read">'
-            + (imgs.length ? '<div class="wiki-step-imgs">'
-                + imgs.map(src => '<img class="wiki-step-img" src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">').join('') + '</div>' : '')
-            + (String(st.text || '').trim()
-                ? '<div class="wiki-step-cap"><b>' + (i + 1) + '.</b> ' + esc(st.text).replace(/\n/g, '<br>') + '</div>' : '')
+            + '<div class="wst-rail"><div class="wst-num">' + (i + 1) + '</div><div class="wst-line"></div></div>'
+            + '<div class="wst-body">'
+              + (imgs.length ? '<div class="wiki-step-imgs">'
+                  + imgs.map(src => '<img class="wiki-step-img" src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">').join('') + '</div>' : '')
+              + (String(st.text || '').trim()
+                  ? '<div class="wiki-step-cap">' + esc(st.text).replace(/\n/g, '<br>') + '</div>' : '')
+            + '</div>'
           + '</div>'; }).join('');
         const imgCount = steps.reduce((a, s) => a + ((s.imgs && s.imgs.length) || 0), 0);
         return '<details class="wiki-card" id="wikicard_' + esc(w.id) + '"' + (editing ? ' open' : '') + '>'
@@ -29357,7 +29371,7 @@ function renderWiki(){
           + '</summary>'
           + (String(w.body || '').trim() ? '<div class="wiki-body">' + esc(w.body).replace(/\n/g, '<br>') + '</div>' : '')
           + (steps.length ? '<div class="wiki-steps' + (editing ? ' editing' : '') + '">'
-              + (!editing && imgCount ? '<div class="fmeta" style="margin:0 0 10px">🔍 사진을 누르면 크게 보입니다</div>' : '')
+              + (!editing && imgCount ? '<div class="wiki-hint">🔍 사진을 누르면 크게 볼 수 있어요</div>' : '')
               + stepsHtml + '</div>' : '')
           + (String(w.links || '').trim()
               ? '<div class="fmeta" style="margin:4px 16px 2px 30px;line-height:1.7">🔗 ' + wikiLinks(w.links) + '</div>' : '')

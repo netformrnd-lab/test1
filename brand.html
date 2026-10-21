@@ -4302,16 +4302,15 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
   padding:9px 14px;border-radius:8px 8px 0 0;margin-bottom:-2px;
   border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:6px}
 .mm-tab:hover{color:var(--text-primary);background:var(--bg-hover)}
-.mm-tab.on{color:var(--mm-navy);border-bottom-color:var(--mm-blue);background:var(--bg-hover)}
-:root[data-theme="dark"] .mm-tab.on,
-:root:not([data-theme="light"]) .mm-tab.on{color:#fff}
+/* 고른 탭 — 파란 글자·파란 밑줄·옅은 파란 바탕으로 또렷하게 (라이트·다크 둘 다) */
+.mm-tab.on{color:var(--mm-blue);font-weight:800;border-bottom-color:var(--mm-blue);
+  background:color-mix(in srgb,var(--mm-blue) 12%,transparent)}
 .mm-badge{font-size:11px;font-weight:800;color:#fff;background:var(--mm-blue);
   min-width:17px;height:17px;padding:0 5px;border-radius:999px;
   display:inline-flex;align-items:center;justify-content:center;line-height:1}
 /* 칸반 열 머리를 TeamHub 식으로 — 남색 글자 · 또렷한 단계색 띠 */
 .mm-os .media-col-h{color:var(--mm-navy);font-weight:800}
-:root[data-theme="dark"] .mm-os .media-col-h,
-:root:not([data-theme="light"]) .mm-os .media-col-h{color:#dfe5f3}
+body.dark-mode .mm-os .media-col-h{color:#dfe5f3}
 .mm-os .media-card:hover,.mm-os .media-chan:hover,
 .mm-os .media-shoot:hover{border-color:var(--mm-blue)}
 /* 🏠 미마 홈 — 한눈 숫자 · 팀별(위) · 개인별(아래) */
@@ -4321,7 +4320,7 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 .mm-tile:hover{border-color:var(--mm-blue);transform:translateY(-1px)}
 .mm-tile-i{font-size:20px;line-height:1}
 .mm-tile-n{font-size:26px;font-weight:800;color:var(--mm-navy);margin:4px 0 2px}
-:root[data-theme="dark"] .mm-tile-n,:root:not([data-theme="light"]) .mm-tile-n{color:#dfe5f3}
+body.dark-mode .mm-tile-n{color:#dfe5f3}
 .mm-tile-l{font-size:12px;color:var(--text-muted);font-weight:600}
 .mm-sec-t{font-size:14px;font-weight:800;color:var(--text-primary);margin:20px 0 10px}
 .mm-sec-bar{display:flex;align-items:center;gap:10px;margin:20px 0 10px}
@@ -5858,7 +5857,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-80';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-81';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 

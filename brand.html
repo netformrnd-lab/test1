@@ -4314,6 +4314,43 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 :root:not([data-theme="light"]) .mm-os .media-col-h{color:#dfe5f3}
 .mm-os .media-card:hover,.mm-os .media-chan:hover,
 .mm-os .media-shoot:hover{border-color:var(--mm-blue)}
+/* 🏠 미마 홈 — 한눈 숫자 · 팀별(위) · 개인별(아래) */
+.mm-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:6px}
+.mm-tile{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;cursor:pointer;transition:border-color .12s,transform .08s}
+.mm-tile:hover{border-color:var(--mm-blue);transform:translateY(-1px)}
+.mm-tile-i{font-size:20px;line-height:1}
+.mm-tile-n{font-size:26px;font-weight:800;color:var(--mm-navy);margin:4px 0 2px}
+:root[data-theme="dark"] .mm-tile-n,:root:not([data-theme="light"]) .mm-tile-n{color:#dfe5f3}
+.mm-tile-l{font-size:12px;color:var(--text-muted);font-weight:600}
+.mm-sec-t{font-size:14px;font-weight:800;color:var(--text-primary);margin:20px 0 10px}
+.mm-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.mm-team{background:var(--bg-card);border:1px solid var(--border);border-left:4px solid var(--th);
+  border-radius:var(--r-md);padding:12px 14px}
+.mm-team-h{display:flex;align-items:center;gap:8px;font-size:14.5px;margin-bottom:9px}
+.mm-team-h .fmeta{margin-left:auto}
+.mm-team-bar{display:none}
+.mm-team-st{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.mm-sc-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}
+.mm-sc{font-size:11px;font-weight:700;color:#fff;background:var(--sc);
+  padding:2px 8px;border-radius:999px;line-height:1.5;white-space:nowrap}
+.mm-team-mem{display:flex;flex-wrap:wrap;gap:5px}
+.mm-chip{font-size:12px;font-weight:650;background:var(--bg-secondary);border:1px solid var(--border);
+  padding:3px 9px;border-radius:999px}
+.mm-chip i{font-style:normal;font-size:10.5px;color:var(--text-muted);font-weight:600}
+.mm-person-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.mm-person{background:var(--bg-card);border:1px solid var(--border);border-top:3px solid var(--th);
+  border-radius:var(--r-md);padding:12px 14px}
+.mm-p-head{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.mm-p-ava{flex:0 0 auto;width:34px;height:34px;border-radius:999px;background:var(--th);
+  color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.mm-p-nm{font-size:13.5px;font-weight:750}
+.mm-p-items{display:flex;flex-direction:column;gap:5px}
+.mm-item{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;
+  background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;
+  padding:5px 9px;cursor:pointer}
+.mm-item:hover{border-color:var(--mm-blue)}
+@media(max-width:560px){ .mm-tile-n{font-size:22px} }
 
 /* 고칠 수 있는 표 */
 table.itable.editable td{max-width:260px}
@@ -5769,7 +5806,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-75';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-76';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29423,9 +29460,10 @@ function calGoTo(ds){
      · 요청 센터 — 받은·보낸·완료 요청
    모두 data.* (브랜드 밖) 에 담겨 팀 전체가 같이 봅니다.
    ================================================================= */
-let mediaTab = 'contents';
+let mediaTab = 'home';
 let reqFilter = '';                       // 요청 센터: ''(전체)·받음·보냄·대기·완료
 const MEDIA_TABS = [
+  ['home',      '🏠 미마 홈'],
   ['contents',  '🎬 콘텐츠 제작'],
   ['cal',       '📆 콘텐츠 캘린더'],
   ['mchannels', '📺 채널 운영'],
@@ -29441,9 +29479,133 @@ function mediaWho(x){
   return (nm && nm !== x.uid) ? nm : ((x && x.owner) || '');
 }
 
+/* 어떤 일(콘텐츠·촬영)이 이 팀원 것인가 — 계정이면 uid, 아니면 이름으로 맞춤 */
+function mmMatch(it, m){
+  if(!it || !m) return false;
+  if(it.uid) return !!(m.uid && it.uid === m.uid);
+  if(it.owner) return it.owner === (m.name || '');
+  return false;
+}
+/* 오늘부터 며칠 안에 들어오는 날짜인가 (곧 공개·촬영 예정 세기) */
+function mmUpcoming(ds, days){
+  if(!ds) return false;
+  const t = todayStr();
+  const d = new Date(t + 'T00:00:00'); d.setDate(d.getDate() + days);
+  const end = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+    + '-' + String(d.getDate()).padStart(2, '0');
+  return ds >= t && ds <= end;
+}
+/* 콘텐츠 묶음을 단계별 칩으로 (기획 2 · 촬영 1 …) */
+function mmStageChips(items){
+  return CONTENT_STAGES.map(st => {
+    const c = items.filter(x => (x.stage || CONTENT_STAGES[0]) === st).length;
+    return c ? '<span class="mm-sc" style="--sc:' + STAGE_HUE[st] + '">' + esc(st) + ' ' + c + '</span>' : '';
+  }).join('');
+}
+
+/* ── 🏠 미마 홈 — 한눈에: 위는 팀별, 아래는 개인별 ─────────────────── */
+function mediaHomeView(){
+  if(authOn()) setTimeout(() => loadPeople(), 10);
+  const contents = data.contents || [], shoots = data.shoots || [], reqs = data.requests || [];
+  const teams = teamsOf();
+
+  /* 맨 위 — 전체 한눈 숫자 */
+  const actC = contents.filter(c => (c.stage || '') !== '완료');
+  const soon = contents.filter(c => mmUpcoming(c.pubDate, 7));
+  const shootSoon = shoots.filter(s => mmUpcoming(s.date, 7));
+  const openReq = reqs.filter(r => (r.status || '') !== '완료');
+  const tiles = [
+    ['🎬', '콘텐츠 진행', actC.length, '전체 ' + contents.length, 'contents'],
+    ['🗓', '곧 공개(7일)', soon.length, '', 'cal'],
+    ['🎥', '촬영 예정(7일)', shootSoon.length, '전체 ' + shoots.length, 'shoots'],
+    ['📨', '진행 요청', openReq.length, '', 'requests']
+  ].map(t => '<div class="mm-tile" onclick="setMediaTab(\'' + t[4] + '\')" title="눌러서 그 화면으로">'
+    + '<div class="mm-tile-i">' + t[0] + '</div>'
+    + '<div class="mm-tile-n">' + t[2] + '</div>'
+    + '<div class="mm-tile-l">' + esc(t[1]) + (t[3] ? ' · ' + esc(t[3]) : '') + '</div></div>').join('');
+
+  /* 위 — 팀별 */
+  const assigned = new Set();
+  const teamCards = teams.map((tm, i) => {
+    const hue = teamHue(i);
+    const tc = contents.filter(c => tm.members.some(m => mmMatch(c, m)));
+    const ts = shoots.filter(s => tm.members.some(m => mmMatch(s, m)));
+    tc.forEach(c => assigned.add('c' + c.id));
+    ts.forEach(s => assigned.add('s' + s.id));
+    const act = tc.filter(c => (c.stage || '') !== '완료').length;
+    return '<div class="mm-team" style="--th:' + hue + '">'
+      + '<div class="mm-team-h"><span class="mm-team-bar"></span>'
+        + '<b>' + esc(tm.name || '팀') + '</b>'
+        + '<span class="fmeta">' + tm.members.length + '명</span></div>'
+      + '<div class="mm-team-st">'
+        + '<span class="chip">🎬 콘텐츠 ' + tc.length + (act ? ' · 진행 ' + act : '') + '</span>'
+        + '<span class="chip">🎥 촬영 ' + ts.length + '</span></div>'
+      + (tc.length ? '<div class="mm-sc-row">' + mmStageChips(tc) + '</div>' : '')
+      + '<div class="mm-team-mem">'
+        + (tm.members.length
+            ? tm.members.map(m => '<span class="mm-chip">' + esc(m.name || peopleName(m.uid) || '—')
+                + (m.role ? ' <i>' + esc(m.role) + '</i>' : '') + '</span>').join('')
+            : '<span class="fmeta">팀원이 없습니다</span>')
+      + '</div>'
+    + '</div>';
+  }).join('');
+
+  /* 아래 — 개인별 (모든 팀원) */
+  const persons = [];
+  teams.forEach((tm, i) => tm.members.forEach(m => persons.push({ m, team: tm.name, hue: teamHue(i) })));
+  const itemHtml = (list, kind) => list.map(x => {
+    if(kind === 'c') return '<span class="mm-item" onclick="setMediaTab(\'contents\')" title="콘텐츠 제작에서 보기">'
+      + '🎬 ' + esc(x.title || '(제목)') + ' <span class="mm-sc" style="--sc:'
+      + STAGE_HUE[x.stage || CONTENT_STAGES[0]] + '">' + esc(x.stage || CONTENT_STAGES[0]) + '</span></span>';
+    return '<span class="mm-item" onclick="setMediaTab(\'shoots\')" title="촬영·장비에서 보기">'
+      + '🎥 ' + esc(x.title || '(제목)') + (x.date ? ' <span class="fmeta">' + esc(fmtYMD(x.date)) + '</span>' : '') + '</span>';
+  }).join('');
+  const personCards = persons.map(p => {
+    const m = p.m;
+    const mc = contents.filter(c => mmMatch(c, m));
+    const ms = shoots.filter(s => mmMatch(s, m));
+    const nm = m.name || peopleName(m.uid) || '(이름 없음)';
+    const body = (mc.length || ms.length)
+      ? '<div class="mm-p-items">' + itemHtml(mc, 'c') + itemHtml(ms, 's') + '</div>'
+      : '<div class="fmeta" style="padding:3px 0 1px">맡은 콘텐츠·촬영이 없습니다</div>';
+    return '<div class="mm-person" style="--th:' + p.hue + '">'
+      + '<div class="mm-p-head"><span class="mm-p-ava">' + esc(String(nm).slice(0, 2)) + '</span>'
+        + '<div><div class="mm-p-nm">' + esc(nm) + (m.role ? ' <span class="fmeta">' + esc(m.role) + '</span>' : '') + '</div>'
+        + '<div class="fmeta">' + esc(p.team) + ' · 콘텐츠 ' + mc.length + ' · 촬영 ' + ms.length + '</div></div></div>'
+      + body
+    + '</div>';
+  }).join('');
+
+  /* 팀 밖 · 담당 미지정 */
+  const orphanC = contents.filter(c => !assigned.has('c' + c.id));
+  const orphanS = shoots.filter(s => !assigned.has('s' + s.id));
+  let orphan = '';
+  if(orphanC.length || orphanS.length){
+    orphan = '<div class="mm-person" style="--th:var(--text-muted)">'
+      + '<div class="mm-p-head"><span class="mm-p-ava">그밖</span>'
+        + '<div><div class="mm-p-nm">팀 밖 · 담당 미지정</div>'
+        + '<div class="fmeta">콘텐츠 ' + orphanC.length + ' · 촬영 ' + orphanS.length + '</div></div></div>'
+      + '<div class="mm-p-items">' + itemHtml(orphanC, 'c') + itemHtml(orphanS, 's') + '</div>'
+    + '</div>';
+  }
+
+  const empty = (!contents.length && !shoots.length)
+    ? '<div class="ainote" style="margin-top:14px">아직 콘텐츠·촬영이 없습니다. '
+      + '<b>🎬 콘텐츠 제작</b> · <b>🎥 촬영·장비</b> 에서 넣으면 여기에 팀·사람별로 모여서 보입니다.</div>'
+    : '';
+
+  return '<div class="mm-tiles">' + tiles + '</div>'
+    + '<h3 class="mm-sec-t">👥 팀별 — 무슨 일을 하고 있나</h3>'
+    + '<div class="mm-team-grid">' + teamCards + '</div>'
+    + '<h3 class="mm-sec-t">🙋 개인별 — 누가 무엇을 맡고 있나</h3>'
+    + '<div class="mm-person-grid">' + personCards + orphan + '</div>'
+    + empty;
+}
+
 function renderMedia(){
   if(authOn()) setTimeout(() => loadPeople(), 10);
   const n = {
+    home:      0,
     contents:  (data.contents  || []).length,
     mchannels: (data.mchannels || []).length,
     shoots:    (data.shoots    || []).length,
@@ -29459,7 +29621,8 @@ function renderMedia(){
     + '</div>';
 
   let body = '';
-  if(mediaTab === 'contents')       body = mediaContentsView();
+  if(mediaTab === 'home')           body = mediaHomeView();
+  else if(mediaTab === 'contents')  body = mediaContentsView();
   else if(mediaTab === 'cal')       body = mediaCalView();
   else if(mediaTab === 'mchannels') body = mediaChannelsView();
   else if(mediaTab === 'shoots')    body = mediaShootsView();

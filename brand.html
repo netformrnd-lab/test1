@@ -5539,8 +5539,9 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
     <!-- 팀마다 따로 쓰는 허브(다른 HTML)로 가는 길. 이 대시보드가 품는 것이
          아니라 <<새 창으로 열어 주는>> 것뿐이라, 그쪽을 아무리 고쳐도
          여기는 손댈 것이 없습니다. -->
-    <div class="side-title" style="margin-top:18px">팀 허브</div>
-    <div class="brand-list" id="hubList"></div>
+    <!-- 🔗 「팀 허브」 사이드바 묶음은 뺐습니다 — 미디어마케팅 탭으로 통합돼
+         더는 다른 팀 HTML 로 건너갈 필요가 없습니다. (renderHubs 는 #hubList 가
+         없으면 저절로 아무것도 안 합니다) -->
 
     <!-- 브랜드와 상관없이 팀이 같이 쓰는 것들.
          한 덩어리로 여덟 줄이 있으면 찾는 데 시간이 걸려서 세 묶음으로 나눴습니다.
@@ -5865,7 +5866,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-83';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-84';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -23339,7 +23340,8 @@ function renderTasks(){
       teamKpiHtml(rows)
     + taskKpiHtml(rows)
     + staleHtml(rows)
-    + lkPanelHtml()
+    /* 🔗 팀허브 「한 저장소 같이 쓰기」 패널은 뺐습니다 — 이제 미디어마케팅
+       탭으로 통합돼 필요 없습니다 (lkPanelHtml·lkSwapHtml 함수는 남겨 둡니다) */
     + mvHtml
     + '<div class="tt-sect">' + (mmOn ? '🗺️ 업무 마인드맵' : '팀 멤버별 오늘 할 일')
       + '<span class="tt-day">' + esc(dayText) + '</span>'
@@ -23358,10 +23360,7 @@ function renderTasks(){
           + '<button class="tt-edb" onclick="gbiPick()" title="마인드맵으로 그린 '
             + '그로스보드를 올리면 프로젝트로 세워 줍니다">📥 그로스보드</button>')
       + '</div>'
-    + (mmOn ? mmHtml(rows) : teams + restHtml)
-    /* 📄 파일로 주고받는 칸은 <<맨 아래>> 에 둡니다 — 날마다 쓰는 것이
-       아니라 가끔 맞출 때 쓰는 것이라, 위에 있으면 거치적거립니다 */
-    + lkSwapHtml());
+    + (mmOn ? mmHtml(rows) : teams + restHtml));
 }
 
 

@@ -4283,6 +4283,38 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
   .media-shoot-d{min-width:0}
 }
 
+/* 🎨 미디어팀 TeamHub 스킨 — 남색 머리말 · 가로 메뉴 (미디어 화면에만 적용) */
+.mm-os{--mm-navy:#1f2740;--mm-navy2:#2b3756;--mm-blue:#3b82f6;--mm-line:#e5e7eb}
+.mm-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:linear-gradient(120deg,var(--mm-navy),var(--mm-navy2));
+  color:#fff;border-radius:12px;padding:16px 20px;margin-bottom:14px;flex-wrap:wrap}
+.mm-brand{display:flex;align-items:center;gap:13px;min-width:0}
+.mm-logo{font-size:30px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
+.mm-os-name{font-size:17px;font-weight:800;letter-spacing:.3px;color:#fff}
+.mm-os-sub{font-size:12.5px;color:#c7d0e6;margin-top:3px}
+.mm-ver{flex:0 0 auto;font-size:11.5px;font-weight:700;color:#cdd6ee;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);
+  padding:4px 10px;border-radius:999px}
+.mm-nav{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--mm-line);
+  margin-bottom:16px}
+.mm-tab{appearance:none;border:0;background:none;cursor:pointer;font-family:inherit;
+  font-size:13.5px;font-weight:650;color:var(--text-secondary);
+  padding:9px 14px;border-radius:8px 8px 0 0;margin-bottom:-2px;
+  border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:6px}
+.mm-tab:hover{color:var(--text-primary);background:var(--bg-hover)}
+.mm-tab.on{color:var(--mm-navy);border-bottom-color:var(--mm-blue);background:var(--bg-hover)}
+:root[data-theme="dark"] .mm-tab.on,
+:root:not([data-theme="light"]) .mm-tab.on{color:#fff}
+.mm-badge{font-size:11px;font-weight:800;color:#fff;background:var(--mm-blue);
+  min-width:17px;height:17px;padding:0 5px;border-radius:999px;
+  display:inline-flex;align-items:center;justify-content:center;line-height:1}
+/* 칸반 열 머리를 TeamHub 식으로 — 남색 글자 · 또렷한 단계색 띠 */
+.mm-os .media-col-h{color:var(--mm-navy);font-weight:800}
+:root[data-theme="dark"] .mm-os .media-col-h,
+:root:not([data-theme="light"]) .mm-os .media-col-h{color:#dfe5f3}
+.mm-os .media-card:hover,.mm-os .media-chan:hover,
+.mm-os .media-shoot:hover{border-color:var(--mm-blue)}
+
 /* 고칠 수 있는 표 */
 table.itable.editable td{max-width:260px}
 table.itable th.ownc{background:var(--blue-soft);color:var(--text-primary)}
@@ -5737,7 +5769,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-74';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-75';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29417,10 +29449,11 @@ function renderMedia(){
     shoots:    (data.shoots    || []).length,
     requests:  (data.requests  || []).filter(r => (r.status || '') !== '완료').length
   };
-  const tabs = '<div class="sec-bar" style="margin-bottom:14px;flex-wrap:wrap">'
+  /* 🎨 미디어팀이 쓰던 TeamHub 느낌으로 — 남색 머리말 + 가로 메뉴 */
+  const nav = '<div class="mm-nav">'
     + MEDIA_TABS.map(([k, lab]) => {
-        const cnt = (k === 'cal') ? '' : (n[k] ? ' ' + n[k] : '');
-        return '<button class="btn sm' + (mediaTab === k ? ' primary' : '') + '" '
+        const cnt = (k === 'cal') ? '' : (n[k] ? '<span class="mm-badge">' + n[k] + '</span>' : '');
+        return '<button class="mm-tab' + (mediaTab === k ? ' on' : '') + '" '
           + 'onclick="setMediaTab(\'' + k + '\')">' + lab + cnt + '</button>';
       }).join('')
     + '</div>';
@@ -29433,11 +29466,19 @@ function renderMedia(){
   else if(mediaTab === 'requests')  body = mediaRequestsView();
 
   document.getElementById('main').innerHTML =
-    '<div class="panel"><div class="tabbody">'
-    + '<h2 class="page-h">🎬 미디어마케팅</h2>'
-    + '<div class="page-sub">미디어마케팅팀 업무를 브랜드 허브 안에서 봅니다 — '
-      + '콘텐츠 제작 · 캘린더 · 채널 · 촬영 · 요청</div>'
-    + tabs + body
+    '<div class="panel"><div class="tabbody mm-os">'
+    + '<div class="mm-top">'
+      + '<div class="mm-brand">'
+        + '<span class="mm-logo">🎬</span>'
+        + '<div class="mm-ttl">'
+          + '<div class="mm-os-name">NETFORM MEDIA MARKETING OS</div>'
+          + '<div class="mm-os-sub">미디어마케팅팀 업무 · 콘텐츠 운영 — 브랜드 허브 안에서</div>'
+        + '</div>'
+      + '</div>'
+      + '<span class="mm-ver">TeamHub 이식판</span>'
+    + '</div>'
+    + nav
+    + '<div class="mm-body">' + body + '</div>'
     + '</div></div>';
 }
 

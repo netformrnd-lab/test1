@@ -5865,7 +5865,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-82';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-83';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29559,6 +29559,8 @@ function wcalBar(){
 
 let calTasks = true;        // 달력에 브랜드 할 일 기한도 함께 보일까
 function toggleCalTasks(){ calTasks = !calTasks; render(); }
+let calMedia = true;        // 달력에 미디어 콘텐츠 공개·촬영도 함께 보일까
+function toggleCalMedia(){ calMedia = !calMedia; render(); }
 
 /* 「할 일을 넣었는데 달력에 안 뜬다」 는 대개 셋 중 하나입니다.
    기한이 없거나 · 다른 달이거나 · 이미 완료했거나.
@@ -29954,6 +29956,13 @@ function mediaCalView(){
     put(x.shootDate, { t:x.title, kind:'촬영', hue:STAGE_HUE['촬영'], who:mediaWho(x), id:x.id, type:'contents' }); });
   (data.shoots || []).forEach(x => { if(x.date && mineOnly(x))
     put(x.date, { t:x.title, kind:'촬영', hue:'var(--purple)', who:mediaWho(x), id:x.id, type:'shoots' }); });
+  /* 📅 우리 달력(일정)과 연동 — 팀 일정도 콘텐츠 캘린더에 함께 */
+  (data.events || []).forEach(e => { if(!e.date) return;
+    if(calMine && !mmIsMine(e)) return;
+    const enm = e.uid ? peopleName(e.uid) : '';
+    const ewho = (enm && enm !== e.uid) ? enm : (e.owner || '');
+    eachDay(e.date, e.until).forEach(d => put(d, { t:e.title, kind:e.kind || '일정',
+      hue:(EVENT_HUE[e.kind] || 'var(--text-muted)'), who:ewho, id:e.id, type:'events' })); });
   const myNm = (typeof myName === 'function') ? myName() : '';
 
   const cells = [];
@@ -29969,7 +29978,8 @@ function mediaCalView(){
           + 'title="' + esc(o.kind + ' · ' + o.t + (o.who ? '\n담당 ' + o.who : '')) + '" '
           + 'onclick="openItemModal(\'' + o.type + '\',\'' + jsq(o.id) + '\')">'
           + '<span class="cal-dot"></span>'
-          + '<span class="cal-t">' + esc((o.kind === '촬영' ? '🎥 ' : '📣 ') + o.t) + '</span>'
+          + '<span class="cal-t">' + esc((o.type === 'events' ? '📅 '
+              : o.kind === '촬영' ? '🎥 ' : '📣 ') + o.t) + '</span>'
           + (o.who ? '<span class="cal-who">' + esc(o.who) + '</span>' : '')
         + '</div>').join('')
       + '</div>');
@@ -29991,11 +30001,12 @@ function mediaCalView(){
     + '<button class="btn primary" onclick="openItemModal(\'contents\')">＋ 콘텐츠</button>'
     + '<span class="hint">' + (calMine
         ? '👤 ' + esc(myNm || '나') + '님이 담당인 공개·촬영만 보고 있습니다'
-        : '콘텐츠의 공개 예정일·촬영일과 촬영 일정이 함께 보입니다') + '</span>'
+        : '콘텐츠 공개·촬영일과 📅 우리 달력 일정이 함께 보입니다 (연동)') + '</span>'
     + '</div>'
     + '<div class="vz-legend" style="margin:8px 0 10px">'
       + '<span class="vz-key"><span class="cal-dot" style="--ec:' + STAGE_HUE['배포'] + '"></span>공개 예정</span>'
       + '<span class="vz-key"><span class="cal-dot" style="--ec:var(--purple)"></span>촬영</span>'
+      + '<span class="vz-key"><span class="cal-dot" style="--ec:var(--text-muted)"></span>📅 우리 달력 일정</span>'
     + '</div>'
     + '<div class="calwrap"><div class="cal">'
       + ['일','월','화','수','목','금','토'].map((w, i) =>
@@ -30145,6 +30156,19 @@ function renderCalendar(){
                    own:false, who:who, st:t.status });
     }));
   }
+  /* 🎬 미디어 콘텐츠 캘린더와 연동 — 콘텐츠 공개·촬영일, 촬영 일정도 함께 */
+  if(calMedia){
+    (data.contents || []).forEach(x => {
+      const who = mediaWho(x);
+      if(x.pubDate) put(x.pubDate, { id:x.id, t:x.title, kind:'공개', who:who,
+        media:'contents', hue:STAGE_HUE['배포'] });
+      if(x.shootDate) put(x.shootDate, { id:x.id, t:x.title, kind:'촬영', who:who,
+        media:'contents', hue:'var(--purple)' });
+    });
+    (data.shoots || []).forEach(x => { if(x.date)
+      put(x.date, { id:x.id, t:x.title, kind:'촬영', who:mediaWho(x),
+        media:'shoots', hue:'var(--purple)' }); });
+  }
 
   const cells = [];
   for(let i = 0; i < lead; i++) cells.push('<div class="cal-c out"></div>');
@@ -30165,17 +30189,19 @@ function renderCalendar(){
             + (o.st ? ' · ' + o.st : '')
             + (o.to && o.to !== o.from ? '\n' + fmtYMD(o.from) + ' ~ ' + fmtYMD(o.to) : '')
             + (o.memo ? '\n' + o.memo : '')
-            + (o.own ? '\n(누르면 고칠 수 있습니다)' : '\n(누르면 할 일 화면으로 갑니다)');
+            + (o.media ? '\n(누르면 콘텐츠를 고칩니다)'
+                : o.own ? '\n(누르면 고칠 수 있습니다)' : '\n(누르면 할 일 화면으로 갑니다)');
           return '<div class="cal-e' + (o.part ? ' p-' + o.part : '') + '" '
-            + 'style="--ec:' + (EVENT_HUE[o.kind] || 'var(--text-muted)') + '" '
+            + 'style="--ec:' + (o.hue || EVENT_HUE[o.kind] || 'var(--text-muted)') + '" '
             + 'title="' + esc(tip) + '" '
-            + (o.own ? 'onclick="editEvent(\'' + jsq(o.id) + '\')"'
+            + (o.media ? 'onclick="openItemModal(\'' + o.media + '\',\'' + jsq(o.id) + '\')"'
+                : o.own ? 'onclick="editEvent(\'' + jsq(o.id) + '\')"'
                      : 'onclick="gotoResult(\'' + jsq(o.bid) + '\',\'tasks\')"') + '>'
             + '<span class="cal-dot"></span>'
             + (o.part === 'mid' || o.part === 'last' ? '<span class="cal-cont">…</span>' : '')
             /* 제목은 줄어들고 담당자 이름은 끝까지 남게 — 맨 텍스트로 두면
                제목이 길 때 담당자가 먼저 잘려 나갑니다 */
-            + '<span class="cal-t">' + esc(o.t) + '</span>'
+            + '<span class="cal-t">' + esc((o.media === 'shoots' || (o.media && o.kind === '촬영') ? '🎥 ' : o.media ? '📣 ' : '') + o.t) + '</span>'
             + (o.who ? '<span class="cal-who">' + esc(o.who) + '</span>' : '')
             + '</div>';
         }).join('')
@@ -30186,7 +30212,9 @@ function renderCalendar(){
 
   const legend = EVENT_KINDS.concat(['할 일']).map(k =>
     '<span class="vz-key"><span class="cal-dot" style="--ec:'
-    + (EVENT_HUE[k] || 'var(--text-muted)') + '"></span>' + k + '</span>').join('');
+    + (EVENT_HUE[k] || 'var(--text-muted)') + '"></span>' + k + '</span>').join('')
+    + (calMedia ? '<span class="vz-key"><span class="cal-dot" style="--ec:'
+        + STAGE_HUE['배포'] + '"></span>🎬 콘텐츠 공개</span>' : '');
 
   document.getElementById('main').innerHTML =
     '<div class="panel"><div class="tabbody">'
@@ -30203,6 +30231,9 @@ function renderCalendar(){
       + '<button class="btn sm' + (calTasks ? ' primary' : '') + '" onclick="toggleCalTasks()" '
         + 'title="브랜드 할 일의 기한을 달력에 함께 보여줍니다">'
         + (calTasks ? '✅ 할 일 보이는 중' : '할 일 보기') + '</button>'
+      + '<button class="btn sm' + (calMedia ? ' primary' : '') + '" onclick="toggleCalMedia()" '
+        + 'title="미디어마케팅 콘텐츠 공개·촬영일을 달력에 함께 보여줍니다">'
+        + (calMedia ? '🎬 콘텐츠 보이는 중' : '콘텐츠 보기') + '</button>'
       + '<span class="hint">빈 칸을 두 번 누르면 그 날짜로 넣습니다 · '
         + '일정을 누르면 날짜까지 고칠 수 있습니다</span>'
     + '</div>'

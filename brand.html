@@ -4244,6 +4244,45 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
   .cal-e{font-size:11px;padding:1px 4px}
 }
 
+/* 🎬 미디어마케팅 — 콘텐츠 칸반 · 채널 · 촬영 · 요청 */
+.media-kan{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;align-items:flex-start}
+.media-col{flex:1 0 220px;min-width:210px;max-width:320px;background:var(--bg-secondary);
+  border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+.media-col-h{padding:8px 10px;font-weight:700;font-size:13px;background:var(--bg-card)}
+.media-col-h .cnt{color:var(--text-muted);font-weight:600;margin-left:4px}
+.media-col-b{padding:8px;display:flex;flex-direction:column;gap:8px;min-height:40px}
+.media-col-e{color:var(--text-muted);font-size:12px;text-align:center;padding:10px 0}
+.media-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+  padding:9px 10px;cursor:pointer;transition:border-color .12s}
+.media-card:hover{border-color:var(--blue)}
+.media-card-t{font-weight:650;font-size:13px;line-height:1.35;margin-bottom:6px;word-break:break-word}
+.media-card-m{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.media-card-nav{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
+.media-chan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.media-chan{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+  padding:12px 14px;cursor:pointer;transition:border-color .12s}
+.media-chan:hover{border-color:var(--blue)}
+.media-chan-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;font-size:14px}
+.media-chan-g{margin-top:6px;font-size:12.5px;color:var(--text-secondary);line-height:1.4}
+.media-shoot-list{display:flex;flex-direction:column;gap:8px}
+.media-shoot{display:flex;gap:12px;align-items:flex-start;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;cursor:pointer;
+  transition:border-color .12s}
+.media-shoot:hover{border-color:var(--blue)}
+.media-shoot-d{flex:0 0 auto;min-width:86px;font-weight:700;font-size:13px;color:var(--purple)}
+.media-shoot-b{flex:1 1 auto;min-width:0}
+.media-shoot-t{font-weight:650;font-size:13px;margin-bottom:5px}
+.media-req-list{display:flex;flex-direction:column;gap:8px}
+.media-req{display:flex;gap:10px;align-items:center;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:var(--r-md);padding:9px 12px}
+.media-req-main{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:7px;cursor:pointer}
+.media-req-t{font-weight:600;font-size:13px}
+.media-req-act{flex:0 0 auto;display:flex;gap:6px}
+@media(max-width:720px){
+  .media-req{flex-direction:column;align-items:stretch}
+  .media-shoot-d{min-width:0}
+}
+
 /* 고칠 수 있는 표 */
 table.itable.editable td{max-width:260px}
 table.itable th.ownc{background:var(--blue-soft);color:var(--text-primary)}
@@ -5396,6 +5435,15 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
     </div>
     <div class="brand-list" id="pgList-업무관리"></div>
 
+    <div class="side-title" style="margin-top:18px">미디어마케팅</div>
+    <div class="brand-list">
+      <button class="brand-item home-item" id="mediaBtn" onclick="goView('media')">
+        <span class="bar" style="background:var(--purple)"></span>
+        <span class="em">🎬</span><span>미디어마케팅</span>
+        <span class="cnt" id="mediaCnt"></span>
+      </button>
+    </div>
+
     <div class="side-title" style="margin-top:18px">팀운영</div>
     <div class="brand-list">
       <button class="brand-item home-item" id="calBtn" onclick="goView('calendar')">
@@ -5689,7 +5737,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261020-73';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-74';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -5942,6 +5990,16 @@ const EVENT_HUE   = { '마감':'var(--red)', '발행':'var(--blue)', '촬영':'v
 /* 일정·회의록에서 브랜드를 고를 수 있게 이름 목록을 만듭니다 (빈 칸 포함) */
 function brandNames(){ return [''].concat(data.brands.map(b => b.name)); }
 
+/* 🎬 콘텐츠 제작 공정 단계 (칸반 열). 미디어팀 TeamHub 의 기획→촬영→
+   편집→배포→완료 를 그대로 옮긴 것입니다. 색은 단계마다 다르게 둡니다. */
+const CONTENT_STAGES = ['기획', '촬영', '편집', '배포', '완료'];
+const STAGE_HUE = { '기획':'var(--blue)', '촬영':'var(--purple)', '편집':'var(--orange)',
+                    '배포':'var(--cyan)', '완료':'var(--green)' };
+/* 콘텐츠 「채널」 칸에 채널 운영에 적어 둔 채널 이름을 띄워 줍니다 */
+function mediaChannelNames(){
+  return (data.mchannels || []).map(c => c.name).filter(Boolean);
+}
+
 const TYPES = {
   events: {
     label:'일정', icon:'📅', tab:'달력',
@@ -5987,6 +6045,79 @@ const TYPES = {
       { key:'body',      label:'회의 내용', type:'textarea', rows:16,
         ph:'들은 대로 편하게 적으세요. 문장이 안 다듬어져도 괜찮습니다.\n'
            + 'AI가 요약·결정사항·할 일로 정리해 줍니다.' }
+    ]
+  },
+  /* ═══ 🎬 미디어마케팅 (미디어팀 TeamHub 에서 옮겨 온 메뉴) ═══════════
+     콘텐츠 제작(공정 칸반) · 채널 운영 · 촬영·장비 · 요청 센터.
+     모두 브랜드 밖(팀 전체) 목록이라 TOP_LISTS 에 넣어, 저장·합치기·
+     휴지통이 회의록과 똑같이 돌아갑니다. 콘텐츠 캘린더는 따로 자료를
+     두지 않고 contents·shoots 를 날짜로 모아 보여 주는 화면입니다. */
+  contents: {
+    label:'콘텐츠', icon:'🎬', tab:'콘텐츠 제작',
+    hint:'콘텐츠 하나를 기획→촬영→편집→배포→완료 단계로 옮기며 관리합니다',
+    empty:'아직 콘텐츠가 없습니다. 첫 콘텐츠를 올려 보세요.',
+    fields:[
+      { key:'title',     label:'제목', type:'text', required:true,
+        ph:'예: 10월 신제품 소개 영상' },
+      { key:'channel',   label:'채널', type:'combo', options: mediaChannelNames,
+        ph:'예: 유튜브 · 인스타', hint:'채널 운영에 적어 둔 채널이 목록에 나옵니다' },
+      { key:'stage',     label:'단계', type:'select', options: CONTENT_STAGES,
+        def: () => CONTENT_STAGES[0] },
+      { key:'uid',       label:'담당', type:'select', options: taskPeople,
+        when: () => authOn(), def: () => { const m = authMe(); return m ? m.id : ''; } },
+      { key:'owner',     label:'담당', type:'text', ph:'예: 김피디',
+        when: () => !authOn() },
+      { key:'pubDate',   label:'공개 예정일', type:'date', noDefault:true },
+      { key:'shootDate', label:'촬영일', type:'date', noDefault:true },
+      { key:'memo',      label:'메모', type:'textarea', ph:'기획 메모·대본 링크 등' }
+    ]
+  },
+  mchannels: {
+    label:'채널', icon:'📺', tab:'채널 운영',
+    hint:'유튜브·인스타 같은 채널별 운영 기준·시리즈·성과를 적어 둡니다',
+    empty:'아직 등록한 채널이 없습니다.',
+    fields:[
+      { key:'name',     label:'채널 이름', type:'text', required:true,
+        ph:'예: 넷폼알앤디 유튜브' },
+      { key:'platform', label:'플랫폼', type:'select',
+        options:['유튜브','인스타그램','틱톡','블로그','페이스북','네이버','기타'] },
+      { key:'series',   label:'시리즈 (선택)', type:'text', ph:'예: 브이로그 · 제품리뷰' },
+      { key:'goal',     label:'운영 기준·목표 (선택)', type:'textarea',
+        ph:'예: 주 2회 업로드 · 롱폼 1 + 숏폼 2' },
+      { key:'memo',     label:'메모', type:'textarea', ph:'성과·참고' }
+    ]
+  },
+  shoots: {
+    label:'촬영', icon:'🎥', tab:'촬영·장비',
+    hint:'촬영 일정과 쓸 장비를 적어 둡니다',
+    empty:'아직 촬영 일정이 없습니다.',
+    fields:[
+      { key:'title', label:'촬영 제목', type:'text', required:true,
+        ph:'예: 신제품 언박싱 촬영' },
+      { key:'date',  label:'촬영일', type:'date' },
+      { key:'place', label:'장소', type:'text', ph:'예: 사무실 스튜디오 · 야외' },
+      { key:'gear',  label:'장비', type:'text', ph:'예: A7M4 · 조명 2 · 핀마이크' },
+      { key:'uid',   label:'담당', type:'select', options: taskPeople,
+        when: () => authOn(), def: () => { const m = authMe(); return m ? m.id : ''; } },
+      { key:'owner', label:'담당', type:'text', ph:'예: 이촬영', when: () => !authOn() },
+      { key:'memo',  label:'메모', type:'textarea' }
+    ]
+  },
+  requests: {
+    label:'요청', icon:'📨', tab:'요청 센터',
+    hint:'팀끼리 주고받는 요청을 적습니다 — 받은 요청·보낸 요청·완료',
+    empty:'아직 요청이 없습니다.',
+    fields:[
+      { key:'title',  label:'요청 내용', type:'text', required:true,
+        ph:'예: 섬네일 디자인 요청' },
+      { key:'dir',    label:'구분', type:'select', options:['받음','보냄'],
+        def: () => '받음' },
+      { key:'who',    label:'상대 (누구에게 / 누구로부터)', type:'text',
+        ph:'예: 브랜드팀 김영희' },
+      { key:'status', label:'상태', type:'select', options:['대기','진행','완료'],
+        def: () => '대기' },
+      { key:'due',    label:'기한 (선택)', type:'date', noDefault:true },
+      { key:'memo',   label:'메모', type:'textarea' }
     ]
   },
   costs: {
@@ -6947,6 +7078,7 @@ function render(){
   /* 명함은 왼쪽에서 뺐습니다 — 단추가 없어도 아래 if(el) 로 그냥 넘어갑니다 */
   [['obBtn','onboard'],
    ['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],
+   ['mediaBtn','media'],
    ['costBtn','costs'],['blogBtn','blog'],['acctBtn','accounts'],
    ['trashBtn','trash']].forEach(([id, v]) => {
     const el = document.getElementById(id);
@@ -6954,6 +7086,9 @@ function render(){
   });
   const mc = document.getElementById('meetCnt');
   if(mc) mc.textContent = (data.meetings || []).length || '';
+  const mdc = document.getElementById('mediaCnt');
+  if(mdc) mdc.textContent = ((data.contents || []).length + (data.mchannels || []).length
+    + (data.shoots || []).length + (data.requests || []).length) || '';
   const ac = document.getElementById('acctCnt');
   if(ac) ac.textContent = (data.accounts || []).length || '';
   const cc = document.getElementById('calCnt');
@@ -6980,6 +7115,7 @@ function render(){
   else if(view === 'nas') renderNas();
   else if(view === 'onboard') renderOnboard();
   else if(view === 'meetings') renderMeetings();
+  else if(view === 'media') renderMedia();
   else if(view === 'calendar') renderCalendar();
   else if(view === 'tasks') renderTasks();
   else if(view === 'cards') renderCards();
@@ -29246,6 +29382,281 @@ function calGoTo(ds){
   render(); uiGoTop(1);
 }
 
+/* ═══════════════ 🎬 미디어마케팅 ═══════════════════════════════════
+   미디어팀 TeamHub 에서 옮겨 온 메뉴들입니다. 한 탭 안에서 골라 봅니다.
+     · 콘텐츠 제작 — 기획→촬영→편집→배포→완료 공정 칸반
+     · 콘텐츠 캘린더 — 공개 예정·촬영을 달력으로
+     · 채널 운영 — 채널별 기준·시리즈
+     · 촬영·장비 — 촬영 일정·장비
+     · 요청 센터 — 받은·보낸·완료 요청
+   모두 data.* (브랜드 밖) 에 담겨 팀 전체가 같이 봅니다.
+   ================================================================= */
+let mediaTab = 'contents';
+let reqFilter = '';                       // 요청 센터: ''(전체)·받음·보냄·대기·완료
+const MEDIA_TABS = [
+  ['contents',  '🎬 콘텐츠 제작'],
+  ['cal',       '📆 콘텐츠 캘린더'],
+  ['mchannels', '📺 채널 운영'],
+  ['shoots',    '🎥 촬영·장비'],
+  ['requests',  '📨 요청 센터']
+];
+function setMediaTab(t){ mediaTab = t; if(t === 'requests') reqFilter = ''; render(); uiGoTop(1); }
+function setReqFilter(v){ reqFilter = v; render(); }
+
+/* 담당자 이름 — 계정이면 명단 이름, 아니면 적어둔 이름 */
+function mediaWho(x){
+  const nm = x && x.uid ? peopleName(x.uid) : '';
+  return (nm && nm !== x.uid) ? nm : ((x && x.owner) || '');
+}
+
+function renderMedia(){
+  if(authOn()) setTimeout(() => loadPeople(), 10);
+  const n = {
+    contents:  (data.contents  || []).length,
+    mchannels: (data.mchannels || []).length,
+    shoots:    (data.shoots    || []).length,
+    requests:  (data.requests  || []).filter(r => (r.status || '') !== '완료').length
+  };
+  const tabs = '<div class="sec-bar" style="margin-bottom:14px;flex-wrap:wrap">'
+    + MEDIA_TABS.map(([k, lab]) => {
+        const cnt = (k === 'cal') ? '' : (n[k] ? ' ' + n[k] : '');
+        return '<button class="btn sm' + (mediaTab === k ? ' primary' : '') + '" '
+          + 'onclick="setMediaTab(\'' + k + '\')">' + lab + cnt + '</button>';
+      }).join('')
+    + '</div>';
+
+  let body = '';
+  if(mediaTab === 'contents')       body = mediaContentsView();
+  else if(mediaTab === 'cal')       body = mediaCalView();
+  else if(mediaTab === 'mchannels') body = mediaChannelsView();
+  else if(mediaTab === 'shoots')    body = mediaShootsView();
+  else if(mediaTab === 'requests')  body = mediaRequestsView();
+
+  document.getElementById('main').innerHTML =
+    '<div class="panel"><div class="tabbody">'
+    + '<h2 class="page-h">🎬 미디어마케팅</h2>'
+    + '<div class="page-sub">미디어마케팅팀 업무를 브랜드 허브 안에서 봅니다 — '
+      + '콘텐츠 제작 · 캘린더 · 채널 · 촬영 · 요청</div>'
+    + tabs + body
+    + '</div></div>';
+}
+
+/* ── 🎬 콘텐츠 제작 (공정 칸반) ─────────────────────────────────────── */
+function mediaContentsView(){
+  const all = data.contents || [];
+  const bar = '<div class="sec-bar" style="margin-bottom:12px">'
+    + '<span class="fmeta">단계마다 카드로 놓고, ◀ ▶ 로 다음 단계로 옮깁니다</span>'
+    + '<button class="btn primary" onclick="openItemModal(\'contents\')">＋ 콘텐츠</button>'
+    + '</div>';
+  if(!all.length)
+    return bar + '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
+      + '아직 콘텐츠가 없습니다. <b>＋ 콘텐츠</b> 로 첫 콘텐츠를 올려 보세요.</div>';
+
+  const cols = CONTENT_STAGES.map(st => {
+    const items = all.filter(c => (c.stage || CONTENT_STAGES[0]) === st);
+    const cards = items.map(c => {
+      const who = mediaWho(c);
+      return '<div class="media-card" onclick="openItemModal(\'contents\',\'' + jsq(c.id) + '\')" '
+        + 'title="눌러서 고칩니다">'
+        + '<div class="media-card-t">' + esc(c.title || '(제목 없음)') + '</div>'
+        + '<div class="media-card-m">'
+          + (c.channel ? '<span class="chip">📺 ' + esc(c.channel) + '</span>' : '')
+          + (c.pubDate ? '<span class="chip">📅 ' + esc(fmtYMD(c.pubDate)) + '</span>' : '')
+          + (who ? '<span class="fmeta">👤 ' + esc(who) + '</span>' : '')
+        + '</div>'
+        + '<div class="media-card-nav" onclick="event.stopPropagation()">'
+          + '<button class="btn sm" title="이전 단계로"'
+            + (st === CONTENT_STAGES[0] ? ' disabled' : '')
+            + ' onclick="mediaMoveStage(\'' + jsq(c.id) + '\',-1)">◀</button>'
+          + '<button class="btn sm" title="다음 단계로"'
+            + (st === CONTENT_STAGES[CONTENT_STAGES.length - 1] ? ' disabled' : '')
+            + ' onclick="mediaMoveStage(\'' + jsq(c.id) + '\',1)">▶</button>'
+        + '</div>'
+      + '</div>';
+    }).join('');
+    return '<div class="media-col">'
+      + '<div class="media-col-h" style="border-top:3px solid ' + STAGE_HUE[st] + '">'
+        + esc(st) + ' <span class="cnt">' + (items.length || '') + '</span></div>'
+      + '<div class="media-col-b">' + (cards || '<div class="media-col-e">비어 있음</div>') + '</div>'
+    + '</div>';
+  }).join('');
+
+  return bar + '<div class="media-kan">' + cols + '</div>';
+}
+
+function mediaMoveStage(id, delta){
+  const c = (data.contents || []).find(x => x.id === id);
+  if(!c) return;
+  let i = CONTENT_STAGES.indexOf(c.stage || CONTENT_STAGES[0]);
+  if(i < 0) i = 0;
+  const ni = Math.max(0, Math.min(CONTENT_STAGES.length - 1, i + delta));
+  if(ni === i) return;
+  c.stage = CONTENT_STAGES[ni];
+  c.updatedAt = new Date().toISOString();
+  render(); markDirty();
+  toast('🎬 「' + (c.title || '콘텐츠') + '」 → ' + c.stage);
+}
+
+/* ── 📆 콘텐츠 캘린더 (공개 예정 · 촬영) ────────────────────────────── */
+function mediaCalView(){
+  const c = calNow();
+  const days = new Date(c.y, c.m + 1, 0).getDate();
+  const lead = new Date(c.y, c.m, 1).getDay();
+  const todayS = todayStr();
+  const byDay = {};
+  const put = (d, o) => { if(d) (byDay[d] = byDay[d] || []).push(o); };
+  (data.contents || []).forEach(x => { if(x.pubDate)
+    put(x.pubDate, { t:x.title, kind:'공개', hue:STAGE_HUE['배포'], who:mediaWho(x), id:x.id, type:'contents' }); });
+  (data.contents || []).forEach(x => { if(x.shootDate)
+    put(x.shootDate, { t:x.title, kind:'촬영', hue:STAGE_HUE['촬영'], who:mediaWho(x), id:x.id, type:'contents' }); });
+  (data.shoots || []).forEach(x => { if(x.date)
+    put(x.date, { t:x.title, kind:'촬영', hue:'var(--purple)', who:mediaWho(x), id:x.id, type:'shoots' }); });
+
+  const cells = [];
+  for(let i = 0; i < lead; i++) cells.push('<div class="cal-c out"></div>');
+  for(let d = 1; d <= days; d++){
+    const ds = c.y + '-' + String(c.m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    const list = byDay[ds] || [];
+    const dow = new Date(c.y, c.m, d).getDay();
+    cells.push('<div class="cal-c' + (ds === todayS ? ' today' : '')
+      + (dow === 0 ? ' sun' : (dow === 6 ? ' sat' : '')) + '">'
+      + '<div class="cal-d">' + d + '</div>'
+      + list.map(o => '<div class="cal-e" style="--ec:' + o.hue + '" '
+          + 'title="' + esc(o.kind + ' · ' + o.t + (o.who ? '\n담당 ' + o.who : '')) + '" '
+          + 'onclick="openItemModal(\'' + o.type + '\',\'' + jsq(o.id) + '\')">'
+          + '<span class="cal-dot"></span>'
+          + '<span class="cal-t">' + esc((o.kind === '촬영' ? '🎥 ' : '📣 ') + o.t) + '</span>'
+          + (o.who ? '<span class="cal-who">' + esc(o.who) + '</span>' : '')
+        + '</div>').join('')
+      + '</div>');
+  }
+  while(cells.length % 7) cells.push('<div class="cal-c out"></div>');
+
+  return '<div class="sec-bar">'
+    + '<button class="btn" onclick="calMove(-1)">‹ 이전 달</button>'
+    + '<strong style="font-size:15px;min-width:120px;text-align:center">'
+      + c.y + '년 ' + (c.m + 1) + '월</strong>'
+    + '<button class="btn" onclick="calMove(1)">다음 달 ›</button>'
+    + '<button class="btn" onclick="calToday()">오늘</button>'
+    + '<button class="btn primary" onclick="openItemModal(\'contents\')">＋ 콘텐츠</button>'
+    + '<span class="hint">콘텐츠의 공개 예정일·촬영일과 촬영 일정이 함께 보입니다</span>'
+    + '</div>'
+    + '<div class="vz-legend" style="margin:8px 0 10px">'
+      + '<span class="vz-key"><span class="cal-dot" style="--ec:' + STAGE_HUE['배포'] + '"></span>공개 예정</span>'
+      + '<span class="vz-key"><span class="cal-dot" style="--ec:var(--purple)"></span>촬영</span>'
+    + '</div>'
+    + '<div class="calwrap"><div class="cal">'
+      + ['일','월','화','수','목','금','토'].map((w, i) =>
+          '<div class="cal-h' + (i === 0 ? ' sun' : (i === 6 ? ' sat' : '')) + '">' + w + '</div>').join('')
+      + cells.join('')
+    + '</div></div>';
+}
+
+/* ── 📺 채널 운영 ──────────────────────────────────────────────────── */
+function mediaChannelsView(){
+  const all = data.mchannels || [];
+  const bar = '<div class="sec-bar" style="margin-bottom:12px">'
+    + '<span class="fmeta">채널별 운영 기준·시리즈를 적어 둡니다</span>'
+    + '<button class="btn primary" onclick="openItemModal(\'mchannels\')">＋ 채널</button>'
+    + '</div>';
+  if(!all.length)
+    return bar + '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
+      + '아직 등록한 채널이 없습니다. <b>＋ 채널</b> 로 넣어 보세요.</div>';
+  const cards = all.map(c => '<div class="media-chan" onclick="openItemModal(\'mchannels\',\'' + jsq(c.id) + '\')" '
+    + 'title="눌러서 고칩니다">'
+    + '<div class="media-chan-h"><b>' + esc(c.name || '(이름 없음)') + '</b>'
+      + (c.platform ? '<span class="chip on">' + esc(c.platform) + '</span>' : '') + '</div>'
+    + (c.series ? '<div class="fmeta">🎞 ' + esc(c.series) + '</div>' : '')
+    + (c.goal ? '<div class="media-chan-g">🎯 ' + esc(c.goal) + '</div>' : '')
+    + (c.memo ? '<div class="fmeta" style="margin-top:6px">' + esc(c.memo) + '</div>' : '')
+    + '</div>').join('');
+  return bar + '<div class="media-chan-grid">' + cards + '</div>';
+}
+
+/* ── 🎥 촬영·장비 ──────────────────────────────────────────────────── */
+function mediaShootsView(){
+  const all = (data.shoots || []).slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const bar = '<div class="sec-bar" style="margin-bottom:12px">'
+    + '<span class="fmeta">촬영 일정과 쓸 장비를 적어 둡니다</span>'
+    + '<button class="btn primary" onclick="openItemModal(\'shoots\')">＋ 촬영</button>'
+    + '</div>';
+  if(!all.length)
+    return bar + '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
+      + '아직 촬영 일정이 없습니다. <b>＋ 촬영</b> 으로 넣어 보세요.</div>';
+  const rows = all.map(s => {
+    const who = mediaWho(s);
+    return '<div class="media-shoot" onclick="openItemModal(\'shoots\',\'' + jsq(s.id) + '\')" title="눌러서 고칩니다">'
+      + '<div class="media-shoot-d">' + (s.date ? esc(fmtYMD(s.date)) : '날짜 미정') + '</div>'
+      + '<div class="media-shoot-b">'
+        + '<div class="media-shoot-t">' + esc(s.title || '(제목 없음)') + '</div>'
+        + '<div class="media-card-m">'
+          + (s.place ? '<span class="chip">📍 ' + esc(s.place) + '</span>' : '')
+          + (s.gear ? '<span class="chip">🎒 ' + esc(s.gear) + '</span>' : '')
+          + (who ? '<span class="fmeta">👤 ' + esc(who) + '</span>' : '')
+        + '</div>'
+      + '</div>'
+    + '</div>';
+  }).join('');
+  return bar + '<div class="media-shoot-list">' + rows + '</div>';
+}
+
+/* ── 📨 요청 센터 (받은 · 보낸 · 완료) ──────────────────────────────── */
+function mediaRequestsView(){
+  const all = data.requests || [];
+  const match = (r) => {
+    if(reqFilter === '') return (r.status || '') !== '완료';
+    if(reqFilter === '완료') return (r.status || '') === '완료';
+    if(reqFilter === '받음' || reqFilter === '보냄')
+      return (r.dir || '받음') === reqFilter && (r.status || '') !== '완료';
+    return true;
+  };
+  const list = all.filter(match);
+  const cnt = (f) => all.filter(r => {
+    if(f === '받음' || f === '보냄') return (r.dir || '받음') === f && (r.status || '') !== '완료';
+    if(f === '완료') return (r.status || '') === '완료';
+    return (r.status || '') !== '완료';
+  }).length;
+  const chip = (v, lab) => '<button class="btn sm' + (reqFilter === v ? ' primary' : '') + '" '
+    + 'onclick="setReqFilter(\'' + v + '\')">' + lab + ' ' + cnt(v) + '</button>';
+  const bar = '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap">'
+    + chip('', '진행 중') + chip('받음', '받은 요청') + chip('보냄', '보낸 요청') + chip('완료', '완료')
+    + '<button class="btn primary" onclick="openItemModal(\'requests\')">＋ 요청</button>'
+    + '</div>';
+  if(!list.length)
+    return bar + '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
+      + '해당하는 요청이 없습니다.</div>';
+  const ST = { '대기':'var(--text-muted)', '진행':'var(--orange)', '완료':'var(--green)' };
+  const rows = list.map(r => {
+    const st = r.status || '대기';
+    const dirLab = (r.dir || '받음') === '보냄' ? '→ 보냄' : '← 받음';
+    return '<div class="media-req">'
+      + '<div class="media-req-main" onclick="openItemModal(\'requests\',\'' + jsq(r.id) + '\')" title="눌러서 고칩니다">'
+        + '<span class="chip" style="color:' + ST[st] + '">● ' + esc(st) + '</span>'
+        + '<span class="chip">' + esc(dirLab) + '</span>'
+        + '<span class="media-req-t">' + esc(r.title || '(내용 없음)') + '</span>'
+        + (r.who ? '<span class="fmeta">👤 ' + esc(r.who) + '</span>' : '')
+        + (r.due ? '<span class="fmeta">⏰ ' + esc(fmtYMD(r.due)) + '</span>' : '')
+      + '</div>'
+      + '<div class="media-req-act">'
+        + (st !== '완료'
+            ? '<button class="btn sm" title="진행 중으로" onclick="mediaReqStatus(\'' + jsq(r.id) + '\',\'진행\')">진행</button>'
+              + '<button class="btn sm primary" title="끝냈어요" onclick="mediaReqStatus(\'' + jsq(r.id) + '\',\'완료\')">✓ 완료</button>'
+            : '<button class="btn sm" title="다시 열기" onclick="mediaReqStatus(\'' + jsq(r.id) + '\',\'진행\')">↩ 다시</button>')
+      + '</div>'
+    + '</div>';
+  }).join('');
+  return bar + '<div class="media-req-list">' + rows + '</div>';
+}
+
+function mediaReqStatus(id, st){
+  const r = (data.requests || []).find(x => x.id === id);
+  if(!r) return;
+  r.status = st;
+  r.updatedAt = new Date().toISOString();
+  render(); markDirty();
+  toast('📨 ' + (r.title || '요청') + ' → ' + st);
+}
+
 function renderCalendar(){
   wcalEnsure();
   if(authOn()) setTimeout(() => loadPeople(), 10);   // 담당자 이름을 제대로 쓰려고
@@ -33938,6 +34349,7 @@ const TOP_LISTS   = ['onboard', 'notices', 'meetings', 'events', 'trash', 'growt
                      'gbkpis', 'gbperf', 'cards', 'pages',
                      'teams', 'routines',  // 👥 팀 · 팀원 · 🔄 루틴 (할 일 화면)
                      'accounts',           // 🔐 내부계정
+                     'contents', 'mchannels', 'shoots', 'requests',  // 🎬 미디어마케팅
                      'log'];  // 브랜드 밖 (log = 🕘 무엇이 바뀌었나)
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)

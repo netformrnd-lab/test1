@@ -5384,6 +5384,15 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
 .tt-ed .x{flex:0 0 auto;width:26px;height:26px;border:none;border-radius:7px;
   background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer}
 .tt-ed .x:hover{background:var(--bg-sunken);color:var(--red)}
+/* 🔀 팀 선택 (사람 관리) · 팀 이름 고치기 · 팀 지우기 */
+.tt-ed-tm{flex:0 0 auto;max-width:44%;padding:6px 8px;border:1px solid var(--border);
+  border-radius:8px;background:var(--bg-input);font-family:inherit;font-size:12px;
+  font-weight:650;color:var(--text-primary);cursor:pointer}
+.tt-th-name{flex:0 1 auto;min-width:80px;padding:4px 9px;border:1px solid var(--border);
+  border-radius:8px;background:var(--bg-input);font-family:inherit;font-size:13.5px;
+  font-weight:800;color:var(--text-primary)}
+.tt-add.danger{color:var(--red)}
+.tt-add.danger:hover{border-color:var(--red);color:var(--red)}
 .tt-s{border-top:1px solid var(--border)}
 /* 칸 머리 — 누르면 접혔다 펴집니다 */
 .tt-lb{display:flex;align-items:center;gap:0;width:100%;
@@ -5840,7 +5849,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-77';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-78';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17977,6 +17986,40 @@ function memDel(tid, mid){
   if(m) deletedIds.add(mid);
   markDirtyAll(); render();
 }
+/* 👤 팀원을 다른 팀으로 옮깁니다 (사람 관리의 「팀 선택」).
+   그분이 맡은 할 일·콘텐츠는 그대로 따라갑니다 (담당은 그 사람이니까). */
+function memMove(fromTid, mid, toTid){
+  if(!toTid || fromTid === toTid) return;
+  const from = teamFind(fromTid), to = teamFind(toTid);
+  if(!from || !to) return;
+  const i = from.members.findIndex(x => x.id === mid);
+  if(i < 0) return;
+  const mv = from.members.splice(i, 1)[0];
+  to.members.push(mv);
+  markDirtyAll(); render();
+  toast('👤 「' + (mv.name || '팀원') + '」 을(를) ' + (to.name || '팀') + ' (으)로 옮겼습니다');
+}
+/* ＋ 팀 — 미디어팀이 자기 팀을 만들 수 있게 */
+function teamAdd(){
+  teamsOf();
+  data.teams.push({ id: uid('tm'), name: '새 팀', kpi: '', members: [] });
+  teamEdit = true;
+  markDirtyAll(); render();
+  toast('팀을 하나 만들었습니다 — 이름을 고쳐 주세요');
+}
+/* 팀 삭제 — 팀원은 지우지 않고 「그 밖」 으로 내려갑니다 */
+function teamDel(tid){
+  const t = teamFind(tid); if(!t) return;
+  const msg = t.members.length
+    ? '「' + t.name + '」 팀을 지웁니다.\n\n팀원 ' + t.members.length
+      + '명은 지워지지 않고 「그 밖」 으로 내려갑니다. 계속할까요?'
+    : '「' + t.name + '」 팀을 지울까요?';
+  if(!confirm(msg)) return;
+  data.teams = teamsOf().filter(x => x.id !== tid);
+  deletedIds.add(tid);
+  markDirtyAll(); render();
+  toast('팀을 지웠습니다');
+}
 let teamEdit = false;
 function teamEditToggle(){ teamEdit = !teamEdit; render(); }
 /* 이 사람이 맡은 할 일 — 계정으로도, 이름으로도 찾습니다 */
@@ -18780,6 +18823,12 @@ function memCard(m, t, hue, rows){
           + ' onchange="memSet(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\',\'name\', this.value)">'
         + '<input value="' + esc(m.role || '') + '" placeholder="맡은 자리 (예: 팀장)"'
           + ' onchange="memSet(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\',\'role\', this.value)">'
+        /* 🔀 팀 선택 — 이 사람을 다른 팀으로 옮깁니다 */
+        + '<select class="tt-ed-tm" title="이 사람의 팀 (고르면 그 팀으로 옮깁니다)"'
+          + ' onchange="memMove(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\', this.value)">'
+          + teamsOf().map(tt => '<option value="' + esc(tt.id) + '"'
+              + (tt.id === t.id ? ' selected' : '') + '>👥 ' + esc(tt.name || '팀') + '</option>').join('')
+          + '</select>'
         + '<button class="x" onclick="memDel(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\')">✕</button>'
         + '</div>'
       : '<div class="tt-kpi"><span>🎯</span>'
@@ -23171,9 +23220,17 @@ function renderTasks(){
     const liveN = t.members.reduce((a, m) =>
       a + memRows(m, rows).filter(r => r.t.status !== '완료').length, 0);
     return '<div class="tt-team" style="--tc:' + hue + '">'
-      + '<div class="tt-th"><span class="tt-dot"></span>' + esc(t.name)
+      + '<div class="tt-th"><span class="tt-dot"></span>'
+        + (teamEdit
+            ? '<input class="tt-th-name" value="' + esc(t.name || '') + '" placeholder="팀 이름"'
+              + ' onchange="teamSet(\'' + jsq(t.id) + '\',\'name\', this.value); render()">'
+            : esc(t.name))
         + '<span class="tt-meta">' + t.members.length + '명 · 남은 일 ' + liveN + '건</span>'
-        + (teamEdit ? '<button class="tt-add" onclick="memAdd(\'' + jsq(t.id) + '\')">＋ 사람</button>' : '')
+        + (teamEdit
+            ? '<button class="tt-add" onclick="memAdd(\'' + jsq(t.id) + '\')">＋ 사람</button>'
+              + '<button class="tt-add danger" onclick="teamDel(\'' + jsq(t.id) + '\')" '
+              + 'title="이 팀을 지웁니다 (팀원은 그 밖으로)">🗑 팀</button>'
+            : '')
       + '</div>'
       + '<div class="tt-grid">'
         + (t.members.length
@@ -23231,6 +23288,8 @@ function renderTasks(){
             + (taskDone ? '✅ 끝난 일도 보는 중' : '끝난 일 보기') + '</button>'
           + '<button class="tt-edb' + (teamEdit ? ' on' : '') + '" onclick="teamEditToggle()">'
             + (teamEdit ? '✔ 다 고쳤어요' : '✎ 팀 고치기') + '</button>'
+          + (teamEdit ? '<button class="tt-edb" onclick="teamAdd()" '
+              + 'title="새 팀을 만듭니다">＋ 팀</button>' : '')
           + '<button class="tt-edb" onclick="gbiPick()" title="마인드맵으로 그린 '
             + '그로스보드를 올리면 프로젝트로 세워 줍니다">📥 그로스보드</button>')
       + '</div>'

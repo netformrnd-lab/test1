@@ -4324,6 +4324,14 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 :root[data-theme="dark"] .mm-tile-n,:root:not([data-theme="light"]) .mm-tile-n{color:#dfe5f3}
 .mm-tile-l{font-size:12px;color:var(--text-muted);font-weight:600}
 .mm-sec-t{font-size:14px;font-weight:800;color:var(--text-primary);margin:20px 0 10px}
+.mm-sec-bar{display:flex;align-items:center;gap:10px;margin:20px 0 10px}
+.mm-sec-bar .mm-sec-t{margin:0}
+.mm-sec-bar .btn{margin-left:auto}
+.mm-team-big{display:flex;align-items:baseline;gap:7px;margin:4px 0 9px}
+.mm-big-n{font-size:30px;font-weight:800;color:var(--th);line-height:1}
+.mm-big-l{font-size:12.5px;font-weight:700;color:var(--text-muted)}
+.u-team{padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg-input);
+  font-family:inherit;font-size:12px;font-weight:650;color:var(--text-primary);cursor:pointer}
 .mm-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 .mm-team{background:var(--bg-card);border:1px solid var(--border);border-left:4px solid var(--th);
   border-radius:var(--r-md);padding:12px 14px}
@@ -5849,7 +5857,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-78';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-79';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18007,6 +18015,34 @@ function teamAdd(){
   markDirtyAll(); render();
   toast('팀을 하나 만들었습니다 — 이름을 고쳐 주세요');
 }
+/* 이름을 물어 팀을 만듭니다 (사람 관리·미마 홈의 ＋팀) */
+async function teamAddPrompt(){
+  const nm = await askOne('새 팀 이름을 적어주세요.\n\n예: 미디어마케팅팀 · 촬영팀 · 콘텐츠팀', '');
+  if(nm === null) return;
+  const name = String(nm).trim();
+  if(!name) return;
+  teamsOf();
+  data.teams.push({ id: uid('tm'), name: name, kpi: '', members: [] });
+  markDirtyAll(); render();
+  toast('팀 「' + name + '」 을(를) 만들었습니다');
+}
+/* 🔗 계정이 속한 팀 — 팀원 가운데 uid 가 이 계정인 것을 찾습니다 */
+function accTeamOf(aid){
+  if(!aid) return null;
+  return teamsOf().find(t => (t.members || []).some(m => m.uid === aid)) || null;
+}
+/* 👤 사람 관리에서 계정의 팀을 정합니다 — 모든 팀에서 뺀 뒤 고른 팀에 넣습니다.
+   계정과 이어진(uid) 팀원만 건드리므로, 손으로 적어 둔 팀원은 그대로 둡니다. */
+function accSetTeam(aid, name, toTid){
+  if(!aid) return;
+  teamsOf().forEach(t => { t.members = (t.members || []).filter(m => m.uid !== aid); });
+  if(toTid){
+    const to = teamFind(toTid);
+    if(to) to.members.push({ id: uid('tp'), name: name || '', role: '', kpi: '', uid: aid });
+  }
+  markDirtyAll(); render();
+  toast(toTid ? '👤 팀을 정했습니다' : '👤 팀에서 뺐습니다');
+}
 /* 팀 삭제 — 팀원은 지우지 않고 「그 밖」 으로 내려갑니다 */
 function teamDel(tid){
   const t = teamFind(tid); if(!t) return;
@@ -18823,12 +18859,6 @@ function memCard(m, t, hue, rows){
           + ' onchange="memSet(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\',\'name\', this.value)">'
         + '<input value="' + esc(m.role || '') + '" placeholder="맡은 자리 (예: 팀장)"'
           + ' onchange="memSet(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\',\'role\', this.value)">'
-        /* 🔀 팀 선택 — 이 사람을 다른 팀으로 옮깁니다 */
-        + '<select class="tt-ed-tm" title="이 사람의 팀 (고르면 그 팀으로 옮깁니다)"'
-          + ' onchange="memMove(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\', this.value)">'
-          + teamsOf().map(tt => '<option value="' + esc(tt.id) + '"'
-              + (tt.id === t.id ? ' selected' : '') + '>👥 ' + esc(tt.name || '팀') + '</option>').join('')
-          + '</select>'
         + '<button class="x" onclick="memDel(\'' + jsq(t.id) + '\',\'' + jsq(m.id) + '\')">✕</button>'
         + '</div>'
       : '<div class="tt-kpi"><span>🎯</span>'
@@ -29626,26 +29656,28 @@ function mediaHomeView(){
     tc.forEach(c => assigned.add('c' + c.id));
     ts.forEach(s => assigned.add('s' + s.id));
     const act = tc.filter(c => (c.stage || '') !== '완료').length;
+    const done = tc.length - act;
+    /* 이름은 넣지 않습니다 — 팀이 콘텐츠를 얼마나 만들고 있나를 봅니다 */
     return '<div class="mm-team" style="--th:' + hue + '">'
-      + '<div class="mm-team-h"><span class="mm-team-bar"></span>'
-        + '<b>' + esc(tm.name || '팀') + '</b>'
-        + '<span class="fmeta">' + tm.members.length + '명</span></div>'
-      + '<div class="mm-team-st">'
-        + '<span class="chip">🎬 콘텐츠 ' + tc.length + (act ? ' · 진행 ' + act : '') + '</span>'
-        + '<span class="chip">🎥 촬영 ' + ts.length + '</span></div>'
-      + (tc.length ? '<div class="mm-sc-row">' + mmStageChips(tc) + '</div>' : '')
-      + '<div class="mm-team-mem">'
-        + (tm.members.length
-            ? tm.members.map(m => '<span class="mm-chip">' + esc(m.name || peopleName(m.uid) || '—')
-                + (m.role ? ' <i>' + esc(m.role) + '</i>' : '') + '</span>').join('')
-            : '<span class="fmeta">팀원이 없습니다</span>')
-      + '</div>'
+      + '<div class="mm-team-h"><b>' + esc(tm.name || '팀') + '</b>'
+        + '<span class="fmeta">제작 중 ' + act + ' · 완료 ' + done + '</span></div>'
+      + '<div class="mm-team-big"><span class="mm-big-n">' + tc.length + '</span>'
+        + '<span class="mm-big-l">콘텐츠</span>'
+        + '<span class="chip" style="margin-left:auto">🎥 촬영 ' + ts.length + '</span></div>'
+      + (tc.length ? '<div class="mm-sc-row">' + mmStageChips(tc) + '</div>'
+                   : '<div class="fmeta">아직 만든 콘텐츠가 없습니다</div>')
     + '</div>';
   }).join('');
 
-  /* 아래 — 개인별 (모든 팀원) */
+  /* 아래 — 개인별 (미디어마케팅팀 사람만) */
+  const isMediaTeam = (tm) => /미디어|미마|media/i.test(tm.name || '');
+  const mediaTeams = teams.filter(isMediaTeam);
+  const srcTeams = mediaTeams.length ? mediaTeams : teams;   // 미마팀이 없으면 전체
   const persons = [];
-  teams.forEach((tm, i) => tm.members.forEach(m => persons.push({ m, team: tm.name, hue: teamHue(i) })));
+  srcTeams.forEach(tm => {
+    const i = teams.indexOf(tm);
+    tm.members.forEach(m => persons.push({ m, team: tm.name, hue: teamHue(i) }));
+  });
   const itemHtml = (list, kind) => list.map(x => {
     if(kind === 'c') return '<span class="mm-item" onclick="setMediaTab(\'contents\')" title="콘텐츠 제작에서 보기">'
       + '🎬 ' + esc(x.title || '(제목)') + ' <span class="mm-sc" style="--sc:'
@@ -29747,9 +29779,12 @@ function mediaHomeView(){
     + '<div class="mm-tiles">' + tiles + '</div>'
     + '<div class="mm-pipe-wrap"><div class="mm-pipe-ttl">🎬 제작 Pipeline</div>'
       + '<div class="mm-pipe-row">' + pipe + '</div></div>'
-    + '<h3 class="mm-sec-t">👥 팀별 — 무슨 일을 하고 있나</h3>'
+    + '<div class="mm-sec-bar"><h3 class="mm-sec-t">👥 팀별 — 콘텐츠를 얼마나 만들고 있나</h3>'
+      + '<button class="btn sm" onclick="teamAddPrompt()" title="팀을 새로 만듭니다">＋ 팀</button></div>'
     + '<div class="mm-team-grid">' + teamCards + '</div>'
-    + '<h3 class="mm-sec-t">🙋 개인별 — 누가 무엇을 맡고 있나</h3>'
+    + '<h3 class="mm-sec-t">🙋 개인별 — ' + (mediaTeams.length
+        ? esc(mediaTeams.map(t => t.name).join(' · ')) + ' 사람들'
+        : '누가 무엇을 맡고 있나') + '</h3>'
     + '<div class="mm-person-grid">' + personCards + orphan + '</div>'
     + '<div class="mm-2col">'
       + '<div class="mm-box"><div class="mm-box-h">🗓 이번 주 업로드 예정 <span class="fmeta">' + upC.length + '건</span></div>' + upCHtml + '</div>'
@@ -36520,15 +36555,24 @@ function usersPanel(){
   const rows = list === null
     ? '<div class="fmeta">불러오는 중…</div>'
     : '<div class="vz-tw"><table class="ymtable"><thead><tr>'
-      + '<th>아이디</th><th>이름</th><th>권한</th><th>상태</th><th>마지막 들어온 때</th><th></th>'
+      + '<th>아이디</th><th>이름</th><th>권한</th><th>팀</th><th>상태</th><th>마지막 들어온 때</th><th></th>'
       + '</tr></thead><tbody>'
       + list.map(u => {
           const me = authMe() && authMe().id === u.id;
+          const myTeam = accTeamOf(u.id);
           return '<tr' + (u['쓸수있음'] ? '' : ' class="dim"') + '>'
             + '<td><b>' + esc(u.id) + '</b>' + (me ? ' <span class="chip on">나</span>' : '') + '</td>'
             + '<td>' + esc(u['이름']) + '</td>'
             + '<td>' + (u['권한'] === '관리자'
                 ? '<span class="chip test">관리자</span>' : '팀원') + '</td>'
+            /* 🔀 팀 선택 — 관리자가 이 사람의 팀을 정합니다 */
+            + '<td><select class="u-team" title="이 사람의 팀" '
+              + 'onchange="accSetTeam(\'' + jsq(u.id) + '\',\'' + jsq(u['이름'] || '') + '\', this.value)">'
+              + '<option value="">— 팀 없음 —</option>'
+              + teamsOf().map(t => '<option value="' + esc(t.id) + '"'
+                  + ((myTeam && myTeam.id === t.id) ? ' selected' : '') + '>'
+                  + esc(t.name || '팀') + '</option>').join('')
+              + '</select></td>'
             + '<td>' + (u['쓸수있음']
                 ? '<span class="chip">쓰는 중</span>'
                 : '<span class="chip off">중지됨</span>') + '</td>'
@@ -36564,8 +36608,10 @@ function usersPanel(){
     + '<div class="modal" style="max-width:900px">'
     + '<h3>👥 사람 관리</h3>'
     + '<div class="sec-bar"><button class="btn primary" onclick="addUser()">＋ 사람 추가</button>'
-      + '<span class="hint">퇴사자는 <b>[🚫 사용 중지]</b> 를 누르면 그 자리에서 못 들어옵니다. '
-      + '지우지 않으셔도 됩니다</span></div>'
+      + '<button class="btn" onclick="teamAddPrompt()" title="팀을 새로 만듭니다 '
+      + '— 그러면 각 사람의 「팀」 칸에서 고를 수 있습니다">＋ 팀 만들기</button>'
+      + '<span class="hint">사람마다 <b>팀</b> 을 골라 주세요 — 미마 홈이 팀별로 모아 보여줍니다. '
+      + '퇴사자는 <b>[🚫 사용 중지]</b></span></div>'
     + rows
     + '<div class="ainote" style="margin-top:12px">'
       + '중지하면 그 사람이 <b>지금 열어둔 화면까지 바로 끊깁니다.</b> '

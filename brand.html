@@ -5873,7 +5873,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-86';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-87';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6193,8 +6193,12 @@ const TYPES = {
         ph:'예: 10월 셋째 주 업계 브리핑' },
       { key:'week',  label:'주차 (그 주 월요일)', type:'date',
         def: () => (typeof thisMonday === 'function' ? thisMonday() : todayStr()) },
-      { key:'body',  label:'내용', type:'textarea', rows:16,
-        ph:'ChatGPT·클로드에게 물어본 답을 그대로 붙여넣으면 됩니다.\n'
+      /* 📄 ChatGPT 공유 링크만 붙여도 됩니다 — 붙여넣기 없이 바로 */
+      { key:'chaturl', label:'📄 ChatGPT 공유 링크 (선택)', type:'text',
+        ph:'https://chatgpt.com/share/...',
+        hint:'ChatGPT에서 「공유」한 링크를 붙이면, 모든 팀이 눌러서 그 화면을 그대로 봅니다 (내용은 안 적어도 됩니다)' },
+      { key:'body',  label:'내용 (선택)', type:'textarea', rows:14,
+        ph:'답을 그대로 붙여넣어도 되고, 위에 공유 링크만 붙여도 됩니다.\n'
            + '(🤖 ChatGPT로 이번 주 정리 를 누르면 물어볼 문장이 복사됩니다)' },
       { key:'links', label:'출처·링크 (선택)', type:'textarea', rows:3,
         ph:'참고한 기사 링크를 줄마다 적어두면 좋습니다' },
@@ -28857,6 +28861,11 @@ async function briefAsk(){
   await chatHandoff(briefPromptText(), () =>
     openItemModal('briefs', null, { week: thisMonday(), title: autoBriefTitle() }));
 }
+/* [🔗 ChatGPT 링크로 올리기] — 공유 링크만 붙여 올리는 가장 쉬운 길 */
+function briefLink(){
+  openItemModal('briefs', null, { week: thisMonday(), title: autoBriefTitle() });
+  toast('📄 ChatGPT에서 「공유」한 링크를 「ChatGPT 공유 링크」 칸에 붙여넣고 저장하세요');
+}
 
 function renderBriefs(){
   const all = (data.briefs || []).slice()
@@ -28866,9 +28875,10 @@ function renderBriefs(){
 
   const bar = '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap">'
     + '<button class="btn primary" onclick="briefAsk()">🤖 ChatGPT로 이번 주 정리</button>'
+    + '<button class="btn" onclick="briefLink()">🔗 ChatGPT 링크로 올리기</button>'
     + '<button class="btn" onclick="openItemModal(\'briefs\')">＋ 직접 쓰기</button>'
-    + '<span class="hint">물어보기를 누르면 문장이 복사됩니다 — 클로드/챗GPT 창에 붙여넣고, '
-    + '받은 답을 「내용」에 붙여 저장하면 모든 팀이 봅니다</span>'
+    + '<span class="hint">가장 쉬운 길: ChatGPT에서 정리시킨 뒤 <b>「공유」 링크</b>를 '
+    + '<b>🔗 링크로 올리기</b>에 붙이면 끝 — 모든 팀이 눌러서 그 화면을 봅니다</span>'
     + '</div>';
   const note = hasThis ? ''
     : '<div class="ainote" style="margin-bottom:12px">📭 이번 주(' + esc(fmtYMD(mon))
@@ -28885,8 +28895,18 @@ function renderBriefs(){
             + '<button class="btn sm danger" onclick="deleteItem(\'briefs\',\'' + jsq(b.id) + '\')">삭제</button>'
           + '</span>'
         + '</div>'
-        + '<div style="font-size:13.5px;line-height:1.65;color:var(--text-secondary)">'
-          + (esc(b.body || '(비어 있음)').replace(/\n/g, '<br>')) + '</div>'
+        /* 📄 ChatGPT 공유 링크가 있으면 눌러서 그 화면으로 (새 탭) */
+        + (String(b.chaturl || '').trim() && /^https?:\/\//i.test(String(b.chaturl).trim())
+            ? '<a class="btn primary" href="' + esc(String(b.chaturl).trim()) + '" target="_blank" '
+              + 'rel="noopener noreferrer" style="display:inline-flex;margin-bottom:10px;text-decoration:none">'
+              + '📄 ChatGPT에서 보기 ↗</a>'
+            : '')
+        + (String(b.body || '').trim()
+            ? '<div style="font-size:13.5px;line-height:1.65;color:var(--text-secondary)">'
+              + esc(b.body).replace(/\n/g, '<br>') + '</div>'
+            : (String(b.chaturl || '').trim()
+                ? '<div class="fmeta">위 <b>📄 ChatGPT에서 보기</b> 를 누르면 이번 주 브리핑을 그대로 봅니다</div>'
+                : '<div class="fmeta">(내용이 아직 없습니다)</div>'))
         + (String(b.links || '').trim()
             ? '<div class="fmeta" style="margin-top:9px;line-height:1.6">🔗 '
               + esc(b.links).replace(/\n/g, '<br>') + '</div>' : '')

@@ -4330,8 +4330,9 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 .mm-team-big{display:flex;align-items:baseline;gap:7px;margin:4px 0 9px}
 .mm-big-n{font-size:30px;font-weight:800;color:var(--th);line-height:1}
 .mm-big-l{font-size:12.5px;font-weight:700;color:var(--text-muted)}
-.u-team{padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg-input);
-  font-family:inherit;font-size:12px;font-weight:650;color:var(--text-primary);cursor:pointer}
+.u-team{min-width:120px;max-width:170px;padding:5px 8px;border:1px solid var(--border);
+  border-radius:7px;background:var(--bg-input);font-family:inherit;font-size:12.5px;
+  font-weight:650;color:var(--text-primary);cursor:pointer}
 .mm-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 .mm-team{background:var(--bg-card);border:1px solid var(--border);border-left:4px solid var(--th);
   border-radius:var(--r-md);padding:12px 14px}
@@ -5857,7 +5858,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-79';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-80';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -17961,7 +17962,23 @@ function teamsOf(){
       members: t[1].map(m => ({ id: uid('tp'), name: m[0], role: m[1], kpi: '', uid: '' }))
     }));
   }
-  data.teams.forEach(t => { if(!Array.isArray(t.members)) t.members = []; });
+  data.teams.forEach(t => {
+    if(!Array.isArray(t.members)) t.members = [];
+    /* 🧹 같은 팀에 같은 이름이 둘이면 하나로 합칩니다 — 「이름만 있던 팀원」
+       과 「계정으로 들어온 팀원」 이 겹쳐 사람이 둘로 늘던 것을 막습니다.
+       uid 가 있는 쪽 정보를 남겨, 계정과 이어진 채로 둡니다. */
+    const seen = new Map();
+    t.members = t.members.filter(m => {
+      const key = String(m.name || '').trim();
+      if(!key) return true;                         // 이름 없는 빈 칸은 그대로
+      const prev = seen.get(key);
+      if(!prev){ seen.set(key, m); return true; }
+      if(m.uid && !prev.uid) prev.uid = m.uid;       // 계정 연결을 살려 둡니다
+      if(m.role && !prev.role) prev.role = m.role;
+      if(m.kpi && !prev.kpi) prev.kpi = m.kpi;
+      return false;                                  // 뒤에 온 중복은 버립니다
+    });
+  });
   return data.teams;
 }
 function teamHue(i){ return TEAM_HUE[i % TEAM_HUE.length]; }
@@ -18026,19 +18043,30 @@ async function teamAddPrompt(){
   markDirtyAll(); render();
   toast('팀 「' + name + '」 을(를) 만들었습니다');
 }
-/* 🔗 계정이 속한 팀 — 팀원 가운데 uid 가 이 계정인 것을 찾습니다 */
-function accTeamOf(aid){
-  if(!aid) return null;
-  return teamsOf().find(t => (t.members || []).some(m => m.uid === aid)) || null;
+/* 🔗 계정이 속한 팀 — uid 로 이어진 팀원, 또는 (아직 안 이어졌으면)
+   같은 이름의 팀원이 있는 팀을 찾습니다. 그래서 「이름만」 넣어 둔 사람도
+   드롭다운에 제 팀이 바로 보입니다. */
+function accTeamOf(aid, name){
+  const nm = String(name || '').trim();
+  return teamsOf().find(t => (t.members || []).some(m =>
+    (aid && m.uid === aid) || (nm && m.name === nm))) || null;
 }
-/* 👤 사람 관리에서 계정의 팀을 정합니다 — 모든 팀에서 뺀 뒤 고른 팀에 넣습니다.
-   계정과 이어진(uid) 팀원만 건드리므로, 손으로 적어 둔 팀원은 그대로 둡니다. */
+/* 👤 사람 관리에서 계정의 팀을 정합니다 — 모든 팀에서 이 사람(같은 uid 또는
+   같은 이름)을 뺀 뒤 고른 팀에 하나만 넣습니다. 사람이 둘로 늘지 않습니다. */
 function accSetTeam(aid, name, toTid){
   if(!aid) return;
-  teamsOf().forEach(t => { t.members = (t.members || []).filter(m => m.uid !== aid); });
+  const nm = String(name || '').trim();
+  const keep = { role: '', kpi: '' };
+  teamsOf().forEach(t => {
+    t.members = (t.members || []).filter(m => {
+      const same = (m.uid === aid) || (!m.uid && nm && m.name === nm);
+      if(same){ if(m.role) keep.role = m.role; if(m.kpi) keep.kpi = m.kpi; }
+      return !same;
+    });
+  });
   if(toTid){
     const to = teamFind(toTid);
-    if(to) to.members.push({ id: uid('tp'), name: name || '', role: '', kpi: '', uid: aid });
+    if(to) to.members.push({ id: uid('tp'), name: nm, role: keep.role, kpi: keep.kpi, uid: aid });
   }
   markDirtyAll(); render();
   toast(toTid ? '👤 팀을 정했습니다' : '👤 팀에서 뺐습니다');
@@ -36559,7 +36587,7 @@ function usersPanel(){
       + '</tr></thead><tbody>'
       + list.map(u => {
           const me = authMe() && authMe().id === u.id;
-          const myTeam = accTeamOf(u.id);
+          const myTeam = accTeamOf(u.id, u['이름']);
           return '<tr' + (u['쓸수있음'] ? '' : ' class="dim"') + '>'
             + '<td><b>' + esc(u.id) + '</b>' + (me ? ' <span class="chip on">나</span>' : '') + '</td>'
             + '<td>' + esc(u['이름']) + '</td>'

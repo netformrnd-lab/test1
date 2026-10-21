@@ -5949,7 +5949,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-98';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-99';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29313,6 +29313,47 @@ function wikiRenameCat(oldName){ const cur = oldName || '기타';
   let n = 0; (data.wiki || []).forEach(w => { if((w.cat || '기타') === cur){ w.cat = t; w.updatedAt = new Date().toISOString(); n++; } });
   if(!n){ toast('바꿀 노하우가 없어요'); return; }
   if(wikiCat === cur) wikiCat = t; markDirty(); render(); toast('분류 이름을 바꿨어요 (' + n + '개)'); }
+
+/* 📄 PDF 를 올리면 쪽마다 한 단계로 — 명함요청프로세스처럼 단계별 노하우가 됩니다 */
+function wikiPdfPick(){ const el = document.getElementById('wikiPdfInput'); if(el) el.click(); }
+async function wikiPdfMake(file){
+  if(!file) return;
+  if(!(/\.pdf$/i.test(file.name) || file.type === 'application/pdf')){ toast('PDF 파일을 골라주세요'); return; }
+  let lib;
+  try{ lib = await pdfLoad(); }
+  catch(e){ toast('PDF 기능 파일(pdf.min.js)이 brand.html 옆에 있어야 해요'); return; }
+  toast('PDF 를 단계로 바꾸는 중…');
+  let pdf;
+  try{ const buf = await file.arrayBuffer(); pdf = await lib.getDocument({ data: new Uint8Array(buf) }).promise; }
+  catch(e){ toast('PDF 를 여는 데 실패했어요'); return; }
+  const steps = [];
+  for(let n = 1; n <= pdf.numPages; n++){
+    try{
+      const page = await pdf.getPage(n);
+      const v0 = page.getViewport({ scale: 1 });
+      const scale = Math.min(2.5, 1240 / Math.max(v0.width, v0.height));
+      const vp = page.getViewport({ scale });
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      steps.push({ imgs: [cv.toDataURL('image/jpeg', 0.72)], text: '' });
+      if(pdf.numPages > 3) toast('바꾸는 중… ' + n + '/' + pdf.numPages + '쪽');
+    }catch(e){ /* 한 쪽이 실패해도 나머지는 계속 */ }
+  }
+  if(!steps.length){ toast('쪽을 하나도 읽지 못했어요'); return; }
+  const cats = [...new Set((data.wiki || []).map(w => w.cat).filter(Boolean))];
+  const cat = cats.find(c => /프로세스|절차/.test(c)) || '업무 프로세스';
+  const title = file.name.replace(/\.pdf$/i, '').trim() || '새 프로세스';
+  const item = { id: uid(), title, cat, by: (typeof myName === 'function' ? myName() : ''),
+    steps, updatedAt: new Date().toISOString() };
+  if(!Array.isArray(data.wiki)) data.wiki = [];
+  data.wiki.unshift(item);
+  markDirty(); view = 'wiki'; wikiEdit = item.id; wikiJustCreated = item.id; render();
+  setTimeout(() => { const d = document.getElementById('wikicard_' + item.id);
+    if(d){ d.open = true; d.scrollIntoView({ block: 'center', behavior: 'smooth' }); } }, 60);
+  toast(steps.length + '쪽을 단계로 만들었어요 — 각 단계에 설명을 채워보세요');
+}
 function wikiDelStep(id, i){ const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w); if(!s[i]) return;
   if(((s[i].imgs && s[i].imgs.length) || String(s[i].text||'').trim()) && !confirm('이 단계를 지울까요?')) return;
   s.splice(i, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); }
@@ -29354,6 +29395,9 @@ function renderWiki(){
     + '<input id="wikiQBox" class="wiki-q" placeholder="🔎 노하우 검색 (명함 · 홈페이지 · 결재 …)" '
       + 'value="' + esc(wikiQ) + '" oninput="setWikiQ(this.value)">'
     + '<button class="btn primary" onclick="openItemModal(\'wiki\')">＋ 노하우 추가</button>'
+    + '<button class="btn" title="PDF 를 올리면 쪽마다 한 단계로 만들어 줍니다" onclick="wikiPdfPick()">📄 PDF로 만들기</button>'
+    + '<input type="file" id="wikiPdfInput" accept="application/pdf" style="display:none" '
+      + 'onchange="wikiPdfMake(this.files[0]); this.value=\'\'">'
     + '</div>'
     + (all.length ? '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap">'
         + '<span class="fmeta">분류</span>' + chips + '</div>' : '');

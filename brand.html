@@ -5675,7 +5675,7 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
     <div class="brand-list">
       <button class="brand-item home-item" id="wikiBtn" onclick="goView('wiki')">
         <span class="bar" style="background:var(--cyan)"></span>
-        <span class="em">📖</span><span>팀 노하우</span>
+        <span class="em">📖</span><span id="wikiLabel">팀 노하우</span>
         <span class="cnt" id="wikiCnt"></span>
       </button>
       <button class="brand-item home-item" id="acctBtn" onclick="goView('accounts')">
@@ -5949,7 +5949,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-97';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-98';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -7328,6 +7328,8 @@ function render(){
   if(ac) ac.textContent = (data.accounts || []).length || '';
   const wkc = document.getElementById('wikiCnt');
   if(wkc) wkc.textContent = (data.wiki || []).length || '';
+  const wkl = document.getElementById('wikiLabel');
+  if(wkl) wkl.textContent = wikiTitle();
   const cc = document.getElementById('calCnt');
   if(cc) cc.textContent = (data.events || []).length || '';
   const kc = document.getElementById('taskCnt');
@@ -29300,6 +29302,11 @@ function wikiRename(id){ const w = wikiFind(id); if(!w) return;
   const v = prompt('노하우 이름을 바꿉니다', w.title || '');
   if(v == null) return; const t = v.trim(); if(!t || t === (w.title || '')) return;
   w.title = t; w.updatedAt = new Date().toISOString(); markDirty(); render(); toast('이름을 바꿨어요'); }
+function wikiTitle(){ const v = data && data.wikiName; return (v && String(v).trim()) || '팀 노하우'; }
+function wikiRenameMenu(){ const cur = wikiTitle();
+  const v = prompt('메뉴 이름을 바꿉니다 (사이드바·제목에 함께 반영됩니다)', cur);
+  if(v == null) return; const t = v.trim(); if(!t || t === cur) return;
+  data.wikiName = t; markDirty(); render(); toast('메뉴 이름을 바꿨어요'); }
 function wikiRenameCat(oldName){ const cur = oldName || '기타';
   const v = prompt('분류 이름을 바꿉니다\n(이 분류의 노하우가 모두 함께 바뀝니다)', cur);
   if(v == null) return; const t = v.trim(); if(!t || t === cur) return;
@@ -29437,7 +29444,8 @@ function renderWiki(){
 
   document.getElementById('main').innerHTML =
     '<div class="panel"><div class="tabbody">'
-    + '<h2 class="page-h">📖 팀 노하우</h2>'
+    + '<h2 class="page-h">📖 ' + esc(wikiTitle())
+      + '<button class="wiki-rename" title="메뉴 이름 바꾸기" onclick="wikiRenameMenu()">✎</button></h2>'
     + '<div class="page-sub">명함 제작·홈페이지 수정·전자결재처럼 「이거 어떻게 하더라」를 적어두고 같이 찾아봅니다</div>'
     + bar + cards
     + '</div></div>';

@@ -4419,7 +4419,19 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-peek{flex:1 1 100%;font-size:12px;color:var(--text-muted);margin-top:2px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wiki-card[open] .wiki-peek{display:none}
-.wiki-body{padding:2px 16px 14px 30px;font-size:13.5px;line-height:1.7;color:var(--text-secondary)}
+.wiki-body{padding:2px 16px 10px 30px;font-size:13.5px;line-height:1.7;color:var(--text-secondary)}
+/* 📷 캡처 이미지 */
+.wiki-imgs{display:flex;flex-wrap:wrap;gap:10px;padding:4px 16px 8px 30px}
+.wiki-img{position:relative}
+.wiki-img img{max-width:260px;max-height:200px;border:1px solid var(--border);border-radius:8px;
+  cursor:zoom-in;display:block;object-fit:cover}
+.wiki-img-x{position:absolute;top:4px;right:4px;width:22px;height:22px;border:0;border-radius:999px;
+  background:rgba(0,0,0,.6);color:#fff;font-size:12px;cursor:pointer;line-height:1;display:none}
+.wiki-img:hover .wiki-img-x{display:block}
+.wiki-imgbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 16px 14px 30px}
+.wiki-lb{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.82);
+  display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px}
+.wiki-lb img{max-width:94vw;max-height:92vh;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
 
 /* 고칠 수 있는 표 */
 table.itable.editable td{max-width:260px}
@@ -5890,7 +5902,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-89';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-90';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29158,6 +29170,82 @@ let wikiQ = '', wikiCat = '';
 function setWikiQ(v){ wikiQ = v; render(); }
 function setWikiCat(v){ wikiCat = v; render(); }
 
+/* ── 📷 캡처 이미지 붙이기 ───────────────────────────────────────────
+   캡처(스샷)를 Ctrl+V 로 붙이거나 파일로 고르면, 자동으로 적당히 줄여서
+   (가로 최대 1200px · JPEG) 노하우에 담습니다. 「여기를 누르세요」 같은
+   설명을 글보다 훨씬 쉽게 보여 줍니다. */
+let wikiPasteTo = '';
+/* 큰 이미지는 화면 크기로 줄여서 담습니다 (동기화가 무거워지지 않게) */
+function wikiShrink(file){
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(u);
+      const max = 1200; let w = img.width, h = img.height;
+      if(w > max){ h = Math.round(h * max / w); w = max; }
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      try{ res(c.toDataURL('image/jpeg', 0.72)); }catch(e){ rej(e); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('이미지를 읽지 못했습니다')); };
+    img.src = u;
+  });
+}
+async function wikiAddImg(id, file){
+  const w = (data.wiki || []).find(x => x.id === id); if(!w) return;
+  try{
+    const durl = await wikiShrink(file);
+    w.imgs = w.imgs || []; w.imgs.push(durl);
+    w.updatedAt = new Date().toISOString();
+    markDirty(); render();
+    toast('📷 캡처를 붙였습니다');
+  }catch(e){ toast('⚠️ 이미지를 넣지 못했습니다'); }
+}
+async function wikiAddImgs(id, fileList){
+  for(const f of Array.from(fileList || [])) if(/^image\//.test(f.type || '')) await wikiAddImg(id, f);
+}
+function wikiPickImg(id){
+  let el = document.getElementById('wikiFileIn');
+  if(!el){
+    el = document.createElement('input'); el.type = 'file'; el.id = 'wikiFileIn';
+    el.accept = 'image/*'; el.multiple = true; el.style.display = 'none';
+    el.addEventListener('change', () => { const f = el.files, to = el.dataset.to; el.value = ''; if(f && to) wikiAddImgs(to, f); });
+    document.body.appendChild(el);
+  }
+  el.dataset.to = id; el.value = ''; el.click();
+}
+function wikiArmPaste(id){
+  wikiPasteTo = id;
+  toast('📷 이제 Ctrl+V 로 캡처를 붙여넣으세요 (다른 곳을 누르면 취소)');
+}
+function wikiDelImg(id, idx){
+  const w = (data.wiki || []).find(x => x.id === id); if(!w || !w.imgs) return;
+  if(!confirm('이 캡처를 지울까요?')) return;
+  w.imgs.splice(idx, 1); w.updatedAt = new Date().toISOString();
+  markDirty(); render();
+}
+/* 캡처를 크게 봅니다 (눌러서 닫기) */
+function wikiZoom(src){
+  const o = document.createElement('div'); o.className = 'wiki-lb';
+  o.onclick = () => o.remove();
+  const im = document.createElement('img'); im.src = src; o.appendChild(im);
+  document.body.appendChild(o);
+}
+/* 붙여넣기 — 노하우 화면에서 「캡처 붙여넣기」 로 자리를 정했을 때만 받습니다
+   (이 리스너는 화면 전체에서 딱 한 번만 답니다) */
+document.addEventListener('paste', function(e){
+  if(view !== 'wiki' || !wikiPasteTo) return;
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  for(let i = 0; i < items.length; i++){
+    if(items[i].type && items[i].type.indexOf('image') === 0){
+      const f = items[i].getAsFile();
+      if(f){ e.preventDefault(); const to = wikiPasteTo; wikiPasteTo = ''; wikiAddImg(to, f); }
+      return;
+    }
+  }
+});
+
 function renderWiki(){
   const all = (data.wiki || []).slice()
     .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
@@ -29197,8 +29285,18 @@ function renderWiki(){
           + (peek ? '<span class="wiki-peek">' + esc(peek) + '…</span>' : '')
           + '</summary>'
           + '<div class="wiki-body">' + esc(w.body || '(비어 있음)').replace(/\n/g, '<br>') + '</div>'
+          + ((w.imgs && w.imgs.length)
+              ? '<div class="wiki-imgs">' + w.imgs.map((src, i) =>
+                  '<div class="wiki-img"><img src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">'
+                  + '<button class="wiki-img-x" title="이 캡처 지우기" onclick="wikiDelImg(\'' + jsq(w.id) + '\',' + i + ')">✕</button></div>').join('')
+                + '</div>' : '')
           + (String(w.links || '').trim()
               ? '<div class="fmeta" style="margin-top:9px;line-height:1.7">🔗 ' + wikiLinks(w.links) + '</div>' : '')
+          + '<div class="wiki-imgbar">'
+            + '<button class="btn sm" onclick="wikiArmPaste(\'' + jsq(w.id) + '\')">📷 캡처 붙여넣기</button>'
+            + '<button class="btn sm" onclick="wikiPickImg(\'' + jsq(w.id) + '\')">📁 이미지 파일</button>'
+            + '<span class="fmeta">캡처한 뒤 「캡처 붙여넣기」를 누르고 Ctrl+V — 또는 파일 고르기</span>'
+          + '</div>'
         + '</details>';
       }).join('')
     : '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'

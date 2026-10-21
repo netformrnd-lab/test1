@@ -4400,6 +4400,8 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .mm-chcard-h{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13.5px}
 .mm-chcard-st{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--text-muted)}
 .mm-chcard-st b{font-size:15px;color:var(--text-primary);display:block;font-weight:800}
+.mm-chcard-v{margin-top:8px;padding-top:7px;border-top:1px solid var(--border);
+  font-size:12px;font-weight:700;color:var(--mm-blue)}
 @media(max-width:560px){ .mm-tile-n{font-size:22px} .mm-2col{grid-template-columns:1fr} }
 
 /* 고칠 수 있는 표 */
@@ -5866,7 +5868,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-84';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-85';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6121,9 +6123,9 @@ function brandNames(){ return [''].concat(data.brands.map(b => b.name)); }
 
 /* 🎬 콘텐츠 제작 공정 단계 (칸반 열). 미디어팀 TeamHub 의 기획→촬영→
    편집→배포→완료 를 그대로 옮긴 것입니다. 색은 단계마다 다르게 둡니다. */
-const CONTENT_STAGES = ['기획', '촬영', '편집', '배포', '완료'];
+const CONTENT_STAGES = ['기획', '촬영', '편집', '검수', '배포', '완료'];
 const STAGE_HUE = { '기획':'var(--blue)', '촬영':'var(--purple)', '편집':'var(--orange)',
-                    '배포':'var(--cyan)', '완료':'var(--green)' };
+                    '검수':'#e0588a', '배포':'var(--cyan)', '완료':'var(--green)' };
 /* 콘텐츠 「채널」 칸에 채널 운영에 적어 둔 채널 이름을 띄워 줍니다 */
 function mediaChannelNames(){
   return (data.mchannels || []).map(c => c.name).filter(Boolean);
@@ -6198,6 +6200,10 @@ const TYPES = {
         when: () => !authOn() },
       { key:'pubDate',   label:'공개 예정일', type:'date', noDefault:true },
       { key:'shootDate', label:'촬영일', type:'date', noDefault:true },
+      /* 📈 공개 후 성과 — 적으면 채널 현황·미마 홈에 숫자로 모입니다 */
+      { key:'views',     label:'조회수 (공개 후)', type:'text', ph:'예: 12500',
+        hint:'공개한 뒤 조회수를 적으면 채널 현황에 모입니다' },
+      { key:'likes',     label:'좋아요 (공개 후)', type:'text', ph:'예: 340' },
       { key:'memo',      label:'메모', type:'textarea', ph:'기획 메모·대본 링크 등' }
     ]
   },
@@ -29639,6 +29645,10 @@ function mediaWho(x){
   const nm = x && x.uid ? peopleName(x.uid) : '';
   return (nm && nm !== x.uid) ? nm : ((x && x.owner) || '');
 }
+/* 📈 성과 숫자 — 「12,500」 처럼 적어도 숫자만 뽑고, 보일 때 콤마를 붙입니다 */
+function mmNum(v){ const n = parseInt(String(v == null ? '' : v).replace(/[^0-9]/g, ''), 10); return isFinite(n) ? n : 0; }
+function mmFmt(n){ try{ return Number(n).toLocaleString('ko-KR'); }catch(e){ return String(n); } }
+
 /* 이 일(콘텐츠·촬영)이 「내 것」인가 — 로그인한 본인(또는 이름 지정)이 담당 */
 function mmIsMine(x){
   const me = (typeof authMe === 'function') ? authMe() : null;
@@ -29679,14 +29689,18 @@ function mediaHomeView(){
 
   /* 맨 위 — 전체 한눈 숫자 */
   const actC = contents.filter(c => (c.stage || '') !== '완료');
+  const review = contents.filter(c => (c.stage || '') === '검수');
   const soon = contents.filter(c => mmUpcoming(c.pubDate, 7));
   const shootSoon = shoots.filter(s => mmUpcoming(s.date, 7));
   const openReq = reqs.filter(r => (r.status || '') !== '완료');
+  const totalViews = contents.reduce((a, c) => a + mmNum(c.views), 0);
   const tiles = [
     ['🎬', '콘텐츠 진행', actC.length, '전체 ' + contents.length, 'contents'],
+    ['🔍', '검수 대기', review.length, '', 'contents'],
     ['🗓', '곧 공개(7일)', soon.length, '', 'cal'],
     ['🎥', '촬영 예정(7일)', shootSoon.length, '전체 ' + shoots.length, 'shoots'],
-    ['📨', '진행 요청', openReq.length, '', 'requests']
+    ['📨', '진행 요청', openReq.length, '', 'requests'],
+    ['📈', '총 조회수', mmFmt(totalViews), '지금까지', 'mchannels']
   ].map(t => '<div class="mm-tile" onclick="setMediaTab(\'' + t[4] + '\')" title="눌러서 그 화면으로">'
     + '<div class="mm-tile-i">' + t[0] + '</div>'
     + '<div class="mm-tile-n">' + t[2] + '</div>'
@@ -29801,9 +29815,10 @@ function mediaHomeView(){
   const chanHtml = chans.length
     ? chans.map(ch => {
         const cc = contents.filter(x => (x.channel || '') === ch.name);
-        const making = cc.filter(x => ['기획', '촬영', '편집'].indexOf(x.stage || CONTENT_STAGES[0]) >= 0).length;
+        const making = cc.filter(x => ['기획', '촬영', '편집', '검수'].indexOf(x.stage || CONTENT_STAGES[0]) >= 0).length;
         const week = cc.filter(x => mmUpcoming(x.pubDate, 7)).length;
         const booked = cc.filter(x => x.pubDate && x.pubDate > todayStr()).length;
+        const views = cc.reduce((a, x) => a + mmNum(x.views), 0);
         return '<div class="mm-chcard" onclick="setMediaTab(\'mchannels\')" title="채널 운영에서 보기">'
           + '<div class="mm-chcard-h"><b>' + esc(ch.name || '채널') + '</b>'
             + (ch.platform ? '<span class="fmeta">' + esc(ch.platform) + '</span>' : '') + '</div>'
@@ -29811,6 +29826,7 @@ function mediaHomeView(){
             + '<span>이번 주 공개 <b>' + week + '</b></span>'
             + '<span>제작 중 <b>' + making + '</b></span>'
             + '<span>예약 <b>' + booked + '</b></span></div>'
+          + (views ? '<div class="mm-chcard-v">📈 조회 ' + mmFmt(views) + '</div>' : '')
         + '</div>';
       }).join('')
     : '<div class="mm-empty-s">등록한 채널이 없습니다 — <b>📺 채널 운영</b> 에서 넣으면 여기 현황이 보입니다</div>';
@@ -29905,6 +29921,8 @@ function mediaContentsView(){
           + (c.channel ? '<span class="chip">📺 ' + esc(c.channel) + '</span>' : '')
           + (c.pubDate ? '<span class="chip">📅 ' + esc(fmtYMD(c.pubDate)) + '</span>' : '')
           + (who ? '<span class="fmeta">👤 ' + esc(who) + '</span>' : '')
+          + (mmNum(c.views) ? '<span class="fmeta">👁 ' + mmFmt(mmNum(c.views)) + '</span>' : '')
+          + (mmNum(c.likes) ? '<span class="fmeta">❤ ' + mmFmt(mmNum(c.likes)) + '</span>' : '')
         + '</div>'
         + '<div class="media-card-nav" onclick="event.stopPropagation()">'
           + '<button class="btn sm" title="이전 단계로"'

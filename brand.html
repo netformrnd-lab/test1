@@ -5592,11 +5592,6 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
         <span class="em">✍️</span><span>블로그 발행</span>
         <span class="cnt" id="blogCnt"></span>
       </button>
-      <button class="brand-item home-item" id="briefsBtn" onclick="goView('briefs')">
-        <span class="bar" style="background:var(--blue)"></span>
-        <span class="em">📰</span><span>업계 브리핑</span>
-        <span class="cnt" id="briefsCnt"></span>
-      </button>
     </div>
     <div class="brand-list" id="pgList-팀운영"></div>
 
@@ -5873,7 +5868,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-87';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-88';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6181,29 +6176,6 @@ const TYPES = {
       { key:'body',      label:'회의 내용', type:'textarea', rows:16,
         ph:'들은 대로 편하게 적으세요. 문장이 안 다듬어져도 괜찮습니다.\n'
            + 'AI가 요약·결정사항·할 일로 정리해 줍니다.' }
-    ]
-  },
-  /* 📰 업계 브리핑 — 주마다 업계 이슈를 정리해 모든 팀이 봅니다 */
-  briefs: {
-    label:'브리핑', icon:'📰', tab:'업계 브리핑',
-    hint:'주간 업계 이슈를 적어두면 모든 팀이 같이 봅니다',
-    empty:'아직 업계 브리핑이 없습니다. 이번 주부터 올려 보세요.',
-    fields:[
-      { key:'title', label:'제목', type:'text', required:true,
-        ph:'예: 10월 셋째 주 업계 브리핑' },
-      { key:'week',  label:'주차 (그 주 월요일)', type:'date',
-        def: () => (typeof thisMonday === 'function' ? thisMonday() : todayStr()) },
-      /* 📄 ChatGPT 공유 링크만 붙여도 됩니다 — 붙여넣기 없이 바로 */
-      { key:'chaturl', label:'📄 ChatGPT 공유 링크 (선택)', type:'text',
-        ph:'https://chatgpt.com/share/...',
-        hint:'ChatGPT에서 「공유」한 링크를 붙이면, 모든 팀이 눌러서 그 화면을 그대로 봅니다 (내용은 안 적어도 됩니다)' },
-      { key:'body',  label:'내용 (선택)', type:'textarea', rows:14,
-        ph:'답을 그대로 붙여넣어도 되고, 위에 공유 링크만 붙여도 됩니다.\n'
-           + '(🤖 ChatGPT로 이번 주 정리 를 누르면 물어볼 문장이 복사됩니다)' },
-      { key:'links', label:'출처·링크 (선택)', type:'textarea', rows:3,
-        ph:'참고한 기사 링크를 줄마다 적어두면 좋습니다' },
-      { key:'by',    label:'✍️ 작성자', type:'text', ph:'누가 올렸나요',
-        def: () => (typeof myName === 'function' ? myName() : '') }
     ]
   },
   /* ═══ 🎬 미디어마케팅 (미디어팀 TeamHub 에서 옮겨 온 메뉴) ═══════════
@@ -7242,7 +7214,7 @@ function render(){
   [['obBtn','onboard'],
    ['meetBtn','meetings'],['calBtn','calendar'],['taskBtn','tasks'],
    ['mediaBtn','media'],
-   ['costBtn','costs'],['blogBtn','blog'],['briefsBtn','briefs'],['acctBtn','accounts'],
+   ['costBtn','costs'],['blogBtn','blog'],['acctBtn','accounts'],
    ['trashBtn','trash']].forEach(([id, v]) => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('on', view === v && !searchQuery);
@@ -7252,8 +7224,6 @@ function render(){
   const mdc = document.getElementById('mediaCnt');
   if(mdc) mdc.textContent = ((data.contents || []).length + (data.mchannels || []).length
     + (data.shoots || []).length + (data.requests || []).length) || '';
-  const brc = document.getElementById('briefsCnt');
-  if(brc) brc.textContent = (data.briefs || []).length || '';
   const ac = document.getElementById('acctCnt');
   if(ac) ac.textContent = (data.accounts || []).length || '';
   const cc = document.getElementById('calCnt');
@@ -7280,7 +7250,6 @@ function render(){
   else if(view === 'nas') renderNas();
   else if(view === 'onboard') renderOnboard();
   else if(view === 'meetings') renderMeetings();
-  else if(view === 'briefs') renderBriefs();
   else if(view === 'media') renderMedia();
   else if(view === 'calendar') renderCalendar();
   else if(view === 'tasks') renderTasks();
@@ -28825,103 +28794,6 @@ async function chatHandoff(text, after){
   }
 }
 
-/* ═══════════════ 📰 업계 브리핑 ═══════════════════════════════════
-   주마다 업계 이슈를 한곳에 모아 모든 팀이 같이 봅니다. NAS 가 밖으로
-   못 나가므로, 회의록과 같은 길을 씁니다 — [🤖 ChatGPT로 이번 주 정리]
-   를 누르면 물어볼 문장이 복사되고 클로드 창이 열립니다. 받은 답을
-   「내용」에 붙여 저장하면 끝. (NAS 에 로컬 AI 를 붙이면 자동도 됩니다)
-   ================================================================= */
-/* 그 주의 월요일 (브리핑은 주 단위라 월요일로 묶습니다) */
-function thisMonday(){
-  const d = new Date();
-  const day = d.getDay();                      // 0=일 … 6=토
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
-    + '-' + String(d.getDate()).padStart(2, '0');
-}
-function autoBriefTitle(){
-  const d = new Date(thisMonday() + 'T00:00:00');
-  const wk = Math.ceil(d.getDate() / 7);
-  const ord = ['첫째', '둘째', '셋째', '넷째', '다섯째', '여섯째'][wk - 1] || (wk + '');
-  return (d.getMonth() + 1) + '월 ' + ord + ' 주 업계 브리핑';
-}
-function briefPromptText(){
-  return '너는 우리 회사(넷폼알앤디 — 브랜드 마케팅 · 미디어 콘텐츠 제작)의 '
-    + '주간 업계 브리핑 담당이야.\n\n'
-    + '지난 한 주 동안 우리 업계 — 브랜드 마케팅, 유튜브·인스타·틱톡 등 미디어 콘텐츠, '
-    + '광고, 숏폼 트렌드, 플랫폼 정책 변화 — 에서 꼭 알아야 할 이슈를 5~7개로 정리해줘.\n\n'
-    + '각 항목은 이렇게:\n'
-    + '  ① 한 줄 제목\n  ② 2~3문장 요약\n  ③ 왜 우리 팀에 중요한지 한 줄\n'
-    + '  ④ (가능하면) 출처 또는 키워드\n\n'
-    + '맨 끝에 「이번 주 우리 팀이 해볼 것」 3가지를 덧붙여줘.\n'
-    + '한국어로, 사내 공유용으로 읽기 쉽게 써줘.';
-}
-/* [🤖 ChatGPT로 이번 주 정리] — 문장 복사 + 클로드 창 열고, 저장 창을 띄웁니다 */
-async function briefAsk(){
-  await chatHandoff(briefPromptText(), () =>
-    openItemModal('briefs', null, { week: thisMonday(), title: autoBriefTitle() }));
-}
-/* [🔗 ChatGPT 링크로 올리기] — 공유 링크만 붙여 올리는 가장 쉬운 길 */
-function briefLink(){
-  openItemModal('briefs', null, { week: thisMonday(), title: autoBriefTitle() });
-  toast('📄 ChatGPT에서 「공유」한 링크를 「ChatGPT 공유 링크」 칸에 붙여넣고 저장하세요');
-}
-
-function renderBriefs(){
-  const all = (data.briefs || []).slice()
-    .sort((a, b) => String(b.week || '').localeCompare(String(a.week || '')));
-  const mon = thisMonday();
-  const hasThis = all.some(b => b.week === mon);
-
-  const bar = '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap">'
-    + '<button class="btn primary" onclick="briefAsk()">🤖 ChatGPT로 이번 주 정리</button>'
-    + '<button class="btn" onclick="briefLink()">🔗 ChatGPT 링크로 올리기</button>'
-    + '<button class="btn" onclick="openItemModal(\'briefs\')">＋ 직접 쓰기</button>'
-    + '<span class="hint">가장 쉬운 길: ChatGPT에서 정리시킨 뒤 <b>「공유」 링크</b>를 '
-    + '<b>🔗 링크로 올리기</b>에 붙이면 끝 — 모든 팀이 눌러서 그 화면을 봅니다</span>'
-    + '</div>';
-  const note = hasThis ? ''
-    : '<div class="ainote" style="margin-bottom:12px">📭 이번 주(' + esc(fmtYMD(mon))
-      + ' 월요일) 브리핑이 아직 없습니다. <b>🤖 ChatGPT로 이번 주 정리</b> 로 올려 주세요.</div>';
-
-  const cards = all.length
-    ? all.map(b => '<div class="mtbox" style="margin-bottom:12px;padding:14px 16px">'
-        + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px">'
-          + '<b style="font-size:15px">' + esc(b.title || '업계 브리핑') + '</b>'
-          + (b.week ? '<span class="chip on">' + esc(fmtYMD(b.week)) + ' 주</span>' : '')
-          + (b.by ? '<span class="fmeta">✍️ ' + esc(b.by) + '</span>' : '')
-          + '<span style="margin-left:auto;display:flex;gap:6px">'
-            + '<button class="btn sm" onclick="openItemModal(\'briefs\',\'' + jsq(b.id) + '\')">✎ 수정</button>'
-            + '<button class="btn sm danger" onclick="deleteItem(\'briefs\',\'' + jsq(b.id) + '\')">삭제</button>'
-          + '</span>'
-        + '</div>'
-        /* 📄 ChatGPT 공유 링크가 있으면 눌러서 그 화면으로 (새 탭) */
-        + (String(b.chaturl || '').trim() && /^https?:\/\//i.test(String(b.chaturl).trim())
-            ? '<a class="btn primary" href="' + esc(String(b.chaturl).trim()) + '" target="_blank" '
-              + 'rel="noopener noreferrer" style="display:inline-flex;margin-bottom:10px;text-decoration:none">'
-              + '📄 ChatGPT에서 보기 ↗</a>'
-            : '')
-        + (String(b.body || '').trim()
-            ? '<div style="font-size:13.5px;line-height:1.65;color:var(--text-secondary)">'
-              + esc(b.body).replace(/\n/g, '<br>') + '</div>'
-            : (String(b.chaturl || '').trim()
-                ? '<div class="fmeta">위 <b>📄 ChatGPT에서 보기</b> 를 누르면 이번 주 브리핑을 그대로 봅니다</div>'
-                : '<div class="fmeta">(내용이 아직 없습니다)</div>'))
-        + (String(b.links || '').trim()
-            ? '<div class="fmeta" style="margin-top:9px;line-height:1.6">🔗 '
-              + esc(b.links).replace(/\n/g, '<br>') + '</div>' : '')
-      + '</div>').join('')
-    : '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
-      + '아직 업계 브리핑이 없습니다. <b>🤖 ChatGPT로 이번 주 정리</b> 로 첫 브리핑을 올려 보세요.</div>';
-
-  document.getElementById('main').innerHTML =
-    '<div class="panel"><div class="tabbody">'
-    + '<h2 class="page-h">📰 업계 브리핑</h2>'
-    + '<div class="page-sub">주마다 우리 업계 이슈를 한곳에 — 모든 팀이 같이 봅니다</div>'
-    + bar + note + cards
-    + '</div></div>';
-}
-
 /* 회의록 — 클로드 창으로 보내고, 답 붙여넣을 자리까지 열어둡니다 */
 async function askViaChat(id){
   const m = (data.meetings || []).find(x => x.id === id);
@@ -34978,7 +34850,6 @@ const TOP_LISTS   = ['onboard', 'notices', 'meetings', 'events', 'trash', 'growt
                      'teams', 'routines',  // 👥 팀 · 팀원 · 🔄 루틴 (할 일 화면)
                      'accounts',           // 🔐 내부계정
                      'contents', 'mchannels', 'shoots', 'requests',  // 🎬 미디어마케팅
-                     'briefs',             // 📰 업계 브리핑 (팀 전체)
                      'log'];  // 브랜드 밖 (log = 🕘 무엇이 바뀌었나)
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)

@@ -6001,7 +6001,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-111';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-112';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29445,7 +29445,8 @@ async function wikiFileGot(fileList, id, step){
   if(stepIdx >= 0){ const s = wikiStepsOf(w); if(!s[stepIdx]) return;
     if(!Array.isArray(s[stepIdx].files)) s[stepIdx].files = []; target = s[stepIdx].files; progId = 'wikiup_' + id + '_' + stepIdx; }
   else { if(!Array.isArray(w.files)) w.files = []; target = w.files; progId = 'wikiup_' + id; }
-  const where = { brand: '_팀노하우', sub: '팀자료', sub2: String(w.title || '노하우').slice(0, 40), sub3: '' };
+  /* 팀 전체 파일과 한 폴더로 — _팀자료 안에 「노하우/제목」 으로 정리 (따로 _팀노하우 안 만듦) */
+  const where = { brand: '_팀자료', sub: '팀자료', sub2: '노하우', sub3: String(w.title || '노하우').slice(0, 40) };
   const prog = document.getElementById(progId);
   for(const f of files){
     if(prog) prog.innerHTML = '<div class="wiki-up-row">⬆ ' + esc(f.name) + ' <b class="wup">0%</b></div>';

@@ -4472,6 +4472,22 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-rename{border:0;background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px;
   padding:2px 5px;border-radius:6px;line-height:1}
 .wiki-rename:hover{background:var(--bg-secondary);color:var(--blue)}
+/* 📎 노하우 첨부 파일 */
+.wiki-files{margin:8px 16px 2px 30px}
+.wiki-files-h{font-size:12.5px;font-weight:800;color:var(--text-primary);margin:0 0 7px}
+.wiki-file-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.wiki-file{position:relative;display:inline-flex;align-items:center}
+.wiki-file-a{display:inline-flex;align-items:center;gap:7px;text-decoration:none;
+  background:var(--bg-secondary);border:1px solid var(--border);border-radius:9px;padding:6px 11px;
+  color:var(--text-primary);font-size:12.5px;max-width:320px}
+.wiki-file-a:hover{border-color:var(--blue)}
+.wiki-file-ic{font-size:15px;line-height:1}
+.wiki-file-nm{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.wiki-file-x{margin-left:3px;width:20px;height:20px;border:0;border-radius:999px;background:var(--bg-secondary);
+  color:var(--text-muted);font-size:11px;cursor:pointer;line-height:1}
+.wiki-file-x:hover{background:#e0588a;color:#fff}
+.wiki-up{font-size:12px;color:var(--text-muted);margin-top:4px}
+.wiki-up-row b{color:var(--blue)}
 .wiki-catchip{display:inline-flex;align-items:center;gap:1px}
 .wiki-catchip .wiki-catedit{padding:4px 7px;color:var(--text-muted);opacity:.7}
 .wiki-catchip .wiki-catedit:hover{opacity:1;color:var(--blue)}
@@ -5983,7 +5999,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-108';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-109';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29391,6 +29407,54 @@ function wikiAlbumPick(k){
   if(wikiAlbumFor.mode === 'add') st.imgs.push(src); else st.imgs = [src];
   w.updatedAt = new Date().toISOString(); markDirty(); wikiAlbumClose(); render(); toast('사진을 바꿨어요');
 }
+
+/* 📎 노하우에 아무 파일이나 첨부 — psd·ai·ppt·pdf 등. 큰 파일도 되게 분할 업로드(pgUploadOne) */
+function wikiFilesHtml(w, editing, wid){
+  const fs = Array.isArray(w.files) ? w.files : [];
+  if(!fs.length && !editing) return '';
+  const dl = p => 'files.php?action=download&path=' + encodeURIComponent(p || '');
+  const icon = (typeof fileIcon === 'function') ? fileIcon : (() => '📄');
+  const sz = (typeof bytesText === 'function') ? bytesText : (n => (n || '') + '');
+  const chips = fs.map((f, k) => '<span class="wiki-file">'
+      + '<a class="wiki-file-a" href="' + dl(f.path) + '" title="내려받기" download>'
+        + '<span class="wiki-file-ic">' + icon(f.name || '') + '</span>'
+        + '<span class="wiki-file-nm">' + esc(f.name || '(파일)') + '</span>'
+        + (f.size ? '<span class="fmeta">' + esc(sz(f.size)) + '</span>' : '') + '</a>'
+      + (editing ? '<button class="wiki-file-x" title="목록에서 빼기" onclick="wikiFileDel(\'' + wid + '\',' + k + ')">✕</button>' : '')
+    + '</span>').join('');
+  return '<div class="wiki-files">'
+    + '<div class="wiki-files-h">📎 첨부 파일' + (fs.length ? ' <span class="fmeta">' + fs.length + '개</span>' : '') + '</div>'
+    + (chips ? '<div class="wiki-file-row">' + chips + '</div>'
+             : '<div class="fmeta" style="margin:2px 0 6px">포토샵·일러스트·PPT·PDF 등 원본 파일을 올려두면 눌러서 내려받을 수 있어요</div>')
+    + (editing ? '<button class="btn sm primary" onclick="wikiFilePick(\'' + wid + '\')">📎 파일 올리기</button>'
+        + '<span class="fmeta"> 아무 파일이나 (여러 개 가능, 큰 파일도 OK)</span>' : '')
+    + '<div class="wiki-up" id="wikiup_' + esc(w.id) + '"></div>'
+  + '</div>';
+}
+function wikiFilePick(id){ const el = document.getElementById('wikiFileInput'); if(!el) return; el.dataset.wid = id; el.click(); }
+async function wikiFileGot(fileList, id){
+  const w = wikiFind(id); if(!w) return;
+  const files = Array.from(fileList || []); if(!files.length) return;
+  if(typeof pgUploadOne !== 'function'){ toast('파일 올리기 기능을 쓸 수 없어요 (NAS 저장일 때 됩니다)'); return; }
+  if(!Array.isArray(w.files)) w.files = [];
+  const where = { brand: '_팀노하우', sub: '팀자료', sub2: String(w.title || '노하우').slice(0, 40), sub3: '' };
+  const prog = document.getElementById('wikiup_' + id);
+  for(const f of files){
+    if(prog) prog.innerHTML = '<div class="wiki-up-row">⬆ ' + esc(f.name) + ' <b id="wikiupt_' + esc(id) + '">0%</b></div>';
+    try{
+      const out = await pgUploadOne(f, where, (n, of) => { const t = document.getElementById('wikiupt_' + id); if(t) t.textContent = Math.round(n / of * 100) + '%'; });
+      w.files.push({ name: out.fileName, path: out.filePath, size: out.fileSize, at: new Date().toISOString() });
+      w.updatedAt = new Date().toISOString(); markDirty();
+      toast('📎 ' + out.fileName + ' (' + ((typeof bytesText === 'function') ? bytesText(out.fileSize) : out.fileSize) + ') 올렸습니다');
+    }catch(e){ toast('❌ ' + f.name + ' 올리기 실패: ' + ((e && e.message) || e)); }
+  }
+  if(prog) prog.innerHTML = ''; render();
+}
+function wikiFileDel(id, k){
+  const w = wikiFind(id); if(!w || !Array.isArray(w.files) || !w.files[k]) return;
+  if(!confirm('이 첨부 파일을 목록에서 뺄까요?\n(NAS 에 올라간 파일 자체는 남아 있습니다)')) return;
+  w.files.splice(k, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); toast('첨부에서 뺐어요');
+}
 function wikiRename(id){ const w = wikiFind(id); if(!w) return;
   const v = prompt('노하우 이름을 바꿉니다', w.title || '');
   if(v == null) return; const t = v.trim(); if(!t || t === (w.title || '')) return;
@@ -29619,6 +29683,8 @@ function renderWiki(){
     + '<button class="btn" title="PDF 를 올리면 쪽마다 한 장(사진)으로 만들어 줍니다" onclick="wikiPdfPick()">📄 PDF로 만들기</button>'
     + '<input type="file" id="wikiPdfInput" accept="application/pdf" style="display:none" '
       + 'onchange="wikiPdfMake(this.files[0]); this.value=\'\'">'
+    + '<input type="file" id="wikiFileInput" multiple style="display:none" '
+      + 'onchange="wikiFileGot(this.files, this.dataset.wid); this.value=\'\'">'
     + '</div>'
     + (all.length ? '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap">'
         + '<span class="fmeta">분류</span>' + chips + '</div>' : '');
@@ -29693,6 +29759,7 @@ function renderWiki(){
               + stepsHtml + '</div>' : '')
           + (String(w.links || '').trim()
               ? '<div class="fmeta" style="margin:4px 16px 2px 30px;line-height:1.7">🔗 ' + wikiLinks(w.links) + '</div>' : '')
+          + wikiFilesHtml(w, editing, wid)
           + '<div class="wiki-imgbar">'
             + '<button class="btn sm' + (editing ? ' primary' : '') + '" onclick="wikiEditToggle(\'' + wid + '\')">'
               + (editing ? '✔ 편집 끝' : '✎ 단계 편집') + '</button>'

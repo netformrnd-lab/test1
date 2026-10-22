@@ -4490,6 +4490,9 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-up-row b{color:var(--blue)}
 .wiki-step-files{margin-top:8px}
 .wiki-step-files .wiki-file-row{margin-bottom:0}
+.wiki-merge-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 12px;padding:9px 13px;
+  border:1px solid var(--border);border-left:4px solid var(--amber,#e0a73a);border-radius:10px;
+  background:var(--bg-secondary);font-size:12.5px;color:var(--text-secondary)}
 .wiki-catchip{display:inline-flex;align-items:center;gap:1px}
 .wiki-catchip .wiki-catedit{padding:4px 7px;color:var(--text-muted);opacity:.7}
 .wiki-catchip .wiki-catedit:hover{opacity:1;color:var(--blue)}
@@ -6001,7 +6004,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-112';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-113';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29445,8 +29448,8 @@ async function wikiFileGot(fileList, id, step){
   if(stepIdx >= 0){ const s = wikiStepsOf(w); if(!s[stepIdx]) return;
     if(!Array.isArray(s[stepIdx].files)) s[stepIdx].files = []; target = s[stepIdx].files; progId = 'wikiup_' + id + '_' + stepIdx; }
   else { if(!Array.isArray(w.files)) w.files = []; target = w.files; progId = 'wikiup_' + id; }
-  /* 팀 전체 파일과 한 폴더로 — _팀자료 안에 「노하우/제목」 으로 정리 (따로 _팀노하우 안 만듦) */
-  const where = { brand: '_팀자료', sub: '팀자료', sub2: '노하우', sub3: String(w.title || '노하우').slice(0, 40) };
+  /* 팀 전체 파일과 한 폴더로 — _팀자료 / 06_팀자료 / [연도] / {노하우 제목} / */
+  const where = { brand: '_팀자료', sub: '팀자료', sub2: String(w.title || '노하우').slice(0, 40), sub3: '' };
   const prog = document.getElementById(progId);
   for(const f of files){
     if(prog) prog.innerHTML = '<div class="wiki-up-row">⬆ ' + esc(f.name) + ' <b class="wup">0%</b></div>';
@@ -29458,6 +29461,34 @@ async function wikiFileGot(fileList, id, step){
     }catch(e){ toast('❌ ' + f.name + ' 올리기 실패: ' + ((e && e.message) || e)); }
   }
   if(prog) prog.innerHTML = ''; render();
+}
+/* 옛 _팀노하우 폴더에 올라간 첨부를 _팀자료 로 한 번에 모으기 */
+function wikiOldFiles(){
+  const out = [];
+  (data.wiki || []).forEach(w => {
+    (Array.isArray(w.files) ? w.files : []).forEach(f => { if(/^_팀노하우\//.test(f.path || '')) out.push(f); });
+    wikiStepsOf(w).forEach(st => { (Array.isArray(st.files) ? st.files : []).forEach(f => { if(/^_팀노하우\//.test(f.path || '')) out.push(f); }); });
+  });
+  return out;
+}
+async function wikiMergeOld(){
+  const olds = wikiOldFiles();
+  if(!olds.length){ toast('옮길 옛 파일이 없어요'); return; }
+  if(!confirm('옛 폴더(_팀노하우)에 있는 첨부 ' + olds.length + '개를 _팀자료 폴더로 옮길까요?\n(NAS 파일을 실제로 옮기고 경로도 바꿉니다)')) return;
+  toast('옮기는 중… 0/' + olds.length);
+  let ok = 0, fail = 0;
+  for(let i = 0; i < olds.length; i++){
+    const f = olds[i]; const from = f.path; const to = from.replace(/^_팀노하우\//, '_팀자료/');
+    try{
+      const res = await fetch('files.php?action=movepath', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: from, to: to }) });
+      const j = await res.json().catch(() => null);
+      if(j && j.ok){ f.path = j.filePath || to; ok++; } else { fail++; }
+    }catch(e){ fail++; }
+    toast('옮기는 중… ' + (i + 1) + '/' + olds.length);
+  }
+  markDirtyAll(); render();
+  toast(ok + '개를 _팀자료 로 옮겼어요' + (fail ? (' · ' + fail + '개 실패(파일을 못 찾았을 수 있어요)') : ' — 이제 _팀노하우 폴더는 지워도 됩니다'));
 }
 function wikiFileDel(id, k){
   const w = wikiFind(id); if(!w || !Array.isArray(w.files) || !w.files[k]) return;
@@ -29723,6 +29754,10 @@ function renderWiki(){
     + '<input type="file" id="wikiFileInput" multiple style="display:none" '
       + 'onchange="wikiFileGot(this.files, this.dataset.wid, this.dataset.step); this.value=\'\'">'
     + '</div>'
+    + (wikiOldFiles().length
+        ? '<div class="wiki-merge-bar">📁 옛 폴더(<b>_팀노하우</b>)에 첨부 ' + wikiOldFiles().length + '개가 남아 있어요. '
+          + '<button class="btn sm primary" onclick="wikiMergeOld()">_팀자료 로 합치기</button>'
+          + '<span class="fmeta">NAS 파일을 실제로 옮기고 경로도 바꿉니다</span></div>' : '')
     + (all.length ? '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap">'
         + '<span class="fmeta">분류</span>' + chips + '</div>' : '');
 

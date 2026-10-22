@@ -1332,6 +1332,58 @@ if ($action === 'movetonas') {
           '다음' => '다음번 목록 만들기 때 NAS 폴더 목록에도 나타납니다']);
 }
 
+/* ---------------- 업로드 폴더 안에서 파일 옮기기 ----------------
+   예: _팀노하우/06_팀자료/… 에 있던 첨부를 _팀자료/06_팀자료/… 로 모읍니다.
+   from·to 둘 다 FILE_DIR(업로드 루트) 안쪽 상대경로여야 합니다.
+   ------------------------------------------------------------- */
+if ($action === 'movepath') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jout(['ok' => false, 'error' => 'POST 요청만 허용됩니다'], 405);
+    }
+    $in   = json_decode(file_get_contents('php://input'), true) ?: [];
+    $from = ltrim(str_replace('\\', '/', trim($in['from'] ?? '')), '/');
+    $to   = ltrim(str_replace('\\', '/', trim($in['to']   ?? '')), '/');
+    if ($from === '' || $to === '') jout(['ok' => false, 'error' => 'from·to 를 지정해 주세요'], 400);
+    if (strpos($from, '..') !== false || strpos($to, '..') !== false) {
+        jout(['ok' => false, 'error' => '잘못된 경로입니다'], 400);
+    }
+    $root = realpath($FILE_DIR);
+    $src  = realpath($FILE_DIR . '/' . $from);
+    if (!$root || !$src || strpos($src, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($src)) {
+        jout(['ok' => false, 'error' => '옮길 파일을 찾지 못했습니다: ' . $from], 404);
+    }
+    $dstDir = dirname($FILE_DIR . '/' . $to);
+    if (!is_dir($dstDir) && !@mkdir($dstDir, 0775, true) && !is_dir($dstDir)) {
+        jout(['ok' => false, 'error' => '폴더를 만들지 못했습니다'], 500);
+    }
+    $dstDirReal = realpath($dstDir);
+    if (!$dstDirReal || ($dstDirReal !== $root && strpos($dstDirReal, $root . DIRECTORY_SEPARATOR) !== 0)) {
+        jout(['ok' => false, 'error' => '그 위치로는 옮길 수 없습니다'], 403);
+    }
+    $name = basename($to);
+    if ($name === '' ) $name = basename($src);
+    if (is_file($dstDirReal . '/' . $name) && realpath($dstDirReal . '/' . $name) !== $src) {
+        $name = unique_path($dstDirReal, $name);
+    }
+    $target = $dstDirReal . '/' . $name;
+    $rel = str_replace(DIRECTORY_SEPARATOR, '/', substr($target, strlen($root) + 1));
+    if (realpath($target) === $src) {       // 이미 그 자리에 있음
+        jout(['ok' => true, 'filePath' => $rel, 'fileName' => $name, 'already' => true]);
+    }
+    if (!@rename($src, $target)) {          // 볼륨이 다르면 rename 이 안 됩니다
+        if (!@copy($src, $target)) { @unlink($target); jout(['ok' => false, 'error' => '옮기지 못했습니다 (복사 실패)'], 500); }
+        @unlink($src);
+    }
+    @chmod($target, 0664);
+    // 비어 버린 옛 폴더를 위로 올라가며 치웁니다
+    $d = dirname($src);
+    while ($d && strlen($d) > strlen($root) && is_dir($d)
+           && count(array_diff((array)@scandir($d), ['.', '..', '@eaDir'])) === 0) {
+        @rmdir($d); $d = dirname($d);
+    }
+    jout(['ok' => true, 'filePath' => $rel, 'fileName' => $name]);
+}
+
 /* ---------------- 자동화 도구 실행하기 ----------------
    생성기처럼 스크립트가 살아 있어야 동작하는 HTML 도구를 그대로 띄웁니다.
    (읽기 전용 문서는 아래 view 를 씁니다 — 그쪽은 스크립트를 막습니다)

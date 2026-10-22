@@ -4333,6 +4333,11 @@ body.dark-mode .mm-os .media-col-h{color:#dfe5f3}
 .mm-tile-n{font-size:26px;font-weight:800;color:var(--mm-navy);margin:4px 0 2px}
 body.dark-mode .mm-tile-n{color:#dfe5f3}
 .mm-tile-l{font-size:12px;color:var(--text-muted);font-weight:600}
+.mm-tile-sub{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:4px}
+.mm-tile-team{border-top:3px solid var(--th)}
+.mm-orphan{margin:10px 0 2px;padding:9px 13px;border:1px dashed var(--border);border-radius:10px;
+  background:var(--bg-secondary);font-size:12.5px;font-weight:650;color:var(--text-secondary);cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mm-orphan:hover{border-color:var(--mm-blue)}
 .mm-sec-t{font-size:14px;font-weight:800;color:var(--text-primary);margin:20px 0 10px}
 .mm-sec-bar{display:flex;align-items:center;gap:10px;margin:20px 0 10px}
 .mm-sec-bar .mm-sec-t{margin:0}
@@ -5969,7 +5974,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-105';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-106';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -30308,15 +30313,13 @@ function mediaHomeView(){
     ts.forEach(s => assigned.add('s' + s.id));
     const act = tc.filter(c => (c.stage || '') !== '완료').length;
     const done = tc.length - act;
-    /* 이름은 넣지 않습니다 — 팀이 콘텐츠를 얼마나 만들고 있나를 봅니다 */
-    return '<div class="mm-team" style="--th:' + hue + '">'
-      + '<div class="mm-team-h"><b>' + esc(tm.name || '팀') + '</b>'
-        + '<span class="fmeta">제작 중 ' + act + ' · 완료 ' + done + '</span></div>'
-      + '<div class="mm-team-big"><span class="mm-big-n">' + tc.length + '</span>'
-        + '<span class="mm-big-l">콘텐츠</span>'
-        + '<span class="chip" style="margin-left:auto">🎥 촬영 ' + ts.length + '</span></div>'
-      + (tc.length ? '<div class="mm-sc-row">' + mmStageChips(tc) + '</div>'
-                   : '<div class="fmeta">아직 만든 콘텐츠가 없습니다</div>')
+    /* 타일 모양 — 콘텐츠 수를 큰 숫자로, 아래에 간단 요약 */
+    return '<div class="mm-tile mm-tile-team" style="--th:' + hue + '" '
+      + 'onclick="setMediaTab(\'contents\')" title="콘텐츠 제작에서 보기">'
+      + '<div class="mm-tile-i" style="color:' + hue + '">🎬</div>'
+      + '<div class="mm-tile-n" style="color:' + hue + '">' + tc.length + '</div>'
+      + '<div class="mm-tile-l">' + esc(tm.name || '팀') + '</div>'
+      + '<div class="mm-tile-sub">제작 중 ' + act + ' · 완료 ' + done + ' · 🎥 ' + ts.length + '</div>'
     + '</div>';
   }).join('');
 
@@ -30372,17 +30375,23 @@ function mediaHomeView(){
   const myR = reqs.filter(r => mmIsMine(r) && (r.status || '') !== '완료');
   const reqHtml = (list) => list.map(r => '<span class="mm-item" onclick="setMediaTab(\'requests\')" title="요청 센터에서 보기">'
     + '📨 ' + esc(r.title || '(요청)') + (r.status ? ' <span class="fmeta">' + esc(r.status) + '</span>' : '') + '</span>').join('');
-  const mineBody = meName
-    ? ((myC.length || myS.length || myR.length)
-        ? (myC.length ? '<div class="mm-mine-chips">' + mmStageChips(myC) + '</div>' : '')
-          + '<div class="mm-p-items">' + itemHtml(myC, 'c') + itemHtml(myS, 's') + reqHtml(myR) + '</div>'
-        : '<div class="fmeta" style="padding:5px 1px">나에게 맡겨진 콘텐츠·촬영·요청이 없습니다</div>')
-    : '<div class="fmeta" style="padding:5px 1px">로그인하거나 위쪽 <b>이름 설정</b>을 하면, 사람마다 자기 업무가 여기에 모여요</div>';
+  const myUp = myC.filter(c => mmUpcoming(c.pubDate, 7)).length;
+  const myTiles = [
+    ['🎬', '내 콘텐츠', myC.length, 'contents'],
+    ['🎥', '내 촬영', myS.length, 'shoots'],
+    ['📨', '내 요청', myR.length, 'requests'],
+    ['🗓', '곧 내 공개(7일)', myUp, 'cal']
+  ].map(t => '<div class="mm-tile" onclick="setMediaTab(\'' + t[3] + '\')" title="눌러서 그 화면으로">'
+    + '<div class="mm-tile-i">' + t[0] + '</div><div class="mm-tile-n">' + t[2] + '</div>'
+    + '<div class="mm-tile-l">' + esc(t[1]) + '</div></div>').join('');
+  const myList = (myC.length || myS.length || myR.length)
+    ? '<div class="mm-p-items" style="margin-top:10px">' + itemHtml(myC, 'c') + itemHtml(myS, 's') + reqHtml(myR) + '</div>'
+    : '<div class="fmeta" style="padding:8px 1px 2px">나에게 맡겨진 콘텐츠·촬영·요청이 없습니다</div>';
   const mineSection = '<div class="mm-sec-bar"><h3 class="mm-sec-t">🙋 내 업무'
-      + (meName ? ' — ' + esc(meName) : '') + '</h3>'
-      + (meName ? '<span class="fmeta">콘텐츠 ' + myC.length + ' · 촬영 ' + myS.length
-          + (myR.length ? ' · 요청 ' + myR.length : '') + '</span>' : '') + '</div>'
-    + '<div class="mm-mine">' + mineBody + '</div>';
+      + (meName ? ' — ' + esc(meName) : '') + '</h3></div>'
+    + (meName
+        ? '<div class="mm-tiles">' + myTiles + '</div>' + myList
+        : '<div class="mm-mine"><div class="fmeta" style="padding:5px 1px">로그인하거나 위쪽 <b>이름 설정</b>을 하면, 사람마다 자기 업무가 여기에 모여요</div></div>');
 
   /* 🚨 확인할 것 — 3일 안에 공개인데 아직 배포 전인 콘텐츠 */
   const risk = contents.filter(c => mmUpcoming(c.pubDate, 3)
@@ -30430,14 +30439,11 @@ function mediaHomeView(){
         const week = cc.filter(x => mmUpcoming(x.pubDate, 7)).length;
         const booked = cc.filter(x => x.pubDate && x.pubDate > todayStr()).length;
         const views = cc.reduce((a, x) => a + mmNum(x.views), 0);
-        return '<div class="mm-chcard" onclick="setMediaTab(\'mchannels\')" title="채널 운영에서 보기">'
-          + '<div class="mm-chcard-h"><b>' + esc(ch.name || '채널') + '</b>'
-            + (ch.platform ? '<span class="fmeta">' + esc(ch.platform) + '</span>' : '') + '</div>'
-          + '<div class="mm-chcard-st">'
-            + '<span>이번 주 공개 <b>' + week + '</b></span>'
-            + '<span>제작 중 <b>' + making + '</b></span>'
-            + '<span>예약 <b>' + booked + '</b></span></div>'
-          + (views ? '<div class="mm-chcard-v">📈 조회 ' + mmFmt(views) + '</div>' : '')
+        return '<div class="mm-tile" onclick="setMediaTab(\'mchannels\')" title="채널 운영에서 보기">'
+          + '<div class="mm-tile-i">📺</div>'
+          + '<div class="mm-tile-n">' + (views ? mmFmt(views) : cc.length) + '</div>'
+          + '<div class="mm-tile-l">' + esc(ch.name || '채널') + (views ? ' · 조회' : ' · 콘텐츠') + '</div>'
+          + '<div class="mm-tile-sub">이번주 ' + week + ' · 제작 ' + making + ' · 예약 ' + booked + '</div>'
         + '</div>';
       }).join('')
     : '<div class="mm-empty-s">등록한 채널이 없습니다 — <b>📺 채널 운영</b> 에서 넣으면 여기 현황이 보입니다</div>';
@@ -30454,19 +30460,15 @@ function mediaHomeView(){
       + '<div class="mm-pipe-row">' + pipe + '</div></div>'
     + '<div class="mm-sec-bar"><h3 class="mm-sec-t">👥 팀별 — 콘텐츠를 얼마나 만들고 있나</h3>'
       + '<button class="btn sm" onclick="teamAddPrompt()" title="팀을 새로 만듭니다">＋ 팀</button></div>'
-    + '<div class="mm-team-grid">' + teamCards + '</div>'
-    + (meName
-        ? (orphan ? '<h3 class="mm-sec-t">🔖 담당 미지정</h3><div class="mm-person-grid">' + orphan + '</div>' : '')
-        : '<h3 class="mm-sec-t">🙋 개인별 — ' + (mediaTeams.length
-              ? esc(mediaTeams.map(t => t.name).join(' · ')) + ' 사람들'
-              : '누가 무엇을 맡고 있나') + '</h3>'
-          + '<div class="mm-person-grid">' + personCards + orphan + '</div>')
+    + '<div class="mm-tiles">' + teamCards + '</div>'
+    + (orphan ? '<div class="mm-orphan" onclick="setMediaTab(\'contents\')">🔖 담당 미지정 — 콘텐츠 '
+        + orphanC.length + ' · 촬영 ' + orphanS.length + ' <span class="fmeta">눌러서 보기</span></div>' : '')
+    + '<h3 class="mm-sec-t">📺 채널 현황</h3>'
+    + '<div class="mm-tiles">' + chanHtml + '</div>'
     + '<div class="mm-2col">'
       + '<div class="mm-box"><div class="mm-box-h">🗓 이번 주 업로드 예정 <span class="fmeta">' + upC.length + '건</span></div>' + upCHtml + '</div>'
       + '<div class="mm-box"><div class="mm-box-h">🎥 촬영 일정 (7일) <span class="fmeta">' + upS.length + '건</span></div>' + upSHtml + '</div>'
     + '</div>'
-    + '<h3 class="mm-sec-t">📺 채널 현황</h3>'
-    + '<div class="mm-team-grid">' + chanHtml + '</div>'
     + empty;
 }
 

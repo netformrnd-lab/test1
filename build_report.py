@@ -203,15 +203,7 @@ pen_cards = [
 
 # ----- 2. 손전등 / 랜턴 -----
 flash_cards = [
-    card("①", "홍보물닷컴 — 미니 펜라이트 (14×85mm)",
-         [("모델", "클립 미니후레쉬 小 (No.130495)"),
-          ("규격", "14 × 85mm"),
-          ("인쇄", "기본수량 이상 인쇄 무료"),
-          ("단가", "100개 <strong>3,270원</strong> ~ 5,000개 2,860원 (VAT 별도)")],
-         [{"path": "07_미니_펜라이트_스튜디오_목업.png", "label": "목업 — 스튜디오", "mock": True},
-          {"path": "08_미니_펜라이트_라이프스타일_목업.png", "label": "목업 — 라이프스타일"}],
-         url="https://www.hongbomool.com/new/shop/detail.php?start=0&code=130495"),
-    card("②", "가나기프트 — 하이파워 LED 줌 랜턴",
+    card("①", "가나기프트 — 하이파워 LED 줌 랜턴",
          [("타입", "LED 줌 랜턴 (줌 조절)"),
           ("인쇄", "기본수량 이상 인쇄 무료"),
           ("단가", "100개 <strong>4,350원</strong> ~ 5,000개 3,470원 (VAT 별도)"),
@@ -220,13 +212,13 @@ flash_cards = [
           {"path": "09_하이파워_LED_줌_랜턴_원본.jpg", "label": "원본"}],
          url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=173345",
          decided="구매 확정 (3차 회의)"),
-    card("③", "벤딕트 BEAM-LX800 — 충전식 LED 손전등",
+    card("②", "벤딕트 BEAM-LX800 — 충전식 LED 손전등",
          [("밝기", "1,000루멘"), ("조사 거리", "800m"),
           ("특징", "자석 내장, COB 조명, USB 충전"),
           ("리뷰", "2,180건"), ("단가", "<strong>39,900원</strong> (42% 할인)")],
          [{"path": "11_벤딕트_BEAM-LX800.jpg", "label": "제품 이미지"}],
          url="https://brand.naver.com/vendict/products/11458530519", url_text="네이버 링크"),
-    card("④", "Shadowhawk SH1476 — 초강력 LED 손전등",
+    card("③", "Shadowhawk SH1476 — 초강력 LED 손전등",
          [("밝기", "2,000루멘"), ("방수", "IP67"),
           ("배터리", "5,000mAh, 12시간 사용"),
           ("리뷰", "214건"), ("단가", "<strong>29,700원</strong> (40% 할인)")],
@@ -236,36 +228,19 @@ flash_cards = [
 
 # ----- 3. 함수율 측정기 -----
 moist_cards = [
-    card("①", "리녹(RINOC) 5in1 벽스캐너 (목재·금속·전선 탐지)",
-         [("기능", "목재/금속/전선/AC전선/스터드 5in1 탐지"),
-          ("표시", "LCD 백라이트"),
-          ("상품평", "36개 / 평점 4.0"),
-          ("단가", "<strong>25,340원</strong> (와우 12% 할인, 정가 28,900원)")],
-         [{"path": "리녹.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/9168776109?itemId=27018617058",
-         url_text="쿠팡 링크"),
-    card("②", "티앤디시스템 목재 수분측정기 (GM605)",
-         [("모델", "GM605"),
-          ("측정 방식", "핀타입 (2핀 접촉식) · 홀드 기능"),
-          ("대상", "목재"),
-          ("상품평", "41개 / 평점 4.5"),
-          ("단가", "<strong>20,000원</strong> (20% 할인, 정가 25,000원) · 배송 3,000원")],
-         [{"path": "티앤디.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/331406358?itemId=20066227415",
-         url_text="쿠팡 링크"),
-    card("③", "MT68 콘크리트 함수율측정기 (비파괴)",
+    card("①", "MT68 콘크리트 함수율측정기 (비파괴)",
          [("측정 방식", "비파괴 유도방식 (핀 불필요)"),
           ("대상", "콘크리트, 벽돌, 석고보드 등"),
           ("단가", "<strong>139,260원</strong>")],
          [{"path": "13_MT68_함수율측정기.jpg", "label": "제품 이미지"}],
          url="https://www.coupang.com/vp/products/9575236206?itemId=28580819389", url_text="쿠팡 링크"),
-    card("④", "CT-7822S 건축용 수분계 (전자파 방식)",
+    card("②", "CT-7822S 건축용 수분계 (전자파 방식)",
          [("측정 방식", "전자파 방식 (비파괴)"),
           ("대상", "건축 자재 전반"),
           ("단가", "<strong>153,200원</strong>")],
          [{"path": "14_CT-7822S_수분계.jpg", "label": "제품 이미지"}],
          url="https://www.coupang.com/vp/products/8906011099?itemId=26203505510", url_text="쿠팡 링크"),
-    card("⑤", "다솔 — 멀티 함수율 측정기 (GM605)",
+    card("③", "다솔 — 멀티 함수율 측정기 (GM605)",
          [("모델", "GM605 (판매자 다솔)"),
           ("대상", "목재 · 나무 · 콘크리트 수분 측정"),
           ("상품평", "13개"),
@@ -346,39 +321,27 @@ bag_cards = [
 # ----- 7. 열화상 카메라 -----
 thermal_cards = [
     card("①", "힛뷰(HEATVIEW) 열화상카메라",
-         [("특징", "고해상도, 한국어 지원, 적외선 누수 탐지"),
+         [("해상도", "확인 예정"),
+          ("특징", "고해상도, 한국어 지원, 적외선 누수 탐지"),
           ("상품평", "68개 / 97% 긍정"),
           ("단가", "<strong>171,000원</strong> (50% 할인)")],
          [{"path": "26_힛뷰_열화상카메라.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/9233256592?itemId=27295282745", url_text="쿠팡 링크"),
-    card("②", "테릭스(THERIX) 고해상도 열화상카메라",
-         [("해상도", "<strong>240×240</strong>"),
-          ("특징", "동영상 촬영, 한국어 지원, USB 충전식"),
-          ("상품평", "39개 / 95% 긍정"),
-          ("단가", "<strong>179,500원</strong> (53% 할인)")],
-         [{"path": "27_테릭스_열화상카메라.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/9072448537?itemId=26645324312", url_text="쿠팡 링크"),
+         url="https://www.coupang.com/vp/products/9233256592?itemId=27295282745", url_text="쿠팡 링크",
+         decided="구매 확정 (저가형 1개)"),
 ]
 
 # ----- 8. 쌍안경 -----
 bino_cards = [
-    card("①", "니쿠라(Nikula) 오페라글라스 쌍안경",
-         [("모델", "니쿠라 오페라글라스 10×22mm"),
-          ("사양", "10배율 / 대물렌즈 22mm"),
-          ("상품평", "262건 / 평점 4.76"),
-          ("가격", "최저 <strong>12,900원</strong> (배송비 포함)")],
-         [{"path": "28_니쿠라__Nikula__쌍안경.png", "label": "제품 이미지"}],
-         url="https://search.shopping.naver.com/catalog/46079948618?query=쌍안경",
-         url_text="네이버 링크"),
-    card("②", "라라캠프 콤팩트 쌍안경 (럭슨 LUXUN)",
+    card("①", "라라캠프 콤팩트 쌍안경 (럭슨 LUXUN)",
          [("모델", "럭슨(LUXUN) 자동초점 오페라글라스"),
+          ("사양", "확인 예정"),
           ("특징", "자동초점 · 콘서트/뮤지컬 관람용 콤팩트"),
           ("상품평", "2,329건 / 평점 4.82"),
           ("가격", "<strong>36,800원</strong> (20% 할인, 정가 46,000원) · 배송 3,000원")],
          [{"path": "29_라라캠프_콤팩트_쌍안경.jpg", "label": "제품 이미지"}],
          url="https://smartstore.naver.com/lalacamp/products/7484467111",
          url_text="스마트스토어"),
-    card("③", "프로딘 클리어뷰 10×25 FMC코팅 쌍안경 (그린)",
+    card("②", "프로딘 클리어뷰 10×25 FMC코팅 쌍안경 (그린)",
          [("모델", "프로딘(PRODEAN) 클리어뷰 10×25 (상품번호 832204)"),
           ("사양", "10배율 / 대물렌즈 25mm / FMC 멀티코팅"),
           ("컬러", "밀리터리 그린"),
@@ -390,25 +353,7 @@ bino_cards = [
 
 # ----- 9. 겨울 유니폼 -----
 uniform_cards = [
-    card("①", "아트윈 A-41 프라다 점퍼 (추동겸용 · 내피 탈부착, 네이비)",
-         [("품번", "A-41 (브랜드 아트윈)"),
-          ("종류", "추동겸용 점퍼 · 내피 탈부착"),
-          ("색상", "네이비"),
-          ("소재 / 사이즈", "확인 예정"),
-          ("판매가", "확인 예정")],
-         [{"path": "유니폼1_A701.png", "label": "목업 — 아파트스퀘어 로고 (앞/뒤)", "mock": True}],
-         url="https://dyuniform.com/product/%EC%95%84%ED%8A%B8%EC%9C%88-a-41-%ED%94%84%EB%9D%BC%EB%8B%A4%EC%A0%90%ED%8D%BC%EC%B6%94%EB%8F%99%EA%B2%B8%EC%9A%A9%EB%82%B4%ED%94%BC%ED%83%88%EB%B6%80%EC%B0%A9/5229/category/179/display/1/",
-         url_text="제품 페이지", pending=True),
-    card("②", "아트윈 A-42 프라다 점퍼 (추동 내피 탈부착)",
-         [("품번", "A-42 (브랜드 아트윈)"),
-          ("소재", "폴리에스터 100%"),
-          ("사이즈", "90–110"), ("색상", "블랙"),
-          ("특징", "추동(가을·겨울)용 · 내피 탈부착"),
-          ("판매가", "<strong>47,300원</strong> (VAT 포함)")],
-         [{"path": "유니폼2_A42.png", "label": "목업 — 아파트스퀘어 로고 (앞/뒤)", "mock": True}],
-         url="https://dyuniform.com/product/%EC%95%84%ED%8A%B8%EC%9C%88-a-42-%ED%94%84%EB%9D%BC%EB%8B%A4%EC%A0%90%ED%8D%BC%EC%B6%94%EB%8F%99%EB%82%B4%ED%94%BC%EC%B0%B0%EB%B6%80%EC%B0%A9/5230/category/54/display/1/",
-         url_text="제품 페이지"),
-    card("③", "윌비 CT-703 인퀼팅 하프코트 (겨울 패딩 · 블랙)",
+    card("①", "윌비 CT-703 인퀼팅 하프코트 (겨울 패딩 · 블랙)",
          [("품번", "CT-703 인퀼팅 하프코트 (브랜드 윌비 WILLBE)"),
           ("종류", "겨울 패딩 하프코트 · 탈착식 후드"),
           ("소재", "나일론 100%"),
@@ -542,16 +487,13 @@ ondo_cards = [
 #   id "design" = 디자인 제작물(리플릿·하드커버·제안서·사원증) — 축약본에서 제외
 SECTIONS = [
     ("product", "볼펜 / 젤펜", "4종 검토", pen_cards, "① 대한기프트 흑/백 볼펜 구매 확정"),
-    ("product", "손전등 / 랜턴", "4종 비교", flash_cards, "② 가나기프트 하이파워 LED 줌 랜턴 구매 확정"),
-    ("product", "함수율 측정기", "5종 비교", moist_cards, "저가형(GM605) 구매"),
-    ("product", "칫솔치약세트", "4종 비교", tooth_cards, None),
+    ("product", "손전등 / 랜턴", "3종 비교", flash_cards, "① 가나기프트 하이파워 LED 줌 랜턴 구매 확정"),
+    ("product", "함수율 측정기", "3종 비교", moist_cards, "저가형(GM605) 구매"),
     ("product", "드론 조종기", "현장 운용 장비", dji_cards, "DJI RC Pro 2 조종기 1대 구매 확정"),
     ("product", "장비가방", "3종 비교", bag_cards, "③ K25600 선정 · 자사 로고 인쇄"),
-    ("product", "열화상 카메라", "2종 비교", thermal_cards, "저가형 1개 구매"),
-    ("product", "온습도계", "2종 비교", ondo_cards, None),
-    ("product", "쌍안경", "3종 비교", bino_cards, "고·저배율 각 1개 구매 확정 (테스트용)"),
-    ("product", "겨울 유니폼", "3종 검토", uniform_cards, "로고 기존 여름·춘추 디자인 유지"),
-    ("product", "여름 유니폼", "2종 — 춘하/여름", summer_cards, "로고 기존 여름·춘추 디자인 유지"),
+    ("product", "열화상 카메라", "단일 모델 (저가형)", thermal_cards, "① 힛뷰 저가형 1개 구매"),
+    ("product", "쌍안경", "2종 비교", bino_cards, "고·저배율 각 1개 구매 확정 (테스트용)"),
+    ("product", "겨울 유니폼", "겨울 패딩 (CT-703)", uniform_cards, "로고 기존 여름·춘추 디자인 유지"),
     ("design", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards, None),
     ("design", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards, None),
     ("design", "제안서", "클릭 시 원본 PDF", proposal_cards, "페이퍼용/PT용 이원화"),
@@ -790,19 +732,19 @@ def build(out_path, specs, originals_keys, cover_sub, summary_cards):
     print(f"저장 완료: {out_path.name}  ({len(doc):,} bytes / {len(doc)/1024/1024:.2f} MB)")
 
 
-FULL_SUB = ("볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · "
-            "겨울/여름 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증 · 목걸이")
-SHORT_SUB = ("볼펜 · 손전등 · 함수율 · 칫솔 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · "
-             "겨울/여름 유니폼 · 목걸이")
+FULL_SUB = ("볼펜 · 손전등 · 함수율 · DJI · 장비가방 · 열화상 · 쌍안경 · "
+            "겨울 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증 · 목걸이")
+SHORT_SUB = ("볼펜 · 손전등 · 함수율 · DJI · 장비가방 · 열화상 · 쌍안경 · "
+             "겨울 유니폼 · 목걸이")
 
-# 1) 전체본 (16개 카테고리)
+# 1) 전체본
 build(OUT, SECTIONS, ["hardcover", "leaflet", "proposal"], FULL_SUB,
-      [("16", "검토 카테고리"), (str(item_count(SECTIONS)), "검토 항목"),
-       ("45", "확보 이미지"), ("26", "목업 시안")])
+      [(str(len(SECTIONS)), "검토 카테고리"), (str(item_count(SECTIONS)), "검토 항목"),
+       ("31", "확보 이미지"), ("16", "목업 시안")])
 
 # 2) 축약본 — 디자인 제작물(리플릿·하드커버·제안서·사원증) 제외
 short_specs = [s for s in SECTIONS if s[0] != "design"]
 build(OUT_SHORT, short_specs, [], SHORT_SUB,
       [(str(len(short_specs)), "검토 카테고리"),
        (str(item_count(short_specs)), "검토 항목"),
-       ("37", "확보 이미지"), ("20", "목업 시안")])
+       ("27", "확보 이미지"), ("14", "목업 시안")])

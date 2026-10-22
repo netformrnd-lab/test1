@@ -203,15 +203,15 @@ pen_cards = [
 
 # ----- 2. 손전등 / 랜턴 -----
 flash_cards = [
-    card("①", "가나기프트 — 하이파워 LED 줌 랜턴",
-         [("타입", "LED 줌 랜턴 (줌 조절)"),
-          ("인쇄", "기본수량 이상 인쇄 무료"),
-          ("단가", "100개 <strong>4,350원</strong> ~ 5,000개 3,470원 (VAT 별도)"),
-          ("재고", "<strong>현재 품절</strong>")],
-         [{"path": "10_하이파워_LED_줌_랜턴_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
-          {"path": "09_하이파워_LED_줌_랜턴_원본.jpg", "label": "원본"}],
-         url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=173345",
-         decided="구매 확정 (3차 회의)"),
+    card("①", "브리사 LED 후레쉬 손전등 (가나기프트)",
+         [("상품번호", "183505 (가나기프트)"),
+          ("규격 / 색상", "136~156 × 34 × 26mm · 검정"),
+          ("인쇄 / 포장", "스티커인쇄 (옵션 레이저인쇄) · 개별케이스"),
+          ("제작 / 생산", "3~4일 · 중국"),
+          ("단가", "100개 <strong>6,450원</strong> ~ 5,000개 4,780원 (VAT 별도)")],
+         [{"path": "손전등_브리사.png", "label": "제품 이미지"}],
+         url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=183505&cid=194",
+         url_text="제품 페이지", decided="구매 확정 (품절 대체)"),
     card("②", "벤딕트 BEAM-LX800 — 충전식 LED 손전등",
          [("밝기", "1,000루멘"), ("조사 거리", "800m"),
           ("특징", "자석 내장, COB 조명, USB 충전"),
@@ -496,7 +496,7 @@ ondo_cards = [
 #   id "design" = 디자인 제작물(리플릿·하드커버·제안서·사원증) — 축약본에서 제외
 SECTIONS = [
     ("product", "볼펜 / 젤펜", "4종 검토", pen_cards, "① 대한기프트 흑/백 볼펜 구매 확정"),
-    ("product", "손전등 / 랜턴", "3종 비교", flash_cards, "① 가나기프트 하이파워 LED 줌 랜턴 구매 확정"),
+    ("product", "손전등 / 랜턴", "3종 비교", flash_cards, "① 브리사 LED 후레쉬 손전등 구매 확정"),
     ("product", "함수율 측정기", "3종 비교", moist_cards, "저가형(GM605) 구매"),
     ("product", "드론 조종기", "현장 운용 장비", dji_cards, "DJI RC Pro 2 조종기 1대 구매 확정"),
     ("product", "장비가방", "3종 비교", bag_cards, "③ K25600 선정 · 자사 로고 인쇄"),

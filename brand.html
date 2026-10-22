@@ -4338,6 +4338,15 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .mm-orphan{margin:10px 0 2px;padding:9px 13px;border:1px dashed var(--border);border-radius:10px;
   background:var(--bg-secondary);font-size:12.5px;font-weight:650;color:var(--text-secondary);cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .mm-orphan:hover{border-color:var(--mm-blue)}
+/* 🎒 장비 */
+.gear-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.gear-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+  padding:12px 14px;cursor:pointer;transition:border-color .12s}
+.gear-card:hover{border-color:var(--mm-blue)}
+.gear-card-top{display:flex;align-items:center;gap:8px}
+.gear-nm{font-weight:700;font-size:13.5px;color:var(--text-primary);flex:1 1 auto;word-break:break-word}
+.gear-st{flex:0 0 auto;font-size:11px;font-weight:800;color:#fff;background:var(--gc);
+  padding:2px 9px;border-radius:999px;white-space:nowrap}
 .mm-sec-t{font-size:14px;font-weight:800;color:var(--text-primary);margin:20px 0 10px}
 .mm-sec-bar{display:flex;align-items:center;gap:10px;margin:20px 0 10px}
 .mm-sec-bar .mm-sec-t{margin:0}
@@ -5974,7 +5983,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-106';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-107';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6348,19 +6357,36 @@ const TYPES = {
     ]
   },
   shoots: {
-    label:'촬영', icon:'🎥', tab:'촬영·장비',
-    hint:'촬영 일정과 쓸 장비를 적어 둡니다',
+    label:'촬영', icon:'🎥', tab:'촬영',
+    hint:'촬영 일정을 적어 둡니다',
     empty:'아직 촬영 일정이 없습니다.',
     fields:[
       { key:'title', label:'촬영 제목', type:'text', required:true,
         ph:'예: 신제품 언박싱 촬영' },
       { key:'date',  label:'촬영일', type:'date' },
       { key:'place', label:'장소', type:'text', ph:'예: 사무실 스튜디오 · 야외' },
-      { key:'gear',  label:'장비', type:'text', ph:'예: A7M4 · 조명 2 · 핀마이크' },
+      { key:'gear',  label:'챙길 장비 (선택)', type:'text', ph:'예: A7M4 · 조명 2 · 핀마이크',
+        hint:'장비 보유·대여 현황은 🎒 장비 탭에서 관리합니다' },
       { key:'uid',   label:'담당', type:'select', options: taskPeople,
         when: () => authOn(), def: () => { const m = authMe(); return m ? m.id : ''; } },
       { key:'owner', label:'담당', type:'text', ph:'예: 이촬영', when: () => !authOn() },
       { key:'memo',  label:'메모', type:'textarea' }
+    ]
+  },
+  gear: {
+    label:'장비', icon:'🎒', tab:'장비',
+    hint:'촬영 장비를 적어 둡니다 — 보유·대여·수리, 지금 누가 쓰는지',
+    empty:'아직 등록한 장비가 없습니다.',
+    fields:[
+      { key:'name',   label:'장비 이름', type:'text', required:true,
+        ph:'예: Sony A7M4 · 조명 2 · 핀마이크 · 삼각대' },
+      { key:'cat',    label:'분류', type:'combo', options: gearCats,
+        ph:'예: 카메라 · 조명 · 음향 · 기타' },
+      { key:'status', label:'상태', type:'select',
+        options:['보유중','대여중','수리중','반납 대기','분실'], def: () => '보유중' },
+      { key:'holder', label:'지금 누가 / 어디', type:'text', ph:'예: 사무실 캐비닛 · 이촬영' },
+      { key:'count',  label:'수량', type:'text', ph:'예: 1 · 2개' },
+      { key:'memo',   label:'메모 (선택)', type:'textarea', ph:'구매일·대여처·주의사항 등' }
     ]
   },
   requests: {
@@ -29231,6 +29257,11 @@ function wikiCats(){
   const used = (data.wiki || []).map(w => w.cat).filter(Boolean);
   return [...new Set(used.concat(seed))];
 }
+function gearCats(){
+  const seed = ['카메라', '렌즈', '조명', '음향', '삼각대·짐벌', '저장·배터리', '기타'];
+  const used = (data.gear || []).map(g => g.cat).filter(Boolean);
+  return [...new Set(used.concat(seed))];
+}
 /* 링크 줄은 눌러서 바로 가게 (http/https 만) */
 function wikiLinks(s){
   return String(s || '').split('\n').map(ln => {
@@ -30231,7 +30262,8 @@ const MEDIA_TABS = [
   ['contents',  '🎬 콘텐츠 제작'],
   ['cal',       '📆 콘텐츠 캘린더'],
   ['mchannels', '📺 채널 운영'],
-  ['shoots',    '🎥 촬영·장비'],
+  ['shoots',    '🎥 촬영'],
+  ['gear',      '🎒 장비'],
   ['requests',  '📨 요청 센터']
 ];
 function setMediaTab(t){ mediaTab = t; if(t === 'requests') reqFilter = ''; render(); uiGoTop(1); }
@@ -30336,7 +30368,7 @@ function mediaHomeView(){
     if(kind === 'c') return '<span class="mm-item" onclick="setMediaTab(\'contents\')" title="콘텐츠 제작에서 보기">'
       + '🎬 ' + esc(x.title || '(제목)') + ' <span class="mm-sc" style="--sc:'
       + STAGE_HUE[x.stage || CONTENT_STAGES[0]] + '">' + esc(x.stage || CONTENT_STAGES[0]) + '</span></span>';
-    return '<span class="mm-item" onclick="setMediaTab(\'shoots\')" title="촬영·장비에서 보기">'
+    return '<span class="mm-item" onclick="setMediaTab(\'shoots\')" title="촬영에서 보기">'
       + '🎥 ' + esc(x.title || '(제목)') + (x.date ? ' <span class="fmeta">' + esc(fmtYMD(x.date)) + '</span>' : '') + '</span>';
   }).join('');
   const personCards = persons.map(p => {
@@ -30450,7 +30482,7 @@ function mediaHomeView(){
 
   const empty = (!contents.length && !shoots.length)
     ? '<div class="ainote" style="margin-top:14px">아직 콘텐츠·촬영이 없습니다. '
-      + '<b>🎬 콘텐츠 제작</b> · <b>🎥 촬영·장비</b> 에서 넣으면 여기에 팀·사람별로 모여서 보입니다.</div>'
+      + '<b>🎬 콘텐츠 제작</b> · <b>🎥 촬영</b> 에서 넣으면 여기에 팀·사람별로 모여서 보입니다.</div>'
     : '';
 
   return alertHtml
@@ -30479,6 +30511,7 @@ function renderMedia(){
     contents:  (data.contents  || []).length,
     mchannels: (data.mchannels || []).length,
     shoots:    (data.shoots    || []).length,
+    gear:      (data.gear      || []).length,
     requests:  (data.requests  || []).filter(r => (r.status || '') !== '완료').length
   };
   /* 🎨 미디어팀이 쓰던 TeamHub 느낌으로 — 남색 머리말 + 가로 메뉴 */
@@ -30496,6 +30529,7 @@ function renderMedia(){
   else if(mediaTab === 'cal')       body = mediaCalView();
   else if(mediaTab === 'mchannels') body = mediaChannelsView();
   else if(mediaTab === 'shoots')    body = mediaShootsView();
+  else if(mediaTab === 'gear')      body = mediaGearView();
   else if(mediaTab === 'requests')  body = mediaRequestsView();
 
   document.getElementById('main').innerHTML =
@@ -30694,7 +30728,7 @@ function mediaChannelsView(){
 function mediaShootsView(){
   const all = (data.shoots || []).slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
   const bar = '<div class="sec-bar" style="margin-bottom:12px">'
-    + '<span class="fmeta">촬영 일정과 쓸 장비를 적어 둡니다</span>'
+    + '<span class="fmeta">촬영 일정을 적어 둡니다 (장비는 🎒 장비 탭)</span>'
     + '<button class="btn primary" onclick="openItemModal(\'shoots\')">＋ 촬영</button>'
     + '</div>';
   if(!all.length)
@@ -30715,6 +30749,45 @@ function mediaShootsView(){
     + '</div>';
   }).join('');
   return bar + '<div class="media-shoot-list">' + rows + '</div>';
+}
+
+/* ── 🎒 장비 — 보유·대여·수리, 지금 누가 쓰는지 ────────────────────── */
+const GEAR_HUE = { '보유중':'#2e9e6b', '대여중':'#e08a2e', '수리중':'#e0588a', '반납 대기':'#7b61ff', '분실':'#8a93a6' };
+let gearStatus = '';
+function setGearStatus(v){ gearStatus = v; render(); }
+function mediaGearView(){
+  const all = (data.gear || []).slice()
+    .sort((a, b) => String(a.cat || '힣').localeCompare(String(b.cat || '힣')) || String(a.name || '').localeCompare(String(b.name || '')));
+  const bar = '<div class="sec-bar" style="margin-bottom:10px">'
+    + '<span class="fmeta">촬영 장비를 적어 둡니다 — 보유·대여·수리, 지금 누가 쓰는지</span>'
+    + '<button class="btn primary" onclick="openItemModal(\'gear\')">＋ 장비</button>'
+    + '</div>';
+  if(!all.length)
+    return bar + '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
+      + '아직 등록한 장비가 없습니다. <b>＋ 장비</b> 로 카메라·조명·마이크 같은 걸 넣어 보세요.</div>';
+  /* 상태 필터 칩 */
+  const stats = ['보유중', '대여중', '수리중', '반납 대기', '분실'];
+  const chips = '<button class="btn sm' + (gearStatus ? '' : ' primary') + '" onclick="setGearStatus(\'\')">전체 ' + all.length + '</button>'
+    + stats.map(s => { const c = all.filter(g => (g.status || '보유중') === s).length;
+        return c ? '<button class="btn sm' + (gearStatus === s ? ' primary' : '') + '" onclick="setGearStatus(\'' + jsq(s) + '\')">'
+          + esc(s) + ' ' + c + '</button>' : ''; }).join('');
+  const list = gearStatus ? all.filter(g => (g.status || '보유중') === gearStatus) : all;
+  const cards = list.map(g => {
+    const st = g.status || '보유중';
+    return '<div class="gear-card" onclick="openItemModal(\'gear\',\'' + jsq(g.id) + '\')" title="눌러서 고칩니다">'
+      + '<div class="gear-card-top">'
+        + '<span class="gear-nm">' + esc(g.name || '(이름 없음)') + '</span>'
+        + '<span class="gear-st" style="--gc:' + (GEAR_HUE[st] || 'var(--text-muted)') + '">' + esc(st) + '</span></div>'
+      + '<div class="media-card-m" style="margin-top:6px">'
+        + (g.cat ? '<span class="chip">' + esc(g.cat) + '</span>' : '')
+        + (g.count ? '<span class="chip">×' + esc(g.count) + '</span>' : '')
+        + (g.holder ? '<span class="fmeta">📍 ' + esc(g.holder) + '</span>' : '')
+      + '</div>'
+      + (String(g.memo || '').trim() ? '<div class="fmeta" style="margin-top:6px;line-height:1.6">' + esc(g.memo).replace(/\n/g, '<br>') + '</div>' : '')
+    + '</div>';
+  }).join('');
+  return bar + '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap"><span class="fmeta">상태</span>' + chips + '</div>'
+    + '<div class="gear-grid">' + cards + '</div>';
 }
 
 /* ── 📨 요청 센터 (받은 · 보낸 · 완료) ──────────────────────────────── */
@@ -35494,7 +35567,7 @@ const TOP_LISTS   = ['onboard', 'notices', 'meetings', 'events', 'trash', 'growt
                      'gbkpis', 'gbperf', 'cards', 'pages',
                      'teams', 'routines',  // 👥 팀 · 팀원 · 🔄 루틴 (할 일 화면)
                      'accounts',           // 🔐 내부계정
-                     'contents', 'mchannels', 'shoots', 'requests',  // 🎬 미디어마케팅
+                     'contents', 'mchannels', 'shoots', 'gear', 'requests',  // 🎬 미디어마케팅
                      'wiki',               // 📖 팀 노하우 (팀 전체)
                      'log'];  // 브랜드 밖 (log = 🕘 무엇이 바뀌었나)
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)

@@ -5983,7 +5983,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-107';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-108';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6187,7 +6187,8 @@ async function storageSave(payload){
     if(typeof out.rev === 'number') data._rev = out.rev;
     return;
   }
-  localStorage.setItem(LS_KEY, JSON.stringify(payload));
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(payload)); }
+  catch(e){ throw new Error('이 브라우저의 저장 공간이 가득 찼습니다. 사진이 많은 노하우는 용량을 많이 쓰니, NAS 저장을 쓰거나 큰 사진을 줄여 주세요.'); }
 }
 
 function setBadge(state, text){
@@ -36358,7 +36359,7 @@ async function saveAll(silent){
   // 불러오기가 실패했으면 NAS 에 쓰지 않습니다.
   // 잘못하면 다른 사람들 자료를 빈 값으로 덮어쓰게 됩니다.
   if(saveBlocked){
-    localStorage.setItem(LS_KEY, JSON.stringify(data));
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(data)); }catch(_){}
     setSaveState('failed');
     showError('NAS에서 자료를 불러오지 못한 상태입니다.\n\n'
       + '이대로 저장하면 다른 분들 자료를 덮어쓸 수 있어 저장하지 않았습니다.\n'
@@ -36419,7 +36420,7 @@ async function saveAll(silent){
     if(typeof lkBridgeOutSoon === 'function') lkBridgeOutSoon();
     if(mergedOnce) render();      // 합쳐졌을 때만 다시 그립니다 (평소엔 화면을 건드리지 않음)
   }catch(e){
-    localStorage.setItem(LS_KEY, JSON.stringify(data));   // 안전망
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(data)); }catch(_){}   // 안전망
     setBadge('error', 'NAS 저장 실패 — 임시로 이 브라우저에 보관');
     setSaveState('failed');
     showError(e.message);

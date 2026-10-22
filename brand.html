@@ -6001,7 +6001,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-110';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-111';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29302,7 +29302,8 @@ let wikiPasteTo = null;   // {id, step} — 「캡처 붙여넣기」 로 자리
 let wikiEdit = '';        // 지금 단계를 편집 중인 노하우 id
 let wikiJustCreated = ''; // 방금 만든 노하우 — 저장 뒤 바로 단계 편집으로 보냅니다
 let wikiZipAlbum = [];    // HTML+사진 올리기 때 올린 ZIP 사진 전체 (번호로 골라 끼우기용, 이번 세션 동안)
-function wikiEditToggle(id){ wikiEdit = (wikiEdit === id ? '' : id); render(); }
+function wikiEditToggle(id){ wikiEdit = (wikiEdit === id ? '' : id); render();
+  const d = document.getElementById('wikicard_' + id); if(d) d.open = true; }   /* 편집 켜고 끌 때 카드가 접히지 않게 */
 function wikiFind(id){ return (data.wiki || []).find(x => x.id === id) || null; }
 /* 예전 판(imgs 한 줄)에서 만든 것은 단계로 자동 변환 */
 function wikiStepsOf(w){
@@ -29786,7 +29787,9 @@ function renderWiki(){
           + (imgCount ? '<span class="chip test">📷 ' + imgCount + '</span>' : '')
           + (w.by ? '<span class="fmeta">✍️ ' + esc(w.by) + '</span>' : '')
           + '<span class="wiki-act">'
-            + '<button class="btn sm" onclick="' + stop + 'openItemModal(\'wiki\',\'' + wid + '\')">✎ 글 수정</button>'
+            + '<button class="btn sm' + (editing ? ' primary' : '') + '" title="사진·설명·파일을 단계별로 고칩니다" '
+              + 'onclick="' + stop + 'wikiEditToggle(\'' + wid + '\')">' + (editing ? '✔ 편집 끝' : '🛠 단계 편집') + '</button>'
+            + '<button class="btn sm" title="제목·분류·소개·링크를 고칩니다" onclick="' + stop + 'openItemModal(\'wiki\',\'' + wid + '\')">ℹ️ 제목·분류</button>'
             + '<button class="btn sm danger" onclick="' + stop + 'deleteItem(\'wiki\',\'' + wid + '\')">삭제</button>'
           + '</span>'
           + (peek ? '<span class="wiki-peek">' + esc(peek) + '…</span>' : '')
@@ -29800,12 +29803,12 @@ function renderWiki(){
           + wikiFilesHtml(w, editing, wid)
           + '<div class="wiki-imgbar">'
             + '<button class="btn sm' + (editing ? ' primary' : '') + '" onclick="wikiEditToggle(\'' + wid + '\')">'
-              + (editing ? '✔ 편집 끝' : '✎ 단계 편집') + '</button>'
+              + (editing ? '✔ 편집 끝' : '🛠 단계 편집') + '</button>'
             + (editing
                 ? '<button class="btn sm primary" onclick="wikiAddStep(\'' + wid + '\',true)">📷 사진 단계</button>'
                   + '<button class="btn sm" onclick="wikiAddStep(\'' + wid + '\',false)">＋ 글 단계</button>'
                   + '<span class="fmeta">사진 단계 → 「캡처 붙여넣기」 누르고 Ctrl+V, 아래 칸에 설명</span>'
-                : (steps.length ? '' : '<span class="fmeta">[✎ 단계 편집] 으로 사진·설명을 단계별로 넣으세요</span>'))
+                : (steps.length ? '' : '<span class="fmeta">[🛠 단계 편집] 으로 사진·설명·파일을 단계별로 넣으세요</span>'))
           + '</div>'
         + '</details>';
       }).join('')

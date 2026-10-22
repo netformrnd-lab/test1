@@ -4488,6 +4488,8 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-file-x:hover{background:#e0588a;color:#fff}
 .wiki-up{font-size:12px;color:var(--text-muted);margin-top:4px}
 .wiki-up-row b{color:var(--blue)}
+.wiki-step-files{margin-top:8px}
+.wiki-step-files .wiki-file-row{margin-bottom:0}
 .wiki-catchip{display:inline-flex;align-items:center;gap:1px}
 .wiki-catchip .wiki-catedit{padding:4px 7px;color:var(--text-muted);opacity:.7}
 .wiki-catchip .wiki-catedit:hover{opacity:1;color:var(--blue)}
@@ -5999,7 +6001,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-109';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-110';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -29431,19 +29433,24 @@ function wikiFilesHtml(w, editing, wid){
     + '<div class="wiki-up" id="wikiup_' + esc(w.id) + '"></div>'
   + '</div>';
 }
-function wikiFilePick(id){ const el = document.getElementById('wikiFileInput'); if(!el) return; el.dataset.wid = id; el.click(); }
-async function wikiFileGot(fileList, id){
+function wikiFilePick(id){ const el = document.getElementById('wikiFileInput'); if(!el) return; el.dataset.wid = id; el.dataset.step = ''; el.click(); }
+function wikiStepFilePick(id, i){ const el = document.getElementById('wikiFileInput'); if(!el) return; el.dataset.wid = id; el.dataset.step = String(i); el.click(); }
+async function wikiFileGot(fileList, id, step){
   const w = wikiFind(id); if(!w) return;
   const files = Array.from(fileList || []); if(!files.length) return;
   if(typeof pgUploadOne !== 'function'){ toast('파일 올리기 기능을 쓸 수 없어요 (NAS 저장일 때 됩니다)'); return; }
-  if(!Array.isArray(w.files)) w.files = [];
+  const stepIdx = (step === undefined || step === null || step === '') ? -1 : parseInt(step, 10);
+  let target, progId;
+  if(stepIdx >= 0){ const s = wikiStepsOf(w); if(!s[stepIdx]) return;
+    if(!Array.isArray(s[stepIdx].files)) s[stepIdx].files = []; target = s[stepIdx].files; progId = 'wikiup_' + id + '_' + stepIdx; }
+  else { if(!Array.isArray(w.files)) w.files = []; target = w.files; progId = 'wikiup_' + id; }
   const where = { brand: '_팀노하우', sub: '팀자료', sub2: String(w.title || '노하우').slice(0, 40), sub3: '' };
-  const prog = document.getElementById('wikiup_' + id);
+  const prog = document.getElementById(progId);
   for(const f of files){
-    if(prog) prog.innerHTML = '<div class="wiki-up-row">⬆ ' + esc(f.name) + ' <b id="wikiupt_' + esc(id) + '">0%</b></div>';
+    if(prog) prog.innerHTML = '<div class="wiki-up-row">⬆ ' + esc(f.name) + ' <b class="wup">0%</b></div>';
     try{
-      const out = await pgUploadOne(f, where, (n, of) => { const t = document.getElementById('wikiupt_' + id); if(t) t.textContent = Math.round(n / of * 100) + '%'; });
-      w.files.push({ name: out.fileName, path: out.filePath, size: out.fileSize, at: new Date().toISOString() });
+      const out = await pgUploadOne(f, where, (n, of) => { const t = prog && prog.querySelector('.wup'); if(t) t.textContent = Math.round(n / of * 100) + '%'; });
+      target.push({ name: out.fileName, path: out.filePath, size: out.fileSize, at: new Date().toISOString() });
       w.updatedAt = new Date().toISOString(); markDirty();
       toast('📎 ' + out.fileName + ' (' + ((typeof bytesText === 'function') ? bytesText(out.fileSize) : out.fileSize) + ') 올렸습니다');
     }catch(e){ toast('❌ ' + f.name + ' 올리기 실패: ' + ((e && e.message) || e)); }
@@ -29454,6 +29461,34 @@ function wikiFileDel(id, k){
   const w = wikiFind(id); if(!w || !Array.isArray(w.files) || !w.files[k]) return;
   if(!confirm('이 첨부 파일을 목록에서 뺄까요?\n(NAS 에 올라간 파일 자체는 남아 있습니다)')) return;
   w.files.splice(k, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); toast('첨부에서 뺐어요');
+}
+function wikiStepFileDel(id, i, k){
+  const w = wikiFind(id); if(!w) return; const s = wikiStepsOf(w);
+  if(!s[i] || !Array.isArray(s[i].files) || !s[i].files[k]) return;
+  if(!confirm('이 첨부 파일을 빼시겠어요?\n(NAS 원본은 남습니다)')) return;
+  s[i].files.splice(k, 1); w.updatedAt = new Date().toISOString(); markDirty(); render(); toast('첨부에서 뺐어요');
+}
+/* 파일 칩(내려받기 + 편집 때 빼기) — 노하우/단계 공용 모양 */
+function wikiFileChips(fs, editing, delCall){
+  const dl = p => 'files.php?action=download&path=' + encodeURIComponent(p || '');
+  const icon = (typeof fileIcon === 'function') ? fileIcon : (() => '📄');
+  const sz = (typeof bytesText === 'function') ? bytesText : (n => (n || '') + '');
+  return fs.map((f, k) => '<span class="wiki-file">'
+    + '<a class="wiki-file-a" href="' + dl(f.path) + '" title="내려받기" download>'
+      + '<span class="wiki-file-ic">' + icon(f.name || '') + '</span>'
+      + '<span class="wiki-file-nm">' + esc(f.name || '(파일)') + '</span>'
+      + (f.size ? '<span class="fmeta">' + esc(sz(f.size)) + '</span>' : '') + '</a>'
+    + (editing ? '<button class="wiki-file-x" title="목록에서 빼기" onclick="' + delCall(k) + '">✕</button>' : '')
+  + '</span>').join('');
+}
+function wikiStepFilesHtml(w, i, st, editing, wid){
+  const fs = Array.isArray(st.files) ? st.files : [];
+  if(!fs.length && !editing) return '';
+  const chips = wikiFileChips(fs, editing, k => 'wikiStepFileDel(\'' + wid + '\',' + i + ',' + k + ')');
+  return '<div class="wiki-step-files">'
+    + (chips ? '<div class="wiki-file-row">' + chips + '</div>' : '')
+    + (editing ? '<div class="wiki-up" id="wikiup_' + esc(w.id) + '_' + i + '"></div>' : '')
+  + '</div>';
 }
 function wikiRename(id){ const w = wikiFind(id); if(!w) return;
   const v = prompt('노하우 이름을 바꿉니다', w.title || '');
@@ -29684,7 +29719,7 @@ function renderWiki(){
     + '<input type="file" id="wikiPdfInput" accept="application/pdf" style="display:none" '
       + 'onchange="wikiPdfMake(this.files[0]); this.value=\'\'">'
     + '<input type="file" id="wikiFileInput" multiple style="display:none" '
-      + 'onchange="wikiFileGot(this.files, this.dataset.wid); this.value=\'\'">'
+      + 'onchange="wikiFileGot(this.files, this.dataset.wid, this.dataset.step); this.value=\'\'">'
     + '</div>'
     + (all.length ? '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap">'
         + '<span class="fmeta">분류</span>' + chips + '</div>' : '');
@@ -29714,10 +29749,12 @@ function renderWiki(){
                       + '</div>'
                   + '</div>').join('')
                 + '<div class="wiki-step-add"><button class="btn sm" onclick="wikiArmPaste(\'' + wid + '\',' + i + ')">📷 캡처 붙여넣기</button>'
-                  + '<button class="btn sm" onclick="wikiStepPick(\'' + wid + '\',' + i + ')">📁 파일</button>'
+                  + '<button class="btn sm" onclick="wikiStepPick(\'' + wid + '\',' + i + ')">📁 사진 파일</button>'
                   + (wikiZipAlbum.length ? '<button class="btn sm primary" onclick="wikiAlbumOpen(\'' + wid + '\',' + i + ',\'set\')">🖼 사진 고르기</button>' : '')
-                  + '<span class="fmeta">' + (wikiZipAlbum.length ? '「🖼 사진 고르기」로 맞는 사진을 번호로 골라 넣으세요' : '사진이 엉뚱한 단계에 있으면 ⇡단계·⇣단계 로 옮기세요') + '</span></div>'
+                  + '<button class="btn sm" onclick="wikiStepFilePick(\'' + wid + '\',' + i + ')">📎 파일 첨부</button>'
+                  + '<span class="fmeta">📎 는 psd·ai·ppt·pdf 등 아무 파일 (눌러서 내려받기)</span></div>'
               + '</div>'
+              + wikiStepFilesHtml(w, i, st, true, wid)
               + '<textarea class="wiki-step-t" id="wst_' + esc(w.id) + '_' + i + '" placeholder="이 단계 설명 (사진 아래에 보입니다)" '
                 + 'oninput="wikiStepText(\'' + wid + '\',' + i + ',this.value)">' + esc(st.text || '') + '</textarea>'
             + '</div>'
@@ -29736,6 +29773,7 @@ function renderWiki(){
                   + imgs.map((src, k) => '<div class="wiki-shot">'
                       + (imgs.length > 1 ? '<span class="wiki-shot-n">' + (i + 1) + '-' + (k + 1) + '</span>' : '')
                       + '<img class="wiki-step-img" src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기"></div>').join('') + '</div>' : '')
+              + wikiStepFilesHtml(w, i, st, false, wid)
             + '</div>'
           + '</div>'; }).join('');
         const imgCount = steps.reduce((a, s) => a + ((s.imgs && s.imgs.length) || 0), 0);

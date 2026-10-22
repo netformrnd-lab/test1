@@ -1973,15 +1973,32 @@ function gamriParse(r){
 function _gLines(arr){ if(!arr||!arr.length)return ''; return '<ul>'+arr.map(function(t){
   const cl=/^[·▪◇]/.test(t)?'':'dot'; const txt=t.replace(/^[·▪◇]\s*/,'');
   return '<li class="'+cl+'">'+_gEsc(txt)+'</li>';}).join('')+'</ul>'; }
-function gamriFormHtml(r){
+/* [소제목] 줄은 굵은 블록, 나머지는 불릿으로 렌더 (AI 보강 override용) */
+function _gBlocks(lines){ if(!lines||!lines.length)return ''; var out='',buf=[];
+  function flush(){ if(buf.length){out+=_gLines(buf);buf=[];} }
+  lines.forEach(function(ln){ var t=String(ln||'').trim(); if(!t)return;
+    var h=t.match(/^\[([^\]]+)\]$/);
+    if(h){ flush(); out+='<div class="bt">['+_gEsc(h[1])+']</div>'; } else buf.push(t);
+  }); flush(); return out; }
+function gamriFormHtml(r,ov){
   const P=gamriParse(r),m=P.meta,s=P.sec;
   const photos=Array.isArray(r.photos)?r.photos:[];
-  const workBlocks=[];
-  if(s['시공사 보고'])workBlocks.push('<div class="bt">[시공사 보고]</div>'+_gLines(s['시공사 보고']));
-  if(s['감리 확인'])workBlocks.push('<div class="bt">[감리 확인]</div>'+_gLines(s['감리 확인']));
-  if(!workBlocks.length&&s['작업사항'])workBlocks.push(_gLines(s['작업사항']));
-  const teukgi=s['특기사항']?_gLines(s['특기사항']):'';
-  const jijeok=s['지적사항 및 처리결과']||s['지적사항']||[];
+  var workHtml,teukHtml,jijeokHtml;
+  if(ov){ // AI 보강(감리원 검토본) override
+    workHtml=_gBlocks(ov.work)||'<span class="muted">내용 없음</span>';
+    teukHtml=_gBlocks(ov.teukgi)||'<span class="muted">내용 없음</span>';
+    jijeokHtml=(ov.jijeok&&ov.jijeok.length)?_gBlocks(ov.jijeok):'<span class="muted">금일 지적사항 없음</span>';
+  } else {
+    const workBlocks=[];
+    if(s['시공사 보고'])workBlocks.push('<div class="bt">[시공사 보고]</div>'+_gLines(s['시공사 보고']));
+    if(s['감리 확인'])workBlocks.push('<div class="bt">[감리 확인]</div>'+_gLines(s['감리 확인']));
+    if(!workBlocks.length&&s['작업사항'])workBlocks.push(_gLines(s['작업사항']));
+    workHtml=workBlocks.join('')||'<span class="muted">내용 없음</span>';
+    const teukgi=s['특기사항']?_gLines(s['특기사항']):'';
+    teukHtml=teukgi||'<span class="muted">내용 없음</span>';
+    const jijeok=s['지적사항 및 처리결과']||s['지적사항']||[];
+    jijeokHtml=jijeok.length?_gLines(jijeok):'<span class="muted">금일 지적사항 없음</span>';
+  }
   const photoCells=photos.map(function(u){
     return '<div class="pcell"><div class="pbox"><img class="ph" src="'+_gEsc(u)+'" crossorigin="anonymous"></div></div>';
   }).join('')||'<div class="pcell" style="grid-column:1/3;color:#888;padding:20px;text-align:center">현장 사진 없음</div>';
@@ -1998,9 +2015,9 @@ function gamriFormHtml(r){
       '<tr><td class="lb">감리일자</td><td colspan="3">'+_gEsc(m.date)+(m.weather?'&nbsp;&nbsp;&nbsp;날씨 : '+_gEsc(m.weather):'')+(m.round?'&nbsp;&nbsp;&nbsp;('+_gEsc(m.round)+')':'')+'</td></tr>'+
     '</table>'+
     (m.worktype?'<table class="t-chk"><tr><th class="cat">공종</th><th>감리내용</th></tr><tr><td class="cat">'+_gEsc(m.worktype)+'</td><td>현장 점검 및 완료 부위 적합 여부 확인</td></tr></table>':'')+
-    '<div class="band">작업사항</div><div class="bandbox">'+(workBlocks.join('')||'<span class="muted">내용 없음</span>')+'</div>'+
-    '<div class="band">특기사항</div><div class="bandbox">'+(teukgi||'<span class="muted">내용 없음</span>')+'</div>'+
-    '<div class="band">지적사항 및 처리결과</div><div class="bandbox">'+(jijeok.length?_gLines(jijeok):'<span class="muted">금일 지적사항 없음</span>')+'</div>'+
+    '<div class="band">작업사항</div><div class="bandbox">'+workHtml+'</div>'+
+    '<div class="band">특기사항</div><div class="bandbox">'+teukHtml+'</div>'+
+    '<div class="band">지적사항 및 처리결과</div><div class="bandbox">'+jijeokHtml+'</div>'+
     '<div class="paper-foot">210㎜×297㎜[일반용지 60g/㎡]</div>'+
   '</div>'+
   '<div class="paper"><div class="sheet-h">현장 점검 사진대지</div><div class="pgrid">'+photoCells+'</div></div>'+
@@ -2028,7 +2045,7 @@ const GAMRI_CSS=
 function _loadHtml2pdf(){ if(window.html2pdf)return Promise.resolve(); if(window._h2pP)return window._h2pP;
   window._h2pP=new Promise(function(res,rej){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   return window._h2pP; }
-async function genGamriPdf(id,btn){
+async function genGamriPdf(id,btn,ov){
   const r=REPORTS.find(x=>x.id===id); if(!r){alert('감리일지를 찾지 못했어요');return;}
   if(btn){btn.disabled=true;var _t=btn.textContent;btn.textContent='생성 중…';}
   try{
@@ -2036,7 +2053,7 @@ async function genGamriPdf(id,btn){
     var P=gamriParse(r),m=P.meta;
     var host=document.createElement('div');
     host.style.cssText='position:fixed;left:-9999px;top:0;width:720px;background:#fff';
-    host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r);
+    host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r,ov);
     document.body.appendChild(host);
     var fname=(m.site||'현장')+'_'+(m.round||'')+'_공사감리일지.pdf';
     await html2pdf().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.9},
@@ -2049,6 +2066,37 @@ async function genGamriPdf(id,btn){
   finally{ if(btn){btn.disabled=false;btn.textContent=_t;} }
 }
 window.genGamriPdf=genGamriPdf;
+/* ===== AI 보강: 서버(Edge Function gamri-ai)가 점검 원문을 양식 문장으로 다듬음 → 감리원 검토 후 PDF ===== */
+async function aiEnrichReport(id,btn){
+  const r=REPORTS.find(x=>x.id===id); if(!r){alert('감리일지를 찾지 못했어요');return;}
+  if(btn){btn.disabled=true;var _t=btn.textContent;btn.textContent='AI 작성 중…';}
+  try{
+    var P=gamriParse(r),m=P.meta;
+    var payload={ content:r.content||'', photoCount:(Array.isArray(r.photos)?r.photos.length:0),
+      meta:{site:m.site,builder:m.builder,worktype:m.worktype,date:m.date,weather:m.weather,round:m.round,dongs:m.dongs,insp:m.insp} };
+    var resp=await sb.functions.invoke('gamri-ai',{body:payload});
+    if(resp.error) throw new Error(resp.error.message||'함수 호출 실패');
+    var d=resp.data||{};
+    if(!d.ok) throw new Error(d.error||'AI 보강 실패');
+    openAiEnrichModal(id,d);
+  }catch(e){
+    alert('AI 보강 실패: '+(e&&e.message||e)+'\n\n확인:\n· Edge Function gamri-ai 가 배포됐는지\n· ANTHROPIC_API_KEY 가 설정됐는지');
+  }finally{ if(btn){btn.disabled=false;btn.textContent=_t;} }
+}
+window.aiEnrichReport=aiEnrichReport;
+function _aiTa(idv,label,arr,rows){ return '<div class="fld"><label>'+label+'</label><textarea id="'+idv+'" rows="'+rows+'" style="width:100%;box-sizing:border-box;font-size:13px;line-height:1.6;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;outline:none;resize:vertical">'+esc((arr||[]).join('\n'))+'</textarea></div>'; }
+function openAiEnrichModal(id,d){
+  openModal(mHead('✨ AI 보강 — 검토 후 PDF')+`
+    <div style="font-size:12px;color:var(--mut);margin-bottom:10px;line-height:1.6">AI가 점검 원문을 공식 양식 문장으로 다듬었어요. <b>감리원이 사실과 다른 문장이 없는지 확인·수정</b>한 뒤 PDF로 만드세요. 한 줄이 불릿 하나이고, <b>[소제목]</b> 줄은 굵게 들어갑니다.</div>
+    ${_aiTa('ai-work','작업사항',d.work,8)}
+    ${_aiTa('ai-teuk','특기사항',d.teukgi,6)}
+    ${_aiTa('ai-jijeok','지적사항 및 처리결과',d.jijeok,5)}
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button><button class="b line" onclick="aiEnrichReport('${id}',this)">↻ 다시 생성</button><button class="b blue" onclick="aiPdfFromModal('${id}',this)">📄 이 내용으로 PDF 만들기</button></div>`, true);
+}
+window.openAiEnrichModal=openAiEnrichModal;
+function _taLines(elid){ var el=document.getElementById(elid); if(!el)return []; return el.value.split('\n').map(function(s){return s.trim();}).filter(Boolean); }
+function aiPdfFromModal(id,btn){ genGamriPdf(id,btn,{ work:_taLines('ai-work'), teukgi:_taLines('ai-teuk'), jijeok:_taLines('ai-jijeok') }); }
+window.aiPdfFromModal=aiPdfFromModal;
 function openReportView(id){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;
   const photos=Array.isArray(r.photos)?r.photos:[];
@@ -2063,7 +2111,7 @@ function openReportView(id){
     </div>
     ${pdfHtml}
     ${phHtml}
-    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button><button class="b line" onclick="genGamriPdf('${r.id}',this)">📄 공사감리일지 PDF</button><button class="b blue" onclick="openReportEdit('${r.id}')">✏️ 편집</button></div>`, true);
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button><button class="b line" onclick="aiEnrichReport('${r.id}',this)">✨ AI 보강</button><button class="b line" onclick="genGamriPdf('${r.id}',this)">📄 공사감리일지 PDF</button><button class="b blue" onclick="openReportEdit('${r.id}')">✏️ 편집</button></div>`, true);
 }
 function openReportEdit(id){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;

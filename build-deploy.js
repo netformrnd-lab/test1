@@ -1,5 +1,5 @@
 // 배포 빌드 스크립트
-// 사용법:  node build-deploy.js       → dist-deploy/ 폴더 생성 → 그 안 내용을 Cloudflare Pages에 업로드
+// 사용법:  node build-deploy.js       → dist-deploy/ 폴더 생성 → `npm run deploy`(wrangler) 또는 대시보드 드래그로 Cloudflare에 업로드
 // (app/ 원본을 건드리지 않고, no-cache 메타 + 폰트 CDN + ?v= 캐시버스팅을 붙여 dist-deploy/ 에 복사)
 const fs = require("fs");
 const cp = require("child_process");
@@ -129,4 +129,4 @@ if (fs.existsSync(APP + "/firebase-messaging-sw.js")) fs.copyFileSync(APP + "/fi
 // 푸시 발송은 별도 Cloudflare Worker(cloudflare-push-worker/worker.js)로 배포한다.
 
 console.log("version:", V, "· assets kept:", kept, "· fonts dropped:", dropped);
-console.log("→ dist-deploy/ 안의 내용을 Cloudflare Pages에 업로드하세요.");
+console.log("→ dist-deploy/ 를 Cloudflare에 올리세요: `npm run deploy` 또는 대시보드(Workers & Pages → floral-cherry-6860 → New deployment) 드래그 업로드");

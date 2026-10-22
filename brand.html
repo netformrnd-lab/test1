@@ -4253,8 +4253,11 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 .media-col-b{padding:8px;display:flex;flex-direction:column;gap:8px;min-height:40px}
 .media-col-e{color:var(--text-muted);font-size:12px;text-align:center;padding:10px 0}
 .media-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
-  padding:9px 10px;cursor:pointer;transition:border-color .12s}
+  padding:9px 10px;cursor:grab;transition:border-color .12s,opacity .12s,box-shadow .12s}
 .media-card:hover{border-color:var(--blue)}
+.media-card:active{cursor:grabbing}
+.media-card.dragging{opacity:.45;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.media-col-b.drop-on{background:rgba(37,99,235,.10);outline:2px dashed var(--blue);outline-offset:-3px;border-radius:8px}
 .media-card-t{font-weight:650;font-size:13px;line-height:1.35;margin-bottom:6px;word-break:break-word}
 .media-card-m{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
 .media-card-nav{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
@@ -4366,6 +4369,10 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
   background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;
   padding:5px 9px;cursor:pointer}
 .mm-item:hover{border-color:var(--mm-blue)}
+/* 🙋 내 업무 — 로그인한 본인 것 (위쪽, 눈에 띄게) */
+.mm-mine{background:var(--bg-card);border:1px solid var(--border);border-left:4px solid var(--mm-blue);
+  border-radius:var(--r-md);padding:12px 14px}
+.mm-mine-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
 /* 미마 홈 추가 — 경고 · 파이프라인 · 업로드/촬영 · 채널 현황 */
 .mm-alert{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;
   background:color-mix(in srgb,var(--red) 10%,var(--bg-card));
@@ -5962,7 +5969,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-104';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-105';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -30358,6 +30365,25 @@ function mediaHomeView(){
     + '</div>';
   }
 
+  /* 🙋 내 업무 — 로그인한 본인 것만 (사람마다 다르게 보임) */
+  const meName = (typeof myName === 'function') ? myName() : '';
+  const myC = contents.filter(mmIsMine);
+  const myS = shoots.filter(mmIsMine);
+  const myR = reqs.filter(r => mmIsMine(r) && (r.status || '') !== '완료');
+  const reqHtml = (list) => list.map(r => '<span class="mm-item" onclick="setMediaTab(\'requests\')" title="요청 센터에서 보기">'
+    + '📨 ' + esc(r.title || '(요청)') + (r.status ? ' <span class="fmeta">' + esc(r.status) + '</span>' : '') + '</span>').join('');
+  const mineBody = meName
+    ? ((myC.length || myS.length || myR.length)
+        ? (myC.length ? '<div class="mm-mine-chips">' + mmStageChips(myC) + '</div>' : '')
+          + '<div class="mm-p-items">' + itemHtml(myC, 'c') + itemHtml(myS, 's') + reqHtml(myR) + '</div>'
+        : '<div class="fmeta" style="padding:5px 1px">나에게 맡겨진 콘텐츠·촬영·요청이 없습니다</div>')
+    : '<div class="fmeta" style="padding:5px 1px">로그인하거나 위쪽 <b>이름 설정</b>을 하면, 사람마다 자기 업무가 여기에 모여요</div>';
+  const mineSection = '<div class="mm-sec-bar"><h3 class="mm-sec-t">🙋 내 업무'
+      + (meName ? ' — ' + esc(meName) : '') + '</h3>'
+      + (meName ? '<span class="fmeta">콘텐츠 ' + myC.length + ' · 촬영 ' + myS.length
+          + (myR.length ? ' · 요청 ' + myR.length : '') + '</span>' : '') + '</div>'
+    + '<div class="mm-mine">' + mineBody + '</div>';
+
   /* 🚨 확인할 것 — 3일 안에 공개인데 아직 배포 전인 콘텐츠 */
   const risk = contents.filter(c => mmUpcoming(c.pubDate, 3)
     && ['배포', '완료'].indexOf(c.stage || CONTENT_STAGES[0]) < 0);
@@ -30423,15 +30449,18 @@ function mediaHomeView(){
 
   return alertHtml
     + '<div class="mm-tiles">' + tiles + '</div>'
+    + mineSection
     + '<div class="mm-pipe-wrap"><div class="mm-pipe-ttl">🎬 제작 Pipeline</div>'
       + '<div class="mm-pipe-row">' + pipe + '</div></div>'
     + '<div class="mm-sec-bar"><h3 class="mm-sec-t">👥 팀별 — 콘텐츠를 얼마나 만들고 있나</h3>'
       + '<button class="btn sm" onclick="teamAddPrompt()" title="팀을 새로 만듭니다">＋ 팀</button></div>'
     + '<div class="mm-team-grid">' + teamCards + '</div>'
-    + '<h3 class="mm-sec-t">🙋 개인별 — ' + (mediaTeams.length
-        ? esc(mediaTeams.map(t => t.name).join(' · ')) + ' 사람들'
-        : '누가 무엇을 맡고 있나') + '</h3>'
-    + '<div class="mm-person-grid">' + personCards + orphan + '</div>'
+    + (meName
+        ? (orphan ? '<h3 class="mm-sec-t">🔖 담당 미지정</h3><div class="mm-person-grid">' + orphan + '</div>' : '')
+        : '<h3 class="mm-sec-t">🙋 개인별 — ' + (mediaTeams.length
+              ? esc(mediaTeams.map(t => t.name).join(' · ')) + ' 사람들'
+              : '누가 무엇을 맡고 있나') + '</h3>'
+          + '<div class="mm-person-grid">' + personCards + orphan + '</div>')
     + '<div class="mm-2col">'
       + '<div class="mm-box"><div class="mm-box-h">🗓 이번 주 업로드 예정 <span class="fmeta">' + upC.length + '건</span></div>' + upCHtml + '</div>'
       + '<div class="mm-box"><div class="mm-box-h">🎥 촬영 일정 (7일) <span class="fmeta">' + upS.length + '건</span></div>' + upSHtml + '</div>'
@@ -30488,7 +30517,7 @@ function renderMedia(){
 function mediaContentsView(){
   const all = data.contents || [];
   const bar = '<div class="sec-bar" style="margin-bottom:12px">'
-    + '<span class="fmeta">단계마다 카드로 놓고, ◀ ▶ 로 다음 단계로 옮깁니다</span>'
+    + '<span class="fmeta">카드를 드래그해서 다른 단계로 옮기세요 (◀ ▶ 로도 됩니다)</span>'
     + '<button class="btn primary" onclick="openItemModal(\'contents\')">＋ 콘텐츠</button>'
     + '</div>';
   if(!all.length)
@@ -30499,8 +30528,10 @@ function mediaContentsView(){
     const items = all.filter(c => (c.stage || CONTENT_STAGES[0]) === st);
     const cards = items.map(c => {
       const who = mediaWho(c);
-      return '<div class="media-card" onclick="openItemModal(\'contents\',\'' + jsq(c.id) + '\')" '
-        + 'title="눌러서 고칩니다">'
+      return '<div class="media-card" draggable="true" '
+        + 'ondragstart="mediaDragStart(event,\'' + jsq(c.id) + '\')" ondragend="mediaDragEnd(event)" '
+        + 'onclick="openItemModal(\'contents\',\'' + jsq(c.id) + '\')" '
+        + 'title="드래그해서 단계를 옮기거나, 눌러서 고칩니다">'
         + '<div class="media-card-t">' + esc(c.title || '(제목 없음)') + '</div>'
         + '<div class="media-card-m">'
           + (c.channel ? '<span class="chip">📺 ' + esc(c.channel) + '</span>' : '')
@@ -30522,12 +30553,31 @@ function mediaContentsView(){
     return '<div class="media-col">'
       + '<div class="media-col-h" style="border-top:3px solid ' + STAGE_HUE[st] + '">'
         + esc(st) + ' <span class="cnt">' + (items.length || '') + '</span></div>'
-      + '<div class="media-col-b">' + (cards || '<div class="media-col-e">비어 있음</div>') + '</div>'
+      + '<div class="media-col-b" ondragover="mediaDragOver(event)" ondragleave="mediaDragLeave(event)" '
+        + 'ondrop="mediaDrop(event,\'' + jsq(st) + '\')">'
+        + (cards || '<div class="media-col-e">비어 있음</div>') + '</div>'
     + '</div>';
   }).join('');
 
   return bar + '<div class="media-kan">' + cols + '</div>';
 }
+let mediaDragId = '';
+function mediaDragStart(e, id){ mediaDragId = id;
+  try{ e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); }catch(_){}
+  const el = e.currentTarget; if(el) el.classList.add('dragging'); }
+function mediaDragEnd(e){ const el = e.currentTarget; if(el) el.classList.remove('dragging');
+  document.querySelectorAll('.media-col-b.drop-on').forEach(x => x.classList.remove('drop-on')); mediaDragId = ''; }
+function mediaDragOver(e){ e.preventDefault(); try{ e.dataTransfer.dropEffect = 'move'; }catch(_){}
+  const b = e.currentTarget; if(b) b.classList.add('drop-on'); }
+function mediaDragLeave(e){ const b = e.currentTarget; if(b && !b.contains(e.relatedTarget)) b.classList.remove('drop-on'); }
+function mediaDrop(e, stage){ e.preventDefault();
+  const b = e.currentTarget; if(b) b.classList.remove('drop-on');
+  let id = mediaDragId; try{ if(!id && e.dataTransfer) id = e.dataTransfer.getData('text/plain'); }catch(_){}
+  mediaDragId = '';
+  const c = (data.contents || []).find(x => x.id === id); if(!c) return;
+  if((c.stage || CONTENT_STAGES[0]) === stage) return;
+  c.stage = stage; c.updatedAt = new Date().toISOString(); render(); markDirty();
+  toast('🎬 「' + (c.title || '콘텐츠') + '」 → ' + stage); }
 
 function mediaMoveStage(id, delta){
   const c = (data.contents || []).find(x => x.id === id);

@@ -1961,8 +1961,11 @@ function gamriParse(r){
   body.split('\n').forEach(function(ln){
     const h=ln.match(/^\s*\[([^\]]+)\]\s*$/);
     if(h){cur=h[1].trim();sec[cur]=sec[cur]||[];return;}
-    if(/^[_\-─—\s]+$/.test(ln))return;
-    if(cur&&ln.trim())sec[cur].push(ln.trim());
+    const raw=ln.trim(); if(!raw)return;
+    const core=raw.replace(/^[·▪◇]\s*/,'').trim();         // 불릿 뗀 본문
+    if(!core||/^[\s_\-–—─━]+$/.test(core))return;           // 빈 줄·구분선(직접입력 빈칸) 제외
+    if(/아파트스퀘어\s*감리팀/.test(raw)||/^감리원[^:]*대표\s*$/.test(raw))return;  // 서명 footer 제외
+    if(cur)sec[cur].push(raw);
   });
   return {meta,sec};
 }

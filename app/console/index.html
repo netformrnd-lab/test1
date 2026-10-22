@@ -1953,7 +1953,8 @@ function gamriParse(r){
     stage:g(/단계:\s*([^\n|]+)/)||'',
     round:g(/회차:\s*(제\s*\d+\s*차)/)||('제'+repRound(r)+'차'),
     worktype:(r.worktype||'').trim(),
-    dongs:(r.dongs||'').trim()
+    dongs:(r.dongs||'').trim(),
+    builder:(function(){var a=APTS.find(function(x){return x.id===r.apartment_id;});return (a&&(a.builder||a.contractor))||g(/시공사:\s*([^\n|]+)/)||'';})()
   };
   /* 본문을 [섹션]별로 분리 */
   const body=c.replace(/^[\s\S]*?회차:[^\n]*\n/,'');  // 머리말 줄 이후
@@ -1992,7 +1993,7 @@ function gamriFormHtml(r){
     '<table class="t-info">'+
       '<tr><td class="lb">일련번호</td><td colspan="3" class="serial"></td></tr>'+
       '<tr><td class="lb">공사감리자</td><td class="big stampcell">'+_gEsc(m.boss)+(GAMRI_SEAL?'<img class="stamp" src="'+GAMRI_SEAL+'">':'')+'</td><td class="lb">감리원</td><td class="sign">'+_gEsc(m.insp)+' (서명 또는 인)</td></tr>'+
-      '<tr><td class="lb">현장명</td><td>'+_gEsc(m.site)+'</td><td class="lb">시공사</td><td></td></tr>'+
+      '<tr><td class="lb">현장명</td><td>'+_gEsc(m.site)+'</td><td class="lb">시공사</td><td>'+_gEsc(m.builder)+'</td></tr>'+
       '<tr><td class="lb">공사명</td><td>'+_gEsc(m.gongsa)+'</td><td class="lb">점검위치</td><td>'+_gEsc(m.dongs)+'</td></tr>'+
       '<tr><td class="lb">감리일자</td><td colspan="3">'+_gEsc(m.date)+(m.weather?'&nbsp;&nbsp;&nbsp;날씨 : '+_gEsc(m.weather):'')+(m.round?'&nbsp;&nbsp;&nbsp;('+_gEsc(m.round)+')':'')+'</td></tr>'+
     '</table>'+

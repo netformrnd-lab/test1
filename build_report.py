@@ -357,7 +357,18 @@ bino_cards = [
 
 # ----- 9. 겨울 유니폼 -----
 uniform_cards = [
-    card("①", "지벤 ZB-J2357 캐주얼 포켓 패딩 점퍼 (동복 · 블랙)",
+    card("①", "윌비 CT-703 인퀼팅 하프코트 (겨울 롱패딩 · 블랙)",
+         [("품번", "CT-703 인퀼팅 하프코트 (브랜드 윌비 WILLBE)"),
+          ("종류", "겨울 패딩 하프코트(롱) · 탈착식 후드"),
+          ("소재", "나일론 100%"),
+          ("사이즈 / 색상", "85–120 · 블랙"),
+          ("디테일", "CORDURA 포켓 라벨 · 세로형 가슴 로고 + 등판 로고·슬로건"),
+          ("배송", "3,300원 (150,000원 이상 무료)"),
+          ("판매가", "<strong>125,400원</strong> (VAT 포함)")],
+         [{"path": "겨울패딩_앞.png", "label": "목업 — 앞면(가슴 로고) · 클릭 시 크게 보기", "mock": True, "hifi": True}],
+         url="https://dyuniform.com/product/ct-703-%EC%9D%B8%ED%80%BC%ED%8C%85-%ED%95%98%ED%94%84-%EC%BD%94%ED%8A%B8/6107/category/179/display/1/",
+         url_text="제품 페이지"),
+    card("②", "지벤 ZB-J2357 캐주얼 포켓 패딩 점퍼 (동복 · 블랙)",
          [("품번", "ZB-J2357 (브랜드 지벤 ZIBEN)"),
           ("종류", "겨울 패딩 점퍼(숏패딩) · 탈착식 후드 · 등판 폴라플리스 패치"),
           ("소재", "나일론 100% / 폴리에스터 100%(배색) · LOW DENIA 패딩 충전재"),
@@ -511,7 +522,7 @@ SECTIONS = [
     ("product", "열화상 카메라", "2종 비교", thermal_cards, None),
     ("product", "온습도계", "2종 비교", ondo_cards, None),
     ("product", "쌍안경", "2종 비교", bino_cards, None),
-    ("product", "겨울 유니폼", "겨울 패딩 (숏패딩)", uniform_cards, None),
+    ("product", "겨울 유니폼", "겨울 패딩 2종 (롱·숏)", uniform_cards, None),
     ("design", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards, None),
     ("design", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards, None),
     ("design", "제안서", "클릭 시 원본 PDF", proposal_cards, None),

@@ -210,9 +210,11 @@ flash_cards = [
          url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=131088&cid=194&price1=&price2=",
          url_text="제품 페이지"),
     card("③", "벤딕트 BEAM-LX800 — 충전식 LED 손전등",
-         [("밝기", "1,000루멘"), ("조사 거리", "800m"),
-          ("특징", "자석 내장, COB 조명, USB 충전"),
-          ("리뷰", "2,180건"), ("단가", "<strong>39,900원</strong> (42% 할인)")],
+         [("모델", "벤딕트 BEAM-LX800 (네이버)"),
+          ("밝기 / 조사거리", "1,000루멘 · 800m"),
+          ("특징", "자석 내장 · COB 조명 · USB 충전"),
+          ("상품평", "2,180건"),
+          ("단가", "<strong>39,900원</strong> (42% 할인)")],
          [{"path": "11_벤딕트_BEAM-LX800.jpg", "label": "제품 이미지"}],
          url="https://brand.naver.com/vendict/products/11458530519", url_text="네이버 링크"),
     card("④", "Shadowhawk SH1476 — 초강력 LED 손전등",
@@ -249,38 +251,6 @@ moist_cards = [
          url_text="쿠팡 링크"),
 ]
 
-# ----- 4. 칫솔치약세트 -----
-tooth_cards = [
-    card("①", "제이웨이기프트 — 이즈 슬림사이즈 휴대용 치약칫솔세트",
-         [("구성", "실리콘손잡이 칫솔 + 치약 (슬림 휴대케이스)"),
-          ("기본수량", "150개"),
-          ("단가", "150개 <strong>2,485원</strong> ~ 7,500개 2,198원 (VAT 별도)")],
-         [{"path": "16_이즈_슬림_칫솔치약세트_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
-          {"path": "15_이즈_슬림_칫솔치약세트_원본.png", "label": "원본"}],
-         url="https://www.jwaygift.com/product_w/product_view_d.asp?p_idx=421691"),
-    card("②", "기프트인포 — 시니바이트 디아고 칫솔치약세트 (국내생산)",
-         [("구성", "칫솔 + 치약(SHINY BITE) + 종이케이스"),
-          ("케이스", "종이케이스(기본) 무료"),
-          ("단가", "100개 <strong>2,980원</strong> ~ 10,000개 2,630원 (VAT 별도)"),
-          ("제작기간", "영업일 3~4일")],
-         [{"path": "18_시니바이트_디아고_목업.png", "label": "목업 — 아파트스퀘어 로고", "mock": True},
-          {"path": "17_시니바이트_디아고_원본.png", "label": "원본"}],
-         url="https://giftinfo.co.kr/shop/view.php?item=819866"),
-    card("③", "제이웨이기프트 — 굿즈 골드넬 여행용 칫솔치약세트",
-         [("구성", "칫솔 + 치약(50g) + PP케이스 + 슬리브 종이케이스"),
-          ("규격", "198×46×27mm"), ("기본 수량", "100개 이상"),
-          ("단가", "100개 3,798원 / 5,000개 3,235원 (VAT 별도)"),
-          ("인쇄", "전화 확인 필요")],
-         [{"path": "19_굿즈_골드넬_칫솔치약세트.png", "label": "목업 — 아파트스퀘어 로고", "mock": True}],
-         url="https://www.jwaygift.com/product_w/product_view_d.asp?p_idx=495992", url_text="제품 링크"),
-    card("④", "홍보물닷컴 — 링칫솔 페리오치약(5g) 투명케이스세트",
-         [("구성", "링칫솔 + 페리오치약(5g) + 투명 링케이스"),
-          ("인쇄", "실크인쇄 (기본 수량 이상 무료)"),
-          ("단가", "300개 669원 / 10,000개 572원 (VAT 별도)"),
-          ("제작 기간", "3~4일")],
-         [{"path": "20_링칫솔_페리오치약_투명케이스세트.png", "label": "목업 — 아파트스퀘어 로고", "mock": True}],
-         url="https://www.hongbomool.com/new/shop/detail.php?start=&code=1913062&cid=448", url_text="제품 링크"),
-]
 
 # ----- 5. 드론 조종기 -----
 dji_cards = [
@@ -342,7 +312,7 @@ bino_cards = [
           ("사양", "10배율 / 구경 25mm / 시야각 7.8° · 럭슨 광학렌즈코팅"),
           ("특징", "이지포커스(1초 미만 초점) · 문화관람용 콤팩트"),
           ("상품평", "2,329건 / 평점 4.82"),
-          ("가격", "<strong>36,800원</strong> (20% 할인, 정가 46,000원) · 배송 3,000원")],
+          ("판매가", "<strong>36,800원</strong> (20% 할인, 정가 46,000원) · 배송 3,000원")],
          [{"path": "29_라라캠프_콤팩트_쌍안경.jpg", "label": "제품 이미지"}],
          url="https://smartstore.naver.com/lalacamp/products/7484467111",
          url_text="스마트스토어"),
@@ -382,29 +352,6 @@ uniform_cards = [
          url_text="제품 페이지"),
 ]
 
-# ----- 여름 유니폼 -----
-summer_cards = [
-    card("①", "JS유니폼 UBS-3103 — 나일론 스판 작업복 점퍼",
-         [("품번", "UBS-3103 (춘하·신축성)"),
-          ("종류", "작업복 점퍼 (긴팔)"),
-          ("소재", "나일론 92% · 스판 8% (신축)"),
-          ("사이즈", "M(95) ~ 4XL(120)"), ("색상", "블랙"),
-          ("배송", "3,500원 (200,000원 이상 무료)"),
-          ("판매가", "<strong>48,400원</strong> (VAT 포함, 17% 할인)")],
-         [{"path": "여름유니폼1_UBS3103.png", "label": "목업 — 아파트스퀘어 로고 (앞/뒤)", "mock": True}],
-         url="https://jsuniform.com/product/ubs-3103-%EB%82%98%EC%9D%BC%EB%A1%A0-%EC%8A%A4%ED%8C%90-%EC%9E%91%EC%97%85%EB%B3%B5-%EC%A0%90%ED%8D%BC-%EC%B6%98%ED%95%98%EC%8B%A0%EC%B6%95%EC%84%B1/10673/category/107/display/1/",
-         url_text="제품 페이지"),
-    card("②", "JS유니폼 TBS-5241 — 반팔 워크 셔츠 (여름)",
-         [("품번", "TBS-5241 (여름·등판 벤틸레이션)"),
-          ("종류", "반팔 워크 셔츠 (여름)"),
-          ("소재", "나일론 100%"),
-          ("사이즈", "M(90) ~ 4XL(115)"), ("색상", "블랙"),
-          ("배송", "3,500원 (200,000원 이상 무료)"),
-          ("판매가", "<strong>47,300원</strong> (VAT 포함, 2% 할인)")],
-         [{"path": "여름유니폼2_TBS5241.png", "label": "목업 — 아파트스퀘어 로고 (앞/뒤)", "mock": True}],
-         url="https://jsuniform.com/product/tbs-5241-%EB%B0%98%ED%8C%94-%EC%9B%8C%ED%81%AC-%EC%97%AC%EB%A6%84-%EC%A0%90%ED%8D%BC-%EC%97%AC%EB%A6%84%EB%93%B1%ED%8C%90%EB%B2%A4%EB%94%9C%EB%A0%88%EC%9D%B4%EC%85%98/10390/category/33/display/1/",
-         url_text="제품 페이지"),
-]
 
 # ----- 11. 하드커버 (양장) — 표지 + 내부 -----
 hardcover_cards = [
@@ -704,7 +651,6 @@ def render(sections_html, summary_html, originals_js, cover_sub, chip_cat, chip_
   <div class="report-footer">
     <strong>안내</strong><br>
     · 「목업」 표시는 아파트스퀘어 로고 적용 시안입니다.<br>
-    · 「정보 확인 예정」 카드는 이미지만 확보된 상태로, 세부 스펙·단가는 추후 반영됩니다.<br>
     · 단가는 조사 시점 기준이며, 판촉 인쇄·수량에 따라 변동될 수 있어 발주 전 업체 확인이 필요합니다.<br>
     · 장비가방은 전 품목 전화 견적이 필요합니다.
   </div>

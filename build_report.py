@@ -202,7 +202,8 @@ flash_cards = [
           ("구성", "30W 줌-인 비상등 · 나침반 케이스 + 건전지 포함"),
           ("인쇄 / 포장", "레이저인쇄 · 종이케이스"),
           ("단가", "100개 <strong>9,170원</strong> ~ 5,000개 7,790원 (VAT 별도)")],
-         [{"path": "손전등_줌인.png", "label": "제품 이미지"}],
+         [{"path": "손전등_줌인_목업.png", "label": "목업 — 아파트스퀘어 로고 · 클릭 시 크게 보기", "mock": True, "hifi": True},
+          {"path": "손전등_줌인.png", "label": "제품 이미지"}],
          url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=131088&cid=194&price1=&price2=",
          url_text="제품 페이지"),
     card("③", "벤딕트 BEAM-LX800 — 충전식 LED 손전등",
@@ -432,6 +433,16 @@ idcard_cards = [
           ("뒷면", "이용 안내 4항 · 회사 정보(건축·설계감리 컨설팅)"),
           ("용도", "현장 감리 착용 ID카드 (세로형)")],
          [{"path": "사원증.png", "label": "앞면 · 뒷면 · 클릭 시 크게 보기", "mock": True, "hifi": True}]),
+    card("🪪", "사원증 디자인 A — 단색 블루",
+         [("앞면", "로고 · '감리원' 대형 타이포"),
+          ("뒷면", "회사 소개 (아파트 유지보수 전문 감리) · aptsquare.net"),
+          ("스타일", "플랫 블루 · 심볼 패턴")],
+         [{"path": "사원증_디자인A.png", "label": "앞면 · 뒷면 시안 · 클릭 시 크게 보기", "mock": True, "hifi": True}]),
+    card("🪪", "사원증 디자인 B — 아파트 그래픽",
+         [("앞면", "로고 · '감리원' · 아파트 일러스트"),
+          ("뒷면", "회사 소개 · 아파트 라인 그래픽 · aptsquare.net"),
+          ("스타일", "네이비 그라데이션 · 건물 배경")],
+         [{"path": "사원증_디자인B.png", "label": "앞면 · 뒷면 시안 · 클릭 시 크게 보기", "mock": True, "hifi": True}]),
     card("🪪", "실물 목업 — 박도윤 (현장관리 매니저)",
          [("성명", "박도윤 · 현장관리 매니저"),
           ("사번", "EMPLOYEE ID  AS-24028"),
@@ -742,11 +753,11 @@ SHORT_SUB = ("볼펜 · 손전등 · 함수율 · DJI · 장비가방 · 열화�
 # 1) 전체본
 build(OUT, SECTIONS, ["hardcover", "leaflet", "proposal"], FULL_SUB,
       [(str(len(SECTIONS)), "검토 카테고리"), (str(item_count(SECTIONS)), "검토 항목"),
-       ("31", "확보 이미지"), ("16", "목업 시안")])
+       ("34", "확보 이미지"), ("19", "목업 시안")])
 
 # 2) 축약본 — 디자인 제작물(리플릿·하드커버·제안서·사원증) 제외
 short_specs = [s for s in SECTIONS if s[0] != "design"]
 build(OUT_SHORT, short_specs, [], SHORT_SUB,
       [(str(len(short_specs)), "검토 카테고리"),
        (str(item_count(short_specs)), "검토 항목"),
-       ("27", "확보 이미지"), ("14", "목업 시안")])
+       ("28", "확보 이미지"), ("15", "목업 시안")])

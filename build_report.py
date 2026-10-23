@@ -368,6 +368,14 @@ uniform_cards = [
           {"path": "겨울패딩_뒤.png", "label": "목업 — 뒷면(로고·슬로건)", "mock": True}],
          url="https://dyuniform.com/product/ct-703-%EC%9D%B8%ED%80%BC%ED%8C%85-%ED%95%98%ED%94%84-%EC%BD%94%ED%8A%B8/6107/category/179/display/1/",
          url_text="제품 페이지"),
+    card("②", "지벤 ZB-J2357 캐주얼 포켓 패딩 점퍼 (동복 · 블랙)",
+         [("품번", "ZB-J2357 (브랜드 지벤 ZIBEN)"),
+          ("종류", "동복 패딩 점퍼 · 탈착식 후드 · 측면 배색"),
+          ("디테일", "가슴 지퍼포켓 · 팔 암포켓 · 세로형 가슴 로고"),
+          ("소재 / 사이즈 / 판매가", "확인 예정")],
+         [{"path": "겨울패딩2_ZBJ2357.png", "label": "목업 — 앞면(가슴 로고) · 클릭 시 크게 보기", "mock": True, "hifi": True}],
+         url="https://dyuniform.com/product/%EC%A7%80%EB%B2%A4-zb-j2357-%EC%BA%90%EC%A3%BC%EC%96%BC-%ED%8F%AC%EC%BC%93-%ED%8C%A8%EB%94%A9-%EC%A0%90%ED%8D%BC-%EB%8F%99%EB%B3%B5%ED%8C%A8%EB%94%A9/7219/category/44/display/1/",
+         url_text="제품 페이지", pending=True),
 ]
 
 # ----- 여름 유니폼 -----
@@ -506,7 +514,7 @@ SECTIONS = [
     ("product", "장비가방", "3종 비교", bag_cards, "③ K25600 선정 · 자사 로고 인쇄"),
     ("product", "열화상 카메라", "2종 비교", thermal_cards, "① 힛뷰 저가형 1개 구매"),
     ("product", "쌍안경", "2종 비교", bino_cards, "고·저배율 각 1개 구매 확정 (테스트용)"),
-    ("product", "겨울 유니폼", "겨울 패딩 (CT-703)", uniform_cards, "로고 기존 여름·춘추 디자인 유지"),
+    ("product", "겨울 유니폼", "겨울 패딩 2종", uniform_cards, "로고 기존 여름·춘추 디자인 유지"),
     ("design", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards, None),
     ("design", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards, None),
     ("design", "제안서", "클릭 시 원본 PDF", proposal_cards, "페이퍼용/PT용 이원화"),

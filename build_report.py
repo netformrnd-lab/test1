@@ -475,7 +475,7 @@ lanyard_cards = [
           ("상품평", "261건 / 평점 4.97"),
           ("배송", "5,000원 (150,000원 이상 무료)"),
           ("단가", "<strong>2,500원</strong> (37% 할인, 정가 4,000원)")],
-         [{"path": "목걸이_디자인A.png", "label": "목업 — 아파트스퀘어 감리원 명찰 · 클릭 시 크게 보기", "mock": True, "hifi": True},
+         [{"path": "목걸이_디자인A.png", "label": "실물 목업 — 넥스트랩 + 감리원 명찰 · 클릭 시 크게 보기", "mock": True, "hifi": True},
           {"path": "명찰_페어패스.png", "label": "제품 이미지 (샘플)"}],
          url="https://smartstore.naver.com/bluemoon_livestudio/products/7176417330",
          url_text="스마트스토어 링크"),

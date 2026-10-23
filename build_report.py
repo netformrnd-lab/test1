@@ -287,8 +287,7 @@ dji_cards = [
           ("디스플레이", "Mini-LED · 2,000nit · HDR · 10bit"),
           ("명암 / 색역", "1,000,000:1 · 98% DCI-P3"),
           ("단가", "<strong>1,220,000원</strong>")],
-         [{"path": "22_DJI_RC_Pro_2_현장_운용_목업.png", "label": "목업 — 현장 운용", "mock": True},
-          {"path": "21_DJI_RC_Pro_2_제품_이미지.jpg", "label": "제품 이미지"}],
+         [{"path": "21_DJI_RC_Pro_2_제품_이미지.jpg", "label": "제품 이미지"}],
          url="https://www.dji.com/rc-pro-2", url_text="DJI 공식"),
 ]
 

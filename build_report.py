@@ -489,21 +489,23 @@ lanyard_cards = [
 
 # ----- 온습도계 -----
 ondo_cards = [
-    card("①", "바헤르츠 포켓 디지털 온습도계",
-         [("타입", "디지털 · 화이트 · 벽걸이 가능"),
-          ("용도", "온도·습도 확인 (습도 85%↑ 작업중지 규정 확인용)"),
-          ("상품평", "312개 · 200명+ 만족"),
-          ("단가", "<strong>18,900원</strong> (로켓배송)")],
-         [{"path": "온습도계1.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/8277606310?itemId=23861888087",
+    card("①", "윈텍트 WT83 디지털 온습도계 (산업 전문가용)",
+         [("모델", "Wintact WT83 (센서 일체형 · 데이터 홀드)"),
+          ("기능", "온도·습도 측정 · MIN/MAX · HOLD"),
+          ("상품평", "15개 / 평점 4.5"),
+          ("배송", "무료배송 (판매자로켓 · 내일 도착)"),
+          ("단가", "<strong>20,000원</strong>")],
+         [{"path": "온습도계1_WT83.png", "label": "제품 이미지"}],
+         url="https://www.coupang.com/vp/products/6307872315?itemId=26926439459",
          url_text="쿠팡 링크"),
-    card("②", "미니 소형 디지털 온습도계 (무소음 · 4개 세트)",
-         [("구성", "4개 세트 (4cm 미니)"),
-          ("타입", "디지털 · 무소음 · 온도/습도"),
-          ("상품평", "23개 / 평점 5.0"),
-          ("단가", "<strong>3,750원</strong> (4개 세트) · 배송 3,000원")],
-         [{"path": "온습도계2.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/8901993099?itemId=27595442065",
+    card("②", "CAS T801 체감온도계 (산업현장 휴대용)",
+         [("모델", "CAS T801 (체감온도 · 온습도 · 블랙)"),
+          ("기능", "체감온도 4단계(관심·주의·경고·위험) · 온도/습도 · 시계"),
+          ("상품평", "44개 / 평점 4.5"),
+          ("배송", "무료배송"),
+          ("단가", "<strong>30,000원</strong> (1개 · 최저 단위가)")],
+         [{"path": "온습도계2_CAST801.png", "label": "제품 이미지"}],
+         url="https://www.coupang.com/vp/products/9507244790?itemId=28329080429",
          url_text="쿠팡 링크"),
 ]
 
@@ -516,6 +518,7 @@ SECTIONS = [
     ("product", "드론 조종기", "현장 운용 장비", dji_cards, None),
     ("product", "장비가방", "3종 비교", bag_cards, None),
     ("product", "열화상 카메라", "2종 비교", thermal_cards, None),
+    ("product", "온습도계", "2종 비교", ondo_cards, None),
     ("product", "쌍안경", "2종 비교", bino_cards, None),
     ("product", "겨울 유니폼", "겨울 패딩 2종", uniform_cards, None),
     ("design", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards, None),
@@ -756,9 +759,9 @@ def build(out_path, specs, originals_keys, cover_sub, summary_cards):
     print(f"저장 완료: {out_path.name}  ({len(doc):,} bytes / {len(doc)/1024/1024:.2f} MB)")
 
 
-FULL_SUB = ("볼펜 · 손전등 · 함수율 · DJI · 장비가방 · 열화상 · 쌍안경 · "
+FULL_SUB = ("볼펜 · 손전등 · 함수율 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · "
             "겨울 유니폼 · 리플릿 · 하드커버 · 제안서 · 사원증 · 목걸이")
-SHORT_SUB = ("볼펜 · 손전등 · 함수율 · DJI · 장비가방 · 열화상 · 쌍안경 · "
+SHORT_SUB = ("볼펜 · 손전등 · 함수율 · DJI · 장비가방 · 열화상 · 온습도계 · 쌍안경 · "
              "겨울 유니폼 · 목걸이")
 
 # 1) 전체본

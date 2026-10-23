@@ -172,8 +172,7 @@ pen_cards = [
           ("단가", "1,000개 <strong>338원</strong> ~ 50,000개 288원 (VAT 별도)")],
          [{"path": "01_볼펜_검정_목업.png", "label": "목업 — 블랙", "mock": True},
           {"path": "02_볼펜_흰색_목업.png", "label": "목업 — 화이트"}],
-         url="https://daehangift-gyeonggi.com/shop/view.php?index_no=726254",
-         decided="구매 확정 (3차 회의)"),
+         url="https://daehangift-gyeonggi.com/shop/view.php?index_no=726254"),
     card("②", "에어슬림 볼펜 (흰/네이비/검정 3색)",
          [("모델", "B8459"),
           ("타입", "클릭형 슬림 볼펜 (골드 포인트)"),
@@ -195,7 +194,7 @@ flash_cards = [
           ("단가", "100개 <strong>6,450원</strong> ~ 5,000개 4,780원 (VAT 별도)")],
          [{"path": "손전등_브리사.png", "label": "제품 이미지"}],
          url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=183505&cid=194&price1=&price2=",
-         url_text="제품 페이지", decided="구매 확정 (품절 대체)"),
+         url_text="제품 페이지"),
     card("②", "줌-인 비상등 후레쉬 (가나기프트)",
          [("상품번호", "131088 (가나기프트)"),
           ("규격 / 재질", "110×35mm · 알루미늄"),
@@ -241,7 +240,7 @@ moist_cards = [
           ("단가", "<strong>27,000원</strong> (22% 할인, 정가 35,000원) · 배송 2,500원")],
          [{"path": "함수율5_GM605.png", "label": "제품 이미지"}],
          url="https://www.coupang.com/vp/products/7324088438?itemId=18790807866",
-         url_text="쿠팡 링크", decided="3차 회의 저가형 구매"),
+         url_text="쿠팡 링크"),
 ]
 
 # ----- 4. 칫솔치약세트 -----
@@ -286,8 +285,7 @@ dji_cards = [
           ("단가", "<strong>1,220,000원</strong>")],
          [{"path": "22_DJI_RC_Pro_2_현장_운용_목업.png", "label": "목업 — 현장 운용", "mock": True},
           {"path": "21_DJI_RC_Pro_2_제품_이미지.jpg", "label": "제품 이미지"}],
-         url="https://www.dji.com/rc-pro-2", url_text="DJI 공식",
-         decided="1대 구매 확정 (3차 회의)"),
+         url="https://www.dji.com/rc-pro-2", url_text="DJI 공식"),
 ]
 
 # ----- 6. 장비가방 -----
@@ -309,7 +307,7 @@ bag_cards = [
           ("소비자가", "117,000원"), ("인쇄", "자사 로고 인쇄 적용")],
          [{"path": "25_K25600_장비가방.jpg", "label": "제품 이미지"}],
          url="https://www.gabang1bungi.com/product/k25600/5041/category/27/display/1/",
-         url_text="제품 페이지", decided="구매 확정 · 자사 로고 인쇄"),
+         url_text="제품 페이지"),
 ]
 
 # ----- 7. 열화상 카메라 -----
@@ -321,8 +319,7 @@ thermal_cards = [
           ("상품평", "68개 / 97% 긍정"),
           ("단가", "<strong>171,000원</strong> (50% 할인)")],
          [{"path": "26_힛뷰_열화상카메라.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/9233256592?itemId=27295282745", url_text="쿠팡 링크",
-         decided="구매 확정 (저가형 1개)"),
+         url="https://www.coupang.com/vp/products/9233256592?itemId=27295282745", url_text="쿠팡 링크"),
     card("②", "GOYOJO GW192A 스마트폰 열화상 카메라 (ED-148)",
          [("타입", "스마트폰 USB 연결형 (열감지 열화상)"),
           ("모델", "GW192A / ED-148"),
@@ -474,14 +471,15 @@ lanyard_cards = [
           ("단가", "<strong>2,500원</strong> (37% 할인, 정가 4,000원)")],
          [{"path": "명찰_페어패스.png", "label": "제품 이미지 (샘플 · 클릭 시 크게 보기)"}],
          url="https://smartstore.naver.com/bluemoon_livestudio/products/7176417330",
-         url_text="스마트스토어 링크",
-         decided="목걸이 선정 (이 제품으로)"),
+         url_text="스마트스토어 링크"),
     card("②", "온판장 — 행사용 고급 목걸이 명찰 (인쇄 제작)",
          [("용도", "행사·전시·세미나용 목걸이 명찰 (디자인+인쇄 올인원)"),
           ("구성", "고급 목걸이 명찰 + 목걸이 스트랩 (디자인 인쇄 포함)"),
           ("단가", "<strong>2,500원</strong> (소비자가 5,700원 · 56% 할인) · 국내배송 무료"),
           ("옵션", "50개 묶음 125,000원 · 신규 디자인 제작 +17,500원")],
-         [{"path": "명찰_온판장.png", "label": "제품 이미지 (샘플 디자인)"}]),
+         [{"path": "명찰_아파트스퀘어.png", "label": "목업 — 아파트스퀘어 감리원 명찰 · 클릭 시 크게 보기", "mock": True, "hifi": True}],
+         url="https://onpanjang.co.kr/product/%ED%96%89%EC%82%AC%EC%9A%A9-%EA%B3%A0%EA%B8%89-%EB%AA%A9%EA%B1%B8%EC%9D%B4-%EB%AA%85%EC%B0%B0-%EC%9D%B8%EC%87%84-%EC%A0%9C%EC%9E%91/27/category/1/display/2/",
+         url_text="온판장 링크"),
 ]
 
 # ----- 온습도계 -----
@@ -507,19 +505,19 @@ ondo_cards = [
 # 섹션 정의: (id, 제목, 배지, 카드들, 결정문구)
 #   id "design" = 디자인 제작물(리플릿·하드커버·제안서·사원증) — 축약본에서 제외
 SECTIONS = [
-    ("product", "볼펜 / 젤펜", "2종 검토", pen_cards, "① 대한기프트 흑/백 볼펜 구매 확정"),
-    ("product", "손전등 / 랜턴", "4종 비교", flash_cards, "① 브리사 LED 후레쉬 손전등 구매 확정"),
-    ("product", "함수율 측정기", "3종 비교", moist_cards, "저가형(GM605) 구매"),
-    ("product", "드론 조종기", "현장 운용 장비", dji_cards, "DJI RC Pro 2 조종기 1대 구매 확정"),
-    ("product", "장비가방", "3종 비교", bag_cards, "③ K25600 선정 · 자사 로고 인쇄"),
-    ("product", "열화상 카메라", "2종 비교", thermal_cards, "① 힛뷰 저가형 1개 구매"),
-    ("product", "쌍안경", "2종 비교", bino_cards, "고·저배율 각 1개 구매 확정 (테스트용)"),
-    ("product", "겨울 유니폼", "겨울 패딩 2종", uniform_cards, "로고 기존 여름·춘추 디자인 유지"),
+    ("product", "볼펜 / 젤펜", "2종 검토", pen_cards, None),
+    ("product", "손전등 / 랜턴", "4종 비교", flash_cards, None),
+    ("product", "함수율 측정기", "3종 비교", moist_cards, None),
+    ("product", "드론 조종기", "현장 운용 장비", dji_cards, None),
+    ("product", "장비가방", "3종 비교", bag_cards, None),
+    ("product", "열화상 카메라", "2종 비교", thermal_cards, None),
+    ("product", "쌍안경", "2종 비교", bino_cards, None),
+    ("product", "겨울 유니폼", "겨울 패딩 2종", uniform_cards, None),
     ("design", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards, None),
     ("design", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards, None),
-    ("design", "제안서", "클릭 시 원본 PDF", proposal_cards, "페이퍼용/PT용 이원화"),
+    ("design", "제안서", "클릭 시 원본 PDF", proposal_cards, None),
     ("design", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards, None),
-    ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 목걸이 명찰 2종", lanyard_cards, "목걸이 선정 (블루문 라이브스튜디오)"),
+    ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 목걸이 명찰 2종", lanyard_cards, None),
 ]
 
 

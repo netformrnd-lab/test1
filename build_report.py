@@ -210,7 +210,7 @@ flash_cards = [
           ("제작 / 생산", "3~4일 · 중국"),
           ("단가", "100개 <strong>6,450원</strong> ~ 5,000개 4,780원 (VAT 별도)")],
          [{"path": "손전등_브리사.png", "label": "제품 이미지"}],
-         url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=183505&cid=194",
+         url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=183505&cid=194&price1=&price2=",
          url_text="제품 페이지", decided="구매 확정 (품절 대체)"),
     card("②", "벤딕트 BEAM-LX800 — 충전식 LED 손전등",
          [("밝기", "1,000루멘"), ("조사 거리", "800m"),

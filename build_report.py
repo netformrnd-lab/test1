@@ -370,12 +370,14 @@ uniform_cards = [
          url_text="제품 페이지"),
     card("②", "지벤 ZB-J2357 캐주얼 포켓 패딩 점퍼 (동복 · 블랙)",
          [("품번", "ZB-J2357 (브랜드 지벤 ZIBEN)"),
-          ("종류", "동복 패딩 점퍼 · 탈착식 후드 · 측면 배색"),
+          ("종류", "겨울 패딩 점퍼(숏패딩) · 탈착식 후드 · 측면 배색"),
+          ("소재", "확인 예정"),
+          ("사이즈 / 색상", "확인 예정 · 블랙"),
           ("디테일", "가슴 지퍼포켓 · 팔 암포켓 · 세로형 가슴 로고"),
-          ("소재 / 사이즈 / 판매가", "확인 예정")],
+          ("판매가", "<strong>76,700원</strong> (VAT 포함)")],
          [{"path": "겨울패딩2_ZBJ2357.png", "label": "목업 — 앞면(가슴 로고) · 클릭 시 크게 보기", "mock": True, "hifi": True}],
          url="https://dyuniform.com/product/%EC%A7%80%EB%B2%A4-zb-j2357-%EC%BA%90%EC%A3%BC%EC%96%BC-%ED%8F%AC%EC%BC%93-%ED%8C%A8%EB%94%A9-%EC%A0%90%ED%8D%BC-%EB%8F%99%EB%B3%B5%ED%8C%A8%EB%94%A9/7219/category/44/display/1/",
-         url_text="제품 페이지", pending=True),
+         url_text="제품 페이지"),
 ]
 
 # ----- 여름 유니폼 -----

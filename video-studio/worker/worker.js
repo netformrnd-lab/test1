@@ -145,6 +145,20 @@ const ACTIONS = {
     return state(env)
   },
 
+  // 등록 자료 삭제 (기본 제공 자료는 삭제 대신 '사용 안 함'으로) — 원본 파일도 저장소에서 지운다. 이미 만든 영상에는 영향 없음
+  async sourceDelete(env, { id }) {
+    if (String(id || '').startsWith('builtin-')) throw new HttpError(400, '기본 제공 자료는 삭제할 수 없습니다. ‘영상 제작 근거로 사용’ 체크를 해제해 주세요.')
+    let path = ''
+    await mutate(env, 'sources', [], (list) => {
+      const i = list.findIndex((x) => x.id === id)
+      if (i < 0) throw new HttpError(404, '자료를 찾을 수 없습니다.')
+      path = (list[i].file && list[i].file.path) || ''
+      list.splice(i, 1)
+    })
+    if (path) await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${encodePath(path)}`, { method: 'DELETE', headers: storageHeaders(env) }).catch(() => {})
+    return state(env)
+  },
+
   // 원본 파일 업로드용 1회성 주소 (브라우저가 파일을 Supabase Storage 에 직접 올림 — 큰 파일도 서버를 거치지 않음)
   async uploadUrl(env, { name, size }) {
     if (PHOTO_UPLOAD_OFF && /^(photo\.jpg|thumb\.jpg|video\.)/i.test(String(name || ''))) throw new HttpError(403, PHOTO_OFF_MSG)

@@ -405,7 +405,8 @@
         <p class="source-meta">${esc(s.provenance)}</p>
         ${s.file ? `<button type="button" class="text-link file-link" data-file="${s.id}">${icon('external', 14)}원본 파일 열기 (${esc(s.file.name)})</button>` : ''}
         <details><summary>본문 확인</summary><pre>${esc(s.content)}</pre></details>
-        <div class="check-row"><input type="checkbox" data-slot="checkbox" id="src-${s.id}" data-approve="${s.id}" ${s.approved === 1 ? 'checked' : ''} ${S.busy ? 'disabled' : ''}><label for="src-${s.id}">영상 제작 근거로 사용</label></div>
+        <div class="between"><div class="check-row"><input type="checkbox" data-slot="checkbox" id="src-${s.id}" data-approve="${s.id}" ${s.approved === 1 ? 'checked' : ''} ${S.busy ? 'disabled' : ''}><label for="src-${s.id}">영상 제작 근거로 사용</label></div>
+          ${s.builtin ? '' : `<button type="button" class="text-link danger-link" data-src-del="${s.id}" ${S.busy ? 'disabled' : ''}>삭제</button>`}</div>
       </article>`).join('')
       : `<div class="empty-result small">${icon('library', 28)}<h3>아직 등록된 자료가 없습니다</h3><p>서비스 소개서, 시방서, 검증된 현장사례를 등록하면 다음 제작부터 검색합니다.</p></div>`
     updateSourceSave()
@@ -1053,6 +1054,13 @@
     if (rd) {
       { const jb = S.data.jobs.find((j) => j.id === rd.dataset.render); const svc = jb && jb.input.tool === 'manus' ? 'Manus' : 'HeyGen'; if (!confirm(`이 프롬프트로 ${svc} 영상을 만들까요?\n\n목표 길이 ${jb ? jb.input.seconds : '?'}초 · ${svc} 크레딧이 사용되며 되돌릴 수 없습니다.`)) return }
       try { const r = await api({ action: 'render', id: rd.dataset.render }); S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); renderAll() } catch (e) { S.error = e.message; renderMessages() }
+      return
+    }
+    const sd = t.closest('[data-src-del]')
+    if (sd) {
+      const src = (S.data.sources || []).find((x) => x.id === sd.dataset.srcDel)
+      if (!confirm(`이 자료를 삭제할까요?\n\n「${src ? src.title : ''}」${src && src.file ? '\n원본 파일도 함께 삭제됩니다.' : ''}\n이미 만든 영상에는 영향이 없고, 되돌릴 수 없습니다.`)) return
+      try { S.data = await api({ action: 'sourceDelete', id: sd.dataset.srcDel }); S.success = '자료를 삭제했습니다.'; renderAll() } catch (e) { S.error = e.message; renderMessages() }
       return
     }
     const fl = t.closest('[data-file]')

@@ -550,7 +550,7 @@ async function loadResidentReports() {
   const { data } = await sb.from('reports').select('*').eq('apartment_id', apt.id).eq('published', true).order('created_at', { ascending: false })
   RES_REP_LIST = data || []
   RES_REP_DONG = ''
-  logEvent('report', prof.apartment_id)
+  if (!PREVIEW_APT) logEvent('report', apt.id)
   renderResReports()
 }
 let RES_REP_LIST = []
@@ -613,6 +613,7 @@ function startApprovalPoll() {
 function stopApprovalPoll() { if (_approvalPoll) { clearInterval(_approvalPoll); _approvalPoll = null } }
 window.goBack = function () {
   saveScroll(NAV_CUR)   // 떠나는 화면 스크롤 저장
+  if (PREVIEW_APT && !NAV_HIST.length) { exitResidentPreview(); return }  // 미리보기 루트에서 뒤로 → 감리원 화면 복귀
   let p = NAV_HIST.pop()
   if (!p) p = currentRole ? ((currentRole === 'auditor') ? 's07' : 's11') : 's04'
   NAV_CUR = p
@@ -3249,6 +3250,7 @@ function enterResidentPreview (apt) {
   if (banner) banner.style.display = 'flex'
   updatePreviewFab()
   window.showScreen('s11'); loadResidentHome()
+  NAV_HIST.length = 0   // 미리보기는 새 히스토리로 시작 (뒤로가기가 감리원 화면으로 새지 않게)
 }
 function exitResidentPreview () {
   PREVIEW_APT = null
@@ -3258,6 +3260,7 @@ function exitResidentPreview () {
   const banner = document.getElementById('preview-banner'); if (banner) banner.style.display = 'none'
   updatePreviewFab()
   window.showScreen('s07'); loadAuditorApts()
+  NAV_HIST.length = 0   // 감리원 화면 복귀도 깨끗한 히스토리로
 }
 window.enterResidentPreview = enterResidentPreview
 window.exitResidentPreview = exitResidentPreview

@@ -6,11 +6,29 @@
 // 비밀키: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 //        (또는 Supabase 대시보드 → Edge Functions → gamri-ai → Secrets)
 
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+const MAX_CONTENT = 20000; // 입력(점검 원문) 길이 상한 — 비용 폭주 방지
+
+// 호출자가 감리원/운영자인지 확인 (입주민·외부인이 API 키를 낭비하지 못하게)
+async function callerAllowed(req: Request): Promise<boolean> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL"); const anon = Deno.env.get("SUPABASE_ANON_KEY");
+    const auth = req.headers.get("Authorization") || "";
+    if (!url || !anon || !auth) return false;
+    const sb = createClient(url, anon, { global: { headers: { Authorization: auth } } });
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return false;
+    const { data: prof } = await sb.from("profiles").select("role").eq("id", user.id).single();
+    return !!prof && (prof.role === "auditor" || prof.role === "admin");
+  } catch { return false; }
+}
 
 // 모델: 기본 claude-opus-5-5. 비용을 줄이려면 claude-sonnet-5-5 / claude-haiku-5-5 로 바꾸세요.
 const MODEL = Deno.env.get("GAMRI_AI_MODEL") || "claude-opus-5-5";
@@ -98,8 +116,11 @@ Deno.serve(async (req) => {
   const KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!KEY) return J({ ok: false, error: "ANTHROPIC_API_KEY 가 설정되지 않았습니다. (supabase secrets set ANTHROPIC_API_KEY=...)" });
 
+  if (!(await callerAllowed(req))) return J({ ok: false, error: "감리원/운영자만 사용할 수 있어요." }, 403);
+
   let body: any;
   try { body = await req.json(); } catch { return J({ ok: false, error: "요청 본문(JSON)을 읽지 못했습니다." }); }
+  if (String(body?.content || "").length > MAX_CONTENT) return J({ ok: false, error: "점검 원문이 너무 깁니다(최대 " + MAX_CONTENT + "자)." });
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {

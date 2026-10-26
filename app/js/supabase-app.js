@@ -3222,7 +3222,11 @@ function startPreviewNavWatch () {
     stage._pvObs = obs; obs.observe(stage, OPTS)
   } catch (e) {}
 }
-function updatePreviewFab () { startPreviewNavWatch(); syncPreviewNavItem() }
+function updatePreviewFab () {
+  // 감리원(또는 미리보기 중)만 처리 — 입주민 세션은 감시자조차 달지 않아 성능 낭비 없음
+  if (currentRole !== 'auditor' && !PREVIEW_APT) { syncPreviewNavItem(); return }
+  startPreviewNavWatch(); syncPreviewNavItem()
+}
 window.updatePreviewFab = updatePreviewFab
 async function openResidentPreviewPicker () {
   ensurePreviewUI()

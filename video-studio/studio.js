@@ -298,6 +298,7 @@
 
   // 검수 보류·제작 대기: 프롬프트를 직접 고쳐 다시 검수하거나, 검수 없이 제작 대기로 넘긴다
   const editDraft = {}
+  const reviseDraft = {}
   function editBoxHtml(e) {
     const held = e.status === 'held'
     const v = editDraft[e.id] != null ? editDraft[e.id] : e.prompt
@@ -312,6 +313,14 @@
     let h = `<div class="job-result"><div class="between"><div><h3>${esc((e.plan && e.plan.title) || e.input.keywords)}</h3>
       <p>${e.input.tool === 'manus' ? 'Manus · 아바타 없음 · ' : 'HeyGen 아바타 · '}${esc(e.input.audience)} · 목표 ${e.input.seconds}초 · ${e.input.ratio} · 수정 ${e.revision}/2회</p></div><span class="tag">${STATUS[e.status] || esc(e.status)}</span></div>`
     if (e.manusUrl && ['rendering', 'rendered', 'failed', 'uncertain'].includes(e.status)) h += `<p class="fineprint"><a href="${esc(e.manusUrl)}" target="_blank" rel="noreferrer">${icon('external', 14)}Manus에서 작업 보기</a>${e.status === 'rendering' ? ' · Manus가 자료를 찾고 영상을 만드는 중입니다(수십 분 걸릴 수 있음). 이 창을 닫아도 다시 열면 이어서 확인합니다.' : ''}</p>`
+    if (e.input.tool === 'manus' && e.manusTaskId && ['rendered', 'failed', 'uncertain'].includes(e.status) && S.data.readiness.manus) {
+      h += `<div class="edit-box revise-box"><strong>${icon('edit', 16)}이 영상 수정 요청 (Manus)</strong>
+        <p>고칠 점을 적으면 Manus가 이전 영상과 지시서를 바탕으로 고쳐서 다시 만들어 이 화면에 올려 줍니다(Manus 크레딧 사용). 예: “마지막 장면에 로고를 크게”, “2번째 장면 드론 영상을 더 길게”, “배경음악을 더 잔잔하게”.</p>
+        <textarea class="textarea" data-revise-text="${e.id}" rows="3" placeholder="수정할 내용을 적어 주세요">${esc(reviseDraft[e.id] || '')}</textarea>
+        <div class="job-actions"><button type="button" class="btn" data-revise="${e.id}">수정 요청 보내기</button></div>
+        ${e.manusRevisions.length ? `<small>지금까지 수정 ${e.manusRevisions.length}회 · ${e.manusRevisions.map((r) => esc(r.request.slice(0, 30))).join(' / ')}</small>` : ''}
+        ${e.prevVideos.length ? `<small> · 이전 영상: ${e.prevVideos.map((v, i) => `<a href="${esc(v.url)}" target="_blank" rel="noreferrer">${i + 1}번</a>`).join(' ')}</small>` : ''}</div>`
+    }
     if (e.input.tool === 'manus' && e.manusTaskId && ['failed', 'uncertain'].includes(e.status)) h += `<div class="job-actions"><button type="button" class="btn outline" data-manus-recheck="${e.id}">${icon('refresh', 14)}Manus 결과 다시 확인 (크레딧 안 씀)</button></div>`
     if (e.manusText && e.status !== 'rendering') h += `<details ${e.status === 'rendered' ? '' : 'open'}><summary>Manus 답변</summary><pre>${esc(e.manusText)}</pre>${e.manusFiles.length ? `<ul>${e.manusFiles.map((f) => `<li><a href="${esc(f.url)}" target="_blank" rel="noreferrer">${esc(f.name || f.url.split('?')[0].split('/').pop())}</a></li>`).join('')}</ul>` : ''}</details>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
@@ -980,7 +989,10 @@
   $('daily-limit').addEventListener('input', (ev) => { S.settings = { ...S.settings, maxDailyJobs: Number(ev.target.value) } })
   $('settings-save').addEventListener('click', saveSettings)
 
-  document.addEventListener('input', (ev) => { const ta = ev.target.closest && ev.target.closest('[data-edit-text]'); if (ta) editDraft[ta.dataset.editText] = ta.value })
+  document.addEventListener('input', (ev) => {
+    const ta = ev.target.closest && ev.target.closest('[data-edit-text]'); if (ta) editDraft[ta.dataset.editText] = ta.value
+    const rv = ev.target.closest && ev.target.closest('[data-revise-text]'); if (rv) reviseDraft[rv.dataset.reviseText] = rv.value
+  })
   document.addEventListener('click', async (ev) => {
     const t = ev.target
     const tab = t.closest('[data-tab]'); if (tab) { S.tab = tab.dataset.tab; renderTabs(); return }
@@ -996,6 +1008,14 @@
     }
     const pv = t.closest('[data-preview]')
     if (pv) { const job = S.data.jobs.find((j) => j.id === pv.dataset.preview); if (job && job.plan) openPreview(job); return }
+    const rvb = t.closest('[data-revise]')
+    if (rvb) {
+      const id = rvb.dataset.revise
+      const req = (document.querySelector(`[data-revise-text="${id}"]`) || {}).value || ''
+      if (!confirm('이 내용으로 Manus에 수정을 요청할까요?\n\nManus 크레딧이 사용됩니다. 완성되면 이 화면에 새 영상이 올라옵니다.')) return
+      try { const r = await api({ action: 'manusRevise', id, request: req }); delete reviseDraft[id]; S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); S.success = 'Manus에 수정을 요청했습니다. 완성까지 수십 분 걸릴 수 있습니다.'; renderAll(); ensurePolling() } catch (e) { S.error = e.message; renderMessages() }
+      return
+    }
     const mr = t.closest('[data-manus-recheck]')
     if (mr) {
       try { const r = await api({ action: 'manusRecheck', id: mr.dataset.manusRecheck }); S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); S.success = 'Manus 결과를 다시 확인합니다.'; renderAll(); ensurePolling() } catch (e) { S.error = e.message; renderMessages() }

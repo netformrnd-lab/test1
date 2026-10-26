@@ -261,6 +261,33 @@ const ACTIONS = {
     return { job: toJob(row) }
   },
 
+  // Manus 영상 수정 요청: 같은 작업에 이어서(가능하면) 수정을 맡긴다. 이전 지시서·결과 주소·수정 내용을 함께 보낸다 (Manus 크레딧 사용)
+  async manusRevise(env, { id, request }) {
+    const req = String(request || '').trim()
+    if (req.length < 5) throw new HttpError(400, '수정할 내용을 5자 이상 적어 주세요.')
+    if (req.length > 3000) throw new HttpError(400, '수정 요청은 3,000자 이하로 적어 주세요.')
+    const bad = termIssues({ title: '', scenes: [{ narration: req, onScreen: '' }] }).filter((x) => x.includes('금지어'))
+    if (bad.length) throw new HttpError(400, '수정 요청에 금지어가 있습니다: ' + bad.map((x) => x.replace(/^장면 1 대사: /, '')).join(' / '))
+    const st = await state(env, { raw: true })
+    if (!st.readiness.manus) throw new HttpError(400, 'Manus API 가 연결되지 않았습니다.')
+    let row = null
+    await mutate(env, 'jobs', [], (list) => {
+      row = list.find((j) => j.id === id)
+      if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
+      const d = row.data
+      if (!isManus(row) || !d.videoId || !['rendered', 'failed', 'uncertain'].includes(row.status)) throw new HttpError(409, 'Manus 작업이 끝난 영상만 수정 요청할 수 있습니다.')
+      d.manusRevisions = d.manusRevisions || []
+      if (d.manusRevisions.length >= 5) throw new HttpError(429, '이 영상은 이미 5번 수정했습니다. 새로 제작해 주세요.')
+      d.manusRevisions.push({ request: req, prevTaskId: d.videoId, prevVideoUrl: d.videoUrl || '', prevTaskUrl: (d.manusTask && d.manusTask.url) || '', at: now() })
+      d.reviseRequest = req
+      d.prevVideos = [...(d.prevVideos || []), ...(d.videoUrl ? [{ url: d.videoUrl, at: now() }] : [])]
+      d.submitAttempted = false; d.error = ''; d.videoId = ''   // 요청 중 끊기면 중복 요청 방지 장치가 작동하도록
+      row.status = 'submitting'; row.step = 6
+      d.events.push(ev(`Manus 수정 요청 ${d.manusRevisions.length}회: ${req.slice(0, 60)}${req.length > 60 ? '…' : ''}`))
+    })
+    return { job: toJob(row) }
+  },
+
   // Manus 결과 다시 확인: 새 작업을 만들지 않고 같은 작업의 결과를 다시 읽는다 (크레딧 추가 없음)
   async manusRecheck(env, { id }) {
     let row = null
@@ -588,8 +615,15 @@ async function runStep(env, job) {
     let res
     try {
       const blk = await manusAssetBlock(env, job, st)
-      const prompt = blk ? stripAssets(d.prompt) + '\n\n' + blk : d.prompt
-      res = await fetch(MANUS_API + '/tasks', { method: 'POST', headers: manusHeaders(key), body: JSON.stringify({ prompt, agentProfile: profile, taskMode: 'agent' }) })
+      let prompt = blk ? stripAssets(d.prompt) + '\n\n' + blk : d.prompt
+      const body = { agentProfile: profile, taskMode: 'agent' }
+      const rev = d.reviseRequest ? d.manusRevisions[d.manusRevisions.length - 1] : null
+      if (rev) {
+        prompt = `[수정 요청] 아래 ‘원래 제작 지시서’로 만든 영상을 다음 내용대로 고쳐서, 고친 완성 영상(MP4)을 다시 전달해 주세요. 수정 요청에 없는 부분(내레이션 문장·브랜드 규칙 등)은 그대로 유지합니다.\n${rev.request}\n\n[이전 결과]\n- 이전 영상 파일: ${rev.prevVideoUrl || '(주소 없음)'}\n- 이전 Manus 작업: ${rev.prevTaskUrl || rev.prevTaskId}\n\n[원래 제작 지시서]\n${prompt}`
+        body.taskId = rev.prevTaskId   // 같은 작업에 이어 붙이기(지원되면)
+      }
+      body.prompt = prompt
+      res = await fetch(MANUS_API + '/tasks', { method: 'POST', headers: manusHeaders(key), body: JSON.stringify(body) })
     } catch (e) {
       job.status = 'uncertain'
       d.error = 'Manus 요청 중 연결이 끊겨 결과를 확인하지 못했습니다. 중복 비용을 막기 위해 재요청하지 않았습니다. Manus 에서 확인해 주세요.'
@@ -605,6 +639,7 @@ async function runStep(env, job) {
       return
     }
     d.videoId = taskId
+    if (d.reviseRequest) { d.reviseRequest = ''; d.videoUrl = '' }
     d.manusTask = { id: taskId, url: out.task_url || (out.task && out.task.task_url) || '', share: out.share_url || (out.task && out.task.share_url) || '', at: now() }
     d.events.push(ev(`Manus 작업 접수 (${profile}) — 완성까지 수십 분 걸릴 수 있습니다`))
     job.step = 7; job.status = 'rendering'
@@ -624,9 +659,16 @@ async function runStep(env, job) {
     const credits = Number(t.credit_usage || t.credits_used || 0)
     if (credits) d.usage = { ...(d.usage || {}), manus: { credits } }
     if (status === 'completed' || status === 'finished' || status === 'succeeded') {
-      d.manusRaw = JSON.stringify(out).slice(0, 20000)
-      d.manusText = manusText(t)
-      const files = manusFiles(out)
+      // 결과 파일이 작업 정보에 없을 수 있어 관련 주소도 함께 읽어 본다(없으면 무시)
+      const extra = {}
+      for (const sub of ['files', 'attachments', 'messages', 'output']) {
+        const r2 = await fetch(MANUS_API + '/tasks/' + encodeURIComponent(d.videoId) + '/' + sub, { headers: manusHeaders(key) }).catch(() => null)
+        if (r2 && r2.ok) extra[sub] = await r2.json().catch(() => null)
+      }
+      const all = { task: out, ...extra }
+      d.manusRaw = JSON.stringify(all).slice(0, 30000)
+      d.manusText = manusText(all)
+      const files = manusFiles(all)
       const vid = files.find((f) => /^video\//.test(f.mime) || /\.(mp4|mov|webm)(\?|$)/i.test(f.name + ' ' + f.url))
       if (vid) {
         d.videoUrl = vid.url
@@ -1506,7 +1548,7 @@ function toJob(r) {
   return {
     id: r.id, created: r.created_at, status: r.status, step: r.step, revision: r.revision, input: r.input,
     plan: d.plan || null, prompt: d.prompt || '', claude: d.claude || null, openai: d.openai || null,
-    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', manusUrl: (d.manusTask && (d.manusTask.share || d.manusTask.url)) || '', manusText: d.manusText || '', manusFiles: d.manusFilesFound || [], manusTaskId: isManus(r) ? d.videoId || '' : '', edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
+    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', manusUrl: (d.manusTask && (d.manusTask.share || d.manusTask.url)) || '', manusText: d.manusText || '', manusFiles: d.manusFilesFound || [], manusRevisions: (d.manusRevisions || []).map((x) => ({ request: x.request, at: x.at })), prevVideos: d.prevVideos || [], manusTaskId: isManus(r) ? d.videoId || '' : '', edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
     events: d.events || [], sources: d.sources || [], memory: d.memory || [],
     models: d.models || { claude: '', openai: '' }, promptVersion: d.promptVersion || PROMPT_VERSION,
     issues: d.pendingIssues && d.pendingIssues.length ? d.pendingIssues : d.lastIssues || [],

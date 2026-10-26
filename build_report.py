@@ -303,7 +303,7 @@ thermal_cards = [
           ("상품평", "68개 / 97% 긍정"),
           ("단가", "<strong>171,000원</strong> (50% 할인)")],
          [{"path": "26_힛뷰_열화상카메라.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/9233256592?itemId=27295282745", url_text="쿠팡 링크", decided="구매 확정"),
+         url="https://www.coupang.com/vp/products/9233256592?itemId=27295282745", url_text="쿠팡 링크"),
     card("②", "GOYOJO GW192A 스마트폰 열화상 카메라 (ED-148)",
          [("해상도", "센서 <strong>96×96</strong> · 보정 192×192"),
           ("사양", "화면갱신 25Hz · 시야각 50°×50° · 45×11×34mm"),

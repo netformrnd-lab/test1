@@ -438,7 +438,8 @@ lanyard_cards = [
           ("구성", "고급 목걸이 명찰 + 목걸이 스트랩 (디자인 인쇄 포함)"),
           ("단가", "<strong>2,500원</strong> (소비자가 5,700원 · 56% 할인) · 국내배송 무료"),
           ("옵션", "50개 묶음 125,000원 · 신규 디자인 제작 +17,500원")],
-         [{"path": "명찰_아파트스퀘어.png", "label": "목업 — 아파트스퀘어 감리원 명찰 · 클릭 시 크게 보기", "mock": True, "hifi": True}],
+         [{"path": "명찰_아파트스퀘어.png", "label": "실물 목업 — 감리원/현장감리 명찰 · 클릭 시 크게 보기", "mock": True, "hifi": True},
+          {"path": "명찰_목업2.png", "label": "실물 목업 — 네이비 명찰"}],
          url="https://onpanjang.co.kr/product/%ED%96%89%EC%82%AC%EC%9A%A9-%EA%B3%A0%EA%B8%89-%EB%AA%A9%EA%B1%B8%EC%9D%B4-%EB%AA%85%EC%B0%B0-%EC%9D%B8%EC%87%84-%EC%A0%9C%EC%9E%91/27/category/1/display/2/",
          url_text="온판장 링크"),
 ]

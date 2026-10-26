@@ -2045,15 +2045,16 @@ const GAMRI_CSS=
 '.gp-doc .t-info .big{text-align:center;font-size:14px;letter-spacing:.3em;position:relative}.gp-doc .t-info .sign{color:#555;font-size:10px}'+
 '.gp-doc .stampcell{position:relative}.gp-doc .stamp{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:50px;height:50px;object-fit:contain;opacity:.95}'+
 '.gp-doc .t-chk{margin-top:10px}.gp-doc .t-chk th,.gp-doc .t-chk td{border:1px solid #111;padding:6px 9px}.gp-doc .t-chk th{text-align:center;font-weight:500}.gp-doc .t-chk .cat{width:90px;text-align:center}'+
-'.gp-doc .band{background:#d9d9d9;border:1px solid #111;border-bottom:none;font-weight:500;padding:4px 9px;margin-top:10px}'+
+'.gp-doc .band{background:#d9d9d9;border:1px solid #111;border-bottom:none;font-weight:500;padding:4px 9px;margin-top:10px;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}'+
 '.gp-doc .bandbox{border:1px solid #111;border-top:none;padding:8px 10px}'+
 '.gp-doc .bandbox .bt{font-weight:700;margin:6px 0 2px}.gp-doc .bandbox .bt:first-child{margin-top:0}'+
-'.gp-doc .bandbox ul{list-style:none;margin:2px 0;padding:0}.gp-doc .bandbox li{position:relative;padding-left:13px;line-height:1.6}'+
+'.gp-doc .bandbox ul{list-style:none;margin:2px 0;padding:0}.gp-doc .bandbox li{position:relative;padding-left:13px;line-height:1.6;break-inside:avoid;page-break-inside:avoid}'+
+'.gp-doc .bandbox .bt{break-after:avoid;page-break-after:avoid}.gp-doc .t-info tr,.gp-doc .t-chk tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .bandbox li.dot::before{content:"·";position:absolute;left:3px;font-weight:700}.gp-doc .bandbox li:not(.dot)::before{content:"▪";position:absolute;left:1px;font-size:8px;top:2px}'+
 '.gp-doc .muted{color:#888}.gp-doc .paper-foot{text-align:right;font-size:9px;margin-top:12px}'+
 '.gp-doc .sheet-h{background:#d9d9d9;border:1px solid #111;font-weight:500;padding:5px 10px;border-bottom:2px solid #111}'+
 '.gp-doc .pgrid{display:grid;grid-template-columns:1fr 1fr;border:1px solid #111;border-top:none}'+
-'.gp-doc .pcell{border-right:1px solid #111;border-bottom:1px solid #111;padding:8px}.gp-doc .pcell:nth-child(2n){border-right:none}'+
+'.gp-doc .pcell{border-right:1px solid #111;border-bottom:1px solid #111;padding:8px;break-inside:avoid;page-break-inside:avoid}.gp-doc .pcell:nth-child(2n){border-right:none}'+
 '.gp-doc .pbox{width:100%;aspect-ratio:4/3;overflow:hidden;background:#dfe3ea;display:flex}.gp-doc .pbox .ph{width:100%;height:100%;object-fit:cover}';
 function _loadHtml2pdf(){ if(window.html2pdf)return Promise.resolve(); if(window._h2pP)return window._h2pP;
   window._h2pP=new Promise(function(res,rej){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
@@ -2072,7 +2073,7 @@ async function genGamriPdf(id,btn,ov){
     await html2pdf().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.9},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css','legacy']}}).from(host.querySelector('.gp-doc')).save();
+      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt']}}).from(host.querySelector('.gp-doc')).save();
     document.body.removeChild(host);
     if(window.toast)toast('공사감리일지 PDF를 저장했어요');
   }catch(e){ alert('PDF 생성 실패: '+(e&&e.message||e)+'\n(사진이 외부 링크면 일부 사진이 빠질 수 있어요)'); }

@@ -3190,22 +3190,38 @@ document.addEventListener('click', (e) => {
 /* ===== 감리원 → 입주민 화면 미리보기 (전역 하단 토글 + 단지 선택 + 상단 배너) ===== */
 let REAL_ROLE = null
 function ensurePreviewUI () {
-  const stage = document.getElementById('stage'); if (!stage || document.getElementById('preview-fab')) return
-  const fab = document.createElement('div'); fab.id = 'preview-fab'; fab.textContent = '👁 입주민 화면 보기'
-  fab.addEventListener('click', openResidentPreviewPicker)
+  const stage = document.getElementById('stage'); if (!stage || document.getElementById('preview-banner')) return
   const banner = document.createElement('div'); banner.id = 'preview-banner'
   banner.innerHTML = '<span id="pv-banner-txt">👁 입주민 화면 미리보기</span><span class="pv-back">← 감리원 화면</span>'
   banner.querySelector('.pv-back').addEventListener('click', exitResidentPreview)
   const sheet = document.createElement('div'); sheet.id = 'preview-sheet'
   sheet.innerHTML = '<div class="pv-dim"></div><div class="pv-card"><div class="pv-h">어느 단지의 입주민 화면을 볼까요?</div><div class="pv-list" id="pv-list"></div></div>'
   sheet.querySelector('.pv-dim').addEventListener('click', () => { sheet.style.display = 'none' })
-  stage.appendChild(fab); stage.appendChild(banner); stage.appendChild(sheet)
+  stage.appendChild(banner); stage.appendChild(sheet)
 }
-function updatePreviewFab () {
+// 감리원 하단 탭(홈·일정·리플렛·채팅) 오른쪽에 '👁 입주민' 탭을 끼워넣음(현재 화면 기준)
+function syncPreviewNavItem () {
   ensurePreviewUI()
-  const fab = document.getElementById('preview-fab'); if (!fab) return
-  fab.style.display = (currentRole === 'auditor' && !PREVIEW_APT) ? 'inline-flex' : 'none'
+  document.querySelectorAll('.nav [data-preview-tab]').forEach(e => e.remove())
+  if (!(currentRole === 'auditor' && !PREVIEW_APT)) return
+  const active = document.querySelector('.screen.active'); if (!active) return
+  const nav = active.querySelector('.nav'); if (!nav) return
+  if (nav.children.length >= 5) return               // 입주민형(5탭) 바에는 추가하지 않음
+  const item = document.createElement('div')
+  item.setAttribute('data-preview-tab', '1')
+  item.innerHTML = '<div class="ic">👁</div>입주민'
+  nav.appendChild(item)
 }
+// 화면 전환·하단탭 재생성 때마다 '입주민' 탭을 다시 맞춰줌 (자기 DOM 수정으로 루프 안 돌게 끊었다 다시 관찰)
+function startPreviewNavWatch () {
+  const stage = document.getElementById('stage'); if (!stage || stage._pvObs) return
+  const OPTS = { subtree: true, attributes: true, attributeFilter: ['class'], childList: true }
+  try {
+    const obs = new MutationObserver(() => { obs.disconnect(); try { syncPreviewNavItem() } catch (e) {} finally { obs.observe(stage, OPTS) } })
+    stage._pvObs = obs; obs.observe(stage, OPTS)
+  } catch (e) {}
+}
+function updatePreviewFab () { startPreviewNavWatch(); syncPreviewNavItem() }
 window.updatePreviewFab = updatePreviewFab
 async function openResidentPreviewPicker () {
   ensurePreviewUI()
@@ -3246,6 +3262,8 @@ function exitResidentPreview () {
 window.enterResidentPreview = enterResidentPreview
 window.exitResidentPreview = exitResidentPreview
 document.addEventListener('click', (e) => {
+  const pvTab = e.target.closest('.nav [data-preview-tab]')
+  if (pvTab) { openResidentPreviewPicker(); return }
   const it = e.target.closest('#pv-list [data-pv-apt]')
   if (it) { enterResidentPreview(AUD_APTS[it.dataset.pvApt]) }
 })

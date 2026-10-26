@@ -542,7 +542,15 @@ function detectStage(a,m){ const r=latestRepForMethod(a,m); const st=STG(m); con
   const c=String(r.content||''); const i=c.indexOf('[특기사항]'); const text=(i>=0?c.slice(i):c)+'\n'+(r.title||'');
   let hit=-1; kws.forEach((re,idx)=>{ if(re.test(text))hit=idx; });
   if(hit<0)return null; const date=(String(r.title||'').match(/(\d{4}-\d{2}-\d{2})/)||[])[1]||(r.created_at||'').slice(0,10);
+  const dis=(csData(a)||{}).detectDismiss; if(dis&&dis[m]===r.id)return null;   // ✕로 숨긴 제안(그 일지 기준) — 새 일지가 오면 다시 표시
   return {idx:hit,name:st.stages[hit],rep:r,date}; }
+/* ✕: 이 공법의 현재 제안을 숨김 (일지 id 기준으로 기억 → 다음 일지가 오면 새 제안이 다시 뜸) */
+async function dismissDetectedStage(aptId,m){ const a=APTS.find(x=>x.id===aptId); const d0=a&&detectStage(a,m); if(!a||!d0)return;
+  const slug=csSlug(a.name); const d={...(CSITES[slug]||{}),_name:a.name}; d.detectDismiss={...((d.detectDismiss&&typeof d.detectDismiss==='object')?d.detectDismiss:{}),[m]:d0.rep.id}; CSITES[slug]=d;
+  renderProjList(); if(curProj&&curProj.id===aptId){ try{renderProj();}catch(e){} }
+  const {error}=await sb.from('control_sites').upsert({slug,name:a.name,apartment_id:a.id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'});
+  if(error)console.warn('제안 숨김 저장 실패',error.message);
+}
 /* 공정 저장: control_sites.data.progress[m] + 대표 공법이면 apartments.progress_current 도 갱신(앱 공정률) */
 async function setMethodProgress(aptId,m,cur){ const a=APTS.find(x=>x.id===aptId); if(!a||!STG(m))return; const tot=STG(m).stages.length; cur=Math.max(0,Math.min(tot,cur|0));
   const slug=csSlug(a.name); const d={...(CSITES[slug]||{}),_name:a.name}; d.progress={...((d.progress&&typeof d.progress==='object')?d.progress:{}),[m]:cur}; if(!Array.isArray(d.methods)||!d.methods.includes(m))d.methods=siteMethods(a); CSITES[slug]=d;
@@ -556,7 +564,7 @@ async function applyDetectedStage(aptId,m){ const a=APTS.find(x=>x.id===aptId); 
 function progressRowsHtml(a,opt){ opt=opt||{}; const list=siteProgressList(a); const bw=opt.barW||60;
   if(!list.length){ const pr=progressOf(a); return pr.tot?`<div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:${bw}px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div>`:`<span style="font-size:11px;color:var(--mut)">${opt.emptyText||'-'}</span>`; }
   const multi=list.length>1;
-  return list.map(p=>{ const det=detectStage(a,p.m); const hint=(det&&det.idx!==p.cur)?`<div class="pghint" title="최신 감리일지(${esc(det.date)})에서 '${esc(det.name)}' 공정이 읽혔어요. 눌러서 공정에 반영">📝 일지 ${esc(det.date.slice(5))}: ${esc(det.name)} <span class="link" onclick="event.stopPropagation();applyDetectedStage('${a.id}','${p.m}')">반영</span></div>`:'';
+  return list.map(p=>{ const det=detectStage(a,p.m); const hint=(det&&det.idx!==p.cur)?`<div class="pghint" title="최신 감리일지(${esc(det.date)})에서 '${esc(det.name)}' 공정이 읽혔어요. 눌러서 공정에 반영">📝 일지 ${esc(det.date.slice(5))}: ${esc(det.name)} <span class="link" onclick="event.stopPropagation();applyDetectedStage('${a.id}','${p.m}')">반영</span> <span class="link" style="color:var(--mut);margin-left:2px" title="이 제안 숨기기 — 직접 설정할 때. 새 일지가 올라오면 다시 제안해요" onclick="event.stopPropagation();dismissDetectedStage('${a.id}','${p.m}')">✕</span></div>`:'';
     const stName=p.done?'✅ 완료':(p.stage?esc(p.stage):'시작 전');
     return `<div class="pgrow">${multi?`<span class="pgl">${esc(p.short)}</span>`:''}<div class="bar" style="width:${bw}px"><i style="width:${p.pct}%"></i></div><span class="pgp">${p.pct}%</span><span class="pgs" title="${p.cur}/${p.tot}단계">${stName}</span></div>${hint}`; }).join('');
 }

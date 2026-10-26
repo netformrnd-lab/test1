@@ -174,7 +174,7 @@ pen_cards = [
           {"path": "02_볼펜_흰색_목업.png", "label": "목업 — 화이트"},
           {"path": "볼펜_종이케이스.png", "label": "종이케이스 포장 (18×154mm)"}],
          url="https://daehangift-gyeonggi.com/shop/view.php?index_no=726254",
-         decided="선정"),
+         decided="회의때 선정"),
     card("②", "에어슬림 볼펜 (흰/네이비/검정 3색)",
          [("모델", "B8459"),
           ("타입", "클릭형 슬림 볼펜 (골드 포인트)"),
@@ -269,7 +269,7 @@ dji_cards = [
           ("명암 / 색역", "1,000,000:1 · 98% DCI-P3"),
           ("단가", "<strong>1,220,000원</strong>")],
          [{"path": "21_DJI_RC_Pro_2_제품_이미지.jpg", "label": "제품 이미지"}],
-         url="https://www.dji.com/rc-pro-2", url_text="DJI 공식", decided="선정 (1대)"),
+         url="https://www.dji.com/rc-pro-2", url_text="DJI 공식", decided="회의때 선정 (1대)"),
 ]
 
 # ----- 6. 장비가방 -----
@@ -291,7 +291,7 @@ bag_cards = [
           ("소비자가", "117,000원"), ("인쇄", "자사 로고 인쇄 적용")],
          [{"path": "25_K25600_장비가방.jpg", "label": "제품 이미지"}],
          url="https://www.gabang1bungi.com/product/k25600/5041/category/27/display/1/",
-         url_text="제품 페이지", decided="선정 · 자사 로고"),
+         url_text="제품 페이지", decided="회의때 선정 · 자사 로고"),
 ]
 
 # ----- 7. 열화상 카메라 -----

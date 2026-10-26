@@ -58,6 +58,9 @@ main{flex:1;min-width:0;padding:24px 34px 70px;max-width:1680px;margin:0 auto}
 .tile .edge{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
 #projTableWrap.money-off .money-col{display:none}
 .repsum{font-size:11px;color:var(--mut2);margin-top:3px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pgrow{display:flex;align-items:center;gap:6px;white-space:nowrap;margin:2px 0}.pgrow .pgl{font-size:11px;font-weight:800;color:var(--mut2);min-width:44px}.pgrow .pgp{font-size:11px;color:var(--mut);min-width:30px}.pgrow .pgs{font-size:11px;font-weight:700;color:var(--fg)}
+.pghint{font-size:10.5px;color:#8a5a00;background:#fff8ec;border-radius:6px;padding:1px 6px;margin:1px 0 3px;white-space:nowrap;display:inline-block}
+.mchk{display:flex;flex-wrap:wrap;gap:6px 14px;padding:4px 0}.mchk label{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;cursor:pointer}.mchk .mprog{display:flex;align-items:center;gap:6px;margin:4px 0 0;font-size:12px}.mchk .mprog select{font-size:12px;padding:4px 7px;border-radius:7px;border:1px solid var(--line)}
 .repsum .link{font-weight:600;color:var(--blue)}
 .tile.clickable{cursor:pointer;transition:box-shadow .15s,border-color .15s}.tile.clickable:hover{border-color:var(--blue);box-shadow:0 6px 18px -10px rgba(47,107,246,.5)}
 .tile.good .edge{background:var(--green)}.tile.warn .edge{background:var(--amber)}.tile.crit .edge{background:var(--red)}
@@ -506,9 +509,57 @@ function auditorName(id){ const m=MEMBERS.find(x=>x.id===id); return m?(m.name||
 function siteAuditors(a){ const ids=aptAuditors(a); return ids.length?ids.map(auditorName).join(', '):'<span style="color:var(--mut)">미배정</span>'; }
 function aptName(id){ const a=APTS.find(x=>x.id===id); return a?a.name:'-'; }
 // 공종 표시: 공법(methodLabel)을 우선 사용, 없으면 옛 construction_type
-function siteType(a){ return (window.methodLabel&&window.methodLabel(a.method))||(a.construction_type&&String(a.construction_type).trim())||''; }
 function STG(m){ return (window.STAGE_SETS&&window.STAGE_SETS[m])||null; }
-function progressOf(a){ const st=STG(a.method); const tot=st?st.stages.length:(a.progress_total||0); const cur=a.progress_current||0; return {cur,tot,pct:tot?Math.round(cur/tot*100):0}; }
+/* ── 다공종: 한 단지에 공법 여러 개 ──
+   저장: apartments.method = 대표 공법(앱·체크리스트 호환) · control_sites.data.methods = 전체 목록 · control_sites.data.progress = {공법: 끝낸 단계 수}
+   (control_sites 는 관리자 전용 jsonb 라 DB 마이그레이션 없이 바로 씀) */
+const METHOD_SHORT={repaint:'재도장',metalroof:'금속지붕',shingle:'슁글',epoxy:'에폭시',composite:'옥상방수',block:'보도블록',ascon:'아스콘'};
+function methodShort(m){ return METHOD_SHORT[m]||(window.methodLabel&&window.methodLabel(m))||m||''; }
+function siteMethods(a){ if(!a)return []; const d=csData(a)||{}; const ms=(Array.isArray(d.methods)?d.methods:[]).filter(k=>STG(k)); if(a.method&&STG(a.method)&&!ms.includes(a.method))ms.unshift(a.method); return ms; }
+function methodProgress(a,m){ const st=STG(m); const tot=st?st.stages.length:0; const d=csData(a)||{}; const pm=(d.progress&&typeof d.progress==='object')?d.progress:null;
+  let cur=(pm&&pm[m]!=null)?+pm[m]:(m===a.method?(a.progress_current||0):0); if(isNaN(cur))cur=0; cur=Math.max(0,Math.min(tot,cur|0));
+  return {m,label:(window.methodLabel&&window.methodLabel(m))||m,short:methodShort(m),cur,tot,pct:tot?Math.round(cur/tot*100):0,stage:tot?(cur>=tot?'':st.stages[cur]):'',done:!!tot&&cur>=tot}; }
+function siteProgressList(a){ return siteMethods(a).map(m=>methodProgress(a,m)); }
+function siteType(a){ const ms=siteMethods(a); if(ms.length)return ms.map(m=>(window.methodLabel&&window.methodLabel(m))||m).join(', '); return (a.construction_type&&String(a.construction_type).trim())||''; }
+function progressOf(a){ if(a&&a.method&&STG(a.method)){ const p=methodProgress(a,a.method); return {cur:p.cur,tot:p.tot,pct:p.pct}; } const tot=(a&&a.progress_total)||0; const cur=(a&&a.progress_current)||0; return {cur,tot,pct:tot?Math.round(cur/tot*100):0}; }
+/* ── 최신 감리일지에서 '현재 공정' 감지 (규칙 기반, 제안용 — 담당자가 '반영'을 눌러야 저장) ── */
+const WT_METHODS={'재도장':['repaint'],'옥상':['composite','metalroof','shingle'],'옥상방수':['composite','metalroof','shingle'],'지하주차장':['epoxy'],'에폭시':['epoxy'],'보도블록':['block'],'아스콘':['ascon']};
+const STAGE_KW={
+  repaint:[/고압\s*세척|세척/, /균열/, /바인더/, /페인트|수성|도장/, /그래픽/, /마무리|시공\s*완료|준공/],
+  metalroof:[/끝단|마감재/, /이음부|보강시트\s*방수/, /바탕면|강화/, /보강시트\s*부착|시트\s*부착/, /중도\s*\(?1|중도\s*1|방수액/, /중도\s*\(?2|중도\s*2/, /상도/, /시공\s*완료|준공/],
+  shingle:[/끝단|마감재/, /이음부/, /바탕|하도/, /보강시트/, /함침/, /중도\s*\(?1|중도\s*1/, /중도\s*\(?2|중도\s*2/, /상도/],
+  epoxy:[/바탕|하도/, /중도\s*1|중도\s*\(?1/, /균열/, /중도\s*2|중도\s*\(?2/, /논슬립|상도/, /시공\s*완료|준공/],
+  composite:[/바탕|균열/, /함침|하도/, /시트\s*부착|방수시트/, /이음부|곡각/, /중도/, /상도/, /시공\s*완료|준공/],
+  block:[/철거/, /노상/, /기층/, /경계석|측구/, /모래\s*포설|바닥\s*모래/, /부설/, /줄눈|진동/, /시공\s*완료|준공/],
+  ascon:[/절삭|철거/, /노상/, /기층/, /경계석|측구|맨홀/, /택코트/, /포설|다짐/, /차선|구획/, /시공\s*완료|준공/]
+};
+function latestRepForMethod(a,m){ const rs=REPORTS.filter(r=>r.apartment_id===a.id).slice().sort((x,y)=>(y.created_at||'').localeCompare(x.created_at||''));
+  const fit=rs.filter(r=>{ const w=repWorktype(r); if(!w)return false; const ks=WT_METHODS[w]||[]; return ks.includes(m); });
+  if(fit.length)return fit[0];
+  if(siteMethods(a).length<=1 && rs.length && !repWorktype(rs[0]))return rs[0];   // 공종 미기록 일지는 단일 공법일 때만 사용
+  return null; }
+function detectStage(a,m){ const r=latestRepForMethod(a,m); const st=STG(m); const kws=STAGE_KW[m]; if(!r||!st||!kws)return null;
+  const c=String(r.content||''); const i=c.indexOf('[특기사항]'); const text=(i>=0?c.slice(i):c)+'\n'+(r.title||'');
+  let hit=-1; kws.forEach((re,idx)=>{ if(re.test(text))hit=idx; });
+  if(hit<0)return null; const date=(String(r.title||'').match(/(\d{4}-\d{2}-\d{2})/)||[])[1]||(r.created_at||'').slice(0,10);
+  return {idx:hit,name:st.stages[hit],rep:r,date}; }
+/* 공정 저장: control_sites.data.progress[m] + 대표 공법이면 apartments.progress_current 도 갱신(앱 공정률) */
+async function setMethodProgress(aptId,m,cur){ const a=APTS.find(x=>x.id===aptId); if(!a||!STG(m))return; const tot=STG(m).stages.length; cur=Math.max(0,Math.min(tot,cur|0));
+  const slug=csSlug(a.name); const d={...(CSITES[slug]||{}),_name:a.name}; d.progress={...((d.progress&&typeof d.progress==='object')?d.progress:{}),[m]:cur}; if(!Array.isArray(d.methods)||!d.methods.includes(m))d.methods=siteMethods(a); CSITES[slug]=d;
+  const {error}=await sb.from('control_sites').upsert({slug,name:a.name,apartment_id:a.id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'});
+  if(error){ alert('공정 저장 실패: '+error.message); return; }
+  if(m===a.method){ a.progress_current=cur; a.progress_total=tot; try{ await sb.from('apartments').update({progress_current:cur,progress_total:tot}).eq('id',aptId); }catch(e){} }
+  renderProjList(); if(curProj&&curProj.id===aptId){ try{renderProj();}catch(e){} }
+}
+async function applyDetectedStage(aptId,m){ const a=APTS.find(x=>x.id===aptId); const d=a&&detectStage(a,m); if(!d)return; await setMethodProgress(aptId,m,d.idx); }
+/* 공정률 칸(리스트·상세 공용): 공법마다 한 줄 — 짧은 공종명 · 바 · % · 현재 공정 · (일지 감지 시) 반영 링크 */
+function progressRowsHtml(a,opt){ opt=opt||{}; const list=siteProgressList(a); const bw=opt.barW||60;
+  if(!list.length){ const pr=progressOf(a); return pr.tot?`<div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:${bw}px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div>`:`<span style="font-size:11px;color:var(--mut)">${opt.emptyText||'-'}</span>`; }
+  const multi=list.length>1;
+  return list.map(p=>{ const det=detectStage(a,p.m); const hint=(det&&det.idx!==p.cur)?`<div class="pghint" title="최신 감리일지(${esc(det.date)})에서 '${esc(det.name)}' 공정이 읽혔어요. 눌러서 공정에 반영">📝 일지 ${esc(det.date.slice(5))}: ${esc(det.name)} <span class="link" onclick="event.stopPropagation();applyDetectedStage('${a.id}','${p.m}')">반영</span></div>`:'';
+    const stName=p.done?'✅ 완료':(p.stage?esc(p.stage):'시작 전');
+    return `<div class="pgrow">${multi?`<span class="pgl">${esc(p.short)}</span>`:''}<div class="bar" style="width:${bw}px"><i style="width:${p.pct}%"></i></div><span class="pgp">${p.pct}%</span><span class="pgs" title="${p.cur}/${p.tot}단계">${stName}</span></div>${hint}`; }).join('');
+}
 const STATUS={in_progress:['공사중','blue'],done:['완료','gray'],scheduled:['점검예정','no']};
 
 /* ===== 로그인/게이트 ===== */
@@ -1399,7 +1450,7 @@ function renderProjList(){
 }
 function renderProjRows(list){
   if(!$('projRows'))return;
-  $('projRows').innerHTML=list.length?list.map(a=>{const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nvisit=aptVisits(a.id);const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td class="money-col">${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td class="money-col">${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}${repSummaryCell(a.id)}</td><td>${nvisit}회</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td>${stepBarHtml(a)}</td></tr>`;}).join(''):`<tr><td colspan="9" class="empty">${projStage==='전체'?'단지가 없어요':esc(stageMeta(projStage)[1])+' 단계인 단지가 없어요'}</td></tr>`;
+  $('projRows').innerHTML=list.length?list.map(a=>{const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nvisit=aptVisits(a.id);const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td class="money-col">${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td class="money-col">${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}${repSummaryCell(a.id)}</td><td>${nvisit}회</td><td>${progressRowsHtml(a,{barW:60})}</td><td>${stepBarHtml(a)}</td></tr>`;}).join(''):`<tr><td colspan="9" class="empty">${projStage==='전체'?'단지가 없어요':esc(stageMeta(projStage)[1])+' 단계인 단지가 없어요'}</td></tr>`;
 }
 /* ── 칸반 ── */
 let kbDragId=null;
@@ -1485,16 +1536,14 @@ function renderProj(){
     <button class="${projTab==='report'?'on':''}" onclick="setProjTab('report')">📄 감리일지 ${reps.length}</button>
     <button class="${projTab==='photo'?'on':''}" onclick="setProjTab('photo')">📷 작업사진 ${flds.length}</button>
     <button class="${projTab==='history'?'on':''}" onclick="setProjTab('history')">🕒 히스토리 ${SITE_NOTES.filter(n=>n.apartment_id===p.id).length}</button></div>`;
-  const stName=(pr.tot&&window.methodStages&&window.methodStages(p.method))?(pr.cur>=pr.tot?'✅ 시공 완료':((window.methodStages(p.method)[pr.cur]||'')+' 예정/진행')):(p.method?'':'공법 미지정');
   let body='';
   if(projTab==='overview'){
     body=`<div class="grid2"><div class="card"><h3>현장 정보 <span class="r"><button class="b line sm" onclick="openAptEdit('${p.id}')">⚙️ 단지 설정</button></span></h3>
       <div class="kv"><span>지역</span><b>${esc(p.region)||'-'}</b></div><div class="kv"><span>공종</span><b>${esc(siteType(p))||'-'}</b></div>
       <div class="kv"><span>담당 감리</span><b>${siteAuditors(p)}</b></div>
-      <div class="kv"><span>공법</span><b>${esc((window.methodLabel&&window.methodLabel(p.method))||p.method||'미지정')}</b></div>
+      <div class="kv"><span>공법</span><b>${esc(siteMethods(p).map(m=>window.methodLabel(m)).join(', ')||'미지정')}${siteMethods(p).length>1?` <span style="font-size:11px;color:var(--mut);font-weight:600">(대표: ${esc(window.methodLabel(p.method)||'-')})</span>`:''}</b></div>
       <div class="kv"><span>단계</span><b style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span class="pill" style="background:${stageMeta(stageOf(p))[3]}1f;color:${stageMeta(stageOf(p))[3]}">${esc(stageLabel(p))}</span>${stepBarHtml(p)}</b></div>
-      <div class="kv"><span>공정</span><b>${pr.tot?`${pr.cur}/${pr.tot}단계 (${pr.pct}%)${stName?' · '+esc(stName):''}`:'<span style="color:var(--mut)">공법을 정하면 공정이 표시돼요 (⚙️ 단지 설정)</span>'}</b></div>
-      ${pr.tot?`<div class="bar" style="margin-top:6px"><i style="width:${pr.pct}%"></i></div>`:''}
+      <div class="kv" style="align-items:flex-start"><span>공정</span><b style="display:block;flex:1">${siteMethods(p).length?progressRowsHtml(p,{barW:140}):'<span style="color:var(--mut)">공법을 정하면 공정이 표시돼요 (⚙️ 단지 설정)</span>'}</b></div>
       <div style="font-size:11px;color:var(--mut);margin-top:10px">💡 담당 감리원·공법·공정·상태는 <b>⚙️ 단지 설정</b>에서 바꿔요.</div></div>
       ${billingCard(p,cons)}</div>`+
       `<div class="card"><h3>📝 현장개요 <span class="r">이 현장의 핵심 요약 (관리자 메모)</span></h3>
@@ -1833,6 +1882,11 @@ async function submitBilling(aptId){
 function methodOptsC(cur){ let o='<option value="">— 공법 미지정 —</option>'; const S=window.STAGE_SETS||{}; for(const k in S){o+=`<option value="${k}" ${k===cur?'selected':''}>${esc(S[k].label)}</option>`;} return o; }
 function stageOptsC(method,cur){ const s=((window.STAGE_SETS||{})[method]||{}).stages; if(!s)return '<option value="0">— 공법을 먼저 선택 —</option>'; let o=`<option value="0" ${cur===0?'selected':''}>시작 전 (0/${s.length})</option>`; s.forEach((nm,i)=>{const v=i+1;o+=`<option value="${v}" ${cur===v?'selected':''}>${esc(nm)} 완료 (${v}/${s.length})</option>`;}); return o; }
 function onMethodChangeC(sel){ const box=$('m-stage'); if(box) box.innerHTML=stageOptsC(sel.value,0); }
+/* 다공종 체크박스: 여러 개 선택, 첫 번째(목록 순)가 대표 공법. 체크한 공법마다 공정 select */
+function methodChecksC(sel,prog){ sel=sel||[]; prog=prog||{}; const S=window.STAGE_SETS||{}; const first=Object.keys(S).find(k=>sel.includes(k));
+  return Object.keys(S).map(k=>{ const on=sel.includes(k); return `<div><label><input type="checkbox" class="m-meth" value="${k}" ${on?'checked':''} onchange="onMethodsChangeC()"> ${esc(S[k].label)}${on&&k===first?' <span class="pill blue" style="font-size:10px;padding:1px 7px">대표</span>':''}</label>${on?`<div class="mprog"><span style="color:var(--mut)">공정</span><select class="m-prog" data-m="${k}">${stageOptsC(k,+(prog[k]||0))}</select></div>`:''}</div>`; }).join(''); }
+function readMethodsC(){ const sel=[...document.querySelectorAll('.m-meth:checked')].map(c=>c.value); const prog={}; document.querySelectorAll('.m-prog').forEach(se=>{ prog[se.dataset.m]=parseInt(se.value,10)||0; }); return {sel,prog}; }
+function onMethodsChangeC(){ const box=$('m-methods'); if(!box)return; const {sel,prog}=readMethodsC(); box.innerHTML=methodChecksC(sel,prog); }
 let APT_ADD_LINK=null; // 영업 성사 이관 시 연결할 sales_leads id
 function openAptAdd(pre){ pre=pre||{}; APT_ADD_LINK=pre._leadId||null;
   const auds=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
@@ -1843,7 +1897,7 @@ function openAptAdd(pre){ pre=pre||{}; APT_ADD_LINK=pre._leadId||null;
     <div class="fld"><label>단지명 *</label><input id="m-name" value="${esc(pre.name)||''}" placeholder="예: 서울 노원 ○○아파트"></div>
     <div class="frow"><div class="fld"><label>지역</label><input id="m-region" value="${esc(pre.region)||''}" placeholder="예: 서울 노원"></div><div class="fld"><label>세대수</label><input id="m-house" type="number" value="${pre.households!=null?pre.households:''}" placeholder="예: 1240"></div></div>
     <div class="fld"><label>주소 <span style="font-weight:600;color:var(--mut)">(일정 등록 시 자동입력)</span></label><input id="m-address" value="${esc(pre.address)||''}" placeholder="예: 서울 노원구 ○○로 12"></div>
-    <div class="frow"><div class="fld"><label>공법 <span style="font-weight:600;color:var(--mut)">(공종 자동)</span></label><select id="m-method" onchange="onMethodChangeC(this)">${methodOptsC(pre.method||'')}</select></div><div class="fld"><label>공정</label><select id="m-stage">${stageOptsC(pre.method||'',0)}</select></div></div>
+    <div class="fld"><label>공법 <span style="font-weight:600;color:var(--mut)">(여러 개 선택 가능 · 첫 번째가 대표 공법 · 공종 자동)</span></label><div class="mchk" id="m-methods">${methodChecksC(pre.method?[pre.method]:[],{})}</div></div>
     <div class="frow"><div class="fld"><label>단계</label><select id="m-stagekey">${SITE_STAGES.map(([k,lab,desc])=>`<option value="${k}">${esc(lab)} · ${esc(desc)}</option>`).join('')}</select></div><div class="fld"><label>대표 감리원</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(a=>`<option value="${a.id}">${esc(a.name||loginId(a))}</option>`).join('')}</select></div></div>
     <div class="frow"><div class="fld"><label>총 계약금액 (원)</label><input id="m-ca" type="number" value="${pre.contract_amount!=null?pre.contract_amount:''}" placeholder="공사비"></div><div class="fld"><label>감리비 (원)</label><input id="m-sf" type="number" value="${pre.supervision_fee!=null?pre.supervision_fee:''}" placeholder="우리 매출"></div></div>
     <div class="fld"><label>수금액 (원)</label><input id="m-rc" type="number" placeholder="받은 금액 · 미수금 자동 계산"></div>
@@ -1854,9 +1908,9 @@ function openAptAdd(pre){ pre=pre||{}; APT_ADD_LINK=pre._leadId||null;
 }
 async function submitAptAdd(){
   const name=$('m-name').value.trim(); if(!name){$('m-msg').textContent='단지명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const method=$('m-method').value||null;
+  const {sel:mSel,prog:mProg}=readMethodsC(); const method=mSel[0]||null;
   const stArr=((window.STAGE_SETS||{})[method]||{}).stages; const pt=stArr?stArr.length:0;
-  let pc=parseInt(($('m-stage')||{}).value,10); if(isNaN(pc)||pc<0)pc=0; if(pt&&pc>pt)pc=pt;
+  let pc=method?(mProg[method]||0):0; if(pt&&pc>pt)pc=pt;
   const num=id=>{ const el=$(id); if(!el)return null; const v=(el.value||'').trim(); if(v==='')return null; const n=parseInt(v.replace(/[^0-9]/g,''),10); return isNaN(n)?null:n; };
   const rec={ name, region:$('m-region').value.trim()||null, address:($('m-address')||{}).value?.trim()||null, households:num('m-house'),
     method, progress_current:pc, progress_total:pt, status:STATUS_BY_STAGE[($('m-stagekey')||{}).value]||'scheduled',
@@ -1866,7 +1920,7 @@ async function submitAptAdd(){
   const {data,error}=await sb.from('apartments').insert(rec).select('id').single();
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
   // 5단계 원본을 control_sites 에도 기록 (계약/착공, 준공처리중 구분용)
-  const sk0=($('m-stagekey')||{}).value; if(data&&STAGE_KEYS.includes(sk0)){ try{ const slug=csSlug(name); const d={...(CSITES[slug]||{}),_name:name,stage:sk0,stageAt:new Date().toISOString()}; CSITES[slug]=d; await sb.from('control_sites').upsert({slug,name,apartment_id:data.id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'}); }catch(e){console.warn('단계 저장 실패',e);} }
+  const sk0=($('m-stagekey')||{}).value; if(data&&STAGE_KEYS.includes(sk0)){ try{ const slug=csSlug(name); const d={...(CSITES[slug]||{}),_name:name,stage:sk0,stageAt:new Date().toISOString(),methods:mSel,progress:mProg}; CSITES[slug]=d; await sb.from('control_sites').upsert({slug,name,apartment_id:data.id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'}); }catch(e){console.warn('단계 저장 실패',e);} }
   if(APT_ADD_LINK&&data){ try{ await sb.from('sales_leads').update({apartment_id:data.id,stage:'won',stage_changed_at:new Date().toISOString()}).eq('id',APT_ADD_LINK);}catch(e){} }
   APT_ADD_LINK=null;
   closeModal(); await loadAll();
@@ -1880,7 +1934,7 @@ function openAptEdit(id){
     <div class="fld"><label>단지명 *</label><input id="m-name" value="${esc(a.name)||''}"></div>
     <div class="frow"><div class="fld"><label>지역</label><input id="m-region" value="${esc(a.region)||''}"></div><div class="fld"><label>세대수</label><input id="m-house" type="number" value="${a.households!=null?a.households:''}" placeholder="예: 1240"></div></div>
     <div class="fld"><label>주소 <span style="font-weight:600;color:var(--mut)">(일정 등록 시 자동입력)</span></label><input id="m-address" value="${esc(a.address)||''}" placeholder="예: 서울 노원구 ○○로 12"></div>
-    <div class="frow"><div class="fld"><label>공법 <span style="font-weight:600;color:var(--mut)">(공종이 자동으로 잡혀요)</span></label><select id="m-method" onchange="onMethodChangeC(this)">${methodOptsC(a.method)}</select></div><div class="fld"><label>공정</label><select id="m-stage">${stageOptsC(a.method,pc)}</select></div></div>
+    <div class="fld"><label>공법 <span style="font-weight:600;color:var(--mut)">(여러 개 선택 가능 · 첫 번째가 대표 공법 · 공종이 자동으로 잡혀요)</span></label><div class="mchk" id="m-methods">${methodChecksC(siteMethods(a),Object.fromEntries(siteProgressList(a).map(p=>[p.m,p.cur])))}</div></div>
     <div class="fld"><label>단계</label><select id="m-stagekey">${SITE_STAGES.map(([k,lab,desc])=>`<option value="${k}" ${stageOf(a)===k?'selected':''}>${esc(lab)} · ${esc(desc)}</option>`).join('')}</select></div>
     <div class="fld"><label>대표 감리원</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>
     <div class="fld"><label>함께 담당 감리원 <span style="font-weight:600;color:var(--mut)">(여러 명 체크 가능)</span></label>${auds.length?`<div class="audlist">${auds.map(m=>`<label><input type="checkbox" class="m-team" value="${m.id}" ${team.includes(m.id)?'checked':''}><span>${esc(m.name||loginId(m)||'(이름없음)')}</span></label>`).join('')}</div>`:'<div style="color:var(--mut);font-size:12px">등록된 감리원이 없어요. 회원 메뉴에서 역할을 ‘감리원’로 지정하세요.</div>'}</div>
@@ -1889,9 +1943,9 @@ function openAptEdit(id){
 }
 async function submitAptEdit(id){
   const name=$('m-name').value.trim(); if(!name){$('m-msg').textContent='단지명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const method=$('m-method').value||null;
+  const {sel:mSel,prog:mProg}=readMethodsC(); const method=mSel[0]||null;
   const stArr=((window.STAGE_SETS||{})[method]||{}).stages; const pt=stArr?stArr.length:0;
-  let pc=parseInt($('m-stage').value,10); if(isNaN(pc)||pc<0)pc=0; if(pt&&pc>pt)pc=pt;
+  let pc=method?(mProg[method]||0):0; if(pt&&pc>pt)pc=pt;
   const aud=$('m-aud').value||null;
   const team=[...document.querySelectorAll('.m-team:checked')].map(c=>c.value);
   const all=[...new Set([aud,...team].filter(Boolean))];
@@ -1899,7 +1953,7 @@ async function submitAptEdit(id){
   const sk=($('m-stagekey')||{}).value; const newStatus=STATUS_BY_STAGE[sk]||'scheduled';
   const {error}=await sb.from('apartments').update({name,region:$('m-region').value.trim()||null,address:($('m-address')||{}).value?.trim()||null,households,auditor_id:aud,method,status:newStatus,progress_current:pc,progress_total:pt}).eq('id',id);
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
-  if(STAGE_KEYS.includes(sk)){ try{ const slug=csSlug(name); const d={...(CSITES[slug]||{}),_name:name,stage:sk,stageAt:new Date().toISOString()}; CSITES[slug]=d; await sb.from('control_sites').upsert({slug,name,apartment_id:id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'}); }catch(e){console.warn('단계 저장 실패',e);} }
+  if(STAGE_KEYS.includes(sk)){ try{ const slug=csSlug(name); const d={...(CSITES[slug]||{}),_name:name,stage:sk,stageAt:new Date().toISOString(),methods:mSel,progress:mProg}; CSITES[slug]=d; await sb.from('control_sites').upsert({slug,name,apartment_id:id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'}); }catch(e){console.warn('단계 저장 실패',e);} }
   try{ await sb.from('apartment_auditors').delete().eq('apartment_id',id); if(all.length) await sb.from('apartment_auditors').insert(all.map(x=>({apartment_id:id,auditor_id:x}))); }catch(e){}
   closeModal(); await loadAll();
 }
@@ -2715,7 +2769,7 @@ function renderSchedFields(cat,m){ m=m||{}; const site=(cat==='pt'||cat==='bids'
 function onSchedCatChange(){ const cat=$('sm-cat').value; const box=$('sm-fields'); if(box)box.innerHTML=renderSchedFields(cat,{}); renderAsgnChips(); onSchedAptChange(); }
 function onSchedAptChange(){ const apt=APTS.find(a=>a.id===(($('sm-apt')||{}).value||'')); if(!apt)return;
   const sn=$('sm-siteName'); if(sn&&!sn.value)sn.value=apt.name||'';
-  const wt=$('sm-workType'); if(wt&&!wt.value)wt.value=siteType(apt)||'';
+  const wt=$('sm-workType'); if(wt&&!wt.value)wt.value=(apt.method&&window.methodLabel&&window.methodLabel(apt.method))||siteType(apt)||'';
   const ad=$('sm-address'); if(ad&&!ad.value)ad.value=apt.address||apt.region||'';
 }
 let _schedEditVisit=false;

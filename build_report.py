@@ -497,7 +497,7 @@ def summary_block(cards):
         f'      <div class="stat-card"><div class="stat-num">{n}</div>'
         f'<div class="stat-label">{l}</div></div>' for n, l in cards)
 
-TODAY = "2026-07-30"
+TODAY = "2026-10-26"
 
 # 원본 파일(클릭 시 새 탭에서 열람) 임베드
 ORIGINALS = {

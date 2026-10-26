@@ -199,7 +199,7 @@ flash_cards = [
          [{"path": "손전등_브리사_목업.png", "label": "목업 — 아파트스퀘어 로고 · 클릭 시 크게 보기", "mock": True, "hifi": True},
           {"path": "손전등_브리사.png", "label": "제품 이미지"}],
          url="https://www.ganagift.co.kr/new/shop/detail.php?start=&code=183505&cid=194&price1=&price2=",
-         url_text="제품 페이지", decided="구매 확정"),
+         url_text="제품 페이지"),
     card("②", "줌-인 비상등 후레쉬 (가나기프트)",
          [("모델", "줌-인 비상등 후레쉬 · 가나기프트 131088"),
           ("규격 / 재질", "110×35mm · 알루미늄"),
@@ -257,7 +257,7 @@ moist_cards = [
           ("단가", "<strong>27,000원</strong> (22% 할인, 정가 35,000원) · 배송 2,500원")],
          [{"path": "함수율5_GM605.png", "label": "제품 이미지"}],
          url="https://www.coupang.com/vp/products/7324088438?itemId=18790807866",
-         url_text="쿠팡 링크", decided="구매 확정 (저가형)"),
+         url_text="쿠팡 링크"),
 ]
 
 
@@ -303,7 +303,7 @@ thermal_cards = [
           ("상품평", "68개 / 97% 긍정"),
           ("단가", "<strong>171,000원</strong> (50% 할인)")],
          [{"path": "26_힛뷰_열화상카메라.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/9233256592?itemId=27295282745", url_text="쿠팡 링크", decided="구매 확정 (저가형 1개)"),
+         url="https://www.coupang.com/vp/products/9233256592?itemId=27295282745", url_text="쿠팡 링크", decided="구매 확정"),
     card("②", "GOYOJO GW192A 스마트폰 열화상 카메라 (ED-148)",
          [("해상도", "센서 <strong>96×96</strong> · 보정 192×192"),
           ("사양", "화면갱신 25Hz · 시야각 50°×50° · 45×11×34mm"),
@@ -433,7 +433,7 @@ lanyard_cards = [
          [{"path": "목걸이_디자인A.png", "label": "실물 목업 — 넥스트랩 + 감리원 명찰 · 클릭 시 크게 보기", "mock": True, "hifi": True},
           {"path": "명찰_페어패스.png", "label": "제품 이미지 (샘플)"}],
          url="https://smartstore.naver.com/bluemoon_livestudio/products/7176417330",
-         url_text="스마트스토어 링크", decided="선정 (이 제품으로)"),
+         url_text="스마트스토어 링크"),
     card("②", "온판장 — 행사용 고급 목걸이 명찰 (인쇄 제작)",
          [("용도", "행사·전시·세미나용 목걸이 명찰 (디자인+인쇄 올인원)"),
           ("구성", "고급 목걸이 명찰 + 목걸이 스트랩 (디자인 인쇄 포함)"),

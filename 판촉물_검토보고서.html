@@ -935,18 +935,20 @@ var ORIGINALS = {
 (function(){
   var lb = document.getElementById('lightbox');
   var im = document.getElementById('lightbox-img');
-  function openOriginal(f){
+  function openOriginal(f, key){
     var bin = atob(f.b64), n = bin.length, arr = new Uint8Array(n);
     for (var i=0;i<n;i++) arr[i] = bin.charCodeAt(i);
     var url = URL.createObjectURL(new Blob([arr], {type: f.mime}));
-    var w = window.open(url, '_blank');
+    var a = document.createElement('a');
+    a.href = url; a.target = 'pdf_' + key; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
   }
   document.addEventListener('click', function(e){
     var t = e.target;
     if (t.tagName === 'IMG' && t.closest('.img-box')) {
       var key = t.getAttribute('data-file');
-      if (key && ORIGINALS[key]) { openOriginal(ORIGINALS[key]); return; }
+      if (key && ORIGINALS[key]) { openOriginal(ORIGINALS[key], key); return; }
       im.src = t.src;
       lb.classList.add('open');
     } else if (lb.classList.contains('open')) {

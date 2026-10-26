@@ -56,6 +56,9 @@ main{flex:1;min-width:0;padding:24px 34px 70px;max-width:1680px;margin:0 auto}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 17px;position:relative;overflow:hidden}
 .tile .edge{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
+#projTableWrap.money-off .money-col{display:none}
+.repsum{font-size:11px;color:var(--mut2);margin-top:3px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.repsum .link{font-weight:600;color:var(--blue)}
 .tile.clickable{cursor:pointer;transition:box-shadow .15s,border-color .15s}.tile.clickable:hover{border-color:var(--blue);box-shadow:0 6px 18px -10px rgba(47,107,246,.5)}
 .tile.good .edge{background:var(--green)}.tile.warn .edge{background:var(--amber)}.tile.crit .edge{background:var(--red)}
 .tile .k{font-size:12px;color:var(--mut2);font-weight:700;margin-bottom:7px}
@@ -364,9 +367,9 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-projects">
       <div class="head"><div><h2>공사관리</h2><div class="desc">단계(계약 → 착공 → 공사중 → 준공처리 → 준공)를 눌러 바로 이동 · 단지 클릭 → 상세(감리일지·작업사진·계약서·방문이력)</div></div></div>
       <div id="projList">
-        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openReportAddPick()">📝 감리일지 작성</button><button class="b line" onclick="openAptAdd()">➕ 단지 추가</button><button class="b line" onclick="openBulkAssign()">👥 감리원 일괄배정</button><span style="flex:1"></span><div class="seg" style="margin:0"><button id="pv-list" onclick="setProjView('list')">📋 리스트</button><button id="pv-kanban" onclick="setProjView('kanban')">🗂️ 칸반</button></div></div>
+        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openReportAddPick()">📝 감리일지 작성</button><button class="b line" onclick="openAptAdd()">➕ 단지 추가</button><button class="b line" id="pv-money" onclick="toggleProjMoney()" title="감리비·미수금 열 보기/숨기기">💰 금액 보기</button><button class="b line" onclick="openBulkAssign()">👥 감리원 일괄배정</button><span style="flex:1"></span><div class="seg" style="margin:0"><button id="pv-list" onclick="setProjView('list')">📋 리스트</button><button id="pv-kanban" onclick="setProjView('kanban')">🗂️ 칸반</button></div></div>
         <div class="stgfilter" id="projStageFilter"></div>
-        <div id="projTableWrap" style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:1000px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리원</th><th>감리비</th><th>미수금</th><th>감리일지</th><th>방문</th><th>공정률</th><th style="min-width:190px">단계 <span style="font-weight:600;color:var(--mut)">(클릭 이동)</span></th></tr></thead><tbody id="projRows"></tbody></table></div></div>
+        <div id="projTableWrap" class="money-off" style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:1000px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리원</th><th class="money-col">감리비</th><th class="money-col">미수금</th><th>감리일지</th><th>방문</th><th>공정률</th><th style="min-width:190px">단계 <span style="font-weight:600;color:var(--mut)">(클릭 이동)</span></th></tr></thead><tbody id="projRows"></tbody></table></div></div>
         <div id="projKanbanWrap" class="kbwrap" style="display:none"><div class="kbboard" id="projKanban"></div></div>
       </div>
       <div id="projDetail" style="display:none"></div>
@@ -1345,6 +1348,37 @@ try{ const v=localStorage.getItem('asq_proj_view'); if(v==='kanban'||v==='list')
 function setProjView(v){ projView=v; try{localStorage.setItem('asq_proj_view',v);}catch(e){} renderProjList(); }
 function setProjStage(k){ projStage=(projStage===k&&k!=='전체')?'전체':k; renderProjList();
   if(projView==='kanban'&&projStage!=='전체'){ const c=document.querySelector('.kbcol.sel'); if(c&&c.scrollIntoView)c.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}); } }
+/* ── 공사관리 리스트: 감리비·미수금 열 토글 (기본 숨김, 선택은 브라우저에 기억) ── */
+let projMoney=(lsGet('aptsq_proj_money')==='1');
+function applyProjMoney(){ const w=$('projTableWrap'); if(w)w.classList.toggle('money-off',!projMoney); const b=$('pv-money'); if(b){ b.textContent=projMoney?'💰 금액 숨기기':'💰 금액 보기'; b.classList.toggle('blue',projMoney); b.classList.toggle('line',!projMoney); } }
+function toggleProjMoney(){ projMoney=!projMoney; lsSet('aptsq_proj_money',projMoney?'1':'0'); applyProjMoney(); }
+/* ── 감리일지 한 줄 요약 (규칙 기반) ──
+   체크리스트가 만드는 본문의 [특기사항] 안에서 '1. 외부 수성도장 및 그래픽도장 점검' 같은 번호 제목을 첫 줄로 뽑는다.
+   없으면 '공종:' 줄 → 특기사항 첫 줄 → [시공사 보고]/[감리 확인] 첫 항목 → 제목 순으로 대체. */
+function repSummary(r){
+  const c=String((r&&r.content)||'');
+  const clean=t=>String(t||'').replace(/^[\s·▪\-–•*]+/,'').replace(/[\s:：\-–—]+$/,'').replace(/\s+/g,' ').trim();
+  const cut=t=>t.length>42?t.slice(0,41)+'…':t;
+  const block=(name)=>{ const i=c.indexOf('['+name+']'); if(i<0)return ''; const rest=c.slice(i+name.length+2); const j=rest.search(/\n\s*\[[^\]\n]+\]|\n━+/); return j<0?rest:rest.slice(0,j); };
+  const note=block('특기사항');
+  if(note){
+    const lines=note.split('\n').map(clean).filter(Boolean);
+    const num=lines.find(l=>/^\d+[.)]\s*\S/.test(l)); if(num)return cut(clean(num.replace(/^\d+[.)]\s*/,'')));
+    const gj=lines.find(l=>/^공종\s*[:：]/.test(l)); if(gj)return cut(clean(gj.replace(/^공종\s*[:：]\s*/,'')));
+    const first=lines.find(l=>l!=='없음'&&!/^(현장명|점검일|감리자|날씨|날짜|회차)\s*[:：]/.test(l)&&!/^-+$/.test(l)); if(first)return cut(first);
+  }
+  for(const nm of ['감리 확인','시공사 보고']){ const b=block(nm); if(b){ const l=b.split('\n').map(clean).filter(x=>x&&!/^(보고 없음|확인사항 없음)$/.test(x))[0]; if(l)return cut(l); } }
+  const t=String((r&&r.title)||'').replace(/^\[감리일지\]\s*/,'').replace(/^[^·]*·\s*/,''); return cut(clean(t));
+}
+function latestReps(aptId){ const rs=REPORTS.filter(r=>r.apartment_id===aptId).slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')); if(!rs.length)return [];
+  const wts=[...new Set(rs.map(r=>repWorktype(r)).filter(Boolean))];
+  if(wts.length<=1)return [rs[0]];                       // 공종 하나(또는 미기록)면 최신 1건
+  return wts.map(w=>rs.find(r=>repWorktype(r)===w)).filter(Boolean).slice(0,3);   // 다공종이면 공종별 최신 1건씩
+}
+function repSummaryCell(aptId){ const reps=latestReps(aptId); if(!reps.length)return ''; const multi=reps.length>1;
+  return reps.map(r=>{ const dm=String(r.title||'').match(/(\d{4}-\d{2}-\d{2})/); const dfull=dm?dm[1]:(r.created_at||'').slice(0,10); const d=dfull.slice(5); const sm=repSummary(r); const wk=repWorktype(r); const full=esc((wk?wk+' · ':'')+dfull+' '+sm);   // 날짜 = 일지 제목의 점검일(없으면 작성일)
+    return `<div class="repsum" title="${full} — 눌러서 일지 보기"><span class="link" onclick="openReportView('${r.id}')">${multi&&wk?esc(wk)+' · ':''}${esc(d)} ${esc(sm)||'(내용 없음)'}</span></div>`; }).join('');
+}
 function renderProjList(){
   const q=($('proj-q')?.value||'').trim().toLowerCase();
   let base=APTS.slice(); if(q)base=base.filter(a=>((a.name||'')+' '+(a.region||'')).toLowerCase().includes(q));
@@ -1361,10 +1395,11 @@ function renderProjList(){
   if(kw)kw.style.display=projView==='kanban'?'block':'none';
   if(projView==='kanban')renderProjKanban(base);
   else renderProjRows(projStage==='전체'?base:base.filter(a=>stageOf(a)===projStage));
+  applyProjMoney();
 }
 function renderProjRows(list){
   if(!$('projRows'))return;
-  $('projRows').innerHTML=list.length?list.map(a=>{const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nvisit=aptVisits(a.id);const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td>${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td>${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}</td><td>${nvisit}회</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td>${stepBarHtml(a)}</td></tr>`;}).join(''):`<tr><td colspan="9" class="empty">${projStage==='전체'?'단지가 없어요':esc(stageMeta(projStage)[1])+' 단계인 단지가 없어요'}</td></tr>`;
+  $('projRows').innerHTML=list.length?list.map(a=>{const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nvisit=aptVisits(a.id);const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td class="money-col">${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td class="money-col">${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}${repSummaryCell(a.id)}</td><td>${nvisit}회</td><td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:60px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div></td><td>${stepBarHtml(a)}</td></tr>`;}).join(''):`<tr><td colspan="9" class="empty">${projStage==='전체'?'단지가 없어요':esc(stageMeta(projStage)[1])+' 단계인 단지가 없어요'}</td></tr>`;
 }
 /* ── 칸반 ── */
 let kbDragId=null;

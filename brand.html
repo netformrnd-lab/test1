@@ -4493,6 +4493,25 @@ body.dark-mode .mm-tile-n{color:#dfe5f3}
 .wiki-merge-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 12px;padding:9px 13px;
   border:1px solid var(--border);border-left:4px solid var(--amber,#e0a73a);border-radius:10px;
   background:var(--bg-secondary);font-size:12.5px;color:var(--text-secondary)}
+/* 💡 레퍼런스·경쟁사 보드 */
+.ref-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.ref-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+  overflow:hidden;display:flex;flex-direction:column}
+.ref-cover{background:var(--bg-secondary);display:flex;flex-wrap:wrap;gap:4px;padding:4px;min-height:60px}
+.ref-cover.empty{align-items:center;justify-content:center;gap:6px;padding:16px 10px;flex-wrap:wrap;text-align:center}
+.ref-shot{position:relative;flex:1 1 100%}
+.ref-shot img{display:block;width:100%;max-height:230px;object-fit:cover;border-radius:7px;cursor:zoom-in;background:var(--bg-card)}
+.ref-img-x{position:absolute;top:6px;right:6px;width:22px;height:22px;border:0;border-radius:999px;
+  background:rgba(0,0,0,.6);color:#fff;font-size:12px;cursor:pointer;line-height:1}
+.ref-body{padding:11px 13px;display:flex;flex-direction:column;gap:7px}
+.ref-top{display:flex;align-items:flex-start;gap:7px}
+.ref-fav{border:0;background:transparent;color:var(--amber,#e0a73a);font-size:17px;line-height:1;cursor:pointer;padding:0;flex:0 0 auto}
+.ref-fav.on{color:#f0ad2e}
+.ref-t{font-weight:700;font-size:14px;color:var(--text-primary);line-height:1.35;word-break:break-word}
+.ref-meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.ref-memo{font-size:13px;line-height:1.6;color:var(--text-secondary);white-space:pre-wrap;word-break:break-word}
+.ref-src a{color:var(--blue)}
+.ref-act{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
 .wiki-catchip{display:inline-flex;align-items:center;gap:1px}
 .wiki-catchip .wiki-catedit{padding:4px 7px;color:var(--text-muted);opacity:.7}
 .wiki-catchip .wiki-catedit:hover{opacity:1;color:var(--blue)}
@@ -5733,6 +5752,11 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
         <span class="em">📖</span><span id="wikiLabel">팀 노하우</span>
         <span class="cnt" id="wikiCnt"></span>
       </button>
+      <button class="brand-item home-item" id="refsBtn" onclick="goView('refs')">
+        <span class="bar" style="background:var(--amber,#e0a73a)"></span>
+        <span class="em">💡</span><span>레퍼런스</span>
+        <span class="cnt" id="refsCnt"></span>
+      </button>
       <button class="brand-item home-item" id="acctBtn" onclick="goView('accounts')">
         <span class="bar" style="background:var(--purple)"></span>
         <span class="em">🔐</span><span>내부계정</span>
@@ -6004,7 +6028,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-113';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-114';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6331,6 +6355,24 @@ const TYPES = {
       { key:'links', label:'관련 링크 (선택)', type:'textarea', rows:3,
         ph:'신청 페이지·양식 링크를 줄마다 적어두면 바로 눌러서 갑니다' },
       { key:'by',    label:'✍️ 작성자', type:'text', ph:'누가 적었나요',
+        def: () => (typeof myName === 'function' ? myName() : '') }
+    ]
+  },
+  refs: {
+    label:'레퍼런스', icon:'💡', tab:'레퍼런스',
+    hint:'참고 콘텐츠·경쟁사 캠페인을 모아둡니다 — 나중에 「그거 어디서 봤더라」가 없게',
+    empty:'아직 레퍼런스가 없습니다.',
+    fields:[
+      { key:'title', label:'제목 (무엇/어디)', type:'text', required:true,
+        ph:'예: A사 가을 캠페인 · 인스타 릴스 참고 · 상세페이지 레이아웃' },
+      { key:'cat',   label:'분류', type:'combo', options: refCats,
+        ph:'예: 경쟁사 · 콘텐츠 아이디어 · 디자인 · 카피 · SNS · 캠페인',
+        hint:'비슷한 것끼리 묶어 찾기 쉽게' },
+      { key:'source',label:'출처 링크 (선택)', type:'text', ph:'예: https://instagram.com/…  (원본 주소)' },
+      { key:'brand', label:'관련 브랜드 (선택)', type:'text', ph:'예: 아파트스퀘어 · 전체' },
+      { key:'memo',  label:'왜 참고할 만한가 / 메모 (선택)', type:'textarea', rows:3,
+        ph:'배울 점·아이디어를 적어두면 나중에 바로 떠올라요. 캡처는 저장 뒤 카드에서 붙여넣습니다.' },
+      { key:'by',    label:'✍️ 올린 사람', type:'text', ph:'누가 올렸나요',
         def: () => (typeof myName === 'function' ? myName() : '') }
     ]
   },
@@ -7403,6 +7445,8 @@ function render(){
   if(wkc) wkc.textContent = (data.wiki || []).length || '';
   const wkl = document.getElementById('wikiLabel');
   if(wkl) wkl.textContent = wikiTitle();
+  const rfc = document.getElementById('refsCnt');
+  if(rfc) rfc.textContent = (data.refs || []).length || '';
   const cc = document.getElementById('calCnt');
   if(cc) cc.textContent = (data.events || []).length || '';
   const kc = document.getElementById('taskCnt');
@@ -7428,6 +7472,7 @@ function render(){
   else if(view === 'onboard') renderOnboard();
   else if(view === 'meetings') renderMeetings();
   else if(view === 'wiki') renderWiki();
+  else if(view === 'refs') renderRefs();
   else if(view === 'media') renderMedia();
   else if(view === 'calendar') renderCalendar();
   else if(view === 'tasks') renderTasks();
@@ -29284,6 +29329,11 @@ function gearCats(){
   const used = (data.gear || []).map(g => g.cat).filter(Boolean);
   return [...new Set(used.concat(seed))];
 }
+function refCats(){
+  const seed = ['경쟁사', '콘텐츠 아이디어', '디자인', '카피·문구', 'SNS', '캠페인', '랜딩·상세페이지', '기타'];
+  const used = (data.refs || []).map(r => r.cat).filter(Boolean);
+  return [...new Set(used.concat(seed))];
+}
 /* 링크 줄은 눌러서 바로 가게 (http/https 만) */
 function wikiLinks(s){
   return String(s || '').split('\n').map(ln => {
@@ -29721,6 +29771,111 @@ document.addEventListener('paste', function(e){
     }
   }
 });
+
+/* ═══════════════ 💡 레퍼런스·경쟁사 보드 ═══════════════════════════
+   참고 콘텐츠·경쟁사 캠페인을 캡처+메모로 모아두는 아이디어 창고.
+   팀 전체 목록(data.refs)이라 저장·합치기·휴지통이 노하우와 똑같이 돕니다.
+   ================================================================= */
+let refQ = '', refCat = '', refPasteTo = '';
+function refFind(id){ return (data.refs || []).find(r => r.id === id); }
+function setRefQ(v){ refQ = v; render(); }
+function setRefCat(v){ refCat = (refCat === v ? '' : v); render(); }
+function refImgsOf(r){ if(!Array.isArray(r.imgs)) r.imgs = []; return r.imgs; }
+async function refAddImg(id, file){
+  const r = refFind(id); if(!r) return;
+  try{ refImgsOf(r).push(await wikiShrink(file)); r.updatedAt = new Date().toISOString(); markDirty(); render(); toast('📷 캡처를 넣었어요'); }
+  catch(e){ toast('⚠️ 이미지를 넣지 못했어요'); }
+}
+async function refAddImgs(id, fileList){
+  const fs = Array.from(fileList || []).filter(f => /^image\//.test(f.type));
+  for(const f of fs) await refAddImg(id, f);
+}
+function refDelImg(id, k){ const r = refFind(id); if(!r || !Array.isArray(r.imgs)) return;
+  r.imgs.splice(k, 1); r.updatedAt = new Date().toISOString(); markDirty(); render(); }
+function refArmPaste(id){ refPasteTo = id; toast('📋 이제 Ctrl+V 로 캡처를 붙여넣으세요'); }
+function refPick(id){ const el = document.getElementById('refFileInput'); if(!el) return; el.dataset.id = id; el.click(); }
+function refFav(id){ const r = refFind(id); if(!r) return; r.fav = !r.fav; r.updatedAt = new Date().toISOString(); markDirty(); render(); }
+function refLink(s){ const u = String(s || '').trim(); if(!/^https?:\/\//.test(u)) return esc(u);
+  return '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u.replace(/^https?:\/\//, '').slice(0, 42)) + '…</a>'; }
+/* 붙여넣기 — 레퍼런스 화면에서 자리를 정했을 때만 */
+document.addEventListener('paste', function(e){
+  if(view !== 'refs' || !refPasteTo) return;
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  for(let i = 0; i < items.length; i++){
+    if(items[i].type && items[i].type.indexOf('image') === 0){
+      const f = items[i].getAsFile();
+      if(f){ e.preventDefault(); const to = refPasteTo; refPasteTo = ''; refAddImg(to, f); }
+      return;
+    }
+  }
+});
+function renderRefs(){
+  const all = (data.refs || []).slice().sort((a, b) =>
+    (b.fav ? 1 : 0) - (a.fav ? 1 : 0) || String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  const q = refQ.trim().toLowerCase();
+  const list = all.filter(r => {
+    if(refCat && (r.cat || '기타') !== refCat) return false;
+    if(!q) return true;
+    return ((r.title || '') + ' ' + (r.memo || '') + ' ' + (r.cat || '') + ' ' + (r.brand || '')).toLowerCase().indexOf(q) >= 0;
+  });
+  const cats = [...new Set(all.map(r => r.cat || '기타'))];
+  const chips = '<button class="btn sm' + (refCat ? '' : ' primary') + '" onclick="setRefCat(\'\')">전체 ' + all.length + '</button>'
+    + cats.map(c => '<button class="btn sm' + (refCat === c ? ' primary' : '') + '" onclick="setRefCat(\'' + jsq(c) + '\')">'
+        + esc(c) + ' ' + all.filter(r => (r.cat || '기타') === c).length + '</button>').join('');
+  const bar = '<div class="sec-bar" style="margin-bottom:10px;flex-wrap:wrap">'
+    + '<input id="refQBox" class="wiki-q" placeholder="🔎 레퍼런스 검색 (경쟁사 · 아이디어 · 브랜드 …)" '
+      + 'value="' + esc(refQ) + '" oninput="setRefQ(this.value)">'
+    + '<button class="btn primary" onclick="openItemModal(\'refs\')">＋ 레퍼런스 추가</button>'
+    + '<input type="file" id="refFileInput" accept="image/*" multiple style="display:none" '
+      + 'onchange="refAddImgs(this.dataset.id, this.files); this.value=\'\'">'
+    + '</div>'
+    + (all.length ? '<div class="sec-bar" style="margin-bottom:12px;flex-wrap:wrap"><span class="fmeta">분류</span>' + chips + '</div>' : '');
+  const stop = 'event.stopPropagation();event.preventDefault();';
+  const cards = list.length
+    ? list.map(r => {
+        const id = jsq(r.id); const imgs = refImgsOf(r);
+        const cover = imgs.length
+          ? '<div class="ref-cover">' + imgs.map((src, k) => '<div class="ref-shot">'
+              + '<img src="' + src + '" onclick="wikiZoom(this.src)" title="눌러서 크게 보기">'
+              + '<button class="ref-img-x" title="캡처 지우기" onclick="' + stop + 'refDelImg(\'' + id + '\',' + k + ')">✕</button></div>').join('')
+            + '</div>'
+          : '<div class="ref-cover empty"><button class="btn sm" onclick="refArmPaste(\'' + id + '\')">📷 캡처 붙여넣기</button>'
+            + '<button class="btn sm" onclick="refPick(\'' + id + '\')">📁 파일</button>'
+            + '<span class="fmeta">캡처를 넣어두면 한눈에 찾기 좋아요</span></div>';
+        return '<div class="ref-card">'
+          + cover
+          + '<div class="ref-body">'
+            + '<div class="ref-top">'
+              + '<button class="ref-fav' + (r.fav ? ' on' : '') + '" title="즐겨찾기" onclick="refFav(\'' + id + '\')">' + (r.fav ? '★' : '☆') + '</button>'
+              + '<span class="ref-t">' + esc(r.title || '(제목 없음)') + '</span></div>'
+            + '<div class="ref-meta">'
+              + (r.cat ? '<span class="chip on">' + esc(r.cat) + '</span>' : '')
+              + (r.brand ? '<span class="chip">' + esc(r.brand) + '</span>' : '')
+              + (r.by ? '<span class="fmeta">✍️ ' + esc(r.by) + '</span>' : '')
+            + '</div>'
+            + (String(r.memo || '').trim() ? '<div class="ref-memo">' + esc(r.memo).replace(/\n/g, '<br>') + '</div>' : '')
+            + (String(r.source || '').trim() ? '<div class="fmeta ref-src">🔗 ' + refLink(r.source) + '</div>' : '')
+            + '<div class="ref-act">'
+              + (imgs.length ? '<button class="btn sm" onclick="refArmPaste(\'' + id + '\')">📷 캡처</button>'
+                  + '<button class="btn sm" onclick="refPick(\'' + id + '\')">📁 파일</button>' : '')
+              + '<button class="btn sm" onclick="openItemModal(\'refs\',\'' + id + '\')">✎ 수정</button>'
+              + '<button class="btn sm danger" onclick="deleteItem(\'refs\',\'' + id + '\')">삭제</button>'
+            + '</div>'
+          + '</div>'
+        + '</div>';
+      }).join('')
+    : '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
+      + (all.length ? '찾는 레퍼런스가 없습니다.'
+          : '아직 레퍼런스가 없습니다. <b>＋ 레퍼런스 추가</b> 로 참고할 콘텐츠·경쟁사 캠페인을 모아보세요.<br>'
+            + '<span class="fmeta">캡처는 카드에서 「📷 캡처 붙여넣기」 누르고 Ctrl+V 로 바로 넣을 수 있어요.</span>')
+      + '</div>';
+  document.getElementById('main').innerHTML =
+    '<div class="panel"><div class="tabbody">'
+    + '<h2 class="page-h">💡 레퍼런스·경쟁사 보드</h2>'
+    + '<div class="page-sub">참고 콘텐츠·경쟁사 캠페인을 캡처와 메모로 모아둡니다 — 「그거 어디서 봤더라」가 없게</div>'
+    + bar + '<div class="ref-grid">' + cards + '</div>'
+    + '</div></div>';
+}
 
 function renderWiki(){
   const all = (data.wiki || []).slice()
@@ -35714,6 +35869,7 @@ const TOP_LISTS   = ['onboard', 'notices', 'meetings', 'events', 'trash', 'growt
                      'accounts',           // 🔐 내부계정
                      'contents', 'mchannels', 'shoots', 'gear', 'requests',  // 🎬 미디어마케팅
                      'wiki',               // 📖 팀 노하우 (팀 전체)
+                     'refs',               // 💡 레퍼런스·경쟁사 보드
                      'log'];  // 브랜드 밖 (log = 🕘 무엇이 바뀌었나)
 const deletedIds = new Set();    // 내가 지운 항목 (합칠 때 되살아나지 않게)
 let baseIds = new Map();         // 불러온 시점의 항목들 (id → 그때 내용의 지문)

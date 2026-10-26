@@ -78,6 +78,7 @@ async function route() {
   }
   if (profile.role === 'auditor') { window.showScreen('s07'); loadAuditorApts() }
   else { window.showScreen('s11'); loadResidentHome(); startResidentPoll() }
+  try { updatePreviewFab() } catch (e) {}
 }
 // 입주민: 로그인 중에 관리자가 단지를 배정/변경하면 자동으로 홈 갱신 + 안내
 let RES_POLL = null, RES_LAST_APT
@@ -112,6 +113,18 @@ async function loadChatReads() {
 
 // ── 입주민·관리소장 홈: 우리 단지 정보 불러오기 ─────────────
 let RES_APT = null
+// 감리원 '입주민 화면 미리보기' 모드 — 설정되면 입주민 로더들이 이 단지를 기준으로 뜸
+let PREVIEW_APT = null
+// 입주민 화면이 기준으로 삼을 단지: 미리보기 중이면 그 단지, 아니면 내 배정 단지
+async function getResidentApt () {
+  if (PREVIEW_APT) { RES_APT = PREVIEW_APT; noteAptBase(PREVIEW_APT); return PREVIEW_APT }
+  const { data: { user } } = await sb.auth.getUser(); if (!user) return null
+  const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+  if (!prof || !prof.apartment_id) return null
+  const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
+  if (apt) { RES_APT = apt; noteAptBase(apt) }
+  return apt || null
+}
 // 단지별 '100동대 보정' 값 캐시 {apartment_id: base}
 const APT_DONG_BASE = {}
 function noteAptBase (a) { if (a && a.id) APT_DONG_BASE[a.id] = a.dong_base || 0 }
@@ -155,8 +168,8 @@ async function loadResidentHome() {
   // 단지와 무관한 공통 콘텐츠(공지사항 · 타 감리감독 현황)는 항상 로드
   loadResidentNotices()
   loadRegionActivity()
-  const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
-  if (!prof || !prof.apartment_id) {
+  const apt = await getResidentApt()
+  if (!apt) {
     RES_APT = null
     const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = '배정된 단지가 없어요'
     const an = document.getElementById('res-aud-name'); if (an) an.textContent = '단지 배정 후 연결돼요'
@@ -166,10 +179,7 @@ async function loadResidentHome() {
     const svb = document.getElementById('res-survey-banner'); if (svb) svb.style.display = 'none'
     return
   }
-  const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
-  if (!apt) return
-  RES_APT = apt; noteAptBase(apt)
-  logAptView(apt.id, user.id)
+  if (!PREVIEW_APT) logAptView(apt.id, user.id)
   const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = apt.name
   // (전체 진행률 바는 제거됨 — 동별 진행 현황은 현장현황 화면에서 표시)
   // 담당 감리원 이름 (PII 노출 없이 이름만 반환하는 함수 사용)
@@ -281,14 +291,12 @@ async function loadFieldUpdates() {
   const fs = document.getElementById('field-search'); if (fs) fs.value = ''
   FIELD_DONG = ''
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
-  const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+  const apt = await getResidentApt()
   const hdr = document.getElementById('field-apt')
-  if (!prof || !prof.apartment_id) { if (hdr) hdr.textContent = '배정된 단지 없음'; FIELD_LIST = []; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
-  const { data: apt } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single()
-  if (apt) { RES_APT = apt; noteAptBase(apt) }
-  if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
+  if (!apt) { if (hdr) hdr.textContent = '배정된 단지 없음'; FIELD_LIST = []; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
+  if (hdr) hdr.textContent = apt.name || '우리 단지'
   checkSurveyBanner(apt)
-  const { data } = await sb.from('field_updates').select('*').eq('apartment_id', prof.apartment_id).order('created_at', { ascending: false })
+  const { data } = await sb.from('field_updates').select('*').eq('apartment_id', apt.id).order('created_at', { ascending: false })
   FIELD_LIST = (data || []).map(f => { f._field = true; return f }) // 현장현황 항목 표시(감리일지와 구분)
   renderFieldList()
 }
@@ -535,13 +543,11 @@ async function loadResidentReports() {
   const cont = document.getElementById('res-report-list'); if (!cont) return
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
   const { data: { user } } = await sb.auth.getUser(); if (!user) return
-  const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
+  const apt = await getResidentApt()
   const hdr = document.getElementById('res-rep-apt')
-  if (!prof || !prof.apartment_id) { if (hdr) hdr.textContent = '배정된 단지 없음'; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
-  // 헤더에 로그인한 단지명 표시
-  const { data: apt } = await sb.from('apartments').select('name').eq('id', prof.apartment_id).single()
-  if (hdr) hdr.textContent = apt ? apt.name : '우리 단지'
-  const { data } = await sb.from('reports').select('*').eq('apartment_id', prof.apartment_id).eq('published', true).order('created_at', { ascending: false })
+  if (!apt) { if (hdr) hdr.textContent = '배정된 단지 없음'; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
+  if (hdr) hdr.textContent = apt.name || '우리 단지'
+  const { data } = await sb.from('reports').select('*').eq('apartment_id', apt.id).eq('published', true).order('created_at', { ascending: false })
   RES_REP_LIST = data || []
   RES_REP_DONG = ''
   logEvent('report', prof.apartment_id)
@@ -651,12 +657,7 @@ function wireBackArrows() {
 
 // ── 입주민 현장 현황 페이지 (s24) ─────────────────────────
 async function loadResidentProgress() {
-  let apt = RES_APT
-  if (!apt) {
-    const { data: { user } } = await sb.auth.getUser(); if (!user) return
-    const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
-    if (prof && prof.apartment_id) { const { data } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single(); apt = data; RES_APT = data; noteAptBase(data) }
-  }
+  const apt = PREVIEW_APT || RES_APT || await getResidentApt()
   const nm = document.getElementById('prog-apt-name')
   if (!apt) { if (nm) nm.textContent = '배정된 단지가 없어요'; renderStageTrack({ method: null }, 'prog-track'); return }
   if (nm) nm.textContent = apt.name
@@ -743,12 +744,7 @@ window.svSetStar = function (key, v) {
   SURVEY[key] = v; renderSurveyForm()
 }
 async function openSurvey() {
-  let apt = RES_APT
-  if (!apt) {
-    const { data: { user } } = await sb.auth.getUser(); if (!user) { showScreen('s01'); return }
-    const { data: prof } = await sb.from('profiles').select('apartment_id').eq('id', user.id).single()
-    if (prof && prof.apartment_id) { const { data } = await sb.from('apartments').select('*').eq('id', prof.apartment_id).single(); apt = data; RES_APT = data; noteAptBase(data) }
-  }
+  const apt = PREVIEW_APT || RES_APT || await getResidentApt()
   const nm = document.getElementById('survey-apt'); if (nm) nm.textContent = apt ? apt.name : '우리 단지'
   window.showScreen('s39')
   const body = document.getElementById('survey-body')
@@ -799,6 +795,7 @@ function renderSurveyForm() {
 }
 async function submitSurvey() {
   if (!SURVEY) return
+  if (PREVIEW_APT) { const msg = document.getElementById('sv-msg'); if (msg) msg.textContent = '입주민 화면 미리보기 중에는 제출되지 않아요.'; return }
   const be = document.getElementById('sv-best'); if (be) SURVEY.best = be.value
   const ag = document.getElementById('sv-again'); if (ag) SURVEY.again = ag.value
   const c = document.getElementById('sv-comment'); if (c) SURVEY.comment = c.value
@@ -1844,18 +1841,20 @@ async function loadSchedule() {
   let scheds = []
   // 역할을 DB에서 새로 읽어 판단(캐시된 currentRole 신뢰하지 않음)
   const { data: prof } = await sb.from('profiles').select('role, apartment_id').eq('id', user.id).single()
-  const isAuditor = prof && prof.role === 'auditor'
+  const isAuditor = prof && prof.role === 'auditor' && !PREVIEW_APT  // 입주민 미리보기 중엔 입주민 일정으로
   // DB로 확인된 역할로 하단 탭 재확정 (진입 시 세팅과 다르면 여기서 정정)
   setSchedNav(isAuditor)
   if (!isAuditor) {
-    // 입주민·관리소장: 우리 단지 일정만 (보기 전용)
+    // 입주민·관리소장: 우리 단지 일정만 (보기 전용) — 미리보기 중이면 그 단지
     if (addBtn) addBtn.style.display = 'none'
     const form = document.getElementById('sc-form'); if (form) form.style.display = 'none'
-    if (!prof || !prof.apartment_id) { if (sub) sub.textContent = '아직 배정된 단지가 없어요'; renderCalendar([]); renderSchedList([]); return }
+    const rAptId = PREVIEW_APT ? PREVIEW_APT.id : (prof && prof.apartment_id)
+    if (!rAptId) { if (sub) sub.textContent = '아직 배정된 단지가 없어요'; renderCalendar([]); renderSchedList([]); return }
     // 우리 단지 이름 표시
-    const { data: apt } = await sb.from('apartments').select('name').eq('id', prof.apartment_id).single()
-    if (sub) sub.innerHTML = (apt ? '<b style="color:#2F6BF6">' + escH(apt.name) + '</b> · ' : '') + '우리 단지 방문·점검 일정이에요'
-    const { data } = await sb.from('schedules').select('*').eq('apartment_id', prof.apartment_id).order('date')
+    let rAptName = PREVIEW_APT ? PREVIEW_APT.name : null
+    if (!rAptName) { const { data: apt } = await sb.from('apartments').select('name').eq('id', rAptId).single(); rAptName = apt ? apt.name : '' }
+    if (sub) sub.innerHTML = (rAptName ? '<b style="color:#2F6BF6">' + escH(rAptName) + '</b> · ' : '') + '우리 단지 방문·점검 일정이에요'
+    const { data } = await sb.from('schedules').select('*').eq('apartment_id', rAptId).order('date')
     scheds = data || []
   } else {
     // 감리원 → 내 전체 일정(개인 + 담당 단지 모두). RLS가 볼 수 있는 것만 돌려줌
@@ -3186,6 +3185,69 @@ document.addEventListener('click', (e) => {
   }
   const at = e.target.closest('.alim-tab')
   if (at) { renderAlim(at.dataset.atab) }
+})
+
+/* ===== 감리원 → 입주민 화면 미리보기 (전역 하단 토글 + 단지 선택 + 상단 배너) ===== */
+let REAL_ROLE = null
+function ensurePreviewUI () {
+  const stage = document.getElementById('stage'); if (!stage || document.getElementById('preview-fab')) return
+  const fab = document.createElement('div'); fab.id = 'preview-fab'; fab.textContent = '👁 입주민 화면 보기'
+  fab.addEventListener('click', openResidentPreviewPicker)
+  const banner = document.createElement('div'); banner.id = 'preview-banner'
+  banner.innerHTML = '<span id="pv-banner-txt">👁 입주민 화면 미리보기</span><span class="pv-back">← 감리원 화면</span>'
+  banner.querySelector('.pv-back').addEventListener('click', exitResidentPreview)
+  const sheet = document.createElement('div'); sheet.id = 'preview-sheet'
+  sheet.innerHTML = '<div class="pv-dim"></div><div class="pv-card"><div class="pv-h">어느 단지의 입주민 화면을 볼까요?</div><div class="pv-list" id="pv-list"></div></div>'
+  sheet.querySelector('.pv-dim').addEventListener('click', () => { sheet.style.display = 'none' })
+  stage.appendChild(fab); stage.appendChild(banner); stage.appendChild(sheet)
+}
+function updatePreviewFab () {
+  ensurePreviewUI()
+  const fab = document.getElementById('preview-fab'); if (!fab) return
+  fab.style.display = (currentRole === 'auditor' && !PREVIEW_APT) ? 'inline-flex' : 'none'
+}
+window.updatePreviewFab = updatePreviewFab
+async function openResidentPreviewPicker () {
+  ensurePreviewUI()
+  let apts = Object.values(AUD_APTS || {})
+  if (!apts.length) { try { await loadAuditorApts() } catch (e) {} apts = Object.values(AUD_APTS || {}) }
+  const list = document.getElementById('pv-list'); const sheet = document.getElementById('preview-sheet')
+  if (!list || !sheet) return
+  apts = apts.filter(a => a && a.name).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'))
+  list.innerHTML = apts.length
+    ? apts.map(a => `<div class="pv-item" data-pv-apt="${a.id}"><span>${escH(a.name)}</span><span style="color:#2F6BF6;font-size:11px">보기 →</span></div>`).join('')
+    : '<div style="padding:20px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">담당 단지가 없어요.</div>'
+  sheet.style.display = 'block'
+}
+function enterResidentPreview (apt) {
+  if (!apt) return
+  ensurePreviewUI()
+  const sheet = document.getElementById('preview-sheet'); if (sheet) sheet.style.display = 'none'
+  PREVIEW_APT = apt
+  REAL_ROLE = currentRole || 'auditor'
+  currentRole = 'resident'
+  RES_APT = apt; noteAptBase(apt)
+  const stage = document.getElementById('stage'); if (stage) stage.classList.add('previewing')
+  const banner = document.getElementById('preview-banner'); const txt = document.getElementById('pv-banner-txt')
+  if (txt) txt.textContent = '👁 ' + apt.name + ' · 입주민 미리보기'
+  if (banner) banner.style.display = 'flex'
+  updatePreviewFab()
+  window.showScreen('s11'); loadResidentHome()
+}
+function exitResidentPreview () {
+  PREVIEW_APT = null
+  currentRole = REAL_ROLE || 'auditor'; REAL_ROLE = null
+  RES_APT = null
+  const stage = document.getElementById('stage'); if (stage) stage.classList.remove('previewing')
+  const banner = document.getElementById('preview-banner'); if (banner) banner.style.display = 'none'
+  updatePreviewFab()
+  window.showScreen('s07'); loadAuditorApts()
+}
+window.enterResidentPreview = enterResidentPreview
+window.exitResidentPreview = exitResidentPreview
+document.addEventListener('click', (e) => {
+  const it = e.target.closest('#pv-list [data-pv-apt]')
+  if (it) { enterResidentPreview(AUD_APTS[it.dataset.pvApt]) }
 })
 
 // 앱이 다시 앞으로 올 때(홈화면 앱을 백그라운드에서 되돌아올 때) 현재 화면 데이터 새로고침

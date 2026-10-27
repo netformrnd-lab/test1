@@ -3053,6 +3053,25 @@ function bpdfMatch(fname){
   for(const a of APTS){ const an=bpdfNorm(a.name); if(an&&an.length>=2&&fn.includes(an)&&an.length>bl){best=a;bl=an.length;} }
   return best;
 }
+// 문자열에서 날짜 키 추출 → 'MMDD' + 'YYYYMMDD' 집합 (제목/파일명 날짜 맞추기용)
+function bpdfDateKeys(s){
+  s=String(s||''); const keys=new Set(); let m,re;
+  re=/(20\d{2})[.\-\/년 ]*(0[1-9]|1[0-2])[.\-\/월 ]*(0[1-9]|[12]\d|3[01])/g; // 2026-10-08 / 2026.10.08 / 2026년10월08
+  while(m=re.exec(s)){ keys.add(m[2]+m[3]); keys.add(m[1]+m[2]+m[3]); }
+  re=/(?<!\d)(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?!\d)/g; // 261008 (YYMMDD)
+  while(m=re.exec(s)){ keys.add(m[2]+m[3]); keys.add('20'+m[1]+m[2]+m[3]); }
+  re=/(?<!\d)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?!\d)/g; // 1008 (MMDD)
+  while(m=re.exec(s)){ keys.add(m[1]+m[2]); }
+  return keys;
+}
+// 파일명 날짜와 같은 날짜가 제목에 있고, 아직 PDF가 없는 기존 감리일지(같은 단지) = 첨부 후보
+function bpdfAttachCands(fname,aptId){
+  if(!aptId)return []; const fk=bpdfDateKeys(fname); if(!fk.size)return [];
+  return (REPORTS||[]).filter(function(x){
+    if(x.apartment_id!==aptId||x.pdf_url)return false;
+    const tk=bpdfDateKeys(x.title||''); for(const k of fk){ if(tk.has(k))return true; } return false;
+  }).slice(0,8);
+}
 function bulkPdfScan(){
   let all=[]; const f1=$('bpdf-file'),f2=$('bpdf-files');
   if(f1&&f1.files)all=all.concat(Array.from(f1.files));
@@ -3072,28 +3091,31 @@ function bulkPdfScan(){
   const forceApt=(fsel&&fsel.value)||'';
   const forceNm=forceApt?(APTS.find(a=>a.id===forceApt)||{}).name:'';
   // 단지 결정: '전부 이 단지로'가 켜져 있으면 그 단지, 아니면 '폴더 경로+파일명'으로 자동 매칭
-  BPDF_ROWS=list.map((f,i)=>{ const rel=f.webkitRelativePath||f.name; const m=forceApt?null:bpdfMatch(rel); const aptId=forceApt||(m?m.id:''); return {idx:i,file:f,name:f.name,aptId,auto:forceApt?'force':!!m}; });
+  BPDF_ROWS=list.map((f,i)=>{ const rel=f.webkitRelativePath||f.name; const m=forceApt?null:bpdfMatch(rel); const aptId=forceApt||(m?m.id:''); const cands=bpdfAttachCands(f.name,aptId); const dst=cands.length===1?('attach:'+cands[0].id):''; return {idx:i,file:f,name:f.name,aptId,auto:forceApt?'force':!!m,cands,dst}; });
   const aptOpts=aptId=>sorted.map(a=>`<option value="${a.id}" ${a.id===aptId?'selected':''}>${esc(a.name)}</option>`).join('');
   const mLbl=r=>r.auto==='force'?'📌 지정':(r.auto?'자동 매칭':'매칭 안 됨');
   const mCol=r=>r.auto==='force'?'#2F6BF6':(r.auto?'var(--green)':'var(--mut)');
+  const dstCell=r=>r.cands.length?`<select id="bpdf-dst-${r.idx}" class="inp" style="min-width:200px"><option value="">🆕 새 감리일지로 등록</option>${r.cands.map(c=>`<option value="attach:${c.id}" ${('attach:'+c.id)===r.dst?'selected':''}>📎 기존글에 첨부: ${esc(c.title||'(제목없음)')}</option>`).join('')}</select>`:'<span style="color:var(--mut);font-size:11px">🆕 새 감리일지</span>';
   const rowsHtml=BPDF_ROWS.map(r=>`<tr style="border-bottom:1px solid var(--line)">
     <td style="padding:6px 8px;font-size:12px;word-break:break-all">${esc(r.name)}</td>
-    <td style="padding:6px 8px"><select id="bpdf-sel-${r.idx}" class="inp" style="min-width:160px"><option value="">— 건너뜀 —</option>${aptOpts(r.aptId)}</select></td>
+    <td style="padding:6px 8px"><select id="bpdf-sel-${r.idx}" class="inp" style="min-width:150px"><option value="">— 건너뜀 —</option>${aptOpts(r.aptId)}</select></td>
+    <td style="padding:6px 8px">${dstCell(r)}</td>
     <td style="padding:6px 8px;font-size:11.5px;white-space:nowrap;color:${mCol(r)}">${mLbl(r)}</td>
   </tr>`).join('');
-  const autoN=BPDF_ROWS.filter(r=>r.aptId).length;
-  $('bpdf-table').innerHTML=`<div style="font-size:12px;color:var(--mut2);margin-bottom:6px">대상 PDF <b>${BPDF_ROWS.length}</b>개 · ${forceApt?`전부 <b style="color:#2F6BF6">${esc(forceNm)}</b> 로 지정됨`:`자동 매칭 <b>${autoN}</b>개`}${kw?` · <span style="color:#8a5a00">‘${esc(kw)}’ 없는 ${excluded}개 제외됨</span>`:''} · 단지가 비어 있으면(—건너뜀—) 올리지 않아요. 틀린 건 아래에서 바꾸세요.</div>
-    <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr style="text-align:left;border-bottom:1px solid var(--line)"><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">파일</th><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">들어갈 단지</th><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">매칭</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  const autoN=BPDF_ROWS.filter(r=>r.aptId).length; const attachN=BPDF_ROWS.filter(r=>r.dst).length;
+  $('bpdf-table').innerHTML=`<div style="font-size:12px;color:var(--mut2);margin-bottom:6px">대상 PDF <b>${BPDF_ROWS.length}</b>개 · ${forceApt?`전부 <b style="color:#2F6BF6">${esc(forceNm)}</b> 로 지정됨`:`자동 매칭 <b>${autoN}</b>개`}${attachN?` · <b style="color:#2F6BF6">기존글 첨부 ${attachN}개</b>`:''}${kw?` · <span style="color:#8a5a00">‘${esc(kw)}’ 없는 ${excluded}개 제외됨</span>`:''} · 단지가 비어 있으면(—건너뜀—) 올리지 않아요. 날짜가 같은 기존 감리일지가 있으면 '📎 기존글에 첨부'로 미리 잡혀요.</div>
+    <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr style="text-align:left;border-bottom:1px solid var(--line)"><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">파일</th><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">들어갈 단지</th><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">처리</th><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">매칭</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
   $('bpdf-run').disabled=false;
 }
 async function bulkPdfRun(){
   // 미리보기 표의 현재 선택값을 읽어 확정(사용자가 드롭다운으로 바꾼 것 반영) + 단지+파일명 중복 제거
-  const picked=BPDF_ROWS.map(r=>{ const sel=$('bpdf-sel-'+r.idx); return {...r,aptId:sel?sel.value:r.aptId}; }).filter(r=>r.aptId);
+  const picked=BPDF_ROWS.map(r=>{ const sel=$('bpdf-sel-'+r.idx); const d=$('bpdf-dst-'+r.idx); return {...r,aptId:sel?sel.value:r.aptId,dst:d?d.value:(r.dst||'')}; }).filter(r=>r.aptId);
   const rows=[]; const dd=new Set();
   for(const r of picked){ const k=r.aptId+'|'+r.name; if(dd.has(k))continue; dd.add(k); rows.push(r); }
   if(!rows.length){alert('단지가 지정된 PDF가 없어요. 먼저 폴더/파일을 고르고 단지를 지정하세요.');return;}
   const pub=$('bpdf-pub')&&$('bpdf-pub').checked;
-  if(!confirm('PDF '+rows.length+'개를 감리일지로 올립니다'+(pub?' (올리면서 바로 입주민에게 공개)':' (비공개 상태로 등록)')+'.\n진행할까요?'))return;
+  const attachCnt=rows.filter(r=>typeof r.dst==='string'&&r.dst.indexOf('attach:')===0).length; const newCnt=rows.length-attachCnt;
+  if(!confirm('PDF '+rows.length+'개 처리: 새 감리일지 '+newCnt+'개'+(attachCnt?' · 기존글 첨부 '+attachCnt+'개':'')+(pub?'\n(올리면서 바로 입주민에게 공개)':'\n(비공개 상태로 등록)')+'.\n진행할까요?'))return;
   const btn=$('bpdf-run'); if(btn)btn.disabled=true;
   $('bpdf-log').innerHTML='';
   const {data:{user}}=await sb.auth.getUser();
@@ -3107,19 +3129,29 @@ async function bulkPdfRun(){
   async function work(r){
     const apt=APTS.find(a=>a.id===r.aptId); const aptNm=apt?apt.name:r.aptId;
     const title=r.name.replace(/\.pdf$/i,'').trim();
+    const isAttach=typeof r.dst==='string'&&r.dst.indexOf('attach:')===0;
     try{
       const S=seen[r.aptId];
       if(S.names.has(r.name)){skip++;bpdfLog('⏭️ 같은 PDF 이미있음  '+aptNm+' · '+r.name);return;}
-      if(S.titlesWithPdf.has(title)){skip++;bpdfLog('⏭️ 이미 PDF 있는 제목  '+aptNm+' · '+title);return;}
-      // 제목이 겹쳐도 그 글에 PDF가 없으면(또는 제목 자체가 처음이면) 새로 넣는다
-      S.names.add(r.name); S.titlesWithPdf.add(title); // 선점(배치 안 중복 방지)
+      if(!isAttach){
+        if(S.titlesWithPdf.has(title)){skip++;bpdfLog('⏭️ 이미 PDF 있는 제목  '+aptNm+' · '+title);return;}
+        S.titlesWithPdf.add(title);
+      }
+      S.names.add(r.name); // 선점(배치 안 중복 방지)
       const safe=r.name.replace(/[^\w.\-]/g,'_'); const path='report-pdf/'+r.aptId+'_'+Date.now()+'_'+r.idx+'_'+safe;
       const {error:ue}=await sb.storage.from('report-photos').upload(path,r.file,{contentType:'application/pdf',upsert:true});
       if(ue){fail++;bpdfLog('❌ 업로드 실패  '+r.name+' → '+ue.message,'#ff8a8a');return;}
       const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
-      const {error}=await sb.from('reports').insert({apartment_id:r.aptId,title,content:null,photos:[],pdf_url:url,pdf_name:r.name,published:!!pub,author_id:user?user.id:null});
-      if(error){fail++;bpdfLog('❌ 저장 실패  '+r.name+' → '+error.message,'#ff8a8a');return;}
-      made++; bpdfLog('✅ '+aptNm+' · '+title+(pub?' (공개)':''),'#8ce0a0');
+      if(isAttach){ // 기존 감리일지에 PDF만 첨부(내용·제목은 그대로)
+        const rid=r.dst.slice(7); const upd={pdf_url:url,pdf_name:r.name}; if(pub)upd.published=true;
+        const {error}=await sb.from('reports').update(upd).eq('id',rid);
+        if(error){fail++;bpdfLog('❌ 첨부 실패  '+r.name+' → '+error.message,'#ff8a8a');return;}
+        const er=(REPORTS||[]).find(x=>x.id===rid); made++; bpdfLog('📎 기존글에 첨부  '+aptNm+' · '+((er&&er.title)||title)+(pub?' (공개)':''),'#8ce0a0');
+      } else {
+        const {error}=await sb.from('reports').insert({apartment_id:r.aptId,title,content:null,photos:[],pdf_url:url,pdf_name:r.name,published:!!pub,author_id:user?user.id:null});
+        if(error){fail++;bpdfLog('❌ 저장 실패  '+r.name+' → '+error.message,'#ff8a8a');return;}
+        made++; bpdfLog('✅ 새 등록  '+aptNm+' · '+title+(pub?' (공개)':''),'#8ce0a0');
+      }
     }catch(e){fail++;bpdfLog('❌ 오류  '+r.name+' → '+(e&&e.message||e),'#ff8a8a');}
     finally{ done++; stat(); }
   }

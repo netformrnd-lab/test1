@@ -428,11 +428,11 @@ tbody tr:hover{background:#f8fafc}
       <div class="head"><div><h2>데이터 도구</h2><div class="desc">감리일지 PDF 일괄 올리기 · 아임웹 게시판 가져오기 · 사진/계약서 저장소 이전</div></div></div>
       <div class="card">
         <h3>📄 감리일지 PDF 폴더 일괄 올리기</h3>
-        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:10px">PDF를 고르면 <b>파일 이름에 ‘감리일지’가 든 것만</b> 골라(‘공사감리일지’ 포함), 이름으로 <b>단지를 자동 매칭</b>해서 각 단지의 감리일지로 올려줘요. 고르면 바로 미리보기 표가 뜨니 <b>단지를 확인·수정한 뒤 ②업로드</b>하세요. <b>이미 있는 제목/파일은 자동으로 건너뜁니다.</b> (계약서·견적서·도면 등은 자동 제외)</div>
-        <div style="font-size:12px;color:#8a5a00;line-height:1.6;margin-bottom:12px;background:#fff7e6;border:1px solid #ffe3a3;border-radius:8px;padding:9px 11px">⚠️ <b>나스(네트워크 폴더)를 그대로 고르면 매우 느려요.</b> 브라우저가 파일을 하나씩 네트워크로 당겨오기 때문이에요. 올릴 PDF들을 <b>컴퓨터 바탕화면에 복사</b>한 뒤 아래 <b>‘PDF 파일 직접 선택’</b>으로 전체 선택하면 가장 빠릅니다.</div>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:10px"><b>📁 폴더 선택</b>으로 단지 폴더(예: <code>009_용인 신갈신미주아파트</code>)나 그 상위 폴더를 고르면, <b>폴더 이름·파일 이름으로 단지를 자동 매칭</b>해 각 단지의 감리일지로 올려줘요. (파일명에 단지가 없어도 폴더 이름으로 들어감) <b>파일 이름에 ‘감리일지’가 든 것만</b> 대상이고(‘공사감리일지’ 포함), 계약서·견적서·도면 등은 자동 제외돼요. 고르면 바로 미리보기 표가 뜨니 <b>단지를 확인·수정한 뒤 ②업로드</b>하세요.</div>
+        <div style="font-size:12px;color:var(--mut2);line-height:1.6;margin-bottom:12px">· <b>같은 PDF</b>, 또는 <b>이미 PDF가 붙어있는 같은 제목</b>이면 건너뛰어요. 제목이 겹쳐도 그 글에 PDF가 없으면 넣습니다.<br>· ⚠️ 나스(네트워크 폴더)를 그대로 고르면 파일을 하나씩 네트워크로 당겨와 <b>느려요</b>. 급하면 해당 폴더를 <b>컴퓨터로 복사</b>한 뒤 고르면 빠릅니다.</div>
         <div class="toolbar">
-          <label class="b line" style="cursor:pointer">📁 폴더 선택<input id="bpdf-file" type="file" accept="application/pdf" webkitdirectory multiple style="display:none" onchange="bulkPdfScan()"></label>
-          <label class="b blue" style="cursor:pointer">📄 PDF 파일 직접 선택(권장)<input id="bpdf-files" type="file" accept="application/pdf" multiple style="display:none" onchange="bulkPdfScan()"></label>
+          <label class="b blue" style="cursor:pointer">📁 폴더 선택(권장)<input id="bpdf-file" type="file" accept="application/pdf" webkitdirectory multiple style="display:none" onchange="bulkPdfScan()"></label>
+          <label class="b line" style="cursor:pointer">📄 PDF 파일 직접 선택<input id="bpdf-files" type="file" accept="application/pdf" multiple style="display:none" onchange="bulkPdfScan()"></label>
           <button class="b line" id="bpdf-scan" onclick="bulkPdfScan()" style="display:none">새로고침</button>
           <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--mut2)">파일명에 <input id="bpdf-kw" value="감리일지" class="inp" style="width:110px" onchange="bulkPdfScan()"> 든 것만</label>
           <button class="b blue" id="bpdf-run" onclick="bulkPdfRun()" disabled>② 업로드 실행</button>
@@ -3061,7 +3061,8 @@ function bulkPdfScan(){
   const list=pdfs; const excluded=totalPdf-list.length;
   if(!totalPdf){alert('PDF 파일을 선택하세요');return;}
   if(!list.length){alert('‘'+kw+'’ 가 파일 이름에 들어간 PDF가 없어요.\n(선택한 PDF '+totalPdf+'개 중 0개)\n\n키워드를 바꾸거나 비우면 전체를 대상으로 할 수 있어요.');$('bpdf-table').innerHTML='';$('bpdf-run').disabled=true;return;}
-  BPDF_ROWS=list.map((f,i)=>{ const m=bpdfMatch(f.name); return {idx:i,file:f,name:f.name,aptId:m?m.id:'',auto:!!m}; });
+  // 단지 매칭은 '폴더 경로 + 파일명' 전체로 (파일명에 단지가 없어도 폴더 이름으로 매칭)
+  BPDF_ROWS=list.map((f,i)=>{ const rel=f.webkitRelativePath||f.name; const m=bpdfMatch(rel); return {idx:i,file:f,name:f.name,aptId:m?m.id:'',auto:!!m}; });
   const sorted=[...APTS].sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   const aptOpts=aptId=>sorted.map(a=>`<option value="${a.id}" ${a.id===aptId?'selected':''}>${esc(a.name)}</option>`).join('');
   const rowsHtml=BPDF_ROWS.map(r=>`<tr style="border-bottom:1px solid var(--line)">
@@ -3088,7 +3089,7 @@ async function bulkPdfRun(){
   // 기존 제목·pdf_name 미리 조회(중복이면 건너뛰기) — 단지별 1회, 병렬
   const aptIds=[...new Set(rows.map(r=>r.aptId))]; const seen={};
   bpdfLog('기존 감리일지 확인 중…','#7fb0ff');
-  await Promise.all(aptIds.map(async id=>{ const {data}=await sb.from('reports').select('pdf_name,title').eq('apartment_id',id); seen[id]={names:new Set((data||[]).map(x=>x.pdf_name).filter(Boolean)),titles:new Set((data||[]).map(x=>(x.title||'').trim()).filter(Boolean))}; }));
+  await Promise.all(aptIds.map(async id=>{ const {data}=await sb.from('reports').select('pdf_name,title,pdf_url').eq('apartment_id',id); const rs=data||[]; seen[id]={names:new Set(rs.map(x=>x.pdf_name).filter(Boolean)),titlesWithPdf:new Set(rs.filter(x=>x.pdf_url).map(x=>(x.title||'').trim()).filter(Boolean))}; }));
   let made=0,skip=0,fail=0,done=0;
   const stat=()=>{ if(btn)btn.textContent='올리는 중… '+done+'/'+rows.length+' (성공 '+made+')'; };
   stat();
@@ -3097,8 +3098,10 @@ async function bulkPdfRun(){
     const title=r.name.replace(/\.pdf$/i,'').trim();
     try{
       const S=seen[r.aptId];
-      if(S.names.has(r.name)||S.titles.has(title)){skip++;bpdfLog('⏭️ 이미있음(제목/파일 중복)  '+aptNm+' · '+title);return;}
-      S.names.add(r.name); S.titles.add(title); // 선점(배치 안 중복 방지)
+      if(S.names.has(r.name)){skip++;bpdfLog('⏭️ 같은 PDF 이미있음  '+aptNm+' · '+r.name);return;}
+      if(S.titlesWithPdf.has(title)){skip++;bpdfLog('⏭️ 이미 PDF 있는 제목  '+aptNm+' · '+title);return;}
+      // 제목이 겹쳐도 그 글에 PDF가 없으면(또는 제목 자체가 처음이면) 새로 넣는다
+      S.names.add(r.name); S.titlesWithPdf.add(title); // 선점(배치 안 중복 방지)
       const safe=r.name.replace(/[^\w.\-]/g,'_'); const path='report-pdf/'+r.aptId+'_'+Date.now()+'_'+r.idx+'_'+safe;
       const {error:ue}=await sb.storage.from('report-photos').upload(path,r.file,{contentType:'application/pdf',upsert:true});
       if(ue){fail++;bpdfLog('❌ 업로드 실패  '+r.name+' → '+ue.message,'#ff8a8a');return;}

@@ -14,8 +14,10 @@
 #     · 이벤트  : 부팅
 #     · 사용자  : root
 #     · 실행 명령:
-#         nohup sh /volume1/web/brand/rp-watchdog-loop.sh >> /volume1/web/brand/rp-watchdog-loop.out 2>&1 &
+#         setsid sh /volume1/web/brand/rp-watchdog-loop.sh </dev/null >> /volume1/web/brand/rp-watchdog-loop.out 2>&1 &
 #   만든 뒤 그 작업을 목록에서 선택하고 [실행] 을 누르면 재부팅 없이 바로 켜집니다.
+#   (기존 1분짜리 작업의 실행 명령을 위 setsid 줄로 바꿔 데몬 관리자로 써도 됩니다.
+#    1분마다 "데몬이 꺼졌으면 다시 켜기"가 되어 재부팅 후에도 자동 복귀합니다.)
 #
 INTERVAL="${INTERVAL:-15}"                       # 확인 간격(초)
 SELF="/volume1/web/brand/rp-watchdog.sh"

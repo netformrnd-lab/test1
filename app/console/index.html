@@ -428,13 +428,13 @@ tbody tr:hover{background:#f8fafc}
       <div class="head"><div><h2>데이터 도구</h2><div class="desc">감리일지 PDF 일괄 올리기 · 아임웹 게시판 가져오기 · 사진/계약서 저장소 이전</div></div></div>
       <div class="card">
         <h3>📄 감리일지 PDF 폴더 일괄 올리기</h3>
-        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:10px">PDF를 고르면 <b>파일 이름에 ‘공사감리일지’가 든 것만</b> 골라, 이름으로 <b>단지를 자동 매칭</b>해서 각 단지의 감리일지로 올려줘요. 고르면 바로 미리보기 표가 뜨니 <b>단지를 확인·수정한 뒤 ②업로드</b>하세요. 같은 파일 이름은 자동으로 건너뜁니다. (계약서·견적서·도면 등 감리일지가 아닌 PDF는 자동 제외)</div>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:10px">PDF를 고르면 <b>파일 이름에 ‘감리일지’가 든 것만</b> 골라(‘공사감리일지’ 포함), 이름으로 <b>단지를 자동 매칭</b>해서 각 단지의 감리일지로 올려줘요. 고르면 바로 미리보기 표가 뜨니 <b>단지를 확인·수정한 뒤 ②업로드</b>하세요. <b>이미 있는 제목/파일은 자동으로 건너뜁니다.</b> (계약서·견적서·도면 등은 자동 제외)</div>
         <div style="font-size:12px;color:#8a5a00;line-height:1.6;margin-bottom:12px;background:#fff7e6;border:1px solid #ffe3a3;border-radius:8px;padding:9px 11px">⚠️ <b>나스(네트워크 폴더)를 그대로 고르면 매우 느려요.</b> 브라우저가 파일을 하나씩 네트워크로 당겨오기 때문이에요. 올릴 PDF들을 <b>컴퓨터 바탕화면에 복사</b>한 뒤 아래 <b>‘PDF 파일 직접 선택’</b>으로 전체 선택하면 가장 빠릅니다.</div>
         <div class="toolbar">
           <label class="b line" style="cursor:pointer">📁 폴더 선택<input id="bpdf-file" type="file" accept="application/pdf" webkitdirectory multiple style="display:none" onchange="bulkPdfScan()"></label>
           <label class="b blue" style="cursor:pointer">📄 PDF 파일 직접 선택(권장)<input id="bpdf-files" type="file" accept="application/pdf" multiple style="display:none" onchange="bulkPdfScan()"></label>
           <button class="b line" id="bpdf-scan" onclick="bulkPdfScan()" style="display:none">새로고침</button>
-          <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--mut2)">파일명에 <input id="bpdf-kw" value="공사감리일지" class="inp" style="width:120px" onchange="bulkPdfScan()"> 든 것만</label>
+          <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--mut2)">파일명에 <input id="bpdf-kw" value="감리일지" class="inp" style="width:110px" onchange="bulkPdfScan()"> 든 것만</label>
           <button class="b blue" id="bpdf-run" onclick="bulkPdfRun()" disabled>② 업로드 실행</button>
           <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--mut2);cursor:pointer"><input type="checkbox" id="bpdf-pub" style="width:15px;height:15px"> 올리면서 바로 입주민에게 공개</label>
         </div>
@@ -3085,23 +3085,24 @@ async function bulkPdfRun(){
   const btn=$('bpdf-run'); if(btn)btn.disabled=true;
   $('bpdf-log').innerHTML='';
   const {data:{user}}=await sb.auth.getUser();
-  // 기존 pdf_name 미리 조회(중복 건너뛰기) — 단지별 1회, 병렬
+  // 기존 제목·pdf_name 미리 조회(중복이면 건너뛰기) — 단지별 1회, 병렬
   const aptIds=[...new Set(rows.map(r=>r.aptId))]; const seen={};
   bpdfLog('기존 감리일지 확인 중…','#7fb0ff');
-  await Promise.all(aptIds.map(async id=>{ const {data}=await sb.from('reports').select('pdf_name').eq('apartment_id',id); seen[id]=new Set((data||[]).map(x=>x.pdf_name).filter(Boolean)); }));
+  await Promise.all(aptIds.map(async id=>{ const {data}=await sb.from('reports').select('pdf_name,title').eq('apartment_id',id); seen[id]={names:new Set((data||[]).map(x=>x.pdf_name).filter(Boolean)),titles:new Set((data||[]).map(x=>(x.title||'').trim()).filter(Boolean))}; }));
   let made=0,skip=0,fail=0,done=0;
   const stat=()=>{ if(btn)btn.textContent='올리는 중… '+done+'/'+rows.length+' (성공 '+made+')'; };
   stat();
   async function work(r){
     const apt=APTS.find(a=>a.id===r.aptId); const aptNm=apt?apt.name:r.aptId;
+    const title=r.name.replace(/\.pdf$/i,'').trim();
     try{
-      if(seen[r.aptId].has(r.name)){skip++;bpdfLog('⏭️ 이미있음  '+aptNm+' · '+r.name);return;}
-      seen[r.aptId].add(r.name); // 선점(배치 안 중복 방지)
+      const S=seen[r.aptId];
+      if(S.names.has(r.name)||S.titles.has(title)){skip++;bpdfLog('⏭️ 이미있음(제목/파일 중복)  '+aptNm+' · '+title);return;}
+      S.names.add(r.name); S.titles.add(title); // 선점(배치 안 중복 방지)
       const safe=r.name.replace(/[^\w.\-]/g,'_'); const path='report-pdf/'+r.aptId+'_'+Date.now()+'_'+r.idx+'_'+safe;
       const {error:ue}=await sb.storage.from('report-photos').upload(path,r.file,{contentType:'application/pdf',upsert:true});
       if(ue){fail++;bpdfLog('❌ 업로드 실패  '+r.name+' → '+ue.message,'#ff8a8a');return;}
       const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
-      const title=r.name.replace(/\.pdf$/i,'');
       const {error}=await sb.from('reports').insert({apartment_id:r.aptId,title,content:null,photos:[],pdf_url:url,pdf_name:r.name,published:!!pub,author_id:user?user.id:null});
       if(error){fail++;bpdfLog('❌ 저장 실패  '+r.name+' → '+error.message,'#ff8a8a');return;}
       made++; bpdfLog('✅ '+aptNm+' · '+title+(pub?' (공개)':''),'#8ce0a0');

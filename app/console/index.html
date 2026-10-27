@@ -370,7 +370,7 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-projects">
       <div class="head"><div><h2>공사관리</h2><div class="desc">단계(계약 → 착공 → 공사중 → 준공처리 → 준공)를 눌러 바로 이동 · 단지 클릭 → 상세(감리일지·작업사진·계약서·방문이력)</div></div></div>
       <div id="projList">
-        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openReportAddPick()">📝 감리일지 작성</button><button class="b line" onclick="openAptAdd()">➕ 단지 추가</button><button class="b line" id="pv-money" onclick="toggleProjMoney()" title="감리비·미수금 열 보기/숨기기">💰 금액 보기</button><button class="b line" onclick="openBulkAssign()">👥 감리원 일괄배정</button><span style="flex:1"></span><div class="seg" style="margin:0"><button id="pv-list" onclick="setProjView('list')">📋 리스트</button><button id="pv-kanban" onclick="setProjView('kanban')">🗂️ 칸반</button></div></div>
+        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openReportAddPick()">📝 감리일지 작성</button><button class="b line" onclick="openAptAdd()">➕ 단지 추가</button><button class="b line" id="pv-money" onclick="toggleProjMoney()" title="감리비·미수금 열 보기/숨기기">💰 금액 보기</button><button class="b line" onclick="openBulkAssign()">👥 감리원 일괄배정</button><button class="b line" onclick="bulkPublishReports(this)" title="dj(테스트) 작성 건은 제외하고 전체 공개">📢 감리일지 전체 공개</button><span style="flex:1"></span><div class="seg" style="margin:0"><button id="pv-list" onclick="setProjView('list')">📋 리스트</button><button id="pv-kanban" onclick="setProjView('kanban')">🗂️ 칸반</button></div></div>
         <div class="stgfilter" id="projStageFilter"></div>
         <div id="projTableWrap" class="money-off" style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:1000px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리원</th><th class="money-col">감리비</th><th class="money-col">미수금</th><th>감리일지</th><th>방문</th><th>공정률</th><th style="min-width:190px">단계 <span style="font-weight:600;color:var(--mut)">(클릭 이동)</span></th></tr></thead><tbody id="projRows"></tbody></table></div></div>
         <div id="projKanbanWrap" class="kbwrap" style="display:none"><div class="kbboard" id="projKanban"></div></div>
@@ -1743,6 +1743,35 @@ async function togglePub(id){
   if(error){alert('변경 실패: '+error.message);return;}
   r.published=next; renderProj();
 }
+/* ===== 감리일지 전체 공개 (dj/테스트 작성 건 제외) ===== */
+async function bulkPublishReports(btn){
+  const KEY='dj';   // 테스트 작성자 키워드 (이름/이메일/아이디/내용 감리원명에 포함)
+  const djIds=new Set((MEMBERS||[]).filter(m=>(((m.name||'')+' '+(m.email||'')).toLowerCase()).includes(KEY)).map(m=>m.id));
+  const isDj=function(r){
+    if(r.author_id && djIds.has(r.author_id)) return true;
+    const mm=String(r.content||'').match(/감리원\s*[:：]\s*([^\n|]+)/);
+    return !!(mm && mm[1].toLowerCase().includes(KEY));
+  };
+  const all=REPORTS||[];
+  const toPub=all.filter(r=>!r.published && !isDj(r));
+  const exDj=all.filter(r=>!r.published && isDj(r)).length;
+  const already=all.filter(r=>r.published).length;
+  const noPdf=toPub.filter(r=>!r.pdf_url).length;
+  if(!toPub.length){ alert('공개할 새 감리일지가 없어요.\n(이미 공개 '+already+'건 · dj 제외 '+exDj+'건)'); return; }
+  const djNames=[...djIds].map(id=>{const m=(MEMBERS||[]).find(x=>x.id===id);return m?(m.name||m.email):'';}).filter(Boolean).join(', ');
+  if(!confirm('📢 감리일지 '+toPub.length+'건을 입주민에게 한 번에 공개합니다.\n\n[제외]\n· dj(테스트) 작성: '+exDj+'건'+(djNames?' ['+djNames+']':'')+'\n· 이미 공개: '+already+'건\n'+(noPdf?('\n⚠️ 그중 '+noPdf+'건은 PDF가 없어 입주민에겐 “정리 중”으로 보여요.\n'):'')+'\n공개하면 입주민이 바로 볼 수 있어요. 계속할까요?')) return;
+  if(btn){btn.disabled=true;var _t=btn.textContent;btn.textContent='공개 중…';}
+  const ids=toPub.map(r=>r.id); let ok=0,fail=0;
+  for(let i=0;i<ids.length;i+=100){
+    const chunk=ids.slice(i,i+100);
+    const {error}=await sb.from('reports').update({published:true}).in('id',chunk);
+    if(error){fail+=chunk.length;console.warn('bulk pub',error);} else { ok+=chunk.length; chunk.forEach(id=>{const r=REPORTS.find(x=>x.id===id); if(r)r.published=true;}); }
+  }
+  if(btn){btn.disabled=false;btn.textContent=_t;}
+  alert('공개 완료: '+ok+'건'+(fail?('\n실패 '+fail+'건 (권한/네트워크 확인)'):''));
+  try{ renderProj(); if(window.renderProjList)renderProjList(); if(window.renderDash)renderDash(); }catch(e){}
+}
+window.bulkPublishReports=bulkPublishReports;
 /* ===== 감리원 배정 저장 ===== */
 async function saveAuditors(aptId){
   const ids=[...document.querySelectorAll('.aud-chk:checked')].map(c=>c.value);

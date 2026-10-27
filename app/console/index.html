@@ -2135,7 +2135,10 @@ function _gBlocks(lines){ if(!lines||!lines.length)return ''; var out='',buf=[];
   }); flush(); return out; }
 function gamriFormHtml(r,ov){
   const P=gamriParse(r),m=P.meta,s=P.sec;
-  const photos=Array.isArray(r.photos)?r.photos:[];
+  const allPhotos=Array.isArray(r.photos)?r.photos:[];
+  // 대표 사진이 지정돼 있으면 그것만, 없으면 전체 사진을 PDF에 싣는다
+  const cover=Array.isArray(r.cover_photos)?r.cover_photos.filter(function(u){return allPhotos.indexOf(u)>=0;}):[];
+  const photos=cover.length?cover:allPhotos;
   var workHtml,teukHtml,jijeokHtml;
   if(ov){ // AI 보강(감리원 검토본) override
     workHtml=_gBlocks(ov.work)||'<span class="muted">내용 없음</span>';
@@ -2251,12 +2254,43 @@ window.openAiEnrichModal=openAiEnrichModal;
 function _taLines(elid){ var el=document.getElementById(elid); if(!el)return []; return el.value.split('\n').map(function(s){return s.trim();}).filter(Boolean); }
 function aiPdfFromModal(id,btn){ genGamriPdf(id,btn,{ work:_taLines('ai-work'), teukgi:_taLines('ai-teuk'), jijeok:_taLines('ai-jijeok') }); }
 window.aiPdfFromModal=aiPdfFromModal;
+/* 감리일지 보기 — 대표 사진 선택(PDF에 싣는 사진) */
+let RV_ID=null,RV_PHOTOS=[],RV_COVER=[];
+function rvCoverThumbs(photos){
+  return photos.map(function(u,i){
+    var on=RV_COVER.indexOf(u)>=0;
+    return '<div onclick="rvToggleCover('+i+')" title="클릭: 대표 선택/해제" style="position:relative;width:78px;height:78px;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid '+(on?'#2F6BF6':'var(--line)')+';'+(on?'box-shadow:0 0 0 2px rgba(47,107,246,.35)':'')+'">'
+      +'<img src="'+esc(u)+'" style="width:100%;height:100%;object-fit:cover;display:block;'+(on?'':'opacity:.8')+'">'
+      +(on?'<span style="position:absolute;left:3px;top:3px;background:#2F6BF6;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:5px">대표</span>':'')
+      +'<a href="'+esc(u)+'" target="_blank" onclick="event.stopPropagation()" title="원본 보기" style="position:absolute;right:2px;bottom:2px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;width:18px;height:18px;line-height:18px;text-align:center;border-radius:5px;text-decoration:none">↗</a>'
+    +'</div>';
+  }).join('');
+}
+function rvToggleCover(i){
+  var u=RV_PHOTOS[i]; if(!u)return;
+  var k=RV_COVER.indexOf(u); if(k>=0)RV_COVER.splice(k,1); else RV_COVER.push(u);
+  var g=$('rv-grid'); if(g)g.innerHTML=rvCoverThumbs(RV_PHOTOS);
+  var c=$('rv-covcount'); if(c)c.textContent=RV_COVER.length;
+}
+window.rvToggleCover=rvToggleCover;
+async function rvSaveCover(btn){
+  if(!RV_ID)return;
+  if(btn){btn.disabled=true;var _t=btn.textContent;btn.textContent='저장 중…';}
+  const {error}=await sb.from('reports').update({cover_photos:RV_COVER.slice()}).eq('id',RV_ID);
+  if(btn){btn.disabled=false;btn.textContent=_t;}
+  if(error){alert('저장 실패: '+error.message+'\n\n(reports에 cover_photos 컬럼이 없으면 SQL을 먼저 실행하세요)');return;}
+  const r=REPORTS.find(x=>x.id===RV_ID); if(r)r.cover_photos=RV_COVER.slice();
+  if(window.toast)toast('대표 사진 '+RV_COVER.length+'장을 저장했어요 · PDF엔 이 사진만 들어갑니다');
+}
+window.rvSaveCover=rvSaveCover;
 function openReportView(id){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;
   const photos=Array.isArray(r.photos)?r.photos:[];
   const meta=[ (r.created_at||'').slice(0,10), (r.dongs||''), (photos.length?photos.length+'장':''), (r.published?'공개중':'비공개') ].filter(Boolean);
   const pdfHtml = r.pdf_url?`<div class="fld"><a href="${esc(r.pdf_url)}" target="_blank" class="b line">📄 입주민 공개용 PDF 보기${r.pdf_name?' ('+esc(r.pdf_name)+')':''}</a></div>`:'';
-  const phHtml = photos.length?`<div class="fld"><label style="display:flex;justify-content:space-between;align-items:center">현장 사진 ${photos.length}장 <button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 전체 다운로드</button></label><div class="phwrap" style="margin-top:4px">${photos.map(u=>`<a href="${esc(u)}" target="_blank" title="원본 보기"><img src="${esc(u)}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>`).join('')}</div></div>`:'';
+  const cov=Array.isArray(r.cover_photos)?r.cover_photos.filter(u=>photos.includes(u)):[];
+  RV_ID=r.id; RV_PHOTOS=photos.slice(); RV_COVER=cov.slice();
+  const phHtml = photos.length?`<div class="fld"><label style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>현장 사진 ${photos.length}장 · <b style="color:#2F6BF6">대표 <span id="rv-covcount">${cov.length}</span>장</b> <span style="font-weight:600;color:var(--mut);font-size:11px">(사진을 눌러 대표 선택 · PDF엔 대표만 들어가요)</span></span><span style="display:flex;gap:6px"><button class="b blue sm" onclick="rvSaveCover(this)">대표 저장</button><button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 전체 다운로드</button></span></label><div id="rv-grid" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px">${rvCoverThumbs(RV_PHOTOS)}</div></div>`:'';
   openModal(mHead('📄 감리일지 보기')+`
     <div style="font-size:14px;font-weight:800;margin-bottom:4px">${repRoundBadge(r)} ${esc(r.title)||'감리일지'}</div>
     <div style="font-size:12px;color:var(--mut);margin-bottom:12px">${meta.map(esc).join(' · ')}</div>

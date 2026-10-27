@@ -428,10 +428,12 @@ tbody tr:hover{background:#f8fafc}
       <div class="head"><div><h2>데이터 도구</h2><div class="desc">감리일지 PDF 일괄 올리기 · 아임웹 게시판 가져오기 · 사진/계약서 저장소 이전</div></div></div>
       <div class="card">
         <h3>📄 감리일지 PDF 폴더 일괄 올리기</h3>
-        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">PDF가 담긴 <b>폴더를 통째로 선택</b>하면 파일 이름으로 <b>단지를 자동 매칭</b>해서 각 단지의 감리일지로 올려줘요. 먼저 <b>① 분석</b>으로 어느 단지에 들어갈지 확인·수정한 뒤 <b>② 업로드</b>하세요. 같은 파일 이름은 자동으로 건너뜁니다.</div>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:10px">PDF를 고르면 파일 이름으로 <b>단지를 자동 매칭</b>해서 각 단지의 감리일지로 올려줘요. 고르면 바로 미리보기 표가 뜨니 <b>단지를 확인·수정한 뒤 ②업로드</b>하세요. 같은 파일 이름은 자동으로 건너뜁니다.</div>
+        <div style="font-size:12px;color:#8a5a00;line-height:1.6;margin-bottom:12px;background:#fff7e6;border:1px solid #ffe3a3;border-radius:8px;padding:9px 11px">⚠️ <b>나스(네트워크 폴더)를 그대로 고르면 매우 느려요.</b> 브라우저가 파일을 하나씩 네트워크로 당겨오기 때문이에요. 올릴 PDF들을 <b>컴퓨터 바탕화면에 복사</b>한 뒤 아래 <b>‘PDF 파일 직접 선택’</b>으로 전체 선택하면 가장 빠릅니다.</div>
         <div class="toolbar">
-          <input id="bpdf-file" type="file" accept="application/pdf" webkitdirectory multiple class="inp">
-          <button class="b line" id="bpdf-scan" onclick="bulkPdfScan()">① 분석(미리보기)</button>
+          <label class="b line" style="cursor:pointer">📁 폴더 선택<input id="bpdf-file" type="file" accept="application/pdf" webkitdirectory multiple style="display:none" onchange="bulkPdfScan()"></label>
+          <label class="b blue" style="cursor:pointer">📄 PDF 파일 직접 선택(권장)<input id="bpdf-files" type="file" accept="application/pdf" multiple style="display:none" onchange="bulkPdfScan()"></label>
+          <button class="b line" id="bpdf-scan" onclick="bulkPdfScan()" style="display:none">새로고침</button>
           <button class="b blue" id="bpdf-run" onclick="bulkPdfRun()" disabled>② 업로드 실행</button>
           <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--mut2);cursor:pointer"><input type="checkbox" id="bpdf-pub" style="width:15px;height:15px"> 올리면서 바로 입주민에게 공개</label>
         </div>
@@ -3004,7 +3006,8 @@ async function importBoard(){
 /* ===== 데이터 도구: 감리일지 PDF 폴더 일괄 올리기 ===== */
 let BPDF_ROWS=[];
 function bpdfLog(msg,color){ const box=$('bpdf-log'); if(!box)return; box.style.display='block'; const d=document.createElement('div'); d.textContent=msg; if(color)d.style.color=color; box.appendChild(d); box.scrollTop=box.scrollHeight; }
-function bpdfNorm(s){ return (s||'').toLowerCase().replace(/[^0-9a-z가-힣]/g,''); }
+// NFC 정규화: 나스(맥/SMB) 한글 파일명은 자모 분리(NFD)라 안 하면 매칭이 깨짐
+function bpdfNorm(s){ return (s||'').normalize('NFC').toLowerCase().replace(/[^0-9a-z가-힣]/g,''); }
 // 파일 이름 안에 단지 이름이 들어있으면 매칭(가장 길게 겹치는 단지 선택 → 짧은 이름 오매칭 방지)
 function bpdfMatch(fname){
   const fn=bpdfNorm(fname.replace(/\.pdf$/i,'')); let best=null,bl=0;
@@ -3012,9 +3015,11 @@ function bpdfMatch(fname){
   return best;
 }
 function bulkPdfScan(){
-  const fi=$('bpdf-file'); const files=fi&&fi.files;
-  const list=files?Array.from(files).filter(f=>/\.pdf$/i.test(f.name)):[];
-  if(!list.length){alert('PDF가 들어있는 폴더를 선택하세요');return;}
+  let all=[]; const f1=$('bpdf-file'),f2=$('bpdf-files');
+  if(f1&&f1.files)all=all.concat(Array.from(f1.files));
+  if(f2&&f2.files)all=all.concat(Array.from(f2.files));
+  const list=all.filter(f=>/\.pdf$/i.test(f.name));
+  if(!list.length){alert('PDF 파일을 선택하세요');return;}
   BPDF_ROWS=list.map((f,i)=>{ const m=bpdfMatch(f.name); return {idx:i,file:f,name:f.name,aptId:m?m.id:'',auto:!!m}; });
   const sorted=[...APTS].sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   const aptOpts=aptId=>sorted.map(a=>`<option value="${a.id}" ${a.id===aptId?'selected':''}>${esc(a.name)}</option>`).join('');
@@ -3029,34 +3034,44 @@ function bulkPdfScan(){
   $('bpdf-run').disabled=false;
 }
 async function bulkPdfRun(){
-  // 미리보기 표의 현재 선택값을 읽어 확정(사용자가 드롭다운으로 바꾼 것 반영)
-  const rows=BPDF_ROWS.map(r=>{ const sel=$('bpdf-sel-'+r.idx); return {...r,aptId:sel?sel.value:r.aptId}; }).filter(r=>r.aptId);
-  if(!rows.length){alert('단지가 지정된 PDF가 없어요. 먼저 ①분석을 눌러 단지를 지정하세요.');return;}
+  // 미리보기 표의 현재 선택값을 읽어 확정(사용자가 드롭다운으로 바꾼 것 반영) + 단지+파일명 중복 제거
+  const picked=BPDF_ROWS.map(r=>{ const sel=$('bpdf-sel-'+r.idx); return {...r,aptId:sel?sel.value:r.aptId}; }).filter(r=>r.aptId);
+  const rows=[]; const dd=new Set();
+  for(const r of picked){ const k=r.aptId+'|'+r.name; if(dd.has(k))continue; dd.add(k); rows.push(r); }
+  if(!rows.length){alert('단지가 지정된 PDF가 없어요. 먼저 폴더/파일을 고르고 단지를 지정하세요.');return;}
   const pub=$('bpdf-pub')&&$('bpdf-pub').checked;
   if(!confirm('PDF '+rows.length+'개를 감리일지로 올립니다'+(pub?' (올리면서 바로 입주민에게 공개)':' (비공개 상태로 등록)')+'.\n진행할까요?'))return;
-  const btn=$('bpdf-run'),scanBtn=$('bpdf-scan'); if(btn){btn.textContent='올리는 중…';btn.disabled=true;} if(scanBtn)scanBtn.disabled=true;
+  const btn=$('bpdf-run'); if(btn)btn.disabled=true;
   $('bpdf-log').innerHTML='';
   const {data:{user}}=await sb.auth.getUser();
-  const seen={}; let made=0,skip=0,fail=0,n=0;
-  for(const r of rows){
-    n++; const apt=APTS.find(a=>a.id===r.aptId); const aptNm=apt?apt.name:r.aptId;
-    bpdfLog('('+n+'/'+rows.length+') '+aptNm+' · '+r.name+' …','#7fb0ff');
+  // 기존 pdf_name 미리 조회(중복 건너뛰기) — 단지별 1회, 병렬
+  const aptIds=[...new Set(rows.map(r=>r.aptId))]; const seen={};
+  bpdfLog('기존 감리일지 확인 중…','#7fb0ff');
+  await Promise.all(aptIds.map(async id=>{ const {data}=await sb.from('reports').select('pdf_name').eq('apartment_id',id); seen[id]=new Set((data||[]).map(x=>x.pdf_name).filter(Boolean)); }));
+  let made=0,skip=0,fail=0,done=0;
+  const stat=()=>{ if(btn)btn.textContent='올리는 중… '+done+'/'+rows.length+' (성공 '+made+')'; };
+  stat();
+  async function work(r){
+    const apt=APTS.find(a=>a.id===r.aptId); const aptNm=apt?apt.name:r.aptId;
     try{
-      if(!seen[r.aptId]){ const {data}=await sb.from('reports').select('pdf_name').eq('apartment_id',r.aptId); seen[r.aptId]=new Set((data||[]).map(x=>x.pdf_name).filter(Boolean)); }
-      if(seen[r.aptId].has(r.name)){skip++;bpdfLog('⏭️ 이미있음  '+aptNm+' · '+r.name);continue;}
-      const safe=r.name.replace(/[^\w.\-]/g,'_'); const path='report-pdf/'+r.aptId+'_'+Date.now()+'_'+n+'_'+safe;
+      if(seen[r.aptId].has(r.name)){skip++;bpdfLog('⏭️ 이미있음  '+aptNm+' · '+r.name);return;}
+      seen[r.aptId].add(r.name); // 선점(배치 안 중복 방지)
+      const safe=r.name.replace(/[^\w.\-]/g,'_'); const path='report-pdf/'+r.aptId+'_'+Date.now()+'_'+r.idx+'_'+safe;
       const {error:ue}=await sb.storage.from('report-photos').upload(path,r.file,{contentType:'application/pdf',upsert:true});
-      if(ue){fail++;bpdfLog('❌ 업로드 실패  '+r.name+' → '+ue.message,'#ff8a8a');continue;}
+      if(ue){fail++;bpdfLog('❌ 업로드 실패  '+r.name+' → '+ue.message,'#ff8a8a');return;}
       const url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
       const title=r.name.replace(/\.pdf$/i,'');
-      const rec={apartment_id:r.aptId,title,content:null,photos:[],pdf_url:url,pdf_name:r.name,published:!!pub,author_id:user?user.id:null};
-      const {error}=await sb.from('reports').insert(rec);
-      if(error){fail++;bpdfLog('❌ 저장 실패  '+r.name+' → '+error.message,'#ff8a8a');continue;}
-      made++; seen[r.aptId].add(r.name); bpdfLog('✅ 등록  '+aptNm+' · '+title+(pub?' (공개)':''),'#8ce0a0');
+      const {error}=await sb.from('reports').insert({apartment_id:r.aptId,title,content:null,photos:[],pdf_url:url,pdf_name:r.name,published:!!pub,author_id:user?user.id:null});
+      if(error){fail++;bpdfLog('❌ 저장 실패  '+r.name+' → '+error.message,'#ff8a8a');return;}
+      made++; bpdfLog('✅ '+aptNm+' · '+title+(pub?' (공개)':''),'#8ce0a0');
     }catch(e){fail++;bpdfLog('❌ 오류  '+r.name+' → '+(e&&e.message||e),'#ff8a8a');}
+    finally{ done++; stat(); }
   }
+  // 동시 4개 병렬 처리
+  let i=0; const limit=Math.min(4,rows.length);
+  await Promise.all(Array.from({length:limit},async()=>{ while(i<rows.length){ await work(rows[i++]); } }));
   bpdfLog(''); bpdfLog('════ 완료 ════  등록 '+made+' · 이미있음 '+skip+' · 실패 '+fail,'#cfe0ff');
-  if(btn){btn.textContent='② 업로드 실행';btn.disabled=false;} if(scanBtn)scanBtn.disabled=false;
+  if(btn){btn.textContent='② 업로드 실행';btn.disabled=false;}
   await loadAll();
 }
 

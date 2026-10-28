@@ -323,10 +323,10 @@ function openAudSotong(a) {
   a = a || currentApt; if (!a) return
   const ap = document.getElementById('sotong-apt'); if (ap) ap.textContent = a.name || ''
   const fr = document.getElementById('sotong-frame')
-  if (fr) fr.src = 'sotong.html?name=' + encodeURIComponent(MY_NAME || '') + '&site=' + encodeURIComponent(a.name || '') + '&t=' + Date.now()
+  if (fr) { fr.onload = sizeSotongFrame; fr.src = 'sotong.html?name=' + encodeURIComponent(MY_NAME || '') + '&site=' + encodeURIComponent(a.name || '') + '&t=' + Date.now() }
   window.showScreen('s37')
-  // 화면 전환 후 레이아웃이 잡히면 iframe 폭을 px로 고정
-  setTimeout(sizeSotongFrame, 60); setTimeout(sizeSotongFrame, 300)
+  // 화면 전환/로드 후 레이아웃이 잡히면 iframe 폭을 px로 고정
+  setTimeout(sizeSotongFrame, 60); setTimeout(sizeSotongFrame, 300); setTimeout(sizeSotongFrame, 700)
 }
 window.openAudSotong = openAudSotong
 // 감리원: 이 단지 현장 사진 목록

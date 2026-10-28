@@ -1156,6 +1156,12 @@ render();
   var b=document.querySelector('.me > b');
   if(b) b.textContent=(nm?('감리원 '+nm):'')+(nm&&st?' · ':'')+(st?('현장 '+st):'')+' · 공종만 선택하세요';
 }catch(e){} })();
+/* 키보드가 올라올 때 포커스된 입력칸을 화면 가운데로 스크롤(iOS 키보드에 가리지 않게) */
+document.addEventListener('focusin', function(e){
+  var t=e.target; if(!t||typeof t.scrollIntoView!=='function') return;
+  if(!/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  setTimeout(function(){ try{ t.scrollIntoView({block:'center'}); }catch(_){} }, 320);
+});
 </script>
 </body>
 </html>

@@ -4278,6 +4278,7 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 .ncf-row .k{flex:0 0 120px;color:var(--text-muted)}
 .ncf-row .v{flex:1;word-break:break-word;white-space:pre-wrap}
 .ncf-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--bg-secondary);border:1px solid var(--border)}
+.ncf-status-sel{padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);font-size:13px}
 .media-chan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
 .media-chan{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
   padding:12px 14px;cursor:pointer;transition:border-color .12s}
@@ -6045,7 +6046,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-116';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-117';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -31000,7 +31001,9 @@ function nfCardHtml(r){
   const pr = String(r.priority || '');
   const urgent = /긴급|높|최우선|급/.test(pr);
   const types = Array.isArray(r.contentTypes) ? r.contentTypes.join(' · ') : '';
-  return '<div class="media-card" onclick="nfDetail(\'' + jsq(r.id) + '\')" title="눌러서 상세 보기">'
+  return '<div class="media-card" draggable="true" '
+    + 'ondragstart="nfDragStart(event,\'' + jsq(r.id) + '\',' + (r.version || 0) + ')" ondragend="nfDragEnd(event)" '
+    + 'onclick="nfDetail(\'' + jsq(r.id) + '\')" title="드래그해서 진행상태 변경 · 눌러서 상세">'
     + '<div class="ncf-no">' + esc(r.number || '') + '</div>'
     + '<div class="media-card-t">' + esc(r.projectName || '(제목 없음)') + '</div>'
     + '<div class="media-card-m">'
@@ -31032,11 +31035,12 @@ function renderNetformBoard(){
     const cards = items.map(nfCardHtml).join('');
     return '<div class="media-col"><div class="media-col-h" style="border-top:3px solid ' + NF_LANE_HUE[ln] + '">'
       + esc(ln) + ' <span class="cnt">' + (items.length || '') + '</span></div>'
-      + '<div class="media-col-b">' + (cards || '<div class="media-col-e">비어 있음</div>') + '</div></div>';
+      + '<div class="media-col-b" ondragover="nfDragOver(event)" ondragleave="nfDragLeave(event)" ondrop="nfDrop(event,\'' + jsq(ln) + '\')">'
+      + (cards || '<div class="media-col-e">비어 있음</div>') + '</div></div>';
   }).join('');
   return top + '<div class="media-kan">' + cols + '</div>'
-    + (cancelled ? '<div class="fmeta" style="padding:10px 2px">🚫 취소 ' + cancelled + '건은 보드에서 숨겼습니다</div>' : '')
-    + '<div class="fmeta" style="padding:2px">읽기 전용 — 지금은 보기만 (양방향 상태 변경은 준비 중)</div>';
+    + (cancelled ? '<div class="fmeta" style="padding:10px 2px">🚫 취소 ' + cancelled + '건은 보드에서 숨겼습니다 (카드 열어서 되살릴 수 있어요)</div>' : '')
+    + '<div class="fmeta" style="padding:2px">카드를 드래그해 레인을 옮기면 진행상태가 NETFORM에 바로 반영됩니다 · 취소 등 세부 상태는 카드를 눌러 변경</div>';
 }
 const NF_LABELS = { dept:'요청부서', reqName:'요청자', reqRank:'직급', reqTel:'연락처',
   writeDate:'작성일', priority:'우선순위', purpose:'제작 목적', kpi:'기대 효과(KPI)', target:'주요 타겟', message:'핵심 메시지',
@@ -31051,7 +31055,11 @@ const NF_LABEL_ORDER = ['dept','reqName','reqRank','reqTel','priority','writeDat
 function nfVal(v){ if(v == null || v === '') return ''; if(Array.isArray(v)) return v.join(' · '); return String(v); }
 function nfDetail(id){
   const r = nfReqById(id); if(!r) return;
-  let rows = '<div class="ncf-row"><span class="k">진행 상태</span><span class="v"><span class="ncf-badge">' + esc(r.status || '') + '</span></span></div>';
+  const stOpts = ['의뢰 접수','내용 확인 중','일정 조율 중','제작 진행 중','검토 및 수정 중','완료','보류','취소']
+    .map(function(s){ return '<option' + (s === r.status ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('');
+  let rows = '<div class="ncf-row"><span class="k">진행 상태</span><span class="v">'
+    + '<select class="ncf-status-sel" onchange="nfSetStatus(\'' + jsq(r.id) + '\',this.value,' + (r.version || 0) + ')">' + stOpts + '</select>'
+    + ' <span class="fmeta">← 바꾸면 NETFORM에 저장</span></span></div>';
   NF_LABEL_ORDER.forEach(k => { const v = nfVal(r[k]); if(v) rows += '<div class="ncf-row"><span class="k">' + esc(NF_LABELS[k] || k) + '</span><span class="v">' + esc(v) + '</span></div>'; });
   rows += '<div class="ncf-row"><span class="k">등록</span><span class="v">' + esc((r.createdDept ? r.createdDept + ' · ' : '') + (r.createdBy || '') + (r.createdAt ? ' · ' + nfTime(r.createdAt) : '')) + '</span></div>';
   if(r.updatedAt) rows += '<div class="ncf-row"><span class="k">수정</span><span class="v">' + esc((r.updatedBy || '') + ' · ' + nfTime(r.updatedAt)) + '</span></div>';
@@ -31064,6 +31072,42 @@ function nfDetail(id){
   document.body.appendChild(host);
 }
 function nfClose(){ const h = document.getElementById('nfModalHost'); if(h) h.remove(); }
+
+/* 🎬 양방향 — 카드를 드래그해 레인(진행상태)을 옮기면 NETFORM 에 되씀 */
+let nfDragId = '', nfDragVer = 0;
+function nfDragStart(e, id, ver){ nfDragId = id; nfDragVer = ver;
+  try{ e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); }catch(_){}
+  const el = e.currentTarget; if(el) el.classList.add('dragging'); }
+function nfDragEnd(e){ const el = e.currentTarget; if(el) el.classList.remove('dragging');
+  document.querySelectorAll('.media-col-b.drop-on').forEach(x => x.classList.remove('drop-on')); nfDragId = ''; }
+function nfDragOver(e){ e.preventDefault(); try{ e.dataTransfer.dropEffect = 'move'; }catch(_){}
+  const b = e.currentTarget; if(b) b.classList.add('drop-on'); }
+function nfDragLeave(e){ const b = e.currentTarget; if(b && !b.contains(e.relatedTarget)) b.classList.remove('drop-on'); }
+function nfDrop(e, laneStatus){ e.preventDefault();
+  const b = e.currentTarget; if(b) b.classList.remove('drop-on');
+  let id = nfDragId; try{ if(!id && e.dataTransfer) id = e.dataTransfer.getData('text/plain'); }catch(_){}
+  const ver = nfDragVer; nfDragId = ''; nfDragVer = 0;
+  const r = nfReqById(id); if(!r) return;
+  if(nfLaneOf(r.status) === laneStatus) return;   // 같은 레인이면 변화 없음
+  nfSetStatus(id, laneStatus, ver); }
+function nfSetStatus(id, status, version){
+  const r = nfReqById(id); if(!r) return;
+  if(r.status === status){ nfClose(); return; }
+  toast('💾 NETFORM에 저장 중…');
+  fetch('netform-sync.php?action=setStatus', { method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ id:id, status:status,
+      expectedVersion:(version != null ? version : r.version),
+      actorName:((typeof myName === 'function' ? myName() : '') || '브랜드허브'),
+      actorDept:'미디어마케팅팀' }) })
+    .then(function(x){ return x.json(); })
+    .then(function(j){
+      nfClose();
+      if(j && j.ok){ toast('✅ 「' + (r.projectName || '의뢰') + '」 → ' + status); nfSync(); }
+      else if(j && j.conflict){ toast('⚠️ 다른 사람이 먼저 바꿨어요. 최신으로 다시 불러옵니다.'); nfSync(); }
+      else { toast('⚠️ 저장 실패: ' + ((j && j.error) || '알 수 없는 오류')); nfSync(); }
+    })
+    .catch(function(e){ toast('⚠️ 저장 실패: ' + ((e && e.message) || e)); });
+}
 
 /* ── 📆 콘텐츠 캘린더 (공개 예정 · 촬영) ────────────────────────────── */
 function mediaCalView(){

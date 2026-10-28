@@ -140,4 +140,55 @@ if($action === 'list'){
             'requests' => array()));
 }
 
+if($action === 'setStatus'){
+  // 허브에서 바꾼 진행상태를 NETFORM 에 되씀 (상태만 — 나머지 필드는 서버가 기존 레코드에서 병합)
+  $in = json_decode(file_get_contents('php://input'), true);
+  if(!is_array($in)) $in = $_POST;
+  $id = isset($in['id']) ? (string)$in['id'] : '';
+  $status = isset($in['status']) ? (string)$in['status'] : '';
+  $expectedVersion = array_key_exists('expectedVersion', $in) ? intval($in['expectedVersion']) : null;
+  $actorName = trim(isset($in['actorName']) ? $in['actorName'] : '');
+  if($actorName === '') $actorName = '브랜드허브';
+  $actorDept = trim(isset($in['actorDept']) ? $in['actorDept'] : '');
+  if($actorDept === '') $actorDept = '미디어마케팅팀';
+  // NETFORM 의 진행상태 값만 허용 (임의 값 차단)
+  $ALLOWED = array('의뢰 접수','내용 확인 중','일정 조율 중','제작 진행 중','검토 및 수정 중','완료','보류','취소','작성 중');
+  if($id === '' || !in_array($status, $ALLOWED, true))
+    out(array('ok' => false, 'error' => '잘못된 요청입니다 (상태값 확인).'));
+
+  // 작동하는 base 찾기
+  $base = '';
+  foreach($NETFORM_BASES as $b){
+    list($r, $e, $c) = nf_http('GET', $b . '/api/health', null, array(), $TIMEOUT);
+    if($r !== null && $c >= 200 && $c < 300){ $base = $b; break; }
+  }
+  if($base === '') out(array('ok' => false, 'error' => 'NETFORM 에 연결할 수 없습니다 (컨테이너 확인).'));
+
+  $hdr = array('X-Netform-Client' => 'web', 'Content-Type' => 'application/json');
+
+  // 1) 작성자 등록/재사용 → actorId (같은 부서·이름이면 항상 같은 id)
+  list($wr, $we, $wc) = nf_http('POST', $base . '/api/writer',
+    json_encode(array('name' => $actorName, 'department' => $actorDept), JSON_UNESCAPED_UNICODE), $hdr, $TIMEOUT);
+  $wj = $wr !== null ? json_decode($wr, true) : null;
+  if(!is_array($wj) || empty($wj['actorId']))
+    out(array('ok' => false, 'error' => '작성자 등록 실패: ' . ($we ?: ('HTTP ' . $wc))));
+  $actorId = $wj['actorId'];
+
+  // 2) 진행상태만 저장 (버전 검사로 충돌 방지, Idempotency-Key 로 중복 방지)
+  $ph = $hdr;
+  $ph['Idempotency-Key'] = 'hub-' . bin2hex(random_bytes(8));
+  $putBody = json_encode(array(
+    'data'            => array('status' => $status),
+    'expectedVersion' => $expectedVersion,
+    'actorId'         => $actorId,
+  ), JSON_UNESCAPED_UNICODE);
+  list($pr, $pe, $pc) = nf_http('PUT', $base . '/api/records/requests/' . rawurlencode($id), $putBody, $ph, $TIMEOUT);
+  $pj = $pr !== null ? json_decode($pr, true) : null;
+  if($pr !== null && $pc >= 200 && $pc < 300)
+    out(array('ok' => true, 'status' => $status, 'record' => (is_array($pj) ? $pj : null)));
+  // 실패 — NETFORM 오류 메시지를 그대로 전달 (예: 완료는 결과물 경로 필요, 409 충돌 등)
+  $msg = (is_array($pj) && isset($pj['error'])) ? $pj['error'] : ($pe ?: ('HTTP ' . $pc));
+  out(array('ok' => false, 'conflict' => ($pc === 409), 'error' => $msg, 'code' => $pc));
+}
+
 out(array('ok' => false, 'error' => '알 수 없는 action: ' . $action));

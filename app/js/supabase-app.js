@@ -309,6 +309,15 @@ async function openAuditorMenu(a) {
 }
 window.openAuditorMenu = openAuditorMenu
 // 감리 현장 소통문구 도구(iframe) — 감리원 이름·현장명을 자동 주입해서 연다
+// 소통문구 도구에서 입력칸 바깥을 탭하면 키보드가 내려가도록(입력칸 blur)
+document.addEventListener('pointerdown', function (e) {
+  try {
+    if (!e.target.closest || !e.target.closest('#sotong-root')) return
+    if (e.target.closest('input,textarea,select,button,label,a,[contenteditable]')) return
+    const ac = document.activeElement
+    if (ac && /^(INPUT|TEXTAREA|SELECT)$/.test(ac.tagName) && ac.blur) ac.blur()
+  } catch (err) {}
+}, true)
 function openAudSotong(a) {
   a = a || currentApt; if (!a) return
   const ap = document.getElementById('sotong-apt'); if (ap) ap.textContent = a.name || ''

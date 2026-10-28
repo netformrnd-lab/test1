@@ -1767,6 +1767,20 @@ async function addMPhoto(files){
 function removeMPhoto(i){ MPHOTOS.splice(i,1); refreshMPhotos(); }
 
 /* ===== 감리일지: 공개 토글 ===== */
+/* 감리일지 공개/비공개에 맞춰, 그 감리일지의 현장사진을 입주민 '현장현황'에도 1:1로 동기화.
+   · source_report_id 로 묶어 '감리일지 1건 = 현장현황 1건' → 재공개해도 중복 안 생김
+   · 비공개/삭제 시 연결된 현장현황도 사라짐(직접 올린 현장사진은 안 건드림)
+   · 사진만 공개(글 내용은 안 넘김), 제목은 pub_title(없으면 감리일지 제목) */
+async function syncFieldFromReport(r){
+  await sb.from('field_updates').delete().eq('source_report_id', r.id);   // 기존 연결분 제거(중복 방지)
+  const photos=Array.isArray(r.photos)?r.photos:[];
+  if(!(r.published && photos.length)) return;                              // 공개 + 사진 있을 때만 생성
+  const title=(r.pub_title||'').trim() || (r.title||'현장 사진');
+  const rec={ apartment_id:r.apartment_id, title:title, content:null, photos:photos.slice(), source_report_id:r.id };
+  const dk=(typeof repDateKey==='function')?repDateKey(r):''; if(/^\d{8}$/.test(dk)) rec.created_at=dk.slice(0,4)+'-'+dk.slice(4,6)+'-'+dk.slice(6,8)+'T09:00:00+09:00';
+  const {error}=await sb.from('field_updates').insert(rec);
+  if(error){ if(/source_report_id|column|schema/i.test(error.message||'')) throw new Error('현장현황 공개 컬럼이 없어요 — backend/migration-publish-field.sql 을 먼저 실행하세요.'); throw new Error(error.message); }
+}
 async function togglePub(id,btn){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;
   const next=!r.published;
@@ -1779,7 +1793,9 @@ async function togglePub(id,btn){
   }
   const {error}=await sb.from('reports').update({published:next}).eq('id',id);
   if(error){alert('변경 실패: '+error.message);return;}
-  r.published=next; renderProj();
+  r.published=next;
+  try{ await syncFieldFromReport(r); }catch(e){ alert('현장현황 사진 공개 중 문제: '+(e&&e.message||e)); }
+  renderProj();
 }
 /* ===== 감리일지 전체 공개 (dj/테스트 작성 건 제외) ===== */
 async function bulkPublishReports(btn){
@@ -2397,7 +2413,9 @@ function openReportEdit(id){
     <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>📄 입주민 공개용 PDF</label>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${r.pdf_url?`<a href="${esc(r.pdf_url)}" target="_blank" class="b line">📄 ${esc(r.pdf_name||'PDF')} 보기</a>`:'<span style="font-size:12px;color:var(--mut)">아직 PDF 없음</span>'}
       <label class="b line" style="cursor:pointer">📎 PDF ${r.pdf_url?'교체':'올리기'}<input type="file" accept="application/pdf" style="display:none" onchange="uploadReportPdfConsole('${r.id}',this.files)"></label></div>
-      <input id="m-pubtitle" value="${esc(r.pub_title)||''}" placeholder="입주민에게 보일 제목 (선택)" style="margin-top:8px"></div>
+      <label style="margin-top:12px;display:block">입주민에게 보일 제목</label>
+      <input id="m-pubtitle" value="${esc(r.pub_title)||''}" placeholder="${esc(r.title)||'예: 20260427 [101동 옥상 우레탄 상도]'}" style="margin-top:4px">
+      <div style="font-size:11px;color:var(--mut);margin-top:4px">공개 시 감리일지 PDF·현장현황 사진에 함께 표시돼요. 비워두면 위 제목이 그대로 쓰여요.</div></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b red" onclick="deleteReport('${r.id}')">삭제</button><span style="flex:1"></span><button class="b ${r.published?'line':'green'}" onclick="togglePubModal('${r.id}')">${r.published?'공개 중 → 비공개':'입주민에게 공개'}</button><button class="b blue" onclick="submitReportEdit('${r.id}')">저장</button></div>`);
 }
@@ -2438,7 +2456,9 @@ async function togglePubModal(id){
   }
   const {error}=await sb.from('reports').update({published:next}).eq('id',id);
   if(error){alert('오류: '+error.message);return;}
-  r.published=next; closeModal(); await loadAll();
+  r.published=next;
+  try{ await syncFieldFromReport(r); }catch(e){ alert('현장현황 사진 공개 중 문제: '+(e&&e.message||e)); }
+  closeModal(); await loadAll();
 }
 async function deleteReport(id){
   if(!confirm('이 감리일지를 삭제할까요?'))return;

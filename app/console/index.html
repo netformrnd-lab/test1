@@ -2236,14 +2236,17 @@ function _gIsHead(t){
   return false;
 }
 /* 특기사항: 소제목은 회색 띠로, 나머지는 불릿으로 (2차 양식처럼 구조화)
-   ※ 내용을 묶어 break-inside:avoid 걸면 긴 내용이 통째로 다음 장으로 밀려 빈 칸이 생기므로
-     묶지 않고 자연스럽게 흐르게 둔다(소제목만 간혹 페이지 끝에 걸릴 수 있음 — 빈칸보다 나음). */
-function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',open=false;
-  function closeUl(){ if(open){ out+='</ul>'; open=false; } }
+   소제목+그 아래 내용을 .gteuk 로 묶어 '섹션 단위'로 페이지를 넘김(섹션이 페이지 경계에서 잘리지 않게).
+   ※ 소제목이 제대로 인식되므로 섹션마다 작게 나뉨 → 과거처럼 전체가 한 덩어리로 밀리는 빈칸 문제 없음.
+     (한 섹션이 한 페이지보다 길면 어쩔 수 없이 나뉘지만, 보통은 섹션째 다음 장으로 넘어감)
+   ※ 클래스명은 대시보드 전역 '.sec{display:none}' 과 겹치지 않는 고유명(.gteuk) 사용. */
+function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',sec='',open=false;
+  function closeUl(){ if(open){ sec+='</ul>'; open=false; } }
+  function flushSec(){ closeUl(); if(sec){ out+='<div class="gteuk">'+sec+'</div>'; sec=''; } }
   lines.forEach(function(ln){ var t=String(ln||'').replace(/^[·▪◇]\s*/,'').trim(); if(!t)return;
-    if(_gIsHead(t)){ closeUl(); out+='<div class="sub">'+_gEsc(t)+'</div>'; }
-    else { if(!open){ out+='<ul>'; open=true; } out+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
-  }); closeUl(); return out; }
+    if(_gIsHead(t)){ flushSec(); sec='<div class="sub">'+_gEsc(t)+'</div>'; }
+    else { if(!open){ sec+='<ul>'; open=true; } sec+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
+  }); flushSec(); return out; }
 function gamriFormHtml(r,ov){
   const P=gamriParse(r),m=P.meta,s=P.sec;
   const allPhotos=Array.isArray(r.photos)?r.photos:[];
@@ -2303,7 +2306,8 @@ const GAMRI_CSS=
 '.gp-doc .band{background:#d9d9d9;border:1px solid #111;border-bottom:none;font-weight:500;padding:4px 9px;margin-top:10px;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}'+
 '.gp-doc .bandbox{border:1px solid #111;border-top:none;padding:8px 10px}'+
 '.gp-doc .bandbox .bt{font-weight:700;margin:6px 0 2px}.gp-doc .bandbox .bt:first-child{margin-top:0}'+
-'.gp-doc .bandbox .sub{background:#ececec;font-weight:700;padding:3px 10px;margin:9px -10px 5px;border-top:1px solid #bdbdbd;border-bottom:1px solid #bdbdbd;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}.gp-doc .bandbox .sub:first-child{margin-top:0}'+
+'.gp-doc .bandbox .gteuk{margin-top:9px;break-inside:avoid;page-break-inside:avoid}.gp-doc .bandbox .gteuk:first-child{margin-top:0}'+
+'.gp-doc .bandbox .sub{background:#ececec;font-weight:700;padding:3px 10px;margin:0 -10px 5px;border-top:1px solid #bdbdbd;border-bottom:1px solid #bdbdbd;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}'+
 '.gp-doc .bandbox ul{list-style:none;margin:2px 0;padding:0}.gp-doc .bandbox li{position:relative;padding-left:13px;line-height:1.6;break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .bandbox .bt{break-after:avoid;page-break-after:avoid}.gp-doc .t-info tr,.gp-doc .t-chk tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .bandbox li.dot::before{content:"·";position:absolute;left:3px;font-weight:700}.gp-doc .bandbox li:not(.dot)::before{content:"▪";position:absolute;left:1px;font-size:8px;top:2px}'+

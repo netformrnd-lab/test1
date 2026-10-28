@@ -2227,13 +2227,21 @@ function _gBlocks(lines){ if(!lines||!lines.length)return ''; var out='',buf=[];
     var h=t.match(/^\[([^\]]+)\]$/);
     if(h){ flush(); out+='<div class="bt">['+_gEsc(h[1])+']</div>'; } else buf.push(t);
   }); flush(); return out; }
-/* 특기사항: 'N. 제목' 줄은 회색 띠 소제목으로, 나머지는 불릿으로 (2차 양식처럼 구조화)
-   ※ 내용을 묶어 break-inside:avoid 걸면, 긴 내용이 통째로 다음 장으로 밀려 빈 칸이 생기므로
+/* 특기사항 소제목 판별: 'N.' 번호 줄 또는, 번호 없이 마침표로 끝나지 않는 짧은 제목성 줄
+   (예: '부대시설 도장공사 진행상황', '종합 감리의견', '지하주차장 바닥 및 도장공사 점검') */
+function _gIsHead(t){
+  if(/^\d+\s*[.)]\s+/.test(t)) return true;                                   // 1. 2. 3.
+  if(t.length<=42 && !/[.,·。]$/.test(t)
+     && /(점검|현황|상황|계획|의견|사항|조치|결과|보수|진단|검측|공사|작업|확인|방수|도장|에폭시)$/.test(t)) return true;  // 번호 없는 소제목
+  return false;
+}
+/* 특기사항: 소제목은 회색 띠로, 나머지는 불릿으로 (2차 양식처럼 구조화)
+   ※ 내용을 묶어 break-inside:avoid 걸면 긴 내용이 통째로 다음 장으로 밀려 빈 칸이 생기므로
      묶지 않고 자연스럽게 흐르게 둔다(소제목만 간혹 페이지 끝에 걸릴 수 있음 — 빈칸보다 나음). */
 function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',open=false;
   function closeUl(){ if(open){ out+='</ul>'; open=false; } }
   lines.forEach(function(ln){ var t=String(ln||'').replace(/^[·▪◇]\s*/,'').trim(); if(!t)return;
-    if(/^\d+\s*[.)]\s+/.test(t)){ closeUl(); out+='<div class="sub">'+_gEsc(t)+'</div>'; }
+    if(_gIsHead(t)){ closeUl(); out+='<div class="sub">'+_gEsc(t)+'</div>'; }
     else { if(!open){ out+='<ul>'; open=true; } out+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
   }); closeUl(); return out; }
 function gamriFormHtml(r,ov){

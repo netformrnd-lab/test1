@@ -23,7 +23,11 @@
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-$NETFORM_BASE = getenv('NETFORM_BASE') ?: 'http://127.0.0.1:8765';
+// NETFORM 컨테이너 주소 후보 — 첫 번째로 응답하는 곳을 씁니다.
+// (환경변수 NETFORM_BASE 가 있으면 그것만 사용. 포트/호스트가 바뀌면 여기만 고치면 됨)
+$NETFORM_BASES = getenv('NETFORM_BASE')
+  ? array(getenv('NETFORM_BASE'))
+  : array('http://192.168.0.37:8765', 'http://127.0.0.1:8765', 'http://localhost:8765');
 $CACHE = __DIR__ . '/data/netform-cache.json';
 $TIMEOUT = 8;
 
@@ -87,7 +91,14 @@ function flatten_request($r){
 $action = isset($_GET['action']) ? $_GET['action'] : 'list';
 
 if($action === 'list'){
-  list($res, $err, $code) = nf_http('GET', $NETFORM_BASE . '/api/export.json', null, array(), $TIMEOUT);
+  // 후보 주소를 차례로 시도 — 첫 번째로 성공하는 곳을 사용
+  $res = null; $err = ''; $code = 0; $usedBase = ''; $tried = array();
+  foreach($NETFORM_BASES as $base){
+    list($r2, $e2, $c2) = nf_http('GET', $base . '/api/export.json', null, array(), $TIMEOUT);
+    $tried[] = $base . ' → ' . ($e2 ?: ('HTTP ' . $c2));
+    if($r2 !== null && $c2 >= 200 && $c2 < 300){ $res = $r2; $err = ''; $code = $c2; $usedBase = $base; break; }
+    $err = $e2 ?: ('HTTP ' . $c2); $code = $c2;
+  }
   if($res !== null && $code >= 200 && $code < 300){
     $j = json_decode($res, true);
     if(is_array($j) && isset($j['records']) && is_array($j['records'])){
@@ -100,6 +111,7 @@ if($action === 'list'){
         'ok'         => true,
         'stale'      => false,
         'source'     => 'netform',
+        'base'       => $usedBase,
         'serverTime' => isset($j['serverTime']) ? $j['serverTime'] : '',
         'seq'        => isset($j['seq']) ? $j['seq'] : 0,
         'syncedAt'   => date('c'),
@@ -123,7 +135,9 @@ if($action === 'list'){
     }
   }
   out(array('ok' => false, 'stale' => false, 'error' => ($err ?: ('HTTP ' . $code)),
-            'hint' => 'NETFORM 컨테이너(8765)가 켜져 있는지 확인하세요.', 'requests' => array()));
+            'tried' => $tried,
+            'hint' => 'NETFORM 컨테이너(8765)가 켜져 있는지 확인하세요 (Container Manager → netform-shared).',
+            'requests' => array()));
 }
 
 out(array('ok' => false, 'error' => '알 수 없는 action: ' . $action));

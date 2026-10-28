@@ -2227,6 +2227,13 @@ function _gBlocks(lines){ if(!lines||!lines.length)return ''; var out='',buf=[];
     var h=t.match(/^\[([^\]]+)\]$/);
     if(h){ flush(); out+='<div class="bt">['+_gEsc(h[1])+']</div>'; } else buf.push(t);
   }); flush(); return out; }
+/* 특기사항: 'N. 제목' 줄은 회색 띠 소제목으로, 나머지는 불릿으로 (2차 양식처럼 구조화) */
+function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',open=false;
+  function closeUl(){ if(open){ out+='</ul>'; open=false; } }
+  lines.forEach(function(ln){ var t=String(ln||'').replace(/^[·▪◇]\s*/,'').trim(); if(!t)return;
+    if(/^\d+\s*[.)]\s+/.test(t)){ closeUl(); out+='<div class="sub">'+_gEsc(t)+'</div>'; }
+    else { if(!open){ out+='<ul>'; open=true; } out+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
+  }); closeUl(); return out; }
 function gamriFormHtml(r,ov){
   const P=gamriParse(r),m=P.meta,s=P.sec;
   const allPhotos=Array.isArray(r.photos)?r.photos:[];
@@ -2244,7 +2251,8 @@ function gamriFormHtml(r,ov){
     if(s['감리 확인'])workBlocks.push('<div class="bt">[감리 확인]</div>'+_gLines(s['감리 확인']));
     if(!workBlocks.length&&s['작업사항'])workBlocks.push(_gLines(s['작업사항']));
     workHtml=workBlocks.join('')||'<span class="muted">내용 없음</span>';
-    const teukgi=s['특기사항']?_gLines(s['특기사항']):'';
+    const teukLines=s['특기사항']||s['감리 현장 보고일지']||s['감리현장보고일지']||[];
+    const teukgi=teukLines.length?_gTeukgi(teukLines):'';
     teukHtml=teukgi||'<span class="muted">내용 없음</span>';
     const jijeok=s['지적사항 및 처리결과']||s['지적사항']||[];
     jijeokHtml=jijeok.length?_gLines(jijeok):'<span class="muted">금일 지적사항 없음</span>';
@@ -2285,6 +2293,7 @@ const GAMRI_CSS=
 '.gp-doc .band{background:#d9d9d9;border:1px solid #111;border-bottom:none;font-weight:500;padding:4px 9px;margin-top:10px;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}'+
 '.gp-doc .bandbox{border:1px solid #111;border-top:none;padding:8px 10px}'+
 '.gp-doc .bandbox .bt{font-weight:700;margin:6px 0 2px}.gp-doc .bandbox .bt:first-child{margin-top:0}'+
+'.gp-doc .bandbox .sub{background:#ececec;font-weight:700;padding:3px 10px;margin:9px -10px 5px;border-top:1px solid #bdbdbd;border-bottom:1px solid #bdbdbd;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}.gp-doc .bandbox .sub:first-child{margin-top:0}'+
 '.gp-doc .bandbox ul{list-style:none;margin:2px 0;padding:0}.gp-doc .bandbox li{position:relative;padding-left:13px;line-height:1.6;break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .bandbox .bt{break-after:avoid;page-break-after:avoid}.gp-doc .t-info tr,.gp-doc .t-chk tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .bandbox li.dot::before{content:"·";position:absolute;left:3px;font-weight:700}.gp-doc .bandbox li:not(.dot)::before{content:"▪";position:absolute;left:1px;font-size:8px;top:2px}'+

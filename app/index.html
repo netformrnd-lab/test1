@@ -1281,7 +1281,7 @@ function val(t,f){
 }
 function fmt(f,v){
   if(f.type==='date') return v?kday(v):'OO월 OO일';
-  if(f.type==='list'){const a=String(v||'').split('\n').map(s=>s.trim()).filter(Boolean); return a.length?a.map((s,i)=>`${i+1}) ${s}`).join('\n'):`[${f.label}]`}
+  if(f.type==='list'){const a=String(v||'').split('\n').map(s=>s.trim()).filter(Boolean); return a.length?a.map((s,i)=>`${i+1}) ${s}`).join('\n'):`[${f.label.replace(/\s*\(.*\)$/,'')}]`}
   return v||`[${f.label.replace(/\s*\(.*\)$/,'')}]`;
 }
 function vars(t){

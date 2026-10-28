@@ -3072,6 +3072,16 @@ function bpdfAttachCands(fname,aptId){
     const tk=bpdfDateKeys(x.title||''); for(const k of fk){ if(tk.has(k))return true; } return false;
   }).slice(0,8);
 }
+// '처리' 칸(새 등록 / 기존글 첨부) HTML
+function bpdfDstCellHtml(r){ return (r.cands&&r.cands.length)?`<select id="bpdf-dst-${r.idx}" class="inp" style="min-width:200px"><option value="">🆕 새 감리일지로 등록</option>${r.cands.map(c=>`<option value="attach:${c.id}" ${('attach:'+c.id)===r.dst?'selected':''}>📎 기존글에 첨부: ${esc(c.title||'(제목없음)')}</option>`).join('')}</select>`:'<span style="color:var(--mut);font-size:11px">🆕 새 감리일지</span>'; }
+// 단지를 수동으로 바꾸면 → 그 단지에서 날짜 맞는 기존 글을 다시 찾아 '처리' 칸 갱신
+function bpdfOnAptChange(idx){
+  const r=BPDF_ROWS[idx]; if(!r)return;
+  const sel=$('bpdf-sel-'+idx); r.aptId=sel?sel.value:'';
+  r.cands=bpdfAttachCands(r.name,r.aptId); r.dst=r.cands.length===1?('attach:'+r.cands[0].id):'';
+  const cell=$('bpdf-dstcell-'+idx); if(cell)cell.innerHTML=bpdfDstCellHtml(r);
+}
+window.bpdfOnAptChange=bpdfOnAptChange;
 function bulkPdfScan(){
   let all=[]; const f1=$('bpdf-file'),f2=$('bpdf-files');
   if(f1&&f1.files)all=all.concat(Array.from(f1.files));
@@ -3095,11 +3105,10 @@ function bulkPdfScan(){
   const aptOpts=aptId=>sorted.map(a=>`<option value="${a.id}" ${a.id===aptId?'selected':''}>${esc(a.name)}</option>`).join('');
   const mLbl=r=>r.auto==='force'?'📌 지정':(r.auto?'자동 매칭':'매칭 안 됨');
   const mCol=r=>r.auto==='force'?'#2F6BF6':(r.auto?'var(--green)':'var(--mut)');
-  const dstCell=r=>r.cands.length?`<select id="bpdf-dst-${r.idx}" class="inp" style="min-width:200px"><option value="">🆕 새 감리일지로 등록</option>${r.cands.map(c=>`<option value="attach:${c.id}" ${('attach:'+c.id)===r.dst?'selected':''}>📎 기존글에 첨부: ${esc(c.title||'(제목없음)')}</option>`).join('')}</select>`:'<span style="color:var(--mut);font-size:11px">🆕 새 감리일지</span>';
   const rowsHtml=BPDF_ROWS.map(r=>`<tr style="border-bottom:1px solid var(--line)">
     <td style="padding:6px 8px;font-size:12px;word-break:break-all">${esc(r.name)}</td>
-    <td style="padding:6px 8px"><select id="bpdf-sel-${r.idx}" class="inp" style="min-width:150px"><option value="">— 건너뜀 —</option>${aptOpts(r.aptId)}</select></td>
-    <td style="padding:6px 8px">${dstCell(r)}</td>
+    <td style="padding:6px 8px"><select id="bpdf-sel-${r.idx}" class="inp" style="min-width:150px" onchange="bpdfOnAptChange(${r.idx})"><option value="">— 건너뜀 —</option>${aptOpts(r.aptId)}</select></td>
+    <td style="padding:6px 8px" id="bpdf-dstcell-${r.idx}">${bpdfDstCellHtml(r)}</td>
     <td style="padding:6px 8px;font-size:11.5px;white-space:nowrap;color:${mCol(r)}">${mLbl(r)}</td>
   </tr>`).join('');
   const autoN=BPDF_ROWS.filter(r=>r.aptId).length; const attachN=BPDF_ROWS.filter(r=>r.dst).length;

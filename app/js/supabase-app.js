@@ -309,12 +309,24 @@ async function openAuditorMenu(a) {
 }
 window.openAuditorMenu = openAuditorMenu
 // 감리 현장 소통문구 도구(iframe) — 감리원 이름·현장명을 자동 주입해서 연다
+function sizeSotongFrame() {
+  const fr = document.getElementById('sotong-frame'); const wrap = document.getElementById('sotong-wrap')
+  if (!fr || !wrap) return
+  const w = wrap.clientWidth || window.innerWidth
+  // iOS WKWebView는 iframe의 CSS %폭이 아니라 '명시된 px 폭'을 내부 레이아웃 기준(viewport)으로 써서
+  // px로 못박아야 데스크톱 폭(≈980px)으로 커지지 않는다.
+  if (w) fr.style.width = w + 'px'
+}
+window.addEventListener('resize', sizeSotongFrame)
+window.addEventListener('orientationchange', () => setTimeout(sizeSotongFrame, 150))
 function openAudSotong(a) {
   a = a || currentApt; if (!a) return
   const ap = document.getElementById('sotong-apt'); if (ap) ap.textContent = a.name || ''
   const fr = document.getElementById('sotong-frame')
   if (fr) fr.src = 'sotong.html?name=' + encodeURIComponent(MY_NAME || '') + '&site=' + encodeURIComponent(a.name || '') + '&t=' + Date.now()
   window.showScreen('s37')
+  // 화면 전환 후 레이아웃이 잡히면 iframe 폭을 px로 고정
+  setTimeout(sizeSotongFrame, 60); setTimeout(sizeSotongFrame, 300)
 }
 window.openAudSotong = openAudSotong
 // 감리원: 이 단지 현장 사진 목록

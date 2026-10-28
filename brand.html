@@ -6045,7 +6045,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-115';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-116';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -30967,25 +30967,34 @@ function nfLaneOf(s){ s = s || '의뢰 접수';
   if(s === '검토 및 수정 중') return '제작 진행 중';
   if(s === '취소') return null;
   return '의뢰 접수'; }
+let nfTimer = null;
 function setContentSub(v){ contentSub = v; render();
-  if(v === 'netform' && !nfData && !nfLoading) nfSync(); }
+  if(v === 'netform'){ nfAutoStart(); if(!nfLoading) nfSync(); } }  // 열 때마다 자동 동기화 + 주기 갱신 시작
+function nfAutoStart(){           // 보드를 보는 동안 60초마다 조용히 자동 동기화 (바뀐 게 있을 때만 다시 그림)
+  if(nfTimer) return;
+  nfTimer = setInterval(function(){
+    if(view === 'media' && mediaTab === 'contents' && contentSub === 'netform' && !nfLoading) nfSync(true);
+  }, 60000);
+}
 function nfTime(s){ try{ return new Date(s).toLocaleString('ko-KR',
   { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }); }catch(_){ return s || ''; } }
 function nfReqById(id){ return ((nfData && nfData.requests) || []).find(r => r.id === id); }
-function nfSync(){
-  nfLoading = true; nfSyncErr = '';
-  if(view === 'media' && mediaTab === 'contents' && contentSub === 'netform') render();
+function nfSync(quiet){
+  if(!quiet){ nfLoading = true; nfSyncErr = '';
+    if(view === 'media' && mediaTab === 'contents' && contentSub === 'netform') render(); }
   fetch('netform-sync.php?action=list', { cache:'no-store' })
-    .then(r => r.json())
-    .then(j => {
+    .then(function(r){ return r.json(); })
+    .then(function(j){
       nfLoading = false;
-      if(j && j.ok){ nfData = j; nfStale = !!j.stale;
+      if(j && j.ok){
+        var changed = !quiet || !nfData || j.seq !== nfData.seq || j.count !== nfData.count;  // 조용한 갱신은 바뀐 게 있을 때만 다시 그림
+        nfData = j; nfStale = !!j.stale;
         nfSyncErr = j.stale ? ('⚠️ NETFORM에 못 닿아 마지막 자료입니다' + (j.staleReason ? ' (' + j.staleReason + ')' : '')) : '';
-        nfSyncAt = nfTime(j.syncedAt || j.serverTime); }
-      else { nfSyncErr = (j && j.error) || '동기화 실패'; }
-      render();
+        nfSyncAt = nfTime(j.syncedAt || j.serverTime);
+        if(changed) render();
+      } else { nfSyncErr = (j && j.error) || '동기화 실패'; if(!quiet) render(); }
     })
-    .catch(e => { nfLoading = false; nfSyncErr = '동기화 실패: ' + ((e && e.message) || e); render(); });
+    .catch(function(e){ nfLoading = false; if(!quiet){ nfSyncErr = '동기화 실패: ' + ((e && e.message) || e); render(); } });
 }
 function nfCardHtml(r){
   const pr = String(r.priority || '');

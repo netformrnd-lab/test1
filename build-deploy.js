@@ -28,11 +28,6 @@ html = html.replace('js/stages.js"', 'js/stages.js?v=' + V + '"');
 html = html.replace('js/supabase-app.js"', 'js/supabase-app.js?v=' + V + '"');
 fs.writeFileSync(OUT + "/index.html", html);
 
-// --- sotong.html (감리 현장 소통문구 도구, 감리원 단지메뉴에서 iframe으로 사용) ---
-let sotong = fs.readFileSync(APP + "/sotong.html", "utf8");
-sotong = sotong.replace("</head>", NOCACHE + "\n</head>");
-fs.writeFileSync(OUT + "/sotong.html", sotong);
-
 // --- admin/index.html (관리자 대시보드) ---
 let admin = fs.readFileSync(APP + "/admin/index.html", "utf8");
 admin = admin.replace("</head>", PRETENDARD + "\n" + NOCACHE + "\n</head>");

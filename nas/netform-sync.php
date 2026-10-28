@@ -145,16 +145,27 @@ if($action === 'setStatus'){
   $in = json_decode(file_get_contents('php://input'), true);
   if(!is_array($in)) $in = $_POST;
   $id = isset($in['id']) ? (string)$in['id'] : '';
-  $status = isset($in['status']) ? (string)$in['status'] : '';
   $expectedVersion = array_key_exists('expectedVersion', $in) ? intval($in['expectedVersion']) : null;
   $actorName = trim(isset($in['actorName']) ? $in['actorName'] : '');
   if($actorName === '') $actorName = '브랜드허브';
   $actorDept = trim(isset($in['actorDept']) ? $in['actorDept'] : '');
   if($actorDept === '') $actorDept = '미디어마케팅팀';
-  // NETFORM 의 진행상태 값만 허용 (임의 값 차단)
+  // 바꿀 필드 모으기 — 진행상태(status) · 담당자(assignee). 둘 다 선택, 하나 이상 필요.
   $ALLOWED = array('의뢰 접수','내용 확인 중','일정 조율 중','제작 진행 중','검토 및 수정 중','완료','보류','취소','작성 중');
-  if($id === '' || !in_array($status, $ALLOWED, true))
-    out(array('ok' => false, 'error' => '잘못된 요청입니다 (상태값 확인).'));
+  $data = array();
+  if(isset($in['status']) && $in['status'] !== ''){
+    if(!in_array((string)$in['status'], $ALLOWED, true))
+      out(array('ok' => false, 'error' => '허용되지 않는 진행상태입니다.'));
+    $data['status'] = (string)$in['status'];
+  }
+  if(array_key_exists('assignee', $in)){            // '' 이면 담당 해제
+    $asg = trim((string)$in['assignee']);
+    if(mb_strlen($asg) > 60) out(array('ok' => false, 'error' => '담당자 이름이 너무 깁니다.'));
+    $data['assignee'] = $asg;
+  }
+  if($id === '' || !$data)
+    out(array('ok' => false, 'error' => '바꿀 내용이 없습니다 (상태 또는 담당자).'));
+  $status = isset($data['status']) ? $data['status'] : '';   // 응답용
 
   // 작동하는 base 찾기
   $base = '';
@@ -178,7 +189,7 @@ if($action === 'setStatus'){
   $ph = $hdr;
   $ph['Idempotency-Key'] = 'hub-' . bin2hex(random_bytes(8));
   $putBody = json_encode(array(
-    'data'            => array('status' => $status),
+    'data'            => $data,
     'expectedVersion' => $expectedVersion,
     'actorId'         => $actorId,
   ), JSON_UNESCAPED_UNICODE);

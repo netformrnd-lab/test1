@@ -11,6 +11,19 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="아파트스퀘어">
 <link rel="stylesheet" href="css/app.css">
+<script>
+  /* 설치된 앱(네이티브)·홈화면 추가(PWA)면 '폰 모형' 대신 전체화면으로. 아이패드 넓은 화면 포함 */
+  (function(){ try{
+    function markFull(){ try{
+      var native = !!(window.Capacitor && (typeof window.Capacitor.isNativePlatform==='function' ? window.Capacitor.isNativePlatform() : true));
+      var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true;
+      if(native || standalone) document.documentElement.classList.add('fullapp');
+    }catch(e){} }
+    markFull();
+    window.addEventListener('DOMContentLoaded', markFull);
+    window.addEventListener('load', markFull);
+  }catch(e){} })();
+</script>
 <style>
 #app-splash{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(160deg,#2a3a6e,#1a2450);transition:opacity .5s ease;-webkit-tap-highlight-color:transparent}
 #app-splash.hide{opacity:0;pointer-events:none}

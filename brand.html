@@ -4285,6 +4285,12 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 .tt-nf-i{cursor:pointer}
 .tt-nf-st{font-size:11px;margin-right:2px}
 .tt-nf-s{font-style:normal;font-size:10px;color:var(--text-muted);margin-left:6px}
+.nff-row{display:flex;flex-direction:column;gap:4px;padding:7px 0;border-bottom:1px dashed var(--border)}
+.nff-row>label{font-size:12px;color:var(--text-muted);font-weight:600}
+.nff-row input[type=text],.nff-row input[type=date],.nff-row textarea,.nff-row select{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--bg-card);font-size:13px;font-family:inherit;box-sizing:border-box}
+.nff-row textarea{resize:vertical;min-height:44px;line-height:1.5}
+.nff-multi{display:flex;flex-wrap:wrap;gap:6px}
+.nff-multi label{font-size:12px;display:flex;align-items:center;gap:4px;background:var(--bg-secondary);padding:4px 8px;border-radius:6px;border:1px solid var(--border);cursor:pointer}
 .media-chan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
 .media-chan{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
   padding:12px 14px;cursor:pointer;transition:border-color .12s}
@@ -6052,7 +6058,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-118';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-119';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -31086,7 +31092,8 @@ function nfDetail(id){
   const box = '<div class="ncf-modal" onclick="if(event.target===this)nfClose()">'
     + '<div class="ncf-modal-box">'
     + '<div class="ncf-modal-h"><b>' + esc(r.projectName || '(제목 없음)') + '<br><span class="fmeta" style="font-weight:400">' + esc(r.number || '') + '</span></b>'
-    + '<button class="btn sm" onclick="nfClose()">닫기 ✕</button></div>'
+    + '<span><button class="btn sm primary" onclick="nfEditOpen(\'' + jsq(r.id) + '\')">✎ 편집</button> '
+    + '<button class="btn sm" onclick="nfClose()">닫기 ✕</button></span></div>'
     + '<div class="ncf-modal-b">' + rows + '</div></div></div>';
   const host = document.createElement('div'); host.id = 'nfModalHost'; host.innerHTML = box;
   document.body.appendChild(host);
@@ -31169,6 +31176,95 @@ function nfMemBlock(nm){
       + '</div>';
   }).join('');
   return '<div class="tt-nf"><div class="tt-nf-h">🎬 영상 의뢰 <span>' + mine.length + '건</span></div>' + rows + '</div>';
+}
+/* ✎ 의뢰 상세 편집 — NETFORM 원본 양식에서 뽑은 필드·선택지 (요청부서·요청자는 서버 잠금이라 제외) */
+const NF_FIELDS = [
+  { k:'priority', l:'우선순위', t:'select', o:['긴급','일반','협의 필요'] },
+  { k:'writeDate', l:'작성일', t:'date' },
+  { k:'purpose', l:'제작 목적', t:'textarea' },
+  { k:'kpi', l:'기대 효과(KPI)', t:'textarea' },
+  { k:'target', l:'주요 타겟', t:'text' },
+  { k:'message', l:'핵심 메시지', t:'text' },
+  { k:'prodName', l:'제품명', t:'text' },
+  { k:'prodCat', l:'카테고리', t:'text' },
+  { k:'contentTypes', l:'콘텐츠 유형', t:'multi', o:['제품 상세 소개 영상','숏폼 콘텐츠','언박싱/개봉 리뷰','사용법 튜토리얼/How-to','라이브 커머스 하이라이트','광고/프로모션 영상'] },
+  { k:'shootNeed', l:'촬영 여부', t:'select', o:['촬영 필요','촬영 없음'] },
+  { k:'place', l:'촬영 장소', t:'multi', o:['스튜디오(화이트/그린 배경)','실제 사용 환경(로케이션)'] },
+  { k:'placeAddr', l:'촬영 주소', t:'text' },
+  { k:'cast', l:'출연/모델', t:'multi', o:['모델 필요','실제 사용자 출연','Hands only (제품 중심)','출연 없음'] },
+  { k:'castCount', l:'모델 인원', t:'text' },
+  { k:'setConcept', l:'세트/소품/컨셉', t:'textarea' },
+  { k:'editNeed', l:'편집 여부', t:'select', o:['편집 필요','편집 없음'] },
+  { k:'editFolder', l:'원본 폴더 위치', t:'text' },
+  { k:'subtitle', l:'자막 스타일', t:'select', o:['기본 자막(가독성 위주)','애니메이션 강조 자막','온스크린 텍스트 위주','최소 자막(제품명/포인트만)'] },
+  { k:'bgm', l:'BGM / 음향', t:'select', o:['밝고 경쾌','프리미엄/감성','트렌디 업비트','무음 or 저작권 Free','지정 BGM'] },
+  { k:'bgmLink', l:'지정 BGM 링크', t:'text' },
+  { k:'fx', l:'추가 효과 / CG', t:'multi', o:['모션그래픽','제품 3D 회전','아이콘/인포그래픽','컬러그레이딩'] },
+  { k:'narration', l:'내레이션', t:'select', o:['필요','불필요'] },
+  { k:'narrationBy', l:'내레이션 방식', t:'select', o:['성우','AI 음성','내부 인력'] },
+  { k:'formats', l:'결과물 포맷', t:'multi', o:['YouTube (16:9)','Instagram Reels (9:16)','TikTok (9:16)','자사몰/광고 (1:1 or 16:9)'] },
+  { k:'shootDate', l:'희망 촬영일', t:'date' },
+  { k:'firstDate', l:'1차 확인(스토리보드)', t:'date' },
+  { k:'videoReviewDate', l:'2차 확인(영상)', t:'date' },
+  { k:'finalDate', l:'최종 납품일', t:'date' },
+  { k:'scheduleNote', l:'비고/특이사항', t:'text' },
+  { k:'resultNote', l:'완료 결과', t:'textarea' },
+  { k:'resultLinks', l:'결과물 경로/링크', t:'textarea' }
+];
+const NF_STATUS_ALL = ['의뢰 접수','내용 확인 중','일정 조율 중','제작 진행 중','검토 및 수정 중','완료','보류','취소'];
+function nfEditOpen(id){ nfRenderEdit(id); }
+function nfRenderEdit(id){
+  const r = nfReqById(id); if(!r) return;
+  const fieldHtml = NF_FIELDS.map(function(f){
+    const v = r[f.k];
+    let input;
+    if(f.t === 'date') input = '<input type="date" id="nff_' + f.k + '" value="' + esc(v || '') + '">';
+    else if(f.t === 'textarea') input = '<textarea id="nff_' + f.k + '" rows="2">' + esc(v || '') + '</textarea>';
+    else if(f.t === 'select') input = '<select id="nff_' + f.k + '"><option value="">(없음)</option>'
+      + f.o.map(function(o){ return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+    else if(f.t === 'multi'){ const arr = Array.isArray(v) ? v : [];
+      input = '<div class="nff-multi" id="nff_' + f.k + '">'
+        + f.o.map(function(o){ return '<label><input type="checkbox" value="' + esc(o) + '"' + (arr.indexOf(o) >= 0 ? ' checked' : '') + '> ' + esc(o) + '</label>'; }).join('') + '</div>'; }
+    else input = '<input type="text" id="nff_' + f.k + '" value="' + esc(v || '') + '">';
+    return '<div class="nff-row"><label>' + esc(f.l) + '</label>' + input + '</div>';
+  }).join('');
+  const stSel = '<select id="nff_status">' + NF_STATUS_ALL.map(function(s){ return '<option' + (s === r.status ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select>';
+  const asgSel = '<select id="nff_assignee"><option value="">— 담당자 없음 —</option>'
+    + nfPeople().map(function(n){ return '<option' + (n === r.assignee ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('')
+    + (r.assignee && nfPeople().indexOf(r.assignee) < 0 ? '<option selected>' + esc(r.assignee) + '</option>' : '') + '</select>';
+  const body = '<div class="nff-row"><label>진행 상태</label>' + stSel + '</div>'
+    + '<div class="nff-row"><label>담당자 (미마팀)</label>' + asgSel + '</div>'
+    + '<div class="nff-row"><label>요청부서 · 요청자</label><span class="fmeta">' + esc((r.dept || '') + ' · ' + (r.reqName || '')) + ' — 요청자만 NETFORM에서 수정</span></div>'
+    + fieldHtml;
+  const box = '<div class="ncf-modal" onclick="if(event.target===this)nfClose()"><div class="ncf-modal-box">'
+    + '<div class="ncf-modal-h"><b>✎ 의뢰 수정<br><span class="fmeta" style="font-weight:400">' + esc(r.number || '') + '</span></b>'
+    + '<span><button class="btn sm primary" onclick="nfSaveEdit(\'' + jsq(id) + '\')">💾 저장</button> '
+    + '<button class="btn sm" onclick="nfDetail(\'' + jsq(id) + '\')">취소</button></span></div>'
+    + '<div class="ncf-modal-b">' + body + '</div></div></div>';
+  let host = document.getElementById('nfModalHost');
+  if(!host){ host = document.createElement('div'); host.id = 'nfModalHost'; document.body.appendChild(host); }
+  host.innerHTML = box;
+}
+function nfSaveEdit(id){
+  const r = nfReqById(id); if(!r) return;
+  const fields = {};
+  NF_FIELDS.forEach(function(f){
+    const el = document.getElementById('nff_' + f.k); if(!el) return;
+    if(f.t === 'multi') fields[f.k] = [].slice.call(el.querySelectorAll('input:checked')).map(function(c){ return c.value; });
+    else fields[f.k] = el.value;
+  });
+  const st = document.getElementById('nff_status'); if(st) fields.status = st.value;
+  const asg = document.getElementById('nff_assignee'); if(asg) fields.assignee = asg.value;
+  toast('💾 NETFORM에 저장 중…');
+  fetch('netform-sync.php?action=setStatus', { method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ id:id, fields:fields, expectedVersion:r.version,
+      actorName:((typeof myName === 'function' ? myName() : '') || '브랜드허브'), actorDept:'미디어마케팅팀' }) })
+    .then(function(x){ return x.json(); })
+    .then(function(j){ nfClose();
+      if(j && j.ok){ toast('✅ 의뢰 수정을 NETFORM에 저장했어요'); nfSync(); }
+      else if(j && j.conflict){ toast('⚠️ 다른 사람이 먼저 바꿨어요. 다시 불러옵니다.'); nfSync(); }
+      else { toast('⚠️ 저장 실패: ' + ((j && j.error) || '')); nfSync(); } })
+    .catch(function(e){ toast('⚠️ 저장 실패: ' + ((e && e.message) || e)); });
 }
 
 /* ── 📆 콘텐츠 캘린더 (공개 예정 · 촬영) ────────────────────────────── */

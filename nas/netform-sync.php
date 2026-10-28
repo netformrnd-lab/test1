@@ -163,6 +163,25 @@ if($action === 'setStatus'){
     if(mb_strlen($asg) > 60) out(array('ok' => false, 'error' => '담당자 이름이 너무 깁니다.'));
     $data['assignee'] = $asg;
   }
+  // 상세 편집 — 허용한 필드만 받음 (요청부서·요청자는 NETFORM 이 서버에서 잠가 제외)
+  if(isset($in['fields']) && is_array($in['fields'])){
+    $WL = array('priority','writeDate','purpose','kpi','target','message','prodName','prodCat',
+      'contentTypes','shootNeed','place','placeAddr','cast','castCount','castConcept','setConcept',
+      'editNeed','editFolder','fullMin','fullSec','shortSec','subtitle','bgm','bgmLink','fx','fxEtc',
+      'narration','narrationBy','formats','shootDate','firstDate','videoReviewDate','finalDate',
+      'resultNote','resultLinks','scheduleNote','status','assignee');
+    $ARR = array('contentTypes','place','cast','fx','formats','materials','tech');
+    foreach($in['fields'] as $k => $v){
+      if(!in_array($k, $WL, true)) continue;
+      if(in_array($k, $ARR, true)){
+        if(is_array($v)) $data[$k] = array_values($v);
+        else { $s = trim((string)$v); $data[$k] = ($s === '') ? array() : preg_split('/\s*[·,]\s*/u', $s); }
+      } else {
+        if($k === 'status' && (string)$v !== '' && !in_array((string)$v, $ALLOWED, true)) continue;
+        $data[$k] = is_scalar($v) ? (string)$v : '';
+      }
+    }
+  }
   if($id === '' || !$data)
     out(array('ok' => false, 'error' => '바꿀 내용이 없습니다 (상태 또는 담당자).'));
   $status = isset($data['status']) ? $data['status'] : '';   // 응답용

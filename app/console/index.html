@@ -3081,13 +3081,16 @@ function bpdfMatch(fname){
 }
 // 문자열에서 날짜 키 추출 → 'MMDD' + 'YYYYMMDD' 집합 (제목/파일명 날짜 맞추기용)
 function bpdfDateKeys(s){
-  s=String(s||''); const keys=new Set(); let m,re;
-  re=/(20\d{2})[.\-\/년 ]*(0[1-9]|1[0-2])[.\-\/월 ]*(0[1-9]|[12]\d|3[01])/g; // 2026-10-08 / 2026.10.08 / 2026년10월08
+  s=String(s||''); const keys=new Set(); let m;
+  const re=/(20\d{2})[.\-\/년 ]*(0[1-9]|1[0-2])[.\-\/월 ]*(0[1-9]|[12]\d|3[01])/g; // 2026-10-08 / 2026.10.08 / 2026년10월08
   while(m=re.exec(s)){ keys.add(m[2]+m[3]); keys.add(m[1]+m[2]+m[3]); }
-  re=/(?<!\d)(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?!\d)/g; // 261008 (YYMMDD)
-  while(m=re.exec(s)){ keys.add(m[2]+m[3]); keys.add('20'+m[1]+m[2]+m[3]); }
-  re=/(?<!\d)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?!\d)/g; // 1008 (MMDD)
-  while(m=re.exec(s)){ keys.add(m[1]+m[2]); }
+  // 숫자 덩어리 단위로 끊어 8/6/4자리 날짜 처리 (룩비하인드 미사용 — 구형 iOS Safari 호환)
+  const vmd=(mo,d)=>(+mo>=1&&+mo<=12&&+d>=1&&+d<=31);
+  for(const n of (s.match(/\d+/g)||[])){
+    if(n.length===8&&n.slice(0,2)==='20'){ const mo=n.slice(4,6),d=n.slice(6,8); if(vmd(mo,d)){keys.add(mo+d);keys.add(n);} }
+    else if(n.length===6){ const mo=n.slice(2,4),d=n.slice(4,6); if(vmd(mo,d)){keys.add(mo+d);keys.add('20'+n);} }
+    else if(n.length===4){ const mo=n.slice(0,2),d=n.slice(2,4); if(vmd(mo,d))keys.add(mo+d); }
+  }
   return keys;
 }
 // 파일명 날짜와 같은 날짜가 제목에 있고, 아직 PDF가 없는 기존 감리일지(같은 단지) = 첨부 후보

@@ -4261,6 +4261,23 @@ table.ymtable .sumrow th,table.ymtable .sumrow td{border-top:1px solid var(--bor
 .media-card-t{font-weight:650;font-size:13px;line-height:1.35;margin-bottom:6px;word-break:break-word}
 .media-card-m{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
 .media-card-nav{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
+/* 🎬 NETFORM 영상 의뢰 보드 (동기화) */
+.ncf-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:12px}
+.ncf-bar .fmeta{color:var(--text-muted)}
+.ncf-stale{color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:2px 8px}
+.ncf-no{font-family:var(--mono,monospace);font-size:10px;color:var(--text-muted);margin-bottom:3px}
+.ncf-dates{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:11px}
+.ncf-types{margin-top:6px;font-size:11px;color:var(--text-secondary);line-height:1.4}
+.ncf-urgent{background:#fee2e2;color:#b91c1c}
+.ncf-modal{position:fixed;inset:0;z-index:600;background:rgba(15,23,42,.55);display:flex;align-items:flex-start;justify-content:center;padding:28px 16px;overflow:auto}
+.ncf-modal-box{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:640px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.ncf-modal-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border);background:var(--bg-secondary)}
+.ncf-modal-h b{font-size:16px;line-height:1.4}
+.ncf-modal-b{padding:4px 18px 16px;max-height:70vh;overflow:auto}
+.ncf-row{display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed var(--border);font-size:13px}
+.ncf-row .k{flex:0 0 120px;color:var(--text-muted)}
+.ncf-row .v{flex:1;word-break:break-word;white-space:pre-wrap}
+.ncf-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--bg-secondary);border:1px solid var(--border)}
 .media-chan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
 .media-chan{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
   padding:12px 14px;cursor:pointer;transition:border-color .12s}
@@ -6028,7 +6045,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-114';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-115';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -30554,6 +30571,8 @@ function calGoTo(ds){
    모두 data.* (브랜드 밖) 에 담겨 팀 전체가 같이 봅니다.
    ================================================================= */
 let mediaTab = 'home';
+let contentSub = 'ours';                  // 콘텐츠 제작 하위: 'ours'(우리 콘텐츠) · 'netform'(영상 의뢰 보드)
+let nfData = null, nfLoading = false, nfStale = false, nfSyncAt = '', nfSyncErr = '';  // NETFORM 동기화 상태(전송 안 함)
 let reqFilter = '';                       // 요청 센터: ''(전체)·받음·보냄·대기·완료
 let calMine = false;                      // 콘텐츠 캘린더: 내 것만 보기
 function setCalMine(v){ calMine = v; render(); }
@@ -30851,13 +30870,18 @@ function renderMedia(){
 
 /* ── 🎬 콘텐츠 제작 (공정 칸반) ─────────────────────────────────────── */
 function mediaContentsView(){
+  const subbar = '<div class="sec-bar" style="margin-bottom:12px;gap:8px">'
+    + '<button class="btn sm' + (contentSub === 'ours' ? ' primary' : '') + '" onclick="setContentSub(\'ours\')">🗂 우리 콘텐츠</button>'
+    + '<button class="btn sm' + (contentSub === 'netform' ? ' primary' : '') + '" onclick="setContentSub(\'netform\')">🎬 영상 의뢰 보드 (NETFORM)</button>'
+    + '</div>';
+  if(contentSub === 'netform') return subbar + renderNetformBoard();
   const all = data.contents || [];
   const bar = '<div class="sec-bar" style="margin-bottom:12px">'
     + '<span class="fmeta">카드를 드래그해서 다른 단계로 옮기세요 (◀ ▶ 로도 됩니다)</span>'
     + '<button class="btn primary" onclick="openItemModal(\'contents\')">＋ 콘텐츠</button>'
     + '</div>';
   if(!all.length)
-    return bar + '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
+    return subbar + bar + '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
       + '아직 콘텐츠가 없습니다. <b>＋ 콘텐츠</b> 로 첫 콘텐츠를 올려 보세요.</div>';
 
   const cols = CONTENT_STAGES.map(st => {
@@ -30895,7 +30919,7 @@ function mediaContentsView(){
     + '</div>';
   }).join('');
 
-  return bar + '<div class="media-kan">' + cols + '</div>';
+  return subbar + bar + '<div class="media-kan">' + cols + '</div>';
 }
 let mediaDragId = '';
 function mediaDragStart(e, id){ mediaDragId = id;
@@ -30927,6 +30951,110 @@ function mediaMoveStage(id, delta){
   render(); markDirty();
   toast('🎬 「' + (c.title || '콘텐츠') + '」 → ' + c.stage);
 }
+
+/* ── 🎬 NETFORM 영상 의뢰 보드 (동기화) ──────────────────────────────
+   NETFORM 의뢰 프로그램(다른 팀이 쓰는 동영상 제작요청)의 "진행보드"를
+   허브 콘텐츠 제작 안에서 그대로 봅니다. 서버의 netform-sync.php 가
+   NETFORM 컨테이너(127.0.0.1:8765)를 내부로 읽어 옵니다 (프록시 무관).
+   1단계: 읽기 전용. (2단계에서 상태 변경을 NETFORM 에 되쓰기)             */
+const NF_LANES = ['의뢰 접수', '내용 확인 중', '일정 조율 중', '제작 진행 중', '완료', '보류'];
+const NF_LANE_HUE = { '의뢰 접수':'var(--blue)', '내용 확인 중':'var(--purple,#8b5cf6)',
+  '일정 조율 중':'var(--amber,#e0a73a)', '제작 진행 중':'var(--teal,#0d9488)',
+  '완료':'var(--green,#16a34a)', '보류':'var(--text-muted)' };
+function nfLaneOf(s){ s = s || '의뢰 접수';
+  if(NF_LANES.indexOf(s) >= 0) return s;
+  if(s === '작성 중') return '의뢰 접수';
+  if(s === '검토 및 수정 중') return '제작 진행 중';
+  if(s === '취소') return null;
+  return '의뢰 접수'; }
+function setContentSub(v){ contentSub = v; render();
+  if(v === 'netform' && !nfData && !nfLoading) nfSync(); }
+function nfTime(s){ try{ return new Date(s).toLocaleString('ko-KR',
+  { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }); }catch(_){ return s || ''; } }
+function nfReqById(id){ return ((nfData && nfData.requests) || []).find(r => r.id === id); }
+function nfSync(){
+  nfLoading = true; nfSyncErr = '';
+  if(view === 'media' && mediaTab === 'contents' && contentSub === 'netform') render();
+  fetch('netform-sync.php?action=list', { cache:'no-store' })
+    .then(r => r.json())
+    .then(j => {
+      nfLoading = false;
+      if(j && j.ok){ nfData = j; nfStale = !!j.stale;
+        nfSyncErr = j.stale ? ('⚠️ NETFORM에 못 닿아 마지막 자료입니다' + (j.staleReason ? ' (' + j.staleReason + ')' : '')) : '';
+        nfSyncAt = nfTime(j.syncedAt || j.serverTime); }
+      else { nfSyncErr = (j && j.error) || '동기화 실패'; }
+      render();
+    })
+    .catch(e => { nfLoading = false; nfSyncErr = '동기화 실패: ' + ((e && e.message) || e); render(); });
+}
+function nfCardHtml(r){
+  const pr = String(r.priority || '');
+  const urgent = /긴급|높|최우선|급/.test(pr);
+  const types = Array.isArray(r.contentTypes) ? r.contentTypes.join(' · ') : '';
+  return '<div class="media-card" onclick="nfDetail(\'' + jsq(r.id) + '\')" title="눌러서 상세 보기">'
+    + '<div class="ncf-no">' + esc(r.number || '') + '</div>'
+    + '<div class="media-card-t">' + esc(r.projectName || '(제목 없음)') + '</div>'
+    + '<div class="media-card-m">'
+      + (r.dept ? '<span class="chip">🏢 ' + esc(r.dept) + '</span>' : '')
+      + (r.reqName ? '<span class="fmeta">🙋 ' + esc(r.reqName) + '</span>' : '')
+      + (pr ? '<span class="chip' + (urgent ? ' ncf-urgent' : '') + '">' + esc(pr) + '</span>' : '')
+    + '</div>'
+    + ((r.shootDate || r.finalDate) ? '<div class="ncf-dates">'
+        + (r.shootDate ? '<span style="color:#1B4CB0">📹 ' + esc(fmtYMD(r.shootDate)) + '</span>' : '')
+        + (r.finalDate ? '<span style="color:#9E2637">🏁 ' + esc(fmtYMD(r.finalDate)) + '</span>' : '')
+      + '</div>' : '')
+    + (types ? '<div class="ncf-types">' + esc(types) + '</div>' : '')
+  + '</div>';
+}
+function renderNetformBoard(){
+  const top = '<div class="ncf-bar">'
+    + '<button class="btn sm" onclick="nfSync()"' + (nfLoading ? ' disabled' : '') + '>🔄 ' + (nfLoading ? '불러오는 중…' : '동기화') + '</button>'
+    + '<span class="fmeta">' + (nfSyncAt ? ('마지막 동기화 ' + esc(nfSyncAt)) : 'NETFORM 동영상 제작요청을 가져옵니다') + '</span>'
+    + (nfData && nfData.count !== undefined ? '<span class="fmeta">· 의뢰 ' + nfData.count + '건</span>' : '')
+    + (nfSyncErr ? '<span class="ncf-stale">' + esc(nfSyncErr) + '</span>' : '')
+    + '</div>';
+  if(!nfData) return top + '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">'
+    + (nfLoading ? 'NETFORM에서 불러오는 중…' : '🔄 <b>동기화</b>를 눌러 NETFORM 영상 의뢰를 가져오세요.') + '</div>';
+  const reqs = nfData.requests || [];
+  if(!reqs.length) return top + '<div class="empty-note" style="padding:28px;text-align:center;color:var(--text-muted)">NETFORM에 영상 의뢰가 없습니다.</div>';
+  const cancelled = reqs.filter(r => r.status === '취소').length;
+  const cols = NF_LANES.map(ln => {
+    const items = reqs.filter(r => nfLaneOf(r.status) === ln);
+    const cards = items.map(nfCardHtml).join('');
+    return '<div class="media-col"><div class="media-col-h" style="border-top:3px solid ' + NF_LANE_HUE[ln] + '">'
+      + esc(ln) + ' <span class="cnt">' + (items.length || '') + '</span></div>'
+      + '<div class="media-col-b">' + (cards || '<div class="media-col-e">비어 있음</div>') + '</div></div>';
+  }).join('');
+  return top + '<div class="media-kan">' + cols + '</div>'
+    + (cancelled ? '<div class="fmeta" style="padding:10px 2px">🚫 취소 ' + cancelled + '건은 보드에서 숨겼습니다</div>' : '')
+    + '<div class="fmeta" style="padding:2px">읽기 전용 — 지금은 보기만 (양방향 상태 변경은 준비 중)</div>';
+}
+const NF_LABELS = { dept:'요청부서', reqName:'요청자', reqRank:'직급', reqTel:'연락처',
+  writeDate:'작성일', priority:'우선순위', purpose:'제작 목적', kpi:'기대 효과(KPI)', target:'주요 타겟', message:'핵심 메시지',
+  prodName:'제품명', prodCat:'카테고리', contentTypes:'콘텐츠 유형',
+  shootNeed:'촬영 여부', place:'촬영 장소', placeAddr:'촬영 주소', cast:'출연/모델', setConcept:'세트/소품/컨셉',
+  editNeed:'편집 여부', editFolder:'원본 폴더', subtitle:'자막', bgm:'BGM', fx:'추가 효과/CG', narration:'내레이션', formats:'결과물 포맷',
+  shootDate:'희망 촬영일', firstDate:'1차 확인(스토리보드)', videoReviewDate:'2차 확인(영상)', finalDate:'최종 납품일',
+  resultNote:'완료 결과', resultLinks:'결과물 경로' };
+const NF_LABEL_ORDER = ['dept','reqName','reqRank','reqTel','priority','writeDate','purpose','kpi','target','message',
+  'prodName','prodCat','contentTypes','shootNeed','place','placeAddr','cast','setConcept','editNeed','editFolder',
+  'subtitle','bgm','fx','narration','formats','shootDate','firstDate','videoReviewDate','finalDate','resultNote','resultLinks'];
+function nfVal(v){ if(v == null || v === '') return ''; if(Array.isArray(v)) return v.join(' · '); return String(v); }
+function nfDetail(id){
+  const r = nfReqById(id); if(!r) return;
+  let rows = '<div class="ncf-row"><span class="k">진행 상태</span><span class="v"><span class="ncf-badge">' + esc(r.status || '') + '</span></span></div>';
+  NF_LABEL_ORDER.forEach(k => { const v = nfVal(r[k]); if(v) rows += '<div class="ncf-row"><span class="k">' + esc(NF_LABELS[k] || k) + '</span><span class="v">' + esc(v) + '</span></div>'; });
+  rows += '<div class="ncf-row"><span class="k">등록</span><span class="v">' + esc((r.createdDept ? r.createdDept + ' · ' : '') + (r.createdBy || '') + (r.createdAt ? ' · ' + nfTime(r.createdAt) : '')) + '</span></div>';
+  if(r.updatedAt) rows += '<div class="ncf-row"><span class="k">수정</span><span class="v">' + esc((r.updatedBy || '') + ' · ' + nfTime(r.updatedAt)) + '</span></div>';
+  const box = '<div class="ncf-modal" onclick="if(event.target===this)nfClose()">'
+    + '<div class="ncf-modal-box">'
+    + '<div class="ncf-modal-h"><b>' + esc(r.projectName || '(제목 없음)') + '<br><span class="fmeta" style="font-weight:400">' + esc(r.number || '') + '</span></b>'
+    + '<button class="btn sm" onclick="nfClose()">닫기 ✕</button></div>'
+    + '<div class="ncf-modal-b">' + rows + '</div></div></div>';
+  const host = document.createElement('div'); host.id = 'nfModalHost'; host.innerHTML = box;
+  document.body.appendChild(host);
+}
+function nfClose(){ const h = document.getElementById('nfModalHost'); if(h) h.remove(); }
 
 /* ── 📆 콘텐츠 캘린더 (공개 예정 · 촬영) ────────────────────────────── */
 function mediaCalView(){

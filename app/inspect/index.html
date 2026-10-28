@@ -3545,44 +3545,44 @@ if(ready()) photoList(function(l){ if(l.length) phUpdate(l.length); });
   }
   if(typeof bindMeta==='function'){ var _bindMeta=bindMeta; bindMeta=function(){ _bindMeta.apply(this,arguments); applyMeta(); }; }
 
-  /* ---- 출력 화면에 '사진 등록 + 대시보드 전송' 패널 추가 ---- */
+  /* ---- 출력 화면에 '전송될 사진 미리보기 + 대시보드 전송' 패널 추가 ----
+     사진은 «3번 보고 → 현장 사진 첨부»에서 넣고, 여기선 어떤 사진이 전송되는지만 보여준다(읽기전용). */
+  var _integUrls=[];
   function outPanel(){
     var host=document.getElementById('scr-out'); if(!host) return;
     if(document.getElementById('integPanel')) return; // 중복 방지
     var sec=document.createElement('section'); sec.className='blk'; sec.id='integPanel';
     sec.innerHTML =
-      '<div class="blk-h"><h2>대시보드로 전송</h2><span class="hint">사진을 등록하고 전송하면 감리일지 + 사진이 관리자 대시보드에 올라갑니다 (복사 아님)</span></div>'+
+      '<div class="blk-h"><h2>대시보드로 전송</h2><span class="hint">전송하면 감리일지 + 아래 현장사진이 관리자 대시보드로 올라갑니다 (복사 아님)</span></div>'+
+      '<div style="font-size:12.5px;color:#5c6680;margin:2px 0 4px">전송될 현장사진 <b id="integPhCount">0</b>장 '+
+        '<span class="hint">· 사진은 «3번 보고 → 현장 사진 첨부»에서 추가/삭제하세요</span></div>'+
       '<div id="integThumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0"></div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
-        '<button class="btn" type="button" id="integAddPhoto">＋ 사진 등록</button>'+
         '<button class="btn primary" type="button" id="integSend">📤 대시보드로 전송 (감리일지+사진)</button>'+
         '<span class="hint" id="integMsg"></span>'+
       '</div>';
     host.appendChild(sec);
     /* 미리보기의 '복사' 버튼은 보조로 표시 */
     var bc=document.getElementById('btn-copy'); if(bc) bc.textContent='텍스트 복사(선택)';
-    var fileInp=document.createElement('input'); fileInp.type='file'; fileInp.accept='image/*'; fileInp.multiple=true; fileInp.style.display='none';
-    sec.appendChild(fileInp);
-    document.getElementById('integAddPhoto').addEventListener('click',function(){ fileInp.click(); });
-    fileInp.addEventListener('change',function(){
-      var files=Array.prototype.slice.call(fileInp.files||[]); var left=files.length;
-      if(!left) return;
-      files.forEach(function(f){ compressImage(f,function(d){ if(d) INTEG.photos.push(d); if(--left===0) renderThumbs(); }); });
-      fileInp.value='';
-    });
     document.getElementById('integSend').addEventListener('click',sendToDashboard);
     renderThumbs();
   }
+  /* 전송될 사진(디자인 3번 보고의 현장사진, IndexedDB)을 읽기전용으로 미리보기 */
   function renderThumbs(){
     var box=document.getElementById('integThumbs'); if(!box) return;
-    box.innerHTML='';
-    INTEG.photos.forEach(function(d,i){
-      var w=document.createElement('div'); w.style.cssText='position:relative';
-      var im=document.createElement('img'); im.src=d; im.style.cssText='width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #d9dee8';
-      var x=document.createElement('button'); x.type='button'; x.textContent='×';
-      x.style.cssText='position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:#e4544b;color:#fff;cursor:pointer;font-weight:800;line-height:1';
-      x.addEventListener('click',function(){ INTEG.photos.splice(i,1); renderThumbs(); });
-      w.appendChild(im); w.appendChild(x); box.appendChild(w);
+    if(typeof photoList!=='function'){ box.innerHTML=''; return; }
+    photoList(function(list){
+      list=list||[];
+      _integUrls.forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(e){} }); _integUrls=[];
+      var cnt=document.getElementById('integPhCount'); if(cnt) cnt.textContent=list.length;
+      box.innerHTML='';
+      if(!list.length){ box.innerHTML='<span class="hint" style="color:#8a94a6">첨부된 현장사진이 없습니다</span>'; return; }
+      list.forEach(function(r){
+        var im=document.createElement('img');
+        try{ var u=URL.createObjectURL(r.blob); _integUrls.push(u); im.src=u; }catch(e){}
+        im.style.cssText='width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #d9dee8';
+        box.appendChild(im);
+      });
     });
   }
   if(typeof renderOut==='function'){ var _renderOut=renderOut; renderOut=function(){ _renderOut.apply(this,arguments); outPanel(); }; }
@@ -3606,21 +3606,25 @@ if(ready()) photoList(function(l){ if(l.length) phUpdate(l.length); });
     if(!APT_ID){ msg('단지 정보가 없어요. 앱에서 단지를 열고 작성해 주세요'); return; }
     var content=''; try{ content=build(); }catch(e){ content=''; }
     if(!content || !content.trim()){ msg('감리일지 내용이 비어 있어요. 점검 항목을 체크해 주세요'); return; }
+    /* 전송할 사진 = 디자인 «3번 보고 → 현장 사진 첨부»의 현장사진(IndexedDB blob). 없으면 확인 후 전송 */
+    (typeof photoList==='function'?photoList:function(cb){cb([]);})(function(recs){
+    recs=recs||[];
+    if(recs.length===0 && !window.confirm('사진이 없습니다. 그래도 전송할까요?')) return;
     var btn=document.getElementById('integSend'); if(btn) btn.disabled=true;
     sb.auth.getUser().then(function(r){
       var user=r&&r.data&&r.data.user;
       if(!user){ msg('로그인이 필요해요. 앱에서 열어주세요'); if(btn) btn.disabled=false; return; }
-      var urls=[]; var photos=INTEG.photos.slice(); var idx=0;
+      var urls=[]; var idx=0;
       function next(){
-        if(idx>=photos.length){ insert(user,urls); return; }
-        msg('사진 저장 중… ('+(idx+1)+'/'+photos.length+')', true);
-        fetch(photos[idx]).then(function(res){return res.blob();}).then(function(blob){
-          var ext=((blob.type||'image/jpeg').split('/')[1]||'jpg').replace('jpeg','jpg');
-          var path='insp_'+Date.now()+'_'+idx+'_'+Math.round(Math.random()*1e6)+'.'+ext;
-          return sb.storage.from('report-photos').upload(path,blob,{contentType:blob.type||'image/jpeg',upsert:false}).then(function(u){
-            if(!u.error){ urls.push(sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl); }
-            idx++; next();
-          });
+        if(idx>=recs.length){ insert(user,urls); return; }
+        msg('사진 저장 중… ('+(idx+1)+'/'+recs.length+')', true);
+        var blob=recs[idx] && recs[idx].blob;
+        if(!blob){ idx++; next(); return; }
+        var ext=((blob.type||'image/jpeg').split('/')[1]||'jpg').replace('jpeg','jpg');
+        var path='insp_'+Date.now()+'_'+idx+'_'+Math.round(Math.random()*1e6)+'.'+ext;
+        sb.storage.from('report-photos').upload(path,blob,{contentType:blob.type||'image/jpeg',upsert:false}).then(function(u){
+          if(!u.error){ urls.push(sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl); }
+          idx++; next();
         }).catch(function(){ idx++; next(); });
       }
       function insert(user,urls){
@@ -3631,7 +3635,7 @@ if(ready()) photoList(function(l){ if(l.length) phUpdate(l.length); });
         function done(res){
           if(res.error){ msg('전송 실패: '+res.error.message); if(btn) btn.disabled=false; return; }
           msg('✅ 전송 완료! 앱으로 돌아갑니다…', true);
-          INTEG.photos=[]; renderThumbs();
+          try{ renderThumbs(); }catch(e){}
           try{ localStorage.removeItem(KEY); }catch(e){}   /* 전송 끝난 이 단지 임시작성 비우기 → 다음엔 새로 시작 */
           setTimeout(function(){ if(window._integBack) window._integBack(); }, 1300);
         }
@@ -3652,6 +3656,7 @@ if(ready()) photoList(function(l){ if(l.length) phUpdate(l.length); });
         });
       }
       next();
+    });
     });
   }
 

@@ -1594,7 +1594,7 @@ function renderProj(){
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><select id="note-kind" class="inp" style="width:110px">${Object.entries(NOTE_KIND).map(([k,v])=>`<option value="${k}">${v[2]} ${v[0]}</option>`).join('')}</select><input id="note-input" placeholder="예: 106동 상도 완료 확인 / 소장님과 일정 협의" style="flex:1;min-width:180px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')addSiteNote('${p.id}')"><button class="b blue" onclick="addSiteNote('${p.id}')">기록 추가</button></div>
       ${siteNotesHtml(p.id)}</div>`;
   } else if(projTab==='report'){
-    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>PDF</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>repDateKey(b).localeCompare(repDateKey(a))||(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${repDateShow(r)}</td><td style="font-weight:700">${repRoundBadge(r)} <span class="link" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'-'}</span></td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td style="white-space:nowrap">${r.pdf_url?`<a class="b line sm" href="${esc(r.pdf_url)}" target="_blank" title="${esc(r.pdf_name||'PDF')}">📄 보기</a>`:'<span style="color:var(--mut)">없음</span>'}</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
+    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>PDF</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>repDateKey(b).localeCompare(repDateKey(a))||(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${repDateShow(r)}</td><td style="font-weight:700">${repRoundBadge(r)} <span class="link" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'-'}</span></td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td style="white-space:nowrap">${r.pdf_url?`<a class="b line sm" href="${esc(r.pdf_url)}" target="_blank" title="${esc(r.pdf_name||'PDF')}">📄 보기</a>`:'<span style="color:var(--mut)">없음</span>'}</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}',this)">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(projTab==='photo'){
     const hasPh=flds.some(f=>Array.isArray(f.photos)&&f.photos.length);
     const toolbar=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button>${hasPh?`<button class="b line" onclick="makeFieldPPT('${p.id}',null,this)">📊 준공 PPT</button><button class="b line" onclick="downloadAptAllPhotos('${p.id}',this)">⬇ 전체 사진 ZIP</button>`:''}<span style="flex:1"></span><div class="seg" style="margin:0"><button class="${photoView==='card'?'on':''}" onclick="setPhotoView('card')">📇 카드</button><button class="${photoView==='cal'?'on':''}" onclick="setPhotoView('cal')">🗓️ 달력</button></div></div>`;
@@ -1767,10 +1767,16 @@ async function addMPhoto(files){
 function removeMPhoto(i){ MPHOTOS.splice(i,1); refreshMPhotos(); }
 
 /* ===== 감리일지: 공개 토글 ===== */
-async function togglePub(id){
+async function togglePub(id,btn){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;
   const next=!r.published;
-  if(next&&!r.pdf_url&&!confirm('아직 PDF를 안 올리셨어요. PDF 없이 공개하면 입주민에겐 “정리 중” 안내만 보여요.\n그래도 공개할까요?')) return;
+  if(next&&!r.pdf_url){
+    if(!confirm('이 감리일지를 입주민에게 공개합니다.\nPDF가 없어서 감리일지 내용으로 PDF를 자동 생성해 올릴게요(몇 초 걸려요).\n계속할까요?')) return;
+    if(btn){var _t=btn.textContent;btn.disabled=true;btn.textContent='PDF 만드는 중…';}
+    try{ await ensureReportPdf(r); }
+    catch(e){ if(btn){btn.disabled=false;btn.textContent=_t;} alert('공개 실패: '+(e&&e.message||e)+'\n(사진이 외부 링크면 일부 빠질 수 있어요)'); return; }
+    if(btn){btn.disabled=false;btn.textContent=_t;}
+  }
   const {error}=await sb.from('reports').update({published:next}).eq('id',id);
   if(error){alert('변경 실패: '+error.message);return;}
   r.published=next; renderProj();
@@ -1790,20 +1796,20 @@ async function bulkPublishReports(btn){
   const noPdfList=cand.filter(r=>!r.pdf_url);                   // PDF 없어 공개 제외(공개하면 '준비중'으로 보임)
   const exDj=all.filter(r=>!r.published && isDj(r)).length;
   const already=all.filter(r=>r.published).length;
-  // PDF 없어 공개 못 한 감리일지 목록(제목 눌러 열어서 PDF 올리게)
+  // PDF 없어 공개 못 한 감리일지 목록(제목 눌러 열어서 공개 — 단일 공개 시 PDF 자동 생성됨)
   function showNoPdf(){
     if(!noPdfList.length) return;
     const rows=[...noPdfList].sort((a,b)=>(aptName(a.apartment_id)||'').localeCompare(aptName(b.apartment_id)||'','ko'))
       .map(r=>`<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 8px;white-space:nowrap">${esc(aptName(r.apartment_id))}</td><td style="padding:6px 8px"><span class="link" onclick="closeModal();openReportView('${r.id}')">${esc(r.title)||'-'}</span></td></tr>`).join('');
-    openModal(mHead('⚠️ PDF가 없어 공개 안 된 감리일지')+`<div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:10px">아래 <b>${noPdfList.length}건</b>은 PDF가 없어서 <b>공개하지 않았어요.</b> (공개하면 입주민에게 “준비 중”으로만 보여서요)<br>제목을 눌러 열고 <b>PDF를 올리면</b> 그때 공개돼요.</div><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr style="text-align:left;border-bottom:1px solid var(--line)"><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">단지</th><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">제목 (눌러서 열기)</th></tr></thead><tbody>${rows}</tbody></table></div><div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button></div>`, true);
+    openModal(mHead('⚠️ PDF가 없어 공개 안 된 감리일지')+`<div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:10px">아래 <b>${noPdfList.length}건</b>은 PDF가 없어서 <b>공개하지 않았어요.</b> (공개하면 입주민에게 “준비 중”으로만 보여서요)<br>제목을 눌러 열고 <b>공개하기</b>를 누르면 그때 내용으로 PDF가 자동 생성돼 공개돼요.</div><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr style="text-align:left;border-bottom:1px solid var(--line)"><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">단지</th><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">제목 (눌러서 열기)</th></tr></thead><tbody>${rows}</tbody></table></div><div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button></div>`, true);
   }
   if(!toPub.length){
-    if(noPdfList.length){ alert('공개할 수 있는(PDF 있는) 새 감리일지가 없어요.\nPDF 없는 '+noPdfList.length+'건을 목록으로 보여드릴게요 — 열어서 PDF를 올리면 공개돼요.'); showNoPdf(); }
+    if(noPdfList.length){ alert('바로 공개할(PDF 있는) 새 감리일지가 없어요.\nPDF 없는 '+noPdfList.length+'건을 목록으로 보여드릴게요 — 열어서 ‘공개하기’를 누르면 PDF가 자동 생성돼 공개돼요.'); showNoPdf(); }
     else alert('공개할 새 감리일지가 없어요.\n(이미 공개 '+already+'건 · dj 제외 '+exDj+'건)');
     return;
   }
   const djNames=[...djIds].map(id=>{const m=(MEMBERS||[]).find(x=>x.id===id);return m?(m.name||m.email):'';}).filter(Boolean).join(', ');
-  if(!confirm('📢 PDF가 있는 감리일지 '+toPub.length+'건을 입주민에게 공개합니다.\n\n[공개 안 함]\n· ⚠️ PDF 없음: '+noPdfList.length+'건 (공개하면 “준비 중”으로 보여서 제외 — 공개 후 목록 보여드려요)\n· dj(테스트) 작성: '+exDj+'건'+(djNames?' ['+djNames+']':'')+'\n· 이미 공개: '+already+'건\n\n계속할까요?')) return;
+  if(!confirm('📢 PDF가 있는 감리일지 '+toPub.length+'건을 입주민에게 공개합니다.\n\n[공개 안 함]\n· ⚠️ PDF 없음: '+noPdfList.length+'건 (공개 후 목록 보여드려요 — 하나씩 열어 공개하면 PDF 자동 생성)\n· dj(테스트) 작성: '+exDj+'건'+(djNames?' ['+djNames+']':'')+'\n· 이미 공개: '+already+'건\n\n계속할까요?')) return;
   if(btn){btn.disabled=true;var _t=btn.textContent;btn.textContent='공개 중…';}
   const ids=toPub.map(r=>r.id); let ok=0,fail=0;
   for(let i=0;i<ids.length;i+=100){
@@ -2271,6 +2277,37 @@ async function genGamriPdf(id,btn,ov){
   finally{ if(btn){btn.disabled=false;btn.textContent=_t;} }
 }
 window.genGamriPdf=genGamriPdf;
+/* 감리일지 내용으로 PDF를 생성해 Blob으로 반환(다운로드 대신) */
+async function genGamriPdfBlob(r,ov){
+  await _loadHtml2pdf();
+  var host=document.createElement('div');
+  host.style.cssText='position:fixed;left:-9999px;top:0;width:720px;background:#fff';
+  host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r,ov);
+  document.body.appendChild(host);
+  try{
+    return await html2pdf().set({margin:[8,8,8,8],image:{type:'jpeg',quality:0.9},
+      html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt']}}).from(host.querySelector('.gp-doc')).outputPdf('blob');
+  } finally { try{document.body.removeChild(host);}catch(e){} }
+}
+/* 공개용 PDF 보장: pdf_url 없으면 감리일지 내용으로 PDF 자동 생성→저장→pdf_url 세팅 */
+async function ensureReportPdf(r){
+  if(r.pdf_url) return r.pdf_url;
+  var m=gamriParse(r).meta;
+  var blob=await genGamriPdfBlob(r);
+  var fname=((m.site||'현장')+'_'+(m.round||'')+'_공사감리일지.pdf');
+  var safe=fname.replace(/[^\w.\-]/g,'_');
+  var path='report-pdf/'+r.id+'_'+Date.now()+'_'+safe;
+  var up=await sb.storage.from('report-photos').upload(path,blob,{contentType:'application/pdf',upsert:true});
+  if(up.error) throw new Error('PDF 저장 실패: '+up.error.message);
+  var url=sb.storage.from('report-photos').getPublicUrl(path).data.publicUrl;
+  var upd=await sb.from('reports').update({pdf_url:url,pdf_name:fname}).eq('id',r.id);
+  if(upd.error) throw new Error(upd.error.message);
+  r.pdf_url=url; r.pdf_name=fname;
+  return url;
+}
+window.genGamriPdfBlob=genGamriPdfBlob; window.ensureReportPdf=ensureReportPdf;
 /* ===== AI 보강: 서버(Edge Function gamri-ai)가 점검 원문을 양식 문장으로 다듬음 → 감리원 검토 후 PDF ===== */
 async function aiEnrichReport(id,btn){
   const r=REPORTS.find(x=>x.id===id); if(!r){alert('감리일지를 찾지 못했어요');return;}
@@ -2388,9 +2425,18 @@ async function uploadReportPdfConsole(id,files){
 async function togglePubModal(id){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;
   const next=!r.published;
-  if(next&&!r.pdf_url&&!confirm('아직 PDF를 안 올리셨어요. 그래도 공개할까요?')) return;
   const f=collectReportModal();
-  const {error}=await sb.from('reports').update({published:next,title:f.title||undefined,content:f.content,pub_title:f.pub_title,photos:f.photos}).eq('id',id);
+  // 모달에서 수정한 내용 먼저 저장(PDF를 최신 내용으로 생성하기 위해)
+  const {error:e0}=await sb.from('reports').update({title:f.title||undefined,content:f.content,pub_title:f.pub_title,photos:f.photos}).eq('id',id);
+  if(e0){alert('오류: '+e0.message);return;}
+  r.title=f.title||r.title; r.content=f.content; r.pub_title=f.pub_title; r.photos=f.photos;
+  // 공개하는데 PDF가 없으면 내용으로 자동 생성
+  if(next&&!r.pdf_url){
+    const msg=$('m-msg'); if(msg){msg.textContent='PDF 만드는 중… (몇 초)';msg.style.color='var(--mut)';}
+    try{ await ensureReportPdf(r); }
+    catch(e){ if(msg){msg.textContent='공개 실패: '+(e&&e.message||e);msg.style.color='var(--red)';} return; }
+  }
+  const {error}=await sb.from('reports').update({published:next}).eq('id',id);
   if(error){alert('오류: '+error.message);return;}
   r.published=next; closeModal(); await loadAll();
 }

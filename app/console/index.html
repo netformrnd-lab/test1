@@ -2227,13 +2227,15 @@ function _gBlocks(lines){ if(!lines||!lines.length)return ''; var out='',buf=[];
     var h=t.match(/^\[([^\]]+)\]$/);
     if(h){ flush(); out+='<div class="bt">['+_gEsc(h[1])+']</div>'; } else buf.push(t);
   }); flush(); return out; }
-/* 특기사항: 'N. 제목' 줄은 회색 띠 소제목으로, 나머지는 불릿으로 (2차 양식처럼 구조화) */
-function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',open=false;
-  function closeUl(){ if(open){ out+='</ul>'; open=false; } }
+/* 특기사항: 'N. 제목' 줄은 회색 띠 소제목으로, 나머지는 불릿으로 (2차 양식처럼 구조화)
+   소제목+그 아래 내용을 .sec 한 덩어리로 묶어, 페이지 경계에서 쪼개지지 않고 통째로 다음 장으로 넘어가게 함 */
+function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',sec='',open=false;
+  function closeUl(){ if(open){ sec+='</ul>'; open=false; } }
+  function flushSec(){ closeUl(); if(sec){ out+='<div class="sec">'+sec+'</div>'; sec=''; } }
   lines.forEach(function(ln){ var t=String(ln||'').replace(/^[·▪◇]\s*/,'').trim(); if(!t)return;
-    if(/^\d+\s*[.)]\s+/.test(t)){ closeUl(); out+='<div class="sub">'+_gEsc(t)+'</div>'; }
-    else { if(!open){ out+='<ul>'; open=true; } out+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
-  }); closeUl(); return out; }
+    if(/^\d+\s*[.)]\s+/.test(t)){ flushSec(); sec='<div class="sub">'+_gEsc(t)+'</div>'; }
+    else { if(!open){ sec+='<ul>'; open=true; } sec+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
+  }); flushSec(); return out; }
 function gamriFormHtml(r,ov){
   const P=gamriParse(r),m=P.meta,s=P.sec;
   const allPhotos=Array.isArray(r.photos)?r.photos:[];
@@ -2293,7 +2295,8 @@ const GAMRI_CSS=
 '.gp-doc .band{background:#d9d9d9;border:1px solid #111;border-bottom:none;font-weight:500;padding:4px 9px;margin-top:10px;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}'+
 '.gp-doc .bandbox{border:1px solid #111;border-top:none;padding:8px 10px}'+
 '.gp-doc .bandbox .bt{font-weight:700;margin:6px 0 2px}.gp-doc .bandbox .bt:first-child{margin-top:0}'+
-'.gp-doc .bandbox .sub{background:#ececec;font-weight:700;padding:3px 10px;margin:9px -10px 5px;border-top:1px solid #bdbdbd;border-bottom:1px solid #bdbdbd;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}.gp-doc .bandbox .sub:first-child{margin-top:0}'+
+'.gp-doc .bandbox .sec{margin-top:10px;break-inside:avoid;page-break-inside:avoid}.gp-doc .bandbox .sec:first-child{margin-top:0}'+
+'.gp-doc .bandbox .sub{background:#ececec;font-weight:700;padding:3px 10px;margin:0 -10px 5px;border-top:1px solid #bdbdbd;border-bottom:1px solid #bdbdbd;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}'+
 '.gp-doc .bandbox ul{list-style:none;margin:2px 0;padding:0}.gp-doc .bandbox li{position:relative;padding-left:13px;line-height:1.6;break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .bandbox .bt{break-after:avoid;page-break-after:avoid}.gp-doc .t-info tr,.gp-doc .t-chk tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .bandbox li.dot::before{content:"·";position:absolute;left:3px;font-weight:700}.gp-doc .bandbox li:not(.dot)::before{content:"▪";position:absolute;left:1px;font-size:8px;top:2px}'+
@@ -2319,7 +2322,7 @@ async function genGamriPdf(id,btn,ov){
     await html2pdf().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.9},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt']}}).from(host.querySelector('.gp-doc')).save();
+      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt','.sec']}}).from(host.querySelector('.gp-doc')).save();
     document.body.removeChild(host);
     if(window.toast)toast('공사감리일지 PDF를 저장했어요');
   }catch(e){ alert('PDF 생성 실패: '+(e&&e.message||e)+'\n(사진이 외부 링크면 일부 사진이 빠질 수 있어요)'); }
@@ -2337,7 +2340,7 @@ async function genGamriPdfBlob(r,ov){
     return await html2pdf().set({margin:[8,8,8,8],image:{type:'jpeg',quality:0.9},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt']}}).from(host.querySelector('.gp-doc')).outputPdf('blob');
+      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt','.sec']}}).from(host.querySelector('.gp-doc')).outputPdf('blob');
   } finally { try{document.body.removeChild(host);}catch(e){} }
 }
 /* 공개용 PDF 보장: pdf_url 없으면 감리일지 내용으로 PDF 자동 생성→저장→pdf_url 세팅 */

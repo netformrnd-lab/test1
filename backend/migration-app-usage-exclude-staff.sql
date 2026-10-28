@@ -1,7 +1,8 @@
 -- ============================================================
--- 입주민 앱 사용통계에서 '직원'(감리원·관리자·관리소장) 사용을 제외.
+-- 입주민 앱 사용통계에서 '내부 직원'(감리원·관리자) 사용을 제외.
+--   입주민 + 관리소장(manager)은 고객 쪽 사용자이므로 집계에 포함한다.
 --   기존 RPC는 역할을 안 걸러서, 감리원(dj 등)이 과거에 찍은 이벤트가 통계에 섞였음.
---   → 이 함수로 교체하면 role in (auditor/admin/manager) 사용자의 이벤트는 전부 빠짐.
+--   → 이 함수로 교체하면 role in (auditor/admin) 사용자의 이벤트만 빠짐.
 --   (app_events 테이블·인덱스는 그대로. 함수만 교체)
 -- Supabase → SQL Editor 에 붙여넣고 Run (migration-app-usage.sql 실행 이후)
 -- ============================================================
@@ -20,9 +21,9 @@ begin
     raise exception 'forbidden';
   end if;
 
-  -- 통계에서 제외할 직원(감리원·관리자·관리소장) id 목록
+  -- 통계에서 제외할 내부 직원(감리원·관리자) id 목록. 관리소장(manager)·입주민은 포함.
   select coalesce(array_agg(id), '{}')::uuid[] into staff
-    from public.profiles where role in ('auditor','admin','manager');
+    from public.profiles where role in ('auditor','admin');
 
   select jsonb_build_object(
     'range_days',   greatest(p_days, 1),

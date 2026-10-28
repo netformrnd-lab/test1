@@ -5054,6 +5054,8 @@ table.xl mark{background:color-mix(in srgb,var(--orange,#e08b1a) 35%,transparent
   color:var(--text-primary);resize:vertical}
 .pj-f input:focus,.pj-f select:focus,.pj-f textarea:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 16%,transparent)}
+/* 📝 메모는 처음부터 넉넉하게 — 마우스로 늘리지 않아도 되게 */
+.pj-f textarea.pjm-note{min-height:132px;line-height:1.6}
 .pj-r{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
 .pj-r .pj-f{margin-bottom:14px}
 /* 메인 진척률 */
@@ -6058,7 +6060,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-120';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-121';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -18097,7 +18099,7 @@ function projPaint(){
         + '<button onclick="projSubAdd()">＋ 추가</button></div></div>'
     /* 메모 */
     + '<div class="pj-f"><label>메모</label>'
-      + '<textarea rows="2" placeholder="배경이나 참고할 것"'
+      + '<textarea rows="6" class="pjm-note" placeholder="배경이나 참고할 것"'
         + ' oninput="projDraft.note=this.value">' + esc(d.note) + '</textarea></div>';
   if(keepY && el.scrollTop !== keepY) el.scrollTop = keepY;   /* 보던 자리로 */
   if(keepS){

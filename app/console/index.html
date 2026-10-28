@@ -1785,13 +1785,25 @@ async function bulkPublishReports(btn){
     return !!(mm && mm[1].toLowerCase().includes(KEY));
   };
   const all=REPORTS||[];
-  const toPub=all.filter(r=>!r.published && !isDj(r));
+  const cand=all.filter(r=>!r.published && !isDj(r));          // 공개 후보(미공개·dj 제외)
+  const toPub=cand.filter(r=>r.pdf_url);                        // PDF 있는 것만 실제 공개
+  const noPdfList=cand.filter(r=>!r.pdf_url);                   // PDF 없어 공개 제외(공개하면 '준비중'으로 보임)
   const exDj=all.filter(r=>!r.published && isDj(r)).length;
   const already=all.filter(r=>r.published).length;
-  const noPdf=toPub.filter(r=>!r.pdf_url).length;
-  if(!toPub.length){ alert('공개할 새 감리일지가 없어요.\n(이미 공개 '+already+'건 · dj 제외 '+exDj+'건)'); return; }
+  // PDF 없어 공개 못 한 감리일지 목록(제목 눌러 열어서 PDF 올리게)
+  function showNoPdf(){
+    if(!noPdfList.length) return;
+    const rows=[...noPdfList].sort((a,b)=>(aptName(a.apartment_id)||'').localeCompare(aptName(b.apartment_id)||'','ko'))
+      .map(r=>`<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px 8px;white-space:nowrap">${esc(aptName(r.apartment_id))}</td><td style="padding:6px 8px"><span class="link" onclick="closeModal();openReportView('${r.id}')">${esc(r.title)||'-'}</span></td></tr>`).join('');
+    openModal(mHead('⚠️ PDF가 없어 공개 안 된 감리일지')+`<div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:10px">아래 <b>${noPdfList.length}건</b>은 PDF가 없어서 <b>공개하지 않았어요.</b> (공개하면 입주민에게 “준비 중”으로만 보여서요)<br>제목을 눌러 열고 <b>PDF를 올리면</b> 그때 공개돼요.</div><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr style="text-align:left;border-bottom:1px solid var(--line)"><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">단지</th><th style="padding:6px 8px;font-size:11.5px;color:var(--mut)">제목 (눌러서 열기)</th></tr></thead><tbody>${rows}</tbody></table></div><div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button></div>`, true);
+  }
+  if(!toPub.length){
+    if(noPdfList.length){ alert('공개할 수 있는(PDF 있는) 새 감리일지가 없어요.\nPDF 없는 '+noPdfList.length+'건을 목록으로 보여드릴게요 — 열어서 PDF를 올리면 공개돼요.'); showNoPdf(); }
+    else alert('공개할 새 감리일지가 없어요.\n(이미 공개 '+already+'건 · dj 제외 '+exDj+'건)');
+    return;
+  }
   const djNames=[...djIds].map(id=>{const m=(MEMBERS||[]).find(x=>x.id===id);return m?(m.name||m.email):'';}).filter(Boolean).join(', ');
-  if(!confirm('📢 감리일지 '+toPub.length+'건을 입주민에게 한 번에 공개합니다.\n\n[제외]\n· dj(테스트) 작성: '+exDj+'건'+(djNames?' ['+djNames+']':'')+'\n· 이미 공개: '+already+'건\n'+(noPdf?('\n⚠️ 그중 '+noPdf+'건은 PDF가 없어 입주민에겐 “정리 중”으로 보여요.\n'):'')+'\n공개하면 입주민이 바로 볼 수 있어요. 계속할까요?')) return;
+  if(!confirm('📢 PDF가 있는 감리일지 '+toPub.length+'건을 입주민에게 공개합니다.\n\n[공개 안 함]\n· ⚠️ PDF 없음: '+noPdfList.length+'건 (공개하면 “준비 중”으로 보여서 제외 — 공개 후 목록 보여드려요)\n· dj(테스트) 작성: '+exDj+'건'+(djNames?' ['+djNames+']':'')+'\n· 이미 공개: '+already+'건\n\n계속할까요?')) return;
   if(btn){btn.disabled=true;var _t=btn.textContent;btn.textContent='공개 중…';}
   const ids=toPub.map(r=>r.id); let ok=0,fail=0;
   for(let i=0;i<ids.length;i+=100){
@@ -1800,8 +1812,9 @@ async function bulkPublishReports(btn){
     if(error){fail+=chunk.length;console.warn('bulk pub',error);} else { ok+=chunk.length; chunk.forEach(id=>{const r=REPORTS.find(x=>x.id===id); if(r)r.published=true;}); }
   }
   if(btn){btn.disabled=false;btn.textContent=_t;}
-  alert('공개 완료: '+ok+'건'+(fail?('\n실패 '+fail+'건 (권한/네트워크 확인)'):''));
+  alert('공개 완료: '+ok+'건'+(fail?('\n실패 '+fail+'건 (권한/네트워크 확인)'):'')+(noPdfList.length?('\n\n⚠️ PDF 없는 '+noPdfList.length+'건은 공개 안 했어요 — 목록을 띄울게요.'):''));
   try{ renderProj(); if(window.renderProjList)renderProjList(); if(window.renderDash)renderDash(); }catch(e){}
+  showNoPdf();
 }
 window.bulkPublishReports=bulkPublishReports;
 /* ===== 감리원 배정 저장 ===== */

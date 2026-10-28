@@ -2649,7 +2649,7 @@ const ALIM = {
     // 그래서 대신 확인
     h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:16px 0 6px">↓</div>'
     h += '<div style="font-size:16px;font-weight:800;color:#1c2440;margin:0 2px 10px;' + wb + '">그래서, 아파트스퀘어가<br><span style="color:#2F6BF6">함께 확인합니다</span></div>'
-    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '"><b>전문감리기관의 감리원</b>이 진단부터 준공까지 <b>자재(시공자 자료)·공정률을 확인하고, 완료 부위의 적합 여부를 판정</b>해, 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다. 언제든 직접 확인하실 수 있어요.</div>', '15px 15px')
+    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '"><b>건축사사무소의 전문 감리원</b>이 진단부터 준공까지 <b>자재(시공자 자료)·공정률을 확인하고, 완료 부위의 적합 여부를 판정</b>해, 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다. 언제든 직접 확인하실 수 있어요.</div>', '15px 15px')
     h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit2.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 60%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 52%,rgba(10,16,34,.8))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">감리원이 완료 부위를 확인·판정합니다</div></div>'
     // 3단계 흐름
     h += '<div style="display:flex;gap:7px;margin-top:13px">'

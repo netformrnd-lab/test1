@@ -3045,13 +3045,29 @@ async function importBoard(){
 /* ===== 데이터 도구: 감리일지 PDF 폴더 일괄 올리기 ===== */
 let BPDF_ROWS=[];
 function bpdfLog(msg,color){ const box=$('bpdf-log'); if(!box)return; box.style.display='block'; const d=document.createElement('div'); d.textContent=msg; if(color)d.style.color=color; box.appendChild(d); box.scrollTop=box.scrollHeight; }
-// NFC 정규화: 나스(맥/SMB) 한글 파일명은 자모 분리(NFD)라 안 하면 매칭이 깨짐
-function bpdfNorm(s){ return (s||'').normalize('NFC').toLowerCase().replace(/[^0-9a-z가-힣]/g,''); }
-// 파일 이름 안에 단지 이름이 들어있으면 매칭(가장 길게 겹치는 단지 선택 → 짧은 이름 오매칭 방지)
+// 단지명/파일명 핵심만 남긴다: NFC정규화(나스 자모분리 대응)·공백/괄호 제거·양식 보일러플레이트 제거
+// ·'이편한세상'↔'e편한세상' 표기 통일·'아파트/단지' 꼬리 제거
+const BPDF_BOILER=/별지제?\d*호?서식|공사감리일지|감리일지|감리보고서|감리보고|도장공사|옥상방수|재도장|방수공사|도장|방수|보고서|서식|호서식/g;
+function bpdfCore(name){
+  let s=(name||'').normalize('NFC').toLowerCase().replace(/\.pdf$/,'');
+  s=s.replace(/[^0-9a-z가-힣]/g,'');
+  s=s.replace(/이편한세상/g,'e편한세상');
+  s=s.replace(BPDF_BOILER,'');
+  s=s.replace(/아파트먼트|아파트|오피스텔|주상복합|단지/g,'');
+  return s;
+}
+function bpdfBg(s){ const set=new Set(); for(let i=0;i+1<s.length;i++)set.add(s.slice(i,i+2)); return set; }
+function bpdfOv(aset,bset){ let n=0; for(const g of bset) if(aset.has(g))n++; return n; }
+// 폴더/파일 이름으로 단지 자동 매칭: 단지명 통째 포함 최우선, 아니면 글자 2-그램 겹침 점수.
+// 겹치는 말이 많아도(옥련현대4차, 태전 이편한세상 등) 점수로 고르고, 애매하면(동점) 자동 안 함 → 수동.
 function bpdfMatch(fname){
-  const fn=bpdfNorm(fname.replace(/\.pdf$/i,'')); let best=null,bl=0;
-  for(const a of APTS){ const an=bpdfNorm(a.name); if(an&&an.length>=2&&fn.includes(an)&&an.length>bl){best=a;bl=an.length;} }
-  return best;
+  const fc=bpdfCore(fname); if(fc.length<2)return null; const fset=bpdfBg(fc);
+  let best=null,bestS=0,secondS=0;
+  for(const a of APTS){ const ac=bpdfCore(a.name); if(ac.length<2)continue;
+    const score=fc.includes(ac)?(ac.length+100):bpdfOv(bpdfBg(ac),fset);
+    if(score>bestS){secondS=bestS;bestS=score;best=a;} else if(score>secondS)secondS=score;
+  }
+  return (best&&(bestS>=100||(bestS>=3&&bestS-secondS>=1)))?best:null;
 }
 // 문자열에서 날짜 키 추출 → 'MMDD' + 'YYYYMMDD' 집합 (제목/파일명 날짜 맞추기용)
 function bpdfDateKeys(s){
@@ -3069,7 +3085,9 @@ function bpdfAttachCands(fname,aptId){
   if(!aptId)return []; const fk=bpdfDateKeys(fname); if(!fk.size)return [];
   return (REPORTS||[]).filter(function(x){
     if(x.apartment_id!==aptId||x.pdf_url)return false;
-    const tk=bpdfDateKeys(x.title||''); for(const k of fk){ if(tk.has(k))return true; } return false;
+    // 기존 글의 날짜 = 제목 속 날짜 + 등록일(created_at) 둘 다로 맞춰본다
+    const tk=bpdfDateKeys((x.title||'')+' '+String(x.created_at||'').slice(0,10));
+    for(const k of fk){ if(tk.has(k))return true; } return false;
   }).slice(0,8);
 }
 // '처리' 칸(새 등록 / 기존글 첨부) HTML

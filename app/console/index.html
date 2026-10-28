@@ -2544,7 +2544,7 @@ function openNpsDetail(aptId){
     return `<div class="card" style="padding:14px 16px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">${starRow(s.overall)}</span><b style="font-size:15px">${s.overall!=null?s.overall+'/5':'-'}</b><span style="font-size:11px;color:var(--mut);font-weight:700">종합</span></div>
-        <div style="font-size:11px;color:var(--mut)">${roleNm[s.respondent_role]||''} · ${(s.created_at||'').slice(0,10)}</div>
+        <div style="font-size:11px;color:var(--mut)">${(()=>{const m=MEMBERS.find(x=>x.id===s.respondent_id);const nm=m?(m.name||realEmail(m)||loginId(m)||''):'';return nm?`<b style="color:var(--mut2)">${esc(nm)}</b> · `:'';})()}${roleNm[s.respondent_role]||''} · ${(s.created_at||'').slice(0,10)}</div>
       </div>
       ${rates?`<div style="display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--line2);padding-top:10px">${rates}</div>`:''}
       ${texts}

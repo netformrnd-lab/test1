@@ -560,8 +560,11 @@ function resRepDateKey(r) {
   const s = (r && r.title) || ''; let m
   m = s.match(/(20\d{2})[.\-\/년 ]*(0[1-9]|1[0-2])[.\-\/월 ]*(0[1-9]|[12]\d|3[01])/)
   if (m) return m[1] + m[2] + m[3]
-  m = s.match(/(?:^|\D)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?:\D|$)/)
-  if (m) { const y = String((r && r.created_at) || '').slice(0, 4) || '2026'; return (y || '2026') + m[1] + m[2] }
+  const y = String((r && r.created_at) || '').slice(0, 4) || '2026'
+  m = s.match(/(?:^|\D)(0[1-9]|1[0-2])[.\-\/](0[1-9]|[12]\d|3[01])(?:\D|$)/) // 10.08 / 10-08
+  if (m) return (y || '2026') + m[1] + m[2]
+  m = s.match(/(?:^|\D)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?:\D|$)/) // 1008
+  if (m) return (y || '2026') + m[1] + m[2]
   return String((r && r.created_at) || '').slice(0, 10).replace(/-/g, '') || '00000000'
 }
 window.selectResRepDong = function (d) { RES_REP_DONG = d; renderResReports() }

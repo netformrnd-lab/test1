@@ -679,8 +679,11 @@ function repDateKey(r){
   const s=(r&&r.title)||''; let m;
   m=s.match(/(20\d{2})[.\-\/년 ]*(0[1-9]|1[0-2])[.\-\/월 ]*(0[1-9]|[12]\d|3[01])/);
   if(m) return m[1]+m[2]+m[3];
-  m=s.match(/(?:^|\D)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?:\D|$)/); // MMDD (룩비하인드 없이)
-  if(m){ const y=String((r&&r.created_at)||'').slice(0,4)||'2026'; return (y||'2026')+m[1]+m[2]; }
+  const y=String((r&&r.created_at)||'').slice(0,4)||'2026';
+  m=s.match(/(?:^|\D)(0[1-9]|1[0-2])[.\-\/](0[1-9]|[12]\d|3[01])(?:\D|$)/); // 10.08 / 10-08 (구분자 있는 월.일)
+  if(m) return (y||'2026')+m[1]+m[2];
+  m=s.match(/(?:^|\D)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?:\D|$)/); // 1008 (붙은 월일)
+  if(m) return (y||'2026')+m[1]+m[2];
   return String((r&&r.created_at)||'').slice(0,10).replace(/-/g,'')||'00000000';
 }
 function repDateShow(r){ const k=repDateKey(r); return /^\d{8}$/.test(k)?k.slice(0,4)+'-'+k.slice(4,6)+'-'+k.slice(6,8):String((r&&r.created_at)||'').slice(0,10); }
@@ -1591,7 +1594,7 @@ function renderProj(){
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><select id="note-kind" class="inp" style="width:110px">${Object.entries(NOTE_KIND).map(([k,v])=>`<option value="${k}">${v[2]} ${v[0]}</option>`).join('')}</select><input id="note-input" placeholder="예: 106동 상도 완료 확인 / 소장님과 일정 협의" style="flex:1;min-width:180px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')addSiteNote('${p.id}')"><button class="b blue" onclick="addSiteNote('${p.id}')">기록 추가</button></div>
       ${siteNotesHtml(p.id)}</div>`;
   } else if(projTab==='report'){
-    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>repDateKey(b).localeCompare(repDateKey(a))||(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${repDateShow(r)}</td><td style="font-weight:700">${repRoundBadge(r)} <span class="link" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'-'}</span></td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
+    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>PDF</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>repDateKey(b).localeCompare(repDateKey(a))||(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${repDateShow(r)}</td><td style="font-weight:700">${repRoundBadge(r)} <span class="link" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'-'}</span></td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td style="white-space:nowrap">${r.pdf_url?`<a class="b line sm" href="${esc(r.pdf_url)}" target="_blank" title="${esc(r.pdf_name||'PDF')}">📄 보기</a>`:'<span style="color:var(--mut)">없음</span>'}</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}')">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(projTab==='photo'){
     const hasPh=flds.some(f=>Array.isArray(f.photos)&&f.photos.length);
     const toolbar=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button>${hasPh?`<button class="b line" onclick="makeFieldPPT('${p.id}',null,this)">📊 준공 PPT</button><button class="b line" onclick="downloadAptAllPhotos('${p.id}',this)">⬇ 전체 사진 ZIP</button>`:''}<span style="flex:1"></span><div class="seg" style="margin:0"><button class="${photoView==='card'?'on':''}" onclick="setPhotoView('card')">📇 카드</button><button class="${photoView==='cal'?'on':''}" onclick="setPhotoView('cal')">🗓️ 달력</button></div></div>`;
@@ -3084,6 +3087,8 @@ function bpdfDateKeys(s){
   s=String(s||''); const keys=new Set(); let m;
   const re=/(20\d{2})[.\-\/년 ]*(0[1-9]|1[0-2])[.\-\/월 ]*(0[1-9]|[12]\d|3[01])/g; // 2026-10-08 / 2026.10.08 / 2026년10월08
   while(m=re.exec(s)){ keys.add(m[2]+m[3]); keys.add(m[1]+m[2]+m[3]); }
+  const re2=/(?:^|\D)(0[1-9]|1[0-2])[.\-\/](0[1-9]|[12]\d|3[01])(?:\D|$)/g; // 10.08 / 10-08 (연도 없는 월.일)
+  while(m=re2.exec(s)){ keys.add(m[1]+m[2]); }
   // 숫자 덩어리 단위로 끊어 8/6/4자리 날짜 처리 (룩비하인드 미사용 — 구형 iOS Safari 호환)
   const vmd=(mo,d)=>(+mo>=1&&+mo<=12&&+d>=1&&+d<=31);
   for(const n of (s.match(/\d+/g)||[])){

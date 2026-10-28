@@ -2606,7 +2606,7 @@ function freeCard(S, opt){
 
 /* ---------- v2.0 현장 사진 첨부 ----------
    사진은 이 브라우저의 IndexedDB에 «현장·공종·단계·날짜» 단위로 보관한다 (asq_app_v7 저장소와 별개).
-   올릴 때 긴 변 1600px JPEG로 줄여 용량을 아낀다. 감리일지 글에는 «[첨부 사진] n장»만 들어가고,
+   올릴 때 긴 변 1600px JPEG로 줄여 용량을 아낀다. 감리일지 글에는 사진 관련 문구를 넣지 않고,
    사진은 최종 제출 화면의 «사진 보내기»로 휴대폰 공유(잔디·카톡) 또는 PC 저장을 한다. */
 var PHN = 0, PDB = null;
 function photoKey(){ return pk() + '|' + ((store.meta && store.meta.date) || ''); }
@@ -3238,7 +3238,6 @@ function build(){
 
 
   t += L + '\n[감리 현장 보고일지]\n' + (ai ? ai + '\n' : '없음\n');
-  if(PHN) t += '\n[첨부 사진] ' + PHN + '장 (별도 전송)\n';
   t += L + '\n아파트스퀘어 감리팀 · 감리원 ' + (m.insp || '김성민');
   return t;
 }

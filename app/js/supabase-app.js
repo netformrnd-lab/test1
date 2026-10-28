@@ -298,6 +298,7 @@ async function loadFieldUpdates() {
   checkSurveyBanner(apt)
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', apt.id).order('created_at', { ascending: false })
   FIELD_LIST = (data || []).map(f => { f._field = true; return f }) // 현장현황 항목 표시(감리일지와 구분)
+    .sort((a, b) => resRepDateKey(b).localeCompare(resRepDateKey(a)))   // 제목 날짜(YYYYMMDD) 기준 최신순
   renderFieldList()
 }
 // 감리원: 단지 선택 후 메뉴 (감리일지 / 현장 사진)
@@ -351,6 +352,7 @@ async function openAuditorField(a) {
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', a.id).order('created_at', { ascending: false })
   AUDFIELD_LIST = (data || []).map(f => { f._field = true; return f })
+    .sort((a, b) => resRepDateKey(b).localeCompare(resRepDateKey(a)))   // 제목 날짜 기준 최신순
   renderAudFieldList()
 }
 window.openAuditorField = openAuditorField
@@ -1611,8 +1613,8 @@ function reportCard(r) {
   // 현장현황(_field)은 항상 사진 썸네일. 입주민 감리일지(reports)만 PDF 문서 아이콘으로 표시
   const isRes = currentRole && currentRole !== 'auditor'
   const isField = !!r._field
-  const _dk = resRepDateKey(r)
-  const d = (!isField && /^\d{8}$/.test(_dk)) ? (_dk.slice(0, 4) + '.' + _dk.slice(4, 6) + '.' + _dk.slice(6, 8)) : (r.created_at || '').slice(0, 10).replace(/-/g, '.')
+  const _dk = resRepDateKey(r)   // 제목에 든 날짜(YYYYMMDD) 우선 — 현장현황·감리일지 모두 제목 날짜로 표시
+  const d = /^\d{8}$/.test(_dk) ? (_dk.slice(0, 4) + '.' + _dk.slice(4, 6) + '.' + _dk.slice(6, 8)) : (r.created_at || '').slice(0, 10).replace(/-/g, '.')
   const ph = Array.isArray(r.photos) ? r.photos : []
   const showPhoto = ph.length && (isField || !isRes)
   const thumb = showPhoto
@@ -1704,7 +1706,8 @@ function openReport(r) {
   if (!r) return
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v }
   set('d-title', repTitle(r) || '감리일지')
-  set('d-date', (r.created_at || '').slice(0, 10).replace(/-/g, '.'))
+  const _ddk = resRepDateKey(r)   // 제목 날짜 우선(목록과 일치)
+  set('d-date', /^\d{8}$/.test(_ddk) ? (_ddk.slice(0, 4) + '.' + _ddk.slice(4, 6) + '.' + _ddk.slice(6, 8)) : (r.created_at || '').slice(0, 10).replace(/-/g, '.'))
   const st = document.getElementById('d-stage')
   if (st) { if (r.stage) { st.textContent = r.stage; st.style.display = '' } else { st.style.display = 'none' } }
   // 동(棟) 표시

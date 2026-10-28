@@ -308,6 +308,15 @@ async function openAuditorMenu(a) {
   window.showScreen('s27')
 }
 window.openAuditorMenu = openAuditorMenu
+// 감리 현장 소통문구 도구(iframe) — 감리원 이름·현장명을 자동 주입해서 연다
+function openAudSotong(a) {
+  a = a || currentApt; if (!a) return
+  const ap = document.getElementById('sotong-apt'); if (ap) ap.textContent = a.name || ''
+  const fr = document.getElementById('sotong-frame')
+  if (fr) fr.src = 'sotong.html?name=' + encodeURIComponent(MY_NAME || '') + '&site=' + encodeURIComponent(a.name || '') + '&t=' + Date.now()
+  window.showScreen('s37')
+}
+window.openAudSotong = openAudSotong
 // 감리원: 이 단지 현장 사진 목록
 let AUDFIELD_LIST = []
 let AUD_DONG = ''
@@ -2487,6 +2496,7 @@ function wire() {
   // 감리원 단지 메뉴 (감리일지 / 현장 사진 / 미팅 자료 / 소장님 작성지)
   const amR = $('aud-menu-report'); if (amR) amR.onclick = () => { if (currentApt) openApt(currentApt) }
   const amF = $('aud-menu-field'); if (amF) amF.onclick = () => { if (currentApt) openAuditorField(currentApt) }
+  const amS = $('aud-menu-sotong'); if (amS) amS.onclick = () => { if (currentApt) openAudSotong(currentApt) }
   const amM = $('aud-menu-meeting'); if (amM) amM.onclick = () => openMeetingDoc('first') // 중간 선택화면 건너뛰고 바로 첫 미팅 질문리스트
   const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
   const amCt = $('aud-menu-contract'); if (amCt) amCt.onclick = () => openContracts()

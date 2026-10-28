@@ -548,13 +548,22 @@ async function loadResidentReports() {
   if (!apt) { if (hdr) hdr.textContent = '배정된 단지 없음'; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
   if (hdr) hdr.textContent = apt.name || '우리 단지'
   const { data } = await sb.from('reports').select('*').eq('apartment_id', apt.id).eq('published', true).order('created_at', { ascending: false })
-  RES_REP_LIST = data || []
+  RES_REP_LIST = (data || []).slice().sort((a, b) => resRepDateKey(b).localeCompare(resRepDateKey(a)))
   RES_REP_DONG = ''
   if (!PREVIEW_APT) logEvent('report', apt.id)
   renderResReports()
 }
 let RES_REP_LIST = []
 let RES_REP_DONG = ''
+// 감리일지 정렬·표시용 날짜키: 제목 속 감리일자(2026-10-06 / 0909=MMDD) 우선, 없으면 등록일 → 'YYYYMMDD'
+function resRepDateKey(r) {
+  const s = (r && r.title) || ''; let m
+  m = s.match(/(20\d{2})[.\-\/년 ]*(0[1-9]|1[0-2])[.\-\/월 ]*(0[1-9]|[12]\d|3[01])/)
+  if (m) return m[1] + m[2] + m[3]
+  m = s.match(/(?:^|\D)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?:\D|$)/)
+  if (m) { const y = String((r && r.created_at) || '').slice(0, 4) || '2026'; return (y || '2026') + m[1] + m[2] }
+  return String((r && r.created_at) || '').slice(0, 10).replace(/-/g, '') || '00000000'
+}
 window.selectResRepDong = function (d) { RES_REP_DONG = d; renderResReports() }
 function renderResReports() {
   const cont = document.getElementById('res-report-list'); if (!cont) return
@@ -1581,7 +1590,8 @@ function reportCard(r) {
   // 현장현황(_field)은 항상 사진 썸네일. 입주민 감리일지(reports)만 PDF 문서 아이콘으로 표시
   const isRes = currentRole && currentRole !== 'auditor'
   const isField = !!r._field
-  const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
+  const _dk = resRepDateKey(r)
+  const d = (!isField && /^\d{8}$/.test(_dk)) ? (_dk.slice(0, 4) + '.' + _dk.slice(4, 6) + '.' + _dk.slice(6, 8)) : (r.created_at || '').slice(0, 10).replace(/-/g, '.')
   const ph = Array.isArray(r.photos) ? r.photos : []
   const showPhoto = ph.length && (isField || !isRes)
   const thumb = showPhoto

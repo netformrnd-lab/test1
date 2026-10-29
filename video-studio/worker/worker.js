@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS = {
   avatarName: '조현식 이사', consent: false, consentAt: '', maxDailyJobs: 5,
   imageModel: 'gpt-image-1', autoRender: true,
   motion: true, aiVideo: true, videoModel: 'sora-2', maxAiVideos: 2,
+  openaiReview: false,   // OpenAI 교차 검수 (끄면 Claude 단독 검수 — OpenAI 크레딧 없이 사용)
   heygenMode: 'agent',   // agent = HeyGen Video Agent 가 화면 구성까지 자동 / scenes = 컷마다 우리 사진·영상 지정
 }
 
@@ -115,6 +116,7 @@ const ACTIONS = {
       builtinOff: prev.builtinOff || [], imageModel: prev.imageModel || DEFAULT_SETTINGS.imageModel, autoRender: prev.autoRender !== false,
       motion: prev.motion !== false, aiVideo: prev.aiVideo !== false, videoModel: prev.videoModel || DEFAULT_SETTINGS.videoModel, maxAiVideos: prev.maxAiVideos != null ? prev.maxAiVideos : DEFAULT_SETTINGS.maxAiVideos,
       heygenMode: prev.heygenMode || DEFAULT_SETTINGS.heygenMode,
+      openaiReview: prev.openaiReview != null ? prev.openaiReview : DEFAULT_SETTINGS.openaiReview,
       avatarId, voiceId, maxDailyJobs: max, consent,
       avatarType: s.avatarType === 'talking_photo' ? 'talking_photo' : 'avatar',
       avatarName: String(s.avatarName || DEFAULT_SETTINGS.avatarName).slice(0, 80),
@@ -248,7 +250,7 @@ const ACTIONS = {
     return { urls: out, videos: vids }
   },
   // 영상 구성 설정 (AI 이미지 모델, 검수 통과 후 자동 제작 여부)
-  async prefs(env, { imageModel, autoRender, motion, aiVideo, videoModel, maxAiVideos, heygenMode }) {
+  async prefs(env, { imageModel, autoRender, motion, aiVideo, videoModel, maxAiVideos, heygenMode, openaiReview }) {
     await mutate(env, 'settings', {}, (st) => {
       st.imageModel = String(imageModel || DEFAULT_SETTINGS.imageModel).trim().slice(0, 60)
       st.autoRender = autoRender !== false
@@ -256,6 +258,7 @@ const ACTIONS = {
       st.aiVideo = aiVideo !== false
       st.videoModel = String(videoModel || DEFAULT_SETTINGS.videoModel).trim().slice(0, 60)
       st.maxAiVideos = Math.max(0, Math.min(10, Math.round(Number(maxAiVideos)) || 0))
+      if (openaiReview != null) st.openaiReview = openaiReview === true
       if (heygenMode != null) st.heygenMode = heygenMode === 'scenes' ? 'scenes' : 'agent'
     })
     return state(env)
@@ -480,7 +483,7 @@ async function runStep(env, job) {
   }
 
   const claudeKey = await getKey(env, 'claude')
-  const openaiKey = await getKey(env, 'openai')
+  const openaiKey = await getKey(env, 'openai', false)
 
   // 1) 대본·장면 작성
   if (job.step === 1) {
@@ -501,7 +504,15 @@ async function runStep(env, job) {
   }
 
   // 3) OpenAI 독립 검수
+  if (job.step === 3 && !useOpenAI(st.settings)) {
+    d.openai = null; d.openaiSkipped = true
+    d.events.push(ev('OpenAI 교차 검수 꺼짐 → Claude 단독 검수로 판정'))
+    job.step = 4
+    return
+  }
   if (job.step === 3) {
+    d.openaiSkipped = false
+    if (!openaiKey) throw new Error('OpenAI API 연결을 먼저 저장하거나, 설정에서 OpenAI 교차 검수를 꺼 주세요.')
     d.openai = normReview(await callOpenAI(openaiKey, d.models.openai, reviewSystem(), reviewUser(job, d), REVIEW_SCHEMA, d))
     d.events.push(ev(`OpenAI 검수: ${passes(d.openai) ? '통과' : '미통과'} (근거 ${d.openai.grounding} · 브랜드 ${d.openai.brand} · 전달 ${d.openai.clarity} · 제작 ${d.openai.production})`))
     job.step = 4
@@ -842,7 +853,7 @@ function allIssues(d) {
   ;(d.groundingIssues || []).forEach((x) => out.push('[서버 검사] ' + x))
   ;((d.plan && d.plan.blockers) || []).forEach((x) => out.push('[대본 작성 중단 사유] ' + x))
   if (!passes(d.claude)) out.push(...reviewIssues('Claude', d.claude))
-  if (!passes(d.openai)) out.push(...reviewIssues('OpenAI', d.openai))
+  if (!d.openaiSkipped && !passes(d.openai)) out.push(...reviewIssues('OpenAI', d.openai))
   return out
 }
 function reviewIssues(name, r) {
@@ -1160,6 +1171,7 @@ async function cutMedia(env, plan, photos, seconds) {
   await Promise.all(jobs)
   return out
 }
+function useOpenAI(set) { return !!(set && set.openaiReview === true) }
 function isManus(job) { return !!(job && job.input && job.input.tool === 'manus') }
 function maxVFor(job, set) { return isManus(job) ? 0 : aiVideoMax(set) }
 function isAgent(set) { return (set && set.heygenMode) !== 'scenes' }
@@ -1547,7 +1559,7 @@ async function state(env, opt = {}) {
 function readinessProblems(st, tool = 'heygen') {
   const out = []
   if (!st.readiness.claude) out.push('Claude 연결')
-  if (!st.readiness.openai) out.push('OpenAI 연결')
+  if (useOpenAI(st.settings) && !st.readiness.openai) out.push('OpenAI 연결')
   if (tool !== 'manus') {
     if (!st.readiness.heygen) out.push('HeyGen 연결')
     if (!st.settings.avatarId || !st.settings.voiceId) out.push('아바타·음성 설정')
@@ -1564,7 +1576,7 @@ function toJob(r) {
     plan: d.plan || null, prompt: d.prompt || '', claude: d.claude || null, openai: d.openai || null,
     videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', manusUrl: (d.manusTask && (d.manusTask.share || d.manusTask.url)) || '', manusText: d.manusText || '', manusFiles: d.manusFilesFound || [], manusRevisions: (d.manusRevisions || []).map((x) => ({ request: x.request, at: x.at })), prevVideos: d.prevVideos || [], manusTaskId: isManus(r) ? d.videoId || '' : '', edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
     events: d.events || [], sources: d.sources || [], memory: d.memory || [],
-    models: d.models || { claude: '', openai: '' }, promptVersion: d.promptVersion || PROMPT_VERSION,
+    openaiSkipped: !!d.openaiSkipped, models: d.models || { claude: '', openai: '' }, promptVersion: d.promptVersion || PROMPT_VERSION,
     issues: d.pendingIssues && d.pendingIssues.length ? d.pendingIssues : d.lastIssues || [],
     usage: usageView(d),
   }

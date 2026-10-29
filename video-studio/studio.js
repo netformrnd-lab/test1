@@ -142,7 +142,7 @@
     if (!n) return []
     const out = []
     if (!n.readiness.claude) out.push({ label: 'Claude API와 사용할 모델을 저장해 주세요.', tab: 'settings', action: 'Claude 연결' })
-    if (!n.readiness.openai) out.push({ label: 'OpenAI API와 사용할 모델을 저장해 주세요.', tab: 'settings', action: 'OpenAI 연결' })
+    if (n.settings.openaiReview === true && !n.readiness.openai) out.push({ label: 'OpenAI API와 사용할 모델을 저장해 주세요.', tab: 'settings', action: 'OpenAI 연결' })
     const manus = $('tool').value === 'manus'
     if (!manus && !n.readiness.heygen) out.push({ label: 'HeyGen API 연결을 저장해 주세요.', tab: 'settings', action: 'HeyGen 연결' })
     if (!manus && (!n.settings.avatarId || !n.settings.voiceId)) out.push({ label: '사용할 아바타와 음성을 선택하고 저장해 주세요.', tab: 'settings', action: '아바타 설정' })
@@ -351,7 +351,7 @@
         <div class="between"><span>실제 길이 ${e.actualSeconds || '미확인'}초</span><a href="${esc(e.videoUrl)}" target="_blank" rel="noreferrer">영상 열기 ${icon('external', 14)}</a></div>
         <p class="fineprint">${e.input.tool === 'manus' ? 'Manus 생성 영상' : 'AI 아바타 생성 영상'} · 화면·발음·자막의 최종 품질은 자동 검증되지 않았습니다. 영상 주소는 만료될 수 있습니다.</p></div>`
     }
-    h += `<div class="reviews-grid">${reviewHtml('Claude', e.claude)}${reviewHtml('OpenAI', e.openai)}</div>`
+    h += `<div class="reviews-grid">${reviewHtml('Claude', e.claude)}${e.openaiSkipped ? '<div class="review-card"><div class="between"><strong>OpenAI</strong><span class="tag">꺼짐</span></div><p>설정에서 OpenAI 교차 검수를 꺼서 Claude 단독으로 판정했습니다.</p></div>' : reviewHtml('OpenAI', e.openai)}</div>`
     if (e.plan) {
       h += `<details open><summary>최종 대본 · 장면 구성</summary><div class="scene-list">${e.plan.scenes.map((s, i) => `<div>
         <span class="scene-label">SCENE ${String(i + 1).padStart(2, '0')} <small>${s.seconds}초</small></span>
@@ -523,6 +523,7 @@
     $('image-model').value = S.settings.imageModel || 'gpt-image-1'
     $('motion').checked = S.settings.motion !== false
     $('heygen-mode').value = S.settings.heygenMode === 'scenes' ? 'scenes' : 'agent'
+    $('openai-review').checked = S.settings.openaiReview === true
     $('ai-video').checked = S.settings.aiVideo !== false
     $('video-model').value = S.settings.videoModel || 'sora-2'
     $('max-ai-videos').value = S.settings.maxAiVideos != null ? S.settings.maxAiVideos : 2
@@ -831,7 +832,7 @@
   $('prefs-save').addEventListener('click', async () => {
     try {
       S.data = await api({ action: 'prefs', imageModel: $('image-model').value, autoRender: false,
-        motion: $('motion').checked, aiVideo: $('ai-video').checked, videoModel: $('video-model').value, maxAiVideos: $('max-ai-videos').value, heygenMode: $('heygen-mode').value })
+        motion: $('motion').checked, aiVideo: $('ai-video').checked, videoModel: $('video-model').value, maxAiVideos: $('max-ai-videos').value, heygenMode: $('heygen-mode').value, openaiReview: $('openai-review').checked })
       S.settings = { ...DEFAULT_SETTINGS, ...S.data.settings }; syncSettingsForm()
       $('prefs-ok').textContent = '영상 구성 설정을 저장했습니다.'; $('prefs-ok').hidden = false
     } catch (e) { S.error = e.message; renderMessages() }

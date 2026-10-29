@@ -2244,8 +2244,10 @@ function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',sec='',
   function closeUl(){ if(open){ sec+='</ul>'; open=false; } }
   function flushSec(){ closeUl(); if(sec){ out+='<div class="gteuk">'+sec+'</div>'; sec=''; } }
   lines.forEach(function(ln){ var raw=String(ln||'').trim(); var mark=/^◇/.test(raw);  // ◇ = 구분 머리(처리결과/금일 지적)
+    var bulleted=/^[·▪]/.test(raw);   // ·/▪ 로 시작하면 명시적 불릿 → 제목으로 오인식하지 않음(표준 양식 보호)
     var t=raw.replace(/^[·▪◇]\s*/,'').trim(); if(!t)return;
-    if(mark || _gIsHead(t)){ flushSec(); sec='<div class="sub">'+_gEsc(t)+'</div>'; }
+    var isHead = mark || /^\d+\s*[.)]\s+/.test(t) || (!bulleted && _gIsHead(t));   // ◇ / 번호 / (불릿 아닌)제목성 줄
+    if(isHead){ flushSec(); sec='<div class="sub">'+_gEsc(t)+'</div>'; }
     else { if(!open){ sec+='<ul>'; open=true; } sec+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
   }); flushSec(); return out; }
 function gamriFormHtml(r,ov){

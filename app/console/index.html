@@ -2229,11 +2229,14 @@ function _gBlocks(lines){ if(!lines||!lines.length)return ''; var out='',buf=[];
   }); flush(); return out; }
 /* 특기사항 소제목 판별: 'N.' 번호 줄 또는, 번호 없이 마침표로 끝나지 않는 짧은 제목성 줄
    (예: '부대시설 도장공사 진행상황', '종합 감리의견', '지하주차장 바닥 및 도장공사 점검') */
-function _gIsHead(t){
-  if(/^\d+\s*[.)]\s+/.test(t)) return true;                                   // 1. 2. 3.
-  if(t.length<=42 && !/[.,·。]$/.test(t)
-     && /(점검|현황|상황|계획|의견|사항|조치|협의|결과)$/.test(t)) return true;  // 번호 없는 소제목(제목성 어미, 마침표 없음)
-  return false;
+/* 소제목 유형 판정: 'num'=번호 소제목(짧고 마침표 없음), 'title'=번호 없는 제목성 줄, ''=본문
+   ※ 짧고 마침표 없는 번호 줄만 소제목 → '1. 금일 공정 및 현장현황' 은 소제목,
+     '1. 기존 우수관의 직경과… 고정했습니다.'(긴 문장·마침표) 는 본문 불릿 유지 */
+function _gHeadType(t){
+  var noP = !/[.,。]$/.test(t);
+  if(t.length<=44 && noP && /^\d+\s*[.)]\s+/.test(t)) return 'num';
+  if(t.length<=44 && noP && /(점검|현황|상황|계획|의견|사항|조치|협의|결과|내용|공정)$/.test(t)) return 'title';
+  return '';
 }
 /* 특기사항: 소제목은 회색 띠로, 나머지는 불릿으로 (2차 양식처럼 구조화)
    소제목+그 아래 내용을 .gteuk 로 묶어 '섹션 단위'로 페이지를 넘김(섹션이 페이지 경계에서 잘리지 않게).
@@ -2244,9 +2247,11 @@ function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',sec='',
   function closeUl(){ if(open){ sec+='</ul>'; open=false; } }
   function flushSec(){ closeUl(); if(sec){ out+='<div class="gteuk">'+sec+'</div>'; sec=''; } }
   lines.forEach(function(ln){ var raw=String(ln||'').trim(); var mark=/^◇/.test(raw);  // ◇ = 구분 머리(처리결과/금일 지적)
-    var bulleted=/^[·▪]/.test(raw);   // ·/▪ 로 시작하면 명시적 불릿 → 제목으로 오인식하지 않음(표준 양식 보호)
-    var t=raw.replace(/^[·▪◇]\s*/,'').trim(); if(!t)return;
-    var isHead = mark || /^\d+\s*[.)]\s+/.test(t) || (!bulleted && _gIsHead(t));   // ◇ / 번호 / (불릿 아닌)제목성 줄
+    var dotGarbage=/^[·▪]\s*\.\s+/.test(raw);                 // '· . 제목' 같은 군더더기(정상 불릿 아님)
+    var bulleted=/^[·▪]/.test(raw) && !dotGarbage;            // ·/▪ 로 시작하는 정상 불릿 → 제목 오인식 방지(표준 양식 보호)
+    var t=raw.replace(/^[·▪◇]\s*/,'').replace(/^\.\s+/,'').trim(); if(!t)return;   // 불릿·◇ 와 뒤따르는 '. ' 제거
+    var ht=_gHeadType(t);
+    var isHead = mark || ht==='num' || (ht==='title' && !bulleted);   // ◇ / 번호 소제목 / (불릿 아닌)제목성 줄
     if(isHead){ flushSec(); sec='<div class="sub">'+_gEsc(t)+'</div>'; }
     else { if(!open){ sec+='<ul>'; open=true; } sec+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
   }); flushSec(); return out; }

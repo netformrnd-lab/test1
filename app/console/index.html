@@ -2243,7 +2243,7 @@ function _gHeadType(t){
    ※ 소제목이 제대로 인식되므로 섹션마다 작게 나뉨 → 과거처럼 전체가 한 덩어리로 밀리는 빈칸 문제 없음.
      (한 섹션이 한 페이지보다 길면 어쩔 수 없이 나뉘지만, 보통은 섹션째 다음 장으로 넘어감)
    ※ 클래스명은 대시보드 전역 '.sec{display:none}' 과 겹치지 않는 고유명(.gteuk) 사용. */
-function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',sec='',open=false;
+function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',sec='',open=false,skip=false;
   function closeUl(){ if(open){ sec+='</ul>'; open=false; } }
   function flushSec(){ closeUl(); if(sec){ out+='<div class="gteuk">'+sec+'</div>'; sec=''; } }
   lines.forEach(function(ln){ var raw=String(ln||'').trim(); var mark=/^◇/.test(raw);  // ◇ = 구분 머리(처리결과/금일 지적)
@@ -2252,8 +2252,15 @@ function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',sec='',
     var t=raw.replace(/^[·▪◇]\s*/,'').replace(/^\.\s+/,'').trim(); if(!t)return;   // 불릿·◇ 와 뒤따르는 '. ' 제거
     var ht=_gHeadType(t);
     var isHead = mark || ht==='num' || (ht==='title' && !bulleted);   // ◇ / 번호 소제목 / (불릿 아닌)제목성 줄
-    if(isHead){ flushSec(); sec='<div class="sub">'+_gEsc(t)+'</div>'; }
-    else { if(!open){ sec+='<ul>'; open=true; } sec+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
+    if(isHead){
+      if(/현장\s*정보/.test(t) && /일시/.test(t)){ skip=true; flushSec(); return; }   // '현장정보 및 감리 일시' 섹션 생략(머리 표와 중복)
+      skip=false;
+      var disp=t.replace(/^(\d+)\s*[.),]\s*/,'$1. ')                     // 'N,' 'N)' → 'N. ' 정돈
+                .replace(/(금일\s*공정\s*및\s*)현장현황/,'$1시공사보고')   // 현장현황 → 시공사보고
+                .replace(/[\-–—\s]+$/,'');                               // 끝의 '-' 제거
+      flushSec(); sec='<div class="sub">'+_gEsc(disp)+'</div>';
+    }
+    else { if(skip)return; if(!open){ sec+='<ul>'; open=true; } sec+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
   }); flushSec(); return out; }
 function gamriFormHtml(r,ov){
   const P=gamriParse(r),m=P.meta,s=P.sec;
@@ -2261,10 +2268,12 @@ function gamriFormHtml(r,ov){
   // 대표 사진이 지정돼 있으면 그것만, 없으면 전체 사진을 PDF에 싣는다
   const cover=Array.isArray(r.cover_photos)?r.cover_photos.filter(function(u){return allPhotos.indexOf(u)>=0;}):[];
   const photos=cover.length?cover:allPhotos;
-  var workHtml,teukHtml,jijeokHtml;
+  var workHtml,teukHtml,jijeokHtml,jijeokEmpty=true;
+  var _isNone=function(x){ return /^[·▪◇\s]*없음\.?$/.test(String(x||'').trim()); };
   if(ov){ // AI 보강(감리원 검토본) override
     workHtml=_gBlocks(ov.work)||'<span class="muted">내용 없음</span>';
     teukHtml=_gBlocks(ov.teukgi)||'<span class="muted">내용 없음</span>';
+    jijeokEmpty=!(ov.jijeok&&ov.jijeok.length) || ov.jijeok.every(_isNone);
     jijeokHtml=(ov.jijeok&&ov.jijeok.length)?_gBlocks(ov.jijeok):'<span class="muted">금일 지적사항 없음</span>';
   } else {
     const workBlocks=[];
@@ -2276,6 +2285,7 @@ function gamriFormHtml(r,ov){
     const teukgi=teukLines.length?_gTeukgi(teukLines):'';
     teukHtml=teukgi||'<span class="muted">내용 없음</span>';
     const jijeok=s['지적사항 및 처리결과']||s['지적사항']||[];
+    jijeokEmpty=!jijeok.length || jijeok.every(_isNone);
     jijeokHtml=jijeok.length?_gTeukgi(jijeok):'<span class="muted">금일 지적사항 없음</span>';
   }
   const photoCells=photos.map(function(u){
@@ -2296,7 +2306,7 @@ function gamriFormHtml(r,ov){
     (m.worktype?'<table class="t-chk"><tr><th class="cat">공종</th><th>감리내용</th></tr><tr><td class="cat">'+_gEsc(m.worktype)+'</td><td>현장 점검 및 완료 부위 적합 여부 확인</td></tr></table>':'')+
     '<div class="band">작업사항</div><div class="bandbox">'+workHtml+'</div>'+
     '<div class="band">특기사항</div><div class="bandbox">'+teukHtml+'</div>'+
-    '<div class="band">지적사항 및 처리결과</div><div class="bandbox">'+jijeokHtml+'</div>'+
+    (jijeokEmpty?'':'<div class="band">지적사항 및 처리결과</div><div class="bandbox">'+jijeokHtml+'</div>')+
     '<div class="paper-foot">210㎜×297㎜[일반용지 60g/㎡]</div>'+
   '</div>'+
   '<div class="paper"><div class="sheet-h">현장 점검 사진대지</div><div class="pgrid">'+photoCells+'</div></div>'+

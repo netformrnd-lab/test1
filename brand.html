@@ -6060,7 +6060,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-121';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-122';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -36897,9 +36897,14 @@ function logCell(x){ return { f: logSig(x), t: logTitleOf(x) }; }
 function logShape(){
   const m = {};
   (data.brands || []).forEach(b => {
-    m['B|' + b.id] = logCell({ name: b.name, icon: b.icon, desc: b.desc });
+    /* 🎬 NETFORM 동기화 브랜드는 저절로 생깁니다 — 사람이 만든 게 아니므로
+       「누가 바꿨나」 에 사람 이름으로 적지 않습니다 */
+    if(!b.nfHolder) m['B|' + b.id] = logCell({ name: b.name, icon: b.icon, desc: b.desc });
     LOG_B.forEach(([k]) => (b[k] || []).forEach(x => {
-      if(x && x.id) m['b|' + b.id + '|' + k + '|' + x.id] = logCell(x);
+      /* NETFORM 에서 받아 온 의뢰(프로젝트)는 NETFORM 쪽에서 바뀐 것이지
+         지금 보고 있는 사람이 고친 게 아닙니다 — 「누가 바꿨나」 에서 뺍니다.
+         (안 그러면 「안 바꿨는데 내가 바꾼 걸로」 쌓입니다) */
+      if(x && x.id && !x.nfId) m['b|' + b.id + '|' + k + '|' + x.id] = logCell(x);
     }));
   });
   LOG_G.forEach(([k]) => (data[k] || []).forEach(x => {
@@ -37025,6 +37030,21 @@ function logWrite(){
     if(!logJoin(row)) data.log.push(row);
   });
   if(data.log.length > 400) data.log = data.log.slice(-400);
+}
+/* 🎬 NETFORM 자동 동기화가 예전에 남긴 잘못된 「누가 바꿨나」 줄을 한 번만 치웁니다.
+   동기화로 생긴 영상 의뢰 프로젝트·동기화 브랜드가 「내가 바꾼 걸로」 적혀 있던 것을
+   지웁니다 — 동기화 브랜드 이름(기본 「🎬 미디어마케팅」) 밑으로 적힌 줄만 봅니다.      */
+function nfLogClean(){
+  if(data._nfLogClean) return;
+  data._nfLogClean = true;
+  const hold = (data.brands || []).find(x => x && x.nfHolder);
+  const nm = hold ? (hold.name || '') : '';
+  if(nm && Array.isArray(data.log)){
+    const before = data.log.length;
+    data.log = data.log.filter(r => !(r && r.act !== '판' && (r.brand || '') === nm));
+    if(data.log.length !== before) toast('🎬 동기화가 잘못 적어둔 기록 ' + (before - data.log.length) + '줄을 치웠습니다');
+  }
+  markDirtyAll();
 }
 /* 판이 바뀌면 그것도 한 줄 — 「우리가 고친 것」 은 이것으로 보입니다 */
 function logVer(){
@@ -38249,6 +38269,7 @@ async function init(){
   notiAuto();              // 🔔 처음 아무거나 누르는 순간 허락을 물어봅니다
   setTimeout(costNotify, 4000);   // ⏰ 결제가 일주일 안이면 알려 줍니다 (하루 한 번)
   logVer();                // ⬆️ 판이 바뀌었으면 한 줄 적습니다
+  nfLogClean();            // 🎬 동기화가 잘못 적어둔 「누가 바꿨나」 줄을 한 번 치웁니다
   logBase = logShape();    // 🕘 지금 모습을 기준으로 잡습니다
   if(STORAGE_MODE === 'nas'){
     nasCheck();

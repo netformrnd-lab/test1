@@ -1764,8 +1764,8 @@ function openReport(r) {
   // 하단 탭을 역할에 맞게 (입주민이 감리일지·현장사진을 열었을 때 감리원 탭이 보이지 않도록)
   const rnav = document.getElementById('report-nav')
   if (rnav) rnav.innerHTML = (currentRole === 'auditor')
-    ? '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
-    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    ? '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div>'
+    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div>'
   window.showScreen('s10')
   if (showPdf && r.pdf_url) { try { renderPdfInline(r.pdf_url, 'pdf-pages') } catch (e) {} }
 }
@@ -1844,8 +1844,8 @@ function wireSchedSwipe() {
 function setSchedNav (isAud) {
   const snav = document.getElementById('sched-nav'); if (!snav) return
   snav.innerHTML = isAud
-    ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
-    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div>'
+    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div>'
 }
 // Supabase는 한 번에 최대 1000행만 준다 → 1000건씩 끝까지 이어붙여 전부 가져온다(6월 이후 일정 누락 방지).
 async function fetchAllSchedulesApp() {
@@ -2545,7 +2545,7 @@ function wire() {
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = () => { showScreen('s12'); loadResidentReports() }
   const icField = $('res-ic-field'); if (icField) icField.onclick = () => { showScreen('s26'); loadFieldUpdates() }
   const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu
-  const audCard = $('res-aud-card'); if (audCard) audCard.onclick = () => chatFromNav() // 카톡 대신 자체 앱 채팅으로
+  const audCard = $('res-aud-card'); if (audCard) { audCard.onclick = null; audCard.style.cursor = 'default' } // 채팅 제거: 카드는 정보 표시만
   const noPhone = () => alert('담당 감리원 연락처가 아직 등록되지 않았어요.\n(감리원이 회원가입 시 연락처를 입력하면 표시돼요.)')
   const qc = $('q-call'); if (qc) qc.onclick = () => { if (RES_AUD_PHONE) window.location.href = 'tel:' + RES_AUD_PHONE.replace(/[^0-9+]/g, ''); else noPhone() }
   const qs = $('q-sms'); if (qs) qs.onclick = () => { if (RES_AUD_PHONE) window.location.href = 'sms:' + RES_AUD_PHONE.replace(/[^0-9+]/g, ''); else noPhone() }
@@ -3030,8 +3030,7 @@ function startChatPoll() { stopChatPoll(); CHAT_POLL = setInterval(() => { const
 function stopChatPoll() { if (CHAT_POLL) { clearInterval(CHAT_POLL); CHAT_POLL = null } }
 // 하단 '채팅' 탭 진입: 로그인=담당 감리원과 / 비로그인=관리자(손님 상담)
 function chatFromNav() {
-  // 인앱 채팅 제거 — 모든 문의는 공식 아파트스퀘어 카카오톡 채널로 연결.
-  window.open(INQUIRY_URL, '_blank', 'noopener')
+  // 채팅 기능 제거됨 — 아무 동작도 하지 않음.
 }
 window.chatFromNav = chatFromNav
 

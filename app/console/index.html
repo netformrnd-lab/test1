@@ -324,6 +324,7 @@ tbody tr:hover{background:#f8fafc}
       <a data-s="tools" onclick="go('tools')"><span class="ic">🧰</span>데이터 도구</a>
       <a data-s="roadmap" onclick="go('roadmap')"><span class="ic">🧭</span>업무 로드맵</a>
       <a data-s="docs" onclick="go('docs')"><span class="ic">📚</span>자료실</a>
+      <a data-s="trash" onclick="go('trash')"><span class="ic">🗑️</span>휴지통<span class="cnt" id="c-trash">0</span></a>
     </nav>
     <div class="me"><div class="av" id="me-av">관</div><div><div class="nm" id="me-nm">관리자</div><div class="rl">관리자</div></div><button class="out" onclick="doLogout()">로그아웃</button></div>
   </aside>
@@ -498,6 +499,10 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-docs">
       <div class="head"><div><h2>자료실</h2><div class="desc">분류별 문서·양식 (계약양식·점검표·보고서양식 등)</div></div><button class="b blue" onclick="openDocAdd()">➕ 자료 추가</button></div>
       <div id="docsBody"></div>
+    </section>
+    <section class="sec" id="s-trash">
+      <div class="head"><div><h2>🗑️ 휴지통</h2><div class="desc">삭제한 감리일지·현장기록을 보관해요. <b>복구</b>하면 원래대로 돌아오고, <b>영구삭제</b>하면 완전히 지워져요.</div></div><button class="b line" onclick="renderTrash()">🔄 새로고침</button></div>
+      <div id="trashBody"></div>
     </section>
   </main>
 </div>
@@ -762,8 +767,58 @@ function go(s){
   document.querySelectorAll('[data-s]').forEach(a=>a.classList.toggle('on',a.dataset.s===s));
   if(s==='projects')backToProjList();
   if(s==='usage')renderUsage();
+  if(s==='trash')renderTrash();
   window.scrollTo(0,0);
 }
+
+/* ===== 휴지통: 삭제 시 스냅샷 보관 → 복구/영구삭제 ===== */
+const TRASH_LBL={reports:'감리일지',field_updates:'현장기록'};
+// 원본 행을 통째로 trash 에 담고 원본은 삭제 (쿼리 필터 불필요 — 원본에서 사라짐)
+async function trashRow(table,id,label){
+  const {data,error}=await sb.from(table).select('*').eq('id',id).single();
+  if(error||!data) throw new Error('삭제할 항목을 찾지 못했어요');
+  const snap={ src_table:table, src_id:id, label:(label||'').slice(0,300), data:data, deleted_by:(($('me-nm')||{}).textContent||'관리자') };
+  const ins=await sb.from('trash').insert(snap);
+  if(ins.error){ if(/relation|table|schema|does not exist/i.test(ins.error.message||'')) throw new Error('휴지통 테이블이 없어요 — backend/migration-trash.sql 을 먼저 실행하세요.'); throw new Error('휴지통 저장 실패: '+ins.error.message); }
+  const del=await sb.from(table).delete().eq('id',id);
+  if(del.error){ try{ await sb.from('trash').delete().eq('src_table',table).eq('src_id',id); }catch(e){} throw new Error(del.error.message); }
+}
+async function renderTrash(){
+  const cont=$('trashBody'); if(!cont)return;
+  cont.innerHTML='<div class="card" style="color:var(--mut)">불러오는 중…</div>';
+  const {data,error}=await sb.from('trash').select('*').order('deleted_at',{ascending:false});
+  if(error){ cont.innerHTML='<div class="card" style="color:var(--red)">휴지통을 불러오지 못했어요: '+esc(error.message)+'<br><span style="color:var(--mut);font-size:12px">backend/migration-trash.sql 실행이 필요할 수 있어요.</span></div>'; return; }
+  const rows=data||[];
+  const cnt=$('c-trash'); if(cnt)cnt.textContent=rows.length;
+  if(!rows.length){ cont.innerHTML='<div class="card empty">휴지통이 비어 있어요.</div>'; return; }
+  cont.innerHTML='<div class="card" style="padding:6px 20px"><table><thead><tr><th>종류</th><th>내용</th><th>삭제일</th><th>삭제자</th><th>관리</th></tr></thead><tbody>'
+    +rows.map(t=>`<tr><td><span class="pill blue">${esc(TRASH_LBL[t.src_table]||t.src_table)}</span></td>`
+      +`<td style="font-weight:700">${esc(t.label)||'<span style="color:var(--mut)">(제목 없음)</span>'}</td>`
+      +`<td style="color:var(--mut);white-space:nowrap">${(t.deleted_at||'').slice(0,16).replace('T',' ')}</td>`
+      +`<td style="color:var(--mut)">${esc(t.deleted_by)||'-'}</td>`
+      +`<td style="white-space:nowrap"><button class="b green sm" onclick="restoreTrash('${t.id}',this)">↩ 복구</button> <button class="b red sm" onclick="purgeTrash('${t.id}',this)">영구삭제</button></td></tr>`).join('')
+    +'</tbody></table></div>';
+}
+async function restoreTrash(trashId,btn){
+  const {data,error}=await sb.from('trash').select('*').eq('id',trashId).single();
+  if(error||!data)return alert('항목을 찾지 못했어요');
+  if(!confirm((TRASH_LBL[data.src_table]||data.src_table)+' "'+(data.label||'')+'" 을(를) 복구할까요?'))return;
+  if(btn){btn.disabled=true;btn.textContent='복구 중…';}
+  const row=data.data||{};
+  const up=await sb.from(data.src_table).upsert(row,{onConflict:'id'});
+  if(up.error){ if(btn){btn.disabled=false;btn.textContent='↩ 복구';} return alert('복구 실패: '+up.error.message); }
+  await sb.from('trash').delete().eq('id',trashId);
+  await loadAll(); renderTrash();
+  alert('복구했어요. (감리일지는 공개 상태도 그대로 돌아와요)');
+}
+async function purgeTrash(trashId,btn){
+  if(!confirm('이 항목을 완전히 삭제할까요? 되돌릴 수 없어요.'))return;
+  if(btn){btn.disabled=true;btn.textContent='삭제 중…';}
+  const {error}=await sb.from('trash').delete().eq('id',trashId);
+  if(error){ if(btn){btn.disabled=false;btn.textContent='영구삭제';} return alert('삭제 실패: '+error.message); }
+  renderTrash();
+}
+window.renderTrash=renderTrash; window.restoreTrash=restoreTrash; window.purgeTrash=purgeTrash; window.trashRow=trashRow;
 
 /* ===== 입주민 앱 사용통계 (자동 집계 RPC) ===== */
 const USG_KIND_LBL={view:'🏠 홈 열람',report:'📄 감리일지 열람',contract:'📑 계약서 열람',nps:'⭐ 만족도 제출',kakao:'💬 카톡 상담'};
@@ -2550,9 +2605,10 @@ async function togglePubModal(id){
   closeModal(); await loadAll();
 }
 async function deleteReport(id){
-  if(!confirm('이 감리일지를 삭제할까요?'))return;
-  const {error}=await sb.from('reports').delete().eq('id',id);
-  if(error)return alert('오류: '+error.message);
+  if(!confirm('이 감리일지를 휴지통으로 보낼까요?\n(휴지통에서 복구할 수 있어요)'))return;
+  const r=REPORTS.find(x=>x.id===id);
+  const label=(r?((aptName(r.apartment_id)||'')+' · '+(r.title||'감리일지')):'감리일지');
+  try{ await trashRow('reports', id, label); }catch(e){ return alert('삭제 실패: '+(e&&e.message||e)); }
   closeModal(); await loadAll();
 }
 
@@ -2592,9 +2648,10 @@ async function submitFieldEdit(id){
   closeModal(); await loadAll();
 }
 async function deleteField(id){
-  if(!confirm('이 현장기록을 삭제할까요?'))return;
-  const {error}=await sb.from('field_updates').delete().eq('id',id);
-  if(error)return alert('오류: '+error.message);
+  if(!confirm('이 현장기록을 휴지통으로 보낼까요?\n(휴지통에서 복구할 수 있어요)'))return;
+  const f=(typeof FIELDS!=='undefined'?FIELDS:[]).find(x=>x.id===id);
+  const label=(f?((aptName(f.apartment_id)||'')+' · '+(f.title||'현장기록')):'현장기록');
+  try{ await trashRow('field_updates', id, label); }catch(e){ return alert('삭제 실패: '+(e&&e.message||e)); }
   closeModal(); await loadAll();
 }
 

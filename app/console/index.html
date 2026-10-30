@@ -431,13 +431,16 @@ tbody tr:hover{background:#f8fafc}
         <h3>👥 회원 일괄 추가</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:8px"><b>📁 엑셀 파일(.xlsx)을 올리거나</b>, 엑셀에서 복사해 아래 칸에 붙여넣으세요(탭/쉼표 구분).<br>
         순서(또는 엑셀 첫 줄 제목): <code>아이디 · 비밀번호 · 이름 · 연락처 · 역할 · 담당단지</code><br>
-        · <b>비밀번호</b> 비우면 자동 생성(결과에 표시) · <b>역할</b> 비우면 입주민 · <b>담당단지</b>는 이름으로(없으면 미배정)<br>
-        · <b>이미 있는 아이디는 자동으로 건너뜁니다(중복 방지).</b> · 역할: 입주민/관리소장/감리원/관리자</div>
+        · 엑셀에 <b>역할 열이 없거나</b> 다 같은 역할이면 → 아래 <b>‘이 파일 역할’</b>에서 한 번에 지정 (엑셀에 역할이 있으면 그 값이 우선)<br>
+        · <b>임시 비번</b>을 넣으면 비번 없는 사람 전부 그 비번으로(비우면 사람마다 자동 생성, 결과에 표시)<br>
+        · <b>담당단지</b>는 이름으로 매칭(없으면 미배정) · <b>이미 있는 아이디는 자동 건너뜀(중복 방지)</b></div>
         <textarea id="bmem-in" style="width:100%;min-height:120px;font-family:var(--mono,monospace);font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:10px;box-sizing:border-box" placeholder="hong123	123456	홍길동	010-1234-5678	입주민	용인 신갈신미주아파트
 kim456		김영성		감리원	"></textarea>
         <div class="toolbar" style="margin-top:8px">
           <label class="b blue" style="cursor:pointer">📁 엑셀 파일 선택<input id="bmem-file" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="bmemFile(this.files)"></label>
-          <button class="b line" onclick="bmemPreview()">붙여넣은 내용 미리보기</button>
+          <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--mut2)">이 파일 역할 <select id="bmem-defrole" class="inp" style="width:auto" onchange="bmemPreview()"><option value="resident">입주민</option><option value="manager">관리소장</option><option value="auditor">감리원</option><option value="admin">관리자</option></select></label>
+          <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--mut2)">임시 비번 <input id="bmem-defpw" class="inp" placeholder="비우면 자동" style="width:120px" oninput="bmemPreview()"></label>
+          <button class="b line" onclick="bmemPreview()">미리보기</button>
           <button class="b blue" id="bmem-run" onclick="bmemRun()" disabled>일괄 추가 실행</button>
           <span id="bmem-sum" style="font-size:12px;color:var(--mut2);font-weight:700"></span>
         </div>
@@ -838,18 +841,21 @@ async function purgeTrash(trashId,btn){
 window.renderTrash=renderTrash; window.restoreTrash=restoreTrash; window.purgeTrash=purgeTrash; window.trashRow=trashRow;
 
 /* ===== 회원 일괄 추가 (데이터 도구) — 아이디당 auth 계정 생성 + 프로필, 중복 자동 건너뜀 ===== */
-function bmemRole(v){ v=(v||'').trim(); if(!v)return 'resident'; if(ROLES[v])return v;
-  for(var k in ROLES){ if(ROLES[k]===v)return k; }
+function bmemRole(v){ v=(v||'').trim(); if(!v)return '';   // 비면 '' → 기본값 드롭다운으로
+  if(ROLES[v])return v; for(var k in ROLES){ if(ROLES[k]===v)return k; }
   if(/소장|관리소/.test(v))return 'manager'; if(/감리/.test(v))return 'auditor';
-  if(/관리자|admin|어드민/i.test(v))return 'admin'; return 'resident'; }
+  if(/관리자|admin|어드민/i.test(v))return 'admin'; if(/입주|주민|resident/i.test(v))return 'resident';
+  return ''; }  // 못 알아보면 '' → 기본값 드롭다운으로
 function bmemAptId(name){ name=(name||'').trim(); if(!name)return null; var f=APTS.find(function(a){return (a.name||'').trim().toLowerCase()===name.toLowerCase();}); return f?f.id:null; }
 function bmemParse(){
   var raw=($('bmem-in')||{}).value||''; var rows=[];
+  var defRole=(($('bmem-defrole')||{}).value)||'resident';   // 엑셀에 역할 없을 때 적용
+  var defPw=((($('bmem-defpw')||{}).value)||'').trim();       // 비번 없을 때 적용(비우면 자동)
   raw.split(/\r?\n/).forEach(function(ln){
     var line=ln.replace(/\s+$/,''); if(!line.trim())return;
     var cols=(line.indexOf('\t')>=0?line.split('\t'):line.split(',')).map(function(s){return s.trim();});
     var id=(cols[0]||'').toLowerCase().replace(/\s/g,''); if(!id)return;
-    var pw=cols[1]||'', name=cols[2]||'', phone=cols[3]||'', role=bmemRole(cols[4]), aptName=cols[5]||'';
+    var pw=(cols[1]||'')||defPw, name=cols[2]||'', phone=cols[3]||'', role=bmemRole(cols[4])||defRole, aptName=cols[5]||'';
     var aptId=bmemAptId(aptName); var errs=[];
     if(!/^[a-z0-9._-]+$/.test(id))errs.push('아이디형식');
     if(!name)errs.push('이름없음');

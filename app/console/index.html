@@ -2539,9 +2539,11 @@ function gamriFormHtml(r,ov){
     jijeokEmpty=!jijeok.length || jijeok.every(_isNone);
     jijeokHtml=jijeok.length?_gTeukgi(jijeok):'<span class="muted">금일 지적사항 없음</span>';
   }
-  const photoCells=photos.map(function(u){
-    return '<div class="pcell"><div class="pbox"><img class="ph" src="'+_gEsc(u)+'" crossorigin="anonymous"></div></div>';
-  }).join('')||'<div class="pcell" style="grid-column:1/3;color:#888;padding:20px;text-align:center">현장 사진 없음</div>';
+  // 사진대지: 2장씩 한 행(tr)으로 묶은 표. tr은 html2pdf가 페이지 경계에서 쪼개지 않음(잘림 방지)
+  var _pcell=function(u){ return u?('<td class="pcell"><div class="pbox"><img class="ph" src="'+_gEsc(u)+'" crossorigin="anonymous"></div></td>'):'<td class="pcell"></td>'; };
+  var photoRows='';
+  if(photos.length){ for(var _pi=0;_pi<photos.length;_pi+=2){ photoRows+='<tr>'+_pcell(photos[_pi])+_pcell(photos[_pi+1])+'</tr>'; } }
+  else { photoRows='<tr><td class="pcell" colspan="2" style="color:#888;padding:20px;text-align:center">현장 사진 없음</td></tr>'; }
   return (
   '<div class="gp-doc">'+
   '<div class="paper">'+
@@ -2560,7 +2562,7 @@ function gamriFormHtml(r,ov){
     (jijeokEmpty?'':'<div class="band">지적사항 및 처리결과</div><div class="bandbox">'+jijeokHtml+'</div>')+
     '<div class="paper-foot">210㎜×297㎜[일반용지 60g/㎡]</div>'+
   '</div>'+
-  '<div class="paper"><div class="sheet-h">현장 점검 사진대지</div><div class="pgrid">'+photoCells+'</div></div>'+
+  '<div class="paper"><div class="sheet-h">현장 점검 사진대지</div><table class="pgrid">'+photoRows+'</table></div>'+
   '</div>');
 }
 const GAMRI_CSS=
@@ -2582,9 +2584,10 @@ const GAMRI_CSS=
 '.gp-doc .bandbox li.dot::before{content:"·";position:absolute;left:3px;font-weight:700}.gp-doc .bandbox li:not(.dot)::before{content:"▪";position:absolute;left:1px;font-size:8px;top:2px}'+
 '.gp-doc .muted{color:#888}.gp-doc .paper-foot{text-align:right;font-size:9px;margin-top:12px}'+
 '.gp-doc .sheet-h{background:#d9d9d9;border:1px solid #111;font-weight:500;padding:5px 10px;border-bottom:2px solid #111}'+
-'.gp-doc .pgrid{display:grid;grid-template-columns:1fr 1fr;border:1px solid #111;border-top:none}'+
-'.gp-doc .pcell{border-right:1px solid #111;border-bottom:1px solid #111;padding:8px;break-inside:avoid;page-break-inside:avoid}.gp-doc .pcell:nth-child(2n){border-right:none}'+
-'.gp-doc .pbox{width:100%;height:200px;overflow:hidden;background:#dfe3ea;display:flex;align-items:center;justify-content:center}.gp-doc .pbox .ph{width:100%;height:100%;object-fit:contain}';
+'.gp-doc .pgrid{width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #111;border-top:none}'+
+'.gp-doc .pgrid tr{break-inside:avoid;page-break-inside:avoid}'+
+'.gp-doc .pcell{width:50%;border:1px solid #111;border-top:none;padding:8px;vertical-align:top;break-inside:avoid;page-break-inside:avoid}'+
+'.gp-doc .pbox{width:100%;height:200px;overflow:hidden;background:#dfe3ea;display:flex;align-items:center;justify-content:center}.gp-doc .pbox .ph{max-width:100%;max-height:100%;object-fit:contain}';
 function _loadHtml2pdf(){ if(window.html2pdf)return Promise.resolve(); if(window._h2pP)return window._h2pP;
   window._h2pP=new Promise(function(res,rej){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   return window._h2pP; }

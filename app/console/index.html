@@ -883,17 +883,20 @@ function bmemRender(){
   var t=$('bmem-table'), rows=BMEM_ROWS;
   if(!rows.length){ if(t)t.innerHTML='<div style="color:var(--mut);font-size:12.5px">붙여넣은 내용이 없어요.</div>'; bmemSum(); $('bmem-run').disabled=true; return; }
   var inp='font:inherit;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:4px 6px;';
-  t.innerHTML='<div class="card" style="padding:4px 14px;overflow-x:auto"><table><thead><tr><th>아이디</th><th>이름</th><th>역할(고치기)</th><th>단지(고치기)</th><th>비번</th><th>상태</th></tr></thead><tbody>'
+  t.innerHTML='<div class="card" style="padding:4px 14px;overflow-x:auto"><div style="text-align:right;margin:4px 0"><button class="b line sm" onclick="bmemClear()">🗑 목록 전체 비우기</button></div><table><thead><tr><th>아이디</th><th>이름</th><th>역할(고치기)</th><th>단지(고치기)</th><th>비번</th><th>상태</th><th></th></tr></thead><tbody>'
     +rows.map(function(r,i){
       var roleSel='<select onchange="bmemSet('+i+',\'role\',this.value)" style="'+inp+'">'+Object.keys(ROLES).map(function(k){return '<option value="'+k+'"'+(r.role===k?' selected':'')+'>'+ROLES[k]+'</option>';}).join('')+'</select>';
       var aptInp='<input list="apt-names" value="'+esc(r.aptName)+'" placeholder="미배정" onchange="bmemSet('+i+',\'aptName\',this.value)" style="'+inp+'width:150px">'
         +' <span id="bai-'+i+'">'+(r.aptName?(r.aptId?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--red)">못찾음</span>'):'')+'</span>';
       var nameInp='<input value="'+esc(r.name)+'" onchange="bmemSet('+i+',\'name\',this.value)" style="'+inp+'width:90px">';
-      return '<tr><td style="font-weight:700">'+esc(r.id)+'</td><td>'+nameInp+'</td><td>'+roleSel+'</td><td>'+aptInp+'</td><td style="color:var(--mut)">'+(r.pwRaw?'입력':'자동/임시')+'</td><td id="bst-'+i+'">'+(r.errs.length?'<span style="color:var(--red)">'+r.errs.join(',')+'</span>':'<span style="color:var(--green)">준비됨</span>')+'</td></tr>';
+      return '<tr><td style="font-weight:700">'+esc(r.id)+'</td><td>'+nameInp+'</td><td>'+roleSel+'</td><td>'+aptInp+'</td><td style="color:var(--mut)">'+(r.pwRaw?'입력':'자동/임시')+'</td><td id="bst-'+i+'">'+(r.errs.length?'<span style="color:var(--red)">'+r.errs.join(',')+'</span>':'<span style="color:var(--green)">준비됨</span>')+'</td><td><button class="b red sm" onclick="bmemDel('+i+')" title="이 줄 빼기">삭제</button></td></tr>';
     }).join('')
     +'</tbody></table></div>';
   bmemSum();
 }
+function bmemDel(i){ if(i<0||i>=BMEM_ROWS.length)return; BMEM_ROWS.splice(i,1); bmemRender(); }   // 줄 빼기(추가 대상에서 제외)
+function bmemClear(){ if(!BMEM_ROWS.length)return; if(!confirm('미리보기 목록을 전부 비울까요? (붙여넣은 원문·파일은 그대로)'))return; BMEM_ROWS=[]; bmemRender(); }
+window.bmemDel=bmemDel; window.bmemClear=bmemClear;
 function bmemSum(){
   var rows=BMEM_ROWS, sum=$('bmem-sum'); var ok=rows.filter(function(r){return !r.errs.length;}).length;
   if(sum)sum.textContent= rows.length?('총 '+rows.length+'명 · 추가 가능 '+ok+'명'+((rows.length-ok)?(' · 오류 '+(rows.length-ok)+'명(제외)'):'')):'';

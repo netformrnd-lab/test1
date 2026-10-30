@@ -846,36 +846,70 @@ function bmemRole(v){ v=(v||'').trim(); if(!v)return '';   // 비면 '' → 기�
   if(/소장|관리소/.test(v))return 'manager'; if(/감리/.test(v))return 'auditor';
   if(/관리자|admin|어드민/i.test(v))return 'admin'; if(/입주|주민|resident/i.test(v))return 'resident';
   return ''; }  // 못 알아보면 '' → 기본값 드롭다운으로
-function bmemAptId(name){ name=(name||'').trim(); if(!name)return null; var f=APTS.find(function(a){return (a.name||'').trim().toLowerCase()===name.toLowerCase();}); return f?f.id:null; }
+// 단지 매칭: 정확 → 공백·'아파트' 차이 무시 → 포함관계 (예: '교촌동제이파크' ↔ '교촌동제이파크아파트')
+function bmemNorm(s){ return String(s||'').toLowerCase().replace(/\s/g,'').replace(/아파트$/,''); }
+function bmemAptId(name){
+  name=(name||'').trim(); if(!name)return null;
+  var f=APTS.find(function(a){return (a.name||'').trim().toLowerCase()===name.toLowerCase();}); if(f)return f.id;
+  var n=bmemNorm(name); if(!n)return null;
+  f=APTS.find(function(a){return bmemNorm(a.name)===n;}); if(f)return f.id;
+  f=APTS.find(function(a){var an=bmemNorm(a.name); return an&&(an.indexOf(n)>=0||n.indexOf(an)>=0);}); if(f)return f.id;
+  return null;
+}
+var BMEM_ROWS=[];
+function bmemValidate(r){ r.errs=[];
+  if(!/^[a-z0-9._-]+$/.test(r.id))r.errs.push('아이디형식');
+  if(!r.name)r.errs.push('이름없음');
+  if(r.pwRaw&&r.pwRaw.length<6)r.errs.push('비번6자미만');
+  r.aptId=bmemAptId(r.aptName); r.aptWarn=(r.aptName&&!r.aptId);
+}
 function bmemParse(){
   var raw=($('bmem-in')||{}).value||''; var rows=[];
-  var defRole=(($('bmem-defrole')||{}).value)||'resident';   // 엑셀에 역할 없을 때 적용
-  var defPw=((($('bmem-defpw')||{}).value)||'').trim();       // 비번 없을 때 적용(비우면 자동)
+  var defRole=(($('bmem-defrole')||{}).value)||'resident';
   raw.split(/\r?\n/).forEach(function(ln){
     var line=ln.replace(/\s+$/,''); if(!line.trim())return;
     var cols=(line.indexOf('\t')>=0?line.split('\t'):line.split(',')).map(function(s){return s.trim();});
     var id=(cols[0]||'').toLowerCase().replace(/\s/g,''); if(!id)return;
-    var pw=(cols[1]||'')||defPw, name=cols[2]||'', phone=cols[3]||'', role=bmemRole(cols[4])||defRole, aptName=cols[5]||'';
-    var aptId=bmemAptId(aptName); var errs=[];
-    if(!/^[a-z0-9._-]+$/.test(id))errs.push('아이디형식');
-    if(!name)errs.push('이름없음');
-    if(pw&&pw.length<6)errs.push('비번6자미만');
-    rows.push({id:id,pw:pw,name:name,phone:phone,role:role,aptName:aptName,aptId:aptId,aptWarn:(aptName&&!aptId),errs:errs});
+    var r={ id:id, pwRaw:(cols[1]||''), name:cols[2]||'', phone:cols[3]||'', role:bmemRole(cols[4])||defRole, aptName:cols[5]||'' };
+    bmemValidate(r); rows.push(r);
   });
   return rows;
 }
+// 미리보기 = 역할·이름·단지를 한 줄씩 직접 고칠 수 있는 표
 function bmemPreview(){
-  var rows=bmemParse(), t=$('bmem-table'), sum=$('bmem-sum');
-  if(!rows.length){ if(t)t.innerHTML='<div style="color:var(--mut);font-size:12.5px">붙여넣은 내용이 없어요.</div>'; if(sum)sum.textContent=''; $('bmem-run').disabled=true; return; }
-  var ok=rows.filter(function(r){return !r.errs.length;}).length;
-  t.innerHTML='<div class="card" style="padding:4px 14px;overflow-x:auto"><table><thead><tr><th>아이디</th><th>이름</th><th>역할</th><th>단지</th><th>비번</th><th>상태</th></tr></thead><tbody>'
-    +rows.map(function(r){return '<tr><td style="font-weight:700">'+esc(r.id)+'</td><td>'+(esc(r.name)||'<span style="color:var(--red)">없음</span>')+'</td><td>'+esc(ROLES[r.role])+'</td><td>'+(r.aptName?esc(r.aptName)+(r.aptWarn?' <span style="color:#b8710a">(못찾음)</span>':''):'<span style="color:var(--mut)">미배정</span>')+'</td><td style="color:var(--mut)">'+(r.pw?'입력':'자동')+'</td><td>'+(r.errs.length?'<span style="color:var(--red)">'+r.errs.join(',')+'</span>':'<span style="color:var(--green)">준비됨</span>')+'</td></tr>';}).join('')
+  BMEM_ROWS=bmemParse(); bmemRender();
+}
+function bmemRender(){
+  var t=$('bmem-table'), rows=BMEM_ROWS;
+  if(!rows.length){ if(t)t.innerHTML='<div style="color:var(--mut);font-size:12.5px">붙여넣은 내용이 없어요.</div>'; bmemSum(); $('bmem-run').disabled=true; return; }
+  var inp='font:inherit;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:4px 6px;';
+  t.innerHTML='<div class="card" style="padding:4px 14px;overflow-x:auto"><table><thead><tr><th>아이디</th><th>이름</th><th>역할(고치기)</th><th>단지(고치기)</th><th>비번</th><th>상태</th></tr></thead><tbody>'
+    +rows.map(function(r,i){
+      var roleSel='<select onchange="bmemSet('+i+',\'role\',this.value)" style="'+inp+'">'+Object.keys(ROLES).map(function(k){return '<option value="'+k+'"'+(r.role===k?' selected':'')+'>'+ROLES[k]+'</option>';}).join('')+'</select>';
+      var aptInp='<input list="apt-names" value="'+esc(r.aptName)+'" placeholder="미배정" onchange="bmemSet('+i+',\'aptName\',this.value)" style="'+inp+'width:150px">'
+        +' <span id="bai-'+i+'">'+(r.aptName?(r.aptId?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--red)">못찾음</span>'):'')+'</span>';
+      var nameInp='<input value="'+esc(r.name)+'" onchange="bmemSet('+i+',\'name\',this.value)" style="'+inp+'width:90px">';
+      return '<tr><td style="font-weight:700">'+esc(r.id)+'</td><td>'+nameInp+'</td><td>'+roleSel+'</td><td>'+aptInp+'</td><td style="color:var(--mut)">'+(r.pwRaw?'입력':'자동/임시')+'</td><td id="bst-'+i+'">'+(r.errs.length?'<span style="color:var(--red)">'+r.errs.join(',')+'</span>':'<span style="color:var(--green)">준비됨</span>')+'</td></tr>';
+    }).join('')
     +'</tbody></table></div>';
-  if(sum)sum.textContent='총 '+rows.length+'명 · 추가 가능 '+ok+'명'+((rows.length-ok)?(' · 오류 '+(rows.length-ok)+'명(제외)'):'');
-  $('bmem-run').disabled = ok===0;
+  bmemSum();
+}
+function bmemSum(){
+  var rows=BMEM_ROWS, sum=$('bmem-sum'); var ok=rows.filter(function(r){return !r.errs.length;}).length;
+  if(sum)sum.textContent= rows.length?('총 '+rows.length+'명 · 추가 가능 '+ok+'명'+((rows.length-ok)?(' · 오류 '+(rows.length-ok)+'명(제외)'):'')):'';
+  if($('bmem-run'))$('bmem-run').disabled = ok===0;
+}
+function bmemSet(i,k,v){
+  var r=BMEM_ROWS[i]; if(!r)return;
+  if(k==='aptName')r.aptName=(v||'').trim(); else if(k==='name')r.name=(v||'').trim(); else if(k==='role')r.role=v;
+  bmemValidate(r);
+  var ai=document.getElementById('bai-'+i); if(ai)ai.innerHTML = r.aptName?(r.aptId?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--red)">못찾음</span>'):'';
+  var st=document.getElementById('bst-'+i); if(st)st.innerHTML = r.errs.length?'<span style="color:var(--red)">'+r.errs.join(',')+'</span>':'<span style="color:var(--green)">준비됨</span>';
+  bmemSum();
 }
 async function bmemRun(){
-  var rows=bmemParse().filter(function(r){return !r.errs.length;});
+  var defPw=((($('bmem-defpw')||{}).value)||'').trim();   // 실행 시점의 임시 비번
+  var rows=BMEM_ROWS.filter(function(r){return !r.errs.length;});
   if(!rows.length){ alert('추가할 회원이 없어요(오류 행 제외).'); return; }
   if(!confirm(rows.length+'명을 추가합니다.\n이미 있는 아이디는 자동으로 건너뜁니다.\n계속할까요?')) return;
   var btn=$('bmem-run'); if(btn){btn.disabled=true;btn.textContent='추가 중…';}
@@ -884,7 +918,9 @@ async function bmemRun(){
   var added=0,skip=0,fail=0, pwlist=[];
   for(var i=0;i<rows.length;i++){
     var r=rows[i];
-    var pw=r.pw||(Math.random().toString(36).slice(2,8)+Math.floor(10+Math.random()*89));
+    var isAuto=!r.pwRaw && !defPw;
+    var pw=r.pwRaw || defPw || (Math.random().toString(36).slice(2,8)+Math.floor(10+Math.random()*89));
+    var aptId=bmemAptId(r.aptName);
     var email=r.id+'@aptsquare.app';
     var tmp=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'apt_tmp_bulk'}});
     try{
@@ -893,9 +929,9 @@ async function bmemRun(){
       else {
         var newId=res.data&&res.data.user&&res.data.user.id;
         if(newId){
-          var up=await sb.from('profiles').update({name:r.name,phone:r.phone||null,email:email,role:r.role,apartment_id:r.aptId,approved:true}).eq('id',newId);
+          var up=await sb.from('profiles').update({name:r.name,phone:r.phone||null,email:email,role:r.role,apartment_id:aptId,approved:true}).eq('id',newId);
           if(up.error){ fail++; put('⚠️ '+esc(r.id)+' — 계정생성됨, 정보저장 오류: '+esc(up.error.message)); }
-          else { added++; if(!r.pw)pwlist.push(r.id+' : '+pw); put('✅ '+esc(r.id)+' ('+esc(r.name)+') — 추가·승인'+(r.pw?'':' · 비번 '+pw)); }
+          else { added++; if(isAuto)pwlist.push(r.id+' : '+pw); put('✅ '+esc(r.id)+' ('+esc(r.name)+') — '+esc(ROLES[r.role])+(aptId?' · '+esc(aptName(aptId)):' · 미배정')+(isAuto?' · 비번 '+pw:'')); }
         } else { fail++; put('⚠️ '+esc(r.id)+' — 계정 확인 필요(이메일 인증 설정 확인)'); }
       }
       try{ await tmp.auth.signOut(); }catch(e){}

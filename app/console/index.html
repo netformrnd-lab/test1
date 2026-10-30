@@ -76,12 +76,12 @@ main{flex:1;min-width:0;padding:24px 34px 70px;max-width:1680px;margin:0 auto}
 .pj-table{min-width:1000px}.pj-table th{background:#f7f9fc;font-size:11.5px;color:var(--mut2);padding:11px 8px;border-bottom:1px solid var(--line);white-space:nowrap}.pj-table td{padding:12px 8px;vertical-align:middle}.pj-table td:first-child,.pj-table th:first-child{padding-left:14px}
 .pj-table .pgrow .bar{width:72px!important}.pj-table .pghint{max-width:200px;white-space:normal;line-height:1.5}
 .pj-table tbody tr{cursor:pointer}.pj-table tbody tr:hover{background:#f6f9ff}
-.pj-site{display:flex;align-items:center;gap:9px;min-width:160px;max-width:215px}
+.pj-site{display:flex;align-items:center;gap:9px;min-width:150px;max-width:230px}
 .pj-thumb{width:38px;height:38px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;font-size:19px;background:linear-gradient(135deg,#dde7fb,#f1f5ff);border:1px solid #e3eaf8}
 .pj-name{font-weight:800;font-size:13.5px;color:var(--ink);line-height:1.3}.pj-name .link{color:var(--ink)}.pj-sub{font-size:11.5px;color:var(--mut);margin-top:2px}
 .pj-stage{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:8px;cursor:pointer;white-space:nowrap}.pj-stage:after{content:'▾';font-size:10px;opacity:.6}
 .pj-step{margin-top:6px}.pj-step .stepbar .sp{height:22px;min-width:26px;font-size:10px;padding:0 5px}
-.pj-aud{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:96px;max-width:150px}.pj-av{width:22px;height:22px;border-radius:50%;background:#e6edfb;color:#2f4c9e;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.pj-aud{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:90px;max-width:160px;line-height:1.4}.pj-av{width:22px;height:22px;border-radius:50%;background:#e6edfb;color:#2f4c9e;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none}
 .pj-aud .nm{font-size:12.5px;font-weight:700;color:var(--ink)}.pj-aud .more{font-size:11px;color:var(--mut)}
 .pj-visit{font-size:13px;font-weight:700;white-space:nowrap}.pj-visit small{display:block;font-size:11px;color:var(--mut);font-weight:600}
 .pj-rep{min-width:150px;max-width:195px}.pj-rep .repsum{max-width:195px}.pj-rep .d{font-size:12.5px;font-weight:700;white-space:nowrap}.pj-rep .d .pill{margin-left:5px;font-size:10.5px;padding:2px 7px}.pj-rep .repsum{margin-top:2px}
@@ -1508,10 +1508,10 @@ function fmtMD(d){ if(!d)return ''; const x=new Date(d+'T00:00:00'); if(isNaN(x)
 /* 상태: 감리 진행(공사중) 단지의 최근 일지 경과일 — 10일 이내 정상 · 21일 이내 주의 · 그 이상/없음 지연 */
 function siteHealth(a){ if(a.status!=='in_progress')return {cls:'na',label:'-',tip:'공사중 단지만 판정'}; const r=lastReportOf(a.id); if(!r)return {cls:'late',label:'일지 없음',tip:'감리일지가 아직 없어요'};
   const d=repDateOf(r); const days=Math.floor((new Date()-new Date(d+'T00:00:00'))/86400000); if(days<=10)return {cls:'ok',label:'정상',tip:`최근 일지 ${days}일 전`}; if(days<=21)return {cls:'warn',label:'주의',tip:`최근 일지 ${days}일 전`}; return {cls:'late',label:'지연',tip:`최근 일지 ${days}일 전`}; }
-function audAvatars(a,max){ const ids=aptAuditors(a); if(!ids.length)return '<span class="pill no">미배정</span>'; const names=ids.map(auditorName).filter(Boolean); max=max||2;
-  return `<div class="pj-aud">${names.slice(0,max).map(n=>`<span class="pj-av">${esc(String(n).slice(0,1))}</span><span class="nm">${esc(n)}</span>`).join('')}${names.length>max?`<span class="more">+${names.length-max}</span>`:''}</div>`; }
+function audAvatars(a,max){ const ids=aptAuditors(a); if(!ids.length)return '<span class="pill no">미배정</span>'; const names=ids.map(auditorName).filter(Boolean); max=max||3;
+  return `<div class="pj-aud" title="${esc(names.join(', '))}"><span class="nm">${esc(names.slice(0,max).join(', '))}</span>${names.length>max?`<span class="more">외 ${names.length-max}</span>`:''}</div>`; }
 function stagePillHtml(a){ const m=stageMeta(stageOf(a)); return `<span class="pj-stage" style="background:${m[3]}1a;color:${m[3]}" title="눌러서 단계 이동" onclick="event.stopPropagation();const n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none'">${esc(m[1])}</span><div class="pj-step" style="display:none" onclick="event.stopPropagation()">${stepBarHtml(a)}</div>`; }
-function thumbHtml(a,big){ const m=stageMeta(stageOf(a)); return `<div class="pj-thumb" style="${a.status==='done'?'filter:grayscale(.6)':''}">🏢</div>`; }
+function thumbHtml(a,big){ return ''; }   // 현장 사진 자리는 쓰지 않음(운영 부담) — 이름·지역만 표시
 function projFilterOpts(){
   const rs=$('pj-region'),as=$('pj-aud'),ms=$('pj-method'); if(!rs||!as||!ms)return;
   const keep=(el,html)=>{ const v=el.value; el.innerHTML=html; if([...el.options].some(o=>o.value===v))el.value=v; };

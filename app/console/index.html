@@ -920,7 +920,7 @@ async function bmemRun(){
   var btn=$('bmem-run'); if(btn){btn.disabled=true;btn.textContent='추가 중…';}
   var log=$('bmem-log'); if(log){log.style.display='block';log.innerHTML='';}
   var put=function(s){ if(log){log.innerHTML+=s+'<br>'; log.scrollTop=log.scrollHeight;} };
-  var added=0,skip=0,fail=0,reset=0, pwlist=[];
+  var added=0,skip=0,fail=0,reset=0, pwlist=[], halted=false;
   for(var i=0;i<rows.length;i++){
     var r=rows[i];
     var isAuto=!r.pwRaw && !defPw;
@@ -939,7 +939,8 @@ async function bmemRun(){
               else { reset++; pwlist.push(r.id+' : '+pw+' (재설정)'); put('🔑 '+esc(r.id)+' — 비밀번호 재설정 → '+pw); } }
             else { skip++; put('⏭ '+esc(r.id)+' — 이미 있음(프로필 못찾아 건너뜀)'); }
           } else { skip++; put('⏭ '+esc(r.id)+' — 이미 있음(건너뜀)'); }
-        } else { fail++; put('❌ '+esc(r.id)+' — '+esc(res.error.message)); } }
+        } else if(/rate limit|too many/i.test(res.error.message||'')){ halted=true; put('⏸ '+esc(r.id)+' — 가입 한도 도달'); }
+        else { fail++; put('❌ '+esc(r.id)+' — '+esc(res.error.message)); } }
       else {
         var newId=res.data&&res.data.user&&res.data.user.id;
         if(newId){
@@ -950,13 +951,14 @@ async function bmemRun(){
       }
       try{ await tmp.auth.signOut(); }catch(e){}
     }catch(e){ fail++; put('❌ '+esc(r.id)+' — '+esc(e&&e.message||e)); }
-    await new Promise(function(res){setTimeout(res,350);});  // 가입 rate-limit 완화
+    if(halted){ put('<b style="color:#b8710a">⏸ 가입 한도에 걸려 여기서 멈췄어요.</b> 잠시(5분~1시간) 뒤 <b>같은 명단으로 다시 실행</b>하면 이미 된 건 건너뛰고 이어서 추가됩니다.'); break; }
+    await new Promise(function(res){setTimeout(res,500);});  // 가입 rate-limit 완화
   }
   if(btn){btn.disabled=false;btn.textContent='일괄 추가 실행';}
   put('<b>완료 — 추가 '+added+' · 비번재설정 '+reset+' · 중복 '+skip+' · 실패 '+fail+'</b>');
   if(pwlist.length) put('<b>비밀번호</b> (회원에게 안내):<br>'+pwlist.map(esc).join('<br>'));
   await loadAll();
-  alert('완료\n추가 '+added+'명 · 비번재설정 '+reset+'명 · 중복(건너뜀) '+skip+'명 · 실패 '+fail+'명'+(fail?'\n(가입 과다 시 잠시 후 다시 실행하면 이어서 돼요)':''));
+  alert((halted?'⏸ 가입 한도로 중단됨\n':'완료\n')+'추가 '+added+'명 · 비번재설정 '+reset+'명 · 중복 '+skip+'명 · 실패 '+fail+'명'+(halted?'\n\n5분~1시간 뒤 같은 명단으로 다시 실행하면 이어서 추가돼요.\n(또는 Supabase 설정에서 가입 한도를 올리세요)':''));
 }
 // 엑셀(.xlsx/.csv) → 아이디·비번·이름·연락처·역할·단지 로 변환해 입력칸 채우고 미리보기
 async function bmemFile(files){

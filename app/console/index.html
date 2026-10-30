@@ -1875,7 +1875,7 @@ async function resolveIssue(id){
 function renderPending(){
   const pend=MEMBERS.filter(x=>!x.approved);
   $('pendCnt').textContent=pend.length+'명';
-  $('pendBody').innerHTML=pend.length?`<table><thead><tr><th>이름</th><th>아이디</th><th>역할</th><th></th></tr></thead><tbody>${pend.map(m=>`<tr><td style="font-weight:700">${esc(m.name)||'-'}</td><td>${esc(loginId(m))}</td><td>${ROLES[m.role]||m.role||'-'}</td><td><button class="b green sm" onclick="approveMember('${m.id}')">승인</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">승인 대기 중인 회원이 없어요 👍</div>';
+  $('pendBody').innerHTML=pend.length?`<table><thead><tr><th>이름</th><th>아이디</th><th>역할</th><th>가입 시 적은 단지</th><th></th></tr></thead><tbody>${pend.map(m=>`<tr><td style="font-weight:700">${esc(m.name)||'-'}</td><td>${esc(loginId(m))}</td><td>${ROLES[m.role]||m.role||'-'}</td><td>${m.signup_apt?esc(m.signup_apt):'<span style="color:var(--mut)">-</span>'}</td><td style="white-space:nowrap"><button class="b line sm" onclick="openMemberEdit('${m.id}')">배정·편집</button> <button class="b green sm" onclick="approveMember('${m.id}')">승인</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">승인 대기 중인 회원이 없어요 👍</div>';
 }
 async function approveMember(id){
   const {error}=await sb.from('profiles').update({approved:true}).eq('id',id);
@@ -3218,6 +3218,7 @@ function openMemberEdit(id){
   openModal(mHead('회원 편집')+`
     <div class="fld"><label>이름 · 아이디</label><input value="${esc(m.name||'-')} · ${esc(loginId(m))}" disabled></div>
     <div class="fld"><label>연락처</label><input id="me-phone" value="${esc(m.phone)||''}"></div>
+    ${m.signup_apt?`<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:9px;padding:8px 11px;font-size:12px;color:#2456c9;font-weight:700;margin-bottom:4px">🏢 가입 시 적은 단지: <b>${esc(m.signup_apt)}</b>${!m.apartment_id?` <span class="link" onclick="meAptFromSignup('${m.id}')" style="margin-left:4px">↳ 담당 단지에 넣기</span>`:''}</div>`:''}
     <div class="frow"><div class="fld"><label>역할</label><select id="me-role">${roleOptsC(m.role)}</select></div><div class="fld"><label>담당 단지</label><input id="me-apt" list="apt-names" value="${m.apartment_id?esc(aptName(m.apartment_id)):''}" placeholder="단지 입력/선택"></div></div>
     <div class="fld"><label>승인 상태</label><select id="me-appr"><option value="1" ${m.approved?'selected':''}>승인됨</option><option value="0" ${!m.approved?'selected':''}>대기</option></select></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:10px"><label>🔑 비밀번호 재설정</label>
@@ -3237,6 +3238,8 @@ async function resetMemberPw(id,btn){
   setM('✅ 비밀번호를 바꿨어요 → '+pw+' (회원에게 안내)','var(--green)');
 }
 window.resetMemberPw=resetMemberPw;
+function meAptFromSignup(id){ var m=MEMBERS.find(function(x){return x.id===id;}); var e=$('me-apt'); if(m&&e)e.value=m.signup_apt||''; }
+window.meAptFromSignup=meAptFromSignup;
 async function submitMemberEdit(id){
   const role=$('me-role').value; const apt=await resolveApartment($('me-apt').value); if(apt===undefined)return;
   const phone=$('me-phone').value.trim()||null; const approved=$('me-appr').value==='1';

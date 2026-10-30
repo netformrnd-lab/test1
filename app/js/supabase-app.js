@@ -2331,14 +2331,18 @@ async function doSignup() {
   const email = ($('signup-email').value || '').trim()
   const name = $('signup-name').value.trim()
   const phone = $('signup-phone').value.trim()
+  const aptName = ($('signup-apt') ? $('signup-apt').value.trim() : '')
   if (!id || !pw || !name || !email) { setMsg('아이디·이메일·비밀번호·이름을 입력하세요'); return }
+  if (!aptName) { setMsg('아파트(단지)명을 입력하세요 (승인 확인용)'); return }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setMsg('올바른 이메일을 입력하세요'); return }
   if (pw.length < 6) { setMsg('비밀번호는 6자 이상으로 정해주세요'); return }
   setMsg('가입 중…', true)
   // 아이디 중복 확인
   try { const { data: taken } = await sb.rpc('login_email', { uname: id }); if (taken) { setMsg('이미 사용 중인 아이디예요. 다른 아이디를 써주세요.'); return } } catch (e) {}
-  const { error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, phone, username: id.toLowerCase() } } })
+  const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, phone, username: id.toLowerCase(), signup_apt: aptName } } })
   if (error) { setMsg(ko(error.message)); return }
+  // 가입 시 적은 아파트명을 프로필에 저장(관리자가 승인·배정 때 참고). 프로필 생성 트리거 완료를 잠깐 기다렸다 업데이트
+  if (aptName && data && data.user) { const _uid = data.user.id; setTimeout(function () { try { sb.from('profiles').update({ signup_apt: aptName }).eq('id', _uid) } catch (e) {} }, 900) }
   setMsg('가입 완료! 관리자 승인 후 이용할 수 있어요.', true)
   setTimeout(() => window.showScreen('s02'), 1400)
 }

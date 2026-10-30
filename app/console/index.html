@@ -2559,7 +2559,7 @@ function gamriFormHtml(r,ov){
     (m.worktype?'<table class="t-chk"><tr><th class="cat">공종</th><th>감리내용</th></tr><tr><td class="cat">'+_gEsc(m.worktype)+'</td><td>현장 점검 및 완료 부위 적합 여부 확인</td></tr></table>':'')+
     '<div class="band">작업사항</div><div class="bandbox">'+workHtml+'</div>'+
     '<div class="band">특기사항</div><div class="bandbox">'+teukHtml+'</div>'+
-    (jijeokEmpty?'':'<div class="band">지적사항 및 처리결과</div><div class="bandbox">'+jijeokHtml+'</div>')+
+    (jijeokEmpty?'':'<div class="gkeep"><div class="band">지적사항 및 처리결과</div><div class="bandbox">'+jijeokHtml+'</div></div>')+
     '<div class="paper-foot">210㎜×297㎜[일반용지 60g/㎡]</div>'+
   '</div>'+
   '<div class="paper"><div class="sheet-h">현장 점검 사진대지</div><table class="pgrid">'+photoRows+'</table></div>'+
@@ -2584,6 +2584,7 @@ const GAMRI_CSS=
 '.gp-doc .bandbox li.dot::before{content:"·";position:absolute;left:3px;font-weight:700}.gp-doc .bandbox li:not(.dot)::before{content:"▪";position:absolute;left:1px;font-size:8px;top:2px}'+
 '.gp-doc .muted{color:#888}.gp-doc .paper-foot{text-align:right;font-size:9px;margin-top:12px}'+
 '.gp-doc .sheet-h{background:#d9d9d9;border:1px solid #111;font-weight:500;padding:5px 10px;border-bottom:2px solid #111}'+
+'.gp-doc .gkeep{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .pgrid{width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #111;border-top:none}'+
 '.gp-doc .pgrid tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .pcell{width:50%;border:1px solid #111;border-top:none;padding:6px;vertical-align:top;break-inside:avoid;page-break-inside:avoid}'+
@@ -2605,7 +2606,7 @@ async function genGamriPdf(id,btn,ov){
     await html2pdf().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.9},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt']}}).from(host.querySelector('.gp-doc')).save();
+      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt','.gkeep']}}).from(host.querySelector('.gp-doc')).save();
     document.body.removeChild(host);
     if(window.toast)toast('공사감리일지 PDF를 저장했어요');
   }catch(e){ alert('PDF 생성 실패: '+(e&&e.message||e)+'\n(사진이 외부 링크면 일부 사진이 빠질 수 있어요)'); }
@@ -2623,7 +2624,7 @@ async function genGamriPdfBlob(r,ov){
     return await html2pdf().set({margin:[8,8,8,8],image:{type:'jpeg',quality:0.9},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt']}}).from(host.querySelector('.gp-doc')).outputPdf('blob');
+      pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt','.gkeep']}}).from(host.querySelector('.gp-doc')).outputPdf('blob');
   } finally { try{document.body.removeChild(host);}catch(e){} }
 }
 /* 공개용 PDF 보장: pdf_url 없으면 감리일지 내용으로 PDF 자동 생성→저장→pdf_url 세팅 */

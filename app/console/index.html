@@ -429,14 +429,15 @@ tbody tr:hover{background:#f8fafc}
       <div class="head"><div><h2>데이터 도구</h2><div class="desc">회원 일괄 추가 · 감리일지 PDF 일괄 올리기 · 아임웹 게시판 가져오기 · 사진/계약서 저장소 이전</div></div></div>
       <div class="card">
         <h3>👥 회원 일괄 추가</h3>
-        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:8px"><b>한 줄에 한 명.</b> 엑셀에서 복사해 붙여넣으면 돼요(탭 구분). 쉼표(,)로 구분해도 됩니다.<br>
-        순서: <code>아이디 · 비밀번호 · 이름 · 연락처 · 역할 · 담당단지</code><br>
+        <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:8px"><b>📁 엑셀 파일(.xlsx)을 올리거나</b>, 엑셀에서 복사해 아래 칸에 붙여넣으세요(탭/쉼표 구분).<br>
+        순서(또는 엑셀 첫 줄 제목): <code>아이디 · 비밀번호 · 이름 · 연락처 · 역할 · 담당단지</code><br>
         · <b>비밀번호</b> 비우면 자동 생성(결과에 표시) · <b>역할</b> 비우면 입주민 · <b>담당단지</b>는 이름으로(없으면 미배정)<br>
         · <b>이미 있는 아이디는 자동으로 건너뜁니다(중복 방지).</b> · 역할: 입주민/관리소장/감리원/관리자</div>
         <textarea id="bmem-in" style="width:100%;min-height:120px;font-family:var(--mono,monospace);font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:10px;box-sizing:border-box" placeholder="hong123	123456	홍길동	010-1234-5678	입주민	용인 신갈신미주아파트
 kim456		김영성		감리원	"></textarea>
         <div class="toolbar" style="margin-top:8px">
-          <button class="b line" onclick="bmemPreview()">미리보기</button>
+          <label class="b blue" style="cursor:pointer">📁 엑셀 파일 선택<input id="bmem-file" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="bmemFile(this.files)"></label>
+          <button class="b line" onclick="bmemPreview()">붙여넣은 내용 미리보기</button>
           <button class="b blue" id="bmem-run" onclick="bmemRun()" disabled>일괄 추가 실행</button>
           <span id="bmem-sum" style="font-size:12px;color:var(--mut2);font-weight:700"></span>
         </div>
@@ -901,7 +902,42 @@ async function bmemRun(){
   await loadAll();
   alert('완료\n추가 '+added+'명 · 중복(건너뜀) '+skip+'명 · 실패 '+fail+'명'+(fail?'\n(가입 과다 시 잠시 후 다시 실행하면 중복은 건너뛰고 이어서 추가돼요)':''));
 }
-window.bmemPreview=bmemPreview; window.bmemRun=bmemRun;
+// 엑셀(.xlsx/.csv) → 아이디·비번·이름·연락처·역할·단지 로 변환해 입력칸 채우고 미리보기
+async function bmemFile(files){
+  if(!files||!files.length)return;
+  if(typeof XLSX==='undefined'){ alert('엑셀 모듈을 불러오지 못했어요. 새로고침 후 다시 시도하세요.'); return; }
+  try{
+    const f=files[0];
+    const buf=await f.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+    if(!aoa.length){ alert('빈 엑셀이에요.'); return; }
+    const HEAD={id:['아이디','id','로그인','계정'],pw:['비밀번호','비번','password','pw'],name:['이름','성명','name'],phone:['연락처','전화','휴대','phone','핸드폰'],role:['역할','구분','role'],apt:['담당단지','단지','아파트','apartment']};
+    const first=(aoa[0]||[]).map(c=>String(c||'').trim());
+    const looksHeader=first.some(c=>/아이디|이름|역할|비밀번호|단지|연락처/.test(c));
+    let start=0, idx={id:0,pw:1,name:2,phone:3,role:4,apt:5};
+    if(looksHeader){
+      start=1;
+      const find=(keys)=>{ for(let i=0;i<first.length;i++){ const c=first[i].toLowerCase(); if(keys.some(k=>c.indexOf(k.toLowerCase())>=0))return i; } return -1; };
+      idx={ id:find(HEAD.id), pw:find(HEAD.pw), name:find(HEAD.name), phone:find(HEAD.phone), role:find(HEAD.role), apt:find(HEAD.apt) };
+      if(idx.id<0)idx.id=0;
+    }
+    const g=(row,k)=> (idx[k]>=0 && idx[k]<row.length) ? String(row[idx[k]]==null?'':row[idx[k]]).trim() : '';
+    const lines=[];
+    for(let i=start;i<aoa.length;i++){
+      const row=aoa[i]; if(!row||!row.length)continue;
+      const vals=[g(row,'id'),g(row,'pw'),g(row,'name'),g(row,'phone'),g(row,'role'),g(row,'apt')];
+      if(!vals[0] && !vals[2])continue;
+      lines.push(vals.join('\t'));
+    }
+    if(!lines.length){ alert('읽을 행이 없어요. 첫 시트에 데이터가 있는지 확인하세요.'); return; }
+    if($('bmem-in')) $('bmem-in').value=lines.join('\n');
+    bmemPreview();
+  }catch(e){ alert('엑셀 읽기 실패: '+(e&&e.message||e)); }
+  if($('bmem-file')) $('bmem-file').value='';
+}
+window.bmemPreview=bmemPreview; window.bmemRun=bmemRun; window.bmemFile=bmemFile;
 
 /* ===== 입주민 앱 사용통계 (자동 집계 RPC) ===== */
 const USG_KIND_LBL={view:'🏠 홈 열람',report:'📄 감리일지 열람',contract:'📑 계약서 열람',nps:'⭐ 만족도 제출',kakao:'💬 카톡 상담'};

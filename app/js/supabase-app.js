@@ -298,6 +298,7 @@ async function loadFieldUpdates() {
   checkSurveyBanner(apt)
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', apt.id).order('created_at', { ascending: false })
   FIELD_LIST = (data || []).map(f => { f._field = true; return f }) // 현장현황 항목 표시(감리일지와 구분)
+    .sort((a, b) => resRepDateKey(b).localeCompare(resRepDateKey(a)))   // 제목 날짜(YYYYMMDD) 기준 최신순
   renderFieldList()
 }
 // 감리원: 단지 선택 후 메뉴 (감리일지 / 현장 사진)
@@ -308,6 +309,24 @@ async function openAuditorMenu(a) {
   window.showScreen('s27')
 }
 window.openAuditorMenu = openAuditorMenu
+// 감리 현장 소통문구 도구(iframe) — 감리원 이름·현장명을 자동 주입해서 연다
+// 소통문구 도구에서 입력칸 바깥을 탭하면 키보드가 내려가도록(입력칸 blur)
+document.addEventListener('pointerdown', function (e) {
+  try {
+    if (!e.target.closest || !e.target.closest('#sotong-root')) return
+    if (e.target.closest('input,textarea,select,button,label,a,[contenteditable]')) return
+    const ac = document.activeElement
+    if (ac && /^(INPUT|TEXTAREA|SELECT)$/.test(ac.tagName) && ac.blur) ac.blur()
+  } catch (err) {}
+}, true)
+function openAudSotong(a) {
+  a = a || currentApt; if (!a) return
+  const ap = document.getElementById('sotong-apt'); if (ap) ap.textContent = a.name || ''
+  // 도구는 앱 화면에 직접 심어져 있음(#sotong-root). 감리원 이름·현장명을 주입.
+  try { if (window.__sotong && window.__sotong.setContext) window.__sotong.setContext(MY_NAME || '', a.name || '') } catch (e) {}
+  window.showScreen('s37')
+}
+window.openAudSotong = openAudSotong
 // 감리원: 이 단지 현장 사진 목록
 let AUDFIELD_LIST = []
 let AUD_DONG = ''
@@ -333,6 +352,7 @@ async function openAuditorField(a) {
   cont.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
   const { data } = await sb.from('field_updates').select('*').eq('apartment_id', a.id).order('created_at', { ascending: false })
   AUDFIELD_LIST = (data || []).map(f => { f._field = true; return f })
+    .sort((a, b) => resRepDateKey(b).localeCompare(resRepDateKey(a)))   // 제목 날짜 기준 최신순
   renderAudFieldList()
 }
 window.openAuditorField = openAuditorField
@@ -548,13 +568,25 @@ async function loadResidentReports() {
   if (!apt) { if (hdr) hdr.textContent = '배정된 단지 없음'; cont.innerHTML = '<div style="padding:24px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 단지가 없어요.</div>'; return }
   if (hdr) hdr.textContent = apt.name || '우리 단지'
   const { data } = await sb.from('reports').select('*').eq('apartment_id', apt.id).eq('published', true).order('created_at', { ascending: false })
-  RES_REP_LIST = data || []
+  RES_REP_LIST = (data || []).slice().sort((a, b) => resRepDateKey(b).localeCompare(resRepDateKey(a)))
   RES_REP_DONG = ''
   if (!PREVIEW_APT) logEvent('report', apt.id)
   renderResReports()
 }
 let RES_REP_LIST = []
 let RES_REP_DONG = ''
+// 감리일지 정렬·표시용 날짜키: 제목 속 감리일자(2026-10-06 / 0909=MMDD) 우선, 없으면 등록일 → 'YYYYMMDD'
+function resRepDateKey(r) {
+  const s = (r && r.title) || ''; let m
+  m = s.match(/(20\d{2})[.\-\/년 ]*(0[1-9]|1[0-2])[.\-\/월 ]*(0[1-9]|[12]\d|3[01])/)
+  if (m) return m[1] + m[2] + m[3]
+  const y = String((r && r.created_at) || '').slice(0, 4) || '2026'
+  m = s.match(/(?:^|\D)(0[1-9]|1[0-2])[.\-\/](0[1-9]|[12]\d|3[01])(?:\D|$)/) // 10.08 / 10-08
+  if (m) return (y || '2026') + m[1] + m[2]
+  m = s.match(/(?:^|\D)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?:\D|$)/) // 1008
+  if (m) return (y || '2026') + m[1] + m[2]
+  return String((r && r.created_at) || '').slice(0, 10).replace(/-/g, '') || '00000000'
+}
 window.selectResRepDong = function (d) { RES_REP_DONG = d; renderResReports() }
 function renderResReports() {
   const cont = document.getElementById('res-report-list'); if (!cont) return
@@ -1581,7 +1613,8 @@ function reportCard(r) {
   // 현장현황(_field)은 항상 사진 썸네일. 입주민 감리일지(reports)만 PDF 문서 아이콘으로 표시
   const isRes = currentRole && currentRole !== 'auditor'
   const isField = !!r._field
-  const d = (r.created_at || '').slice(0, 10).replace(/-/g, '.')
+  const _dk = resRepDateKey(r)   // 제목에 든 날짜(YYYYMMDD) 우선 — 현장현황·감리일지 모두 제목 날짜로 표시
+  const d = /^\d{8}$/.test(_dk) ? (_dk.slice(0, 4) + '.' + _dk.slice(4, 6) + '.' + _dk.slice(6, 8)) : (r.created_at || '').slice(0, 10).replace(/-/g, '.')
   const ph = Array.isArray(r.photos) ? r.photos : []
   const showPhoto = ph.length && (isField || !isRes)
   const thumb = showPhoto
@@ -1673,7 +1706,8 @@ function openReport(r) {
   if (!r) return
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v }
   set('d-title', repTitle(r) || '감리일지')
-  set('d-date', (r.created_at || '').slice(0, 10).replace(/-/g, '.'))
+  const _ddk = resRepDateKey(r)   // 제목 날짜 우선(목록과 일치)
+  set('d-date', /^\d{8}$/.test(_ddk) ? (_ddk.slice(0, 4) + '.' + _ddk.slice(4, 6) + '.' + _ddk.slice(6, 8)) : (r.created_at || '').slice(0, 10).replace(/-/g, '.'))
   const st = document.getElementById('d-stage')
   if (st) { if (r.stage) { st.textContent = r.stage; st.style.display = '' } else { st.style.display = 'none' } }
   // 동(棟) 표시
@@ -1730,8 +1764,8 @@ function openReport(r) {
   // 하단 탭을 역할에 맞게 (입주민이 감리일지·현장사진을 열었을 때 감리원 탭이 보이지 않도록)
   const rnav = document.getElementById('report-nav')
   if (rnav) rnav.innerHTML = (currentRole === 'auditor')
-    ? '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
-    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    ? '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div>'
+    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div>'
   window.showScreen('s10')
   if (showPdf && r.pdf_url) { try { renderPdfInline(r.pdf_url, 'pdf-pages') } catch (e) {} }
 }
@@ -1810,8 +1844,8 @@ function wireSchedSwipe() {
 function setSchedNav (isAud) {
   const snav = document.getElementById('sched-nav'); if (!snav) return
   snav.innerHTML = isAud
-    ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
-    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div><div data-tab="chat"><div class="ic">💬</div>채팅</div>'
+    ? '<div><div class="ic">🏠</div>홈</div><div class="on"><div class="ic">📅</div>일정</div><div><div class="ic">📕</div>리플렛</div>'
+    : '<div data-tab="home"><div class="ic">🏠</div>홈</div><div data-tab="field"><div class="ic">📸</div>현장현황</div><div data-tab="schedule" class="on"><div class="ic">📅</div>일정</div><div data-tab="alim"><div class="ic">📖</div>이야기</div>'
 }
 // Supabase는 한 번에 최대 1000행만 준다 → 1000건씩 끝까지 이어붙여 전부 가져온다(6월 이후 일정 누락 방지).
 async function fetchAllSchedulesApp() {
@@ -2297,14 +2331,18 @@ async function doSignup() {
   const email = ($('signup-email').value || '').trim()
   const name = $('signup-name').value.trim()
   const phone = $('signup-phone').value.trim()
+  const aptName = ($('signup-apt') ? $('signup-apt').value.trim() : '')
   if (!id || !pw || !name || !email) { setMsg('아이디·이메일·비밀번호·이름을 입력하세요'); return }
+  if (!aptName) { setMsg('아파트(단지)명을 입력하세요 (승인 확인용)'); return }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setMsg('올바른 이메일을 입력하세요'); return }
   if (pw.length < 6) { setMsg('비밀번호는 6자 이상으로 정해주세요'); return }
   setMsg('가입 중…', true)
   // 아이디 중복 확인
   try { const { data: taken } = await sb.rpc('login_email', { uname: id }); if (taken) { setMsg('이미 사용 중인 아이디예요. 다른 아이디를 써주세요.'); return } } catch (e) {}
-  const { error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, phone, username: id.toLowerCase() } } })
+  const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, phone, username: id.toLowerCase(), signup_apt: aptName } } })
   if (error) { setMsg(ko(error.message)); return }
+  // 가입 시 적은 아파트명을 프로필에 저장(관리자가 승인·배정 때 참고). 프로필 생성 트리거 완료를 잠깐 기다렸다 업데이트
+  if (aptName && data && data.user) { const _uid = data.user.id; setTimeout(function () { try { sb.from('profiles').update({ signup_apt: aptName }).eq('id', _uid) } catch (e) {} }, 900) }
   setMsg('가입 완료! 관리자 승인 후 이용할 수 있어요.', true)
   setTimeout(() => window.showScreen('s02'), 1400)
 }
@@ -2474,6 +2512,7 @@ function wire() {
   // 감리원 단지 메뉴 (감리일지 / 현장 사진 / 미팅 자료 / 소장님 작성지)
   const amR = $('aud-menu-report'); if (amR) amR.onclick = () => { if (currentApt) openApt(currentApt) }
   const amF = $('aud-menu-field'); if (amF) amF.onclick = () => { if (currentApt) openAuditorField(currentApt) }
+  const amS = $('aud-menu-sotong'); if (amS) amS.onclick = () => { if (currentApt) openAudSotong(currentApt) }
   const amM = $('aud-menu-meeting'); if (amM) amM.onclick = () => openMeetingDoc('first') // 중간 선택화면 건너뛰고 바로 첫 미팅 질문리스트
   const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
   const amCt = $('aud-menu-contract'); if (amCt) amCt.onclick = () => openContracts()
@@ -2510,7 +2549,7 @@ function wire() {
   const icRep = $('res-ic-report'); if (icRep) icRep.onclick = () => { showScreen('s12'); loadResidentReports() }
   const icField = $('res-ic-field'); if (icField) icField.onclick = () => { showScreen('s26'); loadFieldUpdates() }
   const menuBtn = $('res-menu-btn'); if (menuBtn) menuBtn.onclick = openResidentMenu
-  const audCard = $('res-aud-card'); if (audCard) audCard.onclick = () => chatFromNav() // 카톡 대신 자체 앱 채팅으로
+  const audCard = $('res-aud-card'); if (audCard) { audCard.onclick = null; audCard.style.cursor = 'default' } // 채팅 제거: 카드는 정보 표시만
   const noPhone = () => alert('담당 감리원 연락처가 아직 등록되지 않았어요.\n(감리원이 회원가입 시 연락처를 입력하면 표시돼요.)')
   const qc = $('q-call'); if (qc) qc.onclick = () => { if (RES_AUD_PHONE) window.location.href = 'tel:' + RES_AUD_PHONE.replace(/[^0-9+]/g, ''); else noPhone() }
   const qs = $('q-sms'); if (qs) qs.onclick = () => { if (RES_AUD_PHONE) window.location.href = 'sms:' + RES_AUD_PHONE.replace(/[^0-9+]/g, ''); else noPhone() }
@@ -2581,7 +2620,7 @@ const ALIM = {
     h += block('어렵던 공사를, 쉽고 투명하게', '관리소장도 입주민도<br>모든 과정을 직접 보긴 어렵습니다.<br>그래서 현장을 <b>사진과 기록</b>으로 남기고,<br>누구나 쉽게 이해하도록 <b>투명하게 공유</b>합니다.')
     h += block('만족하는 감리', '우리가 만들고 싶은 건<br>결과만이 아닙니다.<br><b>믿고 결정할 기준,<br>신뢰할 수 있는 과정,<br>시간이 지나도 남는 기록</b>입니다.')
     h += block('확인이 당연한 문화로', '공사의 품질은<br>좋은 자재·기술만으로 결정되지 않습니다.<br><b>진단하고, 기준대로 확인하고, 기록하는 것</b><br>— 보이지 않던 과정을 보이게 만듭니다.')
-    h += block('감리의 기준', '마지막에 잘됐는지만 보는 감리가 아니라,<br><b>진단부터 준공·사후까지 잇는<br>유지보수 전문 파트너.</b><br>‘스퀘어’는 <b>기준과 균형</b>을 뜻합니다.')
+    h += block('감리의 기준', '마지막에 잘됐는지만 보는 감리가 아니라,<br><b>아파트 유지보수 전문 감리 파트너.</b><br>진단부터 준공·사후까지 곁에서 잇습니다.<br>‘스퀘어’는 <b>기준과 균형</b>을 뜻합니다.')
     // ── 인증·이력(공신력) : 관리자가 올린 인증서 이미지 (없으면 섹션 자체가 숨겨짐) ──
     h += '<div id="cred-section" style="display:none;margin-top:34px;padding:0 16px 20px">'
     h += '<div style="text-align:center;font-size:20px;font-weight:800;color:#1c2440;margin-bottom:14px">인증·이력</div>'
@@ -2617,7 +2656,7 @@ const ALIM = {
     // 그래서 대신 확인
     h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:16px 0 6px">↓</div>'
     h += '<div style="font-size:16px;font-weight:800;color:#1c2440;margin:0 2px 10px;' + wb + '">그래서, 아파트스퀘어가<br><span style="color:#2F6BF6">함께 확인합니다</span></div>'
-    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '"><b>전문감리기관의 감리원</b>이 진단부터 준공까지 <b>자재(시공자 자료)·공정률을 확인하고, 완료 부위의 적합 여부를 판정</b>해, 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다. 언제든 직접 확인하실 수 있어요.</div>', '15px 15px')
+    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '"><b>건축사사무소의 전문 감리원</b>이 진단부터 준공까지 <b>자재(시공자 자료)·공정률을 확인하고, 완료 부위의 적합 여부를 판정</b>해, 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다. 언제든 직접 확인하실 수 있어요.</div>', '15px 15px')
     h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit2.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 60%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 52%,rgba(10,16,34,.8))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">감리원이 완료 부위를 확인·판정합니다</div></div>'
     // 3단계 흐름
     h += '<div style="display:flex;gap:7px;margin-top:13px">'
@@ -2634,7 +2673,7 @@ const ALIM = {
       .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:12px 14px"><div style="width:38px;height:38px;border-radius:11px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + c[0] + '</div><div style="flex:1;min-width:0"><span style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</span><span style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-left:8px;' + wb + '">' + c[2] + '</span></div></div>').join('')
     h += '</div>'
     // 경쟁력 선언
-    h += '<div style="background:#1c2440;color:#fff;border-radius:15px;padding:20px 18px;margin-top:22px;text-align:center"><div style="font-size:12.5px;font-weight:600;color:#c3cee6;line-height:1.7">아파트스퀘어의 경쟁력은</div><div style="font-size:14.5px;font-weight:800;line-height:1.6;margin-top:8px;' + wb + '">전문적인 판단을 고객이<br><span style="color:#7FA1E0">쉽게 이해하고, 공정하게 결정하고,<br>확인하며 맡길 수 있게</span> 만든<br>표준 감리 운영체계</div></div>'
+    h += '<div style="background:#1c2440;color:#fff;border-radius:15px;padding:20px 18px;margin-top:22px;text-align:center"><div style="font-size:12.5px;font-weight:600;color:#c3cee6;line-height:1.7">아파트스퀘어의 경쟁력은</div><div style="font-size:14.5px;font-weight:800;line-height:1.6;margin-top:8px;' + wb + '">전문적인 판단을 고객이<br><span style="color:#7FA1E0">쉽게 이해하고, 공정하게 결정하고,<br>확인하며 맡길 수 있게</span> 만든<br>표준감리 운영체계입니다</div></div>'
     // 마무리 사진
     h += '<div style="margin-top:16px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:190px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">진단부터 준공까지 기록으로 함께합니다</div></div></div>'
     h += '</div>'
@@ -2645,20 +2684,20 @@ const ALIM = {
     const pkg = (ic, bg, name, tag, items) => alimCard(
       '<div style="display:flex;align-items:center;gap:11px;margin-bottom:10px"><div style="width:44px;height:44px;border-radius:12px;background:' + bg + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">' + ic + '</div><div><div style="font-size:14.5px;font-weight:800;color:#1c2440">' + name + '</div><div style="font-size:10.5px;font-weight:800;color:#2F6BF6;margin-top:2px">' + tag + '</div></div></div>'
       + '<div style="display:flex;flex-direction:column;gap:6px">' + items.map(t => '<div style="display:flex;gap:7px;font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.5"><span style="color:#2F6BF6;flex-shrink:0">✓</span><span>' + t + '</span></div>').join('') + '</div>', '15px 15px')
-    let h = navyHero('SERVICE', '진단부터 준공까지,<br>필요한 만큼 맡기세요')
+    let h = navyHero('SERVICE', '진단 · 설계 · 시공감리 · 준공까지<br>전 과정을 함께합니다')
     h += '<div style="padding:16px 14px 2px"><div data-nav="s17" style="cursor:pointer;background:linear-gradient(150deg,#2455c0,#2F6BF6);border-radius:16px;padding:18px 17px;color:#fff;position:relative;overflow:hidden"><div style="position:absolute;top:-20px;right:-20px;width:110px;height:110px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)"></div><div style="position:relative"><div style="display:inline-block;font-size:10px;font-weight:800;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:99px">아파트스퀘어 대표 기술</div><div style="font-size:17px;font-weight:800;margin-top:9px">🚁 드론 AI 하자진단</div><div style="font-size:11.5px;color:#dbe6ff;font-weight:600;line-height:1.7;margin-top:7px">사람이 오르기 어려운 <b>외벽·옥상을 드론으로 정밀 촬영</b>하고, <b>누적 50만 세대 감리데이터를 학습한 AI</b>가 균열·들뜸·누수 흔적을 분석해요. 더 정확하고 안전하게 진단합니다.</div><div style="font-size:11px;font-weight:800;color:#fff;margin-top:11px;display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.16);padding:6px 12px;border-radius:99px">자세히 보기 ›</div></div></div></div>'
     h += '<div style="padding:14px 14px 8px;display:flex;flex-direction:column;gap:12px">'
-    h += pkg('🔍', '#eef4ff', '공사 전 진단 패키지', 'STEP 1 · 무엇을 할지 정해요', ['드론 AI 하자진단으로 정밀 촬영·분석', '현장 상태 진단', '할 공사 · 미뤄도 되는 공사 구분', '공법별 장단점 비교', '예상 공사비 범위 안내', '입주자대표회의 설명자료'])
+    h += pkg('🔍', '#eef4ff', '공사 전 진단 패키지', 'STEP 1 · 무엇을 할지 정해요', ['드론 AI 하자진단으로 정밀 촬영·분석', '현장 상태 진단', '부위별 심각도 · 보수 우선순위 구분', '공법별 장단점 비교', '예상 공사비 범위 안내', '입주자대표회의 설명자료'])
     h += pkg('📐', '#eafaf2', '설계 · 입찰 패키지', 'STEP 2 · 공정하게 업체를 정해요', ['공사 범위 확정 · 설계도서 · 시방서', '물량 산출 · 입찰조건 작성', '업체 평가기준 수립', '현장설명회 · 기술평가 지원'])
     h += pkg('🛡️', '#fff4e6', '토털 감리 패키지', 'STEP 3 · 준공까지 확인·기록', ['사전진단 · 설계 · 입찰 지원', '시공 감리 · 완료 부위 적합 판정', '준공 검사 · 기록 보관·사후관리'])
     h += '</div>'
     // 대상 공종
     h += '<div style="padding:14px 16px 6px"><div style="font-size:12px;font-weight:800;color:#1c2440;margin-bottom:9px">이런 공사를 감리해요</div><div style="display:flex;flex-wrap:wrap;gap:7px">'
-      + ['외벽 재도장', '옥상 · 외벽 방수', '지하주차장 에폭시 · 누수'].map(t => '<span style="font-size:11px;font-weight:700;color:#3a445e;background:#eef1f7;padding:6px 11px;border-radius:99px">' + t + '</span>').join('') + '</div></div>'
+      + ['외벽 재도장', '옥상 · 외벽 방수', '지하주차장 에폭시 · 누수', '보도블록 · 아스콘'].map(t => '<span style="font-size:11px;font-weight:700;color:#3a445e;background:#eef1f7;padding:6px 11px;border-radius:99px">' + t + '</span>').join('') + '</div></div>'
     // 공사 중엔 앱으로
     h += '<div style="font-size:12px;font-weight:800;color:#1c2440;margin:22px 16px 10px">공사가 시작되면, 앱으로 확인해요</div>'
     h += '<div style="display:flex;flex-direction:column;gap:9px;padding:0 14px 26px">'
-    h += [['📋', '감리일지', '감리원이 정리한 점검 기록을 앱에서', '현황'], ['📸', '현장 사진', '공정 사진으로 진행 상황을 투명하게', '현황'], ['📅', '공사 일정', '다가오는 일정을 홈에서 한눈에', '홈'], ['💬', '담당 감리원', '궁금하면 앱 채팅으로 바로', '채팅']]
+    h += [['📋', '감리일지', '감리원이 정리한 점검 기록을 앱에서', '현황'], ['📸', '현장 사진', '공정 사진으로 진행 상황을 투명하게', '현황'], ['📅', '공사 일정', '다가오는 일정을 홈에서 한눈에', '홈'], ['👷', '담당 감리원', '우리 단지 담당 감리를 홈에서 확인', '홈']]
       .map(c => alimCard('<div style="display:flex;gap:11px;align-items:center"><div style="width:40px;height:40px;border-radius:11px;background:#f4f6fa;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + c[0] + '</div><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#1c2440">' + c[1] + '</div><div style="font-size:11px;color:#5c6580;font-weight:600;margin-top:2px">' + c[2] + '</div></div><span style="font-size:9.5px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:4px 8px;border-radius:99px;flex-shrink:0">' + c[3] + '</span></div>', '11px 13px')).join('')
     h += '</div>'
     return h
@@ -2669,7 +2708,7 @@ const ALIM = {
     // [아이콘, 단계, 이렇게 진행해요(설명), 이렇게 해결돼요(성과)]
     const J = [
       ['💬', '① 문의 · 접수', '카카오톡·전화·앱으로 우리 단지 상황을 남기면, 단지 규모·공사 이력·지금 고민을 먼저 듣고 <b>담당 감리원을 배정</b>해요.', '우리 단지 상황을 이해하는 담당 감리원이 정해져요.'],
-      ['🔍', '② 현장 정밀 진단', '사람이 오르기 어려운 외벽·옥상을 <b>드론으로 촬영</b>하고, <b>누적 50만 세대 감리데이터를 학습한 AI</b>가 균열·들뜸·누수를 분석해요. 현장도 직접 점검해 상태를 정확히 파악합니다.', '<b>꼭 할 공사와 미뤄도 되는 공사</b>가 구분돼, 불필요한 비용을 막아요.'],
+      ['🔍', '② 현장 정밀 진단', '사람이 오르기 어려운 외벽·옥상을 <b>드론으로 촬영</b>하고, <b>누적 50만 세대 감리데이터를 학습한 AI</b>가 균열·들뜸·누수를 분석해요. 현장도 직접 점검해 상태를 정확히 파악합니다.', '<b>부위별 심각도와 보수 우선순위</b>가 구분돼, 꼭 필요한 곳부터 효율적으로 보수해요.'],
       ['📄', '③ 제안 · 계약', '진단 결과를 바탕으로 <b>공사 범위·공법·예상 비용 범위·진행 절차</b>를 쉬운 말로 설명하고, 입주자대표회의 설명자료도 만들어 드려요.', '앞으로 무엇을, 얼마에, 어떻게 하는지 명확해져요.'],
       ['⚖️', '④ 설계 · 입찰', '설계도서·시방서·물량을 정리하고, <b>업체 평가기준</b>을 세워 현장설명회·기술평가를 지원해요.', '아는 업체·최저가가 아니라, <b>공정한 기준</b>으로 업체가 정해져요.'],
       ['🏗️', '⑤ 시공 감리', '공사가 진행되는 동안 <b>주요 공정을 감리원이 확인</b>하고, 감리일지·현장 사진을 <b>앱으로 공유</b>해요. 문제가 보이면 시정을 요구합니다.', '현장에 매번 가지 않아도, 공사 상태를 앱에서 확인할 수 있어요.'],
@@ -2995,8 +3034,7 @@ function startChatPoll() { stopChatPoll(); CHAT_POLL = setInterval(() => { const
 function stopChatPoll() { if (CHAT_POLL) { clearInterval(CHAT_POLL); CHAT_POLL = null } }
 // 하단 '채팅' 탭 진입: 로그인=담당 감리원과 / 비로그인=관리자(손님 상담)
 function chatFromNav() {
-  // 인앱 채팅 제거 — 모든 문의는 공식 아파트스퀘어 카카오톡 채널로 연결.
-  window.open(INQUIRY_URL, '_blank', 'noopener')
+  // 채팅 기능 제거됨 — 아무 동작도 하지 않음.
 }
 window.chatFromNav = chatFromNav
 

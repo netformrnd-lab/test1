@@ -102,6 +102,7 @@ body {
 /* 화면 내부 (기획 보드에서 그대로 가져온 규칙) */
 .bd { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .nav { display: flex; background: #fff; border-top: 1px solid #eaedf4; padding: 8px 8px 12px; flex-shrink: 0; }
+.nav [data-tab="chat"] { display: none !important; }  /* 채팅 탭 제거(입주민·감리원 공통) */
 .nav > div { flex: 1; text-align: center; font-size: 10px; font-weight: 600; color: #98a1b5; cursor: pointer; }
 .nav .ic { font-size: 17px; filter: grayscale(1); opacity: .5; }
 .nav .on { color: #2F6BF6; font-weight: 800; }
@@ -143,7 +144,18 @@ body {
 /* 실제 폰/앱: 화면 꽉 채우기 */
 @media (max-width: 520px) {
   #frame { width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; box-shadow: none; }
+  #stage { width: 100%; }
 }
+/* 설치된 앱(네이티브 Capacitor)·홈화면 추가(PWA standalone): 화면 폭과 무관하게 꽉 채움.
+   아이패드처럼 넓은 화면에서도 '폰 모형' 대신 전체화면 앱으로 보이게 한다.
+   (태블릿에선 폰 폭 칼럼으로 가운데 정렬 → 데스크톱처럼 넓게 퍼지지 않음) */
+html.fullapp #app { background: #F4F6FA; }
+html.fullapp #frame {
+  width: 100vw; height: 100vh; height: 100dvh;
+  max-width: 560px;
+  border-radius: 0; box-shadow: none;
+}
+html.fullapp #stage { width: 100%; }
 
 /* 사진 스와이프: 스크롤바 숨김 */
 #d-photo1::-webkit-scrollbar { display: none; }

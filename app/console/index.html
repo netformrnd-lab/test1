@@ -57,6 +57,46 @@ main{flex:1;min-width:0;padding:24px 34px 70px;max-width:1680px;margin:0 auto}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 17px;position:relative;overflow:hidden}
 .tile .edge{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
 #projTableWrap.money-off .money-col{display:none}
+/* ── 공사관리(pj-) 디자인: 데이터·연동 함수는 그대로, 보이는 구성만 변경 ── */
+.pj-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.pj-title h2{font-size:22px;font-weight:800;letter-spacing:-.3px;margin:0}.pj-crumb{font-size:12px;color:var(--mut);margin-top:4px}
+.pj-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pj-search{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:0 12px;height:38px;min-width:280px}.pj-search span{color:var(--mut);font-size:13px}.pj-search input{border:none;outline:none;font-size:13px;flex:1;background:transparent}
+.pj-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.pj-chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:13px;font-weight:700;color:var(--mut2);cursor:pointer;transition:.12s}
+.pj-chip .dot{width:8px;height:8px;border-radius:50%}.pj-chip .num{font-size:12px;font-weight:800;color:var(--ink);background:#eef1f7;border-radius:7px;padding:1px 7px}
+.pj-chip:hover{border-color:#b9c8ea}.pj-chip.on{background:#17244d;border-color:#17244d;color:#fff}.pj-chip.on .num{background:rgba(255,255,255,.18);color:#fff}
+.pj-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.pj-sel{height:34px;padding:0 10px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;background:#fff;color:var(--ink);font-weight:600}
+.pj-gap{flex:1}
+.pj-view{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px}
+.pj-view button{border:none;background:transparent;font-size:12.5px;font-weight:800;color:var(--mut2);padding:6px 12px;border-radius:8px;cursor:pointer}.pj-view button.on{background:#17244d;color:#fff}
+.pj-count{font-size:12.5px;color:var(--mut2);font-weight:700;margin:2px 0 10px}
+.pj-tablewrap{background:#fff;border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+.pj-table{min-width:1000px}.pj-table th{background:#f7f9fc;font-size:11.5px;color:var(--mut2);padding:11px 8px;border-bottom:1px solid var(--line);white-space:nowrap}.pj-table td{padding:12px 8px;vertical-align:middle}.pj-table td:first-child,.pj-table th:first-child{padding-left:14px}
+.pj-table .pgrow .bar{width:72px!important}.pj-table .pghint{max-width:200px;white-space:normal;line-height:1.5}
+.pj-table tbody tr{cursor:pointer}.pj-table tbody tr:hover{background:#f6f9ff}
+.pj-site{display:flex;align-items:center;gap:9px;min-width:160px;max-width:215px}
+.pj-thumb{width:38px;height:38px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;font-size:19px;background:linear-gradient(135deg,#dde7fb,#f1f5ff);border:1px solid #e3eaf8}
+.pj-name{font-weight:800;font-size:13.5px;color:var(--ink);line-height:1.3}.pj-name .link{color:var(--ink)}.pj-sub{font-size:11.5px;color:var(--mut);margin-top:2px}
+.pj-stage{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:8px;cursor:pointer;white-space:nowrap}.pj-stage:after{content:'▾';font-size:10px;opacity:.6}
+.pj-step{margin-top:6px}.pj-step .stepbar .sp{height:22px;min-width:26px;font-size:10px;padding:0 5px}
+.pj-aud{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:96px;max-width:150px}.pj-av{width:22px;height:22px;border-radius:50%;background:#e6edfb;color:#2f4c9e;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.pj-aud .nm{font-size:12.5px;font-weight:700;color:var(--ink)}.pj-aud .more{font-size:11px;color:var(--mut)}
+.pj-visit{font-size:13px;font-weight:700;white-space:nowrap}.pj-visit small{display:block;font-size:11px;color:var(--mut);font-weight:600}
+.pj-rep{min-width:150px;max-width:195px}.pj-rep .repsum{max-width:195px}.pj-rep .d{font-size:12.5px;font-weight:700;white-space:nowrap}.pj-rep .d .pill{margin-left:5px;font-size:10.5px;padding:2px 7px}.pj-rep .repsum{margin-top:2px}
+.pj-health{font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:8px;white-space:nowrap}.pj-health.ok{background:#e6f6ed;color:#1e7f4f}.pj-health.warn{background:#fff4e2;color:#b8710a}.pj-health.late{background:#fde8e8;color:#c0392b}.pj-health.na{background:#f0f2f6;color:var(--mut)}
+.pj-act{white-space:nowrap}.pj-btn{border:1px solid var(--line);background:#fff;border-radius:8px;font-size:12px;font-weight:800;padding:6px 9px;cursor:pointer;color:var(--ink)}.pj-btn:hover{border-color:#8fa8d8;color:var(--blue)}.pj-ico{cursor:pointer;color:var(--mut);margin-left:6px;font-size:14px}.pj-ico:hover{color:var(--ink)}
+.pj-pager{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 2px;font-size:12px;color:var(--mut2);flex-wrap:wrap}
+.pj-pager .pg{display:inline-flex;gap:4px}.pj-pager .pg button{min-width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:12px;font-weight:700;color:var(--mut2);cursor:pointer}.pj-pager .pg button.on{background:#2f6bf6;border-color:#2f6bf6;color:#fff}.pj-pager .pg button:disabled{opacity:.4;cursor:default}
+.pj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-bottom:6px}
+.pj-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 16px 12px;cursor:pointer;transition:.13s;display:flex;flex-direction:column;gap:12px}.pj-card:hover{border-color:#b9c8ea;box-shadow:0 8px 22px -14px rgba(31,44,92,.4);transform:translateY(-1px)}
+.pj-card .top{display:flex;gap:11px;align-items:flex-start}.pj-card .top .pj-thumb{width:52px;height:52px;font-size:22px}
+.pj-card .ttl{font-weight:800;font-size:14.5px;line-height:1.3}.pj-card .meta{font-size:11.5px;color:var(--mut);margin-top:3px}
+.pj-card .sec-t{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;color:var(--mut2)}.pj-card .sec-t .link{font-size:11.5px}
+.pj-card .pgrow .bar{width:110px}.pj-card .pgrow .pgl{min-width:56px}
+.pj-card .foot{display:flex;gap:10px;border-top:1px solid var(--line2);padding-top:10px;font-size:12px}.pj-card .foot>div{flex:1}.pj-card .foot small{display:block;font-size:11px;color:var(--mut);font-weight:600;margin-bottom:2px}.pj-card .foot b{font-size:12.5px}
+.pj-empty{background:#fff;border:1px dashed var(--line);border-radius:14px;padding:40px;text-align:center;color:var(--mut);font-size:13px}
 .repsum{font-size:11px;color:var(--mut2);margin-top:3px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pgrow{display:flex;align-items:center;gap:6px;white-space:nowrap;margin:2px 0}.pgrow .pgl{font-size:11px;font-weight:800;color:var(--mut2);min-width:44px}.pgrow .pgp{font-size:11px;color:var(--mut);min-width:30px}.pgrow .pgs{font-size:11px;font-weight:700;color:var(--fg)}
 .pghint{font-size:10.5px;color:#8a5a00;background:#fff8ec;border-radius:6px;padding:1px 6px;margin:1px 0 3px;white-space:nowrap;display:inline-block}
@@ -368,11 +408,32 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-projects">
-      <div class="head"><div><h2>공사관리</h2><div class="desc">단계(계약 → 착공 → 공사중 → 준공처리 → 준공)를 눌러 바로 이동 · 단지 클릭 → 상세(감리일지·작업사진·계약서·방문이력)</div></div></div>
       <div id="projList">
-        <div class="toolbar"><input class="inp" id="proj-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderProjList()"><button class="b blue" onclick="openReportAddPick()">📝 감리일지 작성</button><button class="b line" onclick="openAptAdd()">➕ 단지 추가</button><button class="b line" id="pv-money" onclick="toggleProjMoney()" title="감리비·미수금 열 보기/숨기기">💰 금액 보기</button><button class="b line" onclick="openBulkAssign()">👥 감리원 일괄배정</button><button class="b line" onclick="bulkPublishReports(this)" title="dj(테스트) 작성 건은 제외하고 전체 공개">📢 감리일지 전체 공개</button><span style="flex:1"></span><div class="seg" style="margin:0"><button id="pv-list" onclick="setProjView('list')">📋 리스트</button><button id="pv-kanban" onclick="setProjView('kanban')">🗂️ 칸반</button></div></div>
-        <div class="stgfilter" id="projStageFilter"></div>
-        <div id="projTableWrap" class="money-off" style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:1000px"><table><thead><tr><th>단지</th><th>공종</th><th>담당 감리원</th><th class="money-col">감리비</th><th class="money-col">미수금</th><th>감리일지</th><th>방문</th><th>공정률</th><th style="min-width:190px">단계 <span style="font-weight:600;color:var(--mut)">(클릭 이동)</span></th></tr></thead><tbody id="projRows"></tbody></table></div></div>
+        <div class="pj-head">
+          <div class="pj-title"><h2>공사관리</h2><div class="pj-crumb">전체 현장 › 공사관리 · 현장을 누르면 상세(감리일지·작업사진·계약서·방문이력)</div></div>
+          <div class="pj-tools">
+            <div class="pj-search"><span>🔍</span><input id="proj-q" placeholder="현장명, 지역, 담당 감리원 검색" oninput="projPage=1;renderProjList()"></div>
+            <button class="b line" onclick="openReportAddPick()">📝 감리일지 작성</button>
+            <button class="b blue" onclick="openAptAdd()">＋ 현장 추가</button>
+          </div>
+        </div>
+        <div class="pj-chips" id="projStageFilter"></div>
+        <div class="pj-filters">
+          <select class="pj-sel" id="pj-region" onchange="projPage=1;renderProjList()"></select>
+          <select class="pj-sel" id="pj-aud" onchange="projPage=1;renderProjList()"></select>
+          <select class="pj-sel" id="pj-method" onchange="projPage=1;renderProjList()"></select>
+          <select class="pj-sel" id="pj-sort" onchange="projPage=1;renderProjList()"><option value="name">이름순</option><option value="report">최근 일지순</option><option value="visit">다음 방문순</option><option value="stage">단계순</option></select>
+          <button class="b line sm" onclick="resetProjFilters()">초기화</button>
+          <span class="pj-gap"></span>
+          <button class="b line sm" id="pv-money" onclick="toggleProjMoney()" title="감리비·미수금 열 보기/숨기기">💰 금액 보기</button>
+          <button class="b line sm" onclick="openBulkAssign()">👥 감리원 일괄배정</button>
+          <button class="b line sm" onclick="bulkPublishReports(this)" title="dj(테스트) 작성 건은 제외하고 전체 공개">📢 감리일지 전체 공개</button>
+          <div class="pj-view"><button id="pv-cards" onclick="setProjView('cards')">▦ 카드형</button><button id="pv-list" onclick="setProjView('list')">☰ 리스트형</button><button id="pv-kanban" onclick="setProjView('kanban')">⫴ 칸반</button></div>
+        </div>
+        <div class="pj-count" id="projCount"></div>
+        <div id="projCardsWrap" class="pj-grid" style="display:none"></div>
+        <div id="projTableWrap" class="money-off pj-tablewrap"><table class="pj-table"><thead><tr><th>현장명 / 지역</th><th>공사단계</th><th class="money-col">감리비</th><th class="money-col">미수금</th><th>공종별 진행현황</th><th>담당 감리원</th><th>다음 방문일</th><th>최근 감리일지</th><th>상태</th><th>관리</th></tr></thead><tbody id="projRows"></tbody></table></div>
+        <div class="pj-pager" id="projPager"></div>
         <div id="projKanbanWrap" class="kbwrap" style="display:none"><div class="kbboard" id="projKanban"></div></div>
       </div>
       <div id="projDetail" style="display:none"></div>
@@ -1403,7 +1464,8 @@ function stepBarHtml(a){
 }
 /* ── 리스트 / 칸반 전환 · 단계 필터 ── */
 let projStage='전체', projView='list';
-try{ const v=localStorage.getItem('asq_proj_view'); if(v==='kanban'||v==='list')projView=v; }catch(e){}
+try{ const v=localStorage.getItem('asq_proj_view'); if(v==='kanban'||v==='list'||v==='cards')projView=v; }catch(e){}
+let projPage=1; const PJ_PAGE=20;
 function setProjView(v){ projView=v; try{localStorage.setItem('asq_proj_view',v);}catch(e){} renderProjList(); }
 function setProjStage(k){ projStage=(projStage===k&&k!=='전체')?'전체':k; renderProjList();
   if(projView==='kanban'&&projStage!=='전체'){ const c=document.querySelector('.kbcol.sel'); if(c&&c.scrollIntoView)c.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}); } }
@@ -1438,27 +1500,101 @@ function repSummaryCell(aptId){ const reps=latestReps(aptId); if(!reps.length)re
   return reps.map(r=>{ const dm=String(r.title||'').match(/(\d{4}-\d{2}-\d{2})/); const dfull=dm?dm[1]:(r.created_at||'').slice(0,10); const d=dfull.slice(5); const sm=repSummary(r); const wk=repWorktype(r); const full=esc((wk?wk+' · ':'')+dfull+' '+sm);   // 날짜 = 일지 제목의 점검일(없으면 작성일)
     return `<div class="repsum" title="${full} — 눌러서 일지 보기"><span class="link" onclick="openReportView('${r.id}')">${multi&&wk?esc(wk)+' · ':''}${esc(d)} ${esc(sm)||'(내용 없음)'}</span></div>`; }).join('');
 }
+/* ── 공사관리 리스트/카드 (디자인 개편) — 데이터 출처·저장 함수는 기존 그대로 사용 ── */
+function nextVisitOf(aptId){ const today=isoDate(new Date()); const vs=(SCHEDULES||[]).filter(x=>String(x.apartment_id)===String(aptId)&&String(x.title||'').indexOf(VISIT_MARK)===0&&!x.done_at&&String(x.date||'').slice(0,10)>=today).sort((a,b)=>String(a.date).localeCompare(String(b.date))); return vs[0]||null; }
+function lastReportOf(aptId){ return REPORTS.filter(r=>r.apartment_id===aptId).slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0]||null; }
+function repDateOf(r){ if(!r)return ''; const m=String(r.title||'').match(/(\d{4}-\d{2}-\d{2})/); return m?m[1]:(r.created_at||'').slice(0,10); }
+function fmtMD(d){ if(!d)return ''; const x=new Date(d+'T00:00:00'); if(isNaN(x))return d; return `${d.slice(5,7)}.${d.slice(8,10)} (${WKB[(x.getDay()+6)%7]})`; }
+/* 상태: 감리 진행(공사중) 단지의 최근 일지 경과일 — 10일 이내 정상 · 21일 이내 주의 · 그 이상/없음 지연 */
+function siteHealth(a){ if(a.status!=='in_progress')return {cls:'na',label:'-',tip:'공사중 단지만 판정'}; const r=lastReportOf(a.id); if(!r)return {cls:'late',label:'일지 없음',tip:'감리일지가 아직 없어요'};
+  const d=repDateOf(r); const days=Math.floor((new Date()-new Date(d+'T00:00:00'))/86400000); if(days<=10)return {cls:'ok',label:'정상',tip:`최근 일지 ${days}일 전`}; if(days<=21)return {cls:'warn',label:'주의',tip:`최근 일지 ${days}일 전`}; return {cls:'late',label:'지연',tip:`최근 일지 ${days}일 전`}; }
+function audAvatars(a,max){ const ids=aptAuditors(a); if(!ids.length)return '<span class="pill no">미배정</span>'; const names=ids.map(auditorName).filter(Boolean); max=max||2;
+  return `<div class="pj-aud">${names.slice(0,max).map(n=>`<span class="pj-av">${esc(String(n).slice(0,1))}</span><span class="nm">${esc(n)}</span>`).join('')}${names.length>max?`<span class="more">+${names.length-max}</span>`:''}</div>`; }
+function stagePillHtml(a){ const m=stageMeta(stageOf(a)); return `<span class="pj-stage" style="background:${m[3]}1a;color:${m[3]}" title="눌러서 단계 이동" onclick="event.stopPropagation();const n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none'">${esc(m[1])}</span><div class="pj-step" style="display:none" onclick="event.stopPropagation()">${stepBarHtml(a)}</div>`; }
+function thumbHtml(a,big){ const m=stageMeta(stageOf(a)); return `<div class="pj-thumb" style="${a.status==='done'?'filter:grayscale(.6)':''}">🏢</div>`; }
+function projFilterOpts(){
+  const rs=$('pj-region'),as=$('pj-aud'),ms=$('pj-method'); if(!rs||!as||!ms)return;
+  const keep=(el,html)=>{ const v=el.value; el.innerHTML=html; if([...el.options].some(o=>o.value===v))el.value=v; };
+  const regions=[...new Set(APTS.map(a=>(a.region||'').trim()).filter(Boolean))].sort((x,y)=>x.localeCompare(y,'ko'));
+  keep(rs,'<option value="">지역 전체</option>'+regions.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join(''));
+  keep(as,'<option value="">담당 감리원 전체</option>'+auditorList().map(m=>`<option value="${m.id}">${esc(m.name||loginId(m))}</option>`).join(''));
+  const S=window.STAGE_SETS||{}; keep(ms,'<option value="">공종 전체</option>'+Object.keys(S).map(k=>`<option value="${k}">${esc(S[k].label)}</option>`).join(''));
+}
+function resetProjFilters(){ ['pj-region','pj-aud','pj-method'].forEach(i=>{ if($(i))$(i).value=''; }); if($('pj-sort'))$('pj-sort').value='name'; if($('proj-q'))$('proj-q').value=''; projStage='전체'; projPage=1; renderProjList(); }
 function renderProjList(){
+  projFilterOpts();
   const q=($('proj-q')?.value||'').trim().toLowerCase();
-  let base=APTS.slice(); if(q)base=base.filter(a=>((a.name||'')+' '+(a.region||'')).toLowerCase().includes(q));
-  base.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  const fr=($('pj-region')||{}).value||'', fa=($('pj-aud')||{}).value||'', fm=($('pj-method')||{}).value||'', sort=($('pj-sort')||{}).value||'name';
+  let base=APTS.slice();
+  if(q)base=base.filter(a=>((a.name||'')+' '+(a.region||'')+' '+aptAuditors(a).map(auditorName).join(' ')).toLowerCase().includes(q));
+  if(fr)base=base.filter(a=>(a.region||'').trim()===fr);
+  if(fa)base=base.filter(a=>aptAuditors(a).includes(fa));
+  if(fm)base=base.filter(a=>siteMethods(a).includes(fm));
+  const byName=(a,b)=>(a.name||'').localeCompare(b.name||'','ko');
+  if(sort==='report')base.sort((a,b)=>(repDateOf(lastReportOf(b.id))||'').localeCompare(repDateOf(lastReportOf(a.id))||'')||byName(a,b));
+  else if(sort==='visit')base.sort((a,b)=>{ const x=nextVisitOf(a.id),y=nextVisitOf(b.id); return String(x?x.date:'9999').localeCompare(String(y?y.date:'9999'))||byName(a,b); });
+  else if(sort==='stage')base.sort((a,b)=>stageIdx(stageOf(a))-stageIdx(stageOf(b))||byName(a,b));
+  else base.sort(byName);
   const cnt=k=>base.filter(a=>stageOf(a)===k).length;
   const f=$('projStageFilter');
-  if(f)f.innerHTML='<span class="ttl">단계</span>'
-    +`<button class="stgbtn ${projStage==='전체'?'on':''}" onclick="setProjStage('전체')">전체 <span class="num">${base.length}</span></button>`
-    +SITE_STAGES.map(([k,lab,desc,color])=>`<button class="stgbtn ${projStage===k?'on':''}" title="${esc(desc)}" onclick="setProjStage('${k}')"><span class="dot" style="background:${color}"></span>${esc(lab)} <span class="num">${cnt(k)}</span></button>`).join('')
-    +`<span style="margin-left:auto;font-size:11.5px;color:var(--mut);font-weight:600">${projView==='kanban'?'카드를 끌어다 옮기거나 ◀ ▶ 로 단계를 바꿔요':'단계 칸을 누르면 바로 이동해요'}</span>`;
-  const bl=$('pv-list'),bk=$('pv-kanban'); if(bl)bl.classList.toggle('on',projView==='list'); if(bk)bk.classList.toggle('on',projView==='kanban');
-  const tw=$('projTableWrap'),kw=$('projKanbanWrap');
+  if(f)f.innerHTML=`<button class="pj-chip ${projStage==='전체'?'on':''}" onclick="projPage=1;setProjStage('전체')">전체 <span class="num">${base.length}</span></button>`
+    +SITE_STAGES.map(([k,lab,desc,color])=>`<button class="pj-chip ${projStage===k?'on':''}" title="${esc(desc)}" onclick="projPage=1;setProjStage('${k}')"><span class="dot" style="background:${color}"></span>${esc(lab)} <span class="num">${cnt(k)}</span></button>`).join('');
+  ['cards','list','kanban'].forEach(v=>{ const b=$('pv-'+v); if(b)b.classList.toggle('on',projView===v); });
+  const cw=$('projCardsWrap'),tw=$('projTableWrap'),kw=$('projKanbanWrap'),pg=$('projPager'),pc=$('projCount');
+  if(cw)cw.style.display=projView==='cards'?'grid':'none';
   if(tw)tw.style.display=projView==='list'?'block':'none';
   if(kw)kw.style.display=projView==='kanban'?'block':'none';
-  if(projView==='kanban')renderProjKanban(base);
-  else renderProjRows(projStage==='전체'?base:base.filter(a=>stageOf(a)===projStage));
+  if(projView==='kanban'){ if(pc)pc.textContent=`총 ${base.length}개 현장 · 카드를 끌어다 옮기거나 ◀ ▶ 로 단계를 바꿔요`; if(pg)pg.innerHTML=''; renderProjKanban(base); applyProjMoney(); return; }
+  const list=projStage==='전체'?base:base.filter(a=>stageOf(a)===projStage);
+  const pages=Math.max(1,Math.ceil(list.length/PJ_PAGE)); if(projPage>pages)projPage=pages; if(projPage<1)projPage=1;
+  const slice=list.slice((projPage-1)*PJ_PAGE,projPage*PJ_PAGE);
+  if(pc)pc.textContent=`총 ${list.length}개 현장${list.length>PJ_PAGE?` · ${(projPage-1)*PJ_PAGE+1}–${Math.min(projPage*PJ_PAGE,list.length)} 표시`:''}${projStage!=='전체'?` · ${stageMeta(projStage)[1]} 단계`:''}`;
+  if(projView==='cards')renderProjCards(slice); else renderProjRows(slice);
+  if(pg)pg.innerHTML=list.length>PJ_PAGE?`<span>총 ${list.length}개 중 ${(projPage-1)*PJ_PAGE+1}–${Math.min(projPage*PJ_PAGE,list.length)} 표시</span><span class="pg"><button ${projPage<=1?'disabled':''} onclick="projPage--;renderProjList()">‹</button>${Array.from({length:pages},(_,i)=>`<button class="${i+1===projPage?'on':''}" onclick="projPage=${i+1};renderProjList()">${i+1}</button>`).join('')}<button ${projPage>=pages?'disabled':''} onclick="projPage++;renderProjList()">›</button></span>`:'';
   applyProjMoney();
 }
+function projEmptyHtml(){ return `<div class="pj-empty">${projStage==='전체'?'조건에 맞는 현장이 없어요':esc(stageMeta(projStage)[1])+' 단계인 현장이 없어요'}<br><span style="font-size:12px">검색어·필터를 지우거나 <span class="link" onclick="resetProjFilters()">초기화</span>를 눌러 보세요</span></div>`; }
 function renderProjRows(list){
-  if(!$('projRows'))return;
-  $('projRows').innerHTML=list.length?list.map(a=>{const pr=progressOf(a);const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length;const nvisit=aptVisits(a.id);const nnew=aptNewReps(a.id);const sf=a.supervision_fee;const out=(sf!=null)?(sf-(a.received_amount||0)):null;const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);return `<tr style="${nnew?'background:#fff6f5':''}"><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span> <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}<br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${esc(siteType(a))||'-'}</td><td>${siteAuditors(a)}</td><td class="money-col">${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td class="money-col">${outHtml}</td><td>${nnew?`<b style="color:var(--red)">${nrep}건</b>`:nrep+'건'}${repSummaryCell(a.id)}</td><td>${nvisit}회</td><td>${progressRowsHtml(a,{barW:60})}</td><td>${stepBarHtml(a)}</td></tr>`;}).join(''):`<tr><td colspan="9" class="empty">${projStage==='전체'?'단지가 없어요':esc(stageMeta(projStage)[1])+' 단계인 단지가 없어요'}</td></tr>`;
+  const box=$('projRows'); if(!box)return;
+  if(!list.length){ box.innerHTML=`<tr><td colspan="10" style="padding:0;border:none">${projEmptyHtml()}</td></tr>`; return; }
+  box.innerHTML=list.map(a=>{
+    const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length, nnew=aptNewReps(a.id);
+    const sf=a.supervision_fee, out=(sf!=null)?(sf-(a.received_amount||0)):null;
+    const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);
+    const nv=nextVisitOf(a.id); const who=nv&&nv.assignee_id?auditorName(nv.assignee_id):'';
+    const visitHtml=nv?`<div class="pj-visit">${fmtMD(String(nv.date).slice(0,10))}${who&&who!=='-'?`<small>${esc(who)}</small>`:''}</div>`:(a.status==='in_progress'?'<span class="pill no" title="방문 배치표에서 요일을 정하면 자동 생성돼요">요일 미지정</span>':'<span style="color:var(--mut)">-</span>');
+    const lr=lastReportOf(a.id);
+    const repHtml=lr?`<div class="pj-rep"><div class="d">${fmtMD(repDateOf(lr)).slice(0,5)}<span class="pill ok">${repRound(lr)}회차</span>${nnew?`<span class="pill red">NEW ${nnew}</span>`:''}<span style="font-size:11px;color:var(--mut);margin-left:5px">${nrep}건</span></div>${repSummaryCell(a.id)}</div>`:'<span style="color:var(--mut)">일지 없음</span>';
+    const h=siteHealth(a);
+    return `<tr onclick="openProj('${a.id}')">
+      <td><div class="pj-site">${thumbHtml(a)}<div><div class="pj-name">${esc(a.name)}</div><div class="pj-sub">${esc(a.region)||'지역 미입력'}${a.households?` · ${a.households}세대`:''}</div></div></div></td>
+      <td>${stagePillHtml(a)}</td>
+      <td class="money-col">${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td class="money-col">${outHtml}</td>
+      <td>${siteMethods(a).length?progressRowsHtml(a,{barW:90}):'<span style="color:var(--mut);font-size:12px">공법 미지정</span>'}</td>
+      <td>${audAvatars(a,2)}</td>
+      <td>${visitHtml}</td>
+      <td>${repHtml}</td>
+      <td><span class="pj-health ${h.cls}" title="${esc(h.tip)} · 공사중 단지의 최근 일지 경과일 기준(10일 정상·21일 주의)">${esc(h.label)}</span></td>
+      <td class="pj-act" onclick="event.stopPropagation()"><button class="pj-btn" onclick="openProj('${a.id}')">상세</button><span class="pj-ico" title="단지 설정·삭제" onclick="openAptEdit('${a.id}')">⚙️</span></td></tr>`;
+  }).join('');
+}
+function renderProjCards(list){
+  const box=$('projCardsWrap'); if(!box)return;
+  if(!list.length){ box.style.display='block'; box.innerHTML=projEmptyHtml(); return; }
+  box.innerHTML=list.map(a=>{
+    const nnew=aptNewReps(a.id), nv=nextVisitOf(a.id), lr=lastReportOf(a.id), h=siteHealth(a), m=stageMeta(stageOf(a));
+    const prog=siteProgressList(a);
+    return `<div class="pj-card" onclick="openProj('${a.id}')">
+      <div class="top">${thumbHtml(a,true)}<div style="flex:1;min-width:0"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="pill" style="background:${m[3]}1a;color:${m[3]}">${esc(m[1])}</span>${nnew?`<span class="pill red">NEW ${nnew}</span>`:''}${h.cls!=='na'?`<span class="pj-health ${h.cls}" style="padding:2px 8px">${esc(h.label)}</span>`:''}</div>
+        <div class="ttl">${esc(a.name)}</div><div class="meta">${esc(a.region)||'지역 미입력'}${a.households?` · ${a.households}세대`:''}</div></div>
+        <span class="pj-ico" title="단지 설정·삭제" onclick="event.stopPropagation();openAptEdit('${a.id}')">⚙️</span></div>
+      <div><div class="sec-t"><span>공종별 진행 현황 (${prog.length})</span><span class="link" onclick="event.stopPropagation();openProj('${a.id}')">전체보기 ›</span></div>
+        <div style="margin-top:6px">${prog.length?progressRowsHtml(a,{barW:110}):'<span style="font-size:12px;color:var(--mut)">공법 미지정 — ⚙️ 단지 설정에서 공법을 정하면 표시돼요</span>'}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="color:var(--mut);font-weight:700">담당</span>${audAvatars(a,3)}</div>
+      <div class="foot"><div><small>📅 다음 방문</small><b>${nv?fmtMD(String(nv.date).slice(0,10)):'<span style="color:var(--mut);font-weight:600">미정</span>'}</b></div><div><small>📄 최근 감리일지</small><b>${lr?`${fmtMD(repDateOf(lr)).slice(0,5)} <span style="color:var(--mut);font-weight:600">(${repRound(lr)}회차)</span>`:'<span style="color:var(--mut);font-weight:600">없음</span>'}</b></div></div>
+      <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--mut);font-weight:700;white-space:nowrap">단계 이동</span><div class="pj-step" style="margin:0">${stepBarHtml(a)}</div></div>
+    </div>`;
+  }).join('');
 }
 /* ── 칸반 ── */
 let kbDragId=null;

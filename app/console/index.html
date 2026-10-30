@@ -440,6 +440,7 @@ kim456		김영성		감리원	"></textarea>
           <label class="b blue" style="cursor:pointer">📁 엑셀 파일 선택<input id="bmem-file" type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="bmemFile(this.files)"></label>
           <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--mut2)">이 파일 역할 <select id="bmem-defrole" class="inp" style="width:auto" onchange="bmemPreview()"><option value="resident">입주민</option><option value="manager">관리소장</option><option value="auditor">감리원</option><option value="admin">관리자</option></select></label>
           <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--mut2)">임시 비번 <input id="bmem-defpw" class="inp" placeholder="비우면 자동" style="width:120px" oninput="bmemPreview()"></label>
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--mut2);cursor:pointer" title="이미 있는 회원이면 추가 대신 위 임시 비번으로 비밀번호를 바꿔요(모르는 자동비번 수정용)"><input type="checkbox" id="bmem-reset" style="width:15px;height:15px"> 기존 회원은 비번 재설정</label>
           <button class="b line" onclick="bmemPreview()">미리보기</button>
           <button class="b blue" id="bmem-run" onclick="bmemRun()" disabled>일괄 추가 실행</button>
           <span id="bmem-sum" style="font-size:12px;color:var(--mut2);font-weight:700"></span>
@@ -912,13 +913,14 @@ function bmemSet(i,k,v){
 }
 async function bmemRun(){
   var defPw=((($('bmem-defpw')||{}).value)||'').trim();   // 실행 시점의 임시 비번
+  var doReset=!!(($('bmem-reset')||{}).checked);          // 기존 회원 비번 재설정
   var rows=BMEM_ROWS.filter(function(r){return !r.errs.length;});
   if(!rows.length){ alert('추가할 회원이 없어요(오류 행 제외).'); return; }
   if(!confirm(rows.length+'명을 추가합니다.\n이미 있는 아이디는 자동으로 건너뜁니다.\n계속할까요?')) return;
   var btn=$('bmem-run'); if(btn){btn.disabled=true;btn.textContent='추가 중…';}
   var log=$('bmem-log'); if(log){log.style.display='block';log.innerHTML='';}
   var put=function(s){ if(log){log.innerHTML+=s+'<br>'; log.scrollTop=log.scrollHeight;} };
-  var added=0,skip=0,fail=0, pwlist=[];
+  var added=0,skip=0,fail=0,reset=0, pwlist=[];
   for(var i=0;i<rows.length;i++){
     var r=rows[i];
     var isAuto=!r.pwRaw && !defPw;
@@ -928,7 +930,16 @@ async function bmemRun(){
     var tmp=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'apt_tmp_bulk'}});
     try{
       var res=await tmp.auth.signUp({email:email,password:pw,options:{data:{name:r.name,phone:r.phone,username:r.id}}});
-      if(res.error){ if(/already|registered|exists/i.test(res.error.message)){ skip++; put('⏭ '+esc(r.id)+' — 이미 있음(건너뜀)'); } else { fail++; put('❌ '+esc(r.id)+' — '+esc(res.error.message)); } }
+      if(res.error){
+        if(/already|registered|exists/i.test(res.error.message)){
+          if(doReset){   // 이미 있는 회원 → 비밀번호 재설정
+            var ex=(MEMBERS||[]).find(function(x){return loginId(x)===r.id;});
+            if(ex){ var rr=await sb.rpc('admin_set_password',{p_user_id:ex.id,p_new_pw:pw});
+              if(rr.error){ fail++; put('❌ '+esc(r.id)+' — 비번재설정 실패: '+esc(rr.error.message)+(/function|does not exist|schema/i.test(rr.error.message||'')?' (migration-admin-setpw.sql 실행 필요)':'')); }
+              else { reset++; pwlist.push(r.id+' : '+pw+' (재설정)'); put('🔑 '+esc(r.id)+' — 비밀번호 재설정 → '+pw); } }
+            else { skip++; put('⏭ '+esc(r.id)+' — 이미 있음(프로필 못찾아 건너뜀)'); }
+          } else { skip++; put('⏭ '+esc(r.id)+' — 이미 있음(건너뜀)'); }
+        } else { fail++; put('❌ '+esc(r.id)+' — '+esc(res.error.message)); } }
       else {
         var newId=res.data&&res.data.user&&res.data.user.id;
         if(newId){
@@ -942,10 +953,10 @@ async function bmemRun(){
     await new Promise(function(res){setTimeout(res,350);});  // 가입 rate-limit 완화
   }
   if(btn){btn.disabled=false;btn.textContent='일괄 추가 실행';}
-  put('<b>완료 — 추가 '+added+' · 중복 '+skip+' · 실패 '+fail+'</b>');
-  if(pwlist.length) put('<b>자동 생성 비밀번호</b> (회원에게 안내):<br>'+pwlist.map(esc).join('<br>'));
+  put('<b>완료 — 추가 '+added+' · 비번재설정 '+reset+' · 중복 '+skip+' · 실패 '+fail+'</b>');
+  if(pwlist.length) put('<b>비밀번호</b> (회원에게 안내):<br>'+pwlist.map(esc).join('<br>'));
   await loadAll();
-  alert('완료\n추가 '+added+'명 · 중복(건너뜀) '+skip+'명 · 실패 '+fail+'명'+(fail?'\n(가입 과다 시 잠시 후 다시 실행하면 중복은 건너뛰고 이어서 추가돼요)':''));
+  alert('완료\n추가 '+added+'명 · 비번재설정 '+reset+'명 · 중복(건너뜀) '+skip+'명 · 실패 '+fail+'명'+(fail?'\n(가입 과다 시 잠시 후 다시 실행하면 이어서 돼요)':''));
 }
 // 엑셀(.xlsx/.csv) → 아이디·비번·이름·연락처·역할·단지 로 변환해 입력칸 채우고 미리보기
 async function bmemFile(files){
@@ -3207,9 +3218,23 @@ function openMemberEdit(id){
     <div class="fld"><label>연락처</label><input id="me-phone" value="${esc(m.phone)||''}"></div>
     <div class="frow"><div class="fld"><label>역할</label><select id="me-role">${roleOptsC(m.role)}</select></div><div class="fld"><label>담당 단지</label><input id="me-apt" list="apt-names" value="${m.apartment_id?esc(aptName(m.apartment_id)):''}" placeholder="단지 입력/선택"></div></div>
     <div class="fld"><label>승인 상태</label><select id="me-appr"><option value="1" ${m.approved?'selected':''}>승인됨</option><option value="0" ${!m.approved?'selected':''}>대기</option></select></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:10px"><label>🔑 비밀번호 재설정</label>
+      <div style="display:flex;gap:8px"><input id="me-newpw" placeholder="새 비밀번호 (6자 이상)" style="flex:1"><button class="b line" onclick="resetMemberPw('${m.id}',this)">재설정</button></div>
+      <div style="font-size:11px;color:var(--mut);margin-top:4px">자동 생성돼 모르는 비번을 여기서 바꿀 수 있어요. (서버 함수 필요 — 안 되면 backend/migration-admin-setpw.sql 실행)</div></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b red" onclick="deleteMember('${m.id}')">회원 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitMemberEdit('${m.id}')">저장</button></div>`);
 }
+async function resetMemberPw(id,btn){
+  const pw=(($('me-newpw')||{}).value)||'';
+  const setM=(t,c)=>{ if($('m-msg')){$('m-msg').textContent=t;$('m-msg').style.color=c||'var(--mut2)';} };
+  if(pw.length<6){ setM('비밀번호는 6자 이상으로 정해주세요','var(--red)'); return; }
+  if(btn){btn.disabled=true;btn.textContent='변경 중…';}
+  const {error}=await sb.rpc('admin_set_password',{p_user_id:id,p_new_pw:pw});
+  if(btn){btn.disabled=false;btn.textContent='재설정';}
+  if(error){ setM(/function|does not exist|schema/i.test(error.message)?'비번 재설정 함수가 없어요 — backend/migration-admin-setpw.sql 을 먼저 실행하세요.':('실패: '+error.message),'var(--red)'); return; }
+  setM('✅ 비밀번호를 바꿨어요 → '+pw+' (회원에게 안내)','var(--green)');
+}
+window.resetMemberPw=resetMemberPw;
 async function submitMemberEdit(id){
   const role=$('me-role').value; const apt=await resolveApartment($('me-apt').value); if(apt===undefined)return;
   const phone=$('me-phone').value.trim()||null; const approved=$('me-appr').value==='1';

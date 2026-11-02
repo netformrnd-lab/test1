@@ -347,6 +347,7 @@
 <div id="lightbox" class="lightbox">
   <span class="lightbox-hint">클릭 또는 ESC로 닫기</span>
   <img id="lightbox-img" src="" alt="확대 이미지">
+  <button id="lightbox-pdf" style="display:none; position:fixed; bottom:26px; left:50%; transform:translateX(-50%); z-index:1001; font:inherit; font-size:14px; font-weight:700; padding:11px 20px; border-radius:999px; border:none; background:#2563eb; color:#fff; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.4);">📄 원본 PDF 열기</button>
 </div>
 <script>
 var ORIGINALS = {
@@ -355,6 +356,7 @@ var ORIGINALS = {
 (function(){
   var lb = document.getElementById('lightbox');
   var im = document.getElementById('lightbox-img');
+  var pdfBtn = document.getElementById('lightbox-pdf');
   function openOriginal(f, key){
     var bin = atob(f.b64), n = bin.length, arr = new Uint8Array(n);
     for (var i=0;i<n;i++) arr[i] = bin.charCodeAt(i);
@@ -366,11 +368,17 @@ var ORIGINALS = {
   }
   document.addEventListener('click', function(e){
     var t = e.target;
+    if (t.id === 'lightbox-pdf') { return; }
     if (t.tagName === 'IMG' && t.closest('.img-box')) {
       var key = t.getAttribute('data-file');
-      if (key && ORIGINALS[key]) { openOriginal(ORIGINALS[key], key); return; }
       im.src = t.src;
       lb.classList.add('open');
+      if (key && ORIGINALS[key]) {
+        pdfBtn.style.display = 'inline-block';
+        pdfBtn.onclick = function(ev){ ev.stopPropagation(); openOriginal(ORIGINALS[key], key); };
+      } else {
+        pdfBtn.style.display = 'none';
+      }
     } else if (lb.classList.contains('open')) {
       lb.classList.remove('open');
     }

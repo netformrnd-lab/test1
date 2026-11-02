@@ -344,5 +344,113 @@ var ORIGINALS = {
   });
 })();
 </script>
+
+<style>
+  .rv-bar { display:flex; flex-wrap:wrap; gap:6px; padding:9px 15px; border-top:1px dashed var(--line); background:#fcfcfd; }
+  .rv-btn { font:inherit; font-size:12px; font-weight:700; padding:6px 13px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--line); background:#fff; color:var(--muted); }
+  .rv-btn:hover { background:#f1f5f9; }
+  .rv-btn.ok.on { background:#dcfce7; color:#166534; border-color:#86efac; }
+  .rv-btn.del.on { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
+  .product-card.rv-confirmed { border-color:#86efac; box-shadow:0 0 0 2px #dcfce7 inset, var(--shadow); }
+  .product-card.rv-deleted { opacity:.5; }
+  .product-card.rv-deleted .product-card-body h3, .product-card.rv-deleted .product-card-body { text-decoration:none; }
+  .product-card.rv-deleted .product-card-header h3 { text-decoration:line-through; }
+  .rv-note { width:100%; box-sizing:border-box; margin:0 15px 12px; border:1px solid var(--line); border-radius:8px;
+    padding:8px 10px; font:inherit; font-size:13px; resize:vertical; }
+  .rv-tag { display:inline-block; margin-left:8px; font-size:12px; font-weight:800; }
+  .rv-tag.c { color:#166534; } .rv-tag.d { color:#b91c1c; }
+  .rv-add { grid-column:1/-1; margin-top:4px; }
+  .rv-addbtn { font:inherit; font-size:13px; font-weight:700; padding:10px 16px; border-radius:10px;
+    border:1px dashed var(--brand); background:#eff6ff; color:var(--brand-dark); cursor:pointer; width:100%; }
+  .rv-export { position:fixed; right:18px; bottom:18px; z-index:60; font:inherit; font-size:14px; font-weight:800;
+    padding:13px 20px; border-radius:999px; border:none; background:var(--brand); color:#fff;
+    box-shadow:0 8px 24px rgba(30,58,138,.35); cursor:pointer; }
+  .rv-export:hover { filter:brightness(1.08); }
+  .rv-help { max-width:var(--maxw,1180px); margin:10px auto 0; padding:12px 18px; background:#eff6ff;
+    border:1px solid #bfdbfe; border-radius:12px; color:var(--brand-dark); font-size:13.5px; font-weight:600; }
+  @media print { .rv-bar, .rv-add, .rv-export, .rv-help, .rv-note { display:none !important; } }
+</style>
+<button class="rv-export" onclick="rvExport()">📋 검수 결과 복사</button>
+<script>
+(function(){
+  var KEY='aptsq_review_v2';
+  var state={}; try{ state=JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){}
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+  function nm(card){ var h=card.querySelector('.product-card-header h3'); return h? h.textContent.trim() : '항목'; }
+
+  // 안내 문구
+  var main=document.querySelector('.content');
+  if(main){ var help=document.createElement('div'); help.className='rv-help';
+    help.innerHTML='🔎 각 항목에서 <b>✓ 확정 / ✕ 삭제 / 📝 메모</b>를 눌러 검수하세요. 섹션 끝의 <b>+ 항목 추가</b>로 추가 요청도 가능합니다. 마지막에 우측 하단 <b>📋 검수 결과 복사</b>를 누르면 결과가 정리됩니다. (표시는 이 브라우저에 저장됩니다)';
+    main.parentNode.insertBefore(help, main); }
+
+  var cards=document.querySelectorAll('.product-card');
+  cards.forEach(function(card,i){
+    var id=nm(card)+'#'+i; card.dataset.rvid=id;
+    var st=state[id]||{};
+    if(st.status==='confirmed') card.classList.add('rv-confirmed');
+    if(st.status==='deleted') card.classList.add('rv-deleted');
+    var bar=document.createElement('div'); bar.className='rv-bar';
+    var ok=document.createElement('button'); ok.className='rv-btn ok'+(st.status==='confirmed'?' on':''); ok.textContent='✓ 확정';
+    var del=document.createElement('button'); del.className='rv-btn del'+(st.status==='deleted'?' on':''); del.textContent='✕ 삭제';
+    var nb=document.createElement('button'); nb.className='rv-btn'; nb.textContent='📝 메모';
+    var note=document.createElement('textarea'); note.className='rv-note'; note.rows=2; note.placeholder='메모 / 수정 요청…'; note.value=st.note||'';
+    note.style.display=st.note?'block':'none';
+    ok.onclick=function(){ var s=state[id]||{}; s.status=(s.status==='confirmed')?null:'confirmed'; state[id]=s; save();
+      card.classList.toggle('rv-confirmed',s.status==='confirmed'); card.classList.remove('rv-deleted');
+      ok.classList.toggle('on',s.status==='confirmed'); del.classList.remove('on'); };
+    del.onclick=function(){ var s=state[id]||{}; s.status=(s.status==='deleted')?null:'deleted'; state[id]=s; save();
+      card.classList.toggle('rv-deleted',s.status==='deleted'); card.classList.remove('rv-confirmed');
+      del.classList.toggle('on',s.status==='deleted'); ok.classList.remove('on'); };
+    nb.onclick=function(){ note.style.display=note.style.display==='none'?'block':'none'; if(note.style.display==='block') note.focus(); };
+    note.oninput=function(){ var s=state[id]||{}; s.note=note.value; state[id]=s; save(); };
+    bar.appendChild(ok); bar.appendChild(del); bar.appendChild(nb);
+    card.appendChild(bar); card.appendChild(note);
+  });
+
+  // 섹션별 '항목 추가'
+  function addCard(grid,gi,sid,val){
+    var box=document.createElement('div'); box.className='product-card'; box.style.gridColumn='1/-1';
+    box.innerHTML='<div class="product-card-header"><h3>➕ 추가 요청 항목</h3></div>';
+    var body=document.createElement('div'); body.className='product-card-body';
+    var ta=document.createElement('textarea'); ta.className='rv-note'; ta.rows=2; ta.style.display='block'; ta.style.margin='0';
+    ta.placeholder='추가할 제품/시안과 이유를 적어주세요…'; ta.value=val||'';
+    ta.oninput=function(){ state[sid]={status:'added',section:gi,note:ta.value}; save(); };
+    var rm=document.createElement('button'); rm.className='rv-btn del'; rm.textContent='✕ 삭제'; rm.style.margin='10px 0 0';
+    rm.onclick=function(){ delete state[sid]; save(); box.remove(); };
+    body.appendChild(ta); body.appendChild(rm); box.appendChild(body);
+    grid.insertBefore(box, grid.querySelector('.rv-add'));
+  }
+  var grids=document.querySelectorAll('.report-section .product-grid');
+  grids.forEach(function(grid,gi){
+    var wrap=document.createElement('div'); wrap.className='rv-add';
+    var btn=document.createElement('button'); btn.className='rv-addbtn'; btn.textContent='+ 항목 추가 요청';
+    btn.onclick=function(){ addCard(grid,gi,'add#'+gi+'#'+Date.now(),''); };
+    wrap.appendChild(btn); grid.appendChild(wrap);
+    Object.keys(state).forEach(function(k){ var s=state[k]; if(s && s.status==='added' && s.section===gi) addCard(grid,gi,k,s.note); });
+  });
+
+  window.rvExport=function(){
+    var conf=[],del=[],notes=[],adds=[];
+    document.querySelectorAll('.product-card[data-rvid]').forEach(function(card){
+      var id=card.dataset.rvid,s=state[id]||{},name=nm(card);
+      if(s.status==='confirmed') conf.push(name);
+      if(s.status==='deleted') del.push(name);
+      if(s.note) notes.push(name+' → '+s.note);
+    });
+    Object.keys(state).forEach(function(k){ if(state[k] && state[k].status==='added' && state[k].note) adds.push(state[k].note); });
+    var L=['[아파트스퀘어 디자인 시안 검수 결과]',''];
+    L.push('■ 확정 ('+conf.length+')'); conf.forEach(function(x){L.push('  ✓ '+x);});
+    L.push(''); L.push('■ 삭제 ('+del.length+')'); del.forEach(function(x){L.push('  ✕ '+x);});
+    L.push(''); L.push('■ 추가 요청 ('+adds.length+')'); adds.forEach(function(x){L.push('  + '+x);});
+    L.push(''); L.push('■ 메모 ('+notes.length+')'); notes.forEach(function(x){L.push('  · '+x);});
+    var t=L.join('\n');
+    if(navigator.clipboard){ navigator.clipboard.writeText(t).then(function(){ alert('검수 결과가 복사되었습니다.\n\n'+t); },function(){ window.prompt('아래 내용을 복사하세요:',t); }); }
+    else { window.prompt('아래 내용을 복사하세요:',t); }
+  };
+})();
+</script>
+
 </body>
 </html>

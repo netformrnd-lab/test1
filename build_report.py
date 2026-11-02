@@ -379,7 +379,8 @@ hardcover_cards = [
          [("표지", "앞: SERVICE SCOPE (진단→설계→입찰→시공감리) / 뒤: 준공 결과보고서"),
           ("형식", "양장 3공 바인더 · 네이비 · 로고·슬로건·건물 비주얼"),
           ("원본", "목업 클릭 시 표지 전개 원본 PDF 열람")],
-         [{"path": "하드커버_목업.png", "label": "실물 목업 (양장 바인더) · 클릭 시 원본 PDF", "mock": True, "file": "hardcover", "hifi": True}]),
+         [{"path": "하드커버_목업.png", "label": "실물 목업 (양장 바인더) · 클릭 시 원본 PDF", "mock": True, "file": "hardcover", "hifi": True},
+          {"path": "하드커버_표지전개.png", "label": "표지 전개 시안 (앞·책등·뒤) · 클릭 시 원본 PDF", "file": "hardcover", "hifi": True}]),
 ]
 
 # ----- A4 리플릿 (4p 완성본) -----

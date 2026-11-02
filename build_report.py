@@ -359,6 +359,16 @@ uniform_cards = [
          [{"path": "겨울패딩2_ZBJ2357.png", "label": "목업 — 앞면(가슴 로고) · 클릭 시 크게 보기", "mock": True, "hifi": True}],
          url="https://dyuniform.com/product/%EC%A7%80%EB%B2%A4-zb-j2357-%EC%BA%90%EC%A3%BC%EC%96%BC-%ED%8F%AC%EC%BC%93-%ED%8C%A8%EB%94%A9-%EC%A0%90%ED%8D%BC-%EB%8F%99%EB%B3%B5%ED%8C%A8%EB%94%A9/7219/category/44/display/1/",
          url_text="제품 페이지"),
+    card("③", "K2 SAFETY 21JK-F104 겨울 작업 점퍼 (블랙)",
+         [("품번", "21JK-F104 (브랜드 K2 SAFETY)"),
+          ("종류", "겨울 작업 점퍼 · 스탠드넥 · 멀티 포켓"),
+          ("소재", "폴리에스터 · 충전재(솜)"),
+          ("사이즈 / 색상", "90–120 / 블랙"),
+          ("디테일", "가슴 지퍼포켓 · 반사 디테일 · 세로형 가슴 로고"),
+          ("배송", "3,300원 (150,000원 이상 무료)"),
+          ("판매가", "<strong>183,000원</strong> (VAT 포함)")],
+         [{"path": "겨울유니폼3_K2.png", "label": "목업 — 앞면(가슴 로고) · 클릭 시 크게 보기", "mock": True, "hifi": True}],
+         url="", url_text="제품 페이지"),
 ]
 
 
@@ -478,7 +488,7 @@ SECTIONS = [
     ("product", "열화상 카메라", "2종 비교", thermal_cards, None),
     ("product", "온습도계", "2종 비교", ondo_cards, None),
     ("product", "쌍안경", "2종 비교", bino_cards, None),
-    ("product", "겨울 유니폼", "겨울 패딩 2종 (롱·숏)", uniform_cards, None),
+    ("product", "겨울 유니폼", "겨울 패딩 3종", uniform_cards, None),
     ("design", "A4 리플릿", "4p 완성본 · 클릭 시 원본 PDF", leaflet_cards, None),
     ("design", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards, None),
     ("design", "제안서", "클릭 시 원본 PDF", proposal_cards, None),

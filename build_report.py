@@ -16,6 +16,7 @@ IMGDIR = BASE / "images"
 ORIGDIR = IMGDIR / "originals"
 OUT = BASE / "판촉물_검토보고서.html"
 OUT_SHORT = BASE / "판촉물_검토보고서_제작물제외.html"
+OUT_REVIEW = BASE / "디자인시안_검수용.html"
 
 
 def raw_b64(path):
@@ -525,13 +526,14 @@ def originals_block(keys):
 # ---------------------------------------------------------------------------
 # 최종 HTML
 # ---------------------------------------------------------------------------
-def render(sections_html, summary_html, originals_js, cover_sub, chip_cat, chip_item):
+def render(sections_html, summary_html, originals_js, cover_sub, chip_cat, chip_item,
+           doc_title="판촉물 검토보고서", eyebrow="Promotional Goods Review"):
     return f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>판촉물 검토보고서</title>
+<title>{doc_title}</title>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard.min.css" rel="stylesheet">
 <style>
   :root {{
@@ -648,8 +650,8 @@ def render(sections_html, summary_html, originals_js, cover_sub, chip_cat, chip_
 <body>
 
 <header class="cover">
-  <div class="eyebrow">Promotional Goods Review</div>
-  <h1>판촉물 검토보고서</h1>
+  <div class="eyebrow">{eyebrow}</div>
+  <h1>{doc_title}</h1>
   <div class="sub">{cover_sub}</div>
   <div class="meta">
     <span class="chip">작성일 {TODAY}</span>
@@ -715,13 +717,15 @@ def item_count(specs):
     return sum(len(cards) for _sid, _t, _b, cards, _d in specs)
 
 
-def build(out_path, specs, originals_keys, cover_sub, summary_cards):
+def build(out_path, specs, originals_keys, cover_sub, summary_cards,
+          doc_title="판촉물 검토보고서", eyebrow="Promotional Goods Review"):
     sections_html = render_sections(specs)
     summary_html = summary_block(summary_cards)
     originals_js = originals_block(originals_keys)
     cats = len(specs)
     items = item_count(specs)
-    doc = render(sections_html, summary_html, originals_js, cover_sub, cats, items)
+    doc = render(sections_html, summary_html, originals_js, cover_sub, cats, items,
+                 doc_title=doc_title, eyebrow=eyebrow)
     out_path.write_text(doc, encoding="utf-8")
     print(f"저장 완료: {out_path.name}  ({len(doc):,} bytes / {len(doc)/1024/1024:.2f} MB)")
 
@@ -742,3 +746,15 @@ build(OUT_SHORT, short_specs, [], SHORT_SUB,
       [(str(len(short_specs)), "검토 카테고리"),
        (str(item_count(short_specs)), "검토 항목"),
        ("28", "확보 이미지"), ("15", "목업 시안")])
+
+# 3) 검수용 — 실물 제작 디자인(겨울 유니폼 · 목걸이/명찰 · 하드커버 양장본)만
+REVIEW_SPECS = [
+    ("product", "겨울 유니폼", "겨울 패딩 3종", uniform_cards, None),
+    ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 목걸이 명찰 2종", lanyard_cards, None),
+    ("design", "하드커버 양장본", "클릭 시 원본 PDF", hardcover_cards, None),
+]
+REVIEW_SUB = "겨울 유니폼 · 사원증 목걸이/명찰 · 하드커버 양장본"
+build(OUT_REVIEW, REVIEW_SPECS, ["hardcover"], REVIEW_SUB,
+      [(str(len(REVIEW_SPECS)), "검수 대상"), (str(item_count(REVIEW_SPECS)), "시안 수"),
+       ("✓", "로고 목업 적용"), ("PDF", "하드커버 원본")],
+      doc_title="아파트스퀘어 디자인 시안 검수", eyebrow="Design Proof Review")

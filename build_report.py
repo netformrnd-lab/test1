@@ -453,6 +453,11 @@ lanyard_cards = [
           {"path": "명찰_목업2.png", "label": "온판장 제품 샘플"}],
          url="https://onpanjang.co.kr/product/%ED%96%89%EC%82%AC%EC%9A%A9-%EA%B3%A0%EA%B8%89-%EB%AA%A9%EA%B1%B8%EC%9D%B4-%EB%AA%85%EC%B0%B0-%EC%9D%B8%EC%87%84-%EC%A0%9C%EC%9E%91/27/category/1/display/2/",
          url_text="온판장 링크"),
+    card("③", "명찰 디자인 — 현장감리 (기하학 패턴)",
+         [("앞면", "로고 · '현장감리' · 기하학 패턴 (블루/블랙/그레이)"),
+          ("문구", "아파트 유지보수 전문 감리"),
+          ("용도", "감리 현장 착용 명찰 디자인 시안")],
+         [{"path": "명찰_현장감리.png", "label": "디자인 시안 · 클릭 시 크게 보기", "mock": True, "hifi": True}]),
 ]
 
 # ----- 온습도계 -----
@@ -493,7 +498,7 @@ SECTIONS = [
     ("design", "하드커버 (양장)", "클릭 시 원본 PDF", hardcover_cards, None),
     ("design", "제안서", "클릭 시 원본 PDF", proposal_cards, None),
     ("design", "감리 사원증 (ID카드)", "앞/뒤 · 클릭 시 크게 보기", idcard_cards, None),
-    ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 목걸이 명찰 2종", lanyard_cards, None),
+    ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 명찰 3종", lanyard_cards, None),
 ]
 
 
@@ -865,7 +870,7 @@ build(OUT_SHORT, short_specs, [], SHORT_SUB,
 # 3) 검수용 — 실물 제작 디자인(겨울 유니폼 · 목걸이/명찰 · 하드커버 양장본)만
 REVIEW_SPECS = [
     ("product", "겨울 유니폼", "겨울 패딩 3종", uniform_cards, None),
-    ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 목걸이 명찰 2종", lanyard_cards, None),
+    ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 명찰 3종", lanyard_cards, None),
     ("design", "하드커버 양장본", "클릭 시 원본 PDF", hardcover_cards, None),
 ]
 REVIEW_SUB = "겨울 유니폼 · 사원증 목걸이/명찰 · 하드커버 양장본"

@@ -6068,7 +6068,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-124';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-125';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -8380,10 +8380,15 @@ async function hubEdit(id){
                         : ' — 그 폴더에서 가장 새 판을 엽니다') : ''));
   if(isDir) hubCheck(tgt.id);          /* 바로 무엇이 열릴지 보여 줍니다 */
 }
+/* 🎬 NETFORM 보관함 브랜드(nfHolder)는 브랜드 목록에 안 보입니다 —
+   영상 의뢰가 프로젝트로 모이는 곳이라 할 일 연동으로만 쓰고, 넷폼·POUR 같은
+   진짜 브랜드 목록에는 섞이지 않게 합니다. (할 일 집계에는 그대로 들어갑니다) */
+function brandsShown(){ return (data.brands || []).filter(b => b && !b.nfHolder); }
 function renderSidebar(){
   renderPageNav();
   renderHubs();
-  document.getElementById('brandList').innerHTML = data.brands.map((b, i) => {
+  const vis = brandsShown();
+  document.getElementById('brandList').innerHTML = vis.map((b, i) => {
     const n = itemCount(b);
     return '<div class="bwrap"><button class="brand-item'
       + (b.id === currentBrandId && !searchQuery ? ' on' : '') + '" '
@@ -8399,7 +8404,7 @@ function renderSidebar(){
       + '<span class="cnt">' + n + '</span></button>'
       + '<span class="bmove">'
         + (i > 0 ? '<button class="btn sm" title="위로" onclick="moveBrand(\'' + b.id + '\',-1)">↑</button>' : '')
-        + (i < data.brands.length - 1
+        + (i < vis.length - 1
             ? '<button class="btn sm" title="아래로" onclick="moveBrand(\'' + b.id + '\',1)">↓</button>' : '')
       + '</span></div>';
   }).join('');
@@ -9793,16 +9798,16 @@ function renderHome(){
              a + (b.costs || []).reduce((x, c) => x + costPerMonth(c), 0), 0)).replace('원',''),
       sub: '원 · 올해 ' + won(costOwners().reduce((a, b) =>
              a + (b.costs || []).reduce((x, c) => x + costThisYear(c), 0), 0)) },
-    { lab:'🏷️ 브랜드', val: bs.length, sub:'개' },
+    { lab:'🏷️ 브랜드', val: brandsShown().length, sub:'개' },
     { lab:'✅ 남은 할 일', val: openTasks, sub: '전체 ' + all('tasks') + '개 중' },
     { lab:'🤖 자동화', val: autoAll,
       sub: '개 · 운영 중 ' + running + (toolAll ? ' · 도구 ' + toolAll : '') },
     { lab:'📁 자료',   val: all('assets'), sub: '파일 ' + files + '개 · 프롬프트 '
-        + withPrompt + '/' + bs.length }
+        + withPrompt + '/' + brandsShown().length }
   ].map(x => '<div class="stat"><div class="lab">' + x.lab + '</div>'
     + '<div class="val">' + x.val + '</div><div class="sub">' + x.sub + '</div></div>').join('');
 
-  const cards = bs.map(b =>
+  const cards = brandsShown().map(b =>
     '<div class="hcard" style="--bc:' + b.color + '" '
     + 'onclick="selectBrand(\'' + b.id + '\')">'
     + '<div class="top"><span class="em">' + esc(b.icon) + '</span>'

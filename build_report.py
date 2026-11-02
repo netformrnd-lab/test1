@@ -293,6 +293,15 @@ bag_cards = [
          [{"path": "장비가방_보스턴백.png", "label": "제품 이미지"}],
          url="https://www.coupang.com/vp/products/9226519594?itemId=27270129787",
          url_text="쿠팡 링크"),
+    card("③", "벡코 택티컬 보스턴백 (블랙 · 칸막이 분리수납)",
+         [("업체", "에스큐 (쿠팡 판매자로켓)"),
+          ("종류", "택티컬 보스턴백 · 칸막이 분리수납 · MOLLE 웨빙 · 숄더스트랩 · 캠핑/낚시/여행 다용도"),
+          ("소재 / 규격", "폴리 옥스포드 · 단색(무지) · FREE 사이즈 · 색상 블랙(카키·올리브 옵션)"),
+          ("상품평", "69건 / 평점 4.5"),
+          ("단가", "<strong>37,900원</strong> (22% 할인, 정가 48,600원) · 무료배송")],
+         [{"path": "장비가방_택티컬.png", "label": "제품 이미지"}],
+         url="https://www.coupang.com/vp/products/7455823316?itemId=19421677629",
+         url_text="쿠팡 링크"),
 ]
 
 # ----- 7. 열화상 카메라 -----
@@ -494,7 +503,7 @@ SECTIONS = [
     ("product", "손전등 / 랜턴", "4종 비교", flash_cards, None),
     ("product", "함수율 측정기", "3종 비교", moist_cards, None),
     ("product", "드론 조종기", "현장 운용 장비", dji_cards, None),
-    ("product", "장비가방", "2종 비교", bag_cards, None),
+    ("product", "장비가방", "3종 비교", bag_cards, None),
     ("product", "열화상 카메라", "2종 비교", thermal_cards, None),
     ("product", "온습도계", "2종 비교", ondo_cards, None),
     ("product", "쌍안경", "2종 비교", bino_cards, None),
@@ -883,7 +892,7 @@ build(OUT_SHORT, short_specs, [], SHORT_SUB,
 # 3) 검수용 — 실물 제작 디자인(겨울 유니폼 · 목걸이/명찰 · 하드커버 양장본)만
 REVIEW_SPECS = [
     ("product", "겨울 유니폼", "겨울 패딩 3종", uniform_cards, None),
-    ("product", "장비가방", "2종 비교", bag_cards, None),
+    ("product", "장비가방", "3종 비교", bag_cards, None),
     ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 명찰 4종", lanyard_cards, None),
     ("design", "하드커버 양장본", "클릭 시 원본 PDF", hardcover_cards, None),
 ]

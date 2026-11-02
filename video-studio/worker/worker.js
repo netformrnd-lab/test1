@@ -36,6 +36,36 @@ const MANUS_PROFILES = [
   { id: 'manus-1.6-lite', name: 'Manus 1.6 Lite (빠름 · 크레딧 적게)' },
 ]
 function manusHeaders(key) { return { API_KEY: key, 'content-type': 'application/json', accept: 'application/json' } }
+// 넷폼 브랜드 허브(NAS): 브랜드별 톤·가이드와 자료·문서 목록 (키는 설정 화면에서 암호화 저장)
+const HUB_URL = 'https://netformrnd.synology.me/brand/studio-feed.php'
+async function hubBrands(key) {
+  const r = await fetch(`${HUB_URL}?action=brands&key=${encodeURIComponent(key)}`, { headers: { accept: 'application/json' } }).catch((e) => { throw new HttpError(400, '브랜드 허브에 연결하지 못했습니다: ' + e.message) })
+  const d = await r.json().catch(() => null)
+  if (!d) throw new HttpError(400, `브랜드 허브 응답을 읽지 못했습니다(HTTP ${r.status}).`)
+  if (!d.ok) throw new HttpError(400, '브랜드 허브 읽기 실패: ' + (d.error || r.status))
+  return Array.isArray(d.brands) ? d.brands : []
+}
+// 허브 브랜드 정보 → { tone(글), items([{name,url,kind}]) } — 항목 형식이 달라도 이름·주소를 찾아 쓴다
+function hubDigest(b) {
+  const tone = typeof b['톤·가이드'] === 'string' ? b['톤·가이드'] : JSON.stringify(b['톤·가이드'] || b.tone || b.guide || '')
+  const items = []
+  for (const [kind, list] of [['자료', b['자료']], ['문서', b['문서']]]) {
+    for (const it of [].concat(list || [])) {
+      if (typeof it === 'string') { if (/^https?:\/\//.test(it)) items.push({ kind, name: it.split('/').pop(), url: it }); else items.push({ kind, name: it, url: '' }); continue }
+      if (!it || typeof it !== 'object') continue
+      const url = it.url || it.link || it.href || it.download || it.downloadUrl || it.file || ''
+      const name = it.name || it.title || it['이름'] || it['제목'] || it.filename || (url ? String(url).split('/').pop() : '')
+      items.push({ kind, name: String(name).slice(0, 120), url: /^https?:\/\//.test(String(url)) ? String(url) : '', note: String(it.desc || it.description || it['설명'] || '').slice(0, 200) })
+    }
+  }
+  return { tone: String(tone || '').slice(0, 4000), items: items.slice(0, 40) }
+}
+async function hubBrand(env, st) {
+  if (!st.readiness.hub) return null
+  const brands = await hubBrands(await getKey(env, 'hub'))
+  const b = brands.find((x) => String(x.name) === st.secrets.hub.model)
+  return b ? { name: String(b.name), ...hubDigest(b) } : null
+}
 const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
 const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
 const DEFAULT_SETTINGS = {
@@ -75,7 +105,7 @@ export default {
 const ACTIONS = {
   // API 키 확인(save=false: 모델 목록만) / 저장(save=true)
   async connection(env, { provider, key, model, save }) {
-    if (!['claude', 'openai', 'heygen', 'manus'].includes(provider)) throw new HttpError(400, '알 수 없는 서비스입니다.')
+    if (!['claude', 'openai', 'heygen', 'manus', 'hub'].includes(provider)) throw new HttpError(400, '알 수 없는 서비스입니다.')
     let apiKey = String(key || '').trim()
     if (!apiKey) apiKey = await getKey(env, provider, false)
     if (!apiKey) throw new HttpError(400, 'API 키를 입력해 주세요.')
@@ -475,6 +505,10 @@ async function runStep(env, job) {
       return
     }
     d.context = picked
+    if (st.readiness.hub) {
+      try { const hb = await hubBrand(env, st); if (hb) { d.hub = hb; d.events.push(ev(`브랜드 허브: ‘${hb.name}’ 톤·가이드와 자료 ${hb.items.length}개 불러옴`)) } }
+      catch (e) { d.events.push(ev('브랜드 허브 불러오기 실패(제작은 계속): ' + String(e.message || e).slice(0, 150))) }
+    }
     const ids = [...new Set(picked.map((p) => p.sourceId))]
     d.sources = ids.map((sid) => ({ id: sid, title: (approved.find((s) => s.id === sid) || {}).title || '' }))
     d.events.push(ev(`자료 검색: 승인 자료 ${ids.length}개에서 근거 단락 ${picked.length}개 확보`))
@@ -931,7 +965,8 @@ function briefBlock(job) {
 }
 function draftUser(job, d) {
   const mem = (d.memory || []).length ? `\n\n[지난 제작 형식 참고(사실은 가져오지 말 것)]\n${d.memory.join('\n')}` : ''
-  return `${briefBlock(job)}${mem}\n\n[승인 자료]\n${contextBlock(d)}\n\n[사진 자료실] (id: 설명)\n${photoBlock(d.photoCatalog)}\n\n위 규칙에 따라 영상 제목과 장면별 대본·컷을 작성하세요.`
+  const hub = d.hub && d.hub.tone ? `\n\n[브랜드 허브 톤·가이드 — ${d.hub.name}] (어조·표현·금기 참고용. 사실·수치의 근거로 쓰지 않음)\n${d.hub.tone}` : ''
+  return `${briefBlock(job)}${mem}${hub}\n\n[승인 자료]\n${contextBlock(d)}\n\n[사진 자료실] (id: 설명)\n${photoBlock(d.photoCatalog)}\n\n위 규칙에 따라 영상 제목과 장면별 대본·컷을 작성하세요.`
 }
 function reviseUser(job, d) {
   return `${draftUser(job, d)}\n\n[직전 대본]\n${JSON.stringify(d.plan)}\n\n[검수 지적 사항 — 모두 해결하세요]\n${(d.pendingIssues || []).map((x) => '- ' + x).join('\n')}\n\n지적 사항을 반영해 대본 전체를 다시 작성하세요. 해결할 수 없으면 blockers 에 이유를 적으세요.`
@@ -1086,6 +1121,10 @@ const ASSET_MARK = '[첨부 자료 — 아래 주소에서 내려받아 사용�
 async function manusAssetBlock(env, job, st) {
   const d = job.data
   const lines = [ASSET_MARK]
+  if (d.hub) {
+    if (d.hub.tone) lines.push(`- 브랜드 허브 ‘${d.hub.name}’ 톤·가이드(요약): ${d.hub.tone.replace(/\s+/g, ' ').slice(0, 800)}`)
+    for (const it of d.hub.items) if (it.url) lines.push(`- 브랜드 허브 ${it.kind}: ${it.name}${it.note ? ' (' + it.note + ')' : ''} — ${it.url}`)
+  }
   if (env.PUBLIC_BASE) lines.push(`- 아파트스퀘어 공식 로고(PNG): ${env.PUBLIC_BASE}/brand-logo.png — 마지막 장면 카드와 화면 오른쪽 위 작은 로고에 반드시 이 이미지를 그대로 사용(색·비율 변경, 다시 그리기 금지)`)
   const used = new Set((d.sources || []).map((x) => x.id))
   const srcs = (st.sourcesFull || []).filter((s) => s.approved && s.file && s.file.path).sort((a, b) => (used.has(b.id) ? 1 : 0) - (used.has(a.id) ? 1 : 0)).slice(0, 8)
@@ -1428,6 +1467,7 @@ async function listModels(provider, key) {
     return (out.data || []).map((m) => m.id).filter((id) => /^(gpt-|o\d|chatgpt-)/.test(id) && !skip.test(id))
       .sort().reverse().map((id) => ({ id, name: id }))
   }
+  if (provider === 'hub') return (await hubBrands(key)).map((b) => ({ id: String(b.name), name: String(b.name) }))
   if (provider === 'manus') {
     const res = await fetch(MANUS_API + '/tasks?limit=1', { headers: manusHeaders(key) })
     const out = await res.json().catch(() => ({}))
@@ -1538,7 +1578,7 @@ async function state(env, opt = {}) {
   const settingsRows = [{ data: settingsObj }]
   jobs.splice(50)
   const sec = {}
-  for (const p of ['claude', 'openai', 'heygen', 'manus']) {
+  for (const p of ['claude', 'openai', 'heygen', 'manus', 'hub']) {
     const r = secrets.find((x) => x.provider === p)
     sec[p] = { configured: !!r, model: (r && r.model) || '', checkedAt: (r && r.checked_at) || '' }
   }
@@ -1548,6 +1588,7 @@ async function state(env, opt = {}) {
     openai: sec.openai.configured && !!sec.openai.model,
     heygen: sec.heygen.configured,
     manus: sec.manus.configured && !!sec.manus.model,
+    hub: sec.hub.configured && !!sec.hub.model,
   }
   const off = new Set(settings.builtinOff || [])
   const builtins = K.map((k) => ({ ...k, approved: !off.has(k.id), builtin: true, created_at: '' }))
@@ -1708,7 +1749,7 @@ async function saveJob(env, job, extra = {}) {
 async function getKey(env, provider, required = true) {
   const rows = [(await readJSON(env, 'secrets', {}))[provider]].filter(Boolean)
   if (!rows.length) {
-    if (required) throw new HttpError(400, `${({ claude: 'Claude', openai: 'OpenAI', heygen: 'HeyGen', manus: 'Manus' })[provider] || provider} API 연결을 먼저 저장해 주세요.`)
+    if (required) throw new HttpError(400, `${({ claude: 'Claude', openai: 'OpenAI', heygen: 'HeyGen', manus: 'Manus', hub: '브랜드 허브' })[provider] || provider} API 연결을 먼저 저장해 주세요.`)
     return ''
   }
   return decrypt(env, rows[0].cipher, rows[0].iv)

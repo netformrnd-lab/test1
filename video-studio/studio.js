@@ -85,7 +85,7 @@
     ['컷별 장면 이미지 준비', '사진 자료실 배정 · 부족한 컷은 AI 이미지 생성', 5, 6],
     ['이사님 아바타 영상 생성', '컷마다 배경 사진 + 아바타·음성으로 실제 제작', 6, 8],
   ]
-  const PROVIDERS = [['claude', 'Claude'], ['openai', 'ChatGPT · OpenAI'], ['heygen', 'HeyGen'], ['manus', 'Manus (아바타 없는 영상)']]
+  const PROVIDERS = [['claude', 'Claude'], ['openai', 'ChatGPT · OpenAI'], ['heygen', 'HeyGen'], ['manus', 'Manus (아바타 없는 영상)'], ['hub', '브랜드 허브 (NAS)']]
 
   // ── 상태 ──
   const S = {
@@ -441,8 +441,8 @@
       <div class="between"><h2>${label}</h2><span class="tag" data-p-status>연결 필요</span></div>
       <div class="field"><label for="${p}-key">API 키</label><input class="input" id="${p}-key" type="password" autocomplete="new-password" spellcheck="false" placeholder="API 키를 여기에 붙여 넣으세요"></div>
       ${p !== 'heygen' ? `<button class="btn outline" data-p-check>연결 확인 · 모델 불러오기</button>
-      <div class="field"><label for="${p}-model">${p === 'manus' ? '에이전트 프로필' : '사용할 모델'}</label><select class="select select-sm" id="${p}-model"><option value="">먼저 모델을 불러오세요</option></select>
-      <small>${p === 'manus' ? 'Manus API 키는 Manus 설정의 API 메뉴에서 발급합니다. 연결하면 ‘아바타 없는 영상’을 버튼 하나로 Manus에 맡기고 완성 영상을 받아 옵니다(Manus 크레딧 사용). 연결하지 않으면 프롬프트를 복사해 붙여 넣으면 됩니다.' : '구조화 출력이 가능한 텍스트 모델을 선택해 주세요.'}</small></div>` : ''}
+      <div class="field"><label for="${p}-model">${p === 'manus' ? '에이전트 프로필' : p === 'hub' ? '사용할 브랜드' : '사용할 모델'}</label><select class="select select-sm" id="${p}-model"><option value="">먼저 모델을 불러오세요</option></select>
+      <small>${p === 'hub' ? '넷폼 브랜드 허브(netformrnd.synology.me)의 키를 넣고 ‘연결 확인’을 누르면 브랜드 목록이 나옵니다. 고른 브랜드의 톤·가이드는 대본 작성에, 자료·문서는 Manus 제작에 함께 전달됩니다.' : p === 'manus' ? 'Manus API 키는 Manus 설정의 API 메뉴에서 발급합니다. 연결하면 ‘아바타 없는 영상’을 버튼 하나로 Manus에 맡기고 완성 영상을 받아 옵니다(Manus 크레딧 사용). 연결하지 않으면 프롬프트를 복사해 붙여 넣으면 됩니다.' : '구조화 출력이 가능한 텍스트 모델을 선택해 주세요.'}</small></div>` : ''}
       <div class="connection-actions"><button class="btn" data-p-save>연결 확인 후 저장</button><button class="btn outline" data-p-delete hidden>연결 삭제</button></div>
       <p class="body-note" role="status" data-p-ok hidden></p><p class="message error" role="alert" data-p-err hidden></p>
     </section>`).join('')
@@ -483,7 +483,7 @@
       tag.textContent = st && st.checkedAt ? '인증 확인 · 저장됨' : st && st.configured ? '키 설정됨' : '연결 필요'
       $(p + '-key').placeholder = st && st.configured ? '저장됨 · 변경할 때만 새 키 입력' : 'API 키를 여기에 붙여 넣으세요'
       const check = box.querySelector('[data-p-check]')
-      if (check) { check.disabled = u.busy || (!key && !(st && st.configured)); check.textContent = u.busy ? '확인 중…' : '연결 확인 · 모델 불러오기' }
+      if (check) { check.disabled = u.busy || (!key && !(st && st.configured)); check.textContent = u.busy ? '확인 중…' : p === 'hub' ? '연결 확인 · 브랜드 불러오기' : '연결 확인 · 모델 불러오기' }
       const save = box.querySelector('[data-p-save]')
       save.disabled = u.busy || (!key && !(st && st.configured)) || (p !== 'heygen' && !u.model)
       save.textContent = u.busy ? '연결 확인 중…' : '연결 확인 후 저장'

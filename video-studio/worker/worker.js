@@ -60,6 +60,47 @@ function hubDigest(b) {
   }
   return { tone: String(tone || '').slice(0, 4000), items: items.slice(0, 40) }
 }
+// 허브 항목 → 근거 자료 목록: 톤·가이드 글 + 문서(PDF·HTML·TXT 등)에서 뽑은 글
+async function hubToSources(hb) {
+  const out = []
+  const sid = (x) => 'hub-' + Array.from(new TextEncoder().encode(x)).reduce((a, c) => ((a * 31 + c) >>> 0), 7).toString(36)
+  if (hb.tone && hb.tone.length >= 30) out.push({ id: sid('tone' + hb.name), title: `브랜드 허브 · ${hb.name} 톤·가이드`, provenance: '넷폼 브랜드 허브', content: hb.tone, approved: true, hub: true })
+  let total = 0
+  for (const it of hb.items.slice(0, 20)) {
+    let text = it.note && it.note.length >= 30 ? it.note : ''
+    if (it.url && total < 400000) {
+      const t = await remoteText(it.url).catch(() => '')
+      if (t) text = (text ? text + '\n\n' : '') + t
+    }
+    if (text.length < 30) continue
+    text = text.slice(0, 150000); total += text.length
+    out.push({ id: sid(it.url || it.name), title: `브랜드 허브 · ${it.name || it.kind}`, provenance: `넷폼 브랜드 허브 (${it.kind})`, content: text, approved: true, hub: true })
+  }
+  return out
+}
+// 주소의 파일에서 글 뽑기: PDF·HTML·TXT·MD·JSON (그 밖의 형식·15MB 초과는 건너뜀)
+async function remoteText(url) {
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000)
+  try {
+    const r = await fetch(url, { signal: ctl.signal })
+    if (!r.ok) return ''
+    const type = (r.headers.get('content-type') || '').toLowerCase()
+    const buf = new Uint8Array(await r.arrayBuffer())
+    if (buf.length > 15 * 1048576) return ''
+    const name = url.split('?')[0].toLowerCase()
+    if (type.includes('pdf') || name.endsWith('.pdf')) {
+      const mod = await import('pdf-parse/lib/pdf-parse.js').catch(() => null)
+      if (!mod) return ''
+      const res = await (mod.default || mod)(Buffer.from(buf)).catch(() => null)
+      return res ? cleanText(res.text) : ''
+    }
+    const raw = new TextDecoder('utf-8').decode(buf)
+    if (type.includes('html') || /\.html?$/.test(name)) return cleanText(raw.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<br\s*\/?>|<\/(p|div|li|h\d|tr)>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'))
+    if (type.startsWith('text/') || type.includes('json') || /\.(txt|md|csv|json)$/.test(name)) return cleanText(raw)
+    return ''
+  } finally { clearTimeout(timer) }
+}
+function cleanText(t) { return String(t || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim() }
 async function hubBrand(env, st) {
   if (!st.readiness.hub) return null
   const brands = await hubBrands(await getKey(env, 'hub'))
@@ -496,7 +537,19 @@ async function runStep(env, job) {
 
   // 0) 승인 자료 검색
   if (job.step === 0) {
-    const approved = st.sourcesFull.filter((s) => s.approved)
+    // 브랜드 허브: 톤·가이드와 문서 글을 불러와 승인 자료처럼 검색·인용 근거로 쓴다
+    let hubSources = []
+    if (st.readiness.hub) {
+      try {
+        const hb = await hubBrand(env, st)
+        if (hb) {
+          d.hub = { name: hb.name, tone: hb.tone, items: hb.items }
+          hubSources = await hubToSources(hb)
+          d.events.push(ev(`브랜드 허브: ‘${hb.name}’ 자료 ${hb.items.length}개 확인 · 근거로 쓸 글 ${hubSources.length}건 (${hubSources.map((x) => x.title.replace('브랜드 허브 · ', '')).join(', ').slice(0, 200)})`))
+        }
+      } catch (e) { d.events.push(ev('브랜드 허브 불러오기 실패(제작은 계속): ' + String(e.message || e).slice(0, 150))) }
+    }
+    const approved = [...st.sourcesFull.filter((s) => s.approved), ...hubSources]
     const picked = retrieve(approved, job.input.keywords)
     if (!picked.length) {
       job.status = 'held'
@@ -505,10 +558,6 @@ async function runStep(env, job) {
       return
     }
     d.context = picked
-    if (st.readiness.hub) {
-      try { const hb = await hubBrand(env, st); if (hb) { d.hub = hb; d.events.push(ev(`브랜드 허브: ‘${hb.name}’ 톤·가이드와 자료 ${hb.items.length}개 불러옴`)) } }
-      catch (e) { d.events.push(ev('브랜드 허브 불러오기 실패(제작은 계속): ' + String(e.message || e).slice(0, 150))) }
-    }
     const ids = [...new Set(picked.map((p) => p.sourceId))]
     d.sources = ids.map((sid) => ({ id: sid, title: (approved.find((s) => s.id === sid) || {}).title || '' }))
     d.events.push(ev(`자료 검색: 승인 자료 ${ids.length}개에서 근거 단락 ${picked.length}개 확보`))
@@ -831,6 +880,10 @@ async function runStep(env, job) {
 function applyPlan(job, plan, st) {
   const d = job.data
   const byId = Object.fromEntries(st.sourcesFull.map((s) => [s.id, s]))
+  for (const c of d.context || []) if (String(c.sourceId).startsWith('hub-')) {   // 허브 자료는 검색된 단락으로 인용을 대조
+    const h = byId[c.sourceId] || (byId[c.sourceId] = { id: c.sourceId, title: c.title, approved: true, content: '' })
+    h.content += '\n\n' + c.text
+  }
   const problems = []
   if (!plan || !Array.isArray(plan.scenes)) throw new Error('대본 형식이 올바르지 않습니다.')
   plan.title = String(plan.title || job.input.keywords).slice(0, 120)

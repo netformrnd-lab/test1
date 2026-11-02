@@ -275,24 +275,15 @@ dji_cards = [
 
 # ----- 6. 장비가방 -----
 bag_cards = [
-    card("①", "VILEDI 23인치 대형 공구가방 툴백 (레드)",
-         [("업체", "카딘스 (네이버 스마트스토어)"),
-          ("종류", "23인치 대형 툴백 · 오픈/지퍼 개방형 전환 · 토트/숄더 겸용"),
-          ("소재 / 규격", "옥스포드 2단·방수코팅·PE보강 · 강화플라스틱 바닥 · 야광 반사띠 · 52×32×28cm"),
-          ("상품평", "15건 / 평점 4.93"),
-          ("단가", "<strong>32,800원</strong> (37% 할인, 정가 52,800원) · 무료배송")],
-         [{"path": "장비가방4_툴백.png", "label": "제품 이미지"}],
-         url="https://smartstore.naver.com/kadins/products/12813864390",
+    card("①", "현장 출근용 대형 크로스백 (블랙 · AOTIAN)",
+         [("업체", "콤프랄라 (네이버 스마트스토어)"),
+          ("종류", "대형 크로스백 · 아웃도어 · 토트/숄더 겸용 · 전면 2단 지퍼포켓 + 측면 포켓"),
+          ("소재 / 규격", "고밀도 옥스포드·내부 폴리에스터 · 대형 42×27×15cm·약 525g"),
+          ("상품평", "신규 등록 (리뷰 0건)"),
+          ("단가", "<strong>39,900원</strong> · 무료배송(해외직배송)")],
+         [{"path": "장비가방_크로스백.png", "label": "제품 이미지"}],
+         url="https://smartstore.naver.com/comprala/products/13794850316",
          url_text="스마트스토어"),
-    card("②", "핫쏘잇 다중포켓 빅사이즈 대용량 더플백 (블랙)",
-         [("업체", "핫쏘잇 (쿠팡 판매자로켓)"),
-          ("종류", "빅사이즈 대용량 더플백 · 메인+전면+측면2 포켓"),
-          ("소재 / 규격", "외부 방수 나일론·내부 폴리에스터 · 71×34×25cm·약 570g"),
-          ("상품평", "107건 / 92% 만족"),
-          ("단가", "<strong>21,800원</strong> (60% 할인, 정가 55,000원) · 무료배송")],
-         [{"path": "장비가방5_더플백.png", "label": "제품 이미지"}],
-         url="https://www.coupang.com/vp/products/8849211739?itemId=26048894229",
-         url_text="쿠팡 링크"),
 ]
 
 # ----- 7. 열화상 카메라 -----
@@ -494,7 +485,7 @@ SECTIONS = [
     ("product", "손전등 / 랜턴", "4종 비교", flash_cards, None),
     ("product", "함수율 측정기", "3종 비교", moist_cards, None),
     ("product", "드론 조종기", "현장 운용 장비", dji_cards, None),
-    ("product", "장비가방", "2종 비교", bag_cards, None),
+    ("product", "장비가방", "1종", bag_cards, None),
     ("product", "열화상 카메라", "2종 비교", thermal_cards, None),
     ("product", "온습도계", "2종 비교", ondo_cards, None),
     ("product", "쌍안경", "2종 비교", bino_cards, None),
@@ -883,7 +874,7 @@ build(OUT_SHORT, short_specs, [], SHORT_SUB,
 # 3) 검수용 — 실물 제작 디자인(겨울 유니폼 · 목걸이/명찰 · 하드커버 양장본)만
 REVIEW_SPECS = [
     ("product", "겨울 유니폼", "겨울 패딩 3종", uniform_cards, None),
-    ("product", "장비가방", "2종 비교", bag_cards, None),
+    ("product", "장비가방", "1종", bag_cards, None),
     ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 명찰 4종", lanyard_cards, None),
     ("design", "하드커버 양장본", "클릭 시 원본 PDF", hardcover_cards, None),
 ]

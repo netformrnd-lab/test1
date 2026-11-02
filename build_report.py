@@ -883,10 +883,11 @@ build(OUT_SHORT, short_specs, [], SHORT_SUB,
 # 3) 검수용 — 실물 제작 디자인(겨울 유니폼 · 목걸이/명찰 · 하드커버 양장본)만
 REVIEW_SPECS = [
     ("product", "겨울 유니폼", "겨울 패딩 3종", uniform_cards, None),
+    ("product", "장비가방", "2종 비교", bag_cards, None),
     ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 명찰 4종", lanyard_cards, None),
     ("design", "하드커버 양장본", "클릭 시 원본 PDF", hardcover_cards, None),
 ]
-REVIEW_SUB = "겨울 유니폼 · 사원증 목걸이/명찰 · 하드커버 양장본"
+REVIEW_SUB = "겨울 유니폼 · 장비가방 · 사원증 목걸이/명찰 · 하드커버 양장본"
 build(OUT_REVIEW, REVIEW_SPECS, ["hardcover"], REVIEW_SUB,
       [(str(len(REVIEW_SPECS)), "검수 대상"), (str(item_count(REVIEW_SPECS)), "시안 수"),
        ("✓", "로고 목업 적용"), ("PDF", "하드커버 원본")],

@@ -293,6 +293,15 @@ bag_cards = [
          [{"path": "25_K25600_장비가방.jpg", "label": "제품 이미지"}],
          url="https://www.gabang1bungi.com/product/k25600/5041/category/27/display/1/",
          url_text="제품 페이지", decided="회의때 선정 · 자사 로고"),
+    card("④", "VILEDI 대형 빅사이즈 휴대용 공구가방 툴백 (레드)",
+         [("업체", "카딘스 (네이버 스마트스토어)"),
+          ("종류", "대형 툴백 · 오픈형 · 멀티 포켓"),
+          ("상품평", "15건 / 평점 4.93"),
+          ("배송", "무료배송"),
+          ("단가", "<strong>32,800원</strong> (37% 할인, 정가 52,800원)")],
+         [{"path": "장비가방4_툴백.png", "label": "제품 이미지"}],
+         url="https://smartstore.naver.com/kadins/products/12813864390",
+         url_text="스마트스토어"),
 ]
 
 # ----- 7. 열화상 카메라 -----
@@ -489,7 +498,7 @@ SECTIONS = [
     ("product", "손전등 / 랜턴", "4종 비교", flash_cards, None),
     ("product", "함수율 측정기", "3종 비교", moist_cards, None),
     ("product", "드론 조종기", "현장 운용 장비", dji_cards, None),
-    ("product", "장비가방", "3종 비교", bag_cards, None),
+    ("product", "장비가방", "4종 비교", bag_cards, None),
     ("product", "열화상 카메라", "2종 비교", thermal_cards, None),
     ("product", "온습도계", "2종 비교", ondo_cards, None),
     ("product", "쌍안경", "2종 비교", bino_cards, None),

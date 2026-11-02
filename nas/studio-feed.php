@@ -34,7 +34,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') { http_response_code(20
 
 $DATA_DIR = __DIR__ . '/data';
 $KEY_FILE = $DATA_DIR . '/studio-key.php';
-$DAT_FILE = $DATA_DIR . '/brand-data.json';
+/* 자료는 brand-data.php 에 「방패(<?php exit; …)」 + JSON 으로 저장됩니다.
+   (주소로 열어도 안 보이게) 예전 .json 형식도 대비해 함께 봅니다. */
+$DAT_FILE = $DATA_DIR . '/brand-data.php';
+if (!is_file($DAT_FILE)) $DAT_FILE = $DATA_DIR . '/brand-data.json';
+
+/* 방패 첫 줄을 걷어내고 JSON 알맹이만 돌려줍니다 (load.php 와 같은 방식) */
+function bh_strip_shield($raw) {
+    if (!is_string($raw) || $raw === '') return '';
+    if (substr($raw, 0, 5) === '<?php') {
+        $nl = strpos($raw, "\n");
+        return $nl === false ? '' : substr($raw, $nl + 1);
+    }
+    return $raw;
+}
 
 function out($a, $code = 200) {
     http_response_code(200);                 // 웹스테이션이 오류코드 본문을 바꿔치기 하므로 늘 200
@@ -122,6 +135,7 @@ function brand_pack($b) {
 }
 
 $raw = is_file($DAT_FILE) ? (string)@file_get_contents($DAT_FILE) : '';
+$raw = bh_strip_shield($raw);
 $data = $raw !== '' ? json_decode($raw, true) : null;
 if (!is_array($data)) {
     out(['ok' => false, 'error' => '허브 자료를 읽지 못했습니다'], 500);

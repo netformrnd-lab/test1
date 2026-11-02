@@ -284,6 +284,15 @@ bag_cards = [
          [{"path": "장비가방_크로스백.png", "label": "제품 이미지"}],
          url="https://smartstore.naver.com/comprala/products/13794850316",
          url_text="스마트스토어"),
+    card("②", "포켓형 접이식 보스턴백 (블랙 · 로고 인쇄 제작)",
+         [("업체", "쏙쏙마켓 (쿠팡)"),
+          ("종류", "휴대용 접이식 보스턴백 · 파우치형 수납 · <strong>홍보/판촉용 로고 인쇄 가능</strong>"),
+          ("인쇄", "실크인쇄 10×10cm · 전사(풀컬러) 8×4cm"),
+          ("소재 / 규격", "폴리에스터 100% · 펼침 42×29×13cm · 접음(파우치) 18×16.5cm"),
+          ("단가", "<strong>5,000원</strong> + 배송비 3,000원")],
+         [{"path": "장비가방_보스턴백.png", "label": "제품 이미지"}],
+         url="https://www.coupang.com/vp/products/9226519594?itemId=27270129787",
+         url_text="쿠팡 링크"),
 ]
 
 # ----- 7. 열화상 카메라 -----
@@ -485,7 +494,7 @@ SECTIONS = [
     ("product", "손전등 / 랜턴", "4종 비교", flash_cards, None),
     ("product", "함수율 측정기", "3종 비교", moist_cards, None),
     ("product", "드론 조종기", "현장 운용 장비", dji_cards, None),
-    ("product", "장비가방", "1종", bag_cards, None),
+    ("product", "장비가방", "2종 비교", bag_cards, None),
     ("product", "열화상 카메라", "2종 비교", thermal_cards, None),
     ("product", "온습도계", "2종 비교", ondo_cards, None),
     ("product", "쌍안경", "2종 비교", bino_cards, None),
@@ -874,7 +883,7 @@ build(OUT_SHORT, short_specs, [], SHORT_SUB,
 # 3) 검수용 — 실물 제작 디자인(겨울 유니폼 · 목걸이/명찰 · 하드커버 양장본)만
 REVIEW_SPECS = [
     ("product", "겨울 유니폼", "겨울 패딩 3종", uniform_cards, None),
-    ("product", "장비가방", "1종", bag_cards, None),
+    ("product", "장비가방", "2종 비교", bag_cards, None),
     ("product", "사원증 목걸이 / 명찰", "넥스트랩 + 명찰 4종", lanyard_cards, None),
     ("design", "하드커버 양장본", "클릭 시 원본 PDF", hardcover_cards, None),
 ]

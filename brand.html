@@ -4020,6 +4020,10 @@ body.bk-edit .panel{overflow:clip}
   -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
   display:none;place-items:center;z-index:100;padding:20px;overflow-y:auto}
 .modal-bg.open{display:grid}
+/* 📌 물어보는 작은 창(사람 추가·비번 초기화 등)은 늘 맨 위에.
+   안 그러면 #usersLayer(사람 관리 등)가 DOM 뒤쪽이라 같은 z-index 에서
+   위를 덮어, 물어보는 창이 「뒤에」 숨어버립니다. */
+#askModal{z-index:2000}
 .modal{background:var(--bg-card);border-radius:var(--r-lg);padding:26px;width:100%;
   max-width:480px;box-shadow:var(--shadow-lg);border:1px solid var(--border);margin:auto}
 .modal h3{font-size:17px;font-weight:750;margin-bottom:16px;letter-spacing:-.026em}
@@ -6068,7 +6072,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-126';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-127';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -37791,8 +37795,10 @@ function askForm(o){
     document.getElementById('askBody').innerHTML = fs.map((f, i) => {
       const id = 'ask_' + f.key;
       const v  = f.value == null ? '' : String(f.value);
-      const lab = '<label for="' + id + '">' + esc(f.label || f.key)
-        + (f.required ? ' <i class="req">*</i>' : '') + '</label>';
+      /* 라벨이 비어 있으면(askOne 처럼 한 칸만 묻는 경우) 라벨을 아예 안 답니다.
+         전에는 f.key 로 떨어져 「v」 같은 글자가 라벨로 보였습니다. */
+      const lab = f.label ? '<label for="' + id + '">' + esc(f.label)
+        + (f.required ? ' <i class="req">*</i>' : '') + '</label>' : '';
       let box;
       if(f.type === 'textarea'){
         box = '<textarea id="' + id + '" rows="' + (f.rows || 4) + '" placeholder="'

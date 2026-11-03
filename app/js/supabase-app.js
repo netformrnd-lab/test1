@@ -2586,7 +2586,7 @@ const ALIM_CONTENT = [
   { type: 'youtube', yt: 'XVegF05f1js', title: '옥상방수감리는?', url: 'https://youtube.com/shorts/XVegF05f1js' },
   { type: 'youtube', yt: 'k_RGeslphd0', title: '아스팔트슁글 하자유형은?', url: 'https://youtube.com/shorts/k_RGeslphd0' },
   { type: 'youtube', yt: 'JfHwcYDGcck', title: '22년차 건축사가 알려주는 옥상누수 원인 총정리', url: 'https://youtube.com/shorts/JfHwcYDGcck' },
-  { type: 'youtube', yt: 'OtNt2Jv08ag', title: '드론 AI 하자 사전진단 무상제공, 누적 50만 세대 감리데이터 학습한 AI가 완벽 진단합니다! | 아파트스퀘어', url: 'https://youtu.be/OtNt2Jv08ag' },
+  { type: 'youtube', yt: 'OtNt2Jv08ag', title: '드론 AI 하자 사전진단 무상제공, 누적 50만 세대 감리데이터 학습한 AI가 꼼꼼하게 진단합니다 | 아파트스퀘어', url: 'https://youtu.be/OtNt2Jv08ag' },
   { type: 'blog', title: '아파트 외벽 도색 감리, 22년차 건축사가 짚어주는 핵심 포인트', url: 'https://blog.naver.com/aptsquare_/224318743314' },
   { type: 'blog', title: '지하주차장 에폭시 재하자, 감리 없이 반복되는 이유', url: 'https://blog.naver.com/aptsquare_/224324551316' },
   { type: 'blog', title: '22년차 건축사가 알려주는 아파트 보수공사 감리 — 소통과 품질의 기준', url: 'https://blog.naver.com/aptsquare_/224316637130' },

@@ -53,9 +53,11 @@ function hubDigest(b) {
     for (const it of [].concat(list || [])) {
       if (typeof it === 'string') { if (/^https?:\/\//.test(it)) items.push({ kind, name: it.split('/').pop(), url: it }); else items.push({ kind, name: it, url: '' }); continue }
       if (!it || typeof it !== 'object') continue
-      const url = it.url || it.link || it.href || it.download || it.downloadUrl || it.file || ''
+      let url = it.url || it.link || it.href || it.download || it.downloadUrl || it.download_url || it.file || it.path || it['링크'] || it['주소'] || ''
+      if (!/^https?:\/\//.test(String(url))) url = Object.values(it).find((v) => typeof v === 'string' && /^https?:\/\//.test(v)) || ''
       const name = it.name || it.title || it['이름'] || it['제목'] || it.filename || (url ? String(url).split('/').pop() : '')
-      items.push({ kind, name: String(name).slice(0, 120), url: /^https?:\/\//.test(String(url)) ? String(url) : '', note: String(it.desc || it.description || it['설명'] || '').slice(0, 200) })
+      const text = it.text || it.content || it.body || it['내용'] || it['본문'] || it.summary || it['요약'] || ''
+      items.push({ kind, name: String(name).slice(0, 120), url: String(url), note: String(it.desc || it.description || it['설명'] || '').slice(0, 200), text: typeof text === 'string' ? text.slice(0, 150000) : '', keys: Object.keys(it).slice(0, 15) })
     }
   }
   return { tone: String(tone || '').slice(0, 4000), items: items.slice(0, 40) }
@@ -67,7 +69,7 @@ async function hubToSources(hb) {
   if (hb.tone && hb.tone.length >= 30) out.push({ id: sid('tone' + hb.name), title: `브랜드 허브 · ${hb.name} 톤·가이드`, provenance: '넷폼 브랜드 허브', content: hb.tone, approved: true, hub: true })
   let total = 0
   for (const it of hb.items.slice(0, 20)) {
-    let text = it.note && it.note.length >= 30 ? it.note : ''
+    let text = (it.text && it.text.length >= 30 ? it.text : '') || (it.note && it.note.length >= 30 ? it.note : '')
     if (it.url && total < 400000) {
       const t = await remoteText(it.url).catch(() => '')
       if (t) text = (text ? text + '\n\n' : '') + t
@@ -769,9 +771,18 @@ async function runStep(env, job) {
     if (status === 'completed' || status === 'finished' || status === 'succeeded') {
       // 결과 파일이 작업 정보에 없을 수 있어 관련 주소도 함께 읽어 본다(없으면 무시)
       const extra = {}
-      for (const sub of ['files', 'attachments', 'messages', 'output']) {
-        const r2 = await fetch(MANUS_API + '/tasks/' + encodeURIComponent(d.videoId) + '/' + sub, { headers: manusHeaders(key) }).catch(() => null)
-        if (r2 && r2.ok) extra[sub] = await r2.json().catch(() => null)
+      const id = encodeURIComponent(d.videoId)
+      const h2 = { ...manusHeaders(key), 'x-manus-api-key': key, authorization: 'Bearer ' + key }
+      const probes = {
+        files: MANUS_API + '/tasks/' + id + '/files', attachments: MANUS_API + '/tasks/' + id + '/attachments', messages: MANUS_API + '/tasks/' + id + '/messages',
+        v2_messages: 'https://api.manus.ai/v2/task.listMessages?task_id=' + id, v2_get: 'https://api.manus.ai/v2/task.get?task_id=' + id,
+        v2_files: 'https://api.manus.ai/v2/task.listFiles?task_id=' + id, v1_files: MANUS_API + '/files?task_id=' + id,
+      }
+      d.manusProbe = {}
+      for (const [k, u] of Object.entries(probes)) {
+        const r2 = await fetch(u, { headers: h2 }).catch(() => null)
+        d.manusProbe[k] = r2 ? r2.status : 0
+        if (r2 && r2.ok) extra[k] = await r2.json().catch(() => null)
       }
       const all = { task: out, ...extra }
       d.manusRaw = JSON.stringify(all).slice(0, 30000)

@@ -61,3 +61,5 @@ if (mj && mj.data && mj.data.manusRaw) {
     for (const o of (t && t.output) || []) console.log(' · output', o.role, o.type, o.status, '| content types:', (o.content || []).map((c) => c.type + (c.fileName ? ':' + c.fileName : '')).join(', '))
   } catch (e) { console.log('Manus 상세 파싱 실패', e.message) }
 }
+if (lj && lj.data && lj.data.hub) for (const it of lj.data.hub.items) console.log(' · 항목 필드', it.name, JSON.stringify(it.keys || []))
+if (mj && mj.data && mj.data.manusProbe) console.log('== Manus 추가 주소 응답 코드 ==', JSON.stringify(mj.data.manusProbe))

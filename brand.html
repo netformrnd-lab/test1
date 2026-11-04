@@ -6080,7 +6080,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-128';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-129';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -37131,7 +37131,7 @@ async function saveAll(silent){
         await storageSave(payload);
         break;
       }catch(e){
-        if(!e.conflict || ++tries > 3) throw e;
+        if(!e.conflict || ++tries > 8) throw e;
         // 다른 사람이 먼저 저장했습니다 → 그 내용 위에 내 것만 얹어서 다시 시도
         revived = 0; clashed = 0; clashedTop = 0; mergedOnce = true;
         data = normalize(mergeWithServer(e.server));
@@ -37152,6 +37152,11 @@ async function saveAll(silent){
                                   + '— 상대가 쓴 것도 바로 아래에 따로 남겨뒀습니다');
         else if(revived) toast('다른 분이 지운 항목이지만, 고치신 내용이 있어 살려뒀습니다');
         else if(!silent) toast('다른 분이 저장한 내용과 합치는 중…');
+        /* 여럿이 동시에 쓰는데 NAS 가 느리면 재시도도 자꾸 밀립니다. 조금
+           기다렸다(사람마다 다른 시간) 다시 보내, 세 명이 똑같은 순간에
+           부딪히지 않게 흩어 줍니다 — 「다른 사람이 먼저 저장했습니다」 로
+           끝내 실패하던 것을 줄입니다. */
+        await new Promise(r => setTimeout(r, 180 * tries + Math.random() * 300));
       }
     }
     dirtyBrands.clear();

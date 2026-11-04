@@ -211,7 +211,7 @@ async function loadResidentNext(aptId) {
   }
   const d = new Date(s.date), wd = ['일', '월', '화', '수', '목', '금', '토']
   if (title) title.textContent = s.title
-  if (sub) sub.textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 (${wd[d.getDay()]})${s.description ? ' · ' + s.description : ''}`
+  if (sub) sub.textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 (${wd[d.getDay()]}) 방문 예정`
   if (dbox) dbox.innerHTML = `<span style="font-size:9px;font-weight:800;color:#2F6BF6">${d.getMonth() + 1}월</span><span style="font-size:17px;font-weight:800;color:#2F6BF6">${d.getDate()}</span>`
 }
 // 입주민: 우리 단지 현장 현황 (관리자가 올린 현장 사진·글)
@@ -2199,7 +2199,7 @@ function renderSchedList(scheds) {
         + '<button onclick="deleteSchedApp(\'' + s.id + '\')" style="background:#fdecec;color:#d9453c;border:none;border-radius:8px;padding:6px 11px;font-size:10.5px;font-weight:800;font-family:inherit;cursor:pointer">🗑</button>'
         + '</div>'
     }
-    return '<div style="border-left:3px solid ' + (s.done_at && isVisit ? '#16a34a' : c) + ';background:#f8faff;border-radius:0 10px 10px 0;padding:9px 11px;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + (lab ? '<span style="font-size:9px;font-weight:800;color:' + c + ';background:' + c + '1a;padding:2px 7px;border-radius:6px">' + lab + '</span>' : '') + '<div style="font-size:11.5px;font-weight:800;color:#1c2440">' + escH(s.title) + '</div>' + ((s.meta && s.meta.dateType === 'expected') ? '<span style="font-size:9px;font-weight:800;color:#8a6d1f;background:#fdf3d6;padding:2px 7px;border-radius:6px">예정</span>' : '') + doneChip + asgChip + (badge ? '<span style="margin-left:auto">' + badge + '</span>' : '') + '</div>' + (s.description ? '<div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">' + escH(s.description) + '</div>' : '') + actions + '</div>'
+    return '<div style="border-left:3px solid ' + (s.done_at && isVisit ? '#16a34a' : c) + ';background:#f8faff;border-radius:0 10px 10px 0;padding:9px 11px;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + (lab ? '<span style="font-size:9px;font-weight:800;color:' + c + ';background:' + c + '1a;padding:2px 7px;border-radius:6px">' + lab + '</span>' : '') + '<div style="font-size:11.5px;font-weight:800;color:#1c2440">' + escH(s.title) + '</div>' + ((s.meta && s.meta.dateType === 'expected') ? '<span style="font-size:9px;font-weight:800;color:#8a6d1f;background:#fdf3d6;padding:2px 7px;border-radius:6px">예정</span>' : '') + doneChip + asgChip + (badge ? '<span style="margin-left:auto">' + badge + '</span>' : '') + '</div>' + (isAud && s.description ? '<div style="font-size:10px;color:#5c6580;font-weight:600;margin-top:3px">' + escH(s.description) + '</div>' : '') + actions + '</div>'
   }).join('')
 }
 async function markVisited(id, on) {

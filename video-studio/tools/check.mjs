@@ -47,3 +47,17 @@ if (mj) {
 // 최근 작업 제작 기록 (허브 연결 등 확인용, 최근 1건)
 const lj = arr(jobs)[0]
 if (lj) { console.log('== 최근 작업 기록 ==', lj.status, (lj.input || {}).tool || '', (lj.input || {}).keywords || ''); for (const e of (lj.data && lj.data.events) || []) console.log(' ·', String(e.text || '').slice(0, 300)) }
+
+// 상세: 허브 항목 형식, Manus 응답 상세
+if (lj && lj.data && lj.data.hub) {
+  console.log('== 허브 항목 ==', lj.data.hub.items.length)
+  for (const it of lj.data.hub.items) console.log(' ·', it.kind, '|', it.name, '| url:', it.url ? it.url.replace(/key=[^&]+/, 'key=***').slice(0, 120) : '(없음)', '| note:', (it.note || '').slice(0, 60))
+}
+if (mj && mj.data && mj.data.manusRaw) {
+  try {
+    const all = JSON.parse(mj.data.manusRaw)
+    const t = all.task && (all.task.task || all.task)
+    console.log('== Manus 상세 == status', t && t.status, '| credit', t && t.credit_usage, '| 추가 주소 응답:', Object.keys(all).filter((k) => k !== 'task').join(',') || '없음')
+    for (const o of (t && t.output) || []) console.log(' · output', o.role, o.type, o.status, '| content types:', (o.content || []).map((c) => c.type + (c.fileName ? ':' + c.fileName : '')).join(', '))
+  } catch (e) { console.log('Manus 상세 파싱 실패', e.message) }
+}

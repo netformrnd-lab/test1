@@ -2607,7 +2607,7 @@ const ALIM = {
     const wb = 'word-break:keep-all;'
     const block = (title, body) => '<div style="text-align:center;padding:28px 22px 0">'
       + '<div style="font-size:19px;font-weight:800;color:#2F6BF6;line-height:1.4;' + wb + '">' + title + '</div>'
-      + '<div style="font-size:13px;color:#5c6580;font-weight:600;line-height:1.9;margin-top:12px;' + wb + '">' + body + '</div></div>'
+      + '<div style="font-size:13px;color:#5c6580;font-weight:600;line-height:1.85;margin-top:12px;text-wrap:balance;' + wb + '">' + body + '</div></div>'
     // 히어로 이미지 + 타이틀 (헤더 이미지는 교체 가능)
     let h = '<div style="position:relative;height:224px;overflow:hidden">'
       + '<img src="assets/philo_promise.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center 30%;display:block" loading="lazy">'
@@ -2616,10 +2616,10 @@ const ALIM = {
       + '<div style="font-size:13px;font-weight:800;letter-spacing:2px;color:#9dc0ff">Philosophy</div>'
       + '<div style="font-size:24px;font-weight:800;margin-top:9px">아파트스퀘어의 철학</div></div></div>'
     h += '<div style="padding:6px 0 34px">'
-    h += block('건축사가 만든 서비스', '감리는 늘 신축 현장에 집중돼 있었습니다.<br>정작 아파트 유지보수 공사에는,<br><b>끝까지 확인하고 기록해 줄 전문가</b>가<br>필요했습니다.')
-    h += block('어렵던 공사를, 쉽고 투명하게', '관리소장도 입주민도<br>모든 과정을 직접 보긴 어렵습니다.<br>그래서 현장을 <b>사진과 기록</b>으로 남기고,<br>누구나 쉽게 이해하도록 <b>투명하게 공유</b>합니다.')
-    h += block('만족하는 감리', '우리가 만들고 싶은 건<br>결과만이 아닙니다.<br><b>믿고 결정할 기준,<br>신뢰할 수 있는 과정,<br>시간이 지나도 남는 기록</b>입니다.')
-    h += block('확인이 당연한 문화로', '공사의 품질은<br>좋은 자재·기술만으로 결정되지 않습니다.<br><b>진단하고, 기준대로 확인하고, 기록하는 것</b><br>— 보이지 않던 과정을 보이게 만듭니다.')
+    h += block('건축사가 만든 서비스', '감리는 늘 신축 현장에 집중돼 있었습니다.<br>정작 아파트 유지보수 공사에는 <b>끝까지 확인하고 기록해 줄 전문가</b>가 필요했습니다.')
+    h += block('어렵던 공사를, 쉽고 투명하게', '관리소장도 입주민도 모든 과정을 직접 보긴 어렵습니다.<br>그래서 현장을 <b>사진과 기록</b>으로 남기고, 누구나 쉽게 이해하도록 <b>투명하게 공유</b>합니다.')
+    h += block('만족하는 감리', '우리가 만들고 싶은 건 결과만이 아닙니다.<br><b>믿고 결정할 기준, 신뢰할 수 있는 과정, 시간이 지나도 남는 기록</b>입니다.')
+    h += block('확인이 당연한 문화로', '공사의 품질은 좋은 자재·기술만으로 결정되지 않습니다.<br><b>진단하고, 기준대로 확인하고, 기록하는 것</b> — 보이지 않던 과정을 보이게 만듭니다.')
     h += block('감리의 기준', '마지막에 잘됐는지만 보는 감리가 아닙니다.<br><b>아파트스퀘어는 아파트 유지보수 전문 감리 파트너입니다.</b><br>진단부터 준공 사후관리까지 곁에서 잇습니다.<br>‘스퀘어’는 <b>기준과 균형</b>을 뜻합니다.')
     // ── 인증·이력(공신력) : 관리자가 올린 인증서 이미지 (없으면 섹션 자체가 숨겨짐) ──
     h += '<div id="cred-section" style="display:none;margin-top:34px;padding:0 16px 20px">'

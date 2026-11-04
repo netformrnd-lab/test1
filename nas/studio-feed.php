@@ -142,6 +142,58 @@ if (!is_array($data)) {
 }
 $brands = is_array($data['brands'] ?? null) ? $data['brands'] : [];
 
+/* ── 📄 문서 본문 받기 ──────────────────────────────────────────
+   ?action=doc&name=<문서이름>  →  그 문서의 본문 글자를 돌려줍니다.
+   1) 업로드 문서(워드·엑셀·PDF 등)에서 뽑아둔 글자 — data/doctext.tsv
+      (doctext.php 가 미리 만들어 둔 색인. 로그인 없이 키로 읽습니다)
+   2) 허브 안에 적어둔 글(자료·문서·기획서) — 이름으로 찾아 본문을 모음 */
+if ($action === 'doc') {
+    $name = trim((string)($_GET['name'] ?? $_GET['q'] ?? ''));
+    if ($name === '') out(['ok' => false, 'error' => "찾을 문서 이름(name)을 적어 주세요"], 400);
+    $lc = function_exists('mb_strtolower')
+        ? function($s){ return mb_strtolower((string)$s, 'UTF-8'); }
+        : function($s){ return strtolower((string)$s); };
+    $needle = $lc($name);
+
+    /* 1) 업로드 문서에서 뽑아둔 글자 (doctext.tsv: 경로<탭>글자) */
+    $DOCTXT = $DATA_DIR . '/doctext.tsv';
+    if (is_file($DOCTXT) && ($fp = @fopen($DOCTXT, 'r'))) {
+        while (($line = fgets($fp)) !== false) {
+            $tab = strpos($line, "\t");
+            if ($tab === false) continue;
+            $path = substr($line, 0, $tab);
+            $text = rtrim(substr($line, $tab + 1), "\r\n");
+            if ($text === '' || $text[0] === "\x01") continue;   // 못 읽은 문서
+            if (strpos($lc(basename($path)), $needle) !== false
+                || strpos($lc($path), $needle) !== false) {
+                fclose($fp);
+                out(['ok' => true, 'source' => 'file', 'name' => basename($path),
+                     'path' => $path, 'text' => $text, 'length' => strlen($text)]);
+            }
+        }
+        fclose($fp);
+    }
+
+    /* 2) 허브 안에 적어둔 글에서 이름으로 찾기 */
+    foreach ($brands as $b) {
+        if (!is_array($b) || !empty($b['nfHolder'])) continue;
+        foreach (['assets', 'docs', 'plans'] as $k) {
+            foreach ((array)($b[$k] ?? []) as $x) {
+                if (!is_array($x)) continue;
+                $title = (string)($x['title'] ?? $x['name'] ?? '');
+                if ($title === '' || strpos($lc($title), $needle) === false) continue;
+                $parts = [];
+                foreach (['text', 'body', 'content', 'note', 'desc', 'memo'] as $f) {
+                    if (!empty($x[$f]) && is_string($x[$f])) $parts[] = slim_str($x[$f]);
+                }
+                out(['ok' => true, 'source' => 'inline', 'brand' => (string)($b['name'] ?? ''),
+                     'name' => $title, 'text' => implode("\n\n", array_filter($parts))]);
+            }
+        }
+    }
+    out(['ok' => false, 'error' => '그 이름의 문서를 찾지 못했습니다: ' . $name], 404);
+}
+
 if ($action === 'brand') {
     $id = (string)($_GET['id'] ?? '');
     foreach ($brands as $b) {

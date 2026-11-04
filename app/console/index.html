@@ -85,14 +85,18 @@ main{flex:1;min-width:0;padding:22px 28px 70px;max-width:1680px;margin:0 auto}
 .pj-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
 .pj-title h2{font-size:22px;font-weight:800;letter-spacing:-.3px;margin:0}.pj-crumb{font-size:12px;color:var(--mut);margin-top:4px}
 .pj-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.pj-search{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:0 12px;height:38px;min-width:280px}.pj-search span{color:var(--mut);font-size:13px}.pj-search input{border:none;outline:none;font-size:13px;flex:1;background:transparent}
+.pj-search{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:0 12px;height:34px;min-width:230px}.pj-search span{color:var(--mut);font-size:13px}.pj-search input{border:none;outline:none;font-size:13px;flex:1;background:transparent}
 .pj-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.pj-chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:13px;font-weight:700;color:var(--mut2);cursor:pointer;transition:.12s}
+.pj-chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:13px;font-weight:700;color:var(--mut2);cursor:pointer;transition:.12s}
 .pj-chip .dot{width:8px;height:8px;border-radius:50%}.pj-chip .num{font-size:12px;font-weight:800;color:var(--ink);background:#eef1f7;border-radius:7px;padding:1px 7px}
 .pj-chip:hover{border-color:#b9c8ea}.pj-chip.on{background:var(--navy);border-color:var(--navy);color:#fff}.pj-chip.on .num{background:rgba(255,255,255,.18);color:#fff}
 .pj-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .pj-sel{height:34px;padding:0 10px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;background:#fff;color:var(--ink);font-weight:600}
 .pj-gap{flex:1}
+.pj-total{display:inline-block;font-size:13px;font-weight:800;color:var(--blue);background:var(--blue-soft);border-radius:8px;padding:2px 9px;vertical-align:middle;margin-left:4px}
+.pj-bulk{position:relative}.pj-menu{position:absolute;right:0;top:40px;z-index:40;width:270px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px -12px rgba(20,25,40,.25);padding:6px;display:flex;flex-direction:column}
+.pj-menu button{display:block;width:100%;text-align:left;border:none;background:transparent;border-radius:8px;padding:9px 10px;cursor:pointer;color:var(--ink)}.pj-menu button:hover{background:var(--soft)}.pj-menu button b{font-size:13px;font-weight:800}.pj-menu button div{font-size:11.5px;color:var(--mut);margin-top:2px}.pj-menu .sep{height:1px;background:var(--line2);margin:4px 6px}
+.pj-menu button.on b:after{content:' · 켜짐';color:var(--green);font-size:11px}
 .pj-view{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px}
 .pj-view button{border:none;background:transparent;font-size:12.5px;font-weight:800;color:var(--mut2);padding:6px 12px;border-radius:8px;cursor:pointer}.pj-view button.on{background:var(--navy);color:#fff}
 .pj-count{font-size:12.5px;color:var(--mut2);font-weight:700;margin:2px 0 10px}
@@ -443,11 +447,10 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-projects">
       <div id="projList">
         <div class="pj-head">
-          <div class="pj-title"><h2>공사관리</h2><div class="pj-crumb">전체 현장 › 공사관리 · 현장을 누르면 상세(감리일지·작업사진·계약서·방문이력)</div></div>
+          <div class="pj-title"><h2>공사관리 <span class="pj-total" id="projTotal">0</span></h2><div class="pj-crumb">현장을 누르면 감리일지 · 작업사진 · 계약서 · 방문이력이 열려요</div></div>
           <div class="pj-tools">
-            <div class="pj-search"><span>🔍</span><input id="proj-q" placeholder="현장명, 지역, 담당 감리원 검색" oninput="projPage=1;renderProjList()"></div>
             <button class="b line" onclick="openReportAddPick()">감리일지 작성</button>
-            <button class="b blue" onclick="openAptAdd()">＋ 현장 추가</button>
+            <button class="b blue" onclick="openAptAdd()">+ 현장 추가</button>
           </div>
         </div>
         <div class="pj-chips" id="projStageFilter"></div>
@@ -457,16 +460,23 @@ tbody tr:hover{background:#f8fafc}
           <select class="pj-sel" id="pj-method" onchange="projPage=1;renderProjList()"></select>
           <select class="pj-sel" id="pj-sort" onchange="projPage=1;renderProjList()"><option value="name">이름순</option><option value="report">최근 일지순</option><option value="visit">다음 방문순</option><option value="stage">단계순</option></select>
           <button class="b line sm" onclick="resetProjFilters()">초기화</button>
+          <div class="pj-search"><input id="proj-q" placeholder="현장명 · 지역 · 담당 감리원 검색" oninput="projPage=1;renderProjList()"></div>
           <span class="pj-gap"></span>
-          <button class="b line sm" id="pv-money" onclick="toggleProjMoney()" title="감리비·미수금 열 보기/숨기기">금액 보기</button>
-          <button class="b line sm" onclick="openBulkAssign()">감리원 일괄배정</button>
-          <button class="b line sm" onclick="bulkPublishReports(this)" title="dj(테스트) 작성 건은 제외하고 전체 공개">감리일지 전체 공개</button>
-          <button class="b line sm" onclick="bulkUnpublishNoPdf(this)" title="PDF 없이 공개돼 입주민에게 '준비중'으로 보이는 감리일지를 비공개로 되돌리기">PDF없음 공개회수</button>
-          <div class="pj-view"><button id="pv-cards" onclick="setProjView('cards')">카드형</button><button id="pv-list" onclick="setProjView('list')">리스트형</button><button id="pv-kanban" onclick="setProjView('kanban')">⫴ 칸반</button></div>
+          <div class="pj-bulk" id="pjBulk">
+            <button class="b line sm" id="pjBulkBtn" onclick="toggleBulkMenu()" aria-expanded="false">일괄 작업 ▾</button>
+            <div class="pj-menu" id="pjBulkMenu" style="display:none">
+              <button onclick="closeBulkMenu();openBulkAssign()"><b>감리원 일괄배정</b><div>여러 현장에 감리원을 한 번에 배정</div></button>
+              <button onclick="closeBulkMenu();bulkPublishReports(this)"><b>감리일지 전체 공개</b><div>입주자앱에 공개 · 테스트(dj) 작성 건 제외</div></button>
+              <button onclick="closeBulkMenu();bulkUnpublishNoPdf(this)"><b>PDF없음 공개회수</b><div>입주민에게 ‘준비중’으로 보이는 일지를 비공개로</div></button>
+              <div class="sep"></div>
+              <button id="pv-money" onclick="toggleProjMoney()"><b>금액 열 보기</b><div>감리비 · 미수금 열을 표에 표시</div></button>
+            </div>
+          </div>
+          <div class="pj-view"><button id="pv-list" onclick="setProjView('list')">리스트</button><button id="pv-cards" onclick="setProjView('cards')">카드</button><button id="pv-kanban" onclick="setProjView('kanban')">칸반</button></div>
         </div>
         <div class="pj-count" id="projCount"></div>
         <div id="projCardsWrap" class="pj-grid" style="display:none"></div>
-        <div id="projTableWrap" class="money-off pj-tablewrap"><table class="pj-table"><thead><tr><th>현장명 / 지역</th><th>공사단계</th><th class="money-col">감리비</th><th class="money-col">미수금</th><th>공종별 진행현황</th><th>담당 감리원</th><th>다음 방문일</th><th>최근 감리일지</th><th>상태</th><th>관리</th></tr></thead><tbody id="projRows"></tbody></table></div>
+        <div id="projTableWrap" class="money-off pj-tablewrap"><table class="pj-table"><thead><tr><th>현장 / 지역</th><th>단계</th><th class="money-col">감리비</th><th class="money-col">미수금</th><th>공정</th><th>담당 감리원</th><th>다음 방문</th><th>최근 감리일지</th><th>상태</th><th></th></tr></thead><tbody id="projRows"></tbody></table></div>
         <div class="pj-pager" id="projPager"></div>
         <div id="projKanbanWrap" class="kbwrap" style="display:none"><div class="kbboard" id="projKanban"></div></div>
       </div>
@@ -707,8 +717,8 @@ async function applyDetectedStage(aptId,m){ const a=APTS.find(x=>x.id===aptId); 
 function progressRowsHtml(a,opt){ opt=opt||{}; const list=siteProgressList(a); const bw=opt.barW||60;
   if(!list.length){ const pr=progressOf(a); return pr.tot?`<div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:${bw}px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div>`:`<span style="font-size:11px;color:var(--mut)">${opt.emptyText||'-'}</span>`; }
   const multi=list.length>1;
-  return list.map(p=>{ const det=detectStage(a,p.m); const hint=(det&&det.idx!==p.cur)?`<div class="pghint" title="최신 감리일지(${esc(det.date)})에서 '${esc(det.name)}' 공정이 읽혔어요. 눌러서 공정에 반영">📝 일지 ${esc(det.date.slice(5))}: ${esc(det.name)} <span class="link" onclick="event.stopPropagation();applyDetectedStage('${a.id}','${p.m}')">반영</span> <span class="link" style="color:var(--mut);margin-left:2px" title="이 제안 숨기기 — 직접 설정할 때. 새 일지가 올라오면 다시 제안해요" onclick="event.stopPropagation();dismissDetectedStage('${a.id}','${p.m}')">✕</span></div>`:'';
-    const stName=p.done?'✅ 완료':(p.stage?esc(p.stage):'시작 전');
+  return list.map(p=>{ const det=detectStage(a,p.m); const hint=(det&&det.idx!==p.cur)?`<div class="pghint" title="최신 감리일지(${esc(det.date)})에서 '${esc(det.name)}' 공정이 읽혔어요. 눌러서 공정에 반영">일지 ${esc(det.date.slice(5))}: ${esc(det.name)} <span class="link" onclick="event.stopPropagation();applyDetectedStage('${a.id}','${p.m}')">반영</span> <span class="link" style="color:var(--mut);margin-left:2px" title="이 제안 숨기기 — 직접 설정할 때. 새 일지가 올라오면 다시 제안해요" onclick="event.stopPropagation();dismissDetectedStage('${a.id}','${p.m}')">✕</span></div>`:'';
+    const stName=p.done?'완료':(p.stage?esc(p.stage):'시작 전');
     return `<div class="pgrow">${multi?`<span class="pgl">${esc(p.short)}</span>`:''}<div class="bar" style="width:${bw}px"><i style="width:${p.pct}%"></i></div><span class="pgp">${p.pct}%</span><span class="pgs" title="${p.cur}/${p.tot}단계">${stName}</span></div>${hint}`; }).join('');
 }
 const STATUS={in_progress:['공사중','blue'],done:['완료','gray'],scheduled:['점검예정','no']};
@@ -1819,8 +1829,11 @@ function setProjStage(k){ projStage=(projStage===k&&k!=='전체')?'전체':k; re
   if(projView==='kanban'&&projStage!=='전체'){ const c=document.querySelector('.kbcol.sel'); if(c&&c.scrollIntoView)c.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}); } }
 /* ── 공사관리 리스트: 감리비·미수금 열 토글 (기본 숨김, 선택은 브라우저에 기억) ── */
 let projMoney=(lsGet('aptsq_proj_money')==='1');
-function applyProjMoney(){ const w=$('projTableWrap'); if(w)w.classList.toggle('money-off',!projMoney); const b=$('pv-money'); if(b){ b.textContent=projMoney?'금액 숨기기':'금액 보기'; b.classList.toggle('blue',projMoney); b.classList.toggle('line',!projMoney); } }
+function applyProjMoney(){ const w=$('projTableWrap'); if(w)w.classList.toggle('money-off',!projMoney); const b=$('pv-money'); if(b){ b.classList.toggle('on',projMoney); const bb=b.querySelector('b'); if(bb)bb.textContent=projMoney?'금액 열 숨기기':'금액 열 보기'; } }
 function toggleProjMoney(){ projMoney=!projMoney; lsSet('aptsq_proj_money',projMoney?'1':'0'); applyProjMoney(); }
+function toggleBulkMenu(){ const m=$('pjBulkMenu'),b=$('pjBulkBtn'); if(!m)return; const open=m.style.display==='none'; m.style.display=open?'flex':'none'; if(b)b.setAttribute('aria-expanded',open?'true':'false'); }
+function closeBulkMenu(){ const m=$('pjBulkMenu'),b=$('pjBulkBtn'); if(m)m.style.display='none'; if(b)b.setAttribute('aria-expanded','false'); }
+document.addEventListener('click',e=>{ const w=$('pjBulk'); if(w&&!w.contains(e.target))closeBulkMenu(); });
 /* ── 감리일지 한 줄 요약 (규칙 기반) ──
    체크리스트가 만드는 본문의 [특기사항] 안에서 '1. 외부 수성도장 및 그래픽도장 점검' 같은 번호 제목을 첫 줄로 뽑는다.
    없으면 '공종:' 줄 → 특기사항 첫 줄 → [시공사 보고]/[감리 확인] 첫 항목 → 제목 순으로 대체. */
@@ -1856,7 +1869,7 @@ function fmtMD(d){ if(!d)return ''; const x=new Date(d+'T00:00:00'); if(isNaN(x)
 /* 상태: 감리 진행(공사중) 단지의 최근 일지 경과일 — 10일 이내 정상 · 21일 이내 주의 · 그 이상/없음 지연 */
 function siteHealth(a){ if(a.status!=='in_progress')return {cls:'na',label:'-',tip:'공사중 단지만 판정'}; const r=lastReportOf(a.id); if(!r)return {cls:'late',label:'일지 없음',tip:'감리일지가 아직 없어요'};
   const d=repDateOf(r); const days=Math.floor((new Date()-new Date(d+'T00:00:00'))/86400000); if(days<=10)return {cls:'ok',label:'정상',tip:`최근 일지 ${days}일 전`}; if(days<=21)return {cls:'warn',label:'주의',tip:`최근 일지 ${days}일 전`}; return {cls:'late',label:'지연',tip:`최근 일지 ${days}일 전`}; }
-function audAvatars(a,max){ const ids=aptAuditors(a); if(!ids.length)return '<span class="pill no">미배정</span>'; const names=ids.map(auditorName).filter(Boolean); max=max||3;
+function audAvatars(a,max){ const ids=aptAuditors(a); if(!ids.length)return '<span style="color:var(--red);font-weight:800;font-size:12.5px">미배정</span>'; const names=ids.map(auditorName).filter(Boolean); max=max||3;
   return `<div class="pj-aud" title="${esc(names.join(', '))}"><span class="nm">${esc(names.slice(0,max).join(', '))}</span>${names.length>max?`<span class="more">외 ${names.length-max}</span>`:''}</div>`; }
 function stagePillHtml(a){ const m=stageMeta(stageOf(a)); return `<span class="pj-stage" style="background:${m[3]}1a;color:${m[3]}" title="눌러서 단계 이동" onclick="event.stopPropagation();const n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none'">${esc(m[1])}</span><div class="pj-step" style="display:none" onclick="event.stopPropagation()">${stepBarHtml(a)}</div>`; }
 function thumbHtml(a,big){ return ''; }   // 현장 사진 자리는 쓰지 않음(운영 부담) — 이름·지역만 표시
@@ -1888,6 +1901,7 @@ function renderProjList(){
   if(f)f.innerHTML=`<button class="pj-chip ${projStage==='전체'?'on':''}" onclick="projPage=1;setProjStage('전체')">전체 <span class="num">${base.length}</span></button>`
     +SITE_STAGES.map(([k,lab,desc,color])=>`<button class="pj-chip ${projStage===k?'on':''}" title="${esc(desc)}" onclick="projPage=1;setProjStage('${k}')"><span class="dot" style="background:${color}"></span>${esc(lab)} <span class="num">${cnt(k)}</span></button>`).join('');
   ['cards','list','kanban'].forEach(v=>{ const b=$('pv-'+v); if(b)b.classList.toggle('on',projView===v); });
+  const tt=$('projTotal'); if(tt)tt.textContent=APTS.length;
   const cw=$('projCardsWrap'),tw=$('projTableWrap'),kw=$('projKanbanWrap'),pg=$('projPager'),pc=$('projCount');
   if(cw)cw.style.display=projView==='cards'?'grid':'none';
   if(tw)tw.style.display=projView==='list'?'block':'none';
@@ -1923,7 +1937,7 @@ function renderProjRows(list){
       <td>${visitHtml}</td>
       <td>${repHtml}</td>
       <td><span class="pj-health ${h.cls}" title="${esc(h.tip)} · 공사중 단지의 최근 일지 경과일 기준(10일 정상·21일 주의)">${esc(h.label)}</span></td>
-      <td class="pj-act" onclick="event.stopPropagation()"><button class="pj-btn" onclick="openProj('${a.id}')">상세</button><span class="pj-ico" title="단지 설정·삭제" onclick="openAptEdit('${a.id}')">⚙️</span></td></tr>`;
+      <td class="pj-act" onclick="event.stopPropagation()"><button class="pj-btn" onclick="openProj('${a.id}')">상세</button><button class="pj-btn" style="margin-left:4px;color:var(--mut2)" title="단지 설정·삭제" onclick="openAptEdit('${a.id}')">설정</button></td></tr>`;
   }).join('');
 }
 function renderProjCards(list){
@@ -1935,11 +1949,11 @@ function renderProjCards(list){
     return `<div class="pj-card" onclick="openProj('${a.id}')">
       <div class="top">${thumbHtml(a,true)}<div style="flex:1;min-width:0"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="pill" style="background:${m[3]}1a;color:${m[3]}">${esc(m[1])}</span>${nnew?`<span class="pill red">NEW ${nnew}</span>`:''}${h.cls!=='na'?`<span class="pj-health ${h.cls}" style="padding:2px 8px">${esc(h.label)}</span>`:''}</div>
         <div class="ttl">${esc(a.name)}</div><div class="meta">${esc(a.region)||'지역 미입력'}${a.households?` · ${a.households}세대`:''}</div></div>
-        <span class="pj-ico" title="단지 설정·삭제" onclick="event.stopPropagation();openAptEdit('${a.id}')">⚙️</span></div>
+        <button class="pj-btn" style="color:var(--mut2)" title="단지 설정·삭제" onclick="event.stopPropagation();openAptEdit('${a.id}')">설정</button></div>
       <div><div class="sec-t"><span>공종별 진행 현황 (${prog.length})</span><span class="link" onclick="event.stopPropagation();openProj('${a.id}')">전체보기 ›</span></div>
         <div style="margin-top:6px">${prog.length?progressRowsHtml(a,{barW:110}):'<span style="font-size:12px;color:var(--mut)">공법 미지정 — ⚙️ 단지 설정에서 공법을 정하면 표시돼요</span>'}</div></div>
       <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="color:var(--mut);font-weight:700">담당</span>${audAvatars(a,3)}</div>
-      <div class="foot"><div><small>📅 다음 방문</small><b>${nv?fmtMD(String(nv.date).slice(0,10)):'<span style="color:var(--mut);font-weight:600">미정</span>'}</b></div><div><small>📄 최근 감리일지</small><b>${lr?`${fmtMD(repDateOf(lr)).slice(0,5)} <span style="color:var(--mut);font-weight:600">(${repRound(lr)}회차)</span>`:'<span style="color:var(--mut);font-weight:600">없음</span>'}</b></div></div>
+      <div class="foot"><div><small>다음 방문</small><b>${nv?fmtMD(String(nv.date).slice(0,10)):'<span style="color:var(--mut);font-weight:600">미정</span>'}</b></div><div><small>최근 감리일지</small><b>${lr?`${fmtMD(repDateOf(lr)).slice(0,5)} <span style="color:var(--mut);font-weight:600">(${repRound(lr)}회차)</span>`:'<span style="color:var(--mut);font-weight:600">없음</span>'}</b></div></div>
       <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--mut);font-weight:700;white-space:nowrap">단계 이동</span><div class="pj-step" style="margin:0">${stepBarHtml(a)}</div></div>
     </div>`;
   }).join('');

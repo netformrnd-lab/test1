@@ -9,18 +9,18 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
-  --bg:#eef2f8;--panel:#fff;--line:#e7ebf3;--line2:#eef1f7;
-  --navy:#1F2C5C;--blue:#2F6BF6;--blue-soft:#eaf1fe;
-  --ink:#1c2440;--mut:#8b93a8;--mut2:#5c6580;
-  --green:#1f8a5b;--green-soft:#e4f5ec;--amber:#c98a1e;--amber-soft:#fbf1de;
-  --red:#e4544b;--red-soft:#fdecea;--violet:#5b4bd6;--violet-soft:#efedfb;
+  --bg:#ffffff;--panel:#ffffff;--line:#E6E8EE;--line2:#F0F1F4;--soft:#F8F9FB;
+  --navy:#1B1F29;--blue:#2F6BF6;--blue-soft:#EEF3FE;--blue-dark:#1E4FCC;
+  --ink:#1B1F29;--mut:#5B6272;--mut2:#3D4352;
+  --green:#15803D;--green-soft:#E8F6EE;--amber:#9A5B00;--amber-soft:#FEF3E2;
+  --red:#B42318;--red-soft:#FDECEA;--violet:#5b4bd6;--violet-soft:#efedfb;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Pretendard',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
 button{font-family:inherit;cursor:pointer}
 input,select{font-family:inherit}
 /* login */
-#login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+#login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--soft)}
 #login .box{width:360px;max-width:92%;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:34px 30px;box-shadow:0 20px 50px -24px rgba(20,30,60,.35)}
 #login .logo{width:46px;height:46px;border-radius:13px;background:var(--navy);display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
 #login h1{font-size:19px;font-weight:800;text-align:center}
@@ -29,32 +29,35 @@ input,select{font-family:inherit}
 #login input:focus{border-color:var(--blue)}
 #login .msg{font-size:12px;font-weight:700;color:#d94b4b;min-height:16px;margin-top:8px;text-align:center}
 .btn-primary{width:100%;border:none;border-radius:11px;background:var(--blue);color:#fff;font-size:14px;font-weight:800;padding:13px;margin-top:4px}
-.layout{display:flex;min-height:100vh}
-.side{width:236px;flex-shrink:0;background:#1a2749;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
-.brand{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.09)}
-.brand .nm{font-size:16px;font-weight:800;color:#fff;display:flex;gap:9px;align-items:center}
-.brand .ic{width:27px;height:27px;border-radius:8px;background:linear-gradient(135deg,#3f74e6,#2F6BF6);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.brand .sub{font-size:11px;color:#8b9ac0;font-weight:600;margin-top:7px;margin-left:36px}
-.nav{padding:14px 12px;flex:1}
-.nav .lbl{font-size:10px;font-weight:800;color:#6b7aa8;letter-spacing:.06em;padding:14px 10px 6px}
-.nav a{display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:9px;font-size:13.5px;font-weight:700;color:#c2cbe4;text-decoration:none;margin-bottom:2px;cursor:pointer}
-.nav a .ic{font-size:15px;width:18px;text-align:center}
-.nav a:hover{background:rgba(255,255,255,.06)}
-.nav a.on{background:#2b3d6b;color:#fff}
-.nav a .cnt{margin-left:auto;font-size:11px;font-weight:800;background:rgba(255,255,255,.12);color:#aab5d4;padding:1px 8px;border-radius:20px}
+.topbar{position:sticky;top:0;z-index:60;height:54px;display:flex;align-items:center;gap:18px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line)}
+.topbar .logo{display:flex;align-items:center;gap:9px;white-space:nowrap}.topbar .logo .nf{font-size:12px;font-weight:900;letter-spacing:.12em;color:var(--blue)}.topbar .logo .ttl{font-size:14px;font-weight:800;color:var(--ink)}
+.topbar .gs{flex:1;max-width:520px;display:flex;align-items:center;gap:8px;height:36px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--soft)}
+.topbar .gs .k{font-size:11.5px;font-weight:700;color:var(--mut);white-space:nowrap}.topbar .gs input{flex:1;border:none;outline:none;background:transparent;font-size:13px;color:var(--ink)}.topbar .gs .kbd{font-size:10.5px;font-weight:800;color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:1px 6px;background:#fff}
+.topbar .share{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--green);white-space:nowrap}.topbar .share:before{content:'';width:8px;height:8px;border-radius:50%;background:var(--green)}
+.layout{display:flex;min-height:calc(100vh - 54px)}
+.side{width:220px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:54px;height:calc(100vh - 54px);overflow-y:auto}
+.brand{display:none}
+.nav{padding:12px 10px;flex:1}
+.nav .lbl{font-size:10.5px;font-weight:800;color:var(--mut);letter-spacing:.06em;padding:14px 10px 6px}
+.nav a{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:8px;font-size:13.5px;font-weight:700;color:var(--mut2);text-decoration:none;margin-bottom:2px;cursor:pointer}
+.nav a .ic{display:none}
+.nav a:hover{background:var(--soft);color:var(--ink)}
+.nav a.on{background:var(--blue-soft);color:var(--blue-dark)}
+.nav a .cnt{margin-left:auto;font-size:11px;font-weight:800;background:var(--line2);color:var(--mut);padding:1px 8px;border-radius:20px}
+.nav a.on .cnt{background:#fff;color:var(--blue-dark)}
 .nav a .cnt.red{background:var(--red);color:#fff}
-.me{padding:14px 16px;border-top:1px solid rgba(255,255,255,.09);display:flex;align-items:center;gap:10px}
-.me .av{width:32px;height:32px;border-radius:50%;background:#2F6BF6;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
-.me .nm{font-size:12.5px;font-weight:800;color:#fff}
-.me .rl{font-size:10.5px;color:#8b9ac0}
-.me .out{margin-left:auto;font-size:11px;font-weight:800;color:#8b9ac0;background:rgba(255,255,255,.08);border:none;border-radius:7px;padding:6px 9px}
-main{flex:1;min-width:0;padding:24px 34px 70px;max-width:1680px;margin:0 auto}
+.me{padding:12px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.me .av{width:30px;height:30px;border-radius:50%;background:var(--blue);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.me .nm{font-size:12.5px;font-weight:800;color:var(--ink)}
+.me .rl{font-size:10.5px;color:var(--mut)}
+.me .out{margin-left:auto;font-size:11px;font-weight:800;color:var(--mut2);background:#fff;border:1px solid var(--line);border-radius:7px;padding:6px 9px}
+main{flex:1;min-width:0;padding:22px 28px 70px;max-width:1680px;margin:0 auto}
 .head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap}
-.head h2{font-size:21px;font-weight:800}
+.head h2{font-size:21px;font-weight:800;letter-spacing:-.3px}
 .head .desc{font-size:12.5px;color:var(--mut);margin-top:4px}
 .sec{display:none}.sec.on{display:block}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
-.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 17px;position:relative;overflow:hidden}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 17px;position:relative;overflow:hidden}
 .tile .edge{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
 #projTableWrap.money-off .money-col{display:none}
 /* ── 공사관리(pj-) 디자인: 데이터·연동 함수는 그대로, 보이는 구성만 변경 ── */
@@ -65,14 +68,14 @@ main{flex:1;min-width:0;padding:24px 34px 70px;max-width:1680px;margin:0 auto}
 .pj-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .pj-chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:13px;font-weight:700;color:var(--mut2);cursor:pointer;transition:.12s}
 .pj-chip .dot{width:8px;height:8px;border-radius:50%}.pj-chip .num{font-size:12px;font-weight:800;color:var(--ink);background:#eef1f7;border-radius:7px;padding:1px 7px}
-.pj-chip:hover{border-color:#b9c8ea}.pj-chip.on{background:#17244d;border-color:#17244d;color:#fff}.pj-chip.on .num{background:rgba(255,255,255,.18);color:#fff}
+.pj-chip:hover{border-color:#b9c8ea}.pj-chip.on{background:var(--navy);border-color:var(--navy);color:#fff}.pj-chip.on .num{background:rgba(255,255,255,.18);color:#fff}
 .pj-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .pj-sel{height:34px;padding:0 10px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;background:#fff;color:var(--ink);font-weight:600}
 .pj-gap{flex:1}
 .pj-view{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px}
-.pj-view button{border:none;background:transparent;font-size:12.5px;font-weight:800;color:var(--mut2);padding:6px 12px;border-radius:8px;cursor:pointer}.pj-view button.on{background:#17244d;color:#fff}
+.pj-view button{border:none;background:transparent;font-size:12.5px;font-weight:800;color:var(--mut2);padding:6px 12px;border-radius:8px;cursor:pointer}.pj-view button.on{background:var(--navy);color:#fff}
 .pj-count{font-size:12.5px;color:var(--mut2);font-weight:700;margin:2px 0 10px}
-.pj-tablewrap{background:#fff;border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+.pj-tablewrap{background:#fff;border:1px solid var(--line);border-radius:12px;overflow-x:auto}
 .pj-table{min-width:1000px}.pj-table th{background:#f7f9fc;font-size:11.5px;color:var(--mut2);padding:11px 8px;border-bottom:1px solid var(--line);white-space:nowrap}.pj-table td{padding:12px 8px;vertical-align:middle}.pj-table td:first-child,.pj-table th:first-child{padding-left:14px}
 .pj-table .pgrow .bar{width:72px!important}.pj-table .pghint{max-width:200px;white-space:normal;line-height:1.5}
 .pj-table tbody tr{cursor:pointer}.pj-table tbody tr:hover{background:#f6f9ff}
@@ -90,7 +93,7 @@ main{flex:1;min-width:0;padding:24px 34px 70px;max-width:1680px;margin:0 auto}
 .pj-pager{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 2px;font-size:12px;color:var(--mut2);flex-wrap:wrap}
 .pj-pager .pg{display:inline-flex;gap:4px}.pj-pager .pg button{min-width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:12px;font-weight:700;color:var(--mut2);cursor:pointer}.pj-pager .pg button.on{background:#2f6bf6;border-color:#2f6bf6;color:#fff}.pj-pager .pg button:disabled{opacity:.4;cursor:default}
 .pj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-bottom:6px}
-.pj-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 16px 12px;cursor:pointer;transition:.13s;display:flex;flex-direction:column;gap:12px}.pj-card:hover{border-color:#b9c8ea;box-shadow:0 8px 22px -14px rgba(31,44,92,.4);transform:translateY(-1px)}
+.pj-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 16px 12px;cursor:pointer;transition:.13s;display:flex;flex-direction:column;gap:12px}.pj-card:hover{border-color:#b9c8ea;box-shadow:0 8px 22px -14px rgba(31,44,92,.4);transform:translateY(-1px)}
 .pj-card .top{display:flex;gap:11px;align-items:flex-start}.pj-card .top .pj-thumb{width:52px;height:52px;font-size:22px}
 .pj-card .ttl{font-weight:800;font-size:14.5px;line-height:1.3}.pj-card .meta{font-size:11.5px;color:var(--mut);margin-top:3px}
 .pj-card .sec-t{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;color:var(--mut2)}.pj-card .sec-t .link{font-size:11.5px}
@@ -110,7 +113,7 @@ main{flex:1;min-width:0;padding:24px 34px 70px;max-width:1680px;margin:0 auto}
 .tile .sub{font-size:11px;color:var(--mut);font-weight:600;margin-top:4px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-bottom:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
 .card>h3{font-size:15px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;justify-content:space-between}
 .card>h3 .r{font-size:11.5px;font-weight:700;color:var(--mut)}
 .bar{height:8px;background:#eef1f7;border-radius:20px;overflow:hidden}
@@ -131,10 +134,11 @@ tbody tr:hover{background:#f8fafc}
 .pill.red{background:var(--red-soft);color:var(--red)}
 .pill.violet{background:var(--violet-soft);color:var(--violet)}
 .link{color:var(--blue);font-weight:800;cursor:pointer}.link:hover{text-decoration:underline}
-.b{display:inline-flex;align-items:center;gap:5px;border:none;border-radius:8px;font-size:12px;font-weight:800;padding:8px 13px;background:var(--navy);color:#fff}
+.b{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;font-weight:700;padding:0 13px;height:36px;background:#fff;color:var(--ink);white-space:nowrap}
+.b:hover{border-color:#c5cbd6;background:var(--soft)}
 .b.line{background:#fff;color:var(--mut2);border:1px solid var(--line)}
-.b.line:hover{border-color:var(--blue);color:var(--blue)}
-.b.blue{background:var(--blue)}.b.green{background:var(--green)}.b.sm{padding:6px 10px;font-size:11.5px}
+.b.line:hover{border-color:var(--blue);color:var(--blue);background:#fff}
+.b.blue{background:var(--blue);color:#fff;border-color:var(--blue)}.b.blue:hover{background:var(--blue-dark);border-color:var(--blue-dark)}.b.green{background:var(--green);color:#fff;border-color:var(--green)}.b.sm{height:32px;padding:0 10px;font-size:12px}
 .b.red{background:var(--red-soft);color:var(--red)}
 .seg{display:inline-flex;gap:5px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:16px}
 .seg button{font-size:13px;font-weight:800;color:var(--mut2);background:transparent;border:none;padding:9px 16px;border-radius:8px}
@@ -193,7 +197,7 @@ tbody tr:hover{background:#f8fafc}
 /* modal */
 .modal-bg{position:fixed;inset:0;background:rgba(15,23,45,.55);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:38px 14px;overflow-y:auto}
 .modal-bg.on{display:flex}
-.modal{background:#fff;border-radius:16px;width:560px;max-width:100%;padding:22px 24px;box-shadow:0 30px 70px -20px rgba(10,20,50,.5);margin-bottom:40px}
+.modal{background:#fff;border-radius:12px;width:560px;max-width:100%;padding:22px 24px;box-shadow:0 30px 70px -20px rgba(10,20,50,.5);margin-bottom:40px}
 .modal.wide{width:820px}
 .modal h3{font-size:17px;font-weight:800;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .modal .x{cursor:pointer;color:var(--mut);font-size:22px;font-weight:800;border:none;background:none;line-height:1}
@@ -280,7 +284,7 @@ tbody tr:hover{background:#f8fafc}
 .rmboard{display:flex;gap:12px;min-width:min-content;align-items:flex-start}
 .rmcard{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:9px}
 /* ===== 공사관리 · 단계 보드 ===== */
-.stgfilter{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:12px;box-shadow:0 2px 8px rgba(31,44,92,.04)}
+.stgfilter{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:12px;box-shadow:0 2px 8px rgba(31,44,92,.04)}
 .stgfilter .ttl{display:flex;align-items:center;gap:7px;margin-right:5px;padding-right:13px;border-right:1px solid var(--line);font-size:12px;font-weight:800;color:#17244d;white-space:nowrap}
 .stgfilter .ttl:before{content:'';width:7px;height:7px;border-radius:50%;background:#2f6bf6;box-shadow:0 0 0 4px #e9f0ff}
 .stgbtn{appearance:none;border:1px solid var(--line);background:#f7f9fc;color:#667085;border-radius:10px;padding:8px 11px;display:inline-flex;align-items:center;gap:8px;font-family:inherit;font-size:12.5px;font-weight:750;line-height:1;cursor:pointer;transition:.15s ease}
@@ -340,6 +344,12 @@ tbody tr:hover{background:#f8fafc}
 <div id="app" style="display:none">
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()"><div class="modal" id="modalBox"></div></div>
 <datalist id="apt-names"></datalist>
+<header class="topbar">
+  <div class="logo"><span class="nf">NETFORM</span><span class="ttl">아파트스퀘어 관리자</span></div>
+  <label class="gs"><span class="k">현장 검색</span><input id="topSearch" placeholder="단지명 · 지역 · 담당 감리원 검색" onkeydown="if(event.key==='Enter')topSearchGo()"><span class="kbd">/</span></label>
+  <span class="share" title="같은 관리자 계정으로 들어온 팀원 모두 같은 화면을 봐요">팀 공유 중</span>
+  <button class="b line sm" onclick="exportAllExcel()">전체 데이터 엑셀</button>
+</header>
 <div class="layout">
   <aside class="side" id="side">
     <div class="brand">
@@ -347,63 +357,64 @@ tbody tr:hover{background:#f8fafc}
       <div class="sub">통합 관리자</div>
     </div>
     <nav class="nav">
-      <div class="lbl">한눈에 보기</div>
-      <a data-s="dashboard" class="on" onclick="go('dashboard')"><span class="ic">🛰️</span>관제센터</a>
-      <a data-s="orgs" onclick="go('orgs')"><span class="ic">🏢</span>고객관리<span class="cnt" id="c-orgs">0</span></a>
-      <a data-s="calendar" onclick="go('calendar')"><span class="ic">🗓️</span>캘린더</a>
-      <div class="lbl">업무 흐름</div>
-      <a data-s="sales" onclick="go('sales')"><span class="ic">📈</span>영업</a>
-      <a data-s="projects" onclick="go('projects')"><span class="ic">🏗️</span>공사관리<span class="cnt red" id="c-newrep" style="display:none">0</span><span class="cnt" id="c-proj">0</span></a>
-      <a data-s="history" onclick="go('history')"><span class="ic">🗂️</span>활동기록</a>
+      <div class="lbl">업무</div>
+      <a data-s="dashboard" class="on" onclick="go('dashboard')">관제센터</a>
+      <a data-s="calendar" onclick="go('calendar')">캘린더</a>
+      <a data-s="sales" onclick="go('sales')">영업</a>
+      <a data-s="projects" onclick="go('projects')">공사관리<span class="cnt red" id="c-newrep" style="display:none">0</span><span class="cnt" id="c-proj">0</span></a>
+      <div class="lbl">도구</div>
+      <a data-s="notices" onclick="go('notices')">안내문구(이메일)</a>
       <div class="lbl">앱 관리</div>
-      <a data-s="members" onclick="go('members')"><span class="ic">👤</span>회원<span class="cnt red" id="c-pending">0</span></a>
-      <a data-s="comm" onclick="go('comm')"><span class="ic">💬</span>입주민소통/NPS</a>
-      <a data-s="usage" onclick="go('usage')"><span class="ic">📊</span>사용통계</a>
-      <a data-s="promo" onclick="go('promo')"><span class="ic">🏅</span>홍보·자료</a>
+      <a data-s="orgs" onclick="go('orgs')">고객정보<span class="cnt" id="c-orgs">0</span></a>
+      <a data-s="members" onclick="go('members')">회원<span class="cnt red" id="c-pending">0</span></a>
+      <a data-s="comm" onclick="go('comm')">입주민소통/NPS</a>
+      <a data-s="usage" onclick="go('usage')">사용통계</a>
+      <a data-s="promo" onclick="go('promo')">홍보·자료</a>
       <div class="lbl">기타</div>
-      <a data-s="tools" onclick="go('tools')"><span class="ic">🧰</span>데이터 도구</a>
-      <a data-s="roadmap" onclick="go('roadmap')"><span class="ic">🧭</span>업무 로드맵</a>
-      <a data-s="docs" onclick="go('docs')"><span class="ic">📚</span>자료실</a>
-      <a data-s="trash" onclick="go('trash')"><span class="ic">🗑️</span>휴지통<span class="cnt" id="c-trash">0</span></a>
+      <a data-s="history" onclick="go('history')">활동기록</a>
+      <a data-s="tools" onclick="go('tools')">데이터 도구</a>
+      <a data-s="roadmap" onclick="go('roadmap')">업무 로드맵</a>
+      <a data-s="docs" onclick="go('docs')">자료실</a>
+      <a data-s="trash" onclick="go('trash')">휴지통<span class="cnt" id="c-trash">0</span></a>
     </nav>
     <div class="me"><div class="av" id="me-av">관</div><div><div class="nm" id="me-nm">관리자</div><div class="rl">관리자</div></div><button class="out" onclick="doLogout()">로그아웃</button></div>
   </aside>
 
   <main>
     <section class="sec on" id="s-dashboard">
-      <div class="head"><div><h2>통합 관제센터</h2><div class="desc">전 부문 실시간 현황</div></div><button class="b line" onclick="exportAllExcel()">⬇ 전체 데이터 엑셀</button></div>
+      <div class="head"><div><h2>관제센터</h2><div class="desc">오늘 확인할 순서대로 정리했어요</div></div></div>
       <div id="dashAlert"></div>
       <div class="tiles" id="dashTiles"></div>
       <div class="grid2">
-        <div class="card"><h3>📊 매출 목표 대비 <span class="r"><span class="link" onclick="setSalesGoal()">분기 목표 설정</span></span></h3><div id="dashRevenue"></div></div>
-        <div class="card"><h3>🏅 고객사 등급 분포 <span class="r">사용빈도+문의 자동</span></h3><div id="dashGrades"></div></div>
+        <div class="card"><h3>매출 목표 대비 <span class="r"><span class="link" onclick="setSalesGoal()">분기 목표 설정</span></span></h3><div id="dashRevenue"></div></div>
+        <div class="card"><h3>고객사 등급 분포 <span class="r">사용빈도+문의 자동</span></h3><div id="dashGrades"></div></div>
       </div>
       <div class="grid2">
-        <div class="card"><h3>⚠️ 배치 필요한 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div style="font-size:11px;color:var(--mut);margin:-6px 0 8px">감리 진행 중(공사중)인데 <b>담당 감리원</b>이나 <b>방문 요일</b>이 안 정해진 현장 · 눌러서 바로 배치</div><div id="dashAssign"></div></div>
-        <div class="card"><h3>🚨 2일 이상 정체된 딜 <span class="r"><span class="link" onclick="go('sales')">영업 →</span></span></h3><div id="dashStalled"></div></div>
+        <div class="card"><h3>배치 필요한 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div style="font-size:11px;color:var(--mut);margin:-6px 0 8px">감리 진행 중(공사중)인데 <b>담당 감리원</b>이나 <b>방문 요일</b>이 안 정해진 현장 · 눌러서 바로 배치</div><div id="dashAssign"></div></div>
+        <div class="card"><h3>2일 이상 정체된 딜 <span class="r"><span class="link" onclick="go('sales')">영업 →</span></span></h3><div id="dashStalled"></div></div>
       </div>
       <div class="grid2">
         <div class="card"><h3>🆕 새로 올라온 감리일지 <span class="r"><b id="dashNewCnt" style="color:var(--red)"></b> <span class="link" onclick="go('projects')">공사관리 →</span></span></h3><div id="dashNewReports"></div></div>
-        <div class="card"><h3>🕒 최근 현장 히스토리 <span class="r"><span class="link" onclick="go('history')">활동기록 →</span></span></h3><div id="dashNotes"></div></div>
+        <div class="card"><h3>최근 현장 히스토리 <span class="r"><span class="link" onclick="go('history')">활동기록 →</span></span></h3><div id="dashNotes"></div></div>
       </div>
     </section>
 
     <section class="sec" id="s-orgs">
-      <div class="head"><div><h2>고객관리</h2><div class="desc">단지(고객사) 목록 · 지역·담당별</div></div></div>
-      <div class="toolbar"><input class="inp" id="org-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderOrgs()"><button class="b blue" onclick="openAptAdd()">➕ 단지 추가</button></div>
+      <div class="head"><div><h2>고객정보</h2><div class="desc">단지(고객사) 목록 · 지역·담당별</div></div></div>
+      <div class="toolbar"><input class="inp" id="org-q" placeholder="🔍 단지명·지역 검색" style="min-width:240px" oninput="renderOrgs()"><button class="b blue" onclick="openAptAdd()">단지 추가</button></div>
       <div style="overflow-x:auto"><div class="card" style="padding:6px 20px;min-width:860px"><table><thead><tr><th>고객사(단지)</th><th>지역</th><th>세대수</th><th>등급</th><th>담당 감리</th><th>진행딜</th><th>계약</th><th>상태</th></tr></thead><tbody id="orgRows"></tbody></table></div></div>
     </section>
 
     <section class="sec" id="s-calendar">
-      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="wktoggle"><button id="calViewMonth" class="on" onclick="setCalView('month')">월간</button><button id="calViewWeek" onclick="setCalView('week')">주간</button></span><button class="b line" onclick="exportCalImage()">📷 주간 사진 저장</button><button class="b line" onclick="exportSchedulesExcel(true)">⬇ 이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">⬇ 전체 엑셀</button><button class="b line" onclick="materializeVisits()">🔄 이 달 방문 일정 생성</button><button class="b line" style="color:#d9453c;border-color:#f3c2be" onclick="deleteOwnSchedules()">🗑 우리가 올린 일정 삭제 (POUR 제외)</button><button class="b blue" onclick="openScheduleAdd()">➕ 일정 추가</button></div></div>
-      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)">←</button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)">→</button> <span id="buildTag" style="font-size:9px;color:#c3c9d4;font-weight:600"></span></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div><div id="calWeek" style="display:none"></div></div>
+      <div class="head"><div><h2>캘린더 · 방문 배치</h2><div class="desc">현장별 담당·주기·요일을 정하면 방문 일정이 자동으로 생겨요</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="wktoggle"><button id="calViewMonth" class="on" onclick="setCalView('month')">월간</button><button id="calViewWeek" onclick="setCalView('week')">주간</button></span><button class="b line" onclick="exportCalImage()">주간 사진 저장</button><button class="b line" onclick="exportSchedulesExcel(true)">이 달 엑셀</button><button class="b line" onclick="exportSchedulesExcel(false)">전체 엑셀</button><button class="b line" onclick="materializeVisits()">이 달 방문 일정 생성</button><button class="b line" style="color:#d9453c;border-color:#f3c2be" onclick="deleteOwnSchedules()">우리가 올린 일정 삭제 (POUR 제외)</button><button class="b blue" onclick="openScheduleAdd()">일정 추가</button></div></div>
+      <div class="card"><h3 id="calTitle" style="cursor:default"><span><button class="b line sm" onclick="calMove(-1)"></button> <span id="calLabel">일정</span> <button class="b line sm" onclick="calMove(1)"></button> <span id="buildTag" style="font-size:9px;color:#c3c9d4;font-weight:600"></span></span><span class="r" id="calPersonSel"></span></h3><div class="cal" id="calGrid"></div><div id="calWeek" style="display:none"></div></div>
       <div id="calDayList"></div>
       <div id="cal-alert"></div>
     </section>
 
     <section class="sec" id="s-sales">
-      <div class="head"><div><h2>영업</h2><div class="desc">파이프라인 · 문의 → 미팅 → 견적 → 계약 → 성사</div></div><button class="b blue" onclick="openSalesAdd()">➕ 영업 추가</button></div>
-      <div class="toolbar"><input class="inp" id="sales-q" placeholder="🔍 현장명·지역·연락처·담당·공종 검색" style="flex:1;min-width:240px;max-width:440px" oninput="renderSales()"><select class="inp" id="sales-owner" onchange="renderSales()"><option value="">담당 전체</option></select><button class="b line" id="sales-clear" onclick="clearSalesSearch()" style="display:none">✕ 초기화</button></div>
+      <div class="head"><div><h2>영업</h2><div class="desc">파이프라인 · 문의 → 미팅 → 견적 → 계약 → 성사</div></div><button class="b blue" onclick="openSalesAdd()">영업 추가</button></div>
+      <div class="toolbar"><input class="inp" id="sales-q" placeholder="🔍 현장명·지역·연락처·담당·공종 검색" style="flex:1;min-width:240px;max-width:440px" oninput="renderSales()"><select class="inp" id="sales-owner" onchange="renderSales()"><option value="">담당 전체</option></select><button class="b line" id="sales-clear" onclick="clearSalesSearch()" style="display:none">초기화</button></div>
       <div class="tiles" id="salesTiles"></div>
       <div id="salesBoard"></div>
     </section>
@@ -414,7 +425,7 @@ tbody tr:hover{background:#f8fafc}
           <div class="pj-title"><h2>공사관리</h2><div class="pj-crumb">전체 현장 › 공사관리 · 현장을 누르면 상세(감리일지·작업사진·계약서·방문이력)</div></div>
           <div class="pj-tools">
             <div class="pj-search"><span>🔍</span><input id="proj-q" placeholder="현장명, 지역, 담당 감리원 검색" oninput="projPage=1;renderProjList()"></div>
-            <button class="b line" onclick="openReportAddPick()">📝 감리일지 작성</button>
+            <button class="b line" onclick="openReportAddPick()">감리일지 작성</button>
             <button class="b blue" onclick="openAptAdd()">＋ 현장 추가</button>
           </div>
         </div>
@@ -426,11 +437,11 @@ tbody tr:hover{background:#f8fafc}
           <select class="pj-sel" id="pj-sort" onchange="projPage=1;renderProjList()"><option value="name">이름순</option><option value="report">최근 일지순</option><option value="visit">다음 방문순</option><option value="stage">단계순</option></select>
           <button class="b line sm" onclick="resetProjFilters()">초기화</button>
           <span class="pj-gap"></span>
-          <button class="b line sm" id="pv-money" onclick="toggleProjMoney()" title="감리비·미수금 열 보기/숨기기">💰 금액 보기</button>
-          <button class="b line sm" onclick="openBulkAssign()">👥 감리원 일괄배정</button>
-          <button class="b line sm" onclick="bulkPublishReports(this)" title="dj(테스트) 작성 건은 제외하고 전체 공개">📢 감리일지 전체 공개</button>
-          <button class="b line sm" onclick="bulkUnpublishNoPdf(this)" title="PDF 없이 공개돼 입주민에게 '준비중'으로 보이는 감리일지를 비공개로 되돌리기">📥 PDF없음 공개회수</button>
-          <div class="pj-view"><button id="pv-cards" onclick="setProjView('cards')">▦ 카드형</button><button id="pv-list" onclick="setProjView('list')">☰ 리스트형</button><button id="pv-kanban" onclick="setProjView('kanban')">⫴ 칸반</button></div>
+          <button class="b line sm" id="pv-money" onclick="toggleProjMoney()" title="감리비·미수금 열 보기/숨기기">금액 보기</button>
+          <button class="b line sm" onclick="openBulkAssign()">감리원 일괄배정</button>
+          <button class="b line sm" onclick="bulkPublishReports(this)" title="dj(테스트) 작성 건은 제외하고 전체 공개">감리일지 전체 공개</button>
+          <button class="b line sm" onclick="bulkUnpublishNoPdf(this)" title="PDF 없이 공개돼 입주민에게 '준비중'으로 보이는 감리일지를 비공개로 되돌리기">PDF없음 공개회수</button>
+          <div class="pj-view"><button id="pv-cards" onclick="setProjView('cards')">카드형</button><button id="pv-list" onclick="setProjView('list')">리스트형</button><button id="pv-kanban" onclick="setProjView('kanban')">⫴ 칸반</button></div>
         </div>
         <div class="pj-count" id="projCount"></div>
         <div id="projCardsWrap" class="pj-grid" style="display:none"></div>
@@ -449,9 +460,9 @@ tbody tr:hover{background:#f8fafc}
 
     <section class="sec" id="s-members">
       <div class="head"><div><h2>회원</h2><div class="desc">앱 로그인 계정(입주민·감리원·소장·관리자) 승인·관리</div></div></div>
-      <div class="card"><h3>⏳ 승인 대기 <span class="r" id="pendCnt"></span></h3><div id="pendBody"></div></div>
+      <div class="card"><h3>승인 대기 <span class="r" id="pendCnt"></span></h3><div id="pendBody"></div></div>
       <div class="card"><h3>전체 회원 <span class="r" id="memCnt"></span></h3>
-        <div class="toolbar"><input class="inp" id="mem-q" placeholder="🔍 이름·아이디 검색" style="min-width:220px" oninput="renderMembers()"><button class="b blue" onclick="openMemberAdd()">➕ 회원 추가</button></div>
+        <div class="toolbar"><input class="inp" id="mem-q" placeholder="🔍 이름·아이디 검색" style="min-width:220px" oninput="renderMembers()"><button class="b blue" onclick="openMemberAdd()">회원 추가</button></div>
         <div style="overflow-x:auto"><table style="min-width:820px"><thead><tr><th>이름</th><th>아이디</th><th>이메일</th><th>연락처</th><th>역할</th><th>담당 단지</th><th>상태</th><th>관리</th></tr></thead><tbody id="memRows"></tbody></table></div>
       </div>
     </section>
@@ -459,25 +470,25 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-comm">
       <div class="head"><div><h2>입주민소통/NPS</h2><div class="desc">공지사항 · NPS · 아파트알림 · 상담은 카카오톡 채널로 운영</div></div></div>
       <div class="seg" id="commTabs">
-        <button class="on" onclick="commTab('notice',this)">📢 공지사항</button>
-        <button onclick="commTab('nps',this)">⭐ NPS</button>
-        <button onclick="commTab('alarm',this)">🔔 아파트알림</button>
+        <button class="on" onclick="commTab('notice',this)">공지사항</button>
+        <button onclick="commTab('nps',this)">NPS</button>
+        <button onclick="commTab('alarm',this)">아파트알림</button>
       </div>
       <div id="commBody"></div>
     </section>
 
     <section class="sec" id="s-usage">
-      <div class="head"><div><h2>📊 입주민 앱 사용통계</h2><div class="desc">입주민·관리소장이 앱을 얼마나 쓰는지 — 자동 집계(여는 순간 최신 데이터). 감리원·관리자(내부 직원) 사용은 제외돼요.</div></div><div style="display:flex;gap:8px;align-items:center"><select class="inp" id="usg-range" onchange="renderUsage()" style="width:auto"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option></select><button class="b line" onclick="renderUsage()">🔄 새로고침</button></div></div>
+      <div class="head"><div><h2>입주민 앱 사용통계</h2><div class="desc">입주민·관리소장이 앱을 얼마나 쓰는지 — 자동 집계(여는 순간 최신 데이터). 감리원·관리자(내부 직원) 사용은 제외돼요.</div></div><div style="display:flex;gap:8px;align-items:center"><select class="inp" id="usg-range" onchange="renderUsage()" style="width:auto"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option></select><button class="b line" onclick="renderUsage()">새로고침</button></div></div>
       <div id="usgBody"></div>
     </section>
 
     <section class="sec" id="s-promo">
       <div class="head"><div><h2>홍보·자료</h2><div class="desc">우수사례 · 인증·이력 · 리플렛 · 명함</div></div></div>
       <div class="seg" id="promoTabs">
-        <button class="on" onclick="promoTab('case',this)">🏅 우수 사례</button>
-        <button onclick="promoTab('cred',this)">📜 인증·이력</button>
-        <button onclick="promoTab('leaflet',this)">📁 리플렛</button>
-        <button onclick="promoTab('namecard',this)">📇 명함</button>
+        <button class="on" onclick="promoTab('case',this)">우수 사례</button>
+        <button onclick="promoTab('cred',this)">인증·이력</button>
+        <button onclick="promoTab('leaflet',this)">리플렛</button>
+        <button onclick="promoTab('namecard',this)">명함</button>
       </div>
       <div id="promoBody"></div>
     </section>
@@ -490,7 +501,7 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-tools">
       <div class="head"><div><h2>데이터 도구</h2><div class="desc">회원 일괄 추가 · 감리일지 PDF 일괄 올리기 · 아임웹 게시판 가져오기 · 사진/계약서 저장소 이전</div></div></div>
       <div class="card">
-        <h3>👥 회원 일괄 추가</h3>
+        <h3>회원 일괄 추가</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:8px"><b>📁 엑셀 파일(.xlsx)을 올리거나</b>, 엑셀에서 복사해 아래 칸에 붙여넣으세요(탭/쉼표 구분).<br>
         순서(또는 엑셀 첫 줄 제목): <code>아이디 · 비밀번호 · 이름 · 연락처 · 역할 · 담당단지</code><br>
         · 엑셀에 <b>역할 열이 없거나</b> 다 같은 역할이면 → 아래 <b>‘이 파일 역할’</b>에서 한 번에 지정 (엑셀에 역할이 있으면 그 값이 우선)<br>
@@ -511,7 +522,7 @@ kim456		김영성		감리원	"></textarea>
         <div class="log" id="bmem-log" style="display:none"></div>
       </div>
       <div class="card">
-        <h3>📄 감리일지 PDF 폴더 일괄 올리기</h3>
+        <h3>감리일지 PDF 폴더 일괄 올리기</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:10px"><b>📁 폴더 선택</b>으로 PDF가 든 폴더를 고르면 미리보기 표가 떠요. 단지는 두 가지 방법:<br>
         <b>①자동</b> — <code>009_용인 신갈신미주아파트</code> 처럼 <b>단지 이름이 들어간 폴더</b>를 고르면 폴더/파일 이름을 보고 알아서 매칭.<br>
         <b>②전부 이 단지로</b> — <code>…\000. 감리보고서</code> 처럼 <b>한 단지의 보고서 폴더 끝까지</b> 들어가서 고를 땐, 옆의 <b>‘단지 자동매칭 ▾’ 드롭다운에서 그 단지를 고르면</b> 폴더 안 PDF가 전부 그 단지로 들어가요. (브라우저는 고른 폴더 위쪽 경로는 못 읽어서, 끝 폴더만 주면 이 방법을 써요.)<br>
@@ -530,7 +541,7 @@ kim456		김영성		감리원	"></textarea>
         <div class="log" id="bpdf-log" style="display:none"></div>
       </div>
       <div class="card">
-        <h3>📥 아임웹 게시판 엑셀 가져오기</h3>
+        <h3>아임웹 게시판 엑셀 가져오기</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">아임웹에서 내보낸 게시판 엑셀(.xlsx)을 고르면 <b>카테고리(단지)별로</b> 현장기록에 자동 등록돼요. 여러 파일 한 번에 가능 · 이미 등록된 글은 자동으로 건너뜁니다.</div>
         <div class="toolbar">
           <input id="imp-file" type="file" accept=".xlsx,.xls" multiple class="inp">
@@ -540,7 +551,7 @@ kim456		김영성		감리원	"></textarea>
         <div class="log" id="imp-log" style="display:none"></div>
       </div>
       <div class="card">
-        <h3>📥 아임웹/홈페이지 문의 엑셀 → 영업 등록</h3>
+        <h3>아임웹/홈페이지 문의 엑셀 → 영업 등록</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">아임웹 관리자에서 <b>문의/상담 신청 내역을 엑셀(.xlsx)로 내려받아</b> 올리면, 영업 파이프라인 <b>‘문의’ 단계</b>에 자동으로 카드가 만들어져요. 이미 등록된 문의는 자동으로 건너뜁니다.</div>
         <div class="toolbar">
           <input id="inq-file" type="file" accept=".xlsx,.xls" multiple class="inp">
@@ -549,7 +560,7 @@ kim456		김영성		감리원	"></textarea>
         <div class="log" id="inq-log" style="display:none"></div>
       </div>
       <div class="card">
-        <h3>🔗 구글시트 → 영업 문의 자동 연동</h3>
+        <h3>구글시트 → 영업 문의 자동 연동</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">구글시트에서 <b>파일 → 공유 → 웹에 게시 → (해당 시트) CSV</b> 로 만든 주소를 넣으면, 시트에 새 행이 기록될 때마다 영업 <b>‘문의’ 단계</b>에 자동 등록돼요. (구글이 몇 분 간격으로 갱신) 컬럼은 자동 인식(이름·연락처·단지·공사종류·지역·내용·날짜).</div>
         <div class="toolbar">
           <input id="gs-url" class="inp" placeholder="https://docs.google.com/.../pub?output=csv" style="flex:1;min-width:300px">
@@ -561,7 +572,7 @@ kim456		김영성		감리원	"></textarea>
         <div class="log" id="gs-log" style="display:none"></div>
       </div>
       <div class="card">
-        <h3>🖼️ 아임웹 사진 → 우리 저장소로 이전</h3>
+        <h3>아임웹 사진 → 우리 저장소로 이전</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">출시 전 1회. 현장기록의 아임웹 링크 사진을 우리 저장소(Supabase)로 옮겨요. 옮기면 아임웹을 닫아도 사진이 사라지지 않아요.</div>
         <div class="toolbar">
           <button class="b line" onclick="migStatus()">① 현황 보기</button>
@@ -572,7 +583,7 @@ kim456		김영성		감리원	"></textarea>
         <div class="log" id="mig-log" style="display:none"></div>
       </div>
       <div class="card">
-        <h3>🔒 계약서 비공개 전환</h3>
+        <h3>계약서 비공개 전환</h3>
         <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">과거 공개 버킷에 올라간 계약서를 비공개(contracts) 버킷으로 옮겨요. 출시 전 1회.</div>
         <div class="toolbar"><button class="b blue" id="ctmig-btn" onclick="migrateContracts()">계약서 이전 실행</button></div>
         <div class="log" id="ctmig-log" style="display:none"></div>
@@ -580,12 +591,16 @@ kim456		김영성		감리원	"></textarea>
     </section>
 
     <section class="sec" id="s-docs">
-      <div class="head"><div><h2>자료실</h2><div class="desc">분류별 문서·양식 (계약양식·점검표·보고서양식 등)</div></div><button class="b blue" onclick="openDocAdd()">➕ 자료 추가</button></div>
+      <div class="head"><div><h2>자료실</h2><div class="desc">분류별 문서·양식 (계약양식·점검표·보고서양식 등)</div></div><button class="b blue" onclick="openDocAdd()">자료 추가</button></div>
       <div id="docsBody"></div>
     </section>
     <section class="sec" id="s-trash">
-      <div class="head"><div><h2>🗑️ 휴지통</h2><div class="desc">삭제한 감리일지·현장기록을 보관해요. <b>복구</b>하면 원래대로 돌아오고, <b>영구삭제</b>하면 완전히 지워져요.</div></div><button class="b line" onclick="renderTrash()">🔄 새로고침</button></div>
+      <div class="head"><div><h2>휴지통</h2><div class="desc">삭제한 감리일지·현장기록을 보관해요. <b>복구</b>하면 원래대로 돌아오고, <b>영구삭제</b>하면 완전히 지워져요.</div></div><button class="b line" onclick="renderTrash()">새로고침</button></div>
       <div id="trashBody"></div>
+    </section>
+    <section class="sec" id="s-notices">
+      <div class="head"><div><h2>안내문구(이메일)</h2><div class="desc">현장을 고르면 현장명 · 시공사 · 금액 같은 빈칸이 자동으로 채워져요</div></div></div>
+      <div class="card"><div class="empty">준비 중이에요 — 디자인 개편 5단계에서 등록·수정·복사 기능이 들어와요.</div></div>
     </section>
   </main>
 </div>
@@ -798,7 +813,7 @@ function updateBadges(){
   // 입주민소통 사이드바: 안 읽음이 있으면 빨강 숫자, 없으면 전체 대화 수(회색)
   const ce=$('c-chat'); if(ce){ const val=unread||threadCnt; ce.textContent=val>99?'99+':val; ce.className='cnt'+(unread?' red':''); ce.style.display=val?'':'none'; }
   // 채팅 탭 버튼: 대화 수 + (안 읽음 빨강 배지)
-  const cb=$('commChatBtn'); if(cb){ cb.innerHTML=`💬 채팅 ${threadCnt}`+(unread?` <span class="pill red" style="padding:1px 7px">${unread>99?'99+':unread}</span>`:''); }
+  const cb=$('commChatBtn'); if(cb){ cb.innerHTML=`채팅 ${threadCnt}`+(unread?` <span class="pill red" style="padding:1px 7px">${unread>99?'99+':unread}</span>`:''); }
 }
 let POLL=null,SIG='';
 function dataSig(){ return APTS.length+'|'+REPORTS.length+'|'+FIELDS.length+'|'+MEMBERS.filter(m=>!m.approved).length+'|'+SURVEYS.length+'|'+CHAT.length+'|'+NOTICES.length+'|'+SCHEDULES.length+'|'+SITE_NOTES.length+'|'+(REPORTS[0]||{}).id+'|'+(FIELDS[0]||{}).id+'|'+(CHAT[0]||{}).id; }
@@ -844,6 +859,8 @@ function startConsoleRealtime(){
 }
 
 /* ===== 네비 ===== */
+function topSearchGo(){ const q=($('topSearch')||{}).value||''; go('projects'); if($('proj-q')){ $('proj-q').value=q; } projPage=1; renderProjList(); }
+document.addEventListener('keydown',e=>{ if(e.key==='/'&&!/input|textarea|select/i.test((e.target&&e.target.tagName)||'')){ const t=$('topSearch'); if(t){ e.preventDefault(); t.focus(); } } });
 function go(s){
   document.querySelectorAll('.sec').forEach(e=>e.classList.remove('on'));
   const el=$('s-'+s);if(el)el.classList.add('on');
@@ -898,7 +915,7 @@ async function renderTrash(){
       +`<td style="font-weight:700">${esc(t.label)||'<span style="color:var(--mut)">(제목 없음)</span>'}</td>`
       +`<td style="color:var(--mut);white-space:nowrap">${(t.deleted_at||'').slice(0,16).replace('T',' ')}</td>`
       +`<td style="color:var(--mut)">${esc(t.deleted_by)||'-'}</td>`
-      +`<td style="white-space:nowrap"><button class="b green sm" onclick="restoreTrash('${t.id}',this)">↩ 복구</button> <button class="b red sm" onclick="purgeTrash('${t.id}',this)">영구삭제</button></td></tr>`).join('')
+      +`<td style="white-space:nowrap"><button class="b green sm" onclick="restoreTrash('${t.id}',this)">복구</button> <button class="b red sm" onclick="purgeTrash('${t.id}',this)">영구삭제</button></td></tr>`).join('')
     +'</tbody></table></div>';
 }
 async function restoreTrash(trashId,btn){
@@ -909,7 +926,7 @@ async function restoreTrash(trashId,btn){
   const row=data.data||{};
   if(row.__apt){   // 단지 + 연쇄 자식 복구
     const up=await sb.from('apartments').upsert(row.apartment,{onConflict:'id'});
-    if(up.error){ if(btn){btn.disabled=false;btn.textContent='↩ 복구';} return alert('단지 복구 실패: '+up.error.message); }
+    if(up.error){ if(btn){btn.disabled=false;btn.textContent='복구';} return alert('단지 복구 실패: '+up.error.message); }
     const ch=row.children||{}; let cerr='';
     for(const tbl in ch){ const rows=ch[tbl]||[]; if(!rows.length)continue;
       for(let i=0;i<rows.length;i+=100){ const r2=await sb.from(tbl).upsert(rows.slice(i,i+100),{onConflict:'id'}); if(r2.error)cerr+=tbl+': '+r2.error.message+'\n'; } }
@@ -919,7 +936,7 @@ async function restoreTrash(trashId,btn){
     return;
   }
   const up=await sb.from(data.src_table).upsert(row,{onConflict:'id'});
-  if(up.error){ if(btn){btn.disabled=false;btn.textContent='↩ 복구';} return alert('복구 실패: '+up.error.message); }
+  if(up.error){ if(btn){btn.disabled=false;btn.textContent='복구';} return alert('복구 실패: '+up.error.message); }
   await sb.from('trash').delete().eq('id',trashId);
   await loadAll(); renderTrash();
   alert('복구했어요.');
@@ -976,7 +993,7 @@ function bmemRender(){
   var t=$('bmem-table'), rows=BMEM_ROWS;
   if(!rows.length){ if(t)t.innerHTML='<div style="color:var(--mut);font-size:12.5px">붙여넣은 내용이 없어요.</div>'; bmemSum(); $('bmem-run').disabled=true; return; }
   var inp='font:inherit;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:4px 6px;';
-  t.innerHTML='<div class="card" style="padding:4px 14px;overflow-x:auto"><div style="text-align:right;margin:4px 0"><button class="b line sm" onclick="bmemClear()">🗑 목록 전체 비우기</button></div><table><thead><tr><th>아이디</th><th>이름</th><th>역할(고치기)</th><th>단지(고치기)</th><th>비번</th><th>상태</th><th></th></tr></thead><tbody>'
+  t.innerHTML='<div class="card" style="padding:4px 14px;overflow-x:auto"><div style="text-align:right;margin:4px 0"><button class="b line sm" onclick="bmemClear()">목록 전체 비우기</button></div><table><thead><tr><th>아이디</th><th>이름</th><th>역할(고치기)</th><th>단지(고치기)</th><th>비번</th><th>상태</th><th></th></tr></thead><tbody>'
     +rows.map(function(r,i){
       var roleSel='<select onchange="bmemSet('+i+',\'role\',this.value)" style="'+inp+'">'+Object.keys(ROLES).map(function(k){return '<option value="'+k+'"'+(r.role===k?' selected':'')+'>'+ROLES[k]+'</option>';}).join('')+'</select>';
       var aptInp='<input list="apt-names" value="'+esc(r.aptName)+'" placeholder="미배정" onchange="bmemSet('+i+',\'aptName\',this.value)" style="'+inp+'width:150px">'
@@ -1133,7 +1150,7 @@ async function renderUsage(){
   const daily=(d.daily||[]).slice(-Math.min(days,45));
   const maxD=Math.max(1,...daily.map(x=>+x.events||0));
   const bars=daily.length?daily.map(x=>{const h=Math.max(2,Math.round((+x.events||0)/maxD*120));return `<div style="flex:1 0 16px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px" title="${esc(x.day)} · ${num(x.users)}명 · ${num(x.events)}건"><div style="width:72%;min-width:7px;background:var(--blue);border-radius:4px 4px 0 0;height:${h}px"></div><span style="font-size:8.5px;color:var(--mut);white-space:nowrap">${esc(String(x.day).slice(5))}</span></div>`;}).join(''):'<div class="empty" style="margin:auto">아직 기록이 없어요</div>';
-  const dailyCard=`<div class="card"><h3>📈 일별 사용 추이 <span class="r" style="font-size:11px;color:var(--mut);font-weight:600">막대=이벤트 수 · 마우스 올리면 상세</span></h3><div style="display:flex;align-items:flex-end;gap:3px;height:150px;overflow-x:auto;padding-top:8px">${bars}</div></div>`;
+  const dailyCard=`<div class="card"><h3>일별 사용 추이 <span class="r" style="font-size:11px;color:var(--mut);font-weight:600">막대=이벤트 수 · 마우스 올리면 상세</span></h3><div style="display:flex;align-items:flex-end;gap:3px;height:150px;overflow-x:auto;padding-top:8px">${bars}</div></div>`;
   // 기능별
   const kinds=d.by_kind||[]; const maxK=Math.max(1,...kinds.map(x=>+x.events||0));
   const kindRows=kinds.length?kinds.map(x=>`<tr><td style="font-weight:700;white-space:nowrap">${esc(USG_KIND_LBL[x.kind]||x.kind)}</td><td style="width:60%"><div style="display:flex;align-items:center;gap:9px"><div class="bar" style="flex:1;max-width:220px"><i style="width:${Math.round((+x.events||0)/maxK*100)}%"></i></div><span style="font-weight:700">${num(x.events)}건</span></div></td><td style="color:var(--mut);white-space:nowrap">${num(x.users)}명</td></tr>`).join(''):'<tr><td colspan="3" class="empty">없음</td></tr>';
@@ -1141,10 +1158,10 @@ async function renderUsage(){
   const apts=d.by_apartment||[]; const maxA=Math.max(1,...apts.map(x=>+x.events||0));
   const aptRows=apts.length?apts.slice(0,15).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${x.apartment_id}')">${esc(aptName(x.apartment_id))}</span></td><td style="width:55%"><div style="display:flex;align-items:center;gap:9px"><div class="bar" style="flex:1;max-width:200px"><i style="width:${Math.round((+x.events||0)/maxA*100)}%"></i></div><span style="font-weight:700">${num(x.events)}건</span></div></td><td style="color:var(--mut);white-space:nowrap">${num(x.users)}명</td></tr>`).join(''):'<tr><td colspan="3" class="empty">없음</td></tr>';
   const tables=`<div class="grid2">
-    <div class="card"><h3>🧩 기능별 사용</h3><table><thead><tr><th>기능</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${kindRows}</tbody></table></div>
-    <div class="card"><h3>🏢 단지별 사용 Top 15 <span class="r" style="font-size:11px;color:var(--mut);font-weight:600">단지명 클릭 → 상세</span></h3><div style="overflow-x:auto"><table><thead><tr><th>단지</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${aptRows}</tbody></table></div></div>
+    <div class="card"><h3>기능별 사용</h3><table><thead><tr><th>기능</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${kindRows}</tbody></table></div>
+    <div class="card"><h3>단지별 사용 Top 15 <span class="r" style="font-size:11px;color:var(--mut);font-weight:600">단지명 클릭 → 상세</span></h3><div style="overflow-x:auto"><table><thead><tr><th>단지</th><th>사용량</th><th>사용자</th></tr></thead><tbody>${aptRows}</tbody></table></div></div>
   </div>`;
-  const userCard=`<div class="card"><h3>👤 사용자별 사용 <span class="r"><input class="inp" id="usg-user-q" oninput="renderUsgUsers(this.value)" placeholder="🔍 이름·단지 검색" style="width:auto;min-width:180px"></span></h3>
+  const userCard=`<div class="card"><h3>사용자별 사용 <span class="r"><input class="inp" id="usg-user-q" oninput="renderUsgUsers(this.value)" placeholder="🔍 이름·단지 검색" style="width:auto;min-width:180px"></span></h3>
     <div style="overflow-x:auto"><table style="min-width:720px"><thead><tr><th>이름</th><th>단지</th><th>역할</th><th style="text-align:right">총 사용</th><th title="홈 열람" style="text-align:center">🏠홈</th><th title="감리일지 열람" style="text-align:center">📄일지</th><th title="계약서 열람" style="text-align:center">📑계약</th><th title="만족도 제출" style="text-align:center">⭐만족</th><th title="카톡 상담" style="text-align:center">💬카톡</th><th>최근 접속</th></tr></thead><tbody id="usgUserRows"></tbody></table></div>
     <div style="font-size:11px;color:var(--mut);margin-top:8px">* 이벤트가 많은 순 최대 300명. 숫자는 최근 ${num(d.range_days)}일 기준.</div></div>`;
   body.innerHTML=kpis+dailyCard+tables+userCard;
@@ -1579,7 +1596,7 @@ function renderCalDayList(){
   const items=(SCHEDULES||[]).filter(s=>{ if(String(s.date||'').slice(0,10)!==calPickedDay)return false; if(calCat!=='전체'){ const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const ck=isV?'방문':(s.category||''); if(ck!==calCat)return false; } return true; });
   const [Y,M,D]=calPickedDay.split('-').map(Number);
   const wd=['일','월','화','수','목','금','토'][new Date(Y,M-1,D).getDay()];
-  let h=`<div class="card" style="margin-top:12px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📅 ${M}/${D} (${wd}) 일정 <span style="font-size:12px;color:var(--mut);font-weight:600">${items.length}건</span><span style="flex:1"></span><button class="b blue sm" onclick="openScheduleAdd('${calPickedDay}')">➕ 이 날 일정 추가</button><button class="b line sm" onclick="pickCalDay('${calPickedDay}')">닫기</button></h3>`;
+  let h=`<div class="card" style="margin-top:12px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${M}/${D} (${wd}) 일정 <span style="font-size:12px;color:var(--mut);font-weight:600">${items.length}건</span><span style="flex:1"></span><button class="b blue sm" onclick="openScheduleAdd('${calPickedDay}')">이 날 일정 추가</button><button class="b line sm" onclick="pickCalDay('${calPickedDay}')">닫기</button></h3>`;
   if(!items.length){ h+='<div class="empty">이 날 일정이 없어요</div>'; }
   else { h+=items.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko')).map(s=>{ const isP=s.source==='pour'; const meta=catMeta(s.category); const isV=String(s.title||'').indexOf(VISIT_MARK)===0; const lab=isP?(s.category?meta[1]:'영업'):(isV?'방문':(s.category?meta[1]:'')); const col=isP?(meta[2]||'#888'):(isV?'#2f6bf6':meta[2]); const isAsq=(!isV&&s.category==='asq'); const isExp=(s.meta&&s.meta.dateType==='expected'); let asg=schedAsgName(s); if(!asg&&s.apartment_id){ const _a=APTS.find(x=>x.id===s.apartment_id); if(_a){ asg=aptAuditors(_a).map(auditorName).filter(n=>n&&n!=='-').join(', '); } } if(!asg) asg=guessAsgFromTitle(s.title); const apt=s.apartment_id?aptName[s.apartment_id]:''; const bcol=isAsq?'#2563eb':(isV?'#0f9d6b':'#c7ccd6'); return `<div onclick="openScheduleEdit('${s.id}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-left:3px solid ${bcol};background:${isAsq?'#eff4ff':(isV?'#eefaf4':'#f7f8fa')};border-radius:0 8px 8px 0;margin-bottom:6px${isExp?';border:1px dashed #c7ccd6':''}${(isAsq||isV)?'':';opacity:.6'}"><b style="font-size:10px;font-weight:800;${isAsq?'color:#1b4fd6;background:#cfe0ff':(isV?'color:#0b7a55;background:#cdeede':'color:#9aa3b2;background:#f0f1f4')};padding:2px 7px;border-radius:5px">${esc(lab||'일정')}</b>${isExp?'<b style="font-size:9px;font-weight:800;color:#8a6d1f;background:#fdf3d6;padding:2px 7px;border-radius:5px">예정</b>':''}<span style="font-weight:${(isAsq||isV)?800:700};font-size:13px;color:${isAsq?'#1d4ed8':(isV?'#0b7a55':'#9aa3b2')}">${esc(s.title||'')}</span>${apt?`<span style="font-size:11px;color:${(isAsq||isV)?'var(--mut)':'#aab2c0'}">· ${esc(apt)}</span>`:''}${asg?`<span style="font-size:11px;color:#5b3fb0;background:#efeaff;padding:2px 7px;border-radius:6px;margin-left:auto">👤 ${esc(asg)}</span>`:''}</div>`; }).join(''); }
   h+='</div>';
@@ -1600,22 +1617,22 @@ function renderAssignTable(){
   const preList=APTS.filter(isPreStart).slice().sort((p,q)=>((p.status?1:0)-(q.status?1:0))||byName(p,q));   // 상태 미설정 먼저
   const doneList=APTS.filter(a=>a.status==='done').slice().sort((p,q)=>{ const pa=(csData(p).stageAt||''), qa=(csData(q).stageAt||''); return qa.localeCompare(pa)||byName(p,q); });
   const tabs=`<div style="display:flex;gap:6px;margin:-4px 0 10px;flex-wrap:wrap">
-      <button class="b ${asgTab==='active'?'blue':'line'}" style="padding:6px 12px;font-size:12px" onclick="setAsgTab('active')" title="공사중·준공처리 단계 = 관제센터 '진행중 현장'과 같은 기준">🏗️ 감리 진행 <b>${active.length}</b></button>
-      <button class="b ${asgTab==='pre'?'blue':'line'}" style="padding:6px 12px;font-size:12px" onclick="setAsgTab('pre')" title="계약·착공 단계, 상태 미설정 단지 — 미리 요일을 잡아 둘 때">📝 착공 전 <b>${preList.length}</b></button>
-      <button class="b ${asgTab==='done'?'blue':'line'}" style="padding:6px 12px;font-size:12px" onclick="setAsgTab('done')">✅ 준공완료 <b>${doneList.length}</b></button>
+      <button class="b ${asgTab==='active'?'blue':'line'}" style="padding:6px 12px;font-size:12px" onclick="setAsgTab('active')" title="공사중·준공처리 단계 = 관제센터 '진행중 현장'과 같은 기준">감리 진행 <b>${active.length}</b></button>
+      <button class="b ${asgTab==='pre'?'blue':'line'}" style="padding:6px 12px;font-size:12px" onclick="setAsgTab('pre')" title="계약·착공 단계, 상태 미설정 단지 — 미리 요일을 잡아 둘 때">착공 전 <b>${preList.length}</b></button>
+      <button class="b ${asgTab==='done'?'blue':'line'}" style="padding:6px 12px;font-size:12px" onclick="setAsgTab('done')">준공완료 <b>${doneList.length}</b></button>
     </div>`;
   if(asgTab==='done'){
     const rows=doneList.map(a=>{ const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean); const cs=csData(a); const st=doneVisitStats(a.id);
       const doneAt=(cs.stage==='준공'&&cs.stageAt)?String(cs.stageAt).slice(0,10):'';
       const auds=aptAuditors(a).map(auditorName).filter(n=>n&&n!=='-');
       return `<tr><td style="font-weight:700"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span><br><span style="font-size:11px;color:var(--mut)">${esc(a.region)||''}</span></td><td>${stagePill(a)}</td><td style="font-size:12px">${auds.length?esc(auds.join(', ')):'<span style="color:var(--mut)">-</span>'}</td><td style="font-size:12px;color:var(--mut2)">${esc(d.cycle||'-')}${days.length?' · '+esc(days.join('·')):''}</td><td style="font-size:12px">${st.n?`${st.n}회${st.last?` <span style="color:var(--mut)">(마지막 ${esc(st.last)})</span>`:''}`:'<span style="color:var(--mut)">기록 없음</span>'}</td><td style="font-size:12px;color:var(--mut)">${doneAt?esc(doneAt):'-'}</td></tr>`; }).join('');
-    box.innerHTML=`<div class="card" style="margin-top:16px"><h3>📍 방문 배치표 <span class="r">준공완료 이력 · ${doneList.length}곳</span></h3>${tabs}
+    box.innerHTML=`<div class="card" style="margin-top:16px"><h3>방문 배치표 <span class="r">준공완료 이력 · ${doneList.length}곳</span></h3>${tabs}
       <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">준공 처리된 현장의 <b>배치 이력</b>이에요(읽기 전용). 정기 방문은 더 이상 생기지 않아요. 다시 진행하려면 공사관리에서 단계를 되돌리면 진행 현장 탭으로 돌아와요.</div>
       ${doneList.length?`<div style="overflow-x:auto"><table style="width:100%;min-width:720px"><thead><tr><th>현장</th><th>단계</th><th>담당했던 감리원</th><th>주기 · 요일</th><th>다녀온 정기 방문</th><th>준공 처리일</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">준공 처리된 현장이 아직 없어요</div>'}</div>`;
     return;
   }
   const isPre=(asgTab==='pre'); const sites=isPre?preList:active;
-  if(!sites.length){ box.innerHTML='<div class="card" style="margin-top:16px"><h3>📍 방문 배치표</h3>'+tabs+'<div class="empty">'+(isPre?'착공 전(계약·착공) 단지가 없어요.':'감리 진행 중(공사중·준공처리)인 단지가 없어요.<br>공사관리에서 단지 단계를 공사중으로 바꾸면 여기에 떠요.')+' (전체 단지 '+APTS.length+'곳 · 준공완료 '+doneList.length+'곳)</div></div>'; return; }
+  if(!sites.length){ box.innerHTML='<div class="card" style="margin-top:16px"><h3>방문 배치표</h3>'+tabs+'<div class="empty">'+(isPre?'착공 전(계약·착공) 단지가 없어요.':'감리 진행 중(공사중·준공처리)인 단지가 없어요.<br>공사관리에서 단지 단계를 공사중으로 바꾸면 여기에 떠요.')+' (전체 단지 '+APTS.length+'곳 · 준공완료 '+doneList.length+'곳)</div></div>'; return; }
   const mgrs=auditorNames(), wk=weekKeyOf(new Date()), CYB=['주1회','주2회','주3회','상주'];
   const AUDS=MEMBERS.filter(m=>m.role==='auditor').sort((x,y)=>(x.name||loginId(x)||'').localeCompare(y.name||loginId(y)||'','ko'));
   const rows=sites.map(a=>{ const d=ownAsg(a); const days=String(d.visitDay||'').split('·').filter(Boolean); const curSub=(d.subs&&d.subs[wk])||'';
@@ -1632,7 +1649,7 @@ function renderAssignTable(){
   const un=sites.filter(a=>!siteMgrName(a)).length;
   const noStat=sites.filter(a=>!a.status).length;
   const stageCnt=SITE_STAGES.filter(([k])=>k!=='준공').map(([k,lab,,color])=>{ const n=sites.filter(a=>a.status&&stageOf(a)===k).length; return n?`<span class="pill" style="background:${color}1a;color:${color};margin-left:4px">${esc(lab)} ${n}</span>`:''; }).join('')+(noStat?`<span class="pill" style="background:#fff4e2;color:#b8710a;margin-left:4px">상태 미설정 ${noStat}</span>`:'');
-  box.innerHTML=`<div class="card" style="margin-top:16px"><h3>📍 방문 배치표 <span class="r">${isPre?'착공 전':'감리 진행'} ${sites.length}곳${un?` · <b style="color:#b8710a">담당 미배정 ${un}</b>`:' · 담당 전원 배정'}</span></h3>${tabs}
+  box.innerHTML=`<div class="card" style="margin-top:16px"><h3>방문 배치표 <span class="r">${isPre?'착공 전':'감리 진행'} ${sites.length}곳${un?` · <b style="color:#b8710a">담당 미배정 ${un}</b>`:' · 담당 전원 배정'}</span></h3>${tabs}
     ${isPre?'<div style="background:#fff8ec;border:1px solid #f3d9a4;border-radius:9px;padding:8px 12px;font-size:12px;color:#8a5a00;margin-bottom:8px">아직 감리에 들어가지 않은 단지예요. 여기서 담당·요일을 미리 정해 두면, 공사관리에서 단계를 <b>공사중</b>으로 바꾸는 순간 설정 그대로 <b>감리 진행</b> 탭으로 옮겨가요. <b>상태 미설정</b> 단지는 공사관리 → 단지 상세에서 단계를 정해 주세요.</div>':''}
     <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px"><b>주기·요일</b>을 정한 뒤, <b>요일별 담당 감리원</b>를 고르세요(주2회면 서로 다른 감리원 2명이 다른 날). 비워두면 대표 감리원으로 들어갑니다 · <b style="color:#1e7f4f">정한 즉시 앞으로 6주치 방문이 자동으로 떠요(감리원·입주민 앱 포함).</b> 변동 있을 때만 그 날짜 일정을 고치면 돼요. <span style="color:#9aa3b2">(‘이 달 방문 일정 생성’은 과거 포함 전체 재생성용)</span></div>
     <div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">단계별:${stageCnt||' -'} <span style="color:#9aa3b2">· 단계는 공사관리 → 단지 상세에서 바꿔요. 공사중이면 ‘감리 진행’, 그 전이면 ‘착공 전’, 준공이면 ‘준공완료’ 탭으로 자동 이동해요.</span></div>
@@ -1766,7 +1783,7 @@ function setProjStage(k){ projStage=(projStage===k&&k!=='전체')?'전체':k; re
   if(projView==='kanban'&&projStage!=='전체'){ const c=document.querySelector('.kbcol.sel'); if(c&&c.scrollIntoView)c.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}); } }
 /* ── 공사관리 리스트: 감리비·미수금 열 토글 (기본 숨김, 선택은 브라우저에 기억) ── */
 let projMoney=(lsGet('aptsq_proj_money')==='1');
-function applyProjMoney(){ const w=$('projTableWrap'); if(w)w.classList.toggle('money-off',!projMoney); const b=$('pv-money'); if(b){ b.textContent=projMoney?'💰 금액 숨기기':'💰 금액 보기'; b.classList.toggle('blue',projMoney); b.classList.toggle('line',!projMoney); } }
+function applyProjMoney(){ const w=$('projTableWrap'); if(w)w.classList.toggle('money-off',!projMoney); const b=$('pv-money'); if(b){ b.textContent=projMoney?'금액 숨기기':'금액 보기'; b.classList.toggle('blue',projMoney); b.classList.toggle('line',!projMoney); } }
 function toggleProjMoney(){ projMoney=!projMoney; lsSet('aptsq_proj_money',projMoney?'1':'0'); applyProjMoney(); }
 /* ── 감리일지 한 줄 요약 (규칙 기반) ──
    체크리스트가 만드는 본문의 [특기사항] 안에서 '1. 외부 수성도장 및 그래픽도장 점검' 같은 번호 제목을 첫 줄로 뽑는다.
@@ -1910,7 +1927,7 @@ function kbCardHtml(a){
       <div>일지 <b${nnew?' style="color:var(--red)"':''}>${nrep}건</b></div>
       <div>미수 ${out==null?'<b>-</b>':(out<=0?'<b style="color:var(--green)">완납</b>':`<b style="color:var(--red)">${moneyKR(out)}</b>`)}</div></div>
     <div style="display:flex;align-items:center;gap:7px;margin-top:9px"><div class="bar" style="flex:1"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut);font-weight:700">${pr.pct}%</span></div>
-    <div class="kbfoot"><button class="kbmv" ${i===0?'disabled':''} title="이전 단계로" onclick="moveStage('${a.id}',-1)">◀</button><button class="kbmv" ${i===STAGE_KEYS.length-1?'disabled':''} title="다음 단계로" onclick="moveStage('${a.id}',1)">▶</button><span style="flex:1"></span><button class="kbmv" onclick="openProj('${a.id}')">상세 →</button></div></div>`;
+    <div class="kbfoot"><button class="kbmv" ${i===0?'disabled':''} title="이전 단계로" onclick="moveStage('${a.id}',-1)"></button><button class="kbmv" ${i===STAGE_KEYS.length-1?'disabled':''} title="다음 단계로" onclick="moveStage('${a.id}',1)"></button><span style="flex:1"></span><button class="kbmv" onclick="openProj('${a.id}')">상세 →</button></div></div>`;
 }
 function renderProjKanban(base){
   const box=$('projKanban'); if(!box)return;
@@ -1928,7 +1945,7 @@ function photoCalMove(d){ if(!photoCalYM){const n=new Date();photoCalYM={y:n.get
 function setPhotoDate(date){ photoSelDate=(photoSelDate===date?null:date); renderProj(); }
 function fieldCardHtml(f){
   const ph=Array.isArray(f.photos)?f.photos.length:0;
-  return `<div class="card"><div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:14px;font-weight:800;color:var(--blue)">📅 ${(f.created_at||'').slice(0,10)}</span><span class="pill blue">📷 ${ph}장</span>${f.dong?`<span class="pill gray">${esc(f.dong)}</span>`:''}<span style="flex:1"></span>${ph?`<button class="b line sm" onclick="downloadFieldPhotos('${f.id}',this)">⬇ 사진 ${ph}</button> `:''}<button class="b line sm" onclick="openFieldEdit('${f.id}')">편집</button> <button class="b red sm" onclick="deleteField('${f.id}')">삭제</button></div><div style="font-size:13px;font-weight:700">${esc(f.title)||'-'}</div>${f.content?`<div style="font-size:12.5px;color:var(--mut2);margin-top:5px;white-space:pre-wrap">${esc(f.content)}</div>`:''}${ph?`<div class="phwrap" style="margin-top:9px">${f.photos.slice(0,12).map(u=>`<img src="${esc(u)}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`).join('')}${f.photos.length>12?`<span style="align-self:center;color:var(--mut);font-size:12px">+${f.photos.length-12}</span>`:''}</div>`:''}</div>`;
+  return `<div class="card"><div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:14px;font-weight:800;color:var(--blue)">📅 ${(f.created_at||'').slice(0,10)}</span><span class="pill blue">📷 ${ph}장</span>${f.dong?`<span class="pill gray">${esc(f.dong)}</span>`:''}<span style="flex:1"></span>${ph?`<button class="b line sm" onclick="downloadFieldPhotos('${f.id}',this)">사진 ${ph}</button> `:''}<button class="b line sm" onclick="openFieldEdit('${f.id}')">편집</button> <button class="b red sm" onclick="deleteField('${f.id}')">삭제</button></div><div style="font-size:13px;font-weight:700">${esc(f.title)||'-'}</div>${f.content?`<div style="font-size:12.5px;color:var(--mut2);margin-top:5px;white-space:pre-wrap">${esc(f.content)}</div>`:''}${ph?`<div class="phwrap" style="margin-top:9px">${f.photos.slice(0,12).map(u=>`<img src="${esc(u)}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`).join('')}${f.photos.length>12?`<span style="align-self:center;color:var(--mut);font-size:12px">+${f.photos.length-12}</span>`:''}</div>`:''}</div>`;
 }
 function photoCalendarHtml(aptId, flds){
   const recs=flds.filter(f=>f.created_at);
@@ -1936,7 +1953,7 @@ function photoCalendarHtml(aptId, flds){
   const {y,m}=photoCalYM;
   const byDay={}; recs.forEach(f=>{ const d=new Date(f.created_at); if(d.getFullYear()===y&&d.getMonth()===m){ (byDay[d.getDate()]=byDay[d.getDate()]||[]).push(f); } });
   const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate();
-  let h=`<div class="card"><h3><span><button class="b line sm" onclick="photoCalMove(-1)">←</button> ${y}년 ${m+1}월 <button class="b line sm" onclick="photoCalMove(1)">→</button></span><span class="r">📷 있는 날짜를 눌러보세요</span></h3><div class="cal">`;
+  let h=`<div class="card"><h3><span><button class="b line sm" onclick="photoCalMove(-1)"></button> ${y}년 ${m+1}월 <button class="b line sm" onclick="photoCalMove(1)"></button></span><span class="r">📷 있는 날짜를 눌러보세요</span></h3><div class="cal">`;
   ['일','월','화','수','목','금','토'].forEach(d=>h+=`<div class="dh">${d}</div>`);
   for(let i=0;i<first;i++)h+='<div class="cell" style="background:#f7f8fa"></div>';
   for(let dd=1;dd<=days;dd++){ const list=byDay[dd]||[]; const nph=list.reduce((s,f)=>s+(Array.isArray(f.photos)?f.photos.length:0),0); const date=`${y}-${String(m+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`; const sel=photoSelDate===date;
@@ -1944,7 +1961,7 @@ function photoCalendarHtml(aptId, flds){
   }
   h+='</div></div>';
   if(photoSelDate){ const list=recs.filter(f=>(f.created_at||'').slice(0,10)===photoSelDate).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
-    h+=`<div style="display:flex;align-items:center;gap:10px;margin:14px 2px 8px"><span style="font-weight:800;font-size:15px">📅 ${photoSelDate} · ${list.length}건</span>${list.some(f=>Array.isArray(f.photos)&&f.photos.length)?`<button class="b line sm" onclick="makeFieldPPT('${aptId}',{date:'${photoSelDate}'},this)">📊 이 날짜 PPT</button>`:''}<span class="link" onclick="setPhotoDate('${photoSelDate}')" style="font-size:12px">닫기</span></div>`;
+    h+=`<div style="display:flex;align-items:center;gap:10px;margin:14px 2px 8px"><span style="font-weight:800;font-size:15px">📅 ${photoSelDate} · ${list.length}건</span>${list.some(f=>Array.isArray(f.photos)&&f.photos.length)?`<button class="b line sm" onclick="makeFieldPPT('${aptId}',{date:'${photoSelDate}'},this)">이 날짜 PPT</button>`:''}<span class="link" onclick="setPhotoDate('${photoSelDate}')" style="font-size:12px">닫기</span></div>`;
     h+= list.length? list.map(fieldCardHtml).join('') : '<div class="card empty">이 날짜 기록이 없어요</div>';
   } else { h+='<div class="empty" style="margin-top:12px">달력에서 <b>📷 사진이 있는 날짜</b>를 누르면 그 날 작업사진이 여기 펼쳐져요</div>'; }
   return h;
@@ -1971,13 +1988,13 @@ function renderProj(){
   const cons=CONTRACTS.filter(c=>c.apartment_id===p.id);
   const pr=progressOf(p);
   const tabs=`<div class="seg">
-    <button class="${projTab==='overview'?'on':''}" onclick="setProjTab('overview')">📋 현장개요</button>
-    <button class="${projTab==='report'?'on':''}" onclick="setProjTab('report')">📄 감리일지 ${reps.length}</button>
-    <button class="${projTab==='photo'?'on':''}" onclick="setProjTab('photo')">📷 작업사진 ${flds.length}</button>
-    <button class="${projTab==='history'?'on':''}" onclick="setProjTab('history')">🕒 히스토리 ${SITE_NOTES.filter(n=>n.apartment_id===p.id).length}</button></div>`;
+    <button class="${projTab==='overview'?'on':''}" onclick="setProjTab('overview')">현장개요</button>
+    <button class="${projTab==='report'?'on':''}" onclick="setProjTab('report')">감리일지 ${reps.length}</button>
+    <button class="${projTab==='photo'?'on':''}" onclick="setProjTab('photo')">작업사진 ${flds.length}</button>
+    <button class="${projTab==='history'?'on':''}" onclick="setProjTab('history')">히스토리 ${SITE_NOTES.filter(n=>n.apartment_id===p.id).length}</button></div>`;
   let body='';
   if(projTab==='overview'){
-    body=`<div class="grid2"><div class="card"><h3>현장 정보 <span class="r"><button class="b line sm" onclick="openAptEdit('${p.id}')">⚙️ 단지 설정</button></span></h3>
+    body=`<div class="grid2"><div class="card"><h3>현장 정보 <span class="r"><button class="b line sm" onclick="openAptEdit('${p.id}')">단지 설정</button></span></h3>
       <div class="kv"><span>지역</span><b>${esc(p.region)||'-'}</b></div><div class="kv"><span>공종</span><b>${esc(siteType(p))||'-'}</b></div>
       <div class="kv"><span>담당 감리</span><b>${siteAuditors(p)}</b></div>
       <div class="kv"><span>공법</span><b>${esc(siteMethods(p).map(m=>window.methodLabel(m)).join(', ')||'미지정')}${siteMethods(p).length>1?` <span style="font-size:11px;color:var(--mut);font-weight:600">(대표: ${esc(window.methodLabel(p.method)||'-')})</span>`:''}</b></div>
@@ -1985,18 +2002,18 @@ function renderProj(){
       <div class="kv" style="align-items:flex-start"><span>공정</span><b style="display:block;flex:1">${siteMethods(p).length?progressRowsHtml(p,{barW:140}):'<span style="color:var(--mut)">공법을 정하면 공정이 표시돼요 (⚙️ 단지 설정)</span>'}</b></div>
       <div style="font-size:11px;color:var(--mut);margin-top:10px">💡 담당 감리원·공법·공정·상태는 <b>⚙️ 단지 설정</b>에서 바꿔요.</div></div>
       ${billingCard(p,cons)}</div>`+
-      `<div class="card"><h3>📝 현장개요 <span class="r">이 현장의 핵심 요약 (관리자 메모)</span></h3>
+      `<div class="card"><h3>현장개요 <span class="r">이 현장의 핵심 요약 (관리자 메모)</span></h3>
         <textarea id="ov-text" placeholder="예: 106~110동 외벽 재도장. 2026.03 착공, 감리 주 1회 방문. 특이사항: 옥상 방수 추가 검토 중." style="width:100%;box-sizing:border-box;min-height:110px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none;resize:vertical;line-height:1.6">${esc(p.overview)||''}</textarea>
         <div style="text-align:right;margin-top:10px"><button class="b blue" onclick="saveOverview('${p.id}')">현장개요 저장</button></div></div>`;
   } else if(projTab==='history'){
-    body=`<div class="card"><h3>🕒 현장 히스토리 <span class="r">방문·통화·이슈 등 이 현장의 기록</span></h3>
+    body=`<div class="card"><h3>현장 히스토리 <span class="r">방문·통화·이슈 등 이 현장의 기록</span></h3>
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><select id="note-kind" class="inp" style="width:110px">${Object.entries(NOTE_KIND).map(([k,v])=>`<option value="${k}">${v[2]} ${v[0]}</option>`).join('')}</select><input id="note-input" placeholder="예: 106동 상도 완료 확인 / 소장님과 일정 협의" style="flex:1;min-width:180px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')addSiteNote('${p.id}')"><button class="b blue" onclick="addSiteNote('${p.id}')">기록 추가</button></div>
       ${siteNotesHtml(p.id)}</div>`;
   } else if(projTab==='report'){
-    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">➕ 감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>PDF</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>repDateKey(b).localeCompare(repDateKey(a))||(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${repDateShow(r)}</td><td style="font-weight:700">${repRoundBadge(r)} <span class="link" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'-'}</span></td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td style="white-space:nowrap">${r.pdf_url?`<a class="b line sm" href="${esc(r.pdf_url)}" target="_blank" title="${esc(r.pdf_name||'PDF')}">📄 보기</a>`:'<span style="color:var(--mut)">없음</span>'}</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}',this)">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
+    body=`<div class="toolbar"><button class="b blue" onclick="openReportAdd('${p.id}')">감리일지 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>날짜</th><th>제목</th><th>동</th><th>사진</th><th>PDF</th><th>공개</th><th>관리</th></tr></thead><tbody>${reps.length?[...reps].sort((a,b)=>repDateKey(b).localeCompare(repDateKey(a))||(b.created_at||'').localeCompare(a.created_at||'')).map(r=>`<tr><td style="color:var(--mut)">${repDateShow(r)}</td><td style="font-weight:700">${repRoundBadge(r)} <span class="link" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'-'}</span></td><td>${esc(r.dongs)||'-'}</td><td>${(Array.isArray(r.photos)?r.photos.length:0)}장</td><td style="white-space:nowrap">${r.pdf_url?`<a class="b line sm" href="${esc(r.pdf_url)}" target="_blank" title="${esc(r.pdf_name||'PDF')}">📄 보기</a>`:'<span style="color:var(--mut)">없음</span>'}</td><td><button class="b sm ${r.published?'green':'line'}" onclick="togglePub('${r.id}',this)">${r.published?'공개중 ✓':'공개하기'}</button></td><td style="white-space:nowrap">${(Array.isArray(r.photos)&&r.photos.length)?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">사진 ${r.photos.length}</button> `:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button> <button class="b red sm" onclick="deleteReport('${r.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">등록된 감리일지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(projTab==='photo'){
     const hasPh=flds.some(f=>Array.isArray(f.photos)&&f.photos.length);
-    const toolbar=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">➕ 현장기록 추가</button>${hasPh?`<button class="b line" onclick="makeFieldPPT('${p.id}',null,this)">📊 준공 PPT</button><button class="b line" onclick="downloadAptAllPhotos('${p.id}',this)">⬇ 전체 사진 ZIP</button>`:''}<span style="flex:1"></span><div class="seg" style="margin:0"><button class="${photoView==='card'?'on':''}" onclick="setPhotoView('card')">📇 카드</button><button class="${photoView==='cal'?'on':''}" onclick="setPhotoView('cal')">🗓️ 달력</button></div></div>`;
+    const toolbar=`<div class="toolbar"><button class="b blue" onclick="openFieldAdd('${p.id}')">현장기록 추가</button>${hasPh?`<button class="b line" onclick="makeFieldPPT('${p.id}',null,this)">준공 PPT</button><button class="b line" onclick="downloadAptAllPhotos('${p.id}',this)">전체 사진 ZIP</button>`:''}<span style="flex:1"></span><div class="seg" style="margin:0"><button class="${photoView==='card'?'on':''}" onclick="setPhotoView('card')">카드</button><button class="${photoView==='cal'?'on':''}" onclick="setPhotoView('cal')">달력</button></div></div>`;
     if(photoView==='cal'){ body=toolbar+photoCalendarHtml(p.id, flds); }
     else { body=toolbar+(flds.length?[...flds].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(fieldCardHtml).join(''):'<div class="card empty">등록된 현장기록이 없어요</div>'); }
   }
@@ -2066,7 +2083,7 @@ function commTab(t,btn){
   if(btn){document.querySelectorAll('#commTabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
   let h='';
   if(t==='notice'){
-    h=`<div class="toolbar"><button class="b blue" onclick="openNoticeAdd()">➕ 공지 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>단지</th><th>날짜</th><th>관리</th></tr></thead><tbody>${NOTICES.length?NOTICES.map(n=>`<tr><td style="font-weight:700">${esc(n.title)||'-'}</td><td>${n.apartment_id?esc(aptName(n.apartment_id)):'<span style="color:var(--mut)">전체</span>'}</td><td style="color:var(--mut)">${(n.created_at||'').slice(0,10)}</td><td style="white-space:nowrap"><button class="b line sm" onclick="openNoticeEdit('${n.id}')">편집</button> <button class="b red sm" onclick="deleteNotice('${n.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">공지가 없어요</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openNoticeAdd()">공지 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>단지</th><th>날짜</th><th>관리</th></tr></thead><tbody>${NOTICES.length?NOTICES.map(n=>`<tr><td style="font-weight:700">${esc(n.title)||'-'}</td><td>${n.apartment_id?esc(aptName(n.apartment_id)):'<span style="color:var(--mut)">전체</span>'}</td><td style="color:var(--mut)">${(n.created_at||'').slice(0,10)}</td><td style="white-space:nowrap"><button class="b line sm" onclick="openNoticeEdit('${n.id}')">편집</button> <button class="b red sm" onclick="deleteNotice('${n.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">공지가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='chat'){
     const threads={}; CHAT.forEach(c=>{ const k=c.thread||('apt:'+c.apartment_id); if(!threads[k])threads[k]={last:c,apt:c.apartment_id}; });
     const list=Object.entries(threads).map(([k,v])=>({k,v,un:threadUnread(k)})).sort((a,b)=>(b.un-a.un)||(b.v.last.created_at||'').localeCompare(a.v.last.created_at||''));
@@ -2091,13 +2108,13 @@ function promoTab(t,btn){
   if(btn){document.querySelectorAll('#promoTabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
   let h='';
   if(t==='case'){
-    h=`<div class="toolbar"><button class="b blue" onclick="openCaseAdd()">➕ 사례 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>구분</th><th>관리</th></tr></thead><tbody>${CASES.length?CASES.map(c=>`<tr style="cursor:pointer" onclick="openCaseView('${c.id}')"><td style="font-weight:700"><span class="link">${esc(c.title)||'-'}</span></td><td><span class="pill blue">${esc(c.type||c.meta)||'사례'}</span></td><td style="white-space:nowrap" onclick="event.stopPropagation()"><button class="b line sm" onclick="openCaseView('${c.id}')">보기</button> <button class="b line sm" onclick="openCaseEdit('${c.id}')">편집</button> <button class="b red sm" onclick="deleteCase('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">사례가 없어요</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openCaseAdd()">사례 등록</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>제목</th><th>구분</th><th>관리</th></tr></thead><tbody>${CASES.length?CASES.map(c=>`<tr style="cursor:pointer" onclick="openCaseView('${c.id}')"><td style="font-weight:700"><span class="link">${esc(c.title)||'-'}</span></td><td><span class="pill blue">${esc(c.type||c.meta)||'사례'}</span></td><td style="white-space:nowrap" onclick="event.stopPropagation()"><button class="b line sm" onclick="openCaseView('${c.id}')">보기</button> <button class="b line sm" onclick="openCaseEdit('${c.id}')">편집</button> <button class="b red sm" onclick="deleteCase('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">사례가 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='cred'){
-    h=`<div class="toolbar"><button class="b blue" onclick="openCredAdd()">➕ 인증·이력 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>이미지</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${CREDS.length?CREDS.map(c=>`<tr><td>${c.image_url?`<img src="${esc(c.image_url)}" style="width:52px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`:'-'}</td><td style="font-weight:700">${esc(c.caption)||'(설명 없음)'}</td><td><label style="cursor:pointer"><input type="checkbox" ${c.active?'checked':''} onchange="toggleCred('${c.id}',this.checked)"> ${c.active?'노출중':'숨김'}</label></td><td><button class="b red sm" onclick="delCred('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">인증·이력이 없어요</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openCredAdd()">인증·이력 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>이미지</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${CREDS.length?CREDS.map(c=>`<tr><td>${c.image_url?`<img src="${esc(c.image_url)}" style="width:52px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`:'-'}</td><td style="font-weight:700">${esc(c.caption)||'(설명 없음)'}</td><td><label style="cursor:pointer"><input type="checkbox" ${c.active?'checked':''} onchange="toggleCred('${c.id}',this.checked)"> ${c.active?'노출중':'숨김'}</label></td><td><button class="b red sm" onclick="delCred('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">인증·이력이 없어요</td></tr>'}</tbody></table></div>`;
   } else if(t==='namecard'){
-    h=`<div class="toolbar"><button class="b blue" onclick="openNameCardAdd()">➕ 명함 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>명함</th><th>이름</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${CARDS.length?CARDS.map(c=>`<tr><td>${c.image_url?`<a href="${esc(c.image_url)}" target="_blank"><img src="${esc(c.image_url)}" style="width:72px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)"></a>`:'-'}</td><td style="font-weight:700">${esc(c.name)||'-'}</td><td style="color:var(--mut)">${esc(c.caption)||''}</td><td><label style="cursor:pointer"><input type="checkbox" ${c.active?'checked':''} onchange="toggleNameCard('${c.id}',this.checked)"> ${c.active?'노출중':'숨김'}</label></td><td style="white-space:nowrap"><button class="b line sm" onclick="openNameCardEdit('${c.id}')">편집</button> <button class="b red sm" onclick="delNameCard('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="5" class="empty">등록된 명함이 없어요. ‘명함 추가’로 사진과 이름을 올려주세요.</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openNameCardAdd()">명함 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>명함</th><th>이름</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${CARDS.length?CARDS.map(c=>`<tr><td>${c.image_url?`<a href="${esc(c.image_url)}" target="_blank"><img src="${esc(c.image_url)}" style="width:72px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)"></a>`:'-'}</td><td style="font-weight:700">${esc(c.name)||'-'}</td><td style="color:var(--mut)">${esc(c.caption)||''}</td><td><label style="cursor:pointer"><input type="checkbox" ${c.active?'checked':''} onchange="toggleNameCard('${c.id}',this.checked)"> ${c.active?'노출중':'숨김'}</label></td><td style="white-space:nowrap"><button class="b line sm" onclick="openNameCardEdit('${c.id}')">편집</button> <button class="b red sm" onclick="delNameCard('${c.id}')">삭제</button></td></tr>`).join(''):'<tr><td colspan="5" class="empty">등록된 명함이 없어요. ‘명함 추가’로 사진과 이름을 올려주세요.</td></tr>'}</tbody></table></div>`;
   } else {
-    h=`<div class="toolbar"><button class="b blue" onclick="openLeafletAdd()">➕ 리플렛 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>미리보기</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${LEAFLETS.length?LEAFLETS.map(l=>{const isPdf=/\.pdf(\?|$)/i.test(l.image_url||'');return `<tr><td>${l.image_url?(isPdf?`<a href="${esc(l.image_url)}" target="_blank" style="font-size:20px">📄</a>`:`<img src="${esc(l.image_url)}" style="width:52px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`):'-'}</td><td style="font-weight:700">${esc(l.caption)||'(설명 없음)'}</td><td><label style="cursor:pointer"><input type="checkbox" ${l.active?'checked':''} onchange="toggleLeaflet('${l.id}',this.checked)"> ${l.active?'노출중':'숨김'}</label></td><td><button class="b red sm" onclick="delLeaflet('${l.id}')">삭제</button></td></tr>`;}).join(''):'<tr><td colspan="4" class="empty">리플렛이 없어요</td></tr>'}</tbody></table></div>`;
+    h=`<div class="toolbar"><button class="b blue" onclick="openLeafletAdd()">리플렛 추가</button></div><div class="card" style="padding:6px 20px"><table><thead><tr><th>미리보기</th><th>설명</th><th>노출</th><th>관리</th></tr></thead><tbody>${LEAFLETS.length?LEAFLETS.map(l=>{const isPdf=/\.pdf(\?|$)/i.test(l.image_url||'');return `<tr><td>${l.image_url?(isPdf?`<a href="${esc(l.image_url)}" target="_blank" style="font-size:20px">📄</a>`:`<img src="${esc(l.image_url)}" style="width:52px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`):'-'}</td><td style="font-weight:700">${esc(l.caption)||'(설명 없음)'}</td><td><label style="cursor:pointer"><input type="checkbox" ${l.active?'checked':''} onchange="toggleLeaflet('${l.id}',this.checked)"> ${l.active?'노출중':'숨김'}</label></td><td><button class="b red sm" onclick="delLeaflet('${l.id}')">삭제</button></td></tr>`;}).join(''):'<tr><td colspan="4" class="empty">리플렛이 없어요</td></tr>'}</tbody></table></div>`;
   }
   $('promoBody').innerHTML=h;
 }
@@ -2391,7 +2408,7 @@ function billingCard(p,cons){
   const out=(sf!=null)?(sf-(rc||0)):null;
   const outLabel=out==null?'-':(out<=0?'완납':moneyKR(out)+'원');
   const mut='<span style="color:var(--mut)">미입력</span>';
-  return `<div class="card"><h3>💰 계약·수금 현황 <span class="r"><button class="b line sm" onclick="openBillingEdit('${p.id}')">금액 입력/수정</button> <label class="b line sm" style="cursor:pointer">📎 계약서 올리기<input type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadContractConsole('${p.id}',this.files)"></label></span></h3>
+  return `<div class="card"><h3>계약·수금 현황 <span class="r"><button class="b line sm" onclick="openBillingEdit('${p.id}')">금액 입력/수정</button> <label class="b line sm" style="cursor:pointer">📎 계약서 올리기<input type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadContractConsole('${p.id}',this.files)"></label></span></h3>
     <div id="ct-msg-c" class="mmsg" style="margin:0 0 8px"></div>
     <div class="kv"><span>계약금액</span><b>${ca!=null?moneyKR(ca)+'원':mut}</b></div>
     <div class="kv"><span>감리비(매출)</span><b>${sf!=null?moneyKR(sf)+'원':mut}</b></div>
@@ -2481,7 +2498,7 @@ function openAptEdit(id){
     <div class="fld"><label>대표 감리원</label><select id="m-aud"><option value="">- 미배정 -</option>${auds.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>
     <div class="fld"><label>함께 담당 감리원 <span style="font-weight:600;color:var(--mut)">(여러 명 체크 가능)</span></label>${auds.length?`<div class="audlist">${auds.map(m=>`<label><input type="checkbox" class="m-team" value="${m.id}" ${team.includes(m.id)?'checked':''}><span>${esc(m.name||loginId(m)||'(이름없음)')}</span></label>`).join('')}</div>`:'<div style="color:var(--mut);font-size:12px">등록된 감리원이 없어요. 회원 메뉴에서 역할을 ‘감리원’로 지정하세요.</div>'}</div>
     <div class="mmsg" id="m-msg"></div>
-    <div class="modal-actions"><button class="b red" onclick="deleteApt('${a.id}')">🗑 단지 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAptEdit('${a.id}')">저장</button></div>`);
+    <div class="modal-actions"><button class="b red" onclick="deleteApt('${a.id}')">단지 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitAptEdit('${a.id}')">저장</button></div>`);
 }
 async function submitAptEdit(id){
   const name=$('m-name').value.trim(); if(!name){$('m-msg').textContent='단지명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
@@ -2554,7 +2571,7 @@ function openReportAddPick(){
     <div class="fld"><label>단지 *</label><select id="m-apt-pick">${opts||'<option value="">먼저 단지를 등록하세요</option>'}</select>
       <div style="font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.6">단지를 고르고 아래 버튼을 누르면 <b>우리가 쓰는 체크리스트 감리일지</b>가 새 탭에서 열립니다. 체크리스트 작성·전송하면 이 단지 감리일지로 저장돼요.<br>마지막에 작성한 단지가 기본 선택됩니다.</div></div>
     <div class="mmsg" id="m-msg"></div>
-    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="startInspectReport()">➡️ 체크리스트 작성 시작</button></div>`);
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="startInspectReport()">체크리스트 작성 시작</button></div>`);
 }
 function startInspectReport(){
   const sel=$('m-apt-pick'); const aptId=sel&&sel.value;
@@ -2788,7 +2805,7 @@ async function regenReportPdf(id,btn){
   var _t; if(btn){_t=btn.textContent;btn.disabled=true;btn.textContent='다시 만드는 중…';}
   try{
     await ensureReportPdf(r, true);
-    if(btn){btn.disabled=false;btn.textContent='✅ 새로 만들었어요';}
+    if(btn){btn.disabled=false;btn.textContent='새로 만들었어요';}
     try{ renderProj(); }catch(e){}
     alert('PDF를 현재 양식으로 다시 만들었어요.');
     if(typeof openReportEdit==='function') openReportEdit(id);   // 모달 새로고침(새 PDF 링크 반영)
@@ -2820,7 +2837,7 @@ function openAiEnrichModal(id,d){
     ${_aiTa('ai-work','작업사항',d.work,8)}
     ${_aiTa('ai-teuk','특기사항',d.teukgi,6)}
     ${_aiTa('ai-jijeok','지적사항 및 처리결과',d.jijeok,5)}
-    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button><button class="b line" onclick="aiEnrichReport('${id}',this)">↻ 다시 생성</button><button class="b blue" onclick="aiPdfFromModal('${id}',this)">📄 이 내용으로 PDF 만들기</button></div>`, true);
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button><button class="b line" onclick="aiEnrichReport('${id}',this)">다시 생성</button><button class="b blue" onclick="aiPdfFromModal('${id}',this)">이 내용으로 PDF 만들기</button></div>`, true);
 }
 window.openAiEnrichModal=openAiEnrichModal;
 function _taLines(elid){ var el=document.getElementById(elid); if(!el)return []; return el.value.split('\n').map(function(s){return s.trim();}).filter(Boolean); }
@@ -2862,7 +2879,7 @@ function openReportView(id){
   const pdfHtml = r.pdf_url?`<div class="fld"><a href="${esc(r.pdf_url)}" target="_blank" class="b line">📄 입주민 공개용 PDF 보기${r.pdf_name?' ('+esc(r.pdf_name)+')':''}</a></div>`:'';
   const cov=Array.isArray(r.cover_photos)?r.cover_photos.filter(u=>photos.includes(u)):[];
   RV_ID=r.id; RV_PHOTOS=photos.slice(); RV_COVER=cov.slice();
-  const phHtml = photos.length?`<div class="fld"><label style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>현장 사진 ${photos.length}장 · <b style="color:#2F6BF6">대표 <span id="rv-covcount">${cov.length}</span>장</b> <span style="font-weight:600;color:var(--mut);font-size:11px">(사진을 눌러 대표 선택 · PDF엔 대표만 들어가요)</span></span><span style="display:flex;gap:6px"><button class="b blue sm" onclick="rvSaveCover(this)">대표 저장</button><button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 전체 다운로드</button></span></label><div id="rv-grid" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px">${rvCoverThumbs(RV_PHOTOS)}</div></div>`:'';
+  const phHtml = photos.length?`<div class="fld"><label style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>현장 사진 ${photos.length}장 · <b style="color:#2F6BF6">대표 <span id="rv-covcount">${cov.length}</span>장</b> <span style="font-weight:600;color:var(--mut);font-size:11px">(사진을 눌러 대표 선택 · PDF엔 대표만 들어가요)</span></span><span style="display:flex;gap:6px"><button class="b blue sm" onclick="rvSaveCover(this)">대표 저장</button><button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">전체 다운로드</button></span></label><div id="rv-grid" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px">${rvCoverThumbs(RV_PHOTOS)}</div></div>`:'';
   openModal(mHead('📄 감리일지 보기')+`
     <div style="font-size:14px;font-weight:800;margin-bottom:4px">${repRoundBadge(r)} ${esc(r.title)||'감리일지'}</div>
     <div style="font-size:12px;color:var(--mut);margin-bottom:12px">${meta.map(esc).join(' · ')}</div>
@@ -2871,7 +2888,7 @@ function openReportView(id){
     </div>
     ${pdfHtml}
     ${phHtml}
-    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button><button class="b line" onclick="aiEnrichReport('${r.id}',this)">✨ AI 보강</button><button class="b line" onclick="genGamriPdf('${r.id}',this)">📄 공사감리일지 PDF</button><button class="b blue" onclick="openReportEdit('${r.id}')">✏️ 편집</button></div>`, true);
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button><button class="b line" onclick="aiEnrichReport('${r.id}',this)">AI 보강</button><button class="b line" onclick="genGamriPdf('${r.id}',this)">공사감리일지 PDF</button><button class="b blue" onclick="openReportEdit('${r.id}')">편집</button></div>`, true);
 }
 function openReportEdit(id){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;
@@ -2880,11 +2897,11 @@ function openReportEdit(id){
     <div class="fld"><label>제목 *</label><input id="m-title" value="${esc(r.title)||''}"></div>
     <div class="fld"><label>동 (쉼표로 구분)</label><input id="m-dongs" value="${esc(r.dongs)||''}"></div>
     <div class="fld"><label>점검 내용 (감리원 원문)</label><textarea id="m-content" style="min-height:180px">${esc(r.content)||''}</textarea></div>
-    <div class="fld"><label style="display:flex;justify-content:space-between;align-items:center">현장 사진${MPHOTOS.length?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">⬇ 전체 다운로드 (${MPHOTOS.length})</button>`:''}</label>${mPhotoBox()}</div>
+    <div class="fld"><label style="display:flex;justify-content:space-between;align-items:center">현장 사진${MPHOTOS.length?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">전체 다운로드 (${MPHOTOS.length})</button>`:''}</label>${mPhotoBox()}</div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:12px"><label>📄 입주민 공개용 PDF</label>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${r.pdf_url?`<a href="${esc(r.pdf_url)}" target="_blank" class="b line">📄 ${esc(r.pdf_name||'PDF')} 보기</a>`:'<span style="font-size:12px;color:var(--mut)">아직 PDF 없음</span>'}
       <label class="b line" style="cursor:pointer">📎 PDF ${r.pdf_url?'교체':'올리기'}<input type="file" accept="application/pdf" style="display:none" onchange="uploadReportPdfConsole('${r.id}',this.files)"></label>
-      <button class="b line" onclick="regenReportPdf('${r.id}',this)" title="감리일지 내용으로 현재 양식의 PDF를 다시 만들어 교체">🔄 PDF 새로 만들기</button></div>
+      <button class="b line" onclick="regenReportPdf('${r.id}',this)" title="감리일지 내용으로 현재 양식의 PDF를 다시 만들어 교체">PDF 새로 만들기</button></div>
       <div style="font-size:11px;color:var(--mut);margin-top:4px">양식이 바뀌었거나 옛 PDF면 <b>새로 만들기</b>로 현재 양식으로 교체돼요(공개 중이면 입주민에게도 새 양식으로 보임).</div>
       <label style="margin-top:12px;display:block">입주민에게 보일 제목</label>
       <input id="m-pubtitle" value="${esc(r.pub_title)||''}" placeholder="${esc(r.title)||'예: 20260427 [101동 옥상 우레탄 상도]'}" style="margin-top:4px">
@@ -2910,7 +2927,7 @@ async function uploadReportPdfConsole(id,files){
   const {error}=await sb.from('reports').update({pdf_url:url,pdf_name:fl.name,title:f.title||undefined,content:f.content,pub_title:f.pub_title,photos:f.photos}).eq('id',id);
   if(error){if(msg){msg.textContent='저장 실패: '+error.message;msg.style.color='var(--red)';}return;}
   const rr=REPORTS.find(x=>x.id===id); if(rr){rr.pdf_url=url;rr.pdf_name=fl.name;if(f.title)rr.title=f.title;rr.content=f.content;rr.pub_title=f.pub_title;rr.photos=f.photos;}
-  if(msg){msg.textContent='✅ PDF 저장됐어요';msg.style.color='var(--green)';}
+  if(msg){msg.textContent='PDF 저장됐어요';msg.style.color='var(--green)';}
   openReportEdit(id);
 }
 async function togglePubModal(id){
@@ -3003,7 +3020,7 @@ async function uploadContractConsole(aptId,files){
   const kind=f.type==='application/pdf'?'pdf':'image';
   const {error}=await sb.from('contracts').insert({apartment_id:aptId,name:fl.name,file_url:path,kind});
   if(error){if(msg){msg.textContent='등록 실패: '+error.message;msg.style.color='var(--red)';}return;}
-  if(msg){msg.textContent='✅ 등록됐어요';msg.style.color='var(--green)';}
+  if(msg){msg.textContent='등록됐어요';msg.style.color='var(--green)';}
   await loadAll();
 }
 async function deleteContractConsole(id){
@@ -3086,7 +3103,7 @@ function openCaseView(id){
     ${c.summary?`<div style="font-size:13.5px;font-weight:700;margin-bottom:8px">${esc(c.summary)}</div>`:''}
     ${c.body?`<div style="font-size:13px;color:var(--mut2);line-height:1.7;white-space:pre-wrap">${esc(c.body)}</div>`:''}
     ${(!c.summary&&!c.body&&!imgs.length)?'<div class="empty">등록된 상세 내용이 없어요</div>':''}
-    <div class="modal-actions"><button class="b red" onclick="deleteCase('${c.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="openCaseEdit('${c.id}')">✏️ 편집</button><button class="b blue" onclick="closeModal()">닫기</button></div>`,true);
+    <div class="modal-actions"><button class="b red" onclick="deleteCase('${c.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="openCaseEdit('${c.id}')">편집</button><button class="b blue" onclick="closeModal()">닫기</button></div>`,true);
 }
 function openCaseEdit(id){
   const c=CASES.find(x=>x.id===id); if(!c)return;
@@ -3491,7 +3508,7 @@ function openSchedModal(s,preDate){ s=s||null;
       <div class="fld"><label>단지 <span style="font-weight:600;color:var(--mut)">— 선택 시 입주민 공개·현장 자동입력</span></label><select id="sm-apt" onchange="onSchedAptChange()"><option value="">단지 없음</option>${sorted.map(a=>`<option value="${a.id}" ${s&&String(s.apartment_id)===String(a.id)?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div></div>
     <div id="sm-fields"></div>
     <div class="mmsg" id="m-msg"></div>
-    <div class="modal-actions">${s?`<button class="b" style="background:#fdecec;color:#d9453c" onclick="deleteSchedule('${s.id}')">🗑 삭제</button>`:''}<span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitSched(${s?`'${s.id}'`:'null'})">${s?'저장':'등록'}</button></div>`);
+    <div class="modal-actions">${s?`<button class="b" style="background:#fdecec;color:#d9453c" onclick="deleteSchedule('${s.id}')">삭제</button>`:''}<span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitSched(${s?`'${s.id}'`:'null'})">${s?'저장':'등록'}</button></div>`);
   $('sm-fields').innerHTML=renderSchedFields(cat,m);
   renderAsgnChips();
 }
@@ -4142,15 +4159,15 @@ function renderSales(){
     ${s.amount?`<div class="la">${moneyKR(s.amount)}원</div>`:''}
     ${s.next_action?`<div class="lnx">▶ ${esc(s.next_action)}${s.next_date?' ('+esc(s.next_date)+')':''}</div>`:''}
     <div style="display:flex;gap:6px;margin-top:9px" onclick="event.stopPropagation()">
-      <button class="b line sm" style="flex:1" ${i<=0?'disabled style="flex:1;opacity:.35"':''} onclick="moveSalesStage(event,'${s.id}',-1)">◀ 이전</button>
+      <button class="b line sm" style="flex:1" ${i<=0?'disabled style="flex:1;opacity:.35"':''} onclick="moveSalesStage(event,'${s.id}',-1)">이전</button>
       <button class="b blue sm" style="flex:1" ${i>=4?'disabled style="flex:1;opacity:.35"':''} onclick="moveSalesStage(event,'${s.id}',1)">${i===3?'성사 ▶':'다음 ▶'}</button>
     </div>
     <div style="display:flex;gap:6px;margin-top:6px" onclick="event.stopPropagation()">
-      <button class="b line sm" style="flex:1" onclick="spQuote('${s.id}')">🧾 견적서</button>
-      ${i>=2?`<button class="b line sm" style="flex:1" onclick="spContract('${s.id}')">📝 계약서</button>`:''}
+      <button class="b line sm" style="flex:1" onclick="spQuote('${s.id}')">견적서</button>
+      ${i>=2?`<button class="b line sm" style="flex:1" onclick="spContract('${s.id}')">계약서</button>`:''}
     </div>
     <div style="margin-top:6px" onclick="event.stopPropagation()">
-      <button class="b line sm" style="width:100%" onclick="openSalesChecklist('${s.id}')">✅ 진행 체크리스트 ${(()=>{const q=salesChkCount(s);return `<b style="color:${q.done===q.total&&q.total?'var(--green)':'var(--mut)'}">${q.done}/${q.total}</b>`;})()}</button>
+      <button class="b line sm" style="width:100%" onclick="openSalesChecklist('${s.id}')">진행 체크리스트 ${(()=>{const q=salesChkCount(s);return `<b style="color:${q.done===q.total&&q.total?'var(--green)':'var(--mut)'}">${q.done}/${q.total}</b>`;})()}</button>
     </div></div>`; };
   let h='<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px">💡 카드를 다른 칸으로 <b>끌어다 놓거나</b>, 카드의 ◀ ▶ 버튼으로 단계를 옮길 수 있어요.</div><div class="board">'+SALES_STAGES.map(([k,lbl])=>{
     const list=active.filter(s=>s.stage===k); const sum=list.reduce((a,b)=>a+(+b.amount||0),0);
@@ -4158,7 +4175,7 @@ function renderSales(){
   }).join('')+'</div>';
   // 성사(성공) 딜은 단지관리로 자동 편입되므로 하단엔 실패 탭만 (전체 폭)
   if(lost.length){
-    h+=`<div class="card" style="margin-top:16px"><h3>❌ 실패 <span class="r">${lost.length}건</span></h3>
+    h+=`<div class="card" style="margin-top:16px"><h3>실패 <span class="r">${lost.length}건</span></h3>
       <table><thead><tr><th>단지/고객</th><th>지역</th><th>사유·메모</th></tr></thead><tbody>${lost.map(s=>`<tr style="cursor:pointer" onclick="openSalesEdit('${s.id}')"><td style="font-weight:700">${esc(s.name)}</td><td style="color:var(--mut);white-space:nowrap">${esc(s.region)||'-'}</td><td style="color:var(--mut)">${esc(s.memo)||''}</td></tr>`).join('')}</tbody></table></div>`;
   }
   bd.innerHTML=h;
@@ -4196,9 +4213,9 @@ function openSalesChecklist(id){ const s=SALES.find(x=>x.id===id); if(!s)return;
   const rows=items.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:${x.done?'#f1f8f2':'#fff'}">
       <input type="checkbox" ${x.done?'checked':''} onchange="toggleSalesChk('${id}',${i},this.checked)" style="width:19px;height:19px;accent-color:var(--green);flex:0 0 auto">
       <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#1c2440;${x.done?'text-decoration:line-through;color:var(--green)':''}">${esc(x.t)}</div><div style="font-size:11px;color:var(--mut);font-weight:600;margin-top:2px">${x.done?('✓ 완료 '+(x.at||'')):'아직 안 함'}</div></div>
-      <button class="b line sm" onclick="delSalesChk('${id}',${i})" title="삭제" style="border:none;color:var(--mut)">🗑</button>
+      <button class="b line sm" onclick="delSalesChk('${id}',${i})" title="삭제" style="border:none;color:var(--mut)"></button>
     </div>`).join('');
-  const noteRows=notes.length?notes.map((n,i)=>`<div style="border:1px solid var(--line);border-left:3px solid #e0a63a;border-radius:9px;padding:9px 11px;margin-bottom:7px;background:#fffdf6"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:800;color:#a9781f;background:#f6ecd4;padding:2px 7px;border-radius:6px">${esc(n.kind||'메모')}</span><span style="font-size:10.5px;color:var(--mut);font-weight:600">${esc(n.at||'')}</span><button class="b line sm" onclick="delSalesNote('${id}',${i})" style="margin-left:auto;border:none;color:var(--mut)">🗑</button></div><div style="font-size:12.5px;color:#333;font-weight:600;margin-top:5px;white-space:pre-wrap">${esc(n.text)}</div></div>`).join(''):'<div style="font-size:11.5px;color:var(--mut);font-weight:600;padding:2px">아직 등록된 특이사항이 없습니다.</div>';
+  const noteRows=notes.length?notes.map((n,i)=>`<div style="border:1px solid var(--line);border-left:3px solid #e0a63a;border-radius:9px;padding:9px 11px;margin-bottom:7px;background:#fffdf6"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:800;color:#a9781f;background:#f6ecd4;padding:2px 7px;border-radius:6px">${esc(n.kind||'메모')}</span><span style="font-size:10.5px;color:var(--mut);font-weight:600">${esc(n.at||'')}</span><button class="b line sm" onclick="delSalesNote('${id}',${i})" style="margin-left:auto;border:none;color:var(--mut)"></button></div><div style="font-size:12.5px;color:#333;font-weight:600;margin-top:5px;white-space:pre-wrap">${esc(n.text)}</div></div>`).join(''):'<div style="font-size:11.5px;color:var(--mut);font-weight:600;padding:2px">아직 등록된 특이사항이 없습니다.</div>';
   openModal(mHead('📋 '+esc(spCleanName(s.name)||s.name))+meta+`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><b style="font-size:13.5px">✅ 진행 체크리스트</b><b style="font-size:12.5px;color:${done===total&&total?'var(--green)':'var(--blue)'}">${done} / ${total} 완료</b></div>
     <div class="bar" style="margin-bottom:12px"><i style="width:${pct}%;background:var(--green)"></i></div>
@@ -4238,7 +4255,7 @@ async function submitSalesAdd(){
 function openSalesEdit(id){
   const s=SALES.find(x=>x.id===id); if(!s)return;
   const canConvert=s.stage==='won'&&!s.apartment_id;
-  openModal(mHead('영업 상세·편집')+salesFormFields(s)+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b red" onclick="deleteSales('${s.id}')">삭제</button><button class="b line" onclick="spQuote('${s.id}')">🧾 견적서</button><button class="b line" onclick="spContract('${s.id}')">📝 계약서</button>${canConvert?`<button class="b green" onclick="convertLeadToApt('${s.id}')">🏢 단지로 등록</button>`:''}<span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitSalesEdit('${s.id}')">저장</button></div>`);
+  openModal(mHead('영업 상세·편집')+salesFormFields(s)+`<div class="mmsg" id="m-msg"></div><div class="modal-actions"><button class="b red" onclick="deleteSales('${s.id}')">삭제</button><button class="b line" onclick="spQuote('${s.id}')">견적서</button><button class="b line" onclick="spContract('${s.id}')">계약서</button>${canConvert?`<button class="b green" onclick="convertLeadToApt('${s.id}')">단지로 등록</button>`:''}<span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitSalesEdit('${s.id}')">저장</button></div>`);
 }
 async function submitSalesEdit(id){
   const d=readSalesForm(); if(!d.name){$('m-msg').textContent='단지/고객명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
@@ -4374,7 +4391,7 @@ function fixBidOrder(){
 function selRm(i){ if(rmEdit)return; if(i<0||i>=RM_DATA.length)return; rmSel=i; renderRoadmap(); const b=$('rmSteps'); const el=b&&b.children[i*2]; if(el)el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}); }
 function rmEditStart(){ rmEdit=true; renderRoadmap(); }
 function rmEditCancel(){ rmEdit=false; renderRoadmap(); }
-function rmErow(val){ return `<div class="rm-erow"><input value="${esc(val).replace(/"/g,'&quot;')}"><button onclick="this.parentNode.remove()" title="삭제">🗑</button></div>`; }
+function rmErow(val){ return `<div class="rm-erow"><input value="${esc(val).replace(/"/g,'&quot;')}"><button onclick="this.parentNode.remove()" title="삭제"></button></div>`; }
 function rmAddRow(col){ const box=$('rm-edit-'+col); if(!box)return; box.insertAdjacentHTML('beforeend', rmErow('')); const inps=box.querySelectorAll('input'); const last=inps[inps.length-1]; if(last)last.focus(); }
 async function rmSaveEdit(){
   const readCol=col=>[...document.querySelectorAll('#rm-edit-'+col+' input')].map(i=>i.value.trim()).filter(Boolean);
@@ -4396,16 +4413,16 @@ function renderRoadmap(){
       <div class="rm-detail">
         <div class="rm-detail-h"><span class="rm-detail-num">${rmSel+1}</span><span style="font-size:20px">${esc(s.icon)}</span><input id="rm-name-in" class="rm-name-in" value="${esc(s.name).replace(/"/g,'&quot;')}"><span class="rm-detail-hint">단계 이름·항목 편집</span></div>
         <div class="rm-dcols">${editCol('work','🗂️','취해야 할 행동',s.work)}${editCol('doc','📄','서류',s.docs)}${editCol('note','⚠️','주의점',s.notes)}</div>
-        <div class="rm-nav"><button class="b line" onclick="rmEditCancel()">취소</button><span style="flex:1"></span><button class="b blue" onclick="rmSaveEdit()">💾 저장</button></div>
+        <div class="rm-nav"><button class="b line" onclick="rmEditCancel()">취소</button><span style="flex:1"></span><button class="b blue" onclick="rmSaveEdit()">저장</button></div>
       </div>`;
     return;
   }
   const sec=(cls,icon,title,arr)=>`<div class="rm-dsec ${cls}"><div class="rm-dsec-h">${icon} ${title}<span class="rm-dsec-n">${arr.length}</span></div>${arr.length?`<ul>${arr.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:'<div class="rm-dnone">해당 없음</div>'}</div>`;
   box.innerHTML=`
     <div class="rm-stepbar"><div class="rm-steps" id="rmSteps">${steps}</div>
-      <div class="rm-printgrp"><button class="b line sm" onclick="printStage()">🖨️ 이 단계</button><button class="b line sm" onclick="printRoadmap()">🖨️ 전체</button></div></div>
+      <div class="rm-printgrp"><button class="b line sm" onclick="printStage()">이 단계</button><button class="b line sm" onclick="printRoadmap()">전체</button></div></div>
     <div class="rm-detail">
-      <div class="rm-detail-h"><span class="rm-detail-num">${rmSel+1}</span><b>${esc(s.icon)} ${esc(s.name)}</b><button class="rm-edit-btn" onclick="rmEditStart()">✏️ 편집</button></div>
+      <div class="rm-detail-h"><span class="rm-detail-num">${rmSel+1}</span><b>${esc(s.icon)} ${esc(s.name)}</b><button class="rm-edit-btn" onclick="rmEditStart()">편집</button></div>
       <div class="rm-dcols">${sec('act','🗂️','취해야 할 행동',s.work)}${sec('doc','📄','서류',s.docs)}${sec('note','⚠️','주의점',s.notes)}</div>
       <div class="rm-nav"><button class="b line" ${rmSel===0?'disabled':''} onclick="selRm(${rmSel-1})">‹ 이전</button><span style="flex:1"></span><span style="font-size:12px;color:var(--mut);font-weight:700">${rmSel+1} / ${RM_DATA.length}</span><span style="flex:1"></span><button class="b blue" ${rmSel===RM_DATA.length-1?'disabled':''} onclick="selRm(${rmSel+1})">다음 ›</button></div>
     </div>`;
@@ -4475,7 +4492,7 @@ function renderDocs(){
   if(!DOCS.length){ box.innerHTML='<div class="empty">등록된 자료가 없어요. 오른쪽 위 ‘자료 추가’로 올려보세요.</div>'; return; }
   const groups={}; DOCS.forEach(d=>{ const c=(d.category||'기타'); (groups[c]=groups[c]||[]).push(d); });
   box.innerHTML=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ko')).map(cat=>
-    `<div class="card" style="padding:6px 20px"><h3 style="padding-top:12px">📂 ${esc(cat)} <span class="r">${groups[cat].length}개</span></h3><table><tbody>${groups[cat].map(d=>{const isPdf=/pdf/i.test(d.kind||'')||/\.pdf(\?|$)/i.test(d.file_url||'');const icon=d.kind==='link'?'🔗':(isPdf?'📄':(/image/i.test(d.kind||'')?'🖼️':'📎'));return `<tr><td style="font-weight:700">${icon} ${esc(d.title)||'(제목 없음)'}${d.memo?`<div style="font-size:11px;color:var(--mut);font-weight:600">${esc(d.memo)}</div>`:''}</td><td style="color:var(--mut);font-size:11px">${(d.created_at||'').slice(0,10)}</td><td style="text-align:right;white-space:nowrap">${d.file_url?`<a class="b line sm" href="${esc(d.file_url)}" target="_blank" rel="noopener">열기</a> `:''}<button class="b line sm" onclick="openDocEdit('${d.id}')">편집</button> <button class="b red sm" onclick="deleteDoc('${d.id}')">삭제</button></td></tr>`;}).join('')}</tbody></table></div>`
+    `<div class="card" style="padding:6px 20px"><h3 style="padding-top:12px">${esc(cat)} <span class="r">${groups[cat].length}개</span></h3><table><tbody>${groups[cat].map(d=>{const isPdf=/pdf/i.test(d.kind||'')||/\.pdf(\?|$)/i.test(d.file_url||'');const icon=d.kind==='link'?'🔗':(isPdf?'📄':(/image/i.test(d.kind||'')?'🖼️':'📎'));return `<tr><td style="font-weight:700">${icon} ${esc(d.title)||'(제목 없음)'}${d.memo?`<div style="font-size:11px;color:var(--mut);font-weight:600">${esc(d.memo)}</div>`:''}</td><td style="color:var(--mut);font-size:11px">${(d.created_at||'').slice(0,10)}</td><td style="text-align:right;white-space:nowrap">${d.file_url?`<a class="b line sm" href="${esc(d.file_url)}" target="_blank" rel="noopener">열기</a> `:''}<button class="b line sm" onclick="openDocEdit('${d.id}')">편집</button> <button class="b red sm" onclick="deleteDoc('${d.id}')">삭제</button></td></tr>`;}).join('')}</tbody></table></div>`
   ).join('');
 }
 function openDocAdd(){

@@ -2620,7 +2620,7 @@ const ALIM = {
     h += block('어렵던 공사를, 쉽고 투명하게', '관리소장도 입주민도<br>모든 과정을 직접 보긴 어렵습니다.<br>그래서 현장을 <b>사진과 기록</b>으로 남기고,<br>누구나 쉽게 이해하도록 <b>투명하게 공유</b>합니다.')
     h += block('만족하는 감리', '우리가 만들고 싶은 건<br>결과만이 아닙니다.<br><b>믿고 결정할 기준,<br>신뢰할 수 있는 과정,<br>시간이 지나도 남는 기록</b>입니다.')
     h += block('확인이 당연한 문화로', '공사의 품질은<br>좋은 자재·기술만으로 결정되지 않습니다.<br><b>진단하고, 기준대로 확인하고, 기록하는 것</b><br>— 보이지 않던 과정을 보이게 만듭니다.')
-    h += block('감리의 기준', '마지막에 잘됐는지만 보는 감리가 아니라,<br><b>아파트 유지보수 전문 감리 파트너.</b><br>진단부터 준공·사후까지 곁에서 잇습니다.<br>‘스퀘어’는 <b>기준과 균형</b>을 뜻합니다.')
+    h += block('감리의 기준', '마지막에 잘됐는지만 보는 감리가 아닌,<br><b>아파트스퀘어는 아파트 유지보수 전문 감리 파트너입니다.</b><br>진단부터 준공 사후관리까지 곁에서 잇습니다.<br>‘스퀘어’는 <b>기준과 균형</b>을 뜻합니다.')
     // ── 인증·이력(공신력) : 관리자가 올린 인증서 이미지 (없으면 섹션 자체가 숨겨짐) ──
     h += '<div id="cred-section" style="display:none;margin-top:34px;padding:0 16px 20px">'
     h += '<div style="text-align:center;font-size:20px;font-weight:800;color:#1c2440;margin-bottom:14px">인증·이력</div>'
@@ -2656,7 +2656,7 @@ const ALIM = {
     // 그래서 대신 확인
     h += '<div style="text-align:center;font-size:22px;color:#c3ccdb;margin:16px 0 6px">↓</div>'
     h += '<div style="font-size:16px;font-weight:800;color:#1c2440;margin:0 2px 10px;' + wb + '">그래서, 아파트스퀘어가<br><span style="color:#2F6BF6">함께 확인합니다</span></div>'
-    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '"><b>건축사사무소의 전문 감리원</b>이 진단부터 준공까지 <b>자재(시공자 자료)·공정률을 확인하고, 완료 부위의 적합 여부를 판정</b>해, 모든 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다. 언제든 직접 확인하실 수 있어요.</div>', '15px 15px')
+    h += alimCard('<div style="font-size:12.5px;color:#404a63;font-weight:600;line-height:1.85;' + wb + '"><b>건축사사무소의 전문 감리원</b>이 진단부터 준공까지 <b>자재(시공자 자료)·공정률을 확인하고, 완료 부위의 적합 여부를 판정</b>해, 과정을 <b style="color:#2F6BF6">사진과 기록</b>으로 남깁니다. 언제든 직접 확인하실 수 있어요.</div>', '15px 15px')
     h += '<div style="margin-top:11px;border-radius:14px;overflow:hidden;position:relative"><img src="assets/philo_audit2.jpg" style="width:100%;display:block;height:170px;object-fit:cover;object-position:center 60%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 52%,rgba(10,16,34,.8))"></div><div style="position:absolute;left:13px;right:13px;bottom:11px;color:#fff;font-size:12.5px;font-weight:800">감리원이 완료 부위를 확인·판정합니다</div></div>'
     // 3단계 흐름
     h += '<div style="display:flex;gap:7px;margin-top:13px">'
@@ -2672,8 +2672,8 @@ const ALIM = {
       ['💡', '쉬움', '어려운 판단을 쉬운 말로']]
       .map(c => '<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:12px 14px"><div style="width:38px;height:38px;border-radius:11px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + c[0] + '</div><div style="flex:1;min-width:0"><span style="font-size:13.5px;font-weight:800;color:#1c2440">' + c[1] + '</span><span style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-left:8px;' + wb + '">' + c[2] + '</span></div></div>').join('')
     h += '</div>'
-    // 경쟁력 선언
-    h += '<div style="background:#1c2440;color:#fff;border-radius:15px;padding:20px 18px;margin-top:22px;text-align:center"><div style="font-size:12.5px;font-weight:600;color:#c3cee6;line-height:1.7">아파트스퀘어의 경쟁력은</div><div style="font-size:14.5px;font-weight:800;line-height:1.6;margin-top:8px;' + wb + '">전문적인 판단을 고객이<br><span style="color:#7FA1E0">쉽게 이해하고, 공정하게 결정하고,<br>확인하며 맡길 수 있게</span> 만든<br>표준감리 운영체계입니다</div></div>'
+    // 운영체계 선언
+    h += '<div style="background:#1c2440;color:#fff;border-radius:15px;padding:22px 18px;margin-top:22px;text-align:center"><div style="font-size:15px;font-weight:800;line-height:1.65;' + wb + '">쉽게 이해하고 결정할 수 있으며,<br><span style="color:#7FA1E0">투명하게 맡길 수 있게 한</span><br>감리 운영체계입니다</div></div>'
     // 마무리 사진
     h += '<div style="margin-top:16px;border-radius:16px;overflow:hidden;position:relative"><img src="assets/philo_finish.jpg" style="width:100%;display:block;height:190px;object-fit:cover;object-position:center 40%" loading="lazy"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,34,0) 48%,rgba(10,16,34,.82))"></div><div style="position:absolute;left:15px;right:15px;bottom:13px;color:#fff"><div style="font-size:15px;font-weight:800;' + wb + '">시작부터 마무리까지, 곁에서</div><div style="font-size:11px;font-weight:600;color:#dbe6ff;margin-top:3px;' + wb + '">진단부터 준공까지 기록으로 함께합니다</div></div></div>'
     h += '</div>'
@@ -2686,10 +2686,30 @@ const ALIM = {
       + '<div style="display:flex;flex-direction:column;gap:6px">' + items.map(t => '<div style="display:flex;gap:7px;font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.5"><span style="color:#2F6BF6;flex-shrink:0">✓</span><span>' + t + '</span></div>').join('') + '</div>', '15px 15px')
     let h = navyHero('SERVICE', '진단 · 설계 · 시공감리 · 준공까지<br>전 과정을 함께합니다')
     h += '<div style="padding:16px 14px 2px"><div data-nav="s17" style="cursor:pointer;background:linear-gradient(150deg,#2455c0,#2F6BF6);border-radius:16px;padding:18px 17px;color:#fff;position:relative;overflow:hidden"><div style="position:absolute;top:-20px;right:-20px;width:110px;height:110px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)"></div><div style="position:relative"><div style="display:inline-block;font-size:10px;font-weight:800;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:99px">아파트스퀘어 대표 기술</div><div style="font-size:17px;font-weight:800;margin-top:9px">🚁 드론 AI 하자진단</div><div style="font-size:11.5px;color:#dbe6ff;font-weight:600;line-height:1.7;margin-top:7px">사람이 오르기 어려운 <b>외벽·옥상을 드론으로 정밀 촬영</b>하고, <b>누적 50만 세대 감리데이터를 학습한 AI</b>가 균열·들뜸·누수 흔적을 분석해요. 더 정확하고 안전하게 진단합니다.</div><div style="font-size:11px;font-weight:800;color:#fff;margin-top:11px;display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.16);padding:6px 12px;border-radius:99px">자세히 보기 ›</div></div></div></div>'
-    h += '<div style="padding:14px 14px 8px;display:flex;flex-direction:column;gap:12px">'
-    h += pkg('🔍', '#eef4ff', '공사 전 진단 패키지', 'STEP 1 · 무엇을 할지 정해요', ['드론 AI 하자진단으로 정밀 촬영·분석', '현장 상태 진단', '부위별 심각도 · 보수 우선순위 구분', '공법별 장단점 비교', '예상 공사비 범위 안내', '입주자대표회의 설명자료'])
-    h += pkg('📐', '#eafaf2', '설계 · 입찰 패키지', 'STEP 2 · 공정하게 업체를 정해요', ['공사 범위 확정 · 설계도서 · 시방서', '물량 산출 · 입찰조건 작성', '업체 평가기준 수립', '현장설명회 · 기술평가 지원'])
-    h += pkg('🛡️', '#fff4e6', '토털 감리 패키지', 'STEP 3 · 준공까지 확인·기록', ['사전진단 · 설계 · 입찰 지원', '시공 감리 · 완료 부위 적합 판정', '준공 검사 · 기록 보관·사후관리'])
+    // 공사 전/중/후 6서비스 (홈페이지 서비스 구성과 동일)
+    const svc = (no, title, desc, sub) => alimCard(
+      '<div style="display:flex;gap:11px;align-items:flex-start"><div style="width:30px;height:30px;border-radius:9px;background:#eef4ff;color:#2F6BF6;font-size:12px;font-weight:800;flex-shrink:0;display:flex;align-items:center;justify-content:center">' + no + '</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800;color:#1c2440;line-height:1.4;' + wb + '">' + title + '</div>'
+      + '<div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.65;margin-top:4px;' + wb + '">' + desc + '</div>'
+      + (sub ? '<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">' + sub.map(t => '<div style="display:flex;gap:6px;font-size:11px;color:#3a445e;font-weight:600;line-height:1.4"><span style="color:#2F6BF6;flex-shrink:0">·</span><span>' + t + '</span></div>').join('') + '</div>' : '')
+      + '</div></div>', '13px 14px')
+    const phase = (label, sub) => '<div style="display:flex;align-items:center;gap:8px;margin:20px 2px 11px"><span style="font-size:12.5px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:4px 11px;border-radius:99px">' + label + '</span><span style="font-size:10.5px;font-weight:700;color:#8b95ad">' + sub + '</span><span style="flex:1;height:1px;background:#e5e9f1"></span></div>'
+    h += '<div style="padding:2px 14px 6px">'
+    h += phase('공사 전', '진단 · 설계 · 행정 · 현장설명회')
+    h += '<div style="display:flex;flex-direction:column;gap:9px">'
+    h += svc('01', '하자 진단 및 프레젠테이션', '현장을 정밀 진단하고, 유지보수 방법을 알기 쉽게 정리해 드려요.', ['현장·드론 하자 진단', 'AI 하자 진단·분석', '유지보수 방법 프레젠테이션'])
+    h += svc('02', '설계 감리 및 예상내역서', '하자 진단에 맞춰 설계를 검토하고, 공사 범위와 자재를 담은 예상내역서를 제공합니다.')
+    h += svc('03', '행정 업무 지원', '입찰공고 작성, 서류 작업, 회의, 입주민 문의 대응 등 필요한 행정 업무를 항목별로 지원합니다.')
+    h += svc('04', '현장설명회', '입찰 희망업체에 공사 범위와 자재, 시공 기준을 설명하고 질의응답을 진행합니다.')
+    h += '</div>'
+    h += phase('공사 중', '시공 감리')
+    h += '<div style="display:flex;flex-direction:column;gap:9px">'
+    h += svc('05', '시공 감리 및 감리보고서', '설계도서대로 시공됐는지 확인하고 기록하여 감리보고서로 공유합니다.')
+    h += '</div>'
+    h += phase('공사 후', '공유')
+    h += '<div style="display:flex;flex-direction:column;gap:9px">'
+    h += svc('06', '전·중·후 프레젠테이션', '공사 전·중·후 과정과 결과를 정리해 투명하게 공유합니다.')
+    h += '</div>'
     h += '</div>'
     // 대상 공종
     h += '<div style="padding:14px 16px 6px"><div style="font-size:12px;font-weight:800;color:#1c2440;margin-bottom:9px">이런 공사를 감리해요</div><div style="display:flex;flex-wrap:wrap;gap:7px">'

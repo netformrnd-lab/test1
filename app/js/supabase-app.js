@@ -2685,8 +2685,8 @@ const ALIM = {
     let h = navyHero('SERVICE', '진단 · 설계 · 시공감리 · 준공까지<br>전 과정을 함께합니다')
     h += '<div style="padding:16px 14px 2px"><div data-nav="s17" style="cursor:pointer;background:linear-gradient(150deg,#2455c0,#2F6BF6);border-radius:16px;padding:18px 17px;color:#fff;position:relative;overflow:hidden"><div style="position:absolute;top:-20px;right:-20px;width:110px;height:110px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)"></div><div style="position:relative"><div style="display:inline-block;font-size:10px;font-weight:800;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:99px">아파트스퀘어 대표 기술</div><div style="font-size:17px;font-weight:800;margin-top:9px">🚁 드론 AI 하자진단</div><div style="font-size:11.5px;color:#dbe6ff;font-weight:600;line-height:1.7;margin-top:7px">사람이 오르기 어려운 <b>외벽·옥상을 드론으로 정밀 촬영</b>하고, <b>누적 50만 세대 감리데이터를 학습한 AI</b>가 균열·들뜸·누수 흔적을 분석해요. 더 정확하고 안전하게 진단합니다.</div><div style="font-size:11px;font-weight:800;color:#fff;margin-top:11px;display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.16);padding:6px 12px;border-radius:99px">자세히 보기 ›</div></div></div></div>'
     // 공사 전/중/후 6서비스 (홈페이지 서비스 구성과 동일)
-    const svc = (no, title, desc, sub) => alimCard(
-      '<div style="display:flex;gap:11px;align-items:flex-start"><div style="width:30px;height:30px;border-radius:9px;background:#eef4ff;color:#2F6BF6;font-size:12px;font-weight:800;flex-shrink:0;display:flex;align-items:center;justify-content:center">' + no + '</div>'
+    const svc = (icon, title, desc, sub) => alimCard(
+      '<div style="display:flex;gap:11px;align-items:flex-start"><div style="width:36px;height:36px;border-radius:11px;background:#eef4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px">' + icon + '</div>'
       + '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800;color:#1c2440;line-height:1.4;' + wb + '">' + title + '</div>'
       + '<div style="font-size:11.5px;color:#5c6580;font-weight:600;line-height:1.65;margin-top:4px;' + wb + '">' + desc + '</div>'
       + (sub ? '<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">' + sub.map(t => '<div style="display:flex;gap:6px;font-size:11px;color:#3a445e;font-weight:600;line-height:1.4"><span style="color:#2F6BF6;flex-shrink:0">·</span><span>' + t + '</span></div>').join('') + '</div>' : '')
@@ -2695,18 +2695,18 @@ const ALIM = {
     h += '<div style="padding:2px 14px 6px">'
     h += phase('공사 전', '진단 · 설계 · 행정 · 현장설명회')
     h += '<div style="display:flex;flex-direction:column;gap:9px">'
-    h += svc('01', '하자 진단 및 프레젠테이션', '현장을 정밀 진단하고, 유지보수 방법을 알기 쉽게 정리해 드려요.', ['현장·드론 하자 진단', 'AI 하자 진단·분석', '유지보수 방법 프레젠테이션'])
-    h += svc('02', '설계 감리 및 예상내역서', '하자 진단에 맞춰 설계를 검토하고, 공사 범위와 자재를 담은 예상내역서를 제공합니다.')
-    h += svc('03', '행정 업무 지원', '입찰공고 작성, 서류 작업, 회의, 입주민 문의 대응 등 필요한 행정 업무를 항목별로 지원합니다.')
-    h += svc('04', '현장설명회', '입찰 희망업체에 공사 범위와 자재, 시공 기준을 설명하고 질의응답을 진행합니다.')
+    h += svc('🔍', '하자 진단 및 프레젠테이션', '현장을 정밀 진단하고, 유지보수 방법을 알기 쉽게 정리해 드려요.', ['현장·드론 하자 진단', 'AI 하자 진단·분석', '유지보수 방법 프레젠테이션'])
+    h += svc('📐', '설계 감리 및 예상내역서', '하자 진단에 맞춰 설계를 검토하고, 공사 범위와 자재를 담은 예상내역서를 제공합니다.')
+    h += svc('📋', '행정 업무 지원', '입찰공고 작성, 서류 작업, 회의, 입주민 문의 대응 등 필요한 행정 업무를 항목별로 지원합니다.')
+    h += svc('🗣️', '현장설명회', '입찰 희망업체에 공사 범위와 자재, 시공 기준을 설명하고 질의응답을 진행합니다.')
     h += '</div>'
     h += phase('공사 중', '시공 감리')
     h += '<div style="display:flex;flex-direction:column;gap:9px">'
-    h += svc('05', '시공 감리 및 감리보고서', '설계도서대로 시공됐는지 확인하고 기록하여 감리보고서로 공유합니다.')
+    h += svc('🛡️', '시공 감리 및 감리보고서', '설계도서대로 시공됐는지 확인하고 기록하여 감리보고서로 공유합니다.')
     h += '</div>'
     h += phase('공사 후', '공유')
     h += '<div style="display:flex;flex-direction:column;gap:9px">'
-    h += svc('06', '전·중·후 프레젠테이션', '공사 전·중·후 과정과 결과를 정리해 투명하게 공유합니다.')
+    h += svc('📊', '전·중·후 프레젠테이션', '공사 전·중·후 과정과 결과를 정리해 투명하게 공유합니다.')
     h += '</div>'
     h += '</div>'
     // 대상 공종

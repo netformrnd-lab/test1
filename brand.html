@@ -107,6 +107,9 @@ textarea:focus-visible,a:focus-visible{outline:none;box-shadow:var(--ring);borde
   border-radius:var(--r);border:1px solid var(--border);background:var(--bg-input);
   color:var(--text-primary);font-family:inherit;transition:.16s var(--ease)}
 .searchbox input::placeholder{color:var(--text-muted)}
+/* type="search" 가 붙여 주는 브라우저 기본 ✕ 는 숨깁니다 (우리 UI 와 겹침) */
+.searchbox input::-webkit-search-cancel-button,
+.searchbox input::-webkit-search-decoration{-webkit-appearance:none;display:none}
 .searchbox input:focus{outline:none;border-color:var(--border-light);
   background:var(--bg-secondary);box-shadow:var(--ring)}
 .searchbox .ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);
@@ -5669,9 +5672,13 @@ table.itable.roomy tbody tr:hover td.iq-n{background:var(--blue-soft)}
   </div>
   <div class="searchbox">
     <span class="ico">🔍</span>
-    <input type="text" id="search" placeholder="모든 브랜드에서 검색 (자동화·히스토리·자료)"
+    <!-- type="search" + 열릴 때 readonly → 브라우저(Edge 등)가 저장된 아이디를
+         검색창에 멋대로 채워 넣던 것(「sun 이 저절로 검색됨」)을 막습니다.
+         누르면 readonly 를 풀어 바로 칠 수 있습니다. -->
+    <input type="search" id="search" placeholder="모든 브랜드에서 검색 (자동화·히스토리·자료)"
            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
            data-lpignore="true" data-1p-ignore data-form-type="other" data-nofill="1"
+           readonly onfocus="this.removeAttribute('readonly')"
            oninput="onSearch(this.value)">
   </div>
   <span class="spacer"></span>
@@ -6080,7 +6087,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-129';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-130';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 

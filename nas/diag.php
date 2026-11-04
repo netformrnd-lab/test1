@@ -88,6 +88,18 @@ sect('감시자 로그 파일 크기');
 echo sh("ls -lh $BRAND/rp-watchdog*.log $BRAND/rp-watchdog*.out 2>/dev/null") . "\n";
 echo "※ .out 이 수백 MB로 커져 있으면 그것도 부담입니다.\n";
 
+sect('PHP 업로드/처리 한도 (저장이 되려면 자료보다 커야 함)');
+echo 'post_max_size       = ' . ini_get('post_max_size') . "\n";
+echo 'upload_max_filesize = ' . ini_get('upload_max_filesize') . "\n";
+echo 'memory_limit        = ' . ini_get('memory_limit') . "\n";
+echo 'max_execution_time  = ' . ini_get('max_execution_time') . "\n";
+echo "※ 자료 파일(brand-data.php)보다 post_max_size 가 작으면 저장이 실패합니다.\n";
+echo "   .user.ini 로 올렸는데도 그대로면, 아직 반영 전(최대 5분)이거나 웹서비스\n";
+echo "   재시작이 필요합니다.\n";
+
+sect('자료 파일 크기 (이것보다 post_max_size 가 커야 저장됨)');
+echo sh("ls -lh $BRAND/data/brand-data.php 2>/dev/null") . "\n";
+
 sect('NAS 검색 색인 크기');
 echo sh("ls -lh $BRAND/data/nasfiles.tsv 2>/dev/null") . "\n";
 

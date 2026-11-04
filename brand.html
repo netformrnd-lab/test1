@@ -4008,8 +4008,16 @@ body.bk-edit .panel{overflow:clip}
 .verbar .m{flex:1 1 320px;min-width:0;font-size:12.5px;line-height:1.6;
   color:var(--text-secondary)}
 .verbar .m b{color:var(--text-primary);font-variant-numeric:tabular-nums}
-.errbar{display:none;gap:13px;align-items:flex-start;margin:0 24px;padding:15px 18px;
-  border-radius:var(--r-md);border:1px solid rgba(217,59,59,.4);background:rgba(217,59,59,.07)}
+/* 저장 실패 같은 알림 — 화면에 <<떠 있는 띠>> 로 둡니다. 전에는 이 띠를
+   보이게 하려고 화면을 맨 위로 끌어올렸는데(showError→uiGoTop), 저장이 자꾸
+   실패하면 그때마다 보던 자리에서 「위로 튕겨」 버렸습니다. 이제 띠가 떠 있어
+   스크롤을 안 건드려도 바로 보입니다. */
+.errbar{display:none;position:fixed;top:calc(var(--tbh,64px) + 10px);left:50%;
+  transform:translateX(-50%);width:min(640px,calc(100% - 32px));
+  gap:13px;align-items:flex-start;padding:15px 18px;z-index:1500;
+  box-shadow:0 12px 34px rgba(0,0,0,.20);
+  border-radius:var(--r-md);border:1px solid rgba(217,59,59,.4);
+  background:color-mix(in srgb,#d93b3b 9%,var(--bg-card))}
 .errbar.show{display:flex}
 .errbar .etitle{font-weight:750;font-size:14px;margin-bottom:5px;letter-spacing:-.02em}
 .errbar .emsg{font-size:12.5px;line-height:1.6;word-break:break-all;
@@ -6072,7 +6080,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-127';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-128';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -37603,7 +37611,9 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function showError(msg){
   document.getElementById('errText').textContent = msg;
   document.getElementById('errBar').classList.add('show');
-  uiGoTop(1);
+  /* 전에는 여기서 uiGoTop(1) 으로 맨 위로 끌어올렸습니다 — 저장이 자꾸 실패하면
+     그때마다 화면이 「위로 튕겨」 버렸습니다. 이제 띠가 떠 있어 스크롤을
+     건드리지 않습니다. (보던 자리 그대로) */
 }
 
 function toggleDark(){

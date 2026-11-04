@@ -125,6 +125,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
     // 화면 파일(deploy/worker.js 로 빌드했을 때만 포함): /api 가 아닌 GET 요청은 화면을 돌려준다
     const path = new URL(request.url).pathname
+    if (request.method === 'GET' && path.startsWith('/brief/')) return serveBrief(env, path).catch(() => new Response('Not found', { status: 404 }))
     if (typeof STATIC_FILES !== 'undefined' && request.method === 'GET' && !path.startsWith('/api')) return serveStatic(path)
     try {
       if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE) throw new HttpError(500, '서버 환경변수(SUPABASE_URL / SUPABASE_SERVICE_ROLE)가 설정되지 않았습니다.')
@@ -718,21 +719,28 @@ async function runStep(env, job) {
       d.events.push(ev('Manus 요청 결과 불명 → 중복 방지로 중단'))
       return
     }
-    d.submitAttempted = true; d.mode = 'manus'
-    await saveJob(env, job)
+    // 지시서 준비 (Manus API 는 메시지 길이 제한이 있어, 긴 지시서는 파일로 올리고 주소를 보낸다)
     const key = await getKey(env, 'manus')
     const profile = (st.secrets.manus && st.secrets.manus.model) || MANUS_PROFILES[0].id
+    const blk = await manusAssetBlock(env, job, st)
+    const full = blk ? stripAssets(d.prompt) + '\n\n' + blk : d.prompt
+    const rev = d.reviseRequest ? d.manusRevisions[d.manusRevisions.length - 1] : null
+    const body = { agentProfile: profile, taskMode: 'agent' }
+    let prompt = full
+    if (estTokens(full) > MANUS_MSG_TOKENS || rev) {
+      const briefUrl = await saveBrief(env, job, full)
+      prompt = manusShortPrompt(job, d.plan, briefUrl, env)
+    }
+    if (rev) {
+      prompt = `[수정 요청] 아래 영상을 다음 내용대로 고쳐서, 고친 완성 영상(MP4)을 다시 전달해 주세요. 수정 요청에 없는 부분(내레이션 문장·브랜드 규칙 등)은 그대로 유지합니다.\n${rev.request.slice(0, 1500)}\n\n[이전 결과]\n- 이전 영상 파일: ${rev.prevVideoUrl || '(주소 없음)'}\n- 이전 Manus 작업: ${rev.prevTaskUrl || rev.prevTaskId}\n\n${prompt}`
+      body.taskId = rev.prevTaskId   // 같은 작업에 이어 붙이기(지원되면)
+    }
+    body.prompt = prompt
+    d.manusPromptSent = { chars: prompt.length, estTokens: estTokens(prompt), briefLinked: prompt !== full }
+    d.submitAttempted = true; d.mode = 'manus'
+    await saveJob(env, job)
     let res
     try {
-      const blk = await manusAssetBlock(env, job, st)
-      let prompt = blk ? stripAssets(d.prompt) + '\n\n' + blk : d.prompt
-      const body = { agentProfile: profile, taskMode: 'agent' }
-      const rev = d.reviseRequest ? d.manusRevisions[d.manusRevisions.length - 1] : null
-      if (rev) {
-        prompt = `[수정 요청] 아래 ‘원래 제작 지시서’로 만든 영상을 다음 내용대로 고쳐서, 고친 완성 영상(MP4)을 다시 전달해 주세요. 수정 요청에 없는 부분(내레이션 문장·브랜드 규칙 등)은 그대로 유지합니다.\n${rev.request}\n\n[이전 결과]\n- 이전 영상 파일: ${rev.prevVideoUrl || '(주소 없음)'}\n- 이전 Manus 작업: ${rev.prevTaskUrl || rev.prevTaskId}\n\n[원래 제작 지시서]\n${prompt}`
-        body.taskId = rev.prevTaskId   // 같은 작업에 이어 붙이기(지원되면)
-      }
-      body.prompt = prompt
       res = await fetch(MANUS_API + '/tasks', { method: 'POST', headers: manusHeaders(key), body: JSON.stringify(body) })
     } catch (e) {
       job.status = 'uncertain'
@@ -1256,6 +1264,43 @@ function manusText(t) {
   }
   walk(t, 0)
   return texts.join('\n').slice(-2000)
+}
+// Manus 메시지 길이 제한(약 5,000토큰) 대응: 전체 지시서를 비공개 저장소에 두고, 추측하기 어려운 주소로 읽을 수 있게 한다
+const MANUS_MSG_TOKENS = 4000
+function estTokens(t) { const s = String(t || ''); const ko = (s.match(/[\u3131-\uD79D]/g) || []).length; return Math.ceil(ko * 2 + (s.length - ko) / 3) }   // 넉넉하게(한글 1자≈2토큰) 계산
+async function saveBrief(env, job, text) {
+  const d = job.data
+  d.briefToken = d.briefToken || crypto.randomUUID().replace(/-/g, '')
+  await ensureBucket(env)
+  const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/briefs/${job.id}.txt`, { method: 'POST', headers: storageHeaders(env, { 'content-type': 'text/plain; charset=utf-8', 'x-upsert': 'true' }), body: text })
+  if (!r.ok) throw new Error('제작 지시서 파일 저장 실패(' + r.status + ')')
+  if (env.PUBLIC_BASE) return `${env.PUBLIC_BASE}/brief/${job.id}/${d.briefToken}.txt`
+  return signedUrl(env, `briefs/${job.id}.txt`, 7 * 86400)
+}
+async function serveBrief(env, path) {
+  const m = path.match(/^\/brief\/([0-9a-f-]{36})\/([0-9a-f]{32})\.txt$/)
+  if (!m) return new Response('Not found', { status: 404 })
+  const job = (await readJSON(env, 'jobs', [])).find((j) => j.id === m[1])
+  if (!job || !job.data || job.data.briefToken !== m[2]) return new Response('Not found', { status: 404 })
+  const r = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/briefs/${job.id}.txt`, { headers: storageHeaders(env) })
+  if (!r.ok) return new Response('Not found', { status: 404 })
+  return new Response(await r.text(), { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'access-control-allow-origin': '*' } })
+}
+function manusShortPrompt(job, plan, briefUrl, env) {
+  const i = job.input
+  const narr = plan.scenes.map((s, k) => `${k + 1}. ${(s.cuts && s.cuts.length ? s.cuts.map((c) => c.narration).join(' ') : s.narration)}`).join('\n')
+  return [
+    `# ${plan.title} — 아파트스퀘어 영상 제작 요청`,
+    '아래 ‘전체 제작 지시서’ 주소를 반드시 먼저 열어 끝까지 읽고 그대로 따라 주세요. 화면·편집·브랜드 규칙, 장면별 자막·화면 설명, 첨부 자료(로고·브랜드 자료·사진) 주소가 모두 들어 있습니다.',
+    `전체 제작 지시서: ${briefUrl}`,
+    '',
+    `- 형식: ${i.ratio === '9:16' ? '세로형 9:16 (1080×1920)' : '가로형 16:9 (1920×1080)'} · 목표 ${i.seconds}초 · 시청 대상 ${i.audience} · 완성된 MP4 영상 파일로 전달`,
+    '- 차분한 한국어 남성 내레이션 + 한국어 자막. 아래 내레이션은 한 글자도 바꾸지 않고 순서대로 읽습니다.',
+    env.PUBLIC_BASE ? `- 공식 로고: ${env.PUBLIC_BASE}/brand-logo.png (변형 금지, 마지막 장면과 오른쪽 위 작은 로고)` : '',
+    '',
+    '[내레이션 원문]',
+    narr,
+  ].filter((x) => x !== '').join('\n')
 }
 function agentPayload(job, settings) {
   const config = { duration_sec: Math.max(10, Math.min(300, Number(job.input.seconds) || 60)), orientation: job.input.ratio === '9:16' ? 'portrait' : 'landscape' }

@@ -43,3 +43,7 @@ if (mj) {
     try { console.log('응답 구조:', shape(JSON.parse(d.manusRaw)).slice(0, 3000)) } catch (e) { console.log('원문 앞부분:', d.manusRaw.slice(0, 1500)) }
   } else console.log('응답 원문 없음 (이전 버전에서 처리된 작업 — ‘결과 다시 확인’을 누르면 저장됨)')
 } else console.log('== 최근 Manus 작업 없음 ==')
+
+// 최근 작업 제작 기록 (허브 연결 등 확인용, 최근 1건)
+const lj = arr(jobs)[0]
+if (lj) { console.log('== 최근 작업 기록 ==', lj.status, (lj.input || {}).tool || '', (lj.input || {}).keywords || ''); for (const e of (lj.data && lj.data.events) || []) console.log(' ·', String(e.text || '').slice(0, 300)) }

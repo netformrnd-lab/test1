@@ -44,6 +44,24 @@ sect('디스크 (/volume1)');
 echo sh('df -h /volume1 2>/dev/null || df -h') . "\n";
 echo "※ Use% 가 95% 이상이면 디스크가 꽉 차 느려질 수 있습니다.\n";
 
+sect('RAID / 스토리지 작업 돌고 있나 ★I/O 느려짐 1순위★');
+echo sh('cat /proc/mdstat 2>/dev/null') . "\n";
+echo "※ 'resync' · 'recovery' · 'check' 와 [===>.....] 진행바가 보이면\n";
+echo "   RAID 작업(데이터 스크러빙/재동기화)이 디스크를 점유하는 중 = 느려짐 원인.\n";
+
+sect('I/O 압박 지수 (있으면)');
+echo sh('cat /proc/pressure/io 2>/dev/null || echo "(이 DSM 엔 없음)"') . "\n";
+echo "※ avg 뒤 숫자가 클수록(수십%~) 디스크 기다림이 심한 겁니다.\n";
+
+sect('디스크 I/O 많이 한 프로세스 (누적 읽기/쓰기 상위)');
+echo sh('for p in /proc/[0-9]*; do pid=${p#/proc/}; '
+      . 'rb=$(grep "^read_bytes" $p/io 2>/dev/null | awk "{print \$2}"); '
+      . 'wb=$(grep "^write_bytes" $p/io 2>/dev/null | awk "{print \$2}"); '
+      . '[ -n "$rb" ] && echo "$((${rb:-0}+${wb:-0})) $pid $(cat $p/comm 2>/dev/null)"; '
+      . 'done 2>/dev/null | sort -rn | head -n 8 | '
+      . 'awk "{printf \"%8.0f MB  pid %-7s %s\\n\", \$1/1048576, \$2, \$3}"') . "\n";
+echo "※ 위에서 MB가 유난히 큰 프로세스가 디스크를 긁는 범인입니다.\n";
+
 sect('프록시 감시자 돌고 있나');
 $proc = sh("(ps -ef 2>/dev/null || ps w 2>/dev/null) | grep rp-watchdog | grep -v grep");
 echo ($proc !== '' ? $proc : '(감시자 루프 안 보임 — 안 돌고 있음)') . "\n";

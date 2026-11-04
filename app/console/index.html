@@ -60,6 +60,27 @@ main{flex:1;min-width:0;padding:22px 28px 70px;max-width:1680px;margin:0 auto}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 17px;position:relative;overflow:hidden}
 .tile .edge{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
 #projTableWrap.money-off .money-col{display:none}
+/* ── 관제센터(dz-) ── */
+.dz-top{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+.dz-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}.dz-head h1{font-size:20px;font-weight:800;letter-spacing:-.3px}.dz-head .st{font-size:13px;color:var(--mut)}.dz-head .st b{color:var(--blue)}
+.dz-head .bar{flex:1;min-width:120px;max-width:260px;height:8px;background:var(--line2);border-radius:20px;overflow:hidden}.dz-head .bar i{display:block;height:100%;background:var(--blue);border-radius:20px;transition:.2s}
+.dz-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.dz-step{border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;background:#fff;display:flex;flex-direction:column;gap:8px;min-height:138px}
+.dz-step.cur{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-soft)}
+.dz-step.done{background:var(--soft)}.dz-step.done .t{text-decoration:line-through;color:var(--mut)}
+.dz-step .num{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;background:var(--line2);color:var(--mut2);flex:none}.dz-step.cur .num{background:var(--blue);color:#fff}.dz-step.done .num{background:var(--green-soft);color:var(--green)}
+.dz-step .t{font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px}.dz-step .d{font-size:12px;color:var(--mut);line-height:1.5;flex:1}.dz-step .d b{color:var(--ink)}
+.dz-step .acts{display:flex;gap:6px;flex-wrap:wrap}.dz-step .acts .b{height:32px;padding:0 10px;font-size:12px}
+.dz-step .chk{height:32px;padding:0 10px;font-size:12px;font-weight:800;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--mut2)}.dz-step .chk.on{background:var(--green-soft);border-color:var(--green-soft);color:var(--green)}
+.dz-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);gap:16px;align-items:start}
+.dz-side .card{padding:14px 16px}.dz-side .card h3{font-size:13.5px}
+.dz-lh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}.dz-lh h3{margin:0}.dz-n{font-size:12px;font-weight:800;color:var(--blue);background:var(--blue-soft);border-radius:7px;padding:1px 7px;margin-left:4px}.dz-hint{font-size:11.5px;color:var(--mut)}
+.dz-tabs{margin-left:auto;display:inline-flex;gap:4px;background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:3px}.dz-tabs button{border:none;background:transparent;font-size:12px;font-weight:700;color:var(--mut2);padding:5px 10px;border-radius:7px;cursor:pointer}.dz-tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.dz-row{display:flex;align-items:center;gap:12px;padding:11px 6px;border-bottom:1px solid var(--line2);cursor:pointer}.dz-row:last-child{border-bottom:none}.dz-row:hover{background:var(--soft)}
+.dz-row .dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex:none}.dz-row .dot.hot{background:var(--red)}
+.dz-row .tag{font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap}.dz-row .nm{font-weight:800;font-size:13.5px}.dz-row .sub{font-size:11.5px;color:var(--mut);margin-top:2px}.dz-row .why{font-size:12px;color:var(--mut2);flex:1;min-width:0}.dz-row .b{height:32px;padding:0 10px;font-size:12px;flex:none}
+.dz-etc{display:flex;flex-direction:column;gap:8px}.dz-etc div{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--mut2)}.dz-etc .link{font-size:12.5px}
+@media (max-width:1100px){.dz-steps{grid-template-columns:repeat(2,1fr)}.dz-grid{grid-template-columns:1fr}}
 /* ── 공사관리(pj-) 디자인: 데이터·연동 함수는 그대로, 보이는 구성만 변경 ── */
 .pj-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
 .pj-title h2{font-size:22px;font-weight:800;letter-spacing:-.3px;margin:0}.pj-crumb{font-size:12px;color:var(--mut);margin-top:4px}
@@ -382,20 +403,20 @@ tbody tr:hover{background:#f8fafc}
 
   <main>
     <section class="sec on" id="s-dashboard">
-      <div class="head"><div><h2>관제센터</h2><div class="desc">오늘 확인할 순서대로 정리했어요</div></div></div>
-      <div id="dashAlert"></div>
-      <div class="tiles" id="dashTiles"></div>
-      <div class="grid2">
-        <div class="card"><h3>매출 목표 대비 <span class="r"><span class="link" onclick="setSalesGoal()">분기 목표 설정</span></span></h3><div id="dashRevenue"></div></div>
-        <div class="card"><h3>고객사 등급 분포 <span class="r">사용빈도+문의 자동</span></h3><div id="dashGrades"></div></div>
-      </div>
-      <div class="grid2">
-        <div class="card"><h3>배치 필요한 현장 <span class="r"><span class="link" onclick="go('calendar')">캘린더 →</span></span></h3><div style="font-size:11px;color:var(--mut);margin:-6px 0 8px">감리 진행 중(공사중)인데 <b>담당 감리원</b>이나 <b>방문 요일</b>이 안 정해진 현장 · 눌러서 바로 배치</div><div id="dashAssign"></div></div>
-        <div class="card"><h3>2일 이상 정체된 딜 <span class="r"><span class="link" onclick="go('sales')">영업 →</span></span></h3><div id="dashStalled"></div></div>
-      </div>
-      <div class="grid2">
-        <div class="card"><h3>🆕 새로 올라온 감리일지 <span class="r"><b id="dashNewCnt" style="color:var(--red)"></b> <span class="link" onclick="go('projects')">공사관리 →</span></span></h3><div id="dashNewReports"></div></div>
-        <div class="card"><h3>최근 현장 히스토리 <span class="r"><span class="link" onclick="go('history')">활동기록 →</span></span></h3><div id="dashNotes"></div></div>
+      <div class="dz-top" id="dashSteps"></div>
+      <div class="dz-grid">
+        <div>
+          <div class="card dz-list"><div class="dz-lh"><h3>확인할 현장 <span class="dz-n" id="dashListCnt">0</span></h3><span class="dz-hint">현장을 누르면 바로 처리 창이 열려요</span><div class="dz-tabs" id="dashListTabs"></div></div><div id="dashList"></div></div>
+          <div id="dashAlert" style="display:none"></div><div id="dashTiles" style="display:none"></div>
+          <div class="card"><h3>새로 올라온 감리일지 <span class="r"><b id="dashNewCnt" style="color:var(--red)"></b> <span class="link" onclick="go('projects')">공사관리 →</span></span></h3><div id="dashNewReports"></div></div>
+        </div>
+        <aside class="dz-side">
+          <div class="card"><h3>그 밖의 알림</h3><div id="dashEtc"></div></div>
+          <div class="card"><h3>매출 목표 대비 <span class="r"><span class="link" onclick="setSalesGoal()">분기 목표 설정</span></span></h3><div id="dashRevenue"></div></div>
+          <div class="card"><h3>고객사 등급 분포 <span class="r">사용빈도+문의 자동</span></h3><div id="dashGrades"></div></div>
+          <div class="card"><h3>최근 현장 히스토리 <span class="r"><span class="link" onclick="go('history')">활동기록 →</span></span></h3><div id="dashNotes"></div></div>
+          <div class="card" style="display:none"><div id="dashAssign"></div><div id="dashStalled"></div></div>
+        </aside>
       </div>
     </section>
 
@@ -1269,6 +1290,24 @@ function openInProgList(){
     <div style="font-size:11px;color:var(--mut);margin-top:10px">단지명을 누르면 공사관리 상세로 이동해요. 상태 변경은 공사관리 → 단지 상세 → 단계에서 해요.</div>
     <div class="modal-actions"><button class="b line" onclick="closeModal()">닫기</button></div>`,true);
 }
+/* ── 관제센터: 오늘 확인 순서 4단계 (체크는 개인용 → localStorage, 날짜 키라 다음 날 초기화) ── */
+function dzKey(){ return 'aptsq_dash_steps_'+isoDate(new Date()); }
+function dzGet(){ try{ return JSON.parse(localStorage.getItem(dzKey())||'{}'); }catch(e){ return {}; } }
+function dzSet(o){ try{ localStorage.setItem(dzKey(),JSON.stringify(o)); }catch(e){} }
+let dashTab='all';
+function dzToggle(i){ const o=dzGet(); o[i]=!o[i]; dzSet(o); if(o[i]){ const map={1:'place',2:'inprog',3:'done'}; if(map[i])dashTab=map[i]; } renderDash(); }
+function dzReset(){ dzSet({}); dashTab='all'; renderDash(); }
+function setDashTab(t){ dashTab=t; renderDash(); }
+function dzRows(){
+  const place=needPlaceList(), unreg=unregisteredPlanSites(), newReps=newReportList();
+  const rows=[];
+  place.forEach(a=>{ const noAud=!aptAuditors(a).length; rows.push({k:'place',hot:noAud,tag:'배치 필요',tagCls:'no',name:a.name,sub:`${a.region||'지역 미입력'} · ${noAud?'담당 미배정':siteMgrName(a)}`,why:noAud?'담당 감리원이 없어요':'방문 요일이 없어 정기 방문이 안 생겨요',act:'바로 배치',go:`openPlaceSite('${a.id}')`}); });
+  unreg.forEach(x=>{ rows.push({k:'place',hot:false,tag:'단지 미등록',tagCls:'violet',name:x.name,sub:'배치표 원본에만 있음',why:'공사관리에 단지로 등록되지 않았어요',act:'단지 등록',go:`openAptAdd({name:'${esc(x.name).replace(/'/g,'&#39;')}'})`}); });
+  const byApt={}; newReps.forEach(r=>{ (byApt[r.apartment_id]=byApt[r.apartment_id]||[]).push(r); });
+  Object.keys(byApt).forEach(id=>{ const a=APTS.find(x=>x.id===id); if(!a)return; const rs=byApt[id].sort((x,y)=>(y.created_at||'').localeCompare(x.created_at||'')); rows.push({k:'inprog',hot:false,tag:'새 감리일지',tagCls:'blue',name:a.name,sub:`${a.region||''} · ${siteMgrName(a)||'미배정'}`,why:`새 일지 ${rs.length}건 · ${repDateOf(rs[0]).slice(5)} ${repSummary(rs[0])}`,act:'일지 확인',go:`openProj('${a.id}')`}); });
+  APTS.filter(a=>stageOf(a)==='준공처리중').forEach(a=>{ rows.push({k:'done',hot:false,tag:'준공',tagCls:'violet',name:a.name,sub:`${a.region||''} · ${siteMgrName(a)||'미배정'}`,why:'준공 확인(준공처리) 단계예요',act:'현장 열기',go:`openProj('${a.id}')`}); });
+  return rows;
+}
 function renderDash(){
   const inprog=APTS.filter(a=>a.status==='in_progress').length;
   const pend=MEMBERS.filter(x=>!x.approved).length;
@@ -1276,45 +1315,42 @@ function renderDash(){
   const place=needPlaceList();
   const unreg=unregisteredPlanSites();
   const stalled=stalledDeals();
-  const nps=npsScore();
-  const rc=recontractRate();
-  $('dashTiles').innerHTML=
-    tile('','진행중 현장',inprog+'<small>곳</small>','상태 ‘공사중’ 단지 · 눌러서 목록 보기','openInProgList()')+
-    tile(place.length?'warn':'good','배치 필요',place.length+'<small>곳</small>',need.length?`담당 미배정 ${need.length} · 요일 미지정 ${place.length-need.length}`:'담당·요일 미지정 현장',"document.getElementById('dashAssign').scrollIntoView({behavior:'smooth',block:'center'})")+
-    tile(stalled.length?'crit':'good','정체된 딜',stalled.length+'<small>건</small>','2일+ 미이동')+
-    tile('good','재계약율',(rc==null?'-':rc+'%'),'계약/성사 기준')+
-    tile('good','NPS',(nps==null?'-':(nps>0?'+':'')+nps),'입주민소통/NPS');
-  // 관제 알림
-  const alerts=[];
-  if(need.length)alerts.push(`📍 <b>담당 배정이 안 된 현장 ${need.length}곳</b> — ${need.slice(0,2).map(a=>`<span class="link" onclick="openPlaceSite('${a.id}')">${esc(a.name)}</span>`).join(', ')}${need.length>2?' 외':''} <span class="link" onclick="openPlaceSite('${need[0].id}')">바로 배치 →</span>`);
-  const dayOnly=place.filter(a=>aptAuditors(a).length); if(dayOnly.length)alerts.push(`📅 <b>방문 요일이 안 정해진 현장 ${dayOnly.length}곳</b> — 정기 방문이 자동 생성되지 않아요 <span class="link" onclick="openPlaceSite('${dayOnly[0].id}')">바로 배치 →</span>`);
-  if(unreg.length)alerts.push(`📋 <b>배치표 원본에만 있고 단지로 등록 안 된 현장 ${unreg.length}곳</b> — ${unreg.slice(0,2).map(x=>esc(x.name)).join(', ')}${unreg.length>2?' 외':''} <span class="link" onclick="openAptAdd({name:'${esc(unreg[0].name).replace(/'/g,'&#39;')}'})">단지 등록 →</span>`);
-  if(stalled.length)alerts.push(`⏱️ <b>2일 이상 정체된 영업 딜 ${stalled.length}건</b> — ${stalled.slice(0,2).map(x=>esc(x.s.name)).join(', ')} <span class="link" onclick="go('sales')">확인 →</span>`);
-  if(pend)alerts.push(`👤 <b>승인 대기 회원 ${pend}명</b> <span class="link" onclick="go('members')">승인하기 →</span>`);
-  $('dashAlert').innerHTML=alerts.length?`<div class="alert crit"><div class="ah">🔔 오늘의 관제 알림</div>${alerts.map(a=>`<div class="row">${a}</div>`).join('')}</div>`:'<div class="alert info"><div class="ah">🔔 오늘의 관제 알림</div><div class="row">지금은 급한 알림이 없어요 👍</div></div>';
-  // 매출 목표 대비 (분기별 성사 감리비)
-  renderRevenue();
-  // 고객사 등급 분포
-  const grades={상:0,중:0,하:0}; APTS.forEach(a=>{ grades[siteGrade(a.id)]++; });
-  $('dashGrades').innerHTML=`<div style="display:flex;gap:12px">${[['상','good'],['중','blue'],['하','gray']].map(([g,cl])=>`<div style="flex:1;text-align:center;background:#f6f8fc;border:1px solid var(--line);border-radius:12px;padding:14px 8px"><div style="font-size:12px;font-weight:800;color:var(--mut2)">${g}</div><div style="font-size:24px;font-weight:800;margin-top:4px">${grades[g]}<small style="font-size:12px;color:var(--mut);font-weight:700">곳</small></div></div>`).join('')}</div><div style="font-size:11px;color:var(--mut);margin-top:8px">입주민 <b>앱 조회수</b>·가입 수·문의(채팅)·설문 참여 등 <b>고객사 사용도</b> 기준 자동 산정</div>`;
-  // 배치 필요한 현장 (담당 미배정 또는 방문 요일 미지정) → 클릭하면 바로 배치 창
-  const unregRows=unreg.slice(0,3).map(x=>`<tr style="background:#fdf6ff"><td style="font-weight:700">${esc(x.name)}<div style="font-size:11px;color:var(--mut);font-weight:500">배치표 원본에만 있음</div></td><td><span class="pill" style="background:#f3e8ff;color:#7c3aed">단지 미등록</span></td><td style="text-align:right;white-space:nowrap"><span class="link" onclick="openAptAdd({name:'${esc(x.name).replace(/'/g,'&#39;')}'})">➕ 단지 등록</span></td></tr>`).join('');
-  $('dashAssign').innerHTML=(place.length||unreg.length)?`<table><tbody>${place.slice(0,7).map(a=>{
-    const pr=pendingReq(a.id); const reqName=pr?(auditorName(pr.auditor_id)||'감리원'):'';
-    const right=pr
-      ? `<span class="pill" style="background:#fff4e2;color:#b8710a">📩 ${esc(reqName)}님께 요청됨</span> <span class="link" onclick="openPlaceSite('${a.id}')">⚙️ 배치</span>`
-      : `<span class="link" onclick="openPlaceSite('${a.id}')">⚙️ 바로 배치</span>${aptAuditors(a).length?'':` <span class="link" style="color:var(--mut)" onclick="openAssignReq('${a.id}')">📩 요청</span>`}`;
-    return `<tr style="cursor:pointer" onclick="openPlaceSite('${a.id}')"><td style="font-weight:700"><span class="link" onclick="event.stopPropagation();openProj('${a.id}')">${esc(a.name)}</span><div style="font-size:11px;color:var(--mut);font-weight:500">${esc(a.region)||'미지정'}${aptAuditors(a).length?' · '+esc(siteMgrName(a)):''}</div></td><td>${placeReasonPills(a)}</td><td style="text-align:right;white-space:nowrap" onclick="event.stopPropagation()">${right}</td></tr>`;
-  }).join('')}${unregRows}</tbody></table>${place.length>7?`<div style="font-size:11px;color:var(--mut);margin-top:6px">외 ${place.length-7}곳 · <span class="link" onclick="go('calendar')">배치표 전체 보기</span></div>`:''}`:'<div class="empty">모든 현장에 담당·방문 요일이 정해졌어요 👍</div>';
-  // 정체된 딜
-  $('dashStalled').innerHTML=!PHASEB_OK.sales?'<div class="empty" style="font-size:12px">영업 기능을 켜면 표시돼요</div>':(stalled.length?`<table><tbody>${stalled.slice(0,7).map(x=>`<tr><td style="font-weight:700"><span class="link" onclick="openSalesEdit('${x.s.id}')">${esc(x.s.name)}</span></td><td><span class="pill blue">${SALES_LABEL[x.s.stage]||x.s.stage}</span></td><td style="text-align:right;color:var(--red);font-weight:700">${x.days}일 정체</td></tr>`).join('')}</tbody></table>`:'<div class="empty">정체된 딜이 없어요 👍</div>');
-  // 새로 올라온 감리일지 (안 본 것 우선 + NEW 표시)
   const newReps=newReportList().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+  const doneSites=APTS.filter(a=>stageOf(a)==='준공처리중');
+  const dayOnly=place.length-need.length;
+  // 1) 오늘 확인 순서 4단계
+  const st=dzGet(); const steps=[
+    {t:'아파트스퀘어 이메일 확인',d:'네이버 메일 <b>전체메일함</b>을 확인해요',link:'https://mail.naver.com/v2/folders/-1',btn:'네이버 메일 열기 ↗'},
+    {t:'캘린더 미배정 현장 확인',d:`담당 미배정 <b>${need.length}</b> · 방문 요일 미지정 <b>${dayOnly}</b> · 단지 미등록 <b>${unreg.length}</b>`,go:"go('calendar')",btn:'캘린더 열기'},
+    {t:'진행중인 현장 확인',d:`공사중 <b>${inprog}곳</b> · 새 감리일지 <b>${newReps.length}건</b>`,go:"projStage='공사중';projPage=1;go('projects');renderProjList()",btn:'공사관리 열기'},
+    {t:'준공 현장 확인',d:`준공 확인이 필요한 현장 <b>${doneSites.length}곳</b>`,go:"projStage='준공처리중';projPage=1;go('projects');renderProjList()",btn:'준공 현장 보기'}
+  ];
+  const doneN=steps.filter((_,i)=>st[i]).length; const curIdx=steps.findIndex((_,i)=>!st[i]);
+  const now=new Date(); const dateLbl=`${now.getMonth()+1}월 ${now.getDate()}일 ${['일','월','화','수','목','금','토'][now.getDay()]}요일`;
+  $('dashSteps').innerHTML=`<div class="dz-head"><h1>${dateLbl}</h1><span class="st">오늘 확인 순서 4단계 중 <b>${doneN}단계</b> 끝</span><div class="bar"><i style="width:${Math.round(doneN/4*100)}%"></i></div><button class="b line sm" onclick="dzReset()">처음부터</button></div>
+    <div class="dz-steps">${steps.map((x,i)=>`<div class="dz-step ${st[i]?'done':(i===curIdx?'cur':'')}"><div class="t"><span class="num">${st[i]?'✓':i+1}</span>${x.t}</div><div class="d">${x.d}</div><div class="acts">${x.link?`<a class="b line" href="${x.link}" target="_blank" rel="noopener">${x.btn}</a>`:`<button class="b line" onclick="${x.go.replace(/"/g,'&quot;')}">${x.btn}</button>`}<button class="chk ${st[i]?'on':''}" onclick="dzToggle(${i})">${st[i]?'✓ 완료':'확인 완료'}</button></div></div>`).join('')}</div>`;
+  // 2) 확인할 현장 목록
+  const rows=dzRows(); const cnt=k=>k==='all'?rows.length:rows.filter(r=>r.k===k).length;
+  const tabs=[['all','전체'],['place','배치 필요'],['inprog','진행중'],['done','준공']];
+  $('dashListTabs').innerHTML=tabs.map(([k,l])=>`<button class="${dashTab===k?'on':''}" onclick="setDashTab('${k}')">${l} ${cnt(k)}</button>`).join('');
+  const shown=dashTab==='all'?rows:rows.filter(r=>r.k===dashTab); $('dashListCnt').textContent=rows.length;
+  $('dashList').innerHTML=shown.length?shown.map(r=>`<div class="dz-row" onclick="${r.go}"><span class="dot ${r.hot?'hot':''}"></span><div style="min-width:0;flex:1.2"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span class="tag pill ${r.tagCls}">${r.tag}</span><span class="nm">${esc(r.name)}</span></div><div class="sub">${esc(r.sub)}</div></div><div class="why">${esc(r.why)}</div><button class="b line" onclick="event.stopPropagation();${r.go}">${r.act}</button></div>`).join(''):'<div class="empty">지금 확인할 현장이 없어요</div>';
+  // 3) 그 밖의 알림
+  $('dashEtc').innerHTML=`<div class="dz-etc">
+    <div><span>2일 이상 정체된 영업 딜</span>${PHASEB_OK.sales?`<span class="link" onclick="go('sales')">${stalled.length}건 →</span>`:'<span style="color:var(--mut)">영업 기능 꺼짐</span>'}</div>
+    <div><span>승인 대기 회원</span><span class="link" onclick="go('members')">${pend}명 →</span></div>
+    <div><span>배치표에만 있고 미등록 단지</span>${unreg.length?`<span class="link" onclick="openAptAdd({name:'${esc(unreg[0].name).replace(/'/g,'&#39;')}'})">${unreg.length}곳 →</span>`:'<span style="color:var(--mut)">0곳</span>'}</div>
+    <div><span>진행중 현장</span><span class="link" onclick="openInProgList()">${inprog}곳 →</span></div></div>`;
+  // 4) 매출 목표 대비 / 등급 분포 / 히스토리 / 새 감리일지 (기존)
+  renderRevenue();
+  const grades={상:0,중:0,하:0}; APTS.forEach(a=>{ grades[siteGrade(a.id)]++; });
+  $('dashGrades').innerHTML=`<div style="display:flex;gap:10px">${[['상','good'],['중','blue'],['하','gray']].map(([g,cl])=>`<div style="flex:1;text-align:center;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px 8px"><div style="font-size:12px;font-weight:800;color:var(--mut2)">${g}</div><div style="font-size:22px;font-weight:800;margin-top:2px">${grades[g]}<small style="font-size:11px;color:var(--mut);font-weight:700">곳</small></div></div>`).join('')}</div><div style="font-size:11px;color:var(--mut);margin-top:8px">입주민 앱 조회수·가입 수·문의·설문 참여 등 고객사 사용도 기준 자동 산정</div>`;
   const nc=$('dashNewCnt'); if(nc)nc.textContent=newReps.length?('새 '+newReps.length+'건'):'';
-  $('dashNewReports').innerHTML=newReps.length?`<table><tbody>${newReps.slice(0,8).map(r=>`<tr style="background:#fff6f5"><td style="font-weight:700"><span class="link" onclick="openProj('${r.apartment_id}')">${esc(aptName(r.apartment_id))}</span> <span class="pill red" style="margin-left:4px">NEW</span></td><td>${repRoundBadge(r)} <span class="link" style="font-weight:600" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'감리일지'}</span></td><td style="text-align:right;color:var(--mut);font-size:11px">${(r.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">새로 올라온 감리일지가 없어요 👍<div style="font-size:11px;margin-top:4px">(공사관리에서 단지를 열면 읽음 처리돼요)</div></div>';
-  // 최근 히스토리
+  $('dashNewReports').innerHTML=newReps.length?`<table><tbody>${newReps.slice(0,8).map(r=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${r.apartment_id}')">${esc(aptName(r.apartment_id))}</span> <span class="pill red" style="margin-left:4px">NEW</span></td><td>${repRoundBadge(r)} <span class="link" style="font-weight:600" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(repSummary(r)||r.title)}</span></td><td style="text-align:right;color:var(--mut);font-size:11px;white-space:nowrap">${repDateOf(r)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">새로 올라온 감리일지가 없어요<div style="font-size:11px;margin-top:4px">(공사관리에서 단지를 열면 읽음 처리돼요)</div></div>';
   const notes=[...SITE_NOTES].slice(0,6);
   $('dashNotes').innerHTML=notes.length?`<table><tbody>${notes.map(n=>`<tr><td style="font-weight:700"><span class="link" onclick="openProj('${n.apartment_id}')">${esc(aptName(n.apartment_id))}</span></td><td style="color:var(--mut2)">${esc((n.body||'').slice(0,30))}</td><td style="text-align:right;color:var(--mut);font-size:11px">${(n.created_at||'').slice(0,10)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">작성된 히스토리가 없어요</div>';
+  // 숨긴 옛 영역(dashTiles·dashAlert·dashAssign·dashStalled)은 다른 코드가 참조할 수 있어 비워 둠
+  ['dashTiles','dashAlert','dashAssign','dashStalled'].forEach(id=>{ const el=$(id); if(el)el.innerHTML=''; });
 }
 function renderRevenue(){
   const box=$('dashRevenue'); if(!box)return;

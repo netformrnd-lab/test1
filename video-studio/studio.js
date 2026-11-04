@@ -321,6 +321,7 @@
         ${e.manusRevisions.length ? `<small>지금까지 수정 ${e.manusRevisions.length}회 · ${e.manusRevisions.map((r) => esc(r.request.slice(0, 30))).join(' / ')}</small>` : ''}
         ${e.prevVideos.length ? `<small> · 이전 영상: ${e.prevVideos.map((v, i) => `<a href="${esc(v.url)}" target="_blank" rel="noreferrer">${i + 1}번</a>`).join(' ')}</small>` : ''}</div>`
     }
+    if (e.manusRetryable) h += `<div class="job-actions"><button type="button" class="btn" data-manus-retry="${e.id}">${icon('refresh', 14)}제작 대기로 되돌리기 (대본·검수 다시 안 함)</button></div>`
     if (e.input.tool === 'manus' && e.manusTaskId && ['failed', 'uncertain'].includes(e.status)) h += `<div class="job-actions"><button type="button" class="btn outline" data-manus-recheck="${e.id}">${icon('refresh', 14)}Manus 결과 다시 확인 (크레딧 안 씀)</button></div>`
     if (e.manusText && e.status !== 'rendering') h += `<details ${e.status === 'rendered' ? '' : 'open'}><summary>Manus 답변</summary><pre>${esc(e.manusText)}</pre>${e.manusFiles.length ? `<ul>${e.manusFiles.map((f) => `<li><a href="${esc(f.url)}" target="_blank" rel="noreferrer">${esc(f.name || f.url.split('?')[0].split('/').pop())}</a></li>`).join('')}</ul>` : ''}</details>`
     if (e.error) h += `<div class="message error">${icon('shield', 18)}${esc(e.error)}</div>`
@@ -1016,6 +1017,11 @@
       const req = (document.querySelector(`[data-revise-text="${id}"]`) || {}).value || ''
       if (!confirm('이 내용으로 Manus에 수정을 요청할까요?\n\nManus 크레딧이 사용됩니다. 완성되면 이 화면에 새 영상이 올라옵니다.')) return
       try { const r = await api({ action: 'manusRevise', id, request: req }); delete reviseDraft[id]; S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); S.success = 'Manus에 수정을 요청했습니다. 완성까지 수십 분 걸릴 수 있습니다.'; renderAll(); ensurePolling() } catch (e) { S.error = e.message; renderMessages() }
+      return
+    }
+    const mrt = t.closest('[data-manus-retry]')
+    if (mrt) {
+      try { const r = await api({ action: 'manusRetry', id: mrt.dataset.manusRetry }); S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); S.success = '제작 대기로 되돌렸습니다. ‘Manus로 영상 만들기’를 다시 눌러 주세요.'; renderAll() } catch (e) { S.error = e.message; renderMessages() }
       return
     }
     const mr = t.closest('[data-manus-recheck]')

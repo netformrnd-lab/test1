@@ -379,6 +379,21 @@ const ACTIONS = {
     return { job: toJob(row) }
   },
 
+  // Manus 요청이 거절돼(작업이 만들어지지 않아) 실패한 경우 → 다시 제작 대기로 (대본·검수 다시 안 함)
+  async manusRetry(env, { id }) {
+    let row = null
+    await mutate(env, 'jobs', [], (list) => {
+      row = list.find((j) => j.id === id)
+      if (!row) throw new HttpError(404, '작업을 찾을 수 없습니다.')
+      const d = row.data
+      if (!isManus(row) || row.status !== 'failed' || d.videoId || !/^Manus 작업 요청 실패/.test(d.error || '')) throw new HttpError(409, 'Manus 요청이 거절돼 실패한 작업만 다시 요청할 수 있습니다.')
+      d.submitAttempted = false; d.error = ''
+      row.status = 'ready'; row.step = 6
+      d.events.push(ev('Manus 요청 실패 → 제작 대기로 되돌림 (대본·검수는 그대로)'))
+    })
+    return { job: toJob(row) }
+  },
+
   // Manus 결과 다시 확인: 새 작업을 만들지 않고 같은 작업의 결과를 다시 읽는다 (크레딧 추가 없음)
   async manusRecheck(env, { id }) {
     let row = null
@@ -1749,7 +1764,7 @@ function toJob(r) {
   return {
     id: r.id, created: r.created_at, status: r.status, step: r.step, revision: r.revision, input: r.input,
     plan: d.plan || null, prompt: d.prompt || '', claude: d.claude || null, openai: d.openai || null,
-    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', manusUrl: (d.manusTask && (d.manusTask.share || d.manusTask.url)) || '', manusText: d.manusText || '', manusFiles: d.manusFilesFound || [], manusRevisions: (d.manusRevisions || []).map((x) => ({ request: x.request, at: x.at })), prevVideos: d.prevVideos || [], manusTaskId: isManus(r) ? d.videoId || '' : '', edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
+    videoUrl: d.videoUrl || '', actualSeconds: d.actualSeconds || null, error: d.error || '', mode: d.mode || '', manusUrl: (d.manusTask && (d.manusTask.share || d.manusTask.url)) || '', manusText: d.manusText || '', manusFiles: d.manusFilesFound || [], manusRevisions: (d.manusRevisions || []).map((x) => ({ request: x.request, at: x.at })), prevVideos: d.prevVideos || [], manusTaskId: isManus(r) ? d.videoId || '' : '', manusRetryable: isManus(r) && r.status === 'failed' && !d.videoId && /^Manus 작업 요청 실패/.test(d.error || ''), edited: !!d.customPrompt, skippedReview: !!d.skippedReview,
     events: d.events || [], sources: d.sources || [], memory: d.memory || [],
     openaiSkipped: !!d.openaiSkipped, models: d.models || { claude: '', openai: '' }, promptVersion: d.promptVersion || PROMPT_VERSION,
     issues: d.pendingIssues && d.pendingIssues.length ? d.pendingIssues : d.lastIssues || [],

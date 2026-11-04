@@ -2620,7 +2620,7 @@ const ALIM = {
     h += block('어렵던 공사를, 쉽고 투명하게', '관리소장도 입주민도<br>모든 과정을 직접 보긴 어렵습니다.<br>그래서 현장을 <b>사진과 기록</b>으로 남기고,<br>누구나 쉽게 이해하도록 <b>투명하게 공유</b>합니다.')
     h += block('만족하는 감리', '우리가 만들고 싶은 건<br>결과만이 아닙니다.<br><b>믿고 결정할 기준,<br>신뢰할 수 있는 과정,<br>시간이 지나도 남는 기록</b>입니다.')
     h += block('확인이 당연한 문화로', '공사의 품질은<br>좋은 자재·기술만으로 결정되지 않습니다.<br><b>진단하고, 기준대로 확인하고, 기록하는 것</b><br>— 보이지 않던 과정을 보이게 만듭니다.')
-    h += block('감리의 기준', '마지막에 잘됐는지만 보는 감리가 아닌,<br><b>아파트스퀘어는 아파트 유지보수 전문 감리 파트너입니다.</b><br>진단부터 준공 사후관리까지 곁에서 잇습니다.<br>‘스퀘어’는 <b>기준과 균형</b>을 뜻합니다.')
+    h += block('감리의 기준', '마지막에 잘됐는지만 보는 감리가 아닙니다.<br><b>아파트스퀘어는 아파트 유지보수 전문 감리 파트너입니다.</b><br>진단부터 준공 사후관리까지 곁에서 잇습니다.<br>‘스퀘어’는 <b>기준과 균형</b>을 뜻합니다.')
     // ── 인증·이력(공신력) : 관리자가 올린 인증서 이미지 (없으면 섹션 자체가 숨겨짐) ──
     h += '<div id="cred-section" style="display:none;margin-top:34px;padding:0 16px 20px">'
     h += '<div style="text-align:center;font-size:20px;font-weight:800;color:#1c2440;margin-bottom:14px">인증·이력</div>'
@@ -2681,9 +2681,7 @@ const ALIM = {
   },
   // 서비스 = 대표 상품 3종 + 대상 공종
   features() {
-    const pkg = (ic, bg, name, tag, items) => alimCard(
-      '<div style="display:flex;align-items:center;gap:11px;margin-bottom:10px"><div style="width:44px;height:44px;border-radius:12px;background:' + bg + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px">' + ic + '</div><div><div style="font-size:14.5px;font-weight:800;color:#1c2440">' + name + '</div><div style="font-size:10.5px;font-weight:800;color:#2F6BF6;margin-top:2px">' + tag + '</div></div></div>'
-      + '<div style="display:flex;flex-direction:column;gap:6px">' + items.map(t => '<div style="display:flex;gap:7px;font-size:11.5px;color:#3a445e;font-weight:600;line-height:1.5"><span style="color:#2F6BF6;flex-shrink:0">✓</span><span>' + t + '</span></div>').join('') + '</div>', '15px 15px')
+    const wb = 'word-break:keep-all;'
     let h = navyHero('SERVICE', '진단 · 설계 · 시공감리 · 준공까지<br>전 과정을 함께합니다')
     h += '<div style="padding:16px 14px 2px"><div data-nav="s17" style="cursor:pointer;background:linear-gradient(150deg,#2455c0,#2F6BF6);border-radius:16px;padding:18px 17px;color:#fff;position:relative;overflow:hidden"><div style="position:absolute;top:-20px;right:-20px;width:110px;height:110px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)"></div><div style="position:relative"><div style="display:inline-block;font-size:10px;font-weight:800;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:99px">아파트스퀘어 대표 기술</div><div style="font-size:17px;font-weight:800;margin-top:9px">🚁 드론 AI 하자진단</div><div style="font-size:11.5px;color:#dbe6ff;font-weight:600;line-height:1.7;margin-top:7px">사람이 오르기 어려운 <b>외벽·옥상을 드론으로 정밀 촬영</b>하고, <b>누적 50만 세대 감리데이터를 학습한 AI</b>가 균열·들뜸·누수 흔적을 분석해요. 더 정확하고 안전하게 진단합니다.</div><div style="font-size:11px;font-weight:800;color:#fff;margin-top:11px;display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.16);padding:6px 12px;border-radius:99px">자세히 보기 ›</div></div></div></div>'
     // 공사 전/중/후 6서비스 (홈페이지 서비스 구성과 동일)

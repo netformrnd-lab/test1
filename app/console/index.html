@@ -3304,13 +3304,14 @@ function openNoticeAdd(){
   openModal(mHead('➕ 공지 등록')+`
     <div class="fld"><label>대상 단지</label><select id="m-apt"><option value="">전체(모든 단지)</option>${sorted.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>
     <div class="fld"><label>제목 *</label><input id="m-title" placeholder="공지 제목"></div>
-    <div class="fld"><label>내용</label><textarea id="m-body"></textarea></div>
+    <div class="fld"><label>내용 <span style="font-weight:600;color:var(--mut)">— **굵게** 로 감싸면 볼드</span></label><textarea id="m-body"></textarea></div>
+    <div class="fld"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600"><input type="checkbox" id="m-popup" style="width:16px;height:16px"> 📢 입주민 앱 열 때 팝업으로 띄우기</label></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitNoticeAdd()">등록</button></div>`);
 }
 async function submitNoticeAdd(){
   const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const row={title,body:$('m-body').value.trim()||null}; const apt=$('m-apt').value; if(apt)row.apartment_id=apt;
+  const row={title,body:$('m-body').value.trim()||null,popup:!!($('m-popup')&&$('m-popup').checked)}; const apt=$('m-apt').value; if(apt)row.apartment_id=apt;
   const {error}=await sb.from('notices').insert(row);
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();
@@ -3319,13 +3320,14 @@ function openNoticeEdit(id){
   const n=NOTICES.find(x=>x.id===id); if(!n)return;
   openModal(mHead('📢 공지 편집')+`
     <div class="fld"><label>제목 *</label><input id="m-title" value="${esc(n.title)||''}"></div>
-    <div class="fld"><label>내용</label><textarea id="m-body" style="min-height:140px">${esc(n.body)||''}</textarea></div>
+    <div class="fld"><label>내용 <span style="font-weight:600;color:var(--mut)">— **굵게** 로 감싸면 볼드</span></label><textarea id="m-body" style="min-height:140px">${esc(n.body)||''}</textarea></div>
+    <div class="fld"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600"><input type="checkbox" id="m-popup" ${n.popup?'checked':''} style="width:16px;height:16px"> 📢 입주민 앱 열 때 팝업으로 띄우기</label></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b red" onclick="deleteNotice('${n.id}')">삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitNoticeEdit('${n.id}')">저장</button></div>`);
 }
 async function submitNoticeEdit(id){
   const title=$('m-title').value.trim(); if(!title){$('m-msg').textContent='제목을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const {error}=await sb.from('notices').update({title,body:$('m-body').value.trim()||null}).eq('id',id);
+  const {error}=await sb.from('notices').update({title,body:$('m-body').value.trim()||null,popup:!!($('m-popup')&&$('m-popup').checked)}).eq('id',id);
   if(error){$('m-msg').textContent='오류: '+error.message;$('m-msg').style.color='var(--red)';return;}
   closeModal(); await loadAll();
 }

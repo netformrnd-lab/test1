@@ -37,6 +37,19 @@ jobs:
             fs.writeFileSync("capacitor.config.json",JSON.stringify(c,null,2));
           '
           BASE=com.imweb.appS202408051a19f7159fdc6_9cfb6b4e8f3d0
+          # google-services.json 에 .test 패키지 클라이언트 추가(없으면 processReleaseGoogleServices 실패)
+          node -e '
+            const fs=require("fs"); const p="android/app/google-services.json";
+            const g=JSON.parse(fs.readFileSync(p,"utf8"));
+            const base=g.client[0];
+            const pkg=base.client_info.android_client_info.package_name;
+            if(!g.client.some(c=>c.client_info.android_client_info.package_name===pkg+".test")){
+              const copy=JSON.parse(JSON.stringify(base));
+              copy.client_info.android_client_info.package_name=pkg+".test";
+              g.client.push(copy);
+              fs.writeFileSync(p,JSON.stringify(g,null,2));
+            }
+          '
           sed -i "s/applicationId \"$BASE\"/applicationId \"$BASE.test\"/" android/app/build.gradle
           sed -i "s#<string name=\"app_name\">아파트스퀘어</string>#<string name=\"app_name\">아파트스퀘어 (테스트)</string>#" android/app/src/main/res/values/strings.xml
           sed -i "s#<string name=\"title_activity_main\">아파트스퀘어</string>#<string name=\"title_activity_main\">아파트스퀘어 (테스트)</string>#" android/app/src/main/res/values/strings.xml

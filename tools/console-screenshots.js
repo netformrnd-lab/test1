@@ -15,6 +15,8 @@ const SHOTS = [
   { name: '04-공사관리-칸반', go: 'projects', run: "projView='kanban';projStage='전체';renderProjList()" },
   { name: '05-공사관리-카드', go: 'projects', run: "if(typeof setProjView==='function'){projStage='전체';setProjView('cards')}", optional: true },
   { name: '06-단지상세', go: 'projects', run: "openProj('a2')" },
+  { name: '06b-단지상세-작업사진', go: 'projects', run: "openProj('a2');setProjTab('photo')" },
+  { name: '12-안내문구', go: 'notices', run: "openNoticesFor('a2','착공서류 요청')" },
   { name: '07-캘린더', go: 'calendar', run: "renderCalendar();renderAssignTable()" },
   { name: '08-회원', go: 'members' }, { name: '09-영업', go: 'sales' }, { name: '10-고객관리', go: 'orgs' }, { name: '11-활동기록', go: 'history' }
 ]

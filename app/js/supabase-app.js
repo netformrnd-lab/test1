@@ -169,6 +169,7 @@ async function loadResidentHome() {
   loadResidentNotices()
   loadRegionActivity()
   const apt = await getResidentApt()
+  try { maybeShowNoticePopup(apt ? apt.id : null) } catch (e) {}
   if (!apt) {
     RES_APT = null
     const nm = document.getElementById('res-apt-name'); if (nm) nm.textContent = '배정된 단지가 없어요'
@@ -725,6 +726,42 @@ async function openNoticeList() {
   }).join('')
 }
 window.openNoticeList = openNoticeList
+// ── 공지 팝업 (관리자가 '팝업' 지정한 공지를 앱 열 때 1회 모달) ──
+let NOTICE_POPUP_DONE = false
+async function maybeShowNoticePopup(aptId) {
+  if (NOTICE_POPUP_DONE) return
+  NOTICE_POPUP_DONE = true
+  try {
+    const { data } = await sb.from('notices').select('*').eq('popup', true).order('created_at', { ascending: false }).limit(8)
+    if (!data || !data.length) return
+    const n = data.find(x => (!x.apartment_id || x.apartment_id === aptId))
+    if (!n) return
+    let dismissed = []; try { dismissed = JSON.parse(localStorage.getItem('asq-popup-dismiss') || '[]') } catch (e) {}
+    if (dismissed.indexOf(n.id) >= 0) return
+    showNoticePopup(n)
+  } catch (e) {}
+}
+function showNoticePopup(n) {
+  if (document.getElementById('notice-popup')) return
+  const bodyHtml = escH(n.body || '').replace(/\n/g, '<br>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+  const ov = document.createElement('div'); ov.id = 'notice-popup'
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(10,16,34,.55);display:flex;align-items:center;justify-content:center;padding:22px'
+  ov.innerHTML = '<div style="background:#fff;border-radius:18px;max-width:360px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px -12px rgba(10,16,34,.5)">'
+    + '<div style="background:linear-gradient(150deg,#243768,#1F2C5C);color:#fff;padding:16px 18px"><div style="font-size:10px;font-weight:800;color:#9dc0ff;letter-spacing:1px">📢 공지</div><div style="font-size:15px;font-weight:800;margin-top:5px;word-break:keep-all;line-height:1.4">' + escH(n.title) + '</div></div>'
+    + '<div style="padding:16px 18px;overflow-y:auto;font-size:12.5px;color:#404a63;font-weight:500;line-height:1.75;word-break:keep-all">' + bodyHtml + '</div>'
+    + '<div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid #eef1f7">'
+    + '<button id="np-never" style="flex:1;background:#eef2f8;color:#5c6580;border:none;border-radius:11px;padding:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">다시 안 보기</button>'
+    + '<button id="np-close" style="flex:1;background:#2F6BF6;color:#fff;border:none;border-radius:11px;padding:12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">닫기</button>'
+    + '</div></div>'
+  document.body.appendChild(ov)
+  const close = () => { try { ov.remove() } catch (e) {} }
+  ov.addEventListener('click', (e) => { if (e.target === ov) close() })
+  document.getElementById('np-close').onclick = close
+  document.getElementById('np-never').onclick = () => {
+    try { let d = JSON.parse(localStorage.getItem('asq-popup-dismiss') || '[]'); if (d.indexOf(n.id) < 0) d.push(n.id); localStorage.setItem('asq-popup-dismiss', JSON.stringify(d)) } catch (e) {}
+    close()
+  }
+}
 
 /* ===== 공사 완료 후 만족도 조사 ===== */
 const SURVEY_ITEMS = [

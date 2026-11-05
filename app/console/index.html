@@ -1257,7 +1257,17 @@ function siteHasDays(a){ return String((ownAsg(a).visitDay)||'').split('·').fil
 function needPlaceList(){ return APTS.filter(isInProg).filter(a=>!aptAuditors(a).length || !siteHasDays(a)).sort((p,q)=>{ const pa=aptAuditors(p).length?1:0, qa=aptAuditors(q).length?1:0; return pa-qa || (p.name||'').localeCompare(q.name||'','ko'); }); }
 function placeReasonPills(a){ const out=[]; if(!aptAuditors(a).length)out.push('<span class="pill no">담당 미배정</span>'); if(!siteHasDays(a))out.push('<span class="pill" style="background:#fff4e2;color:#b8710a">요일 미지정</span>'); return out.join(' '); }
 // 방문 배치표 원본(control_sites)에만 있고 단지(공사관리)로는 등록 안 된 현장
-function unregisteredPlanSites(){ const have=new Set(APTS.map(a=>csSlug(a.name))); return Object.keys(CSITES).filter(slug=>!have.has(slug)).map(slug=>{ const d=CSITES[slug]||{}; return {slug,name:d._name||slug,d}; }).filter(x=>x.d&&(x.d.visitDay||x.d.cycle||x.d.mgr||x.d.own)); }
+function unregisteredPlanSites(){ const have=new Set(APTS.map(a=>csSlug(a.name))); return Object.keys(CSITES).filter(slug=>!have.has(slug)).map(slug=>{ const d=CSITES[slug]||{}; return {slug,name:d._name||slug,d}; }).filter(x=>x.d&&!x.d.ignored&&(x.d.visitDay||x.d.cycle||x.d.mgr||x.d.own)); }
+/* 배치표 원본(control_sites)에만 있는 항목 정리 창: 단지 등록 또는 무시(콘솔 설정값에만 기록, 앱 무관) */
+async function ignoreUnregSite(slug){ const d={...(CSITES[slug]||{}),ignored:true}; CSITES[slug]=d; renderDash(); openUnregList();
+  const {error}=await sb.from('control_sites').update({data:d,updated_at:new Date().toISOString()}).eq('slug',slug); if(error)alert('저장 실패: '+error.message); }
+async function unignoreAllUnreg(){ const slugs=Object.keys(CSITES).filter(k=>CSITES[k]&&CSITES[k].ignored); for(const k of slugs){ const d={...CSITES[k]}; delete d.ignored; CSITES[k]=d; try{ await sb.from('control_sites').update({data:d,updated_at:new Date().toISOString()}).eq('slug',k); }catch(e){} } renderDash(); openUnregList(); }
+function openUnregList(){ const list=unregisteredPlanSites(); const ignored=Object.keys(CSITES).filter(k=>CSITES[k]&&CSITED_IGN(k)).length;
+  openModal(mHead(`배치표 원본에만 있는 항목 <span style="color:var(--blue)">${list.length}</span>`)+`
+    <div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:12px">방문 배치 설정 표(control_sites)에는 있는데 공사관리 단지와 이름이 맞지 않는 항목이에요. 옛 운영 시트를 가져오며 생긴 것이 대부분이라, 실제 현장이면 <b>단지 등록</b>, 아니면 <b>무시</b>를 누르세요. 무시한 항목은 다시 뜨지 않아요.</div>
+    ${list.length?`<div style="max-height:60vh;overflow:auto"><table><tbody>${list.map(x=>`<tr><td style="font-weight:700">${esc(x.name)}<div style="font-size:11px;color:var(--mut);font-weight:500">${[x.d.mgr?'담당 '+esc(x.d.mgr):'',x.d.cycle?esc(x.d.cycle):'',x.d.visitDay?esc(x.d.visitDay):''].filter(Boolean).join(' · ')||'설정값 없음'}</div></td><td style="text-align:right;white-space:nowrap"><button class="b line sm" onclick="closeModal();openAptAdd({name:'${esc(x.name).replace(/'/g,'&#39;')}'})">단지 등록</button> <button class="b line sm" style="color:var(--mut2)" onclick="ignoreUnregSite('${esc(x.slug).replace(/'/g,'&#39;')}')">무시</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">정리할 항목이 없어요</div>'}
+    <div class="modal-actions">${ignored?`<span class="link" style="font-size:12px;color:var(--mut)" onclick="unignoreAllUnreg()">무시한 ${ignored}개 다시 보기</span><span style="flex:1"></span>`:''}<button class="b line" onclick="closeModal()">닫기</button></div>`,true); }
+function CSITED_IGN(k){ const d=CSITES[k]; if(!d||!d.ignored)return false; const have=new Set(APTS.map(a=>csSlug(a.name))); return !have.has(k); }
 let placeSiteId=null;
 function openPlaceSite(aptId){ placeSiteId=aptId; renderPlaceModal(); }
 function renderPlaceModal(){
@@ -1358,7 +1368,6 @@ function dzRows(){
   const place=needPlaceList(), unreg=unregisteredPlanSites(), newReps=newReportList();
   const rows=[];
   place.forEach(a=>{ const noAud=!aptAuditors(a).length; rows.push({k:'place',hot:noAud,tag:'배치 필요',tagCls:'no',name:a.name,sub:`${a.region||'지역 미입력'} · ${noAud?'담당 미배정':siteMgrName(a)}`,why:noAud?'담당 감리원이 없어요':'방문 요일이 없어 정기 방문이 안 생겨요',act:'바로 배치',go:`openPlaceSite('${a.id}')`}); });
-  unreg.forEach(x=>{ rows.push({k:'place',hot:false,tag:'단지 미등록',tagCls:'violet',name:x.name,sub:'배치표 원본에만 있음',why:'공사관리에 단지로 등록되지 않았어요',act:'단지 등록',go:`openAptAdd({name:'${esc(x.name).replace(/'/g,'&#39;')}'})`}); });
   const byApt={}; newReps.forEach(r=>{ (byApt[r.apartment_id]=byApt[r.apartment_id]||[]).push(r); });
   Object.keys(byApt).forEach(id=>{ const a=APTS.find(x=>x.id===id); if(!a)return; const rs=byApt[id].sort((x,y)=>(y.created_at||'').localeCompare(x.created_at||'')); rows.push({k:'inprog',hot:false,tag:'새 감리일지',tagCls:'blue',name:a.name,sub:`${a.region||''} · ${siteMgrName(a)||'미배정'}`,why:`새 일지 ${rs.length}건 · ${repDateOf(rs[0]).slice(5)} ${repSummary(rs[0])}`,act:'일지 확인',go:`openProj('${a.id}')`}); });
   APTS.filter(a=>stageOf(a)==='준공처리중').forEach(a=>{ rows.push({k:'done',hot:false,tag:'준공',tagCls:'violet',name:a.name,sub:`${a.region||''} · ${siteMgrName(a)||'미배정'}`,why:'준공 확인(준공처리) 단계예요',act:'현장 열기',go:`openProj('${a.id}')`}); });
@@ -1377,7 +1386,7 @@ function renderDash(){
   // 1) 오늘 확인 순서 4단계
   const st=dzGet(); const steps=[
     {t:'아파트스퀘어 이메일 확인',d:'네이버 메일 <b>전체메일함</b>을 확인해요',link:'https://mail.naver.com/v2/folders/-1',btn:'네이버 메일 열기 ↗'},
-    {t:'캘린더 미배정 현장 확인',d:`담당 미배정 <b>${need.length}</b> · 방문 요일 미지정 <b>${dayOnly}</b> · 단지 미등록 <b>${unreg.length}</b>`,go:"go('calendar')",btn:'캘린더 열기'},
+    {t:'캘린더 미배정 현장 확인',d:`담당 미배정 <b>${need.length}</b> · 방문 요일 미지정 <b>${dayOnly}</b>${unreg.length?` · <span class="link" onclick="event.stopPropagation();openUnregList()">원본에만 있는 항목 ${unreg.length}</span>`:''}`,go:"go('calendar')",btn:'캘린더 열기'},
     {t:'진행중인 현장 확인',d:`공사중 <b>${inprog}곳</b> · 새 감리일지 <b>${newReps.length}건</b>`,go:"projStage='공사중';projPage=1;go('projects');renderProjList()",btn:'공사관리 열기'},
     {t:'준공 현장 확인',d:`준공 확인이 필요한 현장 <b>${doneSites.length}곳</b>`,go:"projStage='준공처리중';projPage=1;go('projects');renderProjList()",btn:'준공 현장 보기'}
   ];
@@ -1395,7 +1404,7 @@ function renderDash(){
   $('dashEtc').innerHTML=`<div class="dz-etc">
     <div><span>2일 이상 정체된 영업 딜</span>${PHASEB_OK.sales?`<span class="link" onclick="go('sales')">${stalled.length}건 →</span>`:'<span style="color:var(--mut)">영업 기능 꺼짐</span>'}</div>
     <div><span>승인 대기 회원</span><span class="link" onclick="go('members')">${pend}명 →</span></div>
-    <div><span>배치표에만 있고 미등록 단지</span>${unreg.length?`<span class="link" onclick="openAptAdd({name:'${esc(unreg[0].name).replace(/'/g,'&#39;')}'})">${unreg.length}곳 →</span>`:'<span style="color:var(--mut)">0곳</span>'}</div>
+    <div><span>배치표 원본에만 있는 항목</span>${unreg.length?`<span class="link" onclick="openUnregList()">${unreg.length}개 정리 →</span>`:'<span style="color:var(--mut)">0개</span>'}</div>
     <div><span>진행중 현장</span><span class="link" onclick="openInProgList()">${inprog}곳 →</span></div></div>`;
   // 4) 매출 목표 대비 / 등급 분포 / 히스토리 / 새 감리일지 (기존)
   renderRevenue();

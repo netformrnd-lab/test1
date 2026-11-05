@@ -720,7 +720,7 @@ async function openNoticeList() {
   data.forEach(n => { NOTICES[n.id] = n })
   box.innerHTML = data.map((n) => {
     const d = (n.created_at || '').slice(0, 10).replace(/-/g, '.')
-    const body = (n.body || '').replace(/\s+/g, ' ').trim()
+    const body = (n.body || '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim()
     return `<div data-notice="${n.id}" style="cursor:pointer;background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:13px 14px"><div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:13px;font-weight:800;color:#1c2440;line-height:1.4">${escH(n.title)}</span><span style="font-size:10px;color:#aab2c4;font-weight:700;flex-shrink:0">${d}</span></div>${body ? `<div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:5px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(body)}</div>` : ''}</div>`
   }).join('')
 }
@@ -941,7 +941,7 @@ function openNotice(n) {
   if (!n) return
   const t = document.getElementById('n-title'); if (t) t.textContent = n.title
   const d = document.getElementById('n-date'); if (d) d.textContent = '아파트스퀘어 · ' + ((n.created_at || '').slice(0, 10).replace(/-/g, '.'))
-  const b = document.getElementById('n-body'); if (b) b.innerHTML = escH(n.body || '').replace(/\n/g, '<br>')
+  const b = document.getElementById('n-body'); if (b) b.innerHTML = escH(n.body || '').replace(/\n/g, '<br>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
   window.showScreen('s18')
 }
 

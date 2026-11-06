@@ -2413,7 +2413,7 @@ async function submitAmountConfirm(aptId){ const v=parseInt((($('ca-amt')||{}).v
 function pdReportRow(r){
   const fl=FIELDS.filter(f=>f.source_report_id===r.id); const fph=fl.reduce((n,f)=>n+(Array.isArray(f.photos)?f.photos.length:0),0); const ph=Array.isArray(r.photos)?r.photos.length:0;
   const on=!!r.published; const pubText=on?'입주자앱 공개중':'비공개';
-  const sub=on?(r.pdf_url?`작업사진 ${fph}장 반영됨`:`PDF 없음 → 앱에는 '준비중'으로 보여요`):'공개하면 작업사진으로 넘어가요';
+  const sub=on?(r.pdf_url?`입주민이 일지 PDF를 볼 수 있어요`:`PDF 없음 → 앱에는 '준비중'으로 보여요`):'공개하면 입주자앱에 보여요 · 사진은 작업사진으로 복사되지 않아요';
   return `<div class="pd-rep"><div><div class="ttl">${repRoundBadge(r)}<span class="link" onclick="openReportView('${r.id}')" title="눌러서 내용 보기">${esc(r.title)||'-'}</span></div><div class="meta">${repDateShow(r)}${r.dongs?' · '+esc(r.dongs):''} · 사진 ${ph}장 · ${r.pdf_url?`<a href="${esc(r.pdf_url)}" target="_blank" title="${esc(r.pdf_name||'PDF')}">PDF 보기</a>`:'<span class="no">PDF 없음</span>'}</div></div>
     <div class="pd-sw"><button class="pd-switch ${on?'on':''}" onclick="togglePub('${r.id}',this)" aria-pressed="${on}" aria-label="입주자앱 공개"><span></span></button><div><div class="st ${on?'on':''}">${pubText}</div><div class="sub">${sub}</div></div></div>
     <div class="acts">${ph?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">사진</button>`:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button><button class="b line sm" style="color:var(--red)" onclick="deleteReport('${r.id}')">삭제</button></div></div>`;
@@ -2443,7 +2443,7 @@ function renderProj(){
   const tabs=`<div class="pd-tabs">${[['report','감리일지',reps.length],['photo','작업사진',flds.length],['overview','현장개요',''],['history','히스토리',notes.length]].map(([k,l,c])=>`<button class="${projTab===k?'on':''}" onclick="setProjTab('${k}')">${l}${c!==''?`<span>${c}</span>`:''}</button>`).join('')}</div>`;
   let body='';
   if(projTab==='report'){
-    body=`<div class="pd-note"><span>공개하면 <b>입주자앱</b>에 보이고, 사진은 <b>작업사진</b>으로 자동으로 넘어가요</span><button class="b blue sm" onclick="openReportAdd('${p.id}')">+ 감리일지 추가</button></div>${reps.length?[...reps].sort((a,b)=>repDateKey(b).localeCompare(repDateKey(a))||(b.created_at||'').localeCompare(a.created_at||'')).map(pdReportRow).join(''):'<div class="empty">등록된 감리일지가 없어요</div>'}`;
+    body=`<div class="pd-note"><span>공개하면 <b>입주자앱</b>에 보여요 · 감리일지 사진은 일지에만 남고, <b>작업사진</b>은 시공사 사진을 현장기록으로 직접 올려요</span><button class="b blue sm" onclick="openReportAdd('${p.id}')">+ 감리일지 추가</button></div>${reps.length?[...reps].sort((a,b)=>repDateKey(b).localeCompare(repDateKey(a))||(b.created_at||'').localeCompare(a.created_at||'')).map(pdReportRow).join(''):'<div class="empty">등록된 감리일지가 없어요</div>'}`;
   } else if(projTab==='photo'){
     const hasPh=flds.some(f=>Array.isArray(f.photos)&&f.photos.length);
     body=`<div class="toolbar" style="margin-bottom:12px"><button class="b blue sm" onclick="openFieldAdd('${p.id}')">+ 현장기록 추가</button>${hasPh?`<button class="b line sm" onclick="makeFieldPPT('${p.id}',null,this)">준공 PPT</button><button class="b line sm" onclick="downloadAptAllPhotos('${p.id}',this)">전체 사진 ZIP</button>`:''}<span style="flex:1"></span><div class="pj-view"><button class="${photoView==='card'?'on':''}" onclick="setPhotoView('card')">카드</button><button class="${photoView==='cal'?'on':''}" onclick="setPhotoView('cal')">달력</button></div></div>`

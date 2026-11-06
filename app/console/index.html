@@ -2021,7 +2021,9 @@ function repSummaryCell(aptId){ const reps=latestReps(aptId); if(!reps.length)re
     return `<div class="repsum" title="${full} — 눌러서 일지 보기"><span class="link" onclick="openReportView('${r.id}')">${multi&&wk?esc(wk)+' · ':''}${esc(d)} ${esc(sm)||'(내용 없음)'}</span></div>`; }).join('');
 }
 /* ── 공사관리 리스트/카드 (디자인 개편) — 데이터 출처·저장 함수는 기존 그대로 사용 ── */
-function nextVisitOf(aptId){ const today=isoDate(new Date()); const vs=(SCHEDULES||[]).filter(x=>String(x.apartment_id)===String(aptId)&&String(x.title||'').indexOf(VISIT_MARK)===0&&!x.done_at&&String(x.date||'').slice(0,10)>=today).sort((a,b)=>String(a.date).localeCompare(String(b.date))); return vs[0]||null; }
+// 다음 방문 = 캘린더에서 이 현장의 가장 가까운 앞날 일정: 자동 정기 방문(🔧) + 감리원이 앱에서 직접 등록한 아스퀘(asq) 일정
+function nextVisitOf(aptId){ const today=isoDate(new Date()); const vs=(SCHEDULES||[]).filter(x=>String(x.apartment_id)===String(aptId)&&!x.done_at&&String(x.date||'').slice(0,10)>=today&&(String(x.title||'').indexOf(VISIT_MARK)===0||x.category==='asq')).sort((a,b)=>String(a.date).localeCompare(String(b.date))); return vs[0]||null; }
+function visitWho(nv){ if(!nv)return ''; const n=(nv.assignee_name||'').trim()||(nv.assignee_id?auditorName(nv.assignee_id):''); return (n&&n!=='-')?n:''; }
 function lastReportOf(aptId){ return REPORTS.filter(r=>r.apartment_id===aptId).slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0]||null; }
 function repDateOf(r){ if(!r)return ''; const m=String(r.title||'').match(/(\d{4}-\d{2}-\d{2})/); return m?m[1]:(r.created_at||'').slice(0,10); }
 function fmtMD(d){ if(!d)return ''; const x=new Date(d+'T00:00:00'); if(isNaN(x))return d; return `${d.slice(5,7)}.${d.slice(8,10)} (${WKB[(x.getDay()+6)%7]})`; }
@@ -2088,8 +2090,8 @@ function renderProjRows(list){
     const nrep=REPORTS.filter(r=>r.apartment_id===a.id).length, nnew=aptNewReps(a.id);
     const sf=aptFee(a), out=aptOutstanding(a);
     const outHtml=out==null?'<span style="color:var(--mut)">-</span>':(out<=0?'<span class="pill ok">완납</span>':`<span style="color:var(--red);font-weight:700">${moneyKR(out)}</span>`);
-    const nv=nextVisitOf(a.id); const who=nv&&nv.assignee_id?auditorName(nv.assignee_id):'';
-    const visitHtml=nv?`<div class="pj-visit">${fmtMD(String(nv.date).slice(0,10))}${who&&who!=='-'?`<small>${esc(who)}</small>`:''}</div>`:(a.status==='in_progress'?'<span class="pill no" title="방문 배치표에서 요일을 정하면 자동 생성돼요">요일 미지정</span>':'<span style="color:var(--mut)">-</span>');
+    const nv=nextVisitOf(a.id); const who=visitWho(nv);
+    const visitHtml=nv?`<div class="pj-visit" title="${esc(nv.title||'')}">${fmtMD(String(nv.date).slice(0,10))}${who?`<small>${esc(who)}</small>`:''}</div>`:(a.status==='in_progress'?'<span style="color:var(--mut)" title="캘린더에 이 현장의 앞날 일정이 없어요 · 감리원이 앱에서 일정을 등록하면 여기에 보여요">미정</span>':'<span style="color:var(--mut)">-</span>');
     const lr=lastReportOf(a.id);
     const repHtml=lr?`<div class="pj-rep"><div class="d">${fmtMD(repDateOf(lr)).slice(0,5)}<span class="pill ok">${repRound(lr)}회차</span>${nnew?`<span class="pill red">NEW ${nnew}</span>`:''}<span style="font-size:11px;color:var(--mut);margin-left:5px">${nrep}건</span></div>${repSummaryCell(a.id)}</div>`:'<span style="color:var(--mut)">일지 없음</span>';
     const h=siteHealth(a);

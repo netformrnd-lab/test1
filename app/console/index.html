@@ -1274,9 +1274,12 @@ function siteGrade(aid){ const sc=siteScore(aid); return sc>=20?'상':(sc>=7?'�
 function needAssignList(){ return APTS.filter(a=>a.status==='in_progress' && !aptAuditors(a).length); }   // 감리 진행(공사중) 단지 기준 = '진행중 현장' 타일과 동일
 /* ===== 관제센터: 방문 배치표에 있는데 배치(담당·요일)가 안 된 현장 → 바로 배치 창 ===== */
 function siteHasDays(a){ return String((ownAsg(a).visitDay)||'').split('·').filter(Boolean).length>0; }
-// 배치 필요 = 진행중(완료 아님) 현장 중 담당 미배정 또는 방문 요일 미지정
-function needPlaceList(){ return APTS.filter(isInProg).filter(a=>!aptAuditors(a).length || !siteHasDays(a)).sort((p,q)=>{ const pa=aptAuditors(p).length?1:0, qa=aptAuditors(q).length?1:0; return pa-qa || (p.name||'').localeCompare(q.name||'','ko'); }); }
-function placeReasonPills(a){ const out=[]; if(!aptAuditors(a).length)out.push('<span class="pill no">담당 미배정</span>'); if(!siteHasDays(a))out.push('<span class="pill" style="background:#fff4e2;color:#b8710a">요일 미지정</span>'); return out.join(' '); }
+// 배치 필요 = 진행중(완료 아님) 현장 중 담당 감리원 미배정 (요일 기반 자동 방문은 쓰지 않아 요일은 보지 않음)
+function needPlaceList(){ return APTS.filter(isInProg).filter(a=>!aptAuditors(a).length).sort((p,q)=>(p.name||'').localeCompare(q.name||'','ko')); }
+function placeReasonPills(a){ return aptAuditors(a).length?'':'<span class="pill no">담당 미배정</span>'; }
+// 일정 없음 = 진행중 현장 중 담당은 있는데 캘린더에 앞날 일정(감리원이 앱에서 등록한 아스퀘 일정·자동 방문)이 하나도 없는 현장
+function noVisitList(){ return APTS.filter(isInProg).filter(a=>aptAuditors(a).length && !nextVisitOf(a.id)).sort((p,q)=>(p.name||'').localeCompare(q.name||'','ko')); }
+function openScheduleAddFor(aptId){ openScheduleAdd(); setTimeout(()=>{ const el=$('sm-apt'); if(el){ el.value=aptId; try{onSchedAptChange();}catch(e){} } },0); }
 // 방문 배치표 원본(control_sites)에만 있고 단지(공사관리)로는 등록 안 된 현장
 function unregisteredPlanSites(){ const have=new Set(APTS.map(a=>csSlug(a.name))); return Object.keys(CSITES).filter(slug=>!have.has(slug)).map(slug=>{ const d=CSITES[slug]||{}; return {slug,name:d._name||slug,d}; }).filter(x=>x.d&&!x.d.ignored&&(x.d.visitDay||x.d.cycle||x.d.mgr||x.d.own)); }
 /* 배치표 원본(control_sites)에만 있는 항목 정리 창: 단지 등록 또는 무시(콘솔 설정값에만 기록, 앱 무관) */
@@ -1386,9 +1389,10 @@ function dzToggle(i){ const o=dzGet(); o[i]=!o[i]; dzSet(o); if(o[i]){ const map
 function dzReset(){ dzSet({}); dashTab='all'; renderDash(); }
 function setDashTab(t){ dashTab=t; renderDash(); }
 function dzRows(){
-  const place=needPlaceList(), unreg=unregisteredPlanSites(), newReps=newReportList();
+  const place=needPlaceList(), noVisit=noVisitList(), unreg=unregisteredPlanSites(), newReps=newReportList();
   const rows=[];
-  place.forEach(a=>{ const noAud=!aptAuditors(a).length; rows.push({k:'place',hot:noAud,tag:'배치 필요',tagCls:'no',name:a.name,sub:`${a.region||'지역 미입력'} · ${noAud?'담당 미배정':siteMgrName(a)}`,why:noAud?'담당 감리원이 없어요':'방문 요일이 없어 정기 방문이 안 생겨요',act:'바로 배치',go:`openPlaceSite('${a.id}')`}); });
+  place.forEach(a=>{ rows.push({k:'place',hot:true,tag:'담당 미배정',tagCls:'no',name:a.name,sub:`${a.region||'지역 미입력'} · 담당 미배정`,why:'담당 감리원이 없어요',act:'바로 배치',go:`openPlaceSite('${a.id}')`}); });
+  noVisit.forEach(a=>{ rows.push({k:'visit',hot:false,tag:'일정 없음',tagCls:'no',name:a.name,sub:`${a.region||'지역 미입력'} · ${siteMgrName(a)}`,why:'캘린더에 앞날 방문 일정이 없어요 · 감리원이 앱에서 등록하거나 여기서 추가',act:'일정 추가',go:`openScheduleAddFor('${a.id}')`}); });
   const byApt={}; newReps.forEach(r=>{ (byApt[r.apartment_id]=byApt[r.apartment_id]||[]).push(r); });
   Object.keys(byApt).forEach(id=>{ const a=APTS.find(x=>x.id===id); if(!a)return; const rs=byApt[id].sort((x,y)=>(y.created_at||'').localeCompare(x.created_at||'')); rows.push({k:'inprog',hot:false,tag:'새 감리일지',tagCls:'blue',name:a.name,sub:`${a.region||''} · ${siteMgrName(a)||'미배정'}`,why:`새 일지 ${rs.length}건 · ${repDateOf(rs[0]).slice(5)} ${repSummary(rs[0])}`,act:'일지 확인',go:`openProj('${a.id}')`}); });
   APTS.filter(a=>stageOf(a)==='준공처리중').forEach(a=>{ rows.push({k:'done',hot:false,tag:'준공',tagCls:'violet',name:a.name,sub:`${a.region||''} · ${siteMgrName(a)||'미배정'}`,why:'준공 확인(준공처리) 단계예요',act:'현장 열기',go:`openProj('${a.id}')`}); });
@@ -1403,11 +1407,11 @@ function renderDash(){
   const stalled=stalledDeals();
   const newReps=newReportList().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
   const doneSites=APTS.filter(a=>stageOf(a)==='준공처리중');
-  const dayOnly=place.length-need.length;
+  const noVisit=noVisitList();
   // 1) 오늘 확인 순서 4단계
   const st=dzGet(); const steps=[
     {t:'아파트스퀘어 이메일 확인',d:'네이버 메일 <b>전체메일함</b>을 확인해요',link:'https://mail.naver.com/v2/folders/-1',btn:'네이버 메일 열기 ↗'},
-    {t:'캘린더 미배정 현장 확인',d:`담당 미배정 <b>${need.length}</b> · 방문 요일 미지정 <b>${dayOnly}</b>${unreg.length?` · <span class="link" onclick="event.stopPropagation();openUnregList()">원본에만 있는 항목 ${unreg.length}</span>`:''}`,go:"go('calendar')",btn:'캘린더 열기'},
+    {t:'캘린더 미배정 현장 확인',d:`담당 미배정 <b>${need.length}</b> · 앞날 일정 없음 <b>${noVisit.length}</b>${unreg.length?` · <span class="link" onclick="event.stopPropagation();openUnregList()">원본에만 있는 항목 ${unreg.length}</span>`:''}`,go:"go('calendar')",btn:'캘린더 열기'},
     {t:'진행중인 현장 확인',d:`공사중 <b>${inprog}곳</b> · 새 감리일지 <b>${newReps.length}건</b>`,go:"projStage='공사중';projPage=1;go('projects');renderProjList()",btn:'공사관리 열기'},
     {t:'준공 현장 확인',d:`준공 확인이 필요한 현장 <b>${doneSites.length}곳</b>`,go:"projStage='준공처리중';projPage=1;go('projects');renderProjList()",btn:'준공 현장 보기'}
   ];
@@ -1417,7 +1421,7 @@ function renderDash(){
     <div class="dz-steps">${steps.map((x,i)=>`<div class="dz-step ${st[i]?'done':(i===curIdx?'cur':'')}"><div class="t"><span class="num">${st[i]?'✓':i+1}</span>${x.t}</div><div class="d">${x.d}</div><div class="acts">${x.link?`<a class="b line" href="${x.link}" target="_blank" rel="noopener">${x.btn}</a>`:`<button class="b line" onclick="${x.go.replace(/"/g,'&quot;')}">${x.btn}</button>`}<button class="chk ${st[i]?'on':''}" onclick="dzToggle(${i})">${st[i]?'✓ 완료':'확인 완료'}</button></div></div>`).join('')}</div>`;
   // 2) 확인할 현장 목록
   const rows=dzRows(); const cnt=k=>k==='all'?rows.length:rows.filter(r=>r.k===k).length;
-  const tabs=[['all','전체'],['place','배치 필요'],['inprog','진행중'],['done','준공']];
+  const tabs=[['all','전체'],['place','담당 미배정'],['visit','일정 없음'],['inprog','진행중'],['done','준공']];
   $('dashListTabs').innerHTML=tabs.map(([k,l])=>`<button class="${dashTab===k?'on':''}" onclick="setDashTab('${k}')">${l} ${cnt(k)}</button>`).join('');
   const shown=dashTab==='all'?rows:rows.filter(r=>r.k===dashTab); $('dashListCnt').textContent=rows.length;
   $('dashList').innerHTML=shown.length?shown.map(r=>`<div class="dz-row" onclick="${r.go}"><span class="dot ${r.hot?'hot':''}"></span><div style="min-width:0;flex:1.2"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span class="tag pill ${r.tagCls}">${r.tag}</span><span class="nm">${esc(r.name)}</span></div><div class="sub">${esc(r.sub)}</div></div><div class="why">${esc(r.why)}</div><button class="b line" onclick="event.stopPropagation();${r.go}">${r.act}</button></div>`).join(''):'<div class="empty">지금 확인할 현장이 없어요</div>';

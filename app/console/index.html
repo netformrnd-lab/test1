@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="../js/stages.js"></script>
 <style>
 :root{
   --bg:#ffffff;--panel:#ffffff;--line:#E6E8EE;--line2:#F0F1F4;--soft:#F8F9FB;
@@ -1897,9 +1898,15 @@ function scChip(c){ return (+c.seq>1?c.seq+'차 ':'1차 ')+(scMethods(c).map(met
 function aptWorkName(a){ const c=scOn()?activeContract(a):null; return (c&&c.title)||a.work_name||''; }
 // 기존 현장 → 현재 값으로 1차 건 자동 생성 (표가 있고 아직 건이 없는 현장만)
 async function ensureContractsForApts(){
-  if(!scOn()||SC_MATED)return; SC_MATED=true;
+  if(!scOn()||SC_MATED)return;
+  if(!window.STAGE_SETS||!Object.keys(window.STAGE_SETS).length){ console.warn('공법 표(stages.js)가 아직 없어 계약 건 자동 생성을 미룸'); return; }   // 공법 없이 만들면 '공법 미지정' 건이 생김
+  SC_MATED=true;
   const have=new Set(SCONTRACTS.map(c=>c.apartment_id));
-  const rows=APTS.filter(a=>!have.has(a.id)).map(a=>{ const d=csData(a)||{}; const sel=siteMethodsLegacy(a); const prog={}; sel.forEach(m=>{ prog[m]=methodProgressLegacy(a,m).cur; }); const st=stageOfLegacy(a);
+  const rows=APTS.filter(a=>!have.has(a.id)).map(a=>{ const d=csData(a)||{};
+    // 원본 그대로: control_sites.methods ∪ 대표 공법(apartments.method) · 공정 = control_sites.progress[m], 없으면 대표 공법은 apartments.progress_current
+    const sel=(Array.isArray(d.methods)?d.methods:[]).filter(Boolean).slice(); if(a.method&&!sel.includes(a.method))sel.unshift(a.method);
+    const pm=(d.progress&&typeof d.progress==='object')?d.progress:{}; const prog={}; sel.forEach(m=>{ const v=(pm[m]!=null)?+pm[m]:(m===a.method?(+a.progress_current||0):0); prog[m]=isNaN(v)?0:v; });
+    const st=stageOfLegacy(a);
     return { apartment_id:a.id, seq:1, title:a.work_name||null, methods:sel, progress:prog, stage:st, stage_at:d.stageAt||a.created_at||new Date().toISOString(), contract_date:(a.created_at||'').slice(0,10)||null, done_date:(st==='준공'&&d.stageAt)?String(d.stageAt).slice(0,10):null,
       contract_amount:(a.contract_amount!=null?a.contract_amount:(a.supervision_fee!=null?a.supervision_fee:null)), received_amount:(a.received_amount!=null?a.received_amount:null), pay_ratio:(d.payRatio||null), checklist:(a.checklist&&typeof a.checklist==='object')?a.checklist:{} }; });
   if(!rows.length)return;
@@ -5080,6 +5087,5 @@ async function submitDocEdit(id){
   closeModal(); await loadAll();
 }
 </script>
-<script src="../js/stages.js"></script>
 </body>
 </html>

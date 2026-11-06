@@ -34,6 +34,12 @@ const SHOTS = [
     if (!window.STAGE_SETS) { try { eval(stagesSrc) } catch (e) {} }
     Object.assign(window, mock); Object.keys(mock).forEach(k => { try { eval(k + '=window["' + k + '"]') } catch (e) {} })
     try { PHASEB_OK = { sales: true, roadmap: true, docs: true, csites: true } } catch (e) {}
+    // 계약 건 구조(2026-11-06~)가 있는 콘솔이면: 현장마다 1차 건 + 대전 파밀리에(a2)에 준공된 1차 이력 건을 목으로 만들어 화면에 보이게
+    try { if (typeof SCONTRACTS !== 'undefined' && typeof siteMethodsLegacy === 'function') { PHASEB_OK.scontracts = true; SCONTRACTS = []
+      APTS.forEach(a => { const d = csData(a) || {}; const sel = siteMethodsLegacy(a); const prog = {}; sel.forEach(m => { prog[m] = methodProgressLegacy(a, m).cur }); const st = stageOfLegacy(a)
+        SCONTRACTS.push({ id: 'c-' + a.id, apartment_id: a.id, seq: 1, title: null, methods: sel, progress: prog, stage: st, stage_at: d.stageAt || a.created_at, contract_date: (a.created_at || '').slice(0, 10), start_date: st === '계약' ? null : '2026-09-01', done_date: st === '준공' ? '2026-10-20' : null, contract_amount: a.contract_amount != null ? a.contract_amount : a.supervision_fee, received_amount: a.received_amount, pay_ratio: d.payRatio || null, checklist: a.checklist || {} }) })
+      const c2 = SCONTRACTS.find(c => c.apartment_id === 'a2'); if (c2) { c2.seq = 2; c2.title = '옥상 방수 추가공사'; SCONTRACTS.push({ id: 'c-a2-1', apartment_id: 'a2', seq: 1, title: '외벽 재도장 공사', methods: ['repaint'], progress: { repaint: 6 }, stage: '준공', stage_at: '2026-05-30', contract_date: '2026-02-10', start_date: '2026-03-02', done_date: '2026-05-30', contract_amount: 30000000, received_amount: 30000000, checklist: {} }) }
+    } } catch (e) { console.warn('mock contracts', e.message) }
     document.getElementById('login').style.display = 'none'; document.getElementById('app').style.display = ''
     try { renderAll() } catch (e) { console.warn('renderAll', e.message) }
   }, { mock, stagesSrc })

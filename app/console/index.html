@@ -700,7 +700,7 @@ const lsDel=(k)=>{try{localStorage.removeItem(k);}catch(e){}};
 const loginId=(m)=>m.username||dispId(m.email)||'';
 const realEmail=(m)=>{const e=(m.email||'');return e.endsWith('@aptsquare.app')?'':e;};
 
-let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={},AREQS=[];
+let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],SPECS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={},AREQS=[];
 // 단지별 '대기중(pending)' 배정 요청 찾기
 function pendingReq(aptId){ return AREQS.find(r=>r.apartment_id===aptId && r.status==='pending'); }
 let SALES=[],ROADMAP=[],DOCS=[],SITE_NOTES=[],VIEWS={},CSITES={},PHASEB_OK={sales:false,roadmap:false,docs:false,csites:false,templates:false};
@@ -823,6 +823,7 @@ async function loadAll(){
   try{ const {data:sl,error}=await sb.from('sales_leads').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); SALES=sl||[]; PHASEB_OK.sales=!error; }catch(e){ SALES=[]; PHASEB_OK.sales=false; }
   try{ const {data:rm,error}=await sb.from('roadmap_items').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); ROADMAP=rm||[]; PHASEB_OK.roadmap=!error; }catch(e){ ROADMAP=[]; PHASEB_OK.roadmap=false; }
   try{ const {data:dc,error}=await sb.from('doc_files').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); DOCS=dc||[]; PHASEB_OK.docs=!error; }catch(e){ DOCS=[]; PHASEB_OK.docs=false; }
+  try{ const {data:sp}=await sb.from('specs').select('*').order('created_at',{ascending:false}); SPECS=sp||[]; }catch(e){ SPECS=[]; }
   try{ const {data:sn}=await sb.from('site_notes').select('*').order('created_at',{ascending:false}); SITE_NOTES=sn||[]; }catch(e){ SITE_NOTES=[]; }
   try{ const {data:bc,error}=await sb.from('business_cards').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); CARDS=bc||[]; PHASEB_OK.cards=!error; }catch(e){ CARDS=[]; PHASEB_OK.cards=false; }
   try{ const {data:ev}=await sb.from('app_events').select('apartment_id'); VIEWS={}; (ev||[]).forEach(e=>{ if(e.apartment_id)VIEWS[e.apartment_id]=(VIEWS[e.apartment_id]||0)+1; }); }catch(e){ VIEWS={}; }
@@ -953,7 +954,7 @@ function go(s){
 }
 
 /* ===== 휴지통: 삭제 시 스냅샷 보관 → 복구/영구삭제 ===== */
-const TRASH_LBL={reports:'감리일지',field_updates:'현장기록',apartments:'단지',notices:'공지',cases:'사례',site_notes:'현장메모',doc_files:'자료',roadmap_items:'로드맵',sales_leads:'영업',schedules:'일정',contracts:'계약서',profiles:'회원'};
+const TRASH_LBL={reports:'감리일지',field_updates:'현장기록',apartments:'단지',notices:'공지',cases:'사례',site_notes:'현장메모',doc_files:'자료',roadmap_items:'로드맵',sales_leads:'영업',schedules:'일정',contracts:'계약서',specs:'시방서',profiles:'회원'};
 // 원본 행을 통째로 trash 에 담고 원본은 삭제 (쿼리 필터 불필요 — 원본에서 사라짐)
 async function trashRow(table,id,label){
   const {data,error}=await sb.from(table).select('*').eq('id',id).single();
@@ -965,7 +966,7 @@ async function trashRow(table,id,label){
   if(del.error){ try{ await sb.from('trash').delete().eq('src_table',table).eq('src_id',id); }catch(e){} throw new Error(del.error.message); }
 }
 // 단지 + 연쇄 자식(동/감리일지/현장기록/일정/계약/만족도/소장작성지 + 연결 영업딜)을 통째로 휴지통에 보관 후 삭제
-const APT_CHILD_TABLES=['dong_progress','field_updates','reports','schedules','contracts','surveys','manager_forms'];
+const APT_CHILD_TABLES=['dong_progress','field_updates','reports','schedules','contracts','specs','surveys','manager_forms'];
 async function trashApt(id){
   const {data:apt}=await sb.from('apartments').select('*').eq('id',id).single();
   if(!apt) throw new Error('단지를 찾지 못했어요');
@@ -2270,6 +2271,7 @@ function renderProj(){
   const reps=REPORTS.filter(r=>r.apartment_id===p.id);
   const flds=FIELDS.filter(f=>f.apartment_id===p.id);
   const cons=CONTRACTS.filter(c=>c.apartment_id===p.id);
+  const specsList=(typeof SPECS!=='undefined'?SPECS:[]).filter(s=>s.apartment_id===p.id);
   const notes=SITE_NOTES.filter(n=>n.apartment_id===p.id);
   const ci=checkInfo(p); const ck=aptChecklist(p); const m=stageMeta(stageOf(p));
   // ── 왼쪽: 체크리스트 ──
@@ -2278,7 +2280,9 @@ function renderProj(){
   const left=`<div class="pd-card pd-ck">${CHECK_GROUPS.map(g=>{ const gd=g.items.filter((_,i)=>ck[g.k+'-'+i]).length; const all=gd===g.items.length;
     return `<div class="g"><div class="gh"><b>${g.title}</b>${g.note?`<span class="note">${g.note}</span>`:''}<span class="cnt ${all?'all':''}">${gd}/${g.items.length}</span></div>${ckRows(g).map(r=>{ if(r.type==='item') return itemBtn(g,r.i,false);
       const b=g.bundles[r.id]; const bd=r.members.filter(i=>ck[g.k+'-'+i]).length; const ball=bd===r.members.length, bsome=bd>0&&!ball; const bnext=ci.next&&r.members.some(i=>ci.next.key===g.k+'-'+i);
-      return `<button class="it bundle ${ball?'done':''} ${bsome?'part':''} ${bnext?'next':''}" onclick="toggleCheckBundle('${p.id}','${g.k}','${r.id}')" title="${ball?'누르면 아래 서류 전부 해제':'누르면 아래 서류 전부 체크'}"><span class="bx">${ball?'✓':(bsome?'–':'')}</span><span style="flex:1;min-width:0"><span class="lb">${esc(b.label)}</span>${b.hint?`<span class="hint">${esc(b.hint)}</span>`:''}</span><span class="bcnt">${bd}/${r.members.length}</span></button>`+r.members.map(i=>itemBtn(g,i,true)).join(''); }).join('')}</div>`; }).join('')}<div class="foot">항목을 누르면 체크 / 체크 해제돼요 · 팀 전체에 같이 보여요</div></div>`;
+      return `<button class="it bundle ${ball?'done':''} ${bsome?'part':''} ${bnext?'next':''}" onclick="toggleCheckBundle('${p.id}','${g.k}','${r.id}')" title="${ball?'누르면 아래 서류 전부 해제':'누르면 아래 서류 전부 체크'}"><span class="bx">${ball?'✓':(bsome?'–':'')}</span><span style="flex:1;min-width:0"><span class="lb">${esc(b.label)}</span>${b.hint?`<span class="hint">${esc(b.hint)}</span>`:''}</span><span class="bcnt">${bd}/${r.members.length}</span></button>`+r.members.map(i=>itemBtn(g,i,true)).join(''); }).join('')}</div>`; }).join('')}<div class="foot">항목을 누르면 체크 / 체크 해제돼요 · 팀 전체에 같이 보여요</div></div><div class="pd-card pd-memo"><div class="pd-ct"><h3>내부 메모</h3><span style="font-size:11px;color:var(--mut)">운영자만 보여요 · 앱에는 안 나가요</span></div>
+      <textarea id="im-text" placeholder="예: 관리소장님 성향, 결제 지연 이력, 다음 미팅 때 꺼낼 이야기 등 내부용 메모">${esc((csData(p)||{}).internalMemo||'')}</textarea>
+      <div class="mf"><span id="im-meta">${(csData(p)||{}).internalMemoAt?`${String(csData(p).internalMemoAt).slice(0,10)}${csData(p).internalMemoBy?' · '+esc(csData(p).internalMemoBy):''} 저장`:'아직 메모 없음'}</span><button class="b blue sm" onclick="saveInternalMemo('${p.id}')">메모 저장</button></div></div>`;
   // ── 가운데: 지금 할 일 + 탭 ──
   const todo=ci.next?`<div class="pd-card pd-todo"><div class="k">지금 할 일 <span>· ${esc(ci.next.g.title)}${ci.next.g.note?' ('+esc(ci.next.g.note)+')':''}</span></div><div class="t">${esc(ci.next.label)}</div>${ci.next.hint?`<div class="h">${esc(ci.next.hint)}</div>`:''}<div class="acts"><button class="b blue" onclick="toggleCheck('${p.id}','${ci.next.key}')">완료 체크</button>${ci.next.request?`<button class="b line" onclick="openNoticesFor('${p.id}','착공서류 요청')">시공사 요청 메일 문구</button>`:''}</div></div>`
     :`<div class="pd-card" style="text-align:center;color:var(--green);font-weight:800">모든 항목을 끝냈어요</div>`;
@@ -2321,9 +2325,10 @@ function renderProj(){
       <div class="kv"><span>수금액</span><b>${rc!=null?moneyKR(rc)+'원':'<span style="color:var(--mut);font-weight:600">수기 입력</span>'}</b></div>
       <div class="kv"><span>미수금</span><b style="${out!=null&&out>0?'color:var(--red)':'color:var(--green)'}">${out==null?'-':(out<=0?'완납':moneyKR(out)+'원')}</b></div>
       <div style="font-size:11px;color:var(--mut);margin-top:6px">미수금 = 계약금액 − 수금액 · 감리비는 계약금액과 같아요</div></div>
-    <div class="pd-card pd-memo"><div class="pd-ct"><h3>내부 메모</h3><span style="font-size:11px;color:var(--mut)">운영자만 보여요 · 앱에는 안 나가요</span></div>
-      <textarea id="im-text" placeholder="예: 관리소장님 성향, 결제 지연 이력, 다음 미팅 때 꺼낼 이야기 등 내부용 메모">${esc((csData(p)||{}).internalMemo||'')}</textarea>
-      <div class="mf"><span id="im-meta">${(csData(p)||{}).internalMemoAt?`${String(csData(p).internalMemoAt).slice(0,10)}${csData(p).internalMemoBy?' · '+esc(csData(p).internalMemoBy):''} 저장`:'아직 메모 없음'}</span><button class="b blue sm" onclick="saveInternalMemo('${p.id}')">메모 저장</button></div></div>`;
+    <div class="pd-card"><div class="pd-ct"><h3>시방서 · 현설자료</h3></div>
+      <label class="pd-upl"><b>시방서 올리기 (PDF·사진)</b><br><span>현장설명회 자료·시방서를 올리면 감리앱에서 바로 볼 수 있어요</span><input type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadSpecConsole('${p.id}',this.files)"></label><div id="sp-msg-c" class="mmsg" style="margin:0 0 6px"></div>
+      ${specsList.length?specsList.map(s=>`<div class="pd-file"><span title="${esc(s.name)}">${(s.kind==='pdf'?'📄':'🖼️')+' '+(esc(s.name)||'시방서')}</span><button class="b line sm" onclick="openContractFile('${esc(s.file_url)}','${s.kind}')">열기</button><button class="b line sm" onclick="deleteSpecConsole('${s.id}')">삭제</button></div><div class="pd-fd">${(s.created_at||'').slice(0,10)} 등록</div>`).join(''):'<div style="font-size:12px;color:var(--mut)">아직 등록된 시방서가 없어요.</div>'}
+    </div>`;
   $('projDetail').innerHTML=`<div class="pd-head"><div><div class="back" onclick="backToProjList()">‹ 공사관리 목록</div><h1>${esc(p.name)}<span class="pill" style="background:${m[3]}1a;color:${m[3]}">${esc(m[1])}</span></h1><div class="sub">${esc(p.region)||'지역 미입력'}${siteType(p)?' · '+esc(siteType(p)):''}${p.auditor_id?' · 대표 감리 '+esc(auditorName(p.auditor_id)):''}</div></div><div class="pd-prog"><span>끝낸 항목 <b>${ci.done} / ${ci.total}</b></span><div class="bar"><i style="width:${Math.round(ci.done/ci.total*100)}%"></i></div></div></div>
     <div class="pd-grid"><aside class="pd-left">${left}</aside><div class="pd-mid">${mid}</div><aside class="pd-right">${right}</aside></div>`;
 }
@@ -2502,31 +2507,17 @@ function defaultFieldTitle(r){
   const dongs=(r.dongs||'').trim();
   return (d?d+' ':'')+'['+(dongs||'현장 사진')+']';
 }
-// fieldTitle: 공개 시 입력받은 현장현황 사진 묶음 제목(없으면 기본 제목)
-async function syncFieldFromReport(r, fieldTitle){
-  await sb.from('field_updates').delete().eq('source_report_id', r.id);   // 기존 연결분 제거(중복 방지)
-  const photos=Array.isArray(r.photos)?r.photos:[];
-  if(!(r.published && photos.length)) return;                              // 공개 + 사진 있을 때만 생성
-  const title=(fieldTitle||'').trim() || defaultFieldTitle(r);
-  const rec={ apartment_id:r.apartment_id, title:title, content:null, photos:photos.slice(), source_report_id:r.id };
-  // 날짜: 제목이 YYYYMMDD로 시작하면 그 날짜, 아니면 감리일자
-  let dk=''; const mt=title.match(/^\s*(\d{4})(\d{2})(\d{2})/);
-  if(mt){ dk=mt[1]+mt[2]+mt[3]; } else { const rk=(typeof repDateKey==='function')?repDateKey(r):''; if(/^\d{8}$/.test(rk)) dk=rk; }
-  if(/^\d{8}$/.test(dk)) rec.created_at=dk.slice(0,4)+'-'+dk.slice(4,6)+'-'+dk.slice(6,8)+'T09:00:00+09:00';
-  const {error}=await sb.from('field_updates').insert(rec);
-  if(error){ if(/source_report_id|column|schema/i.test(error.message||'')) throw new Error('현장현황 공개 컬럼이 없어요 — backend/migration-publish-field.sql 을 먼저 실행하세요.'); throw new Error(error.message); }
+// (연결 해제됨) 감리일지 사진 → 현장현황(field_updates) 복제를 더 이상 하지 않음.
+//  현장사진은 시공사에게 받아 '현장기록'으로 직접 올리는 것만 사용.
+//  기존에 감리일지에서 복제됐던 현장현황(source_report_id 있는 것)은 정리(삭제)한다.
+//  직접 올린 현장사진(source_report_id 없음)은 건드리지 않음.
+async function syncFieldFromReport(r){
+  try{ await sb.from('field_updates').delete().eq('source_report_id', r.id); }catch(e){}
 }
 async function togglePub(id,btn){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;
   const next=!r.published;
-  let fieldTitle='';
   if(next){
-    const photos=Array.isArray(r.photos)?r.photos:[];
-    if(photos.length){   // 사진 있으면 현장현황 공개 제목을 직접 입력받는다
-      const ans=prompt('입주민 「현장현황」에 이 감리일지의 현장사진 '+photos.length+'장을 공개합니다.\n사진 묶음 제목을 입력하세요. (앞에 날짜 YYYYMMDD 를 넣으면 그 날짜로 표시돼요)\n\n예) 20261026 [램프 수성, 외부 담벽 칠]', defaultFieldTitle(r));
-      if(ans===null) return;   // 취소 → 공개하지 않음
-      fieldTitle=ans;
-    }
     if(!r.pdf_url){
       if(!confirm('PDF가 없어서 감리일지 내용으로 PDF를 자동 생성해 올릴게요(몇 초 걸려요).\n계속할까요?')) return;
       if(btn){var _t=btn.textContent;btn.disabled=true;btn.textContent='PDF 만드는 중…';}
@@ -2538,7 +2529,7 @@ async function togglePub(id,btn){
   const {error}=await sb.from('reports').update({published:next}).eq('id',id);
   if(error){alert('변경 실패: '+error.message);return;}
   r.published=next;
-  try{ await syncFieldFromReport(r, fieldTitle); }catch(e){ alert('현장현황 사진 공개 중 문제: '+(e&&e.message||e)); }
+  try{ await syncFieldFromReport(r); }catch(e){}   // 연결 해제: 복제 안 함, 옛 복제분만 정리
   renderProj();
 }
 /* ===== 감리일지 전체 공개 (dj/테스트 작성 건 제외) ===== */
@@ -3272,14 +3263,7 @@ async function togglePubModal(id){
   const {error:e0}=await sb.from('reports').update({title:f.title||undefined,content:f.content,pub_title:f.pub_title,photos:f.photos}).eq('id',id);
   if(e0){alert('오류: '+e0.message);return;}
   r.title=f.title||r.title; r.content=f.content; r.pub_title=f.pub_title; r.photos=f.photos;
-  let fieldTitle='';
   if(next){
-    const photos=Array.isArray(r.photos)?r.photos:[];
-    if(photos.length){   // 사진 있으면 현장현황 공개 제목을 직접 입력받는다
-      const ans=prompt('입주민 「현장현황」에 이 감리일지의 현장사진 '+photos.length+'장을 공개합니다.\n사진 묶음 제목을 입력하세요. (앞에 날짜 YYYYMMDD 를 넣으면 그 날짜로 표시돼요)\n\n예) 20261026 [램프 수성, 외부 담벽 칠]', defaultFieldTitle(r));
-      if(ans===null) return;   // 취소 → 공개하지 않음
-      fieldTitle=ans;
-    }
     if(!r.pdf_url){   // 공개하는데 PDF가 없으면 내용으로 자동 생성
       const msg=$('m-msg'); if(msg){msg.textContent='PDF 만드는 중… (몇 초)';msg.style.color='var(--mut)';}
       try{ await ensureReportPdf(r); }
@@ -3289,7 +3273,7 @@ async function togglePubModal(id){
   const {error}=await sb.from('reports').update({published:next}).eq('id',id);
   if(error){alert('오류: '+error.message);return;}
   r.published=next;
-  try{ await syncFieldFromReport(r, fieldTitle); }catch(e){ alert('현장현황 사진 공개 중 문제: '+(e&&e.message||e)); }
+  try{ await syncFieldFromReport(r); }catch(e){}   // 연결 해제: 복제 안 함, 옛 복제분만 정리
   closeModal(); await loadAll();
 }
 async function deleteReport(id){
@@ -3361,6 +3345,26 @@ async function deleteContractConsole(id){
   if(!confirm('이 계약서를 휴지통으로 보낼까요?'))return;
   const c=(CONTRACTS||[]).find(x=>x.id===id);
   try{ await trashRow('contracts', id, (c&&(c.name||'계약서'))||'계약서'); }catch(e){ return alert('삭제 실패: '+(e&&e.message||e)); }
+  await loadAll();
+}
+// ── 시방서/현설자료 (계약서와 동일 패턴, 'contracts' 비공개 버킷 재사용) ──
+async function uploadSpecConsole(aptId,files){
+  const fl=files&&files[0]; if(!fl)return; const msg=$('sp-msg-c');
+  let f=fl; if(f.type!=='application/pdf') f=await compressImage(f);
+  if(msg){msg.textContent='올리는 중…';msg.style.color='var(--mut)';}
+  const safe=f.name.replace(/[^\w.\-]/g,'_'); const path=aptId+'/spec_'+Date.now()+'_'+safe;
+  const {error:ue}=await sb.storage.from('contracts').upload(path,f,{upsert:false});
+  if(ue){if(msg){msg.textContent='업로드 실패: '+ue.message;msg.style.color='var(--red)';}return;}
+  const kind=f.type==='application/pdf'?'pdf':'image';
+  const {error}=await sb.from('specs').insert({apartment_id:aptId,name:fl.name,file_url:path,kind});
+  if(error){if(msg){msg.textContent=/relation|table|schema|does not exist/i.test(error.message||'')?'시방서 표가 없어요 — backend/migration-specs.sql 을 먼저 실행하세요.':('등록 실패: '+error.message);msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='등록됐어요';msg.style.color='var(--green)';}
+  await loadAll();
+}
+async function deleteSpecConsole(id){
+  if(!confirm('이 시방서를 휴지통으로 보낼까요?'))return;
+  const s=(SPECS||[]).find(x=>x.id===id);
+  try{ await trashRow('specs', id, (s&&(s.name||'시방서'))||'시방서'); }catch(e){ return alert('삭제 실패: '+(e&&e.message||e)); }
   await loadAll();
 }
 

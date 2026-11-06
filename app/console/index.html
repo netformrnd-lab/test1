@@ -4811,8 +4811,9 @@ async function ensureAptForWon(s){
   // 같은 이름의 단지가 이미 있으면 새로 만들지 않고 그 단지에 연결(중복 방지)
   const exist=APTS.find(a=>(a.name||'').trim()===nm);
   if(exist){ await sb.from('sales_leads').update({apartment_id:exist.id}).eq('id',s.id); s.apartment_id=exist.id;
-    // 이미 있는 현장 → 새 계약 건(추가공사)으로 붙임 (이전 건은 이력으로 유지)
-    if(scOn()){ const cs=aptContracts(exist.id); const seq=cs.length?Math.max(...cs.map(c=>+c.seq||0))+1:1; try{ const {data:c}=await sb.from('site_contracts').insert({apartment_id:exist.id,seq,title:s.construction_type||null,methods:[],progress:{},stage:'계약',stage_at:new Date().toISOString(),contract_date:new Date().toISOString().slice(0,10),contract_amount:(s.amount!=null?s.amount:null),memo:[s.memo,s.owner?('영업 담당: '+s.owner):''].filter(Boolean).join('\n')||null,checklist:{}}).select('*').single(); if(c){ SCONTRACTS.push(c); await syncAptFromContracts(exist); } }catch(e){} }
+    // 이미 있는 현장: 그 현장의 계약 건이 전부 준공이면(= 준공 뒤 재계약) 새 계약 건으로 붙임. 진행 중인 건이 있으면 같은 계약으로 보고 연결만 함(중복 건 방지 · 추가공사는 현장 상세에서 '계약 건 추가')
+    const csEx=aptContracts(exist.id); const allDone=csEx.length>0&&csEx.every(c=>c.stage==='준공');
+    if(scOn()&&allDone){ const cs=csEx; const seq=cs.length?Math.max(...cs.map(c=>+c.seq||0))+1:1; try{ const {data:c}=await sb.from('site_contracts').insert({apartment_id:exist.id,seq,title:s.construction_type||null,methods:[],progress:{},stage:'계약',stage_at:new Date().toISOString(),contract_date:new Date().toISOString().slice(0,10),contract_amount:(s.amount!=null?s.amount:null),memo:[s.memo,s.owner?('영업 담당: '+s.owner):''].filter(Boolean).join('\n')||null,checklist:{}}).select('*').single(); if(c){ SCONTRACTS.push(c); await syncAptFromContracts(exist); } }catch(e){} }
     return exist.id; }
   const rec={ name:nm, region:s.region||null, construction_type:s.construction_type||null,
     supervision_fee:(s.amount!=null?s.amount:null), status:'scheduled',

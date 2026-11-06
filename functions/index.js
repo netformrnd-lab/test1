@@ -70,7 +70,8 @@ function handler(node) {
     const after = change.after.exists() ? change.after.val() : null;
     const before = change.before.exists() ? change.before.val() : null;
     try {
-      if (after === null) await del(node, id, before);   // 지워짐 → 아스퀘에서도 삭제(우리 것이면 원본까지)
+      if (after === null) await del(node, id, before);   // 키 삭제 → 아스퀘에서도 삭제(우리 것이면 원본까지)
+      else if (M.isDeleted(after)) await del(node, id, after); // 소프트 삭제(deleted:true) → 아스퀘에서도 삭제
       else await upsert(node, id, after);                 // 추가/수정 → 아스퀘 upsert
     } catch (e) { console.error('sync err', node, id, e && e.message); }
     return null;

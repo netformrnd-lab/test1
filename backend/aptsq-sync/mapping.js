@@ -30,6 +30,12 @@ function safeId(id) {
   return String(id).replace(/[.#$/\[\]]/g, '_');
 }
 
+// POUR 소프트 삭제 판별: POUR는 일정을 지울 때 키를 없애지 않고
+//  deleted:true (또는 deletion 객체)만 세팅한다. 이 플래그가 있으면 '삭제된 것'으로 취급.
+function isDeleted(s) {
+  return !!(s && typeof s === 'object' && (s.deleted === true || (s.deletion && typeof s.deletion === 'object')));
+}
+
 // 이름에서 '님' 떼기 (App.jsx normalizeSchedule과 동일)
 function stripNim(name) {
   return typeof name === 'string' ? name.replace(/\s*님$/, '').trim() : name;
@@ -161,6 +167,71 @@ function supabaseToPour(row) {
   }
 }
 
+// ── 영업(POUR) 텍스트에 적힌 단지명 → 아파트스퀘어 단지 자동 매칭 ──────────────
+//  영업담당이 일정에 단지를 '글로' 적으면(siteName/title/company/location/content 등)
+//  이름이 충분히 비슷한 단지에 자동 배정한다. 애매하면(확신 부족) 배정하지 않음
+//  → 기존처럼 관리자 수동 배정. 오배정(엉뚱한 단지에 붙는 것)보다 미배정이 안전.
+function normName(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/\(.*?\)/g, ' ')                                   // 괄호 안 제거
+    .replace(/\d+\s*차/g, ' ')                                  // 1차 / 2차
+    .replace(/아파트단지|아파트|apartment|apt|오피스텔|주상복합|빌라|단지|현장/g, ' ')
+    .replace(/[^0-9a-z가-힣]/g, '');                             // 공백·기호 모두 제거
+}
+
+// 문자 bigram 집합(짧은 한글 단지명 비교에 적합)
+function bigrams(str) {
+  const g = new Set();
+  if (str.length === 1) { g.add(str); return g; }
+  for (let i = 0; i < str.length - 1; i++) g.add(str.slice(i, i + 2));
+  return g;
+}
+function similarity(a, b) {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const ga = bigrams(a), gb = bigrams(b);
+  let inter = 0;
+  for (const x of ga) if (gb.has(x)) inter++;
+  const uni = ga.size + gb.size - inter;
+  return uni ? inter / uni : 0;
+}
+
+// apts: [{id, name, norm}] (norm = normName 미리 계산)
+// 반환: 충분히 비슷한 단지 id (없으면 null)
+function matchApartmentName(text, apts) {
+  const t = normName(text);
+  if (t.length < 2 || !Array.isArray(apts) || !apts.length) return null;
+  let best = null, bestScore = 0, second = 0;
+  for (const a of apts) {
+    const an = a.norm;
+    if (!an || an.length < 2) continue;
+    let sc;
+    if (t === an) sc = 1;
+    else if (t.includes(an) || an.includes(t)) sc = 0.9;        // 포함관계 = 강한 신호
+    else sc = similarity(t, an);
+    if (sc > bestScore) { second = bestScore; bestScore = sc; best = a; }
+    else if (sc > second) second = sc;
+  }
+  if (!best) return null;
+  // 1등이 임계치를 넘고 2등과 충분히 벌어질 때만 배정(비슷한 단지가 둘이면 보류 → 수동)
+  if (bestScore >= 0.6 && (bestScore - second) >= 0.12) return best.id;
+  if (bestScore >= 0.9 && second < 0.6) return best.id;          // 단독 포함매치
+  return null;
+}
+
+// 일정 한 건에서 단지명이 들어있을 만한 필드들을 훑어 매칭(앞쪽 필드 우선)
+function matchApartmentForEntry(s, apts) {
+  if (!s || typeof s !== 'object') return null;
+  const fields = [s.siteName, s.title, s.company, s.location, s.requester, s.content, s.note];
+  for (const f of fields) {
+    if (!f || typeof f !== 'string') continue;
+    const id = matchApartmentName(f, apts);
+    if (id) return id;
+  }
+  return null;
+}
+
 // 일정 종류마다 날짜 필드명이 달라서(date/startDate/ptDate/...) 여러 곳을 훑는다.
 // 명시 필드 → 없으면 값들 중 'YYYY-MM-DD' 처럼 생긴 문자열을 탐색(생성/수정 시각 필드는 제외).
 const DATE_FIELDS = [
@@ -218,4 +289,8 @@ module.exports = {
   normalizeDate,
   pickDate,
   dateFieldOf,
+  normName,
+  matchApartmentName,
+  matchApartmentForEntry,
+  isDeleted,
 };

@@ -730,7 +730,6 @@ window.openNoticeList = openNoticeList
 let NOTICE_POPUP_DONE = false
 async function maybeShowNoticePopup(aptId) {
   if (NOTICE_POPUP_DONE) return
-  NOTICE_POPUP_DONE = true
   try {
     const { data } = await sb.from('notices').select('*').eq('popup', true).order('created_at', { ascending: false }).limit(8)
     if (!data || !data.length) return
@@ -738,6 +737,7 @@ async function maybeShowNoticePopup(aptId) {
     if (!n) return
     let dismissed = []; try { dismissed = JSON.parse(localStorage.getItem('asq-popup-dismiss') || '[]') } catch (e) {}
     if (dismissed.indexOf(n.id) >= 0) return
+    NOTICE_POPUP_DONE = true
     showNoticePopup(n)
   } catch (e) {}
 }
@@ -2401,7 +2401,7 @@ window.appLogout = async function () {
   currentRole = null; MY_ID = null; MY_NAME = ''; MY_CHAT_READS = {}; RES_APT = null
   window.showScreen('s04')            // 로그인 전 둘러보기 홈으로
   NAV_HIST.length = 0                 // 화면 전환 후 비워야 로그인된 화면이 기록에 안 남음
-  try { loadResidentNotices('s04-notices') } catch (e) {}
+  try { loadResidentNotices('s04-notices'); try { maybeShowNoticePopup(null) } catch (e) {} } catch (e) {}
   try { setChatNavBadge(0); refreshChatBadge() } catch (e) {}
 }
 
@@ -2611,7 +2611,7 @@ function wire() {
   // 비밀번호 재설정 메일 링크로 들어온 경우 → 새 비밀번호 설정 화면 (홈으로 라우팅하지 않음)
   if (RECOVERING || (location.hash || '').indexOf('type=recovery') >= 0) { RECOVERING = true; window.showScreen('s46'); return }
   // 앱 열 때: 로그인돼 있으면 알맞은 화면, 아니면 비회원 둘러보기 홈(s04)
-  sb.auth.getSession().then(({ data }) => { if (RECOVERING) return; if (data.session) route(); else { window.showScreen('s04'); loadResidentNotices('s04-notices') } })
+  sb.auth.getSession().then(({ data }) => { if (RECOVERING) return; if (data.session) route(); else { window.showScreen('s04'); loadResidentNotices('s04-notices'); try { maybeShowNoticePopup(null) } catch (e) {} } })
 }
 
 /* ===== 알림 탭 = 아파트스퀘어 소개 (실행 로드맵 기반, 감리 토탈 솔루션) ===== */
@@ -3269,7 +3269,7 @@ document.addEventListener('click', (e) => {
     if (tab === 'home') {
       if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() }
       else if (currentRole) { showScreen('s11'); loadResidentHome() }
-      else { showScreen('s04'); loadResidentNotices('s04-notices') }
+      else { showScreen('s04'); loadResidentNotices('s04-notices'); try { maybeShowNoticePopup(null) } catch (e) {} }
     }
     else if (tab === 'field') { if (currentRole) { showScreen('s26'); loadFieldUpdates() } else { showScreen('s01') } }
     else if (tab === 'schedule') { if (currentRole) { showScreen('s14'); loadSchedule() } else { showScreen('s01') } }

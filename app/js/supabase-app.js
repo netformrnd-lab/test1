@@ -2553,6 +2553,7 @@ function wire() {
   const amM = $('aud-menu-meeting'); if (amM) amM.onclick = () => openMeetingDoc('first') // 중간 선택화면 건너뛰고 바로 첫 미팅 질문리스트
   const amG = $('aud-menu-manager'); if (amG) amG.onclick = () => openManagerDoc()
   const amCt = $('aud-menu-contract'); if (amCt) amCt.onclick = () => openContracts()
+  const amSp = $('aud-menu-spec'); if (amSp) amSp.onclick = () => openSpecs()
   const amSv = $('aud-menu-survey'); if (amSv) amSv.onclick = () => { if (currentApt) openSurveyResults(currentApt) }
   // 채팅 입력
   const cSend = $('chat-send'); if (cSend) cSend.onclick = sendChat
@@ -2967,6 +2968,71 @@ async function deleteContract(id) {
   loadContracts()
 }
 window.deleteContract = deleteContract
+
+/* ===== 시방서 / 현장설명회 자료 (감리원) — 계약서와 동일 패턴, 'contracts' 비공개 버킷 재사용 ===== */
+let SPECS = []
+function openSpecs() {
+  if (!currentApt) return
+  const ap = document.getElementById('sp-apt'); if (ap) ap.textContent = currentApt.name
+  const msg = document.getElementById('sp-msg'); if (msg) msg.textContent = ''
+  window.showScreen('s42')
+  logEvent('spec', currentApt && currentApt.id)
+  loadSpecs()
+}
+window.openSpecs = openSpecs
+async function loadSpecs() {
+  const box = document.getElementById('sp-list'); if (!box || !currentApt) return
+  box.innerHTML = '<div style="padding:14px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+  const { data, error } = await sb.from('specs').select('*').eq('apartment_id', currentApt.id).order('created_at', { ascending: false })
+  if (error) { box.innerHTML = '<div style="padding:16px;color:#8b95ad;font-size:12px;line-height:1.7">불러오지 못했어요.<br><b>backend/migration-specs.sql</b> 실행이 필요해요.</div>'; return }
+  SPECS = data || []
+  renderSpecs()
+}
+function renderSpecs() {
+  const box = document.getElementById('sp-list'); if (!box) return
+  if (!SPECS.length) { box.innerHTML = '<div style="padding:22px 12px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">아직 등록된 시방서가 없어요.<br>위 버튼으로 올려보세요.</div>'; return }
+  box.innerHTML = SPECS.map(c => {
+    const d = (c.created_at || '').slice(0, 10).replace(/-/g, '.')
+    const ic = c.kind === 'pdf' ? '📄' : '🖼️'
+    return `<div style="background:#fff;border:1px solid #e6eaf2;border-radius:13px;padding:12px 13px;display:flex;align-items:center;gap:11px">
+      <div onclick="openSpecFile('${c.file_url}','${c.kind}')" style="flex:1;display:flex;align-items:center;gap:11px;cursor:pointer;min-width:0"><div style="width:44px;height:44px;border-radius:11px;background:#eafaf4;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:21px">${ic}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(c.name) || '시방서'}</div><div style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:2px">${d} · ${c.kind === 'pdf' ? 'PDF' : '사진'} · 탭하면 열기</div></div></div>
+      <span onclick="deleteSpec('${c.id}')" style="flex-shrink:0;color:#e4544b;font-size:11px;font-weight:800;cursor:pointer;padding:6px">삭제</span>
+    </div>`
+  }).join('')
+}
+// 시방서 파일도 'contracts' 비공개 버킷에 저장 → 열람 시 서명 URL 생성 (계약서와 동일)
+window.openSpecFile = async function (url, kind) {
+  let open = url
+  if (url && !/^https?:\/\//i.test(url)) {
+    const { data, error } = await sb.storage.from('contracts').createSignedUrl(url, 300)
+    if (error || !data || !data.signedUrl) { alert('시방서를 여는 중 오류가 났어요'); return }
+    open = data.signedUrl
+  }
+  if (kind === 'image') zoomPhoto(open); else window.open(open, '_blank', 'noopener')
+}
+async function uploadSpec(files) {
+  const f0 = files && files[0]; if (!f0 || !currentApt) return
+  const f = await compressImage(f0)
+  const msg = document.getElementById('sp-msg'); if (msg) { msg.style.color = '#8b95ad'; msg.textContent = '올리는 중…' }
+  const safe = f.name.replace(/[^\w.\-]/g, '_')
+  const path = currentApt.id + '/spec_' + Date.now() + '_' + safe
+  const { error: upErr } = await sb.storage.from('contracts').upload(path, f, { upsert: false })
+  if (upErr) { if (msg) { msg.style.color = '#e4544b'; msg.textContent = '업로드 실패: ' + upErr.message } return }
+  const kind = f.type === 'application/pdf' ? 'pdf' : 'image'
+  const { error } = await sb.from('specs').insert({ apartment_id: currentApt.id, name: f.name, file_url: path, kind })
+  if (error) { if (msg) { msg.style.color = '#e4544b'; msg.textContent = /relation|table|schema|does not exist/i.test(error.message || '') ? '시방서 표가 없어요 — migration-specs.sql 실행 필요' : ('등록 실패: ' + error.message) } return }
+  if (msg) { msg.style.color = '#1f8a5b'; msg.textContent = '✅ 등록됐어요' }
+  const fi = document.getElementById('sp-file'); if (fi) fi.value = ''
+  loadSpecs()
+}
+window.uploadSpec = uploadSpec
+async function deleteSpec(id) {
+  if (!confirm('이 시방서를 삭제할까요?')) return
+  const { error } = await sb.from('specs').delete().eq('id', id)
+  if (error) { alert('삭제 실패: ' + error.message); return }
+  loadSpecs()
+}
+window.deleteSpec = deleteSpec
 
 // 사진 확대 (라이트박스)
 // 사진 팝업 — 핀치 줌 + 드래그 이동 + 두 번 탭 확대 (감리 사진 자세히 보기)

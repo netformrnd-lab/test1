@@ -696,7 +696,7 @@ const lsDel=(k)=>{try{localStorage.removeItem(k);}catch(e){}};
 const loginId=(m)=>m.username||dispId(m.email)||'';
 const realEmail=(m)=>{const e=(m.email||'');return e.endsWith('@aptsquare.app')?'':e;};
 
-let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={},AREQS=[];
+let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],SPECS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={},AREQS=[];
 // 단지별 '대기중(pending)' 배정 요청 찾기
 function pendingReq(aptId){ return AREQS.find(r=>r.apartment_id===aptId && r.status==='pending'); }
 let SALES=[],ROADMAP=[],DOCS=[],SITE_NOTES=[],VIEWS={},CSITES={},PHASEB_OK={sales:false,roadmap:false,docs:false,csites:false,templates:false};
@@ -819,6 +819,7 @@ async function loadAll(){
   try{ const {data:sl,error}=await sb.from('sales_leads').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); SALES=sl||[]; PHASEB_OK.sales=!error; }catch(e){ SALES=[]; PHASEB_OK.sales=false; }
   try{ const {data:rm,error}=await sb.from('roadmap_items').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); ROADMAP=rm||[]; PHASEB_OK.roadmap=!error; }catch(e){ ROADMAP=[]; PHASEB_OK.roadmap=false; }
   try{ const {data:dc,error}=await sb.from('doc_files').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); DOCS=dc||[]; PHASEB_OK.docs=!error; }catch(e){ DOCS=[]; PHASEB_OK.docs=false; }
+  try{ const {data:sp}=await sb.from('specs').select('*').order('created_at',{ascending:false}); SPECS=sp||[]; }catch(e){ SPECS=[]; }
   try{ const {data:sn}=await sb.from('site_notes').select('*').order('created_at',{ascending:false}); SITE_NOTES=sn||[]; }catch(e){ SITE_NOTES=[]; }
   try{ const {data:bc,error}=await sb.from('business_cards').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); CARDS=bc||[]; PHASEB_OK.cards=!error; }catch(e){ CARDS=[]; PHASEB_OK.cards=false; }
   try{ const {data:ev}=await sb.from('app_events').select('apartment_id'); VIEWS={}; (ev||[]).forEach(e=>{ if(e.apartment_id)VIEWS[e.apartment_id]=(VIEWS[e.apartment_id]||0)+1; }); }catch(e){ VIEWS={}; }
@@ -949,7 +950,7 @@ function go(s){
 }
 
 /* ===== 휴지통: 삭제 시 스냅샷 보관 → 복구/영구삭제 ===== */
-const TRASH_LBL={reports:'감리일지',field_updates:'현장기록',apartments:'단지',notices:'공지',cases:'사례',site_notes:'현장메모',doc_files:'자료',roadmap_items:'로드맵',sales_leads:'영업',schedules:'일정',contracts:'계약서',profiles:'회원'};
+const TRASH_LBL={reports:'감리일지',field_updates:'현장기록',apartments:'단지',notices:'공지',cases:'사례',site_notes:'현장메모',doc_files:'자료',roadmap_items:'로드맵',sales_leads:'영업',schedules:'일정',contracts:'계약서',specs:'시방서',profiles:'회원'};
 // 원본 행을 통째로 trash 에 담고 원본은 삭제 (쿼리 필터 불필요 — 원본에서 사라짐)
 async function trashRow(table,id,label){
   const {data,error}=await sb.from(table).select('*').eq('id',id).single();
@@ -961,7 +962,7 @@ async function trashRow(table,id,label){
   if(del.error){ try{ await sb.from('trash').delete().eq('src_table',table).eq('src_id',id); }catch(e){} throw new Error(del.error.message); }
 }
 // 단지 + 연쇄 자식(동/감리일지/현장기록/일정/계약/만족도/소장작성지 + 연결 영업딜)을 통째로 휴지통에 보관 후 삭제
-const APT_CHILD_TABLES=['dong_progress','field_updates','reports','schedules','contracts','surveys','manager_forms'];
+const APT_CHILD_TABLES=['dong_progress','field_updates','reports','schedules','contracts','specs','surveys','manager_forms'];
 async function trashApt(id){
   const {data:apt}=await sb.from('apartments').select('*').eq('id',id).single();
   if(!apt) throw new Error('단지를 찾지 못했어요');
@@ -2241,6 +2242,7 @@ function renderProj(){
   const reps=REPORTS.filter(r=>r.apartment_id===p.id);
   const flds=FIELDS.filter(f=>f.apartment_id===p.id);
   const cons=CONTRACTS.filter(c=>c.apartment_id===p.id);
+  const specsList=(typeof SPECS!=='undefined'?SPECS:[]).filter(s=>s.apartment_id===p.id);
   const notes=SITE_NOTES.filter(n=>n.apartment_id===p.id);
   const ci=checkInfo(p); const ck=aptChecklist(p); const m=stageMeta(stageOf(p));
   // ── 왼쪽: 체크리스트 ──
@@ -2286,7 +2288,11 @@ function renderProj(){
       <div class="kv"><span>잔금 (50%)</span><b>${ca!=null?moneyKR(ca-Math.round(ca/2))+'원':'-'}</b></div>
       <div class="kv"><span>감리비</span><b>${sf!=null?moneyKR(sf)+'원':'<span style="color:var(--mut);font-weight:600">수기 입력</span>'}</b></div>
       <div class="kv"><span>수금액</span><b>${rc!=null?moneyKR(rc)+'원':'<span style="color:var(--mut);font-weight:600">수기 입력</span>'}</b></div>
-      <div class="kv"><span>미수금</span><b style="${out!=null&&out>0?'color:var(--red)':'color:var(--green)'}">${out==null?'-':(out<=0?'완납':moneyKR(out)+'원')}</b></div></div>`;
+      <div class="kv"><span>미수금</span><b style="${out!=null&&out>0?'color:var(--red)':'color:var(--green)'}">${out==null?'-':(out<=0?'완납':moneyKR(out)+'원')}</b></div></div>
+    <div class="pd-card"><div class="pd-ct"><h3>📋 시방서 · 현설자료</h3></div>
+      <label class="pd-upl"><b>시방서 올리기 (PDF·사진)</b><br><span>현장설명회 자료·시방서를 올리면 감리앱에서 바로 볼 수 있어요</span><input type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadSpecConsole('${p.id}',this.files)"></label><div id="sp-msg-c" class="mmsg" style="margin:0 0 6px"></div>
+      ${specsList.length?specsList.map(s=>`<div class="pd-file"><span title="${esc(s.name)}">${(s.kind==='pdf'?'📄':'🖼️')+' '+(esc(s.name)||'시방서')}</span><button class="b line sm" onclick="openContractFile('${esc(s.file_url)}','${s.kind}')">열기</button><button class="b line sm" onclick="deleteSpecConsole('${s.id}')">삭제</button></div><div class="pd-fd">${(s.created_at||'').slice(0,10)} 등록</div>`).join(''):'<div style="font-size:12px;color:var(--mut)">아직 등록된 시방서가 없어요.</div>'}
+    </div>`;
   $('projDetail').innerHTML=`<div class="pd-head"><div><div class="back" onclick="backToProjList()">‹ 공사관리 목록</div><h1>${esc(p.name)}<span class="pill" style="background:${m[3]}1a;color:${m[3]}">${esc(m[1])}</span></h1><div class="sub">${esc(p.region)||'지역 미입력'}${siteType(p)?' · '+esc(siteType(p)):''}${p.auditor_id?' · 대표 감리 '+esc(auditorName(p.auditor_id)):''}</div></div><div class="pd-prog"><span>끝낸 항목 <b>${ci.done} / ${ci.total}</b></span><div class="bar"><i style="width:${Math.round(ci.done/ci.total*100)}%"></i></div></div></div>
     <div class="pd-grid"><aside class="pd-left">${left}</aside><div class="pd-mid">${mid}</div><aside class="pd-right">${right}</aside></div>`;
 }
@@ -3295,6 +3301,26 @@ async function deleteContractConsole(id){
   if(!confirm('이 계약서를 휴지통으로 보낼까요?'))return;
   const c=(CONTRACTS||[]).find(x=>x.id===id);
   try{ await trashRow('contracts', id, (c&&(c.name||'계약서'))||'계약서'); }catch(e){ return alert('삭제 실패: '+(e&&e.message||e)); }
+  await loadAll();
+}
+// ── 시방서/현설자료 (계약서와 동일 패턴, 'contracts' 비공개 버킷 재사용) ──
+async function uploadSpecConsole(aptId,files){
+  const fl=files&&files[0]; if(!fl)return; const msg=$('sp-msg-c');
+  let f=fl; if(f.type!=='application/pdf') f=await compressImage(f);
+  if(msg){msg.textContent='올리는 중…';msg.style.color='var(--mut)';}
+  const safe=f.name.replace(/[^\w.\-]/g,'_'); const path=aptId+'/spec_'+Date.now()+'_'+safe;
+  const {error:ue}=await sb.storage.from('contracts').upload(path,f,{upsert:false});
+  if(ue){if(msg){msg.textContent='업로드 실패: '+ue.message;msg.style.color='var(--red)';}return;}
+  const kind=f.type==='application/pdf'?'pdf':'image';
+  const {error}=await sb.from('specs').insert({apartment_id:aptId,name:fl.name,file_url:path,kind});
+  if(error){if(msg){msg.textContent=/relation|table|schema|does not exist/i.test(error.message||'')?'시방서 표가 없어요 — backend/migration-specs.sql 을 먼저 실행하세요.':('등록 실패: '+error.message);msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='등록됐어요';msg.style.color='var(--green)';}
+  await loadAll();
+}
+async function deleteSpecConsole(id){
+  if(!confirm('이 시방서를 휴지통으로 보낼까요?'))return;
+  const s=(SPECS||[]).find(x=>x.id===id);
+  try{ await trashRow('specs', id, (s&&(s.name||'시방서'))||'시방서'); }catch(e){ return alert('삭제 실패: '+(e&&e.message||e)); }
   await loadAll();
 }
 

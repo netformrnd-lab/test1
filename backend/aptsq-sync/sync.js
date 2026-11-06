@@ -70,20 +70,26 @@ async function importPourEntry(node, id, s) {
   const row = M.pourToSupabase(node, id, s);
   if (!row.date) return false;                        // 날짜 없는 건 스킵
   const { data: existing, error: selErr } = await sb
-    .from('schedules').select('id,category,date,title,description,assignee_name').eq('sync_id', row.sync_id).maybeSingle();
+    .from('schedules').select('id,category,date,title,description,assignee_name,apartment_id').eq('sync_id', row.sync_id).maybeSingle();
   if (selErr) { log(`  ⚠️ ${node}/${id} 조회실패: ${selErr.message}`); return false; }
+  const autoApt = M.matchApartmentForEntry(s, APTS);   // 영업이 적은 단지명 → 비슷한 단지 자동 매칭
   if (existing) {
+    // 단지: 이미 배정돼 있으면(관리자 수동 포함) 유지, 비어있을 때만 자동 매칭으로 채움
+    const keepApt = existing.apartment_id || autoApt || null;
+    row.apartment_id = keepApt;
     // 내용이 그대로면 업데이트 생략 → 매 배치마다 무의미한 write 로 실시간이 폭주(앱 번쩍임)하는 것 방지
     const same = existing.category === row.category
       && String(existing.date || '') === String(row.date || '')
       && (existing.title || '') === (row.title || '')
       && (existing.description || '') === (row.description || '')
-      && (existing.assignee_name || '') === (row.assignee_name || '');
+      && (existing.assignee_name || '') === (row.assignee_name || '')
+      && (existing.apartment_id || null) === (keepApt || null);
     if (same) return false;
     const { error } = await sb.from('schedules').update(row).eq('id', existing.id);
     if (error) { log(`  ⚠️ ${node}/${id} 저장실패: ${error.message}`); return false; }
     return true;
   }
+  row.apartment_id = autoApt || null;
   const { error } = await sb.from('schedules').insert(row);
   if (error) { log(`  ⚠️ ${node}/${id} 저장실패: ${error.message}`); return false; }
   return true;                                        // 실제로 저장에 성공한 것만 true
@@ -92,6 +98,7 @@ async function importPourEntry(node, id, s) {
 // ── 방향 B : Supabase(aptsq) 한 건 → POUR PUT ────────────────────────────────
 const VISIT_MARK = '🔧 정기 방문';
 const WKB = ['월', '화', '수', '목', '금', '토', '일'];   // (getDay()+6)%7 기준 (앱 computeVisits와 동일)
+let APTS = [];           // 단지 목록 [{id,name,norm}] (영업→단지 자동 배정 매칭용)
 let APT_NAMES = {};      // 단지 id→이름 (POUR 방문 표시용)
 let PROFILE_NAMES = {};  // 감리원 id→이름 (assignee_id로 담당자 보강)
 let APT_REP = {};        // 단지 id→대표 감리원 id (apartments.auditor_id)
@@ -140,6 +147,20 @@ async function reconcileSync() {
     if (!error && fixed && fixed.length) log(`source 없던 우리 일정 ${fixed.length}건 → aptsq 표시`);
   }
 
+  // 단지 목록(영업→단지 자동 배정 매칭 + 정기방문 표시용) — 방향 A 전에 먼저 읽는다.
+  APTS = []; APT_NAMES = {}; APT_REP = {};
+  try {
+    for (let af = 0; ; af += 1000) {
+      const { data: apts } = await sb.from('apartments').select('id,name,auditor_id').range(af, af + 999);
+      if (!apts || !apts.length) break;
+      apts.forEach(a => {
+        APTS.push({ id: a.id, name: a.name, norm: M.normName(a.name) });
+        APT_NAMES[a.id] = a.name; if (a.auditor_id) APT_REP[a.id] = a.auditor_id;
+      });
+      if (apts.length < 1000) break;
+    }
+  } catch (e) {}
+
   // 방향 A : POUR → Supabase
   const livePourSyncIds = new Set();
   const aptsqIdsInPour = new Set();
@@ -149,12 +170,12 @@ async function reconcileSync() {
     for (const [id, s] of Object.entries(val)) {
       if (s && s._origin === 'aptsq') { if (s._aptsqId) aptsqIdsInPour.add(String(s._aptsqId)); continue; }
       total++;
-      livePourSyncIds.add(`pour:${node}:${id}`);
-      if (!(s && M.pickDate(s))) {                    // 날짜를 못 찾아 건너뛰는 건 따로 집계
-        noDate++;
+      if (!(s && M.pickDate(s))) {                    // 날짜 없음/지워짐 → 캘린더에 둘 수 없음
+        noDate++;                                       // live 목록에 넣지 않아 → 아래 정리에서 옛 짝이 삭제됨
         if (!sample && s && typeof s === 'object') sample = Object.keys(s).slice(0, 12).join(', ');
         continue;
       }
+      livePourSyncIds.add(`pour:${node}:${id}`);
       if (await importPourEntry(node, id, s)) n++;    // 저장 성공한 것만 카운트
     }
     // 종류별 요약: 전체 / 저장 / 날짜없어 건너뜀 (+ 건너뛴 첫 건의 필드명)
@@ -197,16 +218,7 @@ async function reconcileSync() {
     aptsqRows.push(...data);
     if (data.length < 1000) break;
   }
-  // 정기 방문 POUR 표시용: 단지 id→이름·대표 감리원 맵 (한 번만 조회)
-  try {
-    APT_NAMES = {}; APT_REP = {};
-    for (let af = 0; ; af += 1000) {
-      const { data: apts } = await sb.from('apartments').select('id,name,auditor_id').range(af, af + 999);
-      if (!apts || !apts.length) break;
-      apts.forEach(a => { APT_NAMES[a.id] = a.name; if (a.auditor_id) APT_REP[a.id] = a.auditor_id; });
-      if (apts.length < 1000) break;
-    }
-  } catch (e) {}
+  // (단지 id→이름·대표 감리원 맵 APT_NAMES/APT_REP 는 방향 A 전에 이미 로드함)
   // 담당자 보강용: 감리원 id→이름 맵 (assignee_id로 담당자 채우기)
   try {
     PROFILE_NAMES = {};

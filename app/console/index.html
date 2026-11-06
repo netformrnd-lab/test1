@@ -2471,31 +2471,17 @@ function defaultFieldTitle(r){
   const dongs=(r.dongs||'').trim();
   return (d?d+' ':'')+'['+(dongs||'현장 사진')+']';
 }
-// fieldTitle: 공개 시 입력받은 현장현황 사진 묶음 제목(없으면 기본 제목)
-async function syncFieldFromReport(r, fieldTitle){
-  await sb.from('field_updates').delete().eq('source_report_id', r.id);   // 기존 연결분 제거(중복 방지)
-  const photos=Array.isArray(r.photos)?r.photos:[];
-  if(!(r.published && photos.length)) return;                              // 공개 + 사진 있을 때만 생성
-  const title=(fieldTitle||'').trim() || defaultFieldTitle(r);
-  const rec={ apartment_id:r.apartment_id, title:title, content:null, photos:photos.slice(), source_report_id:r.id };
-  // 날짜: 제목이 YYYYMMDD로 시작하면 그 날짜, 아니면 감리일자
-  let dk=''; const mt=title.match(/^\s*(\d{4})(\d{2})(\d{2})/);
-  if(mt){ dk=mt[1]+mt[2]+mt[3]; } else { const rk=(typeof repDateKey==='function')?repDateKey(r):''; if(/^\d{8}$/.test(rk)) dk=rk; }
-  if(/^\d{8}$/.test(dk)) rec.created_at=dk.slice(0,4)+'-'+dk.slice(4,6)+'-'+dk.slice(6,8)+'T09:00:00+09:00';
-  const {error}=await sb.from('field_updates').insert(rec);
-  if(error){ if(/source_report_id|column|schema/i.test(error.message||'')) throw new Error('현장현황 공개 컬럼이 없어요 — backend/migration-publish-field.sql 을 먼저 실행하세요.'); throw new Error(error.message); }
+// (연결 해제됨) 감리일지 사진 → 현장현황(field_updates) 복제를 더 이상 하지 않음.
+//  현장사진은 시공사에게 받아 '현장기록'으로 직접 올리는 것만 사용.
+//  기존에 감리일지에서 복제됐던 현장현황(source_report_id 있는 것)은 정리(삭제)한다.
+//  직접 올린 현장사진(source_report_id 없음)은 건드리지 않음.
+async function syncFieldFromReport(r){
+  try{ await sb.from('field_updates').delete().eq('source_report_id', r.id); }catch(e){}
 }
 async function togglePub(id,btn){
   const r=REPORTS.find(x=>x.id===id); if(!r)return;
   const next=!r.published;
-  let fieldTitle='';
   if(next){
-    const photos=Array.isArray(r.photos)?r.photos:[];
-    if(photos.length){   // 사진 있으면 현장현황 공개 제목을 직접 입력받는다
-      const ans=prompt('입주민 「현장현황」에 이 감리일지의 현장사진 '+photos.length+'장을 공개합니다.\n사진 묶음 제목을 입력하세요. (앞에 날짜 YYYYMMDD 를 넣으면 그 날짜로 표시돼요)\n\n예) 20261026 [램프 수성, 외부 담벽 칠]', defaultFieldTitle(r));
-      if(ans===null) return;   // 취소 → 공개하지 않음
-      fieldTitle=ans;
-    }
     if(!r.pdf_url){
       if(!confirm('PDF가 없어서 감리일지 내용으로 PDF를 자동 생성해 올릴게요(몇 초 걸려요).\n계속할까요?')) return;
       if(btn){var _t=btn.textContent;btn.disabled=true;btn.textContent='PDF 만드는 중…';}
@@ -2507,7 +2493,7 @@ async function togglePub(id,btn){
   const {error}=await sb.from('reports').update({published:next}).eq('id',id);
   if(error){alert('변경 실패: '+error.message);return;}
   r.published=next;
-  try{ await syncFieldFromReport(r, fieldTitle); }catch(e){ alert('현장현황 사진 공개 중 문제: '+(e&&e.message||e)); }
+  try{ await syncFieldFromReport(r); }catch(e){}   // 연결 해제: 복제 안 함, 옛 복제분만 정리
   renderProj();
 }
 /* ===== 감리일지 전체 공개 (dj/테스트 작성 건 제외) ===== */
@@ -3212,14 +3198,7 @@ async function togglePubModal(id){
   const {error:e0}=await sb.from('reports').update({title:f.title||undefined,content:f.content,pub_title:f.pub_title,photos:f.photos}).eq('id',id);
   if(e0){alert('오류: '+e0.message);return;}
   r.title=f.title||r.title; r.content=f.content; r.pub_title=f.pub_title; r.photos=f.photos;
-  let fieldTitle='';
   if(next){
-    const photos=Array.isArray(r.photos)?r.photos:[];
-    if(photos.length){   // 사진 있으면 현장현황 공개 제목을 직접 입력받는다
-      const ans=prompt('입주민 「현장현황」에 이 감리일지의 현장사진 '+photos.length+'장을 공개합니다.\n사진 묶음 제목을 입력하세요. (앞에 날짜 YYYYMMDD 를 넣으면 그 날짜로 표시돼요)\n\n예) 20261026 [램프 수성, 외부 담벽 칠]', defaultFieldTitle(r));
-      if(ans===null) return;   // 취소 → 공개하지 않음
-      fieldTitle=ans;
-    }
     if(!r.pdf_url){   // 공개하는데 PDF가 없으면 내용으로 자동 생성
       const msg=$('m-msg'); if(msg){msg.textContent='PDF 만드는 중… (몇 초)';msg.style.color='var(--mut)';}
       try{ await ensureReportPdf(r); }
@@ -3229,7 +3208,7 @@ async function togglePubModal(id){
   const {error}=await sb.from('reports').update({published:next}).eq('id',id);
   if(error){alert('오류: '+error.message);return;}
   r.published=next;
-  try{ await syncFieldFromReport(r, fieldTitle); }catch(e){ alert('현장현황 사진 공개 중 문제: '+(e&&e.message||e)); }
+  try{ await syncFieldFromReport(r); }catch(e){}   // 연결 해제: 복제 안 함, 옛 복제분만 정리
   closeModal(); await loadAll();
 }
 async function deleteReport(id){

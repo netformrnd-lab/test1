@@ -77,6 +77,9 @@ main{flex:1;min-width:0;padding:22px 28px 70px;max-width:1680px;margin:0 auto}
 .pd-ck .it.bundle{background:var(--soft);border:1px solid var(--line);margin:4px 0 2px}.pd-ck .it.bundle.next{background:var(--blue-soft);border-color:var(--blue)}.pd-ck .it.bundle .lb{font-weight:800}.pd-ck .it.bundle.done .lb{text-decoration:none;color:var(--mut)}.pd-ck .it.bundle.part .bx{background:#fff;border-color:#16A34A;color:#16A34A;font-weight:900}.pd-ck .bcnt{margin-left:auto;font-size:11px;font-weight:800;color:var(--mut);flex:none}
 .pd-ck .it.sub{padding-left:26px;min-height:32px}.pd-ck .it.sub .bx{width:15px;height:15px}
 .pd-memo .pd-ct{flex-wrap:wrap;row-gap:2px}.pd-memo .pd-ct h3{white-space:nowrap}.pd-memo textarea{width:100%;box-sizing:border-box;min-height:110px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;font-size:12.5px;font-family:inherit;line-height:1.6;outline:none;resize:vertical}.pd-memo textarea:focus{border-color:var(--blue)}.pd-memo .mf{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:11px;color:var(--mut)}
+.pd-cc{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.pd-cc button{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12px;font-weight:700;color:var(--ink);cursor:pointer}.pd-cc button.on{background:var(--navy);color:#fff;border-color:var(--navy)}.pd-cc button .dot{width:7px;height:7px;border-radius:50%;flex:none}.pd-cc button small{font-size:11px;font-weight:600;opacity:.75}.pd-cc button.add{border-style:dashed;color:var(--blue)}
+.pd-ck .ckh{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;font-weight:800;color:var(--blue);padding:2px 8px 8px;border-bottom:1px solid var(--line2);margin-bottom:6px}.pd-ck .ckh small{font-weight:600;color:var(--mut)}.pd-ck .ckh span{margin-left:auto;font-size:11px;font-weight:600;color:var(--mut)}
+.pj-sub2{font-size:11.5px;color:var(--mut2);font-weight:600;margin-top:2px}.pj-sub2 small{color:var(--mut);font-weight:500}.pj-chip .sites{font-size:10.5px;font-weight:600;color:var(--mut);margin-left:3px}
 .pd-ratio{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px}.pd-ratio button{height:30px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12px;font-weight:700;cursor:pointer}.pd-ratio button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .pd-todo{border:1px solid var(--blue);box-shadow:0 0 0 2px var(--blue-soft)}.pd-todo .k{font-size:12px;font-weight:800;color:var(--blue)}.pd-todo .k span{color:var(--mut);font-weight:600}.pd-todo .t{font-size:17px;font-weight:800;margin:6px 0 2px}.pd-todo .h{font-size:12px;color:var(--mut)}.pd-todo .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .pd-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:-4px -16px 12px;padding:0 10px}.pd-tabs button{border:none;background:transparent;min-height:44px;padding:0 12px;font-size:13.5px;font-weight:600;color:var(--mut);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}.pd-tabs button.on{font-weight:800;color:var(--ink);border-bottom-color:var(--ink)}.pd-tabs button span{font-size:12px;font-weight:800;color:var(--mut);margin-left:4px}.pd-tabs button.on span{color:var(--blue)}
@@ -496,6 +499,7 @@ tbody tr:hover{background:#f8fafc}
         <div class="pj-head">
           <div class="pj-title"><h2>공사관리 <span class="pj-total" id="projTotal">0</span></h2><div class="pj-crumb">현장을 누르면 감리일지 · 작업사진 · 계약서 · 방문이력이 열려요</div></div>
           <div class="pj-tools">
+            <button class="b line" onclick="exportSiteStatusExcel()" title="공사중 · 준공예정 · 준공 · 전체 건 시트">공사 현황 엑셀</button>
             <button class="b line" onclick="openReportAddPick()">감리일지 작성</button>
             <button class="b blue" onclick="openAptAdd()">+ 현장 추가</button>
           </div>
@@ -703,7 +707,7 @@ const realEmail=(m)=>{const e=(m.email||'');return e.endsWith('@aptsquare.app')?
 let MEMBERS=[],APTS=[],NOTICES=[],CASES=[],REPORTS=[],FIELDS=[],SCHEDULES=[],SURVEYS=[],CONTRACTS=[],SPECS=[],LEAFLETS=[],CREDS=[],CHAT=[],MGRFORMS=[],CARDS=[],APT_AUD={},AREQS=[];
 // 단지별 '대기중(pending)' 배정 요청 찾기
 function pendingReq(aptId){ return AREQS.find(r=>r.apartment_id===aptId && r.status==='pending'); }
-let SALES=[],ROADMAP=[],DOCS=[],SITE_NOTES=[],VIEWS={},CSITES={},PHASEB_OK={sales:false,roadmap:false,docs:false,csites:false,templates:false};
+let SALES=[],ROADMAP=[],DOCS=[],SITE_NOTES=[],VIEWS={},CSITES={},SCONTRACTS=[],PHASEB_OK={sales:false,roadmap:false,docs:false,csites:false,templates:false,scontracts:false};
 let TEMPLATES=[];   // 안내문구(이메일) 템플릿 (message_templates)
 function aptAuditors(a){ const j=APT_AUD[a.id]; if(j&&j.length) return j; return a.auditor_id?[a.auditor_id]:[]; }
 function auditorName(id){ const m=MEMBERS.find(x=>x.id===id); return m?(m.name||m.email||'-'):'-'; }
@@ -716,10 +720,14 @@ function STG(m){ return (window.STAGE_SETS&&window.STAGE_SETS[m])||null; }
    (control_sites 는 관리자 전용 jsonb 라 DB 마이그레이션 없이 바로 씀) */
 const METHOD_SHORT={repaint:'재도장',metalroof:'금속지붕',shingle:'슁글',epoxy:'에폭시',composite:'옥상방수',block:'보도블록',ascon:'아스콘'};
 function methodShort(m){ return METHOD_SHORT[m]||(window.methodLabel&&window.methodLabel(m))||m||''; }
-function siteMethods(a){ if(!a)return []; const d=csData(a)||{}; const ms=(Array.isArray(d.methods)?d.methods:[]).filter(k=>STG(k)); if(a.method&&STG(a.method)&&!ms.includes(a.method))ms.unshift(a.method); return ms; }
-function methodProgress(a,m){ const st=STG(m); const tot=st?st.stages.length:0; const d=csData(a)||{}; const pm=(d.progress&&typeof d.progress==='object')?d.progress:null;
-  let cur=(pm&&pm[m]!=null)?+pm[m]:(m===a.method?(a.progress_current||0):0); if(isNaN(cur))cur=0; cur=Math.max(0,Math.min(tot,cur|0));
+function siteMethodsLegacy(a){ if(!a)return []; const d=csData(a)||{}; const ms=(Array.isArray(d.methods)?d.methods:[]).filter(k=>STG(k)); if(a.method&&STG(a.method)&&!ms.includes(a.method))ms.unshift(a.method); return ms; }
+// 계약 건이 있으면: 선택한 건(a._c) → 그 건의 공법 / 현장 전체 → 진행 중인 건들의 공법 합집합. 없으면 기존 방식
+function siteMethods(a){ if(!a)return []; if(!scOn()||!aptContracts(a.id).length)return siteMethodsLegacy(a); if(a._c)return scMethods(a._c); const out=[]; liveContracts(a).forEach(c=>scMethods(c).forEach(m=>{ if(!out.includes(m))out.push(m); })); return out; }
+function mpObj(m,cur){ const st=STG(m); const tot=st?st.stages.length:0; if(isNaN(cur))cur=0; cur=Math.max(0,Math.min(tot,cur|0));
   return {m,label:(window.methodLabel&&window.methodLabel(m))||m,short:methodShort(m),cur,tot,pct:tot?Math.round(cur/tot*100):0,stage:tot?(cur>=tot?'':st.stages[cur]):'',done:!!tot&&cur>=tot}; }
+function methodProgressLegacy(a,m){ const d=csData(a)||{}; const pm=(d.progress&&typeof d.progress==='object')?d.progress:null; const cur=(pm&&pm[m]!=null)?+pm[m]:(m===a.method?(a.progress_current||0):0); return mpObj(m,cur); }
+function methodContract(a,m){ if(a._c)return a._c; const live=liveContracts(a); return live.slice().reverse().find(c=>scMethods(c).includes(m))||live[live.length-1]||null; }
+function methodProgress(a,m){ if(!scOn()||!aptContracts(a.id).length)return methodProgressLegacy(a,m); const c=methodContract(a,m); return mpObj(m,c?(+scProg(c)[m]||0):0); }
 function siteProgressList(a){ return siteMethods(a).map(m=>methodProgress(a,m)); }
 function siteType(a){ const ms=siteMethods(a); if(ms.length)return ms.map(m=>(window.methodLabel&&window.methodLabel(m))||m).join(', '); return (a.construction_type&&String(a.construction_type).trim())||''; }
 function progressOf(a){ if(a&&a.method&&STG(a.method)){ const p=methodProgress(a,a.method); return {cur:p.cur,tot:p.tot,pct:p.pct}; } const tot=(a&&a.progress_total)||0; const cur=(a&&a.progress_current)||0; return {cur,tot,pct:tot?Math.round(cur/tot*100):0}; }
@@ -753,19 +761,24 @@ async function dismissDetectedStage(aptId,m){ const a=APTS.find(x=>x.id===aptId)
   if(error)console.warn('제안 숨김 저장 실패',error.message);
 }
 /* 공정 저장: control_sites.data.progress[m] + 대표 공법이면 apartments.progress_current 도 갱신(앱 공정률) */
-async function setMethodProgress(aptId,m,cur){ const a=APTS.find(x=>x.id===aptId); if(!a||!STG(m))return; const tot=STG(m).stages.length; cur=Math.max(0,Math.min(tot,cur|0));
+async function setMethodProgress(aptId,m,cur,cid){ const a=APTS.find(x=>x.id===aptId); if(!a||!STG(m))return; const tot=STG(m).stages.length; cur=Math.max(0,Math.min(tot,cur|0));
+  const c=scOn()?targetContract(aptId,cid):null;
+  if(c){ const prog={...scProg(c),[m]:cur}; const ms=scMethods(c); if(!ms.includes(m))ms.push(m);
+    const {error}=await sb.from('site_contracts').update({progress:prog,methods:ms,updated_at:new Date().toISOString()}).eq('id',c.id); if(error){ alert('공정 저장 실패: '+error.message); return; }
+    c.progress=prog; c.methods=ms; await syncAptFromContracts(a); renderProjList(); if(curProj&&curProj.id===aptId){ try{renderProj();}catch(e){} } return; }
   const slug=csSlug(a.name); const d={...(CSITES[slug]||{}),_name:a.name}; d.progress={...((d.progress&&typeof d.progress==='object')?d.progress:{}),[m]:cur}; if(!Array.isArray(d.methods)||!d.methods.includes(m))d.methods=siteMethods(a); CSITES[slug]=d;
   const {error}=await sb.from('control_sites').upsert({slug,name:a.name,apartment_id:a.id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'});
   if(error){ alert('공정 저장 실패: '+error.message); return; }
   if(m===a.method){ a.progress_current=cur; a.progress_total=tot; try{ await sb.from('apartments').update({progress_current:cur,progress_total:tot}).eq('id',aptId); }catch(e){} }
   renderProjList(); if(curProj&&curProj.id===aptId){ try{renderProj();}catch(e){} }
 }
-async function applyDetectedStage(aptId,m){ const a=APTS.find(x=>x.id===aptId); const d=a&&detectStage(a,m); if(!d)return; await setMethodProgress(aptId,m,d.idx); }
+async function applyDetectedStage(aptId,m,cid){ const a=APTS.find(x=>x.id===aptId); const d=a&&detectStage(a,m); if(!d)return; await setMethodProgress(aptId,m,d.idx,cid); }
 /* 공정률 칸(리스트·상세 공용): 공법마다 한 줄 — 짧은 공종명 · 바 · % · 현재 공정 · (일지 감지 시) 반영 링크 */
 function progressRowsHtml(a,opt){ opt=opt||{}; const list=siteProgressList(a); const bw=opt.barW||60;
   if(!list.length){ const pr=progressOf(a); return pr.tot?`<div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:${bw}px"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut)">${pr.pct}%</span></div>`:`<span style="font-size:11px;color:var(--mut)">${opt.emptyText||'-'}</span>`; }
   const multi=list.length>1;
-  return list.map(p=>{ const det=detectStage(a,p.m); const hint=(det&&det.idx!==p.cur)?`<div class="pghint" title="최신 감리일지(${esc(det.date)})에서 '${esc(det.name)}' 공정이 읽혔어요. 눌러서 공정에 반영">일지 ${esc(det.date.slice(5))}: ${esc(det.name)} <span class="link" onclick="event.stopPropagation();applyDetectedStage('${a.id}','${p.m}')">반영</span> <span class="link" style="color:var(--mut);margin-left:2px" title="이 제안 숨기기 — 직접 설정할 때. 새 일지가 올라오면 다시 제안해요" onclick="event.stopPropagation();dismissDetectedStage('${a.id}','${p.m}')">✕</span></div>`:'';
+  const doneC=!!(a._c&&a._c.stage==='준공');   // 준공된 계약 건 행에는 공정 제안을 띄우지 않음
+  return list.map(p=>{ const det=doneC?null:detectStage(a,p.m); const hint=(det&&det.idx!==p.cur)?`<div class="pghint" title="최신 감리일지(${esc(det.date)})에서 '${esc(det.name)}' 공정이 읽혔어요. 눌러서 공정에 반영">일지 ${esc(det.date.slice(5))}: ${esc(det.name)} <span class="link" onclick="event.stopPropagation();applyDetectedStage('${a.id}','${p.m}','${a._c?a._c.id:''}')">반영</span> <span class="link" style="color:var(--mut);margin-left:2px" title="이 제안 숨기기 — 직접 설정할 때. 새 일지가 올라오면 다시 제안해요" onclick="event.stopPropagation();dismissDetectedStage('${a.id}','${p.m}')">✕</span></div>`:'';
     const stName=p.done?'완료':(p.stage?esc(p.stage):'시작 전');
     return `<div class="pgrow">${multi?`<span class="pgl">${esc(p.short)}</span>`:''}<div class="bar" style="width:${bw}px"><i style="width:${p.pct}%"></i></div><span class="pgp">${p.pct}%</span><span class="pgs" title="${p.cur}/${p.tot}단계">${stName}</span></div>${hint}`; }).join('');
 }
@@ -824,12 +837,14 @@ async function loadAll(){
   try{ const {data:rm,error}=await sb.from('roadmap_items').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); ROADMAP=rm||[]; PHASEB_OK.roadmap=!error; }catch(e){ ROADMAP=[]; PHASEB_OK.roadmap=false; }
   try{ const {data:dc,error}=await sb.from('doc_files').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); DOCS=dc||[]; PHASEB_OK.docs=!error; }catch(e){ DOCS=[]; PHASEB_OK.docs=false; }
   try{ const {data:sp}=await sb.from('specs').select('*').order('created_at',{ascending:false}); SPECS=sp||[]; }catch(e){ SPECS=[]; }
+  try{ const {data:sc,error}=await sb.from('site_contracts').select('*').order('seq',{ascending:true}); SCONTRACTS=error?[]:(sc||[]); PHASEB_OK.scontracts=!error; }catch(e){ SCONTRACTS=[]; PHASEB_OK.scontracts=false; }
   try{ const {data:sn}=await sb.from('site_notes').select('*').order('created_at',{ascending:false}); SITE_NOTES=sn||[]; }catch(e){ SITE_NOTES=[]; }
   try{ const {data:bc,error}=await sb.from('business_cards').select('*').order('sort',{ascending:true}).order('created_at',{ascending:false}); CARDS=bc||[]; PHASEB_OK.cards=!error; }catch(e){ CARDS=[]; PHASEB_OK.cards=false; }
   try{ const {data:ev}=await sb.from('app_events').select('apartment_id'); VIEWS={}; (ev||[]).forEach(e=>{ if(e.apartment_id)VIEWS[e.apartment_id]=(VIEWS[e.apartment_id]||0)+1; }); }catch(e){ VIEWS={}; }
   try{ const {data:cs,error}=await sb.from('control_sites').select('slug,name,data'); CSITES={}; (cs||[]).forEach(x=>{ CSITES[x.slug]=x.data||{}; }); PHASEB_OK.csites=!error; }catch(e){ CSITES={}; PHASEB_OK.csites=false; }
   initSeen();
   await loadRoadmapManual();
+  await ensureContractsForApts();   // 기존 현장 → 1차 계약 건 자동 생성(세션 1회 · site_contracts 표가 있을 때만)
   renderAll();
   startPoll(); startConsoleRealtime(); maybeAutoSyncGSheet();
   if(!WON_MATED){ WON_MATED=true; materializeWonApts(null); }  // 성사 딜 → 단지관리 자동 편입(세션 1회)
@@ -966,7 +981,7 @@ async function trashRow(table,id,label){
   if(del.error){ try{ await sb.from('trash').delete().eq('src_table',table).eq('src_id',id); }catch(e){} throw new Error(del.error.message); }
 }
 // 단지 + 연쇄 자식(동/감리일지/현장기록/일정/계약/만족도/소장작성지 + 연결 영업딜)을 통째로 휴지통에 보관 후 삭제
-const APT_CHILD_TABLES=['dong_progress','field_updates','reports','schedules','contracts','specs','surveys','manager_forms'];
+const APT_CHILD_TABLES=['dong_progress','field_updates','reports','schedules','site_contracts','contracts','specs','surveys','manager_forms'];
 async function trashApt(id){
   const {data:apt}=await sb.from('apartments').select('*').eq('id',id).single();
   if(!apt) throw new Error('단지를 찾지 못했어요');
@@ -1454,6 +1469,24 @@ function exportAllExcel(){
   const today=new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb,'아파트스퀘어_전체데이터_'+today+'.xlsx');
 }
+// 공사 현황 엑셀: 공사중 / 준공예정 / 준공 / 계약·착공 / 전체 건 — 계약 건 단위(재계약 구분). 연도를 넣으면 그 해 계약·착공·준공한 건만
+function exportSiteStatusExcel(){
+  if(typeof XLSX==='undefined'){alert('엑셀 모듈을 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.');return;}
+  const yr=prompt('연도를 넣으면 그 해에 계약·착공·준공한 건만 뽑아요. 비우면 전체.\n예: 2026','' ); if(yr===null)return; const y=(yr||'').trim();
+  const rows=projRowsBase().map(a=>{ const c=a._c||null; const st=stageOf(a); const lr=lastReportOf(a.id);
+    return {현장:a.name,지역:a.region||'',공종:siteType(a)||'',공사명:c?(c.title||''):(a.work_name||''),차수:c?(c.seq||1):1,재계약:(c&&+c.seq>1)?'예':'',단계:stageMeta(st)[1],계약일:c?(c.contract_date||''):(a.created_at||'').slice(0,10),착공일:c?(c.start_date||''):'',준공일:c?(c.done_date||''):'',
+      담당감리원:aptAuditors(a).map(auditorName).filter(n=>n&&n!=='-').join(', '),공정률:progressOf(a).pct+'%',계약금액:aptFee(a),수금액:aptReceived(a),미수금:aptOutstanding(a),최근감리일지:lr?(repDateOf(lr)||''):'',감리일지수:REPORTS.filter(r=>r.apartment_id===a.id).length,_st:st}; });
+  const inY=(r,keys)=>!y||keys.some(k=>String(r[k]||'').startsWith(y));
+  const strip=r=>{ const o={...r}; delete o._st; return o; };
+  const wb=XLSX.utils.book_new(); const add=(name,list)=>{ const ws=XLSX.utils.json_to_sheet(list.length?list:[{'':'해당 없음'}]); XLSX.utils.book_append_sheet(wb,ws,name); };
+  const byName=(a,b)=>String(a.현장).localeCompare(String(b.현장),'ko');
+  add('공사중', rows.filter(r=>r._st==='공사중'&&inY(r,['계약일','착공일'])).sort(byName).map(strip));
+  add('준공예정', rows.filter(r=>r._st==='준공처리중'&&inY(r,['계약일','착공일'])).sort(byName).map(strip));
+  add('준공', rows.filter(r=>r._st==='준공'&&inY(r,['준공일'])).sort((a,b)=>String(b.준공일).localeCompare(String(a.준공일))||byName(a,b)).map(strip));
+  add('계약·착공', rows.filter(r=>(r._st==='계약'||r._st==='착공')&&inY(r,['계약일','착공일'])).sort(byName).map(strip));
+  add('전체 건', rows.filter(r=>inY(r,['계약일','착공일','준공일'])).sort((a,b)=>String(b.계약일).localeCompare(String(a.계약일))||byName(a,b)).map(strip));
+  XLSX.writeFile(wb,'아파트스퀘어_공사현황_'+(y||'전체')+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
 // 일정 전용 엑셀 추출 (분류·방문·예정/다녀옴 포함) — 이번 달 또는 전체
 function exportSchedulesExcel(monthOnly){
   if(typeof XLSX==='undefined'){alert('엑셀 모듈을 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.');return;}
@@ -1842,12 +1875,71 @@ const STATUS_BY_STAGE={'계약':'scheduled','착공':'scheduled','공사중':'in
 function stageMeta(k){ return SITE_STAGES.find(s=>s[0]===k)||SITE_STAGES[0]; }
 function stageIdx(k){ const i=STAGE_KEYS.indexOf(k); return i<0?0:i; }
 // 단계 읽기: control_sites 에 저장된 값 우선, 없으면 기존 status 로 환산
-function stageOf(a){ if(!a)return '계약'; const s=(csData(a)||{}).stage; return STAGE_KEYS.includes(s)?s:(STAGE_BY_STATUS[a.status]||'공사중'); }
+function stageOfLegacy(a){ if(!a)return '계약'; const s=(csData(a)||{}).stage; return STAGE_KEYS.includes(s)?s:(STAGE_BY_STATUS[a.status]||'공사중'); }
+// 계약 건이 있으면 선택한 건(a._c) 또는 진행 중인 최신 건의 단계. 없으면 기존(control_sites·status)
+function stageOf(a){ if(!a)return '계약'; const c=scOn()?activeContract(a):null; if(c&&STAGE_KEYS.includes(c.stage))return c.stage; return stageOfLegacy(a); }
 function stageLabel(a){ return stageMeta(stageOf(a))[1]; }
+
+/* ===== 계약 건 (site_contracts) — 현장 하나 아래 계약 여러 건. 콘솔 전용 표 · 앱이 읽는 apartments 값은 syncAptFromContracts 가 대표 건 기준으로 기록 ===== */
+let SC_MATED=false, curCid=null;
+function scOn(){ return !!PHASEB_OK.scontracts; }
+function aptContracts(aptId){ return SCONTRACTS.filter(c=>c.apartment_id===aptId).sort((x,y)=>((+x.seq||0)-(+y.seq||0))||String(x.created_at||'').localeCompare(String(y.created_at||''))); }
+function liveContracts(a){ const cs=aptContracts(a.id); if(!cs.length)return []; const live=cs.filter(c=>c.stage!=='준공'); return live.length?live:[cs[cs.length-1]]; }
+// 대표 건(앱이 읽는 현장 값의 기준): 준공 아닌 건 중 가장 앞선 단계(공사중 > 착공 > 계약), 같으면 차수 큰 것. 전부 준공이면 마지막 건
+function activeContract(a){ if(!a)return null; if(a._c)return a._c; const live=liveContracts(a); if(!live.length)return null; return live.slice().sort((x,y)=>(stageIdx(y.stage)-stageIdx(x.stage))||((+y.seq||0)-(+x.seq||0)))[0]; }
+// 쓰기 대상 건: 지정 id → 상세 화면에서 선택 중인 건 → 대표 건
+function targetContract(aptId,cid){ if(!scOn())return null; if(cid){ const c=SCONTRACTS.find(x=>x.id===cid); if(c)return c; } if(curProj&&curProj.id===aptId&&curCid){ const c=SCONTRACTS.find(x=>x.id===curCid); if(c)return c; } const a=APTS.find(x=>x.id===aptId); return a?activeContract(a):null; }
+function scMethods(c){ return (Array.isArray(c.methods)?c.methods:[]).filter(k=>STG(k)); }
+function scProg(c){ return (c.progress&&typeof c.progress==='object')?c.progress:{}; }
+function scChecklist(c){ return (c.checklist&&typeof c.checklist==='object')?c.checklist:{}; }
+function scShort(c){ const ms=scMethods(c).map(methodShort).join('·'); return (c.title||ms||'공종 미지정')+(+c.seq>1?' · '+c.seq+'차':''); }
+function scChip(c){ return (+c.seq>1?c.seq+'차 ':'1차 ')+(scMethods(c).map(methodShort).join('·')||c.title||'공종 미지정'); }
+function aptWorkName(a){ const c=scOn()?activeContract(a):null; return (c&&c.title)||a.work_name||''; }
+// 기존 현장 → 현재 값으로 1차 건 자동 생성 (표가 있고 아직 건이 없는 현장만)
+async function ensureContractsForApts(){
+  if(!scOn()||SC_MATED)return; SC_MATED=true;
+  const have=new Set(SCONTRACTS.map(c=>c.apartment_id));
+  const rows=APTS.filter(a=>!have.has(a.id)).map(a=>{ const d=csData(a)||{}; const sel=siteMethodsLegacy(a); const prog={}; sel.forEach(m=>{ prog[m]=methodProgressLegacy(a,m).cur; }); const st=stageOfLegacy(a);
+    return { apartment_id:a.id, seq:1, title:a.work_name||null, methods:sel, progress:prog, stage:st, stage_at:d.stageAt||a.created_at||new Date().toISOString(), contract_date:(a.created_at||'').slice(0,10)||null, done_date:(st==='준공'&&d.stageAt)?String(d.stageAt).slice(0,10):null,
+      contract_amount:(a.contract_amount!=null?a.contract_amount:(a.supervision_fee!=null?a.supervision_fee:null)), received_amount:(a.received_amount!=null?a.received_amount:null), pay_ratio:(d.payRatio||null), checklist:(a.checklist&&typeof a.checklist==='object')?a.checklist:{} }; });
+  if(!rows.length)return;
+  for(let i=0;i<rows.length;i+=50){ const {data,error}=await sb.from('site_contracts').insert(rows.slice(i,i+50)).select('*'); if(error){ console.warn('계약 건 자동 생성 실패',error.message); return; } (data||[]).forEach(c=>SCONTRACTS.push(c)); }
+}
+const numN=v=>(v==null||v==='')?null:(+v);
+// 대표 건 기준으로 앱이 읽는 값 갱신: 단계(control_sites.stage + apartments.status) · 대표 공법/공정(apartments.method/progress_*) · 금액 합계(apartments.contract_amount/supervision_fee/received_amount)
+async function syncAptFromContracts(a){
+  if(!scOn())return; const rep=activeContract(a); if(!rep)return;
+  if(stageOfLegacy(a)!==rep.stage) await applyAptStage(a.id,rep.stage);
+  const sel=[], prog={}; liveContracts(a).forEach(c=>scMethods(c).forEach(m=>{ if(!sel.includes(m))sel.push(m); prog[m]=+scProg(c)[m]||0; }));
+  const repMs=scMethods(rep); const ordered=repMs.concat(sel.filter(m=>!repMs.includes(m)));
+  const method=ordered[0]||null; const pt=method?STG(method).stages.length:0; let pc=method?(prog[method]||0):0; if(pt&&pc>pt)pc=pt;
+  const all=aptContracts(a.id); const ca=all.some(c=>c.contract_amount!=null)?all.reduce((s,c)=>s+(+c.contract_amount||0),0):null; const rc=all.some(c=>c.received_amount!=null)?all.reduce((s,c)=>s+(+c.received_amount||0),0):null;
+  const upd={}; if((a.method||null)!==method)upd.method=method; if((+a.progress_current||0)!==pc)upd.progress_current=pc; if((+a.progress_total||0)!==pt)upd.progress_total=pt;
+  if(numN(a.contract_amount)!==ca)upd.contract_amount=ca; if(numN(a.supervision_fee)!==ca)upd.supervision_fee=ca; if(numN(a.received_amount)!==rc)upd.received_amount=rc;
+  if(Object.keys(upd).length){ const {error}=await sb.from('apartments').update(upd).eq('id',a.id); if(error)console.warn('현장 동기화 실패',error.message); else { Object.assign(a,upd); if(curProj&&curProj.id===a.id)Object.assign(curProj,upd); } }
+  const slug=csSlug(a.name); const d0=CSITES[slug]||{};
+  if(JSON.stringify(d0.methods||[])!==JSON.stringify(ordered)||JSON.stringify(d0.progress||{})!==JSON.stringify(prog)){ const d={...d0,_name:a.name,methods:ordered,progress:prog}; CSITES[slug]=d; try{ await sb.from('control_sites').upsert({slug,name:a.name,apartment_id:a.id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'}); }catch(e){} }
+}
 let stageBusy=false;
-async function setSiteStage(aptId,key){
+// 단계 변경: 계약 건이 있으면 그 건의 단계를 바꾸고 대표 건 기준으로 현장(앱) 값을 맞춤. 없으면 기존 방식 그대로
+async function setSiteStage(aptId,key,cid){
+  const a=APTS.find(x=>x.id===aptId); if(!a||!STAGE_KEYS.includes(key))return;
+  const c=scOn()?targetContract(aptId,cid):null;
+  if(!c)return applyAptStage(aptId,key);
+  if(c.stage===key)return;
+  const now=new Date().toISOString(); const patch={stage:key,stage_at:now,updated_at:now};
+  if(key==='착공'&&!c.start_date)patch.start_date=now.slice(0,10);
+  if(key==='준공'&&!c.done_date)patch.done_date=now.slice(0,10);
+  const {error}=await sb.from('site_contracts').update(patch).eq('id',c.id); if(error){ alert('단계 저장 실패: '+error.message); return; }
+  Object.assign(c,patch);
+  await syncAptFromContracts(a);
+  renderProjList(); try{updateBadges();}catch(e){} try{renderOrgs();}catch(e){} try{renderDash();}catch(e){} try{renderCalendar();}catch(e){}
+  if(curProj&&curProj.id===aptId)renderProj();
+}
+// (기존) 현장 단계 저장: control_sites.stage + apartments.status + 준공 시 앞으로의 정기 방문 정리 — 앱 연동 그대로
+async function applyAptStage(aptId,key){
   if(stageBusy)return; const a=APTS.find(x=>x.id===aptId); if(!a||!STAGE_KEYS.includes(key))return;
-  if(stageOf(a)===key)return;
+  if(stageOfLegacy(a)===key)return;
   stageBusy=true;
   const slug=csSlug(a.name), prevCS=CSITES[slug], prevStatus=a.status;
   const data={...(CSITES[slug]||{}),_name:a.name,stage:key,stageAt:new Date().toISOString()};
@@ -1872,12 +1964,12 @@ async function setSiteStage(aptId,key){
   try{updateBadges();}catch(e){} try{renderOrgs();}catch(e){} try{renderDash();}catch(e){} try{renderCalendar();}catch(e){}
   if(curProj&&curProj.id===aptId)renderProj();
 }
-function moveStage(id,d){ const a=APTS.find(x=>x.id===id); if(!a)return; const ni=stageIdx(stageOf(a))+d; if(ni<0||ni>=STAGE_KEYS.length)return; setSiteStage(id,STAGE_KEYS[ni]); }
+function moveStage(id,d,cid){ const a=APTS.find(x=>x.id===id); if(!a)return; const c=scOn()?targetContract(id,cid):null; const cur=c?c.stage:stageOf(a); const ni=stageIdx(cur)+d; if(ni<0||ni>=STAGE_KEYS.length)return; setSiteStage(id,STAGE_KEYS[ni],c?c.id:undefined); }
 // 단계 체크바 — 칸을 누르면 그 단계로 이동
 function stepBarHtml(a){
   const ci=stageIdx(stageOf(a));
   return '<div class="stepbar">'+SITE_STAGES.map(([k,lab,,color],i)=>
-    `<span class="sp ${i===ci?'cur':(i<ci?'pass':'')}" ${i===ci?`style="background:${color}"`:''} title="${esc(lab)} 단계로 이동" onclick="event.stopPropagation();setSiteStage('${a.id}','${k}')">${esc(lab)}</span>`
+    `<span class="sp ${i===ci?'cur':(i<ci?'pass':'')}" ${i===ci?`style="background:${color}"`:''} title="${esc(lab)} 단계로 이동" onclick="event.stopPropagation();setSiteStage('${a.id}','${k}','${a._c?a._c.id:''}')">${esc(lab)}</span>`
   ).join('')+'</div>';
 }
 /* ── 리스트 / 칸반 전환 · 단계 필터 ── */
@@ -1927,7 +2019,7 @@ function lastReportOf(aptId){ return REPORTS.filter(r=>r.apartment_id===aptId).s
 function repDateOf(r){ if(!r)return ''; const m=String(r.title||'').match(/(\d{4}-\d{2}-\d{2})/); return m?m[1]:(r.created_at||'').slice(0,10); }
 function fmtMD(d){ if(!d)return ''; const x=new Date(d+'T00:00:00'); if(isNaN(x))return d; return `${d.slice(5,7)}.${d.slice(8,10)} (${WKB[(x.getDay()+6)%7]})`; }
 /* 상태: 감리 진행(공사중) 단지의 최근 일지 경과일 — 10일 이내 정상 · 21일 이내 주의 · 그 이상/없음 지연 */
-function siteHealth(a){ if(a.status!=='in_progress')return {cls:'na',label:'-',tip:'공사중 단지만 판정'}; const r=lastReportOf(a.id); if(!r)return {cls:'late',label:'일지 없음',tip:'감리일지가 아직 없어요'};
+function siteHealth(a){ const inprog=a._c?(a._c.stage==='공사중'||a._c.stage==='준공처리중'):(a.status==='in_progress'); if(!inprog)return {cls:'na',label:'-',tip:'공사중 단지만 판정'}; const r=lastReportOf(a.id); if(!r)return {cls:'late',label:'일지 없음',tip:'감리일지가 아직 없어요'};
   const d=repDateOf(r); const days=Math.floor((new Date()-new Date(d+'T00:00:00'))/86400000); if(days<=10)return {cls:'ok',label:'정상',tip:`최근 일지 ${days}일 전`}; if(days<=21)return {cls:'warn',label:'주의',tip:`최근 일지 ${days}일 전`}; return {cls:'late',label:'지연',tip:`최근 일지 ${days}일 전`}; }
 function audAvatars(a,max){ const ids=aptAuditors(a); if(!ids.length)return '<span style="color:var(--red);font-weight:800;font-size:12.5px">미배정</span>'; const names=ids.map(auditorName).filter(Boolean); max=max||3;
   return `<div class="pj-aud" title="${esc(names.join(', '))}"><span class="nm">${esc(names.slice(0,max).join(', '))}</span>${names.length>max?`<span class="more">외 ${names.length-max}</span>`:''}</div>`; }
@@ -1946,8 +2038,8 @@ function renderProjList(){
   projFilterOpts();
   const q=($('proj-q')?.value||'').trim().toLowerCase();
   const fr=($('pj-region')||{}).value||'', fa=($('pj-aud')||{}).value||'', fm=($('pj-method')||{}).value||'', sort=($('pj-sort')||{}).value||'name';
-  let base=APTS.slice();
-  if(q)base=base.filter(a=>((a.name||'')+' '+(a.region||'')+' '+aptAuditors(a).map(auditorName).join(' ')).toLowerCase().includes(q));
+  let base=projRowsBase();
+  if(q)base=base.filter(a=>((a.name||'')+' '+(a.region||'')+' '+siteType(a)+' '+aptAuditors(a).map(auditorName).join(' ')).toLowerCase().includes(q));
   if(fr)base=base.filter(a=>(a.region||'').trim()===fr);
   if(fa)base=base.filter(a=>aptAuditors(a).includes(fa));
   if(fm)base=base.filter(a=>siteMethods(a).includes(fm));
@@ -1956,25 +2048,31 @@ function renderProjList(){
   else if(sort==='visit')base.sort((a,b)=>{ const x=nextVisitOf(a.id),y=nextVisitOf(b.id); return String(x?x.date:'9999').localeCompare(String(y?y.date:'9999'))||byName(a,b); });
   else if(sort==='stage')base.sort((a,b)=>stageIdx(stageOf(a))-stageIdx(stageOf(b))||byName(a,b));
   else base.sort(byName);
-  const cnt=k=>base.filter(a=>stageOf(a)===k).length;
+  const sitesOf=list=>new Set(list.map(a=>a.id)).size;
+  const numHtml=list=>{ const n=list.length, sN=sitesOf(list); return `<span class="num">${n}</span>${scOn()&&sN!==n?`<small class="sites" title="현장 수">${sN}곳</small>`:''}`; };
   const f=$('projStageFilter');
-  if(f)f.innerHTML=`<button class="pj-chip ${projStage==='전체'?'on':''}" onclick="projPage=1;setProjStage('전체')">전체 <span class="num">${base.length}</span></button>`
-    +SITE_STAGES.map(([k,lab,desc,color])=>`<button class="pj-chip ${projStage===k?'on':''}" title="${esc(desc)}" onclick="projPage=1;setProjStage('${k}')"><span class="dot" style="background:${color}"></span>${esc(lab)} <span class="num">${cnt(k)}</span></button>`).join('');
+  if(f)f.innerHTML=`<button class="pj-chip ${projStage==='전체'?'on':''}" onclick="projPage=1;setProjStage('전체')">전체 ${numHtml(base)}</button>`
+    +SITE_STAGES.map(([k,lab,desc,color])=>`<button class="pj-chip ${projStage===k?'on':''}" title="${esc(desc)}${scOn()?' · 계약 건 기준(한 현장에 계약이 여러 건이면 건마다 따로 세요)':''}" onclick="projPage=1;setProjStage('${k}')"><span class="dot" style="background:${color}"></span>${esc(lab)} ${numHtml(base.filter(a=>stageOf(a)===k))}</button>`).join('');
   ['cards','list','kanban'].forEach(v=>{ const b=$('pv-'+v); if(b)b.classList.toggle('on',projView===v); });
   const tt=$('projTotal'); if(tt)tt.textContent=APTS.length;
   const cw=$('projCardsWrap'),tw=$('projTableWrap'),kw=$('projKanbanWrap'),pg=$('projPager'),pc=$('projCount');
   if(cw)cw.style.display=projView==='cards'?'grid':'none';
   if(tw)tw.style.display=projView==='list'?'block':'none';
   if(kw)kw.style.display=projView==='kanban'?'block':'none';
-  if(projView==='kanban'){ if(pc)pc.textContent=`총 ${base.length}개 현장 · 카드를 끌어다 옮기거나 ◀ ▶ 로 단계를 바꿔요`; if(pg)pg.innerHTML=''; renderProjKanban(base); applyProjMoney(); return; }
+  const unit=scOn()?'건':'개 현장';
+  if(projView==='kanban'){ if(pc)pc.textContent=`총 ${base.length}${unit}${scOn()?` · 현장 ${sitesOf(base)}곳`:''} · 카드를 끌어다 옮기거나 ◀ ▶ 로 단계를 바꿔요`; if(pg)pg.innerHTML=''; renderProjKanban(base); applyProjMoney(); return; }
   const list=projStage==='전체'?base:base.filter(a=>stageOf(a)===projStage);
   const pages=Math.max(1,Math.ceil(list.length/PJ_PAGE)); if(projPage>pages)projPage=pages; if(projPage<1)projPage=1;
   const slice=list.slice((projPage-1)*PJ_PAGE,projPage*PJ_PAGE);
-  if(pc)pc.textContent=`총 ${list.length}개 현장${list.length>PJ_PAGE?` · ${(projPage-1)*PJ_PAGE+1}–${Math.min(projPage*PJ_PAGE,list.length)} 표시`:''}${projStage!=='전체'?` · ${stageMeta(projStage)[1]} 단계`:''}`;
+  if(pc)pc.textContent=`총 ${list.length}${unit}${scOn()?` · 현장 ${sitesOf(list)}곳`:''}${list.length>PJ_PAGE?` · ${(projPage-1)*PJ_PAGE+1}–${Math.min(projPage*PJ_PAGE,list.length)} 표시`:''}${projStage!=='전체'?` · ${stageMeta(projStage)[1]} 단계`:''}`;
   if(projView==='cards')renderProjCards(slice); else renderProjRows(slice);
   if(pg)pg.innerHTML=list.length>PJ_PAGE?`<span>총 ${list.length}개 중 ${(projPage-1)*PJ_PAGE+1}–${Math.min(projPage*PJ_PAGE,list.length)} 표시</span><span class="pg"><button ${projPage<=1?'disabled':''} onclick="projPage--;renderProjList()">‹</button>${Array.from({length:pages},(_,i)=>`<button class="${i+1===projPage?'on':''}" onclick="projPage=${i+1};renderProjList()">${i+1}</button>`).join('')}<button ${projPage>=pages?'disabled':''} onclick="projPage++;renderProjList()">›</button></span>`:'';
   applyProjMoney();
 }
+// 목록 행: 계약 건이 있으면 건마다 한 줄({...현장, _c:건}) — 단계·공법·금액은 그 건 기준. 없으면 현장 한 줄
+function projRowsBase(){ if(!scOn())return APTS.slice(); return APTS.flatMap(a=>{ const cs=aptContracts(a.id); return cs.length?cs.map(c=>({...a,_c:c})):[a]; }); }
+function rowCid(a){ return a._c?a._c.id:''; }
+function rowSubHtml(a){ if(!a._c)return ''; const c=a._c; return `<div class="pj-sub2">${esc(scShort(c))}${+c.seq>1?' <span class="pill" style="background:#FEF3E2;color:#9A5B00;font-size:10px;padding:1px 6px">재계약</span>':''}${c.stage==='준공'&&c.done_date?` <small>준공 ${esc(String(c.done_date).slice(0,10))}</small>`:''}</div>`; }
 function projEmptyHtml(){ return `<div class="pj-empty">${projStage==='전체'?'조건에 맞는 현장이 없어요':esc(stageMeta(projStage)[1])+' 단계인 현장이 없어요'}<br><span style="font-size:12px">검색어·필터를 지우거나 <span class="link" onclick="resetProjFilters()">초기화</span>를 눌러 보세요</span></div>`; }
 function renderProjRows(list){
   const box=$('projRows'); if(!box)return;
@@ -1988,8 +2086,8 @@ function renderProjRows(list){
     const lr=lastReportOf(a.id);
     const repHtml=lr?`<div class="pj-rep"><div class="d">${fmtMD(repDateOf(lr)).slice(0,5)}<span class="pill ok">${repRound(lr)}회차</span>${nnew?`<span class="pill red">NEW ${nnew}</span>`:''}<span style="font-size:11px;color:var(--mut);margin-left:5px">${nrep}건</span></div>${repSummaryCell(a.id)}</div>`:'<span style="color:var(--mut)">일지 없음</span>';
     const h=siteHealth(a);
-    return `<tr onclick="openProj('${a.id}')">
-      <td><div class="pj-site">${thumbHtml(a)}<div><div class="pj-name">${esc(a.name)}</div><div class="pj-sub">${esc(a.region)||'지역 미입력'}${a.households?` · ${a.households}세대`:''}</div></div></div></td>
+    return `<tr onclick="openProj('${a.id}','${rowCid(a)}')">
+      <td><div class="pj-site">${thumbHtml(a)}<div><div class="pj-name">${esc(a.name)}</div><div class="pj-sub">${esc(a.region)||'지역 미입력'}${a.households?` · ${a.households}세대`:''}</div>${rowSubHtml(a)}</div></div></td>
       <td>${stagePillHtml(a)}</td>
       <td class="money-col">${sf!=null?moneyKR(sf):'<span style="color:var(--mut)">-</span>'}</td><td class="money-col">${outHtml}</td>
       <td>${siteMethods(a).length?progressRowsHtml(a,{barW:90}):'<span style="color:var(--mut);font-size:12px">공법 미지정</span>'}</td>
@@ -1997,7 +2095,7 @@ function renderProjRows(list){
       <td>${visitHtml}</td>
       <td>${repHtml}</td>
       <td><span class="pj-health ${h.cls}" title="${esc(h.tip)} · 공사중 단지의 최근 일지 경과일 기준(10일 정상·21일 주의)">${esc(h.label)}</span></td>
-      <td class="pj-act" onclick="event.stopPropagation()"><button class="pj-btn" onclick="openProj('${a.id}')">상세</button><button class="pj-btn" style="margin-left:4px;color:var(--mut2)" title="단지 설정·삭제" onclick="openAptEdit('${a.id}')">설정</button></td></tr>`;
+      <td class="pj-act" onclick="event.stopPropagation()"><button class="pj-btn" onclick="openProj('${a.id}','${rowCid(a)}')">상세</button><button class="pj-btn" style="margin-left:4px;color:var(--mut2)" title="단지 설정·삭제" onclick="openAptEdit('${a.id}')">설정</button></td></tr>`;
   }).join('');
 }
 function renderProjCards(list){
@@ -2006,11 +2104,11 @@ function renderProjCards(list){
   box.innerHTML=list.map(a=>{
     const nnew=aptNewReps(a.id), nv=nextVisitOf(a.id), lr=lastReportOf(a.id), h=siteHealth(a), m=stageMeta(stageOf(a));
     const prog=siteProgressList(a);
-    return `<div class="pj-card" onclick="openProj('${a.id}')">
+    return `<div class="pj-card" onclick="openProj('${a.id}','${rowCid(a)}')">
       <div class="top">${thumbHtml(a,true)}<div style="flex:1;min-width:0"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="pill" style="background:${m[3]}1a;color:${m[3]}">${esc(m[1])}</span>${nnew?`<span class="pill red">NEW ${nnew}</span>`:''}${h.cls!=='na'?`<span class="pj-health ${h.cls}" style="padding:2px 8px">${esc(h.label)}</span>`:''}</div>
-        <div class="ttl">${esc(a.name)}</div><div class="meta">${esc(a.region)||'지역 미입력'}${a.households?` · ${a.households}세대`:''}</div></div>
+        <div class="ttl">${esc(a.name)}</div><div class="meta">${esc(a.region)||'지역 미입력'}${a.households?` · ${a.households}세대`:''}</div>${rowSubHtml(a)}</div>
         <button class="pj-btn" style="color:var(--mut2)" title="단지 설정·삭제" onclick="event.stopPropagation();openAptEdit('${a.id}')">설정</button></div>
-      <div><div class="sec-t"><span>공종별 진행 현황 (${prog.length})</span><span class="link" onclick="event.stopPropagation();openProj('${a.id}')">전체보기 ›</span></div>
+      <div><div class="sec-t"><span>공종별 진행 현황 (${prog.length})</span><span class="link" onclick="event.stopPropagation();openProj('${a.id}','${rowCid(a)}')">전체보기 ›</span></div>
         <div style="margin-top:6px">${prog.length?progressRowsHtml(a,{barW:110}):'<span style="font-size:12px;color:var(--mut)">공법 미지정 — ⚙️ 단지 설정에서 공법을 정하면 표시돼요</span>'}</div></div>
       <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="color:var(--mut);font-weight:700">담당</span>${audAvatars(a,3)}</div>
       <div class="foot"><div><small>다음 방문</small><b>${nv?fmtMD(String(nv.date).slice(0,10)):'<span style="color:var(--mut);font-weight:600">미정</span>'}</b></div><div><small>최근 감리일지</small><b>${lr?`${fmtMD(repDateOf(lr)).slice(0,5)} <span style="color:var(--mut);font-weight:600">(${repRound(lr)}회차)</span>`:'<span style="color:var(--mut);font-weight:600">없음</span>'}</b></div></div>
@@ -2024,20 +2122,21 @@ function kbDragStart(e,id){ kbDragId=id; try{e.dataTransfer.effectAllowed='move'
 function kbDragEnd(e){ e.currentTarget.classList.remove('drag'); kbDragId=null; document.querySelectorAll('.kbcol.over').forEach(c=>c.classList.remove('over')); }
 function kbOver(e,el){ e.preventDefault(); try{e.dataTransfer.dropEffect='move';}catch(_){} el.classList.add('over'); }
 function kbLeave(el){ el.classList.remove('over'); }
-function kbDrop(e,el,key){ e.preventDefault(); el.classList.remove('over'); let id=kbDragId; if(!id){try{id=e.dataTransfer.getData('text/plain');}catch(_){}} if(id)setSiteStage(id,key); }
+function kbDrop(e,el,key){ e.preventDefault(); el.classList.remove('over'); let id=kbDragId; if(!id){try{id=e.dataTransfer.getData('text/plain');}catch(_){}} if(id){ const [aid,cid]=String(id).split('|'); setSiteStage(aid,key,cid||undefined); } }
 function kbCardHtml(a){
   const pr=progressOf(a),nrep=REPORTS.filter(r=>r.apartment_id===a.id).length,nvisit=aptVisits(a.id),nnew=aptNewReps(a.id);
   const sf=aptFee(a),out=aptOutstanding(a),i=stageIdx(stageOf(a));
-  return `<div class="kbcard ${nnew?'new':''}" draggable="true" ondragstart="kbDragStart(event,'${a.id}')" ondragend="kbDragEnd(event)">
+  const cid=rowCid(a);
+  return `<div class="kbcard ${nnew?'new':''}" draggable="true" ondragstart="kbDragStart(event,'${a.id}${cid?'|'+cid:''}')" ondragend="kbDragEnd(event)">
     <div style="display:flex;align-items:flex-start;gap:6px"><div style="flex:1;min-width:0">
-      <div class="t"><span class="link" onclick="openProj('${a.id}')">${esc(a.name)}</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}</div>
-      <div class="rg">${esc(a.region)||'지역 미입력'}${siteType(a)?' · '+esc(siteType(a)):''}</div></div>
+      <div class="t"><span class="link" onclick="openProj('${a.id}','${cid}')">${esc(a.name)}</span>${nnew?` <span class="pill red">NEW ${nnew}</span>`:''}</div>
+      <div class="rg">${esc(a.region)||'지역 미입력'}${a._c?' · '+esc(scShort(a._c))+(+a._c.seq>1?' · 재계약':''):(siteType(a)?' · '+esc(siteType(a)):'')}</div></div>
       <span onclick="openAptEdit('${a.id}')" title="단지 설정·삭제" style="cursor:pointer;color:var(--mut)">⚙️</span></div>
     <div class="mt"><div>감리 <b>${siteAuditors(a)}</b></div><div>방문 <b>${nvisit}회</b></div>
       <div>일지 <b${nnew?' style="color:var(--red)"':''}>${nrep}건</b></div>
       <div>미수 ${out==null?'<b>-</b>':(out<=0?'<b style="color:var(--green)">완납</b>':`<b style="color:var(--red)">${moneyKR(out)}</b>`)}</div></div>
     <div style="display:flex;align-items:center;gap:7px;margin-top:9px"><div class="bar" style="flex:1"><i style="width:${pr.pct}%"></i></div><span style="font-size:11px;color:var(--mut);font-weight:700">${pr.pct}%</span></div>
-    <div class="kbfoot"><button class="kbmv" ${i===0?'disabled':''} title="이전 단계로" onclick="moveStage('${a.id}',-1)"></button><button class="kbmv" ${i===STAGE_KEYS.length-1?'disabled':''} title="다음 단계로" onclick="moveStage('${a.id}',1)"></button><span style="flex:1"></span><button class="kbmv" onclick="openProj('${a.id}')">상세 →</button></div></div>`;
+    <div class="kbfoot"><button class="kbmv" ${i===0?'disabled':''} title="이전 단계로" onclick="moveStage('${a.id}',-1,'${cid}')"></button><button class="kbmv" ${i===STAGE_KEYS.length-1?'disabled':''} title="다음 단계로" onclick="moveStage('${a.id}',1,'${cid}')"></button><span style="flex:1"></span><button class="kbmv" onclick="openProj('${a.id}','${cid}')">상세 →</button></div></div>`;
 }
 function renderProjKanban(base){
   const box=$('projKanban'); if(!box)return;
@@ -2082,14 +2181,58 @@ function showProjectsSection(){
   $('s-projects').classList.add('on');
   document.querySelectorAll('[data-s]').forEach(a=>a.classList.toggle('on',a.dataset.s==='projects'));
 }
-function openProj(id){
-  curProj=APTS.find(a=>a.id===id); if(!curProj)return; projTab='report'; photoSelDate=null; photoCalYM=null;
+function openProj(id,cid){
+  curProj=APTS.find(a=>a.id===id); if(!curProj)return; projTab='report'; photoSelDate=null; photoCalYM=null; curCid=cid||null;
   showProjectsSection();                 // go() 대신 직접 전환(상세 리셋 방지)
   markAptRepsSeen(id); updateBadges(); renderProjList(); renderDash();  // 이 단지 감리일지 '읽음' 처리 → 배지·관제센터 즉시 정리
   $('projList').style.display='none'; $('projDetail').style.display='block';
   renderProj(); window.scrollTo(0,0);
 }
 function setProjTab(t){projTab=t;renderProj();}
+function selContract(cid){ curCid=cid; renderProj(); }
+function numIn(id){ const el=$(id); if(!el)return null; const v=(el.value||'').trim(); if(v==='')return null; const n=parseInt(v.replace(/[^0-9]/g,''),10); return isNaN(n)?null:n; }
+function openContractAdd(aptId,pre){ pre=pre||{}; const a=APTS.find(x=>x.id===aptId); if(!a)return; const cs=aptContracts(aptId); const seq=cs.length?Math.max(...cs.map(c=>+c.seq||0))+1:1; const today=isoDate(new Date());
+  openModal(mHead((seq>1?seq+'차 ':'')+'계약 건 추가 · '+a.name)+`
+    ${seq>1?'<div style="background:var(--blue-soft);border-radius:9px;padding:9px 12px;font-size:12px;color:var(--blue);margin-bottom:10px">추가 계약(재계약)이에요. 이전 건은 이력으로 남고, 이 건이 진행되면 현장이 다시 그 단계로 돌아와요.</div>':''}
+    <div class="fld"><label>공사명</label><input id="sc-title" value="${esc(pre.title)||''}" placeholder="예: 옥상 방수공사"></div>
+    <div class="fld"><label>공법 <span style="font-weight:600;color:var(--mut)">(여러 개 가능 · 첫 번째가 대표)</span></label><div class="mchk" id="m-methods">${methodChecksC(pre.methods||[],{})}</div></div>
+    <div class="frow"><div class="fld"><label>단계</label><select id="sc-stage">${SITE_STAGES.map(([k,lab,desc])=>`<option value="${k}" ${k===(pre.stage||'계약')?'selected':''}>${esc(lab)} · ${esc(desc)}</option>`).join('')}</select></div><div class="fld"><label>계약일</label><input id="sc-cdate" type="date" value="${pre.contract_date||today}"></div></div>
+    <div class="frow"><div class="fld"><label>계약금액 = 감리비 (원)</label><input id="sc-ca" type="number" value="${pre.contract_amount!=null?pre.contract_amount:''}" placeholder="예: 36000000"></div><div class="fld"><label>수금액 (원)</label><input id="sc-rc" type="number" placeholder="받은 금액"></div></div>
+    <div class="fld"><label>메모</label><textarea id="sc-memo" placeholder="계약 특이사항">${esc(pre.memo)||''}</textarea></div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitContractAdd('${aptId}',${seq})">추가</button></div>`); }
+async function submitContractAdd(aptId,seq){
+  const a=APTS.find(x=>x.id===aptId); if(!a)return; const {sel,prog}=readMethodsC();
+  const row={apartment_id:aptId,seq,title:($('sc-title').value||'').trim()||null,methods:sel,progress:prog,stage:$('sc-stage').value||'계약',stage_at:new Date().toISOString(),contract_date:$('sc-cdate').value||null,contract_amount:numIn('sc-ca'),received_amount:numIn('sc-rc'),memo:($('sc-memo').value||'').trim()||null,checklist:{}};
+  const {data,error}=await sb.from('site_contracts').insert(row).select('*').single();
+  if(error){ $('m-msg').textContent='저장 실패: '+error.message; $('m-msg').style.color='var(--red)'; return; }
+  SCONTRACTS.push(data); curCid=data.id; closeModal();
+  await syncAptFromContracts(a);
+  if(curProj&&curProj.id===aptId)renderProj(); else openProj(aptId,data.id);
+  renderProjList(); try{renderDash();}catch(e){} try{renderCalendar();}catch(e){} try{renderOrgs();}catch(e){}
+}
+function openContractEdit(cid){ const c=SCONTRACTS.find(x=>x.id===cid); if(!c)return; const cs=aptContracts(c.apartment_id);
+  openModal(mHead('계약 건 수정 · '+scChip(c))+`
+    <div class="fld"><label>공사명</label><input id="sc-title" value="${esc(c.title)||''}" placeholder="예: 외벽 재도장 공사"></div>
+    <div class="frow"><div class="fld"><label>차수</label><input id="sc-seq" type="number" min="1" value="${c.seq||1}"></div><div class="fld"><label>계약일</label><input id="sc-cdate" type="date" value="${c.contract_date||''}"></div></div>
+    <div class="frow"><div class="fld"><label>착공일</label><input id="sc-sdate" type="date" value="${c.start_date||''}"></div><div class="fld"><label>준공일</label><input id="sc-ddate" type="date" value="${c.done_date||''}"></div></div>
+    <div class="frow"><div class="fld"><label>계약금액 = 감리비 (원)</label><input id="sc-ca" type="number" value="${c.contract_amount!=null?c.contract_amount:''}"></div><div class="fld"><label>수금액 (원)</label><input id="sc-rc" type="number" value="${c.received_amount!=null?c.received_amount:''}"></div></div>
+    <div class="fld"><label>메모</label><textarea id="sc-memo">${esc(c.memo)||''}</textarea></div>
+    <div style="font-size:11px;color:var(--mut);margin-bottom:6px">단계 · 공법 · 공정 · 체크리스트는 현장 상세 카드에서 바꿔요</div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions">${cs.length>1?`<button class="b red" onclick="deleteContract('${c.id}')">이 건 삭제</button>`:''}<span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitContractEdit('${c.id}')">저장</button></div>`); }
+async function submitContractEdit(cid){
+  const c=SCONTRACTS.find(x=>x.id===cid); if(!c)return; const a=APTS.find(x=>x.id===c.apartment_id);
+  const patch={title:($('sc-title').value||'').trim()||null,seq:Math.max(1,parseInt($('sc-seq').value,10)||1),contract_date:$('sc-cdate').value||null,start_date:$('sc-sdate').value||null,done_date:$('sc-ddate').value||null,contract_amount:numIn('sc-ca'),received_amount:numIn('sc-rc'),memo:($('sc-memo').value||'').trim()||null,updated_at:new Date().toISOString()};
+  const {error}=await sb.from('site_contracts').update(patch).eq('id',cid); if(error){ $('m-msg').textContent='저장 실패: '+error.message; $('m-msg').style.color='var(--red)'; return; }
+  Object.assign(c,patch); closeModal(); if(a)await syncAptFromContracts(a); if(curProj)renderProj(); renderProjList(); try{renderOrgs();}catch(e){} try{renderDash();}catch(e){}
+}
+async function deleteContract(cid){
+  const c=SCONTRACTS.find(x=>x.id===cid); if(!c)return; if(!confirm('이 계약 건('+scChip(c)+')을 삭제할까요?\n체크리스트 · 금액 · 날짜 기록이 지워져요. 연결된 계약서 파일은 현장 공통으로 남아요.'))return;
+  const {error}=await sb.from('site_contracts').delete().eq('id',cid); if(error){ alert('삭제 실패: '+error.message); return; }
+  const i=SCONTRACTS.indexOf(c); if(i>=0)SCONTRACTS.splice(i,1); CONTRACTS.forEach(f=>{ if(f.site_contract_id===cid)f.site_contract_id=null; }); if(curCid===cid)curCid=null;
+  closeModal(); const a=APTS.find(x=>x.id===c.apartment_id); if(a)await syncAptFromContracts(a); if(curProj)renderProj(); renderProjList();
+}
 async function openContractFile(fileUrl,kind){ let open=fileUrl; if(fileUrl&&!/^https?:\/\//i.test(fileUrl)){ const {data,error}=await sb.storage.from('contracts').createSignedUrl(fileUrl,300); if(error||!data){alert('계약서를 여는 중 오류가 났어요');return;} open=data.signedUrl; } window.open(open,'_blank','noopener'); }
 /* ===== 안내문구(이메일) — message_templates ===== */
 const NT_CATS=['계약','착공서류','기성금','준공','기타'];
@@ -2102,8 +2245,8 @@ const DEFAULT_TEMPLATES=(()=>{ const greet='안녕하세요, {시공사} 담당�
 ]; })();
 let NT={site:'',cat:'전체',sel:null,mode:'view',copied:''};
 function ntList(){ return PHASEB_OK.templates?TEMPLATES:DEFAULT_TEMPLATES; }
-function ntValues(a){ const me=(($('me-nm')||{}).textContent||'').trim(); const ca=a&&a.contract_amount; const d=new Date();
-  return {'현장명':a?a.name:'','공사명':a?(a.work_name||''):'','시공사':a?(a.builder||''):'','대표감리원':(a&&a.auditor_id)?auditorName(a.auditor_id):'','계약금액':ca!=null?moneyKR(ca)+'원':'','계약금':ca!=null?moneyKR(paySplit(ca,payRatio(a)).down)+'원':'','중도금':(ca!=null&&payRatio(a).mid>0)?moneyKR(paySplit(ca,payRatio(a)).mid)+'원':'','잔금':ca!=null?moneyKR(paySplit(ca,payRatio(a)).final)+'원':'','오늘날짜':`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`,'보내는사람':me}; }
+function ntValues(a){ const me=(($('me-nm')||{}).textContent||'').trim(); if(a&&scOn()&&!a._c&&curProj&&curProj.id===a.id&&curCid){ const c=SCONTRACTS.find(x=>x.id===curCid); if(c)a={...a,_c:c}; } const ca=a?aptFee(a):null; const d=new Date();
+  return {'현장명':a?a.name:'','공사명':a?aptWorkName(a):'','시공사':a?(a.builder||''):'','대표감리원':(a&&a.auditor_id)?auditorName(a.auditor_id):'','계약금액':ca!=null?moneyKR(ca)+'원':'','계약금':ca!=null?moneyKR(paySplit(ca,payRatio(a)).down)+'원':'','중도금':(ca!=null&&payRatio(a).mid>0)?moneyKR(paySplit(ca,payRatio(a)).mid)+'원':'','잔금':ca!=null?moneyKR(paySplit(ca,payRatio(a)).final)+'원':'','오늘날짜':`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`,'보내는사람':me}; }
 function ntFill(a,txt){ const v=ntValues(a); return String(txt||'').replace(/\{([^}]+)\}/g,(m,k)=>(v[k]&&v[k]!=='-')?v[k]:'['+k+']'); }
 function openNoticesFor(aptId,name){ NT.site=aptId||''; NT.cat='전체'; NT.mode='view'; const t=ntList().find(x=>x.name===name); NT.sel=t?t.id:(ntList()[0]||{}).id||null; go('notices'); }
 function ntPickSite(v){ NT.site=v; renderNotices(); } function ntPickCat(c){ NT.cat=c; renderNotices(); } function ntPick(id){ NT.sel=id; NT.mode='view'; NT.copied=''; renderNotices(); }
@@ -2166,7 +2309,8 @@ const CHECK_GROUPS=[
   {k:'mid',title:'기성금',note:'',items:[['시공사 중도금 청구서 날인 및 확인 공문 회신','공정률확인서 확인 필요'],['잔금 청구서 검토','날인·확인 공문은 시공사가 보내는 자료에 따라 달라요']]},
   {k:'done',title:'준공 단계',note:'',items:[['시공사 준공계 서류 확인'],['준공완료보고서 작성 (우편 · 메일 발송)','잔금청구서, 통장사본 첨부'],['잔금 세금계산서 발행']]}
 ];
-function aptChecklist(a){ const c=a&&a.checklist; return (c&&typeof c==='object')?c:{}; }
+function aptChecklist(a){ const sc=(a&&scOn())?activeContract(a):null; if(sc)return scChecklist(sc); const c=a&&a.checklist; return (c&&typeof c==='object')?c:{}; }
+function ckOf(aptId){ const a=APTS.find(x=>x.id===aptId); const c=scOn()?targetContract(aptId):null; return c?scChecklist(c):aptChecklist(a); }
 // 그룹의 표시 순서대로 [{type:'item',i} | {type:'bundle',id,members:[i..]}] 반환
 function ckRows(g){ const rows=[]; const inB=i=>g.items[i][2]||null;
   if(g.order){ g.order.forEach(o=>{ if(typeof o==='number') rows.push({type:'item',i:o}); else rows.push({type:'bundle',id:o,members:g.items.map((it,i)=>i).filter(i=>inB(i)===o)}); }); }
@@ -2176,20 +2320,22 @@ function ckFlat(g){ const out=[]; ckRows(g).forEach(r=>{ if(r.type==='item')out.
 function checkInfo(a){ const ck=aptChecklist(a); let total=0,done=0,next=null; CHECK_GROUPS.forEach(g=>ckFlat(g).forEach(i=>{ const it=g.items[i]; const key=g.k+'-'+i; total++; if(ck[key])done++; else if(!next){ const b=it[2]&&g.bundles?g.bundles[it[2]]:null; next={key,g,label:it[0],hint:it[1]||'',request:!!(g.request||(b&&b.request))}; } })); return {total,done,next}; }
 async function saveChecklist(aptId,ck){
   const a=APTS.find(x=>x.id===aptId); if(!a)return;
+  const c=scOn()?targetContract(aptId):null;
+  if(c){ c.checklist=ck; renderProj(); const {error}=await sb.from('site_contracts').update({checklist:ck,updated_at:new Date().toISOString()}).eq('id',c.id); if(error)alert('체크리스트 저장 실패: '+error.message); return; }
   a.checklist=ck; if(curProj&&curProj.id===aptId)curProj.checklist=ck; renderProj();
   const {error}=await sb.from('apartments').update({checklist:ck}).eq('id',aptId);
   if(error){ alert('체크리스트 저장 실패: '+error.message+(/checklist|column|schema/i.test(error.message)?'\n(backend/migration-console-design-2026-11.sql 을 먼저 실행하세요)':'')); }
 }
 function ckMark(){ return {by:(($('me-nm')||{}).textContent||'').trim()||null,at:new Date().toISOString()}; }
 async function toggleCheck(aptId,key){
-  const a=APTS.find(x=>x.id===aptId); if(!a)return; const ck={...aptChecklist(a)};
+  const a=APTS.find(x=>x.id===aptId); if(!a)return; const ck={...ckOf(aptId)};
   if(ck[key])delete ck[key]; else ck[key]=ckMark();
   await saveChecklist(aptId,ck);
 }
 // 묶음 항목: 하나라도 안 됐으면 전부 체크, 전부 됐으면 전부 해제
 async function toggleCheckBundle(aptId,gk,bid){
   const a=APTS.find(x=>x.id===aptId); if(!a)return; const g=CHECK_GROUPS.find(x=>x.k===gk); if(!g)return;
-  const members=g.items.map((it,i)=>i).filter(i=>it_b(g,i)===bid); const ck={...aptChecklist(a)};
+  const members=g.items.map((it,i)=>i).filter(i=>it_b(g,i)===bid); const ck={...ckOf(aptId)};
   const all=members.every(i=>ck[gk+'-'+i]);
   members.forEach(i=>{ const key=gk+'-'+i; if(all)delete ck[key]; else if(!ck[key])ck[key]=ckMark(); });
   await saveChecklist(aptId,ck);
@@ -2198,12 +2344,16 @@ function it_b(g,i){ return (g.items[i]&&g.items[i][2])||null; }
 /* 공법·공정 카드: 단지 설정과 같은 필드에 저장 (apartments.method/progress_* + control_sites.data.methods/progress) */
 function pdMethodsHtml(a){ const S=window.STAGE_SETS||{}; const sel=siteMethods(a); const prog=Object.fromEntries(siteProgressList(a).map(p=>[p.m,p.cur])); const first=Object.keys(S).find(k=>sel.includes(k));
   return Object.keys(S).map(k=>{ const on=sel.includes(k); return `<div class="pd-m"><button class="pd-chk ${on?'on':''}" onclick="pdToggleMethod('${a.id}','${k}')"><span class="bx">${on?'✓':''}</span><span>${esc(S[k].label)}</span>${on&&k===first?'<span class="pill blue" style="font-size:10px;padding:1px 7px;margin-left:auto">대표</span>':''}</button>${on?`<div class="pd-prog2"><span>공정</span><select onchange="pdSetProg('${a.id}','${k}',this.value)">${stageOptsC(k,prog[k]||0)}</select></div>`:''}</div>`; }).join(''); }
-async function pdToggleMethod(aptId,k){ const a=APTS.find(x=>x.id===aptId); if(!a)return; let sel=siteMethods(a); const prog=Object.fromEntries(siteProgressList(a).map(p=>[p.m,p.cur]));
+async function pdToggleMethod(aptId,k){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const c=scOn()?targetContract(aptId):null; const v=c?{...a,_c:c}:a; let sel=siteMethods(v); const prog=Object.fromEntries(siteProgressList(v).map(p=>[p.m,p.cur]));
   if(sel.includes(k)){ sel=sel.filter(x=>x!==k); delete prog[k]; } else { sel=Object.keys(window.STAGE_SETS||{}).filter(x=>sel.includes(x)||x===k); prog[k]=prog[k]||0; }
   await saveSiteMethods(aptId,sel,prog); }
-async function pdSetProg(aptId,k,v){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const sel=siteMethods(a); const prog=Object.fromEntries(siteProgressList(a).map(p=>[p.m,p.cur])); prog[k]=parseInt(v,10)||0; await saveSiteMethods(aptId,sel,prog); }
-async function saveSiteMethods(aptId,sel,prog){
-  const a=APTS.find(x=>x.id===aptId); if(!a)return; const method=sel[0]||null; const stArr=((window.STAGE_SETS||{})[method]||{}).stages; const pt=stArr?stArr.length:0; let pc=method?(prog[method]||0):0; if(pt&&pc>pt)pc=pt;
+async function pdSetProg(aptId,k,v){ const a=APTS.find(x=>x.id===aptId); if(!a)return; const c=scOn()?targetContract(aptId):null; const vv=c?{...a,_c:c}:a; const sel=siteMethods(vv); const prog=Object.fromEntries(siteProgressList(vv).map(p=>[p.m,p.cur])); prog[k]=parseInt(v,10)||0; await saveSiteMethods(aptId,sel,prog); }
+async function saveSiteMethods(aptId,sel,prog,cid){
+  const a=APTS.find(x=>x.id===aptId); if(!a)return;
+  const c=scOn()?targetContract(aptId,cid):null;
+  if(c){ const {error}=await sb.from('site_contracts').update({methods:sel,progress:prog,updated_at:new Date().toISOString()}).eq('id',c.id); if(error){ alert('공법 저장 실패: '+error.message); return; }
+    c.methods=sel; c.progress=prog; await syncAptFromContracts(a); renderProj(); renderProjList(); return; }
+  const method=sel[0]||null; const stArr=((window.STAGE_SETS||{})[method]||{}).stages; const pt=stArr?stArr.length:0; let pc=method?(prog[method]||0):0; if(pt&&pc>pt)pc=pt;
   const {error}=await sb.from('apartments').update({method,progress_current:pc,progress_total:pt}).eq('id',aptId); if(error){ alert('공법 저장 실패: '+error.message); return; }
   a.method=method; a.progress_current=pc; a.progress_total=pt; if(curProj&&curProj.id===aptId)Object.assign(curProj,{method,progress_current:pc,progress_total:pt});
   const slug=csSlug(a.name); const d={...(CSITES[slug]||{}),_name:a.name,methods:sel,progress:prog}; CSITES[slug]=d;
@@ -2216,8 +2366,8 @@ function openSiteInfoEdit(id){
   openModal(mHead('현장 정보 수정')+`
     <div class="fld"><label>현장명 *</label><input id="si-name" value="${esc(a.name)||''}"></div>
     <div class="fld"><label>주소</label><input id="si-address" value="${esc(a.address)||''}" placeholder="예: 대전광역시 ○○구 ○○로 12"></div>
-    <div class="fld"><label>공사명</label><input id="si-work" value="${esc(a.work_name)||''}" placeholder="예: 외벽 재도장 및 옥상 방수공사"></div>
-    <div class="fld"><label>계약금액 (원)</label><input id="si-ca" type="number" value="${a.contract_amount!=null?a.contract_amount:''}"></div>
+    ${scOn()&&aptContracts(a.id).length?'<div style="font-size:12px;color:var(--mut2);background:var(--soft);border-radius:8px;padding:8px 12px;margin-bottom:12px">공사명 · 계약금액은 <b>계약 건</b>에서 바꿔요 (현장 상세 → 계약 건 → 수정)</div>':`<div class="fld"><label>공사명</label><input id="si-work" value="${esc(a.work_name)||''}" placeholder="예: 외벽 재도장 및 옥상 방수공사"></div>
+    <div class="fld"><label>계약금액 (원)</label><input id="si-ca" type="number" value="${a.contract_amount!=null?a.contract_amount:''}"></div>`}
     <div class="fld"><label>대표 감리원</label><select id="si-aud"><option value="">- 미배정 -</option>${auds.map(m=>`<option value="${m.id}" ${m.id===a.auditor_id?'selected':''}>${esc(m.name||loginId(m))}</option>`).join('')}</select></div>
     <div class="fld"><label>담당 감리원 <span style="font-weight:600;color:var(--mut)">(여러 명 체크)</span></label>${auds.length?`<div class="audlist">${auds.map(m=>`<label><input type="checkbox" class="si-team" value="${m.id}" ${team.includes(m.id)?'checked':''}><span>${esc(m.name||loginId(m))}</span></label>`).join('')}</div>`:'<div style="font-size:12px;color:var(--mut)">회원 메뉴에서 감리원을 먼저 등록하세요</div>'}</div>
     <div class="mmsg" id="m-msg"></div>
@@ -2226,9 +2376,9 @@ function openSiteInfoEdit(id){
 async function submitSiteInfoEdit(id){
   const a=APTS.find(x=>x.id===id); if(!a)return;
   const name=$('si-name').value.trim(); if(!name){$('m-msg').textContent='현장명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
-  const cav=($('si-ca').value||'').trim(); const ca=cav===''?null:(parseInt(cav.replace(/[^0-9]/g,''),10)||null);
   const aud=$('si-aud').value||null; const team=[...document.querySelectorAll('.si-team:checked')].map(c=>c.value); const all=[...new Set([aud,...team].filter(Boolean))];
-  const upd={name,address:$('si-address').value.trim()||null,work_name:$('si-work').value.trim()||null,contract_amount:ca,supervision_fee:ca,auditor_id:aud};
+  const upd={name,address:$('si-address').value.trim()||null,auditor_id:aud};
+  if($('si-ca')){ const cav=($('si-ca').value||'').trim(); const ca=cav===''?null:(parseInt(cav.replace(/[^0-9]/g,''),10)||null); upd.work_name=$('si-work').value.trim()||null; upd.contract_amount=ca; upd.supervision_fee=ca; }
   let {error}=await sb.from('apartments').update(upd).eq('id',id);
   if(error&&/work_name/i.test(error.message)){ delete upd.work_name; ({error}=await sb.from('apartments').update(upd).eq('id',id)); if(!error)alert('공사명은 저장되지 않았어요 — backend/migration-console-design-2026-11.sql 을 실행하면 저장돼요.'); }
   if(error){$('m-msg').textContent='저장 실패: '+error.message;$('m-msg').style.color='var(--red)';return;}
@@ -2254,8 +2404,10 @@ function openAmountConfirm(aptId,amt,fname){ const auto=amt!=null; _caInit=amt;
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b line" onclick="closeModal()">나중에</button><button class="b blue" onclick="submitAmountConfirm('${aptId}')">저장</button></div>`); }
 async function submitAmountConfirm(aptId){ const v=parseInt((($('ca-amt')||{}).value||'').replace(/[^0-9]/g,''),10); if(isNaN(v)){ $('m-msg').textContent='금액을 입력하세요'; $('m-msg').style.color='var(--red)'; return; }
-  const {error}=await sb.from('apartments').update({contract_amount:v,supervision_fee:v}).eq('id',aptId); if(error){ $('m-msg').textContent='저장 실패: '+error.message; $('m-msg').style.color='var(--red)'; return; }
-  const a=APTS.find(x=>x.id===aptId); if(a){a.contract_amount=v;a.supervision_fee=v;} if(curProj&&curProj.id===aptId){curProj.contract_amount=v;curProj.supervision_fee=v;}
+  const c=scOn()?targetContract(aptId):null;
+  if(c){ const {error}=await sb.from('site_contracts').update({contract_amount:v,updated_at:new Date().toISOString()}).eq('id',c.id); if(error){ $('m-msg').textContent='저장 실패: '+error.message; $('m-msg').style.color='var(--red)'; return; } c.contract_amount=v; const a0=APTS.find(x=>x.id===aptId); if(a0)await syncAptFromContracts(a0); }
+  else { const {error}=await sb.from('apartments').update({contract_amount:v,supervision_fee:v}).eq('id',aptId); if(error){ $('m-msg').textContent='저장 실패: '+error.message; $('m-msg').style.color='var(--red)'; return; } }
+  const a=APTS.find(x=>x.id===aptId); if(a&&!c){a.contract_amount=v;a.supervision_fee=v;} if(curProj&&curProj.id===aptId&&!c){curProj.contract_amount=v;curProj.supervision_fee=v;}
   if(a){ const slug=csSlug(a.name); const d={...(CSITES[slug]||{}),_name:a.name,contractAuto:(_caInit!=null&&v===_caInit)}; CSITES[slug]=d; try{ await sb.from('control_sites').upsert({slug,name:a.name,apartment_id:a.id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'}); }catch(e){} }
   closeModal(); renderProj(); renderProjList(); }
 function pdReportRow(r){
@@ -2267,7 +2419,9 @@ function pdReportRow(r){
     <div class="acts">${ph?`<button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">사진</button>`:''}<button class="b line sm" onclick="openReportEdit('${r.id}')">편집</button><button class="b line sm" style="color:var(--red)" onclick="deleteReport('${r.id}')">삭제</button></div></div>`;
 }
 function renderProj(){
-  const p=curProj; if(!p)return;
+  const p0=curProj; if(!p0)return;
+  const cs=scOn()?aptContracts(p0.id):[]; const cc=cs.find(x=>x.id===curCid)||(cs.length?activeContract(p0):null); curCid=cc?cc.id:null;
+  const p=cc?{...p0,_c:cc}:p0;   // 선택한 계약 건 기준으로 단계·공법·체크리스트·금액을 그림
   const reps=REPORTS.filter(r=>r.apartment_id===p.id);
   const flds=FIELDS.filter(f=>f.apartment_id===p.id);
   const cons=CONTRACTS.filter(c=>c.apartment_id===p.id);
@@ -2277,7 +2431,7 @@ function renderProj(){
   // ── 왼쪽: 체크리스트 ──
   const itemBtn=(g,i,sub)=>{ const it=g.items[i]; const key=g.k+'-'+i; const done=!!ck[key]; const isNext=ci.next&&ci.next.key===key; const who=done&&ck[key]&&ck[key].by?` · ${esc(ck[key].by)}`:'';
       return `<button class="it ${done?'done':''} ${isNext?'next':''} ${sub?'sub':''}" onclick="toggleCheck('${p.id}','${key}')" title="${done?('체크됨'+who+(ck[key].at?' '+String(ck[key].at).slice(0,10):'')):'누르면 체크'}"><span class="bx">${done?'✓':''}</span><span style="flex:1;min-width:0"><span class="lb">${esc(it[0])}</span>${it[1]?`<span class="hint">${esc(it[1])}</span>`:''}</span>${isNext?'<span class="now">지금</span>':''}</button>`; };
-  const left=`<div class="pd-card pd-ck">${CHECK_GROUPS.map(g=>{ const gd=g.items.filter((_,i)=>ck[g.k+'-'+i]).length; const all=gd===g.items.length;
+  const left=`<div class="pd-card pd-ck">${cc?`<div class="ckh">${esc(scChip(cc))} <small>${esc(stageMeta(cc.stage)[1])}</small>${cs.length>1?'<span>건마다 따로 체크해요</span>':''}</div>`:''}${CHECK_GROUPS.map(g=>{ const gd=g.items.filter((_,i)=>ck[g.k+'-'+i]).length; const all=gd===g.items.length;
     return `<div class="g"><div class="gh"><b>${g.title}</b>${g.note?`<span class="note">${g.note}</span>`:''}<span class="cnt ${all?'all':''}">${gd}/${g.items.length}</span></div>${ckRows(g).map(r=>{ if(r.type==='item') return itemBtn(g,r.i,false);
       const b=g.bundles[r.id]; const bd=r.members.filter(i=>ck[g.k+'-'+i]).length; const ball=bd===r.members.length, bsome=bd>0&&!ball; const bnext=ci.next&&r.members.some(i=>ci.next.key===g.k+'-'+i);
       return `<button class="it bundle ${ball?'done':''} ${bsome?'part':''} ${bnext?'next':''}" onclick="toggleCheckBundle('${p.id}','${g.k}','${r.id}')" title="${ball?'누르면 아래 서류 전부 해제':'누르면 아래 서류 전부 체크'}"><span class="bx">${ball?'✓':(bsome?'–':'')}</span><span style="flex:1;min-width:0"><span class="lb">${esc(b.label)}</span>${b.hint?`<span class="hint">${esc(b.hint)}</span>`:''}</span><span class="bcnt">${bd}/${r.members.length}</span></button>`+r.members.map(i=>itemBtn(g,i,true)).join(''); }).join('')}</div>`; }).join('')}<div class="foot">항목을 누르면 체크 / 체크 해제돼요 · 팀 전체에 같이 보여요</div></div><div class="pd-card pd-memo"><div class="pd-ct"><h3>내부 메모</h3><span style="font-size:11px;color:var(--mut)">운영자만 보여요 · 앱에는 안 나가요</span></div>
@@ -2302,21 +2456,29 @@ function renderProj(){
   const mid=todo+`<div class="pd-card">${tabs}${body}</div>`;
   // ── 오른쪽: 현장 정보 · 공사 단계 · 공법/공정 · 계약/수금 ──
   const empty='<span class="pd-empty">비어 있음</span>';
-  const ca=p.contract_amount, rc=p.received_amount; const out=(ca!=null)?(ca-(rc||0)):null; const caAuto=!!((csData(p)||{}).contractAuto); const pr=payRatio(p); const sp=paySplit(ca,pr);
+  const ca=aptFee(p), rc=aptReceived(p); const out=(ca!=null)?(ca-(rc||0)):null; const caAuto=!!((csData(p)||{}).contractAuto)&&!cc; const pr=payRatio(p); const sp=paySplit(ca,pr);
+  const consC=cc?cons.filter(f=>!f.site_contract_id||f.site_contract_id===cc.id):cons;
+  const totalCa=aptFee(p0), totalRc=aptReceived(p0), totalOut=aptOutstanding(p0);
   const teamNames=aptAuditors(p).map(auditorName).filter(n=>n&&n!=='-');
   const right=`<div class="pd-card pd-info"><div class="pd-ct"><h3>현장 정보</h3><button class="b line sm" onclick="openSiteInfoEdit('${p.id}')">수정</button></div>
       <div class="kv"><span>현장명</span><b>${esc(p.name)}</b></div>
       <div class="kv"><span>주소</span><b>${p.address?esc(p.address):empty}</b></div>
-      <div class="kv"><span>공사명</span><b>${p.work_name?esc(p.work_name):empty}</b></div>
+      <div class="kv"><span>공사명</span><b>${aptWorkName(p)?esc(aptWorkName(p)):empty}</b></div>
       <div class="kv"><span>공종</span><b>${siteType(p)?esc(siteType(p)):empty}</b></div>
-      <div class="kv"><span>계약금액</span><b>${ca!=null?moneyKR(ca)+'원':empty}</b></div>
+      <div class="kv"><span>계약금액</span><b>${ca!=null?moneyKR(ca)+'원':empty}${cs.length>1&&totalCa!=null?` <small style="color:var(--mut);font-weight:600">· 현장 합계 ${moneyKR(totalCa)}원</small>`:''}</b></div>
       <div class="kv"><span>대표 감리원</span><b>${p.auditor_id?esc(auditorName(p.auditor_id)):empty}</b></div>
       <div class="kv"><span>담당 감리원</span><b>${teamNames.length?teamNames.map(n=>`<span class="pd-chip">${esc(n)}</span>`).join(''):empty}</b></div></div>
+    ${scOn()?`<div class="pd-card"><div class="pd-ct"><h3>계약 건 <span style="font-size:11px;color:var(--mut);font-weight:600">${cs.length}건</span></h3><div style="display:flex;gap:6px">${cc?`<button class="b line sm" onclick="openContractEdit('${cc.id}')">수정</button>`:''}<button class="b line sm" onclick="openContractAdd('${p.id}')">+ 추가</button></div></div>
+      ${cc?`<div class="kv"><span>공사명</span><b>${cc.title?esc(cc.title):empty}</b></div>
+      <div class="kv"><span>차수</span><b>${cc.seq||1}차${+cc.seq>1?' <span class="pill" style="background:#FEF3E2;color:#9A5B00;font-size:10px;padding:1px 7px">재계약</span>':''}</b></div>
+      <div class="kv"><span>계약일</span><b>${cc.contract_date||'-'}</b></div><div class="kv"><span>착공일</span><b>${cc.start_date||'-'}</b></div><div class="kv"><span>준공일</span><b>${cc.done_date||'-'}</b></div>
+      ${cc.memo?`<div style="font-size:12px;color:var(--mut2);margin-top:6px;white-space:pre-wrap">${esc(cc.memo)}</div>`:''}`:'<div style="font-size:12px;color:var(--mut)">아직 계약 건이 없어요. + 추가로 만들면 단계·공법·금액·체크리스트가 건마다 따로 관리돼요</div>'}
+      ${cs.length>1?'<div style="font-size:11px;color:var(--mut);margin-top:8px">위 제목 아래 칩에서 건을 고르면 단계 · 공법 · 체크리스트 · 금액이 그 건 기준으로 보여요</div>':''}</div>`:''}
     <div class="pd-card"><h3>공사 단계</h3><div class="pd-stg">${SITE_STAGES.map(([k,lab],i)=>{ const ci2=stageIdx(stageOf(p)); return `<button class="${i===ci2?'on':(i<ci2?'past':'')}" onclick="setSiteStage('${p.id}','${k}')" title="${esc(lab)} 단계로">${esc(lab)}</button>`; }).join('')}</div><div style="font-size:11px;color:var(--mut);margin-top:8px">누르면 바로 바뀌어요 · 감리원·입주자 앱에도 같이 반영돼요</div></div>
     <div class="pd-card"><div class="pd-ct"><h3>공법 · 공정</h3><span style="font-size:11px;color:var(--mut)">첫 번째 체크가 대표 공법</span></div>${pdMethodsHtml(p)}</div>
     <div class="pd-card"><div class="pd-ct"><h3>계약 · 수금</h3><button class="b line sm" onclick="openBillingEdit('${p.id}')">금액 수정</button></div>
       <label class="pd-upl"><b>계약서 PDF 올리기</b><br><span>올리면 계약금액을 읽어 자동으로 넣어요</span><input type="file" accept="application/pdf,image/*" style="display:none" onchange="pdUploadContract('${p.id}',this.files)"></label><div id="ct-msg-c" class="mmsg" style="margin:0 0 6px"></div>
-      ${cons.map(c=>`<div class="pd-file"><span title="${esc(c.name)}">${esc(c.name)||'계약서'}</span><button class="b line sm" onclick="openContractFile('${esc(c.file_url)}','${c.kind}')">열기</button><button class="b line sm" onclick="deleteContractConsole('${c.id}')">삭제</button></div><div class="pd-fd">${(c.created_at||'').slice(0,10)} 등록</div>`).join('')}
+      ${consC.map(c=>`<div class="pd-file"><span title="${esc(c.name)}">${esc(c.name)||'계약서'}${(!c.site_contract_id&&cs.length>1)?' <small style="color:var(--mut)">공통</small>':''}</span><button class="b line sm" onclick="openContractFile('${esc(c.file_url)}','${c.kind}')">열기</button><button class="b line sm" onclick="deleteContractConsole('${c.id}')">삭제</button></div><div class="pd-fd">${(c.created_at||'').slice(0,10)} 등록</div>`).join('')}
       <div class="kv"><span>계약금액 = 감리비${caAuto?'<em class="pd-tag">계약서에서 자동</em>':''}</span><b>${ca!=null?moneyKR(ca)+'원':empty}</b></div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 2px"><span style="font-size:11.5px;font-weight:800;color:var(--mut2)">지급 비율 <b style="color:var(--ink)">${pr.mid>0?`${pr.down} / ${pr.mid} / ${pr.final}`:`${pr.down} / ${pr.final}`}</b></span><button class="b line sm" onclick="openPayRatioEdit('${p.id}')">비율 수정</button></div>
       <div class="kv"><span>계약금 (${pr.down}%)</span><b>${ca!=null?moneyKR(sp.down)+'원':'-'}</b></div>
@@ -2324,12 +2486,13 @@ function renderProj(){
       <div class="kv"><span>잔금 (${pr.final}%)</span><b>${ca!=null?moneyKR(sp.final)+'원':'-'}</b></div>
       <div class="kv"><span>수금액</span><b>${rc!=null?moneyKR(rc)+'원':'<span style="color:var(--mut);font-weight:600">수기 입력</span>'}</b></div>
       <div class="kv"><span>미수금</span><b style="${out!=null&&out>0?'color:var(--red)':'color:var(--green)'}">${out==null?'-':(out<=0?'완납':moneyKR(out)+'원')}</b></div>
+      ${cs.length>1?`<div class="kv" style="border-top:1px dashed var(--line);margin-top:6px;padding-top:8px"><span>현장 합계 (${cs.length}건)</span><b style="font-size:12px">계약 ${totalCa!=null?moneyKR(totalCa):'-'} · 수금 ${totalRc!=null?moneyKR(totalRc):'-'} · 미수 <span style="${totalOut>0?'color:var(--red)':'color:var(--green)'}">${totalOut==null?'-':(totalOut<=0?'완납':moneyKR(totalOut))}</span></b></div>`:''}
       <div style="font-size:11px;color:var(--mut);margin-top:6px">미수금 = 계약금액 − 수금액 · 감리비는 계약금액과 같아요</div></div>
     <div class="pd-card"><div class="pd-ct"><h3>시방서 · 현설자료</h3></div>
       <label class="pd-upl"><b>시방서 올리기 (PDF·사진)</b><br><span>현장설명회 자료·시방서를 올리면 감리앱에서 바로 볼 수 있어요</span><input type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadSpecConsole('${p.id}',this.files)"></label><div id="sp-msg-c" class="mmsg" style="margin:0 0 6px"></div>
       ${specsList.length?specsList.map(s=>`<div class="pd-file"><span title="${esc(s.name)}">${(s.kind==='pdf'?'📄':'🖼️')+' '+(esc(s.name)||'시방서')}</span><button class="b line sm" onclick="openContractFile('${esc(s.file_url)}','${s.kind}')">열기</button><button class="b line sm" onclick="deleteSpecConsole('${s.id}')">삭제</button></div><div class="pd-fd">${(s.created_at||'').slice(0,10)} 등록</div>`).join(''):'<div style="font-size:12px;color:var(--mut)">아직 등록된 시방서가 없어요.</div>'}
     </div>`;
-  $('projDetail').innerHTML=`<div class="pd-head"><div><div class="back" onclick="backToProjList()">‹ 공사관리 목록</div><h1>${esc(p.name)}<span class="pill" style="background:${m[3]}1a;color:${m[3]}">${esc(m[1])}</span></h1><div class="sub">${esc(p.region)||'지역 미입력'}${siteType(p)?' · '+esc(siteType(p)):''}${p.auditor_id?' · 대표 감리 '+esc(auditorName(p.auditor_id)):''}</div></div><div class="pd-prog"><span>끝낸 항목 <b>${ci.done} / ${ci.total}</b></span><div class="bar"><i style="width:${Math.round(ci.done/ci.total*100)}%"></i></div></div></div>
+  $('projDetail').innerHTML=`<div class="pd-head"><div><div class="back" onclick="backToProjList()">‹ 공사관리 목록</div><h1>${esc(p.name)}<span class="pill" style="background:${m[3]}1a;color:${m[3]}">${esc(m[1])}</span></h1><div class="sub">${esc(p.region)||'지역 미입력'}${siteType(p)?' · '+esc(siteType(p)):''}${p.auditor_id?' · 대표 감리 '+esc(auditorName(p.auditor_id)):''}</div>${scOn()?`<div class="pd-cc">${cs.map(c=>`<button class="${c.id===curCid?'on':''}" onclick="selContract('${c.id}')" title="${esc(c.title||'')}"><span class="dot" style="background:${stageMeta(c.stage)[3]}"></span>${esc(scChip(c))}<small>${esc(stageMeta(c.stage)[1])}</small></button>`).join('')}<button class="add" onclick="openContractAdd('${p.id}')">+ 계약 건 추가</button></div>`:''}</div><div class="pd-prog"><span>끝낸 항목 <b>${ci.done} / ${ci.total}</b></span><div class="bar"><i style="width:${Math.round(ci.done/ci.total*100)}%"></i></div></div></div>
     <div class="pd-grid"><aside class="pd-left">${left}</aside><div class="pd-mid">${mid}</div><aside class="pd-right">${right}</aside></div>`;
 }
 
@@ -2703,14 +2866,17 @@ async function deleteSiteNote(id){
 }
 /* ===== 계약·수금 ===== */
 // 감리비 = 계약금액 (계약금액이 있으면 그걸, 없으면 예전 감리비 칸) · 미수금 = 감리비 − 수금액
-function aptFee(a){ return (a&&a.contract_amount!=null)?a.contract_amount:((a&&a.supervision_fee!=null)?a.supervision_fee:null); }
-function aptOutstanding(a){ const f=aptFee(a); return f==null?null:(f-(a.received_amount||0)); }
+function aptFeeLegacy(a){ return (a&&a.contract_amount!=null)?a.contract_amount:((a&&a.supervision_fee!=null)?a.supervision_fee:null); }
+// 계약 건이 있으면: 선택한 건(a._c)의 금액 / 현장 전체 → 모든 건 합계. 없으면 기존 칸
+function aptFee(a){ if(a&&scOn()&&aptContracts(a.id).length){ if(a._c)return numN(a._c.contract_amount); const cs=aptContracts(a.id).filter(c=>c.contract_amount!=null); return cs.length?cs.reduce((s,c)=>s+(+c.contract_amount||0),0):null; } return aptFeeLegacy(a); }
+function aptReceived(a){ if(a&&scOn()&&aptContracts(a.id).length){ if(a._c)return numN(a._c.received_amount); const cs=aptContracts(a.id).filter(c=>c.received_amount!=null); return cs.length?cs.reduce((s,c)=>s+(+c.received_amount||0),0):null; } return numN(a&&a.received_amount); }
+function aptOutstanding(a){ const f=aptFee(a); return f==null?null:(f-(aptReceived(a)||0)); }
 // 지급 비율(계약금/중도금/잔금 %) — control_sites.data.payRatio (콘솔 전용). 기본 50/0/50
 const PAY_RATIO_PRESETS=[[50,0,50],[30,30,40],[30,40,30],[40,30,30],[20,30,50]];
-function payRatio(a){ const r=(csData(a)||{}).payRatio; const n=v=>Math.max(0,parseInt(v,10)||0); if(r&&(n(r.down)+n(r.mid)+n(r.final)===100)) return {down:n(r.down),mid:n(r.mid),final:n(r.final)}; return {down:50,mid:0,final:50}; }
+function payRatio(a){ const c=(a&&scOn())?activeContract(a):null; const r=c?c.pay_ratio:(csData(a)||{}).payRatio; const n=v=>Math.max(0,parseInt(v,10)||0); if(r&&(n(r.down)+n(r.mid)+n(r.final)===100)) return {down:n(r.down),mid:n(r.mid),final:n(r.final)}; return {down:50,mid:0,final:50}; }
 function paySplit(ca,r){ if(ca==null)return {down:null,mid:null,final:null}; const down=Math.round(ca*r.down/100), mid=Math.round(ca*r.mid/100); return {down,mid,final:ca-down-mid}; }
 function openPayRatioEdit(aptId){
-  const p=APTS.find(x=>x.id===aptId); if(!p)return; const r=payRatio(p);
+  const p0=APTS.find(x=>x.id===aptId); if(!p0)return; const c=scOn()?targetContract(aptId):null; const p=c?{...p0,_c:c}:p0; const r=payRatio(p);
   openModal(mHead('지급 비율 수정')+`<div style="font-size:12.5px;color:var(--mut2);line-height:1.6;margin-bottom:8px">기본은 계약금 50% · 잔금 50%예요. 중도금이 있는 현장은 세 칸으로 나누세요. 합이 100%가 되어야 해요.</div>
     <div class="pd-ratio">${PAY_RATIO_PRESETS.map(([d,m,f])=>`<button class="${r.down===d&&r.mid===m&&r.final===f?'on':''}" onclick="prSet(${d},${m},${f})">${m?`${d}/${m}/${f}`:`${d}/${f}`}</button>`).join('')}</div>
     <div class="frow"><div class="fld"><label>계약금 (%)</label><input id="pr-down" type="number" min="0" max="100" value="${r.down}" oninput="prSum()"></div><div class="fld"><label>중도금 (%)</label><input id="pr-mid" type="number" min="0" max="100" value="${r.mid}" oninput="prSum()"></div><div class="fld"><label>잔금 (%)</label><input id="pr-final" type="number" min="0" max="100" value="${r.final}" oninput="prSum()"></div></div>
@@ -2723,6 +2889,8 @@ function prSet(d,m,f){ $('pr-down').value=d; $('pr-mid').value=m; $('pr-final').
 function prSum(){ const v=prVals(); const t=v.down+v.mid+v.final; const el=$('pr-sum'); if(el){ el.textContent='합계 '+t+'%'+(t===100?' ✓':' (100%가 되어야 해요)'); el.style.color=t===100?'var(--green)':'var(--red)'; } }
 async function submitPayRatio(aptId){
   const p=APTS.find(x=>x.id===aptId); if(!p)return; const v=prVals(); if(v.down+v.mid+v.final!==100){ $('m-msg').textContent='합이 100%가 되어야 해요'; $('m-msg').style.color='var(--red)'; return; }
+  const c=scOn()?targetContract(aptId):null;
+  if(c){ const {error}=await sb.from('site_contracts').update({pay_ratio:v,updated_at:new Date().toISOString()}).eq('id',c.id); if(error){ $('m-msg').textContent='저장 실패: '+error.message; $('m-msg').style.color='var(--red)'; return; } c.pay_ratio=v; closeModal(); renderProj(); return; }
   await csSave(p,{payRatio:v}); closeModal(); renderProj();
 }
 // 내부 메모 (운영자 전용 · control_sites.data.internalMemo)
@@ -2749,7 +2917,7 @@ function billingCard(p,cons){
     </div></div>`;
 }
 function openBillingEdit(aptId){
-  const p=APTS.find(x=>x.id===aptId); if(!p)return;
+  const p0=APTS.find(x=>x.id===aptId); if(!p0)return; const c=scOn()?targetContract(aptId):null; const p=c?{contract_amount:c.contract_amount,supervision_fee:null,received_amount:c.received_amount}:p0;
   openModal(mHead('💰 계약·수금 금액')+`
     <div class="fld"><label>계약금액 = 감리비 (원)</label><input id="bl-ca" type="number" value="${p.contract_amount!=null?p.contract_amount:(p.supervision_fee!=null?p.supervision_fee:'')}" placeholder="예: 36000000"></div>
     <div class="fld"><label>수금액 = 받은 금액 (원)</label><input id="bl-rc" type="number" value="${p.received_amount!=null?p.received_amount:''}" placeholder="예: 18000000"><div style="font-size:11px;color:var(--mut);margin-top:5px">미수금 = 계약금액 − 수금액 으로 자동 계산돼요</div></div>
@@ -2759,6 +2927,9 @@ function openBillingEdit(aptId){
 async function submitBilling(aptId){
   const num=id=>{ const v=($(id).value||'').trim(); return v===''?null:parseInt(v.replace(/[^0-9]/g,''),10); };
   const ca=num('bl-ca'); const upd={contract_amount:ca,supervision_fee:ca,received_amount:num('bl-rc')};
+  const c=scOn()?targetContract(aptId):null;
+  if(c){ const {error}=await sb.from('site_contracts').update({contract_amount:ca,received_amount:upd.received_amount,updated_at:new Date().toISOString()}).eq('id',c.id); if(error){$('m-msg').textContent='저장 실패: '+error.message;$('m-msg').style.color='var(--red)';return;}
+    c.contract_amount=ca; c.received_amount=upd.received_amount; const a0=APTS.find(x=>x.id===aptId); if(a0)await syncAptFromContracts(a0); closeModal(); renderProj(); renderProjList(); renderOrgs(); renderDash(); return; }
   const {error}=await sb.from('apartments').update(upd).eq('id',aptId);
   if(error){$('m-msg').textContent='저장 실패: '+error.message+'\n(migration-console-phaseb.sql 실행이 필요해요)';$('m-msg').style.color='var(--red)';return;}
   const a=APTS.find(x=>x.id===aptId); if(a)Object.assign(a,upd); if(curProj&&curProj.id===aptId)Object.assign(curProj,upd);
@@ -2796,6 +2967,9 @@ function openAptAdd(pre){ pre=pre||{}; APT_ADD_LINK=pre._leadId||null;
 async function submitAptAdd(){
   const name=$('m-name').value.trim(); if(!name){$('m-msg').textContent='단지명을 입력하세요';$('m-msg').style.color='var(--red)';return;}
   const {sel:mSel,prog:mProg}=readMethodsC(); const method=mSel[0]||null;
+  const dup=APTS.find(x=>(x.name||'').trim()===name);
+  if(dup&&scOn()){ if(confirm('같은 이름의 현장이 이미 있어요.\n\n[확인] 그 현장에 계약 건(추가공사)으로 추가\n[취소] 입력 화면으로 돌아가기\n\n※ 같은 이름으로 현장을 두 개 만들면 설정이 섞여요. 다른 현장이면 이름을 구분해 주세요(예: ○○아파트 2단지).')){ const lead=APT_ADD_LINK; APT_ADD_LINK=null; closeModal(); openProj(dup.id); openContractAdd(dup.id,{methods:mSel,contract_amount:numIn('m-ca'),stage:($('m-stagekey')||{}).value||'계약'}); if(lead){ try{ await sb.from('sales_leads').update({apartment_id:dup.id,stage:'won',stage_changed_at:new Date().toISOString()}).eq('id',lead); }catch(e){} } } return; }
+  else if(dup&&!confirm('같은 이름의 현장이 이미 있어요. 그래도 추가할까요?'))return;
   const stArr=((window.STAGE_SETS||{})[method]||{}).stages; const pt=stArr?stArr.length:0;
   let pc=method?(mProg[method]||0):0; if(pt&&pc>pt)pc=pt;
   const num=id=>{ const el=$(id); if(!el)return null; const v=(el.value||'').trim(); if(v==='')return null; const n=parseInt(v.replace(/[^0-9]/g,''),10); return isNaN(n)?null:n; };
@@ -2809,6 +2983,8 @@ async function submitAptAdd(){
   // 5단계 원본을 control_sites 에도 기록 (계약/착공, 준공처리중 구분용)
   const sk0=($('m-stagekey')||{}).value; if(data&&STAGE_KEYS.includes(sk0)){ try{ const slug=csSlug(name); const d={...(CSITES[slug]||{}),_name:name,stage:sk0,stageAt:new Date().toISOString(),methods:mSel,progress:mProg}; CSITES[slug]=d; await sb.from('control_sites').upsert({slug,name,apartment_id:data.id,data:d,updated_at:new Date().toISOString()},{onConflict:'slug'}); }catch(e){console.warn('단계 저장 실패',e);} }
   if(APT_ADD_LINK&&data){ try{ await sb.from('sales_leads').update({apartment_id:data.id,stage:'won',stage_changed_at:new Date().toISOString()}).eq('id',APT_ADD_LINK);}catch(e){} }
+  // 1차 계약 건 (표가 있을 때)
+  if(data&&scOn()){ try{ const {data:c}=await sb.from('site_contracts').insert({apartment_id:data.id,seq:1,methods:mSel,progress:mProg,stage:STAGE_KEYS.includes(sk0)?sk0:'계약',stage_at:new Date().toISOString(),contract_date:new Date().toISOString().slice(0,10),contract_amount:rec.contract_amount,received_amount:rec.received_amount,checklist:{}}).select('*').single(); if(c)SCONTRACTS.push(c); }catch(e){} }
   APT_ADD_LINK=null;
   closeModal(); await loadAll();
 }
@@ -3336,7 +3512,8 @@ async function uploadContractConsole(aptId,files){
   const {error:ue}=await sb.storage.from('contracts').upload(path,f,{upsert:false});
   if(ue){if(msg){msg.textContent='업로드 실패: '+ue.message;msg.style.color='var(--red)';}return;}
   const kind=f.type==='application/pdf'?'pdf':'image';
-  const {error}=await sb.from('contracts').insert({apartment_id:aptId,name:fl.name,file_url:path,kind});
+  const row={apartment_id:aptId,name:fl.name,file_url:path,kind}; const cc=scOn()?targetContract(aptId):null; if(cc)row.site_contract_id=cc.id;
+  const {error}=await sb.from('contracts').insert(row);
   if(error){if(msg){msg.textContent='등록 실패: '+error.message;msg.style.color='var(--red)';}return;}
   if(msg){msg.textContent='등록됐어요';msg.style.color='var(--green)';}
   await loadAll();
@@ -4633,12 +4810,16 @@ async function ensureAptForWon(s){
   const nm=(spCleanName(s.name)||s.name||'').trim(); if(!nm) return null;
   // 같은 이름의 단지가 이미 있으면 새로 만들지 않고 그 단지에 연결(중복 방지)
   const exist=APTS.find(a=>(a.name||'').trim()===nm);
-  if(exist){ await sb.from('sales_leads').update({apartment_id:exist.id}).eq('id',s.id); s.apartment_id=exist.id; return exist.id; }
+  if(exist){ await sb.from('sales_leads').update({apartment_id:exist.id}).eq('id',s.id); s.apartment_id=exist.id;
+    // 이미 있는 현장 → 새 계약 건(추가공사)으로 붙임 (이전 건은 이력으로 유지)
+    if(scOn()){ const cs=aptContracts(exist.id); const seq=cs.length?Math.max(...cs.map(c=>+c.seq||0))+1:1; try{ const {data:c}=await sb.from('site_contracts').insert({apartment_id:exist.id,seq,title:s.construction_type||null,methods:[],progress:{},stage:'계약',stage_at:new Date().toISOString(),contract_date:new Date().toISOString().slice(0,10),contract_amount:(s.amount!=null?s.amount:null),memo:[s.memo,s.owner?('영업 담당: '+s.owner):''].filter(Boolean).join('\n')||null,checklist:{}}).select('*').single(); if(c){ SCONTRACTS.push(c); await syncAptFromContracts(exist); } }catch(e){} }
+    return exist.id; }
   const rec={ name:nm, region:s.region||null, construction_type:s.construction_type||null,
     supervision_fee:(s.amount!=null?s.amount:null), status:'scheduled',
     overview:[s.memo, s.contact?('담당·연락처: '+s.contact):'', s.owner?('영업 담당: '+s.owner):''].filter(Boolean).join('\n')||null };
   const {data,error}=await sb.from('apartments').insert(rec).select('id').single();
   if(error||!data){ console.warn('단지 자동생성 실패:',error&&error.message); return null; }
+  if(scOn()){ try{ const {data:c}=await sb.from('site_contracts').insert({apartment_id:data.id,seq:1,title:s.construction_type||null,methods:[],progress:{},stage:'계약',stage_at:new Date().toISOString(),contract_date:new Date().toISOString().slice(0,10),contract_amount:(s.amount!=null?s.amount:null),checklist:{}}).select('*').single(); if(c)SCONTRACTS.push(c); }catch(e){} }
   await sb.from('sales_leads').update({apartment_id:data.id}).eq('id',s.id);
   s.apartment_id=data.id;
   return data.id;

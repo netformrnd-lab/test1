@@ -30,6 +30,12 @@ function safeId(id) {
   return String(id).replace(/[.#$/\[\]]/g, '_');
 }
 
+// POUR 소프트 삭제 판별: POUR는 일정을 지울 때 키를 없애지 않고
+//  deleted:true (또는 deletion 객체)만 세팅한다. 이 플래그가 있으면 '삭제된 것'으로 취급.
+function isDeleted(s) {
+  return !!(s && typeof s === 'object' && (s.deleted === true || (s.deletion && typeof s.deletion === 'object')));
+}
+
 // 이름에서 '님' 떼기 (App.jsx normalizeSchedule과 동일)
 function stripNim(name) {
   return typeof name === 'string' ? name.replace(/\s*님$/, '').trim() : name;
@@ -286,4 +292,5 @@ module.exports = {
   normName,
   matchApartmentName,
   matchApartmentForEntry,
+  isDeleted,
 };

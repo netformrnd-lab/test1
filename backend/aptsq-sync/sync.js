@@ -170,6 +170,9 @@ async function reconcileSync() {
     for (const [id, s] of Object.entries(val)) {
       if (s && s._origin === 'aptsq') { if (s._aptsqId) aptsqIdsInPour.add(String(s._aptsqId)); continue; }
       total++;
+      if (M.isDeleted(s)) {                            // POUR 소프트 삭제(deleted:true) → 삭제로 취급
+        continue;                                        // live 목록에 안 넣음 → 아래 정리에서 옛 짝이 삭제됨
+      }
       if (!(s && M.pickDate(s))) {                    // 날짜 없음/지워짐 → 캘린더에 둘 수 없음
         noDate++;                                       // live 목록에 넣지 않아 → 아래 정리에서 옛 짝이 삭제됨
         if (!sample && s && typeof s === 'object') sample = Object.keys(s).slice(0, 12).join(', ');

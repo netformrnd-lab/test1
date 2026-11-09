@@ -1,14 +1,16 @@
-name: Build TEST AAB (내부테스트 전용 · 별도 패키지)
+name: Build TEST AAB (운영앱 내부테스트 트랙용)
 
-# 내부테스트용 별도 앱(.test 패키지)을 빌드한다.
-#  · 운영앱(floral-cherry)과 완전히 분리 — 직원은 운영앱과 테스트앱을 동시에 설치 가능
-#  · 서버 URL 을 '테스트 전용 주소'로 바꿔서 빌드 → 수정본을 테스트 주소에만 올려 확인(입주민 영향 0)
-#  · 푸시(google-services)는 테스트앱에서 끔(패키지가 달라 Firebase 설정이 안 맞음)
-#  · 커밋된 파일은 안 건드림 — CI 안에서만 임시로 바꿔 빌드
+# 운영앱과 '같은 패키지'로, 서버 URL 만 테스트 주소로 바꿔 빌드한다.
+#  → Play Console 운영앱의 '내부 테스트' 트랙에 그대로 업로드 가능(새 리스팅 불필요)
+#  · 입주민(운영 트랙)은 영향 없음 — 내부테스트 트랙 테스터만 이 빌드를 받음
+#  · 버전코드는 운영(112143)보다 커야 함 → 실행 시 version_code 입력(기본 112144)
+#  · 푸시(google-services)는 패키지가 같아 그대로 동작
+#  · 커밋된 파일은 안 건드림 — CI 안에서만 임시 변경
 #
-# 실행: Actions → 이 워크플로우 → Run workflow → test_url 에 새 테스트 주소 입력
-#   예) https://aptsq-test-xxxx.pages.dev  (끝에 / 없이)
-# 결과: Artifacts 의 apartsquare-TEST-release-aab (.aab) 다운로드 → Play Console 테스트 앱 내부테스트에 업로드
+# 실행: Actions → 이 워크플로우 → Run workflow → test_url + version_code 입력
+#   test_url 예) https://wandering-firefly-test.squarecm.workers.dev  (끝에 / 없이)
+#   version_code: 이전에 올린 것보다 큰 숫자 (처음엔 112144, 다음엔 112145 …)
+# 결과: Artifacts 의 apartsquare-TEST-release-aab → 운영앱 '내부 테스트'에 업로드
 
 on:
   workflow_dispatch:
@@ -17,6 +19,11 @@ on:
         description: "테스트 전용 웹 주소 (끝에 / 없이)"
         required: true
         type: string
+      version_code:
+        description: "버전코드 (운영 112143 보다 큰 숫자, 매번 올림)"
+        required: true
+        type: string
+        default: "112144"
 
 jobs:
   build:
@@ -42,6 +49,7 @@ jobs:
       - name: 테스트용으로 설정 바꾸기 (CI 안에서만)
         env:
           TEST_URL: ${{ inputs.test_url }}
+          VERSION_CODE: ${{ inputs.version_code }}
         run: |
           set -e
           # 1) 서버 URL + 앱 이름 → 테스트용 (capacitor.config.json)
@@ -55,15 +63,13 @@ jobs:
           json.dump(c, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
           print('capacitor.config.json →', url)
           PY
-          # 2) 앱 패키지 ID 를 .test 로 (운영앱과 별도 앱이 되도록)
-          sed -i 's/applicationId "com.imweb.appS202408051a19f7159fdc6_9cfb6b4e8f3d0"/applicationId "com.imweb.appS202408051a19f7159fdc6_9cfb6b4e8f3d0.test"/' android/app/build.gradle
-          # 3) 앱 표시 이름(테스트)
+          # 2) 버전코드 상향 (운영앱 내부테스트 트랙은 운영보다 큰 코드 필요) — 패키지(applicationId)는 그대로!
+          sed -i "s/versionCode [0-9][0-9]*/versionCode ${VERSION_CODE}/" android/app/build.gradle
+          # 3) 설치 시 구분되게 앱 이름을 (테스트)로
           sed -i 's#<string name="app_name">아파트스퀘어</string>#<string name="app_name">아파트스퀘어(테스트)</string>#' android/app/src/main/res/values/strings.xml
           sed -i 's#<string name="title_activity_main">아파트스퀘어</string>#<string name="title_activity_main">아파트스퀘어(테스트)</string>#' android/app/src/main/res/values/strings.xml
-          # 4) 푸시 끔 — 테스트 패키지는 Firebase 설정과 안 맞으니 google-services.json 제거(플러그인 건너뜀)
-          rm -f android/app/google-services.json
-          echo "=== applicationId / app_name 확인 ==="
-          grep applicationId android/app/build.gradle
+          echo "=== applicationId / versionCode / app_name 확인 ==="
+          grep -E "applicationId|versionCode" android/app/build.gradle
           grep app_name android/app/src/main/res/values/strings.xml
 
       - name: Capacitor sync (android)

@@ -6,14 +6,17 @@
 
 ## 주소
 
-**https://asia-southeast1-test-168a4.cloudfunctions.net/studio/**
+**https://video-studio.squarecm.workers.dev/** (Cloudflare Workers 무료 플랜)
+
+예전 주소(Firebase, 결제 문제로 배포 중지): https://asia-southeast1-test-168a4.cloudfunctions.net/studio/
 
 아파트스퀘어 **관리자 계정**으로 로그인합니다.
 
 ## 설치 — 할 일 없음
 
-- `video-studio/` 폴더를 고쳐서 push 하면 GitHub Actions(`deploy-studio.yml`)가 Firebase(test-168a4)에 자동 배포합니다.
-- 필요한 키(`FIREBASE_SERVICE_ACCOUNT`, `SUPABASE_SERVICE_ROLE_KEY`)는 이미 GitHub Secrets에 있는 것을 씁니다.
+- `video-studio/` 폴더를 고쳐서 push 하면 GitHub Actions(`deploy-studio-cf.yml`)가 Cloudflare Workers 에 자동 배포합니다.
+- 필요한 키(`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SUPABASE_SERVICE_ROLE_KEY`)는 GitHub Secrets에 있습니다.
+- 무료 플랜 계산 시간 제한 때문에 서버에서 PDF 글 추출은 하지 않습니다(NAS 검색 본문·텍스트 파일 사용).
 - 데이터는 Supabase Storage의 비공개 버킷 `studio`에 저장합니다. 첫 저장 때 자동으로 만들어지므로 SQL을 실행할 필요가 없습니다.
 - 기존 POUR·즉시연동 함수는 건드리지 않습니다. 별도 묶음(codebase `vstudio`)으로 배포합니다.
 

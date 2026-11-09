@@ -398,7 +398,9 @@
         <details><summary>동의어 (검색에 함께 사용)</summary><ul class="terms-list">${T.synonyms.map((x) => `<li><b>${esc(x.canonical)}</b> = ${x.terms.map(esc).join(', ')}</li>`).join('')}</ul></details>
         <details><summary>표기 통일</summary><ul class="terms-list">${T.spelling.map((x) => `<li>${esc(x.wrong)} → <b>${esc(x.right)}</b> <small>${esc(x.why)}</small></li>`).join('')}</ul></details>
         <details><summary>금지어</summary><ul class="terms-list">${T.banned.map((x) => `<li><b>${esc(x.word)}</b> — ${esc(x.why)}${x.instead ? ` <small>(대신: ${esc(x.instead)})</small>` : ''}</li>`).join('')}</ul></details>
-        ${T.brand ? `<details><summary>브랜드북 규칙 (대본 작성·검수에 적용)</summary><ul class="terms-list">${T.brand.rules.map((r) => `<li>${esc(r)}</li>`).join('')}<li>${esc(T.brand.visual)}</li></ul></details>` : ''}
+        ${n.hubGuide ? `<details open><summary>최신 브랜드 가이드 — 브랜드 허브 ‘${esc(n.hubGuide.name)}’ (대본 작성·검수에 우선 적용)</summary><div class="hub-guide">${esc(n.hubGuide.tone)}</div><small>허브 기준 시각 ${esc(n.hubGuide.at || '-')} · 불러온 시각 ${esc(n.hubGuide.fetched ? fmt(n.hubGuide.fetched) : "-")}</small></details>` : ''}
+        ${n.connections && n.connections.hub && n.connections.hub.configured ? `<p><button type="button" class="btn outline sm" data-hub-guide ${S.busy ? 'disabled' : ''}>허브에서 최신 가이드 다시 불러오기</button> <small>${n.hubGuide ? '영상을 만들 때마다 자동으로도 새로 불러옵니다.' : '아직 불러온 가이드가 없습니다.'}</small></p>` : ''}
+        ${T.brand ? `<details><summary>${n.hubGuide ? '기본 브랜드북 규칙 (내장 · 최신 가이드와 다르면 최신 가이드 우선)' : '브랜드북 규칙 (대본 작성·검수에 적용)'}</summary><ul class="terms-list">${T.brand.rules.map((r) => `<li>${esc(r)}</li>`).join('')}<li>${esc(T.brand.visual)}</li></ul></details>` : ''}
         <small>${esc(T.source)}</small>`
     }
     $('sources-list').innerHTML = srcs.length ? srcs.map((s) => `<article class="source-card">
@@ -1061,6 +1063,10 @@
     if (rd) {
       { const jb = S.data.jobs.find((j) => j.id === rd.dataset.render); const svc = jb && jb.input.tool === 'manus' ? 'Manus' : 'HeyGen'; if (!confirm(`이 프롬프트로 ${svc} 영상을 만들까요?\n\n목표 길이 ${jb ? jb.input.seconds : '?'}초 · ${svc} 크레딧이 사용되며 되돌릴 수 없습니다.`)) return }
       try { const r = await api({ action: 'render', id: rd.dataset.render }); S.data.jobs = S.data.jobs.map((j) => (j.id === r.job.id ? r.job : j)); renderAll() } catch (e) { S.error = e.message; renderMessages() }
+      return
+    }
+    if (t.closest('[data-hub-guide]')) {
+      try { S.data = await api({ action: 'hubGuide' }); S.success = '브랜드 허브에서 최신 가이드를 불러왔습니다.'; renderAll() } catch (e) { S.error = e.message; renderMessages() }
       return
     }
     const sd = t.closest('[data-src-del]')

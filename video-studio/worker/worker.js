@@ -43,6 +43,7 @@ async function hubBrands(key) {
   const d = await r.json().catch(() => null)
   if (!d) throw new HttpError(400, `브랜드 허브 응답을 읽지 못했습니다(HTTP ${r.status}).`)
   if (!d.ok) throw new HttpError(400, '브랜드 허브 읽기 실패: ' + (d.error || r.status))
+  hubBrands.at = String(d['받은때'] || '')
   return Array.isArray(d.brands) ? d.brands : []
 }
 // 허브 브랜드 정보 → { tone(글), items([{name,url,kind}]) } — 항목 형식이 달라도 이름·주소를 찾아 쓴다
@@ -60,7 +61,7 @@ function hubDigest(b) {
       items.push({ kind, name: String(name).slice(0, 120), url: String(url), note: String(it.desc || it.description || it['설명'] || '').slice(0, 200), text: typeof text === 'string' ? text.slice(0, 150000) : '', keys: Object.keys(it).slice(0, 15) })
     }
   }
-  return { tone: String(tone || '').slice(0, 4000), items: items.slice(0, 40) }
+  return { tone: String(tone || '').slice(0, 20000), items: items.slice(0, 40) }
 }
 // 허브 → 근거 자료 목록: 톤·가이드 글 + 허브 문서(제목으로 NAS 에서 찾아 원본 읽기) + NAS 내용 검색(영상 키워드)
 async function hubToSources(hb, ctx = {}) {
@@ -210,7 +211,14 @@ async function hubBrand(env, st) {
   const key = await getKey(env, 'hub')
   const brands = await hubBrands(key)
   const b = brands.find((x) => String(x.name) === st.secrets.hub.model)
-  return b ? { name: String(b.name), ...hubDigest(b), key, brands } : null
+  return b ? { name: String(b.name), ...hubDigest(b), key, brands, at: hubBrands.at || '' } : null
+}
+// 허브 브랜드 가이드(톤·가이드)를 저장해 두고 화면에 보여 줌 — 제작 때마다·'다시 불러오기' 때 갱신
+async function saveHubGuide(env, hb) {
+  if (!hb || !hb.tone) return null
+  const g = { name: hb.name, tone: hb.tone, at: hb.at || '', fetched: now() }
+  await writeJSON(env, 'hubguide', g).catch(() => {})
+  return g
 }
 const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
 const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
@@ -425,6 +433,16 @@ const ACTIONS = {
       if (/^clips\/[0-9a-f-]{36}\.mp4$/.test(path)) vids[c] = await signedUrl(env, path, 3600).catch(() => '')
     }
     return { urls: out, videos: vids }
+  },
+  // 브랜드 허브의 최신 브랜드 가이드 다시 불러오기
+  async hubGuide(env) {
+    const st = await state(env, { raw: true })
+    if (!st.readiness.hub) throw new HttpError(400, '브랜드 허브 연결을 먼저 저장해 주세요.')
+    const hb = await hubBrand(env, st)
+    if (!hb) throw new HttpError(400, `허브에서 ‘${st.secrets.hub.model}’ 브랜드를 찾지 못했습니다.`)
+    if (!hb.tone) throw new HttpError(400, '허브의 이 브랜드에 톤·가이드 글이 없습니다.')
+    await saveHubGuide(env, hb)
+    return state(env)
   },
   // 영상 구성 설정 (AI 이미지 모델, 검수 통과 후 자동 제작 여부)
   async prefs(env, { imageModel, autoRender, motion, aiVideo, videoModel, maxAiVideos, heygenMode, openaiReview }) {
@@ -664,7 +682,8 @@ async function runStep(env, job) {
       try {
         const hb = await hubBrand(env, st)
         if (hb) {
-          d.hub = { name: hb.name, tone: hb.tone, items: hb.items }
+          d.hub = { name: hb.name, tone: hb.tone, items: hb.items, at: hb.at || '' }
+          await saveHubGuide(env, hb)
           const claudeK = await getKey(env, 'claude', false)
           const res = await hubToSources(hb, { key: hb.key, brands: hb.brands, keywords: job.input.keywords, pdf: claudeK ? { env, key: claudeK, model: st.secrets.claude && st.secrets.claude.model, d, max: 4 } : null })
           hubSources = res.sources
@@ -703,7 +722,7 @@ async function runStep(env, job) {
 
   // 2) Claude 독립 검수
   if (job.step === 2) {
-    d.claude = await callClaude(claudeKey, d.models.claude, reviewSystem(), reviewUser(job, d), REVIEW_SCHEMA, d)
+    d.claude = await callClaude(claudeKey, d.models.claude, reviewSystem(d), reviewUser(job, d), REVIEW_SCHEMA, d)
     d.claude = normReview(d.claude)
     d.events.push(ev(`Claude 검수: ${passes(d.claude) ? '통과' : '미통과'} (근거 ${d.claude.grounding} · 브랜드 ${d.claude.brand} · 전달 ${d.claude.clarity} · 제작 ${d.claude.production})`))
     job.step = 3
@@ -720,7 +739,7 @@ async function runStep(env, job) {
   if (job.step === 3) {
     d.openaiSkipped = false
     if (!openaiKey) throw new Error('OpenAI API 연결을 먼저 저장하거나, 설정에서 OpenAI 교차 검수를 꺼 주세요.')
-    d.openai = normReview(await callOpenAI(openaiKey, d.models.openai, reviewSystem(), reviewUser(job, d), REVIEW_SCHEMA, d))
+    d.openai = normReview(await callOpenAI(openaiKey, d.models.openai, reviewSystem(d), reviewUser(job, d), REVIEW_SCHEMA, d))
     d.events.push(ev(`OpenAI 검수: ${passes(d.openai) ? '통과' : '미통과'} (근거 ${d.openai.grounding} · 브랜드 ${d.openai.brand} · 전달 ${d.openai.clarity} · 제작 ${d.openai.production})`))
     job.step = 4
     return
@@ -1114,7 +1133,7 @@ function draftSystem(maxV = DEFAULT_SETTINGS.maxAiVideos, job = null) {
     '5. onScreen 은 장면의 핵심 문구(30자 이내, 브랜드 카드에 크게 표시), visual 은 장면 전체의 화면 구성 설명입니다.',
     '6. 근거가 부족해 목표 길이·주제를 정직하게 채울 수 없을 때만 blockers 에 이유를 적습니다(억지로 채우지 않음). 근거 없는 일부 내용(예: 실제 사례)을 빼고도 영상이 성립하면 빼고 쓰고 blockers 에는 적지 않습니다. 사진·화면 자료가 없다는 이유는 blockers 가 아닙니다.',
     '7. 과장·단정적 효과 보장·타사 비방·확인되지 않은 법적 판단은 쓰지 않습니다.',
-    termRules(),
+    termRules(job && job.data),
     job && isManus(job) ? manusCutRules() : cutRules(maxV),
   ].join('\n')
 }
@@ -1139,14 +1158,17 @@ function photoBlock(photos) {
   const list = (photos || []).slice(0, 300)
   return list.length ? list.map((p) => `- ${p.id}: ${(p.desc || p.name || '설명 없음').replace(/\s+/g, ' ').slice(0, 160)}${p.kind === 'video' ? ` (영상 ${p.duration || '?'}초)` : ''}`).join('\n') : '(등록된 사진 없음 — 필요한 컷은 imagePrompt 로 AI 이미지를 요청하세요)'
 }
-function termRules() {
+function termRules(d) {
   const sp = T.spelling.map((x) => `${x.wrong}→${x.right}`).join(', ')
   const bn = T.banned.map((x) => (x.instead && x.instead !== '삭제' ? `${x.word}(→${x.instead})` : x.word)).join(', ')
-  return `8. [사내 용어 사전] 대사·자막에 다음 표기를 지킵니다: ${sp}\n9. [금지어] 대사·자막·제목에 쓰지 않습니다(괄호는 대신 쓸 표현): ${bn}\n${brandRules()}`
+  return `8. [사내 용어 사전] 대사·자막에 다음 표기를 지킵니다: ${sp}\n9. [금지어] 대사·자막·제목에 쓰지 않습니다(괄호는 대신 쓸 표현): ${bn}\n${brandRules(d)}`
 }
-function brandRules() {
+function brandRules(d) {
   const b = T.brand
-  return b ? `10. [아파트스퀘어 브랜드북 규칙]\n${b.rules.map((r) => '- ' + r).join('\n')}` : ''
+  const base = b ? b.rules.map((r) => '- ' + r).join('\n') : ''
+  const g = d && d.hub && d.hub.tone && d.hub.tone.length >= 200 ? d.hub : null
+  if (g) return `10. [${g.name} 최신 브랜드 가이드 — 브랜드 허브${g.at ? ' · ' + g.at : ''}] 아래 가이드가 가장 최신 기준입니다. 표현·고정 문구·금지 표현·역할 경계를 그대로 지킵니다. (사실·수치는 [승인 자료]에서만)\n${g.tone}\n\n11. [기본 브랜드북 규칙 — ${(b && b.source) || '내장'}] 위 최신 가이드와 다르면 최신 가이드를 따릅니다.\n${base}`
+  return b ? `10. [아파트스퀘어 브랜드북 규칙]\n${base}` : ''
 }
 // 대사·자막·제목의 금지어·잘못된 표기를 서버에서 직접 찾는다 (인용문은 원문 그대로라 검사하지 않음)
 function termIssues(plan) {
@@ -1168,13 +1190,13 @@ function briefBlock(job) {
 }
 function draftUser(job, d) {
   const mem = (d.memory || []).length ? `\n\n[지난 제작 형식 참고(사실은 가져오지 말 것)]\n${d.memory.join('\n')}` : ''
-  const hub = d.hub && d.hub.tone ? `\n\n[브랜드 허브 톤·가이드 — ${d.hub.name}] (어조·표현·금기 참고용. 사실·수치의 근거로 쓰지 않음)\n${d.hub.tone}` : ''
+  const hub = d.hub && d.hub.tone && d.hub.tone.length < 200 ? `\n\n[브랜드 허브 톤·가이드 — ${d.hub.name}] (어조·표현·금기 참고용. 사실·수치의 근거로 쓰지 않음)\n${d.hub.tone}` : ''   // 긴 가이드는 시스템 규칙 10번에 들어감
   return `${briefBlock(job)}${mem}${hub}\n\n[승인 자료]\n${contextBlock(d)}\n\n[사진 자료실] (id: 설명)\n${photoBlock(d.photoCatalog)}\n\n위 규칙에 따라 영상 제목과 장면별 대본·컷을 작성하세요.`
 }
 function reviseUser(job, d) {
   return `${draftUser(job, d)}\n\n[직전 대본]\n${JSON.stringify(d.plan)}\n\n[검수 지적 사항 — 모두 해결하세요]\n${(d.pendingIssues || []).map((x) => '- ' + x).join('\n')}\n\n지적 사항을 반영해 대본 전체를 다시 작성하세요. 해결할 수 없으면 blockers 에 이유를 적으세요.`
 }
-function reviewSystem() {
+function reviewSystem(d) {
   return [
     '당신은 아파트스퀘어 영상 대본의 독립 검수자입니다. 작성자와 별개로 엄격하게 평가합니다.',
     '각 항목을 0~100점으로 채점합니다:',
@@ -1184,8 +1206,8 @@ function reviewSystem() {
     '- production: HeyGen 아바타 영상으로 바로 제작 가능한가(장면 길이 합계, 발화량, 컷 길이). 컷마다 배정한 사진 설명·AI 이미지 요청이 그 컷 대사와 정확히 맞는가, 같은 그림이 반복되지 않는가, AI 이미지 요청이 하자 실제 크기·모습 기준을 지키는가.',
     'issues 에는 반드시 고쳐야 하는 중대 지적만 한국어로 적습니다(없으면 빈 배열). 사소한 취향은 적지 않습니다.',
     'pass 는 네 항목이 모두 90점 이상이고 issues 가 비어 있을 때만 true 입니다.',
-    '브랜드 점수는 아래 브랜드북 규칙을 기준으로 매기고, 어긴 규칙은 issues 에 적습니다.',
-    brandRules(),
+    '브랜드 점수는 아래 브랜드 규칙(최신 가이드가 있으면 그것이 우선)을 기준으로 매기고, 어긴 규칙은 issues 에 적습니다.',
+    brandRules(d),
   ].join('\n')
 }
 function reviewUser(job, d) {
@@ -1852,6 +1874,7 @@ async function state(env, opt = {}) {
     jobs: jobs.map(toJob),
     learningCount: jobs.filter((j) => j.status === 'rendered').length,
     terms: T,
+    hubGuide: readiness.hub ? await readJSON(env, 'hubguide', null).catch(() => null) : null,
   }
 }
 function readinessProblems(st, tool = 'heygen') {

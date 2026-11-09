@@ -1,13 +1,10 @@
 name: 영상 제작 작업실 배포 (Firebase)
 
-# video-studio/ 가 바뀌어 push 되면 자동 배포. (수동 실행도 가능)
+# 수동 실행만 (Cloudflare 무료 배포로 옮김 — deploy-studio-cf.yml). Firebase 는 결제 문제로 배포 거절 중.
 # 주소: https://asia-southeast1-test-168a4.cloudfunctions.net/studio/
 # 준비물(GitHub Secrets, 이미 등록됨): FIREBASE_SERVICE_ACCOUNT (test-168a4), SUPABASE_SERVICE_ROLE_KEY
 # 기존 POUR·즉시연동 함수는 건드리지 않음 (별도 codebase 'vstudio' 만 배포)
 on:
-  push:
-    branches: ["claude/bold-mayer-pylpse"]
-    paths: ["video-studio/**", ".github/workflows/deploy-studio.yml"]
   workflow_dispatch:
 
 jobs:

@@ -1,0 +1,97 @@
+name: Build TEST AAB (운영앱 내부테스트 트랙용)
+
+# 운영앱과 '같은 패키지'로, 서버 URL 만 테스트 주소로 바꿔 빌드한다.
+#  → Play Console 운영앱의 '내부 테스트' 트랙에 그대로 업로드 가능(새 리스팅 불필요)
+#  · 입주민(운영 트랙)은 영향 없음 — 내부테스트 트랙 테스터만 이 빌드를 받음
+#  · 버전코드는 운영(112143)보다 커야 함 → 실행 시 version_code 입력(기본 112144)
+#  · 푸시(google-services)는 패키지가 같아 그대로 동작
+#  · 커밋된 파일은 안 건드림 — CI 안에서만 임시 변경
+#
+# 실행: Actions → 이 워크플로우 → Run workflow → test_url + version_code 입력
+#   test_url 예) https://wandering-firefly-test.squarecm.workers.dev  (끝에 / 없이)
+#   version_code: 이전에 올린 것보다 큰 숫자 (처음엔 112144, 다음엔 112145 …)
+# 결과: Artifacts 의 apartsquare-TEST-release-aab → 운영앱 '내부 테스트'에 업로드
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_url:
+        description: "테스트 전용 웹 주소 (끝에 / 없이)"
+        required: true
+        type: string
+      version_code:
+        description: "버전코드 (운영 112143 보다 큰 숫자, 매번 올림)"
+        required: true
+        type: string
+        default: "112144"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install npm deps
+        run: npm install
+
+      - name: 테스트용으로 설정 바꾸기 (CI 안에서만)
+        env:
+          TEST_URL: ${{ inputs.test_url }}
+          VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          set -e
+          # 1) 서버 URL + 앱 이름 → 테스트용 (capacitor.config.json)
+          python3 - "$TEST_URL" <<'PY'
+          import json, sys
+          url = sys.argv[1].rstrip('/')
+          p = 'capacitor.config.json'
+          c = json.load(open(p, encoding='utf-8'))
+          c.setdefault('server', {})['url'] = url
+          c['appName'] = '아파트스퀘어(테스트)'
+          json.dump(c, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+          print('capacitor.config.json →', url)
+          PY
+          # 2) 버전코드 상향 (운영앱 내부테스트 트랙은 운영보다 큰 코드 필요) — 패키지(applicationId)는 그대로!
+          sed -i "s/versionCode [0-9][0-9]*/versionCode ${VERSION_CODE}/" android/app/build.gradle
+          # 3) 설치 시 구분되게 앱 이름을 (테스트)로
+          sed -i 's#<string name="app_name">아파트스퀘어</string>#<string name="app_name">아파트스퀘어(테스트)</string>#' android/app/src/main/res/values/strings.xml
+          sed -i 's#<string name="title_activity_main">아파트스퀘어</string>#<string name="title_activity_main">아파트스퀘어(테스트)</string>#' android/app/src/main/res/values/strings.xml
+          echo "=== applicationId / versionCode / app_name 확인 ==="
+          grep -E "applicationId|versionCode" android/app/build.gradle
+          grep app_name android/app/src/main/res/values/strings.xml
+
+      - name: Capacitor sync (android)
+        run: npx cap sync android
+
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: Build release bundle (AAB)
+        working-directory: android
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Upload TEST AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apartsquare-TEST-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error

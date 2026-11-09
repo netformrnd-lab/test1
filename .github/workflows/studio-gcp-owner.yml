@@ -1,0 +1,22 @@
+name: 영상 작업실 - Firebase 프로젝트 소유 계정·결제 확인
+
+on:
+  push:
+    branches: ["claude/bold-mayer-pylpse"]
+    paths: ["video-studio/tools/gcp-owner.cjs", ".github/workflows/studio-gcp-owner.yml"]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install google-auth-library --no-audit --no-fund --no-save --prefix /tmp/g
+      - name: 확인
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          NODE_PATH: /tmp/g/node_modules
+        run: node video-studio/tools/gcp-owner.cjs

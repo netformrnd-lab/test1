@@ -22,7 +22,7 @@ jobs:
         id: ok
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then echo "Cloudflare 시크릿이 아직 없어 건너뜀"; echo "go=no" >> $GITHUB_OUTPUT; else echo "go=yes" >> $GITHUB_OUTPUT; fi
-      - name: 화면 + API 합치기 (PDF 서버 추출은 무료 플랜 계산 제한 때문에 끔)
+      - name: 화면 + API 합치기 (PDF 는 서버 대신 Claude 가 읽음)
         if: steps.ok.outputs.go == 'yes'
         run: |
           node video-studio/build.mjs

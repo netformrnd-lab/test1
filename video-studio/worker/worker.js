@@ -79,7 +79,7 @@ async function hubToSources(hb, ctx = {}) {
   // 1) 허브 항목에 글·주소가 있으면 그대로
   for (const it of hb.items.slice(0, 20)) {
     let text = (it.text && it.text.length >= 30 ? it.text : '') || (it.note && it.note.length >= 30 ? it.note : '')
-    if (it.url) { const t = await remoteText(it.url).catch(() => ''); if (t) text = (text ? text + '\n\n' : '') + t }
+    if (it.url) { const t = await remoteText(it.url, '', ctx.pdf).catch(() => ''); if (t) text = (text ? text + '\n\n' : '') + t }
     add(`브랜드 허브 · ${it.name || it.kind}`, `넷폼 브랜드 허브 (${it.kind})`, text, it.url || it.name)
   }
   const stats = { docs: 0, found: 0, excluded: 0, used: [] }
@@ -91,7 +91,7 @@ async function hubToSources(hb, ctx = {}) {
     const rs = await nasSearch(ctx.key, base)
     const hit = rs.find((r) => String(r.name || '').replace(/\.[a-z0-9]{2,5}$/i, '') === base) || rs.find((r) => String(r.name || '').startsWith(base))
     if (!hit) continue
-    const full = await nasFileText(ctx.key, hit.path).catch(() => '')
+    const full = await nasFileText(ctx.key, hit.path, ctx.pdf).catch(() => '')
     if (add(`브랜드 허브 · ${it.name}`, `NAS ${nasRel(hit.path)}`, full || hit.text, hit.path)) { stats.docs++; stats.used.push(it.name) }
   }
   // 3) 영상 키워드로 NAS 내용 검색 → 다른 브랜드 자료·코드 파일은 빼고 관련 높은 문서만 원본으로 읽기
@@ -122,7 +122,7 @@ async function hubToSources(hb, ctx = {}) {
   }
   const top = [...cands.values()].sort((a, b) => b.score - a.score).slice(0, 6)
   for (const r of top) {
-    const full = /^(txt|md|csv|pdf|html?)$/i.test(r.ext) ? await nasFileText(ctx.key, r.path).catch(() => '') : ''
+    const full = /^(txt|md|csv|pdf|html?)$/i.test(r.ext) ? await nasFileText(ctx.key, r.path, ctx.pdf).catch(() => '') : ''
     if (full && textBan.some((w) => full.toLowerCase().includes(w.toLowerCase()))) { stats.excluded++; continue }   // 원본에 다른 브랜드가 섞이면 제외
     if (add(`NAS · ${r.name}`, `NAS ${r.rel}`, full || r.text, r.path)) stats.used.push(r.name)
   }
@@ -145,9 +145,9 @@ async function nasSearch(key, q) {
     return d && d.ok && Array.isArray(d.results) ? d.results.slice(0, 40) : []
   } catch { return [] } finally { clearTimeout(timer) }
 }
-function nasFileText(key, path) { return remoteText(`${HUB_URL}?action=file&path=${encodeURIComponent(path)}&key=${encodeURIComponent(key)}`, path) }
+function nasFileText(key, path, pdf) { return remoteText(`${HUB_URL}?action=file&path=${encodeURIComponent(path)}&key=${encodeURIComponent(key)}`, path, pdf) }
 // 주소의 파일에서 글 뽑기: PDF·HTML·TXT·MD·JSON (그 밖의 형식·15MB 초과는 건너뜀)
-async function remoteText(url, hint) {
+async function remoteText(url, hint, pdf) {
   const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000)
   try {
     const r = await fetch(url, { signal: ctl.signal })
@@ -158,15 +158,51 @@ async function remoteText(url, hint) {
     const name = String(hint || url.split('?')[0]).toLowerCase()
     if (type.includes('pdf') || name.endsWith('.pdf')) {
       const mod = await import('pdf-parse/lib/pdf-parse.js').catch(() => null)
-      if (!mod) return ''
-      const res = await (mod.default || mod)(Buffer.from(buf)).catch(() => null)
-      return res ? cleanText(res.text) : ''
+      if (mod) { const res = await (mod.default || mod)(Buffer.from(buf)).catch(() => null); if (res && res.text && res.text.trim()) return cleanText(res.text) }
+      return pdf ? pdfByClaude(pdf, buf, hint || url.replace(/key=[^&]+/, '')) : ''   // 서버에서 못 풀면 Claude 가 PDF 를 직접 읽음
     }
     const raw = new TextDecoder('utf-8').decode(buf)
     if (type.includes('html') || /\.html?$/.test(name)) return cleanText(raw.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<br\s*\/?>|<\/(p|div|li|h\d|tr)>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'))
     if (type.startsWith('text/') || type.includes('json') || /\.(txt|md|csv|json)$/.test(name)) return cleanText(raw)
     return ''
   } finally { clearTimeout(timer) }
+}
+// PDF → 글: 비공개 저장소에 잠깐 올리고 10분짜리 주소를 Claude 에 넘겨 본문을 옮겨 적게 함 (결과는 저장해 두고 재사용)
+const PDF_MODEL = 'claude-haiku-5-5'
+async function pdfByClaude(pdf, buf, label) {
+  if (!pdf || !pdf.env || !pdf.key || buf.length > 30 * 1048576) return ''
+  const env = pdf.env
+  const h = Array.from(new TextEncoder().encode(label + ':' + buf.length)).reduce((a, c) => ((a * 31 + c) >>> 0), 7).toString(36)
+  const cache = `pdfcache/${h}.txt`
+  const hit = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${cache}`, { headers: storageHeaders(env) }).catch(() => null)
+  if (hit && hit.ok) { const t = await hit.text(); if (t) return t }
+  if ((pdf.used = (pdf.used || 0) + 1) > (pdf.max || 4)) return ''   // 작업 1건당 새로 읽는 PDF 수 제한(비용)
+  const tmp = `pdfcache/${h}.pdf`
+  await ensureBucket(env)
+  const up = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${tmp}`, { method: 'POST', headers: storageHeaders(env, { 'content-type': 'application/pdf', 'x-upsert': 'true' }), body: buf })
+  if (!up.ok) return ''
+  try {
+    const url = await signedUrl(env, tmp, 600)
+    const ask = async (model) => {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers: { 'x-api-key': pdf.key, 'anthropic-version': ANTHROPIC_VERSION, 'content-type': 'application/json' },
+        body: JSON.stringify({ model, max_tokens: 16000, messages: [{ role: 'user', content: [
+          { type: 'document', source: { type: 'url', url } },
+          { type: 'text', text: '이 PDF 의 본문 글을 원문 그대로 옮겨 적어 주세요. 요약·해설·추가 설명 없이 글만 씁니다. 표는 한 줄씩 줄글로, 머리말·쪽 번호·반복되는 바닥글은 뺍니다. 그림 속 글자도 읽을 수 있으면 옮깁니다.' }] }] }),
+      })
+      const out = await res.json().catch(() => ({}))
+      return { ok: res.ok, status: res.status, out }
+    }
+    let r = await ask(PDF_MODEL)
+    if (!r.ok && pdf.model && pdf.model !== PDF_MODEL && [400, 404].includes(r.status)) r = await ask(pdf.model)   // 빠른 모델이 없으면 설정된 모델로
+    if (!r.ok) { if (pdf.d) pdf.d.events.push(ev('PDF 읽기 실패(제작은 계속): ' + apiError(r.out, r.status).slice(0, 120))); return '' }
+    if (r.out.usage) addUsage(pdf.d, 'claude', r.out.usage.input_tokens, r.out.usage.output_tokens)
+    const text = cleanText((r.out.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''))
+    if (text) await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${cache}`, { method: 'POST', headers: storageHeaders(env, { 'content-type': 'text/plain; charset=utf-8', 'x-upsert': 'true' }), body: text }).catch(() => {})
+    return text
+  } finally {
+    await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${tmp}`, { method: 'DELETE', headers: storageHeaders(env) }).catch(() => {})
+  }
 }
 function cleanText(t) { return String(t || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim() }
 async function hubBrand(env, st) {
@@ -629,7 +665,8 @@ async function runStep(env, job) {
         const hb = await hubBrand(env, st)
         if (hb) {
           d.hub = { name: hb.name, tone: hb.tone, items: hb.items }
-          const res = await hubToSources(hb, { key: hb.key, brands: hb.brands, keywords: job.input.keywords })
+          const claudeK = await getKey(env, 'claude', false)
+          const res = await hubToSources(hb, { key: hb.key, brands: hb.brands, keywords: job.input.keywords, pdf: claudeK ? { env, key: claudeK, model: st.secrets.claude && st.secrets.claude.model, d, max: 4 } : null })
           hubSources = res.sources
           const s = res.stats
           d.events.push(ev(`브랜드 허브: ‘${hb.name}’ 자료 ${hb.items.length}개 중 원본 읽음 ${s.docs}개 · NAS 검색 ${s.found}건 (다른 브랜드·코드 파일 ${s.excluded}건 제외) → 근거로 쓸 글 ${hubSources.length}건 (${hubSources.map((x) => x.title.replace(/^(브랜드 허브|NAS) · /, '')).join(', ').slice(0, 300)})`))

@@ -63,3 +63,48 @@ if (mj && mj.data && mj.data.manusRaw) {
 }
 if (lj && lj.data && lj.data.hub) for (const it of lj.data.hub.items) console.log(' · 항목 필드', it.name, JSON.stringify(it.keys || []))
 if (mj && mj.data && mj.data.manusProbe) console.log('== Manus 추가 주소 응답 코드 ==', JSON.stringify(mj.data.manusProbe))
+
+// 허브 실시간 확인: 저장된 허브 키를 복호화해 studio-feed.php 의 새 기능(search·file)을 시험 (키는 출력하지 않음)
+try {
+  const sec = await json('secrets')
+  if (!sec || !sec.hub) console.log('== 허브 실시간 == 허브 키 없음')
+  else {
+    const { webcrypto: wc } = await import('node:crypto')
+    const raw = await wc.subtle.digest('SHA-256', new TextEncoder().encode('aptsq-video-studio:' + KEY))
+    const k = await wc.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt'])
+    const ub = (s) => Uint8Array.from(Buffer.from(s, 'base64'))
+    const hubKey = new TextDecoder().decode(await wc.subtle.decrypt({ name: 'AES-GCM', iv: ub(sec.hub.iv) }, k, ub(sec.hub.cipher)))
+    const HUB = 'https://netformrnd.synology.me/brand/studio-feed.php'
+    const mask = (s) => String(s).split(hubKey).join('***').replace(/key=[^&"\s]+/g, 'key=***')
+    const shape = (v, d = 0) => d > 4 || v == null ? typeof v : Array.isArray(v) ? `[${v.length}]` + (v.length ? shape(v[0], d + 1) : '') : typeof v === 'object' ? '{' + Object.keys(v).slice(0, 25).map((x) => `${x}:${shape(v[x], d + 1)}`).join(', ') + '}' : typeof v
+    const call = async (qs) => {
+      const r = await fetch(`${HUB}?${qs}&key=${encodeURIComponent(hubKey)}`).catch((e) => ({ ok: false, status: 'ERR ' + e.message, headers: new Map() }))
+      const type = r.headers.get ? r.headers.get('content-type') : ''
+      const body = r.text ? await r.text() : ''
+      return { status: r.status, type, body }
+    }
+    const tryJson = (s) => { try { return JSON.parse(s) } catch { return null } }
+    for (const qs of ['action=brands', 'action=help', 'action=search&q=' + encodeURIComponent('옥상방수'), 'action=search&q=' + encodeURIComponent('방수')]) {
+      const r = await call(qs)
+      const j = tryJson(r.body)
+      console.log(`== 허브 ${qs.split('&')[0]}${qs.includes('q=') ? ' q=' + decodeURIComponent(qs.split('q=')[1]) : ''} == HTTP ${r.status} | ${r.type} | ${r.body.length}자`)
+      console.log('  구조:', j ? shape(j).slice(0, 1500) : '(JSON 아님) ' + mask(r.body.slice(0, 300)))
+      if (j && qs.startsWith('action=search')) {
+        const list = Array.isArray(j) ? j : j.results || j.items || j.files || j.data || []
+        for (const it of [].concat(list).slice(0, 5)) console.log('   ·', mask(JSON.stringify(it).slice(0, 400)))
+        const first = [].concat(list).find((x) => x && (x.path || x.url))
+        if (first && !globalThis.__fileTried) {
+          globalThis.__fileTried = true
+          const fr = first.url && /^https?:/.test(first.url)
+            ? await fetch(first.url.includes('key=') ? first.url : first.url).then(async (x) => ({ status: x.status, type: x.headers.get('content-type'), body: Buffer.from(await x.arrayBuffer()) }))
+            : await fetch(`${HUB}?action=file&path=${encodeURIComponent(first.path)}&key=${encodeURIComponent(hubKey)}`).then(async (x) => ({ status: x.status, type: x.headers.get('content-type'), body: Buffer.from(await x.arrayBuffer()) }))
+          console.log(`== 허브 action=file == HTTP ${fr.status} | ${fr.type} | ${fr.body.length} bytes | 앞부분: ${mask(fr.body.subarray(0, 8).toString('latin1'))}`)
+        }
+      }
+      if (j && qs === 'action=brands') {
+        const b = (j.brands || []).find((x) => String(x.name).includes('아파트')) || (j.brands || [])[0]
+        if (b) for (const kind of ['자료', '문서']) for (const it of [].concat(b[kind] || []).slice(0, 3)) console.log(`   · ${kind}:`, mask(JSON.stringify(it).slice(0, 300)))
+      }
+    }
+  }
+} catch (e) { console.log('== 허브 실시간 확인 실패 ==', String(e.message || e).slice(0, 300)) }

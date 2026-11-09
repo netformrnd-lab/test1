@@ -194,6 +194,86 @@ if ($action === 'doc') {
     out(['ok' => false, 'error' => '그 이름의 문서를 찾지 못했습니다: ' . $name], 404);
 }
 
+/* ── 🔎 내용으로 찾기 ───────────────────────────────────────────
+   ?action=search&q=검색어  →  문서 '내용'으로 찾아, 파일마다
+   name·path·본문 일부(text) 를 돌려줍니다. (doctext.tsv 색인 사용) */
+if ($action === 'search') {
+    $q = trim((string)($_GET['q'] ?? ''));
+    if ($q === '') out(['ok' => false, 'error' => "찾을 말(q)을 적어 주세요"], 400);
+    $terms = array_values(array_filter(preg_split('/\s+/u', mb_strtolower($q, 'UTF-8'))));
+    $DOCTXT = $DATA_DIR . '/doctext.tsv';
+    $results = [];
+    $LIMIT = 30;
+    $deadline = microtime(true) + 8;
+    if (is_file($DOCTXT) && ($fp = @fopen($DOCTXT, 'r'))) {
+        $seen = 0;
+        while (($line = fgets($fp)) !== false) {
+            if ((++$seen % 200) === 0 && microtime(true) > $deadline) break;
+            $tab = strpos($line, "\t"); if ($tab === false) continue;
+            $path = substr($line, 0, $tab);
+            $text = rtrim(substr($line, $tab + 1), "\r\n");
+            if ($text === '' || $text[0] === "\x01") continue;    // 못 읽은 문서
+            $low = mb_strtolower($text, 'UTF-8');
+            $ok = true; $first = null;
+            foreach ($terms as $t) {                              // 모든 낱말이 있어야 (AND)
+                $pos = mb_strpos($low, $t, 0, 'UTF-8');
+                if ($pos === false) { $ok = false; break; }
+                if ($first === null) $first = $pos;
+            }
+            if (!$ok) continue;
+            $from = max(0, (int)$first - 40);
+            $snip = trim(mb_substr($text, $from, 240, 'UTF-8'));
+            $results[] = ['name' => basename($path), 'path' => $path, 'text' => $snip];
+            if (count($results) >= $LIMIT) break;
+        }
+        fclose($fp);
+    }
+    out(['ok' => true, 'q' => $q, 'count' => count($results), 'results' => $results]);
+}
+
+/* ── ⬇ 파일 원본 내려받기 ───────────────────────────────────────
+   ?action=file&path=파일경로  →  그 파일 원본을 그대로 돌려줍니다.
+   ★보안 3중★ ① 문서·이미지·영상 형식만  ② 스캔한 공유폴더(nasroot.txt) 안만
+            ③ 허브 자료 폴더(키·brand-data.php·백업)는 절대 금지 */
+if ($action === 'file') {
+    $path = (string)($_GET['path'] ?? '');
+    if ($path === '') out(['ok' => false, 'error' => "파일 경로(path)를 적어 주세요"], 400);
+
+    $real = @realpath($path);
+    if ($real === false || !is_file($real)) out(['ok' => false, 'error' => '파일을 찾지 못했습니다'], 404);
+
+    /* ① 형식 제한 — 스크립트·설정 파일은 못 받습니다 */
+    $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
+    $OK_EXT = ['pdf','doc','docx','xls','xlsx','ppt','pptx','hwp','hwpx','txt','csv',
+               'png','jpg','jpeg','gif','webp','bmp','mp4','mov','m4v','webm','mp3','m4a','zip'];
+    if (!in_array($ext, $OK_EXT, true)) out(['ok' => false, 'error' => '내려받을 수 없는 형식입니다: .' . $ext], 403);
+
+    /* ② 스캔한 공유폴더 안의 파일만 (경로 빠져나가기 차단) */
+    $rootRaw  = @file_get_contents($DATA_DIR . '/nasroot.txt');
+    $rootReal = (is_string($rootRaw) && trim($rootRaw) !== '') ? @realpath(trim($rootRaw)) : false;
+    if ($rootReal === false) out(['ok' => false, 'error' => 'NAS 자료 폴더가 설정되지 않았습니다 — 먼저 NAS 자료 훑기를 돌려주세요'], 403);
+    if (strpos($real, rtrim($rootReal, '/') . '/') !== 0) out(['ok' => false, 'error' => '허용된 폴더 밖의 파일입니다'], 403);
+
+    /* ③ 허브 자료 폴더(키·자료·백업)는 절대 금지 */
+    $dataReal = @realpath($DATA_DIR);
+    if ($dataReal !== false && strpos($real, rtrim($dataReal, '/') . '/') === 0) out(['ok' => false, 'error' => '허용되지 않은 경로입니다'], 403);
+
+    /* 원본 그대로 스트림 */
+    $MIME = ['pdf'=>'application/pdf','txt'=>'text/plain; charset=utf-8','csv'=>'text/csv; charset=utf-8',
+             'png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','gif'=>'image/gif','webp'=>'image/webp',
+             'bmp'=>'image/bmp','mp4'=>'video/mp4','mov'=>'video/quicktime','webm'=>'video/webm',
+             'mp3'=>'audio/mpeg','m4a'=>'audio/mp4','zip'=>'application/zip',
+             'doc'=>'application/msword','docx'=>'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+             'xls'=>'application/vnd.ms-excel','xlsx'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+             'ppt'=>'application/vnd.ms-powerpoint','pptx'=>'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
+    header('Content-Type: ' . ($MIME[$ext] ?? 'application/octet-stream'));   // 위에서 잡은 json 을 덮어씀
+    header('Content-Length: ' . filesize($real));
+    header('Content-Disposition: attachment; filename*=UTF-8\'\'' . rawurlencode(basename($real)));
+    header('Cache-Control: no-store');
+    @readfile($real);
+    exit;
+}
+
 if ($action === 'brand') {
     $id = (string)($_GET['id'] ?? '');
     foreach ($brands as $b) {

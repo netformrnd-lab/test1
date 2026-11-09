@@ -62,26 +62,92 @@ function hubDigest(b) {
   }
   return { tone: String(tone || '').slice(0, 4000), items: items.slice(0, 40) }
 }
-// 허브 항목 → 근거 자료 목록: 톤·가이드 글 + 문서(PDF·HTML·TXT 등)에서 뽑은 글
-async function hubToSources(hb) {
+// 허브 → 근거 자료 목록: 톤·가이드 글 + 허브 문서(제목으로 NAS 에서 찾아 원본 읽기) + NAS 내용 검색(영상 키워드)
+async function hubToSources(hb, ctx = {}) {
   const out = []
   const sid = (x) => 'hub-' + Array.from(new TextEncoder().encode(x)).reduce((a, c) => ((a * 31 + c) >>> 0), 7).toString(36)
   if (hb.tone && hb.tone.length >= 30) out.push({ id: sid('tone' + hb.name), title: `브랜드 허브 · ${hb.name} 톤·가이드`, provenance: '넷폼 브랜드 허브', content: hb.tone, approved: true, hub: true })
   let total = 0
+  const seen = new Set()
+  const add = (title, provenance, text, key) => {
+    text = cleanText(text)
+    if (text.length < 30 || seen.has(key) || total > 400000) return false
+    seen.add(key); text = text.slice(0, 60000); total += text.length
+    out.push({ id: sid(key), title, provenance, content: text, approved: true, hub: true })
+    return true
+  }
+  // 1) 허브 항목에 글·주소가 있으면 그대로
   for (const it of hb.items.slice(0, 20)) {
     let text = (it.text && it.text.length >= 30 ? it.text : '') || (it.note && it.note.length >= 30 ? it.note : '')
-    if (it.url && total < 400000) {
-      const t = await remoteText(it.url).catch(() => '')
-      if (t) text = (text ? text + '\n\n' : '') + t
-    }
-    if (text.length < 30) continue
-    text = text.slice(0, 150000); total += text.length
-    out.push({ id: sid(it.url || it.name), title: `브랜드 허브 · ${it.name || it.kind}`, provenance: `넷폼 브랜드 허브 (${it.kind})`, content: text, approved: true, hub: true })
+    if (it.url) { const t = await remoteText(it.url).catch(() => ''); if (t) text = (text ? text + '\n\n' : '') + t }
+    add(`브랜드 허브 · ${it.name || it.kind}`, `넷폼 브랜드 허브 (${it.kind})`, text, it.url || it.name)
   }
-  return out
+  const stats = { docs: 0, found: 0, excluded: 0, used: [] }
+  if (!ctx.key) return { sources: out, stats }
+  // 2) 허브 문서는 제목으로 NAS 에서 찾아 원본을 읽는다 (브랜드 자기 문서)
+  for (const it of hb.items.slice(0, 10)) {
+    if (!it.name || it.text || it.url) continue
+    const base = it.name.replace(/\.[a-z0-9]{2,5}$/i, '')
+    const rs = await nasSearch(ctx.key, base)
+    const hit = rs.find((r) => String(r.name || '').replace(/\.[a-z0-9]{2,5}$/i, '') === base) || rs.find((r) => String(r.name || '').startsWith(base))
+    if (!hit) continue
+    const full = await nasFileText(ctx.key, hit.path).catch(() => '')
+    if (add(`브랜드 허브 · ${it.name}`, `NAS ${nasRel(hit.path)}`, full || hit.text, hit.path)) { stats.docs++; stats.used.push(it.name) }
+  }
+  // 3) 영상 키워드로 NAS 내용 검색 → 다른 브랜드 자료·코드 파일은 빼고 관련 높은 문서만 원본으로 읽기
+  const phrases = [...new Set(String(ctx.keywords || '').split(/[,·/\n]+/).map((t) => t.trim().replace(/\s+/g, ' ')).filter((t) => t.length >= 2))].slice(0, 3)
+  const terms = [...new Set(phrases.flatMap((p) => [p, ...p.split(' ')]).filter((t) => t.length >= 2))]
+  const mine = brandAliases(hb.name)
+  const others = (ctx.brands || []).map((b) => String(b.name || '')).filter((n) => n && n !== hb.name).flatMap(brandAliases).filter((w) => !mine.some((m) => m.toLowerCase() === w.toLowerCase()))
+  const textBan = others.filter((w) => !/넷폼|netform/i.test(w))   // 회사명(넷폼)은 본문에 나와도 괜찮음
+  const cands = new Map()
+  const queries = []
+  for (const p of phrases) {
+    const rs = await nasSearch(ctx.key, p)
+    queries.push(rs)
+    if (rs.length < 5 && p.includes(' ')) for (const w of p.split(' ').filter((x) => x.length >= 2).slice(0, 3)) queries.push(await nasSearch(ctx.key, w))   // 구절로 적게 나오면 낱말로도
+  }
+  for (const r of queries.flat()) {
+    if (!r || !r.path || cands.has(r.path)) continue
+    stats.found++
+    const rel = nasRel(r.path), name = String(r.name || ''), snip = String(r.text || '')
+    const lower = (rel + ' ' + snip).toLowerCase()
+    const ext = (name.match(/\.([a-z0-9]{2,5})$/i) || [])[1] || ''
+    const codey = (snip.match(/[{};=<>]/g) || []).length / Math.max(snip.length, 1) > 0.02
+    if (others.some((w) => rel.toLowerCase().includes(w.toLowerCase())) || textBan.some((w) => lower.includes(w.toLowerCase())) ||
+        /^(js|css|json|xml|py|php|ts|log)$/i.test(ext) || codey) { stats.excluded++; continue }
+    let score = terms.reduce((a, t) => a + (snip.split(t).length - 1) * 2 + (name.includes(t) ? 3 : 0), 0)
+    if (mine.some((m) => rel.toLowerCase().includes(m.toLowerCase()))) score += 10
+    cands.set(r.path, { ...r, rel, ext, score })
+  }
+  const top = [...cands.values()].sort((a, b) => b.score - a.score).slice(0, 6)
+  for (const r of top) {
+    const full = /^(txt|md|csv|pdf|html?)$/i.test(r.ext) ? await nasFileText(ctx.key, r.path).catch(() => '') : ''
+    if (full && textBan.some((w) => full.toLowerCase().includes(w.toLowerCase()))) { stats.excluded++; continue }   // 원본에 다른 브랜드가 섞이면 제외
+    if (add(`NAS · ${r.name}`, `NAS ${r.rel}`, full || r.text, r.path)) stats.used.push(r.name)
+  }
+  return { sources: out, stats }
 }
+function brandAliases(name) {
+  const n = String(name || ''), out = [n]
+  if (/아파트\s*스퀘어|aptsquare/i.test(n)) out.push('아파트스퀘어', 'aptsquare', 'apt square')
+  if (/POUR|포어/i.test(n)) out.push('POUR', '포어', 'pourstore')
+  if (/넷폼/.test(n)) out.push('넷폼', 'netform')
+  if (/올리뉴/.test(n)) out.push('올리뉴', 'olinew')
+  return [...new Set(out.filter((x) => x.length >= 2))]
+}
+function nasRel(path) { const s = String(path || ''); const i = s.lastIndexOf('공유폴더/'); return i >= 0 ? s.slice(i + 5) : s.replace(/^\/volume\d+\//, '') }
+async function nasSearch(key, q) {
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 15000)
+  try {
+    const r = await fetch(`${HUB_URL}?action=search&q=${encodeURIComponent(q)}&key=${encodeURIComponent(key)}`, { signal: ctl.signal, headers: { accept: 'application/json' } })
+    const d = await r.json().catch(() => null)
+    return d && d.ok && Array.isArray(d.results) ? d.results.slice(0, 40) : []
+  } catch { return [] } finally { clearTimeout(timer) }
+}
+function nasFileText(key, path) { return remoteText(`${HUB_URL}?action=file&path=${encodeURIComponent(path)}&key=${encodeURIComponent(key)}`, path) }
 // 주소의 파일에서 글 뽑기: PDF·HTML·TXT·MD·JSON (그 밖의 형식·15MB 초과는 건너뜀)
-async function remoteText(url) {
+async function remoteText(url, hint) {
   const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000)
   try {
     const r = await fetch(url, { signal: ctl.signal })
@@ -89,7 +155,7 @@ async function remoteText(url) {
     const type = (r.headers.get('content-type') || '').toLowerCase()
     const buf = new Uint8Array(await r.arrayBuffer())
     if (buf.length > 15 * 1048576) return ''
-    const name = url.split('?')[0].toLowerCase()
+    const name = String(hint || url.split('?')[0]).toLowerCase()
     if (type.includes('pdf') || name.endsWith('.pdf')) {
       const mod = await import('pdf-parse/lib/pdf-parse.js').catch(() => null)
       if (!mod) return ''
@@ -105,9 +171,10 @@ async function remoteText(url) {
 function cleanText(t) { return String(t || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim() }
 async function hubBrand(env, st) {
   if (!st.readiness.hub) return null
-  const brands = await hubBrands(await getKey(env, 'hub'))
+  const key = await getKey(env, 'hub')
+  const brands = await hubBrands(key)
   const b = brands.find((x) => String(x.name) === st.secrets.hub.model)
-  return b ? { name: String(b.name), ...hubDigest(b) } : null
+  return b ? { name: String(b.name), ...hubDigest(b), key, brands } : null
 }
 const MAX_FILE_BYTES = 50 * 1048576    // 원본 파일 최대 50MB
 const ACTIVE = ['queued', 'drafting', 'reviewing', 'revising', 'preparing', 'submitting', 'rendering']
@@ -562,8 +629,10 @@ async function runStep(env, job) {
         const hb = await hubBrand(env, st)
         if (hb) {
           d.hub = { name: hb.name, tone: hb.tone, items: hb.items }
-          hubSources = await hubToSources(hb)
-          d.events.push(ev(`브랜드 허브: ‘${hb.name}’ 자료 ${hb.items.length}개 확인 · 근거로 쓸 글 ${hubSources.length}건 (${hubSources.map((x) => x.title.replace('브랜드 허브 · ', '')).join(', ').slice(0, 200)})`))
+          const res = await hubToSources(hb, { key: hb.key, brands: hb.brands, keywords: job.input.keywords })
+          hubSources = res.sources
+          const s = res.stats
+          d.events.push(ev(`브랜드 허브: ‘${hb.name}’ 자료 ${hb.items.length}개 중 원본 읽음 ${s.docs}개 · NAS 검색 ${s.found}건 (다른 브랜드·코드 파일 ${s.excluded}건 제외) → 근거로 쓸 글 ${hubSources.length}건 (${hubSources.map((x) => x.title.replace(/^(브랜드 허브|NAS) · /, '')).join(', ').slice(0, 300)})`))
         }
       } catch (e) { d.events.push(ev('브랜드 허브 불러오기 실패(제작은 계속): ' + String(e.message || e).slice(0, 150))) }
     }

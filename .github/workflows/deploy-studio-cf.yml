@@ -41,7 +41,7 @@ jobs:
         working-directory: video-studio/cloudflare
         run: |
           printf 'PUBLIC_BASE = "%s"\n' "${{ steps.sub.outputs.base }}" >> wrangler.toml
-          npx --yes wrangler@4 deploy
+          npx --yes wrangler@4 deploy || (echo "처음 만든 Worker 반영 대기 후 다시 시도"; sleep 15; npx --yes wrangler@4 deploy)
           printf '%s' "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" | npx --yes wrangler@4 secret put SUPABASE_SERVICE_ROLE
       - name: 접속 확인
         if: steps.ok.outputs.go == 'yes'

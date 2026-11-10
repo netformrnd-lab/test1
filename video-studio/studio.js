@@ -160,6 +160,7 @@
   // ── 렌더링 ──
   function renderAll() {
     renderTabs(); renderMessages(); renderCreate(); renderKnowledge(); renderHistory(); renderSettings(); renderPhotos()
+    bindAppAccount(); renderAppAccount()
     ensurePolling()
   }
 
@@ -474,6 +475,29 @@
     const list = u.models.length ? u.models : u.model ? [{ id: u.model, name: u.model }] : []
     sel.innerHTML = list.length ? list.map((m) => `<option value="${esc(m.id)}" ${m.id === u.model ? 'selected' : ''}>${esc(m.name)}</option>`).join('') : '<option value="">먼저 모델을 불러오세요</option>'
     if (list.length && !list.some((m) => m.id === u.model)) { sel.value = ''; sel.insertAdjacentHTML('afterbegin', '<option value="" selected>모델을 선택하세요</option>') }
+  }
+  function renderAppAccount() {
+    const a = S.data && S.data.connections && S.data.connections.app
+    if (!a || !$('app-account')) return
+    $('app-status').textContent = a.configured ? `저장됨 · ${a.model}` : '연결 필요'
+    $('app-status').className = a.configured ? 'tag green' : 'tag'
+    if (!$('app-url').value) $('app-url').value = a.url || ''
+    if (!$('app-id').value && a.model) $('app-id').value = a.model
+    $('app-clear').hidden = !a.configured
+  }
+  function bindAppAccount() {
+    if (!$('app-save') || bindAppAccount.done) return
+    bindAppAccount.done = true
+    $('app-save').addEventListener('click', async () => {
+      try {
+        S.data = await api({ action: 'appAccount', url: $('app-url').value, loginId: $('app-id').value, password: $('app-pw').value })
+        $('app-pw').value = ''; S.success = '앱 테스트 계정을 저장했습니다. 다음 Manus 영상부터 앱 화면을 직접 보고 만듭니다.'; renderAll()
+      } catch (e) { S.error = e.message; renderMessages() }
+    })
+    $('app-clear').addEventListener('click', async () => {
+      if (!confirm('앱 테스트 계정을 삭제할까요? Manus 가 앱에 로그인하지 않게 됩니다.')) return
+      try { S.data = await api({ action: 'appAccount', clear: true }); $('app-id').value = ''; $('app-pw').value = ''; S.success = '앱 테스트 계정을 삭제했습니다.'; renderAll() } catch (e) { S.error = e.message; renderMessages() }
+    })
   }
   function renderProviders() {
     PROVIDERS.forEach(([p]) => {

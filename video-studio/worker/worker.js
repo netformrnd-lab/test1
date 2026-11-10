@@ -277,6 +277,24 @@ const ACTIONS = {
     return { ok: true }
   },
 
+  // 아파트스퀘어 앱 테스트 계정 (Manus 가 앱에 로그인해 실제 화면을 보고 촬영) — 비밀번호는 암호화 저장, 화면에 다시 보내지 않음
+  async appAccount(env, { url, loginId, password, clear }) {
+    if (clear) { await mutate(env, 'secrets', {}, (sec) => { delete sec.app }); return state(env) }
+    const u = String(url || APP_URL).trim().replace(/\/+$/, '')
+    if (!/^https:\/\/[^\s/]+/.test(u)) throw new HttpError(400, '앱 주소는 https:// 로 시작해야 합니다.')
+    const id = String(loginId || '').trim().slice(0, 120)
+    if (!id) throw new HttpError(400, '테스트 계정 아이디를 입력해 주세요.')
+    let pw = String(password || '')
+    const old = (await readJSON(env, 'secrets', {})).app
+    if (!pw && old) pw = await getKey(env, 'app')
+    if (!pw) throw new HttpError(400, '테스트 계정 비밀번호를 입력해 주세요.')
+    const r = await fetch(u, { redirect: 'follow' }).catch(() => null)
+    if (!r || r.status >= 500) throw new HttpError(400, `앱 주소에 접속하지 못했습니다${r ? `(HTTP ${r.status})` : ''}.`)
+    const { cipher, iv } = await encrypt(env, pw.slice(0, 200))
+    await mutate(env, 'secrets', {}, (sec) => { sec.app = { cipher, iv, model: id, url: u, checked_at: now() } })
+    return state(env)
+  },
+
   async disconnect(env, { provider }) {
     await mutate(env, 'secrets', {}, (sec) => { delete sec[provider] })
     return { ok: true }
@@ -785,6 +803,7 @@ async function runStep(env, job) {
     // HeyGen 자동 구성: 화면은 HeyGen 이 만들므로 AI 이미지·영상·움직임 클립을 만들지 않는다 (비용 절약)
     d.prompt = promptFor(job, d.plan, st)
     if (isManus(job)) { const blk = await manusAssetBlock(env, job, st); if (blk) d.prompt = stripAssets(d.prompt) + '\n\n' + blk }
+    if (isManus(job) && appAccessNote(st) && !d.prompt.includes('아파트스퀘어 앱 직접 보기')) d.prompt += (d.prompt.includes(ASSET_MARK) ? '\n' : '\n\n' + ASSET_MARK + '\n') + appAccessNote(st)
     d.events.push(ev(isManus(job) ? 'Manus 영상(아바타 없음): 프롬프트를 복사해 Manus 에서 만듭니다.' : 'HeyGen 자동 구성 모드: 화면 구성은 HeyGen Video Agent 가 만듭니다.'))
     job.step = 6
     job.status = 'ready'
@@ -863,11 +882,13 @@ async function runStep(env, job) {
     const key = await getKey(env, 'manus')
     const profile = (st.secrets.manus && st.secrets.manus.model) || MANUS_PROFILES[0].id
     const blk = await manusAssetBlock(env, job, st)
-    const full = blk ? stripAssets(d.prompt) + '\n\n' + blk : d.prompt
+    const appBlk = await appAccessBlock(env, st)
+    const full = (blk ? stripAssets(d.prompt) + '\n\n' + blk : stripAssets(d.prompt)) + (appBlk ? '\n\n' + appBlk : '')
     const rev = d.reviseRequest ? d.manusRevisions[d.manusRevisions.length - 1] : null
     const body = { agentProfile: profile, taskMode: 'agent' }
     let prompt = full
-    if (estTokens(full) > MANUS_MSG_TOKENS || rev) {
+    d.appAccess = !!appBlk
+    if (estTokens(full) > MANUS_MSG_TOKENS || rev || appBlk) {   // 계정 정보가 있으면 항상 비공개 지시서 파일로
       const briefUrl = await saveBrief(env, job, full)
       prompt = manusShortPrompt(job, d.plan, briefUrl, env)
     }
@@ -876,7 +897,7 @@ async function runStep(env, job) {
       body.taskId = rev.prevTaskId   // 같은 작업에 이어 붙이기(지원되면)
     }
     body.prompt = prompt
-    d.manusPromptSent = { chars: prompt.length, estTokens: estTokens(prompt), briefLinked: prompt !== full }
+    d.manusPromptSent = { chars: prompt.length, estTokens: estTokens(prompt), briefLinked: prompt !== full, appAccess: !!appBlk }
     d.submitAttempted = true; d.mode = 'manus'
     await saveJob(env, job)
     let res
@@ -1353,6 +1374,29 @@ function manusPrompt(job, plan) {
 }
 // Manus 에 넘길 실제 자료(로고·브랜드 자료실 원본·사진 자료실)의 내려받기 주소 목록 (주소는 7일 유효)
 const ASSET_MARK = '[첨부 자료 — 아래 주소에서 내려받아 사용하세요]'
+const APP_URL = 'https://floral-cherry-6860.squarecm.workers.dev'   // 아파트스퀘어 앱(웹)
+// 화면에 보이는 프롬프트용(계정 정보 없음)
+function appAccessNote(st) {
+  const a = st.secrets && st.secrets.app
+  return a && a.configured ? `- 아파트스퀘어 앱 직접 보기: ${a.url || APP_URL} — 테스트 계정으로 로그인해 실제 화면을 촬영합니다(계정 정보는 Manus 에 보낼 때만 자동으로 넣음).` : ''
+}
+// Manus 에 보내는 지시서에만 넣는 앱 로그인 안내 (작업 기록·화면에는 저장하지 않음)
+async function appAccessBlock(env, st) {
+  const a = st.secrets && st.secrets.app
+  if (!a || !a.configured) return ''
+  const pw = await getKey(env, 'app', false).catch(() => '')
+  if (!pw) return ''
+  return [
+    '[아파트스퀘어 앱 직접 보기 — 테스트 계정]',
+    `- 앱 주소: ${a.url || APP_URL} (모바일 웹 앱 — 브라우저를 스마트폰 크기 390×844 로 열어 주세요)`,
+    `- 아이디: ${a.model}`,
+    `- 비밀번호: ${pw}`,
+    '- 로그인한 뒤 실제 앱 화면을 둘러보고, 내레이션에 나오는 기능(감리 일정·진행 현황·감리보고서·사진 기록·이슈 등)이 보이는 화면을 찾아 화면 녹화·캡처합니다. 앱 장면은 이 실제 녹화·캡처로 스마트폰 목업 모션 그래픽(스크롤·터치 표시·확대)을 만들고, 앱 화면을 새로 그리거나 지어내지 않습니다.',
+    '- 보기만 합니다: 글·사진·댓글 등록, 정보 수정·삭제, 문의·신청 제출, 설정·비밀번호 변경, 결제, 알림 발송을 하지 않습니다.',
+    '- 화면에 실명·전화번호·동호수·주소 같은 개인정보가 보이면 영상에서 흐리게 처리합니다.',
+    '- 아이디·비밀번호와 로그인 화면은 영상·자막·답변·결과 파일 어디에도 노출하지 않습니다.',
+  ].join('\n')
+}
 async function manusAssetBlock(env, job, st) {
   const d = job.data
   const lines = [ASSET_MARK]
@@ -1442,6 +1486,7 @@ function manusShortPrompt(job, plan, briefUrl, env) {
     `- 형식: ${i.ratio === '9:16' ? '세로형 9:16 (1080×1920)' : '가로형 16:9 (1920×1080)'} · 목표 ${i.seconds}초 · 시청 대상 ${i.audience} · 완성된 MP4 영상 파일로 전달`,
     '- 한국어 남성 내레이션 + 한국어 자막. 목소리는 광고 성우·라디오 톤이 아닌, 전문가가 옆에서 차분히 설명하는 자연스러운 대화 톤(보통 빠르기, 문장 사이 쉼). 아래 내레이션은 한 글자도 바꾸지 않고 순서대로 읽습니다.',
     env.PUBLIC_BASE ? `- 공식 로고: ${env.PUBLIC_BASE}/brand-logo.png (변형 금지, 마지막 장면과 오른쪽 위 작은 로고)` : '',
+    job.data && job.data.appAccess ? '- 지시서에 아파트스퀘어 앱 테스트 계정이 있습니다. 앱에 로그인해 실제 화면을 녹화해서 앱 장면에 쓰고, 보기만 합니다.' : '',
     '',
     '[내레이션 원문]',
     narr,
@@ -1846,13 +1891,14 @@ async function state(env, opt = {}) {
   const [secretsObj, settingsObj, sources, jobs, photos] = await Promise.all([
     readJSON(env, 'secrets', {}), readJSON(env, 'settings', {}), readJSON(env, 'sources', []), readJSON(env, 'jobs', []), readJSON(env, 'photos', []),
   ])
-  const secrets = Object.entries(secretsObj).map(([provider, v]) => ({ provider, model: v.model, checked_at: v.checked_at }))
+  const secrets = Object.entries(secretsObj).map(([provider, v]) => ({ provider, model: v.model, checked_at: v.checked_at, url: v.url || '' }))
   const settingsRows = [{ data: settingsObj }]
   jobs.splice(50)
   const sec = {}
-  for (const p of ['claude', 'openai', 'heygen', 'manus', 'hub']) {
+  for (const p of ['claude', 'openai', 'heygen', 'manus', 'hub', 'app']) {
     const r = secrets.find((x) => x.provider === p)
     sec[p] = { configured: !!r, model: (r && r.model) || '', checkedAt: (r && r.checked_at) || '' }
+    if (p === 'app') sec.app.url = (r && r.url) || APP_URL
   }
   const settings = { ...DEFAULT_SETTINGS, ...((settingsRows[0] && settingsRows[0].data) || {}) }
   const readiness = {

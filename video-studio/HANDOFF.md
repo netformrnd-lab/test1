@@ -33,7 +33,7 @@ GitHub Secrets(값은 저장소 설정에만 있음): `CLOUDFLARE_API_TOKEN`, `C
 - `video-studio/terms.json` — 용어 사전·금지어·내장 브랜드북 규칙(2026-09-23)
 - `video-studio/cloudflare/wrangler.toml` — Cloudflare 설정
 - `video-studio/tools/check.mjs` + `studio-check.yml` — 실제 저장소·허브 상태 점검. push 하거나 수동 실행하면 Actions 로그로 확인
-- `video-studio/tools/test/run.sh` — **자체 시험**(외부 API는 가짜 응답, 현재 21개 통과). 고친 뒤 push 전에 꼭 실행
+- `video-studio/tools/test/run.sh` — **자체 시험**(외부 API는 가짜 응답, 현재 25개 통과). 고친 뒤 push 전에 꼭 실행
 
 ## 4. 연결된 외부 서비스
 
@@ -45,6 +45,7 @@ GitHub Secrets(값은 저장소 설정에만 있음): `CLOUDFLARE_API_TOKEN`, `C
   - `action=search&q=` → NAS 내용 검색 `{results:[{name,path,text}]}`
   - `action=file&path=` → 원본 파일
 - 제작 0단계에서 허브 가이드를 새로 불러와 **대본 작성·검수의 최우선 브랜드 기준**으로 씀(내장 terms.json 규칙은 후순위). NAS를 영상 키워드로 검색해 관련 문서 최대 6개를 원본으로 읽어 근거로 씀. 허브 문서 제목으로도 원본을 찾아 읽음
+- **앱 테스트 계정**: 연결 설정의 ‘아파트스퀘어 앱 테스트 계정’(앱 주소 기본값 `https://floral-cherry-6860.squarecm.workers.dev`, 아이디, 비밀번호는 secrets.app 에 암호화 저장). Manus 로 보낼 때만 비공개 지시서(briefs/)에 로그인 정보를 넣어, Manus 가 앱에 로그인해 실제 화면을 녹화해서 앱 장면에 쓰게 함(보기만, 개인정보 흐리게, 계정 노출 금지). 화면용 프롬프트·작업 기록에는 비밀번호를 남기지 않음
 - **NAS 검색 결과의 대부분이 POUR·포어스토어 자료** → 다른 브랜드 폴더·본문(POUR/포어/pourstore 등)과 코드 파일은 자동으로 제외
 
 ## 5. 사용자가 정한 원칙 (꼭 지킬 것)

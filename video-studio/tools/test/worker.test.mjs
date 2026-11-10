@@ -96,6 +96,8 @@ ok(hg.status === 200 && hg.body.hubGuide && hg.body.hubGuide.fetched, 'hubGuide 
 const before = globalThis.PDFCALLS.length
 await run('req-hub00002')
 ok(globalThis.PDFCALLS.length === before, 'second job reuses cached PDF text (no new Claude PDF call)')
+const ap = await call({ action: 'appAccount', loginId: 'demo01', password: 'Test#pw77' })
+ok(ap.status === 200 && ap.body.connections.app.configured && ap.body.connections.app.model === 'demo01' && !JSON.stringify(ap.body).includes('Test#pw77'), 'app account saved, password not returned: ' + JSON.stringify(ap.body.connections && ap.body.connections.app))
 await call({ action: 'connection', provider: 'manus', key: 'mk', model: 'manus-1.6', save: true })
 r = await run('req-brief001')
 let mj = (await call({ action: 'render', id: r.job.id })).body.job
@@ -105,6 +107,9 @@ const bu = (sent.match(/https:\/\/pub\/studio(\/brief\/[^\s]+)/) || [])[1]
 ok(mj.status === 'rendering' && bu && sent.length < 2500 && sent.includes('[내레이션 원문]'), 'long brief linked, short prompt sent: ' + mj.status + ' len ' + sent.length + ' ' + mj.error)
 const br = await worker.fetch(new Request('https://studio.local' + bu), env)
 const btxt = await br.text()
+ok(btxt.includes('비밀번호: Test#pw77') && btxt.includes('아이디: demo01') && btxt.includes('floral-cherry-6860'), 'brief has app login for Manus')
+ok(!mj.prompt.includes('Test#pw77') && mj.prompt.includes('아파트스퀘어 앱 직접 보기') && !sent.includes('Test#pw77') && sent.includes('앱 테스트 계정'), 'visible prompt & short message without password')
+ok(!JSON.stringify((await call()).body).includes('Test#pw77'), 'password never in screen data')
 ok(br.status === 200 && btxt.includes('[화면 스타일]') === false && btxt.includes('[내레이션 규칙]') && btxt.includes('[첨부 자료'), 'brief served: ' + br.status + ' ' + btxt.slice(0, 40))
 ok((await worker.fetch(new Request('https://studio.local' + bu.replace(/[0-9a-f]{32}/, '0'.repeat(32))), env)).status === 404, 'wrong token 404')
 console.log('ok', n, 'fail', f)

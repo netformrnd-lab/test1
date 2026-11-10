@@ -14,6 +14,7 @@ console.log('등록 사진:', P.length, '| 업로드', P.filter((p) => p.source 
 console.log('가장 최근 등록:', P[0] ? P[0].created : '-', '| 가장 처음:', P.length ? P[P.length - 1].created : '-')
 console.log('== 저장소 파일 폴더(files/) 수 ==', Array.isArray(list) ? list.length : JSON.stringify(list).slice(0, 200))
 console.log('== 브랜드 자료 ==', arr(sources).length, '| 원본 파일 있음', arr(sources).filter((s) => s.file).length)
+for (const x of arr(sources)) console.log('  · 자료:', x.title, '|', x.file ? `${x.file.name} (${x.file.size}B)` : '파일 없음', '| 승인', !!x.approved, '| 등록', x.created_at || x.created || '', '| 글', String(x.content || '').length + '자', '| 전문감리기관', String(x.content || '').split('전문감리기관').length - 1, '회')
 const J = arr(jobs)
 console.log('== 제작 작업 ==', J.length, JSON.stringify(J.reduce((a, j) => ((a[j.status] = (a[j.status] || 0) + 1), a), {})))
 const logs = await json('logs')
@@ -84,14 +85,15 @@ try {
       return { status: r.status, type, body }
     }
     const tryJson = (s) => { try { return JSON.parse(s) } catch { return null } }
-    for (const qs of ['action=brands&t=' + Date.now(), 'action=help', 'action=search&q=' + encodeURIComponent('옥상방수'), 'action=search&q=' + encodeURIComponent('방수'), 'action=search&q=' + encodeURIComponent('브랜드북')]) {
+    for (const qs of ['action=brands&t=' + Date.now(), 'action=help', 'action=search&q=' + encodeURIComponent('옥상방수'), 'action=search&q=' + encodeURIComponent('방수'), 'action=search&q=' + encodeURIComponent('브랜드북'), 'action=search&q=' + encodeURIComponent('아파트스퀘어 소개'), 'action=search&q=' + encodeURIComponent('소개서'), 'action=search&q=' + encodeURIComponent('아파트스퀘어')]) {
       const r = await call(qs)
       const j = tryJson(r.body)
       console.log(`== 허브 ${qs.split('&')[0]}${qs.includes('q=') ? ' q=' + decodeURIComponent(qs.split('q=')[1]) : ''} == HTTP ${r.status} | ${r.type} | ${r.body.length}자`)
       console.log('  구조:', j ? shape(j).slice(0, 1500) : '(JSON 아님) ' + mask(r.body.slice(0, 300)))
       if (j && qs.startsWith('action=search')) {
         const list = Array.isArray(j) ? j : j.results || j.items || j.files || j.data || []
-        for (const it of [].concat(list).slice(0, 5)) console.log('   ·', mask(JSON.stringify(it).slice(0, 400)))
+        const big = /소개|아파트스퀘어/.test(decodeURIComponent(qs))
+        for (const it of [].concat(list).slice(0, big ? 30 : 5)) console.log('   ·', big ? `${it.name} | ${String(it.path || '').replace(/^.*공유폴더\//, '')}` : mask(JSON.stringify(it).slice(0, 400)))
         const first = [].concat(list).find((x) => x && (x.path || x.url))
         if (first && !globalThis.__fileTried) {
           globalThis.__fileTried = true

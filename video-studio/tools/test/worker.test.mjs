@@ -93,6 +93,17 @@ const sg = (await call()).body
 ok(sg.hubGuide && sg.hubGuide.name === '아파트스퀘어' && sg.hubGuide.tone.includes('신뢰감'), 'hub guide saved and shown: ' + JSON.stringify(sg.hubGuide))
 const hg = await call({ action: 'hubGuide' })
 ok(hg.status === 200 && hg.body.hubGuide && hg.body.hubGuide.fetched, 'hubGuide refresh action works')
+STORE['settings.json'] = JSON.stringify({ ...JSON.parse(STORE['settings.json'] || '{}'), maxDailyJobs: 50 })
+await call({ action: 'source', source: { title: '아파트스퀘어 소개', provenance: '2026-11', content: '아파트스퀘어 소개입니다. 로고 아래 라벨: 공동주택 유지보수 감리 파트너\n외벽 재도장 감리 안내.', approved: true } })
+const sb = (await call()).body
+ok(sb.brandLabel === '공동주택 유지보수 감리 파트너', 'uploaded brand doc label wins: ' + sb.brandLabel)
+let sysSeen = ''
+const of2 = globalThis.fetch; globalThis.fetch = async (u, i) => { if (String(u).includes('anthropic.com/v1/messages')) { const bb = JSON.parse(i.body); if (bb.system && !/독립 검수자/.test(bb.system)) sysSeen = bb.system } return of2(u, i) }
+const rb = await run('req-brand001')
+globalThis.fetch = of2
+ok(sysSeen.includes('최우선 브랜드 기준') && sysSeen.includes('“공동주택 유지보수 감리 파트너”') && !sysSeen.includes('2026-09-23'), 'draft system: uploaded doc first, label, no 09-23 rules')
+ok(!JSON.stringify(sb.terms).includes('2026-09-23'), 'no 09-23 brand book in terms')
+await call({ action: 'sourceDelete', id: sb.sources.find((x) => x.title === '아파트스퀘어 소개').id })
 const before = globalThis.PDFCALLS.length
 await run('req-hub00002')
 ok(globalThis.PDFCALLS.length === before, 'second job reuses cached PDF text (no new Claude PDF call)')
@@ -100,7 +111,8 @@ const ap = await call({ action: 'appAccount', loginId: 'demo01', password: 'Test
 ok(ap.status === 200 && ap.body.connections.app.configured && ap.body.connections.app.model === 'demo01' && !JSON.stringify(ap.body).includes('Test#pw77'), 'app account saved, password not returned: ' + JSON.stringify(ap.body.connections && ap.body.connections.app))
 await call({ action: 'connection', provider: 'manus', key: 'mk', model: 'manus-1.6', save: true })
 r = await run('req-brief001')
-let mj = (await call({ action: 'render', id: r.job.id })).body.job
+const rr0 = await call({ action: 'render', id: r.job.id }); if (!rr0.body.job) console.log('RENDER', r.job.status, r.job.error, JSON.stringify(rr0.body).slice(0,300))
+let mj = rr0.body.job
 mj = (await call({ action: 'advance', id: mj.id })).body.job
 const sent = globalThis.LASTM.prompt
 const bu = (sent.match(/https:\/\/pub\/studio(\/brief\/[^\s]+)/) || [])[1]

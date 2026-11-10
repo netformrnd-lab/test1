@@ -394,15 +394,15 @@
     const T = n && n.terms
     $('terms-card').hidden = !T
     if (T) {
-      $('terms-card').innerHTML = `${icon('book', 20)}<h3>공사 용어 사전 · 브랜드북 규칙 · 자동 적용</h3>
+      $('terms-card').innerHTML = `${icon('book', 20)}<h3>공사 용어 사전 · 브랜드 기준 · 자동 적용</h3>
         <p>동의어 ${T.synonyms.length}묶음 · 표기 통일 ${T.spelling.length}개 · 금지어 ${T.banned.length}개. 자료 검색에서 같은 뜻의 말을 함께 찾고, 대본에 금지어나 틀린 표기가 있으면 검수에서 자동으로 고칩니다.</p>
         <details><summary>동의어 (검색에 함께 사용)</summary><ul class="terms-list">${T.synonyms.map((x) => `<li><b>${esc(x.canonical)}</b> = ${x.terms.map(esc).join(', ')}</li>`).join('')}</ul></details>
         <details><summary>표기 통일</summary><ul class="terms-list">${T.spelling.map((x) => `<li>${esc(x.wrong)} → <b>${esc(x.right)}</b> <small>${esc(x.why)}</small></li>`).join('')}</ul></details>
         <details><summary>금지어</summary><ul class="terms-list">${T.banned.map((x) => `<li><b>${esc(x.word)}</b> — ${esc(x.why)}${x.instead ? ` <small>(대신: ${esc(x.instead)})</small>` : ''}</li>`).join('')}</ul></details>
         ${n.hubGuide ? `<details open><summary>최신 브랜드 가이드 — 브랜드 허브 ‘${esc(n.hubGuide.name)}’ (대본 작성·검수에 우선 적용)</summary><div class="hub-guide">${esc(n.hubGuide.tone)}</div><small>허브 기준 시각 ${esc(n.hubGuide.at || '-')} · 불러온 시각 ${esc(n.hubGuide.fetched ? fmt(n.hubGuide.fetched) : "-")}</small></details>` : ''}
         ${n.connections && n.connections.hub && n.connections.hub.configured ? `<p><button type="button" class="btn outline sm" data-hub-guide ${S.busy ? 'disabled' : ''}>허브에서 최신 가이드 다시 불러오기</button> <small>${n.hubGuide ? '영상을 만들 때마다 자동으로도 새로 불러옵니다.' : '아직 불러온 가이드가 없습니다.'}</small></p>` : ''}
-        ${T.brand && !n.hubGuide ? `<details><summary>브랜드북 규칙 (내장 · 허브 연결 전 임시 기준)</summary><ul class="terms-list">${T.brand.rules.map((r) => `<li>${esc(r)}</li>`).join('')}<li>${esc(T.brand.visual)}</li></ul></details>` : ''}
-        ${T.brand && n.hubGuide ? `<p><small>화면 색·서체(가이드에 없을 때만 사용): ${esc(T.brand.visual)}</small></p>` : ''}
+        <p><small>브랜드 기준 우선순위: ① 자료실에 직접 올린 브랜드 자료(제목에 브랜드·소개·가이드·지침이 들어간 승인 자료, 최신순) → ② 브랜드 허브 가이드.${n.brandLabel ? ` 현재 정체 표기: <b>${esc(n.brandLabel)}</b>` : ''}</small></p>
+        ${T.brand && T.brand.visual ? `<p><small>화면 색·서체(자료에 없을 때만 사용): ${esc(T.brand.visual)}</small></p>` : ''}
         <small>${esc(T.source)}</small>`
     }
     $('sources-list').innerHTML = srcs.length ? srcs.map((s) => `<article class="source-card">
@@ -889,7 +889,7 @@
       : null
     const bg0 = id ? (u ? `<img class="pv-bg" src="${esc(u)}" alt="">` : '<div class="pv-card"><small>사진 불러오는 중</small></div>')
       : c.imagePrompt && !c.imageFailed ? `<div class="pv-card ai"><small>AI 이미지 생성 예정</small><p>${esc(c.imagePrompt)}</p></div>`
-      : `<div class="pv-card brand"><span class="pv-label">공동주택 유지보수 전문감리기관</span><h3>${esc(c.onScreen || '아파트스퀘어')}</h3><span class="pv-logo">아파트스퀘어</span></div>`
+      : `<div class="pv-card brand">${S.data && S.data.brandLabel ? `<span class="pv-label">${esc(S.data.brandLabel)}</span>` : ''}<h3>${esc(c.onScreen || '아파트스퀘어')}</h3><span class="pv-logo">아파트스퀘어</span></div>`
     $('preview-stage').className = 'preview-stage ' + (PV.ratio === '9:16' ? 'vertical' : '')
     $('preview-stage').innerHTML = `${bg || bg0}<div class="pv-avatar ${id || v ? 'small' : ''}">${icon('user', 28)}<span>조현식 이사</span></div><div class="pv-sub">${esc(c.narration)}</div>`
     $('preview-pos').textContent = `장면 ${c.scene} · 컷 ${c.cut} (${PV.i + 1}/${PV.cuts.length})${PV.agent ? ' · 화면은 HeyGen 자동 구성 (여기서는 대사·순서·길이만 확인)' : ''}`

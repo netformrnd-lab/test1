@@ -710,6 +710,8 @@ async function runStep(env, job) {
         }
       } catch (e) { d.events.push(ev('브랜드 허브 불러오기 실패(제작은 계속): ' + String(e.message || e).slice(0, 150))) }
     }
+    d.brandDocs = brandDocsOf(st)
+    if (d.brandDocs.length) d.events.push(ev(`브랜드 기준(최우선): 자료실에 올린 브랜드 자료 ${d.brandDocs.length}개 — ${d.brandDocs.map((x) => x.title).join(', ').slice(0, 200)}`))
     const approved = [...st.sourcesFull.filter((s) => s.approved), ...hubSources]
     const picked = retrieve(approved, job.input.keywords)
     if (!picked.length) {
@@ -1184,12 +1186,31 @@ function termRules(d) {
   const bn = T.banned.map((x) => (x.instead && x.instead !== '삭제' ? `${x.word}(→${x.instead})` : x.word)).join(', ')
   return `8. [사내 용어 사전] 대사·자막에 다음 표기를 지킵니다: ${sp}\n9. [금지어] 대사·자막·제목에 쓰지 않습니다(괄호는 대신 쓸 표현): ${bn}\n${brandRules(d)}`
 }
+// 관리자가 작업실 자료실에 직접 올린 브랜드 자료(브랜드북·소개서·가이드 등) — 가장 최근 것이 앞
+function brandDocsOf(st) {
+  return (st.sourcesFull || []).filter((s) => s.approved && !s.builtin && /브랜드|소개|가이드|지침|brand/i.test(String(s.title || '') + ' ' + String((s.file && s.file.name) || '')))
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .slice(0, 4).map((s) => ({ title: s.title, created: s.created_at || '', text: String(s.content || '').slice(0, 8000) }))
+}
+// 정체 표기(로고 아래 라벨): 자료실 브랜드 자료 → 허브 가이드 순으로 찾음. 없으면 빈 값(지어내지 않음)
+function brandLabel(docs, hubTone) {
+  for (const t of [...(docs || []).map((x) => x.text), hubTone || '']) {
+    const m = String(t).match(/로고\s*아래\s*라벨\s*[:：]\s*([^\n]{2,40})/)
+    if (m) return m[1].trim().replace(/[.。]$/, '')
+  }
+  return ''
+}
 function brandRules(d) {
   const b = T.brand
+  const docs = (d && d.brandDocs) || []
   const g = d && d.hub && d.hub.tone && d.hub.tone.length >= 200 ? d.hub : null
-  // 허브 최신 가이드가 있으면 그것만 브랜드 기준으로 씀 (옛 내장 목록은 섞지 않음 — 충돌 방지). 색·서체만 내장값 보충
-  if (g) return `10. [${g.name} 최신 브랜드 가이드 — 브랜드 허브${g.at ? ' · ' + g.at : ''}] 브랜드 기준은 이 가이드 하나뿐입니다. 표현·고정 문구·쓰지 않는 표현·역할 경계를 그대로 지킵니다. (사실·수치는 [승인 자료]에서만)\n${g.tone}${b && b.visual ? '\n- 화면(가이드에 없을 때만): ' + b.visual : ''}`
-  return b ? `10. [아파트스퀘어 브랜드북 규칙]\n${b.rules.map((r) => '- ' + r).join('\n')}` : ''
+  const parts = []
+  if (docs.length) parts.push(`10. [최우선 브랜드 기준 — 관리자가 작업실 자료실에 직접 올린 최신 브랜드 자료] 아래 자료의 정체 표기·고정 문구·금지 표현·역할 경계를 그대로 지킵니다. 다른 기준과 다르면 이 자료를 따릅니다.\n${docs.map((x) => `<${x.title}${x.created ? ' · ' + x.created.slice(0, 10) : ''}>\n${x.text}`).join('\n\n')}`)
+  if (g) parts.push(`${docs.length ? '11' : '10'}. [${g.name} 브랜드 가이드 — 브랜드 허브${g.at ? ' · ' + g.at : ''}]${docs.length ? ' 위 최우선 자료와 다르면 위 자료를 따릅니다.' : ' 표현·고정 문구·쓰지 않는 표현·역할 경계를 그대로 지킵니다.'} (사실·수치는 [승인 자료]에서만)\n${g.tone}`)
+  const label = brandLabel(docs, g && g.tone)
+  if (label) parts.push(`- 정체 표기(로고 아래 라벨)는 “${label}” 그대로 씁니다.`)
+  if (parts.length && b && b.visual) parts.push('- 화면(자료에 없을 때만): ' + b.visual)
+  return parts.join('\n\n')
 }
 // 대사·자막·제목의 금지어·잘못된 표기를 서버에서 직접 찾는다 (인용문은 원문 그대로라 검사하지 않음)
 function termIssues(plan) {
@@ -1312,7 +1333,7 @@ function manusPrompt(job, plan) {
   const i = job.input
   const lines = [
     `# ${plan.title}`,
-    '아파트스퀘어(공동주택 유지보수 전문감리기관)의 영상을 만들어 주세요. 완성된 MP4 영상 파일로 전달해 주세요.',
+    `아파트스퀘어${brandLabel(job.data.brandDocs, job.data.hub && job.data.hub.tone) ? `(${brandLabel(job.data.brandDocs, job.data.hub && job.data.hub.tone)})` : ''}의 영상을 만들어 주세요. 완성된 MP4 영상 파일로 전달해 주세요.`,
     `- 형식: ${i.ratio === '9:16' ? '세로형 9:16 (1080×1920, 쇼츠)' : '가로형 16:9 (1920×1080)'} · 목표 길이 ${i.seconds}초 · 시청 대상 ${i.audience}`,
     '- 한국어 남성 내레이션(AI 음성)과 한국어 자막으로 진행합니다. 목소리는 광고 성우·라디오 아나운서 톤이 아니라, 감리 전문가가 옆에서 차분히 설명해 주는 자연스러운 대화 톤으로: 과장된 억양·들뜬 강조 없이, 보통 말 빠르기, 문장 사이 자연스러운 쉼.',
     '- 배경음악은 잔잔하고 신뢰감 있게, 내레이션보다 작게 깔아 주세요.',
@@ -1323,7 +1344,7 @@ function manusPrompt(job, plan) {
     '- 영상에 필요한 자료(아파트스퀘어 앱 화면, 서비스 소개, 현장·드론 사진 등)는 직접 찾아서 활용해 주세요. 아파트스퀘어 공식 홈페이지(aptsquare.net)와 앱스토어·플레이스토어의 아파트스퀘어 앱 소개를 우선 참고합니다. 첨부한 자료가 있으면 그것을 먼저 씁니다.',
     '- 실제 앱 화면은 찾은 캡처를 그대로 스마트폰 목업에 넣고, 화면 속 글자·숫자를 지어내지 않습니다.',
     '- 영상 생성과 모션 그래픽(코드 기반 애니메이션)을 함께 써서, 크리에이티브 디렉터로서 기획부터 편집까지 직접 이끌어 주세요(Alchemy 방식).',
-    '- 화면 구성·컷·전환·그래픽은 크리에이티브 디렉터로서 가장 좋은 방식으로 정해 주세요. 참고 스타일: 실제 아파트 사진 위 질문형 오프닝, 밝은 배경의 스마트폰 목업 확대·스크롤과 터치 표시, 장면별 짧은 소제목, 화면 아래 네이비 반투명 상자 자막(두 줄 이내), 2~4초 컷, 흐린 아파트 배경 위 로고 엔딩 카드(아파트스퀘어 · 공동주택 유지보수 전문감리기관 · 1600-6069 · aptsquare.net).',
+    `- 화면 구성·컷·전환·그래픽은 크리에이티브 디렉터로서 가장 좋은 방식으로 정해 주세요. 참고 스타일: 실제 아파트 사진 위 질문형 오프닝, 밝은 배경의 스마트폰 목업 확대·스크롤과 터치 표시, 장면별 짧은 소제목, 화면 아래 네이비 반투명 상자 자막(두 줄 이내), 2~4초 컷, 흐린 아파트 배경 위 로고 엔딩 카드(아파트스퀘어${brandLabel(job.data.brandDocs, job.data.hub && job.data.hub.tone) ? ' · ' + brandLabel(job.data.brandDocs, job.data.hub && job.data.hub.tone) : ''} · 1600-6069 · aptsquare.net).`,
     '',
     '[움직이는 영상 — 꼭 지켜 주세요]',
     '- 현장·건물·드론·작업 장면은 정지 사진이 아니라 실제로 움직이는 영상 클립으로 만듭니다(실사 촬영본을 찾거나 AI 영상 생성으로). 예: 드론이 실제로 날며 외벽을 따라 이동, 시공사 작업자가 도장·방수 작업을 하는 손, 감리자가 현장에서 기록을 확인하는 모습, 카메라가 걸어가며 단지를 비춤, 바람에 흔들리는 나무·지나가는 차.',
@@ -1912,7 +1933,7 @@ async function state(env, opt = {}) {
   const builtins = K.map((k) => ({ ...k, approved: !off.has(k.id), builtin: true, created_at: '' }))
   const all = [...sources, ...builtins]
   if (opt.raw) return { secrets: sec, readiness, settings, sourcesFull: all, sources: all, jobs, photos }
-  return {
+  const out = {
     connections: sec, readiness, settings,
     sources: all.map((s) => ({ id: s.id, title: s.title, provenance: s.provenance, content: s.content, file: s.file ? { name: s.file.name, size: s.file.size } : null, approved: s.approved ? 1 : 0, builtin: !!s.builtin, created: s.created_at })),
     usageTotal: totalUsage(jobs),
@@ -1922,6 +1943,8 @@ async function state(env, opt = {}) {
     terms: T,
     hubGuide: readiness.hub ? await readJSON(env, 'hubguide', null).catch(() => null) : null,
   }
+  out.brandLabel = brandLabel(brandDocsOf({ sourcesFull: all }), out.hubGuide && out.hubGuide.tone)
+  return out
 }
 function readinessProblems(st, tool = 'heygen') {
   const out = []

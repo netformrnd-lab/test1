@@ -33,7 +33,7 @@ GitHub Secrets(값은 저장소 설정에만 있음): `CLOUDFLARE_API_TOKEN`, `C
 - `video-studio/terms.json` — 용어 사전·금지어·내장 브랜드북 규칙(2026-09-23)
 - `video-studio/cloudflare/wrangler.toml` — Cloudflare 설정
 - `video-studio/tools/check.mjs` + `studio-check.yml` — 실제 저장소·허브 상태 점검. push 하거나 수동 실행하면 Actions 로그로 확인
-- `video-studio/tools/test/run.sh` — **자체 시험**(외부 API는 가짜 응답, 현재 28개 통과). 고친 뒤 push 전에 꼭 실행
+- `video-studio/tools/test/run.sh` — **자체 시험**(외부 API는 가짜 응답, 현재 29개 통과). 고친 뒤 push 전에 꼭 실행
 
 ## 4. 연결된 외부 서비스
 

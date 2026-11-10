@@ -119,7 +119,7 @@ const bu = (sent.match(/https:\/\/pub\/studio(\/brief\/[^\s]+)/) || [])[1]
 ok(mj.status === 'rendering' && bu && sent.length < 2500 && sent.includes('[내레이션 원문]'), 'long brief linked, short prompt sent: ' + mj.status + ' len ' + sent.length + ' ' + mj.error)
 const br = await worker.fetch(new Request('https://studio.local' + bu), env)
 const btxt = await br.text()
-ok(btxt.includes('실제 아파트스퀘어 앱을 녹화한 영상·캡처로만') && btxt.includes('1600-6069 만') && !btxt.includes('오른쪽 위') && btxt.includes('장면 라벨(작은 소제목·주제어)을 넣지 않습니다') && btxt.includes('작업자가 실제로 일하는 장면'), 'brief: real app only, phone-only ending, no corner logo/labels, real site')
+ok(btxt.includes('실제 아파트스퀘어 앱을 녹화한 영상·캡처를 씁니다') && btxt.includes('내레이션이 말하는 내용을 그대로 보여 주는 그래픽만') && btxt.includes('1600-6069 만') && !btxt.includes('오른쪽 위') && btxt.includes('장면 라벨(작은 소제목·주제어)을 넣지 않습니다') && btxt.includes('작업자가 실제로 일하는 장면'), 'brief: real app only, phone-only ending, no corner logo/labels, real site')
 ok(btxt.includes('비밀번호: Test#pw77') && btxt.includes('아이디: demo01') && btxt.includes('floral-cherry-6860'), 'brief has app login for Manus')
 ok(!mj.prompt.includes('Test#pw77') && mj.prompt.includes('아파트스퀘어 앱 직접 보기') && !sent.includes('Test#pw77') && sent.includes('앱 테스트 계정'), 'visible prompt & short message without password')
 ok(!JSON.stringify((await call()).body).includes('Test#pw77'), 'password never in screen data')

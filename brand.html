@@ -6087,7 +6087,7 @@ function nasUrl(){
 }
 function nasBase(){ return nasUrl().replace(/\/[^\/]*$/, ''); }
 nasUrlSave();
-const APP_VER = 'v20261021-130';   // 화면 오른쪽 위에 표시됩니다
+const APP_VER = 'v20261021-131';   // 화면 오른쪽 위에 표시됩니다
 const LS_KEY  = 'netform_brand_hub_v2';
 const SCHEMA  = 2;
 
@@ -6252,13 +6252,29 @@ function paintPresence(){
 
 async function storageLoad(){
   if(STORAGE_MODE === 'nas'){
-    const res = await fetch(NAS_API.load + '?t=' + Date.now(), { cache:'no-store' });
-    if(!res.ok) throw new Error('NAS 응답 오류 (' + res.status + ')');
-    const text = await res.text();
-    if(!text.trim()) return null;              // 처음 쓰는 경우
-    const j = JSON.parse(text);
-    if(j && j._error) throw new Error(j._error + '\n\n' + (j._안내 || ''));
-    return j;
+    /* ── 불러오기 재시도 ────────────────────────────────────────────
+       자료(brand-data.php)가 커지고 NAS 가 바쁠 때, 불러오기가 <<한 번>>
+       늦게 오거나 도중에 끊기면 곧바로 「저장 차단(saveBlocked)」 이 걸립니다.
+       그 상태에서 넣은 것은 이 브라우저에만 남고 NAS 엔 안 올라가, 새로고침
+       하면 사라집니다. 저장(save)에 넣어둔 재시도와 짝을 맞춰, 몇 번 기다렸다
+       다시 불러옵니다. 그래도 끝까지 실패하면 마지막 오류를 그대로 올립니다
+       (= 예전과 같은 안전장치). */
+    let lastErr = null;
+    for(let i = 0; i < 4; i++){
+      try{
+        const res = await fetch(NAS_API.load + '?t=' + Date.now(), { cache:'no-store' });
+        if(!res.ok) throw new Error('NAS 응답 오류 (' + res.status + ')');
+        const text = await res.text();
+        if(!text.trim()) return null;              // 처음 쓰는 경우
+        const j = JSON.parse(text);               // 도중에 끊기면 여기서 걸려 다시 시도합니다
+        if(j && j._error) throw new Error(j._error + '\n\n' + (j._안내 || ''));
+        return j;
+      }catch(e){
+        lastErr = e;
+        if(i < 3) await new Promise(r => setTimeout(r, 900 * (i + 1) + Math.random() * 400));
+      }
+    }
+    throw lastErr;
   }
   const raw = localStorage.getItem(LS_KEY);
   return raw ? JSON.parse(raw) : null;

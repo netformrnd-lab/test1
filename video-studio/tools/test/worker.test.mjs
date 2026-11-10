@@ -96,12 +96,12 @@ ok(hg.status === 200 && hg.body.hubGuide && hg.body.hubGuide.fetched, 'hubGuide 
 STORE['settings.json'] = JSON.stringify({ ...JSON.parse(STORE['settings.json'] || '{}'), maxDailyJobs: 50 })
 await call({ action: 'source', source: { title: '아파트스퀘어 소개', provenance: '2026-11', content: '아파트스퀘어 소개입니다. 로고 아래 라벨: 공동주택 유지보수 감리 파트너\n외벽 재도장 감리 안내.', approved: true } })
 const sb = (await call()).body
-ok(sb.brandLabel === '공동주택 유지보수 감리 파트너', 'uploaded brand doc label wins: ' + sb.brandLabel)
 let sysSeen = ''
 const of2 = globalThis.fetch; globalThis.fetch = async (u, i) => { if (String(u).includes('anthropic.com/v1/messages')) { const bb = JSON.parse(i.body); if (bb.system && !/독립 검수자/.test(bb.system)) sysSeen = bb.system } return of2(u, i) }
 const rb = await run('req-brand001')
 globalThis.fetch = of2
-ok(sysSeen.includes('최우선 브랜드 기준') && sysSeen.includes('“공동주택 유지보수 감리 파트너”') && !sysSeen.includes('2026-09-23'), 'draft system: uploaded doc first, label, no 09-23 rules')
+ok(sysSeen.includes('최우선 브랜드 기준') && sysSeen.includes('정체 표기 문구는 대사·자막·제목·엔딩 카드 어디에도 넣지 않습니다') && !sysSeen.includes('2026-09-23'), 'draft system: uploaded doc first, no identity phrase, no 09-23 rules')
+ok(sb.terms.banned.some((x) => x.word === '전문감리기관'), 'identity phrase is a banned word')
 ok(!JSON.stringify(sb.terms).includes('2026-09-23'), 'no 09-23 brand book in terms')
 await call({ action: 'sourceDelete', id: sb.sources.find((x) => x.title === '아파트스퀘어 소개').id })
 const before = globalThis.PDFCALLS.length

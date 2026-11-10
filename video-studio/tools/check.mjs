@@ -84,7 +84,7 @@ try {
       return { status: r.status, type, body }
     }
     const tryJson = (s) => { try { return JSON.parse(s) } catch { return null } }
-    for (const qs of ['action=brands', 'action=help', 'action=search&q=' + encodeURIComponent('옥상방수'), 'action=search&q=' + encodeURIComponent('방수'), 'action=search&q=' + encodeURIComponent('브랜드북')]) {
+    for (const qs of ['action=brands&t=' + Date.now(), 'action=help', 'action=search&q=' + encodeURIComponent('옥상방수'), 'action=search&q=' + encodeURIComponent('방수'), 'action=search&q=' + encodeURIComponent('브랜드북')]) {
       const r = await call(qs)
       const j = tryJson(r.body)
       console.log(`== 허브 ${qs.split('&')[0]}${qs.includes('q=') ? ' q=' + decodeURIComponent(qs.split('q=')[1]) : ''} == HTTP ${r.status} | ${r.type} | ${r.body.length}자`)
@@ -101,14 +101,18 @@ try {
           console.log(`== 허브 action=file == HTTP ${fr.status} | ${fr.type} | ${fr.body.length} bytes | 앞부분: ${mask(fr.body.subarray(0, 8).toString('latin1'))}`)
         }
       }
-      if (j && qs === 'action=brands') {
+      if (j && qs.startsWith('action=brands')) {
         const b = (j.brands || []).find((x) => String(x.name).includes('아파트')) || (j.brands || [])[0]
         if (b) for (const kind of ['자료', '문서']) for (const it of [].concat(b[kind] || []).slice(0, 3)) console.log(`   · ${kind}:`, mask(JSON.stringify(it).slice(0, 300)))
         const ap = (j.brands || []).find((x) => String(x.name).includes('아파트'))
         if (ap) {
           console.log('== 아파트스퀘어 허브 필드 ==', Object.keys(ap).join(', '))
           for (const k of Object.keys(ap)) if (Array.isArray(ap[k])) console.log(`   · ${k} (${ap[k].length}):`, mask(JSON.stringify(ap[k]).slice(0, 600)))
-          console.log('== 톤·가이드 (' + String(ap['톤·가이드'] || '').length + '자) ==\n' + String(ap['톤·가이드'] || '').slice(0, 3000))
+          const tg = String(ap['톤·가이드'] || '')
+          console.log('== 받은때 ==', j['받은때'], '| 브랜드 목록:', (j.brands || []).map((x) => x.name + '(' + String(x['톤·가이드'] || '').length + '자)').join(', '))
+          console.log('== 톤·가이드 (' + tg.length + '자) | 전문감리기관 ' + (tg.split('전문감리기관').length - 1) + '회 | 전문기관 ' + (tg.split('전문기관').length - 1) + '회 ==')
+          for (const line of tg.split('\n')) if (/기관|정체|라벨|아파트스퀘어는/.test(line)) console.log('   >', line.slice(0, 300))
+          console.log('== 첫 600자 ==\n' + tg.slice(0, 600))
         }
         console.log('== 위키 ==', mask(JSON.stringify(j['위키'] || []).slice(0, 600)), '| 안내:', String(j['안내'] || '').slice(0, 300))
       }

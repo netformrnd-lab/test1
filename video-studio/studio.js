@@ -401,7 +401,8 @@
         <details><summary>금지어</summary><ul class="terms-list">${T.banned.map((x) => `<li><b>${esc(x.word)}</b> — ${esc(x.why)}${x.instead ? ` <small>(대신: ${esc(x.instead)})</small>` : ''}</li>`).join('')}</ul></details>
         ${n.hubGuide ? `<details open><summary>최신 브랜드 가이드 — 브랜드 허브 ‘${esc(n.hubGuide.name)}’ (대본 작성·검수에 우선 적용)</summary><div class="hub-guide">${esc(n.hubGuide.tone)}</div><small>허브 기준 시각 ${esc(n.hubGuide.at || '-')} · 불러온 시각 ${esc(n.hubGuide.fetched ? fmt(n.hubGuide.fetched) : "-")}</small></details>` : ''}
         ${n.connections && n.connections.hub && n.connections.hub.configured ? `<p><button type="button" class="btn outline sm" data-hub-guide ${S.busy ? 'disabled' : ''}>허브에서 최신 가이드 다시 불러오기</button> <small>${n.hubGuide ? '영상을 만들 때마다 자동으로도 새로 불러옵니다.' : '아직 불러온 가이드가 없습니다.'}</small></p>` : ''}
-        ${T.brand ? `<details><summary>${n.hubGuide ? '기본 브랜드북 규칙 (내장 · 최신 가이드와 다르면 최신 가이드 우선)' : '브랜드북 규칙 (대본 작성·검수에 적용)'}</summary><ul class="terms-list">${T.brand.rules.map((r) => `<li>${esc(r)}</li>`).join('')}<li>${esc(T.brand.visual)}</li></ul></details>` : ''}
+        ${T.brand && !n.hubGuide ? `<details><summary>브랜드북 규칙 (내장 · 허브 연결 전 임시 기준)</summary><ul class="terms-list">${T.brand.rules.map((r) => `<li>${esc(r)}</li>`).join('')}<li>${esc(T.brand.visual)}</li></ul></details>` : ''}
+        ${T.brand && n.hubGuide ? `<p><small>화면 색·서체(가이드에 없을 때만 사용): ${esc(T.brand.visual)}</small></p>` : ''}
         <small>${esc(T.source)}</small>`
     }
     $('sources-list').innerHTML = srcs.length ? srcs.map((s) => `<article class="source-card">

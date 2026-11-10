@@ -1186,10 +1186,10 @@ function termRules(d) {
 }
 function brandRules(d) {
   const b = T.brand
-  const base = b ? b.rules.map((r) => '- ' + r).join('\n') : ''
   const g = d && d.hub && d.hub.tone && d.hub.tone.length >= 200 ? d.hub : null
-  if (g) return `10. [${g.name} 최신 브랜드 가이드 — 브랜드 허브${g.at ? ' · ' + g.at : ''}] 아래 가이드가 가장 최신 기준입니다. 표현·고정 문구·금지 표현·역할 경계를 그대로 지킵니다. (사실·수치는 [승인 자료]에서만)\n${g.tone}\n\n11. [기본 브랜드북 규칙 — ${(b && b.source) || '내장'}] 위 최신 가이드와 다르면 최신 가이드를 따릅니다.\n${base}`
-  return b ? `10. [아파트스퀘어 브랜드북 규칙]\n${base}` : ''
+  // 허브 최신 가이드가 있으면 그것만 브랜드 기준으로 씀 (옛 내장 목록은 섞지 않음 — 충돌 방지). 색·서체만 내장값 보충
+  if (g) return `10. [${g.name} 최신 브랜드 가이드 — 브랜드 허브${g.at ? ' · ' + g.at : ''}] 브랜드 기준은 이 가이드 하나뿐입니다. 표현·고정 문구·쓰지 않는 표현·역할 경계를 그대로 지킵니다. (사실·수치는 [승인 자료]에서만)\n${g.tone}${b && b.visual ? '\n- 화면(가이드에 없을 때만): ' + b.visual : ''}`
+  return b ? `10. [아파트스퀘어 브랜드북 규칙]\n${b.rules.map((r) => '- ' + r).join('\n')}` : ''
 }
 // 대사·자막·제목의 금지어·잘못된 표기를 서버에서 직접 찾는다 (인용문은 원문 그대로라 검사하지 않음)
 function termIssues(plan) {

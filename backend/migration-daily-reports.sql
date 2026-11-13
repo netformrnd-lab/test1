@@ -11,6 +11,7 @@
 --     ai_findings(검토 항목) · finding_events(처리 이력)
 --  3) ai_usage_daily(AI 사용량·비용) · 비공개 버킷 daily-photos
 --  4) finding_act()  : 확인/통보/회신/재확인/오경보 — 상태 변경은 전부 이 함수로(이력 자동 기록)
+--     finding_create(): 감리원·관리자가 직접 시공사에 요청(사진 지정 또는 현장 전체)
 --     daily_escalate(): 기준 시간 넘게 미확인 항목 → 관리자 재알림 표시(GitHub Actions 가 매시 호출)
 -- ============================================================
 
@@ -289,6 +290,48 @@ begin
 end; $$;
 revoke execute on function public.daily_escalate(int) from public, anon, authenticated;
 grant execute on function public.daily_escalate(int) to service_role;
+
+-- 4-1) 사람이 직접 요청 (감리원·관리자) ----------------------------------
+-- AI·자동 점검 말고도 감리원이 사진을 보고, 또는 보고와 상관없이 현장에 바로 요청할 수 있게
+alter table public.ai_findings alter column report_id drop not null;   -- 특정 보고 없이 '현장 요청' 가능
+do $$
+declare c record;
+begin
+  for c in
+    select con.conname from pg_constraint con
+    join pg_class rel on rel.oid = con.conrelid
+    where rel.relname = 'ai_findings' and con.contype = 'c'
+      and pg_get_constraintdef(con.oid) ilike '%source%'
+  loop
+    execute format('alter table public.ai_findings drop constraint %I', c.conname);
+  end loop;
+end $$;
+alter table public.ai_findings add constraint ai_findings_source_check
+  check (source in ('ai','rule','manual'));
+
+-- 요청 만들기: 항목 생성 → 곧바로 '시공사에 통보/요청함' 상태로 (UPDATE 웹훅이 시공사에게 푸시)
+create or replace function public.finding_create(
+  p_apt uuid, p_report uuid, p_title text, p_note text default null,
+  p_photo_ids uuid[] default '{}', p_category text default null)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare me public.profiles; fid uuid;
+begin
+  if not public.is_staff_of(p_apt) then raise exception '이 현장에 요청할 권한이 없어요'; end if;
+  if coalesce(trim(p_title), '') = '' then raise exception '요청 제목을 입력해 주세요'; end if;
+  if p_report is not null and not exists (select 1 from public.daily_reports where id = p_report and apartment_id = p_apt) then
+    raise exception '보고와 현장이 맞지 않아요';
+  end if;
+  select * into me from public.profiles where id = auth.uid();
+  insert into public.ai_findings (report_id, apartment_id, source, category, title, reason, photo_ids, state, shared, last_actor)
+    values (p_report, p_apt, 'manual', nullif(trim(coalesce(p_category,'')), ''), trim(p_title), nullif(trim(coalesce(p_note,'')), ''),
+            coalesce(p_photo_ids, '{}'), 'open', false, coalesce(me.name, ''))
+    returning id into fid;
+  update public.ai_findings set state = 'requested', shared = true, updated_at = now() where id = fid;
+  insert into public.finding_events (finding_id, action, actor_id, actor_name, actor_role, note)
+    values (fid, 'request', me.id, me.name, me.role, nullif(trim(coalesce(p_note, p_title)), ''));
+  return fid;
+end; $$;
+grant execute on function public.finding_create(uuid, uuid, text, text, uuid[], text) to authenticated;
 
 -- 5) AI 사용량 (하루/월 상한 집행 + 대시보드 비용 표시) -------------------
 create table if not exists public.ai_usage_daily (

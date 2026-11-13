@@ -567,7 +567,7 @@ tbody tr:hover{background:#f8fafc}
     </section>
 
     <section class="sec" id="s-daily">
-      <div class="head"><div><h2>시공사 일일보고 · AI 검토</h2><div class="desc">시공사가 매일 올린 사진·메모, AI/자동 점검 '검토 필요' 항목과 감리원 처리 기록. AI는 판정하지 않고 감리원 확인이 필요한 것만 표시해요.</div></div><div style="display:flex;gap:8px;align-items:center"><select class="inp" id="dly-range" onchange="renderDaily()" style="width:auto"><option value="7" selected>최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option></select><button class="b line" onclick="renderDaily()">새로고침</button></div></div>
+      <div class="head"><div><h2>시공사 일일보고 · AI 검토</h2><div class="desc">시공사가 매일 올린 사진·메모, AI/자동 점검 '검토 필요' 항목과 감리원 처리 기록. AI는 판정하지 않고 감리원 확인이 필요한 것만 표시해요.</div></div><div style="display:flex;gap:8px;align-items:center"><select class="inp" id="dly-range" onchange="renderDaily()" style="width:auto"><option value="7" selected>최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option><option value="365">최근 1년</option></select><button class="b line" onclick="renderDaily()">새로고침</button></div></div>
       <div id="dlyBody"></div>
     </section>
 
@@ -1275,7 +1275,7 @@ async function renderDaily(){
   const late=f=>f.state==='open'&&(now-new Date(f.created_at).getTime())>DLY_ESCALATE_H*3600*1000;
   open.sort((a,b)=>(late(b)-late(a))||(new Date(a.created_at)-new Date(b.created_at)));
   const ago=t=>{const h=Math.floor((now-new Date(t).getTime())/3600000);return h<24?h+'시간':Math.floor(h/24)+'일';};
-  const openRows=open.map(f=>{const st=DLY_ST[f.state]||[f.state,'gray'];return `<tr style="${late(f)?'background:#fff5f4':''}"><td style="font-weight:700">${esc(aptName(f.apartment_id))}</td><td>${esc(f.title)}<div style="font-size:11px;color:var(--mut);max-width:420px">${esc(f.reason||'')}</div></td><td>${f.source==='rule'?'자동 점검':'AI'}${f.category?' · '+esc(f.category):''}</td><td><span class="pill ${st[1]}">${st[0]}</span></td><td style="white-space:nowrap">${ago(f.created_at)}${late(f)?' <span class="pill red">지연</span>':''}${f.escalated_at?'<div style="font-size:11px;color:var(--red)">관리자 재알림됨</div>':''}</td></tr>`;}).join('');
+  const openRows=open.map(f=>{const st=DLY_ST[f.state]||[f.state,'gray'];return `<tr style="${late(f)?'background:#fff5f4':''}"><td style="font-weight:700">${esc(aptName(f.apartment_id))}</td><td>${esc(f.title)}<div style="font-size:11px;color:var(--mut);max-width:420px">${esc(f.reason||'')}</div></td><td>${f.source==='rule'?'자동 점검':f.source==='manual'?'직접 요청':'AI'}${f.category?' · '+esc(f.category):''}</td><td><span class="pill ${st[1]}">${st[0]}</span></td><td style="white-space:nowrap">${ago(f.created_at)}${late(f)?' <span class="pill red">지연</span>':''}${f.escalated_at?'<div style="font-size:11px;color:var(--red)">관리자 재알림됨</div>':''}</td></tr>`;}).join('');
   // ③ 정확도 (AI 항목, 종결 기준)
   const aiClosed=DLY.fs.filter(f=>f.source==='ai'&&['rechecked','false_alarm'].includes(f.state));
   const fa=aiClosed.filter(f=>f.state==='false_alarm').length;
@@ -1298,11 +1298,8 @@ async function renderDaily(){
     ${tile('이번 달 AI 비용','약 '+Math.round(mCost*DLY_KRW).toLocaleString()+'원',`$${mCost.toFixed(2)} / 예산 $${DLY_MONTHLY_USD} (${pct}%) · 오늘 ${sum(usedToday,'photos')}장 분석`)}
     ${tile('이번 달 사진 용량',mb(monBytes),`${DLY.ph.length}장 (썸네일 제외)`)}
   </div>
-  <div class="card"><h3>현장별 시공사 사진 <span class="r">사진을 누르면 크게 보기 · 날짜별/전체 내려받기</span></h3>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-      <select class="inp" id="dly-gal-apt" style="width:auto;min-width:220px" onchange="dlyGallery()">${dlySiteOptions()}</select>
-      <button class="b line" id="dly-gal-all" onclick="dlyZipAll(this)">⬇ 이 기간 사진 전체 (zip)</button>
-    </div>
+  <div class="card"><h3>현장별 시공사 사진 <span class="r">필터·날짜로 좁혀 보고, 묶음별로 펼쳐 보기 · 사진 클릭 = 원본</span></h3>
+    <div style="margin-bottom:10px"><select class="inp" id="dly-gal-apt" style="width:auto;min-width:260px;font-weight:700" onchange="dlyGallery(true)">${dlySiteOptions()}</select></div>
     <div id="dlyGal"><div class="empty">현장을 고르세요</div></div></div>
   <div class="card"><h3>처리 대기 항목 <span class="r">감리원이 앱에서 확인 → 통보 → 재확인 / 오경보로 처리</span></h3>
     ${open.length?`<table><thead><tr><th>현장</th><th>항목</th><th>출처</th><th>상태</th><th>경과</th></tr></thead><tbody>${openRows}</tbody></table>`:'<div class="empty">처리 대기 항목이 없어요 👍</div>'}</div>
@@ -1322,40 +1319,112 @@ async function renderDaily(){
   const c=$('c-daily'); const n=DLY.fs.filter(f=>['open','replied'].includes(f.state)).length; if(c){c.textContent=n;c.style.display=n?'':'none';}
   dlyGallery();
 }
-// 현장 선택 목록: 시공사가 배정됐거나 기간 내 보고가 있는 현장 (보고 많은 순)
+// ── 현장별 시공사 사진: 양이 많아도 보기 쉽게 (필터 · 날짜 띠 · 접기/펼치기 · 필요할 때만 사진 로드 · 더 보기) ──
+const DG={apt:null,type:'',q:'',issues:false,mode:'date',day:null,open:new Set(),pages:10,ph:[],U:{},more:new Set()};
+const WK='일월화수목금토';
 function dlySiteOptions(){
   const ids=[...new Set([...(DLY.reps||[]).map(r=>r.apartment_id),...(DLY.ac||[]).map(x=>x.apartment_id)])];
   const n=id=>(DLY.reps||[]).filter(r=>r.apartment_id===id).length;
   ids.sort((a,b)=>n(b)-n(a)||aptName(a).localeCompare(aptName(b)));
-  const cur=DLY.galApt&&ids.includes(DLY.galApt)?DLY.galApt:ids[0];
-  DLY.galApt=cur||null;
-  return ids.length?ids.map(id=>`<option value="${id}" ${id===cur?'selected':''}>${esc(aptName(id))} (보고 ${n(id)}건)</option>`).join(''):'<option value="">시공사 현장 없음</option>';
+  if(!DG.apt||!ids.includes(DG.apt))DG.apt=ids[0]||null;
+  return ids.length?ids.map(id=>`<option value="${id}" ${id===DG.apt?'selected':''}>${esc(aptName(id))} (보고 ${n(id)}건)</option>`).join(''):'<option value="">시공사 현장 없음</option>';
 }
-async function dlyGallery(){
+function dgReps(){ return (DLY.reps||[]).filter(r=>r.apartment_id===DG.apt); }
+function dgPhotos(rid){ return DG.ph.filter(p=>p.report_id===rid); }
+function dgIssues(r){
+  const fs=(DLY.fs||[]).filter(f=>f.report_id===r.id&&!['rechecked','false_alarm'].includes(f.state)).length;
+  const miss=(r.required_missing||[]).length, stale=dgPhotos(r.id).filter(p=>p.stale_flag).length;
+  return {fs,miss,stale,any:!!(fs||miss||stale)};
+}
+function dgFiltered(){
+  const q=DG.q.trim().toLowerCase();
+  return dgReps().filter(r=>(!DG.type||r.worktype===DG.type)&&(!q||String(r.location||'').toLowerCase().includes(q)||String(r.memo||'').toLowerCase().includes(q))&&(!DG.issues||dgIssues(r).any)&&(!DG.day||r.work_date===DG.day));
+}
+async function dlyGallery(siteChanged){
   const box=$('dlyGal'); if(!box)return;
-  const sel=$('dly-gal-apt'); const apt=(sel&&sel.value)||DLY.galApt; DLY.galApt=apt;
-  if(!apt){ box.innerHTML='<div class="empty">시공사가 배정된 현장이 없어요</div>'; return; }
-  box.innerHTML='<div class="empty">사진 불러오는 중…</div>';
-  const reps=(DLY.reps||[]).filter(r=>r.apartment_id===apt);
-  if(!reps.length){ box.innerHTML='<div class="empty">이 기간에 올라온 일일보고가 없어요</div>'; DLY.galItems=[]; return; }
-  const {data:ph,error}=await sb.from('daily_photos').select('*').in('report_id',reps.map(r=>r.id)).order('created_at');
-  if(error){ box.innerHTML='<div class="empty" style="color:var(--red)">사진을 불러오지 못했어요: '+esc(error.message)+'</div>'; return; }
-  const paths=[]; (ph||[]).forEach(p=>{ paths.push(p.path); if(p.thumb_path)paths.push(p.thumb_path); });
-  const U={}; for(let i=0;i<paths.length;i+=100){ const {data}=await sb.storage.from('daily-photos').createSignedUrls(paths.slice(i,i+100),3600); (data||[]).forEach(x=>{ if(x&&x.signedUrl)U[x.path]=x.signedUrl; }); }
-  const by={}; (ph||[]).forEach(p=>{(by[p.report_id]=by[p.report_id]||[]).push(p);});
-  const safe=t=>String(t||'').replace(/[\\/:*?"<>|\s]+/g,'_').slice(0,40);
-  DLY.galItems=[]; DLY.galBy={};
-  box.innerHTML=reps.map(r=>{
-    const ps=by[r.id]||[], miss=r.required_missing||[];
-    const items=ps.map((p,i)=>({url:U[p.path],name:r.work_date+'_'+safe(r.worktype)+'_'+String(i+1).padStart(2,'0')+'_'+safe(p.shot_label||'사진')+'.jpg'}));
-    DLY.galBy[r.id]=items; DLY.galItems.push(...items);
-    return `<div style="border-top:1px solid var(--line);padding:12px 0">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>${esc(r.work_date)}</b><span>${esc(r.worktype||'')}${r.location?' · '+esc(r.location):''}</span><span style="color:var(--mut);font-size:12px">${esc(r.author_name||'시공사')} · 사진 ${ps.length}장</span>${miss.length?`<span class="pill red">필수 누락 ${miss.length}</span>`:''}<span style="flex:1"></span>${ps.length?`<button class="b line sm" onclick="dlyZipReport('${r.id}',this)">⬇ 이 날 사진</button>`:''}</div>
-      ${ps.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px">${ps.map((p,i)=>`<a href="${U[p.path]||'#'}" target="_blank" rel="noopener" title="${esc(p.shot_label||'')}${p.exif_taken_at?' · 촬영 '+esc(String(p.exif_taken_at).slice(0,16).replace('T',' ')):''}" style="position:relative;display:block;width:104px;height:104px;border-radius:9px;overflow:hidden;background:#eef1f7 url('${U[p.thumb_path||p.path]||''}') center/cover">${p.stale_flag?'<span style="position:absolute;left:4px;bottom:4px;background:#e4544b;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:4px">촬영일 다름</span>':''}<span style="position:absolute;left:0;right:0;top:0;background:linear-gradient(rgba(0,0,0,.45),transparent);color:#fff;font-size:10px;font-weight:700;padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.shot_label||'추가 사진')}</span></a>`).join('')}</div>`:'<div style="color:var(--mut);font-size:12px;margin-top:6px">사진 없음</div>'}
-      ${r.memo?`<div style="font-size:12.5px;color:var(--mut2);margin-top:7px">“${esc(r.memo)}”</div>`:''}
-    </div>`;
-  }).join('');
+  const sel=$('dly-gal-apt'); if(sel&&sel.value&&sel.value!==DG.apt){ DG.apt=sel.value; siteChanged=true; }
+  if(!DG.apt){ box.innerHTML='<div class="empty">시공사가 배정된 현장이 없어요</div>'; return; }
+  if(siteChanged||!DG.loadedFor||DG.loadedFor!==DG.apt+'|'+(DLY.reps||[]).length){
+    DG.type='';DG.q='';DG.day=null;DG.issues=false;DG.open=new Set();DG.pages=10;DG.more=new Set();
+    box.innerHTML='<div class="empty">불러오는 중…</div>';
+    const ids=dgReps().map(r=>r.id); DG.ph=[];
+    for(let i=0;i<ids.length;i+=150){ const {data,error}=await sb.from('daily_photos').select('id,report_id,path,thumb_path,shot_label,stale_flag,exif_taken_at').in('report_id',ids.slice(i,i+150)).order('created_at'); if(error){ box.innerHTML='<div class="empty" style="color:var(--red)">사진 정보를 불러오지 못했어요: '+esc(error.message)+'</div>'; return; } DG.ph.push(...(data||[])); }
+    DG.loadedFor=DG.apt+'|'+(DLY.reps||[]).length;
+  }
+  dgRender();
 }
+function dgGroups(list){
+  const g={}; list.forEach(r=>{ const k=DG.mode==='type'?(r.worktype||'공종 미기재'):r.work_date; (g[k]=g[k]||[]).push(r); });
+  const keys=Object.keys(g); if(DG.mode==='type')keys.sort((a,b)=>g[b].length-g[a].length); else keys.sort().reverse();
+  return keys.map(k=>({k,reps:g[k]}));
+}
+function dgDayLabel(d){ const t=new Date(d+'T00:00:00'); return d.slice(5).replace('-','.')+' ('+WK[t.getDay()]+')'; }
+function dgRender(){
+  const box=$('dlyGal'); const all=dgReps(), list=dgFiltered();
+  const types=[...new Set(all.map(r=>r.worktype).filter(Boolean))];
+  const nPh=rs=>rs.reduce((s,r)=>s+dgPhotos(r.id).length,0);
+  // 날짜 띠: 기간 내 보고 있는 날 (문제 있으면 빨간 점)
+  const days={}; all.forEach(r=>{ const d=days[r.work_date]=days[r.work_date]||{n:0,p:0,bad:false}; d.n++; d.p+=dgPhotos(r.id).length; if(dgIssues(r).any)d.bad=true; });
+  const strip=Object.keys(days).sort().reverse().map(d=>`<span onclick="dgDay('${d}')" style="cursor:pointer;flex-shrink:0;border:1px solid ${DG.day===d?'var(--blue)':'var(--line)'};background:${DG.day===d?'var(--blue-soft)':'#fff'};border-radius:10px;padding:6px 10px;font-size:12px;line-height:1.35;text-align:center"><b style="color:${DG.day===d?'var(--blue)':'var(--ink)'}">${dgDayLabel(d)}</b>${days[d].bad?' <span style="color:var(--red)">●</span>':''}<br><span style="color:var(--mut);font-size:11px">${days[d].n}건 · ${days[d].p}장</span></span>`).join('');
+  const groups=dgGroups(list);
+  if(!DG.open.size&&groups.length){ groups.slice(0,2).forEach(x=>DG.open.add(x.k)); }
+  const shown=groups.slice(0,DG.pages);
+  box.innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <select class="inp" style="width:auto" onchange="DG.type=this.value;DG.open=new Set();DG.pages=10;dgRender()"><option value="">전체 공종</option>${types.map(t=>`<option ${t===DG.type?'selected':''}>${esc(t)}</option>`).join('')}</select>
+      <input class="inp" placeholder="동·부위·메모 검색" value="${esc(DG.q)}" oninput="DG.q=this.value;clearTimeout(DG._t);DG._t=setTimeout(()=>{DG.open=new Set();DG.pages=10;DG._fq=true;dgRender();},350)" id="dg-q" style="width:180px">
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:var(--mut2);cursor:pointer"><input type="checkbox" ${DG.issues?'checked':''} onchange="DG.issues=this.checked;DG.open=new Set();DG.pages=10;dgRender()"> 문제 있는 보고만</label>
+      <span style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-left:4px">${[['date','날짜별'],['type','공종별']].map(([k,l])=>`<span onclick="DG.mode='${k}';DG.open=new Set();DG.pages=10;dgRender()" style="cursor:pointer;padding:7px 12px;font-size:12px;font-weight:800;${DG.mode===k?'background:var(--blue);color:#fff':'color:var(--mut2)'}">${l}</span>`).join('')}</span>
+      <span style="flex:1"></span>
+      <button class="b line sm" onclick="dgOpenAll(true)">모두 펼치기</button><button class="b line sm" onclick="dgOpenAll(false)">모두 접기</button>
+      <button class="b blue sm" onclick="dlyReqModal(null)">＋ 시공사에 요청</button>
+    </div>
+    ${strip?`<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px">${strip}</div>`:''}
+    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mut2);margin-bottom:6px"><span>보고 <b>${list.length}</b>건 · 사진 <b>${nPh(list)}</b>장${list.length!==all.length?` <span style="color:var(--mut)">(전체 ${all.length}건 중)</span>`:''}${DG.day?` · <span class="link" onclick="dgDay('${DG.day}')">${dgDayLabel(DG.day)} 선택 해제</span>`:''}</span><span style="flex:1"></span>${list.length?`<button class="b line sm" onclick="dgZipList(this)">⬇ 보이는 사진 전체 (zip)</button>`:''}</div>
+    ${groups.length?shown.map(dgGroupHtml).join(''):'<div class="empty">조건에 맞는 보고가 없어요</div>'}
+    ${groups.length>DG.pages?`<div style="text-align:center;margin-top:10px"><button class="b line" onclick="DG.pages+=10;dgRender()">더 보기 (남은 ${groups.length-DG.pages}${DG.mode==='type'?'개 공종':'일'})</button></div>`:''}`;
+  if(DG._fq){ DG._fq=false; const q=$('dg-q'); if(q){ q.focus(); const n=q.value.length; try{q.setSelectionRange(n,n);}catch(e){} } }
+  dgSignOpen();
+}
+function dgGroupHtml(g){
+  const open=DG.open.has(g.k), ph=g.reps.reduce((s,r)=>s+dgPhotos(r.id).length,0), bad=g.reps.filter(r=>dgIssues(r).any).length;
+  const title=DG.mode==='type'?esc(g.k):dgDayLabel(g.k);
+  return `<div style="border:1px solid var(--line);border-radius:10px;margin-top:8px;overflow:hidden">
+    <div onclick="dgToggle('${esc(g.k).replace(/'/g,'')}')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;background:${open?'var(--soft,#f6f8fb)':'#fff'}">
+      <span style="color:var(--mut);width:12px">${open?'▾':'▸'}</span><b>${title}</b><span style="color:var(--mut);font-size:12px">보고 ${g.reps.length}건 · 사진 ${ph}장</span>${bad?`<span class="pill red">확인 필요 ${bad}</span>`:''}
+      <span style="flex:1"></span><button class="b line sm" onclick="event.stopPropagation();dgZipGroup('${esc(g.k).replace(/'/g,'')}',this)">⬇ zip</button>
+    </div>
+    ${open?`<div style="padding:4px 12px 10px">${g.reps.map(dgRepHtml).join('')}</div>`:''}
+  </div>`;
+}
+function dgRepHtml(r){
+  const ps=dgPhotos(r.id), iss=dgIssues(r), more=DG.more.has(r.id), LIM=12, vis=more?ps:ps.slice(0,LIM);
+  return `<div style="border-top:1px dashed var(--line);padding:10px 0">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px">${DG.mode==='type'?`<b>${dgDayLabel(r.work_date)}</b>`:`<b>${esc(r.worktype||'공종 미기재')}</b>`}<span>${esc(r.location||'')}</span><span style="color:var(--mut);font-size:12px">${esc(r.author_name||'시공사')} · ${ps.length}장</span>
+      ${iss.miss?`<span class="pill red">필수 누락 ${iss.miss}</span>`:''}${iss.stale?`<span class="pill no">촬영일 다름 ${iss.stale}</span>`:''}${iss.fs?`<span class="pill violet">처리 중 ${iss.fs}</span>`:''}
+      <span style="flex:1"></span><button class="b line sm" onclick="dlyReqModal('${r.id}')">＋ 요청</button>${ps.length?`<button class="b line sm" onclick="dgZipRep('${r.id}',this)">⬇</button>`:''}</div>
+    ${ps.length?`<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">${vis.map(p=>`<a href="#" onclick="dgOpen('${p.id}');return false" data-dgp="${p.id}" title="${esc(p.shot_label||'')}${p.exif_taken_at?' · 촬영 '+esc(String(p.exif_taken_at).slice(0,16).replace('T',' ')):''}" style="position:relative;display:block;width:96px;height:96px;border-radius:8px;overflow:hidden;background:#eef1f7 center/cover"><span style="position:absolute;left:0;right:0;top:0;background:linear-gradient(rgba(0,0,0,.45),transparent);color:#fff;font-size:10px;font-weight:700;padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.shot_label||'추가 사진')}</span>${p.stale_flag?'<span style="position:absolute;left:4px;bottom:4px;background:#e4544b;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:4px">촬영일 다름</span>':''}</a>`).join('')}${ps.length>LIM&&!more?`<span onclick="DG.more.add('${r.id}');dgRender()" style="cursor:pointer;width:96px;height:96px;border-radius:8px;background:var(--soft,#f4f6fa);border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--blue)">+${ps.length-LIM}장</span>`:''}</div>`:''}
+    ${r.memo?`<div style="font-size:12.5px;color:var(--mut2);margin-top:6px">“${esc(r.memo)}”</div>`:''}
+  </div>`;
+}
+// 펼쳐진 묶음의 썸네일만 서명 URL 발급 (사진이 많아도 빠르게)
+async function dgSignOpen(){
+  const els=[...document.querySelectorAll('[data-dgp]')]; const need=[];
+  els.forEach(e=>{ const p=DG.ph.find(x=>x.id===e.dataset.dgp); if(p){ const k=p.thumb_path||p.path; if(!DG.U[k])need.push(k); } });
+  for(let i=0;i<need.length;i+=100){ const {data}=await sb.storage.from('daily-photos').createSignedUrls(need.slice(i,i+100),3600); (data||[]).forEach(x=>{ if(x&&x.signedUrl)DG.U[x.path]=x.signedUrl; }); }
+  els.forEach(e=>{ const p=DG.ph.find(x=>x.id===e.dataset.dgp); const u=p&&DG.U[p.thumb_path||p.path]; if(u)e.style.backgroundImage=`url('${u}')`; });
+}
+async function dgSign(paths){ const need=paths.filter(p=>p&&!DG.U[p]); for(let i=0;i<need.length;i+=100){ const {data}=await sb.storage.from('daily-photos').createSignedUrls(need.slice(i,i+100),3600); (data||[]).forEach(x=>{ if(x&&x.signedUrl)DG.U[x.path]=x.signedUrl; }); } }
+async function dgOpen(pid){ const p=DG.ph.find(x=>x.id===pid); if(!p)return; await dgSign([p.path]); if(DG.U[p.path])window.open(DG.U[p.path],'_blank','noopener'); }
+function dgToggle(k){ const key=[...dgGroups(dgFiltered()).map(x=>x.k)].find(x=>x.replace(/'/g,'')===k)||k; if(DG.open.has(key))DG.open.delete(key); else DG.open.add(key); dgRender(); }
+function dgOpenAll(on){ DG.open=new Set(on?dgGroups(dgFiltered()).slice(0,DG.pages).map(x=>x.k):['__none__']); dgRender(); }
+function dgDay(d){ DG.day=DG.day===d?null:d; DG.open=new Set(); DG.pages=10; dgRender(); }
+const dgSafe=t=>String(t||'').replace(/[\\/:*?"<>|\s]+/g,'_').slice(0,40);
+function dgItems(reps){ const out=[]; reps.forEach(r=>dgPhotos(r.id).forEach((p,i)=>out.push({path:p.path,name:r.work_date+'_'+dgSafe(r.worktype)+'_'+String(i+1).padStart(2,'0')+'_'+dgSafe(p.shot_label||'사진')+'.jpg'}))); return out; }
+async function dgZip(reps,label,btn){ const items=dgItems(reps); if(items.length>300&&!confirm('사진 '+items.length+'장을 받을까요? 시간이 걸려요.'))return; await dgSign(items.map(x=>x.path)); dlyZipNamed(items.map(x=>({url:DG.U[x.path],name:x.name})),aptName(DG.apt)+'_'+label,btn); }
+function dgZipRep(rid,btn){ const r=dgReps().find(x=>x.id===rid); if(r)dgZip([r],r.work_date+'_'+dgSafe(r.worktype),btn); }
+function dgZipGroup(k,btn){ const g=dgGroups(dgFiltered()).find(x=>x.k.replace(/'/g,'')===k); if(g)dgZip(g.reps,dgSafe(k),btn); }
+function dgZipList(btn){ dgZip(dgFiltered(),'시공사사진'+(DG.type?'_'+dgSafe(DG.type):'')+(DG.day?'_'+DG.day:''),btn); }
 async function dlyZipNamed(items,zipName,btn){
   items=(items||[]).filter(x=>x&&x.url); if(!items.length){alert('내려받을 사진이 없어요');return;}
   const t0=btn?btn.textContent:''; if(btn){btn.disabled=true;btn.textContent='준비 중…';}
@@ -1370,10 +1439,30 @@ async function dlyZipNamed(items,zipName,btn){
   }catch(e){ alert('다운로드 오류: '+(e.message||e)); }
   finally{ if(btn){btn.disabled=false;btn.textContent=t0;} }
 }
-function dlyZipReport(rid,btn){ const r=(DLY.reps||[]).find(x=>x.id===rid); dlyZipNamed(DLY.galBy&&DLY.galBy[rid],aptName(DLY.galApt)+'_'+(r?r.work_date:'')+'_시공사사진',btn); }
-function dlyZipAll(btn){ dlyZipNamed(DLY.galItems,aptName(DLY.galApt)+'_시공사사진_최근'+((($('dly-range')||{}).value)||7)+'일',btn); }
+// 사람이 직접 요청 (관리자): 보고를 지정하면 사진을 골라 붙일 수 있음
+async function dlyReqModal(rid){
+  if(!DG.apt){alert('현장을 먼저 고르세요');return;}
+  const r=rid?dgReps().find(x=>x.id===rid):null, ps=r?dgPhotos(r.id):[];
+  if(ps.length) await dgSign(ps.map(p=>p.thumb_path||p.path));
+  openModal(mHead('📨 시공사에 요청 — '+esc(aptName(DG.apt)))+`
+    ${r?`<div style="font-size:12.5px;color:var(--mut2);margin-bottom:8px">${esc(r.work_date)} · ${esc(r.worktype||'')} ${esc(r.location||'')}</div>`:'<div style="font-size:12.5px;color:var(--mut2);margin-bottom:8px">특정 보고와 상관없이 이 현장 시공사에게 보내는 요청이에요.</div>'}
+    <div class="frow"><div class="fld"><label>분류</label><select id="rq-cat"><option>안전</option><option>공정·품질</option><option>기록</option><option>기타</option></select></div><div class="fld" style="flex:2"><label>요청 제목 *</label><input id="rq-title" placeholder="예: 103동 하부 통제 사진 보내주세요"></div></div>
+    <div class="fld"><label>요청 내용</label><textarea id="rq-note" rows="3" placeholder="예: 달비계 작업 구간 하부 출입통제(바리케이드) 설치 사진을 회신해 주세요."></textarea></div>
+    ${ps.length?`<div class="fld"><label>근거 사진 선택 (선택)</label><div style="display:flex;gap:7px;flex-wrap:wrap">${ps.map(p=>`<label style="position:relative;width:84px;height:84px;border-radius:8px;overflow:hidden;background:#eef1f7 url('${DG.U[p.thumb_path||p.path]||''}') center/cover;cursor:pointer"><input type="checkbox" class="rq-ph" value="${p.id}" style="position:absolute;top:5px;left:5px;width:18px;height:18px"></label>`).join('')}</div></div>`:''}
+    <div class="mmsg" id="m-msg"></div>
+    <div class="modal-actions"><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="dlyReqSubmit(${r?`'${r.id}'`:'null'})">요청 보내기</button></div>`);
+}
+async function dlyReqSubmit(rid){
+  const title=($('rq-title').value||'').trim(); if(!title){ $('m-msg').textContent='요청 제목을 입력해 주세요'; $('m-msg').style.color='var(--red)'; return; }
+  const photos=[...document.querySelectorAll('.rq-ph:checked')].map(x=>x.value);
+  const {error}=await sb.rpc('finding_create',{p_apt:DG.apt,p_report:rid||null,p_title:title,p_note:($('rq-note').value||'').trim()||null,p_photo_ids:photos,p_category:$('rq-cat').value});
+  if(error){ $('m-msg').textContent=/function|does not exist/i.test(error.message)?'요청 기능 준비 전이에요 — 최신 migration-daily-reports.sql 을 실행하세요.':'요청 실패: '+error.message; $('m-msg').style.color='var(--red)'; return; }
+  closeModal(); alert('시공사에게 요청을 보냈어요. (시공사 앱 「감리 요청」에 표시 · 푸시 알림)'); renderDaily();
+}
+function dlyZipAll(btn){ dgZipList(btn); }
 function dlyAptFilter(){ const q=((($('dly-apt-q')||{}).value)||'').trim().toLowerCase(); document.querySelectorAll('#dly-apt-box label').forEach(l=>{ l.style.display=!q||l.dataset.nm.includes(q)?'flex':'none'; }); }
-window.dlyGallery=dlyGallery; window.dlyZipReport=dlyZipReport; window.dlyZipAll=dlyZipAll; window.dlyAptFilter=dlyAptFilter;
+Object.assign(window,{dlyGallery,dgRender,dgToggle,dgOpenAll,dgDay,dgOpen,dgZipRep,dgZipGroup,dgZipList,dlyReqModal,dlyReqSubmit,dlyZipAll,dlyAptFilter,DG});
+
 async function dlyAssign(btn){
   const cid=($('dly-con')||{}).value; if(!cid)return alert('① 시공사 회원을 선택하세요');
   const ids=[...document.querySelectorAll('.dly-apt-ck:checked')].map(x=>x.value);

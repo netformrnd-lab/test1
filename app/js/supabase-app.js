@@ -3052,7 +3052,7 @@ function wirePhotoZoom (ov) {
   const close = () => { ov.style.display = 'none' }
   const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
   ov.addEventListener('touchstart', (e) => {
-    if (e.target.id === 'pz-close') { close(); return }
+    if (e.target.closest && e.target.closest('[data-pz-close]')) { e.preventDefault(); close(); return }
     setT(false)
     if (e.touches.length === 2) start = { mode: 'pinch', d0: dist(e.touches), s0: scale }
     else if (e.touches.length === 1) start = { mode: 'pan', x0: e.touches[0].clientX, y0: e.touches[0].clientY, tx0: tx, ty0: ty, moved: false }
@@ -3079,7 +3079,7 @@ function wirePhotoZoom (ov) {
     start = null
   })
   ov.addEventListener('wheel', (e) => { e.preventDefault(); scale = Math.max(MIN, Math.min(MAX, scale * (e.deltaY < 0 ? 1.12 : 0.89))); if (scale <= 1.02) { tx = 0; ty = 0 } apply() }, { passive: false })
-  ov.addEventListener('click', (e) => { if (Date.now() - lastTouchTs < 600) return; if (e.target.id === 'pz-close' || (e.target === ov && scale <= 1.03)) close() })
+  ov.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('[data-pz-close]')) { close(); return } if (Date.now() - lastTouchTs < 600) return; if (e.target === ov && scale <= 1.03) close() })
   // 닫기(✕) 버튼 확실히 동작하도록 직접 연결 (데스크톱 클릭·모바일 탭 모두)
   const cbtn = ov.querySelector('#pz-close')
   if (cbtn) {
@@ -3095,8 +3095,10 @@ window.zoomPhoto = function (url) {
     ov = document.createElement('div'); ov.id = 'photo-zoom'
     ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(8,12,24,.94);display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none'
     ov.innerHTML = '<img id="pz-img" alt="" style="max-width:100%;max-height:100%;object-fit:contain;transform-origin:center center;will-change:transform;-webkit-user-select:none;user-select:none;-webkit-user-drag:none">' +
-      '<span id="pz-close" style="position:absolute;top:14px;right:16px;color:#fff;font-size:26px;font-weight:300;cursor:pointer;z-index:2;padding:4px 8px">✕</span>' +
-      '<div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#c3cee6;font-size:11px;font-weight:600;pointer-events:none">손가락으로 확대 · 두 번 탭 · 밀어서 이동</div>'
+      '<span id="pz-close" data-pz-close="1" style="position:absolute;top:calc(env(safe-area-inset-top, 0px) + 4px);right:4px;width:68px;height:68px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5;-webkit-tap-highlight-color:transparent"><span style="width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:22px;line-height:46px;text-align:center;pointer-events:none">✕</span></span>' +
+      '<div style="position:absolute;bottom:calc(env(safe-area-inset-bottom, 0px) + 18px);left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:9px;z-index:5;pointer-events:none">' +
+        '<span data-pz-close="1" style="pointer-events:auto;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:14px;font-weight:800;padding:12px 34px;border-radius:99px;-webkit-tap-highlight-color:transparent">닫기</span>' +
+        '<span style="color:#c3cee6;font-size:11px;font-weight:600">손가락으로 확대 · 두 번 탭 · 밀어서 이동</span></div>'
     document.body.appendChild(ov)
     wirePhotoZoom(ov)
   }
@@ -3498,6 +3500,7 @@ else document.addEventListener('DOMContentLoaded', boot)
     A.addListener('backButton', function () {
       // 미리보기 오버레이가 떠 있으면 먼저 닫기
       try { if (closeManagerPreview()) return } catch (e) {}
+      try { const pz = document.getElementById('photo-zoom'); if (pz && pz.style.display !== 'none') { pz.style.display = 'none'; return } } catch (e) {}
       const onHome = HOME.indexOf(NAV_CUR) !== -1 || NAV_HIST.length === 0
       if (!onHome) { try { window.goBack() } catch (e) {} return }
       // 홈: 한 번 더(2초 내) 눌러야 종료

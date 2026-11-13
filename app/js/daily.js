@@ -154,7 +154,7 @@
         </div>
         <div style="display:flex;gap:7px;margin-top:10px">
           <div onclick="openDailyWrite('${s.id}')" style="flex:1;cursor:pointer;text-align:center;background:#1F2C5C;color:#fff;padding:10px 0;border-radius:10px;font-size:12px;font-weight:800">📸 ${t ? '추가 보고' : '일일보고 올리기'}</div>
-          <div onclick="openDailyRequests('${s.id}')" style="flex:.8;cursor:pointer;text-align:center;background:${q ? '#fdecea' : '#f2f5fa'};color:${q ? '#c0392b' : '#5a6480'};padding:10px 0;border-radius:10px;font-size:12px;font-weight:800">📨 요청${q ? ' ' + q : ''}</div>
+          <div onclick="openDailyRequests('${s.id}')" style="flex:.8;cursor:pointer;text-align:center;background:${q ? '#fdecea' : '#f2f5fa'};color:${q ? '#c0392b' : '#5a6480'};padding:10px 0;border-radius:10px;font-size:12px;font-weight:800">📨 감리 요청${q ? ' ' + q : ''}</div>
         </div></div>`
     }).join('')
     if (rec) rec.innerHTML = (mine || []).length ? mine.map(recentRow).join('') : '<div style="color:#8b95ad;font-size:12px;padding:4px 2px">아직 올린 보고가 없어요.</div>'

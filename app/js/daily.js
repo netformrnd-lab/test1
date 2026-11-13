@@ -89,44 +89,139 @@
   // ============================================================
   const DC = { sites: [], site: null, shots: {}, extras: [], busy: false }
   window.loadContractorHome = async function () {
-    const box = $d('dc-sites'), rec = $d('dc-recent'); if (!box) return
-    const hi = $d('dc-hello'); if (hi && typeof MY_NAME !== 'undefined' && MY_NAME) hi.textContent = MY_NAME + '님, 오늘 작업 사진을 올려 주세요. 30초면 끝나요.'
+    const box = $d('dc-sites'), rec = $d('dc-recent'), hero = $d('dc-hero'), alertBox = $d('dc-alert'); if (!box) return
+    const hi = $d('dc-hello')
     box.innerHTML = '<div style="padding:14px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
-    const { data, error } = await sb.from('apartment_contractors').select('apartment_id, apartments(id,name,method)').eq('contractor_id', MY_ID)
-    if (error) { box.innerHTML = `<div style="padding:16px;color:#8b95ad;font-size:12px;line-height:1.7">${E(missingTableMsg(error))}</div>`; return }
+    const { data, error } = await sb.from('apartment_contractors').select('apartment_id, apartments(id,name,method,region,progress_current,progress_total)').eq('contractor_id', MY_ID)
+    if (error) { box.innerHTML = `<div style="padding:16px;color:#8b95ad;font-size:12px;line-height:1.7">${E(missingTableMsg(error))}</div>`; if (hi) hi.textContent = ''; return }
     DC.sites = (data || []).map(r => r.apartments).filter(Boolean)
+    const who = (typeof MY_NAME !== 'undefined' && MY_NAME) ? MY_NAME + '님' : '현장소장님'
     if (!DC.sites.length) {
-      box.innerHTML = '<div style="background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:22px 14px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.7">아직 배정된 현장이 없어요.<br>아파트스퀘어 관리자가 현장을 배정하면 여기에 보여요.</div>'
+      if (hi) hi.textContent = who + ', 환영합니다'
+      if (hero) hero.innerHTML = ''
+      if (alertBox) alertBox.innerHTML = ''
+      box.innerHTML = '<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:24px 14px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600;line-height:1.75"><div style="font-size:28px;margin-bottom:6px">🏗️</div>아직 배정된 현장이 없어요.<br>아파트스퀘어에서 현장을 배정하면 여기에 보여요.</div>'
       if (rec) rec.innerHTML = ''
+      setReqBadge(0)
       return
     }
     const ids = DC.sites.map(s => s.id), today = kstToday()
     const [{ data: todays }, { data: reqs }, { data: mine }] = await Promise.all([
       sb.from('daily_reports').select('id,apartment_id').in('apartment_id', ids).eq('work_date', today).eq('author_id', MY_ID),
-      sb.from('ai_findings').select('id,apartment_id').in('apartment_id', ids).eq('state', 'requested'),
-      sb.from('daily_reports').select('id,apartment_id,work_date,worktype,location,required_missing,created_at').eq('author_id', MY_ID).order('created_at', { ascending: false }).limit(10)
+      sb.from('ai_findings').select('id,apartment_id,title').in('apartment_id', ids).eq('state', 'requested'),
+      sb.from('daily_reports').select('id,apartment_id,work_date,worktype,location,required_missing,created_at').eq('author_id', MY_ID).order('created_at', { ascending: false }).limit(5)
     ])
     const cnt = (rows, id) => (rows || []).filter(r => r.apartment_id === id).length
+    const doneSites = DC.sites.filter(s => cnt(todays, s.id)).length
+    const reqN = (reqs || []).length
+    setReqBadge(reqN)
+    if (hi) hi.textContent = who + ', 오늘 작업 사진을 올려 주세요 · 현장 ' + DC.sites.length + '곳'
+    // 상단 요약 카드
+    const d = new Date(Date.now() + 9 * 3600 * 1000), wk = '일월화수목금토'[d.getUTCDay()]
+    const allDone = doneSites === DC.sites.length
+    if (hero) hero.innerHTML = `<div style="background:linear-gradient(150deg,#243768,#1F2C5C);border-radius:14px;padding:14px 15px;color:#fff;position:relative;overflow:hidden;box-shadow:0 10px 22px -14px rgba(31,44,92,.9)">
+        <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(127,161,224,.35),transparent 65%)"></div>
+        <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
+          <div><div style="font-size:10.5px;color:#c3cee6;font-weight:700">${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 (${wk}) 오늘 보고</div>
+            <div style="font-size:21px;font-weight:800;margin-top:4px">${doneSites}<span style="font-size:13px;color:#c3cee6"> / ${DC.sites.length}곳 완료</span></div>
+            <div style="font-size:10.5px;color:#c3cee6;font-weight:600;margin-top:3px">${allDone ? '오늘 보고를 모두 올렸어요 👍' : '필수 사진만 찍어서 올리면 30초면 끝나요'}</div></div>
+          ${allDone ? '' : `<div data-ctab="write" style="cursor:pointer;flex-shrink:0;background:#fff;color:#1F2C5C;font-size:12px;font-weight:800;padding:9px 13px;border-radius:10px">📸 보고하기</div>`}
+        </div>
+        <div style="position:relative;height:5px;border-radius:9px;background:rgba(255,255,255,.18);margin-top:11px;overflow:hidden"><div style="width:${Math.round(doneSites / DC.sites.length * 100)}%;height:100%;background:#7fd1a8;border-radius:9px"></div></div>
+      </div>`
+    if (alertBox) alertBox.innerHTML = reqN ? `<div data-ctab="req" style="cursor:pointer;margin-top:12px;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #f3c4bf;border-radius:13px;padding:11px 13px">
+        <div style="width:34px;height:34px;border-radius:10px;background:#fdecea;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📨</div>
+        <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#c0392b">감리원 요청 ${reqN}건 · 회신이 필요해요</div><div style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${E((reqs[0] || {}).title || '')}${reqN > 1 ? ' 외 ' + (reqN - 1) + '건' : ''}</div></div>
+        <span style="font-size:18px;color:#c3ccdb">›</span></div>` : ''
+    // 현장 카드 (감리원 '담당 단지' 카드와 같은 모양)
     box.innerHTML = DC.sites.map(s => {
       const t = cnt(todays, s.id), q = cnt(reqs, s.id)
-      return `<div style="background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:14px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
-        <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:14.5px;font-weight:800;color:#1c2440">${E(s.name)}</div><span style="font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;${t ? 'background:#e7f7ef;color:#1f8a5b' : 'background:#fff3d9;color:#b26a00'}">${t ? '오늘 ' + t + '건 제출' : '오늘 미제출'}</span></div>
-        <div style="font-size:11px;color:#8b95ad;font-weight:600;margin-top:3px">${E((window.methodLabel && window.methodLabel(s.method)) || '공법 미등록')}</div>
-        <div style="display:flex;gap:8px;margin-top:11px">
-          <div onclick="openDailyWrite('${s.id}')" style="flex:1;cursor:pointer;text-align:center;background:#1F2C5C;color:#fff;padding:11px 0;border-radius:11px;font-size:12.5px;font-weight:800">📸 오늘 일일보고</div>
-          <div onclick="openDailyRequests('${s.id}')" style="flex:1;cursor:pointer;text-align:center;background:${q ? '#fdecea' : '#eef1f7'};color:${q ? '#c0392b' : '#5a6480'};padding:11px 0;border-radius:11px;font-size:12.5px;font-weight:800">📨 요청 사항${q ? ' ' + q : ''}</div>
+      const stages = (window.methodStages && window.methodStages(s.method)) || null
+      const tot = stages ? stages.length : (s.progress_total || 0), cur = Math.min(s.progress_current || 0, tot || 0)
+      const pct = tot ? Math.round(cur / tot * 100) : 0
+      const now = stages ? (cur >= tot ? '공사 완료' : '현재 ' + stages[cur]) : '공정 미등록'
+      const sub = [s.region, (window.methodLabel && window.methodLabel(s.method)) || ''].filter(Boolean).join(' · ') || '공법 미등록'
+      return `<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:11px 11px 10px">
+        <div style="display:flex;gap:10px;align-items:center">
+          <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(150deg,#d9a441,#b26a00);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">🏗️</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12.5px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${E(s.name)}</span>${q ? `<span style="font-size:8px;font-weight:800;color:#fff;background:#e4544b;padding:1px 6px;border-radius:99px;flex-shrink:0">요청 ${q}</span>` : ''}</div>
+            <div style="font-size:9.5px;color:#8b95ad;font-weight:600;margin-top:1px">${E(sub)}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:6px"><div style="flex:1;height:5px;border-radius:9px;background:#eef1f7;overflow:hidden"><div style="width:${pct}%;height:100%;background:#2F6BF6;border-radius:9px"></div></div><span style="font-size:9px;font-weight:800;color:#2F6BF6">${tot ? cur + '/' + tot : '-'}</span></div>
+            <div style="font-size:9.5px;color:#5a6480;font-weight:700;margin-top:3px">${E(now)}</div>
+          </div>
+          <span style="align-self:flex-start;display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:800;padding:3px 7px;border-radius:99px;flex-shrink:0;${t ? 'color:#1f8a5b;background:#e7f5ee' : 'color:#a5701a;background:#fbf1de'}"><span style="width:4px;height:4px;border-radius:99px;background:${t ? '#1f8a5b' : '#c98a25'}"></span>${t ? '오늘 제출' : '미제출'}</span>
+        </div>
+        <div style="display:flex;gap:7px;margin-top:10px">
+          <div onclick="openDailyWrite('${s.id}')" style="flex:1;cursor:pointer;text-align:center;background:#1F2C5C;color:#fff;padding:10px 0;border-radius:10px;font-size:12px;font-weight:800">📸 ${t ? '추가 보고' : '일일보고 올리기'}</div>
+          <div onclick="openDailyRequests('${s.id}')" style="flex:.8;cursor:pointer;text-align:center;background:${q ? '#fdecea' : '#f2f5fa'};color:${q ? '#c0392b' : '#5a6480'};padding:10px 0;border-radius:10px;font-size:12px;font-weight:800">📨 요청${q ? ' ' + q : ''}</div>
         </div></div>`
     }).join('')
-    if (rec) {
-      const nm = (id) => (DC.sites.find(s => s.id === id) || {}).name || ''
-      rec.innerHTML = (mine || []).length ? mine.map(r => {
-        const miss = (r.required_missing || []).length
-        return `<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px">
-          <div style="font-size:11px;font-weight:800;color:#2F6BF6;width:36px">${md(r.work_date)}</div>
-          <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${E(r.worktype || '')} · ${E(r.location || '')}</div><div style="font-size:10.5px;color:#8b95ad;font-weight:600">${E(nm(r.apartment_id))}${miss ? ' · <span style="color:#e4544b">필수 사진 ' + miss + '장 누락</span>' : ''}</div></div>
-          <span style="font-size:10px;color:#1f8a5b;font-weight:800">제출됨</span></div>`
-      }).join('') : '<div style="color:#8b95ad;font-size:12px;padding:8px 2px">아직 제출한 보고가 없어요.</div>'
-    }
+    if (rec) rec.innerHTML = (mine || []).length ? mine.map(recentRow).join('') : '<div style="color:#8b95ad;font-size:12px;padding:4px 2px">아직 올린 보고가 없어요.</div>'
+  }
+  function siteName(id) { return (DC.sites.find(s => s.id === id) || {}).name || '' }
+  function recentRow(r) {
+    const miss = (r.required_missing || []).length
+    return `<div style="background:#fff;border:1px solid #eef1f7;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px">
+      <div style="width:38px;text-align:center;flex-shrink:0"><div style="font-size:12px;font-weight:800;color:#2F6BF6">${md(r.work_date)}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:#1c2440;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${E(r.worktype || '')}${r.location ? ' · ' + E(r.location) : ''}</div><div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:1px">${E(siteName(r.apartment_id))}${miss ? ' · <span style="color:#e4544b">필수 사진 ' + miss + '장 누락</span>' : ''}</div></div>
+      <span style="font-size:9.5px;color:#1f8a5b;font-weight:800;background:#e7f5ee;padding:3px 7px;border-radius:99px;flex-shrink:0">제출됨</span></div>`
+  }
+  function setReqBadge(n) {
+    document.querySelectorAll('.cnav-bd').forEach(b => { b.textContent = n > 9 ? '9+' : String(n); b.style.display = n ? 'block' : 'none' })
+  }
+  async function ensureSites() {
+    if (DC.sites.length) return DC.sites
+    const { data } = await sb.from('apartment_contractors').select('apartment_id, apartments(id,name,method,region,progress_current,progress_total)').eq('contractor_id', MY_ID)
+    DC.sites = (data || []).map(r => r.apartments).filter(Boolean)
+    return DC.sites
+  }
+  // 현장이 여러 곳이면 고르는 시트
+  function pickSite(cb) {
+    if (DC.sites.length === 1) { cb(DC.sites[0].id); return }
+    if (!DC.sites.length) { toast('배정된 현장이 없어요'); return }
+    const ov = document.createElement('div')
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(15,22,42,.45);display:flex;align-items:flex-end;justify-content:center'
+    ov.innerHTML = `<div style="background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom))">
+      <div style="font-size:14px;font-weight:800;color:#1c2440;margin-bottom:10px">어느 현장 보고인가요?</div>
+      ${DC.sites.map(s => `<div data-pick="${s.id}" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 4px;border-top:1px solid #eef1f7"><span style="font-size:18px">🏗️</span><span style="flex:1;font-size:13px;font-weight:800;color:#1c2440">${E(s.name)}</span><span style="color:#c3ccdb;font-size:18px">›</span></div>`).join('')}
+      <div data-pick="" style="cursor:pointer;text-align:center;margin-top:8px;padding:11px;border-radius:11px;background:#f2f5fa;font-size:12.5px;font-weight:800;color:#5a6480">닫기</div></div>`
+    ov.addEventListener('click', (e) => { const el = e.target.closest('[data-pick]'); if (e.target === ov || el) { ov.remove(); if (el && el.dataset.pick) cb(el.dataset.pick) } })
+    document.body.appendChild(ov)
+  }
+  // 시공사 하단 탭
+  document.addEventListener('click', async (e) => {
+    const t = e.target.closest('[data-ctab]'); if (!t) return
+    const k = t.dataset.ctab
+    if (k === 'home') { window.showScreen('sc1'); window.loadContractorHome() }
+    else if (k === 'write') { await ensureSites(); pickSite(id => window.openDailyWrite(id)) }
+    else if (k === 'req') { await ensureSites(); window.openDailyRequests(null) }
+    else if (k === 'log') { await ensureSites(); window.openDailyLog() }
+  })
+
+  // ---------- 보고 기록 (sc4) ----------
+  window.openDailyLog = async function () {
+    window.showScreen('sc4')
+    const box = $d('dl-list'); box.innerHTML = '<div style="padding:14px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
+    const since = new Date(Date.now() + 9 * 3600 * 1000 - 30 * 86400000).toISOString().slice(0, 10)
+    const { data: reps, error } = await sb.from('daily_reports').select('*').eq('author_id', MY_ID).gte('work_date', since).order('work_date', { ascending: false }).order('created_at', { ascending: false })
+    if (error) { box.innerHTML = `<div style="padding:14px;color:#8b95ad;font-size:12px">${E(missingTableMsg(error))}</div>`; return }
+    if (!(reps || []).length) { box.innerHTML = '<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:22px 14px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">최근 30일 보고가 없어요.</div>'; return }
+    const { data: ph } = await sb.from('daily_photos').select('id,report_id,path,thumb_path,shot_label,stale_flag').in('report_id', reps.map(r => r.id)).order('created_at')
+    const by = {}; (ph || []).forEach(p => { (by[p.report_id] = by[p.report_id] || []).push(p) })
+    await signAll((ph || []).map(p => p.thumb_path || p.path))
+    let last = ''
+    box.innerHTML = reps.map(r => {
+      const head = r.work_date !== last ? `<div style="font-size:11px;font-weight:800;color:#8b95ad;margin:${last ? '6px' : '0'} 2px -4px">${md(r.work_date)}</div>` : ''
+      last = r.work_date
+      const ps = by[r.id] || [], miss = r.required_missing || []
+      return head + `<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="font-size:12.5px;font-weight:800;color:#1c2440">${E(r.worktype || '')}${r.location ? ' · ' + E(r.location) : ''}</div><span style="font-size:9.5px;color:#1f8a5b;font-weight:800;background:#e7f5ee;padding:3px 7px;border-radius:99px;flex-shrink:0">제출됨</span></div>
+        <div style="font-size:10px;color:#8b95ad;font-weight:600;margin-top:2px">${E(siteName(r.apartment_id))} · 사진 ${ps.length}장${miss.length ? ' · <span style="color:#e4544b">누락: ' + E(miss.join(', ')) + '</span>' : ''}</div>
+        ${r.memo ? `<div style="font-size:11.5px;color:#333c54;font-weight:600;margin-top:6px">“${E(r.memo)}”</div>` : ''}
+        ${ps.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' + ps.map(p => thumbHtml(p, 54)).join('') + '</div>' : ''}
+      </div>`
+    }).join('')
   }
 
   // ---------- 일일보고 작성 (sc2) ----------
@@ -249,16 +344,28 @@
     ).join('') + '</div>'
   }
 
-  let DQ_APT = null
+  let DQ_APT = null, DQ_FILTER = 'todo'
+  window.dqFilter = function (f) { DQ_FILTER = f; window.openDailyRequests(DQ_APT) }
+  // aptId 가 없으면 내 모든 현장의 요청을 모아서 보여줌
   window.openDailyRequests = async function (aptId) {
-    DQ_APT = aptId
-    const s = DC.sites.find(x => x.id === aptId); $d('dq-apt').textContent = s ? s.name : ''
-    window.showScreen('sc3')
+    DQ_APT = aptId || null
+    if (!$d('sc3').classList.contains('active')) window.showScreen('sc3')
+    const sub = $d('dq-apt')
+    if (sub) sub.textContent = DQ_APT ? (siteName(DQ_APT) + ' · 감리원이 확인을 요청한 항목') : '감리원이 확인을 요청한 항목이에요. 조치 사진과 한 줄 회신을 보내 주세요.'
     const box = $d('dq-list'); box.innerHTML = '<div style="padding:14px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
-    const { data, error } = await sb.from('ai_findings').select('*').eq('apartment_id', aptId).order('updated_at', { ascending: false }).limit(50)
+    const ids = DQ_APT ? [DQ_APT] : DC.sites.map(s => s.id)
+    if (!ids.length) { box.innerHTML = '<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:22px 14px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">배정된 현장이 없어요.</div>'; return }
+    const { data, error } = await sb.from('ai_findings').select('*').in('apartment_id', ids).order('updated_at', { ascending: false }).limit(100)
     if (error) { box.innerHTML = `<div style="padding:14px;color:#8b95ad;font-size:12px">${E(missingTableMsg(error))}</div>`; return }
-    const rows = data || []
-    if (!rows.length) { box.innerHTML = '<div style="background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:22px 14px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600">감리원 요청 사항이 없어요 👍</div>'; return }
+    const all = data || []
+    const todoN = all.filter(f => f.state === 'requested').length
+    if (!DQ_APT) setReqBadge(todoN)
+    const fl = $d('dq-filter')
+    if (fl) fl.innerHTML = [['todo', '회신 필요 ' + todoN], ['all', '전체 ' + all.length]].map(([k, l]) =>
+      `<span onclick="dqFilter('${k}')" style="cursor:pointer;font-size:10.5px;font-weight:800;padding:5px 11px;border-radius:99px;${DQ_FILTER === k ? 'color:#fff;background:#2F6BF6' : 'color:#5a6480;background:#eef1f7'}">${l}</span>`).join('')
+      + (DQ_APT && DC.sites.length > 1 ? `<span onclick="openDailyRequests(null)" style="cursor:pointer;margin-left:auto;font-size:10.5px;font-weight:800;color:#2F6BF6;padding:5px 2px">모든 현장 ›</span>` : '')
+    const rows = DQ_FILTER === 'todo' ? all.filter(f => f.state === 'requested') : all
+    if (!rows.length) { box.innerHTML = `<div style="background:#fff;border:1px solid #eef1f7;border-radius:13px;padding:24px 14px;text-align:center;color:#8b95ad;font-size:12px;font-weight:600"><div style="font-size:26px;margin-bottom:6px">👍</div>${DQ_FILTER === 'todo' ? '회신할 요청이 없어요.' : '감리원 요청 사항이 없어요.'}</div>`; return }
     const { evBy, phBy } = await loadFindingBundle(rows)
     box.innerHTML = rows.map(f => {
       const evs = evBy[f.id] || []
@@ -268,12 +375,13 @@
         <div style="margin-top:10px;background:#f8fafd;border:1px solid #e6eaf2;border-radius:11px;padding:10px">
           <div style="font-size:11px;font-weight:800;color:#1c2440;margin-bottom:6px">회신하기</div>
           <input id="dq-note-${f.id}" class="dw-in" placeholder="예: 안전난간 재설치 완료했습니다">
-          <label style="display:block;margin-top:7px;font-size:11.5px;font-weight:800;color:#4a5a80;cursor:pointer">📎 조치 사진 첨부 <span id="dq-cnt-${f.id}" style="color:#2F6BF6"></span><input id="dq-file-${f.id}" type="file" accept="image/*" multiple style="display:none" onchange="document.getElementById('dq-cnt-${f.id}').textContent=this.files.length?this.files.length+'장':''"></label>
+          <label style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:7px;border:1.5px dashed #c9d3e6;background:#fff;border-radius:10px;padding:9px;font-size:11.5px;font-weight:800;color:#4a5a80;cursor:pointer">📎 조치 사진 첨부 <span id="dq-cnt-${f.id}" style="color:#2F6BF6"></span><input id="dq-file-${f.id}" type="file" accept="image/*" multiple style="display:none" onchange="document.getElementById('dq-cnt-${f.id}').textContent=this.files.length?this.files.length+'장':''"></label>
           <div onclick="dqReply('${f.id}',this)" style="margin-top:9px;cursor:pointer;text-align:center;background:#1F2C5C;color:#fff;padding:10px;border-radius:10px;font-size:12.5px;font-weight:800">회신 보내기</div>
         </div>` : ''
-      return `<div style="background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:13px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="font-size:13.5px;font-weight:800;color:#1c2440">${E(f.title)}</div>${chip(f.state)}</div>
-        ${req && req.note ? `<div style="font-size:12px;color:#333c54;font-weight:600;margin-top:6px;line-height:1.6">📨 감리원: ${E(req.note)}</div>` : ''}
+      return `<div style="background:#fff;border:1px solid ${f.state === 'requested' ? '#f3c4bf' : '#eef1f7'};border-radius:13px;padding:12px 13px">
+        ${DQ_APT ? '' : `<div style="font-size:10px;font-weight:800;color:#8b95ad;margin-bottom:4px">🏗️ ${E(siteName(f.apartment_id))}</div>`}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="font-size:13px;font-weight:800;color:#1c2440">${E(f.title)}</div>${f.state === 'requested' ? '<span style="font-size:10px;font-weight:800;color:#c0392b;background:#fdecea;padding:3px 8px;border-radius:99px;white-space:nowrap">회신 필요</span>' : f.state === 'replied' ? '<span style="font-size:10px;font-weight:800;color:#6b4fd8;background:#f1edff;padding:3px 8px;border-radius:99px;white-space:nowrap">회신 완료 · 감리원 확인 중</span>' : chip(f.state)}</div>
+        ${req && req.note ? `<div style="font-size:11.5px;color:#333c54;font-weight:600;margin-top:7px;line-height:1.6;background:#f6f8fb;border-radius:9px;padding:8px 10px">📨 <b>감리원</b> · ${E(req.note)}</div>` : ''}
         ${photos.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' + photos.map(p => thumbHtml(p, 58)).join('') + '</div>' : ''}
         ${form}${eventsHtml(evs)}</div>`
     }).join('')

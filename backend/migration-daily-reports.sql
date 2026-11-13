@@ -62,6 +62,26 @@ create trigger trg_zz_contractor_assign
   before insert or update of role, apartment_id on public.profiles
   for each row execute function public.contractor_assign_from_profile();
 
+-- 가입 시 '시공사(현장소장)'로 신청하면 프로필을 처음부터 시공사 역할로 만듦
+-- → 관리자가 승인만 하면 로그인 즉시 시공사 화면으로 감 (승인 전에는 '승인 대기' 화면, 현장은 관리자가 배정)
+create or replace function public.profile_signup_role()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare r text;
+begin
+  if coalesce(new.role, 'resident') = 'resident' then
+    select raw_user_meta_data->>'signup_role' into r from auth.users where id = new.id;
+    if r = 'contractor' then
+      new.role := 'contractor';
+      new.signup_role := 'contractor';
+    end if;
+  end if;
+  return new;
+end; $$;
+drop trigger if exists trg_signup_role on public.profiles;
+create trigger trg_signup_role
+  before insert on public.profiles
+  for each row execute function public.profile_signup_role();
+
 -- 권한 도우미 ---------------------------------------------------------
 create or replace function public.is_contractor_of(p_apt uuid)
 returns boolean language sql security definer stable set search_path = public as $$

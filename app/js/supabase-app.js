@@ -2598,6 +2598,7 @@ function wire() {
   document.addEventListener('click', (e) => {
     const nav = e.target.closest('.nav > div'); if (!nav) return
     if (nav.hasAttribute('data-tab')) return // 신규 5탭 nav는 data-tab 핸들러가 처리
+    if (nav.hasAttribute('data-ctab')) return // 시공사 전용 nav는 js/daily.js 가 처리
     const t = nav.textContent || ''
     if (t.indexOf('문의') >= 0) return // 문의는 별도 처리
     if (!currentRole) { // 비회원: 홈은 둘러보기(s04), 그 외는 로그인 유도
@@ -2605,7 +2606,8 @@ function wire() {
       return
     }
     if (t.indexOf('홈') >= 0) {
-      if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() } else { showScreen('s11'); loadResidentHome() }
+      if (currentRole === 'contractor') { showScreen('sc1'); if (window.loadContractorHome) window.loadContractorHome() }
+      else if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() } else { showScreen('s11'); loadResidentHome() }
     } else if (t.indexOf('리플렛') >= 0) {
       showScreen('s47'); loadLeaflets()
     } else if (t.indexOf('일정') >= 0) {
@@ -3336,7 +3338,8 @@ document.addEventListener('click', (e) => {
   if (tabEl) {
     const tab = tabEl.dataset.tab
     if (tab === 'home') {
-      if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() }
+      if (currentRole === 'contractor') { showScreen('sc1'); if (window.loadContractorHome) window.loadContractorHome() }
+      else if (currentRole === 'auditor') { showScreen('s07'); loadAuditorApts() }
       else if (currentRole) { showScreen('s11'); loadResidentHome() }
       else { showScreen('s04'); loadResidentNotices('s04-notices'); try { maybeShowNoticePopup(null) } catch (e) {} }
     }

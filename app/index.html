@@ -34,6 +34,8 @@
 @keyframes splashPop{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
 .tos-h{font-size:12.5px;font-weight:800;color:#1c2440;margin:17px 0 6px}
 .tos-p{font-size:11.5px;color:#4a5468;font-weight:500;line-height:1.75;margin-top:2px}
+.cnav > div{position:relative}
+.cnav-bd{position:absolute;top:-2px;left:50%;margin-left:6px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:#e4544b;color:#fff;font-size:9px;font-weight:800;line-height:16px;text-align:center}
 .dw-lb{font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:5px}
 .dw-in{width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:10px;padding:10px 11px;font-size:12px;color:#151c33;font-weight:600;font-family:inherit;outline:none;-webkit-appearance:none}
 .tos-box{background:#f6f8fb;border:1px solid #e6eaf2;border-radius:11px;padding:12px 13px;font-size:11px;color:#4a5468;font-weight:600;line-height:1.7;margin-top:14px}
@@ -1923,17 +1925,23 @@ render();
 
       <!-- ===== 시공사(현장소장) 일일보고 — js/daily.js ===== -->
       <section class="screen" id="sc1" data-name="시공사 홈">
-        <div class="bd" style="background:#F4F6FA;padding:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div style="font-size:15px;font-weight:800;color:#141d34">내 현장</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;font-weight:800;color:#b26a00;background:#fff3d9;padding:4px 9px;border-radius:99px">🏗️ 시공사</span><span onclick="openAccount()" style="cursor:pointer;font-size:10px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:4px 9px;border-radius:99px">내 정보</span><span onclick="appLogout()" style="cursor:pointer;font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:4px 9px;border-radius:99px">로그아웃</span></div></div>
-          <div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-bottom:14px" id="dc-hello">오늘 작업 사진을 올려 주세요. 30초면 끝나요.</div>
-          <div id="dc-sites" style="display:flex;flex-direction:column;gap:11px"></div>
-          <div style="font-size:13px;font-weight:800;color:#1c2440;margin:20px 0 9px">최근 제출한 일일보고</div>
-          <div id="dc-recent" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div class="bd">
+          <div style="padding:15px 16px 12px;background:#fff">
+            <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:15px;font-weight:800;color:#141d34">내 현장</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;font-weight:800;color:#b26a00;background:#fff3d9;padding:4px 9px;border-radius:99px">🏗️ 시공사</span><span onclick="openAccount()" style="cursor:pointer;font-size:10px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:4px 9px;border-radius:99px">내 정보</span><span onclick="appLogout()" style="cursor:pointer;font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:4px 9px;border-radius:99px">로그아웃</span></div></div>
+            <div id="dc-hello" style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:3px">현장 불러오는 중…</div>
+            <div id="dc-hero" style="margin-top:11px"></div>
+          </div>
+          <div id="dc-alert" style="padding:0 14px"></div>
+          <div style="padding:14px 16px 4px;font-size:12.5px;font-weight:800;color:#1c2440">오늘 보고할 현장</div>
+          <div id="dc-sites" style="padding:4px 14px 6px;display:flex;flex-direction:column;gap:10px"></div>
+          <div style="padding:14px 16px 4px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12.5px;font-weight:800;color:#1c2440">최근 보고</span><span data-ctab="log" style="cursor:pointer;font-size:10.5px;font-weight:800;color:#2F6BF6">전체 보기 ›</span></div>
+          <div id="dc-recent" style="padding:4px 14px 18px;display:flex;flex-direction:column;gap:8px"></div>
         </div>
+        <div class="nav cnav"><div data-ctab="home" class="on"><div class="ic">🏠</div>홈</div><div data-ctab="write"><div class="ic">📸</div>보고하기</div><div data-ctab="req"><div class="ic">📨</div>요청<span class="cnav-bd" style="display:none"></span></div><div data-ctab="log"><div class="ic">🗂️</div>기록</div></div>
       </section>
 
       <section class="screen" id="sc2" data-name="일일보고 작성 (시공사)">
-        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">오늘 일일보고</div><div style="font-size:10px;color:#2F6BF6;font-weight:800" id="dw-apt">현장</div></div></div>
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">일일보고 올리기</div><div style="font-size:10px;color:#2F6BF6;font-weight:800" id="dw-apt">현장</div></div></div>
         <div class="bd" style="background:#F4F6FA;padding:16px">
           <div style="background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:14px">
             <div style="display:flex;gap:8px">
@@ -1956,12 +1964,27 @@ render();
         </div>
       </section>
 
-      <section class="screen" id="sc3" data-name="요청받은 항목 (시공사)">
-        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">감리원 요청 사항</div><div style="font-size:10px;color:#2F6BF6;font-weight:800" id="dq-apt">현장</div></div></div>
-        <div class="bd" style="background:#F4F6FA;padding:16px">
-          <div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-bottom:12px">감리원이 확인을 요청한 항목이에요. 조치 사진과 한 줄 회신을 보내 주세요.</div>
-          <div id="dq-list" style="display:flex;flex-direction:column;gap:11px"></div>
+      <section class="screen" id="sc3" data-name="감리원 요청 사항 (시공사)">
+        <div class="bd" style="background:#F4F6FA">
+          <div style="padding:15px 16px 12px;background:#fff">
+            <div style="font-size:15px;font-weight:800;color:#141d34">감리원 요청 사항</div>
+            <div id="dq-apt" style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:3px">감리원이 확인을 요청한 항목이에요. 조치 사진과 한 줄 회신을 보내 주세요.</div>
+            <div id="dq-filter" style="display:flex;gap:6px;margin-top:11px"></div>
+          </div>
+          <div id="dq-list" style="padding:12px 14px 18px;display:flex;flex-direction:column;gap:11px"></div>
         </div>
+        <div class="nav cnav"><div data-ctab="home"><div class="ic">🏠</div>홈</div><div data-ctab="write"><div class="ic">📸</div>보고하기</div><div data-ctab="req" class="on"><div class="ic">📨</div>요청<span class="cnav-bd" style="display:none"></span></div><div data-ctab="log"><div class="ic">🗂️</div>기록</div></div>
+      </section>
+
+      <section class="screen" id="sc4" data-name="보고 기록 (시공사)">
+        <div class="bd" style="background:#F4F6FA">
+          <div style="padding:15px 16px 12px;background:#fff">
+            <div style="font-size:15px;font-weight:800;color:#141d34">보고 기록</div>
+            <div style="font-size:10.5px;color:#8b95ad;font-weight:600;margin-top:3px">최근 30일 동안 올린 일일보고예요. 제출한 보고는 감리 기록으로 보관돼 수정할 수 없어요.</div>
+          </div>
+          <div id="dl-list" style="padding:12px 14px 18px;display:flex;flex-direction:column;gap:12px"></div>
+        </div>
+        <div class="nav cnav"><div data-ctab="home"><div class="ic">🏠</div>홈</div><div data-ctab="write"><div class="ic">📸</div>보고하기</div><div data-ctab="req"><div class="ic">📨</div>요청<span class="cnav-bd" style="display:none"></span></div><div data-ctab="log" class="on"><div class="ic">🗂️</div>기록</div></div>
       </section>
 
       <!-- 감리원: 현장 일일보고 요약 + 검토 항목 처리 -->

@@ -438,6 +438,7 @@ tbody tr:hover{background:#f8fafc}
       <a data-s="calendar" onclick="go('calendar')">캘린더</a>
       <a data-s="sales" onclick="go('sales')">영업</a>
       <a data-s="projects" onclick="go('projects')">공사관리<span class="cnt red" id="c-newrep" style="display:none">0</span><span class="cnt" id="c-proj">0</span></a>
+      <a data-s="daily" onclick="go('daily')">일일보고·AI<span class="cnt red" id="c-daily" style="display:none">0</span></a>
       <div class="lbl">도구</div>
       <a data-s="notices" onclick="go('notices')">안내문구(이메일)</a>
       <div class="lbl">앱 관리</div>
@@ -563,6 +564,11 @@ tbody tr:hover{background:#f8fafc}
     <section class="sec" id="s-usage">
       <div class="head"><div><h2>입주민 앱 사용통계</h2><div class="desc">입주민·관리소장이 앱을 얼마나 쓰는지 — 자동 집계(여는 순간 최신 데이터). 감리원·관리자(내부 직원) 사용은 제외돼요.</div></div><div style="display:flex;gap:8px;align-items:center"><select class="inp" id="usg-range" onchange="renderUsage()" style="width:auto"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option></select><button class="b line" onclick="renderUsage()">새로고침</button></div></div>
       <div id="usgBody"></div>
+    </section>
+
+    <section class="sec" id="s-daily">
+      <div class="head"><div><h2>시공사 일일보고 · AI 검토</h2><div class="desc">시공사가 매일 올린 사진·메모, AI/자동 점검 '검토 필요' 항목과 감리원 처리 기록. AI는 판정하지 않고 감리원 확인이 필요한 것만 표시해요.</div></div><div style="display:flex;gap:8px;align-items:center"><select class="inp" id="dly-range" onchange="renderDaily()" style="width:auto"><option value="7" selected>최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option></select><button class="b line" onclick="renderDaily()">새로고침</button></div></div>
+      <div id="dlyBody"></div>
     </section>
 
     <section class="sec" id="s-promo">
@@ -696,7 +702,7 @@ const DEMO_SESS=(function(){try{return new URLSearchParams(location.search).get(
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY, DEMO_SESS?{auth:{storageKey:'sb-aptsq-demo-'+DEMO_SESS}}:undefined);
 const $=(id)=>document.getElementById(id);
 const esc=(s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리원',admin:'관리자'};
+const ROLES={resident:'입주민',manager:'관리소장',auditor:'감리원',admin:'관리자',contractor:'시공사'};
 const dispId=(email)=>{const e=(email||'');return e.endsWith('@aptsquare.app')?e.slice(0,-'@aptsquare.app'.length):e;};
 // localStorage 안전 접근 (사생활보호 모드·일부 WebView에서 예외가 나도 화면이 깨지지 않게)
 const lsGet=(k)=>{try{return localStorage.getItem(k);}catch(e){return null;}};
@@ -806,6 +812,7 @@ async function gate(){
   $('me-nm').textContent=nm; $('me-av').textContent=nm.slice(0,1);
   $('login').style.display='none';$('app').style.display='block';
   loadAll();
+  dailyCount();   // 일일보고 '검토 필요' 배지
 }
 gate();
 
@@ -964,6 +971,7 @@ function go(s){
   document.querySelectorAll('[data-s]').forEach(a=>a.classList.toggle('on',a.dataset.s===s));
   if(s==='projects')backToProjList();
   if(s==='usage')renderUsage();
+  if(s==='daily')renderDaily();
   if(s==='trash')renderTrash();
   if(s==='notices')renderNotices();
   window.scrollTo(0,0);
@@ -1230,6 +1238,99 @@ function renderUsgUsers(q){
     <td style="white-space:nowrap;color:var(--mut);font-size:11.5px">${esc(u.last_at||'-')}</td>
   </tr>`).join(''):`<tr><td colspan="10" class="empty">${q?'검색 결과가 없어요':'아직 사용 기록이 없어요'}</td></tr>`;
 }
+/* ===== 시공사 일일보고 · AI 검토 (backend/migration-daily-reports.sql) ===== */
+const DLY_ESCALATE_H=24;          // 미확인 재알림 기준(시간) — .github/workflows/daily-escalate.yml 과 같게
+const DLY_MONTHLY_USD=10;         // 월 AI 예산(달러) — supabase secrets DAILY_AI_MONTHLY_USD 와 같게
+const DLY_KRW=1400;               // 원화 환산(대략)
+const DLY_ST={open:['검토 필요','red'],acknowledged:['확인함','blue'],requested:['시공사 회신 대기','no'],replied:['시공사 회신함','violet'],rechecked:['재확인 완료','ok'],false_alarm:['오경보 종결','gray']};
+let DLY={};
+async function dailyCount(){
+  try{ const {count}=await sb.from('ai_findings').select('id',{count:'exact',head:true}).in('state',['open','replied']);
+    const c=$('c-daily'); if(c){ c.textContent=count||0; c.style.display=count?'':'none'; } }catch(e){}
+}
+async function renderDaily(){
+  const body=$('dlyBody'); if(!body)return;
+  const days=+((($('dly-range')||{}).value)||7);
+  body.innerHTML='<div class="card"><div class="empty">불러오는 중…</div></div>';
+  const kst=(ms)=>new Date(ms+9*3600*1000).toISOString().slice(0,10);
+  const today=kst(Date.now()), since=kst(Date.now()-(days-1)*86400000), mon=today.slice(0,8)+'01';
+  const [ac,reps,fs,use,ph]=await Promise.all([
+    sb.from('apartment_contractors').select('*'),
+    sb.from('daily_reports').select('id,apartment_id,work_date,worktype,location,author_name,required_missing,ai_status,created_at').gte('work_date',since).order('work_date',{ascending:false}),
+    sb.from('ai_findings').select('*').order('created_at',{ascending:false}).limit(1000),
+    sb.from('ai_usage_daily').select('*').gte('day',mon),
+    sb.from('daily_photos').select('bytes,created_at').gte('created_at',mon+'T00:00:00+09:00')
+  ]);
+  if(ac.error||reps.error){ const e=ac.error||reps.error; body.innerHTML='<div class="card" style="color:var(--red)">불러오지 못했어요: '+esc(e.message)+'<br><span style="color:var(--mut);font-size:12px">backend/migration-daily-reports.sql 실행이 필요할 수 있어요.</span></div>'; return; }
+  DLY={ac:ac.data||[],reps:reps.data||[],fs:fs.data||[],use:use.data||[],ph:ph.data||[]};
+  const aptIds=[...new Set(DLY.ac.map(x=>x.apartment_id))];
+  const now=Date.now();
+  // ① 오늘 제출 현황
+  const todayReps=DLY.reps.filter(r=>r.work_date===today);
+  const subRows=aptIds.map(id=>{ const rs=todayReps.filter(r=>r.apartment_id===id); const miss=rs.reduce((s,r)=>s+((r.required_missing||[]).length),0);
+    const cons=DLY.ac.filter(x=>x.apartment_id===id).map(x=>{const m=MEMBERS.find(y=>y.id===x.contractor_id);return m?(m.name||loginId(m)):'?';}).join(', ');
+    return `<tr><td style="font-weight:700">${esc(aptName(id))}</td><td>${esc(cons)}</td><td>${rs.length?`<span class="pill ok">제출 ${rs.length}건</span>`:'<span class="pill no">미제출</span>'}</td><td>${miss?`<span class="pill red">누락 ${miss}</span>`:'-'}</td></tr>`; }).join('');
+  // ② 처리 대기 (+지연)
+  const open=DLY.fs.filter(f=>['open','acknowledged','requested','replied'].includes(f.state));
+  const late=f=>f.state==='open'&&(now-new Date(f.created_at).getTime())>DLY_ESCALATE_H*3600*1000;
+  open.sort((a,b)=>(late(b)-late(a))||(new Date(a.created_at)-new Date(b.created_at)));
+  const ago=t=>{const h=Math.floor((now-new Date(t).getTime())/3600000);return h<24?h+'시간':Math.floor(h/24)+'일';};
+  const openRows=open.map(f=>{const st=DLY_ST[f.state]||[f.state,'gray'];return `<tr style="${late(f)?'background:#fff5f4':''}"><td style="font-weight:700">${esc(aptName(f.apartment_id))}</td><td>${esc(f.title)}<div style="font-size:11px;color:var(--mut);max-width:420px">${esc(f.reason||'')}</div></td><td>${f.source==='rule'?'자동 점검':'AI'}${f.category?' · '+esc(f.category):''}</td><td><span class="pill ${st[1]}">${st[0]}</span></td><td style="white-space:nowrap">${ago(f.created_at)}${late(f)?' <span class="pill red">지연</span>':''}${f.escalated_at?'<div style="font-size:11px;color:var(--red)">관리자 재알림됨</div>':''}</td></tr>`;}).join('');
+  // ③ 정확도 (AI 항목, 종결 기준)
+  const aiClosed=DLY.fs.filter(f=>f.source==='ai'&&['rechecked','false_alarm'].includes(f.state));
+  const fa=aiClosed.filter(f=>f.state==='false_alarm').length;
+  const byCat={}; DLY.fs.filter(f=>f.source==='ai').forEach(f=>{const k=f.category||'기타';byCat[k]=byCat[k]||{n:0,fa:0,closed:0};byCat[k].n++;if(f.state==='false_alarm'){byCat[k].fa++;byCat[k].closed++;}else if(f.state==='rechecked')byCat[k].closed++;});
+  const closedAll=DLY.fs.filter(f=>['rechecked','false_alarm'].includes(f.state));
+  const avgH=closedAll.length?Math.round(closedAll.reduce((s,f)=>s+(new Date(f.updated_at)-new Date(f.created_at)),0)/closedAll.length/3600000):null;
+  // ④ 비용 · ⑤ 용량
+  const sum=(a,k)=>a.reduce((s,x)=>s+Number(x[k]||0),0);
+  const usedToday=DLY.use.filter(u=>u.day===today), mCost=sum(DLY.use,'cost_usd');
+  const pct=Math.min(100,Math.round(mCost/DLY_MONTHLY_USD*100));
+  const mb=(b)=>(b/1048576).toFixed(1)+'MB';
+  const monBytes=sum(DLY.ph,'bytes');
+  const tile=(l,v,sub)=>`<div class="card" style="margin:0;padding:14px 16px"><div style="font-size:11.5px;color:var(--mut);font-weight:700">${l}</div><div style="font-size:22px;font-weight:800;margin-top:4px">${v}</div>${sub?`<div style="font-size:11px;color:var(--mut);margin-top:3px">${sub}</div>`:''}</div>`;
+  body.innerHTML=`
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px">
+    ${tile('처리 대기',open.length+'건',open.filter(late).length?`<span style="color:var(--red)">${DLY_ESCALATE_H}시간 넘게 미확인 ${open.filter(late).length}건</span>`:'지연 없음')}
+    ${tile('기간 내 일일보고',DLY.reps.length+'건',`최근 ${days}일`)}
+    ${tile('AI 오경보율',aiClosed.length?Math.round(fa/aiClosed.length*100)+'%':'-',`종결된 AI 항목 ${aiClosed.length}건 기준`)}
+    ${tile('평균 처리 시간',avgH==null?'-':avgH+'시간','발생 → 종결')}
+    ${tile('이번 달 AI 비용','약 '+Math.round(mCost*DLY_KRW).toLocaleString()+'원',`$${mCost.toFixed(2)} / 예산 $${DLY_MONTHLY_USD} (${pct}%) · 오늘 ${sum(usedToday,'photos')}장 분석`)}
+    ${tile('이번 달 사진 용량',mb(monBytes),`${DLY.ph.length}장 (썸네일 제외)`)}
+  </div>
+  <div class="card"><h3>처리 대기 항목 <span class="r">감리원이 앱에서 확인 → 통보 → 재확인 / 오경보로 처리</span></h3>
+    ${open.length?`<table><thead><tr><th>현장</th><th>항목</th><th>출처</th><th>상태</th><th>경과</th></tr></thead><tbody>${openRows}</tbody></table>`:'<div class="empty">처리 대기 항목이 없어요 👍</div>'}</div>
+  <div class="card"><h3>오늘(${today}) 현장별 제출 현황</h3>
+    ${aptIds.length?`<table><thead><tr><th>현장</th><th>시공사</th><th>오늘 제출</th><th>필수 사진</th></tr></thead><tbody>${subRows}</tbody></table>`:'<div class="empty">시공사가 배정된 현장이 없어요. 아래에서 배정하세요.</div>'}</div>
+  <div class="card"><h3>AI 항목 분류별 정확도 <span class="r">오경보 = 감리원이 '오경보'로 닫은 것</span></h3>
+    ${Object.keys(byCat).length?`<table><thead><tr><th>분류</th><th>발생</th><th>종결</th><th>오경보</th><th>오경보율</th></tr></thead><tbody>${Object.entries(byCat).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td>${v.closed}</td><td>${v.fa}</td><td>${v.closed?Math.round(v.fa/v.closed*100)+'%':'-'}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">아직 AI 항목이 없어요</div>'}</div>
+  <div class="card"><h3>시공사 ↔ 현장 배정 <span class="r">회원 편집에서 역할=시공사 + 담당 단지를 넣어도 자동 배정돼요</span></h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <select class="inp" id="dly-con" style="width:auto"><option value="">시공사 회원 선택</option>${MEMBERS.filter(m=>m.role==='contractor').map(m=>`<option value="${m.id}">${esc(m.name||loginId(m))}${m.approved?'':' (미승인)'}</option>`).join('')}</select>
+      <input class="inp" id="dly-apt" list="apt-names" placeholder="현장(단지) 입력/선택" style="width:240px">
+      <button class="b blue" onclick="dlyAssign()">배정</button>
+    </div>
+    ${DLY.ac.length?`<table><thead><tr><th>현장</th><th>시공사</th><th>배정일</th><th></th></tr></thead><tbody>${DLY.ac.map(x=>{const m=MEMBERS.find(y=>y.id===x.contractor_id);return `<tr><td>${esc(aptName(x.apartment_id))}</td><td>${esc(m?(m.name||loginId(m)):'(삭제된 회원)')}</td><td>${esc((x.created_at||'').slice(0,10))}</td><td><button class="b red sm" onclick="dlyUnassign('${x.apartment_id}','${x.contractor_id}')">해제</button></td></tr>`;}).join('')}</tbody></table>`:'<div class="empty">배정 없음</div>'}
+  </div>`;
+  const c=$('c-daily'); const n=DLY.fs.filter(f=>['open','replied'].includes(f.state)).length; if(c){c.textContent=n;c.style.display=n?'':'none';}
+}
+async function dlyAssign(){
+  const cid=($('dly-con')||{}).value; if(!cid)return alert('시공사 회원을 선택하세요');
+  const nm=((($('dly-apt')||{}).value)||'').trim().toLowerCase();
+  const a=APTS.find(x=>(x.name||'').trim().toLowerCase()===nm); if(!a)return alert('등록된 현장(단지) 이름을 목록에서 선택하세요');
+  const apt=a.id;
+  const {error}=await sb.from('apartment_contractors').insert({apartment_id:apt,contractor_id:cid});
+  if(error&&!/duplicate/i.test(error.message))return alert('배정 실패: '+error.message);
+  renderDaily();
+}
+async function dlyUnassign(aid,cid){
+  if(!confirm('이 배정을 해제할까요? (보고 기록은 그대로 남아요)'))return;
+  const {error}=await sb.from('apartment_contractors').delete().eq('apartment_id',aid).eq('contractor_id',cid);
+  if(error)return alert('해제 실패: '+error.message);
+  renderDaily();
+}
+window.renderDaily=renderDaily; window.dlyAssign=dlyAssign; window.dlyUnassign=dlyUnassign;
+
 async function renderUsage(){
   const body=$('usgBody'); if(!body)return;
   const days=+((($('usg-range')||{}).value)||30);
@@ -2551,7 +2652,7 @@ async function resolveIssue(id){
 function renderPending(){
   const pend=MEMBERS.filter(x=>!x.approved);
   $('pendCnt').textContent=pend.length+'명';
-  $('pendBody').innerHTML=pend.length?`<table><thead><tr><th>이름</th><th>아이디</th><th>역할</th><th>가입 시 적은 단지</th><th></th></tr></thead><tbody>${pend.map(m=>`<tr><td style="font-weight:700">${esc(m.name)||'-'}</td><td>${esc(loginId(m))}</td><td>${ROLES[m.role]||m.role||'-'}</td><td>${m.signup_apt?esc(m.signup_apt):'<span style="color:var(--mut)">-</span>'}</td><td style="white-space:nowrap"><button class="b line sm" onclick="openMemberEdit('${m.id}')">배정·편집</button> <button class="b green sm" onclick="approveMember('${m.id}')">승인</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">승인 대기 중인 회원이 없어요 👍</div>';
+  $('pendBody').innerHTML=pend.length?`<table><thead><tr><th>이름</th><th>아이디</th><th>역할</th><th>가입 시 적은 단지</th><th></th></tr></thead><tbody>${pend.map(m=>`<tr><td style="font-weight:700">${esc(m.name)||'-'}</td><td>${esc(loginId(m))}</td><td>${ROLES[m.role]||m.role||'-'}${m.signup_role==='contractor'&&m.role!=='contractor'?' <span class="pill no">시공사로 신청</span>':''}</td><td>${m.signup_apt?esc(m.signup_apt):'<span style="color:var(--mut)">-</span>'}</td><td style="white-space:nowrap"><button class="b line sm" onclick="openMemberEdit('${m.id}')">배정·편집</button> <button class="b green sm" onclick="approveMember('${m.id}')">승인</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">승인 대기 중인 회원이 없어요 👍</div>';
 }
 async function approveMember(id){
   const {error}=await sb.from('profiles').update({approved:true}).eq('id',id);

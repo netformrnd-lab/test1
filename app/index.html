@@ -34,6 +34,8 @@
 @keyframes splashPop{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
 .tos-h{font-size:12.5px;font-weight:800;color:#1c2440;margin:17px 0 6px}
 .tos-p{font-size:11.5px;color:#4a5468;font-weight:500;line-height:1.75;margin-top:2px}
+.dw-lb{font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:5px}
+.dw-in{width:100%;box-sizing:border-box;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:10px;padding:10px 11px;font-size:12px;color:#151c33;font-weight:600;font-family:inherit;outline:none;-webkit-appearance:none}
 .tos-box{background:#f6f8fb;border:1px solid #e6eaf2;border-radius:11px;padding:12px 13px;font-size:11px;color:#4a5468;font-weight:600;line-height:1.7;margin-top:14px}
 </style>
 </head>
@@ -72,6 +74,8 @@
               <input id="signup-name" placeholder="예: 김현수 / 관리소장" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
               <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">연락처</div>
               <input id="signup-phone" inputmode="tel" placeholder="010-0000-0000" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
+              <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">가입 유형</div>
+              <select id="signup-role" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:12px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none"><option value="">입주민 · 관리소장</option><option value="contractor">시공사 (현장소장)</option></select>
               <div style="font-size:10.5px;font-weight:800;color:#8b93a8;margin-bottom:6px">아파트(단지)명 <span style="color:#2F6BF6">(승인 확인용)</span></div>
               <input id="signup-apt" placeholder="우리 아파트(단지) 이름을 적어주세요" style="width:100%;background:#f6f8fb;border:1px solid #e6eaf2;border-radius:12px;padding:13px 14px;font-size:12px;color:#151c33;font-weight:600;margin-bottom:12px;font-family:inherit;outline:none;-webkit-appearance:none">
             </div>
@@ -632,6 +636,11 @@
           <div id="aud-menu-contract" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
             <div style="width:50px;height:50px;border-radius:14px;background:#f3eeff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">📑</div>
             <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">계약서 보기</div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">이 단지 계약서 보기·등록 (감리원만)</div></div>
+            <span style="font-size:19px;color:#c3ccdb">›</span>
+          </div>
+          <div id="aud-menu-daily" onclick="openDailyAuditor()" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
+            <div style="width:50px;height:50px;border-radius:14px;background:#fff3d9;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:25px">🏗️</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#1c2440">시공사 일일보고 <span id="aud-daily-badge" style="display:none;font-size:10px;font-weight:800;color:#fff;background:#e4544b;padding:2px 7px;border-radius:99px;vertical-align:2px"></span></div><div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-top:3px">지난 방문 이후 사진·AI 검토 항목 처리</div></div>
             <span style="font-size:19px;color:#c3ccdb">›</span>
           </div>
           <div id="aud-menu-spec" style="cursor:pointer;background:#fff;border:1px solid #e6eaf2;border-radius:15px;padding:15px;display:flex;align-items:center;gap:13px;margin-bottom:11px;box-shadow:0 8px 18px -14px rgba(23,38,80,.4)">
@@ -1911,6 +1920,60 @@ render();
           </div>
         </div>
       </section>
+
+      <!-- ===== 시공사(현장소장) 일일보고 — js/daily.js ===== -->
+      <section class="screen" id="sc1" data-name="시공사 홈">
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div style="font-size:15px;font-weight:800;color:#141d34">내 현장</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;font-weight:800;color:#b26a00;background:#fff3d9;padding:4px 9px;border-radius:99px">🏗️ 시공사</span><span onclick="openAccount()" style="cursor:pointer;font-size:10px;font-weight:800;color:#2F6BF6;background:#eef4ff;padding:4px 9px;border-radius:99px">내 정보</span><span onclick="appLogout()" style="cursor:pointer;font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:4px 9px;border-radius:99px">로그아웃</span></div></div>
+          <div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-bottom:14px" id="dc-hello">오늘 작업 사진을 올려 주세요. 30초면 끝나요.</div>
+          <div id="dc-sites" style="display:flex;flex-direction:column;gap:11px"></div>
+          <div style="font-size:13px;font-weight:800;color:#1c2440;margin:20px 0 9px">최근 제출한 일일보고</div>
+          <div id="dc-recent" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="sc2" data-name="일일보고 작성 (시공사)">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">오늘 일일보고</div><div style="font-size:10px;color:#2F6BF6;font-weight:800" id="dw-apt">현장</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:14px">
+            <div style="display:flex;gap:8px">
+              <div style="flex:1"><div class="dw-lb">날짜</div><input id="dw-date" type="date" class="dw-in"></div>
+              <div style="flex:1.4"><div class="dw-lb">공종 <span style="color:#e4544b">*</span></div><select id="dw-type" class="dw-in" onchange="dwRenderShots()"></select></div>
+            </div>
+            <div class="dw-lb" style="margin-top:10px">동 · 부위</div>
+            <input id="dw-loc" class="dw-in" placeholder="예: 103동 남측 5~10층">
+          </div>
+          <div style="font-size:13px;font-weight:800;color:#1c2440;margin:16px 0 4px">📸 필수 사진</div>
+          <div style="font-size:11px;color:#8b95ad;font-weight:600;margin-bottom:9px">칸을 눌러 촬영하거나 앨범에서 고르세요. 빈 칸은 ‘사진 누락’으로 기록돼요.</div>
+          <div id="dw-shots" style="display:grid;grid-template-columns:1fr 1fr;gap:9px"></div>
+          <div style="font-size:13px;font-weight:800;color:#1c2440;margin:16px 0 8px">추가 사진 <span style="font-size:11px;color:#8b95ad;font-weight:600">(선택)</span></div>
+          <label style="display:flex;align-items:center;justify-content:center;gap:7px;border:1.5px dashed #b7c4dc;background:#fff;border-radius:12px;padding:12px;cursor:pointer;font-size:12.5px;font-weight:800;color:#4a5a80">＋ 사진 더 넣기<input id="dw-extra" type="file" accept="image/*" multiple style="display:none" onchange="dwAddExtra(this.files)"></label>
+          <div id="dw-extra-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+          <div class="dw-lb" style="margin-top:14px">한 줄 메모</div>
+          <input id="dw-memo" class="dw-in" placeholder="예: 103동 바인더 2회차 완료, 내일 상도 예정">
+          <div id="dw-msg" style="font-size:11.5px;font-weight:800;text-align:center;min-height:16px;margin:12px 0 8px;color:#8b95ad"></div>
+          <div id="dw-submit" onclick="dwSubmit()" style="cursor:pointer;text-align:center;background:#1F2C5C;color:#fff;height:48px;line-height:48px;border-radius:13px;font-size:14px;font-weight:800">제출하기</div>
+        </div>
+      </section>
+
+      <section class="screen" id="sc3" data-name="요청받은 항목 (시공사)">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">감리원 요청 사항</div><div style="font-size:10px;color:#2F6BF6;font-weight:800" id="dq-apt">현장</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="font-size:11.5px;color:#8b95ad;font-weight:600;margin-bottom:12px">감리원이 확인을 요청한 항목이에요. 조치 사진과 한 줄 회신을 보내 주세요.</div>
+          <div id="dq-list" style="display:flex;flex-direction:column;gap:11px"></div>
+        </div>
+      </section>
+
+      <!-- 감리원: 현장 일일보고 요약 + 검토 항목 처리 -->
+      <section class="screen" id="sa1" data-name="시공사 일일보고 (감리원)">
+        <div class="ab"><span data-back="1" style="font-size:19px;color:#2a3350;cursor:pointer">‹</span><div><div class="abt">시공사 일일보고</div><div style="font-size:10px;color:#2F6BF6;font-weight:800" id="da-apt">단지</div></div></div>
+        <div class="bd" style="background:#F4F6FA;padding:16px">
+          <div style="display:flex;gap:6px;margin-bottom:10px" id="da-tabs"></div>
+          <div id="da-range" style="font-size:11px;color:#8b95ad;font-weight:700;margin-bottom:10px"></div>
+          <div id="da-list" style="display:flex;flex-direction:column;gap:11px"></div>
+          <div onclick="daCopyEvidence()" style="cursor:pointer;text-align:center;background:#fff;border:1.5px solid #d7deea;color:#3a445e;padding:12px;border-radius:12px;font-size:12.5px;font-weight:800;margin-top:14px">📋 감리일지 근거 문구 복사</div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -1923,8 +1986,13 @@ render();
      (되돌아오며 전체 새로고침될 때 특히 중요) */
   (function(){
     var SBAPP = "js/supabase-app.js";   /* 배포 캐시버스팅(?v=) 치환 대상 — 이 문자열 형태 유지 */
+    var DAILYJS = "js/daily.js";        /* 시공사 일일보고 — 함수 정의만 있어 먼저 로드(앱 스크립트가 로그인 후 호출) */
     var started = false;
-    function start(){ if(started) return; started = true; var s=document.createElement('script'); s.src=SBAPP; document.body.appendChild(s); }
+    function start(){ if(started) return; started = true;
+      var d=document.createElement('script'); d.src=DAILYJS;
+      var go=function(){ var s=document.createElement('script'); s.src=SBAPP; document.body.appendChild(s); };
+      d.onload=go; d.onerror=go;   /* daily.js 가 없거나 실패해도 앱은 정상 로드 */
+      document.body.appendChild(d); }
     var waited = 0;
     (function wait(){
       if(window.supabase && window.supabase.createClient){ start(); return; }

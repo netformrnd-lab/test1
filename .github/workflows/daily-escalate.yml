@@ -1,0 +1,32 @@
+# 시공사 일일보고 — 미확인 검토 항목 관리자 재알림
+# 매시 정각에 DB 함수 daily_escalate(24) 를 호출 → 24시간 넘게 아무도 '확인함'을 누르지 않은 항목에
+# escalated_at 이 찍히고, ai_findings 웹훅 → 푸시 워커가 관리자에게 푸시를 보냄.
+# 준비물(GitHub Secrets): SUPABASE_SERVICE_ROLE_KEY (이미 aptsq-sync 에서 사용 중)
+# 기준 시간을 바꾸면 콘솔 DLY_ESCALATE_H 도 같이 바꿀 것.
+name: daily-escalate
+
+on:
+  schedule:
+    - cron: '7 * * * *'      # 매시 7분
+  workflow_dispatch:
+
+jobs:
+  escalate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: 미확인 항목 재알림 표시
+        env:
+          SUPABASE_URL: https://gndktayoicegyqyllybk.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          res=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/daily_escalate" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"p_hours":24}' -w '\n%{http_code}')
+          code=$(echo "$res" | tail -n1); body=$(echo "$res" | head -n-1)
+          echo "재알림 표시 건수: $body (HTTP $code)"
+          if [ "$code" = "404" ]; then echo "daily_escalate 함수 없음 — backend/migration-daily-reports.sql 실행 전이면 정상"; exit 0; fi
+          [ "$code" -lt 300 ]

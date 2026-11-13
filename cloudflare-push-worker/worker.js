@@ -99,7 +99,38 @@ async function buildPlan(env, table, type, rec, old) {
     return null
   }
 
+  // ── 시공사 일일보고 · AI 검토 (backend/migration-daily-reports.sql) ──
+  // AI/자동 점검 결과가 '검토 필요' → 담당 감리원에게
+  if (table === 'daily_ai' && (type === 'INSERT' || type === 'UPDATE')) {
+    if (rec.summary !== '검토 필요' || old.summary === '검토 필요') return null
+    const aptName = await aptName_(env, rec.apartment_id)
+    const n = await sbGet(env, 'ai_findings?report_id=eq.' + rec.report_id + '&state=eq.open&select=id')
+    return { title: '🔎 시공사 일일보고 검토 필요', body: (aptName ? aptName + ' · ' : '') + '확인할 항목 ' + n.length + '건 — 앱에서 사진을 확인해 주세요', userIds: await auditors_(env, rec.apartment_id), data: { kind: 'daily_review', apartment_id: rec.apartment_id || '', report_id: rec.report_id || '' } }
+  }
+  if (table === 'ai_findings' && type === 'UPDATE') {
+    const aptName = await aptName_(env, rec.apartment_id)
+    const pre = aptName ? aptName + ' · ' : ''
+    // 감리원이 시공사에 통보/요청 → 그 현장 시공사에게
+    if (rec.state === 'requested' && old.state !== 'requested') {
+      return { title: '📨 감리원 확인 요청', body: pre + (rec.title || '') + ' — 조치 사진을 회신해 주세요', userIds: await contractors_(env, rec.apartment_id), data: { kind: 'daily_request', apartment_id: rec.apartment_id || '', finding_id: rec.id || '' } }
+    }
+    // 시공사 회신 → 담당 감리원에게
+    if (rec.state === 'replied' && old.state !== 'replied') {
+      return { title: '↩️ 시공사 회신 도착', body: pre + (rec.title || '') + ' — 재확인해 주세요', userIds: await auditors_(env, rec.apartment_id), data: { kind: 'daily_reply', apartment_id: rec.apartment_id || '', finding_id: rec.id || '' } }
+    }
+    // 기준 시간 넘게 미확인 → 관리자에게
+    if (rec.escalated_at && !old.escalated_at) {
+      return { title: '⏰ 미확인 검토 항목', body: pre + (rec.title || '') + ' — 담당 감리원이 아직 확인하지 않았어요', userIds: await admins_(env), data: { kind: 'daily_escalate', apartment_id: rec.apartment_id || '', finding_id: rec.id || '' } }
+    }
+    return null
+  }
+
   return null
+}
+async function contractors_(env, aptId) {
+  if (!aptId) return []
+  const rows = await sbGet(env, 'apartment_contractors?apartment_id=eq.' + aptId + '&select=contractor_id')
+  return rows.map(r => r.contractor_id).filter(Boolean)
 }
 
 // ---------- Supabase 조회 (service_role) ----------

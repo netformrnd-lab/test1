@@ -76,6 +76,7 @@ async function route() {
       if (apt) { NAV_HIST.length = 0; NAV_HIST.push('s07'); openApt(apt); loadAuditorApts(); return }
     } catch (e) {}
   }
+  if (profile.role === 'contractor') { window.showScreen('sc1'); if (window.loadContractorHome) window.loadContractorHome(); return }   // 시공사 → 일일보고 홈 (js/daily.js)
   if (profile.role === 'auditor') { window.showScreen('s07'); loadAuditorApts() }
   else { window.showScreen('s11'); loadResidentHome(); startResidentPoll() }
   try { updatePreviewFab() } catch (e) {}
@@ -308,6 +309,7 @@ async function openAuditorMenu(a) {
   currentApt = a
   const nm = document.getElementById('aud-menu-apt'); if (nm) nm.textContent = a.name
   window.showScreen('s27')
+  try { if (window.dailyMenuBadge) window.dailyMenuBadge(a.id) } catch (e) {}   // 시공사 일일보고 '검토 필요' 개수
 }
 window.openAuditorMenu = openAuditorMenu
 // 감리 현장 소통문구 도구(iframe) — 감리원 이름·현장명을 자동 주입해서 연다
@@ -648,7 +650,7 @@ window.goBack = function () {
   saveScroll(NAV_CUR)   // 떠나는 화면 스크롤 저장
   if (PREVIEW_APT && !NAV_HIST.length) { exitResidentPreview(); return }  // 미리보기 루트에서 뒤로 → 감리원 화면 복귀
   let p = NAV_HIST.pop()
-  if (!p) p = currentRole ? ((currentRole === 'auditor') ? 's07' : 's11') : 's04'
+  if (!p) p = currentRole ? ((currentRole === 'auditor') ? 's07' : (currentRole === 'contractor' ? 'sc1' : 's11')) : 's04'
   NAV_CUR = p
   ORIG_SHOW(p)          // show()가 0으로 리셋하므로
   const b = document.querySelector('#' + p + ' .bd'); if (b && SCROLL_POS[p] != null) b.scrollTop = SCROLL_POS[p]  // 원래 위치로 복원
@@ -2369,6 +2371,7 @@ async function doSignup() {
   const name = $('signup-name').value.trim()
   const phone = $('signup-phone').value.trim()
   const aptName = ($('signup-apt') ? $('signup-apt').value.trim() : '')
+  const signupRole = ($('signup-role') ? $('signup-role').value : '') || ''   // 'contractor' = 시공사(현장소장)로 신청
   if (!id || !pw || !name || !email) { setMsg('아이디·이메일·비밀번호·이름을 입력하세요'); return }
   if (!aptName) { setMsg('아파트(단지)명을 입력하세요 (승인 확인용)'); return }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setMsg('올바른 이메일을 입력하세요'); return }
@@ -2376,10 +2379,10 @@ async function doSignup() {
   setMsg('가입 중…', true)
   // 아이디 중복 확인
   try { const { data: taken } = await sb.rpc('login_email', { uname: id }); if (taken) { setMsg('이미 사용 중인 아이디예요. 다른 아이디를 써주세요.'); return } } catch (e) {}
-  const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, phone, username: id.toLowerCase(), signup_apt: aptName } } })
+  const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name, phone, username: id.toLowerCase(), signup_apt: aptName, signup_role: signupRole || null } } })
   if (error) { setMsg(ko(error.message)); return }
   // 가입 시 적은 아파트명을 프로필에 저장(관리자가 승인·배정 때 참고). 프로필 생성 트리거 완료를 잠깐 기다렸다 업데이트
-  if (aptName && data && data.user) { const _uid = data.user.id; setTimeout(function () { try { sb.from('profiles').update({ signup_apt: aptName }).eq('id', _uid) } catch (e) {} }, 900) }
+  if (aptName && data && data.user) { const _uid = data.user.id; setTimeout(function () { try { sb.from('profiles').update({ signup_apt: aptName }).eq('id', _uid).then(() => {}); if (signupRole) sb.from('profiles').update({ signup_role: signupRole }).eq('id', _uid).then(() => {}) } catch (e) {} }, 900) }
   setMsg('가입 완료! 관리자 승인 후 이용할 수 있어요.', true)
   setTimeout(() => window.showScreen('s02'), 1400)
 }

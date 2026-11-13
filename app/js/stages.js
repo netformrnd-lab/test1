@@ -119,3 +119,25 @@ window.parseDongs = function (text, base) {
   s.replace(/(\d{1,3})\s*동/g, (m, a) => { push(a); return '  '; });
   return out.sort((a, b) => (parseInt(a) || 999) - (parseInt(b) || 999));
 };
+
+// ── 시공사 일일보고: 공정별 필수 촬영 항목 ──────────────────────────
+// 칸이 비면 '사진 누락'으로 기록돼요. 정해지지 않은 공정은 기본 2칸(전경·근접).
+window.DAILY_SHOTS_DEFAULT = [
+  { key: 'wide', label: '작업 전경 (작업자·안전장비 보이게)' },
+  { key: 'close', label: '작업 부위 근접' }
+];
+window.DAILY_SHOTS = {
+  // 외벽 재도장
+  '외벽 고압세척': [{ key: 'wide', label: '세척 작업 전경 (달비계·작업자)' }, { key: 'after', label: '세척 후 바탕면 근접' }],
+  '균열보수': [{ key: 'before', label: '보수 전 균열 근접' }, { key: 'after', label: '보수 후 근접' }, { key: 'wide', label: '작업 전경 (안전장비)' }],
+  '바인더 작업': [{ key: 'base', label: '바탕처리 후 전경' }, { key: 'close', label: '하도(바인더) 도포 후 근접' }],
+  '페인트 도장': [{ key: 'wide', label: '도장 작업 전경 (달비계·하부 통제)' }, { key: 'close', label: '도장 면 근접' }],
+  // 방수 공통
+  '바탕정리·방수 하도 도포': [{ key: 'base', label: '바탕정리 후 전경' }, { key: 'close', label: '하도 도포 후 근접' }],
+  '바탕면 강화 도포': [{ key: 'base', label: '바탕정리 후 전경' }, { key: 'close', label: '강화 도포 후 근접' }],
+  '옥상 바탕정리·균열보수': [{ key: 'base', label: '바탕정리 후 전경' }, { key: 'close', label: '균열보수 부위 근접' }],
+  '바탕 강화 함침(하도)': [{ key: 'wide', label: '하도 작업 전경' }, { key: 'close', label: '하도 도포 후 근접' }],
+  // 에폭시
+  '바탕면 처리·하도': [{ key: 'base', label: '연마·청소 후 전경' }, { key: 'close', label: '하도 도포 후 근접' }]
+};
+window.dailyShots = function (stage) { return window.DAILY_SHOTS[stage] || window.DAILY_SHOTS_DEFAULT; };

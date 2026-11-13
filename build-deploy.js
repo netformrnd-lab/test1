@@ -26,6 +26,7 @@ html = html.replace('<link rel="stylesheet" href="css/app.css">',
 html = html.replace('js/app.js"', 'js/app.js?v=' + V + '"');
 html = html.replace('js/stages.js"', 'js/stages.js?v=' + V + '"');
 html = html.replace('js/supabase-app.js"', 'js/supabase-app.js?v=' + V + '"');
+html = html.replace('js/daily.js"', 'js/daily.js?v=' + V + '"');
 fs.writeFileSync(OUT + "/index.html", html);
 
 // --- admin/index.html (관리자 대시보드) ---
@@ -50,7 +51,7 @@ for (const sub of ["control/quote", "control/contract"]) {
 }
 
 // --- js files (copy verbatim) ---
-for (const f of ["app.js", "stages.js", "supabase-app.js"]) {
+for (const f of ["app.js", "stages.js", "supabase-app.js", "daily.js"]) {
   fs.copyFileSync(APP + "/js/" + f, OUT + "/js/" + f);
 }
 

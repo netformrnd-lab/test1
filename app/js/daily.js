@@ -560,7 +560,7 @@
     const f = DA.findings.find(x => x.id === fid); if (!f) return
     let note = null
     if (action === 'request') { note = prompt('시공사에게 보낼 요청 내용', f.title + ' — 확인 후 조치 사진 회신 부탁드립니다.'); if (note === null) return }
-    else if (action === 'false_alarm') { note = prompt('오경보로 닫을까요? 사유(선택)', ''); if (note === null) return }
+    else if (action === 'false_alarm') { note = prompt('오경보로 닫을까요?\n사유를 적으면 AI가 배워서 다음엔 덜 틀려요.\n(예: 지상 1층 작업이라 안전대 불필요 / 그림자를 균열로 봄)', ''); if (note === null) return }
     else if (action === 'recheck') { note = prompt('재확인 메모(선택)', ''); if (note === null) return }
     else if (action === 'reopen') { if (!confirm('이 항목을 다시 열까요?')) return }
     const { error } = await sb.rpc('finding_act', { p_finding: fid, p_action: action, p_note: note, p_photos: [] })

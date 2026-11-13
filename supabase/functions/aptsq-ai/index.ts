@@ -8,6 +8,7 @@
 //         또는 Supabase secret ANTHROPIC_API_KEY (있으면 이게 우선)
 // 배포(최초 1번): Supabase → Edge Functions → Deploy a new function → 이름 aptsq-ai → 이 파일 붙여넣기
 //
+// AI 교육: 콘솔 「AI 설정 → 📚 AI 교육」의 지침·예문·오경보 사례를 매번 읽어 프롬프트에 넣음 (고쳐도 재배포 불필요)
 // AI는 판정하지 않음(적합/부적합은 감리원). 단정 표현은 서버에서 한 번 더 걸러냄.
 // Sonnet/Opus 호출에는 서버 측 대체 모델(fallbacks: "default")을 켜 둠 — 안전 분류기가 거절하면 다른 모델로 자동 재시도.
 
@@ -274,7 +275,7 @@ async function handleDaily(body: any, auth: string, URL_: string, ANON: string, 
     userContent.push({ type: "text", text: "위 사진들을 규칙대로 검토해 JSON으로 답하세요." });
 
     const client = new Anthropic({ apiKey: KEY });
-    const system = [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }];
+    const system = [{ type: "text", text: SYSTEM + await teachDaily(svc, rep.apartment_id), cache_control: { type: "ephemeral" } }];
     let tokIn = 0, tokOut = 0, cost = 0, calls = 0;
     const track = (model: string, m: any) => {
       const u = m?.usage || {};
@@ -371,6 +372,40 @@ async function getKey(svc: any): Promise<string | null> {
   } catch { KEY_CACHE = { v: null, t: Date.now() }; }
   return KEY_CACHE.v;
 }
+// AI 교육 설정 (콘솔 「AI 설정 → 📚 AI 교육」) — 60초 캐시
+let SET_CACHE: { v: Record<string, string>; t: number } = { v: {}, t: 0 };
+async function getSettings(svc: any): Promise<Record<string, string>> {
+  if (Date.now() - SET_CACHE.t < 60_000) return SET_CACHE.v;
+  try {
+    const { data } = await svc.from("app_integrations").select("key,value").in("key", ["ai_guide_report", "ai_example_report", "ai_guide_daily", "ai_learn_fa"]);
+    const v: Record<string, string> = {}; (data || []).forEach((r: any) => { v[r.key] = r.value || ""; });
+    SET_CACHE = { v, t: Date.now() };
+  } catch { SET_CACHE = { v: {}, t: Date.now() }; }
+  return SET_CACHE.v;
+}
+function teachWrite(st: Record<string, string>): string {
+  let t = "";
+  if ((st.ai_guide_report || "").trim()) t += "\n\n[우리 회사 추가 지침 — 반드시 따름. 단, 위 '최우선 원칙'과 금지 표현이 우선]\n" + st.ai_guide_report.trim().slice(0, 6000);
+  if ((st.ai_example_report || "").trim()) t += "\n\n[잘 쓴 예문 — 문체·형식·분량만 참고. 예문 속 현장명·날짜·작업·수치는 절대 옮겨 쓰지 말 것]\n" + st.ai_example_report.trim().slice(0, 8000);
+  return t;
+}
+// 사진 AI: 추가 지침 + 감리원이 '오경보'로 닫은 최근 사례
+async function teachDaily(svc: any, aptId: string): Promise<string> {
+  const st = await getSettings(svc);
+  let t = "";
+  if ((st.ai_guide_daily || "").trim()) t += "\n\n[우리 회사 추가 지침 — 반드시 따름. 단, 위 출력 규칙과 금지 표현이 우선]\n" + st.ai_guide_daily.trim().slice(0, 6000);
+  if (st.ai_learn_fa === "1") {
+    try {
+      const { data: fs } = await svc.from("ai_findings").select("id,title,reason,apartment_id").eq("source", "ai").eq("state", "false_alarm").order("updated_at", { ascending: false }).limit(25);
+      const ids = (fs || []).map((f: any) => f.id);
+      const { data: ev } = ids.length ? await svc.from("finding_events").select("finding_id,note").in("finding_id", ids).eq("action", "false_alarm") : { data: [] };
+      const note: Record<string, string> = {}; (ev || []).forEach((e: any) => { if (e.note) note[e.finding_id] = e.note; });
+      const lines = (fs || []).map((f: any) => "· " + f.title + (note[f.id] ? " → 감리원 판단: " + note[f.id] : "") + (f.apartment_id === aptId ? " (이 현장)" : ""));
+      if (lines.length) t += "\n\n[이전에 감리원이 '오경보'로 닫은 사례 — 비슷한 장면이면 '검토 필요'로 올리지 말 것. 사진에서 분명히 다를 때만 올림]\n" + lines.join("\n");
+    } catch { /* 사례 없으면 생략 */ }
+  }
+  return t;
+}
 async function callerRole(asUser: any): Promise<string | null> {
   try {
     const { data: { user } } = await asUser.auth.getUser();
@@ -443,7 +478,7 @@ async function writeCall(KEY: string, system: string, user: string, maxTokens = 
   return msg;
 }
 
-async function handleReport(body: any, KEY: string): Promise<Response> {
+async function handleReport(body: any, KEY: string, teach = ""): Promise<Response> {
   const c = body?.ctx || {};
   const L: string[] = [];
   const add = (k: string, v: any) => { if (v != null && String(v).trim()) L.push(k + ": " + String(v).trim()); };
@@ -465,7 +500,7 @@ async function handleReport(body: any, KEY: string): Promise<Response> {
   if (c.current) L.push("", "[현재 작성된 보고일지(있으면 참고)]", String(c.current).slice(0, 6000));
   const user = L.join("\n").slice(0, 30000);
   const isOpinion = body?.part === "opinion";
-  const msg = await writeCall(KEY, isOpinion ? SYSTEM_OPINION : SYSTEM_REPORT,
+  const msg = await writeCall(KEY, (isOpinion ? SYSTEM_OPINION : SYSTEM_REPORT) + teach,
     "아래 자료로 " + (isOpinion ? "감리 종합의견을" : "감리 현장 보고일지를") + " 작성하세요.\n\n" + user, isOpinion ? 2000 : 6000);
   let text = textOf2(msg).replace(/\*\*/g, "").replace(/^#+\s*/gm, "");
   for (const [re, rep] of BANNED) text = text.replace(re, rep);
@@ -487,7 +522,7 @@ const ENRICH_SCHEMA = {
   type: "object", additionalProperties: false, required: ["work", "teukgi", "jijeok"],
   properties: { work: { type: "array", items: { type: "string" } }, teukgi: { type: "array", items: { type: "string" } }, jijeok: { type: "array", items: { type: "string" } } },
 };
-async function handleEnrich(body: any, KEY: string): Promise<Response> {
+async function handleEnrich(body: any, KEY: string, teach = ""): Promise<Response> {
   const m = body?.meta || {};
   const lines = ["아래는 감리원이 작성한 점검 원문과 현장 정보입니다. 공식 양식 문장으로 다듬어 주세요.", "", "[현장 정보]"];
   for (const [k, v] of [["현장명", m.site], ["시공사", m.builder], ["공종", m.worktype], ["감리일자", m.date], ["날씨", m.weather], ["회차", m.round], ["점검위치(동)", m.dongs], ["감리원", m.insp]]) if (v) lines.push(k + ": " + v);
@@ -496,7 +531,7 @@ async function handleEnrich(body: any, KEY: string): Promise<Response> {
   const client = new Anthropic({ apiKey: KEY });
   const msg = await client.beta.messages.create({
     model: MODEL_WRITE, max_tokens: 6000,
-    system: [{ type: "text", text: SYSTEM_ENRICH, cache_control: { type: "ephemeral" } }] as any,
+    system: [{ type: "text", text: SYSTEM_ENRICH + teach, cache_control: { type: "ephemeral" } }] as any,
     output_config: { effort: "medium", format: { type: "json_schema", schema: ENRICH_SCHEMA } } as any,
     betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
     messages: [{ role: "user", content: lines.join("\n") }],
@@ -536,8 +571,8 @@ Deno.serve(async (req) => {
       const m = await client.messages.create({ model: MODEL_1, max_tokens: 50, messages: [{ role: "user", content: "'연결됨' 한 단어로만 답하세요." }] } as any);
       return J({ ok: true, reply: textOf2(m), model: MODEL_1, write_model: MODEL_WRITE });
     }
-    if (task === "report") return await handleReport(body, KEY);
-    if (task === "enrich") return await handleEnrich(body, KEY);
+    if (task === "report") return await handleReport(body, KEY, teachWrite(await getSettings(svc)));
+    if (task === "enrich") return await handleEnrich(body, KEY, teachWrite(await getSettings(svc)));
     return J({ ok: false, error: "알 수 없는 작업: " + task }, 400);
   } catch (e) {
     const msg = String((e as any)?.message || e);

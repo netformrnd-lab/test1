@@ -389,5 +389,30 @@ returns text language sql security definer stable set search_path = public as $$
 $$;
 grant execute on function public.ai_key_status() to authenticated;
 
+-- 8) AI 교육 — 관리자 콘솔 「AI 설정 → 📚 AI 교육」에서 쓰는 지침·예문 (AI 함수가 매번 읽음) ----
+--   ai_guide_report  : 감리일지(보고일지·AI 보강) 추가 지침
+--   ai_example_report: 잘 쓴 보고일지 예문 (문체·형식 참고용)
+--   ai_guide_daily   : 시공사 사진 검토 추가 지침
+--   ai_learn_fa      : '1' 이면 감리원이 오경보로 닫은 사례를 사진 AI가 참고
+create or replace function public.admin_set_ai_setting(p_key text, p_value text)
+returns text language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception '관리자만 설정할 수 있어요'; end if;
+  if p_key not in ('ai_guide_report','ai_example_report','ai_guide_daily','ai_learn_fa') then raise exception '알 수 없는 설정: %', p_key; end if;
+  if coalesce(trim(p_value), '') = '' then delete from public.app_integrations where key = p_key;
+  else insert into public.app_integrations (key, value) values (p_key, left(p_value, 20000))
+         on conflict (key) do update set value = excluded.value; end if;
+  return '저장됨';
+end; $$;
+grant execute on function public.admin_set_ai_setting(text, text) to authenticated;
+
+create or replace function public.admin_get_ai_settings()
+returns jsonb language sql security definer stable set search_path = public as $$
+  select case when not public.is_admin() then null else coalesce(
+    (select jsonb_object_agg(key, value) from public.app_integrations
+      where key in ('ai_guide_report','ai_example_report','ai_guide_daily','ai_learn_fa')), '{}'::jsonb) end;
+$$;
+grant execute on function public.admin_get_ai_settings() to authenticated;
+
 -- 완료! 'Success. No rows returned' 이면 정상입니다.
 -- 다음: Database → Webhooks 에 daily_ai(INSERT·UPDATE), ai_findings(UPDATE) 를 푸시 워커로 연결 (docs 체크리스트 참고)

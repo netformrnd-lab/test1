@@ -1299,6 +1299,22 @@ async function renderDaily(){
       <button class="b line sm" onclick="aiKeyClear()">키 삭제</button>
     </div>
     <div id="aiSetMsg" style="font-size:12px;margin-top:8px;color:var(--mut)">키 발급: console.anthropic.com → API Keys. 저장된 키는 서버에서만 쓰이고 화면·앱에는 끝 4자리만 보여요. 월 지출 한도도 Anthropic 콘솔에서 꼭 설정하세요.</div>
+    <details id="aiTeach" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px" ontoggle="if(this.open)aiTeachLoad()">
+      <summary style="cursor:pointer;font-weight:800;font-size:14px">📚 AI 교육 <span style="font-weight:600;color:var(--mut);font-size:12px">— 우리 기준을 가르치기 (저장하면 1분 안에 모든 AI에 적용)</span></summary>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:12px">
+        <div class="fld" style="margin:0"><label>✍️ 감리일지 지침 <span style="color:var(--mut);font-weight:600">(보고일지 AI 돌리기 · AI 보강)</span></label>
+          <textarea id="aiT-guide-report" rows="7" style="width:100%;box-sizing:border-box;font-size:13px;line-height:1.6;padding:10px 12px;border:1px solid var(--line);border-radius:10px" placeholder="예)&#10;· 안전관리 항목에는 달비계 로프 2줄·하부 통제 여부를 꼭 적는다&#10;· 향후 점검계획은 '다음 방문 시 ~ 확인 예정'으로 쓴다&#10;· 문장은 짧게, 한 줄에 하나만"></textarea></div>
+        <div class="fld" style="margin:0"><label>📄 잘 쓴 보고일지 예문 <span style="color:var(--mut);font-weight:600">(문체·형식만 따라 씀)</span></label>
+          <textarea id="aiT-example-report" rows="7" style="width:100%;box-sizing:border-box;font-size:13px;line-height:1.6;padding:10px 12px;border:1px solid var(--line);border-radius:10px" placeholder="마음에 드는 보고일지 1~2개를 그대로 붙여넣으세요. AI는 문체와 형식만 참고하고, 예문 속 현장·날짜·작업 내용은 가져다 쓰지 않아요."></textarea></div>
+        <div class="fld" style="margin:0"><label>📷 시공사 사진 검토 지침</label>
+          <textarea id="aiT-guide-daily" rows="7" style="width:100%;box-sizing:border-box;font-size:13px;line-height:1.6;padding:10px 12px;border:1px solid var(--line);border-radius:10px" placeholder="예)&#10;· 지상 1층 작업은 안전대 미착용으로 올리지 않는다&#10;· 옥상 작업은 안전난간 설치 여부를 꼭 본다&#10;· 우천 후 바탕면이 젖어 보이면 검토 필요로 올린다"></textarea></div>
+        <div class="fld" style="margin:0"><label>🔁 오경보에서 배우기</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin-top:6px;cursor:pointer"><input type="checkbox" id="aiT-learn-fa"> 감리원이 '오경보'로 닫은 사례를 사진 AI가 참고 (최근 25건)</label>
+          <div id="aiT-fa-list" style="font-size:12px;color:var(--mut2);margin-top:8px;line-height:1.7;max-height:130px;overflow:auto"></div>
+          <div style="font-size:11.5px;color:var(--mut);margin-top:6px">감리원이 오경보로 닫을 때 적은 사유가 같이 전달돼요. 사유를 구체적으로 적을수록 AI가 잘 배워요.</div></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:12px"><button class="b blue" onclick="aiTeachSave(this)">교육 내용 저장</button><span id="aiTeachMsg" style="font-size:12px;color:var(--mut)"></span></div>
+    </details>
   </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px">
     ${tile('처리 대기',open.length+'건',open.filter(late).length?`<span style="color:var(--red)">${DLY_ESCALATE_H}시간 넘게 미확인 ${open.filter(late).length}건</span>`:'지연 없음')}
@@ -1334,7 +1350,7 @@ async function aiKeyRefresh(){
   const el=$('aiKeyState'); if(!el)return;
   const {data,error}=await sb.rpc('ai_key_status');
   if(error){ el.className='pill no'; el.textContent='SQL 실행 필요'; return; }
-  if(data){ el.className='pill ok'; el.textContent='키 저장됨 '+data; } else { el.className='pill no'; el.textContent='키 없음'; }
+  if(typeof data==='string'&&data){ el.className='pill ok'; el.textContent='키 저장됨 '+data; } else { el.className='pill no'; el.textContent='키 없음'; }
 }
 async function aiKeySave(btn){
   const v=(($('aiKeyIn')||{}).value||'').trim(); const msg=$('aiSetMsg');
@@ -1354,7 +1370,21 @@ async function aiPing(btn){
   }catch(e){ msg.style.color='var(--red)'; msg.textContent='❌ '+(e.message||e); }
   finally{ btn.disabled=false; btn.textContent=t; }
 }
-Object.assign(window,{aiKeySave,aiKeyClear,aiPing});
+async function aiTeachLoad(){
+  const msg=$('aiTeachMsg'); const {data,error}=await sb.rpc('admin_get_ai_settings');
+  if(error){ msg.style.color='var(--red)'; msg.textContent=/function|does not exist/i.test(error.message)?'최신 migration-daily-reports.sql 을 먼저 실행하세요.':error.message; return; }
+  const d=data||{}; $('aiT-guide-report').value=d.ai_guide_report||''; $('aiT-example-report').value=d.ai_example_report||''; $('aiT-guide-daily').value=d.ai_guide_daily||''; $('aiT-learn-fa').checked=d.ai_learn_fa==='1';
+  const fa=(DLY.fs||[]).filter(f=>f.source==='ai'&&f.state==='false_alarm').slice(0,25);
+  $('aiT-fa-list').innerHTML=fa.length?('최근 오경보 '+fa.length+'건: '+fa.map(f=>'<span style="display:inline-block;background:#eef1f7;border-radius:6px;padding:1px 7px;margin:2px 3px 0 0">'+esc(f.title)+'</span>').join('')):'아직 오경보로 닫은 사례가 없어요.';
+  msg.textContent='';
+}
+async function aiTeachSave(btn){
+  const msg=$('aiTeachMsg'); btn.disabled=true;
+  const pairs=[['ai_guide_report',$('aiT-guide-report').value],['ai_example_report',$('aiT-example-report').value],['ai_guide_daily',$('aiT-guide-daily').value],['ai_learn_fa',$('aiT-learn-fa').checked?'1':'']];
+  for(const [k,v] of pairs){ const {error}=await sb.rpc('admin_set_ai_setting',{p_key:k,p_value:v}); if(error){ btn.disabled=false; msg.style.color='var(--red)'; msg.textContent='저장 실패: '+error.message; return; } }
+  btn.disabled=false; msg.style.color='var(--green)'; msg.textContent='✅ 저장했어요 — 1분 안에 감리일지·사진 AI에 적용돼요';
+}
+Object.assign(window,{aiKeySave,aiKeyClear,aiPing,aiTeachLoad,aiTeachSave});
 // ── 현장별 시공사 사진: 양이 많아도 보기 쉽게 (필터 · 날짜 띠 · 접기/펼치기 · 필요할 때만 사진 로드 · 더 보기) ──
 const DG={apt:null,type:'',q:'',issues:false,mode:'date',day:null,open:new Set(),pages:10,ph:[],U:{},more:new Set()};
 const WK='일월화수목금토';

@@ -11,11 +11,9 @@
 ## 1. Supabase — SQL 실행 (1번)
 - [ ] SQL Editor → `backend/migration-daily-reports.sql` 붙여넣고 Run → `Success` 확인
 
-## 2. Supabase — AI 함수 배포
-- [ ] Edge Functions → Deploy a new function → 이름 **`daily-ai`** → `supabase/functions/daily-ai/index.ts` 붙여넣기
-- [ ] Secrets: `ANTHROPIC_API_KEY` (gamri-ai 에 넣은 키가 있으면 공용이라 생략)
-- [ ] (선택) 상한: `DAILY_AI_DAILY_CAP=20`, `DAILY_AI_MONTHLY_USD=10`
-- [ ] Anthropic 콘솔에서 월 지출 한도도 설정
+## 2. AI 켜기 → `docs/AI-켜기.md`
+- [ ] Edge Function **`aptsq-ai`** 1개 배포 (`supabase/functions/aptsq-ai/index.ts`)
+- [ ] 콘솔 「일일보고·AI」 → 🤖 AI 설정에 API 키 저장 → 연결 테스트
 
 ## 3. Supabase — 웹훅 2개 (푸시용, 기존 웹훅과 같은 방식)
 Database → Webhooks → Create a new hook → HTTP Request(POST) → URL은 **기존 웹훅과 같은 푸시 워커 주소(`?secret=...` 포함)**

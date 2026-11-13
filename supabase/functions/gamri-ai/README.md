@@ -1,3 +1,5 @@
+> ⚠️ 이 함수는 `aptsq-ai`(supabase/functions/aptsq-ai)로 합쳐졌습니다. 새로 배포할 필요 없음 — docs/AI-켜기.md 참고.
+
 # gamri-ai — 공사감리일지 AI 보강 Edge Function
 
 감리원이 작성한 점검 원문을 **공식 양식(작업사항·특기사항·지적사항) 문장**으로 다듬습니다.

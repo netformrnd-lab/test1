@@ -1,0 +1,36 @@
+# AI 켜기 — 처음 1번만
+
+AI 기능 3가지(감리원 감리일지 **✨ AI 돌리기** · 시공사 사진 AI 검토 · 콘솔 **✨ AI 보강**)는
+**서버 함수 1개(`aptsq-ai`) + API 키 1개**로 모두 켜집니다.
+
+## ① 서버 함수 올리기 (처음 1번만, 5분)
+1. Supabase → **Edge Functions** → **Deploy a new function**
+2. 이름: **`aptsq-ai`**
+3. `supabase/functions/aptsq-ai/index.ts` 내용을 전부 붙여넣기 → **Deploy**
+
+## ② API 키 넣기
+1. **console.anthropic.com** → 결제 카드 등록 → **API Keys** → 키 만들기 (`sk-ant-…`)
+2. 같은 곳 **Limits**에서 **월 지출 한도** 설정 (예: 3만 원)
+3. 관리자 콘솔 → **일일보고·AI** 탭 → 맨 위 **🤖 AI 설정** → 키 붙여넣기 → **저장** → **연결 테스트**
+   - "✅ AI 연결됨"이 나오면 끝
+
+키를 바꾸거나 끄고 싶으면 같은 칸에서 다시 저장 / **키 삭제**.
+(키는 서버에만 저장되고 화면에는 끝 4자리만 보입니다.)
+
+## 쓰는 곳
+| 기능 | 어디서 | 모델(기본) |
+|---|---|---|
+| ✨ AI 돌리기 (보고일지 5개 섹션 / 종합의견) | 감리원 앱 → 감리일지 작성 → 3번 보고 | Claude Opus 5.5 |
+| 시공사 사진 AI 검토 | 시공사가 일일보고 제출하면 자동 | Haiku 5.5 1차 → 의심 건만 Sonnet 5.5 |
+| ✨ AI 보강 (작업/특기/지적) | 관리자 콘솔 → 감리일지 보기 | Claude Opus 5.5 |
+
+비용(추정): 보고일지 1건 약 50원 · 시공사 보고 1건 약 5~10원. 콘솔 「일일보고·AI」 탭에서 이번 달 사진 AI 비용 확인.
+
+## 선택 설정 (Supabase → Edge Functions → Secrets, 안 넣어도 됨)
+- `AI_MODEL_WRITE` — 글 작성 모델 (기본 `claude-opus-5-5`, 아끼려면 `claude-sonnet-5-5`)
+- `DAILY_AI_MODEL` / `DAILY_AI_MODEL_2ND` — 사진 1차/2차 모델
+- `DAILY_AI_DAILY_CAP` (기본 20장/현장/일) · `DAILY_AI_MONTHLY_USD` (기본 10달러)
+
+## 참고
+- 예전 `gamri-ai` 함수는 더 이상 필요 없음 (콘솔은 `aptsq-ai`가 없을 때만 예전 함수를 씀)
+- 시공사 사진 AI의 **푸시 알림**은 별도: Supabase 웹훅 2개 + 푸시 워커 갱신 (`docs/배포-일일보고-AI-내부테스트.md` 3·4번)

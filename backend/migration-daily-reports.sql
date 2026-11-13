@@ -363,5 +363,31 @@ create policy daily_photos_read on storage.objects for select to authenticated
     public.is_contractor_of(((storage.foldername(name))[1])::uuid)
     or public.is_staff_of(((storage.foldername(name))[1])::uuid)));
 
+-- 7) AI 키 보관 — 관리자 콘솔 「AI 설정」에 붙여넣으면 여기에 저장 (브라우저에서는 읽을 수 없음) ----
+create table if not exists public.app_integrations (key text primary key, value text);
+alter table public.app_integrations enable row level security;   -- 정책 없음 = 클라이언트 접근 불가
+
+create or replace function public.admin_set_ai_key(p_key text)
+returns text language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception '관리자만 설정할 수 있어요'; end if;
+  if coalesce(trim(p_key), '') = '' then
+    delete from public.app_integrations where key = 'anthropic_api_key';
+    return '삭제됨';
+  end if;
+  insert into public.app_integrations (key, value) values ('anthropic_api_key', trim(p_key))
+    on conflict (key) do update set value = excluded.value;
+  return '저장됨';
+end; $$;
+grant execute on function public.admin_set_ai_key(text) to authenticated;
+
+-- 키가 들어있는지 + 끝 4자리만 (전체 키는 절대 돌려주지 않음)
+create or replace function public.ai_key_status()
+returns text language sql security definer stable set search_path = public as $$
+  select case when not public.is_admin() then null
+              else (select '…' || right(value, 4) from public.app_integrations where key = 'anthropic_api_key') end;
+$$;
+grant execute on function public.ai_key_status() to authenticated;
+
 -- 완료! 'Success. No rows returned' 이면 정상입니다.
 -- 다음: Database → Webhooks 에 daily_ai(INSERT·UPDATE), ai_findings(UPDATE) 를 푸시 워커로 연결 (docs 체크리스트 참고)

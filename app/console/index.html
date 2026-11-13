@@ -1290,6 +1290,16 @@ async function renderDaily(){
   const monBytes=sum(DLY.ph,'bytes');
   const tile=(l,v,sub)=>`<div class="card" style="margin:0;padding:14px 16px"><div style="font-size:11.5px;color:var(--mut);font-weight:700">${l}</div><div style="font-size:22px;font-weight:800;margin-top:4px">${v}</div>${sub?`<div style="font-size:11px;color:var(--mut);margin-top:3px">${sub}</div>`:''}</div>`;
   body.innerHTML=`
+  <div class="card" id="aiSetCard"><h3>🤖 AI 설정 <span class="r">API 키만 넣으면 감리일지 AI · 시공사 사진 AI · AI 보강이 모두 켜져요</span></h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span id="aiKeyState" class="pill gray">확인 중…</span>
+      <input class="inp" id="aiKeyIn" type="password" autocomplete="off" placeholder="Anthropic API 키 붙여넣기 (sk-ant-…)" style="flex:1;min-width:260px">
+      <button class="b blue" onclick="aiKeySave(this)">저장</button>
+      <button class="b line" onclick="aiPing(this)">연결 테스트</button>
+      <button class="b line sm" onclick="aiKeyClear()">키 삭제</button>
+    </div>
+    <div id="aiSetMsg" style="font-size:12px;margin-top:8px;color:var(--mut)">키 발급: console.anthropic.com → API Keys. 저장된 키는 서버에서만 쓰이고 화면·앱에는 끝 4자리만 보여요. 월 지출 한도도 Anthropic 콘솔에서 꼭 설정하세요.</div>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px">
     ${tile('처리 대기',open.length+'건',open.filter(late).length?`<span style="color:var(--red)">${DLY_ESCALATE_H}시간 넘게 미확인 ${open.filter(late).length}건</span>`:'지연 없음')}
     ${tile('기간 내 일일보고',DLY.reps.length+'건',`최근 ${days}일`)}
@@ -1318,7 +1328,33 @@ async function renderDaily(){
   </div>`;
   const c=$('c-daily'); const n=DLY.fs.filter(f=>['open','replied'].includes(f.state)).length; if(c){c.textContent=n;c.style.display=n?'':'none';}
   dlyGallery();
+  aiKeyRefresh();
 }
+async function aiKeyRefresh(){
+  const el=$('aiKeyState'); if(!el)return;
+  const {data,error}=await sb.rpc('ai_key_status');
+  if(error){ el.className='pill no'; el.textContent='SQL 실행 필요'; return; }
+  if(data){ el.className='pill ok'; el.textContent='키 저장됨 '+data; } else { el.className='pill no'; el.textContent='키 없음'; }
+}
+async function aiKeySave(btn){
+  const v=(($('aiKeyIn')||{}).value||'').trim(); const msg=$('aiSetMsg');
+  if(!/^sk-ant-/.test(v)){ msg.style.color='var(--red)'; msg.textContent='Anthropic API 키는 sk-ant- 로 시작해요. 다시 확인해 주세요.'; return; }
+  btn.disabled=true; const {error}=await sb.rpc('admin_set_ai_key',{p_key:v}); btn.disabled=false;
+  if(error){ msg.style.color='var(--red)'; msg.textContent='저장 실패: '+error.message+(/function|does not exist/i.test(error.message)?' — 최신 migration-daily-reports.sql 을 먼저 실행하세요.':''); return; }
+  $('aiKeyIn').value=''; msg.style.color='var(--green)'; msg.textContent='✅ 저장했어요. [연결 테스트]로 확인해 보세요. (서버가 새 키를 읽는 데 최대 1분)'; aiKeyRefresh();
+}
+async function aiKeyClear(){ if(!confirm('저장된 AI 키를 삭제할까요? AI 기능이 꺼져요.'))return; await sb.rpc('admin_set_ai_key',{p_key:''}); aiKeyRefresh(); }
+async function aiPing(btn){
+  const msg=$('aiSetMsg'); btn.disabled=true; const t=btn.textContent; btn.textContent='확인 중…';
+  try{
+    const r=await sb.functions.invoke('aptsq-ai',{body:{task:'ping'}});
+    if(r.error) throw new Error(/not found|404|Failed to send/i.test(r.error.message||'')?'AI 함수(aptsq-ai)가 아직 배포되지 않았어요 — 배포 1번만 하면 돼요(안내 문서 참고).':r.error.message);
+    const d=r.data||{}; if(!d.ok) throw new Error(d.error||'실패');
+    msg.style.color='var(--green)'; msg.textContent='✅ AI 연결됨 — 사진 분석 '+d.model+' · 글 작성 '+d.write_model;
+  }catch(e){ msg.style.color='var(--red)'; msg.textContent='❌ '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=t; }
+}
+Object.assign(window,{aiKeySave,aiKeyClear,aiPing});
 // ── 현장별 시공사 사진: 양이 많아도 보기 쉽게 (필터 · 날짜 띠 · 접기/펼치기 · 필요할 때만 사진 로드 · 더 보기) ──
 const DG={apt:null,type:'',q:'',issues:false,mode:'date',day:null,open:new Set(),pages:10,ph:[],U:{},more:new Set()};
 const WK='일월화수목금토';
@@ -3588,13 +3624,14 @@ async function aiEnrichReport(id,btn){
     var P=gamriParse(r),m=P.meta;
     var payload={ content:r.content||'', photoCount:(Array.isArray(r.photos)?r.photos.length:0),
       meta:{site:m.site,builder:m.builder,worktype:m.worktype,date:m.date,weather:m.weather,round:m.round,dongs:m.dongs,insp:m.insp} };
-    var resp=await sb.functions.invoke('gamri-ai',{body:payload});
+    var resp=await sb.functions.invoke('aptsq-ai',{body:Object.assign({task:'enrich'},payload)});
+    if(resp.error && /not found|404|Failed to send/i.test(resp.error.message||'')) resp=await sb.functions.invoke('gamri-ai',{body:payload});
     if(resp.error) throw new Error(resp.error.message||'함수 호출 실패');
     var d=resp.data||{};
     if(!d.ok) throw new Error(d.error||'AI 보강 실패');
     openAiEnrichModal(id,d);
   }catch(e){
-    alert('AI 보강 실패: '+(e&&e.message||e)+'\n\n확인:\n· Edge Function gamri-ai 가 배포됐는지\n· ANTHROPIC_API_KEY 가 설정됐는지');
+    alert('AI 보강 실패: '+(e&&e.message||e)+'\n\n확인:\n· Edge Function aptsq-ai 가 배포됐는지\n· 「일일보고·AI」 탭 AI 설정에 API 키를 넣었는지');
   }finally{ if(btn){btn.disabled=false;btn.textContent=_t;} }
 }
 window.aiEnrichReport=aiEnrichReport;

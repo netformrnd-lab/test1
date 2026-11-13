@@ -2788,7 +2788,8 @@ function aiCard(k){
     '<span class="hint">드래그하거나 Ctrl+V로 붙여넣으세요</span><span class="n" id="aiN">0자</span></div>' +
     '<div class="aiwrap"><textarea class="aibox' + (isNote ? ' sm' : '') + '" id="aiBox" aria-label="' + (isNote ? '감리 종합의견' : '감리 현장 보고일지') + ' 붙여넣기" ' +
     'placeholder="' + (isNote ? '감리 종합의견을' : 'AI로 작성한 감리 현장 보고일지를') + ' 여기에 붙여넣으세요.&#10;&#10;' + (isNote ? '' : '아래 5개의 섹션으로 작성해 주세요.&#10;&#10;1. 금일 공정 및 시공사보고&#10;2. 감리 점검내용&#10;   - 서류 확인&#10;   - 안전관리&#10;   - 자재관리&#10;3. 향후 점검계획&#10;4. 지적사항 및 조치내용&#10;5. 감리 종합의견&#10;&#10;') + '· 다른 창에서 글을 선택해 이 칸으로 끌어다 놓거나&#10;· 복사한 뒤 이 칸을 누르고 Ctrl+V (휴대폰은 길게 눌러 붙여넣기)"></textarea></div>' +
-    '<div class="airow"><button class="btn primary" id="aiPaste" type="button">클립보드에서 붙여넣기</button>' +
+    '<div class="airow"><button class="btn primary" id="aiGen" type="button" style="background:linear-gradient(135deg,#7b5cff,#2F6BF6);border-color:transparent">✨ AI 돌리기</button>' +
+    '<button class="btn" id="aiPaste" type="button">클립보드에서 붙여넣기</button>' +
     '<button class="btn" id="aiClear" type="button">지우기</button>' +
     '<span class="mb-note">붙여넣은 글은 고치지 않고 감리일지에 그대로 들어갑니다. 내용을 고치려면 이 칸에서 직접 고치세요.</span></div>';
   var ta = sec.querySelector('#aiBox'), cnt = sec.querySelector('#aiN');   /* 아직 DOM에 붙기 전 */
@@ -2816,6 +2817,32 @@ function aiCard(k){
       ta.value = ta.value.trim() ? (ta.value.replace(/\s+$/, '') + '\n\n' + txt) : txt;
       commit(); autoGrowAi(); toast((isNote ? '종합의견을' : '보고일지를') + ' 붙여넣었습니다');
     }, function(){ toast('붙여넣기가 막혔습니다 — 칸을 누르고 Ctrl+V (휴대폰은 길게 눌러) 붙여넣으세요'); ta.focus(); });
+  });
+  sec.querySelector('#aiGen').addEventListener('click', function(){
+    var btn = this;
+    if(!window.aptsqAIInspect){ toast('앱에서 감리일지를 열어야 AI를 쓸 수 있어요'); return; }
+    var run = function(){
+      var t0 = btn.textContent; btn.disabled = true; btn.textContent = '✨ AI 작성 중… (10~30초)';
+      var safe = function(f){ try{ return f() || []; }catch(e){ return []; } };
+      var m = store.meta || {}, d = (typeof W !== 'undefined' && W && D[W]) ? D[W] : {};
+      var ctx = {
+        site: m.site || '', zone: m.zone || '', date: m.date || '', weather: m.wx || '', insp: m.insp || '',
+        worktype: d.label || d.work || '', stage: (typeof PH !== 'undefined' ? PH : '') || '', round: safe(function(){ return roundLabel(); }) || '',
+        rep: safe(function(){ return pickedLines('rep'); }), chk: safe(function(){ return pickedLines('chk'); }), iss: safe(function(){ return pickedLines('iss'); }),
+        res: safe(function(){ return resItems().map(function(o){ var st = resState(o.h); return '[' + resLabel(o.h) + '] ' + o.h.t + ' → ' + (st === 'done' ? '처리 완료 확인' : st === 'not' ? '미처리' : '확인 전'); }); }),
+        current: isNote ? aiText('chk') : ''
+      };
+      (typeof photoList === 'function' ? photoList : function(cb){ cb([]); })(function(ph){
+        ctx.photoCount = (ph || []).length;
+        window.aptsqAIInspect.run(ctx, isNote ? 'opinion' : 'report').then(function(res){
+          btn.disabled = false; btn.textContent = t0;
+          if(!res.ok){ toast(res.error || 'AI 작성 실패'); return; }
+          ta.value = res.text; commit(); toast('AI가 작성했어요 — 사실과 다른 문장이 없는지 꼭 확인·수정하세요');
+        });
+      });
+    };
+    if(ta.value.trim()) ask({ tag:'AI 돌리기', title:'지금 칸의 내용을 AI 작성본으로 바꿀까요?', ok:'바꾸기', body:'체크한 항목·지적사항·시공사 일일보고를 바탕으로 새로 작성합니다. 지금 내용은 지워집니다.' }, run);
+    else run();
   });
   sec.querySelector('#aiClear').addEventListener('click', function(){
     if(!ta.value.trim()) return;
@@ -3390,6 +3417,44 @@ if(ready()) photoList(function(l){ if(l.length) phUpdate(l.length); });
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, _sbOpts)
     : null;
   var INTEG = { photos:[], auditors:[], boss:'', me:'' };
+
+  /* ✨ AI 돌리기 — 서버 함수 aptsq-ai (키는 관리자 콘솔 AI 설정). 지난 방문 이후 시공사 일일보고도 자동으로 넣음 */
+  window.aptsqAIInspect = {
+    run: function(ctx, part){
+      if(!sb) return Promise.resolve({ ok:false, error:'연결 오류 — 앱에서 열어주세요' });
+      return dailyCtx().then(function(dc){
+        ctx.daily = dc.daily; ctx.requests = dc.requests; ctx.builder = INTEG.builder || '';
+        return sb.functions.invoke('aptsq-ai', { body:{ task:'report', part: part, ctx: ctx } });
+      }).then(function(r){
+        if(r.error) return { ok:false, error: /not found|404|Failed to send/i.test(r.error.message||'') ? 'AI가 아직 연결되지 않았어요 (관리자에게 문의)' : ('AI 오류: ' + r.error.message) };
+        return r.data || { ok:false, error:'응답 없음' };
+      }).catch(function(e){ return { ok:false, error:'AI 오류: ' + ((e && e.message) || e) }; });
+    }
+  };
+  function dailyCtx(){
+    var empty = { daily:[], requests:[] };
+    if(!sb || !APT_ID) return Promise.resolve(empty);
+    var since = new Date(Date.now() + 9*3600*1000 - 14*86400000).toISOString().slice(0,10);
+    return sb.from('schedules').select('done_at').eq('apartment_id', APT_ID).not('done_at','is',null).order('done_at',{ascending:false}).limit(1)
+      .then(function(v){
+        var d = v && v.data && v.data[0] && v.data[0].done_at;
+        if(d) since = new Date(new Date(d).getTime() + 9*3600*1000).toISOString().slice(0,10);
+        return sb.from('daily_reports').select('id,work_date,worktype,location,memo,author_name').eq('apartment_id', APT_ID).gte('work_date', since).order('work_date');
+      }).then(function(r){
+        var reps = (r && r.data) || []; if(!reps.length) return { reps:[], ph:[] };
+        return sb.from('daily_photos').select('report_id').in('report_id', reps.map(function(x){ return x.id; })).then(function(p){ return { reps:reps, ph:(p && p.data) || [] }; });
+      }).then(function(o){
+        var daily = o.reps.map(function(x){
+          var n = o.ph.filter(function(p){ return p.report_id === x.id; }).length;
+          return x.work_date + ' ' + (x.worktype||'') + (x.location ? ' · ' + x.location : '') + ' (사진 ' + n + '장)' + (x.memo ? ' — 메모: ' + x.memo : '');
+        });
+        return sb.from('ai_findings').select('title,state,source').eq('apartment_id', APT_ID).gte('created_at', since + 'T00:00:00+09:00').then(function(f){
+          var LB = { open:'확인 전', acknowledged:'감리원 확인', requested:'시공사 회신 대기', replied:'시공사 회신함', rechecked:'재확인 완료', false_alarm:'오경보 종결' };
+          var requests = ((f && f.data) || []).filter(function(x){ return x.state !== 'false_alarm'; }).map(function(x){ return x.title + ' — ' + (LB[x.state] || x.state); });
+          return { daily: daily, requests: requests };
+        });
+      }).catch(function(){ return empty; });
+  }
 
   /* 회차 실시간 표시: 서버의 '같은 단지+공종' 기존 감리일지 수 + 1 을 조회해
      작성 중에도 올바른 다음 회차(제N차)가 상단에 뜨게 한다. (worktype 컬럼 없으면 로컬 방식 유지) */

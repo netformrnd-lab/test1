@@ -1,19 +1,15 @@
-// 시공사 일일보고 → 규칙 검사 + AI 위험 탐지 (초안)
+// 아파트스퀘어 AI — 하나의 함수로 모든 AI 기능 (Supabase Edge Function 'aptsq-ai')
+//   task 'daily'  : 시공사 일일보고 사진 → 규칙 검사 + AI 위험 탐지 (Haiku 1차 / Sonnet 2차)
+//   task 'report' : 감리원 앱 감리일지 작성 3단계 '✨ AI 돌리기' → 감리 현장 보고일지 5개 섹션 (part:'opinion' = 종합의견)
+//   task 'enrich' : 관리자 콘솔 감리일지 '✨ AI 보강' → 작업/특기/지적 문장
+//   task 'ping'   : 콘솔 'AI 연결 테스트'
 //
-// 흐름: 시공사가 일일보고 제출 → 앱이 이 함수 호출({ report_id })
-//   1) 규칙 검사(무료): 필수 사진 누락 · 옛 사진(촬영일≠보고일) · 같은 사진 재사용 · 공정 순서 건너뜀
-//   2) AI 1차(Claude Haiku 5.5): 사진·메모·직전 공정을 보고 '검토 필요/이상 징후 없음/판단 불가'
-//   3) AI 2차(Claude Sonnet 5.5): 1차에서 '검토 필요'가 나온 경우에만 다시 확인(오경보 줄이기)
-//   4) ai_findings · daily_ai 저장 (daily_ai 웹훅이 '검토 필요'면 담당 감리원에게 푸시)
-//      AI 결과(daily_ai)는 감리원·관리자만 볼 수 있음 — 시공사에게는 감리원이 통보한 항목만 보임
+// API 키: 관리자 콘솔 「일일보고·AI」 탭 → AI 설정에 붙여넣으면 끝 (app_integrations 표에 저장, 브라우저엔 안 보임)
+//         또는 Supabase secret ANTHROPIC_API_KEY (있으면 이게 우선)
+// 배포(최초 1번): Supabase → Edge Functions → Deploy a new function → 이름 aptsq-ai → 이 파일 붙여넣기
 //
-// 비용 관리: 보고 1건 최대 6장 · 현장당 하루 상한 · 월 예산 상한 · 고정 프롬프트 캐싱
 // AI는 판정하지 않음(적합/부적합은 감리원). 단정 표현은 서버에서 한 번 더 걸러냄.
-//
-// 배포:  supabase functions deploy daily-ai
-// 비밀키: ANTHROPIC_API_KEY (gamri-ai 와 같은 키 사용 가능)
-// 선택:  DAILY_AI_MODEL(기본 claude-haiku-5-5) · DAILY_AI_MODEL_2ND(기본 claude-sonnet-5-5)
-//        DAILY_AI_DAILY_CAP(현장당 하루 분석 장수, 기본 20) · DAILY_AI_MONTHLY_USD(월 예산 달러, 기본 10)
+// Sonnet/Opus 호출에는 서버 측 대체 모델(fallbacks: "default")을 켜 둠 — 안전 분류기가 거절하면 다른 모델로 자동 재시도.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { encodeBase64 } from "jsr:@std/encoding@1/base64";
@@ -148,18 +144,7 @@ function parseOut(msg: any): AiOut | null {
   } catch { return null; }
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  if (req.method !== "POST") return J({ ok: false, error: "POST만 허용됩니다." }, 405);
-
-  const URL_ = Deno.env.get("SUPABASE_URL")!;
-  const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const auth = req.headers.get("Authorization") || "";
-  if (!auth) return J({ ok: false, error: "로그인이 필요해요." }, 401);
-
-  let body: any;
-  try { body = await req.json(); } catch { return J({ ok: false, error: "요청 본문(JSON)을 읽지 못했습니다." }, 400); }
+async function handleDaily(body: any, auth: string, URL_: string, ANON: string, SERVICE: string, KEYV: string | null): Promise<Response> {
   const reportId = String(body?.report_id || "");
   const force = !!body?.force;
   if (!reportId) return J({ ok: false, error: "report_id 가 필요해요." }, 400);
@@ -255,9 +240,9 @@ Deno.serve(async (req) => {
     const pick = ordered.slice(0, room);
     const ruleSummary = ruleFindings.length ? "검토 필요" : null;
 
-    const KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    const KEY = KEYV;
     if (!KEY || !pick.length || monthCost >= MONTHLY_USD) {
-      const why = !KEY ? "ANTHROPIC_API_KEY 미설정" : !P.length ? "사진 없음" : monthCost >= MONTHLY_USD ? "이번 달 AI 예산 상한 도달" : "오늘 이 현장 AI 분석 상한(" + DAILY_CAP + "장) 도달";
+      const why = !KEY ? "AI 키 미설정(콘솔 AI 설정)" : !P.length ? "사진 없음" : monthCost >= MONTHLY_USD ? "이번 달 AI 예산 상한 도달" : "오늘 이 현장 AI 분석 상한(" + DAILY_CAP + "장) 도달";
       await saveAi(P.length ? "skipped" : "done", ruleSummary || (P.length ? "판단 불가" : "검토 필요"),
         { skipped: why, rules: ruleFindings.length });
       return J({ ok: true, status: "skipped", reason: why, rules: ruleFindings.length });
@@ -369,5 +354,195 @@ Deno.serve(async (req) => {
     const msg = String((e as any)?.message || e).slice(0, 500);
     await saveAi("failed", null, null, msg);
     return J({ ok: false, error: "분석 실패: " + msg }, 500);
+  }
+}
+
+// ============================================================
+// 공용: API 키 — Supabase secret(ANTHROPIC_API_KEY) 또는 관리자 콘솔 'AI 설정'에 저장한 키
+// ============================================================
+let KEY_CACHE: { v: string | null; t: number } = { v: null, t: 0 };
+async function getKey(svc: any): Promise<string | null> {
+  const env = Deno.env.get("ANTHROPIC_API_KEY");
+  if (env) return env;
+  if (Date.now() - KEY_CACHE.t < 60_000) return KEY_CACHE.v;
+  try {
+    const { data } = await svc.from("app_integrations").select("value").eq("key", "anthropic_api_key").maybeSingle();
+    KEY_CACHE = { v: (data && data.value) || null, t: Date.now() };
+  } catch { KEY_CACHE = { v: null, t: Date.now() }; }
+  return KEY_CACHE.v;
+}
+async function callerRole(asUser: any): Promise<string | null> {
+  try {
+    const { data: { user } } = await asUser.auth.getUser();
+    if (!user) return null;
+    const { data: prof } = await asUser.from("profiles").select("role,approved").eq("id", user.id).single();
+    return prof && prof.approved ? prof.role : null;
+  } catch { return null; }
+}
+const MODEL_WRITE = Deno.env.get("AI_MODEL_WRITE") || Deno.env.get("GAMRI_AI_MODEL") || "claude-opus-5-5";
+
+// 공통 문장 규칙 (감리 업무기준)
+const RULES = `[최우선 원칙 — 사실을 지어내지 않는다]
+- 주어진 자료(체크 항목·지적사항·메모·시공사 보고)에 없는 작업·점검·수치·부위·일시·인원을 새로 만들지 마십시오.
+- 자료가 빈약하면 빈약한 대로 쓰고, 칸을 억지로 채우지 마십시오. 자료가 없는 항목은 "해당 없음" 또는 "특이사항 없음(자료 없음)"으로 씁니다.
+
+[쓰는 동사 — 이것만 사용]
+관찰함 · 확인함 · 수령함 · 보관함 · 통보함 · 요청함 · (서면으로) 지시함 · 판정함(적합/부적합/판정 보류) · 보고함
+
+[금지 표현]
+조치함 · 시정함 · 처리함 · 진행시킴 · 중단시킴 · 투입시킴 · 적발함 · 지적함 · 판단됨 · 예상됨 · 이상 없음 · 양호함
+('하자' '불량' '재시공 필요'처럼 법적 책임을 단정하는 표현 금지). 법 조문 번호를 지어내지 말고 "관계 법령에 따라"로 씁니다.
+
+[시공사 작업내용]
+- 시공자의 작업내용은 감리가 창작·요약하지 않습니다. "시공자 제출 작업보고 원문 수령·보관함" 형태로 쓰고, 제출 내역(날짜·공종·부위·사진 수)만 사실대로 적습니다.`;
+
+// ---------- 감리원 앱: 감리 현장 보고일지(5개 섹션) 작성 ----------
+const SYSTEM_REPORT = `당신은 '아파트스퀘어'(아파트 보수공사 비상주 감리 대행)의 감리 현장 보고일지 작성 보조입니다.
+감리원이 앱에서 체크한 항목·지적사항·메모와, 지난 방문 이후 시공사가 앱으로 제출한 일일보고 목록을 받아
+아래 5개 섹션의 보고일지를 작성합니다. 감리원이 검토·수정한 뒤 감리일지에 들어갑니다.
+
+${RULES}
+
+[출력 형식 — 이 제목과 순서 그대로, 일반 텍스트만 (마크다운 기호 #, **, 표 금지)]
+1. 금일 공정 및 시공사보고
+2. 감리 점검내용
+   - 서류 확인
+   - 안전관리
+   - 자재관리
+3. 향후 점검계획
+4. 지적사항 및 조치내용
+5. 감리 종합의견
+
+- 각 섹션 아래는 "· "로 시작하는 짧은 문장 줄로 씁니다. 문장 끝은 위 '쓰는 동사'로 끝냅니다.
+- 3번은 주어진 공정 순서에서 다음 단계와, 미처리 지적사항 재확인 계획만 씁니다.
+- 4번은 주어진 지적사항·처리결과만 씁니다. 없으면 "· 금일 지적사항 없음"으로 씁니다.
+- 5번은 2~3문장. 관찰 사실 요약과 다음 확인 사항만, 단정 평가 없이.`;
+
+const SYSTEM_OPINION = `당신은 '아파트스퀘어' 비상주 감리의 감리 종합의견 작성 보조입니다.
+감리원이 체크한 항목·지적사항·보고일지를 바탕으로 '감리 종합의견'을 3~5문장으로 씁니다.
+
+${RULES}
+
+[출력] 일반 텍스트 문단 하나. 마크다운·제목·번호 없이.`;
+
+function textOf2(msg: any): string {
+  return (msg?.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n").trim();
+}
+async function writeCall(KEY: string, system: string, user: string, maxTokens = 6000) {
+  const client = new Anthropic({ apiKey: KEY });
+  const msg = await client.beta.messages.create({
+    model: MODEL_WRITE,
+    max_tokens: maxTokens,
+    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] as any,
+    output_config: { effort: "medium" } as any,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    messages: [{ role: "user", content: user }],
+  } as any);
+  if ((msg as any).stop_reason === "refusal") throw new Error("AI가 이 요청을 처리하지 못했어요. 내용을 조금 바꿔 다시 시도해 주세요.");
+  return msg;
+}
+
+async function handleReport(body: any, KEY: string): Promise<Response> {
+  const c = body?.ctx || {};
+  const L: string[] = [];
+  const add = (k: string, v: any) => { if (v != null && String(v).trim()) L.push(k + ": " + String(v).trim()); };
+  add("현장", c.site); add("시공사", c.builder); add("공종", c.worktype); add("단계", c.stage);
+  add("날짜", c.date); add("날씨", c.weather); add("회차", c.round); add("감리원", c.insp); add("점검 위치", c.zone);
+  if (Array.isArray(c.stages) && c.stages.length) add("공정 순서", c.stages.join(" → "));
+  const list = (title: string, arr: any) => {
+    const a = (Array.isArray(arr) ? arr : []).map((x: any) => String(x).trim()).filter(Boolean);
+    L.push("", "[" + title + "]", a.length ? a.map((x: string) => "· " + x).join("\n") : "(없음)");
+  };
+  list("감리원 체크 항목(시공사 보고)", c.rep);
+  list("감리원 체크 항목(점검·확인)", c.chk);
+  list("금일 지적사항", c.iss);
+  list("이전 회차 지적사항 처리결과", c.res);
+  list("감리원 메모", c.memo ? [c.memo] : []);
+  list("지난 방문 이후 시공사 일일보고(앱 제출)", c.daily);
+  list("시공사 확인 요청 현황", c.requests);
+  if (typeof c.photoCount === "number") L.push("", "첨부 현장사진: " + c.photoCount + "장");
+  if (c.current) L.push("", "[현재 작성된 보고일지(있으면 참고)]", String(c.current).slice(0, 6000));
+  const user = L.join("\n").slice(0, 30000);
+  const isOpinion = body?.part === "opinion";
+  const msg = await writeCall(KEY, isOpinion ? SYSTEM_OPINION : SYSTEM_REPORT,
+    "아래 자료로 " + (isOpinion ? "감리 종합의견을" : "감리 현장 보고일지를") + " 작성하세요.\n\n" + user, isOpinion ? 2000 : 6000);
+  let text = textOf2(msg).replace(/\*\*/g, "").replace(/^#+\s*/gm, "");
+  for (const [re, rep] of BANNED) text = text.replace(re, rep);
+  return J({ ok: true, text, model: MODEL_WRITE });
+}
+
+// ---------- 관리자 콘솔: 감리일지 AI 보강 (작업/특기/지적) ----------
+const SYSTEM_ENRICH = `당신은 '아파트스퀘어'(비상주 감리 대행)의 공사감리일지 작성 보조입니다.
+감리원이 작성한 '점검 원문'을 공식 공사감리일지(건축법 시행규칙 별지 제21호서식)의
+세 칸 — 작업사항 / 특기사항 / 지적사항 및 처리결과 — 에 들어갈 문장으로 다듬습니다.
+
+${RULES}
+
+[작업사항] '[시공사 보고]' 와 '[감리 확인]' 두 소제목 줄을 넣고 그 아래 해당 불릿을 둡니다.
+[특기사항] 방문 시점의 관찰 사실, 제출서류 수령 내역, 공정률 보고 등.
+[지적사항 및 처리결과] 완료 부위에 한해 '적합 / 부적합 / 판정 보류'로만 판정. 시공 중 부위는 "판정 대상 아님". 없으면 빈 배열.
+각 배열 항목은 불릿 한 줄(앞에 기호 없이).`;
+const ENRICH_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["work", "teukgi", "jijeok"],
+  properties: { work: { type: "array", items: { type: "string" } }, teukgi: { type: "array", items: { type: "string" } }, jijeok: { type: "array", items: { type: "string" } } },
+};
+async function handleEnrich(body: any, KEY: string): Promise<Response> {
+  const m = body?.meta || {};
+  const lines = ["아래는 감리원이 작성한 점검 원문과 현장 정보입니다. 공식 양식 문장으로 다듬어 주세요.", "", "[현장 정보]"];
+  for (const [k, v] of [["현장명", m.site], ["시공사", m.builder], ["공종", m.worktype], ["감리일자", m.date], ["날씨", m.weather], ["회차", m.round], ["점검위치(동)", m.dongs], ["감리원", m.insp]]) if (v) lines.push(k + ": " + v);
+  if (typeof body?.photoCount === "number") lines.push("첨부 현장사진: " + body.photoCount + "장");
+  lines.push("", "[감리원 점검 원문]", String(body?.content || "").trim().slice(0, 20000) || "(원문 없음)");
+  const client = new Anthropic({ apiKey: KEY });
+  const msg = await client.beta.messages.create({
+    model: MODEL_WRITE, max_tokens: 6000,
+    system: [{ type: "text", text: SYSTEM_ENRICH, cache_control: { type: "ephemeral" } }] as any,
+    output_config: { effort: "medium", format: { type: "json_schema", schema: ENRICH_SCHEMA } } as any,
+    betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
+    messages: [{ role: "user", content: lines.join("\n") }],
+  } as any);
+  if ((msg as any).stop_reason === "refusal") return J({ ok: false, error: "AI가 이 요청을 처리하지 못했어요." });
+  let o: any; try { o = JSON.parse(textOf2(msg)); } catch { return J({ ok: false, error: "AI 응답을 해석하지 못했어요." }); }
+  const clean = (a: any) => (Array.isArray(a) ? a : []).map((x: any) => soften(String(x))).filter(Boolean);
+  return J({ ok: true, work: clean(o.work), teukgi: clean(o.teukgi), jijeok: clean(o.jijeok), model: MODEL_WRITE });
+}
+
+// ============================================================
+// 진입점 — { task: 'daily' | 'report' | 'enrich' | 'ping', ... }
+// ============================================================
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return J({ ok: false, error: "POST만 허용됩니다." }, 405);
+  const URL_ = Deno.env.get("SUPABASE_URL")!;
+  const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const auth = req.headers.get("Authorization") || "";
+  if (!auth) return J({ ok: false, error: "로그인이 필요해요." }, 401);
+  let body: any;
+  try { body = await req.json(); } catch { return J({ ok: false, error: "요청 본문(JSON)을 읽지 못했습니다." }, 400); }
+  const task = String(body?.task || (body?.report_id ? "daily" : "enrich"));
+  const svc = createClient(URL_, SERVICE);
+  const KEY = await getKey(svc);
+
+  if (task === "daily") return handleDaily(body, auth, URL_, ANON, SERVICE, KEY);
+
+  const asUser = createClient(URL_, ANON, { global: { headers: { Authorization: auth } } });
+  const role = await callerRole(asUser);
+  if (role !== "auditor" && role !== "admin") return J({ ok: false, error: "감리원·관리자만 사용할 수 있어요." }, 403);
+  if (!KEY) return J({ ok: false, error: "AI 키가 아직 없어요 — 관리자 콘솔 「일일보고·AI」 탭의 AI 설정에 API 키를 넣어 주세요." });
+  try {
+    if (task === "ping") {
+      const client = new Anthropic({ apiKey: KEY });
+      const m = await client.messages.create({ model: MODEL_1, max_tokens: 50, messages: [{ role: "user", content: "'연결됨' 한 단어로만 답하세요." }] } as any);
+      return J({ ok: true, reply: textOf2(m), model: MODEL_1, write_model: MODEL_WRITE });
+    }
+    if (task === "report") return await handleReport(body, KEY);
+    if (task === "enrich") return await handleEnrich(body, KEY);
+    return J({ ok: false, error: "알 수 없는 작업: " + task }, 400);
+  } catch (e) {
+    const msg = String((e as any)?.message || e);
+    if (/401|authentication|invalid x-api-key/i.test(msg)) return J({ ok: false, error: "API 키가 올바르지 않아요 — 콘솔 AI 설정에서 키를 다시 넣어 주세요." });
+    if (/credit|billing|balance/i.test(msg)) return J({ ok: false, error: "Anthropic 계정 결제(크레딧)를 확인해 주세요." });
+    return J({ ok: false, error: "AI 실행 오류: " + msg.slice(0, 300) });
   }
 });

@@ -7,7 +7,7 @@
 //
 // 이 파일은 supabase-app.js 보다 먼저 로드되며 '함수 정의'만 합니다.
 // sb · escH · compressImage · zoomPhoto · appToast · currentApt · MY_ID · MY_NAME 은 호출 시점에 supabase-app.js 것을 씁니다.
-// DB: backend/migration-daily-reports.sql  ·  AI: supabase/functions/daily-ai
+// DB: backend/migration-daily-reports.sql  ·  AI: supabase/functions/aptsq-ai (task daily)
 // ============================================================
 (function () {
   const BUCKET = 'daily-photos'
@@ -295,7 +295,7 @@
       }
       say('✅ 제출 완료! (사진 ' + ok + '장)', '#1f8a5b')
       // AI 검토는 서버에서 진행 — 기다리지 않음(결과는 감리원에게만 전달)
-      try { sb.functions.invoke('daily-ai', { body: { report_id: rep.id } }).catch(() => {}) } catch (e) {}
+      try { sb.functions.invoke('aptsq-ai', { body: { task: 'daily', report_id: rep.id } }).catch(() => {}) } catch (e) {}
       try { logEvent('daily_submit', DC.site.id) } catch (e) {}
       toast('일일보고가 제출됐어요 👍')
       setTimeout(() => { window.showScreen('sc1'); window.loadContractorHome() }, 900)
@@ -628,7 +628,7 @@
   window.daRerun = async function (rid, el) {
     if (el) el.textContent = '분석 중…'
     try {
-      const { data, error } = await sb.functions.invoke('daily-ai', { body: { report_id: rid, force: true } })
+      const { data, error } = await sb.functions.invoke('aptsq-ai', { body: { task: 'daily', report_id: rid, force: true } })
       if (error || (data && data.ok === false)) toast('AI 분석 실패: ' + ((data && data.error) || (error && error.message) || ''))
     } catch (e) { toast('AI 분석 실패') }
     await daLoad()

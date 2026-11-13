@@ -87,7 +87,7 @@
   // ============================================================
   // 시공사 홈 (sc1)
   // ============================================================
-  const DC = { sites: [], site: null, shots: {}, extras: [], busy: false }
+  const DC = { sites: [], site: null, photos: [], busy: false }
   window.loadContractorHome = async function () {
     const box = $d('dc-sites'), rec = $d('dc-recent'), hero = $d('dc-hero'), alertBox = $d('dc-alert'); if (!box) return
     const hi = $d('dc-hello')
@@ -227,7 +227,7 @@
   // ---------- 일일보고 작성 (sc2) ----------
   window.openDailyWrite = function (aptId) {
     const s = DC.sites.find(x => x.id === aptId); if (!s) return
-    DC.site = s; DC.shots = {}; DC.extras = []
+    DC.site = s; DC.photos = []
     $d('dw-apt').textContent = s.name
     $d('dw-date').value = kstToday()
     $d('dw-loc').value = ''; $d('dw-memo').value = ''; $d('dw-msg').textContent = ''
@@ -235,77 +235,37 @@
     const all = stages.length ? stages : [...new Set(Object.values(window.STAGE_SETS || {}).flatMap(x => x.stages))]
     const last = (() => { try { return localStorage.getItem('aptsq_dw_type_' + aptId) || '' } catch (e) { return '' } })()
     $d('dw-type').innerHTML = '<option value="">공종 선택</option>' + all.map(t => `<option ${t === last ? 'selected' : ''}>${E(t)}</option>`).join('') + '<option>기타</option>'
-    dwRenderShots(); dwRenderExtras()
+    dwRenderGrid()
     window.showScreen('sc2')
   }
-  function dwRenderShots() {
-    const type = $d('dw-type').value
-    const shots = (window.dailyShots && window.dailyShots(type)) || []
-    $d('dw-shots').innerHTML = shots.map(sh => {
-      const f = DC.shots[sh.key]
-      const bg = f ? `url('${f.url}') center/cover` : '#fff'
-      return `<label style="position:relative;display:block;height:118px;border-radius:12px;border:1.5px ${f ? 'solid #2F6BF6' : 'dashed #c9d3e6'};background:${bg};cursor:pointer;overflow:hidden">
-        <input type="file" accept="image/*" style="display:none" onchange="dwPickShot('${sh.key}','${E(sh.label).replace(/'/g, '')}',this.files)">
-        <div style="position:absolute;left:0;right:0;bottom:0;background:${f ? 'rgba(20,29,52,.72)' : 'transparent'};color:${f ? '#fff' : '#4a5a80'};font-size:11px;font-weight:800;padding:7px 8px;line-height:1.35">${f ? '✔ ' : '＋ '}${E(sh.label)}</div>
-      </label>`
-    }).join('')
-    dwCount()
-  }
-  // 빈 필수 칸을 '추가 사진'에서 순서대로 채움 (공종을 나중에 골라도 자동 배치)
-  function dwAutoFill() {
-    const type = $d('dw-type').value; if (!type) return
-    const shots = (window.dailyShots && window.dailyShots(type)) || []
-    shots.forEach(sh => { if (!DC.shots[sh.key] && DC.extras.length) { const x = DC.extras.shift(); DC.shots[sh.key] = { file: x.file, label: sh.label, url: x.url } } })
-  }
-  function dwCount() {
-    const el = $d('dw-count'); if (!el) return
-    const shots = (window.dailyShots && window.dailyShots($d('dw-type').value)) || []
-    const filled = shots.filter(sh => DC.shots[sh.key]).length
-    el.textContent = ($d('dw-type').value ? '필수 ' + filled + '/' + shots.length : '공종을 고르면 자동 배치') + (DC.extras.length ? ' · 추가 ' + DC.extras.length : '')
-  }
-  window.dwTypeChanged = function () {
-    // 공종을 바꾸면 이전 칸 사진은 추가 사진으로 돌려놓고 새 칸에 다시 배치
-    Object.keys(DC.shots).forEach(k => { const v = DC.shots[k]; DC.extras.unshift({ file: v.file, url: v.url }) })
-    DC.shots = {}
-    dwAutoFill(); dwRenderShots(); dwRenderExtras()
+  // 올릴 사진 미리보기: 눌러서 크게 보기, × 로 빼기, 마지막 칸 '+ 더 넣기'
+  function dwRenderGrid() {
+    const n = DC.photos.length
+    const c = $d('dw-count'); if (c) c.textContent = n ? '사진 ' + n + '장' + (n > MAX_PHOTOS ? ' · 최대 ' + MAX_PHOTOS + '장' : '') : ''
+    $d('dw-grid').innerHTML = DC.photos.map((x, i) => `<div style="position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:#e9edf4 url('${x.url}') center/cover" onclick="dwZoom(${i})">
+        <span onclick="event.stopPropagation();dwDel(${i})" style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:rgba(20,29,52,.75);color:#fff;font-size:15px;line-height:26px;text-align:center;cursor:pointer">×</span>
+        <span style="position:absolute;left:4px;bottom:4px;background:rgba(20,29,52,.65);color:#fff;font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:6px">${i + 1}</span>
+      </div>`).join('') + (n ? `<label style="aspect-ratio:1/1;border-radius:10px;border:1.5px dashed #c9d3e6;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#4a5a80;font-size:11px;font-weight:800"><span style="font-size:20px">＋</span>더 넣기<input type="file" accept="image/*" multiple style="display:none" onchange="dwBulk(this.files)"></label>`
+      : '<div style="grid-column:1/-1;background:#fff;border:1px dashed #d7deea;border-radius:12px;padding:22px 10px;text-align:center;color:#8b95ad;font-size:11.5px;font-weight:600">위 버튼으로 사진을 넣으면 여기서 잘 나왔는지 확인할 수 있어요</div>')
   }
   window.dwBulk = function (files) {
     const list = Array.from(files || []); if (!list.length) return
-    list.forEach(f => DC.extras.push({ file: f, url: URL.createObjectURL(f) }))
+    list.forEach(f => DC.photos.push({ file: f, url: URL.createObjectURL(f) }))
     const el = $d('dw-bulk'); if (el) el.value = ''
-    dwAutoFill(); dwRenderShots(); dwRenderExtras()
-    toast(list.length + '장을 넣었어요' + ($d('dw-type').value ? '' : ' · 공종을 고르면 필수 칸에 자동 배치돼요'))
+    dwRenderGrid()
   }
-  window.dwRenderShots = dwRenderShots
-  window.dwPickShot = function (key, label, files) {
-    const f = files && files[0]; if (!f) return
-    DC.shots[key] = { file: f, label, url: URL.createObjectURL(f) }
-    dwRenderShots()
-  }
-  function dwRenderExtras() {
-    dwCount()
-    $d('dw-extra-list').innerHTML = DC.extras.map((x, i) => `<div style="position:relative;width:58px;height:58px;border-radius:9px;background:url('${x.url}') center/cover"><span onclick="dwDelExtra(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#1c2440;color:#fff;font-size:12px;line-height:20px;text-align:center;cursor:pointer">×</span></div>`).join('')
-  }
-  window.dwAddExtra = function (files) {
-    Array.from(files || []).forEach(f => DC.extras.push({ file: f, url: URL.createObjectURL(f) }))
-    const el = $d('dw-extra'); if (el) el.value = ''
-    dwRenderExtras()
-  }
-  window.dwDelExtra = function (i) { DC.extras.splice(i, 1); dwRenderExtras() }
+  window.dwDel = function (i) { DC.photos.splice(i, 1); dwRenderGrid() }
+  window.dwZoom = function (i) { const x = DC.photos[i]; if (x) { try { zoomPhoto(x.url) } catch (e) {} } }
 
   window.dwSubmit = async function () {
     if (DC.busy || !DC.site) return
     const msg = $d('dw-msg'); const say = (t, c) => { msg.textContent = t; msg.style.color = c || '#8b95ad' }
     const type = $d('dw-type').value
     if (!type) { say('공종을 선택해 주세요', '#e4544b'); return }
-    const shots = (window.dailyShots && window.dailyShots(type)) || []
-    const list = []
-    shots.forEach(sh => { const f = DC.shots[sh.key]; if (f) list.push({ file: f.file, slot: sh.key, label: sh.label }) })
-    DC.extras.forEach(x => list.push({ file: x.file, slot: null, label: '추가 사진' }))
-    if (list.length > MAX_PHOTOS) { say('사진은 한 번에 ' + MAX_PHOTOS + '장까지 올릴 수 있어요', '#e4544b'); return }
-    const missing = shots.filter(sh => !DC.shots[sh.key]).map(sh => sh.label)
+    const list = DC.photos.map(x => ({ file: x.file, slot: null, label: '현장 사진' }))
+    if (list.length > MAX_PHOTOS) { say('사진은 한 번에 ' + MAX_PHOTOS + '장까지 올릴 수 있어요 (지금 ' + list.length + '장)', '#e4544b'); return }
+    const missing = []
     if (!list.length && !confirm('사진 없이 제출할까요? (사진 없음으로 기록돼요)')) return
-    if (list.length && missing.length && !confirm('필수 사진 ' + missing.length + '장이 비어 있어요.\n(' + missing.join(', ') + ')\n그대로 제출할까요? ‘사진 누락’으로 기록돼요.')) return
 
     DC.busy = true; const btn = $d('dw-submit'); btn.style.opacity = '.6'
     try {

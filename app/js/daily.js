@@ -249,6 +249,32 @@
         <div style="position:absolute;left:0;right:0;bottom:0;background:${f ? 'rgba(20,29,52,.72)' : 'transparent'};color:${f ? '#fff' : '#4a5a80'};font-size:11px;font-weight:800;padding:7px 8px;line-height:1.35">${f ? '✔ ' : '＋ '}${E(sh.label)}</div>
       </label>`
     }).join('')
+    dwCount()
+  }
+  // 빈 필수 칸을 '추가 사진'에서 순서대로 채움 (공종을 나중에 골라도 자동 배치)
+  function dwAutoFill() {
+    const type = $d('dw-type').value; if (!type) return
+    const shots = (window.dailyShots && window.dailyShots(type)) || []
+    shots.forEach(sh => { if (!DC.shots[sh.key] && DC.extras.length) { const x = DC.extras.shift(); DC.shots[sh.key] = { file: x.file, label: sh.label, url: x.url } } })
+  }
+  function dwCount() {
+    const el = $d('dw-count'); if (!el) return
+    const shots = (window.dailyShots && window.dailyShots($d('dw-type').value)) || []
+    const filled = shots.filter(sh => DC.shots[sh.key]).length
+    el.textContent = ($d('dw-type').value ? '필수 ' + filled + '/' + shots.length : '공종을 고르면 자동 배치') + (DC.extras.length ? ' · 추가 ' + DC.extras.length : '')
+  }
+  window.dwTypeChanged = function () {
+    // 공종을 바꾸면 이전 칸 사진은 추가 사진으로 돌려놓고 새 칸에 다시 배치
+    Object.keys(DC.shots).forEach(k => { const v = DC.shots[k]; DC.extras.unshift({ file: v.file, url: v.url }) })
+    DC.shots = {}
+    dwAutoFill(); dwRenderShots(); dwRenderExtras()
+  }
+  window.dwBulk = function (files) {
+    const list = Array.from(files || []); if (!list.length) return
+    list.forEach(f => DC.extras.push({ file: f, url: URL.createObjectURL(f) }))
+    const el = $d('dw-bulk'); if (el) el.value = ''
+    dwAutoFill(); dwRenderShots(); dwRenderExtras()
+    toast(list.length + '장을 넣었어요' + ($d('dw-type').value ? '' : ' · 공종을 고르면 필수 칸에 자동 배치돼요'))
   }
   window.dwRenderShots = dwRenderShots
   window.dwPickShot = function (key, label, files) {
@@ -257,6 +283,7 @@
     dwRenderShots()
   }
   function dwRenderExtras() {
+    dwCount()
     $d('dw-extra-list').innerHTML = DC.extras.map((x, i) => `<div style="position:relative;width:58px;height:58px;border-radius:9px;background:url('${x.url}') center/cover"><span onclick="dwDelExtra(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#1c2440;color:#fff;font-size:12px;line-height:20px;text-align:center;cursor:pointer">×</span></div>`).join('')
   }
   window.dwAddExtra = function (files) {
@@ -423,18 +450,26 @@
     try { logEvent('daily_auditor', currentApt.id) } catch (e) {}
     await daLoad()
   }
+  window.daSetPeriod = function (v) { DA.period = v; daLoad() }
   async function daLoad() {
     const box = $d('da-list'); box.innerHTML = '<div style="padding:14px;color:#8b95ad;font-size:12px">불러오는 중…</div>'
     const aptId = currentApt.id
+    const per = DA.period || 'visit'; const ps = $d('da-period'); if (ps) ps.value = per
     // 지난 방문(다녀옴 표시된 일정) 이후. 없으면 최근 14일
     let since = null
-    try {
+    if (per !== 'visit') since = 'x'
+    else try {
       const { data: v } = await sb.from('schedules').select('done_at').eq('apartment_id', aptId).not('done_at', 'is', null).order('done_at', { ascending: false }).limit(1)
       if (v && v[0] && v[0].done_at) since = new Date(new Date(v[0].done_at).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10)
     } catch (e) {}
     const fallback = new Date(Date.now() + 9 * 3600 * 1000 - 14 * 86400000).toISOString().slice(0, 10)
-    DA.since = since || fallback
-    $d('da-range').textContent = since ? ('지난 방문(' + since + ') 이후 일일보고') : '최근 14일 일일보고 (다녀온 방문 기록 없음)'
+    if (per !== 'visit') {
+      DA.since = new Date(Date.now() + 9 * 3600 * 1000 - (Number(per) - 1) * 86400000).toISOString().slice(0, 10)
+      $d('da-range').textContent = DA.since.slice(5).replace('-', '.') + ' 이후'
+    } else {
+      DA.since = since || fallback
+      $d('da-range').textContent = since ? (since.slice(5).replace('-', '.') + ' 방문 이후') : '방문 기록 없음 · 최근 14일'
+    }
     const { data: reps, error } = await sb.from('daily_reports').select('*').eq('apartment_id', aptId).gte('work_date', DA.since).order('work_date', { ascending: false }).order('created_at', { ascending: false })
     if (error) { box.innerHTML = `<div style="padding:14px;color:#8b95ad;font-size:12px">${E(missingTableMsg(error))}</div>`; return }
     DA.reports = reps || []
@@ -489,7 +524,9 @@
     box.innerHTML = DA.reports.map(r => {
       const ai = DA.ai[r.id], ph = DA.photos[r.id] || [], fs = DA.findings.filter(f => f.report_id === r.id)
       const sum = ai && ai.summary
-      const badge = r.ai_status === 'pending' || r.ai_status === 'running' ? '<span style="font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:3px 8px;border-radius:99px">AI 검토 중</span>'
+      const waitLong = (r.ai_status === 'pending' || r.ai_status === 'running') && (Date.now() - new Date(r.created_at).getTime()) > 10 * 60000
+      const badge = waitLong ? '<span style="font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:3px 8px;border-radius:99px">AI 미연결 · 직접 확인</span>'
+        : r.ai_status === 'pending' || r.ai_status === 'running' ? '<span style="font-size:10px;font-weight:800;color:#5a6480;background:#eef1f7;padding:3px 8px;border-radius:99px">AI 검토 중</span>'
         : r.ai_status === 'failed' ? '<span style="font-size:10px;font-weight:800;color:#c0392b;background:#fdecea;padding:3px 8px;border-radius:99px">AI 실패</span>'
           : sum === '검토 필요' ? '<span style="font-size:10px;font-weight:800;color:#c0392b;background:#fdecea;padding:3px 8px;border-radius:99px">검토 필요</span>'
             : sum === '판단 불가' ? '<span style="font-size:10px;font-weight:800;color:#b26a00;background:#fff3d9;padding:3px 8px;border-radius:99px">판단 불가</span>'
@@ -501,6 +538,7 @@
         <div style="font-size:11px;color:#8b95ad;font-weight:600;margin-top:2px">${E(r.location || '부위 미기재')} · ${E(r.author_name || '시공사')} · 사진 ${ph.length}장${miss.length ? ' · <span style="color:#e4544b">필수 누락 ' + miss.length + '</span>' : ''}</div>
         ${r.memo ? `<div style="font-size:12px;color:#333c54;font-weight:600;margin-top:7px">“${E(r.memo)}”</div>` : ''}
         ${ph.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">' + ph.map(p => thumbHtml(p, 58)).join('') + '</div>' : ''}
+        ${ph.length ? `<div onclick="daSaveReport('${r.id}',this)" style="cursor:pointer;display:inline-block;margin-top:8px;font-size:11px;font-weight:800;color:#2F6BF6">⬇ 이 보고 사진 저장 (${ph.length}장)</div>` : ''}
         ${ai && ai.result && ai.result.note ? `<div style="font-size:11px;color:#5c6580;font-weight:600;margin-top:8px;background:#f6f8fb;border-radius:9px;padding:7px 9px">🤖 ${E(ai.result.note)} <span style="color:#aab2c4">(참고용 · 최종 판단은 감리원)</span></div>` : ''}
         ${skipped ? `<div style="font-size:10.5px;color:#b26a00;font-weight:700;margin-top:6px">AI 분석 생략: ${E(skipped)} — 사진 직접 확인 필요</div>` : ''}
         ${fs.map(findingCard).join('')}
@@ -520,6 +558,62 @@
     toast(ACT[action] + ' ✔')
     await daLoad()
     try { window.dailyMenuBadge(currentApt.id) } catch (e) {}
+  }
+  // 사진 저장: 앱(네이티브)은 공유 시트(→ '이미지 저장'·카톡·드라이브), 웹은 zip 다운로드
+  let jszipP = null
+  function loadJSZip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip)
+    if (jszipP) return jszipP
+    jszipP = new Promise((res) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; sc.onload = () => res(window.JSZip || null); sc.onerror = () => res(null); document.head.appendChild(sc) })
+    return jszipP
+  }
+  const fileSafe = (t) => String(t || '').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40)
+  async function savePhotos(items, label, el) {
+    items = items.filter(x => x && x.path); if (!items.length) { toast('저장할 사진이 없어요'); return }
+    const t0 = el ? el.textContent : ''; const say = (t) => { if (el) el.textContent = t }
+    try {
+      await signAll(items.map(x => x.path))
+      const blobs = []
+      for (let i = 0; i < items.length; i++) {
+        say('사진 받는 중 ' + (i + 1) + '/' + items.length)
+        try { const r = await fetch(SIGNED[items[i].path]); if (r.ok) blobs.push({ name: items[i].name, blob: await r.blob() }) } catch (e) {}
+      }
+      if (!blobs.length) { toast('사진을 받지 못했어요'); return }
+      const P = window.Capacitor && window.Capacitor.Plugins, FS = P && P.Filesystem, SH = P && P.Share
+      if (FS && FS.writeFile && SH && SH.share) {
+        const uris = []
+        for (const b of blobs) {
+          const data = await blobToBase64(b.blob)
+          const w = await FS.writeFile({ path: 'aptsq_' + Date.now() + '_' + b.name, data, directory: 'CACHE' })
+          uris.push((w && w.uri) || (await FS.getUri({ path: 'aptsq_' + b.name, directory: 'CACHE' })).uri)
+        }
+        try { await SH.share({ title: label, files: uris, dialogTitle: '사진 ' + uris.length + '장 저장·공유' }) } catch (e) {}
+        return
+      }
+      try {
+        const files = blobs.map(b => new File([b.blob], b.name, { type: b.blob.type || 'image/jpeg' }))
+        if (navigator.canShare && navigator.canShare({ files }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) { await navigator.share({ files, title: label }); return }
+      } catch (e) { if (e && e.name === 'AbortError') return }
+      const JSZip = await loadJSZip()
+      if (!JSZip) { blobs.forEach(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b.blob); a.download = b.name; a.click() }); return }
+      say('압축 중…')
+      const zip = new JSZip(); blobs.forEach(b => zip.file(b.name, b.blob))
+      const z = await zip.generateAsync({ type: 'blob' })
+      const a = document.createElement('a'); a.href = URL.createObjectURL(z); a.download = fileSafe(label) + '.zip'; document.body.appendChild(a); a.click(); a.remove()
+    } catch (e) { toast('저장 실패: ' + ((e && e.message) || e)) }
+    finally { say(t0) }
+  }
+  function reportItems(r) {
+    return (DA.photos[r.id] || []).map((p, i) => ({ path: p.path, name: r.work_date + '_' + fileSafe(r.worktype) + '_' + String(i + 1).padStart(2, '0') + '_' + fileSafe(p.shot_label || '사진') + '.jpg' }))
+  }
+  window.daSaveReport = function (rid, el) {
+    const r = DA.reports.find(x => x.id === rid); if (!r) return
+    savePhotos(reportItems(r), currentApt.name + '_' + r.work_date + '_시공사사진', el)
+  }
+  window.daSaveAll = function (el) {
+    const items = DA.reports.flatMap(reportItems)
+    if (items.length > 60 && !confirm('사진 ' + items.length + '장을 저장할까요? 시간이 조금 걸려요.')) return
+    savePhotos(items, currentApt.name + '_시공사사진_' + (DA.since || ''), el)
   }
   window.daRerun = async function (rid, el) {
     if (el) el.textContent = '분석 중…'

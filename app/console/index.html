@@ -896,8 +896,10 @@ function repDateKey(r){
 function repDateShow(r){ const k=repDateKey(r); return /^\d{8}$/.test(k)?k.slice(0,4)+'-'+k.slice(4,6)+'-'+k.slice(6,8):String((r&&r.created_at)||'').slice(0,10); }
 function repRound(r){
   if(!r) return 1;
-  const wk=repWorktype(r);
-  const grp=REPORTS.filter(x=>x.apartment_id===r.apartment_id && repWorktype(x)===wk)
+  // 여러 공종 감리일지(worktype '재도장, 옥상')도 그 공종 회차로 셈 → 첫 공종 기준
+  const wk=repWorktype(r).split(',')[0].trim();
+  const has=x=>repWorktype(x).split(',').map(t=>t.trim()).includes(wk);
+  const grp=REPORTS.filter(x=>x.apartment_id===r.apartment_id && (wk?has(x):!repWorktype(x)))
                    .sort((a,b)=>(repDateKey(a).localeCompare(repDateKey(b)))||((a.created_at||'').localeCompare(b.created_at||''))||(String(a.id)>String(b.id)?1:-1));
   const i=grp.findIndex(x=>x.id===r.id);
   return i>=0?i+1:1;

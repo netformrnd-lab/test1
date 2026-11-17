@@ -109,6 +109,14 @@ body{margin:0;background:var(--stage);color:var(--ink);
 .pickbar .chg{appearance:none;border:1px solid var(--wk);background:var(--card);color:var(--wk);
   font-family:inherit;font-size:11px;font-weight:600;padding:4px 10px;border-radius:99px;cursor:pointer;flex:none}
 .pickbar .chg:hover{background:var(--wk);color:#fff}
+.pickbar .chg.add{background:var(--wk);color:#fff}
+.partsbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-2px 13px 8px;flex:none}
+.partsbar .pl{font-size:11px;font-weight:700;color:var(--ink-2);margin-right:2px}
+.partsbar .pchip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:5px 6px 5px 10px;border-radius:99px;
+  border:1px solid var(--line, #d7deea);background:var(--card, #fff);color:var(--ink-2, #4a5468);cursor:pointer}
+.partsbar .pchip.on{border-color:var(--wk);color:var(--wk);background:var(--wk-soft)}
+.partsbar .pchip.ok{color:#1f8a5b}
+.partsbar .pchip i{font-style:normal;font-weight:800;padding:0 5px;color:#98a1b5}
 .pickbar .chg:focus-visible{outline:2px solid var(--wk);outline-offset:2px}
 
 /* 기타 공종 안의 세부 공종(보도블록 / 아스콘) 선택 줄 — 단계 버튼과 같은 모양 */
@@ -1561,6 +1569,23 @@ function norm(x){ return (typeof x === 'string') ? { t:x } : x; }
 function rows(g){ if(!ready() || !g) return []; return ((D[W].P[PH] || {})[g] || []).map(norm); }
 function rid(g,i){ return W + '/' + PH + '/' + g + '/' + i; }
 function pk(){ return W + '/' + PH; }
+/* ── 여러 공종을 한 감리일지에 — 포함 공종 목록 store.parts = ['W/PH', …]
+      공종별 체크·지적·회차·보고일지는 지금처럼 'W/PH' 키로 따로 저장되고, 출력·제출·전송만 묶는다 ── */
+function partOK(p){ var a = String(p || '').split('/'); return !!(D[a[0]] && D[a[0]].P && PHASES.some(function(x){ return x.n === a[1]; })); }
+function parts(){ var a = (store.parts || []).filter(partOK); if(ready() && a.indexOf(pk()) < 0) a.push(pk()); return a; }
+function isMulti(){ return parts().length > 1; }
+function withPart(p, fn){
+  var w0 = W, wg0 = WG, ph0 = PH, a = String(p).split('/');
+  W = a[0]; WG = D[W].grp || null; PH = a[1];
+  try { return fn(); } finally { W = w0; WG = wg0; PH = ph0; }
+}
+function syncParts(){ if(!ready()) return; if(!store.parts) store.parts = []; if(store.parts.indexOf(pk()) < 0){ store.parts.push(pk()); save(); } }
+function journalDone(){ return parts().every(function(p){ return withPart(p, allDone); }); }
+function firstUndonePart(){ var a = parts().filter(function(p){ return !withPart(p, allDone); }); return a.length ? a[0] : null; }
+function switchPart(p){
+  var a = String(p).split('/'); W = a[0]; WG = D[W].grp || null; PH = a[1]; ST = null;
+  store.w = W; store.wg = WG; store.ph = PH; store.step = null; save();
+}
 function plain(h){ return h.replace(/<\/?b>/g, ''); }
 function p2(n){ return String(n).padStart(2,'0'); }
 function stepOf(k){ for(var i=0;i<NSTEP;i++) if(STEPS[i].k===k) return STEPS[i]; return null; }
@@ -1581,7 +1606,7 @@ function allDone(){ for(var i=0;i<NSTEP;i++) if(!isDone(STEPS[i].k)) return fals
 function doneCount(){ var n=0; for(var i=0;i<NSTEP;i++) if(isDone(STEPS[i].k)) n++; return n; }
 function firstOpen(){ for(var i=0;i<NSTEP;i++) if(!isDone(STEPS[i].k)) return STEPS[i].k; return 'out'; }
 function unlocked(k){
-  if(k === 'out') return allDone();
+  if(k === 'out') return journalDone();
   var idx = stepIdx(k);
   if(idx < 0) return false;
   for(var i=0;i<idx;i++) if(!isDone(STEPS[i].k)) return false;
@@ -1765,6 +1790,7 @@ function closedToday(){
 
 /* ---------- 상단 (공종 · 단계) ---------- */
 function chrome(){
+  syncParts();
   var ph = document.getElementById('phone');
   var col = W ? (D[W].col || W) : (WG || 'roof');
   ph.className = 'phone ' + wcls() + ' ' + pcls();
@@ -1783,6 +1809,35 @@ function chrome(){
   selbarRender();
 
   stepUI();
+}
+
+/* 한 감리일지에 들어가는 공종 칩: 누르면 그 공종 작성으로 전환, × 는 이 감리일지에서 빼기 */
+function partsBarRender(){
+  var pb = document.getElementById('pickbar'); if(!pb) return;
+  var bar = document.getElementById('partsbar');
+  if(!bar){ bar = document.createElement('div'); bar.id = 'partsbar'; bar.className = 'partsbar'; pb.parentNode.insertBefore(bar, pb.nextSibling); }
+  var ps = (store.parts || []).filter(partOK);
+  if(ready() && ps.indexOf(pk()) < 0) ps.push(pk());
+  if(ps.length < 2 && !(ps.length === 1 && !ready())){ bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false; bar.innerHTML = '<span class="pl">이 감리일지 공종 ' + ps.length + '</span>';
+  ps.forEach(function(p){
+    var on = ready() && p === pk();
+    var done = withPart(p, allDone);
+    var b = document.createElement('span');
+    b.className = 'pchip' + (on ? ' on' : '') + (done ? ' ok' : '');
+    b.innerHTML = (done ? '✓ ' : '') + withPart(p, function(){ return D[W].label + ' · ' + PH; }) + ' <i title="이 감리일지에서 빼기">×</i>';
+    b.addEventListener('click', function(e){
+      if(e.target.tagName === 'I'){
+        if(!confirm('이 감리일지에서 ' + withPart(p, function(){ return D[W].label + ' · ' + PH; }) + ' 공종을 뺄까요?\n(그 공종에 체크한 내용은 지워지지 않아요)')) return;
+        store.parts = (store.parts || []).filter(function(x){ return x !== p; });
+        if(ready() && p === pk()){ var rest = store.parts.filter(partOK); if(rest.length) switchPart(rest[0]); else { W = null; WG = null; PH = null; ST = null; store.w = null; store.wg = null; store.ph = null; } }
+        save(); chrome(); render(); return;
+      }
+      if(on) return;
+      switchPart(p); chrome(); render();
+    });
+    bar.appendChild(b);
+  });
 }
 
 /* 상단 공종·단계 선택 — 공종을 고르면 칩으로 접히고 단계 버튼이 열린다.
@@ -1819,11 +1874,26 @@ function selbarRender(){
     var chg = document.createElement('button');
     chg.className = 'chg'; chg.type = 'button'; chg.textContent = '공종 변경';
     chg.addEventListener('click', function(){
+      /* 바꾸기 = 지금 공종을 빼고 다른 공종 선택 (다른 포함 공종은 그대로) */
+      if(store.parts && ready()) store.parts = store.parts.filter(function(x){ return x !== pk(); });
       W = null; WG = null; PH = null; ST = null;
       store.w = null; store.wg = null; store.ph = null; store.step = null; save(); chrome(); render();
     });
     pb.appendChild(chg);
+    if(ready()){
+      var add = document.createElement('button');
+      add.className = 'chg add'; add.type = 'button'; add.textContent = '＋ 공종 추가';
+      add.title = '이 감리일지에 다른 공종도 함께 넣기';
+      add.addEventListener('click', function(){
+        syncParts();
+        W = null; WG = null; PH = null; ST = null;
+        store.w = null; store.wg = null; store.ph = null; store.step = null; save(); chrome(); render();
+        toast('함께 넣을 공종과 단계를 고르세요');
+      });
+      pb.appendChild(add);
+    }
   }
+  partsBarRender();
 
   /* 묶음 공종의 세부 선택 줄 (기타 → 보도블록 / 아스콘) */
   var sw = document.getElementById('subworks'); sw.innerHTML = '';
@@ -2041,7 +2111,7 @@ function refreshLogs(){
 function continueFrom(L){
   if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
   useSite({ name:L.site, zone:L.zone });
-  clearChecks();
+  clearChecks(); store.parts = [];
   store.meta.date = todayStr();
   ST = 'meta'; store.step = ST; save(); chrome(); render();
   toast('제' + (roundNo()) + '차 — 1번 현장정보부터 이어서 작성합니다');
@@ -2197,7 +2267,8 @@ function resetAll(){
 
 function newVisit(){
   if(!confirm('이번 방문의 체크와 1~' + NSTEP + '번 진행을 모두 비웁니다.\n현장정보와 지적 이력은 그대로 남습니다.')) return;
-  clearChecks(); ST = 'meta'; store.step = ST; save(); chrome(); render();
+  parts().forEach(function(p){ if(p !== pk()) withPart(p, clearChecks); });
+  clearChecks(); store.parts = []; ST = 'meta'; store.step = ST; save(); chrome(); render();
   toast('새 방문 — 1번 현장정보부터 시작합니다');
 }
 function clearChecks(){
@@ -2245,7 +2316,7 @@ function stepbar(){
 
   var o = document.createElement('button');
   o.type = 'button'; o.title = '감리일지 미리보기 · 최종 제출';
-  var open = allDone();
+  var open = journalDone();
   o.className = 'sp' + (open ? '' : ' lock') + (ST === 'out' ? ' cur' : '');
   o.innerHTML = '<span class="n">▸</span><span class="l">일지</span>';
   if(!open) o.disabled = true;
@@ -2254,7 +2325,7 @@ function stepbar(){
 }
 
 function go(k){
-  if(k === 'out'){ if(!allDone()) return; }
+  if(k === 'out'){ if(!journalDone()) return; }
   else if(!unlocked(k)) return;
   ST = k; store.step = k; save();
   renderStep(); stepbar(); actbar(); meterUpdate(); out();
@@ -2638,6 +2709,23 @@ function photoList(cb){
     } catch(e){ cb(out); }
   });
 }
+/* 여러 공종 감리일지: 포함된 공종들의 현장사진을 모두 모음 */
+function photoListAll(cb){
+  var ks = (typeof parts === 'function' ? parts() : []).map(function(p){ return withPart(p, photoKey); });
+  if(ks.length < 2){ photoList(cb); return; }
+  pdb(function(db){
+    if(!db){ cb([]); return; }
+    var out = [], i = 0;
+    (function next(){
+      if(i >= ks.length){ cb(out); return; }
+      try {
+        var rq = db.transaction('p', 'readonly').objectStore('p').index('k').openCursor(IDBKeyRange.only(ks[i]));
+        rq.onsuccess = function(){ var c = rq.result; if(c){ out.push(c.value); c['continue'](); } else { i++; next(); } };
+        rq.onerror = function(){ i++; next(); };
+      } catch(e){ i++; next(); }
+    })();
+  });
+}
 function photoPut(rec, cb){
   pdb(function(db){
     if(!db){ cb(false); return; }
@@ -2824,14 +2912,19 @@ function aiCard(k){
     var run = function(){
       var t0 = btn.textContent; btn.disabled = true; btn.textContent = '✨ AI 작성 중… (10~30초)';
       var safe = function(f){ try{ return f() || []; }catch(e){ return []; } };
-      var m = store.meta || {}, d = (typeof W !== 'undefined' && W && D[W]) ? D[W] : {};
+      var m = store.meta || {}, multi = (typeof isMulti === 'function' && isMulti());
+      var ps = multi ? parts() : [pk()];
+      var each = function(f){ var out = []; ps.forEach(function(p){ withPart(p, function(){ safe(f).forEach(function(x){ out.push((multi ? '[' + D[W].label + '] ' : '') + x); }); }); }); return out; };
       var ctx = {
         site: m.site || '', zone: m.zone || '', date: m.date || '', weather: m.wx || '', insp: m.insp || '',
-        worktype: d.label || d.work || '', stage: (typeof PH !== 'undefined' ? PH : '') || '', round: safe(function(){ return roundLabel(); }) || '',
-        rep: safe(function(){ return pickedLines('rep'); }), chk: safe(function(){ return pickedLines('chk'); }), iss: safe(function(){ return pickedLines('iss'); }),
-        res: safe(function(){ return resItems().map(function(o){ var st = resState(o.h); return '[' + resLabel(o.h) + '] ' + o.h.t + ' → ' + (st === 'done' ? '처리 완료 확인' : st === 'not' ? '미처리' : '확인 전'); }); }),
+        worktype: ps.map(function(p){ return withPart(p, function(){ return D[W].label || D[W].work; }); }).join(', '),
+        stage: ps.map(function(p){ return withPart(p, function(){ return (multi ? D[W].label + ' ' : '') + PH; }); }).join(', '),
+        round: ps.map(function(p){ return withPart(p, function(){ return (multi ? D[W].label + ' ' : '') + (roundLabel() || ''); }); }).join(', '),
+        rep: each(function(){ return pickedLines('rep'); }), chk: each(function(){ return pickedLines('chk'); }), iss: each(function(){ return pickedLines('iss'); }),
+        res: each(function(){ return resItems().map(function(o){ var st = resState(o.h); return '[' + resLabel(o.h) + '] ' + o.h.t + ' → ' + (st === 'done' ? '처리 완료 확인' : st === 'not' ? '미처리' : '확인 전'); }); }),
         current: isNote ? aiText('chk') : ''
       };
+      if(multi) ctx.memo = '이 감리일지는 공종 ' + ps.length + '개(' + ctx.worktype + ')를 함께 다룹니다. 섹션마다 공종을 구분해서 쓰세요.';
       (typeof photoList === 'function' ? photoList : function(cb){ cb([]); })(function(ph){
         ctx.photoCount = (ph || []).length;
         window.aptsqAIInspect.run(ctx, isNote ? 'opinion' : 'report').then(function(res){
@@ -3091,6 +3184,12 @@ function submit(){
   var d = new Date();
   var at = d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) + ' ' +
            p2(d.getHours()) + ':' + p2(d.getMinutes());
+  parts().forEach(function(p){ withPart(p, function(){ submitPart(txt, at); }); });
+  saveSite();
+  save(); chrome(); renderOut(); actbar();
+}
+/* 공종 하나의 이력·회차·직접입력 지적 저장 (여러 공종이면 공종마다 호출) */
+function submitPart(txt, at){
   store.sub[pk() + '/' + (store.meta.date || '')] = { at:at, text:txt };
 
   /* 감리일지 이력 — 같은 현장·공종·단계·날짜면 덮어쓰고, 아니면 새 회차로 쌓는다 */
@@ -3112,9 +3211,6 @@ function submit(){
       else if(!store.hist[hk].closed) store.hist[hk].t = tx;
     });
   }
-
-  saveSite();
-  save(); chrome(); renderOut(); actbar();
 }
 
 /* ---------- 하단 액션바 ---------- */
@@ -3203,8 +3299,12 @@ function advance(){
   else store.na[dkey(S.k)] = 1;
   save();
   var nx = (idx + 1 < NSTEP) ? STEPS[idx+1].k : 'out';
+  if(nx === 'out' && !journalDone()){
+    var _np = firstUndonePart();
+    if(_np){ switchPart(_np); ST = firstOpen(); store.step = ST; save(); chrome(); render(); toast('다음 공종: ' + D[W].label + ' · ' + PH + ' — 1~' + NSTEP + '번을 진행해 주세요'); return; }
+  }
   go(nx);
-  if(nx === 'out') toast('1~' + NSTEP + '번 모두 통과 — 미리보기 후 최종 제출하세요');
+  if(nx === 'out') toast((isMulti() ? '포함한 공종 ' + parts().length + '개 모두 통과' : '1~' + NSTEP + '번 모두 통과') + ' — 미리보기 후 최종 제출하세요');
 }
 
 /* ---------- 진행 바 ---------- */
@@ -3239,6 +3339,7 @@ function pickedLines(g){
 
 function build(){
   if(!ready()) return '공종과 단계를 고르면 감리일지가 만들어집니다.';
+  if(isMulti()) return buildMulti();
   var m = store.meta || {}, d = D[W], L = '━━━━━━━━━━━━━━━━━━';
   var site = (m.site || '(현장명)') + (m.zone ? ' ' + m.zone : '');
   var t = L + '\n      공 사 감 리 일 지\n' + L + '\n';
@@ -3269,7 +3370,43 @@ function build(){
   return t;
 }
 
+/* 여러 공종 감리일지: 머리말 1번 + 공종별 [지적사항 및 처리결과] + 보고일지 */
+function buildMulti(){
+  var m = store.meta || {}, L = '━━━━━━━━━━━━━━━━━━';
+  var site = (m.site || '(현장명)') + (m.zone ? ' ' + m.zone : '');
+  var info = parts().map(function(p){ return withPart(p, function(){
+    return { w:D[W].work, lb:D[W].label, ph:PH, rn:roundLabel(),
+      res: resItems().map(function(o){ var st = resState(o.h); return '· [' + resLabel(o.h) + '] 「' + o.h.t + '」 → ' +
+             (st === 'done' ? '처리 완료를 확인함' : st === 'not' ? '미처리 — 재조치를 요청함' : '확인 전 — 차기 재확인'); }),
+      iss: pickedLines('iss'),
+      ai: aiText().replace(/\s+$/, '').replace(/^\s*\n/, '') };
+  }); });
+  var t = L + '\n      공 사 감 리 일 지\n' + L + '\n';
+  t += '공사감리자: ' + (m.boss || '조현식') + ' | 감리원: ' + (m.insp || '김성민') + '\n';
+  t += '공사명: ' + site + ' ' + info.map(function(x){ return x.w; }).join(' · ') + '\n';
+  t += '날짜: ' + (m.date || '') + ' | 날씨: ' + (m.wx || '맑음') + ' | 단계: ' +
+       info.map(function(x){ return x.lb + ' ' + x.ph; }).join(', ') + (info[0].rn ? ' | 회차: ' + info[0].rn : '') + '\n';
+  t += L + '\n[지적사항 및 처리결과]\n';
+  t += info.map(function(x){
+    var body = [];
+    if(x.res.length) body.push('◇ 처리결과 (이전 회차 지적사항)\n' + x.res.join('\n'));
+    if(x.iss.length) body.push('◇ 금일 지적사항\n' + x.iss.map(function(z){ return '· ' + z; }).join('\n'));
+    return '■ ' + x.lb + ' (' + x.ph + (x.rn ? ' · ' + x.rn : '') + ')\n' + (body.length ? body.join('\n\n') : '없음');
+  }).join('\n\n') + '\n';
+  var ais = info.filter(function(x){ return x.ai; });
+  var one = ais.length === 1 || (ais.length > 1 && ais.every(function(x){ return x.ai === ais[0].ai; }));
+  t += L + '\n[감리 현장 보고일지]\n' + (!ais.length ? '없음\n' : one ? ais[0].ai + '\n' :
+       ais.map(function(x){ return '■ ' + x.lb + '\n' + x.ai; }).join('\n\n') + '\n');
+  t += L + '\n아파트스퀘어 감리팀 · 감리원 ' + (m.insp || '김성민');
+  return t;
+}
+
 function lockText(){
+  if(isMulti()){
+    var mt = '이 감리일지에는 공종 ' + parts().length + '개가 들어갑니다.\n공종마다 1~' + NSTEP + '번을 모두 통과해야 열립니다.\n\n';
+    parts().forEach(function(p){ mt += withPart(p, function(){ return (allDone() ? '  ✓ ' : '  ▸ ') + D[W].label + ' · ' + PH + '  —  ' + (allDone() ? '통과' : doneCount() + '/' + NSTEP); }) + '\n'; });
+    return mt + '\n(위쪽 공종 칩을 눌러 공종을 바꿔 가며 작성하세요)';
+  }
   var t = '감리일지는 1~' + NSTEP + '번을 모두 통과해야 열립니다.\n\n';
   STEPS.forEach(function(S){
     var mk = isDone(S.k) ? '  ✓ ' : (unlocked(S.k) ? '  ▸ ' : '  · ');
@@ -3281,7 +3418,7 @@ function lockText(){
 
 function out(){
   buildNo();
-  var live = ready(), open = live && allDone();
+  var live = ready(), open = live && journalDone();
   var full = live ? build() : '공종과 단계를 고르면 감리일지가 만들어집니다.';
 
   var a = document.getElementById('out');
@@ -3320,9 +3457,9 @@ function sideList(){
          '<span class="st">' + (S.side || S.title) + '</span>' +   /* 진행 상태 목록에서만 쓰는 이름 */
          '<span class="sv' + (plain ? ' na' : '') + '">' + v + '</span></div>';
   });
-  h += '<div class="sum"><span class="sn' + (allDone() ? '' : ' wait') + '">▸</span>' +
+  h += '<div class="sum"><span class="sn' + (journalDone() ? '' : ' wait') + '">▸</span>' +
        '<span class="st">감리일지 미리보기 · 최종 제출</span>' +
-       '<span class="sv' + (allDone() ? '' : ' na') + '">' + (allDone() ? '열림' : '잠김') + '</span></div>';
+       '<span class="sv' + (journalDone() ? '' : ' na') + '">' + (journalDone() ? '열림' : '잠김') + '</span></div>';
   el.innerHTML = h;
 }
 
@@ -3370,7 +3507,12 @@ function render(){
     document.getElementById('prevstrip').hidden = true;
     stepUI(); out(); return;
   }
-  if(ST === 'out'){ if(!allDone()) ST = firstOpen(); }
+  if(ST === 'out' && !journalDone()){
+    /* 지금 공종은 끝났고 다른 포함 공종이 남았으면 → 그 공종으로 넘어가 이어서 작성 */
+    var _nx = allDone() ? firstUndonePart() : null;
+    if(_nx){ switchPart(_nx); chrome(); toast(D[W].label + ' · ' + PH + ' — 이 공종도 1~' + NSTEP + '번을 진행해 주세요'); }
+    ST = firstOpen();
+  }
   else if(!ST || !stepOf(ST) || !unlocked(ST)) ST = firstOpen();
   store.step = ST; save();
 
@@ -3469,7 +3611,7 @@ if(ready()) photoList(function(l){ if(l.length) phUpdate(l.length); });
       if(key === _srvKey) return;             /* 같은 단지+공종이면 재조회 안 함 */
       _srvKey = key;
       var q = sb.from('reports').select('id',{count:'exact',head:true}).eq('apartment_id', APT_ID);
-      q = wl ? q.eq('worktype', wl) : q.is('worktype', null);
+      q = wl ? q.ilike('worktype', '%' + wl + '%') : q.is('worktype', null);
       q.then(function(cr){
         if(cr && cr.error){ window._srvNoCol = true; return; }
         window.SRV_ROUND = ((cr && cr.count) || 0) + 1;
@@ -3491,7 +3633,11 @@ if(ready()) photoList(function(l){ if(l.length) phUpdate(l.length); });
          화면 전체 클릭을 막는 일이 없도록), 체크·진행만 비운다 */
       var _pk = (typeof pk==='function') ? pk() : null;
       var _ack = (_pk && store.rule) ? store.rule[_pk] : null;
-      if(typeof clearChecks==='function') clearChecks();  /* 이전 방문 체크·진행만 비움(이력은 보존) */
+      if(typeof clearChecks==='function'){
+        if(typeof parts==='function') parts().forEach(function(p){ if(p !== _pk) withPart(p, clearChecks); });
+        clearChecks();  /* 이전 방문 체크·진행만 비움(이력은 보존) */
+      }
+      store.parts = [];  /* 앱에서 새로 들어오면 공종 1개부터 (필요하면 '＋ 공종 추가') */
       if(_pk && _ack){ store.rule = store.rule || {}; store.rule[_pk] = _ack; }
       ST = 'meta';
     } else {
@@ -3671,7 +3817,7 @@ if(ready()) photoList(function(l){ if(l.length) phUpdate(l.length); });
     var content=''; try{ content=build(); }catch(e){ content=''; }
     if(!content || !content.trim()){ msg('감리일지 내용이 비어 있어요. 점검 항목을 체크해 주세요'); return; }
     /* 전송할 사진 = 디자인 «3번 보고 → 현장 사진 첨부»의 현장사진(IndexedDB blob). 없으면 확인 후 전송 */
-    (typeof photoList==='function'?photoList:function(cb){cb([]);})(function(recs){
+    (typeof photoListAll==='function'?photoListAll:(typeof photoList==='function'?photoList:function(cb){cb([]);}))(function(recs){
     recs=recs||[];
     if(recs.length===0 && !window.confirm('사진이 없습니다. 그래도 전송할까요?')) return;
     var btn=document.getElementById('integSend'); if(btn) btn.disabled=true;
@@ -3710,10 +3856,34 @@ if(ready()) photoList(function(l){ if(l.length) phUpdate(l.length); });
           if(hasWT) rec.worktype=wl||null;
           sb.from('reports').insert(rec).then(done);
         }
+        /* 여러 공종 감리일지: 공종마다 서버 회차(그 공종이 들어간 감리일지 수 + 1)를 매겨 본문에 반영 */
+        if(typeof isMulti==='function' && isMulti()){
+          var infos=parts().map(function(p){ return withPart(p,function(){ return { lb:D[W].label, ph:PH, rn:roundLabel() }; }); });
+          var rounds=[], qi=0;
+          (function nextq(){
+            if(qi>=infos.length){
+              var body=String(content);
+              infos.forEach(function(x,j){ if(!rounds[j]) return;
+                body=body.split('■ '+x.lb+' ('+x.ph+(x.rn?' · '+x.rn:'')+')').join('■ '+x.lb+' ('+x.ph+' · 제'+rounds[j]+'차)'); });
+              if(rounds[0]) body=body.replace(/회차:\s*제\d+차/, '회차: 제'+rounds[0]+'차');
+              var lbs=infos.map(function(x){ return x.lb; });
+              var rec={ apartment_id:APT_ID, author_id:user.id, title:'[감리일지] '+(store.meta.site||APT_NAME||'현장')+' · '+lbs.join('+')+(date?' · '+date:''),
+                        content:body, stage:infos.map(function(x){ return x.lb+' '+x.ph; }).join(', '), dongs:store.meta.zone||null, photos:urls, worktype:lbs.join(', ') };
+              sb.from('reports').insert(rec).then(function(res){
+                if(res.error && /worktype/i.test(res.error.message||'')){ delete rec.worktype; sb.from('reports').insert(rec).then(done); }
+                else done(res);
+              });
+              return;
+            }
+            sb.from('reports').select('id',{count:'exact',head:true}).eq('apartment_id',APT_ID).ilike('worktype','%'+infos[qi].lb+'%')
+              .then(function(cr){ rounds.push(cr&&!cr.error ? ((cr.count||0)+1) : 0); qi++; nextq(); });
+          })();
+          return;
+        }
         /* 회차: 서버의 '같은 단지+공종' 기존 감리일지 수 + 1 → 기기와 무관하게 자동 증가.
-           worktype 컬럼이 아직 없으면(마이그레이션 전) 기존 방식으로 안전하게 처리. */
+           (여러 공종 감리일지에 들어간 것도 그 공종 회차로 셈) worktype 컬럼이 아직 없으면 기존 방식으로 안전하게 처리. */
         var cq=sb.from('reports').select('id',{count:'exact',head:true}).eq('apartment_id',APT_ID);
-        cq=wl?cq.eq('worktype',wl):cq.is('worktype',null);
+        cq=wl?cq.ilike('worktype','%'+wl+'%'):cq.is('worktype',null);
         cq.then(function(cr){
           if(cr&&cr.error) doInsert(1,false);
           else doInsert(((cr&&cr.count)||0)+1, true);

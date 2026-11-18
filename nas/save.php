@@ -365,6 +365,44 @@ if ($baseRev !== null && $baseRev !== $curRev) {
    화면에 안 오던 할 일을 저장 직전에 다시 붙여 넣던 일은 필요 없어졌습니다.
    오히려 팀원이 지운 할 일이 되살아나므로 없앴습니다.                     */
 
+/* ── 🛡️ 한꺼번에 크게 줄어드는 저장은 받지 않습니다 (2026-11-18) ──────
+   브랜드 6개 · 할 일 114건이 한 번의 저장으로 브랜드 1개 · 할 일 3건이
+   된 일이 있었습니다. 자료를 덜 불러온 화면이 그대로 저장하면 이렇게
+   됩니다. 사람이 하루에 브랜드를 여러 개 지우거나 할 일을 절반씩 지우는
+   일은 없으니, 그런 저장은 거부하고 기록만 남깁니다.
+   정말로 지워야 하면 주소에 ?shrink=ok 를 붙여 저장하면 통과합니다.
+   그리고 저장할 때마다 누가 · 몇 건으로 저장했는지 save-log 에 남깁니다
+   (자료 파일이 이 기록 없이 바뀌면 save.php 가 아닌 다른 프로그램입니다). */
+$bh_cnt = function ($d) {
+    $b = 0; $t = 0;
+    foreach ((array)($d['brands'] ?? []) as $x) {
+        if (!is_array($x)) continue;
+        $b++; $t += count((array)($x['tasks'] ?? []));
+    }
+    return [$b, $t];
+};
+list($cb, $ct) = isset($cur) && is_array($cur) ? $bh_cnt($cur) : [0, 0];
+list($nb, $nt) = $bh_cnt($data);
+$who = '';
+if (function_exists('guard_user')) { $u = guard_user(); $who = is_array($u) ? (string)($u['name'] ?? $u['id'] ?? '') : ''; }
+$shrink = ($cb >= 2 && $nb < $cb - 1) || ($ct >= 20 && $nt < $ct * 0.6);
+$logf = $dir . '/save-log.php';
+if (!is_file($logf)) @file_put_contents($logf, "<?php exit; ?>\n");
+@file_put_contents($logf, date('Y-m-d H:i:s') . "\t" . ($shrink && ($_GET['shrink'] ?? '') !== 'ok' ? '거부' : '저장')
+    . "\t" . $who . "\t" . ($_SERVER['REMOTE_ADDR'] ?? '') . "\t판 " . $curRev
+    . "\t브랜드 {$cb}→{$nb}\t할일 {$ct}→{$nt}\t" . substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 80) . "\n",
+    FILE_APPEND);
+if ($shrink && ($_GET['shrink'] ?? '') !== 'ok') {
+    if ($lk) { flock($lk, LOCK_UN); fclose($lk); }
+    echo json_encode([
+        'ok'     => false,
+        'shrink' => true,
+        'error'  => "저장을 막았습니다 — 브랜드 {$cb}→{$nb} 개, 할 일 {$ct}→{$nt} 건으로 한꺼번에 줄어듭니다. "
+                  . "화면이 자료를 덜 불러온 것 같습니다. 입력하지 말고 새로고침(F5) 하세요.",
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // 하루 1회 백업 (백업도 주소로 열리지 않게 .php 로 둡니다)
 $backup = $dir . '/backup-' . date('Y-m-d') . '.php';
 if (file_exists($file) && !file_exists($backup)) {

@@ -97,4 +97,10 @@ foreach ($files as $p) {
     printf("%-34s %8s  %-16s %6s %5d %6d %5d %5d %5d\n", $n, bk_mb(filesize($p)), date('Y-m-d H:i', filemtime($p)),
         $s['rev'], $s['brands'], $s['tasks'], $s['proj'], $s['open'], $s['rout']);
 }
+echo "\n===== 최근 저장 기록 (save-log, 마지막 40줄) =====\n";
+$lg = "$DIR/save-log.php";
+if (is_file($lg)) {
+    $ls = array_slice(array_filter(explode("\n", (string)@file_get_contents($lg)), function ($l) { return $l !== '' && strpos($l, '<?php') !== 0; }), -40);
+    echo $ls ? implode("\n", $ls) . "\n" : "(아직 없음)\n";
+} else echo "(아직 없음 — 다음 저장부터 쌓입니다)\n";
 echo "\n— 끝. 이 화면을 통째로 복사해 붙여 주세요. —\n";

@@ -3508,7 +3508,7 @@ function gamriFormHtml(r,ov,assets){
   // 사진대지: 콘솔 PDF 버튼 = 대표 맨 앞 + 나머지 전부 / 입주민 공개용 = 저장된 대표만 (2026-11-20 수정)
   // assets.photos = 미리 받아 데이터 URL로 바꾼 사진 → html2canvas가 다른 출처 이미지를 못 그리는 문제 없음
   const photos=(assets&&assets.photos)?assets.photos:gamriPhotoOrder(r,'cover').map(function(u){ return {url:u,src:u,cover:true}; });
-  // 감리원 '(서명 또는 인)' 자리 도장 = 아파트스퀘어 회사 도장(GAMRI_SEAL), 항상 찍음 (공사감리자 칸 도장은 그대로)
+  // 도장은 감리원 '(서명 또는 인)' 자리에만 = 아파트스퀘어 회사 도장(GAMRI_SEAL), 항상 찍음 (공사감리자 칸에는 찍지 않음, 2026-11-20 대표 지시)
   const stamp=GAMRI_SEAL;
   var workHtml,teukHtml,jijeokHtml,jijeokEmpty=true;
   var _isNone=function(x){ return /^[·▪◇\s]*없음\.?$/.test(String(x||'').trim()); };
@@ -3545,7 +3545,7 @@ function gamriFormHtml(r,ov,assets){
     '<div class="title">공사감리일지</div>'+
     '<table class="t-info">'+
       '<tr><td class="lb">일련번호</td><td colspan="3" class="serial"></td></tr>'+
-      '<tr><td class="lb">공사감리자</td><td class="big stampcell">'+_gEsc(m.boss)+(GAMRI_SEAL?'<img class="stamp" src="'+GAMRI_SEAL+'">':'')+'</td><td class="lb">감리원</td><td class="sign">'+_gEsc(m.insp)+' (서명 또는 <span class="inmark">인'+(stamp?'<img class="istamp" src="'+stamp+'" alt="아파트스퀘어 도장">':'')+'</span>)</td></tr>'+
+      '<tr><td class="lb">공사감리자</td><td class="big stampcell">'+_gEsc(m.boss)+'</td><td class="lb">감리원</td><td class="sign">'+_gEsc(m.insp)+' (서명 또는 <span class="inmark">인'+(stamp?'<img class="istamp" src="'+stamp+'" alt="아파트스퀘어 도장">':'')+'</span>)</td></tr>'+
       '<tr><td class="lb">현장명</td><td>'+_gEsc(m.site)+'</td><td class="lb">시공사</td><td>'+_gEsc(m.builder)+'</td></tr>'+
       '<tr><td class="lb">공사명</td><td>'+_gEsc(m.gongsa)+'</td><td class="lb">점검위치</td><td>'+_gEsc(m.dongs)+'</td></tr>'+
       '<tr><td class="lb">감리일자</td><td colspan="3">'+_gEsc(m.date)+(m.weather?'&nbsp;&nbsp;&nbsp;날씨 : '+_gEsc(m.weather):'')+(m.round?'&nbsp;&nbsp;&nbsp;('+_gEsc(m.round)+')':'')+'</td></tr>'+

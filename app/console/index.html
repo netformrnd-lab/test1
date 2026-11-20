@@ -2936,7 +2936,7 @@ function promoTab(t,btn){
 
 /* ----- 모달 인프라 ----- */
 function openModal(html,wide){ const box=$('modalBox'); box.className='modal'+(wide?' wide':''); box.innerHTML=html; $('modalBg').classList.add('on'); }
-function closeModal(){ $('modalBg').classList.remove('on'); $('modalBox').innerHTML=''; MPHOTOS=[]; }
+function closeModal(){ $('modalBg').classList.remove('on'); $('modalBox').innerHTML=''; MPHOTOS=[]; RV_ID=null; RV_COVER=[]; RV_PHOTOS=[]; }  // 저장 안 한 대표 선택값은 창을 닫으면 버림
 function mHead(title){ return `<h3><span>${title}</span><button class="x" onclick="closeModal()">×</button></h3>`; }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape')closeModal(); });
 
@@ -3505,9 +3505,9 @@ function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',sec='',
   }); flushSec(); return out; }
 function gamriFormHtml(r,ov,assets){
   const P=gamriParse(r),m=P.meta,s=P.sec;
-  // 사진대지: 대표 사진을 맨 앞에, 그 뒤에 나머지 첨부 사진 전부 (2026-11-20 수정)
+  // 사진대지: 콘솔 PDF 버튼 = 대표 맨 앞 + 나머지 전부 / 입주민 공개용 = 저장된 대표만 (2026-11-20 수정)
   // assets.photos = 미리 받아 데이터 URL로 바꾼 사진 → html2canvas가 다른 출처 이미지를 못 그리는 문제 없음
-  const photos=(assets&&assets.photos)?assets.photos:gamriPhotoOrder(r).map(function(u){ return {url:u,src:u,cover:false}; });
+  const photos=(assets&&assets.photos)?assets.photos:gamriPhotoOrder(r,'cover').map(function(u){ return {url:u,src:u,cover:true}; });
   const stamp=assets&&assets.stamp;
   var workHtml,teukHtml,jijeokHtml,jijeokEmpty=true;
   var _isNone=function(x){ return /^[·▪◇\s]*없음\.?$/.test(String(x||'').trim()); };
@@ -3589,13 +3589,18 @@ const GAMRI_CSS=
          ② 대표만 싣고 나머지 첨부 사진은 아예 빠짐(대표 미지정이면 '현장 사진 없음')
          ③ 원격 URL을 그대로 html2canvas에 넘김 → CORS 헤더가 없거나 브라우저 캐시에 CORS 없이 남은 이미지면 빈 칸
    해결: 대표(창에서 고른 값 우선) → 나머지 순서로, 각 사진을 미리 fetch해 축소한 데이터 URL로 바꿔 넣고, 모두 디코드된 뒤 PDF 생성 */
-function gamriCoverSet(r){
-  return (typeof RV_ID!=='undefined'&&RV_ID===r.id&&Array.isArray(RV_COVER))?RV_COVER:(Array.isArray(r.cover_photos)?r.cover_photos:[]);
+function rvOpenFor(r){ return typeof RV_ID!=='undefined'&&RV_ID===r.id&&Array.isArray(RV_COVER)&&!!document.getElementById('rv-grid'); }
+// useOpen=true: 콘솔 PDF 버튼(창에서 고른 값 우선) · false: 입주민 공개용(저장된 값만)
+function gamriCoverSet(r,useOpen){
+  return (useOpen&&rvOpenFor(r))?RV_COVER:(Array.isArray(r.cover_photos)?r.cover_photos:[]);
 }
-function gamriPhotoOrder(r){
-  const all=(Array.isArray(r.photos)?r.photos:[]).map(function(x){ return (x&&typeof x==='object')?(x.url||x.src||''):x; }).filter(Boolean);
-  const cover=gamriCoverSet(r).filter(function(u){ return all.indexOf(u)>=0; });
-  return cover.concat(all.filter(function(u){ return cover.indexOf(u)<0; }));
+function gamriAllPhotos(r){ return (Array.isArray(r.photos)?r.photos:[]).map(function(x){ return (x&&typeof x==='object')?(x.url||x.src||''):x; }).filter(Boolean); }
+// mode 'all'  = 관리자 콘솔 PDF 버튼: 대표 맨 앞 + 나머지 첨부 사진 전부
+// mode 'cover'= 입주민 공개용 PDF(genGamriPdfBlob/ensureReportPdf): 이전처럼 '저장된 대표'만 (없으면 사진 없음)
+function gamriPhotoOrder(r,mode){
+  const all=gamriAllPhotos(r);
+  const cover=gamriCoverSet(r,mode==='all').filter(function(u){ return all.indexOf(u)>=0; });
+  return mode==='all'?cover.concat(all.filter(function(u){ return cover.indexOf(u)<0; })):cover;
 }
 function _gBlobToDataUrl(blob,max){
   return new Promise(function(res){
@@ -3619,12 +3624,15 @@ async function _gFetchImg(url,max){
   return null;
 }
 /* 감리원 도장: 저장소 report-photos/stamps/<회원 id>/<시각>.png 중 가장 최근 것 (콘솔 회원 편집에서 등록)
-   감리일지의 '감리원:' 이름과 같은 감리원 회원 → 없으면 작성자(author_id) */
+   감리일지의 '감리원:' 이름과 정확히 같은 감리원 회원이 '딱 1명'일 때만 그 사람 도장.
+   없거나 동명이인이면 도장 없이 '(서명 또는 인)'만 (작성자 도장으로 대체하지 않음 — 엉뚱한 사람 도장 방지) */
 const STAMP_DIR='stamps';
-function gamriInspId(r){
+function gamriInsp(r){
   const nm=String(gamriParse(r).meta.insp||'').trim();
-  const hit=nm&&MEMBERS.find(function(x){ return (x.role==='auditor'||x.role==='admin')&&String(x.name||'').trim()===nm; });
-  return (hit&&hit.id)||r.author_id||null;
+  if(!nm) return {id:null,name:'',why:'none'};
+  const hits=MEMBERS.filter(function(x){ return (x.role==='auditor'||x.role==='admin')&&String(x.name||'').trim()===nm; });
+  if(hits.length===1) return {id:hits[0].id,name:nm,why:'ok'};
+  return {id:null,name:nm,why:hits.length>1?'dup':'nomatch'};
 }
 async function stampUrlOf(pid){
   if(!pid) return null;
@@ -3632,12 +3640,27 @@ async function stampUrlOf(pid){
     const f=(ls.data||[]).filter(function(x){ return /\.(png|jpe?g|webp)$/i.test(x.name||''); }).sort(function(a,b){ return a.name<b.name?1:-1; })[0];
     return f?sb.storage.from('report-photos').getPublicUrl(STAMP_DIR+'/'+pid+'/'+f.name).data.publicUrl:null; }catch(e){ return null; }
 }
-async function gamriPdfAssets(r){
-  const order=gamriPhotoOrder(r), cov=gamriCoverSet(r);
-  const photos=await Promise.all(order.map(async function(u){ return {url:u,cover:cov.indexOf(u)>=0,src:await _gFetchImg(u,1600)}; }));
-  const su=await stampUrlOf(gamriInspId(r));
+// 콘솔 화면 아래쪽 안내 문구 (기존 코드의 if(window.toast)toast(...) 호출도 이제 실제로 보임)
+if(!window.toast){ window.toast=function(msg,ms){ var el=document.getElementById('gToast');
+  if(!el){ el=document.createElement('div'); el.id='gToast'; el.setAttribute('role','status');
+    el.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:min(720px,90vw);background:#1c2440;color:#fff;font-size:13px;font-weight:600;line-height:1.5;padding:11px 18px;border-radius:12px;box-shadow:0 10px 30px -10px rgba(0,0,0,.45);z-index:10000;transition:opacity .25s';
+    document.body.appendChild(el); }
+  el.textContent=msg; el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(function(){ el.style.opacity='0'; },ms||(String(msg).length>40?6500:3500)); }; }
+// 사진을 한꺼번에 받지 않고 동시에 limit장씩만 (사진이 많아도 브라우저가 멈추지 않게)
+async function _gMapLimit(items,limit,fn,onEach){
+  const out=new Array(items.length); let next=0, done=0;
+  async function worker(){ while(next<items.length){ const i=next++; out[i]=await fn(items[i],i); done++; if(onEach)try{onEach(done,items.length);}catch(e){} } }
+  await Promise.all(Array.from({length:Math.min(limit,items.length)},worker));
+  return out;
+}
+async function gamriPdfAssets(r,mode,onProgress){
+  mode=mode||'cover';
+  const order=gamriPhotoOrder(r,mode), cov=gamriCoverSet(r,mode==='all');
+  const photos=await _gMapLimit(order,3,async function(u){ return {url:u,cover:cov.indexOf(u)>=0,src:await _gFetchImg(u,1600)}; },onProgress);
+  const who=gamriInsp(r);
+  const su=who.id?await stampUrlOf(who.id):null;
   const stamp=su?await _gFetchImg(su,400):null;
-  return {photos:photos,stamp:stamp,failed:photos.filter(function(x){ return !x.src; }).length};
+  return {photos:photos,stamp:stamp,who:who,failed:photos.filter(function(x){ return !x.src; }).length};
 }
 async function gamriImagesReady(host){
   await Promise.all(Array.prototype.map.call(host.querySelectorAll('img'),function(im){
@@ -3655,7 +3678,7 @@ async function genGamriPdf(id,btn,ov){
     await _loadHtml2pdf();
     var P=gamriParse(r),m=P.meta;
     if(btn)btn.textContent='사진 준비 중…';
-    var assets=await gamriPdfAssets(r);
+    var assets=await gamriPdfAssets(r,'all',function(d,t){ if(btn)btn.textContent='사진 준비 중… ('+d+'/'+t+')'; });
     if(btn)btn.textContent='생성 중…';
     var host=document.createElement('div');
     host.style.cssText='position:fixed;left:-9999px;top:0;width:720px;background:#fff';
@@ -3668,7 +3691,8 @@ async function genGamriPdf(id,btn,ov){
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
       pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt','.gkeep']}}).from(host.querySelector('.gp-doc')).save();
     document.body.removeChild(host);
-    if(window.toast)toast('공사감리일지 PDF를 저장했어요'+(assets.failed?' · 사진 '+assets.failed+'장은 불러오지 못했어요':'')+(assets.stamp?'':' · 감리원 도장 미등록'));
+    var _w=assets.who||{}, _st=assets.stamp?'':(_w.why==='dup'?' · 감리원 「'+_w.name+'」 동명이인이 있어 도장 없이 만들었어요(회원 이름을 구분해 주세요)':_w.why==='nomatch'?' · 감리원 「'+_w.name+'」 이름과 같은 회원이 없어 도장 없이 만들었어요':_w.why==='none'?'':' · 감리원 도장 미등록');
+    if(window.toast)toast('공사감리일지 PDF를 저장했어요'+(assets.failed?' · 사진 '+assets.failed+'장은 불러오지 못했어요':'')+_st);
   }catch(e){ alert('PDF 생성 실패: '+(e&&e.message||e)+'\n(사진이 외부 링크면 일부 사진이 빠질 수 있어요)'); }
   finally{ if(btn){btn.disabled=false;btn.textContent=_t;} }
 }
@@ -3676,7 +3700,7 @@ window.genGamriPdf=genGamriPdf;
 /* 감리일지 내용으로 PDF를 생성해 Blob으로 반환(다운로드 대신) */
 async function genGamriPdfBlob(r,ov){
   await _loadHtml2pdf();
-  var assets=await gamriPdfAssets(r);
+  var assets=await gamriPdfAssets(r,'cover');   // 입주민 공개용: 공개 범위 그대로(저장된 대표만)
   var host=document.createElement('div');
   host.style.cssText='position:fixed;left:-9999px;top:0;width:720px;background:#fff';
   host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r,ov,assets);
@@ -4326,7 +4350,7 @@ function openMemberEdit(id){
     ${(m.role==='auditor'||m.role==='admin')?`<div class="fld" style="border-top:1px solid var(--line);padding-top:10px"><label>🔏 감리원 도장 <span style="font-weight:600;color:var(--mut)">(공사감리일지 PDF '감리원 (인)' 자리에 찍힘)</span></label>
       <div style="display:flex;align-items:center;gap:12px"><div id="me-stamp" style="width:64px;height:64px;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mut);background:#fff">확인 중…</div>
       <label class="b line" style="cursor:pointer">도장 이미지 올리기<input type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadStamp('${m.id}',this)"></label></div>
-      <div style="font-size:11px;color:var(--mut);margin-top:4px">배경이 투명한 PNG, 정사각형 권장. 새로 올리면 가장 최근 도장이 쓰여요. 감리일지의 '감리원' 이름과 같은 회원의 도장이 들어가요.</div></div>`:''}
+      <div style="font-size:11px;color:var(--mut);margin-top:4px">배경이 투명한 PNG, 정사각형 권장. 새로 올리면 가장 최근 도장이 쓰여요. 감리일지의 '감리원' 이름과 정확히 같은 회원이 1명일 때만 들어가요(동명이인·불일치면 도장 없이).</div></div>`:''}
     <div class="fld" style="border-top:1px solid var(--line);padding-top:10px"><label>🔑 비밀번호 재설정</label>
       <div style="display:flex;gap:8px"><input id="me-newpw" placeholder="새 비밀번호 (6자 이상)" style="flex:1"><button class="b line" onclick="resetMemberPw('${m.id}',this)">재설정</button></div>
       <div style="font-size:11px;color:var(--mut);margin-top:4px">자동 생성돼 모르는 비번을 여기서 바꿀 수 있어요. (서버 함수 필요 — 안 되면 backend/migration-admin-setpw.sql 실행)</div></div>

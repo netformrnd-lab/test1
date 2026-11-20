@@ -3503,12 +3503,12 @@ function _gTeukgi(lines){ if(!lines||!lines.length)return ''; var out='',sec='',
     }
     else { if(skip)return; if(!open){ sec+='<ul>'; open=true; } sec+='<li class="dot">'+_gEsc(t.replace(/^[-–—]\s*/,''))+'</li>'; }
   }); flushSec(); return out; }
-function gamriFormHtml(r,ov){
+function gamriFormHtml(r,ov,assets){
   const P=gamriParse(r),m=P.meta,s=P.sec;
-  const allPhotos=Array.isArray(r.photos)?r.photos:[];
-  // 대표(선택)한 사진만 PDF에 싣는다. 안 골랐으면 사진 없음(관리자가 고른 것만 노출)
-  const cover=Array.isArray(r.cover_photos)?r.cover_photos.filter(function(u){return allPhotos.indexOf(u)>=0;}):[];
-  const photos=cover;
+  // 사진대지: 대표 사진을 맨 앞에, 그 뒤에 나머지 첨부 사진 전부 (2026-11-20 수정)
+  // assets.photos = 미리 받아 데이터 URL로 바꾼 사진 → html2canvas가 다른 출처 이미지를 못 그리는 문제 없음
+  const photos=(assets&&assets.photos)?assets.photos:gamriPhotoOrder(r).map(function(u){ return {url:u,src:u,cover:false}; });
+  const stamp=assets&&assets.stamp;
   var workHtml,teukHtml,jijeokHtml,jijeokEmpty=true;
   var _isNone=function(x){ return /^[·▪◇\s]*없음\.?$/.test(String(x||'').trim()); };
   if(ov){ // AI 보강(감리원 검토본) override
@@ -3530,7 +3530,10 @@ function gamriFormHtml(r,ov){
     jijeokHtml=jijeok.length?_gTeukgi(jijeok):'<span class="muted">금일 지적사항 없음</span>';
   }
   // 사진대지: 2장씩 한 행(tr)으로 묶은 표. tr은 html2pdf가 페이지 경계에서 쪼개지 않음(잘림 방지)
-  var _pcell=function(u){ return u?('<td class="pcell"><div class="pbox"><img class="ph" src="'+_gEsc(u)+'" crossorigin="anonymous"></div></td>'):'<td class="pcell"></td>'; };
+  var _pcell=function(o){
+    if(!o) return '<td class="pcell"></td>';
+    var inner=o.src?('<img class="ph" src="'+_gEsc(o.src)+'"'+(/^data:/.test(o.src)?'':' crossorigin="anonymous"')+'>'):'<div class="pfail">사진을 불러오지 못했어요</div>';
+    return '<td class="pcell"><div class="pbox">'+inner+(o.cover?'<span class="pbadge">대표</span>':'')+'</div></td>'; };
   var photoRows='';
   if(photos.length){ for(var _pi=0;_pi<photos.length;_pi+=2){ photoRows+='<tr>'+_pcell(photos[_pi])+_pcell(photos[_pi+1])+'</tr>'; } }
   else { photoRows='<tr><td class="pcell" colspan="2" style="color:#888;padding:20px;text-align:center">현장 사진 없음</td></tr>'; }
@@ -3541,7 +3544,7 @@ function gamriFormHtml(r,ov){
     '<div class="title">공사감리일지</div>'+
     '<table class="t-info">'+
       '<tr><td class="lb">일련번호</td><td colspan="3" class="serial"></td></tr>'+
-      '<tr><td class="lb">공사감리자</td><td class="big stampcell">'+_gEsc(m.boss)+(GAMRI_SEAL?'<img class="stamp" src="'+GAMRI_SEAL+'">':'')+'</td><td class="lb">감리원</td><td class="sign">'+_gEsc(m.insp)+' (서명 또는 인)</td></tr>'+
+      '<tr><td class="lb">공사감리자</td><td class="big stampcell">'+_gEsc(m.boss)+(GAMRI_SEAL?'<img class="stamp" src="'+GAMRI_SEAL+'">':'')+'</td><td class="lb">감리원</td><td class="sign">'+_gEsc(m.insp)+' (서명 또는 <span class="inmark">인'+(stamp?'<img class="istamp" src="'+_gEsc(stamp)+'" alt="감리원 도장">':'')+'</span>)</td></tr>'+
       '<tr><td class="lb">현장명</td><td>'+_gEsc(m.site)+'</td><td class="lb">시공사</td><td>'+_gEsc(m.builder)+'</td></tr>'+
       '<tr><td class="lb">공사명</td><td>'+_gEsc(m.gongsa)+'</td><td class="lb">점검위치</td><td>'+_gEsc(m.dongs)+'</td></tr>'+
       '<tr><td class="lb">감리일자</td><td colspan="3">'+_gEsc(m.date)+(m.weather?'&nbsp;&nbsp;&nbsp;날씨 : '+_gEsc(m.weather):'')+(m.round?'&nbsp;&nbsp;&nbsp;('+_gEsc(m.round)+')':'')+'</td></tr>'+
@@ -3562,6 +3565,8 @@ const GAMRI_CSS=
 '.gp-doc table{width:100%;border-collapse:collapse}'+
 '.gp-doc .t-info td{border:1px solid #111;padding:6px 9px;font-weight:500}.gp-doc .t-info .lb{width:80px;white-space:nowrap}.gp-doc .serial{height:28px}'+
 '.gp-doc .t-info .big{text-align:center;font-size:14px;letter-spacing:.3em;position:relative}.gp-doc .t-info .sign{color:#555;font-size:10px}'+
+'.gp-doc .inmark{position:relative;display:inline-block}.gp-doc .istamp{position:absolute;left:50%;top:50%;width:42px;height:42px;transform:translate(-50%,-50%);object-fit:contain;opacity:.92}'+
+'.gp-doc .pbox{position:relative}.gp-doc .pbadge{position:absolute;left:6px;top:6px;background:#2F6BF6;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px}.gp-doc .pfail{color:#888;font-size:11px}'+
 '.gp-doc .stampcell{position:relative}.gp-doc .stamp{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:50px;height:50px;object-fit:contain;opacity:.95}'+
 '.gp-doc .t-chk{margin-top:10px}.gp-doc .t-chk th,.gp-doc .t-chk td{border:1px solid #111;padding:6px 9px}.gp-doc .t-chk th{text-align:center;font-weight:500}.gp-doc .t-chk .cat{width:90px;text-align:center}'+
 '.gp-doc .band{background:#d9d9d9;border:1px solid #111;border-bottom:none;font-weight:500;padding:4px 9px;margin-top:10px;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}'+
@@ -3579,6 +3584,67 @@ const GAMRI_CSS=
 '.gp-doc .pgrid tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .pcell{width:50%;border:1px solid #111;border-top:none;padding:6px;vertical-align:top;break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .pbox{width:100%;height:175px;overflow:hidden;background:#dfe3ea;display:flex;align-items:center;justify-content:center}.gp-doc .pbox .ph{max-width:100%;max-height:100%;object-fit:contain}';
+/* ── PDF 사진·도장 준비 (2026-11-20) ─────────────────────────────
+   원인: ① PDF는 '저장된' cover_photos만 읽어서, 감리일지 보기 창에서 대표를 고르고 저장 전에 PDF를 누르면 사진 0장
+         ② 대표만 싣고 나머지 첨부 사진은 아예 빠짐(대표 미지정이면 '현장 사진 없음')
+         ③ 원격 URL을 그대로 html2canvas에 넘김 → CORS 헤더가 없거나 브라우저 캐시에 CORS 없이 남은 이미지면 빈 칸
+   해결: 대표(창에서 고른 값 우선) → 나머지 순서로, 각 사진을 미리 fetch해 축소한 데이터 URL로 바꿔 넣고, 모두 디코드된 뒤 PDF 생성 */
+function gamriCoverSet(r){
+  return (typeof RV_ID!=='undefined'&&RV_ID===r.id&&Array.isArray(RV_COVER))?RV_COVER:(Array.isArray(r.cover_photos)?r.cover_photos:[]);
+}
+function gamriPhotoOrder(r){
+  const all=(Array.isArray(r.photos)?r.photos:[]).map(function(x){ return (x&&typeof x==='object')?(x.url||x.src||''):x; }).filter(Boolean);
+  const cover=gamriCoverSet(r).filter(function(u){ return all.indexOf(u)>=0; });
+  return cover.concat(all.filter(function(u){ return cover.indexOf(u)<0; }));
+}
+function _gBlobToDataUrl(blob,max){
+  return new Promise(function(res){
+    var u=URL.createObjectURL(blob), im=new Image();
+    im.onload=function(){
+      try{ var sc=Math.min(1,max/Math.max(im.naturalWidth||1,im.naturalHeight||1)); var c=document.createElement('canvas');
+        c.width=Math.max(1,Math.round(im.naturalWidth*sc)); c.height=Math.max(1,Math.round(im.naturalHeight*sc));
+        var png=/png|webp|gif/i.test(blob.type||''); var cx=c.getContext('2d'); if(!png){ cx.fillStyle='#fff'; cx.fillRect(0,0,c.width,c.height); }
+        cx.drawImage(im,0,0,c.width,c.height); res(c.toDataURL(png?'image/png':'image/jpeg',0.85)); }
+      catch(e){ res(null); } finally{ URL.revokeObjectURL(u); } };
+    im.onerror=function(){ URL.revokeObjectURL(u); res(null); };
+    im.src=u;
+  });
+}
+async function _gFetchImg(url,max){
+  if(!url) return null; if(/^data:image\//.test(url)) return url;
+  try{ const rs=await fetch(url,{mode:'cors',cache:'no-store'}); if(rs.ok){ const d=await _gBlobToDataUrl(await rs.blob(),max); if(d) return d; } }catch(e){}
+  // 같은 Supabase 저장소 사진이면 SDK로 다시 시도(다른 주소라 캐시 영향 없음)
+  try{ const mm=String(url).match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/([^?#]+)/);
+    if(mm){ const dl=await sb.storage.from(mm[1]).download(decodeURIComponent(mm[2])); if(dl&&dl.data){ const d=await _gBlobToDataUrl(dl.data,max); if(d) return d; } } }catch(e){}
+  return null;
+}
+/* 감리원 도장: 저장소 report-photos/stamps/<회원 id>/<시각>.png 중 가장 최근 것 (콘솔 회원 편집에서 등록)
+   감리일지의 '감리원:' 이름과 같은 감리원 회원 → 없으면 작성자(author_id) */
+const STAMP_DIR='stamps';
+function gamriInspId(r){
+  const nm=String(gamriParse(r).meta.insp||'').trim();
+  const hit=nm&&MEMBERS.find(function(x){ return (x.role==='auditor'||x.role==='admin')&&String(x.name||'').trim()===nm; });
+  return (hit&&hit.id)||r.author_id||null;
+}
+async function stampUrlOf(pid){
+  if(!pid) return null;
+  try{ const ls=await sb.storage.from('report-photos').list(STAMP_DIR+'/'+pid,{limit:50,sortBy:{column:'name',order:'desc'}});
+    const f=(ls.data||[]).filter(function(x){ return /\.(png|jpe?g|webp)$/i.test(x.name||''); }).sort(function(a,b){ return a.name<b.name?1:-1; })[0];
+    return f?sb.storage.from('report-photos').getPublicUrl(STAMP_DIR+'/'+pid+'/'+f.name).data.publicUrl:null; }catch(e){ return null; }
+}
+async function gamriPdfAssets(r){
+  const order=gamriPhotoOrder(r), cov=gamriCoverSet(r);
+  const photos=await Promise.all(order.map(async function(u){ return {url:u,cover:cov.indexOf(u)>=0,src:await _gFetchImg(u,1600)}; }));
+  const su=await stampUrlOf(gamriInspId(r));
+  const stamp=su?await _gFetchImg(su,400):null;
+  return {photos:photos,stamp:stamp,failed:photos.filter(function(x){ return !x.src; }).length};
+}
+async function gamriImagesReady(host){
+  await Promise.all(Array.prototype.map.call(host.querySelectorAll('img'),function(im){
+    if(im.complete&&im.naturalWidth) return im.decode?im.decode().catch(function(){}):Promise.resolve();
+    return new Promise(function(res){ im.onload=im.onerror=function(){ res(); }; setTimeout(res,8000); });
+  }));
+}
 function _loadHtml2pdf(){ if(window.html2pdf)return Promise.resolve(); if(window._h2pP)return window._h2pP;
   window._h2pP=new Promise(function(res,rej){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   return window._h2pP; }
@@ -3588,17 +3654,21 @@ async function genGamriPdf(id,btn,ov){
   try{
     await _loadHtml2pdf();
     var P=gamriParse(r),m=P.meta;
+    if(btn)btn.textContent='사진 준비 중…';
+    var assets=await gamriPdfAssets(r);
+    if(btn)btn.textContent='생성 중…';
     var host=document.createElement('div');
     host.style.cssText='position:fixed;left:-9999px;top:0;width:720px;background:#fff';
-    host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r,ov);
+    host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r,ov,assets);
     document.body.appendChild(host);
+    await gamriImagesReady(host);
     var fname=(m.site||'현장')+'_'+(m.round||'')+'_공사감리일지.pdf';
     await html2pdf().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.9},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
       pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt','.gkeep']}}).from(host.querySelector('.gp-doc')).save();
     document.body.removeChild(host);
-    if(window.toast)toast('공사감리일지 PDF를 저장했어요');
+    if(window.toast)toast('공사감리일지 PDF를 저장했어요'+(assets.failed?' · 사진 '+assets.failed+'장은 불러오지 못했어요':'')+(assets.stamp?'':' · 감리원 도장 미등록'));
   }catch(e){ alert('PDF 생성 실패: '+(e&&e.message||e)+'\n(사진이 외부 링크면 일부 사진이 빠질 수 있어요)'); }
   finally{ if(btn){btn.disabled=false;btn.textContent=_t;} }
 }
@@ -3606,11 +3676,13 @@ window.genGamriPdf=genGamriPdf;
 /* 감리일지 내용으로 PDF를 생성해 Blob으로 반환(다운로드 대신) */
 async function genGamriPdfBlob(r,ov){
   await _loadHtml2pdf();
+  var assets=await gamriPdfAssets(r);
   var host=document.createElement('div');
   host.style.cssText='position:fixed;left:-9999px;top:0;width:720px;background:#fff';
-  host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r,ov);
+  host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r,ov,assets);
   document.body.appendChild(host);
   try{
+    await gamriImagesReady(host);
     return await html2pdf().set({margin:[8,8,8,8],image:{type:'jpeg',quality:0.9},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
@@ -3706,7 +3778,7 @@ async function rvSaveCover(btn){
   if(btn){btn.disabled=false;btn.textContent=_t;}
   if(error){alert('저장 실패: '+error.message+'\n\n(reports에 cover_photos 컬럼이 없으면 SQL을 먼저 실행하세요)');return;}
   const r=REPORTS.find(x=>x.id===RV_ID); if(r)r.cover_photos=RV_COVER.slice();
-  if(window.toast)toast('대표 사진 '+RV_COVER.length+'장을 저장했어요 · PDF엔 이 사진만 들어갑니다');
+  if(window.toast)toast('대표 사진 '+RV_COVER.length+'장을 저장했어요 · PDF 사진대지 맨 앞에 들어갑니다');
 }
 window.rvSaveCover=rvSaveCover;
 function openReportView(id){
@@ -3716,7 +3788,7 @@ function openReportView(id){
   const pdfHtml = r.pdf_url?`<div class="fld"><a href="${esc(r.pdf_url)}" target="_blank" class="b line">📄 입주민 공개용 PDF 보기${r.pdf_name?' ('+esc(r.pdf_name)+')':''}</a></div>`:'';
   const cov=Array.isArray(r.cover_photos)?r.cover_photos.filter(u=>photos.includes(u)):[];
   RV_ID=r.id; RV_PHOTOS=photos.slice(); RV_COVER=cov.slice();
-  const phHtml = photos.length?`<div class="fld"><label style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>현장 사진 ${photos.length}장 · <b style="color:#2F6BF6">대표 <span id="rv-covcount">${cov.length}</span>장</b> <span style="font-weight:600;color:var(--mut);font-size:11px">(사진을 눌러 대표 선택 · PDF엔 대표만 들어가요)</span></span><span style="display:flex;gap:6px"><button class="b blue sm" onclick="rvSaveCover(this)">대표 저장</button><button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">전체 다운로드</button></span></label><div id="rv-grid" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px">${rvCoverThumbs(RV_PHOTOS)}</div></div>`:'';
+  const phHtml = photos.length?`<div class="fld"><label style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>현장 사진 ${photos.length}장 · <b style="color:#2F6BF6">대표 <span id="rv-covcount">${cov.length}</span>장</b> <span style="font-weight:600;color:var(--mut);font-size:11px">(사진을 눌러 대표 선택 · PDF 사진대지에 대표가 맨 앞, 나머지 사진도 함께 들어가요)</span></span><span style="display:flex;gap:6px"><button class="b blue sm" onclick="rvSaveCover(this)">대표 저장</button><button class="b line sm" onclick="downloadReportPhotos('${r.id}',this)">전체 다운로드</button></span></label><div id="rv-grid" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px">${rvCoverThumbs(RV_PHOTOS)}</div></div>`:'';
   openModal(mHead('📄 감리일지 보기')+`
     <div style="font-size:14px;font-weight:800;margin-bottom:4px">${repRoundBadge(r)} ${esc(r.title)||'감리일지'}</div>
     <div style="font-size:12px;color:var(--mut);margin-bottom:12px">${meta.map(esc).join(' · ')}</div>
@@ -4251,12 +4323,37 @@ function openMemberEdit(id){
     ${m.signup_apt?`<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:9px;padding:8px 11px;font-size:12px;color:#2456c9;font-weight:700;margin-bottom:4px">🏢 가입 시 적은 단지: <b>${esc(m.signup_apt)}</b>${!m.apartment_id?` <span class="link" onclick="meAptFromSignup('${m.id}')" style="margin-left:4px">↳ 담당 단지에 넣기</span>`:''}</div>`:''}
     <div class="frow"><div class="fld"><label>역할</label><select id="me-role">${roleOptsC(m.role)}</select></div><div class="fld"><label>담당 단지</label><input id="me-apt" list="apt-names" value="${m.apartment_id?esc(aptName(m.apartment_id)):''}" placeholder="단지 입력/선택"></div></div>
     <div class="fld"><label>승인 상태</label><select id="me-appr"><option value="1" ${m.approved?'selected':''}>승인됨</option><option value="0" ${!m.approved?'selected':''}>대기</option></select></div>
+    ${(m.role==='auditor'||m.role==='admin')?`<div class="fld" style="border-top:1px solid var(--line);padding-top:10px"><label>🔏 감리원 도장 <span style="font-weight:600;color:var(--mut)">(공사감리일지 PDF '감리원 (인)' 자리에 찍힘)</span></label>
+      <div style="display:flex;align-items:center;gap:12px"><div id="me-stamp" style="width:64px;height:64px;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mut);background:#fff">확인 중…</div>
+      <label class="b line" style="cursor:pointer">도장 이미지 올리기<input type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadStamp('${m.id}',this)"></label></div>
+      <div style="font-size:11px;color:var(--mut);margin-top:4px">배경이 투명한 PNG, 정사각형 권장. 새로 올리면 가장 최근 도장이 쓰여요. 감리일지의 '감리원' 이름과 같은 회원의 도장이 들어가요.</div></div>`:''}
     <div class="fld" style="border-top:1px solid var(--line);padding-top:10px"><label>🔑 비밀번호 재설정</label>
       <div style="display:flex;gap:8px"><input id="me-newpw" placeholder="새 비밀번호 (6자 이상)" style="flex:1"><button class="b line" onclick="resetMemberPw('${m.id}',this)">재설정</button></div>
       <div style="font-size:11px;color:var(--mut);margin-top:4px">자동 생성돼 모르는 비번을 여기서 바꿀 수 있어요. (서버 함수 필요 — 안 되면 backend/migration-admin-setpw.sql 실행)</div></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b red" onclick="deleteMember('${m.id}')">회원 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitMemberEdit('${m.id}')">저장</button></div>`);
+  if(m.role==='auditor'||m.role==='admin') loadStampPreview(m.id);
 }
+/* 감리원 도장: report-photos/stamps/<회원 id>/<시각>.<확장자> (SQL 변경 없이 저장소만 사용) */
+async function loadStampPreview(id){
+  const box=$('me-stamp'); if(!box)return;
+  const u=await stampUrlOf(id);
+  box.innerHTML=u?`<img src="${esc(u)}" alt="도장" style="max-width:56px;max-height:56px;object-fit:contain">`:'등록 안 됨';
+}
+async function uploadStamp(id,inp){
+  const f=inp&&inp.files&&inp.files[0]; if(!f)return;
+  const setM=(t,c)=>{ if($('m-msg')){$('m-msg').textContent=t;$('m-msg').style.color=c||'var(--mut2)';} };
+  if(!/^image\/(png|jpeg|webp)$/.test(f.type)){ setM('PNG·JPG·WEBP 이미지만 올릴 수 있어요','var(--red)'); return; }
+  if(f.size>2*1024*1024){ setM('2MB 이하 이미지로 올려 주세요','var(--red)'); return; }
+  const ext=f.type==='image/png'?'png':f.type==='image/webp'?'webp':'jpg';
+  const path=STAMP_DIR+'/'+id+'/'+Date.now()+'.'+ext;
+  setM('도장 올리는 중…');
+  const up=await sb.storage.from('report-photos').upload(path,f,{contentType:f.type,upsert:false});
+  if(up.error){ setM('도장 저장 실패: '+up.error.message,'var(--red)'); return; }
+  setM('✅ 도장을 등록했어요. 이제 이 감리원의 공사감리일지 PDF에 찍혀요.','var(--green)');
+  inp.value=''; loadStampPreview(id);
+}
+window.uploadStamp=uploadStamp;
 async function resetMemberPw(id,btn){
   const pw=(($('me-newpw')||{}).value)||'';
   const setM=(t,c)=>{ if($('m-msg')){$('m-msg').textContent=t;$('m-msg').style.color=c||'var(--mut2)';} };

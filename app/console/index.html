@@ -1212,6 +1212,9 @@ function renderUsgUsers(q){
   const tb=$('usgUserRows'); if(!tb)return;
   q=(q||'').trim().toLowerCase();
   let list=(USG_LAST&&USG_LAST.by_user)||[];
+  // 삭제된 회원(프로필이 사라진 사용자)은 '(이름 없음)'으로 남기지 않고 목록에서 제외
+  const _liveIds=new Set((MEMBERS||[]).map(m=>m.id));
+  if(_liveIds.size) list=list.filter(u=>_liveIds.has(u.profile_id));
   if(q){ list=list.filter(u=>{ const nm=(u.name||'').toLowerCase(); const ap=(aptName(u.apartment_id)||'').toLowerCase(); return nm.indexOf(q)>=0||ap.indexOf(q)>=0; }); }
   const n=v=>(v==null?'0':Number(v).toLocaleString());
   tb.innerHTML=list.length?list.map(u=>`<tr>

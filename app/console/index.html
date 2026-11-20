@@ -3508,7 +3508,8 @@ function gamriFormHtml(r,ov,assets){
   // 사진대지: 콘솔 PDF 버튼 = 대표 맨 앞 + 나머지 전부 / 입주민 공개용 = 저장된 대표만 (2026-11-20 수정)
   // assets.photos = 미리 받아 데이터 URL로 바꾼 사진 → html2canvas가 다른 출처 이미지를 못 그리는 문제 없음
   const photos=(assets&&assets.photos)?assets.photos:gamriPhotoOrder(r,'cover').map(function(u){ return {url:u,src:u,cover:true}; });
-  const stamp=assets&&assets.stamp;
+  // 감리원 '(서명 또는 인)' 자리 도장 = 아파트스퀘어 회사 도장(GAMRI_SEAL), 항상 찍음 (공사감리자 칸 도장은 그대로)
+  const stamp=GAMRI_SEAL;
   var workHtml,teukHtml,jijeokHtml,jijeokEmpty=true;
   var _isNone=function(x){ return /^[·▪◇\s]*없음\.?$/.test(String(x||'').trim()); };
   if(ov){ // AI 보강(감리원 검토본) override
@@ -3544,7 +3545,7 @@ function gamriFormHtml(r,ov,assets){
     '<div class="title">공사감리일지</div>'+
     '<table class="t-info">'+
       '<tr><td class="lb">일련번호</td><td colspan="3" class="serial"></td></tr>'+
-      '<tr><td class="lb">공사감리자</td><td class="big stampcell">'+_gEsc(m.boss)+(GAMRI_SEAL?'<img class="stamp" src="'+GAMRI_SEAL+'">':'')+'</td><td class="lb">감리원</td><td class="sign">'+_gEsc(m.insp)+' (서명 또는 <span class="inmark">인'+(stamp?'<img class="istamp" src="'+_gEsc(stamp)+'" alt="감리원 도장">':'')+'</span>)</td></tr>'+
+      '<tr><td class="lb">공사감리자</td><td class="big stampcell">'+_gEsc(m.boss)+(GAMRI_SEAL?'<img class="stamp" src="'+GAMRI_SEAL+'">':'')+'</td><td class="lb">감리원</td><td class="sign">'+_gEsc(m.insp)+' (서명 또는 <span class="inmark">인'+(stamp?'<img class="istamp" src="'+stamp+'" alt="아파트스퀘어 도장">':'')+'</span>)</td></tr>'+
       '<tr><td class="lb">현장명</td><td>'+_gEsc(m.site)+'</td><td class="lb">시공사</td><td>'+_gEsc(m.builder)+'</td></tr>'+
       '<tr><td class="lb">공사명</td><td>'+_gEsc(m.gongsa)+'</td><td class="lb">점검위치</td><td>'+_gEsc(m.dongs)+'</td></tr>'+
       '<tr><td class="lb">감리일자</td><td colspan="3">'+_gEsc(m.date)+(m.weather?'&nbsp;&nbsp;&nbsp;날씨 : '+_gEsc(m.weather):'')+(m.round?'&nbsp;&nbsp;&nbsp;('+_gEsc(m.round)+')':'')+'</td></tr>'+
@@ -3584,7 +3585,7 @@ const GAMRI_CSS=
 '.gp-doc .pgrid tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .pcell{width:50%;border:1px solid #111;border-top:none;padding:6px;vertical-align:top;break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .pbox{width:100%;height:175px;overflow:hidden;background:#dfe3ea;display:flex;align-items:center;justify-content:center}.gp-doc .pbox .ph{max-width:100%;max-height:100%;object-fit:contain}';
-/* ── PDF 사진·도장 준비 (2026-11-20) ─────────────────────────────
+/* ── PDF 사진 준비 (2026-11-20) ─────────────────────────────
    원인: ① PDF는 '저장된' cover_photos만 읽어서, 감리일지 보기 창에서 대표를 고르고 저장 전에 PDF를 누르면 사진 0장
          ② 대표만 싣고 나머지 첨부 사진은 아예 빠짐(대표 미지정이면 '현장 사진 없음')
          ③ 원격 URL을 그대로 html2canvas에 넘김 → CORS 헤더가 없거나 브라우저 캐시에 CORS 없이 남은 이미지면 빈 칸
@@ -3623,23 +3624,6 @@ async function _gFetchImg(url,max){
     if(mm){ const dl=await sb.storage.from(mm[1]).download(decodeURIComponent(mm[2])); if(dl&&dl.data){ const d=await _gBlobToDataUrl(dl.data,max); if(d) return d; } } }catch(e){}
   return null;
 }
-/* 감리원 도장: 저장소 report-photos/stamps/<회원 id>/<시각>.png 중 가장 최근 것 (콘솔 회원 편집에서 등록)
-   감리일지의 '감리원:' 이름과 정확히 같은 감리원 회원이 '딱 1명'일 때만 그 사람 도장.
-   없거나 동명이인이면 도장 없이 '(서명 또는 인)'만 (작성자 도장으로 대체하지 않음 — 엉뚱한 사람 도장 방지) */
-const STAMP_DIR='stamps';
-function gamriInsp(r){
-  const nm=String(gamriParse(r).meta.insp||'').trim();
-  if(!nm) return {id:null,name:'',why:'none'};
-  const hits=MEMBERS.filter(function(x){ return (x.role==='auditor'||x.role==='admin')&&String(x.name||'').trim()===nm; });
-  if(hits.length===1) return {id:hits[0].id,name:nm,why:'ok'};
-  return {id:null,name:nm,why:hits.length>1?'dup':'nomatch'};
-}
-async function stampUrlOf(pid){
-  if(!pid) return null;
-  try{ const ls=await sb.storage.from('report-photos').list(STAMP_DIR+'/'+pid,{limit:50,sortBy:{column:'name',order:'desc'}});
-    const f=(ls.data||[]).filter(function(x){ return /\.(png|jpe?g|webp)$/i.test(x.name||''); }).sort(function(a,b){ return a.name<b.name?1:-1; })[0];
-    return f?sb.storage.from('report-photos').getPublicUrl(STAMP_DIR+'/'+pid+'/'+f.name).data.publicUrl:null; }catch(e){ return null; }
-}
 // 콘솔 화면 아래쪽 안내 문구 (기존 코드의 if(window.toast)toast(...) 호출도 이제 실제로 보임)
 if(!window.toast){ window.toast=function(msg,ms){ var el=document.getElementById('gToast');
   if(!el){ el=document.createElement('div'); el.id='gToast'; el.setAttribute('role','status');
@@ -3657,10 +3641,7 @@ async function gamriPdfAssets(r,mode,onProgress){
   mode=mode||'cover';
   const order=gamriPhotoOrder(r,mode), cov=gamriCoverSet(r,mode==='all');
   const photos=await _gMapLimit(order,3,async function(u){ return {url:u,cover:cov.indexOf(u)>=0,src:await _gFetchImg(u,1600)}; },onProgress);
-  const who=gamriInsp(r);
-  const su=who.id?await stampUrlOf(who.id):null;
-  const stamp=su?await _gFetchImg(su,400):null;
-  return {photos:photos,stamp:stamp,who:who,failed:photos.filter(function(x){ return !x.src; }).length};
+  return {photos:photos,failed:photos.filter(function(x){ return !x.src; }).length};
 }
 async function gamriImagesReady(host){
   await Promise.all(Array.prototype.map.call(host.querySelectorAll('img'),function(im){
@@ -3691,8 +3672,7 @@ async function genGamriPdf(id,btn,ov){
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
       pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt','.gkeep']}}).from(host.querySelector('.gp-doc')).save();
     document.body.removeChild(host);
-    var _w=assets.who||{}, _st=assets.stamp?'':(_w.why==='dup'?' · 감리원 「'+_w.name+'」 동명이인이 있어 도장 없이 만들었어요(회원 이름을 구분해 주세요)':_w.why==='nomatch'?' · 감리원 「'+_w.name+'」 이름과 같은 회원이 없어 도장 없이 만들었어요':_w.why==='none'?'':' · 감리원 도장 미등록');
-    if(window.toast)toast('공사감리일지 PDF를 저장했어요'+(assets.failed?' · 사진 '+assets.failed+'장은 불러오지 못했어요':'')+_st);
+    if(window.toast)toast('공사감리일지 PDF를 저장했어요'+(assets.failed?' · 사진 '+assets.failed+'장은 불러오지 못했어요':''));
   }catch(e){ alert('PDF 생성 실패: '+(e&&e.message||e)+'\n(사진이 외부 링크면 일부 사진이 빠질 수 있어요)'); }
   finally{ if(btn){btn.disabled=false;btn.textContent=_t;} }
 }
@@ -4347,37 +4327,12 @@ function openMemberEdit(id){
     ${m.signup_apt?`<div style="background:#eef4ff;border:1px solid #d7e3fb;border-radius:9px;padding:8px 11px;font-size:12px;color:#2456c9;font-weight:700;margin-bottom:4px">🏢 가입 시 적은 단지: <b>${esc(m.signup_apt)}</b>${!m.apartment_id?` <span class="link" onclick="meAptFromSignup('${m.id}')" style="margin-left:4px">↳ 담당 단지에 넣기</span>`:''}</div>`:''}
     <div class="frow"><div class="fld"><label>역할</label><select id="me-role">${roleOptsC(m.role)}</select></div><div class="fld"><label>담당 단지</label><input id="me-apt" list="apt-names" value="${m.apartment_id?esc(aptName(m.apartment_id)):''}" placeholder="단지 입력/선택"></div></div>
     <div class="fld"><label>승인 상태</label><select id="me-appr"><option value="1" ${m.approved?'selected':''}>승인됨</option><option value="0" ${!m.approved?'selected':''}>대기</option></select></div>
-    ${(m.role==='auditor'||m.role==='admin')?`<div class="fld" style="border-top:1px solid var(--line);padding-top:10px"><label>🔏 감리원 도장 <span style="font-weight:600;color:var(--mut)">(공사감리일지 PDF '감리원 (인)' 자리에 찍힘)</span></label>
-      <div style="display:flex;align-items:center;gap:12px"><div id="me-stamp" style="width:64px;height:64px;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mut);background:#fff">확인 중…</div>
-      <label class="b line" style="cursor:pointer">도장 이미지 올리기<input type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadStamp('${m.id}',this)"></label></div>
-      <div style="font-size:11px;color:var(--mut);margin-top:4px">배경이 투명한 PNG, 정사각형 권장. 새로 올리면 가장 최근 도장이 쓰여요. 감리일지의 '감리원' 이름과 정확히 같은 회원이 1명일 때만 들어가요(동명이인·불일치면 도장 없이).</div></div>`:''}
     <div class="fld" style="border-top:1px solid var(--line);padding-top:10px"><label>🔑 비밀번호 재설정</label>
       <div style="display:flex;gap:8px"><input id="me-newpw" placeholder="새 비밀번호 (6자 이상)" style="flex:1"><button class="b line" onclick="resetMemberPw('${m.id}',this)">재설정</button></div>
       <div style="font-size:11px;color:var(--mut);margin-top:4px">자동 생성돼 모르는 비번을 여기서 바꿀 수 있어요. (서버 함수 필요 — 안 되면 backend/migration-admin-setpw.sql 실행)</div></div>
     <div class="mmsg" id="m-msg"></div>
     <div class="modal-actions"><button class="b red" onclick="deleteMember('${m.id}')">회원 삭제</button><span style="flex:1"></span><button class="b line" onclick="closeModal()">취소</button><button class="b blue" onclick="submitMemberEdit('${m.id}')">저장</button></div>`);
-  if(m.role==='auditor'||m.role==='admin') loadStampPreview(m.id);
 }
-/* 감리원 도장: report-photos/stamps/<회원 id>/<시각>.<확장자> (SQL 변경 없이 저장소만 사용) */
-async function loadStampPreview(id){
-  const box=$('me-stamp'); if(!box)return;
-  const u=await stampUrlOf(id);
-  box.innerHTML=u?`<img src="${esc(u)}" alt="도장" style="max-width:56px;max-height:56px;object-fit:contain">`:'등록 안 됨';
-}
-async function uploadStamp(id,inp){
-  const f=inp&&inp.files&&inp.files[0]; if(!f)return;
-  const setM=(t,c)=>{ if($('m-msg')){$('m-msg').textContent=t;$('m-msg').style.color=c||'var(--mut2)';} };
-  if(!/^image\/(png|jpeg|webp)$/.test(f.type)){ setM('PNG·JPG·WEBP 이미지만 올릴 수 있어요','var(--red)'); return; }
-  if(f.size>2*1024*1024){ setM('2MB 이하 이미지로 올려 주세요','var(--red)'); return; }
-  const ext=f.type==='image/png'?'png':f.type==='image/webp'?'webp':'jpg';
-  const path=STAMP_DIR+'/'+id+'/'+Date.now()+'.'+ext;
-  setM('도장 올리는 중…');
-  const up=await sb.storage.from('report-photos').upload(path,f,{contentType:f.type,upsert:false});
-  if(up.error){ setM('도장 저장 실패: '+up.error.message,'var(--red)'); return; }
-  setM('✅ 도장을 등록했어요. 이제 이 감리원의 공사감리일지 PDF에 찍혀요.','var(--green)');
-  inp.value=''; loadStampPreview(id);
-}
-window.uploadStamp=uploadStamp;
 async function resetMemberPw(id,btn){
   const pw=(($('me-newpw')||{}).value)||'';
   const setM=(t,c)=>{ if($('m-msg')){$('m-msg').textContent=t;$('m-msg').style.color=c||'var(--mut2)';} };

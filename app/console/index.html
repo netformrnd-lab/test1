@@ -3530,14 +3530,19 @@ function gamriFormHtml(r,ov,assets){
     jijeokEmpty=!jijeok.length || jijeok.every(_isNone);
     jijeokHtml=jijeok.length?_gTeukgi(jijeok):'<span class="muted">금일 지적사항 없음</span>';
   }
-  // 사진대지: 2장씩 한 행(tr)으로 묶은 표. tr은 html2pdf가 페이지 경계에서 쪼개지 않음(잘림 방지)
+  // 사진대지: 2장씩 한 행(tr), 한 장(A4)에 5행=10장씩 따로 끊음.
+  // (한 표로 이어 붙이면 html2pdf가 행을 다음 장으로 밀 때 빈 칸 띠가 남고 다음 장 윗선이 빠짐)
   var _pcell=function(o){
     if(!o) return '<td class="pcell"></td>';
     var inner=o.src?('<img class="ph" src="'+_gEsc(o.src)+'"'+(/^data:/.test(o.src)?'':' crossorigin="anonymous"')+'>'):'<div class="pfail">사진을 불러오지 못했어요</div>';
     return '<td class="pcell"><div class="pbox">'+inner+(o.cover?'<span class="pbadge">대표</span>':'')+'</div></td>'; };
-  var photoRows='';
-  if(photos.length){ for(var _pi=0;_pi<photos.length;_pi+=2){ photoRows+='<tr>'+_pcell(photos[_pi])+_pcell(photos[_pi+1])+'</tr>'; } }
-  else { photoRows='<tr><td class="pcell" colspan="2" style="color:#888;padding:20px;text-align:center">현장 사진 없음</td></tr>'; }
+  var PER_PAGE=10, photoPages=[];
+  for(var _pg=0;_pg<photos.length;_pg+=PER_PAGE){ var _rows='';
+    for(var _pi=_pg;_pi<Math.min(_pg+PER_PAGE,photos.length);_pi+=2){ _rows+='<tr>'+_pcell(photos[_pi])+_pcell(_pi+1<_pg+PER_PAGE?photos[_pi+1]:null)+'</tr>'; }
+    photoPages.push(_rows); }
+  if(!photoPages.length) photoPages=['<tr><td class="pcell" colspan="2" style="color:#888;padding:20px;text-align:center">현장 사진 없음</td></tr>'];
+  var photoSheets=photoPages.map(function(rows,i){
+    return '<div class="paper"><div class="sheet-h">현장 점검 사진대지'+(photoPages.length>1?' ('+(i+1)+'/'+photoPages.length+')':'')+'</div><table class="pgrid">'+rows+'</table></div>'; }).join('');
   return (
   '<div class="gp-doc">'+
   '<div class="paper">'+
@@ -3556,18 +3561,18 @@ function gamriFormHtml(r,ov,assets){
     (jijeokEmpty?'':'<div class="gkeep"><div class="band">지적사항 및 처리결과</div><div class="bandbox">'+jijeokHtml+'</div></div>')+
     '<div class="paper-foot">210㎜×297㎜[일반용지 60g/㎡]</div>'+
   '</div>'+
-  '<div class="paper"><div class="sheet-h">현장 점검 사진대지</div><table class="pgrid">'+photoRows+'</table></div>'+
+  photoSheets+
   '</div>');
 }
 const GAMRI_CSS=
 '.gp-doc{font-family:"Noto Sans KR","Malgun Gothic",sans-serif;color:#111}'+
-'.gp-doc .paper{width:720px;background:#fff;padding:34px 40px;font-size:11px;line-height:1.45;page-break-after:always}'+
+'.gp-doc .paper{width:720px;background:#fff;padding:34px 40px;font-size:11px;line-height:1.45;page-break-after:always}.gp-doc .paper:last-child{page-break-after:auto}'+
 '.gp-doc .formtop{font-size:10px}.gp-doc .title{text-align:center;font-size:24px;font-weight:700;letter-spacing:.4em;margin:12px 0 14px;padding-left:.4em}'+
 '.gp-doc table{width:100%;border-collapse:collapse}'+
 '.gp-doc .t-info td{border:1px solid #111;padding:6px 9px;font-weight:500}.gp-doc .t-info .lb{width:80px;white-space:nowrap}.gp-doc .serial{height:28px}'+
 '.gp-doc .t-info .big{text-align:center;font-size:14px;letter-spacing:.3em;position:relative}.gp-doc .t-info .sign{color:#555;font-size:10px}'+
 '.gp-doc .inmark{position:relative;display:inline-block}.gp-doc .istamp{position:absolute;left:50%;top:50%;width:42px;height:42px;transform:translate(-50%,-50%);object-fit:contain;opacity:.92}'+
-'.gp-doc .pbox{position:relative}.gp-doc .pbadge{position:absolute;left:6px;top:6px;background:#2F6BF6;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px}.gp-doc .pfail{color:#888;font-size:11px}'+
+'.gp-doc .pbox{position:relative}.gp-doc .pbadge{position:absolute;left:6px;top:6px;background:#2F6BF6;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px}.gp-doc .pfail{box-sizing:border-box;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid #bbb;color:#888;font-size:11px}'+
 '.gp-doc .stampcell{position:relative}.gp-doc .stamp{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:50px;height:50px;object-fit:contain;opacity:.95}'+
 '.gp-doc .t-chk{margin-top:10px}.gp-doc .t-chk th,.gp-doc .t-chk td{border:1px solid #111;padding:6px 9px}.gp-doc .t-chk th{text-align:center;font-weight:500}.gp-doc .t-chk .cat{width:90px;text-align:center}'+
 '.gp-doc .band{background:#d9d9d9;border:1px solid #111;border-bottom:none;font-weight:500;padding:4px 9px;margin-top:10px;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}'+
@@ -3584,7 +3589,7 @@ const GAMRI_CSS=
 '.gp-doc .pgrid{width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #111;border-top:none}'+
 '.gp-doc .pgrid tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .pcell{width:50%;border:1px solid #111;border-top:none;padding:6px;vertical-align:top;break-inside:avoid;page-break-inside:avoid}'+
-'.gp-doc .pbox{width:100%;height:175px;overflow:hidden;background:#dfe3ea;display:flex;align-items:center;justify-content:center}.gp-doc .pbox .ph{max-width:100%;max-height:100%;object-fit:contain}';
+'.gp-doc .pbox{width:100%;height:170px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center}.gp-doc .pbox .ph{max-width:100%;max-height:100%;object-fit:contain}';
 /* ── PDF 사진 준비 (2026-11-20) ─────────────────────────────
    원인: ① PDF는 '저장된' cover_photos만 읽어서, 감리일지 보기 창에서 대표를 고르고 저장 전에 PDF를 누르면 사진 0장
          ② 대표만 싣고 나머지 첨부 사진은 아예 빠짐(대표 미지정이면 '현장 사진 없음')

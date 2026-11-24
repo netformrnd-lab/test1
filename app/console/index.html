@@ -3545,7 +3545,7 @@ function gamriFormHtml(r,ov,assets){
     return '<div class="paper"><div class="sheet-h">현장 점검 사진대지'+(photoPages.length>1?' ('+(i+1)+'/'+photoPages.length+')':'')+'</div><table class="pgrid">'+rows+'</table></div>'; }).join('');
   return (
   '<div class="gp-doc">'+
-  '<div class="paper">'+
+  '<div class="paper p1">'+
     '<div class="formtop">■ 건축법 시행규칙 [별지 제21호서식] &lt;개정 2021. 8. 27.&gt;</div>'+
     '<div class="title">공사감리일지</div>'+
     '<table class="t-info">'+
@@ -3557,16 +3557,27 @@ function gamriFormHtml(r,ov,assets){
     '</table>'+
     (m.worktype?'<table class="t-chk"><tr><th class="cat">공종</th><th>감리내용</th></tr><tr><td class="cat">'+_gEsc(m.worktype)+'</td><td>현장 점검 및 완료 부위 적합 여부 확인</td></tr></table>':'')+
     '<div class="band">작업사항</div><div class="bandbox">'+workHtml+'</div>'+
-    '<div class="band">특기사항</div><div class="bandbox">'+teukHtml+'</div>'+
-    (jijeokEmpty?'':'<div class="gkeep"><div class="band">지적사항 및 처리결과</div><div class="bandbox">'+jijeokHtml+'</div></div>')+
+    '<div class="band">특기사항</div><div class="bandbox'+(jijeokEmpty?' fill':'')+'">'+teukHtml+'</div>'+
+    (jijeokEmpty?'':'<div class="gkeep"><div class="band">지적사항 및 처리결과</div><div class="bandbox fill">'+jijeokHtml+'</div></div>')+
     '<div class="paper-foot">210㎜×297㎜[일반용지 60g/㎡]</div>'+
   '</div>'+
   photoSheets+
   '</div>');
 }
+/* PDF 규격: A4 210×297mm, 여백 사방 15mm → 내용 180×267mm.
+   html2pdf는 내용을 '180mm 폭 컨테이너'(=680px @96dpi)에 복제해 캡처하므로
+   .gp-doc 폭도 180mm로 맞춰야 1:1로 꽉 차게 들어감(예전: 720px+좌우 여백 80px → 컨테이너보다 넓어 오른쪽이 잘리고 왼쪽 위로 쏠림).
+   html2canvas windowWidth는 지정하지 않음(기본=창 폭): html2pdf 컨테이너가 창 가운데에 놓여 있어서
+   좁게 지정하면 캡처 위치가 어긋나 왼쪽이 잘림.
+   장마다 위 6px 띄움: 캔버스 한 장 높이(1009.4px)와 html2pdf 장 나눔 계산(1009px)의 반올림 차이로
+   다음 장 첫 선이 앞 장 맨 아래에 비치는 것 방지.
+   장 나눔은 '사진대지 앞에서 끊기(before)'로: html2pdf는 부모를 자식보다 먼저 계산해서
+   첫 장에 'after'를 걸면 긴 특기사항이 다음 장으로 밀려도 반영이 안 돼 사진대지가 장 중간에서 시작했음.
+   사진대지 한 장 = 위 6px + 제목 + 5행(사진 칸 180px) ≈ 1000px ≤ 267mm(1009px) */
+const GAMRI_PDF_MARGIN=[15,15,15,15];
 const GAMRI_CSS=
-'.gp-doc{font-family:"Noto Sans KR","Malgun Gothic",sans-serif;color:#111}'+
-'.gp-doc .paper{width:720px;background:#fff;padding:34px 40px;font-size:11px;line-height:1.45;page-break-after:always}.gp-doc .paper:last-child{page-break-after:auto}'+
+'.gp-doc{width:180mm;background:#fff;font-family:"Noto Sans KR","Malgun Gothic",sans-serif;color:#111}'+
+'.gp-doc .paper{box-sizing:border-box;width:100%;background:#fff;padding:6px 0 0;font-size:11px;line-height:1.45}.gp-doc .paper+.paper{break-before:page;page-break-before:always}'+
 '.gp-doc .formtop{font-size:10px}.gp-doc .title{text-align:center;font-size:24px;font-weight:700;letter-spacing:.4em;margin:12px 0 14px;padding-left:.4em}'+
 '.gp-doc table{width:100%;border-collapse:collapse}'+
 '.gp-doc .t-info td{border:1px solid #111;padding:6px 9px;font-weight:500}.gp-doc .t-info .lb{width:80px;white-space:nowrap}.gp-doc .serial{height:28px}'+
@@ -3583,13 +3594,13 @@ const GAMRI_CSS=
 '.gp-doc .bandbox ul{list-style:none;margin:2px 0;padding:0}.gp-doc .bandbox li{position:relative;padding-left:13px;line-height:1.6;break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .bandbox .bt{break-after:avoid;page-break-after:avoid}.gp-doc .t-info tr,.gp-doc .t-chk tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .bandbox li.dot::before{content:"·";position:absolute;left:3px;font-weight:700}.gp-doc .bandbox li:not(.dot)::before{content:"▪";position:absolute;left:1px;font-size:8px;top:2px}'+
-'.gp-doc .muted{color:#888}.gp-doc .paper-foot{text-align:right;font-size:9px;margin-top:12px}'+
+'.gp-doc .muted{color:#888}.gp-doc .paper-foot{text-align:right;font-size:9px;margin-top:4px}'+
 '.gp-doc .sheet-h{background:#d9d9d9;border:1px solid #111;font-weight:500;padding:5px 10px;border-bottom:2px solid #111}'+
 '.gp-doc .gkeep{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .pgrid{width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #111;border-top:none}'+
 '.gp-doc .pgrid tr{break-inside:avoid;page-break-inside:avoid}'+
 '.gp-doc .pcell{width:50%;border:1px solid #111;border-top:none;padding:6px;vertical-align:top;break-inside:avoid;page-break-inside:avoid}'+
-'.gp-doc .pbox{width:100%;height:170px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center}.gp-doc .pbox .ph{max-width:100%;max-height:100%;object-fit:contain}';
+'.gp-doc .pbox{width:100%;height:180px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center}.gp-doc .pbox .ph{max-width:100%;max-height:100%;object-fit:contain}';
 /* ── PDF 사진 준비 (2026-11-20) ─────────────────────────────
    원인: ① PDF는 '저장된' cover_photos만 읽어서, 감리일지 보기 창에서 대표를 고르고 저장 전에 PDF를 누르면 사진 0장
          ② 대표만 싣고 나머지 첨부 사진은 아예 빠짐(대표 미지정이면 '현장 사진 없음')
@@ -3657,6 +3668,14 @@ async function gamriImagesReady(host){
 function _loadHtml2pdf(){ if(window.html2pdf)return Promise.resolve(); if(window._h2pP)return window._h2pP;
   window._h2pP=new Promise(function(res,rej){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   return window._h2pP; }
+/* 첫 장: 내용이 짧아도 서식이 A4 한 장 아래까지 차도록 마지막 칸(특기사항 또는 지적사항) 높이를 늘림.
+   (flex로 늘리면 html2pdf 장 나눔 계산이 어긋나서 JS로 재서 min-height만 줌. 내용이 한 장을 넘으면 손대지 않음) */
+const GAMRI_PAGE_PX=1000;   // 267mm(1009px) - 여유
+function gamriFitFirstPage(host){
+  var p1=host.querySelector('.paper.p1'), box=p1&&p1.querySelector('.fill'); if(!box) return;
+  var gap=GAMRI_PAGE_PX-p1.getBoundingClientRect().height;
+  if(gap>0){ box.style.boxSizing='border-box'; box.style.minHeight=Math.floor(box.getBoundingClientRect().height+gap)+'px'; }
+}
 async function genGamriPdf(id,btn,ov){
   const r=REPORTS.find(x=>x.id===id); if(!r){alert('감리일지를 찾지 못했어요');return;}
   if(btn){btn.disabled=true;var _t=btn.textContent;btn.textContent='생성 중…';}
@@ -3667,12 +3686,12 @@ async function genGamriPdf(id,btn,ov){
     var assets=await gamriPdfAssets(r,'all',function(d,t){ if(btn)btn.textContent='사진 준비 중… ('+d+'/'+t+')'; });
     if(btn)btn.textContent='생성 중…';
     var host=document.createElement('div');
-    host.style.cssText='position:fixed;left:-9999px;top:0;width:720px;background:#fff';
+    host.style.cssText='position:fixed;left:-9999px;top:0;width:180mm;background:#fff';
     host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r,ov,assets);
     document.body.appendChild(host);
-    await gamriImagesReady(host);
+    await gamriImagesReady(host); gamriFitFirstPage(host);
     var fname=(m.site||'현장')+'_'+(m.round||'')+'_공사감리일지.pdf';
-    await html2pdf().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.9},
+    await html2pdf().set({margin:GAMRI_PDF_MARGIN,filename:fname,image:{type:'jpeg',quality:0.9},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
       pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt','.gkeep']}}).from(host.querySelector('.gp-doc')).save();
@@ -3687,12 +3706,12 @@ async function genGamriPdfBlob(r,ov){
   await _loadHtml2pdf();
   var assets=await gamriPdfAssets(r,'cover');   // 입주민 공개용: 공개 범위 그대로(저장된 대표만)
   var host=document.createElement('div');
-  host.style.cssText='position:fixed;left:-9999px;top:0;width:720px;background:#fff';
+  host.style.cssText='position:fixed;left:-9999px;top:0;width:180mm;background:#fff';
   host.innerHTML='<style>'+GAMRI_CSS+'</style>'+gamriFormHtml(r,ov,assets);
   document.body.appendChild(host);
   try{
-    await gamriImagesReady(host);
-    return await html2pdf().set({margin:[8,8,8,8],image:{type:'jpeg',quality:0.9},
+    await gamriImagesReady(host); gamriFitFirstPage(host);
+    return await html2pdf().set({margin:GAMRI_PDF_MARGIN,image:{type:'jpeg',quality:0.9},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
       pagebreak:{mode:['css','legacy'],avoid:['li','tr','.pcell','.bt','.gkeep']}}).from(host.querySelector('.gp-doc')).outputPdf('blob');

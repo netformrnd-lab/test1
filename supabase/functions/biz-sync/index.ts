@@ -184,6 +184,22 @@ Deno.serve(async (req) => {
       log("pull", "link", `그쪽 계약과 자동 연결: ${name}`, { ref: m.ourId, site: aptOf(c.apartment_id).name });
     }
 
+    // ③-a 그쪽 계약 phase 에 이미 걸린 요청(운영본부가 그쪽 화면에서 직접 올린 과거 건 포함) → 우리 항목에 연결. PUSH 보다 먼저 해서 중복 요청을 막는다
+    const attachFromPhases = () => {
+      for (const c of contracts) {
+        if (!c.biz_contract_id) continue;
+        const t = theirContracts.find((x) => x.id === c.biz_contract_id); if (!t) continue;
+        for (const ph of ["downPayment", "interimPayment", "finalPayment"]) {
+          const invId = t[ph] && t[ph].invoiceId; if (!invId) continue;
+          for (const kind of KIND_OF_PHASE[ph]) {
+            const it = items.find((i) => i.site_contract_id === c.id && i.kind === kind);
+            if (it && !it.biz_request_id) { it.biz_request_id = String(invId); it._attached = true; }
+          }
+        }
+      }
+    };
+    attachFromPhases();
+
     // ④ PUSH — 전송 대기 청구 (묶음은 biz_group 으로 한 번에)
     const pending = items.filter((i) => i.biz_push === "pending");
     const groups = new Map<string, Json[]>();
@@ -199,6 +215,14 @@ Deno.serve(async (req) => {
         if (!partner) { await fail("거래처가 지정되지 않아 전송하지 못함 (계약 건 수정에서 거래처 선택)"); continue; }
         if (!partner.name) { await fail("거래처 정식 상호가 비어 있음"); continue; }
         const requestKind = grp.length > 1 ? "downAndFinal" : (grp[0].request_kind && grp[0].request_kind !== "downAndFinal" ? grp[0].request_kind : grp[0].kind);
+        // 중복 방지: 그쪽에 이미 같은 단계의 요청이 있으면(과거에 수기로 올린 건) 새로 만들지 않고 그 요청에 연결만 한다
+        const already = grp.map((g) => g.biz_request_id).find(Boolean);
+        if (already) {
+          await db.from("receivable_items").update({ biz_push: "sent", biz_push_at: now, biz_error: null, biz_request_id: String(already), biz_synced_at: now }).in("id", grp.map((g) => g.id));
+          grp.forEach((g) => { g.biz_push = "sent"; g.biz_request_id = String(already); });
+          log("push", "attach-existing", `그쪽에 이미 ${KIND_LBL[requestKind]} 요청이 있어 새로 만들지 않고 연결함`, { ref: String(already), site: apt.name });
+          continue;
+        }
         const amounts = itemAmounts(c.contract_amount, ratioOf(c));
         const pItems = grp.map((i) => ({ id: i.id, kind: i.kind, amount: amountOf(c, i), request_memo: i.request_memo, request_by: i.request_by, request_at: i.request_at }));
         if (pItems.reduce((s, i) => s + i.amount, 0) <= 0) { await fail("청구 금액이 0원 (계약금액·지급 비율 확인)"); continue; }
@@ -248,18 +272,7 @@ Deno.serve(async (req) => {
       } catch (e) { await fail("전송 실패: " + ((e as Error).message || String(e))); }
     }
 
-    // ③ PULL — 그쪽 계약 phase 의 요청(사람이 그쪽에서 직접 올린 것 포함) → 우리 항목에 연결
-    for (const c of contracts) {
-      if (!c.biz_contract_id) continue;
-      const t = theirContracts.find((x) => x.id === c.biz_contract_id); if (!t) continue;
-      for (const ph of ["downPayment", "interimPayment", "finalPayment"]) {
-        const invId = t[ph] && t[ph].invoiceId; if (!invId) continue;
-        for (const kind of KIND_OF_PHASE[ph]) {
-          const it = items.find((i) => i.site_contract_id === c.id && i.kind === kind);
-          if (it && !it.biz_request_id) { it.biz_request_id = String(invId); it._attached = true; }
-        }
-      }
-    }
+    // ③-b 연결된 요청의 상태·발행일·입금 → 우리 항목
     const byReq = new Map<string, Json[]>();
     for (const i of items) if (i.biz_request_id) (byReq.get(i.biz_request_id) || byReq.set(i.biz_request_id, []).get(i.biz_request_id)!).push(i);
     const depCache = new Map<string, TheirDeposit | null>();

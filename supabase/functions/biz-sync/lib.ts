@@ -210,11 +210,12 @@ export function phasePatch(existing: Record<string, Json>, requestKind: string, 
 export const SYNC_BY = "경영지원 연동";
 export interface OurItem {
   id: string; kind: string; amount: number;
+  request_at?: string | null; request_by?: string | null;
   invoice_at?: string | null; invoice_amount?: number | null; invoice_by?: string | null;
   paid_at?: string | null; paid_amount?: number | null; paid_by?: string | null; status?: string | null;
   biz_request_id?: string | null; biz_request_no?: string | null; biz_request_status?: string | null; biz_reject_reason?: string | null; biz_deposit_ids?: Json;
 }
-export interface TheirRequest { id: string; requestNumber?: string; status?: string; issueDate?: string | null; totalAmount?: number; rejectReason?: string | null; cancelReason?: string | null; matchedDepositId?: string | null; matchedDepositIds?: string[] | null; linkedContractPhase?: string | null }
+export interface TheirRequest { id: string; requestNumber?: string; status?: string; createdAt?: string | null; issueDate?: string | null; totalAmount?: number; rejectReason?: string | null; cancelReason?: string | null; matchedDepositId?: string | null; matchedDepositIds?: string[] | null; linkedContractPhase?: string | null }
 export interface TheirDeposit { id: string; depositDate?: string; amount?: number }
 
 export function depositIdsOf(r: TheirRequest): string[] {
@@ -241,6 +242,8 @@ export function applyRequestToItems(items: OurItem[], r: TheirRequest, deposits:
     set("biz_request_no", r.requestNumber || null);
     set("biz_request_status", st);
     set("biz_reject_reason", st === "반려" ? (r.rejectReason || null) : (st === "취소" ? (r.cancelReason || "취소") : null));
+    // 그쪽에서 먼저 요청·발행된 건(우리 청구 요청일이 비어 있음) → 그쪽 요청일을 기준일로 채워 '청구 필요'에서 빠지고 회수 알림이 이어지게
+    if (!i.request_at && st !== "취소" && (r.createdAt || r.issueDate)) { set("request_at", String(r.createdAt || r.issueDate).slice(0, 10)); set("request_by", SYNC_BY); set("request_kind", r.linkedContractPhase === "downAndFinal" ? "downAndFinal" : i.kind); }
     const invOurs = !i.invoice_by || i.invoice_by === SYNC_BY;
     if (invOurs) {
       if (issued) { set("invoice_at", String(r.issueDate).slice(0, 10)); set("invoice_amount", invShare[idx]); set("invoice_by", SYNC_BY); }
